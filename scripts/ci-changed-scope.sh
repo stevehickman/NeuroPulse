@@ -56,6 +56,13 @@
 #       Print the revision to diff <head> against, or NOTHING when the scope of
 #       the change is unknown (the caller then builds).  See np_diff_base.
 #
+#   ci-changed-scope.sh --last-green-base <head> <candidates-file>
+#       Print the nearest commit in <candidates-file> (one sha per line: heads
+#       whose run of THIS workflow concluded `success`) that is a proper
+#       ancestor of <head>, or NOTHING.  The caller diffs from it instead of the
+#       merge base, so a job that already passed is not re-run for files it has
+#       already verified.  See np_last_green_base.
+#
 # Pattern files may contain blank lines and `#` comments, so the relevance list
 # can carry its reasoning inline next to the entries it explains.
 #
@@ -193,6 +200,49 @@ np_diff_base() {
   return 0
 }
 
+# np_last_green_base <head> <candidates-file>
+# Print the nearest proper ancestor of <head> named in <candidates-file>.
+#
+# <candidates-file> lists commits whose run of the calling workflow concluded
+# `success` — the CALLER fetches them (the API is not this script's business).
+# This function only decides which of them may be trusted as a diff base, and
+# every refusal is the safe direction (print nothing, the caller diffs from the
+# merge base and builds everything the PR touches):
+#
+#   * not a commit in this clone      a force-pushed-away head, or garbage
+#   * <head> itself                   a re-run; nothing was verified before it
+#   * not an ancestor of <head>       a force-push replaced it; what it verified
+#                                     is no longer part of this tree
+#
+# "Nearest" is the fewest commits between it and <head>, which is the smallest
+# diff.  Any ancestor would be sound; the nearest is the cheapest.
+#
+# Why this is sound (inductively): the first run on a branch has no candidate
+# and diffs the whole branch against the merge base.  A later run diffs from a
+# commit whose own run succeeded, so every file changed since is examined, and
+# files changed earlier were examined by a run that passed.  A run that FAILED
+# is never a candidate, so the files it examined stay in the next diff until a
+# run passes.  A run that was skipped as irrelevant concluded `success` having
+# built nothing, and is a valid base for exactly that reason: nothing it
+# skipped was in scope.
+np_last_green_base() {
+  head=$1 candidates=$2
+  [ -f "$candidates" ] || np_die "candidates file not found: $candidates"
+  head_sha=$(git rev-parse --verify -q "${head}^{commit}" 2>/dev/null) || return 0
+
+  best="" best_n=""
+  while IFS= read -r c || [ -n "$c" ]; do
+    [ -n "$c" ] || continue
+    sha=$(git rev-parse --verify -q "${c}^{commit}" 2>/dev/null) || continue
+    [ "$sha" != "$head_sha" ] || continue
+    git merge-base --is-ancestor "$sha" "$head_sha" 2>/dev/null || continue
+    n=$(git rev-list --count "${sha}..${head_sha}")
+    if [ -z "$best" ] || [ "$n" -lt "$best_n" ]; then best=$sha; best_n=$n; fi
+  done < "$candidates"
+  [ -z "$best" ] || printf '%s\n' "$best"
+  return 0
+}
+
 # ── Self-test ─────────────────────────────────────────────────────────────────
 # These assert the matcher's semantics, not that it "ran".  The prefix-boundary
 # and the literal-dot cases are the two that a plausible-looking implementation
@@ -234,6 +284,21 @@ np_st_diff() {
   fi
   if [ "$got" != "$want" ]; then
     printf 'FAIL diff-base-%s: expected [%s], got [%s]\n' "$label" "$want" "$got" >&2
+    np_st_fail=$((np_st_fail + 1))
+  fi
+}
+
+
+# np_st_green <label> <expected sha | NONE> <head> <candidate shas...>
+np_st_green() {
+  label=$1 want=$2 head=$3
+  shift 3
+  : > green.cands
+  for c in "$@"; do printf '%s\n' "$c" >> green.cands; done
+  got=$(np_last_green_base "$head" green.cands)
+  [ -n "$got" ] || got=NONE
+  if [ "$got" != "$want" ]; then
+    printf 'FAIL last-green-%s: expected [%s], got [%s]\n' "$label" "$want" "$got" >&2
     np_st_fail=$((np_st_fail + 1))
   fi
 }
@@ -280,6 +345,23 @@ np_self_test_diff_base() {
   # the old behaviour, and shows the defect: main's script, not the branch's doc.
   git update-ref -d refs/remotes/origin/main
   np_st_diff no-origin        'scripts/s.ts' push "$before" "$merge" main refs/heads/feature
+  # ── last-green base ──
+  # An orphan commit: it exists in the clone but is no ancestor of the head, which
+  # is what a force-pushed-away head looks like.
+  orphan=$(GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t \
+    GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t \
+    git commit-tree -m orphan "$(git rev-parse "${merge}^{tree}")")
+  np_st_green nearest       "$before" "$merge" "$root" "$before"
+  np_st_green order-free    "$before" "$merge" "$before" "$root"
+  np_st_green only-head     NONE      "$merge" "$merge"
+  np_st_green orphan        NONE      "$merge" "$orphan"
+  np_st_green orphan-skips  "$root"   "$merge" "$orphan" "$root"
+  np_st_green missing       NONE      "$merge" "$zero" "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  np_st_green empty         NONE      "$merge"
+  np_st_green unknown-head  NONE      "$zero" "$root"
+  # A descendant of the head is not a base: the head would then be diffed
+  # BACKWARDS, and a force-push to an older commit would verify nothing.
+  np_st_green descendant    NONE      "$before" "$merge"
   popd >/dev/null
 }
 
@@ -391,7 +473,11 @@ case ${1:-} in
     [ $# -eq 6 ] || np_die "usage: --diff-base <event> <event-base> <head> <default-branch> <ref>"
     np_diff_base "$2" "$3" "$4" "$5" "$6"
     ;;
+  --last-green-base)
+    [ $# -eq 3 ] || np_die "usage: --last-green-base <head> <candidates-file>"
+    np_last_green_base "$2" "$3"
+    ;;
   *)
-    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files> | --diff-base <event> <event-base> <head> <default-branch> <ref>"
+    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files> | --diff-base <event> <event-base> <head> <default-branch> <ref> | --last-green-base <head> <candidates>"
     ;;
 esac
