@@ -156,3 +156,30 @@ enum NPLibraryRules {
                                onlyHelmet: (diff["onlyB"] as? [Any])?.count ?? 0)
     }
 }
+
+// What the helmet's upload report means to the library's upload rule (`SWR-UP-02`). The words here are the rule's codes
+// ("accepted", "tier"), not text for a person, so they live beside the other core calls and not in the covered UI tree.
+extension UploadCheck {
+    /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. A refusal
+    /// for the hardware version or an unmodified clone is not made by the hub (not decided), so no code names it.
+    private static let tierRefusalCodes: Set<Int> = [19, 20]
+
+    /// The `helmetRefusal` the library's upload rule takes for this refusal, or nil when it is none of the three it names.
+    var refusalKind: String? {
+        status == .refused && Self.tierRefusalCodes.contains(reason) ? "tier" : nil
+    }
+}
+
+extension UploadVerdict {
+    /// The verdict from the last report the helmet gave (nil if it never gave one). A final report (accepted or refused)
+    /// is passed on with its hash; the library compares that hash with the one the app sent, so a final report for other
+    /// bytes is a failed upload and not a guess here. No report, an empty one or one still pending is no answer, which the
+    /// library treats as unknown (`SWR-UP-03`).
+    static func of(_ check: UploadCheck?) -> UploadVerdict {
+        guard let check, check.status == .accepted || check.status == .refused else {
+            return UploadVerdict(helmetStatus: nil, helmetHash: nil, helmetRefusal: nil)
+        }
+        return UploadVerdict(helmetStatus: check.status == .accepted ? "accepted" : "refused",
+                             helmetHash: check.receivedHash, helmetRefusal: check.refusalKind)
+    }
+}

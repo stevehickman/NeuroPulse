@@ -5,8 +5,12 @@ import life.neurone.core.models.CervicalPadStatus
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.HubSessionState
 import life.neurone.core.models.PacerPhase
+import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.RampPhase
 import life.neurone.core.models.SessionProgress
+import life.neurone.core.models.UploadCheck
+import life.neurone.core.models.UploadCheckStatus
+import life.neurone.core.models.UploadVerdict
 import life.neurone.core.models.SessionStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -286,5 +290,88 @@ class GattParserTests {
         assertEquals(false, active(0))
         assertEquals(false, active(6))
         assertEquals(false, active(7))
+    }
+
+    // @verifies SWR-HV-06
+    @Test
+    fun parseHardwareVersionReadsOneByteFromOneToFifteen() {
+        for (v in 1..15) assertEquals(v, GattParser.parseHardwareVersion(byteArrayOf(v.toByte())))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(0)), "an upper nibble of 0 is malformed")
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(16)), "at most 16 versions exist, numbered 1 to 15 here")
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(-1)))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf()))
+        assertNull(GattParser.parseHardwareVersion(byteArrayOf(1, 1)), "exactly one byte")
+    }
+
+    private fun uploadFrame(status: Int, reason: Int, hash: ByteArray): ByteArray = byteArrayOf(status.toByte(), reason.toByte()) + hash
+
+    // @verifies SWR-UP-01
+    @Test
+    fun parseUploadCheckDecodesStatusReasonAndHash() {
+        val hash = ByteArray(32) { it.toByte() }
+        val c = GattParser.parseUploadCheck(uploadFrame(1, 0, hash))!!
+        assertEquals(UploadCheckStatus.ACCEPTED, c.status)
+        assertEquals(0, c.reason)
+        assertEquals("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", c.receivedHash)
+    }
+
+    // @verifies SWR-UP-01
+    @Test
+    fun theHashOfTheSentBytesIsTheSha256InTheFormTheHelmetReports() {
+        // FIPS 180-4: SHA-256("abc"), the vector the hub's own test uses.
+        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", UploadCheck.hashOf("abc".encodeToByteArray()))
+    }
+
+    // @verifies SWR-UP-01
+    @Test
+    fun aMalformedUploadCheckIsDroppedWhole() {
+        assertNull(GattParser.parseUploadCheck(ByteArray(33)))
+        assertNull(GattParser.parseUploadCheck(ByteArray(35)))
+        assertNull(GattParser.parseUploadCheck(uploadFrame(9, 0, ByteArray(32))), "an unknown status")
+    }
+
+    // @verifies SWR-UP-02
+    @Test
+    fun aTierRefusalIsNamedAndOtherRefusalsAreNot() {
+        assertEquals("tier", GattParser.parseUploadCheck(uploadFrame(2, 19, ByteArray(32)))!!.refusalKind)
+        assertEquals("tier", GattParser.parseUploadCheck(uploadFrame(2, 20, ByteArray(32)))!!.refusalKind)
+        assertNull(GattParser.parseUploadCheck(uploadFrame(2, 6, ByteArray(32)))!!.refusalKind, "a bad signature is a failure, not a tier")
+        assertNull(GattParser.parseUploadCheck(uploadFrame(1, 19, ByteArray(32)))!!.refusalKind, "only a refusal has a refusal kind")
+    }
+
+    // @verifies SWR-UP-03
+    @Test
+    fun noReportAnEmptyOneOrAPendingOneIsNoAnswer() {
+        val none = UploadVerdict(null, null, null)
+        assertEquals(none, UploadVerdict.of(null))
+        assertEquals(none, UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(0, 0, ByteArray(32)))))
+        assertEquals(none, UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(3, 0, ByteArray(32)))))
+        val accepted = UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(1, 0, ByteArray(32))))
+        assertEquals("accepted", accepted.helmetStatus)
+    }
+
+    // @verifies SWR-SS-05
+    @Test
+    fun theOwnersPauseLimitIsALittleEndianUint32OfSecondsAndZeroIsNoLimit() {
+        assertEquals(0L, GattParser.parsePauseLimit(byteArrayOf(0, 0, 0, 0)))
+        assertEquals(PauseLimit.NO_LIMIT_SECONDS, GattParser.parsePauseLimit(byteArrayOf(0, 0, 0, 0)))
+        assertEquals(300L, GattParser.parsePauseLimit(byteArrayOf(0x2C, 0x01, 0, 0)))
+        assertEquals(0xFFFF_FFFFL, GattParser.parsePauseLimit(byteArrayOf(-1, -1, -1, -1)), "no sign extension")
+        assertNull(GattParser.parsePauseLimit(byteArrayOf(1, 2, 3)))
+        assertNull(GattParser.parsePauseLimit(byteArrayOf(1, 2, 3, 4, 5)))
+    }
+
+    // @verifies SWR-SS-05
+    @Test
+    fun aPauseLimitRoundTripsAndOneThatDoesNotFitTheHelmetIsRefused() {
+        for (seconds in listOf(0L, 1L, 60L, 3_600L, 0xFFFF_FFFFL)) {
+            assertEquals(seconds, GattParser.parsePauseLimit(PauseLimit.toWire(seconds)!!))
+        }
+        assertNull(PauseLimit.toWire(-1L))
+        assertNull(PauseLimit.toWire(0x1_0000_0000L))
+        assertEquals(1_800L, PauseLimit.secondsOfMinutes(30))
+        assertEquals(0L, PauseLimit.secondsOfMinutes(0), "0 minutes is no limit")
+        assertNull(PauseLimit.secondsOfMinutes(-1))
+        assertNull(PauseLimit.secondsOfMinutes(Long.MAX_VALUE), "a number of minutes that overflows seconds is refused, not wrapped")
     }
 }

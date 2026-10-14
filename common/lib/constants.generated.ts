@@ -222,6 +222,9 @@ export const GattIds = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds,
   // before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: 0x001B,
+  // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record; 1 when it
+  // holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field writes it.
+  HARDWARE_VERSION_ID: 0x001C,
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask (SWR-SS-07).
   SESSION_PROGRESS_ID: 0x0019,
 } as const;
@@ -284,6 +287,10 @@ export const GattUuidStrings = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
   // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: "4e455550-001b-1000-8000-00805f9b34fb",
+  // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
+  // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
+  // writes it.
+  HARDWARE_VERSION_ID: "4e455550-001c-1000-8000-00805f9b34fb",
   // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
   // (SWR-SS-07).
   SESSION_PROGRESS_ID: "4e455550-0019-1000-8000-00805f9b34fb",
@@ -298,6 +305,8 @@ export const GattSizes = {
   UPLOAD_CHECK_LEN: 34,
   // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
   PAUSE_LIMIT_LEN: 4,
+  // HARDWARE_VERSION: one byte, 1 to 15.
+  HARDWARE_VERSION_LEN: 1,
   // SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B remaining ms, 4 B
   // total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1 B ramp percent, 4 B ramp
   // remaining ms (0xFFFFFFFF unknown) (all little-endian).

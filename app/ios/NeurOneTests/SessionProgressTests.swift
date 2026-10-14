@@ -104,4 +104,78 @@ final class SessionProgressTests: XCTestCase {
         manager.applyDisconnection()
         XCTAssertNil(manager.progress)
     }
+
+    // @verifies SWR-HV-07
+    @MainActor
+    func testAHelmetThatStatesNoVersionIsVersionOne() {
+        XCTAssertEqual(NeurOneGATTManager(mockCentral: InertBLECentral()).hardwareVersion, 1)
+    }
+
+    // @verifies SWR-HV-06
+    @MainActor
+    func testTheVersionTheHelmetReportsIsUsedAndABadByteIsNotBelieved() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        manager.applyHardwareVersion(Data([2]))
+        XCTAssertEqual(manager.hardwareVersion, 2)
+        manager.applyHardwareVersion(Data([0]))
+        XCTAssertEqual(manager.hardwareVersion, 2, "an out-of-range byte changes nothing")
+        manager.applyHardwareVersion(Data([16]))
+        XCTAssertEqual(manager.hardwareVersion, 2)
+        manager.applyHardwareVersion(Data([3, 3]))
+        XCTAssertEqual(manager.hardwareVersion, 2, "a frame of the wrong length changes nothing")
+        manager.applyHardwareVersion(Data([15]))
+        XCTAssertEqual(manager.hardwareVersion, 15)
+    }
+
+    // @verifies SWR-HV-06
+    @MainActor
+    func testTheNextLinkMayBeAnotherHelmetSoADroppedLinkForgetsTheVersion() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        manager.applyHardwareVersion(Data([5]))
+        manager.applyDisconnection()
+        XCTAssertEqual(manager.hardwareVersion, 1)
+    }
+
+    // @verifies SWR-SS-05
+    func testThePauseLimitIsALittleEndianUint32OfSecondsAndZeroIsNoLimit() {
+        XCTAssertEqual(PauseLimit.seconds(fromWire: Data([0, 0, 0, 0])), 0)
+        XCTAssertEqual(PauseLimit.noLimitSeconds, 0)
+        XCTAssertEqual(PauseLimit.seconds(fromWire: Data([0x2C, 0x01, 0, 0])), 300)
+        XCTAssertEqual(PauseLimit.seconds(fromWire: Data([0xFF, 0xFF, 0xFF, 0xFF])), UInt32.max)
+        XCTAssertNil(PauseLimit.seconds(fromWire: Data([1, 2, 3])))
+        XCTAssertNil(PauseLimit.seconds(fromWire: Data([1, 2, 3, 4, 5])))
+    }
+
+    // @verifies SWR-SS-05
+    func testAPauseLimitRoundTripsAndMinutesThatOverflowAreRefused() {
+        for seconds: UInt32 in [0, 1, 60, 3_600, UInt32.max] {
+            XCTAssertEqual(PauseLimit.seconds(fromWire: PauseLimit.wire(seconds: seconds)), seconds)
+        }
+        XCTAssertEqual(PauseLimit.wire(seconds: 1_800), Data([0x08, 0x07, 0, 0]))
+        XCTAssertEqual(PauseLimit.seconds(ofMinutes: 30), 1_800)
+        XCTAssertEqual(PauseLimit.seconds(ofMinutes: 0), 0, "0 minutes is no limit")
+        XCTAssertNil(PauseLimit.seconds(ofMinutes: UInt32.max), "a number of minutes that overflows seconds is refused, not wrapped")
+    }
+
+    // @verifies SWR-SS-05
+    @MainActor
+    func testTheManagerShowsTheHelmetsLimitAndAMalformedFrameOrADroppedLinkClearsIt() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        XCTAssertNil(manager.pauseLimitSeconds)
+        manager.applyPauseLimit(Data([0x2C, 0x01, 0, 0]))
+        XCTAssertEqual(manager.pauseLimitSeconds, 300)
+        manager.applyPauseLimit(Data([1, 2, 3]))
+        XCTAssertNil(manager.pauseLimitSeconds, "a malformed frame is not believed")
+        manager.applyPauseLimit(Data([60, 0, 0, 0]))
+        manager.applyDisconnection()
+        XCTAssertNil(manager.pauseLimitSeconds)
+        XCTAssertFalse(manager.pauseLimitPublished)
+    }
+
+    // @verifies SWR-SS-05
+    @MainActor
+    func testAHelmetThatPublishesNoLimitTakesNoWrite() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        XCTAssertFalse(manager.writePauseLimit(seconds: 600))
+    }
 }

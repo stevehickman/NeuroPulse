@@ -40,6 +40,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val connectionState by gatt.connectionState.collectAsState()
     val session by gatt.session.collectAsState()
     val progress by gatt.progress.collectAsState()
+    val hardwareVersion by gatt.hardwareVersion.collectAsState()
     val cervicalPadAlert by gatt.cervicalPadAlert.collectAsState()
     val cervicalFaultStatus by gatt.cervicalFaultStatus.collectAsState()
     val unreadCervicalFaults by gatt.unacknowledgedCervicalFaults.collectAsState()
@@ -87,6 +88,18 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             is ProtocolUploader.Result.CervicalRestartBlocked -> cervicalBlocked
             is ProtocolUploader.Result.DifferentPersonConfirmationRequired -> differentPersonBody
         }
+        // SWR-UP-01/-02: the upload is not over when the last chunk is written. The helmet's report decides whether it
+        // holds the protocol, and the library marks the family used for a confirmed or an unknown outcome, never for a
+        // refusal before sending (SWR-UP-02). A refusal before sending (the compile failed, the cervical gate held it)
+        // marks nothing.
+        if (result is ProtocolUploader.Result.Success) {
+            scope.launch {
+                val verdict = uploader.verify(result.sentHash)
+                services.protocolLibrary.recordUploadResult(
+                    entry, result.sentHash, verdict.helmetStatus, verdict.helmetHash, verdict.helmetRefusal,
+                )
+            }
+        }
         scope.launch { snackbar.showSnackbar(message) }
         showMenu = false
     }
@@ -131,6 +144,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             limits = services.limitsStore.resolvedLimits,
             onSelect = { entry -> uploadAndReport(entry) },
             onBack = { showMenu = false },
+            helmetHardwareVersion = hardwareVersion,
             modifier = modifier,
         )
     } else {

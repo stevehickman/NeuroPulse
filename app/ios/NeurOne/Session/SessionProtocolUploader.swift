@@ -68,13 +68,42 @@ final class SessionProtocolUploader: ObservableObject {
     // gateway read from the hub's DEVICE_SERIAL characteristic (OI-AND-WIRE-02); nil on both is
     // bench-only, since a hub with a provisioned serial refuses the descriptor. `clinicianSockets` is the operator's choice for
     // `clinician_selected` PBM targets.
+    //
+    // Returns the SHA-256 of the exact bytes sent, which `verify` waits for the hub to echo (SWR-UP-01).
+    @discardableResult
     func upload(_ definition: NPProtocolDefinition,
                 deviceSerial: Data? = nil,
                 clinicianSockets: [Int]? = nil,
-                acknowledgedCautions: [String] = []) async throws {
+                acknowledgedCautions: [String] = []) async throws -> String {
         try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
                                            clinicianSockets: clinicianSockets,
                                            acknowledgedCautions: acknowledgedCautions))
+    }
+
+    /// The helmet's hardware version, which the library's upload gate compares with the protocol's layouts (SWR-HV-04).
+    var helmetHardwareVersion: Int { gatt.hardwareVersion }
+
+    /// Wait for the hub's report of the upload whose bytes hash to `sentHash` (SWR-UP-01, SWR-UP-03). The app reads
+    /// UPLOAD_CHECK every `pollNanos` for up to `timeoutNanos` and never sends the protocol again: an upload that has not
+    /// been answered is resolved by reading the hub and not by a second write. A report is for this upload when it is
+    /// accepted or refused and carries `sentHash`. If none arrives in time, the last report is passed on as it is: a final
+    /// report with another hash means the hub holds other bytes (a truncated or altered upload), and no report, an empty or
+    /// a pending one is no answer. What each of those means for the used mark is the library's rule
+    /// (`NPProtocolLibrary.recordUploadResult`), not decided here.
+    func verify(sentHash: String,
+                timeoutNanos: UInt64 = 10_000_000_000,
+                pollNanos: UInt64 = 500_000_000) async -> UploadVerdict {
+        var waited: UInt64 = 0
+        while true {
+            gatt.requestUploadCheck()
+            try? await Task.sleep(nanoseconds: pollNanos)
+            waited += pollNanos
+            let check = gatt.uploadCheck
+            let forThisUpload = check.map {
+                $0.receivedHash == sentHash && ($0.status == .accepted || $0.status == .refused)
+            } ?? false
+            if forThisUpload || waited >= timeoutNanos || Task.isCancelled { return UploadVerdict.of(check) }
+        }
     }
 
     /// What the author must acknowledge before `upload` or `programAutonomous` will compile this protocol
@@ -122,7 +151,7 @@ final class SessionProtocolUploader: ObservableObject {
     // buildDescriptor's checks — including the cervical gate — and the protocol menu shows
     // the same message or confirmation whichever mode it was sent in. A public wire-level
     // entry point was a way round that gate (NP-SW-FAULTMSG-001 §9.5).
-    private func send(_ descriptor: HubDescriptor) async throws {
+    private func send(_ descriptor: HubDescriptor) async throws -> String {
         guard gatt.isHubConnected else { throw UploadError.bleNotReady }
         isUploading = true
         lastError = nil
@@ -139,6 +168,7 @@ final class SessionProtocolUploader: ObservableObject {
         // resolves with failure immediately on the first chunk that fails.
         do {
             try await sendChunksSequentially(chunks)
+            return UploadCheck.hash(of: descriptor.blob)
         } catch let err as UploadError {
             lastError = err
             throw err
@@ -187,13 +217,16 @@ final class SessionProtocolUploader: ObservableObject {
     //
     // The header's `NP_PROTO_FLAG_AUTONOMOUS` bit (bit 1) says so. No firmware reader exists for it
     // yet, so today the hub runs both modes the same way.
+    //
+    // Returns the SHA-256 of the exact bytes sent, as `upload` does: a protocol programmed for Mode 3 is used just the same.
+    @discardableResult
     func programAutonomous(_ definition: NPProtocolDefinition,
                            deviceSerial: Data? = nil,
                            clinicianSockets: [Int]? = nil,
-                           acknowledgedCautions: [String] = []) async throws {
+                           acknowledgedCautions: [String] = []) async throws -> String {
         try await send(try buildDescriptor(from: definition, deviceSerial: deviceSerial,
-                                           clinicianSockets: clinicianSockets, autonomous: true,
-                                           acknowledgedCautions: acknowledgedCautions))
+                                               clinicianSockets: clinicianSockets, autonomous: true,
+                                               acknowledgedCautions: acknowledgedCautions))
     }
 
     // Validate a definition against hardware safety limits and compile it to the signed §4
