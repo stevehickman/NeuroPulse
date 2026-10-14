@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 
+#
 # ci-changed-scope.sh — decide whether a change is in scope for a workflow.
 #
 # NP-SW-CI-001 §6.7 (phase 6).  This exists so a workflow can stop using a
