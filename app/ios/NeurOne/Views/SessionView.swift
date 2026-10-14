@@ -20,6 +20,7 @@ struct SessionView: View {
     @State private var showProtocolPicker    = false
     @State private var showStopConfirmation  = false
     @State private var stopErrorMessage:     String?
+    @State private var showHelmetOwner = false
     @State private var controlErrorMessage:  String?
     @State private var showHistory           = false
 
@@ -79,10 +80,19 @@ struct SessionView: View {
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack(spacing: 8) {
+                            Button { showHelmetOwner = true } label: {
+                                Label("SETTINGS_WARRANTY_OWNER_TITLE", systemImage: "person.badge.key")
+                            }
+                            .accessibilityLabel("SETTINGS_WARRANTY_OWNER_TITLE")
                             watchConnectivityIcon
                             connectionIndicator
                         }
                     }
+                }
+                .sheet(isPresented: $showHelmetOwner) {
+                    HelmetOwnerView()
+                        .environmentObject(library)
+                        .environmentObject(gatt)
                 }
                 .sheet(isPresented: $showHistory) {
                     SessionHistoryListView()

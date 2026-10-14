@@ -9,6 +9,7 @@ import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
+import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.CervicalPadStatus
@@ -82,6 +83,38 @@ class NeurOneGattManager(
     /** Ask the helmet for its current upload report (a READ, so a missed notification does not leave the outcome unknown). */
     fun requestUploadCheck() {
         if (uploadCheckCharPresent) central.read(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
+    }
+
+    /**
+     * The hardware owner's pause time limit as the helmet holds it, in seconds; 0 is no limit, null is not known (not read
+     * yet, the helmet does not publish it, or the link is not paired: it is an encrypted characteristic). SWR-SS-05.
+     */
+    private val _pauseLimitSeconds = MutableStateFlow<Long?>(null)
+    val pauseLimitSeconds: StateFlow<Long?> = _pauseLimitSeconds
+
+    private var pauseLimitCharPresent = false
+
+    private val _pauseLimitPublished = MutableStateFlow(false)
+
+    /** True when this helmet publishes the pause limit, so the owner screen can offer it. */
+    val pauseLimitPublished: StateFlow<Boolean> = _pauseLimitPublished
+
+    /** Ask the helmet for its pause limit (an encrypted READ, which is refused until the helmet is paired). */
+    fun requestPauseLimit() {
+        if (pauseLimitCharPresent) central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+    }
+
+    /**
+     * Set the pause limit, in seconds; 0 is no limit. Takes effect at the helmet's NEXT pause: the limit in force when a
+     * pause begins is the limit for that pause. The write is followed by a read, so the screen shows what the helmet holds
+     * and not what was asked for. Returns false when the helmet publishes none or the value does not fit.
+     */
+    fun writePauseLimit(seconds: Long): Boolean {
+        val bytes = PauseLimit.toWire(seconds) ?: return false
+        if (!pauseLimitCharPresent) return false
+        central.write(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID), bytes)
+        central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        return true
     }
 
     private val _bluetoothUnavailable = MutableStateFlow(false)
@@ -289,6 +322,10 @@ class NeurOneGattManager(
             central.enableNotifications(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
             central.read(UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID))
         }
+        // SWR-SS-05: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
+        pauseLimitCharPresent = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) in characteristics
+        _pauseLimitPublished.value = pauseLimitCharPresent
+        if (pauseLimitCharPresent) central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
         // SWR-SS-07: read once at link so a session already running shows its figures, then notified on the telemetry tick.
         if (UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) in characteristics) {
             central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
@@ -345,6 +382,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) ->
                 GattParser.parseHardwareVersion(value)?.let { _hardwareVersion.value = it }
             UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
+            UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
@@ -541,6 +579,9 @@ class NeurOneGattManager(
         _hardwareVersion.value = DEFAULT_HARDWARE_VERSION // the next link may be another helmet
         _uploadCheck.value = null
         uploadCheckCharPresent = false
+        _pauseLimitSeconds.value = null
+        pauseLimitCharPresent = false
+        _pauseLimitPublished.value = false
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
         // on reconnect, and a stale "present" socket would let a placement gate pass on a module
         // pulled while disconnected. The map goes too — the next link may be another helmet.
