@@ -368,33 +368,11 @@ jobs:
             echo "unknown_base=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          base=$merge_base
-          # ── Last-green base ────────────────────────────────────────────────
-          # Diff from the nearest earlier head of THIS branch whose run of this
-          # workflow succeeded, so files an earlier green run already built are
-          # not rebuilt.  Anything short of a definite answer keeps the merge
-          # base: no API access, no earlier success, a force-push (the old head
-          # is no longer an ancestor), the default branch itself, or a manual
-          # dispatch.  A failed run is never a base, so its files stay in the
-          # diff until a run passes.  Soundness argument: np_last_green_base in
-          # scripts/ci-changed-scope.sh.
-          if [ "$NP_EVENT" != "workflow_dispatch" ] \
-             && [ -n "$NP_HEAD_BRANCH" ] && [ "$NP_HEAD_BRANCH" != "$NP_DEFAULT_BRANCH" ]; then
-            if gh api -X GET "repos/${NP_REPO}/actions/workflows/firmware-cross-build.yml/runs" \
-                 -f branch="$NP_HEAD_BRANCH" -f status=success -F per_page=100 \
-                 --jq ".workflow_runs[] | select(.head_repository.full_name == \"${NP_HEAD_REPO}\") | .head_sha" \
-                 > green.cands 2> green.err; then
-              green=$(scripts/ci-changed-scope.sh --last-green-base "$NP_HEAD" green.cands || true)
-              if [ -n "$green" ]; then
-                base=$green
-                echo "::notice::diffing from last green head ${green} (merge base ${merge_base}); files it already built are not rebuilt"
-              else
-                echo "::notice::no earlier green head is an ancestor — diffing from the merge base"
-              fi
-            else
-              echo "::warning::could not list earlier runs ($(head -c 200 green.err)) — diffing from the merge base"
-            fi
-          fi
+          # Diff from the last earlier head of this branch whose run of this workflow
+          # succeeded, else the merge base.  Rule and soundness argument:
+          # np_resolve_base / np_last_green_base in scripts/ci-changed-scope.sh.
+          base=$(scripts/ci-changed-scope.sh --resolve-base firmware-cross-build.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
           git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
           echo "unknown_base=false" >> "$GITHUB_OUTPUT"
           echo "--- changed files (base ${base}) ---"

@@ -143,7 +143,7 @@ match. A job that is skipped reports `skipped`, which satisfies a required check
 
 On a pull request, the diff base is the head of the last earlier run of the same workflow that
 passed, falling back to the merge base. A push that touches nothing in scope therefore does not
-rebuild what an earlier push already built and passed. Today only `firmware-cross-build.yml` does
-this. Run `scripts/ci-changed-scope.sh --self-test` after editing the matcher.
+rebuild what an earlier push already built and passed. `firmware-cross-build.yml`, `safety-mcu-ci.yml` and `web-ci.yml` do
+this, through `ci-changed-scope.sh --resolve-base`; the other workflows still diff from the merge base. Run `scripts/ci-changed-scope.sh --self-test` after editing the matcher.
 
 `build-all.yml` has no relevance filter. It is the backstop for drift in the hand-maintained lists.

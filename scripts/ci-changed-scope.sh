@@ -56,6 +56,10 @@
 #       Print the revision to diff <head> against, or NOTHING when the scope of
 #       the change is unknown (the caller then builds).  See np_diff_base.
 #
+#   ci-changed-scope.sh --resolve-base <workflow-file> <merge-base> <event> <head> <head-branch> <default-branch> <head-repo> <repo>
+#       What the `changes` jobs call: the merge base, or the last green head
+#       when the API names one.  Needs gh + GH_TOKEN (actions: read).
+#
 #   ci-changed-scope.sh --last-green-base <head> <candidates-file>
 #       Print the nearest commit in <candidates-file> (one sha per line: heads
 #       whose run of THIS workflow concluded `success`) that is a proper
@@ -241,6 +245,39 @@ np_last_green_base() {
   done < "$candidates"
   [ -z "$best" ] || printf '%s\n' "$best"
   return 0
+}
+
+# np_resolve_base <workflow-file> <merge-base> <event> <head> <head-branch> <default-branch> <head-repo> <repo>
+# Print the revision the calling `changes` job should diff <head> against.
+#
+# The merge base unless an earlier head of THIS branch has a successful run of
+# <workflow-file>, in which case the nearest such ancestor (np_last_green_base).
+# One implementation, called by every scoped workflow, so the rule cannot drift
+# between them.  Needs `gh` and GH_TOKEN with `actions: read`; notices go to
+# stderr, the answer to stdout.  Every non-answer prints the merge base: no
+# API access, no earlier success, a force-push, the default branch itself, a
+# manual dispatch.
+np_resolve_base() {
+  workflow=$1 merge_base=$2 event=$3 head=$4 branch=$5 default_branch=$6 head_repo=$7 repo=$8
+  if [ "$event" = "workflow_dispatch" ] || [ -z "$branch" ] || [ "$branch" = "$default_branch" ]; then
+    printf '%s\n' "$merge_base"; return 0
+  fi
+  tmp=$(mktemp -d)
+  if gh api -X GET "repos/${repo}/actions/workflows/${workflow}/runs" \
+       -f branch="$branch" -f status=success -F per_page=100 \
+       --jq ".workflow_runs[] | select(.head_repository.full_name == \"${head_repo}\") | .head_sha" \
+       > "$tmp/cands" 2> "$tmp/err"; then
+    green=$(np_last_green_base "$head" "$tmp/cands" || true)
+    if [ -n "$green" ]; then
+      printf '::notice::diffing from last green head %s (merge base %s); files it already built are not rebuilt\n' "$green" "$merge_base" >&2
+      rm -rf "$tmp"; printf '%s\n' "$green"; return 0
+    fi
+    printf '::notice::no earlier green head is an ancestor — diffing from the merge base\n' >&2
+  else
+    printf '::warning::could not list earlier runs (%s) — diffing from the merge base\n' "$(head -c 200 "$tmp/err")" >&2
+  fi
+  rm -rf "$tmp"
+  printf '%s\n' "$merge_base"
 }
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
@@ -473,11 +510,15 @@ case ${1:-} in
     [ $# -eq 6 ] || np_die "usage: --diff-base <event> <event-base> <head> <default-branch> <ref>"
     np_diff_base "$2" "$3" "$4" "$5" "$6"
     ;;
+  --resolve-base)
+    [ $# -eq 9 ] || np_die "usage: --resolve-base <workflow-file> <merge-base> <event> <head> <head-branch> <default-branch> <head-repo> <repo>"
+    np_resolve_base "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9"
+    ;;
   --last-green-base)
     [ $# -eq 3 ] || np_die "usage: --last-green-base <head> <candidates-file>"
     np_last_green_base "$2" "$3"
     ;;
   *)
-    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files> | --diff-base <event> <event-base> <head> <default-branch> <ref> | --last-green-base <head> <candidates>"
+    np_die "usage: $0 --self-test | --match <patterns> <files> | --relevant <patterns> <files> | --diff-base <event> <event-base> <head> <default-branch> <ref> | --last-green-base <head> <candidates> | --resolve-base ..."
     ;;
 esac
