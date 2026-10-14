@@ -35,6 +35,7 @@ import life.neurone.core.models.PauseLimit
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.familyKey
 import life.neurone.core.protocol.isRunnable
+import life.neurone.core.protocol.name
 import life.neurone.shared.AppServices
 import life.neurone.shared.ble.ConnectionState
 import life.neurone.shared.resources.*
