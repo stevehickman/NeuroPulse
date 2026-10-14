@@ -134,8 +134,8 @@ static class NppsCore
         => JsonNode.Parse(Call(npps_library_json, Encoding.UTF8.GetBytes(request.ToJsonString())))!;
 
     /// The device-replacement migration and UHDR backup rules, one JSON op per call (`{"op":"inventory"|"readHeader"|
-    /// "mergeWithdrawal"|"claimDecision"|…, …}`), answered as JSON. The core is given item names and ids, never a bundle's
-    /// contents (`SWR-MG`). Every app asks this same core, so the five cannot disagree on a claim or a clear.
+    /// "mergeWithdrawal"|"claimDecision"|…, …}`), answered as JSON. The core is given item names and ids, except by
+    /// `sealBundle` and `openBundle`, which are handed a key and the items for one call and keep nothing (`SWR-MG`). Every app asks this same core, so the five cannot disagree on a claim or a clear.
     public static JsonNode Migration(JsonNode request)
         => JsonNode.Parse(Call(npps_migration_json, Encoding.UTF8.GetBytes(request.ToJsonString())))!;
 

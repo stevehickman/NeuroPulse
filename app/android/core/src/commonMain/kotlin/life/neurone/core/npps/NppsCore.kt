@@ -114,7 +114,8 @@ object NppsCore {
     /**
      * The device-replacement migration and UHDR backup rules, decided once in the core for every app (`SWR-MG`):
      * `{"op": "inventory" | "readHeader" | "mergeWithdrawal" | "claimDecision" | …, …}` in, the answer out. The core is
-     * given item names and ids, never a bundle's contents. A refusal of the request itself is an
+     * given item names and ids, except by `sealBundle` and `openBundle`, which are handed a key and the items for one call
+     * and keep nothing. A refusal of the request itself is an
      * [IllegalArgumentException]; a rule that says no is an ordinary answer.
      */
     fun migration(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeMigration(request.toString())) as JsonObject
