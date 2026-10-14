@@ -5,7 +5,7 @@
 //! and the screens. What it may and may not do with a bundle is decided here: which items a kind carries and omits, the
 //! container that seals them, whether a bundle can be read, how a withdrawal survives a restore, who owns a claim, when the
 //! old phone may clear, what it clears, and whether a storage account can carry a migration. Every operation is a pure
-//! function of the JSON it is given: none reads a store, keeps a key or produces text for a person (a result is a reason
+//! function of the JSON it is given (the ORDER in which they are asked is `migration_flow`): none reads a store, keeps a key or produces text for a person (a result is a reason
 //! code, and the screen words it from the locale files, `CLAUDE.md` §17). A key, a nonce and a bundle's items are handed in
 //! for one call and nothing is kept (`sealBundle`, `openBundle`); every other operation is given item names and ids only.
 //!
@@ -386,13 +386,17 @@ fn open_bundle(req: &Value) -> R<Value> {
 pub fn migration_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("bad migration request: {e}"))?;
     let op = req["op"].as_str().ok_or("op is required")?;
-    let out = if let Some(answer) = bundle_key::op(op, &req) {
-        answer?
-    } else {
-        migration_op(op, &req)?
-    };
+    let out = if op == "flow" { crate::migration_flow::flow(&req)? } else { dispatch(op, &req)? };
     let _: &Map<String, Value> = out.as_object().ok_or("a migration answer is an object")?;
     Ok(out.to_string())
+}
+
+/// One operation by name, for `migration_json` and for the flows (`migration_flow`), which ask the same rules in order.
+pub(crate) fn dispatch(op: &str, req: &Value) -> R<Value> {
+    if let Some(answer) = bundle_key::op(op, req) {
+        return answer;
+    }
+    migration_op(op, req)
 }
 
 fn migration_op(op: &str, req: &Value) -> R<Value> {

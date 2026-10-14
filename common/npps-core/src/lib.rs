@@ -20,6 +20,7 @@ pub mod js;
 pub mod lexer;
 pub mod library;
 pub mod migration;
+pub mod migration_flow;
 pub mod parser;
 pub mod resolve;
 pub mod serialize;

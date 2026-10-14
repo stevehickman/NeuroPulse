@@ -143,9 +143,9 @@ object BundleKeyDerivation {
     }
 }
 
-private fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+internal fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-private fun String.hexToBytes(): ByteArray {
+internal fun String.hexToBytes(): ByteArray {
     require(length % 2 == 0) { "not hex" }
     return ByteArray(length / 2) { i -> substring(2 * i, 2 * i + 2).toInt(16).toByte() }
 }
