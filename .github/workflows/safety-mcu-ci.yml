@@ -123,6 +123,11 @@ jobs:
     # context stops matching and nothing reports the mismatch. Change it only
     # together with the ruleset.
     runs-on: ubuntu-latest
+    # `actions: read` lists this workflow's earlier runs (the last-green base).
+    # Job-level `permissions:` replaces the workflow's, so contents is restated.
+    permissions:
+      contents: read
+      actions: read
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
     env:
@@ -202,6 +207,12 @@ jobs:
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}
+          # Last-green base inputs.  A fork PR's head_branch is the fork's branch
+          # name, so runs are matched on the head REPOSITORY as well.
+          GH_TOKEN: ${{ github.token }}
+          NP_REPO: ${{ github.repository }}
+          NP_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          NP_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
         run: |
           set -euo pipefail
           # Fail-safe direction is BUILD: no base means the scope of the
@@ -218,9 +229,14 @@ jobs:
             echo "unknown_base=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          # Diff from the last earlier head of this branch whose run of this workflow
+          # succeeded, else the merge base.  Rule and soundness argument:
+          # np_resolve_base / np_last_green_base in scripts/ci-changed-scope.sh.
+          base=$(scripts/ci-changed-scope.sh --resolve-base safety-mcu-ci.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
+          git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
           echo "unknown_base=false" >> "$GITHUB_OUTPUT"
-          echo "--- changed files (base ${merge_base}) ---"
+          echo "--- changed files (base ${base}) ---"
           cat changed.txt
 
       - name: Relevance

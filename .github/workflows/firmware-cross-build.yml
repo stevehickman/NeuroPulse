@@ -147,6 +147,17 @@ name: Firmware Cross-Compile (ARM)
 # than merely stated — see the "Scope assertions" step in the `changes` job,
 # which fails the job if a safety-MCU-only change is ever judged in scope here.
 #
+# ── Last-green base ───────────────────────────────────────────────────────────
+# On a PR (or non-default branch push) the `changes` job diffs from the nearest
+# earlier head whose run of THIS workflow succeeded, not from the merge base, so
+# a later push that touches nothing in scope does not rebuild what an earlier
+# push already built and passed.  Job names and the always-report property are
+# untouched, so the required contexts are unaffected.  Every failure to find
+# such a head falls back to the merge base (build).  The default branch is never
+# scoped this way, and build-all.yml remains the unfiltered backstop.  A merge
+# of main into the branch diffs main's changes too, which rebuilds if main
+# touched anything in scope: deliberate.
+#
 # The list is still hand-maintained and will still drift from the build graph.
 # build-all.yml is the backstop that makes the drift survivable; OI-SWCI-08 is
 # the guard that would make it self-detecting.
@@ -230,6 +241,12 @@ jobs:
     # context stops matching and nothing reports the mismatch. Change it only
     # together with the ruleset.
     runs-on: ubuntu-latest
+    # `actions: read` lists this workflow's earlier runs (the last-green base,
+    # below).  Job-level `permissions:` replaces the workflow's, so contents is
+    # restated.
+    permissions:
+      contents: read
+      actions: read
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
     env:
@@ -329,6 +346,12 @@ jobs:
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}
+          # Last-green base inputs.  A fork PR's head_branch is the fork's branch
+          # name, so runs are matched on the head REPOSITORY as well.
+          GH_TOKEN: ${{ github.token }}
+          NP_REPO: ${{ github.repository }}
+          NP_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          NP_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
         run: |
           set -euo pipefail
           # Fail-safe direction is BUILD: no base means the scope of the
@@ -345,9 +368,14 @@ jobs:
             echo "unknown_base=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          # Diff from the last earlier head of this branch whose run of this workflow
+          # succeeded, else the merge base.  Rule and soundness argument:
+          # np_resolve_base / np_last_green_base in scripts/ci-changed-scope.sh.
+          base=$(scripts/ci-changed-scope.sh --resolve-base firmware-cross-build.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
+          git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
           echo "unknown_base=false" >> "$GITHUB_OUTPUT"
-          echo "--- changed files (base ${merge_base}) ---"
+          echo "--- changed files (base ${base}) ---"
           cat changed.txt
 
       - name: Relevance
