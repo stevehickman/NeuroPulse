@@ -3803,10 +3803,13 @@ says so.
 | `d58c23a`, resolver plus the `safety-mcu-ci.yml` and `web-ci.yml` callers | not read | in-scope files in all three scoped workflows, so they ran in full |
 | `db7f7f5`, merge of `main` | last green head (file list read, notice line not) | Class C scope listed one file, `firmware/common/include/np_app_wire_constants.h`, which is `main`'s change; Class C ran. It did not list the pull request's earlier files |
 | `5717578`, `tooling-ci.yml` caller | last green head `2508b27` (notice line read) | changed files were `.github/workflows/tooling-ci.yml` and `BUILDING.md`; Class B and Class C jobs `skipped`; all 21 tooling outputs `true`, because every tooling list names `tooling-ci.yml` (§6.15.3 item 6) |
+| `594c90a`, this section and the DHF entry (`docs/**` only) | not read; inferred from which jobs ran | Class B, Class C and web: every job `skipped`. `tooling-ci.yml`: 4 of 21 gates ran and passed (document filenames, requirement trace, unjustified-choice register, T2 cap map), the other 17 `skipped`, which is the set whose lists name `docs/**` against the set that do not |
 
-The saving has not been measured as time. The last row shows why a single push cannot show the tooling
-saving: the workflow's own file is in every list. A push that touches none of a list's entries is the
-test, and none has been made for `tooling-ci.yml` yet.
+The saving has not been measured as time. The `5717578` row shows why a push that edits the workflow
+cannot show the tooling saving: its own file is in every list. The last row is the test that was missing:
+a push that touches only `docs/**` ran the four tooling gates whose lists name `docs/**` and skipped the
+other seventeen. The notice line was not read for that push, so the base is inferred from the pattern of
+jobs, which a merge-base diff could not have produced (it would have kept `tooling-ci.yml` in scope).
 
 #### 6.15.5 Tests
 
