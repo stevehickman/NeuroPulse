@@ -240,8 +240,8 @@ export interface NppsNamespace {
 
 /**
  * The device-replacement migration and UHDR backup rules, decided once in the core for every app
- * (neurone_npps_core::migration, SWR-MG): `{op: …, …}` in, the answer out. The core is given item names and ids, never
- * a bundle's contents. A request it cannot read throws NppsRefusal; a rule that says no is an ordinary answer.
+ * (neurone_npps_core::migration, SWR-MG): `{op: …, …}` in, the answer out. The core is given item names and ids, except by
+ * sealBundle and openBundle, which are handed a key and the items for one call and keep nothing. A request it cannot read throws NppsRefusal; a rule that says no is an ordinary answer.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function nppsMigration(request: { op: string; [field: string]: unknown }): any {

@@ -8,6 +8,7 @@
 //! `wavelength_rules`) and the descriptor compiler.
 
 pub mod api;
+pub mod bundle_key;
 pub mod compiler;
 /// Constants shared with every runtime, taken at build time from common/npps/constants.json (see build.rs).
 pub mod constants {

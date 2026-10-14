@@ -137,8 +137,8 @@ enum NppsCore {
     }
 
     /// The device-replacement migration and UHDR backup rules, one JSON op per call (`{"op":"inventory"|"readHeader"|
-    /// "mergeWithdrawal"|"claimDecision"|…, …}`), answered as a JSON object. The core is given item names and ids, never a
-    /// bundle's contents (`SWR-MG`). Every app asks this same core, so the five cannot disagree on a claim or a clear.
+    /// "mergeWithdrawal"|"claimDecision"|…, …}`), answered as a JSON object. The core is given item names and ids, except by
+    /// `sealBundle` and `openBundle`, which are handed a key and the items for one call and keep nothing (`SWR-MG`). Every app asks this same core, so the five cannot disagree on a claim or a clear.
     static func migration(_ request: [String: Any]) throws -> [String: Any] {
         let out = try call(npps_migration_json, JSONSerialization.data(withJSONObject: request))
         return (try JSONSerialization.jsonObject(with: out) as? [String: Any]) ?? [:]

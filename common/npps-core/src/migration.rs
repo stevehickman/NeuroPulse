@@ -1,13 +1,13 @@
 //! Device-replacement migration and UHDR backup, the rules once for every app (`SWR-MG-01…10`, `SWR-MG-12`; issue #569
 //! package 6, `CLAUDE.md` §20).
 //!
-//! What each platform keeps for itself is the encryption (the user's key, `CLAUDE.md` §5.1), the storage routes and the
-//! screens. What it may and may not do with a bundle is decided here: which items a kind carries and omits, whether a
-//! bundle can be read, how a withdrawal survives a restore, who owns a claim, when the old phone may clear, what it clears,
-//! and whether a storage account can carry a migration. Every operation is a pure function of the JSON it is given: none
-//! reads a store, touches a key or produces text for a person (a result is a reason code, and the screen words it from the
-//! locale files, `CLAUDE.md` §17). Nothing here sees a bundle's plaintext, because nothing here is given one: the items are
-//! named, never carried.
+//! What each platform keeps for itself is the user's key and its Argon2id computation (`bundle_key`), the storage routes
+//! and the screens. What it may and may not do with a bundle is decided here: which items a kind carries and omits, the
+//! container that seals them, whether a bundle can be read, how a withdrawal survives a restore, who owns a claim, when the
+//! old phone may clear, what it clears, and whether a storage account can carry a migration. Every operation is a pure
+//! function of the JSON it is given: none reads a store, keeps a key or produces text for a person (a result is a reason
+//! code, and the screen words it from the locale files, `CLAUDE.md` §17). A key, a nonce and a bundle's items are handed in
+//! for one call and nothing is kept (`sealBundle`, `openBundle`); every other operation is given item names and ids only.
 //!
 //! # Items
 //! The state a migration may move is named in `SWR-MG-01`. **Moved by a migration:** protocols and their used flags
@@ -22,6 +22,7 @@
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
 
+use crate::bundle_key;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Map, Value};
@@ -300,6 +301,14 @@ fn read_bundle_header(req: &Value) -> R<Value> {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
     let mut out = read_header(&json!({ "header": header }))?;
+    if out["ok"] == true {
+        // The restore asks for the right secret before it has a key. A header without a usable `kdf` is not a bundle.
+        if let Err(reason) = bundle_key::check_kdf(&header["kdf"]) {
+            return Ok(json!({ "ok": false, "reason": reason }));
+        }
+        out["kdf"] = header["kdf"].clone();
+        out["method"] = header["kdf"]["method"].clone();
+    }
     out["bundleHash"] = json!(bundle_hash(&bundle));
     Ok(out)
 }
@@ -325,7 +334,10 @@ fn seal_bundle(req: &Value) -> R<Value> {
     if nonce.len() != NONCE_LEN {
         return Err(format!("the nonce is {NONCE_LEN} bytes"));
     }
-    let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": hex(&nonce) }).to_string().into_bytes();
+    // The header says how the key was made, so a restore on a new phone knows what to ask for (`SWR-MG-02`, `SWR-MG-05`).
+    let kdf = &req["kdf"];
+    bundle_key::check_kdf(kdf).map_err(|e| format!("kdf: {e}"))?;
+    let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": hex(&nonce), "kdf": kdf }).to_string().into_bytes();
     let mut aad = Vec::with_capacity(8 + header.len());
     aad.extend_from_slice(MAGIC);
     aad.extend_from_slice(&(header.len() as u32).to_be_bytes());
@@ -352,6 +364,9 @@ fn open_bundle(req: &Value) -> R<Value> {
         return Ok(checked);
     }
     let kind = checked["kind"].as_str().unwrap_or_default();
+    if let Err(reason) = bundle_key::check_kdf(&header["kdf"]) {
+        return Ok(json!({ "ok": false, "reason": reason }));
+    }
     let Some(nonce) = header["nonce"].as_str().and_then(|n| unhex(n, "nonce").ok()).filter(|n| n.len() == NONCE_LEN) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
@@ -371,25 +386,33 @@ fn open_bundle(req: &Value) -> R<Value> {
 pub fn migration_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("bad migration request: {e}"))?;
     let op = req["op"].as_str().ok_or("op is required")?;
-    let out = match op {
-        "inventory" => inventory(&req)?,
-        "readHeader" => read_header(&req)?,
-        "restoreReport" => restore_report(&req)?,
-        "mergeWithdrawal" => merge_withdrawal(&req)?,
-        "consentAfterRestore" => consent_after_restore(&req)?,
-        "offerRoutes" => offer_routes(&req)?,
-        "claimDecision" => claim_decision(&req)?,
-        "claimReadback" => claim_readback(&req)?,
-        "clearDecision" => clear_decision(&req)?,
-        "clearPlan" => clear_plan(&req)?,
-        "probeResult" => probe_result(&req)?,
-        "sealBundle" => seal_bundle(&req)?,
-        "readBundleHeader" => read_bundle_header(&req)?,
-        "openBundle" => open_bundle(&req)?,
-        other => return Err(format!("unknown migration operation '{other}'")),
+    let out = if let Some(answer) = bundle_key::op(op, &req) {
+        answer?
+    } else {
+        migration_op(op, &req)?
     };
     let _: &Map<String, Value> = out.as_object().ok_or("a migration answer is an object")?;
     Ok(out.to_string())
+}
+
+fn migration_op(op: &str, req: &Value) -> R<Value> {
+    Ok(match op {
+        "inventory" => inventory(req)?,
+        "readHeader" => read_header(req)?,
+        "restoreReport" => restore_report(req)?,
+        "mergeWithdrawal" => merge_withdrawal(req)?,
+        "consentAfterRestore" => consent_after_restore(req)?,
+        "offerRoutes" => offer_routes(req)?,
+        "claimDecision" => claim_decision(req)?,
+        "claimReadback" => claim_readback(req)?,
+        "clearDecision" => clear_decision(req)?,
+        "clearPlan" => clear_plan(req)?,
+        "probeResult" => probe_result(req)?,
+        "sealBundle" => seal_bundle(req)?,
+        "readBundleHeader" => read_bundle_header(req)?,
+        "openBundle" => open_bundle(req)?,
+        other => return Err(format!("unknown migration operation '{other}'")),
+    })
 }
 
 #[cfg(test)]
@@ -642,8 +665,12 @@ mod tests {
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     const NONCE: &str = "a0a1a2a3a4a5a6a7a8a9aaab";
 
+    fn kdf(method: &str) -> Value {
+        ask(json!({"op":"bundleKdf","method":method,"salt":"5a".repeat(32)}))["kdf"].clone()
+    }
+
     fn sealed(kind: &str, items: Value) -> Value {
-        ask(json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":items}))
+        ask(json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":items,"kdf":kdf("recoveryCode")}))
     }
 
     // @verifies SWR-MG-02
@@ -706,7 +733,7 @@ mod tests {
     // @verifies SWR-MG-05
     #[test]
     fn a_bundle_one_version_newer_is_refused_whole_before_any_decryption() {
-        let header = json!({"kind":"uhdr","formatVersion":FORMAT_VERSION + 1,"nonce":NONCE}).to_string().into_bytes();
+        let header = json!({"kind":"uhdr","formatVersion":FORMAT_VERSION + 1,"nonce":NONCE,"kdf":kdf("passphrase")}).to_string().into_bytes();
         let mut bytes = b"NPBK".to_vec();
         bytes.extend_from_slice(&(header.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&header);
@@ -720,18 +747,122 @@ mod tests {
     #[test]
     fn a_bundle_cannot_carry_what_its_kind_omits_or_what_belongs_to_the_install() {
         for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
-            let r = migration_json(&json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]}}).to_string());
+            let r = migration_json(&json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]},"kdf":kdf("passphrase")}).to_string());
             assert!(r.is_err(), "{kind} must not seal {item}");
         }
-        assert!(migration_json(&json!({"op":"sealBundle","kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]}}).to_string()).is_ok());
+        assert!(migration_json(&json!({"op":"sealBundle","kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
     }
 
     // @verifies SWR-MG-02
     #[test]
     fn a_key_or_nonce_of_the_wrong_length_is_refused() {
-        let short = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":"00","nonce":NONCE,"items":{}}).to_string());
+        let short = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":"00","nonce":NONCE,"items":{},"kdf":kdf("passphrase")}).to_string());
         assert!(short.is_err());
-        let nonce = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":"00","items":{}}).to_string());
+        let nonce = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":"00","items":{},"kdf":kdf("passphrase")}).to_string());
         assert!(nonce.is_err());
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn a_recovery_code_round_trips_through_its_text_and_survives_eye_and_case_errors() {
+        let bytes: Vec<u8> = (0u8..32).map(|i| i.wrapping_mul(37).wrapping_add(11)).collect();
+        let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().to_string();
+        assert_eq!(code.len(), 56 + 13, "14 groups of four with 13 hyphens");
+        for variant in [code.clone(), code.to_lowercase(), code.replace('-', " "), code.replace('-', "")] {
+            let r = ask(json!({"op":"parseRecoveryCode","code":variant}));
+            assert_eq!((r["ok"].clone(), r["secret"].clone()), (json!(true), json!(hex(&bytes))));
+        }
+        // O reads as 0 and I or L as 1, the look-alikes Crockford leaves out of the alphabet.
+        let eyed = code.replace('0', "O").replace('1', "l");
+        assert_eq!(ask(json!({"op":"parseRecoveryCode","code":eyed}))["secret"], json!(hex(&bytes)));
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn a_mistyped_recovery_code_is_a_typing_error_and_not_a_wrong_key() {
+        let bytes = vec![7u8; 32];
+        let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().to_string();
+        let mut chars: Vec<char> = code.chars().collect();
+        chars[0] = if chars[0] == '2' { '3' } else { '2' };
+        let r = ask(json!({"op":"parseRecoveryCode","code":chars.iter().collect::<String>()}));
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("bad_checksum")));
+        assert_eq!(ask(json!({"op":"parseRecoveryCode","code":"ABCD"}))["reason"], "malformed");
+        assert_eq!(ask(json!({"op":"parseRecoveryCode","code":code.replace('-', "").replace(&code[..1], "U")}))["reason"], "malformed");
+        assert!(migration_json(&json!({"op":"encodeRecoveryCode","bytes":"00"}).to_string()).is_err());
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn two_texts_never_name_one_code_because_the_padding_bits_are_zero() {
+        let bytes = vec![0u8; 32];
+        let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().replace('-', "");
+        // Set a padding bit in the 52nd character (its low 4 bits carry no data) and re-derive a matching text: refused.
+        let mut forged: Vec<char> = code.chars().collect();
+        forged[51] = '1';
+        let r = ask(json!({"op":"parseRecoveryCode","code":forged.iter().collect::<String>()}));
+        assert_eq!(r["ok"], false);
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn a_passphrase_is_normalised_and_must_be_long_enough() {
+        // NFKC: the full-width form and the plain form are one secret, so another phone's keyboard gives the same key.
+        let plain = ask(json!({"op":"passphraseSecret","passphrase":"correct horse battery"}));
+        let wide = ask(json!({"op":"passphraseSecret","passphrase":"ｃｏｒｒｅｃｔ horse battery"}));
+        assert_eq!(plain["secret"], wide["secret"]);
+        // A composed and a decomposed é are one secret.
+        let a = ask(json!({"op":"passphraseSecret","passphrase":"caf\u{e9} au lait noir"}));
+        let b = ask(json!({"op":"passphraseSecret","passphrase":"cafe\u{301} au lait noir"}));
+        assert_eq!(a["secret"], b["secret"]);
+        let short = ask(json!({"op":"passphraseSecret","passphrase":"too short"}));
+        assert_eq!((short["ok"].clone(), short["reason"].clone()), (json!(false), json!("too_short")));
+        assert_eq!(short["minChars"], bundle_key::PASSPHRASE_MIN_CHARS);
+        // Characters, not bytes: twelve two-byte characters pass, eleven do not.
+        assert_eq!(ask(json!({"op":"passphraseSecret","passphrase":"é".repeat(12)}))["ok"], true);
+        assert_eq!(ask(json!({"op":"passphraseSecret","passphrase":"é".repeat(11)}))["ok"], false);
+    }
+
+    // @verifies SWR-MG-05
+    #[test]
+    fn the_header_names_how_the_key_was_made_before_any_key_exists() {
+        for method in ["recoveryCode", "passphrase"] {
+            let b = ask(json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":kdf(method)}));
+            let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
+            assert_eq!(h["method"], method);
+            assert_eq!(h["kdf"]["salt"], "5a".repeat(32));
+            assert_eq!((h["kdf"]["memoryKiB"].clone(), h["kdf"]["iterations"].clone(), h["kdf"]["parallelism"].clone()), (json!(65536), json!(4), json!(1)));
+        }
+    }
+
+    // @verifies SWR-MG-05
+    #[test]
+    fn a_bundle_cannot_ask_the_restoring_phone_for_a_cheaper_derivation() {
+        let mut weak = kdf("passphrase");
+        weak["memoryKiB"] = json!(8);
+        assert!(migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":weak}).to_string()).is_err());
+        // A header carrying such a block is refused whole on read, with no key needed.
+        let header = json!({"kind":"uhdr","formatVersion":1,"nonce":NONCE,"kdf":weak}).to_string().into_bytes();
+        let mut bytes = b"NPBK".to_vec();
+        bytes.extend_from_slice(&(header.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&header);
+        bytes.extend_from_slice(&[0u8; 32]);
+        let r = ask(json!({"op":"readBundleHeader","bundle":hex(&bytes)}));
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("unsupported_kdf")));
+        let o = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        assert_eq!(o["reason"], "unsupported_kdf");
+        // No kdf at all is not a bundle this build wrote.
+        let none = json!({"kind":"uhdr","formatVersion":1,"nonce":NONCE}).to_string().into_bytes();
+        let mut b2 = b"NPBK".to_vec();
+        b2.extend_from_slice(&(none.len() as u32).to_be_bytes());
+        b2.extend_from_slice(&none);
+        b2.extend_from_slice(&[0u8; 32]);
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":hex(&b2)}))["ok"], false);
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn an_unknown_key_method_or_a_short_salt_is_refused() {
+        assert!(migration_json(&json!({"op":"bundleKdf","method":"fingerprint","salt":"5a".repeat(32)}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"bundleKdf","method":"passphrase","salt":"5a"}).to_string()).is_err());
     }
 }
