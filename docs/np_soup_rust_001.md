@@ -1,0 +1,165 @@
+# Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps)
+
+**Project:** NeurOne
+**Document:** NP-SOUP-RUST-001
+**Revision:** 1
+**Date:** 2026-10-14
+**Status:** DRAFT
+**Effective Date:** —
+**Author:** NeurOne Software Engineering
+**Approved By:** — (DRAFT, not approved)
+**References:** `common/Cargo.lock` (the pin), `common/npps-core/Cargo.toml` (the direct dependencies), `NP-SOUP-BTLE-001` (the other Rust record, and the method precedent), `NP-SOUP-LFS-001` and `NP-SOUP-CMSIS-001` (method precedent), `NP-SW-001` §9.4 (the firmware SOUP register, which this record does not extend), `CLAUDE.md` §20
+**Related Issues:** GitHub #569 (packages 6c, 6d), `OI-NPPS-CORE-01`
+**Gate:** G2
+**IEC 62304 Class:** B, following the app items the core serves. See §3.
+**Supersedes:** None
+**Change Summary:** Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
+**Review Cadence:** On any change to `common/Cargo.lock` that touches the tree below, and at G2
+
+---
+
+## 1. What this record is, and is not
+
+`neurone-npps-core` (`common/npps-core`) is the one implementation of the NPPS parser, the descriptor compiler, the protocol
+identity hash, the protocol library rules and the migration and backup rules, shared by the web, Android, iOS, Windows and
+simulator builds (`CLAUDE.md` §20). It is built three ways: to WebAssembly (`scripts/build-npps-wasm.sh`), behind JNI
+(`common/npps-jni`, Android and the desktop JVM) and behind a C ABI (`common/npps-ffi`, a static library for iOS and a
+dynamic one for Windows). Everything those three crates link that NeurOne did not write is SOUP. This record **lists** that
+SOUP and records what has and has not been checked about it.
+
+`neurone-btle-jni` is a different crate with a different tree and has its own record (`NP-SOUP-BTLE-001`). The `jni` crate
+appears in both trees and is listed in both.
+
+**Done and not done:** §6 records what the anomaly evaluation covered and what it did not. The coverage is partial and the
+record says so, so it does not read as "no known hazardous anomaly".
+
+## 2. Direct dependencies
+
+The core (`common/npps-core/Cargo.toml`) names four crates. The FFI crate adds none. The JNI crate adds `jni`.
+
+| Crate | Version | Features | Role in the core | Licence |
+|-------|---------|----------|------------------|---------|
+| serde_json | 1.0.151 | default | Every operation of the core takes and returns JSON (`api.rs`, `library.rs`, `migration.rs`, `bundle_key.rs`); also a build dependency, reading `common/npps/constants.json` | MIT OR Apache-2.0 |
+| sha2 | 0.10.9 | default | SHA-256: the protocol identity hash (`identity.rs`), the bundle hash a migration claim and confirmation carry, and the recovery code's check characters | MIT OR Apache-2.0 |
+| aes-gcm | 0.10.3 | `aes`, `alloc`; default features **off** | AES-256-GCM sealing and opening of a migration or backup bundle (`migration.rs`, `SWR-MG-02`). Default features are off so the `getrandom` crate is not linked: the WebAssembly build stays free of a random source, and the core takes its key and nonce as arguments | Apache-2.0 OR MIT |
+| unicode-normalization | 0.1.25 | default | Unicode NFKC of a passphrase before it becomes a key secret (`bundle_key.rs`, `SWR-MG-02`). The crate's tables are Unicode 17.0.0 | MIT OR Apache-2.0 |
+
+The JNI crate (`common/npps-jni`) also links `jni` 0.21.1 (MIT / Apache-2.0), the JNI surface. The first-party core contains
+no `unsafe` block; the FFI and JNI crates do, at the foreign-function boundary, as that is what they are.
+
+## 3. Class
+
+The core serves the app items classified Class B in `NP-SW-001` §6.3 (the `SWR-*` rows carry "B (SW-03)"), and this record
+follows them. The hub's safety MCU owns every stimulation enable line (`CLAUDE.md` §4.2), so a fault in the core cannot
+enable stimulation. What a fault *can* do is: compute a wrong protocol identity (a protocol marked used, or not used, when
+it was not or was); refuse a valid bundle; or, in the cryptographic crates, expose or accept altered UHDR-class data in a
+bundle. The last of those is why the cryptographic crates get the closer reading in §7. Whether Class B is the right
+classification for a component that holds a user's health data in transit is a software-safety-classification decision and
+is not made here.
+
+## 4. Where the lock file is used
+
+The WebAssembly (`scripts/build-npps-wasm.sh`), iOS (`scripts/build-npps-xcframework.sh`), Android host and device
+(`app/android/core/build.gradle.kts`, `app/android/app/build.gradle.kts`) builds and the Rust test job (`web-ci.yml`) all
+pass `--locked`, so the versions below are the versions shipped and a dependency moves only in a commit that changes
+`common/Cargo.lock`. The Windows project (`app/windows/NeurOne/NeurOne.csproj`) states the same in a comment but runs no
+cargo itself: it copies a library built beforehand, and whether that build passes `--locked` was not checked.
+
+## 5. Transitive inventory
+
+Every crate in `common/Cargo.lock` reachable from `neurone-npps-core` through normal and build dependencies, over all
+targets: **34** crates. Generated with `cargo metadata --locked` on 2026-10-14. The `jni` crate and its dependencies add 25 more
+(the same crates sit in the tree `NP-SOUP-BTLE-001` §4 inventories, which also links `jni`). The proc-macro and build-script crates (`proc-macro2`, `quote`, `syn`, `serde_derive`,
+`version_check`) run at build time and are not in the shipped library.
+
+| Crate | Version | Licence (as declared) |
+|-------|---------|-----------------------|
+| aead | 0.5.2 | MIT OR Apache-2.0 |
+| aes | 0.8.4 | MIT OR Apache-2.0 |
+| aes-gcm | 0.10.3 | Apache-2.0 OR MIT |
+| block-buffer | 0.10.4 | MIT OR Apache-2.0 |
+| cfg-if | 1.0.5 | MIT OR Apache-2.0 |
+| cipher | 0.4.4 | MIT OR Apache-2.0 |
+| cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
+| crypto-common | 0.1.7 | MIT OR Apache-2.0 |
+| ctr | 0.9.2 | MIT OR Apache-2.0 |
+| digest | 0.10.7 | MIT OR Apache-2.0 |
+| generic-array | 0.14.7 | MIT |
+| ghash | 0.5.1 | Apache-2.0 OR MIT |
+| inout | 0.1.4 | MIT OR Apache-2.0 |
+| itoa | 1.0.18 | MIT OR Apache-2.0 |
+| libc | 0.2.190 | MIT OR Apache-2.0 |
+| memchr | 2.8.3 | Unlicense OR MIT |
+| opaque-debug | 0.3.1 | MIT OR Apache-2.0 |
+| polyval | 0.6.2 | Apache-2.0 OR MIT |
+| proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
+| quote | 1.0.47 | MIT OR Apache-2.0 |
+| serde | 1.0.229 | MIT OR Apache-2.0 |
+| serde_core | 1.0.229 | MIT OR Apache-2.0 |
+| serde_derive | 1.0.229 | MIT OR Apache-2.0 |
+| serde_json | 1.0.151 | MIT OR Apache-2.0 |
+| sha2 | 0.10.9 | MIT OR Apache-2.0 |
+| subtle | 2.6.1 | BSD-3-Clause |
+| syn | 3.0.6 | MIT OR Apache-2.0 |
+| tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
+| typenum | 1.20.1 | MIT OR Apache-2.0 |
+| unicode-ident | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| unicode-normalization | 0.1.25 | MIT OR Apache-2.0 |
+| universal-hash | 0.5.1 | MIT OR Apache-2.0 |
+| version_check | 0.9.5 | MIT/Apache-2.0 |
+| zmij | 1.0.23 | MIT |
+
+Two licence points for the record. `unicode-ident` is `(MIT OR Apache-2.0) AND Unicode-3.0`: the Unicode-3.0 half is
+attached to the data tables it carries and is a notice obligation on distribution, which the licence inventory for the app
+bundles must carry. `subtle` is BSD-3-Clause, and `tinyvec` is `Zlib OR Apache-2.0 OR MIT`. No crate is copyleft and none
+is undeclared, other than the first-party crates themselves.
+
+## 6. Anomaly evaluation
+
+IEC 62304 asks for the published anomaly list of each SOUP version in use to be evaluated for anomalies that could lead to a
+hazardous situation. One source was read on 2026-10-14. The others were not.
+
+### 6.1 RustSec advisory database
+
+`cargo audit` 0.22.2 against the RustSec database (commit `caee11f4`, 1,314 advisories) scanned `common/Cargo.lock`
+(135 packages, a superset of the 34 in §5, as the lock file also holds the `btle-jni` tree). **Result: 0
+vulnerabilities and 0 warnings** (none unmaintained, unsound or yanked). This covers every crate in §5, but only for what
+RustSec has published: it is an absence of reports.
+
+Two advisories exist for crates the core uses, and neither applies to the pinned versions:
+
+| Advisory | Crate | Affected | Pinned | Reading |
+|----------|-------|----------|--------|---------|
+| RUSTSEC-2023-0096 | aes-gcm | `decrypt_in_place_detached`, >= 0.10.0, < 0.10.3 (plaintext released even when the tag check fails) | 0.10.3 | The pin is the first patched version. The core does not call the in-place detached function: it uses the allocating `decrypt`, which returns an error and no plaintext on a failed tag. The test `the_bundle_is_unreadable_without_the_key_and_its_plaintext_is_not_in_it` asserts that a failed open returns no `items` |
+| RUSTSEC-2021-0100 | sha2 | Only 0.9.7 (a buggy AVX2 backend, yanked) | 0.10.9 | Not the 0.10 line |
+
+### 6.2 What was not done
+
+- **No reading of any crate's own changelog or issue tracker** for the pinned versions, as `NP-SOUP-BTLE-001` §5.2 did for
+  btleplug. RustSec is the only source read.
+- **No independent review of the cryptographic crates.** The record relies on the RustCrypto implementations as published
+  and on the known-answer and round-trip tests in `common/npps-core` (which test the core's use of them, not the crates).
+  There is no AES-GCM known-answer test against a published vector in this repository.
+- **No check of the licence texts** against the declared SPDX identifiers.
+- **No run on iOS, Android, Windows or in a browser of the cryptographic path.** The Rust tests run on Linux; the
+  WebAssembly path is exercised by the web test; the JNI and C ABI paths are exercised by CI.
+
+## 7. Hazard reading
+
+| Crate | Fault | Effect | Held by |
+|-------|-------|--------|---------|
+| aes-gcm | Accepts a bundle whose tag does not verify, or returns plaintext on a failed tag | UHDR-class data from an altered or substituted bundle is restored, or leaks | The header is associated data, so a re-labelled kind fails; `openBundle` returns no `items` on failure (tests in `migration.rs`); RUSTSEC-2023-0096 is patched at the pin (§6.1). **No published known-answer vector is run** (§6.2) |
+| aes-gcm | A nonce repeated under one key | GCM loses confidentiality and authenticity for the messages that share it | Not the crate's fault. The key is made from a fresh random salt per bundle (`bundle_key.rs`), so a key encrypts one bundle once; a platform that reused a salt *and* a secret *and* a nonce would break this, and the core does not (and cannot, being handed all three) detect it |
+| unicode-normalization | A later release of the crate normalises a character differently, because its tables moved to a newer Unicode version (this pin is 17.0.0) | The same passphrase gives a different key, so a bundle sealed under an older table fails `authentication_failed`, and the person is told their passphrase is wrong when it is not. The bundle is intact and a recovery-code bundle is unaffected | Nothing today. **Owed:** a corpus of known NFKC answers run on any change to this crate or its Unicode version, so the change is seen before it ships. Not built |
+| sha2 | A wrong digest | A protocol family's identity (and so its used flag) or a bundle hash (and so a claim or confirmation) does not match | The identity tests (`tests/`), the claim tests (`migration.rs`) and the SHA-256 vector the Kotlin test checks. A wrong digest fails closed for migration (no clear without a matching confirmation) |
+| serde_json | Rejects or mis-parses a request | An operation refuses a valid request, or reads a field as another type | Parsing errors return an error and no answer; the tests of each operation. Recursion depth is the crate's default limit |
+| the rest (§5) | A fault in a support crate | As the crate that depends on it | RustSec (§6.1) |
+
+## 8. Keeping this record true
+
+- A change to `common/Cargo.lock` that touches the tree in §5 regenerates §5 and re-runs §6.1, in the same change.
+- Adding a direct dependency to `common/npps-core/Cargo.toml` adds a row to §2 and a row to §7 in the same change.
+- Regenerate §5 with `cargo metadata --locked --format-version 1` from `common/`, taking the crates reachable from
+  `neurone-npps-core` by normal and build dependencies; re-run §6.1 with `cargo audit` from `common/`.
+- This record does not extend `NP-SW-001` §9.4, which is the firmware register for SW-01 and SW-02. If the app SOUP is
+  to be registered in the software development plan, that is a change to the plan.
