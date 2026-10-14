@@ -70,8 +70,7 @@ fun ProtocolMenuScreen(
     onSelect: (NPProtocolEntry) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    // The helmet's hardware version. Until the app reads it from the helmet (SWR-HV-02, the GATT read), version 1 is the
-    // only one that exists, so it is the default.
+    // The helmet's hardware version, read from the helmet (SWR-HV-06); version 1, the only one that exists, until it is.
     helmetHardwareVersion: Int = 1,
 ) {
     // Reflect the current BIPA consent into the library so EEG-adaptive rows gate live.

@@ -80,6 +80,9 @@ final class SessionProtocolUploader: ObservableObject {
                                            acknowledgedCautions: acknowledgedCautions))
     }
 
+    /// The helmet's hardware version, which the library's upload gate compares with the protocol's layouts (SWR-HV-04).
+    var helmetHardwareVersion: Int { gatt.hardwareVersion }
+
     /// Wait for the hub's report of the upload whose bytes hash to `sentHash` (SWR-UP-01, SWR-UP-03). The app reads
     /// UPLOAD_CHECK every `pollNanos` for up to `timeoutNanos` and never sends the protocol again: an upload that has not
     /// been answered is resolved by reading the hub and not by a second write. A report is for this upload when it is

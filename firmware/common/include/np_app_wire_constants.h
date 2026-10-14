@@ -58,6 +58,12 @@
  */
 #define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
 /*
+ * READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
+ * 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
+ * writes it.
+ */
+#define NP_GATT_HARDWARE_VERSION_ID 0x001Cu
+/*
  * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
  * (SWR-SS-07).
  */
@@ -76,6 +82,10 @@
  * PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
  */
 #define NP_GATT_PAUSE_LIMIT_LEN 4U
+/*
+ * HARDWARE_VERSION: one byte, 1 to 15.
+ */
+#define NP_GATT_HARDWARE_VERSION_LEN 1U
 /*
  * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
  * remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1

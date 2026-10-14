@@ -14,6 +14,7 @@
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
 #include "np_pause_limit.h"
+#include "np_safety_spi.h"
 #include "np_session_progress.h"
 #include "np_session_stop.h"
 #include "np_upload_check.h"
@@ -51,6 +52,19 @@ static np_hub_status_t read_device_serial(uint8_t *buf, size_t cap, size_t *len_
         *len_out = NP_GATT_DEVICE_SERIAL_LEN;
     }
     return st;
+}
+
+/* SWR-HV-06: the helmet hardware version, from the safety MCU's verified tier-identity record (1 when it holds none,
+ * SWR-HV-07), so the app states the layout the helmet actually has and not the one it assumes.  One byte, never written
+ * in the field. */
+static np_hub_status_t read_hardware_version(uint8_t *buf, size_t cap, size_t *len_out)
+{
+    if (cap < NP_GATT_HARDWARE_VERSION_LEN) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    buf[0] = np_safety_spi_get_hardware_version();
+    *len_out = NP_GATT_HARDWARE_VERSION_LEN;
+    return NP_HUB_OK;
 }
 
 /* ── The table ───────────────────────────────────────────────────────────────
@@ -92,6 +106,10 @@ static const np_gatt_char_t TABLE[] = {
     /* SWR-SS-07: where the session is. */
     { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
+
+    /* SWR-HV-06: the helmet hardware version, 1..15. */
+    { NP_GATT_HARDWARE_VERSION_ID, NP_GATT_PROP_READ,
+      (uint8_t)NP_GATT_HARDWARE_VERSION_LEN, 0u, read_hardware_version, NULL },
 
     /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
     { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,

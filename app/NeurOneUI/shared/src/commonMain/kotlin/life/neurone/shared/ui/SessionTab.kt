@@ -40,6 +40,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val connectionState by gatt.connectionState.collectAsState()
     val session by gatt.session.collectAsState()
     val progress by gatt.progress.collectAsState()
+    val hardwareVersion by gatt.hardwareVersion.collectAsState()
     val cervicalPadAlert by gatt.cervicalPadAlert.collectAsState()
     val cervicalFaultStatus by gatt.cervicalFaultStatus.collectAsState()
     val unreadCervicalFaults by gatt.unacknowledgedCervicalFaults.collectAsState()
@@ -143,6 +144,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             limits = services.limitsStore.resolvedLimits,
             onSelect = { entry -> uploadAndReport(entry) },
             onBack = { showMenu = false },
+            helmetHardwareVersion = hardwareVersion,
             modifier = modifier,
         )
     } else {

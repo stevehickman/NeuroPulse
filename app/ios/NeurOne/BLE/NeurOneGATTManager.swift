@@ -43,6 +43,15 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Where the helmet says the session is (SWR-SS-07): elapsed, remaining, active part, ramp. Nil before the first frame.
     @Published private(set) var progress: SessionProgress?
 
+    /// The helmet's hardware version (SWR-HV-06), read from the helmet and not assumed. Until it is read, or on a helmet
+    /// whose firmware does not publish it, it is `defaultHardwareVersion`.
+    @Published private(set) var hardwareVersion: Int = NeurOneGATTManager.defaultHardwareVersion
+
+    /// The hardware version of a helmet that states none (SWR-HV-07): version 1 is the only layout that exists. This
+    /// default is removed in the same change that adds hardware version 2 (a checked item on the increment record,
+    /// `np_spi_wire_types.h`).
+    static let defaultHardwareVersion = 1
+
     /// What the hub says it received at the last protocol upload (SWR-UP-01). Nil before the first report and after a dropped
     /// link. The hash is of protocol bytes the person authored and carries no user biology.
     @Published private(set) var uploadCheck: UploadCheck?
@@ -173,6 +182,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var sessionStopChar:    CBCharacteristic?
     private var sessionPauseChar:   CBCharacteristic?
     private var sessionProgressChar: CBCharacteristic?
+    private var hardwareVersionChar: CBCharacteristic?
     private var uploadCheckChar:    CBCharacteristic?
 
     // Dedicated subject for impedance results — fires ONLY from GattUuidStrings.IMPEDANCE_RESULT_ID handler.
@@ -262,6 +272,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         peripheral = nil
         session = .empty
         progress = nil
+        hardwareVersion = Self.defaultHardwareVersion // the next link may be another helmet
         uploadCheck = nil
         pending = .empty
         // Clear the map entirely rather than zeroing a fixed shape — on
@@ -441,6 +452,13 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         p.writeValue(Data([code]), for: char, type: .withResponse)
     }
 
+    /// Decodes HARDWARE_VERSION: exactly one byte, 1 to 15 (SWR-HV-06). Anything else is not believed and the version
+    /// stays as it was (SWR-HV-07). `internal` — driven directly by tests.
+    func applyHardwareVersion(_ data: Data) {
+        guard data.count == 1, (1...15).contains(Int(data[data.startIndex])) else { return }
+        hardwareVersion = Int(data[data.startIndex])
+    }
+
     /// Ask the hub for its current upload report (a READ, so a missed notification does not leave the outcome unknown).
     func requestUploadCheck() {
         guard let char = uploadCheckChar, let p = peripheral else { return }
@@ -573,7 +591,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
-        sessionPauseChar = nil; sessionProgressChar = nil; uploadCheckChar = nil
+        sessionPauseChar = nil; sessionProgressChar = nil; hardwareVersionChar = nil; uploadCheckChar = nil
         deviceSerialChar = nil
         socketMapChar = nil
         firmwareVersionChar = nil
@@ -638,6 +656,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             GattUuidStrings.SOCKET_MAP_ID, GattUuidStrings.CVNS_PAD_STATUS_ID,
             GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID,
             GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.DEVICE_SERIAL_ID,
+            GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID, GattUuidStrings.HARDWARE_VERSION_ID,
             GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID, GattUuidStrings.UPLOAD_CHECK_ID,
         ]
         peripheral.discoverCharacteristics(
@@ -714,6 +733,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
 
             case CBUUID(string: GattUuidStrings.SESSION_STOP_ID):
                 sessionStopChar = char
+
+            case CBUUID(string: GattUuidStrings.HARDWARE_VERSION_ID):
+                // SWR-HV-06: optional (hub firmware); read once at link. It never changes in the field.
+                hardwareVersionChar = char
+                peripheral.readValue(for: char)
 
             case CBUUID(string: GattUuidStrings.UPLOAD_CHECK_ID):
                 // SWR-UP-01: optional (hub firmware); read at link, notified, and read again after each upload.
@@ -828,6 +852,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // UID. Handled here, above the `session = pending` path, so it can
             // never be folded into a UHDR session record.
             applyZoneModuleStatus(data)
+            return
+        }
+
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.HARDWARE_VERSION_ID) {
+            applyHardwareVersion(data)
             return
         }
 

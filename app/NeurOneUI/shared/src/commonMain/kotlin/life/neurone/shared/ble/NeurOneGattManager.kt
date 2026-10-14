@@ -63,6 +63,13 @@ class NeurOneGattManager(
     val progress: StateFlow<SessionProgress?> = _progress
 
     /**
+     * The helmet's hardware version (SWR-HV-06), read from the helmet and not assumed. Until it is read, or on a helmet
+     * whose firmware does not publish it, it is [DEFAULT_HARDWARE_VERSION].
+     */
+    private val _hardwareVersion = MutableStateFlow(DEFAULT_HARDWARE_VERSION)
+    val hardwareVersion: StateFlow<Int> = _hardwareVersion
+
+    /**
      * What the helmet says it received at the last protocol upload: its hash of the bytes and an accept or refuse verdict
      * (SWR-UP-01). Null before the first report and after a dropped link. The hash is of protocol bytes the person authored
      * and carries no user biology.
@@ -272,6 +279,10 @@ class NeurOneGattManager(
             central.enableNotifications(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
             central.read(UUID.fromString(GattUuidStrings.CVNS_FAULT_STATUS_ID))
         }
+        // SWR-HV-06: optional (hub firmware); read once at link. It never changes in the field.
+        if (UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) in characteristics) {
+            central.read(UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID))
+        }
         // SWR-UP-01: optional (hub firmware); read at link and notified, and read again after each upload.
         uploadCheckCharPresent = UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) in characteristics
         if (uploadCheckCharPresent) {
@@ -331,6 +342,8 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) -> GattParser.parseSessionStatus(value)?.let { (pid, status) ->
                 _session.value = _session.value.copy(protocolId = pid, status = status)
             }
+            UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) ->
+                GattParser.parseHardwareVersion(value)?.let { _hardwareVersion.value = it }
             UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
@@ -525,6 +538,7 @@ class NeurOneGattManager(
         _allCharacteristicsResolved.value = false
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
         _progress.value = null
+        _hardwareVersion.value = DEFAULT_HARDWARE_VERSION // the next link may be another helmet
         _uploadCheck.value = null
         uploadCheckCharPresent = false
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
@@ -557,5 +571,12 @@ class NeurOneGattManager(
     private companion object {
         /** UC-078 (timings): unmeasured. */
         const val SERIAL_RETRY_MS = 5_000L
+
+        /**
+         * The hardware version of a helmet that states none (SWR-HV-07): version 1 is the only layout that exists. This
+         * default is removed in the same change that adds hardware version 2 (a checked item on the increment record,
+         * `np_spi_wire_types.h`).
+         */
+        const val DEFAULT_HARDWARE_VERSION = 1
     }
 }

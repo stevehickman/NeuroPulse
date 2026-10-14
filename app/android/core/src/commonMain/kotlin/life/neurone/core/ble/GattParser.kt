@@ -43,6 +43,16 @@ object GattParser {
     /** SESSION_PROGRESS: 22 bytes (SWR-SS-07). Null if malformed. */
     fun parseSessionProgress(data: ByteArray): SessionProgress? = SessionProgress.fromWire(data)
 
+    /**
+     * HARDWARE_VERSION: exactly one byte, 1 to 15 (SWR-HV-06). Null for any other length or value, so no out-of-range
+     * version is believed: the caller keeps its default (SWR-HV-07).
+     */
+    fun parseHardwareVersion(data: ByteArray): Int? {
+        if (data.size != 1) return null
+        val v = data[0].toInt() and 0xFF
+        return if (v in 1..15) v else null
+    }
+
     /** UPLOAD_CHECK: 34 bytes (SWR-UP-01). Null if malformed. */
     fun parseUploadCheck(data: ByteArray): UploadCheck? = UploadCheck.fromWire(data)
 

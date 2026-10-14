@@ -76,3 +76,47 @@ class SessionControlsTest {
         assertNull(manager.progress.value)
     }
 }
+
+/** The helmet's hardware version is read from the helmet and not assumed (SWR-HV-06, SWR-HV-07). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class HardwareVersionTest {
+    private class InertCentral : BleCentral {
+        override val adapterState = AdapterState.ON
+        override fun setListener(listener: BleCentralListener) {}
+        override fun startScan(serviceUuid: UUID) {}
+        override fun stopScan() {}
+        override fun connect(deviceId: String) {}
+        override fun disconnect() {}
+        override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+        override fun enableNotifications(uuid: UUID) {}
+        override fun read(uuid: UUID) {}
+        override fun write(uuid: UUID, value: ByteArray) {}
+    }
+
+    private val versionId = UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID)
+
+    // @verifies SWR-HV-07
+    @Test fun a_helmet_that_states_none_is_version_one() = runTest {
+        val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
+        assertEquals(1, manager.hardwareVersion.value)
+    }
+
+    // @verifies SWR-HV-06
+    @Test fun the_version_the_helmet_reports_is_the_one_the_gate_uses_and_a_bad_byte_is_not_believed() = runTest {
+        val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
+        manager.onCharacteristicRead(versionId, byteArrayOf(2))
+        assertEquals(2, manager.hardwareVersion.value)
+        manager.onCharacteristicRead(versionId, byteArrayOf(0))
+        assertEquals(2, manager.hardwareVersion.value, "an out-of-range byte changes nothing")
+        manager.onCharacteristicRead(versionId, byteArrayOf(3, 3))
+        assertEquals(2, manager.hardwareVersion.value, "a frame of the wrong length changes nothing")
+    }
+
+    // @verifies SWR-HV-06
+    @Test fun the_next_link_may_be_another_helmet_so_a_dropped_link_forgets_the_version() = runTest {
+        val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
+        manager.onCharacteristicRead(versionId, byteArrayOf(5))
+        manager.onDisconnected("hub")
+        assertEquals(1, manager.hardwareVersion.value)
+    }
+}
