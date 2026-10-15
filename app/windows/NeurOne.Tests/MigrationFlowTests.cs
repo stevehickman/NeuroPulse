@@ -17,11 +17,11 @@ public class MigrationFlowTests
         public JsonNode? Confirmation;
     }
 
-    private sealed class KeyStore : IMigrationKeyStore
+    private sealed class KeyStore : IKeyValueStore
     {
         public readonly Dictionary<string, string> Values = [];
-        public string? Get(string key) => Values.GetValueOrDefault(key);
-        public void Put(string key, string value) => Values[key] = value;
+        public string? GetString(string key) => Values.GetValueOrDefault(key);
+        public void PutString(string key, string value) => Values[key] = value;
         public void Remove(string key) => Values.Remove(key);
     }
 
@@ -118,7 +118,7 @@ public class MigrationFlowTests
         var store = new KeyStore();
         var carried = NppsCore.Migration(new JsonObject { ["op"] = "itemKeys" })["carried"]!.AsObject();
         foreach (var (_, keys) in carried)
-            foreach (var k in keys!.AsArray().Select(n => (string)n!)) store.Put(k, $"value-of-{k}");
+            foreach (var k in keys!.AsArray().Select(n => (string)n!)) store.PutString(k, $"value-of-{k}");
         return store;
     }
 
@@ -149,7 +149,7 @@ public class MigrationFlowTests
     {
         var route = new Route();
         var oldStore = Filled();
-        oldStore.Put("ble.last-hub-id", "hub-1");
+        oldStore.PutString("ble.last-hub-id", "hub-1");
         using var oldSecret = Secret("a long enough passphrase");
         var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
         var clearParams = new JsonObject { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = false };
@@ -231,14 +231,14 @@ public class MigrationFlowTests
         var route = new Route();
         var oldStore = Filled();
         string[] installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"];
-        foreach (var k in installKeys) oldStore.Put(k, "belongs-to-this-phone");
+        foreach (var k in installKeys) oldStore.PutString(k, "belongs-to-this-phone");
         using var oldSecret = Secret("a long enough passphrase");
         await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
         var fresh = new KeyStore();
         using var freshSecret = Secret("a long enough passphrase");
         await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, fresh);
-        foreach (var k in installKeys) Assert.Null(fresh.Get(k));
-        Assert.Equal("value-of-np.session.history", fresh.Get("np.session.history"));
+        foreach (var k in installKeys) Assert.Null(fresh.GetString(k));
+        Assert.Equal("value-of-np.session.history", fresh.GetString("np.session.history"));
     }
 
     // @verifies SWR-MG-07

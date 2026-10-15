@@ -25,10 +25,10 @@ export interface MigrationHost {
   perform(effect: FlowEffect): Promise<Record<string, unknown>> | Record<string, unknown>;
 }
 
-/** The app's key-value store, as the flows need it: get, put and remove, and nothing else. */
-export interface MigrationKeyStore {
-  get(key: string): string | null | undefined;
-  put(key: string, value: string): void;
+/** The app's key-value store, as the flows need it: get, put and remove, and nothing else. The same role and the same names on every platform. */
+export interface KeyValueStore {
+  getString(key: string): string | null | undefined;
+  putString(key: string, value: string): void;
   remove(key: string): void;
 }
 
@@ -57,7 +57,7 @@ export interface FlowOptions {
   /** What a backup or restore derives its key from, as hex (from `bundleKey.ts`). */
   secret?: string;
   /** The key-value store the plain-key items live in. When given, the core's plain-key items are declared to it as `keyItems`. */
-  keys?: MigrationKeyStore;
+  keys?: KeyValueStore;
   /**
    * A route that is an object store. The core then drives the route itself (which object is the bundle, how a claim is
    * encoded) and `host.perform` is asked for no route effect.
@@ -69,7 +69,7 @@ export interface FlowOptions {
 const MAX_TURNS = 100_000;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function runMigrationFlow(flow: FlowName, params: Record<string, unknown>, host: MigrationHost, options: FlowOptions = {}): Promise<any> {
+async function run(flow: FlowName, params: Record<string, unknown>, host: MigrationHost, options: FlowOptions = {}): Promise<any> {
   const p = { ...params };
   if (options.store && p.objectStore === undefined) p.objectStore = true;
   if (options.keys && p.keyItems === undefined) p.keyItems = Object.keys(nppsMigration({ op: 'itemKeys' }).carried);
@@ -91,14 +91,14 @@ async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store
       if (!keys) break;
       return {
         values: Object.fromEntries((e.keys as string[]).flatMap((k) => {
-          const v = keys.get(k);
+          const v = keys.getString(k);
           return v === null || v === undefined ? [] : [[k, v]];
         })),
       };
     case 'writeKeys':
       if (!keys) break;
       for (const k of e.remove as string[]) keys.remove(k);
-      for (const [k, v] of Object.entries(e.set as Record<string, string>)) keys.put(k, v);
+      for (const [k, v] of Object.entries(e.set as Record<string, string>)) keys.putString(k, v);
       return { ok: true };
     case 'objectGet':
     case 'objectPut':
@@ -138,11 +138,17 @@ async function performObject(e: FlowEffect, store: ObjectStore): Promise<Record<
 }
 
 /** The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07). */
-export function objectNames(): { bundle: string; claim: string; confirmation: string; probePrefix: string } {
+function objectNames(): { bundle: string; claim: string; confirmation: string; probePrefix: string } {
   return nppsMigration({ op: 'objectNames' });
 }
 
 /** SWR-MG-12: check an account on throwaway objects that hold no user data. `random` is the host's, as for any flow. */
-export async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
-  return runMigrationFlow('probe', { bundleBytes }, host, { store });
+async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
+  return run('probe', { bundleBytes }, host, { store });
 }
+
+/**
+ * The flows, under the one name every platform uses for this role: `MigrationFlow.run`, `MigrationFlow.probe` and
+ * `MigrationFlow.objectNames` (Swift `MigrationFlow`, C# `MigrationFlow`, Kotlin `MigrationFlow`).
+ */
+export const MigrationFlow = { run, probe, objectNames };

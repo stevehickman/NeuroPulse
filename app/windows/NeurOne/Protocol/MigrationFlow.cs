@@ -7,7 +7,8 @@
 // own Argon2id over the secret this driver holds), and readKeys / writeKeys (the app's key-value store, whose key list the
 // core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app stores
 // another way. The table of effects is in migration_flow.rs. The iOS counterpart is app/ios/NeurOne/Session/MigrationFlow.swift,
-// the web's common/lib/migrationFlow.ts, Kotlin's MigrationService.
+// the web's common/lib/migrationFlow.ts, Kotlin's MigrationFlow.kt, under the same four names:
+// MigrationFlow, MigrationHost, KeyValueStore and ObjectStore (the interfaces here carry an I prefix).
 //
 // A flow state is opaque, is never stored, and never holds a secret or a key.
 
@@ -22,11 +23,12 @@ interface IMigrationHost
     Task<JsonObject> PerformAsync(JsonObject effect);
 }
 
-/// The app's key-value store, as the flows need it: get, put and remove, and nothing else.
-interface IMigrationKeyStore
+/// The app's key-value store, as the flows need it: get, put and remove, and nothing else. The same role and the same names on
+/// every platform (Kotlin KeyValueStore, Swift KeyValueStore, TypeScript KeyValueStore).
+interface IKeyValueStore
 {
-    string? Get(string key);
-    void Put(string key, string value);
+    string? GetString(string key);
+    void PutString(string key, string value);
     void Remove(string key);
 }
 
@@ -57,7 +59,7 @@ static class MigrationFlow
     /// backup or restore derives its key from; `keys` is the key-value store the plain-key items live in. When `keys` is
     /// given, the items the core says are plain keys are declared to it as `keyItems`.
     public static async Task<JsonObject> RunAsync(
-        string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IMigrationKeyStore? keys = null,
+        string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IKeyValueStore? keys = null,
         IObjectStore? store = null)
     {
         var p = (JsonObject)parameters.DeepClone();
@@ -81,7 +83,7 @@ static class MigrationFlow
         throw new NppsRefusal($"The {flow} flow did not end in {MaxTurns} turns");
     }
 
-    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IMigrationKeyStore? keys, IObjectStore? store)
+    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store)
     {
         switch ((string?)e["type"])
         {
@@ -92,11 +94,11 @@ static class MigrationFlow
             case "readKeys" when keys is not null:
                 var values = new JsonObject();
                 foreach (var k in e["keys"]!.AsArray().Select(n => (string)n!))
-                    if (keys.Get(k) is { } v) values[k] = v;
+                    if (keys.GetString(k) is { } v) values[k] = v;
                 return Task.FromResult(new JsonObject { ["values"] = values });
             case "writeKeys" when keys is not null:
                 foreach (var k in e["remove"]!.AsArray().Select(n => (string)n!)) keys.Remove(k);
-                foreach (var (k, v) in e["set"]!.AsObject()) keys.Put(k, (string)v!);
+                foreach (var (k, v) in e["set"]!.AsObject()) keys.PutString(k, (string)v!);
                 return Task.FromResult(new JsonObject { ["ok"] = true });
             case "objectGet" or "objectPut" or "objectCreate" or "objectDelete" or "objectList" or "objectSpace" when store is not null:
                 return PerformObjectAsync(e, store);

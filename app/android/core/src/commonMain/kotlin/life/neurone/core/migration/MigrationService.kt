@@ -14,7 +14,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.BundleSecret
 import life.neurone.core.common.KeyValueStore
@@ -92,14 +91,56 @@ sealed class ClearResult {
     class Failed(val step: String) : ClearResult()
 }
 
-/** What the effects of one flow run against: the route, the person's secret, and the old phone's clear steps. */
-private class FlowContext(
-    val route: RouteDescriptor? = null,
-    val secret: BundleSecret? = null,
-    val actions: ClearActions? = null,
-)
+/**
+ * The effects the driver ([MigrationFlow]) does not answer itself, for this app: randomness, the items stored another way,
+ * a route the app writes itself ([BackupRoute]) and the platform's clear steps ([ClearActions]).
+ */
+private class ServiceHost(
+    private val random: RandomSource,
+    private val byItem: Map<String, MigrationItemStore>,
+    private val route: RouteDescriptor?,
+    private val actions: ClearActions?,
+) : MigrationHost {
+    private fun strings(a: JsonElement?): List<String> = a?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+    private fun typed(): BackupRoute = route as? BackupRoute ?: error("this route is an object store; the core drives it")
+
+    override suspend fun perform(effect: JsonObject): JsonObject = when (val type = effect["type"]!!.jsonPrimitive.content) {
+        "random" -> {
+            val n = effect["bytes"]!!.jsonPrimitive.content.toInt()
+            val bytes = random.nextBytes(n)
+            require(bytes.size == n) { "The random source gave ${bytes.size} bytes, not $n" }
+            buildJsonObject { put("bytes", bytes.toHex()) }
+        }
+        "readItems" -> buildJsonObject {
+            put("items", buildJsonObject {
+                strings(effect["names"]).forEach { n -> byItem[n]?.export()?.let { put(n, it) } }
+            })
+        }
+        "applyItem" -> {
+            byItem[effect["name"]!!.jsonPrimitive.content]!!.import(effect["value"]!!)
+            buildJsonObject { put("ok", true) }
+        }
+        "getBundle" -> buildJsonObject { put("bundle", typed().getBundle()?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
+        "putBundle" -> {
+            typed().putBundle(effect["bundle"]!!.jsonPrimitive.content.hexToBytes())
+            buildJsonObject { put("ok", true) }
+        }
+        "readClaim" -> buildJsonObject { put("claim", typed().readClaim() ?: JsonNull) }
+        "createClaim" -> buildJsonObject { put("created", typed().createClaimIfAbsent(effect["claim"]!!.jsonObject)) }
+        "writeConfirmation" -> {
+            typed().writeConfirmation(effect["confirmation"]!!.jsonObject)
+            buildJsonObject { put("ok", true) }
+        }
+        "readConfirmation" -> buildJsonObject { put("confirmation", typed().readConfirmation() ?: JsonNull) }
+        "runClearStep" -> buildJsonObject { put("ok", actions!!.run(effect["step"]!!.jsonPrimitive.content)) }
+        else -> error("unknown effect '$type'")
+    }
+}
 
 /**
+ * The typed outcomes on top of [MigrationFlow], for Kotlin callers that want a sealed type instead of the `done` object the
+ * other platforms return. It holds no flow logic: each call builds the flow's params and hands them to [MigrationFlow.run].
+ *
  * @param kv the app's key-value store: the items that are plain keys (protocols, session history, limits profiles,
  *   characterisation enrolment) are read and written through it, by the key list the core holds.
  * @param adapters items this app stores another way, read and written whole (consent, once its adapter is wired).
@@ -110,9 +151,6 @@ class MigrationService(
     private val random: RandomSource,
 ) {
     private val byItem = adapters.associateBy { it.item }
-
-    /** The items the core says are plain keys: the same list on every platform. */
-    private val keyItems: List<String> by lazy { ask("itemKeys")["carried"]!!.jsonObject.keys.toList() }
 
     private fun ask(op: String, build: JsonObjectBuilder.() -> Unit = {}): JsonObject =
         NppsCore.migration(buildJsonObject { put("op", op); build() })
@@ -128,96 +166,20 @@ class MigrationService(
 
     private fun hostItems(): JsonArray = buildJsonArray { byItem.keys.forEach { add(it) } }
 
-    private fun keyItemsJson(): JsonArray = buildJsonArray { keyItems.forEach { add(it) } }
+    private suspend fun drive(
+        flow: String,
+        params: JsonObject,
+        route: RouteDescriptor? = null,
+        secret: BundleSecret? = null,
+        actions: ClearActions? = null,
+    ): JsonObject = MigrationFlow.run(
+        flow, params, ServiceHost(random, byItem, route, actions), secret, kv, (route as? ObjectStoreRoute)?.store,
+    )
 
-    /** Run one flow to its end: ask the core, perform the effect it names, hand back the outcome, until it says done. */
-    private suspend fun drive(flow: String, params: JsonObject, ctx: FlowContext): JsonObject {
-        var answer = ask("flow") { put("flow", flow); put("params", params) }
-        repeat(MAX_TURNS) {
-            answer["done"]?.let { return it.jsonObject }
-            val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, ctx)
-            answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
-        }
-        error("The $flow flow did not end in $MAX_TURNS turns")
-    }
-
-    /** The effects (the table in `migration_flow.rs`). Each is one storage, route or randomness call and no rule. */
-    private suspend fun perform(e: JsonObject, ctx: FlowContext): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
-        "random" -> {
-            val n = e["bytes"]!!.jsonPrimitive.content.toInt()
-            val bytes = random.nextBytes(n)
-            require(bytes.size == n) { "The random source gave ${bytes.size} bytes, not $n" }
-            buildJsonObject { put("bytes", bytes.toHex()) }
-        }
-        "deriveKey" -> {
-            // Answered here for every flow, from the core's own derivation: a host never implements it.
-            val key = BundleKeyDerivation.deriveKey(ctx.secret ?: error("no secret"), e["kdf"]!!.jsonObject)
-            try { buildJsonObject { put("key", key.hex()) } } finally { key.destroy() }
-        }
-        "readKeys" -> buildJsonObject {
-            put("values", buildJsonObject { strings(e["keys"]).forEach { k -> kv.getString(k)?.let { put(k, JsonPrimitive(it)) } } })
-        }
-        "writeKeys" -> {
-            strings(e["remove"]).forEach { kv.remove(it) }
-            e["set"]!!.jsonObject.forEach { (k, v) -> kv.putString(k, v.jsonPrimitive.content) }
-            buildJsonObject { put("ok", true) }
-        }
-        "readItems" -> buildJsonObject {
-            put("items", buildJsonObject {
-                strings(e["names"]).forEach { n -> byItem[n]?.export()?.let { put(n, it) } }
-            })
-        }
-        "applyItem" -> {
-            byItem[e["name"]!!.jsonPrimitive.content]!!.import(e["value"]!!)
-            buildJsonObject { put("ok", true) }
-        }
-        "getBundle" -> buildJsonObject { put("bundle", ctx.typed().getBundle()?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
-        "putBundle" -> {
-            ctx.typed().putBundle(e["bundle"]!!.jsonPrimitive.content.hexToBytes())
-            buildJsonObject { put("ok", true) }
-        }
-        "readClaim" -> buildJsonObject { put("claim", ctx.typed().readClaim() ?: JsonNull) }
-        "createClaim" -> buildJsonObject { put("created", ctx.typed().createClaimIfAbsent(e["claim"]!!.jsonObject)) }
-        "writeConfirmation" -> {
-            ctx.typed().writeConfirmation(e["confirmation"]!!.jsonObject)
-            buildJsonObject { put("ok", true) }
-        }
-        "readConfirmation" -> buildJsonObject { put("confirmation", ctx.typed().readConfirmation() ?: JsonNull) }
-        "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace" -> performObject(type, e, ctx)
-        "runClearStep" -> buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
-        else -> error("unknown effect '$type'")
-    }
-
-    private fun FlowContext.typed(): BackupRoute = route as? BackupRoute ?: error("this route is an object store; the core drives it")
-
-    /** One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11). */
-    private suspend fun performObject(type: String, e: JsonObject, ctx: FlowContext): JsonObject {
-        val store = (ctx.route as? ObjectStoreRoute)?.store ?: error("no object store for '$type'")
-        val name = e["name"]?.jsonPrimitive?.content ?: ""
-        return try {
-            when (type) {
-                "objectGet" -> buildJsonObject { put("data", store.get(name)?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
-                "objectPut" -> { store.put(name, e["data"]!!.jsonPrimitive.content.hexToBytes()); buildJsonObject { put("ok", true) } }
-                "objectCreate" -> buildJsonObject { put("created", store.createIfAbsent(name, e["data"]!!.jsonPrimitive.content.hexToBytes())) }
-                "objectDelete" -> { store.delete(name); buildJsonObject { put("ok", true) } }
-                "objectList" -> buildJsonObject { put("names", buildJsonArray { store.list(e["prefix"]!!.jsonPrimitive.content).forEach { add(it) } }) }
-                else -> buildJsonObject { put("bytes", store.freeSpace()?.let { JsonPrimitive(it) } ?: JsonNull) }
-            }
-        } catch (e: Exception) {
-            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-            buildJsonObject { put("failed", true) }
-        }
-    }
-
-    /** The params that say which route a flow runs over: its descriptor, and that the core drives it when it is an object store. */
+    /** The params that say which route a flow runs over: its descriptor. */
     private fun JsonObjectBuilder.putRoute(route: RouteDescriptor) {
         put("route", routeJson(route))
-        if (route is ObjectStoreRoute) put("objectStore", true)
     }
-
-    private fun JsonObject.ok(): Boolean = this["ok"]!!.jsonPrimitive.boolean
-    private fun JsonObject.reason(): String = this["reason"]!!.jsonPrimitive.content
 
     /** What a kind will carry and leave out, for the screen to say before the backup (SWR-MG-03). */
     fun inventory(kind: String): JsonObject = ask("inventory") { put("kind", kind) }
@@ -232,9 +194,9 @@ class MigrationService(
             "backup",
             buildJsonObject {
                 put("kind", kind); put("method", method.wire); putRoute(route)
-                put("hostItems", hostItems()); put("keyItems", keyItemsJson())
+                put("hostItems", hostItems())
             },
-            FlowContext(route = route, secret = secret),
+            route = route, secret = secret,
         )
         if (!d.ok()) return BackupResult.Refused(d.reason())
         return BackupResult.Done(d["bundleHash"]!!.jsonPrimitive.content, kind, strings(d["written"]), strings(d["omitted"]))
@@ -242,7 +204,7 @@ class MigrationService(
 
     /** What is on the route, read with no key: the kind, the format version and how its key was made (SWR-MG-05). */
     suspend fun inspect(route: RouteDescriptor): InspectResult {
-        val d = drive("inspect", buildJsonObject { if (route is ObjectStoreRoute) put("objectStore", true) }, FlowContext(route = route))
+        val d = drive("inspect", buildJsonObject { }, route = route)
         if (!d.ok()) return InspectResult.Refused(d.reason())
         return InspectResult.Found(
             kind = d["kind"]!!.jsonPrimitive.content,
@@ -260,8 +222,8 @@ class MigrationService(
     suspend fun restore(route: RouteDescriptor, secret: BundleSecret): RestoreResult {
         val d = drive(
             "restore",
-            buildJsonObject { putRoute(route); put("hostItems", hostItems()); put("keyItems", keyItemsJson()) },
-            FlowContext(route = route, secret = secret),
+            buildJsonObject { putRoute(route); put("hostItems", hostItems()) },
+            route = route, secret = secret,
         )
         if (!d.ok()) return RestoreResult.Refused(d.reason())
         return RestoreResult.Restored(
@@ -281,7 +243,7 @@ class MigrationService(
     suspend fun releaseClaim(route: RouteDescriptor) {
         when (route) {
             is BackupRoute -> route.releaseClaim()
-            is ObjectStoreRoute -> route.store.delete(ask("objectNames")["claim"]!!.jsonPrimitive.content)
+            is ObjectStoreRoute -> route.store.delete(MigrationFlow.objectNames()["claim"]!!.jsonPrimitive.content)
             else -> error("unknown route")
         }
     }
@@ -293,7 +255,7 @@ class MigrationService(
      * simultaneous writers (that is the provider's contract test, SWR-MG-11).
      */
     suspend fun probe(store: ObjectStore, bundleBytes: Long): ProbeResult {
-        val d = drive("probe", buildJsonObject { put("bundleBytes", bundleBytes) }, FlowContext(route = ObjectStoreRoute(store, "probe", atomicClaim = false)))
+        val d = MigrationFlow.probe(store, bundleBytes, ServiceHost(random, byItem, null, null))
         return ProbeResult(
             result = d["result"]!!.jsonPrimitive.content,
             failedOperation = d["failedOperation"]?.jsonPrimitive?.content,
@@ -314,13 +276,9 @@ class MigrationService(
         val d = drive(
             "clear",
             buildJsonObject { put("bundleHash", bundleHash); put("canRemoveOsBond", canRemoveOsBond) },
-            FlowContext(route = route, actions = actions),
+            route = route, actions = actions,
         )
         if (d.ok()) return ClearResult.Cleared(d["removeOsBond"]!!.jsonPrimitive.boolean)
         return if (d.reason() == "step_failed") ClearResult.Failed(d["step"]!!.jsonPrimitive.content) else ClearResult.Waiting(d.reason())
-    }
-
-    private companion object {
-        const val MAX_TURNS = 100_000
     }
 }

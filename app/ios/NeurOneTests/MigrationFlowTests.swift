@@ -20,10 +20,10 @@ private final class Route {
     var confirmation: [String: Any]?
 }
 
-private final class KeyStore: MigrationKeyStore {
+private final class KeyStore: KeyValueStore {
     var values: [String: String] = [:]
-    func get(_ key: String) -> String? { values[key] }
-    func put(_ key: String, _ value: String) { values[key] = value }
+    func getString(_ key: String) -> String? { values[key] }
+    func putString(_ key: String, _ value: String) { values[key] = value }
     func remove(_ key: String) { values.removeValue(forKey: key) }
 }
 
@@ -104,7 +104,7 @@ final class MigrationFlowTests: XCTestCase {
     private func filledStore() throws -> KeyStore {
         let store = KeyStore()
         let carried = try NppsCore.migration(["op": "itemKeys"])["carried"] as? [String: [String]] ?? [:]
-        for key in carried.values.flatMap({ $0 }) { store.put(key, "value-of-\(key)") }
+        for key in carried.values.flatMap({ $0 }) { store.putString(key, "value-of-\(key)") }
         return store
     }
 
@@ -137,7 +137,7 @@ final class MigrationFlowTests: XCTestCase {
     func testTheOldPhoneClearsThroughTheSharedFlowAndTheHostDoesOnlyItsOwnSteps() async throws {
         let route = Route()
         let oldStore = try filledStore()
-        oldStore.put("ble.last-hub-id", "hub-1")
+        oldStore.putString("ble.last-hub-id", "hub-1")
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
             host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
@@ -220,7 +220,7 @@ final class MigrationFlowTests: XCTestCase {
         let route = Route()
         let oldStore = try filledStore()
         let installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"]
-        for k in installKeys { oldStore.put(k, "belongs-to-this-phone") }
+        for k in installKeys { oldStore.putString(k, "belongs-to-this-phone") }
         _ = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
             host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
@@ -228,8 +228,8 @@ final class MigrationFlowTests: XCTestCase {
         _ = try await MigrationFlow.run(
             "restore", params: params(), host: Host(route: route, seed: 50),
             secret: try secret("a long enough passphrase"), keys: freshStore)
-        for k in installKeys { XCTAssertNil(freshStore.get(k), "\(k) must not move") }
-        XCTAssertEqual(freshStore.get("np.session.history"), "value-of-np.session.history")
+        for k in installKeys { XCTAssertNil(freshStore.getString(k), "\(k) must not move") }
+        XCTAssertEqual(freshStore.getString("np.session.history"), "value-of-np.session.history")
     }
 
     // @verifies SWR-MG-07

@@ -9,7 +9,8 @@ import Foundation
 // Argon2id over the secret this driver holds), and `readKeys` / `writeKeys` (the app's key-value store, whose key list the
 // core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app stores
 // another way. The table of effects is in migration_flow.rs. The Windows counterpart is
-// app/windows/NeurOne/Protocol/MigrationFlow.cs, the web's common/lib/migrationFlow.ts, Kotlin's MigrationService.
+// app/windows/NeurOne/Protocol/MigrationFlow.cs, the web's common/lib/migrationFlow.ts and Kotlin's MigrationFlow.kt, under the
+// same four names: MigrationFlow, MigrationHost, KeyValueStore and ObjectStore.
 //
 // A flow state is opaque, is never stored, and never holds a secret or a key.
 
@@ -19,17 +20,18 @@ protocol MigrationHost {
     func perform(_ effect: [String: Any]) async throws -> [String: Any]
 }
 
-/// The app's key-value store, as the flows need it: get, put and remove, and nothing else.
-protocol MigrationKeyStore {
-    func get(_ key: String) -> String?
-    func put(_ key: String, _ value: String)
+/// The app's key-value store, as the flows need it: get, put and remove, and nothing else. The same role and the same names on
+/// every platform (Kotlin `KeyValueStore`, C# `IKeyValueStore`, TypeScript `KeyValueStore`).
+protocol KeyValueStore {
+    func getString(_ key: String) -> String?
+    func putString(_ key: String, _ value: String)
     func remove(_ key: String)
 }
 
-struct UserDefaultsKeyStore: MigrationKeyStore {
+struct UserDefaultsKeyValueStore: KeyValueStore {
     let defaults: UserDefaults
-    func get(_ key: String) -> String? { defaults.string(forKey: key) }
-    func put(_ key: String, _ value: String) { defaults.set(value, forKey: key) }
+    func getString(_ key: String) -> String? { defaults.string(forKey: key) }
+    func putString(_ key: String, _ value: String) { defaults.set(value, forKey: key) }
     func remove(_ key: String) { defaults.removeObject(forKey: key) }
 }
 
@@ -62,7 +64,7 @@ enum MigrationFlow {
         params: [String: Any],
         host: MigrationHost,
         secret: BundleSecret? = nil,
-        keys: MigrationKeyStore? = nil,
+        keys: KeyValueStore? = nil,
         store: ObjectStore? = nil
     ) async throws -> [String: Any] {
         var params = params
@@ -87,7 +89,7 @@ enum MigrationFlow {
         _ e: [String: Any],
         host: MigrationHost,
         secret: BundleSecret?,
-        keys: MigrationKeyStore?,
+        keys: KeyValueStore?,
         store: ObjectStore?
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
@@ -99,12 +101,12 @@ enum MigrationFlow {
         case "readKeys":
             guard let keys else { break }
             var values: [String: Any] = [:]
-            for k in e["keys"] as? [String] ?? [] { if let v = keys.get(k) { values[k] = v } }
+            for k in e["keys"] as? [String] ?? [] { if let v = keys.getString(k) { values[k] = v } }
             return ["values": values]
         case "writeKeys":
             guard let keys else { break }
             for k in e["remove"] as? [String] ?? [] { keys.remove(k) }
-            for (k, v) in e["set"] as? [String: Any] ?? [:] { if let text = v as? String { keys.put(k, text) } }
+            for (k, v) in e["set"] as? [String: Any] ?? [:] { if let text = v as? String { keys.putString(k, text) } }
             return ["ok": true]
         case "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace":
             guard let store else { break }
