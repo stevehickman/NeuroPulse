@@ -3,15 +3,15 @@
 //  NeurOneTests
 //
 //  The backup and device-replacement flows through the iOS driver and the C ABI binding. The Rust tests hold the ORDER of
-//  the flow once for every app (migration_flow.rs); this holds the iOS path: the driver loop and the effect shapes the
-//  host sees. The same cases run on Kotlin, Windows and the web.
+//  the flow once for every app (migration_flow.rs); this holds the iOS path: the driver loop, the effects it answers itself
+//  (the core's Argon2id key, the key-value store) and the effect shapes the host sees. The same cases run on Kotlin,
+//  Windows and the web.
 //
 //  Subject under test: MigrationFlow (app/ios/NeurOne/Session/MigrationFlow.swift)
 
 import XCTest
 @testable import NeurOne
 
-private let hostItems = ["protocols", "sessionHistory", "limitsProfiles", "characterisationEnrolment"]
 private let routeJSON: [String: Any] = ["id": "memory", "atomicClaim": true, "direct": false, "authenticatedPairing": true]
 
 private final class Route {
@@ -20,19 +20,22 @@ private final class Route {
     var confirmation: [String: Any]?
 }
 
-/// A phone and a route in memory: dumb storage that performs whatever effect it is asked for.
+private final class KeyStore: MigrationKeyStore {
+    var values: [String: String] = [:]
+    func get(_ key: String) -> String? { values[key] }
+    func put(_ key: String, _ value: String) { values[key] = value }
+    func remove(_ key: String) { values.removeValue(forKey: key) }
+}
+
+/// A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
 private final class Host: MigrationHost {
-    var items: [String: Any] = [:]
     var seen: [String] = []
     private let route: Route
-    private let secret: String
     private var counter: Int
 
-    init(route: Route, secret: String, seed: Int, filled: Bool) {
+    init(route: Route, seed: Int) {
         self.route = route
-        self.secret = secret
         self.counter = seed
-        if filled { for n in hostItems { items[n] = ["np.\(n)": "value-of-\(n)"] } }
     }
 
     private func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
@@ -44,17 +47,6 @@ private final class Host: MigrationHost {
         case "random":
             let n = e["bytes"] as? Int ?? 0
             return ["bytes": hex((0..<n).map { _ in counter = (counter * 31 + 7) & 255; return UInt8(counter) })]
-        case "deriveKey":
-            // Not Argon2: a stand-in that depends on the secret and the salt, as the real one does.
-            let text = Array((secret + (((e["kdf"] as? [String: Any])?["salt"] as? String) ?? "")).utf8)
-            return ["key": hex((0..<32).map { UInt8(truncatingIfNeeded: Int(text[$0 % text.count]) * 7 + $0) })]
-        case "readItems":
-            var found: [String: Any] = [:]
-            for name in (e["names"] as? [String]) ?? [] { if let v = items[name] { found[name] = v } }
-            return ["items": found]
-        case "applyItem":
-            items[e["name"] as? String ?? ""] = e["value"]
-            return ["ok": true]
         case "getBundle":
             return ["bundle": route.bundle as Any? ?? NSNull()]
         case "putBundle":
@@ -79,33 +71,68 @@ private final class Host: MigrationHost {
 
 final class MigrationFlowTests: XCTestCase {
 
+    private func secret(_ text: String) throws -> BundleSecret {
+        guard case .ok(let s) = try BundleKeyDerivation.passphraseSecret(text) else { throw NppsCore.Refusal(message: "passphrase refused") }
+        return s
+    }
+
+    private func filledStore() throws -> KeyStore {
+        let store = KeyStore()
+        let carried = try NppsCore.migration(["op": "itemKeys"])["carried"] as? [String: [String]] ?? [:]
+        for key in carried.values.flatMap({ $0 }) { store.put(key, "value-of-\(key)") }
+        return store
+    }
+
     private func params(_ extra: [String: Any] = [:]) -> [String: Any] {
-        ["route": routeJSON, "hostItems": hostItems].merging(extra) { _, new in new }
+        ["route": routeJSON].merging(extra) { _, new in new }
     }
 
     // @verifies SWR-MG-02
     // @verifies SWR-MG-08
     func testAMigrationMovesAPhoneThroughTheSharedFlowAndEndsWithAConfirmationOfTheBundleHash() async throws {
         let route = Route()
-        let old = Host(route: route, secret: "a long enough passphrase", seed: 1, filled: true)
-        let done = try await MigrationFlow.run("backup", params: params(["kind": "migrate", "method": "passphrase"]), host: old)
+        let oldStore = try filledStore()
+        let done = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
         XCTAssertEqual(done["ok"] as? Bool, true)
 
-        let fresh = Host(route: route, secret: "a long enough passphrase", seed: 50, filled: false)
-        let r = try await MigrationFlow.run("restore", params: params(), host: fresh)
+        let freshStore = KeyStore()
+        let r = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: route, seed: 50),
+            secret: try secret("a long enough passphrase"), keys: freshStore)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
-        XCTAssertTrue((old.items as NSDictionary).isEqual(to: fresh.items))
+        XCTAssertEqual(freshStore.values, oldStore.values)
         XCTAssertEqual(route.confirmation?["bundleHash"] as? String, done["bundleHash"] as? String)
+    }
+
+    // @verifies SWR-MG-01
+    func testKeysThatBelongToTheInstallNeverMove() async throws {
+        let route = Route()
+        let oldStore = try filledStore()
+        let installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts"]
+        for k in installKeys { oldStore.put(k, "belongs-to-this-phone") }
+        _ = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+        let freshStore = KeyStore()
+        _ = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: route, seed: 50),
+            secret: try secret("a long enough passphrase"), keys: freshStore)
+        for k in installKeys { XCTAssertNil(freshStore.get(k), "\(k) must not move") }
+        XCTAssertEqual(freshStore.get("np.session.history"), "value-of-np.session.history")
     }
 
     // @verifies SWR-MG-07
     func testAWrongSecretOpensNothingAndLeavesNoClaimBehind() async throws {
         let route = Route()
-        let old = Host(route: route, secret: "a long enough passphrase", seed: 1, filled: true)
-        _ = try await MigrationFlow.run("backup", params: params(["kind": "migrate", "method": "passphrase"]), host: old)
-        let wrong = Host(route: route, secret: "a different passphrase", seed: 50, filled: false)
-        let r = try await MigrationFlow.run("restore", params: params(), host: wrong)
+        _ = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: try filledStore())
+        let wrong = Host(route: route, seed: 50)
+        let r = try await MigrationFlow.run(
+            "restore", params: params(), host: wrong, secret: try secret("a different passphrase"), keys: KeyStore())
         XCTAssertEqual(r["ok"] as? Bool, false)
         XCTAssertEqual(r["reason"] as? String, "authentication_failed")
         XCTAssertNil(route.claim)

@@ -1,12 +1,15 @@
 /**
- * The migration flows through the TypeScript driver and WebAssembly. The Rust tests hold the order of the flow once for every
- * app (neurone_npps_core::migration_flow); this holds the web path: the driver loop and the effect shapes the host sees.
+ * The migration flows through the TypeScript driver and WebAssembly, Argon2id included. The Rust tests hold the order of the
+ * flow once for every app (neurone_npps_core::migration_flow); this holds the web path: the driver loop, the effects it
+ * answers itself (the core's key, the key-value store) and the effect shapes the host sees.
  */
 import { describe, expect, it } from 'vitest';
-import { type FlowEffect, type MigrationHost, runMigrationFlow } from './migrationFlow';
-import { initNppsCore } from './nppsCore';
+import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
+import { type FlowEffect, type MigrationHost, type MigrationKeyStore, runMigrationFlow } from './migrationFlow';
+import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
+const steps = (n: number) => Uint8Array.from({ length: n }, (_, i) => i % 251);
 
 class Route {
   bundle: string | null = null;
@@ -14,14 +17,19 @@ class Route {
   confirmation: unknown = null;
 }
 
-/** A phone and a route in memory: dumb storage that performs whatever effect it is asked for. */
+class Store implements MigrationKeyStore {
+  values = new Map<string, string>();
+  get = (k: string) => this.values.get(k);
+  put = (k: string, v: string) => void this.values.set(k, v);
+  remove = (k: string) => void this.values.delete(k);
+}
+
+/** A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer. */
 class Host implements MigrationHost {
-  items = new Map<string, unknown>();
   seen: string[] = [];
   private n: number;
   constructor(
     private route: Route,
-    private secret: string,
     seed: number,
   ) {
     this.n = seed;
@@ -32,19 +40,6 @@ class Host implements MigrationHost {
     switch (e.type) {
       case 'random':
         return { bytes: toHex(Array.from({ length: e.bytes as number }, () => (this.n = (this.n * 31 + 7) & 255))) };
-      case 'deriveKey': {
-        // Not Argon2: a stand-in that depends on the secret and the salt, as the real one does.
-        const text = this.secret + (e.kdf as { salt: string }).salt;
-        return { key: toHex(Array.from({ length: 32 }, (_, i) => text.charCodeAt(i % text.length) * 7 + i)) };
-      }
-      case 'readItems': {
-        const items: Record<string, unknown> = {};
-        for (const name of e.names as string[]) if (this.items.has(name)) items[name] = this.items.get(name);
-        return { items };
-      }
-      case 'applyItem':
-        this.items.set(e.name as string, e.value);
-        return { ok: true };
       case 'getBundle':
         return { bundle: this.route.bundle };
       case 'putBundle':
@@ -69,7 +64,19 @@ class Host implements MigrationHost {
 }
 
 const ROUTE = { id: 'memory', atomicClaim: true, direct: false, authenticatedPairing: true };
-const HOST_ITEMS = ['protocols', 'sessionHistory', 'limitsProfiles', 'characterisationEnrolment'];
+
+function filled(): Store {
+  const store = new Store();
+  const carried = nppsMigration({ op: 'itemKeys' }).carried as Record<string, string[]>;
+  for (const k of Object.values(carried).flat()) store.put(k, `value-of-${k}`);
+  return store;
+}
+
+const secretOf = (text: string): string => {
+  const r = passphraseSecret(text);
+  if (!r.ok) throw new Error(r.reason);
+  return r.secret;
+};
 
 describe('runMigrationFlow', () => {
   // @verifies SWR-MG-02
@@ -77,30 +84,79 @@ describe('runMigrationFlow', () => {
   it('moves a phone to another through the shared flow and ends with a confirmation of the bundle hash', async () => {
     await initNppsCore();
     const route = new Route();
-    const old = new Host(route, 'a long enough passphrase', 1);
-    for (const n of HOST_ITEMS) old.items.set(n, { [`np.${n}`]: `value-of-${n}` });
-    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE, hostItems: HOST_ITEMS }, old);
+    const oldStore = filled();
+    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+    });
     expect(done.ok).toBe(true);
-    expect(route.bundle).not.toContain(toHex([...'value-of-sessionHistory'].map((c) => c.charCodeAt(0))));
+    expect(route.bundle).not.toContain(toHex([...'value-of-np.session.history'].map((c) => c.charCodeAt(0))));
 
-    const fresh = new Host(route, 'a long enough passphrase', 50);
-    const r = await runMigrationFlow('restore', { route: ROUTE, hostItems: HOST_ITEMS }, fresh);
+    const fresh = new Store();
+    const r = await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
     expect(r).toMatchObject({ ok: true, kind: 'migrate', confirmed: true });
-    expect([...fresh.items.entries()].sort()).toEqual([...old.items.entries()].sort());
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
     expect(route.confirmation).toEqual({ bundleHash: done.bundleHash });
-  });
+  }, 60_000);
+
+  // @verifies SWR-MG-01
+  it('never moves a key that belongs to the install', async () => {
+    await initNppsCore();
+    const route = new Route();
+    const oldStore = filled();
+    const installKeys = ['np.research.device-token', 'np.warranty.consent-granted', 'ble.lastHubId', 'np.consumable.snooze-counts'];
+    for (const k of installKeys) oldStore.put(k, 'belongs-to-this-phone');
+    await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+    });
+    const fresh = new Store();
+    await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
+    for (const k of installKeys) expect(fresh.get(k)).toBeUndefined();
+    expect(fresh.get('np.session.history')).toBe('value-of-np.session.history');
+  }, 60_000);
 
   // @verifies SWR-MG-07
   it('opens the bundle before it takes the claim, so a wrong secret leaves no claim behind', async () => {
     await initNppsCore();
     const route = new Route();
-    const old = new Host(route, 'a long enough passphrase', 1);
-    old.items.set('sessionHistory', { a: 'b' });
-    await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE, hostItems: HOST_ITEMS }, old);
-    const wrong = new Host(route, 'a different passphrase', 50);
-    const r = await runMigrationFlow('restore', { route: ROUTE, hostItems: HOST_ITEMS }, wrong);
+    await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: filled(),
+    });
+    const wrong = new Host(route, 50);
+    const r = await runMigrationFlow('restore', { route: ROUTE }, wrong, { secret: secretOf('a different passphrase'), keys: new Store() });
     expect(r).toEqual({ ok: false, reason: 'authentication_failed' });
     expect(route.claim).toBeNull();
     expect(wrong.seen).not.toContain('createClaim');
+  }, 60_000);
+});
+
+describe('bundleKey', () => {
+  // @verifies SWR-MG-02
+  it('derives the same key from a recovery code shown and the same code typed back', async () => {
+    await initNppsCore();
+    const made = newRecoveryCode(steps);
+    const kdf = newKdf('recoveryCode', steps);
+    const typed = recoveryCodeSecret(made.text.toLowerCase().replace(/-/g, ' '));
+    expect(typed.ok).toBe(true);
+    if (typed.ok) expect(deriveBundleKey(typed.secret, kdf)).toBe(deriveBundleKey(made.secret, kdf));
+    const flipped = (made.text[0] === '2' ? '3' : '2') + made.text.slice(1);
+    expect(recoveryCodeSecret(flipped)).toEqual({ ok: false, reason: 'bad_checksum' });
+  }, 60_000);
+
+  // @verifies SWR-MG-05
+  it('refuses a header that asks for a cheaper derivation', async () => {
+    await initNppsCore();
+    const kdf = newKdf('passphrase', steps);
+    expect(kdf).toMatchObject({ algorithm: 'argon2id', memoryKiB: 65536, iterations: 4, parallelism: 1, outputLength: 32 });
+    expect(() => deriveBundleKey(secretOf('a long enough passphrase'), { ...kdf, memoryKiB: 8 })).toThrow();
+  });
+
+  // @verifies SWR-MG-02
+  it('normalises a passphrase and refuses a short one', async () => {
+    await initNppsCore();
+    expect(passphraseSecret('café au lait noir')).toEqual(passphraseSecret('café au lait noir'));
+    expect(passphraseSecret('too short')).toMatchObject({ ok: false, reason: 'too_short' });
   });
 });

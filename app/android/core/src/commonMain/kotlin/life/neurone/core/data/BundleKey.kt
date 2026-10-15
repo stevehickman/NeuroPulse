@@ -13,7 +13,7 @@ import life.neurone.core.npps.NppsCore
 // sealed under a key made from something the user holds: a recovery code the app shows once, or a passphrase the user
 // chooses. The rules (the cost parameters, the code's text form and checksum, the passphrase's normalisation and minimum
 // length, what a header's kdf block may say) are decided once in the shared core. This file marshals them and runs the
-// one thing the core does not: the Argon2id computation, through the same Argon2Provider the UHDR key uses.
+// Argon2id computation, which the core also runs, so there is one implementation for every app.
 //
 // The secret and the key are memory-only, like the UHDR key: never written to a KeyValueStore, a file or a log, never
 // transmitted. NeurOne never holds either (CLAUDE.md §5.1).
@@ -120,23 +120,15 @@ object BundleKeyDerivation {
     }
 
     /**
-     * The bundle key for a secret and a header's `kdf` block. The block is compared with the one the core would write for
-     * the same method and salt, so a bundle cannot ask this phone for a cheaper derivation or another algorithm; the cost
-     * that reaches the provider is the core's, not the header's. Throws [IllegalArgumentException] for any other block.
+     * The bundle key for a secret and a header's `kdf` block: Argon2id computed by the shared core, so every app derives
+     * the same key and none carries a second implementation (the device-bound UHDR key keeps [Argon2Provider]). The core
+     * checks the block against the fixed cost first, so a bundle cannot ask this phone for a cheaper derivation or another
+     * algorithm. Throws [IllegalArgumentException] for a block the core refuses.
      */
-    fun deriveKey(provider: Argon2Provider, secret: BundleSecret, kdf: JsonObject): BundleKey {
-        val method = kdf["method"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("kdf has no method")
-        val saltHex = kdf["salt"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("kdf has no salt")
-        val expected = ask("bundleKdf") { put("method", method); put("salt", saltHex) }["kdf"] as JsonObject
-        require(expected == kdf) { "unsupported kdf" }
-        val raw = provider.argon2idHash(
-            password = secret.bytes(),
-            salt = saltHex.hexToBytes(),
-            memoryKiB = expected["memoryKiB"]!!.jsonPrimitive.int,
-            iterations = expected["iterations"]!!.jsonPrimitive.int,
-            parallelism = expected["parallelism"]!!.jsonPrimitive.int,
-            outputLength = expected["outputLength"]!!.jsonPrimitive.int,
-        )
+    fun deriveKey(secret: BundleSecret, kdf: JsonObject): BundleKey {
+        val r = ask("deriveBundleKey") { put("secret", secret.bytes().toHex()); put("kdf", kdf) }
+        require(r["ok"]!!.jsonPrimitive.content == "true") { "unsupported kdf: ${r["reason"]?.jsonPrimitive?.content}" }
+        val raw = r["key"]!!.jsonPrimitive.content.hexToBytes()
         val key = BundleKey(raw)
         raw.fill(0)
         return key
