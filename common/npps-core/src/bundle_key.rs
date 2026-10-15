@@ -7,13 +7,15 @@
 //! sealed with is recorded in its clear header with the salt and the cost parameters (`kdf`), so a restore on a new phone
 //! knows what to ask for before it has any key (`SWR-MG-05`).
 //!
-//! What stays on the platform is the Argon2id computation itself (each app already carries a vetted implementation, the one
-//! the UHDR key uses) and the randomness (salt and recovery code, from the platform's CSPRNG). What is decided here, once for
-//! every app: the cost parameters, the recovery code's text form and its checksum, the passphrase's normalisation and
+//! What stays on the platform is the randomness (salt and recovery code, from the platform's CSPRNG). What is decided and
+//! computed here, once for every app: the Argon2id derivation itself (so no app carries a second implementation for the
+//! bundle key; the device-bound UHDR key keeps the app's own), the cost parameters, the recovery code's text form and its checksum, the passphrase's normalisation and
 //! minimum length, and what a header's `kdf` block may say. Nothing here keeps a secret: a secret is an argument to one call.
 
+use argon2::{Algorithm, Argon2, Params, Version};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
 use unicode_normalization::UnicodeNormalization;
 
 type R<T> = Result<T, String>;
@@ -83,6 +85,25 @@ pub fn check_kdf(block: &Value) -> Result<(), &'static str> {
     } else {
         Err("unsupported_kdf")
     }
+}
+
+/// The bundle key for a secret and a header's `kdf` block: Argon2id (RFC 9106, version 0x13) at the fixed cost, 32 bytes
+/// out. The block is checked first, so a header cannot ask for a cheaper derivation or another algorithm
+/// (`unsupported_kdf`). The secret is an argument to this call and is not kept; the returned key is the caller's to use
+/// for one answer and drop.
+pub fn derive_key(secret: &[u8], kdf: &Value) -> Result<Zeroizing<Vec<u8>>, &'static str> {
+    check_kdf(kdf)?;
+    if secret.is_empty() {
+        return Err("empty_secret");
+    }
+    let salt = kdf["salt"].as_str().and_then(|s| unhex(s, "salt").ok()).ok_or("malformed")?;
+    let params = Params::new(KDF_MEMORY_KIB as u32, KDF_ITERATIONS as u32, KDF_PARALLELISM as u32, Some(KDF_OUTPUT_LEN as usize))
+        .map_err(|_| "unsupported_kdf")?;
+    let mut out = Zeroizing::new(vec![0u8; KDF_OUTPUT_LEN as usize]);
+    Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+        .hash_password_into(secret, &salt, &mut out)
+        .map_err(|_| "unsupported_kdf")?;
+    Ok(out)
 }
 
 fn check_value(bytes: &[u8]) -> u32 {
@@ -177,6 +198,13 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
             let salt = unhex(req["salt"].as_str().ok_or("salt is required")?, "salt")?;
             Ok(json!({ "kdf": kdf_block(req["method"].as_str().ok_or("method is required")?, &salt)? }))
         })(),
+        "deriveBundleKey" => (|| {
+            let secret = Zeroizing::new(unhex(req["secret"].as_str().ok_or("secret is required")?, "secret")?);
+            Ok(match derive_key(&secret, &req["kdf"]) {
+                Ok(k) => json!({ "ok": true, "key": hex(&k) }),
+                Err(reason) => json!({ "ok": false, "reason": reason }),
+            })
+        })(),
         "encodeRecoveryCode" => (|| {
             let b = unhex(req["bytes"].as_str().ok_or("bytes is required")?, "bytes")?;
             Ok(json!({ "code": encode_recovery_code(&b)? }))
@@ -191,4 +219,59 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
         }),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use argon2::{AssociatedData, ParamsBuilder};
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn the_argon2_crate_reproduces_the_rfc_9106_argon2id_test_vector() {
+        // RFC 9106 section 5.3: P = 32 x 0x01, S = 16 x 0x02, K = 8 x 0x03, X = 12 x 0x04, m = 32 KiB, t = 3, p = 4, tag = 32.
+        let params = ParamsBuilder::new()
+            .m_cost(32)
+            .t_cost(3)
+            .p_cost(4)
+            .data(AssociatedData::new(&[4u8; 12]).unwrap())
+            .output_len(32)
+            .build()
+            .unwrap();
+        let argon = Argon2::new_with_secret(&[3u8; 8], Algorithm::Argon2id, Version::V0x13, params).unwrap();
+        let mut tag = [0u8; 32];
+        argon.hash_password_into(&[1u8; 32], &[2u8; 16], &mut tag).unwrap();
+        assert_eq!(hex(&tag), "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659");
+    }
+
+    fn kdf(salt_byte: u8) -> Value {
+        kdf_block("passphrase", &[salt_byte; KDF_SALT_LEN]).unwrap()
+    }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn the_bundle_key_is_argon2id_at_the_fixed_cost_and_follows_the_secret_and_the_salt() {
+        let k1 = derive_key(b"a long enough passphrase", &kdf(1)).unwrap();
+        assert_eq!(k1.len(), 32);
+        assert_eq!(*k1, *derive_key(b"a long enough passphrase", &kdf(1)).unwrap(), "deterministic");
+        assert_ne!(*k1, *derive_key(b"a different passphrase!", &kdf(1)).unwrap(), "another secret");
+        assert_ne!(*k1, *derive_key(b"a long enough passphrase", &kdf(2)).unwrap(), "another salt");
+        // The same call made straight on the crate with the fixed cost gives the same bytes.
+        let params = Params::new(65_536, 4, 1, Some(32)).unwrap();
+        let mut direct = [0u8; 32];
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params).hash_password_into(b"a long enough passphrase", &[1u8; 32], &mut direct).unwrap();
+        assert_eq!(*k1, direct);
+    }
+
+    // @verifies SWR-MG-05
+    #[test]
+    fn a_header_cannot_ask_for_a_cheaper_derivation_or_an_empty_secret_be_used() {
+        let mut weak = kdf(1);
+        weak["memoryKiB"] = json!(8);
+        assert_eq!(derive_key(b"a long enough passphrase", &weak).unwrap_err(), "unsupported_kdf");
+        let mut other = kdf(1);
+        other["algorithm"] = json!("argon2i");
+        assert_eq!(derive_key(b"a long enough passphrase", &other).unwrap_err(), "unsupported_kdf");
+        assert_eq!(derive_key(b"", &kdf(1)).unwrap_err(), "empty_secret");
+    }
 }

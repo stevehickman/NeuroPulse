@@ -1,0 +1,38 @@
+{
+  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are moved by a consent adapter, not by key. 'perInstall' keys belong to a device, an install or a warranty registration and never move. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
+  "carried": {
+    "protocols": ["np.user-protocols.npps", "np.used-families", "np.archived-families", "np.clone-sources"],
+    "sessionHistory": ["np.session.history"],
+    "limitsProfiles": ["np.limits.global", "np.limits.profiles", "np.limits.active-profile"],
+    "characterisationEnrolment": ["np.characterisation.enrolled", "np.characterisation.consent-epoch", "np.characterisation.programme-id"]
+  },
+  "consent": [
+    "np.consent.research",
+    "np.consent.clinician-grants",
+    "np.consent.clinician-expansions",
+    "np.consent.study-invitations",
+    "np.consent.study-participations",
+    "np.research.consent-granted",
+    "np.research.suggestions"
+  ],
+  "perInstall": [
+    "np.research.device-token",
+    "np.shdr.device-token",
+    "np.warranty.consent-granted",
+    "np.warranty.consent.granted",
+    "np.analytics.launch-count",
+    "np.backup.destination",
+    "np.backup.last-epoch",
+    "ble.lastHubId"
+  ],
+  "unsorted": [
+    "np.consumable.snooze-counts",
+    "np.consumable.pending-resets",
+    "np.cvns.fault-ledger.last-acknowledged-session",
+    "np.onboarding.age-confirmed",
+    "np.onboarding.bipa-accepted",
+    "np.onboarding.bipa-shown",
+    "np.onboarding.consent-shown",
+    "np.setup.first-complete"
+  ]
+}

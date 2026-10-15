@@ -35,6 +35,30 @@ type R<T> = Result<T, String>;
 /// refused whole" is open (`OI-UI-KMP-11` open question 5).
 pub const FORMAT_VERSION: u64 = 1;
 
+/// The stored keys, sorted (`common/npps/migration-keys.json`, one file for every app and the gate that reads every app).
+const KEY_MAP: &str = include_str!("../../npps/migration-keys.json");
+
+/// The whole key map as JSON.
+pub(crate) fn key_map() -> Value {
+    serde_json::from_str(KEY_MAP).expect("common/npps/migration-keys.json is valid JSON")
+}
+
+/// The stored keys that make up one carried item, or none for an item not stored by key (a consent item).
+pub(crate) fn keys_of(item: &str) -> Vec<String> {
+    key_map()["carried"][item].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect()
+}
+
+/// Every key in every list: what the old phone forgets when it clears (`SWR-MG-09`).
+pub(crate) fn all_keys() -> Vec<String> {
+    let m = key_map();
+    let mut v: Vec<String> = m["carried"].as_object().into_iter().flat_map(|o| o.values()).chain(["consent", "perInstall", "unsorted"].iter().map(|k| &m[*k]))
+        .flat_map(|a| a.as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>())
+        .collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
 const MIGRATE_ITEMS: [&str; 6] = [
     "protocols",
     "sessionHistory",
@@ -402,6 +426,7 @@ pub(crate) fn dispatch(op: &str, req: &Value) -> R<Value> {
 fn migration_op(op: &str, req: &Value) -> R<Value> {
     Ok(match op {
         "inventory" => inventory(req)?,
+        "itemKeys" => key_map(),
         "readHeader" => read_header(req)?,
         "restoreReport" => restore_report(req)?,
         "mergeWithdrawal" => merge_withdrawal(req)?,
