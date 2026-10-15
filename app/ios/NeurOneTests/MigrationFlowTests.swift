@@ -27,6 +27,27 @@ private final class KeyStore: MigrationKeyStore {
     func remove(_ key: String) { values.removeValue(forKey: key) }
 }
 
+/// A provider with named objects and a create-if-absent the store itself arbitrates.
+private final class MemoryStore: MigrationObjectStore {
+    struct Broken: Error {}
+    var objects: [String: String] = [:]
+    var conditional = true
+    var space: Int64? = 1 << 30
+    var failOn: String?
+    private func check(_ call: String) throws { if failOn == call { throw Broken() } }
+    func get(_ name: String) async throws -> String? { try check("get"); return objects[name] }
+    func put(_ name: String, _ data: String) async throws { try check("put"); objects[name] = data }
+    func createIfAbsent(_ name: String, _ data: String) async throws -> Bool {
+        try check("create")
+        if conditional && objects[name] != nil { return false }
+        objects[name] = data
+        return true
+    }
+    func delete(_ name: String) async throws { try check("delete"); objects.removeValue(forKey: name) }
+    func list(_ prefix: String) async throws -> [String] { try check("list"); return objects.keys.filter { $0.hasPrefix(prefix) } }
+    func freeSpace() async throws -> Int64? { try check("space"); return space }
+}
+
 /// A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
 private final class Host: MigrationHost {
     var seen: [String] = []
@@ -134,6 +155,64 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertEqual(after["removeOsBond"] as? Bool, true)
         XCTAssertEqual(host.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"])
         XCTAssertEqual(Array(oldStore.values.keys), ["np.migration.cleared"])
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    func testAMigrationRunsOverAnObjectStoreTheAppOnlyHasToProvideAndASecondRestoreIsRefused() async throws {
+        let store = MemoryStore()
+        let oldStore = try filledStore()
+        let done = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
+        XCTAssertEqual(done["ok"] as? Bool, true)
+        XCTAssertEqual(Array(store.objects.keys), [try MigrationFlow.objectNames()["bundle"] as? String ?? ""])
+
+        let freshStore = KeyStore()
+        let host = Host(route: Route(), seed: 50)
+        let r = try await MigrationFlow.run(
+            "restore", params: params(), host: host, secret: try secret("a long enough passphrase"), keys: freshStore, store: store)
+        XCTAssertEqual(r["ok"] as? Bool, true)
+        XCTAssertEqual(r["confirmed"] as? Bool, true)
+        XCTAssertEqual(freshStore.values, oldStore.values)
+        XCTAssertTrue(host.seen.allSatisfy { !["getBundle", "putBundle", "readClaim", "createClaim"].contains($0) })
+
+        let second = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: Route(), seed: 90),
+            secret: try secret("a long enough passphrase"), keys: KeyStore(), store: store)
+        XCTAssertEqual(second["reason"] as? String, "claimed")
+    }
+
+    // @verifies SWR-MG-11
+    func testAnObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable() async throws {
+        let store = MemoryStore()
+        store.failOn = "put"
+        let r = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: try filledStore(), store: store)
+        XCTAssertEqual(r["reason"] as? String, "route_unavailable")
+    }
+
+    // @verifies SWR-MG-12
+    func testTheProbeSaysWhatAnAccountCanDoAndLeavesNothingBehind() async throws {
+        let good = MemoryStore()
+        good.objects["users-file"] = "01"
+        var r = try await MigrationFlow.probe(store: good, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        XCTAssertEqual(r["result"] as? String, "sufficient")
+        XCTAssertEqual(Array(good.objects.keys), ["users-file"])
+
+        let noConditional = MemoryStore()
+        noConditional.conditional = false
+        r = try await MigrationFlow.probe(store: noConditional, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        XCTAssertEqual(r["result"] as? String, "backup_only")
+        XCTAssertEqual(r["failedOperation"] as? String, "createIfAbsentSecondRefused")
+        XCTAssertTrue(noConditional.objects.isEmpty)
+
+        let small = MemoryStore()
+        small.space = 10
+        r = try await MigrationFlow.probe(store: small, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        XCTAssertEqual(r["failedOperation"] as? String, "space")
     }
 
     // @verifies SWR-MG-01

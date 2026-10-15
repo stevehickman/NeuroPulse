@@ -45,6 +45,23 @@ private class Recorder(private val failOn: String? = null) : ClearActions {
     }
 }
 
+/** A provider with named objects and a create-if-absent the store itself arbitrates. */
+private class MemoryObjectStore(var conditional: Boolean = true, var space: Long? = 1L shl 30, var failOn: String? = null) : ObjectStore {
+    val objects = linkedMapOf<String, ByteArray>()
+    private fun check(call: String) { if (call == failOn) error("$call failed") }
+    override suspend fun get(name: String): ByteArray? { check("get"); return objects[name]?.copyOf() }
+    override suspend fun put(name: String, bytes: ByteArray) { check("put"); objects[name] = bytes.copyOf() }
+    override suspend fun createIfAbsent(name: String, bytes: ByteArray): Boolean {
+        check("create")
+        if (conditional && name in objects) return false
+        objects[name] = bytes.copyOf()
+        return true
+    }
+    override suspend fun delete(name: String) { check("delete"); objects.remove(name) }
+    override suspend fun list(prefix: String): List<String> { check("list"); return objects.keys.filter { it.startsWith(prefix) } }
+    override suspend fun freeSpace(): Long? { check("space"); return space }
+}
+
 private fun passphrase(text: String): BundleSecret = (BundleKeyDerivation.passphraseSecret(text) as BundleSecretResult.Ok).secret
 
 private const val SECRET = "a long enough passphrase"
@@ -250,6 +267,59 @@ class MigrationServiceTests {
         assertFalse(r2.removeOsBond)
         assertEquals("forgetPairingRecord", second.ran.first(), "steps already done are not run again")
         assertFalse("destroyEncryptionKey" in second.ran)
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    @Test
+    fun aMigrationRunsOverAnObjectStoreTheAppOnlyHasToProvide() = runTest {
+        val store = MemoryObjectStore()
+        val route = ObjectStoreRoute(store, "cloud", atomicClaim = true)
+        val old = Phone(seed = 1).also { it.fill() }
+        val done = old.service.backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), route) as BackupResult.Done
+        assertEquals(1, store.objects.size, "the bundle is the only object after a backup")
+
+        val fresh = Phone(seed = 50)
+        val r = fresh.service.restore(route, passphrase(SECRET))
+        assertIs<RestoreResult.Restored>(r)
+        assertTrue(r.confirmed)
+        assertEquals(old.kv.getString(carriedKeys.values.first().first()), fresh.kv.getString(carriedKeys.values.first().first()))
+
+        val second = Phone(seed = 90).service.restore(route, passphrase(SECRET))
+        assertEquals("claimed", (second as RestoreResult.Refused).reason)
+        assertIs<InspectResult.Found>(Phone().service.inspect(route))
+
+        // The person's explicit release deletes the claim object the core names (SWR-MG-07).
+        old.service.releaseClaim(route)
+        assertEquals(2, store.objects.size, "only the claim is gone: the bundle and the confirmation stay")
+        assertTrue(done.bundleHash.isNotEmpty())
+    }
+
+    // @verifies SWR-MG-11
+    @Test
+    fun anObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable() = runTest {
+        val store = MemoryObjectStore(failOn = "put")
+        val r = Phone(seed = 1).also { it.fill() }.service
+            .backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), ObjectStoreRoute(store, "cloud", atomicClaim = true))
+        assertEquals("route_unavailable", (r as BackupResult.Refused).reason)
+    }
+
+    // @verifies SWR-MG-12
+    @Test
+    fun theProbeSaysWhatAnAccountCanDoAndLeavesNothingBehind() = runTest {
+        val service = Phone().service
+        val good = MemoryObjectStore().also { it.objects["users-file"] = byteArrayOf(1) }
+        assertEquals("sufficient", service.probe(good, 1_000).result)
+        assertEquals(listOf("users-file"), good.objects.keys.toList())
+
+        val noConditional = service.probe(MemoryObjectStore(conditional = false), 1_000)
+        assertEquals("backup_only", noConditional.result)
+        assertEquals("createIfAbsentSecondRefused", noConditional.failedOperation)
+
+        val tooSmall = service.probe(MemoryObjectStore(space = 10), 1_000)
+        assertEquals("insufficient", tooSmall.result)
+        assertEquals("space", tooSmall.failedOperation)
     }
 
     // @verifies SWR-MG-05

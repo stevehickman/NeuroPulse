@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
-import { type FlowEffect, type MigrationHost, type MigrationKeyStore, runMigrationFlow } from './migrationFlow';
+import { type FlowEffect, type MigrationHost, type MigrationKeyStore, type ObjectStore, objectNames, probeObjectStore, runMigrationFlow } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
@@ -65,6 +65,28 @@ class Host implements MigrationHost {
         throw new Error(`unknown effect ${e.type}`);
     }
   }
+}
+
+/** A provider with named objects and a create-if-absent the store itself arbitrates. */
+class MemoryStore implements ObjectStore {
+  objects = new Map<string, string>();
+  constructor(
+    private opts: { conditional?: boolean; space?: number | null; failOn?: string } = {},
+  ) {}
+  private check(call: string) {
+    if (this.opts.failOn === call) throw new Error(`${call} failed`);
+  }
+  async get(name: string) { this.check('get'); return this.objects.get(name) ?? null; }
+  async put(name: string, data: string) { this.check('put'); this.objects.set(name, data); }
+  async createIfAbsent(name: string, data: string) {
+    this.check('create');
+    if (this.opts.conditional !== false && this.objects.has(name)) return false;
+    this.objects.set(name, data);
+    return true;
+  }
+  async delete(name: string) { this.check('delete'); this.objects.delete(name); }
+  async list(prefix: string) { this.check('list'); return [...this.objects.keys()].filter((k) => k.startsWith(prefix)); }
+  async freeSpace() { this.check('space'); return this.opts.space === undefined ? 1 << 30 : this.opts.space; }
 }
 
 const ROUTE = { id: 'memory', atomicClaim: true, direct: false, authenticatedPairing: true };
@@ -140,6 +162,64 @@ describe('runMigrationFlow', () => {
     expect(after).toMatchObject({ ok: true, removeOsBond: true });
     expect(host.ran).toEqual(['destroyEncryptionKey', 'overwriteAndDeleteFiles', 'forgetPairingRecord']);
     expect([...oldStore.values.keys()]).toEqual(['np.migration.cleared']);
+  }, 60_000);
+
+  // @verifies SWR-MG-10
+  // @verifies SWR-MG-11
+  // @verifies SWR-MG-07
+  it('runs a migration over an object store the app only has to provide, and refuses a second restore', async () => {
+    await initNppsCore();
+    const store = new MemoryStore();
+    const oldStore = filled();
+    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route(), 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+      store,
+    });
+    expect(done.ok).toBe(true);
+    expect([...store.objects.keys()]).toEqual([objectNames().bundle]);
+
+    const fresh = new Store();
+    const host = new Host(new Route(), 50);
+    const r = await runMigrationFlow('restore', { route: ROUTE }, host, { secret: secretOf('a long enough passphrase'), keys: fresh, store });
+    expect(r).toMatchObject({ ok: true, confirmed: true });
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
+    expect(host.seen.filter((t) => ['getBundle', 'putBundle', 'readClaim', 'createClaim'].includes(t))).toEqual([]);
+
+    const second = await runMigrationFlow('restore', { route: ROUTE }, new Host(new Route(), 90), {
+      secret: secretOf('a long enough passphrase'),
+      keys: new Store(),
+      store,
+    });
+    expect(second).toEqual({ ok: false, reason: 'claimed' });
+  }, 60_000);
+
+  // @verifies SWR-MG-11
+  it('ends the flow with the route unavailable when an object call rejects', async () => {
+    await initNppsCore();
+    const r = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route(), 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: filled(),
+      store: new MemoryStore({ failOn: 'put' }),
+    });
+    expect(r).toEqual({ ok: false, reason: 'route_unavailable' });
+  }, 60_000);
+
+  // @verifies SWR-MG-12
+  it('probes an account on throwaway objects, says what it can do and leaves nothing behind', async () => {
+    await initNppsCore();
+    const host = () => new Host(new Route(), 7);
+    const good = new MemoryStore();
+    good.objects.set('users-file', '01');
+    expect(await probeObjectStore(good, 1000, host())).toMatchObject({ result: 'sufficient' });
+    expect([...good.objects.keys()]).toEqual(['users-file']);
+
+    const noConditional = new MemoryStore({ conditional: false });
+    expect(await probeObjectStore(noConditional, 1000, host())).toMatchObject({ result: 'backup_only', failedOperation: 'createIfAbsentSecondRefused' });
+    expect(noConditional.objects.size).toBe(0);
+
+    expect(await probeObjectStore(new MemoryStore({ space: 10 }), 1000, host())).toMatchObject({ result: 'insufficient', failedOperation: 'space' });
+    expect(await probeObjectStore(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ failedOperation: 'space' });
   }, 60_000);
 
   // @verifies SWR-MG-07

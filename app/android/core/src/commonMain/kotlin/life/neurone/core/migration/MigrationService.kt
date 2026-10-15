@@ -80,6 +80,9 @@ interface ClearActions {
     suspend fun run(step: String): Boolean
 }
 
+/** [result] is `sufficient`, `backup_only` or `insufficient`; [failedOperation] names the first operation that failed (SWR-MG-12). */
+class ProbeResult(val result: String, val failedOperation: String?)
+
 sealed class ClearResult {
     /** [removeOsBond]: the app could not remove the operating system's Bluetooth bond and the screen must say so (SWR-MG-09). */
     class Cleared(val removeOsBond: Boolean) : ClearResult()
@@ -91,7 +94,7 @@ sealed class ClearResult {
 
 /** What the effects of one flow run against: the route, the person's secret, and the old phone's clear steps. */
 private class FlowContext(
-    val route: BackupRoute? = null,
+    val route: RouteDescriptor? = null,
     val secret: BundleSecret? = null,
     val actions: ClearActions? = null,
 )
@@ -116,7 +119,7 @@ class MigrationService(
 
     private fun strings(a: JsonElement?): List<String> = a?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
 
-    private fun routeJson(route: BackupRoute): JsonObject = buildJsonObject {
+    private fun routeJson(route: RouteDescriptor): JsonObject = buildJsonObject {
         put("id", route.id)
         put("atomicClaim", route.atomicClaim)
         put("direct", route.direct)
@@ -169,20 +172,48 @@ class MigrationService(
             byItem[e["name"]!!.jsonPrimitive.content]!!.import(e["value"]!!)
             buildJsonObject { put("ok", true) }
         }
-        "getBundle" -> buildJsonObject { put("bundle", ctx.route!!.getBundle()?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
+        "getBundle" -> buildJsonObject { put("bundle", ctx.typed().getBundle()?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
         "putBundle" -> {
-            ctx.route!!.putBundle(e["bundle"]!!.jsonPrimitive.content.hexToBytes())
+            ctx.typed().putBundle(e["bundle"]!!.jsonPrimitive.content.hexToBytes())
             buildJsonObject { put("ok", true) }
         }
-        "readClaim" -> buildJsonObject { put("claim", ctx.route!!.readClaim() ?: JsonNull) }
-        "createClaim" -> buildJsonObject { put("created", ctx.route!!.createClaimIfAbsent(e["claim"]!!.jsonObject)) }
+        "readClaim" -> buildJsonObject { put("claim", ctx.typed().readClaim() ?: JsonNull) }
+        "createClaim" -> buildJsonObject { put("created", ctx.typed().createClaimIfAbsent(e["claim"]!!.jsonObject)) }
         "writeConfirmation" -> {
-            ctx.route!!.writeConfirmation(e["confirmation"]!!.jsonObject)
+            ctx.typed().writeConfirmation(e["confirmation"]!!.jsonObject)
             buildJsonObject { put("ok", true) }
         }
-        "readConfirmation" -> buildJsonObject { put("confirmation", ctx.route!!.readConfirmation() ?: JsonNull) }
+        "readConfirmation" -> buildJsonObject { put("confirmation", ctx.typed().readConfirmation() ?: JsonNull) }
+        "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace" -> performObject(type, e, ctx)
         "runClearStep" -> buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
         else -> error("unknown effect '$type'")
+    }
+
+    private fun FlowContext.typed(): BackupRoute = route as? BackupRoute ?: error("this route is an object store; the core drives it")
+
+    /** One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11). */
+    private suspend fun performObject(type: String, e: JsonObject, ctx: FlowContext): JsonObject {
+        val store = (ctx.route as? ObjectStoreRoute)?.store ?: error("no object store for '$type'")
+        val name = e["name"]?.jsonPrimitive?.content ?: ""
+        return try {
+            when (type) {
+                "objectGet" -> buildJsonObject { put("data", store.get(name)?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
+                "objectPut" -> { store.put(name, e["data"]!!.jsonPrimitive.content.hexToBytes()); buildJsonObject { put("ok", true) } }
+                "objectCreate" -> buildJsonObject { put("created", store.createIfAbsent(name, e["data"]!!.jsonPrimitive.content.hexToBytes())) }
+                "objectDelete" -> { store.delete(name); buildJsonObject { put("ok", true) } }
+                "objectList" -> buildJsonObject { put("names", buildJsonArray { store.list(e["prefix"]!!.jsonPrimitive.content).forEach { add(it) } }) }
+                else -> buildJsonObject { put("bytes", store.freeSpace()?.let { JsonPrimitive(it) } ?: JsonNull) }
+            }
+        } catch (e: Exception) {
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            buildJsonObject { put("failed", true) }
+        }
+    }
+
+    /** The params that say which route a flow runs over: its descriptor, and that the core drives it when it is an object store. */
+    private fun JsonObjectBuilder.putRoute(route: RouteDescriptor) {
+        put("route", routeJson(route))
+        if (route is ObjectStoreRoute) put("objectStore", true)
     }
 
     private fun JsonObject.ok(): Boolean = this["ok"]!!.jsonPrimitive.boolean
@@ -196,11 +227,11 @@ class MigrationService(
      * backup; the migrate kind is the act of replacing a phone (SWR-MG-03). A route that cannot give an atomic claim is
      * refused for migrate and allowed for UHDR-only (SWR-MG-10).
      */
-    suspend fun backup(kind: String, method: BundleKeyMethod, secret: BundleSecret, route: BackupRoute): BackupResult {
+    suspend fun backup(kind: String, method: BundleKeyMethod, secret: BundleSecret, route: RouteDescriptor): BackupResult {
         val d = drive(
             "backup",
             buildJsonObject {
-                put("kind", kind); put("method", method.wire); put("route", routeJson(route))
+                put("kind", kind); put("method", method.wire); putRoute(route)
                 put("hostItems", hostItems()); put("keyItems", keyItemsJson())
             },
             FlowContext(route = route, secret = secret),
@@ -210,8 +241,8 @@ class MigrationService(
     }
 
     /** What is on the route, read with no key: the kind, the format version and how its key was made (SWR-MG-05). */
-    suspend fun inspect(route: BackupRoute): InspectResult {
-        val d = drive("inspect", buildJsonObject { }, FlowContext(route = route))
+    suspend fun inspect(route: RouteDescriptor): InspectResult {
+        val d = drive("inspect", buildJsonObject { if (route is ObjectStoreRoute) put("objectStore", true) }, FlowContext(route = route))
         if (!d.ok()) return InspectResult.Refused(d.reason())
         return InspectResult.Found(
             kind = d["kind"]!!.jsonPrimitive.content,
@@ -226,10 +257,10 @@ class MigrationService(
      * opened before any claim is taken, every applied item is read back and compared before the confirmation is written,
      * and the confirmation is the last act (SWR-MG-07, SWR-MG-08).
      */
-    suspend fun restore(route: BackupRoute, secret: BundleSecret): RestoreResult {
+    suspend fun restore(route: RouteDescriptor, secret: BundleSecret): RestoreResult {
         val d = drive(
             "restore",
-            buildJsonObject { put("route", routeJson(route)); put("hostItems", hostItems()); put("keyItems", keyItemsJson()) },
+            buildJsonObject { putRoute(route); put("hostItems", hostItems()); put("keyItems", keyItemsJson()) },
             FlowContext(route = route, secret = secret),
         )
         if (!d.ok()) return RestoreResult.Refused(d.reason())
@@ -247,7 +278,27 @@ class MigrationService(
     }
 
     /** The person's explicit release of a claim that stands without a confirmation (SWR-MG-07). Not a flow. */
-    suspend fun releaseClaim(route: BackupRoute) = route.releaseClaim()
+    suspend fun releaseClaim(route: RouteDescriptor) {
+        when (route) {
+            is BackupRoute -> route.releaseClaim()
+            is ObjectStoreRoute -> route.store.delete(ask("objectNames")["claim"]!!.jsonPrimitive.content)
+            else -> error("unknown route")
+        }
+    }
+
+    /**
+     * SWR-MG-12: check an account on throwaway objects that hold no user data, and say whether it is sufficient for
+     * migration and backup, for the UHDR-only backup alone, or neither, naming the first operation that failed. The core
+     * runs every operation and deletes what it made, even when one fails part-way. It does not prove a claim safe under two
+     * simultaneous writers (that is the provider's contract test, SWR-MG-11).
+     */
+    suspend fun probe(store: ObjectStore, bundleBytes: Long): ProbeResult {
+        val d = drive("probe", buildJsonObject { put("bundleBytes", bundleBytes) }, FlowContext(route = ObjectStoreRoute(store, "probe", atomicClaim = false)))
+        return ProbeResult(
+            result = d["result"]!!.jsonPrimitive.content,
+            failedOperation = d["failedOperation"]?.jsonPrimitive?.content,
+        )
+    }
 
     /**
      * The old phone clears after, and only after, it reads a confirmation that matches [bundleHash] (SWR-MG-08), then runs
@@ -255,7 +306,7 @@ class MigrationService(
      * progress (the core keeps which steps are finished under a key of its own) resumes without asking again.
      */
     suspend fun clearOldPhone(
-        route: BackupRoute,
+        route: RouteDescriptor,
         bundleHash: String,
         actions: ClearActions,
         canRemoveOsBond: Boolean,
