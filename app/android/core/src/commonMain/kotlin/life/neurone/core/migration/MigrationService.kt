@@ -176,6 +176,9 @@ class MigrationService(
         flow, params, ServiceHost(random, byItem, route, actions), secret, kv, (route as? ObjectStoreRoute)?.store,
     )
 
+    private fun JsonObject.ok(): Boolean = this["ok"]!!.jsonPrimitive.boolean
+    private fun JsonObject.reason(): String = this["reason"]!!.jsonPrimitive.content
+
     /** The params that say which route a flow runs over: its descriptor. */
     private fun JsonObjectBuilder.putRoute(route: RouteDescriptor) {
         put("route", routeJson(route))
