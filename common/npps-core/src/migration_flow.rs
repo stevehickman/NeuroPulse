@@ -79,6 +79,10 @@ fn s<'a>(v: &'a Value, key: &str) -> R<&'a str> {
 }
 
 pub fn flow(req: &Value) -> R<Value> {
+    crate::object_route::flow(req, core_flow)
+}
+
+fn core_flow(req: &Value) -> R<Value> {
     let name = s(req, "flow")?;
     // A start carries `params` and no `state`; a continuation carries both `state` and `result`.
     match name {
@@ -507,6 +511,12 @@ mod tests {
         claim: Option<Value>,
         confirmation: Option<Value>,
         drop_confirmations: u32,
+        /// The same route as an object store (`object_route`): name to hex.
+        objects: BTreeMap<String, String>,
+        /// An object call that answers `failed`, by effect type.
+        fail_object: Option<String>,
+        /// Route effects asked of the host; an object-store flow asks for none.
+        route_calls: u32,
     }
 
     #[derive(Default)]
@@ -594,19 +604,37 @@ mod tests {
                 p.items.insert(e["name"].as_str().unwrap().into(), e["value"].clone());
                 json!({ "ok": true })
             }
-            "getBundle" => json!({ "bundle": route.bundle }),
-            "putBundle" => { route.bundle = e["bundle"].as_str().map(String::from); json!({ "ok": true }) }
-            "readClaim" => json!({ "claim": route.claim }),
+            "objectGet" | "objectPut" | "objectCreate" | "objectDelete" | "objectList" | "objectSpace"
+                if route.fail_object.as_deref() == e["type"].as_str() =>
+            {
+                json!({ "failed": true })
+            }
+            "objectGet" => json!({ "data": route.objects.get(e["name"].as_str().unwrap()) }),
+            "objectPut" => {
+                route.objects.insert(e["name"].as_str().unwrap().into(), e["data"].as_str().unwrap().into());
+                json!({ "ok": true })
+            }
+            "objectCreate" => {
+                let name = e["name"].as_str().unwrap().to_string();
+                let created = !route.objects.contains_key(&name);
+                if created { route.objects.insert(name, e["data"].as_str().unwrap().into()); }
+                json!({ "created": created })
+            }
+            "getBundle" => { route.route_calls += 1; json!({ "bundle": route.bundle }) }
+            "putBundle" => { route.route_calls += 1; route.bundle = e["bundle"].as_str().map(String::from); json!({ "ok": true }) }
+            "readClaim" => { route.route_calls += 1; json!({ "claim": route.claim }) }
             "createClaim" => {
+                route.route_calls += 1;
                 let created = route.claim.is_none();
                 if created { route.claim = Some(e["claim"].clone()); }
                 json!({ "created": created })
             }
             "writeConfirmation" => {
+                route.route_calls += 1;
                 if route.drop_confirmations > 0 { route.drop_confirmations -= 1; } else { route.confirmation = Some(e["confirmation"].clone()); }
                 json!({ "ok": true })
             }
-            "readConfirmation" => json!({ "confirmation": route.confirmation }),
+            "readConfirmation" => { route.route_calls += 1; json!({ "confirmation": route.confirmation }) }
             "runClearStep" => {
                 let step = e["step"].as_str().unwrap().to_string();
                 assert!(
@@ -915,6 +943,61 @@ mod tests {
         let again = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
         assert_eq!(again["ok"], true);
         assert_eq!(old.ran[0], "destroyEncryptionKey");
+    }
+
+    fn object_params(p: &Phone, extra: Value) -> Value {
+        let mut v = params(p, extra);
+        v["objectStore"] = json!(true);
+        v
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    #[test]
+    fn a_migration_runs_over_a_plain_object_store_and_a_second_restore_is_refused() {
+        let (mut route, mut old, mut fresh, mut other) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 90));
+        let done = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut route, &mut old, SECRET);
+        assert_eq!(done["ok"], true);
+        let names = ask(json!({ "op": "objectNames" }));
+        let held: Vec<&str> = route.objects.keys().map(String::as_str).collect();
+        assert_eq!(held, [names["bundle"].as_str().unwrap()], "the bundle is the only object after a backup");
+
+        let r = run("restore", object_params(&fresh, json!({})), &mut route, &mut fresh, SECRET);
+        assert_eq!((r["ok"].clone(), r["confirmed"].clone()), (json!(true), json!(true)));
+        assert_eq!(fresh.kv, old.kv);
+        let claim: Value = serde_json::from_slice(&crate::migration::unhex(&route.objects[names["claim"].as_str().unwrap()], "claim").unwrap()).unwrap();
+        let confirmation: Value =
+            serde_json::from_slice(&crate::migration::unhex(&route.objects[names["confirmation"].as_str().unwrap()], "confirmation").unwrap()).unwrap();
+        assert_eq!(confirmation["bundleHash"], done["bundleHash"]);
+        assert!(claim.is_object());
+
+        let again = run("restore", object_params(&other, json!({})), &mut route, &mut other, SECRET);
+        assert_eq!((again["ok"].clone(), again["reason"].clone()), (json!(false), json!("claimed")));
+        assert_eq!(route.route_calls, 0, "an object-store flow asks the host for no route effect");
+    }
+
+    // @verifies SWR-MG-11
+    #[test]
+    fn an_object_call_that_fails_ends_the_flow_with_the_route_unavailable() {
+        for failing in ["objectPut", "objectGet", "objectCreate"] {
+            let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+            if failing != "objectCreate" {
+                route.fail_object = Some(failing.into());
+            }
+            let b = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut route, &mut old, SECRET);
+            if failing == "objectPut" {
+                assert_eq!((b["ok"].clone(), b["reason"].clone()), (json!(false), json!("route_unavailable")));
+                continue;
+            }
+            route.fail_object = None;
+            let b = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut route, &mut old, SECRET);
+            assert_eq!(b["ok"], true);
+            route.fail_object = Some(failing.into());
+            let r = run("restore", object_params(&fresh, json!({})), &mut route, &mut fresh, SECRET);
+            assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("route_unavailable")), "{failing}");
+            assert!(fresh.kv.is_empty(), "nothing is applied when the route fails");
+        }
     }
 
     // @verifies SWR-MG-01

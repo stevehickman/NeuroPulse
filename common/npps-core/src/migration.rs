@@ -287,11 +287,11 @@ const MAGIC: &[u8; 4] = b"NPBK";
 const NONCE_LEN: usize = 12;
 const KEY_LEN: usize = 32;
 
-fn hex(b: &[u8]) -> String {
+pub(crate) fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
+pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
@@ -437,6 +437,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "clearDecision" => clear_decision(req)?,
         "clearPlan" => clear_plan(req)?,
         "probeResult" => probe_result(req)?,
+        "objectNames" => crate::object_route::names(),
         "sealBundle" => seal_bundle(req)?,
         "readBundleHeader" => read_bundle_header(req)?,
         "openBundle" => open_bundle(req)?,

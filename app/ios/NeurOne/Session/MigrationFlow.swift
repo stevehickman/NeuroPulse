@@ -9,7 +9,8 @@ import Foundation
 // Argon2id over the secret this driver holds), and `readKeys` / `writeKeys` (the app's key-value store, whose key list the
 // core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app stores
 // another way. The table of effects is in migration_flow.rs. The Windows counterpart is
-// app/windows/NeurOne/Protocol/MigrationFlow.cs, the web's common/lib/migrationFlow.ts, Kotlin's MigrationService.
+// app/windows/NeurOne/Protocol/MigrationFlow.cs, the web's common/lib/migrationFlow.ts and Kotlin's MigrationFlow.kt, under the
+// same four names: MigrationFlow, MigrationHost, KeyValueStore and ObjectStore.
 //
 // A flow state is opaque, is never stored, and never holds a secret or a key.
 
@@ -19,18 +20,36 @@ protocol MigrationHost {
     func perform(_ effect: [String: Any]) async throws -> [String: Any]
 }
 
-/// The app's key-value store, as the flows need it: get, put and remove, and nothing else.
-protocol MigrationKeyStore {
-    func get(_ key: String) -> String?
-    func put(_ key: String, _ value: String)
+/// The app's key-value store, as the flows need it: get, put and remove, and nothing else. The same role and the same names on
+/// every platform (Kotlin `KeyValueStore`, C# `IKeyValueStore`, TypeScript `KeyValueStore`).
+protocol KeyValueStore {
+    func getString(_ key: String) -> String?
+    func putString(_ key: String, _ value: String)
     func remove(_ key: String)
 }
 
-struct UserDefaultsKeyStore: MigrationKeyStore {
+struct UserDefaultsKeyValueStore: KeyValueStore {
     let defaults: UserDefaults
-    func get(_ key: String) -> String? { defaults.string(forKey: key) }
-    func put(_ key: String, _ value: String) { defaults.set(value, forKey: key) }
+    func getString(_ key: String) -> String? { defaults.string(forKey: key) }
+    func putString(_ key: String, _ value: String) { defaults.set(value, forKey: key) }
     func remove(_ key: String) { defaults.removeObject(forKey: key) }
+}
+
+/// The calls a storage provider is asked for (SWR-MG-11), on named objects, with the bytes as lower-case hex. This is the whole
+/// of what iOS writes for a cloud account, the local computer or a shared folder; the core holds the rest (object_route.rs).
+/// A call that cannot be done (no network, no permission, a refused write) throws, and the flow ends with the route unavailable.
+protocol ObjectStore {
+    /// The object's bytes, or nil when there is none.
+    func get(_ name: String) async throws -> String?
+    /// Write the object, replacing any earlier one.
+    func put(_ name: String, _ data: String) async throws
+    /// Write the object if and only if none exists, arbitrated by the store itself (SWR-MG-07). True when this call wrote it.
+    func createIfAbsent(_ name: String, _ data: String) async throws -> Bool
+    /// Remove the object. Not an error when there is none.
+    func delete(_ name: String) async throws
+    func list(_ prefix: String) async throws -> [String]
+    /// Free space in bytes, or nil when the provider cannot say.
+    func freeSpace() async throws -> Int64?
 }
 
 enum MigrationFlow {
@@ -45,9 +64,11 @@ enum MigrationFlow {
         params: [String: Any],
         host: MigrationHost,
         secret: BundleSecret? = nil,
-        keys: MigrationKeyStore? = nil
+        keys: KeyValueStore? = nil,
+        store: ObjectStore? = nil
     ) async throws -> [String: Any] {
         var params = params
+        if store != nil, params["objectStore"] == nil { params["objectStore"] = true }
         if keys != nil, params["keyItems"] == nil {
             let carried = try NppsCore.migration(["op": "itemKeys"])["carried"] as? [String: Any] ?? [:]
             params["keyItems"] = carried.keys.sorted()
@@ -58,7 +79,7 @@ enum MigrationFlow {
             guard let effect = answer["effect"] as? [String: Any], let state = answer["state"] else {
                 throw NppsCore.Refusal(message: "the core named no effect")
             }
-            let result = try await perform(effect, host: host, secret: secret, keys: keys)
+            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store)
             answer = try NppsCore.migration(["op": "flow", "flow": flow, "state": state, "result": result])
         }
         throw NppsCore.Refusal(message: "The \(flow) flow did not end in \(maxTurns) turns")
@@ -68,7 +89,8 @@ enum MigrationFlow {
         _ e: [String: Any],
         host: MigrationHost,
         secret: BundleSecret?,
-        keys: MigrationKeyStore?
+        keys: KeyValueStore?,
+        store: ObjectStore?
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
         case "deriveKey":
@@ -79,16 +101,56 @@ enum MigrationFlow {
         case "readKeys":
             guard let keys else { break }
             var values: [String: Any] = [:]
-            for k in e["keys"] as? [String] ?? [] { if let v = keys.get(k) { values[k] = v } }
+            for k in e["keys"] as? [String] ?? [] { if let v = keys.getString(k) { values[k] = v } }
             return ["values": values]
         case "writeKeys":
             guard let keys else { break }
             for k in e["remove"] as? [String] ?? [] { keys.remove(k) }
-            for (k, v) in e["set"] as? [String: Any] ?? [:] { if let text = v as? String { keys.put(k, text) } }
+            for (k, v) in e["set"] as? [String: Any] ?? [:] { if let text = v as? String { keys.putString(k, text) } }
             return ["ok": true]
+        case "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace":
+            guard let store else { break }
+            return await performObject(e, store)
         default:
             break
         }
         return try await host.perform(e)
+    }
+
+    /// One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11).
+    private static func performObject(_ e: [String: Any], _ store: ObjectStore) async -> [String: Any] {
+        let name = e["name"] as? String ?? ""
+        do {
+            switch e["type"] as? String {
+            case "objectGet":
+                let data = try await store.get(name)
+                return ["data": data as Any? ?? NSNull()]
+            case "objectPut":
+                try await store.put(name, e["data"] as? String ?? "")
+                return ["ok": true]
+            case "objectCreate":
+                let created = try await store.createIfAbsent(name, e["data"] as? String ?? "")
+                return ["created": created]
+            case "objectDelete":
+                try await store.delete(name)
+                return ["ok": true]
+            case "objectList":
+                let names = try await store.list(e["prefix"] as? String ?? "")
+                return ["names": names]
+            default:
+                let bytes = try await store.freeSpace()
+                return ["bytes": bytes as Any? ?? NSNull()]
+            }
+        } catch {
+            return ["failed": true]
+        }
+    }
+
+    /// The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07).
+    static func objectNames() throws -> [String: Any] { try NppsCore.migration(["op": "objectNames"]) }
+
+    /// SWR-MG-12: check an account on throwaway objects that hold no user data. `host` answers `random`, as for any flow.
+    static func probe(store: ObjectStore, bundleBytes: Int, host: MigrationHost) async throws -> [String: Any] {
+        try await run("probe", params: ["bundleBytes": bundleBytes], host: host, store: store)
     }
 }

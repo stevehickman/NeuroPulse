@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
-import { type FlowEffect, type MigrationHost, type MigrationKeyStore, runMigrationFlow } from './migrationFlow';
+import { type FlowEffect, type MigrationHost, type KeyValueStore, MigrationFlow, type ObjectStore } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
@@ -17,10 +17,10 @@ class Route {
   confirmation: unknown = null;
 }
 
-class Store implements MigrationKeyStore {
+class Store implements KeyValueStore {
   values = new Map<string, string>();
-  get = (k: string) => this.values.get(k);
-  put = (k: string, v: string) => void this.values.set(k, v);
+  getString = (k: string) => this.values.get(k);
+  putString = (k: string, v: string) => void this.values.set(k, v);
   remove = (k: string) => void this.values.delete(k);
 }
 
@@ -67,12 +67,34 @@ class Host implements MigrationHost {
   }
 }
 
+/** A provider with named objects and a create-if-absent the store itself arbitrates. */
+class MemoryStore implements ObjectStore {
+  objects = new Map<string, string>();
+  constructor(
+    private opts: { conditional?: boolean; space?: number | null; failOn?: string } = {},
+  ) {}
+  private check(call: string) {
+    if (this.opts.failOn === call) throw new Error(`${call} failed`);
+  }
+  async get(name: string) { this.check('get'); return this.objects.get(name) ?? null; }
+  async put(name: string, data: string) { this.check('put'); this.objects.set(name, data); }
+  async createIfAbsent(name: string, data: string) {
+    this.check('create');
+    if (this.opts.conditional !== false && this.objects.has(name)) return false;
+    this.objects.set(name, data);
+    return true;
+  }
+  async delete(name: string) { this.check('delete'); this.objects.delete(name); }
+  async list(prefix: string) { this.check('list'); return [...this.objects.keys()].filter((k) => k.startsWith(prefix)); }
+  async freeSpace() { this.check('space'); return this.opts.space === undefined ? 1 << 30 : this.opts.space; }
+}
+
 const ROUTE = { id: 'memory', atomicClaim: true, direct: false, authenticatedPairing: true };
 
 function filled(): Store {
   const store = new Store();
   const carried = nppsMigration({ op: 'itemKeys' }).carried as Record<string, string[]>;
-  for (const k of Object.values(carried).flat()) store.put(k, `value-of-${k}`);
+  for (const k of Object.values(carried).flat()) store.putString(k, `value-of-${k}`);
   return store;
 }
 
@@ -82,14 +104,14 @@ const secretOf = (text: string): string => {
   return r.secret;
 };
 
-describe('runMigrationFlow', () => {
+describe('MigrationFlow.run', () => {
   // @verifies SWR-MG-02
   // @verifies SWR-MG-08
   it('moves a phone to another through the shared flow and ends with a confirmation of the bundle hash', async () => {
     await initNppsCore();
     const route = new Route();
     const oldStore = filled();
-    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+    const done = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
       secret: secretOf('a long enough passphrase'),
       keys: oldStore,
     });
@@ -97,7 +119,7 @@ describe('runMigrationFlow', () => {
     expect(route.bundle).not.toContain(toHex([...'value-of-np.session.history'].map((c) => c.charCodeAt(0))));
 
     const fresh = new Store();
-    const r = await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
+    const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
     expect(r).toMatchObject({ ok: true, kind: 'migrate', confirmed: true });
     expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
     expect(route.confirmation).toEqual({ bundleHash: done.bundleHash });
@@ -109,15 +131,15 @@ describe('runMigrationFlow', () => {
     const route = new Route();
     const oldStore = filled();
     const installKeys = ['np.research.device-token', 'np.warranty.consent-granted', 'ble.last-hub-id', 'np.consumable.snooze-counts'];
-    for (const k of installKeys) oldStore.put(k, 'belongs-to-this-phone');
-    await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+    for (const k of installKeys) oldStore.putString(k, 'belongs-to-this-phone');
+    await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
       secret: secretOf('a long enough passphrase'),
       keys: oldStore,
     });
     const fresh = new Store();
-    await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
-    for (const k of installKeys) expect(fresh.get(k)).toBeUndefined();
-    expect(fresh.get('np.session.history')).toBe('value-of-np.session.history');
+    await MigrationFlow.run('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
+    for (const k of installKeys) expect(fresh.getString(k)).toBeUndefined();
+    expect(fresh.getString('np.session.history')).toBe('value-of-np.session.history');
   }, 60_000);
 
   // @verifies SWR-MG-08
@@ -126,32 +148,90 @@ describe('runMigrationFlow', () => {
     await initNppsCore();
     const route = new Route();
     const oldStore = filled();
-    oldStore.put('ble.last-hub-id', 'hub-1');
-    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+    oldStore.putString('ble.last-hub-id', 'hub-1');
+    const done = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
       secret: secretOf('a long enough passphrase'),
       keys: oldStore,
     });
-    const before = await runMigrationFlow('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, new Host(route, 1), { keys: oldStore });
+    const before = await MigrationFlow.run('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, new Host(route, 1), { keys: oldStore });
     expect(before).toEqual({ ok: false, reason: 'no_confirmation' });
 
-    await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: new Store() });
+    await MigrationFlow.run('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: new Store() });
     const host = new Host(route, 1);
-    const after = await runMigrationFlow('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, host, { keys: oldStore });
+    const after = await MigrationFlow.run('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, host, { keys: oldStore });
     expect(after).toMatchObject({ ok: true, removeOsBond: true });
     expect(host.ran).toEqual(['destroyEncryptionKey', 'overwriteAndDeleteFiles', 'forgetPairingRecord']);
     expect([...oldStore.values.keys()]).toEqual(['np.migration.cleared']);
+  }, 60_000);
+
+  // @verifies SWR-MG-10
+  // @verifies SWR-MG-11
+  // @verifies SWR-MG-07
+  it('runs a migration over an object store the app only has to provide, and refuses a second restore', async () => {
+    await initNppsCore();
+    const store = new MemoryStore();
+    const oldStore = filled();
+    const done = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route(), 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+      store,
+    });
+    expect(done.ok).toBe(true);
+    expect([...store.objects.keys()]).toEqual([MigrationFlow.objectNames().bundle]);
+
+    const fresh = new Store();
+    const host = new Host(new Route(), 50);
+    const r = await MigrationFlow.run('restore', { route: ROUTE }, host, { secret: secretOf('a long enough passphrase'), keys: fresh, store });
+    expect(r).toMatchObject({ ok: true, confirmed: true });
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
+    expect(host.seen.filter((t) => ['getBundle', 'putBundle', 'readClaim', 'createClaim'].includes(t))).toEqual([]);
+
+    const second = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route(), 90), {
+      secret: secretOf('a long enough passphrase'),
+      keys: new Store(),
+      store,
+    });
+    expect(second).toEqual({ ok: false, reason: 'claimed' });
+  }, 60_000);
+
+  // @verifies SWR-MG-11
+  it('ends the flow with the route unavailable when an object call rejects', async () => {
+    await initNppsCore();
+    const r = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route(), 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: filled(),
+      store: new MemoryStore({ failOn: 'put' }),
+    });
+    expect(r).toEqual({ ok: false, reason: 'route_unavailable' });
+  }, 60_000);
+
+  // @verifies SWR-MG-12
+  it('probes an account on throwaway objects, says what it can do and leaves nothing behind', async () => {
+    await initNppsCore();
+    const host = () => new Host(new Route(), 7);
+    const good = new MemoryStore();
+    good.objects.set('users-file', '01');
+    expect(await MigrationFlow.probe(good, 1000, host())).toMatchObject({ result: 'sufficient' });
+    expect([...good.objects.keys()]).toEqual(['users-file']);
+
+    const noConditional = new MemoryStore({ conditional: false });
+    expect(await MigrationFlow.probe(noConditional, 1000, host())).toMatchObject({ result: 'backup_only', failedOperation: 'createIfAbsentSecondRefused' });
+    expect(noConditional.objects.size).toBe(0);
+
+    expect(await MigrationFlow.probe(new MemoryStore({ space: 10 }), 1000, host())).toMatchObject({ result: 'insufficient', failedOperation: 'space' });
+    expect(await MigrationFlow.probe(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ failedOperation: 'space' });
   }, 60_000);
 
   // @verifies SWR-MG-07
   it('opens the bundle before it takes the claim, so a wrong secret leaves no claim behind', async () => {
     await initNppsCore();
     const route = new Route();
-    await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+    await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
       secret: secretOf('a long enough passphrase'),
       keys: filled(),
     });
     const wrong = new Host(route, 50);
-    const r = await runMigrationFlow('restore', { route: ROUTE }, wrong, { secret: secretOf('a different passphrase'), keys: new Store() });
+    const r = await MigrationFlow.run('restore', { route: ROUTE }, wrong, { secret: secretOf('a different passphrase'), keys: new Store() });
     expect(r).toEqual({ ok: false, reason: 'authentication_failed' });
     expect(route.claim).toBeNull();
     expect(wrong.seen).not.toContain('createClaim');

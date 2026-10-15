@@ -17,12 +17,34 @@ public class MigrationFlowTests
         public JsonNode? Confirmation;
     }
 
-    private sealed class KeyStore : IMigrationKeyStore
+    private sealed class KeyStore : IKeyValueStore
     {
         public readonly Dictionary<string, string> Values = [];
-        public string? Get(string key) => Values.GetValueOrDefault(key);
-        public void Put(string key, string value) => Values[key] = value;
+        public string? GetString(string key) => Values.GetValueOrDefault(key);
+        public void PutString(string key, string value) => Values[key] = value;
         public void Remove(string key) => Values.Remove(key);
+    }
+
+    // A provider with named objects and a create-if-absent the store itself arbitrates.
+    private sealed class MemoryStore : IObjectStore
+    {
+        public readonly Dictionary<string, string> Objects = [];
+        public bool Conditional = true;
+        public long? Space = 1L << 30;
+        public string? FailOn;
+        private void Check(string call) { if (FailOn == call) throw new InvalidOperationException(call); }
+        public Task<string?> GetAsync(string name) { Check("get"); return Task.FromResult(Objects.GetValueOrDefault(name)); }
+        public Task PutAsync(string name, string data) { Check("put"); Objects[name] = data; return Task.CompletedTask; }
+        public Task<bool> CreateIfAbsentAsync(string name, string data)
+        {
+            Check("create");
+            if (Conditional && Objects.ContainsKey(name)) return Task.FromResult(false);
+            Objects[name] = data;
+            return Task.FromResult(true);
+        }
+        public Task DeleteAsync(string name) { Check("delete"); Objects.Remove(name); return Task.CompletedTask; }
+        public Task<IReadOnlyList<string>> ListAsync(string prefix) { Check("list"); return Task.FromResult<IReadOnlyList<string>>(Objects.Keys.Where(k => k.StartsWith(prefix)).ToList()); }
+        public Task<long?> FreeSpaceAsync() { Check("space"); return Task.FromResult(Space); }
     }
 
     // A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
@@ -96,7 +118,7 @@ public class MigrationFlowTests
         var store = new KeyStore();
         var carried = NppsCore.Migration(new JsonObject { ["op"] = "itemKeys" })["carried"]!.AsObject();
         foreach (var (_, keys) in carried)
-            foreach (var k in keys!.AsArray().Select(n => (string)n!)) store.Put(k, $"value-of-{k}");
+            foreach (var k in keys!.AsArray().Select(n => (string)n!)) store.PutString(k, $"value-of-{k}");
         return store;
     }
 
@@ -127,7 +149,7 @@ public class MigrationFlowTests
     {
         var route = new Route();
         var oldStore = Filled();
-        oldStore.Put("ble.last-hub-id", "hub-1");
+        oldStore.PutString("ble.last-hub-id", "hub-1");
         using var oldSecret = Secret("a long enough passphrase");
         var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
         var clearParams = new JsonObject { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = false };
@@ -145,6 +167,63 @@ public class MigrationFlowTests
         Assert.Equal(["np.migration.cleared"], oldStore.Values.Keys.ToArray());
     }
 
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    [Fact]
+    public async Task AMigrationRunsOverAnObjectStoreTheAppOnlyHasToProvideAndASecondRestoreIsRefused()
+    {
+        var store = new MemoryStore();
+        var oldStore = Filled();
+        using var oldSecret = Secret("a long enough passphrase");
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, oldStore, store);
+        Assert.True((bool)done["ok"]!);
+        Assert.Equal([(string)MigrationFlow.ObjectNames()["bundle"]!], store.Objects.Keys.ToArray());
+
+        var fresh = new KeyStore();
+        var host = new Host(new Route(), 50);
+        using var freshSecret = Secret("a long enough passphrase");
+        var r = await MigrationFlow.RunAsync("restore", Params(), host, freshSecret, fresh, store);
+        Assert.True((bool)r["ok"]!);
+        Assert.True((bool)r["confirmed"]!);
+        Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
+        Assert.DoesNotContain(host.Seen, t => t is "getBundle" or "putBundle" or "readClaim" or "createClaim");
+
+        using var thirdSecret = Secret("a long enough passphrase");
+        var second = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), 90), thirdSecret, new KeyStore(), store);
+        Assert.Equal("claimed", (string)second["reason"]!);
+    }
+
+    // @verifies SWR-MG-11
+    [Fact]
+    public async Task AnObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable()
+    {
+        var store = new MemoryStore { FailOn = "put" };
+        using var oldSecret = Secret("a long enough passphrase");
+        var r = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, Filled(), store);
+        Assert.Equal("route_unavailable", (string)r["reason"]!);
+    }
+
+    // @verifies SWR-MG-12
+    [Fact]
+    public async Task TheProbeSaysWhatAnAccountCanDoAndLeavesNothingBehind()
+    {
+        var good = new MemoryStore();
+        good.Objects["users-file"] = "01";
+        var r = await MigrationFlow.ProbeAsync(good, 1000, new Host(new Route(), 7));
+        Assert.Equal("sufficient", (string)r["result"]!);
+        Assert.Equal(["users-file"], good.Objects.Keys.ToArray());
+
+        var noConditional = new MemoryStore { Conditional = false };
+        r = await MigrationFlow.ProbeAsync(noConditional, 1000, new Host(new Route(), 7));
+        Assert.Equal("backup_only", (string)r["result"]!);
+        Assert.Equal("createIfAbsentSecondRefused", (string)r["failedOperation"]!);
+        Assert.Empty(noConditional.Objects);
+
+        r = await MigrationFlow.ProbeAsync(new MemoryStore { Space = 10 }, 1000, new Host(new Route(), 7));
+        Assert.Equal("space", (string)r["failedOperation"]!);
+    }
+
     // @verifies SWR-MG-01
     [Fact]
     public async Task KeysThatBelongToTheInstallNeverMove()
@@ -152,14 +231,14 @@ public class MigrationFlowTests
         var route = new Route();
         var oldStore = Filled();
         string[] installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"];
-        foreach (var k in installKeys) oldStore.Put(k, "belongs-to-this-phone");
+        foreach (var k in installKeys) oldStore.PutString(k, "belongs-to-this-phone");
         using var oldSecret = Secret("a long enough passphrase");
         await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
         var fresh = new KeyStore();
         using var freshSecret = Secret("a long enough passphrase");
         await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, fresh);
-        foreach (var k in installKeys) Assert.Null(fresh.Get(k));
-        Assert.Equal("value-of-np.session.history", fresh.Get("np.session.history"));
+        foreach (var k in installKeys) Assert.Null(fresh.GetString(k));
+        Assert.Equal("value-of-np.session.history", fresh.GetString("np.session.history"));
     }
 
     // @verifies SWR-MG-07
