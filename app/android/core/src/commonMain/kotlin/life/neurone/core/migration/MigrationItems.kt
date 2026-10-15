@@ -6,7 +6,7 @@ import kotlinx.serialization.json.JsonElement
 //
 // The core decides which ITEMS a kind carries and which stored KEYS make up each (common/npps/migration-keys.json, read by
 // the core and by scripts/check-migration-keys.ts for every platform), so there is no Kotlin copy of the list. An item that
-// is plain keys needs no code here: MigrationService reads and writes those through the app's KeyValueStore. An item an
+// is plain keys needs no code here: MigrationFlow reads and writes those through the app's KeyValueStore. An item an
 // app stores another way (consent, today) is a MigrationItemStore.
 
 /** One item of a bundle that this phone stores some way other than plain keys: read and written whole. */

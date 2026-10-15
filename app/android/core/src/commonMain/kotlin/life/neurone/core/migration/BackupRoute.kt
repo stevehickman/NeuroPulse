@@ -1,12 +1,14 @@
 package life.neurone.core.migration
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 // Where a bundle lives while it moves between phones, or waits as a backup (SWR-MG-02, SWR-MG-07, SWR-MG-08, SWR-MG-10).
 //
 // A route is a dumb store: it holds one encrypted bundle, one claim marker and one confirmation, and it knows nothing of
 // what is inside. Every rule about them (who owns a claim, when the old phone may clear, whether a route may carry a
-// migration at all) is the shared core's, asked through MigrationService. A route never sees plaintext and never
+// migration at all) is the shared core's, asked through MigrationFlow. A route never sees plaintext and never
 // reaches a NeurOne server: the cloud route is the user's own account (SWR-MG-10), the others are a local computer and a
 // direct link.
 
@@ -112,11 +114,21 @@ interface ObjectStore {
     suspend fun freeSpace(): Long?
 }
 
-/** A route over an [ObjectStore]. The core drives it; the typed route calls of [BackupRoute] never reach it. */
+/**
+ * A route that is an object store: the descriptor the flow's `route` param carries. The store itself is handed to
+ * [MigrationFlow.run] as `store`, and the core then drives the route; the typed calls of [BackupRoute] never reach it.
+ */
 class ObjectStoreRoute(
-    val store: ObjectStore,
     override val id: String,
     override val atomicClaim: Boolean,
     override val direct: Boolean = false,
     override val authenticatedPairing: Boolean = true,
 ) : RouteDescriptor
+
+/** The descriptor a flow's `route` param carries: the core offers or withholds the route from it (SWR-MG-10). */
+fun RouteDescriptor.toJson(): JsonObject = buildJsonObject {
+    put("id", id)
+    put("atomicClaim", atomicClaim)
+    put("direct", direct)
+    put("authenticatedPairing", authenticatedPairing)
+}
