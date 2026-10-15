@@ -664,12 +664,12 @@ mod tests {
     fn only_the_keys_of_a_carried_item_move_and_per_install_keys_never_do() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
-        for k in ["np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts"] {
+        for k in ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"] {
             old.kv.insert(k.into(), "secret-to-this-phone".into());
         }
         backup("migrate", &mut route, &mut old, ATOMIC());
         assert_eq!(restore(&mut route, &mut fresh, SECRET)["ok"], true);
-        for k in ["np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts"] {
+        for k in ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"] {
             assert!(!fresh.kv.contains_key(k), "{k} must not move");
         }
         assert_eq!(fresh.kv.len(), old.kv.len() - 4);
@@ -843,7 +843,7 @@ mod tests {
         assert_eq!(old.ran[0], "destroyEncryptionKey", "the key goes first");
         assert!(old.ran.contains(&"forgetPairingRecord".to_string()) && old.ran.contains(&"forgetLastPairedHelmetId".to_string()));
         // The core names every stored key, the per-install ones included, so no app keeps a list of its own to forget.
-        assert!(old.clear_keys.contains(&"ble.lastHubId".to_string()) && old.clear_keys.contains(&"np.session.history".to_string()));
+        assert!(old.clear_keys.contains(&"ble.last-hub-id".to_string()) && old.clear_keys.contains(&"np.session.history".to_string()));
         assert!(old.kv.is_empty(), "everything stored is forgotten");
     }
 

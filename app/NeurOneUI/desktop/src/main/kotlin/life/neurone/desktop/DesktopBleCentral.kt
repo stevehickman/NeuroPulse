@@ -2,6 +2,7 @@ package life.neurone.desktop
 
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.UUID
+import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
@@ -147,7 +148,7 @@ internal class DesktopBleCentral(
 
     private companion object {
         const val POLL_MS = 250
-        const val HUB_KEY = "ble.lastHubId"
+        const val HUB_KEY = PersistedKeys.BLE_LAST_HUB_KEY
 
         /** UC-078 (timings): unmeasured. */
         const val PREFERENCE_WINDOW_MS = 3_000L

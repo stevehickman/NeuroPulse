@@ -18,12 +18,11 @@
   "perInstall": [
     "np.research.device-token",
     "np.shdr.device-token",
-    "np.warranty.consent-granted",
-    "np.warranty.consent.granted",
     "np.analytics.launch-count",
+    "np.warranty.consent-granted",
     "np.backup.destination",
     "np.backup.last-epoch",
-    "ble.lastHubId"
+    "ble.last-hub-id"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

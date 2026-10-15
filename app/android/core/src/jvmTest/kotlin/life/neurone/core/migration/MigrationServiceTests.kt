@@ -268,12 +268,12 @@ class MigrationServiceTests {
     fun keysThatBelongToTheInstallNeverMoveAndNoOtherItemsKeysAreWritten() = runTest {
         val route = InMemoryBackupRoute()
         val old = Phone(seed = 1).also { it.fill() }
-        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts")
+        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts")
             .forEach { old.kv.putString(it, "belongs-to-this-phone") }
         old.service.backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), route)
         val fresh = Phone(seed = 50)
         assertIs<RestoreResult.Restored>(fresh.service.restore(route, passphrase(SECRET)))
-        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts")
+        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts")
             .forEach { assertNull(fresh.kv.getString(it), "$it must not move") }
         assertEquals("value-of-np.session.history", fresh.kv.getString("np.session.history"))
     }

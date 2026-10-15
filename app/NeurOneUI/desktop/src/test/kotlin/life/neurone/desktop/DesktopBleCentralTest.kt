@@ -153,7 +153,7 @@ class DesktopBleCentralTest {
         assertEquals("found hub-1", rec.next())
         link.events += byteArrayOf(3) + "hub-1".encodeToByteArray()
         assertEquals("connected hub-1", rec.next())
-        assertEquals("hub-1", store.getString("ble.lastHubId"))
+        assertEquals("hub-1", store.getString("ble.last-hub-id"))
 
         // Another device is held back, and the remembered one overrides it when it shows up.
         link.events += byteArrayOf(2) + "hub-2".encodeToByteArray()
@@ -168,7 +168,7 @@ class DesktopBleCentralTest {
         assertEquals("found hub-2", rec.next())
 
         central.forgetHub()
-        assertEquals(null, store.getString("ble.lastHubId"))
+        assertEquals(null, store.getString("ble.last-hub-id"))
         central.close()
     }
 }

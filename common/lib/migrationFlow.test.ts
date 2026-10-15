@@ -104,7 +104,7 @@ describe('runMigrationFlow', () => {
     await initNppsCore();
     const route = new Route();
     const oldStore = filled();
-    const installKeys = ['np.research.device-token', 'np.warranty.consent-granted', 'ble.lastHubId', 'np.consumable.snooze-counts'];
+    const installKeys = ['np.research.device-token', 'np.warranty.consent-granted', 'ble.last-hub-id', 'np.consumable.snooze-counts'];
     for (const k of installKeys) oldStore.put(k, 'belongs-to-this-phone');
     await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
       secret: secretOf('a long enough passphrase'),

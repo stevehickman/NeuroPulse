@@ -903,6 +903,16 @@
           "note": "Set when the user actively completes the consent onboarding flow (taps Done on the final layer). Distinct from np.onboarding.consent-shown, which is set when the view appears. Not set when the user presses Skip, because skipping defers all data decisions including research analytics. Cleared by blanket research consent withdrawal, because blanket withdrawal implies full data-collection opt-out. Not the same as the warranty consent key: research and warranty consent are independent and must never share a key."
         },
         {
+          "name": "WARRANTY_CONSENT_KEY",
+          "value": "np.warranty.consent-granted",
+          "note": "Set when the warranty owner grants SHDR fleet telemetry at device registration. Governs SHDR uploads only. Defined here because iOS and Android once spelled it differently (np.warranty.consent.granted on iOS); one definition keeps them the same. Never shared with RESEARCH_ANALYTICS_KEY: warranty consent and research consent are independent. Per-install: it belongs to a warranty registration and never moves in a device-replacement migration (SWR-MG-01)."
+        },
+        {
+          "name": "BLE_LAST_HUB_KEY",
+          "value": "ble.last-hub-id",
+          "note": "The id of the hub last paired, so the app reconnects to it. Per-install: the new phone pairs afresh and the old phone forgets it (SWR-MG-01, SWR-MG-09). Spelled like every other key (lower case, hyphenated); it was ble.lastHubId."
+        },
+        {
           "name": "CERVICAL_FAULT_LEDGER_KEY",
           "value": "np.cvns.fault-ledger.last-acknowledged-session",
           "note": "Prefix of the per-user key recording the last acknowledged cervical fault session."

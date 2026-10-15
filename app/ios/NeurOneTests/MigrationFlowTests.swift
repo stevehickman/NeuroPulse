@@ -111,7 +111,7 @@ final class MigrationFlowTests: XCTestCase {
     func testKeysThatBelongToTheInstallNeverMove() async throws {
         let route = Route()
         let oldStore = try filledStore()
-        let installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts"]
+        let installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"]
         for k in installKeys { oldStore.put(k, "belongs-to-this-phone") }
         _ = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),

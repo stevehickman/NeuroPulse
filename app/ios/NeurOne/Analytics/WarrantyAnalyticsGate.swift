@@ -29,7 +29,7 @@ enum WarrantyAnalyticsGate {
     /// UserDefaults key set when the warranty owner grants SHDR fleet telemetry
     /// at device registration. Never read or written by `ConsentStore` or any
     /// research-consent path — warranty consent and research consent are independent.
-    static let WARRANTY_CONSENT_KEY = "np.warranty.consent.granted"
+    static let WARRANTY_CONSENT_KEY = PersistedKeys.WARRANTY_CONSENT_KEY
 
     /// True when the warranty owner has consented to SHDR fleet telemetry.
     /// Checked by `SHDRUploader.uploadIfConsented()` before each upload attempt.

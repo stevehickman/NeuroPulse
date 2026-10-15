@@ -118,7 +118,7 @@ public class MigrationFlowTests
     {
         var route = new Route();
         var oldStore = Filled();
-        string[] installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.lastHubId", "np.consumable.snooze-counts"];
+        string[] installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"];
         foreach (var k in installKeys) oldStore.Put(k, "belongs-to-this-phone");
         using var oldSecret = Secret("a long enough passphrase");
         await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);

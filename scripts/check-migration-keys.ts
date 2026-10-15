@@ -92,12 +92,12 @@ function selfTest(): void {
   const map = {
     carried: { sessionHistory: ["np.session.history"] },
     consent: ["np.consent.research"],
-    perInstall: ["ble.lastHubId"],
+    perInstall: ["ble.last-hub-id"],
     unsorted: ["np.setup.first-complete"],
   };
   const src = new Map<string, string>([
     ["app/android/core/A.kt", 'const val K = "np.session.history"; val c = "np.consent.research"'],
-    ["app/ios/NeurOne/B.swift", 'let k = "ble.lastHubId"; let s = "np.setup.first-complete"'],
+    ["app/ios/NeurOne/B.swift", 'let k = "ble.last-hub-id"; let s = "np.setup.first-complete"'],
   ]);
   const expect = (name: string, files: Map<string, string>, m: any, want: string[]) => {
     const got = check(files, m).map((f) => f.message.slice(0, 2));
