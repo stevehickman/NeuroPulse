@@ -139,6 +139,7 @@ jobs:
       map2shdr: ${{ steps.scope.outputs.map2shdr }}
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
       sharedplace: ${{ steps.scope.outputs.sharedplace }}
+      migrationkeys: ${{ steps.scope.outputs.migrationkeys }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
       reqtrace: ${{ steps.scope.outputs.reqtrace }}
     env:
@@ -347,6 +348,15 @@ jobs:
         scripts/check-shared-placement.ts
         scripts/check-firmware-constants.ts
         .github/workflows/tooling-ci.yml
+      # The migration key gate (SWR-MG-01). It reads every app's sources for a stored-key literal against the one
+      # list the shared core also reads: the edit that breaks it is a key added in any app (iOS, Android, Windows,
+      # macOS, web) or removed from the list, so app/** and common/**, not one platform.
+      NP_SCOPE_MIGRATIONKEYS: |
+        app/**
+        common/lib/**
+        common/npps/migration-keys.json
+        scripts/check-migration-keys.ts
+        .github/workflows/tooling-ci.yml
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
         firmware/hub_control/include/np_pbm_model.generated.h
@@ -414,6 +424,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_MAP2SHDR" > scope.map2shdr.paths
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
           printf '%s\n' "$NP_SCOPE_SHAREDPLACE" > scope.sharedplace.paths
+          printf '%s\n' "$NP_SCOPE_MIGRATIONKEYS" > scope.migrationkeys.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
           printf '%s\n' "$NP_SCOPE_REQTRACE" > scope.reqtrace.paths
 
@@ -423,7 +434,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.unjustified.paths scope.reqtrace.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.unjustified.paths scope.reqtrace.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -573,6 +584,14 @@ jobs:
           assert scope.sharedplace.paths true  simulator/src/npps-runtime.ts
           assert scope.sharedplace.paths false docs/np_art_001.md
 
+          # The migration key gate. A key can be added in any app, so every app's tree reaches it; the list is the other half.
+          assert scope.migrationkeys.paths true  app/ios/NeurOne/Data/UHDRBackupScheduler.swift
+          assert scope.migrationkeys.paths true  app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
+          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/NppsCore.cs
+          assert scope.migrationkeys.paths true  common/npps/migration-keys.json
+          assert scope.migrationkeys.paths false docs/np_art_001.md
+          assert scope.migrationkeys.paths false firmware/hub_control/src/np_session_log.c
+
           # The unjustified-choices register gate. The register, a firmware
           # header that carries a marker, the hardware JSON, an app source and
           # the script are in; the locale files are not, because the gate reads
@@ -664,6 +683,7 @@ jobs:
           emit map2shdr  scope.map2shdr.paths
           emit pbmmodel  scope.pbmmodel.paths
           emit sharedplace scope.sharedplace.paths
+          emit migrationkeys scope.migrationkeys.paths
           emit unjustified scope.unjustified.paths
           emit reqtrace  scope.reqtrace.paths
 
@@ -1333,6 +1353,30 @@ jobs:
       # REQ-LFS-01 (OI-LFS-03) and one-handle-per-file (OI-LFS-06).
       - name: littlefs caller rules and REQ-LFS-01
         run: bun scripts/check-lfs-caller-rules.ts
+
+  migration-keys:
+    name: every stored key is sorted for migration, on every platform (SWR-MG-01)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.migrationkeys != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove a new key on each platform, a stale entry and a double entry can fail)
+        run: bun scripts/check-migration-keys.ts --self-test
+
+      # SWR-MG-01 lists what moves and what never does; OI-UI-KMP-11 (d) asks for a definition that survives new
+      # keys. One list, read by the shared core and by this, so a key added in any app is sorted at the change that adds it.
+      - name: Every stored key is in one list of common/npps/migration-keys.json
+        run: bun scripts/check-migration-keys.ts
 
   shared-placement:
     name: files used by more than one app live in app/NeurOneShared (CLAUDE.md §20)
