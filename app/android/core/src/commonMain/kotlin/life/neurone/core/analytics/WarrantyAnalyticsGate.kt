@@ -19,7 +19,7 @@ class WarrantyAnalyticsGate(private val store: KeyValueStore) {
 
     companion object {
         /** Distinct from PersistedKeys.RESEARCH_ANALYTICS_KEY by design. */
-        const val WARRANTY_CONSENT_KEY = "np.warranty.consent-granted"
+        const val WARRANTY_CONSENT_KEY = PersistedKeys.WARRANTY_CONSENT_KEY
     }
 
     val isOpen: Boolean

@@ -12,26 +12,18 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import life.neurone.core.common.InMemoryKeyValueStore
-import life.neurone.core.data.Argon2Provider
+import life.neurone.core.npps.NppsCore
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecret
 import life.neurone.core.data.BundleSecretResult
 import life.neurone.core.data.RandomSource
-import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-
-/** SHA-256 of password and salt: deterministic, and different for a different secret or salt. The cost is the core's. */
-private class HashArgon2 : Argon2Provider {
-    override fun argon2idHash(password: ByteArray, salt: ByteArray, memoryKiB: Int, iterations: Int, parallelism: Int, outputLength: Int): ByteArray =
-        MessageDigest.getInstance("SHA-256").digest(password + salt).copyOf(outputLength)
-}
 
 /** Distinct bytes on every call, so each salt, nonce and claim token differs. */
 private class StepRandom(private var n: Int = 0) : RandomSource {
@@ -57,10 +49,16 @@ private fun passphrase(text: String): BundleSecret = (BundleKeyDerivation.passph
 
 private const val SECRET = "a long enough passphrase"
 
+/** The keys of the four items that are plain keys, from the core: the one list every platform shares. */
+private val carriedKeys: Map<String, List<String>> by lazy {
+    NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["carried"]!!.jsonObject
+        .mapValues { (_, v) -> v.jsonArray.map { it.jsonPrimitive.content } }
+}
+
 private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), extra: List<MigrationItemStore> = emptyList(), seed: Int = 0) {
-    val service = MigrationService(KeyValueItemStore.allOver(kv) + extra, HashArgon2(), StepRandom(seed))
+    val service = MigrationService(kv, extra, StepRandom(seed))
     fun fill() {
-        MigrationKeyMap.carried.values.flatten().forEach { kv.putString(it, "value-of-$it") }
+        carriedKeys.values.flatten().forEach { kv.putString(it, "value-of-$it") }
     }
 }
 
@@ -81,7 +79,7 @@ class MigrationServiceTests {
         val fresh = Phone(seed = 50)
         val r = fresh.service.restore(route, passphrase(SECRET))
         assertIs<RestoreResult.Restored>(r)
-        MigrationKeyMap.carried.values.flatten().forEach { assertEquals("value-of-$it", fresh.kv.getString(it), it) }
+        carriedKeys.values.flatten().forEach { assertEquals("value-of-$it", fresh.kv.getString(it), it) }
         assertTrue(r.confirmed)
         assertEquals(done.bundleHash, route.readConfirmation()!!["bundleHash"]!!.jsonPrimitive.content)
         assertEquals(setOf("bundleHash"), route.readConfirmation()!!.keys, "the confirmation carries the hash and nothing else")
@@ -267,21 +265,16 @@ class MigrationServiceTests {
 
     // @verifies SWR-MG-01
     @Test
-    fun anItemStoreRefusesAKeyItDoesNotOwnSoABundleCannotWriteAnotherItemsState() {
-        val kv = InMemoryKeyValueStore()
-        val store = KeyValueItemStore("sessionHistory", listOf("np.session.history"), kv)
-        val forged = buildJsonObject { put("np.session.history", "ok"); put("np.warranty.consent-granted", "true") }
-        assertFailsWithIllegalArgument { store.import(forged) }
-        assertNull(kv.getString("np.warranty.consent-granted"))
-        assertNull(store.export())
-        store.import(buildJsonObject { put("np.session.history", "ok") })
-        assertNotNull(store.export())
-        store.clear()
-        assertNull(store.export())
-    }
-
-    private fun assertFailsWithIllegalArgument(block: () -> Unit) {
-        try { block() } catch (_: IllegalArgumentException) { return }
-        throw AssertionError("expected IllegalArgumentException")
+    fun keysThatBelongToTheInstallNeverMoveAndNoOtherItemsKeysAreWritten() = runTest {
+        val route = InMemoryBackupRoute()
+        val old = Phone(seed = 1).also { it.fill() }
+        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts")
+            .forEach { old.kv.putString(it, "belongs-to-this-phone") }
+        old.service.backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), route)
+        val fresh = Phone(seed = 50)
+        assertIs<RestoreResult.Restored>(fresh.service.restore(route, passphrase(SECRET)))
+        listOf("np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts")
+            .forEach { assertNull(fresh.kv.getString(it), "$it must not move") }
+        assertEquals("value-of-np.session.history", fresh.kv.getString("np.session.history"))
     }
 }

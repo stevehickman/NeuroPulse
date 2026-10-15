@@ -26,7 +26,7 @@ and replaced with precise terms throughout all code and docs.
 | Gate | Swift type | Consent subject | Data controlled | UserDefaults key |
 |------|-----------|----------------|----------------|-----------------|
 | Research analytics | `ResearchAnalyticsGate` | Device user (the person wearing the device) | PostHog SDK / app-level event tracking | `np.research.consent-granted` |
-| Warranty analytics | `WarrantyAnalyticsGate` | Warranty owner (entity that registered the device — may be a clinic, NOT the user) | SHDR fleet telemetry (`SHDRUploader`) | `np.warranty.consent.granted` |
+| Warranty analytics | `WarrantyAnalyticsGate` | Warranty owner (entity that registered the device — may be a clinic, NOT the user) | SHDR fleet telemetry (`SHDRUploader`) | `np.warranty.consent-granted` |
 
 The two gates are **code-structurally independent**. `ResearchAnalyticsGate` and `WarrantyAnalyticsGate`
 have no shared state. `SHDRUploader` has no reference to `ConsentStore` or `ResearchAnalyticsGate`.
@@ -75,7 +75,7 @@ Controls SHDR fleet telemetry uploads. The gate opens when the warranty owner gr
 consent at device registration.
 
 ```swift
-static let warrantyConsentKey = "np.warranty.consent.granted"
+static let warrantyConsentKey = "np.warranty.consent-granted"
 static var isOpen: Bool { UserDefaults.standard.bool(forKey: warrantyConsentKey) }
 ```
 
@@ -92,12 +92,14 @@ to `ConsentStore` or `ResearchAnalyticsGate`.
 | Key | Purpose | Gate |
 |-----|---------|------|
 | `np.research.consent-granted` | Research analytics consent | `ResearchAnalyticsGate` |
-| `np.warranty.consent.granted` | Warranty/SHDR consent | `WarrantyAnalyticsGate` |
+| `np.warranty.consent-granted` | Warranty/SHDR consent | `WarrantyAnalyticsGate` |
 | `np.onboarding.consent-shown` | Prevents re-presenting onboarding | (not a gate) |
 
 `np.onboarding.consent-accepted` — retired (replaced by `np.research.consent-granted`).
 
 ---
+
+**Spelling corrected 2026-10-15 (GitHub #569, package 6f).** This spec gave the warranty key as `np.warranty.consent.granted`, which iOS shipped and Android did not. Both now read the one definition `PersistedKeys.WARRANTY_CONSENT_KEY` (`common/npps/constants.json`), spelled `np.warranty.consent-granted`.
 
 ## Files affected by 2026-06-16 terminology change
 

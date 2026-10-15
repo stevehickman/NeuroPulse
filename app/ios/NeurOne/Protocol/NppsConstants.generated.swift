@@ -459,6 +459,16 @@ enum PersistedKeys {
     /// opt-out. Not the same as the warranty consent key: research and warranty consent are independent and
     /// must never share a key.
     static let RESEARCH_ANALYTICS_KEY: String = "np.research.consent-granted"
+    /// Set when the warranty owner grants SHDR fleet telemetry at device registration. Governs SHDR uploads
+    /// only. Defined here because iOS and Android once spelled it differently (np.warranty.consent.granted
+    /// on iOS); one definition keeps them the same. Never shared with RESEARCH_ANALYTICS_KEY: warranty
+    /// consent and research consent are independent. Per-install: it belongs to a warranty registration and
+    /// never moves in a device-replacement migration (SWR-MG-01).
+    static let WARRANTY_CONSENT_KEY: String = "np.warranty.consent-granted"
+    /// The id of the hub last paired, so the app reconnects to it. Per-install: the new phone pairs afresh
+    /// and the old phone forgets it (SWR-MG-01, SWR-MG-09). Spelled like every other key (lower case,
+    /// hyphenated); it was ble.lastHubId.
+    static let BLE_LAST_HUB_KEY: String = "ble.last-hub-id"
     /// Prefix of the per-user key recording the last acknowledged cervical fault session.
     static let CERVICAL_FAULT_LEDGER_KEY: String = "np.cvns.fault-ledger.last-acknowledged-session"
     /// Consumable replacements waiting for the hub to acknowledge.

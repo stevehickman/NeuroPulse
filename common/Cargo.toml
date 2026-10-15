@@ -1,3 +1,11 @@
 [workspace]
 resolver = "2"
 members = ["npps-core", "npps-jni", "npps-ffi", "btle-jni"]
+
+# Argon2id at the bundle key's cost (64 MiB, 4 passes) is unusably slow unoptimised; the tests and the host builds run
+# it, so these two are always optimised.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

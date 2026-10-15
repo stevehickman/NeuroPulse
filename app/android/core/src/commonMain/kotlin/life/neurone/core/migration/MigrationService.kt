@@ -14,10 +14,10 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import life.neurone.core.data.Argon2Provider
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.BundleSecret
+import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.RandomSource
 import life.neurone.core.data.hexToBytes
 import life.neurone.core.data.toHex
@@ -28,7 +28,8 @@ import life.neurone.core.npps.NppsCore
 // The flow itself is not here. Its ORDER (open the bundle before taking a claim, verify before confirming, confirm before
 // the old phone clears, key first when it clears) is a state machine in the shared core (`neurone_npps_core::migration_flow`),
 // so iOS, Android, Windows, macOS and the web run the same one and cannot disagree. The core says which effect it needs
-// next; this class performs it against this app's route, storage, Argon2 and randomness, and feeds the outcome back.
+// next; this class performs it against this app's route, storage and randomness (Argon2id is the core's too) and feeds the
+// outcome back.
 // It produces no text for a person: a result is a code, and the screen words it from the locale files (CLAUDE.md §17).
 //
 // The secret stays in this class and the key is made, used for one answer and destroyed: neither is ever in a flow state.
@@ -103,12 +104,20 @@ private class FlowContext(
     val progress: ClearProgress? = null,
 )
 
+/**
+ * @param kv the app's key-value store: the items that are plain keys (protocols, session history, limits profiles,
+ *   characterisation enrolment) are read and written through it, by the key list the core holds.
+ * @param adapters items this app stores another way, read and written whole (consent, once its adapter is wired).
+ */
 class MigrationService(
-    private val items: List<MigrationItemStore>,
-    private val argon2: Argon2Provider,
+    private val kv: KeyValueStore,
+    private val adapters: List<MigrationItemStore>,
     private val random: RandomSource,
 ) {
-    private val byItem = items.associateBy { it.item }
+    private val byItem = adapters.associateBy { it.item }
+
+    /** The items the core says are plain keys: the same list on every platform. */
+    private val keyItems: List<String> by lazy { ask("itemKeys")["carried"]!!.jsonObject.keys.toList() }
 
     private fun ask(op: String, build: JsonObjectBuilder.() -> Unit = {}): JsonObject =
         NppsCore.migration(buildJsonObject { put("op", op); build() })
@@ -124,6 +133,8 @@ class MigrationService(
 
     private fun hostItems(): JsonArray = buildJsonArray { byItem.keys.forEach { add(it) } }
 
+    private fun keyItemsJson(): JsonArray = buildJsonArray { keyItems.forEach { add(it) } }
+
     /** Run one flow to its end: ask the core, perform the effect it names, hand back the outcome, until it says done. */
     private suspend fun drive(flow: String, params: JsonObject, ctx: FlowContext): JsonObject {
         var answer = ask("flow") { put("flow", flow); put("params", params) }
@@ -136,7 +147,7 @@ class MigrationService(
         error("The $flow flow did not end in $MAX_TURNS turns")
     }
 
-    /** The effects (the table in `migration_flow.rs`). Each is one storage, route, Argon2 or randomness call and no rule. */
+    /** The effects (the table in `migration_flow.rs`). Each is one storage, route or randomness call and no rule. */
     private suspend fun perform(e: JsonObject, ctx: FlowContext): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
         "random" -> {
             val n = e["bytes"]!!.jsonPrimitive.content.toInt()
@@ -145,8 +156,17 @@ class MigrationService(
             buildJsonObject { put("bytes", bytes.toHex()) }
         }
         "deriveKey" -> {
-            val key = BundleKeyDerivation.deriveKey(argon2, ctx.secret ?: error("no secret"), e["kdf"]!!.jsonObject)
+            // Answered here for every flow, from the core's own derivation: a host never implements it.
+            val key = BundleKeyDerivation.deriveKey(ctx.secret ?: error("no secret"), e["kdf"]!!.jsonObject)
             try { buildJsonObject { put("key", key.hex()) } } finally { key.destroy() }
+        }
+        "readKeys" -> buildJsonObject {
+            put("values", buildJsonObject { strings(e["keys"]).forEach { k -> kv.getString(k)?.let { put(k, JsonPrimitive(it)) } } })
+        }
+        "writeKeys" -> {
+            strings(e["remove"]).forEach { kv.remove(it) }
+            e["set"]!!.jsonObject.forEach { (k, v) -> kv.putString(k, v.jsonPrimitive.content) }
+            buildJsonObject { put("ok", true) }
         }
         "readItems" -> buildJsonObject {
             put("items", buildJsonObject {
@@ -170,7 +190,11 @@ class MigrationService(
         }
         "readConfirmation" -> buildJsonObject { put("confirmation", ctx.route!!.readConfirmation() ?: JsonNull) }
         "loadClearProgress" -> buildJsonObject { put("done", buildJsonArray { ctx.progress!!.done().forEach { add(it) } }) }
-        "runClearStep" -> buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
+        "runClearStep" -> {
+            // The core names every stored key the old phone forgets (SWR-MG-09); the actions finish whatever else it holds.
+            e["keys"]?.let { strings(it).forEach { k -> kv.remove(k) } }
+            buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
+        }
         "markClearStep" -> {
             ctx.progress!!.markDone(e["step"]!!.jsonPrimitive.content)
             buildJsonObject { put("ok", true) }
@@ -193,7 +217,8 @@ class MigrationService(
         val d = drive(
             "backup",
             buildJsonObject {
-                put("kind", kind); put("method", method.wire); put("route", routeJson(route)); put("hostItems", hostItems())
+                put("kind", kind); put("method", method.wire); put("route", routeJson(route))
+                put("hostItems", hostItems()); put("keyItems", keyItemsJson())
             },
             FlowContext(route = route, secret = secret),
         )
@@ -221,7 +246,7 @@ class MigrationService(
     suspend fun restore(route: BackupRoute, secret: BundleSecret): RestoreResult {
         val d = drive(
             "restore",
-            buildJsonObject { put("route", routeJson(route)); put("hostItems", hostItems()) },
+            buildJsonObject { put("route", routeJson(route)); put("hostItems", hostItems()); put("keyItems", keyItemsJson()) },
             FlowContext(route = route, secret = secret),
         )
         if (!d.ok()) return RestoreResult.Refused(d.reason())

@@ -1,5 +1,4 @@
 import Foundation
-import NeurOneShared
 import Security
 
 // The user-held key of a migration or backup bundle (SWR-MG-02, issue #569 package 6d).
@@ -8,8 +7,8 @@ import Security
 // moving to a new phone cannot use it, so a bundle is sealed under a key made from something the user holds: a recovery
 // code the app shows once, or a passphrase the user chooses. The rules (the cost parameters, the code's text form and
 // checksum, the passphrase's normalisation and minimum length, what a header's kdf block may say) are decided once in the
-// shared core (`NppsCore.migration`). This file marshals them and runs the one thing the core does not: the Argon2id
-// computation, through the same `npArgon2idDeriveKey` the UHDR key uses.
+// shared core (`NppsCore.migration`), the Argon2id derivation included, so there is one implementation for every app
+// (the device-bound UHDR key keeps `npArgon2idDeriveKey`). This file only marshals them.
 //
 // The secret and the key are memory-only, like the UHDR key: never written to the Keychain, a file or a log, never
 // transmitted, zeroed on deinit. NeurOne never holds either (CLAUDE.md §5.1).
@@ -82,23 +81,10 @@ final class BundleKey {
     }
 }
 
-/// The Argon2id call. The production one is `npArgon2idDeriveKey`, whose cost is fixed in the bridge; a test passes a stub
-/// so it does not allocate 64 MiB.
-typealias BundleArgon2 = (
-    _ password: Data, _ salt: Data, _ memoryKiB: Int, _ iterations: Int, _ parallelism: Int, _ outputLength: Int
-) throws -> Data
-
 enum BundleKeyDerivation {
     static let keyLength = 32
     static let saltLength = 32
     static let recoveryBytes = 32
-
-    /// The production Argon2id: the bridge's cost is fixed (65536 KiB, 4 passes, 1 lane), so a request for any other cost
-    /// is refused and not silently run at that one.
-    static let productionArgon2: BundleArgon2 = { password, salt, memoryKiB, iterations, parallelism, outputLength in
-        guard memoryKiB == 65_536, iterations == 4, parallelism == 1 else { throw BundleKeyError.unsupportedKdf }
-        return try npArgon2idDeriveKey(password: password, salt: salt, outputLength: outputLength)
-    }
 
     private static func hex(_ d: Data) -> String { d.map { String(format: "%02x", $0) }.joined() }
 
@@ -150,20 +136,14 @@ enum BundleKeyDerivation {
         return kdf
     }
 
-    /// The bundle key for a secret and a header's `kdf` block. The block is compared with the one the core would write for
-    /// the same method and salt, so a bundle cannot ask this phone for a cheaper derivation or another algorithm; the cost
-    /// that reaches Argon2 is the core's, not the header's. Throws `unsupportedKdf` for any other block.
-    static func deriveKey(secret: BundleSecret, kdf: [String: Any], argon2: BundleArgon2 = productionArgon2) throws -> BundleKey {
-        guard let method = kdf["method"] as? String, let saltHex = kdf["salt"] as? String, let salt = unhex(saltHex) else {
+    /// The bundle key for a secret and a header's `kdf` block: Argon2id computed by the shared core. The core checks the
+    /// block against the fixed cost first, so a bundle cannot ask this phone for a cheaper derivation or another algorithm.
+    /// Throws `unsupportedKdf` for any block the core refuses.
+    static func deriveKey(secret: BundleSecret, kdf: [String: Any]) throws -> BundleKey {
+        let r = try NppsCore.migration(["op": "deriveBundleKey", "secret": hex(secret.bytes()), "kdf": kdf])
+        guard r["ok"] as? Bool == true, let h = r["key"] as? String, let raw = unhex(h), raw.count == keyLength else {
             throw BundleKeyError.unsupportedKdf
         }
-        guard let expected = try NppsCore.migration(["op": "bundleKdf", "method": method, "salt": saltHex])["kdf"] as? [String: Any],
-              (expected as NSDictionary).isEqual(to: kdf),
-              let memory = expected["memoryKiB"] as? Int, let passes = expected["iterations"] as? Int,
-              let lanes = expected["parallelism"] as? Int, let outLen = expected["outputLength"] as? Int
-        else { throw BundleKeyError.unsupportedKdf }
-        let raw = try argon2(secret.bytes(), salt, memory, passes, lanes, outLen)
-        guard raw.count == keyLength else { throw BundleKeyError.unsupportedKdf }
         return BundleKey(raw)
     }
 }
