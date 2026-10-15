@@ -36,7 +36,7 @@ struct UserDefaultsKeyStore: MigrationKeyStore {
 /// The calls a storage provider is asked for (SWR-MG-11), on named objects, with the bytes as lower-case hex. This is the whole
 /// of what iOS writes for a cloud account, the local computer or a shared folder; the core holds the rest (object_route.rs).
 /// A call that cannot be done (no network, no permission, a refused write) throws, and the flow ends with the route unavailable.
-protocol MigrationObjectStore {
+protocol ObjectStore {
     /// The object's bytes, or nil when there is none.
     func get(_ name: String) async throws -> String?
     /// Write the object, replacing any earlier one.
@@ -63,7 +63,7 @@ enum MigrationFlow {
         host: MigrationHost,
         secret: BundleSecret? = nil,
         keys: MigrationKeyStore? = nil,
-        store: MigrationObjectStore? = nil
+        store: ObjectStore? = nil
     ) async throws -> [String: Any] {
         var params = params
         if store != nil, params["objectStore"] == nil { params["objectStore"] = true }
@@ -88,7 +88,7 @@ enum MigrationFlow {
         host: MigrationHost,
         secret: BundleSecret?,
         keys: MigrationKeyStore?,
-        store: MigrationObjectStore?
+        store: ObjectStore?
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
         case "deriveKey":
@@ -116,7 +116,7 @@ enum MigrationFlow {
     }
 
     /// One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11).
-    private static func performObject(_ e: [String: Any], _ store: MigrationObjectStore) async -> [String: Any] {
+    private static func performObject(_ e: [String: Any], _ store: ObjectStore) async -> [String: Any] {
         let name = e["name"] as? String ?? ""
         do {
             switch e["type"] as? String {
@@ -148,7 +148,7 @@ enum MigrationFlow {
     static func objectNames() throws -> [String: Any] { try NppsCore.migration(["op": "objectNames"]) }
 
     /// SWR-MG-12: check an account on throwaway objects that hold no user data. `host` answers `random`, as for any flow.
-    static func probe(store: MigrationObjectStore, bundleBytes: Int, host: MigrationHost) async throws -> [String: Any] {
+    static func probe(store: ObjectStore, bundleBytes: Int, host: MigrationHost) async throws -> [String: Any] {
         try await run("probe", params: ["bundleBytes": bundleBytes], host: host, store: store)
     }
 }

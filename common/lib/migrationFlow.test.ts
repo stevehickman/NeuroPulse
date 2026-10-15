@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
-import { type FlowEffect, type MigrationHost, type MigrationKeyStore, type ObjectStore, objectNames, probeObjectStore, runMigrationFlow } from './migrationFlow';
+import { type FlowEffect, type MigrationHost, type MigrationKeyStore, type ObjectStore, objectNames, probe, runMigrationFlow } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
@@ -211,15 +211,15 @@ describe('runMigrationFlow', () => {
     const host = () => new Host(new Route(), 7);
     const good = new MemoryStore();
     good.objects.set('users-file', '01');
-    expect(await probeObjectStore(good, 1000, host())).toMatchObject({ result: 'sufficient' });
+    expect(await probe(good, 1000, host())).toMatchObject({ result: 'sufficient' });
     expect([...good.objects.keys()]).toEqual(['users-file']);
 
     const noConditional = new MemoryStore({ conditional: false });
-    expect(await probeObjectStore(noConditional, 1000, host())).toMatchObject({ result: 'backup_only', failedOperation: 'createIfAbsentSecondRefused' });
+    expect(await probe(noConditional, 1000, host())).toMatchObject({ result: 'backup_only', failedOperation: 'createIfAbsentSecondRefused' });
     expect(noConditional.objects.size).toBe(0);
 
-    expect(await probeObjectStore(new MemoryStore({ space: 10 }), 1000, host())).toMatchObject({ result: 'insufficient', failedOperation: 'space' });
-    expect(await probeObjectStore(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ failedOperation: 'space' });
+    expect(await probe(new MemoryStore({ space: 10 }), 1000, host())).toMatchObject({ result: 'insufficient', failedOperation: 'space' });
+    expect(await probe(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ failedOperation: 'space' });
   }, 60_000);
 
   // @verifies SWR-MG-07

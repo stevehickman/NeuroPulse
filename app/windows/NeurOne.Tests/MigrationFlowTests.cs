@@ -26,7 +26,7 @@ public class MigrationFlowTests
     }
 
     // A provider with named objects and a create-if-absent the store itself arbitrates.
-    private sealed class MemoryStore : IMigrationObjectStore
+    private sealed class MemoryStore : IObjectStore
     {
         public readonly Dictionary<string, string> Objects = [];
         public bool Conditional = true;

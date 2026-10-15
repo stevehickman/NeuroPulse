@@ -33,7 +33,7 @@ interface IMigrationKeyStore
 /// The calls a storage provider is asked for (SWR-MG-11), on named objects, with the bytes as lower-case hex. This is the whole
 /// of what Windows writes for a cloud account, the local computer or a shared folder; the core holds the rest (object_route.rs).
 /// A call that cannot be done (no network, no permission, a refused write) throws, and the flow ends with the route unavailable.
-interface IMigrationObjectStore
+interface IObjectStore
 {
     /// The object's bytes, or null when there is none.
     Task<string?> GetAsync(string name);
@@ -58,7 +58,7 @@ static class MigrationFlow
     /// given, the items the core says are plain keys are declared to it as `keyItems`.
     public static async Task<JsonObject> RunAsync(
         string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IMigrationKeyStore? keys = null,
-        IMigrationObjectStore? store = null)
+        IObjectStore? store = null)
     {
         var p = (JsonObject)parameters.DeepClone();
         if (store is not null && p["objectStore"] is null) p["objectStore"] = true;
@@ -81,7 +81,7 @@ static class MigrationFlow
         throw new NppsRefusal($"The {flow} flow did not end in {MaxTurns} turns");
     }
 
-    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IMigrationKeyStore? keys, IMigrationObjectStore? store)
+    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IMigrationKeyStore? keys, IObjectStore? store)
     {
         switch ((string?)e["type"])
         {
@@ -106,7 +106,7 @@ static class MigrationFlow
     }
 
     // One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11).
-    private static async Task<JsonObject> PerformObjectAsync(JsonObject e, IMigrationObjectStore store)
+    private static async Task<JsonObject> PerformObjectAsync(JsonObject e, IObjectStore store)
     {
         var name = (string?)e["name"] ?? "";
         try
@@ -141,6 +141,6 @@ static class MigrationFlow
     public static JsonObject ObjectNames() => NppsCore.Migration(new JsonObject { ["op"] = "objectNames" }).AsObject();
 
     /// SWR-MG-12: check an account on throwaway objects that hold no user data. `host` answers `random`, as for any flow.
-    public static Task<JsonObject> ProbeAsync(IMigrationObjectStore store, long bundleBytes, IMigrationHost host) =>
+    public static Task<JsonObject> ProbeAsync(IObjectStore store, long bundleBytes, IMigrationHost host) =>
         RunAsync("probe", new JsonObject { ["bundleBytes"] = bundleBytes }, host, null, null, store);
 }

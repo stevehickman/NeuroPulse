@@ -28,7 +28,7 @@ private final class KeyStore: MigrationKeyStore {
 }
 
 /// A provider with named objects and a create-if-absent the store itself arbitrates.
-private final class MemoryStore: MigrationObjectStore {
+private final class MemoryStore: ObjectStore {
     struct Broken: Error {}
     var objects: [String: String] = [:]
     var conditional = true

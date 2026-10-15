@@ -143,6 +143,6 @@ export function objectNames(): { bundle: string; claim: string; confirmation: st
 }
 
 /** SWR-MG-12: check an account on throwaway objects that hold no user data. `random` is the host's, as for any flow. */
-export async function probeObjectStore(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
+export async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
   return runMigrationFlow('probe', { bundleBytes }, host, { store });
 }
