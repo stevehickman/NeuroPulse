@@ -27,7 +27,7 @@
 //! | `getBundle` / `putBundle` | `bundle` (hex) | `{bundle: hex or null}` / `{ok}` |
 //! | `readClaim` / `createClaim` | `claim` | `{claim: object or null}` / `{created: bool}` |
 //! | `writeConfirmation` / `readConfirmation` | `confirmation` | `{ok}` / `{confirmation: object or null}` |
-//! | `loadClearProgress` / `runClearStep` / `markClearStep` | `step` (and, for `clearAppHeldState`, `keys`) | `{done: [step]}` / `{ok: bool}` / `{ok}` |
+//! | `runClearStep` | `step`: `destroyEncryptionKey`, `overwriteAndDeleteFiles` or `forgetPairingRecord` | `{ok: bool}` |
 //!
 //! # Two ways an item is stored
 //! An item named in the host's `keyItems` is stored as plain keys in the app's key-value store: the core knows which keys
@@ -35,6 +35,15 @@
 //! that names a key it does not own, and reads back what it wrote. A host implements only get, put and remove. An item
 //! named in `hostItems` (consent, and any item an app stores another way) is read and written whole with `readItems` and
 //! `applyItem`. An item in neither is not applied, and the report says so.
+//!
+//! # The old phone's clear
+//! Of the six steps of `clearPlan`, three are the platform's own (the key store, the files, the pairing record) and are the
+//! only `runClearStep` effects. The other three are storage the core already reaches through `readKeys` and `writeKeys`, so
+//! it does them itself and no app writes them: forgetting the last paired helmet id, forgetting every key the lists name,
+//! and writing the cleared marker. Which steps are finished is kept the same way, under a key of the core's own, so a clear
+//! a kill interrupts resumes at the next launch on every platform without a progress store per app. The marker and the
+//! progress key are in no list: the clear must not forget the proof that it ran, and the progress key goes only when the
+//! plan is complete.
 //!
 //! Releasing a claim is the person's explicit act and is not a flow: the platform calls its route directly (`SWR-MG-07`).
 
@@ -44,6 +53,12 @@ use serde_json::{json, Value};
 type R<T> = Result<T, String>;
 
 const CONFIRM_ATTEMPTS: u64 = 3;
+/// The one key the app holds for the pairing (`SWR-MG-09`); it is in the `perInstall` list, which a test checks.
+const LAST_HUB_KEY: &str = "ble.last-hub-id";
+/// Written last by the clear. Names no user and no device: it says only that a clear ran.
+const CLEARED_MARKER_KEY: &str = "np.migration.cleared";
+/// The finished clear steps, comma-separated, so an interrupted clear resumes (`SWR-MG-08`).
+const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
 const TOKEN_BYTES: u64 = 16;
 const SALT_AND_NONCE_BYTES: u64 = 32 + 12;
 
@@ -405,18 +420,31 @@ fn restore(req: &Value) -> R<Value> {
 
 fn plan_next(st: Value) -> R<Value> {
     let plan = dispatch("clearPlan", &json!({ "done": st["done"], "canRemoveOsBond": st["canRemoveOsBond"] }))?;
+    let mut st = st;
     if plan["complete"] == true {
-        return done(json!({ "ok": true, "removeOsBond": plan["osBondInstruction"] }));
+        // Every step is done: the progress key goes, so a later clear on a phone that is reused starts fresh.
+        st["osBondInstruction"] = plan["osBondInstruction"].clone();
+        st["step"] = json!("finish");
+        return effect(st, write_keys(&[CLEAR_PROGRESS_KEY], json!({})));
     }
     let step = plan["remaining"][0].clone();
-    let mut st = st;
     st["cur"] = step.clone();
     st["step"] = json!("ran");
-    // The old phone forgets every stored key it knows (SWR-MG-09): the core names them, so no app keeps its own list.
-    if step == "clearAppHeldState" {
-        return effect(st, json!({ "type": "runClearStep", "step": step, "keys": all_keys() }));
+    // Three steps are storage the core reaches itself (SWR-MG-09): no app keeps a list of what to forget.
+    match step.as_str().unwrap_or("") {
+        "forgetLastPairedHelmetId" => effect(st, write_keys(&[LAST_HUB_KEY], json!({}))),
+        "clearAppHeldState" => {
+            let all = all_keys();
+            let names: Vec<&str> = all.iter().map(String::as_str).collect();
+            effect(st, write_keys(&names, json!({})))
+        }
+        "writeClearedMarker" => effect(st, write_keys(&[], json!({ CLEARED_MARKER_KEY: "true" }))),
+        _ => effect(st, json!({ "type": "runClearStep", "step": step })),
     }
-    effect(st, json!({ "type": "runClearStep", "step": step }))
+}
+
+fn write_keys(remove: &[&str], set: Value) -> Value {
+    json!({ "type": "writeKeys", "remove": remove, "set": set })
 }
 
 fn clear(req: &Value) -> R<Value> {
@@ -426,12 +454,14 @@ fn clear(req: &Value) -> R<Value> {
             let p = &req["params"];
             effect(
                 json!({ "step": "progress", "bundleHash": s(p, "bundleHash")?, "canRemoveOsBond": p["canRemoveOsBond"].as_bool().unwrap_or(false) }),
-                json!({ "type": "loadClearProgress" }),
+                json!({ "type": "readKeys", "keys": [CLEAR_PROGRESS_KEY] }),
             )
         }
         "progress" => {
-            st["done"] = req["result"]["done"].clone();
-            if st["done"].as_array().is_some_and(|d| !d.is_empty()) {
+            let saved = req["result"]["values"][CLEAR_PROGRESS_KEY].as_str().unwrap_or("");
+            let done: Vec<&str> = saved.split(',').filter(|d| !d.is_empty()).collect();
+            st["done"] = json!(done);
+            if !done.is_empty() {
                 // A clear already under way resumes without asking again: by now the old state is half gone (SWR-MG-08).
                 return plan_next(st);
             }
@@ -450,16 +480,15 @@ fn clear(req: &Value) -> R<Value> {
             if req["result"]["ok"] != true {
                 return done(json!({ "ok": false, "reason": "step_failed", "step": step }));
             }
+            let mut finished: Vec<Value> = st["done"].as_array().cloned().unwrap_or_default();
+            finished.push(step);
+            let text = finished.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",");
+            st["done"] = json!(finished);
             st["step"] = json!("marked");
-            effect(st, json!({ "type": "markClearStep", "step": step }))
+            effect(st, write_keys(&[], json!({ CLEAR_PROGRESS_KEY: text })))
         }
-        "marked" => {
-            let step = st["cur"].clone();
-            if let Some(a) = st["done"].as_array_mut() {
-                a.push(step);
-            }
-            plan_next(st)
-        }
+        "marked" => plan_next(st),
+        "finish" => done(json!({ "ok": true, "removeOsBond": st["osBondInstruction"] })),
         other => Err(format!("unknown clear step '{other}'")),
     }
 }
@@ -488,9 +517,7 @@ mod tests {
         items: BTreeMap<String, Value>,
         adapter: Vec<String>,
         key_items: Vec<String>,
-        progress: Vec<String>,
         ran: Vec<String>,
-        clear_keys: Vec<String>,
         fail_on: Option<String>,
         corrupt_on_write: bool,
         counter: u8,
@@ -580,18 +607,16 @@ mod tests {
                 json!({ "ok": true })
             }
             "readConfirmation" => json!({ "confirmation": route.confirmation }),
-            "loadClearProgress" => json!({ "done": p.progress }),
             "runClearStep" => {
                 let step = e["step"].as_str().unwrap().to_string();
+                assert!(
+                    ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"].contains(&step.as_str()),
+                    "the host is asked only for the platform's own steps, not '{step}'"
+                );
                 if p.fail_on.as_deref() == Some(step.as_str()) { return json!({ "ok": false }); }
-                if step == "clearAppHeldState" {
-                    p.clear_keys = e["keys"].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect();
-                    for k in &p.clear_keys { p.kv.remove(k); }
-                }
                 p.ran.push(step);
                 json!({ "ok": true })
             }
-            "markClearStep" => { p.progress.push(e["step"].as_str().unwrap().into()); json!({ "ok": true }) }
             other => panic!("unknown effect {other}"),
         }
     }
@@ -841,10 +866,13 @@ mod tests {
         let ok = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
         assert_eq!((ok["ok"].clone(), ok["removeOsBond"].clone()), (json!(true), json!(true)));
         assert_eq!(old.ran[0], "destroyEncryptionKey", "the key goes first");
-        assert!(old.ran.contains(&"forgetPairingRecord".to_string()) && old.ran.contains(&"forgetLastPairedHelmetId".to_string()));
-        // The core names every stored key, the per-install ones included, so no app keeps a list of its own to forget.
-        assert!(old.clear_keys.contains(&"ble.last-hub-id".to_string()) && old.clear_keys.contains(&"np.session.history".to_string()));
-        assert!(old.kv.is_empty(), "everything stored is forgotten");
+        assert_eq!(old.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"], "the host does only the platform's own steps");
+        // The core forgets every stored key itself, the per-install ones and the helmet id included, so no app keeps a list.
+        assert_eq!(
+            old.kv.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["np.migration.cleared"],
+            "everything stored is forgotten but the proof that the clear ran; the progress key goes with the plan"
+        );
     }
 
     // @verifies SWR-MG-08
@@ -856,6 +884,7 @@ mod tests {
         let r1 = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
         assert_eq!((r1["ok"].clone(), r1["step"].clone()), (json!(false), json!("forgetPairingRecord")));
         assert_eq!(old.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles"]);
+        assert_eq!(old.kv["np.migration.clear-progress"], "destroyEncryptionKey,overwriteAndDeleteFiles", "the progress is kept as a key");
 
         // Next launch: the route no longer answers, but the clear is already under way.
         old.fail_on = None;
@@ -865,6 +894,27 @@ mod tests {
         assert_eq!((r2["ok"].clone(), r2["removeOsBond"].clone()), (json!(true), json!(false)));
         assert_eq!(old.ran[0], "forgetPairingRecord");
         assert!(!old.ran.contains(&"destroyEncryptionKey".to_string()));
+        assert!(!old.kv.contains_key("np.migration.clear-progress"), "the progress key goes when the plan is complete");
+    }
+
+    // @verifies SWR-MG-09
+    #[test]
+    fn the_helmet_id_the_core_forgets_is_a_key_the_lists_own() {
+        let m = ask(json!({ "op": "itemKeys" }));
+        assert!(m["perInstall"].as_array().unwrap().contains(&json!("ble.last-hub-id")));
+    }
+
+    // @verifies SWR-MG-08
+    #[test]
+    fn a_phone_that_is_reused_and_cleared_again_starts_its_clear_from_the_first_step() {
+        let (mut route, mut old, hash) = confirmed_route();
+        assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
+        let first = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        assert_eq!(first["ok"], true);
+        old.ran.clear();
+        let again = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        assert_eq!(again["ok"], true);
+        assert_eq!(old.ran[0], "destroyEncryptionKey");
     }
 
     // @verifies SWR-MG-01

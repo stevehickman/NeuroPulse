@@ -210,20 +210,23 @@ class MigrationServiceTests {
         val done = old.service.backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), route) as BackupResult.Done
         val actions = Recorder()
 
-        val before = old.service.clearOldPhone(route, done.bundleHash, actions, InMemoryClearProgress(), canRemoveOsBond = false)
+        val before = old.service.clearOldPhone(route, done.bundleHash, actions, canRemoveOsBond = false)
         assertIs<ClearResult.Waiting>(before)
         assertEquals("no_confirmation", before.reason)
         assertTrue(actions.ran.isEmpty(), "nothing is cleared without a confirmation")
 
         Phone(seed = 50).service.restore(route, passphrase(SECRET))
-        val other = old.service.clearOldPhone(route, "not-this-bundle", actions, InMemoryClearProgress(), canRemoveOsBond = false)
+        val other = old.service.clearOldPhone(route, "not-this-bundle", actions, canRemoveOsBond = false)
         assertEquals("other_bundle", (other as ClearResult.Waiting).reason)
 
-        val after = old.service.clearOldPhone(route, done.bundleHash, actions, InMemoryClearProgress(), canRemoveOsBond = false)
+        val after = old.service.clearOldPhone(route, done.bundleHash, actions, canRemoveOsBond = false)
         assertIs<ClearResult.Cleared>(after)
         assertTrue(after.removeOsBond, "the app could not remove the OS bond, so the person is told to")
         assertEquals("destroyEncryptionKey", actions.ran.first(), "the key goes first, so what flash still holds is unreadable")
-        assertTrue("forgetPairingRecord" in actions.ran && "forgetLastPairedHelmetId" in actions.ran)
+        assertEquals(listOf("destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"), actions.ran, "the app does only its own steps")
+        assertEquals("true", old.kv.getString("np.migration.cleared"), "the proof that the clear ran stays")
+        assertNull(old.kv.getString("np.migration.clear-progress"), "the progress key goes when the plan is complete")
+        assertNull(old.kv.getString("ble.last-hub-id"), "the core forgets the last paired helmet id itself")
     }
 
     // @verifies SWR-MG-08
@@ -234,16 +237,15 @@ class MigrationServiceTests {
         val done = old.service.backup("migrate", BundleKeyMethod.PASSPHRASE, passphrase(SECRET), route) as BackupResult.Done
         Phone(seed = 50).service.restore(route, passphrase(SECRET))
 
-        val progress = InMemoryClearProgress()
         val first = Recorder(failOn = "forgetPairingRecord")
-        val r1 = old.service.clearOldPhone(route, done.bundleHash, first, progress, canRemoveOsBond = true)
+        val r1 = old.service.clearOldPhone(route, done.bundleHash, first, canRemoveOsBond = true)
         assertEquals("forgetPairingRecord", (r1 as ClearResult.Failed).step)
         assertEquals(listOf("destroyEncryptionKey", "overwriteAndDeleteFiles"), first.ran)
 
         // Next launch: the route is unreachable (no confirmation to read) but the clear is already under way.
         val gone = InMemoryBackupRoute()
         val second = Recorder()
-        val r2 = old.service.clearOldPhone(gone, done.bundleHash, second, progress, canRemoveOsBond = true)
+        val r2 = old.service.clearOldPhone(gone, done.bundleHash, second, canRemoveOsBond = true)
         assertIs<ClearResult.Cleared>(r2)
         assertFalse(r2.removeOsBond)
         assertEquals("forgetPairingRecord", second.ran.first(), "steps already done are not run again")
