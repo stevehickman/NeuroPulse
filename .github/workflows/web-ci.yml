@@ -55,6 +55,7 @@ jobs:
         # The serializer and validator are the core's too, held to the web implementations they replaced.
         app/NeurOneShared/TestData/npps-serialize-golden.json
         app/NeurOneShared/TestData/npps-validate-golden.json
+        app/NeurOneShared/TestData/nfkc-corpus.json
         scripts/build-simulator-runtime.ts
         # Builds the WebAssembly the web compiler loads.
         scripts/build-npps-wasm.sh
