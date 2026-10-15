@@ -27,6 +27,7 @@ class Store implements MigrationKeyStore {
 /** A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer. */
 class Host implements MigrationHost {
   seen: string[] = [];
+  ran: string[] = [];
   private n: number;
   constructor(
     private route: Route,
@@ -57,6 +58,9 @@ class Host implements MigrationHost {
         return { ok: true };
       case 'readConfirmation':
         return { confirmation: this.route.confirmation };
+      case 'runClearStep':
+        this.ran.push(e.step as string);
+        return { ok: true };
       default:
         throw new Error(`unknown effect ${e.type}`);
     }
@@ -114,6 +118,28 @@ describe('runMigrationFlow', () => {
     await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: fresh });
     for (const k of installKeys) expect(fresh.get(k)).toBeUndefined();
     expect(fresh.get('np.session.history')).toBe('value-of-np.session.history');
+  }, 60_000);
+
+  // @verifies SWR-MG-08
+  // @verifies SWR-MG-09
+  it('clears the old phone through the shared flow: the host does only its own steps and the core forgets the keys', async () => {
+    await initNppsCore();
+    const route = new Route();
+    const oldStore = filled();
+    oldStore.put('ble.last-hub-id', 'hub-1');
+    const done = await runMigrationFlow('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+    });
+    const before = await runMigrationFlow('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, new Host(route, 1), { keys: oldStore });
+    expect(before).toEqual({ ok: false, reason: 'no_confirmation' });
+
+    await runMigrationFlow('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: new Store() });
+    const host = new Host(route, 1);
+    const after = await runMigrationFlow('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, host, { keys: oldStore });
+    expect(after).toMatchObject({ ok: true, removeOsBond: true });
+    expect(host.ran).toEqual(['destroyEncryptionKey', 'overwriteAndDeleteFiles', 'forgetPairingRecord']);
+    expect([...oldStore.values.keys()]).toEqual(['np.migration.cleared']);
   }, 60_000);
 
   // @verifies SWR-MG-07

@@ -29,6 +29,7 @@ public class MigrationFlowTests
     private sealed class Host(Route route, int seed) : IMigrationHost
     {
         public readonly List<string> Seen = [];
+        public readonly List<string> Ran = [];
         private int _n = seed;
 
         public Task<JsonObject> PerformAsync(JsonObject e)
@@ -44,9 +45,16 @@ public class MigrationFlowTests
                 "createClaim" => CreateClaim(e),
                 "writeConfirmation" => Confirm(e),
                 "readConfirmation" => new JsonObject { ["confirmation"] = route.Confirmation?.DeepClone() },
+                "runClearStep" => RunStep(e),
                 _ => throw new InvalidOperationException($"unknown effect {type}"),
             };
             return Task.FromResult(r);
+        }
+
+        private JsonObject RunStep(JsonObject e)
+        {
+            Ran.Add((string)e["step"]!);
+            return new JsonObject { ["ok"] = true };
         }
 
         private byte Next() => (byte)(_n = (_n * 31 + 7) & 255);
@@ -110,6 +118,31 @@ public class MigrationFlowTests
         Assert.True((bool)r["confirmed"]!);
         Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
         Assert.Equal((string)done["bundleHash"]!, (string)route.Confirmation!["bundleHash"]!);
+    }
+
+    // @verifies SWR-MG-08
+    // @verifies SWR-MG-09
+    [Fact]
+    public async Task TheOldPhoneClearsThroughTheSharedFlowAndTheHostDoesOnlyItsOwnSteps()
+    {
+        var route = new Route();
+        var oldStore = Filled();
+        oldStore.Put("ble.last-hub-id", "hub-1");
+        using var oldSecret = Secret("a long enough passphrase");
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        var clearParams = new JsonObject { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = false };
+
+        var before = await MigrationFlow.RunAsync("clear", clearParams.DeepClone().AsObject(), new Host(route, 1), null, oldStore);
+        Assert.Equal("no_confirmation", (string)before["reason"]!);
+
+        using var freshSecret = Secret("a long enough passphrase");
+        await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, new KeyStore());
+        var host = new Host(route, 1);
+        var after = await MigrationFlow.RunAsync("clear", clearParams, host, null, oldStore);
+        Assert.True((bool)after["ok"]!);
+        Assert.True((bool)after["removeOsBond"]!);
+        Assert.Equal(["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"], host.Ran);
+        Assert.Equal(["np.migration.cleared"], oldStore.Values.Keys.ToArray());
     }
 
     // @verifies SWR-MG-01

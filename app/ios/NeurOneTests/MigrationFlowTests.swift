@@ -30,6 +30,7 @@ private final class KeyStore: MigrationKeyStore {
 /// A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
 private final class Host: MigrationHost {
     var seen: [String] = []
+    var ran: [String] = []
     private let route: Route
     private var counter: Int
 
@@ -63,6 +64,9 @@ private final class Host: MigrationHost {
             return ["ok": true]
         case "readConfirmation":
             return ["confirmation": route.confirmation as Any? ?? NSNull()]
+        case "runClearStep":
+            ran.append(e["step"] as? String ?? "")
+            return ["ok": true]
         default:
             throw NppsCore.Refusal(message: "unknown effect \(type)")
         }
@@ -105,6 +109,31 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertEqual(r["confirmed"] as? Bool, true)
         XCTAssertEqual(freshStore.values, oldStore.values)
         XCTAssertEqual(route.confirmation?["bundleHash"] as? String, done["bundleHash"] as? String)
+    }
+
+    // @verifies SWR-MG-08
+    // @verifies SWR-MG-09
+    func testTheOldPhoneClearsThroughTheSharedFlowAndTheHostDoesOnlyItsOwnSteps() async throws {
+        let route = Route()
+        let oldStore = try filledStore()
+        oldStore.put("ble.last-hub-id", "hub-1")
+        let done = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+        let clearParams: [String: Any] = ["bundleHash": done["bundleHash"] as? String ?? "", "canRemoveOsBond": false]
+
+        let before = try await MigrationFlow.run("clear", params: clearParams, host: Host(route: route, seed: 1), keys: oldStore)
+        XCTAssertEqual(before["reason"] as? String, "no_confirmation")
+
+        _ = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: route, seed: 50),
+            secret: try secret("a long enough passphrase"), keys: KeyStore())
+        let host = Host(route: route, seed: 1)
+        let after = try await MigrationFlow.run("clear", params: clearParams, host: host, keys: oldStore)
+        XCTAssertEqual(after["ok"] as? Bool, true)
+        XCTAssertEqual(after["removeOsBond"] as? Bool, true)
+        XCTAssertEqual(host.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"])
+        XCTAssertEqual(Array(oldStore.values.keys), ["np.migration.cleared"])
     }
 
     // @verifies SWR-MG-01

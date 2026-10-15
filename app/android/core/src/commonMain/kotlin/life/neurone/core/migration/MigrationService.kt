@@ -70,21 +70,14 @@ sealed class RestoreResult {
     class Refused(val reason: String) : RestoreResult()
 }
 
-/** SWR-MG-06, SWR-MG-09: what the old phone does at each step of its clear. Returns true when the step finished. */
+/**
+ * SWR-MG-06, SWR-MG-09: the old phone's clear steps that are the platform's own. The core runs the rest itself through the key
+ * store (the last paired helmet id, every key the lists name, the cleared marker, and which steps are finished), so an app
+ * writes only these three: `destroyEncryptionKey`, `overwriteAndDeleteFiles` and `forgetPairingRecord`. Returns true when the
+ * step finished.
+ */
 interface ClearActions {
     suspend fun run(step: String): Boolean
-}
-
-/** Which clear steps are finished, kept so a clear that stops part-way resumes at the next launch (SWR-MG-08). */
-interface ClearProgress {
-    fun done(): Set<String>
-    fun markDone(step: String)
-}
-
-class InMemoryClearProgress : ClearProgress {
-    private val steps = linkedSetOf<String>()
-    override fun done(): Set<String> = steps.toSet()
-    override fun markDone(step: String) { steps += step }
 }
 
 sealed class ClearResult {
@@ -101,7 +94,6 @@ private class FlowContext(
     val route: BackupRoute? = null,
     val secret: BundleSecret? = null,
     val actions: ClearActions? = null,
-    val progress: ClearProgress? = null,
 )
 
 /**
@@ -189,16 +181,7 @@ class MigrationService(
             buildJsonObject { put("ok", true) }
         }
         "readConfirmation" -> buildJsonObject { put("confirmation", ctx.route!!.readConfirmation() ?: JsonNull) }
-        "loadClearProgress" -> buildJsonObject { put("done", buildJsonArray { ctx.progress!!.done().forEach { add(it) } }) }
-        "runClearStep" -> {
-            // The core names every stored key the old phone forgets (SWR-MG-09); the actions finish whatever else it holds.
-            e["keys"]?.let { strings(it).forEach { k -> kv.remove(k) } }
-            buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
-        }
-        "markClearStep" -> {
-            ctx.progress!!.markDone(e["step"]!!.jsonPrimitive.content)
-            buildJsonObject { put("ok", true) }
-        }
+        "runClearStep" -> buildJsonObject { put("ok", ctx.actions!!.run(e["step"]!!.jsonPrimitive.content)) }
         else -> error("unknown effect '$type'")
     }
 
@@ -269,19 +252,18 @@ class MigrationService(
     /**
      * The old phone clears after, and only after, it reads a confirmation that matches [bundleHash] (SWR-MG-08), then runs
      * the core's clear plan one step at a time, key first (SWR-MG-06), pairing included (SWR-MG-09). A clear already in
-     * progress (a step finished in [progress]) resumes without asking again.
+     * progress (the core keeps which steps are finished under a key of its own) resumes without asking again.
      */
     suspend fun clearOldPhone(
         route: BackupRoute,
         bundleHash: String,
         actions: ClearActions,
-        progress: ClearProgress,
         canRemoveOsBond: Boolean,
     ): ClearResult {
         val d = drive(
             "clear",
             buildJsonObject { put("bundleHash", bundleHash); put("canRemoveOsBond", canRemoveOsBond) },
-            FlowContext(route = route, actions = actions, progress = progress),
+            FlowContext(route = route, actions = actions),
         )
         if (d.ok()) return ClearResult.Cleared(d["removeOsBond"]!!.jsonPrimitive.boolean)
         return if (d.reason() == "step_failed") ClearResult.Failed(d["step"]!!.jsonPrimitive.content) else ClearResult.Waiting(d.reason())
