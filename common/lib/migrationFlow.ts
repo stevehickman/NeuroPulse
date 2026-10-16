@@ -73,7 +73,19 @@ export interface FileStore {
   delete(path: string): Promise<void>;
 }
 
-export type FlowName = 'backup' | 'inspect' | 'restore' | 'clear' | 'probe';
+/**
+ * A pipe to the other phone (SWR-MG-10): bytes in, bytes out, as lower-case hex like the object store's. Bluetooth, a local
+ * socket or a cable is each one implementation; everything above the bytes (framing, which calls a peer may make, the claim)
+ * is in the core (`link.rs`). The same role and names on every platform (Kotlin `Link`, Swift `Link`, C# `ILink`).
+ */
+export interface Link {
+  /** Send the bytes; rejects if the link broke. */
+  send(data: string): Promise<void>;
+  /** The next bytes, or null once the other end has closed; rejects if the link broke. */
+  receive(): Promise<string | null>;
+}
+
+export type FlowName = 'backup' | 'inspect' | 'restore' | 'clear' | 'probe' | 'serve';
 
 export interface FlowOptions {
   /** What a backup or restore derives its key from, as hex (from `bundleKey.ts`). */
@@ -87,6 +99,8 @@ export interface FlowOptions {
   store?: ObjectStore;
   /** The app's files, for the old phone's clear: the core overwrites and deletes them itself (SWR-MG-06). */
   files?: FileStore;
+  /** The pipe to the phone that holds the bundle: a restore then runs its object calls over it (SWR-MG-10). */
+  link?: Link;
 }
 
 // A restore of a large history is a few turns per item; this only stops a flow that never ends.
@@ -95,7 +109,8 @@ const MAX_TURNS = 100_000;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function run(flow: FlowName, params: Record<string, unknown>, host: MigrationHost, options: FlowOptions = {}): Promise<any> {
   const p = { ...params };
-  if (options.store && p.objectStore === undefined) p.objectStore = true;
+  if ((options.store || options.link) && p.objectStore === undefined) p.objectStore = true;
+  if (options.link && flow !== 'serve' && p.link === undefined) p.link = true;
   if (options.keys && p.keyItems === undefined) p.keyItems = Object.keys(nppsMigration({ op: 'itemKeys' }).carried);
   let answer = nppsMigration({ op: 'flow', flow, params: p });
   for (let turn = 0; turn < MAX_TURNS; turn++) {
@@ -106,7 +121,7 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
   throw new Error(`The ${flow} flow did not end in ${MAX_TURNS} turns`);
 }
 
-async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files }: FlowOptions): Promise<Record<string, unknown>> {
+async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link }: FlowOptions): Promise<Record<string, unknown>> {
   switch (e.type) {
     case 'deriveKey':
       if (secret === undefined) throw new Error('no secret to derive a key from');
@@ -132,6 +147,10 @@ async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store
     case 'objectSpace':
       if (!store) break;
       return performObject(e, store);
+    case 'linkSend':
+    case 'linkRecv':
+      if (!link) break;
+      return performLink(e, link);
     case 'listFiles':
     case 'writeFile':
     case 'syncFile':
@@ -140,6 +159,19 @@ async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store
       return performFile(e, files);
   }
   return host.perform(e);
+}
+
+/** One link call. A link that breaks is reported to the core as failed; the core decides what that means (SWR-MG-11). */
+async function performLink(e: FlowEffect, link: Link): Promise<Record<string, unknown>> {
+  try {
+    if (e.type === 'linkSend') {
+      await link.send(e.frame as string);
+      return { ok: true };
+    }
+    return { chunk: (await link.receive()) ?? null };
+  } catch {
+    return { failed: true };
+  }
 }
 
 /** One file call of the clear. A call that rejects is reported to the core as failed, and the clear stops at that step (SWR-MG-06). */
@@ -199,8 +231,23 @@ async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHos
   return run('probe', { bundleBytes }, host, { store });
 }
 
+const noHost: MigrationHost = {
+  perform() {
+    throw new Error('a serving phone is asked for no host effect');
+  },
+};
+
 /**
- * The flows, under the one name every platform uses for this role: `MigrationFlow.run`, `MigrationFlow.probe` and
- * `MigrationFlow.objectNames` (Swift `MigrationFlow`, C# `MigrationFlow`, Kotlin `MigrationFlow`).
+ * SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
+ * `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
+ * serve without it. Resolves to `{ok, reason}`.
  */
-export const MigrationFlow = { run, probe, objectNames };
+async function serve(link: Link, store: ObjectStore, authenticated: boolean) {
+  return run('serve', { authenticated }, noHost, { store, link });
+}
+
+/**
+ * The flows, under the one name every platform uses for this role: `MigrationFlow.run`, `MigrationFlow.probe`,
+ * `MigrationFlow.serve` and `MigrationFlow.objectNames` (Swift `MigrationFlow`, C# `MigrationFlow`, Kotlin `MigrationFlow`).
+ */
+export const MigrationFlow = { run, probe, serve, objectNames };

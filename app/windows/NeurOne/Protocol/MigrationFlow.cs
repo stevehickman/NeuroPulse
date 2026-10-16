@@ -68,6 +68,17 @@ interface IFileStore
     Task DeleteAsync(string path);
 }
 
+/// A pipe to the other phone (SWR-MG-10): bytes in, bytes out, as lower-case hex like the object store's. Bluetooth, a local
+/// socket or a cable is each one implementation; everything above the bytes (framing, which calls a peer may make, the claim)
+/// is in the core (link.rs). The same role and names on every platform (Kotlin Link, Swift Link, TypeScript Link).
+interface ILink
+{
+    /// Send the bytes; throws if the link broke.
+    Task SendAsync(string data);
+    /// The next bytes, or null once the other end has closed; throws if the link broke.
+    Task<string?> ReceiveAsync();
+}
+
 static class MigrationFlow
 {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
@@ -78,10 +89,11 @@ static class MigrationFlow
     /// given, the items the core says are plain keys are declared to it as `keyItems`.
     public static async Task<JsonObject> RunAsync(
         string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IKeyValueStore? keys = null,
-        IObjectStore? store = null, IFileStore? files = null)
+        IObjectStore? store = null, IFileStore? files = null, ILink? link = null)
     {
         var p = (JsonObject)parameters.DeepClone();
-        if (store is not null && p["objectStore"] is null) p["objectStore"] = true;
+        if ((store is not null || link is not null) && p["objectStore"] is null) p["objectStore"] = true;
+        if (link is not null && flow != "serve" && p["link"] is null) p["link"] = true;
         if (keys is not null && p["keyItems"] is null)
         {
             var carried = NppsCore.Migration(new JsonObject { ["op"] = "itemKeys" })["carried"]!.AsObject();
@@ -95,13 +107,13 @@ static class MigrationFlow
             if (answer["done"] is JsonObject done) return done;
             var effect = answer["effect"]?.AsObject() ?? throw new NppsRefusal("the core named no effect");
             var state = answer["state"]?.DeepClone();
-            var result = await PerformAsync(effect, host, secret, keys, store, files);
+            var result = await PerformAsync(effect, host, secret, keys, store, files, link);
             answer = NppsCore.Migration(new JsonObject { ["op"] = "flow", ["flow"] = flow, ["state"] = state, ["result"] = result }).AsObject();
         }
         throw new NppsRefusal($"The {flow} flow did not end in {MaxTurns} turns");
     }
 
-    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store, IFileStore? files)
+    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store, IFileStore? files, ILink? link)
     {
         switch ((string?)e["type"])
         {
@@ -120,12 +132,44 @@ static class MigrationFlow
                 return Task.FromResult(new JsonObject { ["ok"] = true });
             case "objectGet" or "objectPut" or "objectCreate" or "objectDelete" or "objectList" or "objectSpace" when store is not null:
                 return PerformObjectAsync(e, store);
+            case "linkSend" or "linkRecv" when link is not null:
+                return PerformLinkAsync(e, link);
             case "listFiles" or "writeFile" or "syncFile" or "deleteFile" when files is not null:
                 return PerformFileAsync(e, files);
             default:
                 return host.PerformAsync(e);
         }
     }
+
+    // One link call. A link that breaks is reported to the core as failed; the core decides what that means (SWR-MG-11).
+    private static async Task<JsonObject> PerformLinkAsync(JsonObject e, ILink link)
+    {
+        try
+        {
+            if ((string?)e["type"] == "linkSend")
+            {
+                await link.SendAsync((string)e["frame"]!);
+                return new JsonObject { ["ok"] = true };
+            }
+            return new JsonObject { ["chunk"] = await link.ReceiveAsync() };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new JsonObject { ["failed"] = true };
+        }
+    }
+
+    private sealed class NoHost : IMigrationHost
+    {
+        public Task<JsonObject> PerformAsync(JsonObject effect) =>
+            throw new NppsRefusal("a serving phone is asked for no host effect");
+    }
+
+    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
+    /// `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
+    /// serve without it. Returns {ok, reason}.
+    public static Task<JsonObject> ServeAsync(ILink link, IObjectStore store, bool authenticated) =>
+        RunAsync("serve", new JsonObject { ["authenticated"] = authenticated }, new NoHost(), null, null, store, null, link);
 
     // One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).
     private static async Task<JsonObject> PerformFileAsync(JsonObject e, IFileStore files)

@@ -1,5 +1,8 @@
 package life.neurone.core.migration
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -75,6 +78,26 @@ private class MemoryObjectStore(var conditional: Boolean = true, var space: Long
     override suspend fun freeSpace(): Long? { check("space"); return space }
 }
 
+/** One end of an in-memory pipe that delivers a few bytes at a time, so a frame always arrives in pieces. */
+private class PipeEnd(private val out: Channel<ByteArray>, private val inbox: Channel<ByteArray>, private val piece: Int = 7) : Link {
+    var broken = false
+    override suspend fun send(bytes: ByteArray) {
+        if (broken) error("the link is broken")
+        bytes.toList().chunked(piece).forEach { out.send(it.toByteArray()) }
+    }
+    override suspend fun receive(): ByteArray? {
+        if (broken) error("the link is broken")
+        return inbox.receiveCatching().getOrNull()
+    }
+    fun close() { out.close() }
+}
+
+private fun pipe(): Pair<PipeEnd, PipeEnd> {
+    val ab = Channel<ByteArray>(Channel.UNLIMITED)
+    val ba = Channel<ByteArray>(Channel.UNLIMITED)
+    return PipeEnd(ab, ba) to PipeEnd(ba, ab)
+}
+
 private fun passphrase(text: String): BundleSecret = (BundleKeyDerivation.passphraseSecret(text) as BundleSecretResult.Ok).secret
 
 private const val SECRET = "a long enough passphrase"
@@ -113,8 +136,9 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
             "backup", params(route) { put("kind", kind); put("method", method.wire) }, host(backupRoute), passphrase(SECRET), kv, store,
         )
 
-    suspend fun restore(route: RouteDescriptor, backupRoute: BackupRoute? = null, store: ObjectStore? = null, secret: String = SECRET) =
-        MigrationFlow.run("restore", params(route), host(backupRoute), passphrase(secret), kv, store)
+    suspend fun restore(
+        route: RouteDescriptor, backupRoute: BackupRoute? = null, store: ObjectStore? = null, secret: String = SECRET, link: Link? = null,
+    ) = MigrationFlow.run("restore", params(route), host(backupRoute), passphrase(secret), kv, store, link = link)
 
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
         MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store)
@@ -383,6 +407,54 @@ class MigrationFlowTests {
         store.delete(MigrationFlow.objectNames().text("claim"))
         assertEquals(2, store.objects.size, "only the claim is gone: the bundle and the confirmation stay")
         assertTrue(done.text("bundleHash").isNotEmpty())
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    @Test
+    fun aMigrationRunsOverADirectLinkInSmallPiecesAndASecondRestoreIsRefused() = runTest {
+        val store = MemoryObjectStore()
+        val route = ObjectStoreRoute("link", atomicClaim = true)
+        val old = Phone(seed = 1).also { it.fill() }
+        assertTrue(old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, store = store).ok)
+
+        suspend fun restoreOver(phone: Phone): JsonObject = coroutineScope {
+            val (client, server) = pipe()
+            val serving = async { MigrationFlow.serve(server, store, authenticated = true) }
+            val r = phone.restore(route, link = client)
+            client.close()
+            assertEquals(JsonPrimitive("closed"), serving.await()["reason"])
+            r
+        }
+
+        val fresh = Phone(seed = 50)
+        val r = restoreOver(fresh)
+        assertTrue(r.ok)
+        assertTrue(r.flag("confirmed"))
+        assertEquals(old.kv.getString(carriedKeys.values.first().first()), fresh.kv.getString(carriedKeys.values.first().first()))
+        val names = MigrationFlow.objectNames()
+        assertTrue(names.text("claim") in store.objects && names.text("confirmation") in store.objects, "the serving phone took the claim")
+        assertEquals("claimed", restoreOver(Phone(seed = 90)).reason)
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aServingPhoneWhoseLinkIsNotAuthenticatedServesNothing() = runTest {
+        val (_, server) = pipe()
+        val r = MigrationFlow.serve(server, MemoryObjectStore(), authenticated = false)
+        assertFalse(r.ok)
+        assertEquals("not_authenticated", r.reason)
+    }
+
+    // @verifies SWR-MG-11
+    @Test
+    fun aLinkThatBreaksDuringARestoreEndsItWithTheRouteUnavailable() = runTest {
+        val (client, _) = pipe()
+        client.broken = true
+        val r = Phone(seed = 50).restore(ObjectStoreRoute("link", atomicClaim = true), link = client)
+        assertFalse(r.ok)
+        assertEquals("route_unavailable", r.reason)
     }
 
     // @verifies SWR-MG-11

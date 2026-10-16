@@ -37,6 +37,18 @@ interface MigrationHost {
     suspend fun perform(effect: JsonObject): JsonObject
 }
 
+/**
+ * A pipe to the other phone (SWR-MG-10): bytes in, bytes out. Bluetooth, a local socket or a cable is each one implementation;
+ * everything above the bytes (framing, which calls a peer may make, the claim) is in the core (`link.rs`).
+ */
+interface Link {
+    /** Send [bytes]; throws if the link broke. */
+    suspend fun send(bytes: ByteArray)
+
+    /** The next bytes, or null once the other end has closed; throws if the link broke. */
+    suspend fun receive(): ByteArray?
+}
+
 object MigrationFlow {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
     private const val MAX_TURNS = 100_000
@@ -55,10 +67,12 @@ object MigrationFlow {
         keys: KeyValueStore? = null,
         store: ObjectStore? = null,
         files: FileStore? = null,
+        link: Link? = null,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
-            if (store != null && "objectStore" !in params) put("objectStore", true)
+            if ((store != null || link != null) && "objectStore" !in params) put("objectStore", true)
+            if (link != null && flow != "serve" && "link" !in params) put("link", true)
             if (keys != null && "keyItems" !in params) {
                 put("keyItems", buildJsonArray { ask("itemKeys")["carried"]!!.jsonObject.keys.forEach { add(it) } })
             }
@@ -67,7 +81,7 @@ object MigrationFlow {
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files)
+            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link)
             answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
         }
         error("The $flow flow did not end in $MAX_TURNS turns")
@@ -95,6 +109,7 @@ object MigrationFlow {
         keys: KeyValueStore?,
         store: ObjectStore?,
         files: FileStore?,
+        link: Link?,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
         "deriveKey" -> {
             val key = BundleKeyDerivation.deriveKey(secret ?: error("no secret to derive a key from"), e["kdf"]!!.jsonObject)
@@ -110,8 +125,34 @@ object MigrationFlow {
         }
         "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace" ->
             if (store == null) host.perform(e) else performObject(type, e, store)
+        "linkSend", "linkRecv" -> if (link == null) host.perform(e) else performLink(type, e, link)
         "listFiles", "writeFile", "syncFile", "deleteFile" -> if (files == null) host.perform(e) else performFile(type, e, files)
         else -> host.perform(e)
+    }
+
+    /** One link call. A link that breaks is reported to the core as failed; the core decides what that means (SWR-MG-11). */
+    private suspend fun performLink(type: String, e: JsonObject, link: Link): JsonObject = try {
+        if (type == "linkSend") {
+            link.send(e["frame"]!!.jsonPrimitive.content.hexToBytes())
+            buildJsonObject { put("ok", true) }
+        } else {
+            buildJsonObject { put("chunk", link.receive()?.let { JsonPrimitive(it.toHex()) } ?: JsonNull) }
+        }
+    } catch (ex: Exception) {
+        if (ex is kotlin.coroutines.cancellation.CancellationException) throw ex
+        buildJsonObject { put("failed", true) }
+    }
+
+    /**
+     * SWR-MG-10: serve this phone's migration objects from [store] to the phone on the other end of [link], until it closes.
+     * [authenticated] is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
+     * serve without it. Returns `{ok, reason}`.
+     */
+    suspend fun serve(link: Link, store: ObjectStore, authenticated: Boolean): JsonObject =
+        run("serve", buildJsonObject { put("authenticated", authenticated) }, NoHost, store = store, link = link)
+
+    private object NoHost : MigrationHost {
+        override suspend fun perform(effect: JsonObject): JsonObject = error("a serving phone is asked for no host effect")
     }
 
     /** One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06). */
