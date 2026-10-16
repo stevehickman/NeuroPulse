@@ -3,15 +3,17 @@
 // The flows are state machines in the shared core (common/npps-core, migration_flow.rs): the ORDER (open the bundle before
 // taking a claim, verify before confirming, confirm before the old phone clears) is decided there, once, for iOS, Android,
 // Windows, macOS and the web. This file is the whole Windows driver: ask the core, perform the effect it names, hand back
-// the outcome, until the core says done. Three effects it answers itself, the same on every platform: deriveKey (the core's
-// own Argon2id over the secret this driver holds), and readKeys / writeKeys (the app's key-value store, whose key list the
-// core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app stores
+// the outcome, until the core says done. It answers these effects itself, the same on every platform: random (the platform's
+// CSPRNG), deriveKey (the core's own Argon2id over the secret this driver holds), readKeys / writeKeys (the app's key-value
+// store, whose key list the core holds in common/npps/migration-keys.json), the object, file and link calls.
+// Everything else is the host's: the route, and any item the app stores
 // another way. The table of effects is in migration_flow.rs. The iOS counterpart is app/ios/NeurOne/Session/MigrationFlow.swift,
 // the web's common/lib/migrationFlow.ts, Kotlin's MigrationFlow.kt, under the same four names:
 // MigrationFlow, MigrationHost, KeyValueStore and ObjectStore (the interfaces here carry an I prefix).
 //
 // A flow state is opaque, is never stored, and never holds a secret or a key.
 
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 
 namespace NeurOne.Protocol;
@@ -89,7 +91,8 @@ static class MigrationFlow
     /// given, the items the core says are plain keys are declared to it as `keyItems`.
     public static async Task<JsonObject> RunAsync(
         string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IKeyValueStore? keys = null,
-        IObjectStore? store = null, IFileStore? files = null, ILink? link = null)
+        IObjectStore? store = null, IFileStore? files = null, ILink? link = null,
+        Func<int, byte[]>? random = null)
     {
         var p = (JsonObject)parameters.DeepClone();
         if ((store is not null || link is not null) && p["objectStore"] is null) p["objectStore"] = true;
@@ -107,16 +110,22 @@ static class MigrationFlow
             if (answer["done"] is JsonObject done) return done;
             var effect = answer["effect"]?.AsObject() ?? throw new NppsRefusal("the core named no effect");
             var state = answer["state"]?.DeepClone();
-            var result = await PerformAsync(effect, host, secret, keys, store, files, link);
+            var result = await PerformAsync(effect, host, secret, keys, store, files, link, random ?? RandomNumberGenerator.GetBytes);
             answer = NppsCore.Migration(new JsonObject { ["op"] = "flow", ["flow"] = flow, ["state"] = state, ["result"] = result }).AsObject();
         }
         throw new NppsRefusal($"The {flow} flow did not end in {MaxTurns} turns");
     }
 
-    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store, IFileStore? files, ILink? link)
+    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store, IFileStore? files, ILink? link,
+        Func<int, byte[]> random)
     {
         switch ((string?)e["type"])
         {
+            case "random":
+                var n = (int)e["bytes"]!;
+                var bytes = random(n);
+                if (bytes.Length != n) throw new NppsRefusal($"The random source gave {bytes.Length} bytes, not {n}");
+                return Task.FromResult(new JsonObject { ["bytes"] = Convert.ToHexString(bytes).ToLowerInvariant() });
             case "deriveKey":
                 if (secret is null) throw new NppsRefusal("no secret to derive a key from");
                 using (var key = BundleKeyDerivation.DeriveKey(secret, e["kdf"]!.AsObject()))
@@ -235,7 +244,7 @@ static class MigrationFlow
     /// The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07).
     public static JsonObject ObjectNames() => NppsCore.Migration(new JsonObject { ["op"] = "objectNames" }).AsObject();
 
-    /// SWR-MG-12: check an account on throwaway objects that hold no user data. `host` answers `random`, as for any flow.
-    public static Task<JsonObject> ProbeAsync(IObjectStore store, long bundleBytes, IMigrationHost host) =>
-        RunAsync("probe", new JsonObject { ["bundleBytes"] = bundleBytes }, host, null, null, store);
+    /// SWR-MG-12: check an account on throwaway objects that hold no user data.
+    public static Task<JsonObject> ProbeAsync(IObjectStore store, long bundleBytes, IMigrationHost host, Func<int, byte[]>? random = null) =>
+        RunAsync("probe", new JsonObject { ["bundleBytes"] = bundleBytes }, host, null, null, store, random: random);
 }

@@ -32,7 +32,7 @@ const hex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(1
 
 /** Random bytes from the platform's CSPRNG (the core is pure and has none). */
 export type RandomBytes = (count: number) => Uint8Array;
-const systemRandom: RandomBytes = (count) => crypto.getRandomValues(new Uint8Array(count));
+export const systemRandom: RandomBytes = (count) => crypto.getRandomValues(new Uint8Array(count));
 
 /** A fresh recovery code: show `text` once; the bundle can be opened only with it. `secret` is hex. */
 export function newRecoveryCode(random: RandomBytes = systemRandom): { text: string; secret: string } {

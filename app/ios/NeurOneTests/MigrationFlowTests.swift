@@ -113,27 +113,20 @@ private func pipe() -> (PipeEnd, PipeEnd) {
     return (a, b)
 }
 
-/// A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
+/// A route in memory: dumb storage that performs whatever effect the driver does not answer.
 private final class Host: MigrationHost {
     var seen: [String] = []
     var ran: [String] = []
     private let route: Route
-    private var counter: Int
 
-    init(route: Route, seed: Int) {
+    init(route: Route) {
         self.route = route
-        self.counter = seed
     }
-
-    private func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
 
     func perform(_ e: [String: Any]) async throws -> [String: Any] {
         let type = e["type"] as? String ?? ""
         seen.append(type)
         switch type {
-        case "random":
-            let n = e["bytes"] as? Int ?? 0
-            return ["bytes": hex((0..<n).map { _ in counter = (counter * 31 + 7) & 255; return UInt8(counter) })]
         case "getBundle":
             return ["bundle": route.bundle as Any? ?? NSNull()]
         case "putBundle":
@@ -186,12 +179,12 @@ final class MigrationFlowTests: XCTestCase {
         let oldStore = try filledStore()
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+            host: Host(route: route), secret: try secret("a long enough passphrase"), keys: oldStore)
         XCTAssertEqual(done["ok"] as? Bool, true)
 
         let freshStore = KeyStore()
         let r = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: route, seed: 50),
+            "restore", params: params(), host: Host(route: route),
             secret: try secret("a long enough passphrase"), keys: freshStore)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
@@ -207,16 +200,16 @@ final class MigrationFlowTests: XCTestCase {
         oldStore.putString("ble.last-hub-id", "hub-1")
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+            host: Host(route: route), secret: try secret("a long enough passphrase"), keys: oldStore)
         let clearParams: [String: Any] = ["bundleHash": done["bundleHash"] as? String ?? "", "canRemoveOsBond": false]
 
-        let before = try await MigrationFlow.run("clear", params: clearParams, host: Host(route: route, seed: 1), keys: oldStore)
+        let before = try await MigrationFlow.run("clear", params: clearParams, host: Host(route: route), keys: oldStore)
         XCTAssertEqual(before["reason"] as? String, "no_confirmation")
 
         _ = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: route, seed: 50),
+            "restore", params: params(), host: Host(route: route),
             secret: try secret("a long enough passphrase"), keys: KeyStore())
-        let host = Host(route: route, seed: 1)
+        let host = Host(route: route)
         let after = try await MigrationFlow.run("clear", params: clearParams, host: host, keys: oldStore)
         XCTAssertEqual(after["ok"] as? Bool, true)
         XCTAssertEqual(after["removeOsBond"] as? Bool, true)
@@ -232,12 +225,12 @@ final class MigrationFlowTests: XCTestCase {
         let oldStore = try filledStore()
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
+            host: Host(route: Route()), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
         XCTAssertEqual(done["ok"] as? Bool, true)
         XCTAssertEqual(Array(store.objects.keys), [try MigrationFlow.objectNames()["bundle"] as? String ?? ""])
 
         let freshStore = KeyStore()
-        let host = Host(route: Route(), seed: 50)
+        let host = Host(route: Route())
         let r = try await MigrationFlow.run(
             "restore", params: params(), host: host, secret: try secret("a long enough passphrase"), keys: freshStore, store: store)
         XCTAssertEqual(r["ok"] as? Bool, true)
@@ -246,7 +239,7 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertTrue(host.seen.allSatisfy { !["getBundle", "putBundle", "readClaim", "createClaim"].contains($0) })
 
         let second = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: Route(), seed: 90),
+            "restore", params: params(), host: Host(route: Route()),
             secret: try secret("a long enough passphrase"), keys: KeyStore(), store: store)
         XCTAssertEqual(second["reason"] as? String, "claimed")
     }
@@ -259,14 +252,14 @@ final class MigrationFlowTests: XCTestCase {
         let oldStore = try filledStore()
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
+            host: Host(route: Route()), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
         XCTAssertEqual(done["ok"] as? Bool, true)
 
-        func restoreOver(_ keys: KeyStore, seed: Int) async throws -> [String: Any] {
+        func restoreOver(_ keys: KeyStore) async throws -> [String: Any] {
             let (client, server) = pipe()
             async let serving = MigrationFlow.serve(link: server, store: store, authenticated: true)
             let r = try await MigrationFlow.run(
-                "restore", params: params(), host: Host(route: Route(), seed: seed),
+                "restore", params: params(), host: Host(route: Route()),
                 secret: try secret("a long enough passphrase"), keys: keys, link: client)
             await client.close()
             let served = try await serving
@@ -274,14 +267,14 @@ final class MigrationFlowTests: XCTestCase {
             return r
         }
         let freshStore = KeyStore()
-        let r = try await restoreOver(freshStore, seed: 50)
+        let r = try await restoreOver(freshStore)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
         XCTAssertEqual(freshStore.values, oldStore.values)
         let names = try MigrationFlow.objectNames()
         XCTAssertNotNil(store.objects[names["claim"] as? String ?? ""], "the serving phone took the claim")
         XCTAssertNotNil(store.objects[names["confirmation"] as? String ?? ""])
-        let second = try await restoreOver(KeyStore(), seed: 90)
+        let second = try await restoreOver(KeyStore())
         XCTAssertEqual(second["reason"] as? String, "claimed")
     }
 
@@ -298,7 +291,7 @@ final class MigrationFlowTests: XCTestCase {
         let (client, _) = pipe()
         client.broken = true
         let r = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: Route(), seed: 50),
+            "restore", params: params(), host: Host(route: Route()),
             secret: try secret("a long enough passphrase"), keys: KeyStore(), link: client)
         XCTAssertEqual(r["reason"] as? String, "route_unavailable")
     }
@@ -309,7 +302,7 @@ final class MigrationFlowTests: XCTestCase {
         store.failOn = "put"
         let r = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: try filledStore(), store: store)
+            host: Host(route: Route()), secret: try secret("a long enough passphrase"), keys: try filledStore(), store: store)
         XCTAssertEqual(r["reason"] as? String, "route_unavailable")
     }
 
@@ -317,20 +310,20 @@ final class MigrationFlowTests: XCTestCase {
     func testTheProbeSaysWhatAnAccountCanDoAndLeavesNothingBehind() async throws {
         let good = MemoryStore()
         good.objects["users-file"] = "01"
-        var r = try await MigrationFlow.probe(store: good, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        var r = try await MigrationFlow.probe(store: good, bundleBytes: 1000, host: Host(route: Route()))
         XCTAssertEqual(r["result"] as? String, "sufficient")
         XCTAssertEqual(Array(good.objects.keys), ["users-file"])
 
         let noConditional = MemoryStore()
         noConditional.conditional = false
-        r = try await MigrationFlow.probe(store: noConditional, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        r = try await MigrationFlow.probe(store: noConditional, bundleBytes: 1000, host: Host(route: Route()))
         XCTAssertEqual(r["result"] as? String, "backup_only")
         XCTAssertEqual(r["failedOperation"] as? String, "createIfAbsentSecondRefused")
         XCTAssertTrue(noConditional.objects.isEmpty)
 
         let small = MemoryStore()
         small.space = 10
-        r = try await MigrationFlow.probe(store: small, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
+        r = try await MigrationFlow.probe(store: small, bundleBytes: 1000, host: Host(route: Route()))
         XCTAssertEqual(r["failedOperation"] as? String, "space")
     }
 
@@ -341,16 +334,16 @@ final class MigrationFlowTests: XCTestCase {
         let oldStore = try filledStore()
         let done = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+            host: Host(route: route), secret: try secret("a long enough passphrase"), keys: oldStore)
         _ = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: route, seed: 50),
+            "restore", params: params(), host: Host(route: route),
             secret: try secret("a long enough passphrase"), keys: KeyStore())
         let clearParams: [String: Any] = ["bundleHash": done["bundleHash"] as? String ?? "", "canRemoveOsBond": true]
 
         let files = MemoryFiles()
         files.files = ["a-big.db": [UInt8](repeating: 0x11, count: 40_000), "b-empty.db": [], "c-small.db": [UInt8](repeating: 0x22, count: 100)]
         files.failOn = "delete:c-small.db"
-        let host = Host(route: route, seed: 1)
+        let host = Host(route: route)
         let r1 = try await MigrationFlow.run("clear", params: clearParams, host: host, keys: oldStore, files: files)
         XCTAssertEqual(r1["ok"] as? Bool, false)
         XCTAssertEqual(r1["step"] as? String, "overwriteAndDeleteFiles")
@@ -364,7 +357,7 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertEqual(files.events.filter { $0.contains("b-empty.db") }, ["delete:b-empty.db"], "an empty file is only deleted")
 
         files.failOn = nil
-        let second = Host(route: Route(), seed: 1)
+        let second = Host(route: Route())
         let r2 = try await MigrationFlow.run("clear", params: clearParams, host: second, keys: oldStore, files: files)
         XCTAssertEqual(r2["ok"] as? Bool, true)
         XCTAssertTrue(files.files.isEmpty)
@@ -379,10 +372,10 @@ final class MigrationFlowTests: XCTestCase {
         for k in installKeys { oldStore.putString(k, "belongs-to-this-phone") }
         _ = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+            host: Host(route: route), secret: try secret("a long enough passphrase"), keys: oldStore)
         let freshStore = KeyStore()
         _ = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: route, seed: 50),
+            "restore", params: params(), host: Host(route: route),
             secret: try secret("a long enough passphrase"), keys: freshStore)
         for k in installKeys { XCTAssertNil(freshStore.getString(k), "\(k) must not move") }
         XCTAssertEqual(freshStore.getString("np.session.history"), "value-of-np.session.history")
@@ -393,8 +386,8 @@ final class MigrationFlowTests: XCTestCase {
         let route = Route()
         _ = try await MigrationFlow.run(
             "backup", params: params(["kind": "migrate", "method": "passphrase"]),
-            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: try filledStore())
-        let wrong = Host(route: route, seed: 50)
+            host: Host(route: route), secret: try secret("a long enough passphrase"), keys: try filledStore())
+        let wrong = Host(route: route)
         let r = try await MigrationFlow.run(
             "restore", params: params(), host: wrong, secret: try secret("a different passphrase"), keys: KeyStore())
         XCTAssertEqual(r["ok"] as? Bool, false)

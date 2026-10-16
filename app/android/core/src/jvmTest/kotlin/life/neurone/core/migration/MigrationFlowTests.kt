@@ -123,7 +123,7 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
         carriedKeys.values.flatten().forEach { kv.putString(it, "value-of-$it") }
     }
 
-    private fun host(route: BackupRoute? = null, actions: ClearActions? = null) = StandardMigrationHost(random, extra, route, actions)
+    private fun host(route: BackupRoute? = null, actions: ClearActions? = null) = StandardMigrationHost(extra, route, actions)
 
     private fun params(route: RouteDescriptor, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {}) = buildJsonObject {
         put("route", route.toJson())
@@ -134,22 +134,23 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
     suspend fun backup(kind: String, method: BundleKeyMethod, route: RouteDescriptor, backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
         MigrationFlow.run(
             "backup", params(route) { put("kind", kind); put("method", method.wire) }, host(backupRoute), passphrase(SECRET), kv, store,
+            random = random,
         )
 
     suspend fun restore(
         route: RouteDescriptor, backupRoute: BackupRoute? = null, store: ObjectStore? = null, secret: String = SECRET, link: Link? = null,
-    ) = MigrationFlow.run("restore", params(route), host(backupRoute), passphrase(secret), kv, store, link = link)
+    ) = MigrationFlow.run("restore", params(route), host(backupRoute), passphrase(secret), kv, store, link = link, random = random)
 
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
-        MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store)
+        MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store, random = random)
 
     suspend fun clear(route: BackupRoute, bundleHash: String, actions: ClearActions, canRemoveOsBond: Boolean, files: FileStore? = null) =
         MigrationFlow.run(
             "clear", buildJsonObject { put("bundleHash", bundleHash); put("canRemoveOsBond", canRemoveOsBond) }, host(route, actions), null, kv,
-            files = files,
+            files = files, random = random,
         )
 
-    suspend fun probe(store: ObjectStore, bundleBytes: Long) = MigrationFlow.probe(store, bundleBytes, host())
+    suspend fun probe(store: ObjectStore, bundleBytes: Long) = MigrationFlow.probe(store, bundleBytes, host(), random)
 }
 
 /** The migration flow over the real core (JNI) with an in-memory route. The rules are tested in Rust; this holds the order of the calls. */

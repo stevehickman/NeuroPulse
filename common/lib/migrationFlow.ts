@@ -4,14 +4,14 @@
  * The flows are state machines in the shared core (`neurone_npps_core::migration_flow`): the ORDER (open the bundle before
  * taking a claim, verify before confirming, confirm before the old phone clears) is decided there, once, for iOS, Android,
  * Windows, macOS and the web. This is the web's driver, and all of it: ask the core, perform the effect it names, hand back
- * the outcome, until the core says done. Three effects it answers itself, the same on every platform: `deriveKey` (the
- * core's own Argon2id over the secret this driver holds), and `readKeys` / `writeKeys` (the app's key-value store, whose key
- * list the core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app
- * stores another way. The table of effects is in `migration_flow.rs`.
+ * the outcome, until the core says done. It answers these effects itself, the same on every platform: `random` (the
+ * platform's CSPRNG), `deriveKey` (the core's own Argon2id over the secret this driver holds), `readKeys` / `writeKeys`
+ * (the app's key-value store, whose key list the core holds in common/npps/migration-keys.json), and the object, file and
+ * link calls. Everything else is the host's: the route, and any item the app stores another way. The table of effects is in `migration_flow.rs`.
  *
  * A flow state is opaque, is never stored, and never holds a secret or a key.
  */
-import { deriveBundleKey } from './bundleKey';
+import { deriveBundleKey, systemRandom, type RandomBytes } from './bundleKey';
 import { nppsMigration } from './nppsCore';
 
 export interface FlowEffect {
@@ -99,6 +99,8 @@ export interface FlowOptions {
   store?: ObjectStore;
   /** The app's files, for the old phone's clear: the core overwrites and deletes them itself (SWR-MG-06). */
   files?: FileStore;
+  /** Where the `random` effect's bytes come from: the platform's CSPRNG unless a test passes its own. */
+  random?: RandomBytes;
   /** The pipe to the phone that holds the bundle: a restore then runs its object calls over it (SWR-MG-10). */
   link?: Link;
 }
@@ -121,8 +123,14 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
   throw new Error(`The ${flow} flow did not end in ${MAX_TURNS} turns`);
 }
 
-async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link }: FlowOptions): Promise<Record<string, unknown>> {
+async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link, random = systemRandom }: FlowOptions): Promise<Record<string, unknown>> {
   switch (e.type) {
+    case 'random': {
+      const n = e.bytes as number;
+      const bytes = random(n);
+      if (bytes.length !== n) throw new Error(`The random source gave ${bytes.length} bytes, not ${n}`);
+      return { bytes: Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('') };
+    }
     case 'deriveKey':
       if (secret === undefined) throw new Error('no secret to derive a key from');
       return { key: deriveBundleKey(secret, e.kdf as Record<string, unknown>) };
@@ -226,7 +234,7 @@ function objectNames(): { bundle: string; claim: string; confirmation: string; p
   return nppsMigration({ op: 'objectNames' });
 }
 
-/** SWR-MG-12: check an account on throwaway objects that hold no user data. `random` is the host's, as for any flow. */
+/** SWR-MG-12: check an account on throwaway objects that hold no user data. */
 async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
   return run('probe', { bundleBytes }, host, { store });
 }

@@ -9,7 +9,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import life.neurone.core.data.RandomSource
 import life.neurone.core.data.hexToBytes
 import life.neurone.core.data.toHex
 
@@ -24,12 +23,11 @@ interface ClearActions {
 }
 
 /**
- * The [MigrationHost] for this app: the effects the driver ([MigrationFlow]) does not answer itself. These are randomness, the
+ * The [MigrationHost] for this app: the effects the driver ([MigrationFlow]) does not answer itself. These are the
  * items stored another way ([MigrationItemStore]), a route the app writes itself ([BackupRoute]) and the platform's clear steps
  * ([ClearActions]). A route that is an object store needs none of the route effects: pass it to [MigrationFlow.run] as `store`.
  */
 class StandardMigrationHost(
-    private val random: RandomSource,
     adapters: List<MigrationItemStore> = emptyList(),
     private val route: BackupRoute? = null,
     private val actions: ClearActions? = null,
@@ -43,12 +41,6 @@ class StandardMigrationHost(
     private fun typed(): BackupRoute = route ?: error("this host has no BackupRoute; the route is an object store the core drives")
 
     override suspend fun perform(effect: JsonObject): JsonObject = when (val type = effect["type"]!!.jsonPrimitive.content) {
-        "random" -> {
-            val n = effect["bytes"]!!.jsonPrimitive.content.toInt()
-            val bytes = random.nextBytes(n)
-            require(bytes.size == n) { "The random source gave ${bytes.size} bytes, not $n" }
-            buildJsonObject { put("bytes", bytes.toHex()) }
-        }
         "readItems" -> buildJsonObject {
             put("items", buildJsonObject {
                 strings(effect["names"]).forEach { n -> byItem[n]?.export()?.let { put(n, it) } }

@@ -14,9 +14,11 @@ import kotlinx.serialization.json.put
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecret
+import life.neurone.core.data.RandomSource
 import life.neurone.core.data.hexToBytes
 import life.neurone.core.data.toHex
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.platform.secureRandomBytes
 
 // The backup and device-replacement flows as Kotlin drives them (SWR-MG-02…12, issue #569 packages 6e to 6h).
 //
@@ -24,10 +26,11 @@ import life.neurone.core.npps.NppsCore
 // taking a claim, verify before confirming, confirm before the old phone clears) is decided there, once, for iOS, Android,
 // Windows, macOS and the web. This file is the whole Kotlin driver, and it is the same one under the same names on every
 // platform: `MigrationFlow` runs a flow, `MigrationHost` performs the effects the driver does not answer itself, and
-// `KeyValueStore`, `ObjectStore` and `FileStore` are the three storage roles it does (Swift and the web have the same four names, C# has them
-// with an `I` prefix on the interfaces). The driver answers three kinds of effect itself: `deriveKey` (the core's own Argon2id
-// over the secret it holds), `readKeys` / `writeKeys` (the key-value store) and the six `object*` calls (the object store).
-// Everything else is the host's. The table of effects is in migration_flow.rs.
+// `KeyValueStore`, `ObjectStore`, `FileStore` and `Link` are the roles it does (Swift and the web have the same names, C# has
+// them with an `I` prefix on the interfaces). The driver answers these effects itself: `random` (the platform's CSPRNG),
+// `deriveKey` (the core's own Argon2id over the secret it holds), `readKeys` / `writeKeys` (the key-value store), the six
+// `object*` calls (the object store), the file calls and `linkSend` / `linkRecv`. Everything else is the host's. The table of
+// effects is in migration_flow.rs.
 //
 // A flow state is opaque, is never stored, and never holds a secret or a key.
 
@@ -49,6 +52,9 @@ interface Link {
     suspend fun receive(): ByteArray?
 }
 
+/** The platform's CSPRNG: the default for every flow's `random` effect. A test passes its own. */
+private val SystemRandom = RandomSource { secureRandomBytes(it) }
+
 object MigrationFlow {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
     private const val MAX_TURNS = 100_000
@@ -68,6 +74,7 @@ object MigrationFlow {
         store: ObjectStore? = null,
         files: FileStore? = null,
         link: Link? = null,
+        random: RandomSource = SystemRandom,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
@@ -81,7 +88,7 @@ object MigrationFlow {
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link)
+            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random)
             answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
         }
         error("The $flow flow did not end in $MAX_TURNS turns")
@@ -91,11 +98,11 @@ object MigrationFlow {
     fun objectNames(): JsonObject = ask("objectNames")
 
     /**
-     * SWR-MG-12: check an account on throwaway objects that hold no user data. [host] answers `random`, as for any flow. The
+     * SWR-MG-12: check an account on throwaway objects that hold no user data. The
      * result is `{result, failedOperation?, ops}`.
      */
-    suspend fun probe(store: ObjectStore, bundleBytes: Long, host: MigrationHost): JsonObject =
-        run("probe", buildJsonObject { put("bundleBytes", bundleBytes) }, host, store = store)
+    suspend fun probe(store: ObjectStore, bundleBytes: Long, host: MigrationHost, random: RandomSource = SystemRandom): JsonObject =
+        run("probe", buildJsonObject { put("bundleBytes", bundleBytes) }, host, store = store, random = random)
 
     private fun ask(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {}): JsonObject =
         NppsCore.migration(buildJsonObject { put("op", op); build() })
@@ -110,7 +117,14 @@ object MigrationFlow {
         store: ObjectStore?,
         files: FileStore?,
         link: Link?,
+        random: RandomSource,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
+        "random" -> {
+            val n = e["bytes"]!!.jsonPrimitive.content.toInt()
+            val bytes = random.nextBytes(n)
+            require(bytes.size == n) { "The random source gave ${bytes.size} bytes, not $n" }
+            buildJsonObject { put("bytes", bytes.toHex()) }
+        }
         "deriveKey" -> {
             val key = BundleKeyDerivation.deriveKey(secret ?: error("no secret to derive a key from"), e["kdf"]!!.jsonObject)
             try { buildJsonObject { put("key", key.hex()) } } finally { key.destroy() }
