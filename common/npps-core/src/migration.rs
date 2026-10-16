@@ -444,6 +444,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         other => {
             return crate::link::op(other, req)
                 .or_else(|| crate::migration_text::op(other, req))
+                .or_else(|| crate::at_rest::op(other, req))
                 .unwrap_or_else(|| Err(format!("unknown migration operation '{other}'")))
         }
     })

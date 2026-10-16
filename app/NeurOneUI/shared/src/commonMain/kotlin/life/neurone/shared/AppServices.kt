@@ -10,7 +10,9 @@ import kotlinx.coroutines.launch
 import life.neurone.core.analytics.EngagementTier
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
+import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.migration.ClearActions
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
@@ -21,6 +23,7 @@ import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.session.SessionHistoryStore
 import life.neurone.shared.ble.NeurOneGattManager
+import life.neurone.shared.migration.SharedClearActions
 import life.neurone.shared.session.ProtocolUploader
 
 /**
@@ -39,7 +42,17 @@ class AppServices(
     /** Long-lived scope for the GATT manager and the consumable subscription. */
     val scope: CoroutineScope,
 ) {
-    val keyValueStore: KeyValueStore = platform.keyValueStore
+    /**
+     * The UHDR-class state is sealed at rest when the host has a keystore to keep the key in (SWR-MG-06); every store and
+     * gate below reads and writes through it, so none of them knows. Without a keystore, or without the NPPS core binding that
+     * seals, the data stays as the host stores it and [clearActions] is null.
+     */
+    private val encrypted: EncryptedKeyValueStore? = platform.secretKeyStore?.let { secrets ->
+        runCatching { EncryptedKeyValueStore(platform.keyValueStore, secrets, EncryptedKeyValueStore.uhdrKeys()).also { it.migrate() } }
+            .getOrNull()
+    }
+
+    val keyValueStore: KeyValueStore = encrypted ?: platform.keyValueStore
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
@@ -48,6 +61,12 @@ class AppServices(
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
+
+    /**
+     * The clear's two platform steps (SWR-MG-06, SWR-MG-09), written once: destroy the data key in the keystore, and drop the
+     * link to the helmet and forget it. Null when the data is not sealed, so there is no key to destroy.
+     */
+    val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager) }
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
     val protocolUploader = ProtocolUploader(gattManager, platform.protocolSigner)

@@ -39,7 +39,7 @@ import org.jetbrains.compose.resources.stringResource
 fun MigrationClearScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
     val platform = app.platform
     val model = remember {
-        MigrationClearModel(platform.migrationPlace, app.keyValueStore, platform.clearActions, platform.migrationFiles)
+        MigrationClearModel(platform.migrationPlace, app.keyValueStore, app.clearActions, platform.migrationFiles)
     }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()

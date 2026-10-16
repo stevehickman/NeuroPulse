@@ -3,6 +3,7 @@ package life.neurone.desktop
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.DirectoryObjectStore
 import life.neurone.core.migration.ObjectStoreRoute
 import life.neurone.core.session.JvmProtocolSigner
@@ -26,6 +27,9 @@ class DesktopPlatformServices(
     override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
+
+    /** The system credential store, if it proves it can keep and remove a secret; otherwise none (SWR-MG-06). */
+    override val secretKeyStore: SecretKeyStore? by lazy { DesktopSecretKeyStore.create() }
 
     /**
      * A folder beside the app's data: the person copies it to a USB drive or the new computer. The operating system arbitrates

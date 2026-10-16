@@ -1,0 +1,153 @@
+package life.neurone.core.common
+
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import life.neurone.core.data.RandomSource
+import life.neurone.core.data.SystemRandomSource
+import life.neurone.core.data.toHex
+import life.neurone.core.npps.NppsCore
+
+// Encryption at rest for the UHDR-class state the app holds (SWR-MG-06, issue #569 package 6r). The sealing is the shared
+// core's (`at_rest.rs`: AES-256-GCM, the value's name as associated data), so every platform writes the same bytes. What is
+// each platform's is where the 32-byte data key lives: a [SecretKeyStore] over the operating system's keystore. Destroying the
+// key there is what makes the data unreadable, which is why the clear's first step is to destroy it.
+
+/**
+ * Where the data key lives: the platform's keystore (the Android Keystore, the iOS Keychain, the desktop's keychain). A
+ * store that cannot keep a secret the way the platform's keystore does must not implement this: the app then holds its data
+ * unencrypted and says the device cannot clear itself, rather than claim a protection it does not give.
+ */
+interface SecretKeyStore {
+    /** The data key, or null when there is none (never made, or destroyed). */
+    fun load(): ByteArray?
+
+    /** Keep [key], replacing any earlier one. */
+    fun store(key: ByteArray)
+
+    /** Destroy the key in the keystore, not merely forget it: what it protected is unreadable from here on. */
+    fun destroy()
+}
+
+/** A key held in memory, for tests. */
+class InMemorySecretKeyStore : SecretKeyStore {
+    private var key: ByteArray? = null
+    override fun load(): ByteArray? = key?.copyOf()
+    override fun store(key: ByteArray) { this.key = key.copyOf() }
+    override fun destroy() { key?.fill(0); key = null }
+}
+
+/**
+ * A [KeyValueStore] that seals the values of its [protectedKeys] under the data key and leaves every other key as it is. The
+ * data key is made the first time a protected value is written and kept in [secrets]; a value sealed under a key that no
+ * longer exists reads as absent. A plain value found under a protected key (from before this store existed) is read as it is
+ * and sealed by [migrate].
+ */
+class EncryptedKeyValueStore(
+    private val inner: KeyValueStore,
+    private val secrets: SecretKeyStore,
+    private val protectedKeys: Set<String>,
+    private val random: RandomSource = SystemRandomSource,
+) : KeyValueStore {
+    private var cached: ByteArray? = null
+
+    private fun key(): ByteArray? = cached ?: secrets.load()?.also { cached = it }
+
+    private fun ensureKey(): ByteArray {
+        key()?.let { return it }
+        val fresh = random.nextBytes(KEY_BYTES)
+        require(fresh.size == KEY_BYTES) { "The random source gave ${fresh.size} bytes, not $KEY_BYTES" }
+        secrets.store(fresh)
+        cached = fresh
+        return fresh
+    }
+
+    private fun ask(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
+        NppsCore.migration(buildJsonObject { put("op", op); build() })
+
+    private fun seal(name: String, value: String): String {
+        val nonce = random.nextBytes(NONCE_BYTES)
+        require(nonce.size == NONCE_BYTES) { "The random source gave ${nonce.size} bytes, not $NONCE_BYTES" }
+        val sealed = ask("sealValue") { put("key", ensureKey().toHex()); put("nonce", nonce.toHex()); put("name", name); put("value", value) }
+        return PREFIX + sealed["sealed"]!!.jsonPrimitive.content
+    }
+
+    /** The value as it was written, or null if there is none or it cannot be opened (the key is gone, or it was changed). */
+    private fun read(name: String): String? {
+        val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: return null
+        if (!stored.startsWith(PREFIX)) return stored
+        val k = key() ?: return null
+        val r = ask("openValue") { put("key", k.toHex()); put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
+        return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
+    }
+
+    override fun getString(key: String): String? = if (key in protectedKeys) read(key) else inner.getString(key)
+
+    override fun putString(key: String, value: String) {
+        if (key in protectedKeys) inner.putString(key, seal(key, value)) else inner.putString(key, value)
+    }
+
+    override fun getInt(key: String, default: Int): Int =
+        if (key in protectedKeys) read(key)?.toIntOrNull() ?: legacy { inner.getInt(key, default) } ?: default else inner.getInt(key, default)
+
+    override fun putInt(key: String, value: Int) {
+        if (key in protectedKeys) putString(key, value.toString()) else inner.putInt(key, value)
+    }
+
+    override fun getBoolean(key: String, default: Boolean): Boolean =
+        if (key in protectedKeys) {
+            read(key)?.toBooleanStrictOrNull() ?: legacy { inner.getBoolean(key, default) } ?: default
+        } else {
+            inner.getBoolean(key, default)
+        }
+
+    override fun putBoolean(key: String, value: Boolean) {
+        if (key in protectedKeys) putString(key, value.toString()) else inner.putBoolean(key, value)
+    }
+
+    override fun remove(key: String) = inner.remove(key)
+
+    /** A value written before this store existed, as an Int or a Boolean; null if there is none or it is not of that type. */
+    private fun <T> legacy(read: () -> T): T? = try { read() } catch (ignored: ClassCastException) { null }
+
+    /** Seal every protected value still held in the clear. Called once at start-up; a value already sealed is left alone. */
+    fun migrate() {
+        for (name in protectedKeys) {
+            val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: continue
+            if (!stored.startsWith(PREFIX)) putString(name, stored)
+        }
+    }
+
+    /**
+     * Destroy the data key (SWR-MG-06). What was sealed under it cannot be opened again, here or anywhere. A value written
+     * afterwards is sealed under a new key, so the app can go on being used as a new install.
+     */
+    fun destroyKey() {
+        secrets.destroy()
+        cached?.fill(0)
+        cached = null
+    }
+
+    companion object {
+        const val KEY_BYTES = 32
+        const val NONCE_BYTES = 12
+
+        /** Marks a sealed value, so a plain one (from before) is told from it. */
+        const val PREFIX = "np-enc:1:"
+
+        /**
+         * The keys that hold UHDR-class state: every key of every item a migration carries and the consent keys (SWR-MG-01),
+         * from the core's one list. Per-install and not-yet-sorted keys are not user health data and stay as they are.
+         */
+        fun uhdrKeys(): Set<String> {
+            val m = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })
+            val carried = m["carried"]!!.jsonObject.values.flatMap { it.jsonArray.map { k -> k.jsonPrimitive.content } }
+            val consent = m["consent"]!!.jsonArray.map { it.jsonPrimitive.content }
+            return (carried + consent).toSet()
+        }
+    }
+}

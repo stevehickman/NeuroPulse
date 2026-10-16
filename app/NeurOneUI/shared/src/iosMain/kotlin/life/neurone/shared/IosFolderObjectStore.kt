@@ -89,7 +89,7 @@ class IosFolderObjectStore(private val root: String) : ObjectStore {
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArray(): ByteArray {
+internal fun NSData.toByteArray(): ByteArray {
     val n = length.toInt()
     val out = ByteArray(n)
     if (n > 0) out.usePinned { memcpy(it.addressOf(0), bytes, length) }
@@ -97,5 +97,5 @@ private fun NSData.toByteArray(): ByteArray {
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun ByteArray.toNSData(): NSData =
+internal fun ByteArray.toNSData(): NSData =
     if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.convert()) }

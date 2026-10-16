@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
@@ -21,6 +22,7 @@ class AndroidPlatformServices(
     override val bleCentral: BleCentral,
     override val protocolSigner: ProtocolSigner,
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
+    override val secretKeyStore: SecretKeyStore? = null,
 ) : PlatformServices {
 
     /** A backup is a file the person saves and later opens, through the system's own dialogs (SAF). */
