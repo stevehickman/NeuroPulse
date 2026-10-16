@@ -159,13 +159,13 @@ private final class MemoryKeys: KeyValueStore {
     func remove(_ key: String) { values.removeValue(forKey: key) }
 }
 
-/// The host of a clear: the key and the pairing are the platform's, and here they just succeed.
+/// The host of a clear: the key and the pairing are the platform's and here just succeed; the overwrite asks for randomness.
 private final class ClearHost: MigrationHost {
+    private let random = NoRoute(seed: 1)
+
     func perform(_ e: [String: Any]) async throws -> [String: Any] {
-        switch e["type"] as? String {
-        case "runClearStep": return ["ok": true]
-        default: throw NppsCore.Refusal(message: "unknown effect \(e["type"] ?? "")")
-        }
+        if e["type"] as? String == "runClearStep" { return ["ok": true] }
+        return try await random.perform(e)
     }
 }
 

@@ -34,12 +34,13 @@ public class DirectoryStoresTests : IDisposable
         }
     }
 
+    // The host of a clear: the key and the pairing are the platform's and here just succeed; the overwrite asks for randomness.
     private sealed class ClearHost : IMigrationHost
     {
+        private readonly RandomOnly _random = new(1);
+
         public Task<JsonObject> PerformAsync(JsonObject e) =>
-            (string?)e["type"] == "runClearStep"
-                ? Task.FromResult(new JsonObject { ["ok"] = true })
-                : throw new InvalidOperationException($"unknown effect {(string?)e["type"]}");
+            (string?)e["type"] == "runClearStep" ? Task.FromResult(new JsonObject { ["ok"] = true }) : _random.PerformAsync(e);
     }
 
     private sealed class Keys : IKeyValueStore
