@@ -52,6 +52,8 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var showProfiles by remember { mutableStateOf(false) }
     var showOwner by remember { mutableStateOf(false) }
     var showMigration by remember { mutableStateOf(false) }
+    var showRestore by remember { mutableStateOf(false) }
+    var showClear by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -59,6 +61,16 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showRestore -> MigrationRestoreScreen(
+            app = app,
+            onDone = { showRestore = false },
+            modifier = modifier,
+        )
+        showClear -> MigrationClearScreen(
+            app = app,
+            onDone = { showClear = false },
+            modifier = modifier,
+        )
         showMigration -> MigrationBackupScreen(
             app = app,
             onDone = { showMigration = false },
@@ -118,6 +130,8 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
             onManageProfiles = { showProfiles = true },
             onManageOwner = { showOwner = true },
             onManageMigration = { showMigration = true },
+            onRestore = { showRestore = true },
+            onClear = { showClear = true },
             modifier = modifier,
         )
     }
@@ -136,6 +150,8 @@ private fun SettingsContent(
     onManageProfiles: () -> Unit,
     onManageOwner: () -> Unit,
     onManageMigration: () -> Unit,
+    onRestore: () -> Unit,
+    onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -213,6 +229,8 @@ private fun SettingsContent(
 
         // Back up, or move to a new phone (SWR-MG-02, SWR-MG-03).
         OutlinedButton(onClick = onManageMigration) { Text(stringResource(Res.string.settings_migration_button)) }
+        OutlinedButton(onClick = onRestore) { Text(stringResource(Res.string.settings_restore_button)) }
+        OutlinedButton(onClick = onClear) { Text(stringResource(Res.string.settings_clear_button)) }
 
         Spacer(Modifier.height(24.dp))
 

@@ -9,6 +9,7 @@ import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
+import life.neurone.shared.migration.FileTransfer
 
 /**
  * The browser half of the cross-platform seam.
@@ -23,6 +24,12 @@ class WebPlatformServices(
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
+
+    /** A backup is a file the person downloads and later chooses: a browser has no folder to keep one in. */
+    @Composable
+    override fun rememberFileTransfer(): FileTransfer? = fileTransfer
+
+    private val fileTransfer = WebFileTransfer()
 
     // The chooser must open inside the click, so the action is the central's own, not a generic refresh.
     @Composable
