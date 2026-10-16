@@ -6,7 +6,11 @@ import life.neurone.core.common.KeyValueStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
+import life.neurone.core.migration.ObjectStoreRoute
+import platform.Foundation.NSDocumentDirectory
+import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.NSUserDomainMask
 
 /**
  * The iOS half of the cross-platform seam.
@@ -21,9 +25,20 @@ class IosPlatformServices(
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 
+    /**
+     * A folder in the app's Documents directory, which the Files app shows (the host declares file sharing), so the person can
+     * copy the backup to a drive or another phone. The file system arbitrates the claim (a hard link), as on the desktop.
+     */
+    override val migrationPlace: MigrationPlace? by lazy {
+        val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
+        MigrationPlace(FOLDER_NAME, IosFolderObjectStore("$documents/$FOLDER_NAME"), ObjectStoreRoute("documents-folder", atomicClaim = true))
+    }
+
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
 }
+
+private const val FOLDER_NAME = "NeurOne Backups"
 
 /** [KeyValueStore] over `NSUserDefaults`. An absent key reads as the default, never as zero or false. */
 class UserDefaultsKeyValueStore(

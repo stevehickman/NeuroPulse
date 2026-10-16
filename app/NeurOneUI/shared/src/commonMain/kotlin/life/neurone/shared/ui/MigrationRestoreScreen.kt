@@ -32,6 +32,7 @@ import life.neurone.shared.migration.BackupKind
 import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.MigrationRestoreModel
+import life.neurone.shared.migration.PortableFilePlace
 import life.neurone.shared.migration.RestoreStep
 import life.neurone.shared.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -42,10 +43,16 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
-    val model = remember { MigrationRestoreModel(app.platform.migrationPlace, app.keyValueStore) }
+    val transfer = app.platform.rememberFileTransfer()
+    val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
+    val place = app.platform.migrationPlace ?: portable?.place
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(model) { model.look() }
+    // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.
+    var fileOpened by remember { mutableStateOf(false) }
+    var noFile by remember { mutableStateOf(false) }
+    LaunchedEffect(model) { if (portable == null) model.look() }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
         Text(stringResource(Res.string.migration_restore_title), style = MaterialTheme.typography.headlineMedium)
@@ -57,7 +64,18 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
         }
         Spacer(Modifier.height(16.dp))
 
-        when (val s = step) {
+        if (portable != null && !fileOpened) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        fileOpened = portable.openBackup()
+                        noFile = !fileOpened
+                        if (fileOpened) model.look()
+                    }
+                },
+            ) { Text(stringResource(Res.string.migration_file_open)) }
+            if (noFile) Text(stringResource(Res.string.migration_file_not_opened), style = MaterialTheme.typography.bodySmall)
+        } else when (val s = step) {
             RestoreStep.NoPlace -> Text(stringResource(Res.string.migration_backup_no_place))
             RestoreStep.Looking -> Busy(Res.string.migration_restore_looking)
             is RestoreStep.EnterSecret -> {

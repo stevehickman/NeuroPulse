@@ -38,6 +38,7 @@ import life.neurone.shared.migration.BackupStep
 import life.neurone.shared.migration.LIST_MARK
 import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
+import life.neurone.shared.migration.PortableFilePlace
 import life.neurone.shared.migration.SecretProblem
 import life.neurone.shared.resources.*
 import org.jetbrains.compose.resources.StringResource
@@ -49,8 +50,10 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
-    val place = app.platform.migrationPlace
-    val model = remember { MigrationBackupModel(place, app.keyValueStore) }
+    val transfer = app.platform.rememberFileTransfer()
+    val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
+    val place = app.platform.migrationPlace ?: portable?.place
+    val model = remember(place) { MigrationBackupModel(place, app.keyValueStore) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -58,7 +61,7 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
         Text(stringResource(Res.string.migration_backup_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(stringResource(Res.string.migration_backup_intro), style = MaterialTheme.typography.bodyMedium)
-        if (place != null) {
+        if (place != null && portable == null) {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)
         }
@@ -67,8 +70,13 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
         when (val s = step) {
             BackupStep.NoPlace -> Text(stringResource(Res.string.migration_backup_no_place))
             BackupStep.ChooseKind -> {
-                KindCard(Res.string.migration_backup_kind_migrate_title, Res.string.migration_backup_kind_migrate_body) {
-                    model.chooseKind(BackupKind.MIGRATE)
+                if (model.canMigrate) {
+                    KindCard(Res.string.migration_backup_kind_migrate_title, Res.string.migration_backup_kind_migrate_body) {
+                        model.chooseKind(BackupKind.MIGRATE)
+                    }
+                } else {
+                    // The core withholds this place from a migration; say so rather than offer what would be refused.
+                    Text(words(MessageGroup.PROBE, "backup_only"), style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(12.dp))
                 KindCard(Res.string.migration_backup_kind_uhdr_title, Res.string.migration_backup_kind_uhdr_body) {
@@ -140,6 +148,16 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
                 Text(stringResource(Res.string.migration_backup_done_body, s.bundleHash.take(12)))
                 ItemList(Res.string.migration_backup_carried_title, s.written)
                 ItemList(Res.string.migration_backup_left_out_title, s.omitted)
+                if (portable != null) {
+                    var saved by remember { mutableStateOf<Boolean?>(null) }
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { scope.launch { saved = portable.saveBackup() } }) {
+                        Text(stringResource(Res.string.migration_file_save))
+                    }
+                    saved?.let {
+                        Text(stringResource(if (it) Res.string.migration_file_saved else Res.string.migration_file_not_saved))
+                    }
+                }
             }
             is BackupStep.Failed -> {
                 Text(stringResource(Res.string.migration_backup_failed_title), style = MaterialTheme.typography.titleMedium)

@@ -7,6 +7,7 @@ import life.neurone.core.migration.ClearActions
 import life.neurone.core.migration.FileStore
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.migration.RouteDescriptor
+import life.neurone.shared.migration.FileTransfer
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
 
@@ -55,6 +56,15 @@ interface PlatformServices {
 
     /** The app's own files, for the clear to overwrite and delete (SWR-MG-06), or null when the host holds none. */
     val migrationFiles: FileStore? get() = null
+
+    /**
+     * The save and open dialogs for a backup that is a file the person carries, or null when the host has none. A host with a
+     * [migrationPlace] of its own needs no file; one without (a phone, a browser) supplies this, and the screens then make the
+     * backup as a file ([life.neurone.shared.migration.PortableFilePlace]). Composable because Android registers its dialogs
+     * with the composition.
+     */
+    @Composable
+    fun rememberFileTransfer(): FileTransfer? = null
 
     /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan

@@ -94,6 +94,9 @@ class MigrationBackupModel(
 
     private var pendingCode: NewRecoveryCode? = null
 
+    /** Whether the place can carry a migration. One that cannot promise an exclusive create is left to the health-data backup (SWR-MG-10). */
+    val canMigrate: Boolean = place?.route?.atomicClaim == true
+
     fun chooseKind(kind: BackupKind) {
         if (place == null) return
         state.value = BackupStep.Preview(preview(kind))
