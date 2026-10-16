@@ -133,6 +133,9 @@ enum MigrationFlow {
         random: BundleRandomSource
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
+        case "now":
+            // The pairing code's expiry reads the platform clock (SWR-MG-10).
+            return ["seconds": Int(Date().timeIntervalSince1970)]
         case "random":
             let n = (e["bytes"] as? NSNumber)?.intValue ?? 0
             let bytes = try random.nextBytes(n)
@@ -188,14 +191,30 @@ enum MigrationFlow {
         }
     }
 
-    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
-    /// `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
-    /// serve without it. Returns `{ok, reason}`.
-    static func serve(link: Link, store: ObjectStore, authenticated: Bool) async throws -> [String: Any] {
-        try await run("serve", params: ["authenticated": authenticated], host: NoHost(), store: store, link: link)
+    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes,
+    /// once that phone has proved it knows the `offer`'s code. Returns `{ok, reason, paired, triesLeft}`: the host keeps the
+    /// offer across connections and passes the tries left back in, and ends it when `paired` or when none are left.
+    static func serve(
+        link: Link, store: ObjectStore, offer: PairingOffer, random: BundleRandomSource = SystemBundleRandomSource()
+    ) async throws -> [String: Any] {
+        try await run("serve", params: ["pairing": offer.json], host: NoHost(), store: store, link: link, random: random)
     }
 
-    /// One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).
+    /// The pairing code's digits, life and tries: `digits`, `lifetimeSeconds`, `tries`, `randomBytes` (SWR-MG-10).
+    static func pairingPolicy() throws -> [String: Any] { try NppsCore.migration(["op": "pairingPolicy"]) }
+
+    /// A pairing code from `random` bytes (as many as the policy says).
+    static func pairingCode(_ random: [UInt8]) throws -> String {
+        let hex = random.map { String(format: "%02x", $0) }.joined()
+        return try NppsCore.migration(["op": "pairingCode", "bytes": hex])["code"] as? String ?? ""
+    }
+
+    /// The digits of a code a person typed, in any grouping, or nil if it is not eight of them.
+    static func parsePairingCode(_ text: String) throws -> String? {
+        let r = try NppsCore.migration(["op": "pairingParse", "text": text])
+        return r["ok"] as? Bool == true ? r["code"] as? String : nil
+    }
+
     private static func performFile(_ e: [String: Any], _ files: FileStore) async -> [String: Any] {
         let path = e["path"] as? String ?? ""
         do {
@@ -271,5 +290,41 @@ enum MigrationFlow {
         store: ObjectStore, bundleBytes: Int, host: MigrationHost, random: BundleRandomSource = SystemBundleRandomSource()
     ) async throws -> [String: Any] {
         try await run("probe", params: ["bundleBytes": bundleBytes], host: host, store: store, random: random)
+    }
+}
+
+/// What the phone that holds the bundle shows, and keeps until it is spent (SWR-MG-10). `expiresAt` is Unix seconds;
+/// `triesLeft` is what is left after the sessions already tried (each one costs a try, wrong or not).
+struct PairingOffer: Equatable {
+    let code: String
+    let expiresAt: Int
+    var triesLeft: Int
+
+    var json: [String: Any] { ["code": code, "expiresAt": expiresAt, "triesLeft": triesLeft] }
+
+    /// The offer after a `serve` ended: the same code and expiry with the tries the core says are left, or nil once it is spent.
+    func after(_ result: [String: Any]) -> PairingOffer? {
+        if result["paired"] as? Bool == true { return nil }
+        let left = (result["triesLeft"] as? NSNumber)?.intValue ?? triesLeft
+        if left <= 0 || result["reason"] as? String == "code_expired" { return nil }
+        var next = self
+        next.triesLeft = left
+        return next
+    }
+
+    /// A new offer: the core's code from the platform's randomness, valid for the core's lifetime and tries.
+    static func make(random: BundleRandomSource = SystemBundleRandomSource(), now: Date = Date()) throws -> PairingOffer {
+        let policy = try MigrationFlow.pairingPolicy()
+        let bytes = try random.nextBytes((policy["randomBytes"] as? NSNumber)?.intValue ?? 32)
+        return PairingOffer(
+            code: try MigrationFlow.pairingCode(Array(bytes)),
+            expiresAt: Int(now.timeIntervalSince1970) + ((policy["lifetimeSeconds"] as? NSNumber)?.intValue ?? 0),
+            triesLeft: (policy["tries"] as? NSNumber)?.intValue ?? 0)
+    }
+
+    /// The code as shown: the digits in two groups, so it is easy to read out and to type.
+    var display: String {
+        let half = code.count / 2
+        return String(code.prefix(half)) + " " + String(code.dropFirst(half))
     }
 }

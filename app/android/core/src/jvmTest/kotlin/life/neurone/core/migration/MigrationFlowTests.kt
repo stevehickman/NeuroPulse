@@ -21,9 +21,12 @@ import life.neurone.core.data.BundleSecret
 import life.neurone.core.data.BundleSecretResult
 import life.neurone.core.data.RandomSource
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.platform.epochSeconds
+import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -89,7 +92,7 @@ private class PipeEnd(private val out: Channel<ByteArray>, private val inbox: Ch
         if (broken) error("the link is broken")
         return inbox.receiveCatching().getOrNull()
     }
-    fun close() { out.close() }
+    override suspend fun close() { out.close() }
 }
 
 private fun pipe(): Pair<PipeEnd, PipeEnd> {
@@ -101,6 +104,9 @@ private fun pipe(): Pair<PipeEnd, PipeEnd> {
 private fun passphrase(text: String): BundleSecret = (BundleKeyDerivation.passphraseSecret(text) as BundleSecretResult.Ok).secret
 
 private const val SECRET = "a long enough passphrase"
+private const val CODE = "12345678"
+
+private fun offer() = PairingOffer(CODE, epochSeconds() + 120, 3)
 
 /** The keys of the four items that are plain keys, from the core: the one list every platform shares. */
 private val carriedKeys: Map<String, List<String>> by lazy {
@@ -139,7 +145,11 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
 
     suspend fun restore(
         route: RouteDescriptor, backupRoute: BackupRoute? = null, store: ObjectStore? = null, secret: String = SECRET, link: Link? = null,
-    ) = MigrationFlow.run("restore", params(route), host(backupRoute), passphrase(secret), kv, store, link = link, random = random)
+        code: String? = if (link != null) CODE else null,
+    ) = MigrationFlow.run(
+        "restore", params(route) { code?.let { put("pairing", buildJsonObject { put("code", it) }) } }, host(backupRoute), passphrase(secret), kv, store,
+        link = link, random = random,
+    )
 
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
         MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store, random = random)
@@ -420,10 +430,12 @@ class MigrationFlowTests {
 
         suspend fun restoreOver(phone: Phone): JsonObject = coroutineScope {
             val (client, server) = pipe()
-            val serving = async { MigrationFlow.serve(server, store, authenticated = true) }
+            val serving = async { MigrationFlow.serve(server, store, offer()) }
             val r = phone.restore(route, link = client)
             client.close()
-            assertEquals(JsonPrimitive("closed"), serving.await()["reason"])
+            val s = serving.await()
+            assertEquals(JsonPrimitive("closed"), s["reason"])
+            assertEquals(JsonPrimitive(true), s["paired"])
             r
         }
 
@@ -439,11 +451,47 @@ class MigrationFlowTests {
 
     // @verifies SWR-MG-10
     @Test
-    fun aServingPhoneWhoseLinkIsNotAuthenticatedServesNothing() = runTest {
+    fun aServingPhoneWithNoValidOfferServesNothing() = runTest {
         val (_, server) = pipe()
-        val r = MigrationFlow.serve(server, MemoryObjectStore(), authenticated = false)
+        val r = MigrationFlow.serve(server, MemoryObjectStore(), PairingOffer("1234", epochSeconds() + 120, 3))
         assertFalse(r.ok)
         assertEquals("not_authenticated", r.reason)
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aWrongCodeIsRefusedOnTheRestoringPhoneAndCostsTheOfferATry() = runTest {
+        val store = MemoryObjectStore()
+        val route = ObjectStoreRoute("link", atomicClaim = true)
+        Phone(seed = 1).also { it.fill() }.backup("migrate", BundleKeyMethod.PASSPHRASE, route, store = store)
+        val (client, server) = pipe()
+        val first = offer()
+        val serving = kotlinx.coroutines.coroutineScope {
+            val s = async { MigrationFlow.serve(server, store, first) }
+            val fresh = Phone(seed = 50)
+            val r = fresh.restore(route, link = client, code = "87654321")
+            client.close()
+            assertEquals("wrong_code", r.reason)
+            assertTrue(fresh.kv.getString(carriedKeys.values.first().first()) == null, "nothing was restored")
+            s.await()
+        }
+        assertEquals(JsonPrimitive(false), serving["paired"])
+        assertEquals(2, first.after(serving)!!.triesLeft)
+        assertNull(first.after(JsonObject(mapOf("paired" to JsonPrimitive(true)))), "a paired offer is done")
+        assertNull(first.copy(triesLeft = 1).after(JsonObject(mapOf("triesLeft" to JsonPrimitive(0)))), "no tries left")
+        assertEquals(Pairing.newOffer(random = StepRandom(5)).triesLeft, 3)
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun theCodeIsMadeAndReadByTheCoreAndShownInTwoGroups() {
+        val offer = Pairing.newOffer(random = StepRandom(5))
+        assertEquals(8, offer.code.length)
+        assertTrue(offer.code.all { it.isDigit() })
+        assertEquals(offer.code, Pairing.parse(Pairing.display(offer.code)))
+        assertEquals("1234 5678", Pairing.display("12345678"))
+        assertNull(Pairing.parse("1234 567"))
+        assertNull(Pairing.parse("abcd efgh"))
     }
 
     // @verifies SWR-MG-11
@@ -453,7 +501,7 @@ class MigrationFlowTests {
         client.broken = true
         val r = Phone(seed = 50).restore(ObjectStoreRoute("link", atomicClaim = true), link = client)
         assertFalse(r.ok)
-        assertEquals("route_unavailable", r.reason)
+        assertEquals("link_failed", r.reason)
     }
 
     // @verifies SWR-MG-03
@@ -520,5 +568,108 @@ class MigrationFlowTests {
         listOf("np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts")
             .forEach { assertNull(fresh.kv.getString(it), "$it must not move") }
         assertEquals("value-of-np.session.history", fresh.kv.getString("np.session.history"))
+    }
+
+    // ── The sessions around a direct link (SWR-MG-10) ───────────────────────────────────────────────────────────
+
+    /** A transport whose phones find each other at once: `connect` hands the waiting `accept` the other end of a pipe. */
+    private class Loopback : LinkTransport {
+        private val waiting = Channel<PipeEnd>(Channel.UNLIMITED)
+        override suspend fun accept(): Link? = waiting.receive()
+        override suspend fun connect(): Link? {
+            val (client, server) = pipe()
+            waiting.send(server)
+            return client
+        }
+    }
+
+    private suspend fun filledLinkStore(): MemoryObjectStore {
+        val store = MemoryObjectStore()
+        val old = Phone(seed = 1).also { it.fill() }
+        assertTrue(old.backup("migrate", BundleKeyMethod.PASSPHRASE, LINK_ROUTE, store = store).ok)
+        return store
+    }
+
+    private suspend fun LinkSendSession.waitingCode(): LinkSendState.Waiting =
+        step.first { it is LinkSendState.Waiting && it.offer.code.isNotEmpty() } as LinkSendState.Waiting
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-07
+    @Test
+    fun aMigrationRunsBetweenTwoSessionsThatPairByTheCodeShownAndTyped() = runTest {
+        val transport = Loopback()
+        val store = filledLinkStore()
+        val sending = LinkSendSession(store, transport, StepRandom(11))
+        val sent = async { sending.run() }
+        val shown = sending.waitingCode().display
+        val fresh = InMemoryKeyValueStore()
+        val done = LinkReceiveSession(transport, fresh, random = StepRandom(60)).run(shown) { passphrase(SECRET) }
+        assertTrue(done.ok, "$done")
+        assertTrue(done.flag("confirmed"))
+        assertIs<LinkSendState.Sent>(sent.await(), "the sending phone may now clear")
+        val key = carriedKeys.values.first().first()
+        assertEquals(Phone(seed = 1).also { it.fill() }.kv.getString(key), fresh.getString(key))
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aWrongCodeCostsATryAndALastWrongOneSpendsTheCode() = runTest {
+        val transport = Loopback()
+        val sending = LinkSendSession(filledLinkStore(), transport, StepRandom(11))
+        val sent = async { sending.run() }
+        val real = sending.waitingCode().offer.code
+        val wrong = if (real == "00000000") "11111111" else "00000000"
+        for (left in listOf(2, 1)) {
+            val fresh = InMemoryKeyValueStore()
+            val r = LinkReceiveSession(transport, fresh, random = StepRandom(60)).run(wrong) { passphrase(SECRET) }
+            assertEquals("wrong_code", r.reason)
+            assertTrue(fresh.getString(carriedKeys.values.first().first()) == null, "nothing was restored")
+            val w = sending.step.first { it is LinkSendState.Waiting && it.offer.triesLeft == left } as LinkSendState.Waiting
+            assertEquals(real, w.offer.code, "a wrong guess does not change the code")
+        }
+        assertEquals("wrong_code", LinkReceiveSession(transport, InMemoryKeyValueStore(), random = StepRandom(60)).run(wrong) { null }.reason)
+        val end = sent.await()
+        assertIs<LinkSendState.Spent>(end)
+        assertEquals("code_spent", end.reason)
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aWrongSecretOrADeclinedOneLeavesNoClaimAndMakesAFreshCode() = runTest {
+        val transport = Loopback()
+        val store = filledLinkStore()
+        val sending = LinkSendSession(store, transport, StepRandom(11))
+        val sent = async { sending.run() }
+        val first = sending.waitingCode().offer.code
+        val bad = LinkReceiveSession(transport, InMemoryKeyValueStore(), random = StepRandom(60)).run(first) { passphrase("not the passphrase at all") }
+        assertEquals("authentication_failed", bad.reason)
+        val second = sending.step.first { it is LinkSendState.Waiting && it.offer.code != first && it.offer.triesLeft == 3 } as LinkSendState.Waiting
+        val declined = LinkReceiveSession(transport, InMemoryKeyValueStore(), random = StepRandom(61)).run(second.offer.code) { null }
+        assertEquals("cancelled", declined.reason)
+        val third = sending.step.first { it is LinkSendState.Waiting && it.offer.code != second.offer.code } as LinkSendState.Waiting
+        val ok = LinkReceiveSession(transport, InMemoryKeyValueStore(), random = StepRandom(62)).run(third.offer.code) { passphrase(SECRET) }
+        assertTrue(ok.ok, "$ok")
+        assertIs<LinkSendState.Sent>(sent.await())
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aCodeThatIsNotEightDigitsOrFindsNoPhoneEndsAtOnce() = runTest {
+        val none = object : LinkTransport {
+            override suspend fun accept(): Link? = null
+            override suspend fun connect(): Link? = null
+        }
+        val session = LinkReceiveSession(none, InMemoryKeyValueStore())
+        assertEquals("wrong_code", session.run("1234 567") { null }.reason)
+        assertEquals("link_failed", session.run("1234 5678") { null }.reason)
+    }
+
+    // @verifies SWR-MG-10
+    @Test
+    fun aCodeNobodyUsesExpires() = runTest {
+        val sending = LinkSendSession(MemoryObjectStore(), Loopback(), StepRandom(11), clock = { 1_000_000 + testScheduler.currentTime / 1000 })
+        val end = sending.run()
+        assertIs<LinkSendState.Spent>(end)
+        assertEquals("code_expired", end.reason)
     }
 }

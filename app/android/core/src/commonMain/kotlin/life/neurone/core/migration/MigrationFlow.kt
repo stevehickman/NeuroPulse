@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.platform.epochSeconds
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecret
 import life.neurone.core.data.RandomSource
@@ -50,7 +51,13 @@ interface Link {
 
     /** The next bytes, or null once the other end has closed; throws if the link broke. */
     suspend fun receive(): ByteArray?
+
+    /** Hang up. A link with nothing to release needs no code. */
+    suspend fun close() {}
 }
+
+/** The person declined to give the secret a restore asked for. */
+class SecretDeclined : Exception("the secret was not given")
 
 object MigrationFlow {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
@@ -72,6 +79,8 @@ object MigrationFlow {
         files: FileStore? = null,
         link: Link? = null,
         random: RandomSource = SystemRandomSource,
+        clock: () -> Long = ::epochSeconds,
+        secretProvider: (suspend (JsonObject) -> BundleSecret?)? = null,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
@@ -85,7 +94,7 @@ object MigrationFlow {
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random)
+            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider)
             answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
         }
         error("The $flow flow did not end in $MAX_TURNS turns")
@@ -99,6 +108,16 @@ object MigrationFlow {
 
     /** What a kind carries, leaves out, never moves and has not sorted yet, as item codes (SWR-MG-01, SWR-MG-03). */
     fun inventory(kind: String): JsonObject = ask("inventory") { put("kind", kind) }
+
+    /** The pairing code's digits, life and tries: `{digits, lifetimeSeconds, tries, randomBytes}` (SWR-MG-10). */
+    fun pairingPolicy(): JsonObject = ask("pairingPolicy")
+
+    /** A pairing code from [random] bytes (as many as the policy says). */
+    fun pairingCode(random: ByteArray): String = ask("pairingCode") { put("bytes", random.toHex()) }["code"]!!.jsonPrimitive.content
+
+    /** The digits of a code a person typed, in any grouping, or null if it is not eight of them. */
+    fun parsePairingCode(text: String): String? =
+        ask("pairingParse") { put("text", text) }.takeIf { it["ok"]!!.jsonPrimitive.content == "true" }?.get("code")?.jsonPrimitive?.content
 
     /** The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07). */
     fun objectNames(): JsonObject = ask("objectNames")
@@ -124,7 +143,11 @@ object MigrationFlow {
         files: FileStore?,
         link: Link?,
         random: RandomSource,
+        clock: () -> Long,
+        secretProvider: (suspend (JsonObject) -> BundleSecret?)?,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
+        // The pairing code's expiry reads the platform clock (SWR-MG-10).
+        "now" -> buildJsonObject { put("seconds", clock()) }
         "random" -> {
             val n = e["bytes"]!!.jsonPrimitive.content.toInt()
             val bytes = random.nextBytes(n)
@@ -132,7 +155,11 @@ object MigrationFlow {
             buildJsonObject { put("bytes", bytes.toHex()) }
         }
         "deriveKey" -> {
-            val key = BundleKeyDerivation.deriveKey(secret ?: error("no secret to derive a key from"), e["kdf"]!!.jsonObject)
+            val kdf = e["kdf"]!!.jsonObject
+            // A restore over a link learns how the key was made only from the bundle on the other phone, so it asks for the
+            // secret now (SWR-MG-05); a provider that returns null is the person declining.
+            val given = secret ?: secretProvider?.invoke(kdf) ?: throw SecretDeclined()
+            val key = try { BundleKeyDerivation.deriveKey(given, kdf) } finally { if (secret == null) given.destroy() }
             try { buildJsonObject { put("key", key.hex()) } } finally { key.destroy() }
         }
         "readKeys" -> if (keys == null) host.perform(e) else buildJsonObject {
@@ -164,12 +191,17 @@ object MigrationFlow {
     }
 
     /**
-     * SWR-MG-10: serve this phone's migration objects from [store] to the phone on the other end of [link], until it closes.
-     * [authenticated] is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
-     * serve without it. Returns `{ok, reason}`.
+     * SWR-MG-10: serve this phone's migration objects from [store] to the phone on the other end of [link], until it closes,
+     * once that phone has proved it knows the [offer]'s code. Returns `{ok, reason, paired, triesLeft}`: the host keeps the
+     * offer across connections and passes `triesLeft` back in, and ends it when `paired` or when no tries are left.
      */
-    suspend fun serve(link: Link, store: ObjectStore, authenticated: Boolean): JsonObject =
-        run("serve", buildJsonObject { put("authenticated", authenticated) }, NoHost, store = store, link = link)
+    suspend fun serve(
+        link: Link,
+        store: ObjectStore,
+        offer: PairingOffer,
+        random: RandomSource = SystemRandomSource,
+        clock: () -> Long = ::epochSeconds,
+    ): JsonObject = run("serve", buildJsonObject { put("pairing", offer.toJson()) }, NoHost, store = store, link = link, random = random, clock = clock)
 
     private object NoHost : MigrationHost {
         override suspend fun perform(effect: JsonObject): JsonObject = error("a serving phone is asked for no host effect")

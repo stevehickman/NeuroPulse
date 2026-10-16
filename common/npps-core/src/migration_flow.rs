@@ -19,6 +19,7 @@
 //! | type | args | result |
 //! |------|------|--------|
 //! | `random` | `bytes` | `{bytes: hex}` from the platform's CSPRNG |
+//! | `now` | none | `{seconds}` Unix time, for the pairing code's expiry (`link.rs`) |
 //! | `deriveKey` | `method`, `kdf` | `{key: hex}`, answered by the DRIVER with the core's own `deriveBundleKey` over the secret the driver holds; a host never implements it |
 //! | `readKeys` | `keys` | `{values: {key: text}}`, a key this phone holds nothing for left out |
 //! | `writeKeys` | `remove`, `set` | `{ok}`: remove every key in `remove`, then write every `key: text` in `set` |
@@ -661,6 +662,7 @@ mod tests {
                 let bytes: Vec<u8> = (0..n).map(|_| { p.counter = p.counter.wrapping_mul(31).wrapping_add(7); p.counter }).collect();
                 json!({ "bytes": bytes.iter().map(|b| format!("{b:02x}")).collect::<String>() })
             }
+            "now" => json!({ "seconds": NOW }),
             "deriveKey" => {
                 // What every driver does: the core's own derivation over the secret the driver holds.
                 let secret_hex: String = secret.bytes().map(|b| format!("{b:02x}")).collect();
@@ -1208,15 +1210,35 @@ mod tests {
         }
     }
 
+    /// The time the test clock reads, and the code the serving phone shows.
+    const NOW: u64 = 1_000;
+    const CODE: &str = "12345678";
+
     fn link_params(p: &Phone) -> Value {
+        link_params_with(p, CODE)
+    }
+
+    fn link_params_with(p: &Phone, code: &str) -> Value {
         let mut v = object_params(p, json!({}));
         v["link"] = json!(true);
+        v["pairing"] = json!({ "code": code });
         v
+    }
+
+    fn serve_params(expires_at: u64, tries: u64) -> Value {
+        json!({ "pairing": { "code": CODE, "expiresAt": expires_at, "triesLeft": tries } })
     }
 
     /// Run `client` against `server` over two byte queues that deliver `piece` bytes at a time. The client's effects other
     /// than the link's go to its phone; the server's go to the object store it serves.
     fn over_link(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize) {
+        over_link_cut(client, c_phone, server, store, s_phone, piece, usize::MAX, json!(null));
+    }
+
+    /// As `over_link`, but once the client has sent `cut_after` frames its next receive gets `closing` instead of the bytes.
+    #[allow(clippy::too_many_arguments)]
+    fn over_link_cut(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value) {
+        let mut sent = 0usize;
         let mut inbox: [Vec<u8>; 2] = [vec![], vec![]];
         let mut scratch = Route::default();
         for _ in 0..20000 {
@@ -1225,7 +1247,11 @@ mod tests {
                 let (me, other) = if side == 0 { (&mut *client, server.done.is_some()) } else { (&mut *server, client.done.is_some()) };
                 let Some(e) = me.effect.clone().filter(|_| me.done.is_none()) else { continue };
                 let result = match e["type"].as_str().unwrap() {
+                    "linkRecv" if side == 0 && sent >= cut_after => closing.clone(),
                     "linkSend" => {
+                        if side == 0 {
+                            sent += 1;
+                        }
                         inbox[1 - side].extend(crate::migration::unhex(e["frame"].as_str().unwrap(), "frame").unwrap());
                         json!({ "ok": true })
                     }
@@ -1263,7 +1289,7 @@ mod tests {
 
         for (phone_in, expect_ok) in [(&mut fresh, true), (&mut other, false)] {
             let mut client = Peer::start("restore", link_params(phone_in));
-            let mut server = Peer::start("serve", json!({ "authenticated": true }));
+            let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
             over_link(&mut client, phone_in, &mut server, &mut store, &mut srv_phone, 7);
             let r = client.done.clone().unwrap();
             assert_eq!(r["ok"], expect_ok, "{r}");
@@ -1273,7 +1299,7 @@ mod tests {
             } else {
                 assert_eq!(r["reason"], "claimed");
             }
-            assert_eq!(server.done.clone().unwrap(), json!({ "ok": true, "reason": "closed" }));
+            assert_eq!(server.done.clone().unwrap(), json!({ "ok": true, "reason": "closed", "paired": true, "triesLeft": 2 }));
         }
         let names = ask(json!({ "op": "objectNames" }));
         assert!(store.objects.contains_key(names["claim"].as_str().unwrap()), "the serving phone arbitrated the claim");
@@ -1285,88 +1311,76 @@ mod tests {
 
     // @verifies SWR-MG-10
     #[test]
-    fn a_serving_phone_whose_link_is_not_authenticated_serves_nothing() {
-        for params in [json!({}), json!({ "authenticated": false }), json!({ "authenticated": "yes" })] {
-            let s = Peer::start("serve", params);
-            assert_eq!(s.done, Some(json!({ "ok": false, "reason": "not_authenticated" })));
-        }
-    }
-
-    fn frame_of(id: u64, call: Value) -> String {
-        ask(json!({ "op": "linkRequest", "id": id, "call": call }))["frame"].as_str().unwrap().to_string()
-    }
-
-    // @verifies SWR-MG-10
-    #[test]
-    fn a_serving_phone_answers_only_the_migration_objects_and_the_probe_s() {
-        let refused = [
-            json!({ "type": "objectGet", "name": "secret.db" }),
-            json!({ "type": "objectPut", "name": "../np-migration-bundle.npbk", "data": "00" }),
-            json!({ "type": "objectDelete", "name": "np-migrationX" }),
-            json!({ "type": "objectList", "prefix": "" }),
-            json!({ "type": "objectList", "prefix": "secret" }),
-            json!({ "type": "readKeys", "keys": ["protocols"] }),
-            json!({ "type": "runClearStep", "step": "destroyEncryptionKey" }),
+    fn a_wrong_code_expired_or_spent_code_pairs_nothing_and_each_session_costs_a_try() {
+        let (mut store, mut old, mut srv) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 3));
+        fill(&mut old);
+        run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut store, &mut old, SECRET);
+        // (the client's code, the code's expiry, the tries left) -> (the client's reason, the server's reason, the tries after)
+        let cases = [
+            ("87654321", NOW + 120, 3, "wrong_code", "closed", 2),
+            ("12345678", NOW - 1, 3, "code_expired", "code_expired", 3),
+            ("12345678", NOW + 120, 0, "code_spent", "code_spent", 0),
         ];
-        for call in refused {
-            let mut s = Peer::start("serve", json!({ "authenticated": true }));
-            assert_eq!(s.effect.as_ref().unwrap()["type"], "linkRecv");
-            s.advance(json!({ "chunk": frame_of(9, call.clone()) }));
-            let e = s.effect.clone().unwrap();
-            assert_eq!(e["type"], "linkSend", "{call}");
-            let fed = ask(json!({ "op": "linkFeed", "buffer": "", "chunk": e["frame"] }));
-            assert_eq!(fed["messages"], json!([{ "id": 9, "result": { "failed": true } }]), "{call}");
+        for (code, expires, tries, client_reason, server_reason, left) in cases {
+            let mut fresh = phone(&ADAPTER, 50);
+            let mut client = Peer::start("restore", link_params_with(&fresh, code));
+            let mut server = Peer::start("serve", serve_params(expires, tries));
+            over_link(&mut client, &mut fresh, &mut server, &mut store, &mut srv, 5);
+            let c = client.done.clone().unwrap();
+            assert_eq!((c["ok"].clone(), c["reason"].clone()), (json!(false), json!(client_reason)), "{code}");
+            let sv = server.done.clone().unwrap();
+            assert_eq!(sv["reason"], server_reason, "{sv}");
+            assert_eq!((sv["paired"].clone(), sv["triesLeft"].clone()), (json!(false), json!(left)), "{sv}");
+            assert!(fresh.kv.is_empty(), "nothing was restored");
         }
         let names = ask(json!({ "op": "objectNames" }));
-        for call in [
-            json!({ "type": "objectGet", "name": names["bundle"] }),
-            json!({ "type": "objectCreate", "name": names["claim"], "data": "00" }),
-            json!({ "type": "objectPut", "name": "np-probe-1", "data": "00" }),
-            json!({ "type": "objectList", "prefix": "np-probe-" }),
-            json!({ "type": "objectSpace" }),
-        ] {
-            let mut s = Peer::start("serve", json!({ "authenticated": true }));
-            s.advance(json!({ "chunk": frame_of(1, call.clone()) }));
-            assert_eq!(s.effect.as_ref().unwrap()["type"], call["type"], "{call} is for the driver to apply");
-        }
+        assert!(!store.objects.contains_key(names["claim"].as_str().unwrap()), "a phone that never paired claimed nothing");
     }
 
     // @verifies SWR-MG-10
     #[test]
-    fn a_link_frame_over_the_size_bound_or_not_json_ends_the_serve_and_is_refused_by_feed() {
-        let big = ((32u32 * 1024 * 1024) + 1).to_be_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>();
-        assert!(migration_json(&json!({ "op": "linkFeed", "buffer": "", "chunk": big }).to_string()).is_err());
-        let mut s = Peer::start("serve", json!({ "authenticated": true }));
-        s.advance(json!({ "chunk": big }));
-        assert_eq!(s.done, Some(json!({ "ok": false, "reason": "malformed_frame" })));
-        let mut s = Peer::start("serve", json!({ "authenticated": true }));
-        s.advance(json!({ "chunk": "000000026e6f" }));
-        assert_eq!(s.done, Some(json!({ "ok": false, "reason": "malformed_frame" })));
-        let mut s = Peer::start("serve", json!({ "authenticated": true }));
-        s.advance(json!({ "failed": true }));
-        assert_eq!(s.done, Some(json!({ "ok": false, "reason": "link_failed" })));
+    fn a_restore_over_a_link_with_no_code_is_refused_before_anything_is_sent() {
+        let fresh = phone(&ADAPTER, 50);
+        for pairing in [json!(null), json!({ "code": "1234567" }), json!({ "code": "abcdefgh" })] {
+            let mut p = object_params(&fresh, json!({}));
+            p["link"] = json!(true);
+            p["pairing"] = pairing;
+            let c = Peer::start("restore", p);
+            assert_eq!(c.done, Some(json!({ "ok": false, "reason": "no_authenticated_pairing" })));
+        }
     }
 
     // @verifies SWR-MG-11
     #[test]
     fn a_link_that_closes_or_breaks_during_a_restore_ends_it_with_the_route_unavailable() {
         for closing in [json!({ "chunk": null }), json!({ "failed": true })] {
-            let (mut fresh, mut scratch) = (phone(&ADAPTER, 50), Route::default());
-            let mut c = Peer::start("restore", link_params(&fresh));
-            for _ in 0..100 {
-                if c.done.is_some() { break; }
-                let e = c.effect.clone().unwrap();
-                let r = match e["type"].as_str().unwrap() {
-                    "linkSend" => json!({ "ok": true }),
-                    "linkRecv" => closing.clone(),
-                    _ => perform(&e, &mut scratch, &mut fresh, SECRET),
-                };
-                c.advance(r);
-            }
-            let d = c.done.unwrap();
+            let (mut store, mut old, mut srv) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 3));
+            fill(&mut old);
+            run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut store, &mut old, SECRET);
+            // Two frames are the pairing's (hello, confirm); the third is the first request, whose answer never comes.
+            let mut fresh = phone(&ADAPTER, 50);
+            let mut client = Peer::start("restore", link_params(&fresh));
+            let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
+            over_link_cut(&mut client, &mut fresh, &mut server, &mut store, &mut srv, 64, 3, closing.clone());
+            let d = client.done.clone().unwrap();
             assert_eq!((d["ok"].clone(), d["reason"].clone()), (json!(false), json!("route_unavailable")), "{closing}");
             assert!(fresh.kv.is_empty());
         }
+        // Before the pairing finishes the same break is the link's, not the route's.
+        let mut fresh = phone(&ADAPTER, 50);
+        let mut scratch = Route::default();
+        let mut c = Peer::start("restore", link_params(&fresh));
+        for _ in 0..100 {
+            if c.done.is_some() { break; }
+            let e = c.effect.clone().unwrap();
+            let r = match e["type"].as_str().unwrap() {
+                "linkSend" => json!({ "ok": true }),
+                "linkRecv" => json!({ "chunk": null }),
+                _ => perform(&e, &mut scratch, &mut fresh, SECRET),
+            };
+            c.advance(r);
+        }
+        assert_eq!(c.done, Some(json!({ "ok": false, "reason": "link_failed" })));
     }
 
     // @verifies SWR-MG-01

@@ -251,11 +251,13 @@ public class MigrationFlowTests
         async Task<JsonObject> RestoreOver(KeyStore keys)
         {
             var (client, server) = Pipe();
-            var serving = MigrationFlow.ServeAsync(server, store, true);
+            var serving = MigrationFlow.ServeAsync(server, store, Offer());
             using var secret = Secret("a long enough passphrase");
-            var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route()), secret, keys, link: client);
+            var r = await MigrationFlow.RunAsync("restore", Params(("pairing", new JsonObject { ["code"] = "12345678" })), new Host(new Route()), secret, keys, link: client);
             client.Close();
-            Assert.Equal("closed", (string)(await serving)["reason"]!);
+            var served = await serving;
+            Assert.Equal("closed", (string)served["reason"]!);
+            Assert.True((bool)served["paired"]!);
             return r;
         }
         var fresh = new KeyStore();
@@ -269,14 +271,50 @@ public class MigrationFlowTests
         Assert.Equal("claimed", (string)(await RestoreOver(new KeyStore()))["reason"]!);
     }
 
+    private static PairingOffer Offer() => new("12345678", DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 120, 3);
+
     // @verifies SWR-MG-10
     [Fact]
-    public async Task AServingPhoneWhoseLinkIsNotAuthenticatedServesNothing()
+    public async Task AServingPhoneWithNoValidOfferServesNothing()
     {
         var (_, server) = Pipe();
-        var r = await MigrationFlow.ServeAsync(server, new MemoryStore(), false);
+        var r = await MigrationFlow.ServeAsync(server, new MemoryStore(), new PairingOffer("1234", DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 120, 3));
         Assert.False((bool)r["ok"]!);
         Assert.Equal("not_authenticated", (string)r["reason"]!);
+    }
+
+    // @verifies SWR-MG-10
+    [Fact]
+    public async Task AWrongCodeIsRefusedOnTheRestoringPhoneAndCostsTheOfferATry()
+    {
+        var store = new MemoryStore();
+        var oldStore = Filled();
+        using var oldSecret = Secret("a long enough passphrase");
+        await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route()), oldSecret, oldStore, store);
+        var (client, server) = Pipe();
+        var first = Offer();
+        var serving = MigrationFlow.ServeAsync(server, store, first);
+        var fresh = new KeyStore();
+        using var secret = Secret("a long enough passphrase");
+        var r = await MigrationFlow.RunAsync("restore", Params(("pairing", new JsonObject { ["code"] = "87654321" })), new Host(new Route()), secret, fresh, link: client);
+        client.Close();
+        Assert.Equal("wrong_code", (string)r["reason"]!);
+        Assert.Empty(fresh.Values);
+        var served = await serving;
+        Assert.False((bool)served["paired"]!);
+        Assert.Equal(2, first.After(served)!.TriesLeft);
+        Assert.Null(first.After(new JsonObject { ["paired"] = true }));
+    }
+
+    // @verifies SWR-MG-10
+    [Fact]
+    public void TheCodeIsMadeAndReadByTheCoreAndShownInTwoGroups()
+    {
+        var made = PairingOffer.Make();
+        Assert.Equal(8, made.Code.Length);
+        Assert.Equal(made.Code, MigrationFlow.ParsePairingCode(made.Display));
+        Assert.Equal("1234 5678", new PairingOffer("12345678", 0, 3).Display);
+        Assert.Null(MigrationFlow.ParsePairingCode("1234 567"));
     }
 
     // @verifies SWR-MG-11
@@ -286,8 +324,8 @@ public class MigrationFlowTests
         var (client, _) = Pipe();
         client.Broken = true;
         using var secret = Secret("a long enough passphrase");
-        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route()), secret, new KeyStore(), link: client);
-        Assert.Equal("route_unavailable", (string)r["reason"]!);
+        var r = await MigrationFlow.RunAsync("restore", Params(("pairing", new JsonObject { ["code"] = "12345678" })), new Host(new Route()), secret, new KeyStore(), link: client);
+        Assert.Equal("link_failed", (string)r["reason"]!);
     }
 
     // @verifies SWR-MG-03
