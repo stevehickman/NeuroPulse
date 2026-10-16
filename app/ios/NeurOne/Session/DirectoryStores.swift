@@ -110,8 +110,9 @@ struct DirectoryFileStore: FileStore {
     init(root: URL) { self.root = root.standardizedFileURL }
 
     private func resolve(_ path: String) throws -> URL {
+        // An absolute path would otherwise be read as relative to the folder; the other platforms refuse it, and so does this.
         let file = root.appendingPathComponent(path).standardizedFileURL
-        guard file.path.hasPrefix(root.path + "/") else { throw DirectoryStoreError.outsideFolder(path) }
+        guard !path.hasPrefix("/"), file.path.hasPrefix(root.path + "/") else { throw DirectoryStoreError.outsideFolder(path) }
         return file
     }
 
@@ -119,11 +120,13 @@ struct DirectoryFileStore: FileStore {
         guard let walker = FileManager.default.enumerator(
             at: root, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]
         ) else { return [] }
+        // The enumerator may report /private/var/... for a folder given as /var/..., so both ends are resolved before comparing.
+        let base = root.resolvingSymlinksInPath().path
         var found: [StoredFile] = []
         for case let url as URL in walker {
             let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard values.isRegularFile == true else { continue }
-            let relative = String(url.standardizedFileURL.path.dropFirst(root.path.count + 1))
+            let relative = String(url.resolvingSymlinksInPath().path.dropFirst(base.count + 1))
             found.append(StoredFile(path: relative, size: Int64(values.fileSize ?? 0)))
         }
         return found.sorted { $0.path < $1.path }
