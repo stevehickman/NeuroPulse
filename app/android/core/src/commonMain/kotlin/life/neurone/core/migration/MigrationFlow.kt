@@ -15,10 +15,10 @@ import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecret
 import life.neurone.core.data.RandomSource
+import life.neurone.core.data.SystemRandomSource
 import life.neurone.core.data.hexToBytes
 import life.neurone.core.data.toHex
 import life.neurone.core.npps.NppsCore
-import life.neurone.core.platform.secureRandomBytes
 
 // The backup and device-replacement flows as Kotlin drives them (SWR-MG-02…12, issue #569 packages 6e to 6h).
 //
@@ -52,9 +52,6 @@ interface Link {
     suspend fun receive(): ByteArray?
 }
 
-/** The platform's CSPRNG: the default for every flow's `random` effect. A test passes its own. */
-private val SystemRandom = RandomSource { secureRandomBytes(it) }
-
 object MigrationFlow {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
     private const val MAX_TURNS = 100_000
@@ -74,7 +71,7 @@ object MigrationFlow {
         store: ObjectStore? = null,
         files: FileStore? = null,
         link: Link? = null,
-        random: RandomSource = SystemRandom,
+        random: RandomSource = SystemRandomSource,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
@@ -100,6 +97,9 @@ object MigrationFlow {
      */
     fun messageKeys(): JsonObject = ask("messageKeys")
 
+    /** What a kind carries, leaves out, never moves and has not sorted yet, as item codes (SWR-MG-01, SWR-MG-03). */
+    fun inventory(kind: String): JsonObject = ask("inventory") { put("kind", kind) }
+
     /** The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07). */
     fun objectNames(): JsonObject = ask("objectNames")
 
@@ -107,7 +107,7 @@ object MigrationFlow {
      * SWR-MG-12: check an account on throwaway objects that hold no user data. The
      * result is `{result, failedOperation?, ops}`.
      */
-    suspend fun probe(store: ObjectStore, bundleBytes: Long, host: MigrationHost, random: RandomSource = SystemRandom): JsonObject =
+    suspend fun probe(store: ObjectStore, bundleBytes: Long, host: MigrationHost, random: RandomSource = SystemRandomSource): JsonObject =
         run("probe", buildJsonObject { put("bundleBytes", bundleBytes) }, host, store = store, random = random)
 
     private fun ask(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {}): JsonObject =
