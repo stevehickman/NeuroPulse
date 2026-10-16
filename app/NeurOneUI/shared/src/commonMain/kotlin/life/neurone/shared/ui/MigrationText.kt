@@ -32,6 +32,9 @@ internal fun migrationText(key: String): StringResource? = when (key) {
         "MIGRATION_REASON_LINK_FAILED" -> Res.string.migration_reason_link_failed
         "MIGRATION_REASON_MALFORMED" -> Res.string.migration_reason_malformed
         "MIGRATION_REASON_MALFORMED_FRAME" -> Res.string.migration_reason_malformed_frame
+        "MIGRATION_REASON_WRONG_CODE" -> Res.string.migration_reason_wrong_code
+        "MIGRATION_REASON_CODE_EXPIRED" -> Res.string.migration_reason_code_expired
+        "MIGRATION_REASON_CODE_SPENT" -> Res.string.migration_reason_code_spent
         "MIGRATION_REASON_NEWER_VERSION" -> Res.string.migration_reason_newer_version
         "MIGRATION_REASON_NOT_AUTHENTICATED" -> Res.string.migration_reason_not_authenticated
         "MIGRATION_REASON_NO_ATOMIC_CLAIM" -> Res.string.migration_reason_no_atomic_claim
