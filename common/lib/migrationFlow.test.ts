@@ -336,6 +336,16 @@ describe('MigrationFlow.run', () => {
     expect(r).toEqual({ ok: false, reason: 'route_unavailable' });
   }, 60_000);
 
+  // @verifies SWR-MG-03
+  it('takes the locale key of every reason and item from the core', async () => {
+    await initNppsCore();
+    const keys = MigrationFlow.messageKeys();
+    expect(keys.reasons.claimed).toBe('MIGRATION_REASON_CLAIMED');
+    expect(keys.secret.bad_checksum).toBe('MIGRATION_SECRET_BAD_CHECKSUM');
+    expect(keys.probe.backup_only).toBe('MIGRATION_PROBE_BACKUP_ONLY');
+    expect(keys.items.sessionHistory).toBe('MIGRATION_ITEM_SESSION_HISTORY');
+  });
+
   // @verifies SWR-MG-11
   it('ends the flow with the route unavailable when an object call rejects', async () => {
     await initNppsCore();

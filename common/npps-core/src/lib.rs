@@ -22,6 +22,7 @@ pub mod library;
 pub mod link;
 pub mod migration;
 pub mod migration_flow;
+pub mod migration_text;
 pub mod object_route;
 pub mod parser;
 pub mod resolve;

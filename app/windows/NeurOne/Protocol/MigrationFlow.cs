@@ -241,6 +241,10 @@ static class MigrationFlow
         }
     }
 
+    /// The locale key that words each reason, rejected secret, storage-check result and item (SWR-MG-03), from the core, so no
+    /// platform spells one its own way. Groups: reasons, secret, probe, items; each maps a code to a key.
+    public static JsonObject MessageKeys() => NppsCore.Migration(new JsonObject { ["op"] = "messageKeys" }).AsObject();
+
     /// The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07).
     public static JsonObject ObjectNames() => NppsCore.Migration(new JsonObject { ["op"] = "objectNames" }).AsObject();
 

@@ -94,6 +94,12 @@ object MigrationFlow {
         error("The $flow flow did not end in $MAX_TURNS turns")
     }
 
+    /**
+     * The locale key that words each reason, rejected secret, storage-check result and item (SWR-MG-03), from the core, so no
+     * platform spells one its own way. Groups: `reasons`, `secret`, `probe`, `items`; each maps a code to a key.
+     */
+    fun messageKeys(): JsonObject = ask("messageKeys")
+
     /** The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07). */
     fun objectNames(): JsonObject = ask("objectNames")
 

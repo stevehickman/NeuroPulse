@@ -458,6 +458,16 @@ class MigrationFlowTests {
         assertEquals("route_unavailable", r.reason)
     }
 
+    // @verifies SWR-MG-03
+    @Test
+    fun theCoreNamesTheLocaleKeyOfEveryReasonAndItem() {
+        val keys = MigrationFlow.messageKeys()
+        assertEquals("MIGRATION_REASON_CLAIMED", keys["reasons"]!!.jsonObject.text("claimed"))
+        assertEquals("MIGRATION_SECRET_BAD_CHECKSUM", keys["secret"]!!.jsonObject.text("bad_checksum"))
+        assertEquals("MIGRATION_PROBE_BACKUP_ONLY", keys["probe"]!!.jsonObject.text("backup_only"))
+        assertEquals("MIGRATION_ITEM_SESSION_HISTORY", keys["items"]!!.jsonObject.text("sessionHistory"))
+    }
+
     // @verifies SWR-MG-11
     @Test
     fun anObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable() = runTest {

@@ -234,6 +234,14 @@ function objectNames(): { bundle: string; claim: string; confirmation: string; p
   return nppsMigration({ op: 'objectNames' });
 }
 
+/**
+ * The locale key that words each reason, rejected secret, storage-check result and item (SWR-MG-03), from the core, so no
+ * platform spells one its own way. Groups: `reasons`, `secret`, `probe`, `items`; each maps a code to a key.
+ */
+function messageKeys(): Record<'reasons' | 'secret' | 'probe' | 'items', Record<string, string>> {
+  return nppsMigration({ op: 'messageKeys' });
+}
+
 /** SWR-MG-12: check an account on throwaway objects that hold no user data. */
 async function probe(store: ObjectStore, bundleBytes: number, host: MigrationHost) {
   return run('probe', { bundleBytes }, host, { store });
@@ -258,4 +266,4 @@ async function serve(link: Link, store: ObjectStore, authenticated: boolean) {
  * The flows, under the one name every platform uses for this role: `MigrationFlow.run`, `MigrationFlow.probe`,
  * `MigrationFlow.serve` and `MigrationFlow.objectNames` (Swift `MigrationFlow`, C# `MigrationFlow`, Kotlin `MigrationFlow`).
  */
-export const MigrationFlow = { run, probe, serve, objectNames };
+export const MigrationFlow = { run, probe, serve, objectNames, messageKeys };
