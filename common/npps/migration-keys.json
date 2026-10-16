@@ -1,5 +1,5 @@
 {
-  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are moved by a consent adapter, not by key. 'perInstall' keys belong to a device, an install or a warranty registration and never move. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
+  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are never moved by key: grants are never carried (ruling, issue #569) and only the withdrawal records inside them travel, through the consent adapter (SWR-MG-04). 'perInstall' keys belong to a device, an install or a warranty registration and never move. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
   "carried": {
     "protocols": ["np.user-protocols.npps", "np.used-families", "np.archived-families", "np.clone-sources"],
     "sessionHistory": ["np.session.history"],
@@ -12,6 +12,7 @@
     "np.consent.clinician-expansions",
     "np.consent.study-invitations",
     "np.consent.study-participations",
+    "np.consent.study-withdrawals",
     "np.research.consent-granted",
     "np.research.suggestions"
   ],

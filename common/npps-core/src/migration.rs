@@ -11,14 +11,15 @@
 //!
 //! # Items
 //! The state a migration may move is named in `SWR-MG-01`. **Moved by a migration:** protocols and their used flags
-//! (`protocols`), session history (`sessionHistory`), consent state and grants (`consentGrants`), the withdrawal state
-//! (`withdrawalState`), characterisation enrolment (`characterisationEnrolment`) and limits profiles (`limitsProfiles`).
-//! **Never moved, because it belongs to the install:** the research device token, the warranty consent flag, the last paired
-//! helmet id and the launch count. **Not yet sorted, and neither moved nor dropped by this row:** the consumable counters,
+//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`), characterisation enrolment
+//! (`characterisationEnrolment`) and limits profiles (`limitsProfiles`). **Never moved, because it belongs to the install:**
+//! the research device token, the warranty consent flag, the last paired helmet id and the launch count. **Never moved, by
+//! ruling:** the consent grants (`consentGrants`). A grant is stated on each device, so an out-of-date one can never be
+//! restored; a restore can only reduce what a phone is consented to, never add to it (`SWR-MG-04`). **Not yet sorted, and neither moved nor dropped by this row:** the consumable counters,
 //! the cervical fault acknowledgement ledger and the onboarding flags.
 //!
 //! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history, characterisation enrolment and the
-//! withdrawal state; it omits protocols, limits profiles and the consent grants. The withdrawal state is in both kinds so a
+//! withdrawal state; it omits protocols and limits profiles. The withdrawal state is in both kinds so a
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
 
@@ -59,16 +60,15 @@ pub(crate) fn all_keys() -> Vec<String> {
     v
 }
 
-const MIGRATE_ITEMS: [&str; 6] = [
+const MIGRATE_ITEMS: [&str; 5] = [
     "protocols",
     "sessionHistory",
-    "consentGrants",
     "withdrawalState",
     "characterisationEnrolment",
     "limitsProfiles",
 ];
 const UHDR_ITEMS: [&str; 3] = ["sessionHistory", "characterisationEnrolment", "withdrawalState"];
-const PER_INSTALL: [&str; 4] = ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount"];
+const PER_INSTALL: [&str; 5] = ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"];
 const UNSORTED: [&str; 3] = ["consumableCounters", "cervicalFaultLedger", "onboardingFlags"];
 
 fn kind_items(kind: &str) -> R<&'static [&'static str]> {
@@ -137,24 +137,48 @@ fn later(a: Option<&str>, b: Option<&str>) -> Option<String> {
     }
 }
 
-/// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings. A restore never
-/// resets a withdrawal: the blanket withdrawal time is kept (the later), and every study and category withdrawal is kept.
-/// `blanketConsentWithdrawnAt` is null only when it was never set, so "never asked" and "said stop" stay apart.
+/// The withdrawals that are one time each: the blanket consent (L3), the contact consent (L1), and the two L4 opt-ins.
+const WITHDRAWAL_TIMES: [&str; 4] = [
+    "blanketConsentWithdrawnAt",
+    "contactConsentWithdrawnAt",
+    "resultsOptInWithdrawnAt",
+    "suggestionPortalOptInWithdrawnAt",
+];
+
+/// The withdrawals that are one time per id: each research category (L2) and each study.
+const WITHDRAWAL_BY_ID: [&str; 2] = ["categoryWithdrawals", "studyWithdrawals"];
+
+/// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings, and a withdrawal
+/// is sticky: it is never undone. A restore keeps the later time of every withdrawal and every id withdrawn on either side, and
+/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. Times are UTC
+/// instants of one fixed form (`2026-03-01T00:00:00Z`), which order as text. The app switches off whatever the merged state
+/// withdraws that the phone had not: a restore can only reduce what a phone is consented to.
 fn merge_withdrawal(req: &Value) -> R<Value> {
     let (local, incoming) = (&req["local"], &req["incoming"]);
-    let blanket = later(local["blanketConsentWithdrawnAt"].as_str(), incoming["blanketConsentWithdrawnAt"].as_str());
-    let union = |key: &str| -> Vec<String> {
-        strs(local, key).into_iter().chain(strs(incoming, key)).collect::<BTreeSet<_>>().into_iter().collect()
-    };
-    Ok(json!({
-        "blanketConsentWithdrawnAt": blanket,
-        "studyWithdrawals": union("studyWithdrawals"),
-        "categoryWithdrawals": union("categoryWithdrawals"),
-    }))
+    let mut out = Map::new();
+    for key in WITHDRAWAL_TIMES {
+        out.insert(key.into(), json!(later(local[key].as_str(), incoming[key].as_str())));
+    }
+    for key in WITHDRAWAL_BY_ID {
+        let mut merged: std::collections::BTreeMap<String, String> = Default::default();
+        for side in [local, incoming] {
+            for (id, at) in side[key].as_object().into_iter().flatten() {
+                if let Some(at) = at.as_str() {
+                    let entry = merged.entry(id.clone()).or_insert_with(|| at.to_string());
+                    if at > entry.as_str() {
+                        *entry = at.to_string();
+                    }
+                }
+            }
+        }
+        out.insert(key.into(), json!(merged));
+    }
+    Ok(Value::Object(out))
 }
 
-/// `SWR-MG-04`: a bundle with no consent record makes the app ask and not assume, and the app says the consent choices
-/// were not restored. Only the migrate kind carries the grants, so a UHDR-only restore always asks.
+/// `SWR-MG-04`: a restore makes the app ask and not assume, and the app says the consent choices were not restored. Grants
+/// are never carried (they are stated on each device), so this is the answer whatever the bundle holds; a bundle's
+/// `bundleHasConsentRecord` is honoured only for a future format that carries them.
 fn consent_after_restore(req: &Value) -> R<Value> {
     let kind = req["kind"].as_str().ok_or("kind is required")?;
     kind_items(kind)?;
@@ -588,10 +612,10 @@ mod tests {
     fn a_migration_carries_the_users_state_and_none_of_the_per_install_state() {
         let inv = ask(json!({"op":"inventory","kind":"migrate"}));
         let carried: Vec<&str> = inv["carried"].as_array().unwrap().iter().map(|s| s.as_str().unwrap()).collect();
-        for want in ["protocols", "sessionHistory", "consentGrants", "withdrawalState", "characterisationEnrolment", "limitsProfiles"] {
+        for want in ["protocols", "sessionHistory", "withdrawalState", "characterisationEnrolment", "limitsProfiles"] {
             assert!(carried.contains(&want), "{want}");
         }
-        for never in ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount"] {
+        for never in ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"] {
             assert!(!carried.contains(&never), "{never}");
             assert!(inv["perInstall"].to_string().contains(never));
         }
@@ -622,12 +646,13 @@ mod tests {
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_never_resets_a_withdrawal() {
-        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":["s1"],"categoryWithdrawals":[]});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","studyWithdrawals":["s2"],"categoryWithdrawals":["c1"]});
+        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","studyWithdrawals":{"s2":"2026-03-02T00:00:00Z","s1":"2026-01-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-03-03T00:00:00Z"},"contactConsentWithdrawnAt":"2026-03-04T00:00:00Z"});
         let m = ask(json!({"op":"mergeWithdrawal","local":local,"incoming":incoming}));
         assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01T00:00:00Z");
-        assert_eq!(m["studyWithdrawals"], json!(["s1", "s2"]));
-        assert_eq!(m["categoryWithdrawals"], json!(["c1"]));
+        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"}), "the later time per id stands");
+        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03T00:00:00Z"}));
+        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04T00:00:00Z");
         // The other way round: a fresh install brings none, the bundle's stands; an older one never replaces a later one.
         let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
         assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
@@ -781,7 +806,7 @@ mod tests {
     // @verifies SWR-MG-03
     #[test]
     fn a_bundle_cannot_carry_what_its_kind_omits_or_what_belongs_to_the_install() {
-        for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
+        for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
             let r = migration_json(&json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]},"kdf":kdf("passphrase")}).to_string());
             assert!(r.is_err(), "{kind} must not seal {item}");
         }

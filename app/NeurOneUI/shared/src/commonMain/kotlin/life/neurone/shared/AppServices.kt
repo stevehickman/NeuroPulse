@@ -57,6 +57,10 @@ class AppServices(
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
     val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
+
+    /** The items a migration carries that are not plain keys: the withdrawal records (`SWR-MG-04`). */
+    val migrationItems: List<life.neurone.core.migration.MigrationItemStore> =
+        listOf(life.neurone.core.migration.StoreConsentMigrationAdapter(consentStore))
     val sessionHistoryStore = SessionHistoryStore(keyValueStore)
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 

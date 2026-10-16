@@ -270,8 +270,8 @@ fn finish(st: Value) -> R<Value> {
     let kind = s(&st, "kind")?;
     let applied = st["applied"].clone();
     let report = dispatch("restoreReport", &json!({ "kind": kind, "present": applied }))?;
-    let has_consent = applied.as_array().is_some_and(|a| a.iter().any(|x| x == "consentGrants"));
-    let consent = dispatch("consentAfterRestore", &json!({ "kind": kind, "bundleHasConsentRecord": has_consent }))?;
+    // Grants are never carried (ruling, `SWR-MG-04`), so a restore always asks.
+    let consent = dispatch("consentAfterRestore", &json!({ "kind": kind, "bundleHasConsentRecord": false }))?;
     let result = json!({
         "ok": true, "kind": kind, "bundleHash": st["hash"], "restored": report["restored"], "missing": report["missing"],
         "omitted": report["omitted"], "notApplied": st["notApplied"], "askConsent": consent["ask"],
@@ -642,7 +642,7 @@ mod tests {
         }
     }
 
-    const ADAPTER: [&str; 2] = ["consentGrants", "withdrawalState"];
+    const ADAPTER: [&str; 1] = ["withdrawalState"];
     const SECRET: &str = "a long enough passphrase";
     const ATOMIC: fn() -> Value = || json!({ "id": "memory", "atomicClaim": true, "direct": false, "authenticatedPairing": true });
 
@@ -958,21 +958,28 @@ mod tests {
     fn a_restore_never_resets_a_withdrawal_and_an_item_with_nowhere_to_go_is_reported_not_applied() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
-        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z", "studyWithdrawals": ["study-a"], "categoryWithdrawals": [] }));
-        old.items.insert("consentGrants".into(), json!({ "grants": "g" }));
+        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z", "studyWithdrawals": { "study-a": "2026-02-01T00:00:00Z" }, "categoryWithdrawals": {} }));
         backup("migrate", &mut route, &mut old, ATOMIC());
 
-        // The new phone stores withdrawal state but has no consent-grants store, and already holds a LATER withdrawal.
-        let mut fresh = phone(&["withdrawalState"], 50);
-        fresh.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-06-01T00:00:00Z", "studyWithdrawals": ["study-b"], "categoryWithdrawals": [] }));
+        // The new phone already holds a LATER blanket withdrawal and another study's.
+        let mut fresh = phone(&ADAPTER, 50);
+        fresh.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-06-01T00:00:00Z", "studyWithdrawals": { "study-b": "2026-05-01T00:00:00Z" }, "categoryWithdrawals": {} }));
         let r = restore(&mut route, &mut fresh, SECRET);
         assert_eq!(r["ok"], true, "{r}");
         let merged = &fresh.items["withdrawalState"];
         assert_eq!(merged["blanketConsentWithdrawnAt"], "2026-06-01T00:00:00Z");
-        assert_eq!(merged["studyWithdrawals"], json!(["study-a", "study-b"]));
-        assert_eq!(r["notApplied"], json!(["consentGrants"]));
-        assert!(!fresh.items.contains_key("consentGrants"));
+        assert_eq!(merged["studyWithdrawals"], json!({ "study-a": "2026-02-01T00:00:00Z", "study-b": "2026-05-01T00:00:00Z" }));
+        assert!(!fresh.items.contains_key("consentGrants"), "grants are never carried");
         assert_eq!((r["askConsent"].clone(), r["tellConsentNotRestored"].clone()), (json!(true), json!(true)));
+
+        // A phone with nowhere to put the withdrawal records says so rather than dropping them silently.
+        let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
+        fill(&mut old);
+        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z" }));
+        backup("migrate", &mut route, &mut old, ATOMIC());
+        let mut bare = phone(&[], 60);
+        let r = restore(&mut route, &mut bare, SECRET);
+        assert_eq!(r["notApplied"], json!(["withdrawalState"]), "{r}");
     }
 
     // @verifies SWR-MG-05

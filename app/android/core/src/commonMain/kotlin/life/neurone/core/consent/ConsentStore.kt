@@ -1,5 +1,6 @@
 package life.neurone.core.consent
 
+import life.neurone.core.platform.nowIso
 import life.neurone.core.platform.todayIso
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.common.KeyValueStore
@@ -18,7 +19,16 @@ import life.neurone.core.models.StudyParticipationRecord
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.common.UUID
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 /**
  * Persisted consent state — clinician grants, research consent, study
@@ -47,12 +57,15 @@ class ConsentStore(
      * user (§5.3 step 1). The default refuses everything: see [RefusingStudyDescriptorVerifier].
      */
     private val descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier,
+    /** The clock for withdrawal times (UTC to the second); injectable so a test can order two withdrawals. */
+    private val now: () -> String = ::nowIso,
 ) {
     companion object {
         const val GRANTS_KEY = "np.consent.clinician-grants"
         const val RESEARCH_KEY = "np.consent.research"
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
         const val INVITATIONS_KEY = "np.consent.study-invitations"
+        const val STUDY_WITHDRAWALS_KEY = "np.consent.study-withdrawals"
     }
 
     var clinicianGrants: List<ClinicianConsentGrant> = emptyList()
@@ -62,6 +75,14 @@ class ConsentStore(
     var studyParticipations: List<StudyParticipationRecord> = emptyList()
         private set
     var pendingInvitations: List<StudyInvitation> = emptyList()
+        private set
+
+    /**
+     * Studies the user withdrew from, and when (UTC instant). UHDR-class and kept apart from [studyParticipations], which
+     * is SHDR-class. A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put the user back in
+     * a study they left (`SWR-MG-04`).
+     */
+    var studyWithdrawals: Map<String, String> = emptyMap()
         private set
 
     /**
@@ -255,7 +276,7 @@ class ConsentStore(
         // whole state and cannot see the transition this method is built around; carrying the
         // committed value through would let a stale screen erase the record of the user having
         // said stop, which is the one thing §6.0 needs to survive.
-        researchConsent = state.copy(
+        researchConsent = withTimes(researchConsent, state).copy(
             blanketConsentWithdrawnOnDay = if (isWithdrawal) {
                 todayIso()
             } else {
@@ -284,8 +305,7 @@ class ConsentStore(
         // was never granted stops nothing, and marking it would silently bar an L2 participant
         // from studies they are still consenting to.
         val wasGranted = researchConsent.blanketConsentGranted
-        researchConsent = researchConsent.copy(
-            blanketConsentGranted = false,
+        researchConsent = withTimes(researchConsent, researchConsent.copy(blanketConsentGranted = false)).copy(
             blanketConsentWithdrawnOnDay = if (wasGranted) {
                 todayIso()
             } else {
@@ -307,10 +327,88 @@ class ConsentStore(
     }
 
     fun setCategoryConsent(category: ResearchCategory, granted: Boolean) {
-        researchConsent = researchConsent.copy(
-            categoryConsents = researchConsent.categoryConsents + (category to granted),
+        researchConsent = withTimes(
+            researchConsent,
+            researchConsent.copy(categoryConsents = researchConsent.categoryConsents + (category to granted)),
         )
         save()
+    }
+
+    /**
+     * [next] with every withdrawal time the store owns taken from [old] and stamped now on a true→false transition, so a
+     * screen that commits a whole state can neither set nor erase one (`SWR-MG-04`, the same rule as the withdrawal day).
+     */
+    private fun withTimes(old: ResearchConsentState, next: ResearchConsentState): ResearchConsentState {
+        val t by lazy(now)
+        fun at(was: Boolean, will: Boolean, previous: String?) = if (was && !will) t else previous
+        return next.copy(
+            blanketConsentWithdrawnAt = at(old.blanketConsentGranted, next.blanketConsentGranted, old.blanketConsentWithdrawnAt),
+            contactConsentWithdrawnAt = at(old.contactConsentGranted, next.contactConsentGranted, old.contactConsentWithdrawnAt),
+            resultsOptInWithdrawnAt = at(old.resultsOptIn, next.resultsOptIn, old.resultsOptInWithdrawnAt),
+            suggestionPortalOptInWithdrawnAt = at(old.suggestionPortalOptIn, next.suggestionPortalOptIn, old.suggestionPortalOptInWithdrawnAt),
+            categoryWithdrawnAt = old.categoryWithdrawnAt + ResearchCategory.entries.mapNotNull { c ->
+                if (old.categoryConsents[c] == true && next.categoryConsents[c] != true) c to t else null
+            },
+        )
+    }
+
+    // ── Withdrawal records in a migration (`SWR-MG-04`) ─────────────────
+
+    /**
+     * The withdrawal records, in the shape the shared core merges (`mergeWithdrawal`). Grants are not here and never travel:
+     * a restore can only reduce what a phone is consented to.
+     */
+    internal fun exportWithdrawals(): JsonObject = buildJsonObject {
+        val r = researchConsent
+        r.blanketConsentWithdrawnAt?.let { put("blanketConsentWithdrawnAt", it) }
+        r.contactConsentWithdrawnAt?.let { put("contactConsentWithdrawnAt", it) }
+        r.resultsOptInWithdrawnAt?.let { put("resultsOptInWithdrawnAt", it) }
+        r.suggestionPortalOptInWithdrawnAt?.let { put("suggestionPortalOptInWithdrawnAt", it) }
+        put("categoryWithdrawals", buildJsonObject { r.categoryWithdrawnAt.forEach { (c, t) -> put(c.name, t) } })
+        put("studyWithdrawals", buildJsonObject { studyWithdrawals.forEach { (id, t) -> put(id, t) } })
+    }
+
+    /**
+     * Apply merged withdrawal records. A withdrawal later than the one held here switches the matching grant off and records
+     * its time; an equal or older one changes nothing, so a grant made here after the withdrawal stands. Nothing here turns a
+     * grant on.
+     */
+    internal fun applyWithdrawals(value: JsonElement) {
+        val o = value.jsonObject
+        fun time(key: String): String? = o[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content
+        fun newer(incoming: String?, held: String?): String? = incoming?.takeIf { held == null || it > held }
+        val r = researchConsent
+        val blanket = newer(time("blanketConsentWithdrawnAt"), r.blanketConsentWithdrawnAt)
+        val contact = newer(time("contactConsentWithdrawnAt"), r.contactConsentWithdrawnAt)
+        val results = newer(time("resultsOptInWithdrawnAt"), r.resultsOptInWithdrawnAt)
+        val portal = newer(time("suggestionPortalOptInWithdrawnAt"), r.suggestionPortalOptInWithdrawnAt)
+        val categories = (o["categoryWithdrawals"] as? JsonObject).orEmpty().mapNotNull { (name, t) ->
+            val c = ResearchCategory.entries.firstOrNull { it.name == name } ?: return@mapNotNull null
+            newer(t.jsonPrimitive.content, r.categoryWithdrawnAt[c])?.let { c to it }
+        }.toMap()
+        researchConsent = r.copy(
+            blanketConsentGranted = r.blanketConsentGranted && blanket == null,
+            blanketConsentWithdrawnAt = blanket ?: r.blanketConsentWithdrawnAt,
+            blanketConsentWithdrawnOnDay = blanket?.substringBefore('T') ?: r.blanketConsentWithdrawnOnDay,
+            contactConsentGranted = r.contactConsentGranted && contact == null,
+            contactConsentWithdrawnAt = contact ?: r.contactConsentWithdrawnAt,
+            resultsOptIn = r.resultsOptIn && results == null,
+            resultsOptInWithdrawnAt = results ?: r.resultsOptInWithdrawnAt,
+            suggestionPortalOptIn = r.suggestionPortalOptIn && portal == null,
+            suggestionPortalOptInWithdrawnAt = portal ?: r.suggestionPortalOptInWithdrawnAt,
+            categoryConsents = r.categoryConsents + categories.keys.associateWith { false },
+            categoryWithdrawnAt = r.categoryWithdrawnAt + categories,
+        )
+        val studies = (o["studyWithdrawals"] as? JsonObject).orEmpty().mapNotNull { (id, t) ->
+            newer(t.jsonPrimitive.content, studyWithdrawals[id])?.let { id to it }
+        }.toMap()
+        studyWithdrawals = studyWithdrawals + studies
+        studyParticipations = studyParticipations.map {
+            val t = studies[it.studyId]
+            if (t != null && it.isActive) it.copy(withdrawnAtDay = t.substringBefore('T')) else it
+        }
+        save()
+        if (blanket != null) revokeResearchAnalytics()
     }
 
     // ── Study invitations (§6.3 per-project workflow) ────────────────────
@@ -375,7 +473,8 @@ class ConsentStore(
      */
     private fun hasDecided(studyId: String): Boolean =
         pendingInvitations.any { it.studyId == studyId && !it.isOpen } ||
-            studyParticipations.any { it.studyId == studyId }
+            studyParticipations.any { it.studyId == studyId } ||
+            studyId in studyWithdrawals
 
     /**
      * §6.3 step 4, *Yes*. Only a consent request can be accepted: an engagement notification was
@@ -476,6 +575,9 @@ class ConsentStore(
 
     /** Per-study withdrawal — stops that study only; research analytics unaffected. */
     fun withdrawFromStudy(studyId: String) {
+        if (studyParticipations.any { it.studyId == studyId && it.isActive }) {
+            studyWithdrawals = studyWithdrawals + (studyId to now())
+        }
         studyParticipations = studyParticipations.map {
             if (it.studyId == studyId && it.isActive) {
                 it.copy(withdrawnAtDay = todayIso())
@@ -498,6 +600,11 @@ class ConsentStore(
         store.getString(RESEARCH_KEY)?.let { blob ->
             runCatching {
                 researchConsent = json.decodeFromString(ResearchConsentState.serializer(), blob)
+            }
+        }
+        store.getString(STUDY_WITHDRAWALS_KEY)?.let { blob ->
+            runCatching {
+                studyWithdrawals = json.decodeFromString(MapSerializer(String.serializer(), String.serializer()), blob)
             }
         }
         store.getString(PersistedKeys.PARTICIPATION_KEY)?.let { blob ->
@@ -538,6 +645,10 @@ class ConsentStore(
         store.putString(
             RESEARCH_KEY,
             json.encodeToString(ResearchConsentState.serializer(), researchConsent),
+        )
+        store.putString(
+            STUDY_WITHDRAWALS_KEY,
+            json.encodeToString(MapSerializer(String.serializer(), String.serializer()), studyWithdrawals),
         )
         store.putString(
             PersistedKeys.PARTICIPATION_KEY,
