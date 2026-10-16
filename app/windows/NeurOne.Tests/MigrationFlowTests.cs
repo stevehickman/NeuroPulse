@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Threading.Channels;
 using NeurOne.Protocol;
 using Xunit;
 
@@ -68,6 +69,30 @@ public class MigrationFlowTests
     }
 
     // A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
+    // One end of an in-memory pipe that delivers a few bytes at a time (hex), so a frame always arrives in pieces.
+    private sealed class PipeEnd(Channel<string> output, Channel<string> input) : ILink
+    {
+        public bool Broken { get; set; }
+        public async Task SendAsync(string data)
+        {
+            if (Broken) throw new InvalidOperationException("the link is broken");
+            for (var i = 0; i < data.Length; i += 14) await output.Writer.WriteAsync(data.Substring(i, Math.Min(14, data.Length - i)));
+        }
+        public async Task<string?> ReceiveAsync()
+        {
+            if (Broken) throw new InvalidOperationException("the link is broken");
+            return await input.Reader.WaitToReadAsync() ? await input.Reader.ReadAsync() : null;
+        }
+        public void Close() => output.Writer.Complete();
+    }
+
+    private static (PipeEnd Client, PipeEnd Server) Pipe()
+    {
+        var ab = Channel.CreateUnbounded<string>();
+        var ba = Channel.CreateUnbounded<string>();
+        return (new PipeEnd(ab, ba), new PipeEnd(ba, ab));
+    }
+
     private sealed class Host(Route route, int seed) : IMigrationHost
     {
         public readonly List<string> Seen = [];
@@ -213,6 +238,60 @@ public class MigrationFlowTests
         using var thirdSecret = Secret("a long enough passphrase");
         var second = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), 90), thirdSecret, new KeyStore(), store);
         Assert.Equal("claimed", (string)second["reason"]!);
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    [Fact]
+    public async Task AMigrationRunsOverADirectLinkInSmallPiecesAndASecondRestoreIsRefused()
+    {
+        var store = new MemoryStore();
+        var oldStore = Filled();
+        using var oldSecret = Secret("a long enough passphrase");
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, oldStore, store);
+        Assert.True((bool)done["ok"]!);
+
+        async Task<JsonObject> RestoreOver(KeyStore keys, int seed)
+        {
+            var (client, server) = Pipe();
+            var serving = MigrationFlow.ServeAsync(server, store, true);
+            using var secret = Secret("a long enough passphrase");
+            var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), seed), secret, keys, link: client);
+            client.Close();
+            Assert.Equal("closed", (string)(await serving)["reason"]!);
+            return r;
+        }
+        var fresh = new KeyStore();
+        var r = await RestoreOver(fresh, 50);
+        Assert.True((bool)r["ok"]!);
+        Assert.True((bool)r["confirmed"]!);
+        Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
+        var names = MigrationFlow.ObjectNames();
+        Assert.Contains((string)names["claim"]!, store.Objects.Keys);
+        Assert.Contains((string)names["confirmation"]!, store.Objects.Keys);
+        Assert.Equal("claimed", (string)(await RestoreOver(new KeyStore(), 90))["reason"]!);
+    }
+
+    // @verifies SWR-MG-10
+    [Fact]
+    public async Task AServingPhoneWhoseLinkIsNotAuthenticatedServesNothing()
+    {
+        var (_, server) = Pipe();
+        var r = await MigrationFlow.ServeAsync(server, new MemoryStore(), false);
+        Assert.False((bool)r["ok"]!);
+        Assert.Equal("not_authenticated", (string)r["reason"]!);
+    }
+
+    // @verifies SWR-MG-11
+    [Fact]
+    public async Task ALinkThatBreaksDuringARestoreEndsItWithTheRouteUnavailable()
+    {
+        var (client, _) = Pipe();
+        client.Broken = true;
+        using var secret = Secret("a long enough passphrase");
+        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), 50), secret, new KeyStore(), link: client);
+        Assert.Equal("route_unavailable", (string)r["reason"]!);
     }
 
     // @verifies SWR-MG-11

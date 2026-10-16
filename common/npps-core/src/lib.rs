@@ -19,6 +19,7 @@ pub mod identity;
 pub mod js;
 pub mod lexer;
 pub mod library;
+pub mod link;
 pub mod migration;
 pub mod migration_flow;
 pub mod object_route;

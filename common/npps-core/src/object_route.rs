@@ -40,7 +40,7 @@ type R<T> = Result<T, String>;
 pub(crate) const BUNDLE_OBJECT: &str = "np-migration-bundle.npbk";
 pub(crate) const CLAIM_OBJECT: &str = "np-migration-claim.json";
 pub(crate) const CONFIRMATION_OBJECT: &str = "np-migration-confirmation.json";
-const PROBE_PREFIX: &str = "np-probe-";
+pub(crate) const PROBE_PREFIX: &str = "np-probe-";
 const PROBE_BYTES: &str = "probe";
 
 pub(crate) fn names() -> Value {

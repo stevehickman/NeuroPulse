@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
-import { type FlowEffect, type MigrationHost, type FileStore, type KeyValueStore, MigrationFlow, type ObjectStore, type StoredFile } from './migrationFlow';
+import { type FlowEffect, type MigrationHost, type FileStore, type KeyValueStore, type Link, MigrationFlow, type ObjectStore, type StoredFile } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
@@ -110,6 +110,42 @@ class MemoryStore implements ObjectStore {
   async delete(name: string) { this.check('delete'); this.objects.delete(name); }
   async list(prefix: string) { this.check('list'); return [...this.objects.keys()].filter((k) => k.startsWith(prefix)); }
   async freeSpace() { this.check('space'); return this.opts.space === undefined ? 1 << 30 : this.opts.space; }
+}
+
+/** One end of an in-memory pipe that delivers a few bytes at a time (hex), so a frame always arrives in pieces. */
+class PipeEnd implements Link {
+  broken = false;
+  peer!: PipeEnd;
+  private inbox: string[] = [];
+  private waiting: ((v: string | null) => void) | null = null;
+  private closed = false;
+  constructor(private piece = 14) {}
+  async send(data: string) {
+    if (this.broken) throw new Error('the link is broken');
+    for (let i = 0; i < data.length; i += this.piece) this.peer.push(data.slice(i, i + this.piece));
+  }
+  push(chunk: string) {
+    if (this.waiting) { const w = this.waiting; this.waiting = null; w(chunk); } else this.inbox.push(chunk);
+  }
+  async receive() {
+    if (this.broken) throw new Error('the link is broken');
+    const next = this.inbox.shift();
+    if (next !== undefined) return next;
+    if (this.peer.closed) return null;
+    return new Promise<string | null>((resolve) => { this.waiting = resolve; });
+  }
+  close() {
+    this.closed = true;
+    if (this.peer.waiting) { const w = this.peer.waiting; this.peer.waiting = null; w(null); }
+  }
+}
+
+function pipe(): [PipeEnd, PipeEnd] {
+  const a = new PipeEnd();
+  const b = new PipeEnd();
+  a.peer = b;
+  b.peer = a;
+  return [a, b];
 }
 
 const ROUTE = { id: 'memory', atomicClaim: true, direct: false, authenticatedPairing: true };
@@ -252,6 +288,60 @@ describe('MigrationFlow.run', () => {
       store,
     });
     expect(second).toEqual({ ok: false, reason: 'claimed' });
+  }, 60_000);
+
+  // @verifies SWR-MG-10
+  // @verifies SWR-MG-11
+  // @verifies SWR-MG-07
+  it('runs a migration over a direct link in small pieces, and refuses a second restore', async () => {
+    await initNppsCore();
+    const store = new MemoryStore();
+    const oldStore = filled();
+    const done = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route(), 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+      store,
+    });
+    expect(done.ok).toBe(true);
+
+    const restoreOver = async (keys: Store, seed: number) => {
+      const [client, server] = pipe();
+      const serving = MigrationFlow.serve(server, store, true);
+      const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route(), seed), {
+        secret: secretOf('a long enough passphrase'),
+        keys,
+        link: client,
+      });
+      client.close();
+      expect(await serving).toEqual({ ok: true, reason: 'closed' });
+      return r;
+    };
+    const fresh = new Store();
+    expect(await restoreOver(fresh, 50)).toMatchObject({ ok: true, confirmed: true });
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
+    const names = MigrationFlow.objectNames();
+    expect(store.objects.has(names.claim) && store.objects.has(names.confirmation)).toBe(true);
+    expect(await restoreOver(new Store(), 90)).toEqual({ ok: false, reason: 'claimed' });
+  }, 60_000);
+
+  // @verifies SWR-MG-10
+  it('serves nothing over a link that is not authenticated', async () => {
+    await initNppsCore();
+    const [, server] = pipe();
+    expect(await MigrationFlow.serve(server, new MemoryStore(), false)).toEqual({ ok: false, reason: 'not_authenticated' });
+  });
+
+  // @verifies SWR-MG-11
+  it('ends a restore with the route unavailable when the link breaks', async () => {
+    await initNppsCore();
+    const [client] = pipe();
+    client.broken = true;
+    const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route(), 50), {
+      secret: secretOf('a long enough passphrase'),
+      keys: new Store(),
+      link: client,
+    });
+    expect(r).toEqual({ ok: false, reason: 'route_unavailable' });
   }, 60_000);
 
   // @verifies SWR-MG-11

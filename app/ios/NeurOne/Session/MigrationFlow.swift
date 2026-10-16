@@ -72,6 +72,17 @@ protocol FileStore {
     func delete(_ path: String) async throws
 }
 
+/// A pipe to the other phone (SWR-MG-10): bytes in, bytes out, as lower-case hex like the object store's. Bluetooth, a local
+/// socket or a cable is each one implementation; everything above the bytes (framing, which calls a peer may make, the claim)
+/// is in the core (link.rs). The same role and names on every platform (Kotlin `Link`, C# `ILink`, TypeScript `Link`).
+/// SwiftUI has a view of the same name, so a view that links to a URL writes `SwiftUI.Link`.
+protocol Link {
+    /// Send the bytes; throws if the link broke.
+    func send(_ data: String) async throws
+    /// The next bytes, or nil once the other end has closed; throws if the link broke.
+    func receive() async throws -> String?
+}
+
 enum MigrationFlow {
     /// A restore of a large history is a few turns per item; this only stops a flow that never ends.
     static let maxTurns = 100_000
@@ -86,10 +97,12 @@ enum MigrationFlow {
         secret: BundleSecret? = nil,
         keys: KeyValueStore? = nil,
         store: ObjectStore? = nil,
-        files: FileStore? = nil
+        files: FileStore? = nil,
+        link: Link? = nil
     ) async throws -> [String: Any] {
         var params = params
-        if store != nil, params["objectStore"] == nil { params["objectStore"] = true }
+        if store != nil || link != nil, params["objectStore"] == nil { params["objectStore"] = true }
+        if link != nil, flow != "serve", params["link"] == nil { params["link"] = true }
         if keys != nil, params["keyItems"] == nil {
             let carried = try NppsCore.migration(["op": "itemKeys"])["carried"] as? [String: Any] ?? [:]
             params["keyItems"] = carried.keys.sorted()
@@ -100,7 +113,7 @@ enum MigrationFlow {
             guard let effect = answer["effect"] as? [String: Any], let state = answer["state"] else {
                 throw NppsCore.Refusal(message: "the core named no effect")
             }
-            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store, files: files)
+            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store, files: files, link: link)
             answer = try NppsCore.migration(["op": "flow", "flow": flow, "state": state, "result": result])
         }
         throw NppsCore.Refusal(message: "The \(flow) flow did not end in \(maxTurns) turns")
@@ -112,7 +125,8 @@ enum MigrationFlow {
         secret: BundleSecret?,
         keys: KeyValueStore?,
         store: ObjectStore?,
-        files: FileStore?
+        files: FileStore?,
+        link: Link?
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
         case "deriveKey":
@@ -133,6 +147,9 @@ enum MigrationFlow {
         case "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace":
             guard let store else { break }
             return await performObject(e, store)
+        case "linkSend", "linkRecv":
+            guard let link else { break }
+            return await performLink(e, link)
         case "listFiles", "writeFile", "syncFile", "deleteFile":
             guard let files else { break }
             return await performFile(e, files)
@@ -140,6 +157,33 @@ enum MigrationFlow {
             break
         }
         return try await host.perform(e)
+    }
+
+    /// One link call. A link that breaks is reported to the core as failed; the core decides what that means (SWR-MG-11).
+    private static func performLink(_ e: [String: Any], _ link: Link) async -> [String: Any] {
+        do {
+            if e["type"] as? String == "linkSend" {
+                try await link.send(e["frame"] as? String ?? "")
+                return ["ok": true]
+            }
+            let chunk = try await link.receive()
+            return ["chunk": chunk as Any? ?? NSNull()]
+        } catch {
+            return ["failed": true]
+        }
+    }
+
+    private struct NoHost: MigrationHost {
+        func perform(_ effect: [String: Any]) async throws -> [String: Any] {
+            throw NppsCore.Refusal(message: "a serving phone is asked for no host effect")
+        }
+    }
+
+    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
+    /// `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
+    /// serve without it. Returns `{ok, reason}`.
+    static func serve(link: Link, store: ObjectStore, authenticated: Bool) async throws -> [String: Any] {
+        try await run("serve", params: ["authenticated": authenticated], host: NoHost(), store: store, link: link)
     }
 
     /// One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).

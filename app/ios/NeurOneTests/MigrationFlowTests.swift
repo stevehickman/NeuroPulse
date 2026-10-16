@@ -65,6 +65,54 @@ private final class MemoryStore: ObjectStore {
     func freeSpace() async throws -> Int64? { try check("space"); return space }
 }
 
+/// The bytes one end of a pipe has been sent, handed to whoever is waiting for them.
+private actor Inbox {
+    private var chunks: [String] = []
+    private var closed = false
+    private var waiter: CheckedContinuation<String?, Never>?
+    func push(_ chunk: String) {
+        if let w = waiter { waiter = nil; w.resume(returning: chunk) } else { chunks.append(chunk) }
+    }
+    func close() {
+        closed = true
+        if let w = waiter { waiter = nil; w.resume(returning: nil) }
+    }
+    func next() async -> String? {
+        if !chunks.isEmpty { return chunks.removeFirst() }
+        if closed { return nil }
+        return await withCheckedContinuation { waiter = $0 }
+    }
+}
+
+/// One end of an in-memory pipe that delivers a few bytes at a time (hex), so a frame always arrives in pieces.
+private final class PipeEnd: Link {
+    struct Broken: Error {}
+    let inbox = Inbox()
+    var peer: PipeEnd?
+    var broken = false
+    func send(_ data: String) async throws {
+        if broken { throw Broken() }
+        var index = data.startIndex
+        while index < data.endIndex {
+            let next = data.index(index, offsetBy: 14, limitedBy: data.endIndex) ?? data.endIndex
+            await peer?.inbox.push(String(data[index..<next]))
+            index = next
+        }
+    }
+    func receive() async throws -> String? {
+        if broken { throw Broken() }
+        return await inbox.next()
+    }
+    func close() async { await peer?.inbox.close() }
+}
+
+private func pipe() -> (PipeEnd, PipeEnd) {
+    let a = PipeEnd(), b = PipeEnd()
+    a.peer = b
+    b.peer = a
+    return (a, b)
+}
+
 /// A route and a phone's randomness in memory: dumb storage that performs whatever effect the driver does not answer.
 private final class Host: MigrationHost {
     var seen: [String] = []
@@ -201,6 +249,58 @@ final class MigrationFlowTests: XCTestCase {
             "restore", params: params(), host: Host(route: Route(), seed: 90),
             secret: try secret("a long enough passphrase"), keys: KeyStore(), store: store)
         XCTAssertEqual(second["reason"] as? String, "claimed")
+    }
+
+    // @verifies SWR-MG-10
+    // @verifies SWR-MG-11
+    // @verifies SWR-MG-07
+    func testAMigrationRunsOverADirectLinkInSmallPiecesAndASecondRestoreIsRefused() async throws {
+        let store = MemoryStore()
+        let oldStore = try filledStore()
+        let done = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: Route(), seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
+        XCTAssertEqual(done["ok"] as? Bool, true)
+
+        func restoreOver(_ keys: KeyStore, seed: Int) async throws -> [String: Any] {
+            let (client, server) = pipe()
+            async let serving = MigrationFlow.serve(link: server, store: store, authenticated: true)
+            let r = try await MigrationFlow.run(
+                "restore", params: params(), host: Host(route: Route(), seed: seed),
+                secret: try secret("a long enough passphrase"), keys: keys, link: client)
+            await client.close()
+            let served = try await serving
+            XCTAssertEqual(served["reason"] as? String, "closed")
+            return r
+        }
+        let freshStore = KeyStore()
+        let r = try await restoreOver(freshStore, seed: 50)
+        XCTAssertEqual(r["ok"] as? Bool, true)
+        XCTAssertEqual(r["confirmed"] as? Bool, true)
+        XCTAssertEqual(freshStore.values, oldStore.values)
+        let names = try MigrationFlow.objectNames()
+        XCTAssertNotNil(store.objects[names["claim"] as? String ?? ""], "the serving phone took the claim")
+        XCTAssertNotNil(store.objects[names["confirmation"] as? String ?? ""])
+        let second = try await restoreOver(KeyStore(), seed: 90)
+        XCTAssertEqual(second["reason"] as? String, "claimed")
+    }
+
+    // @verifies SWR-MG-10
+    func testAServingPhoneWhoseLinkIsNotAuthenticatedServesNothing() async throws {
+        let (_, server) = pipe()
+        let r = try await MigrationFlow.serve(link: server, store: MemoryStore(), authenticated: false)
+        XCTAssertEqual(r["ok"] as? Bool, false)
+        XCTAssertEqual(r["reason"] as? String, "not_authenticated")
+    }
+
+    // @verifies SWR-MG-11
+    func testALinkThatBreaksDuringARestoreEndsItWithTheRouteUnavailable() async throws {
+        let (client, _) = pipe()
+        client.broken = true
+        let r = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: Route(), seed: 50),
+            secret: try secret("a long enough passphrase"), keys: KeyStore(), link: client)
+        XCTAssertEqual(r["reason"] as? String, "route_unavailable")
     }
 
     // @verifies SWR-MG-11

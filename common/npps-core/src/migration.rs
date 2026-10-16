@@ -441,7 +441,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "sealBundle" => seal_bundle(req)?,
         "readBundleHeader" => read_bundle_header(req)?,
         "openBundle" => open_bundle(req)?,
-        other => return Err(format!("unknown migration operation '{other}'")),
+        other => return crate::link::op(other, req).unwrap_or_else(|| Err(format!("unknown migration operation '{other}'"))),
     })
 }
 
