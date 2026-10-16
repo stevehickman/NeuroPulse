@@ -24,7 +24,7 @@ import life.neurone.core.npps.NppsCore
 // taking a claim, verify before confirming, confirm before the old phone clears) is decided there, once, for iOS, Android,
 // Windows, macOS and the web. This file is the whole Kotlin driver, and it is the same one under the same names on every
 // platform: `MigrationFlow` runs a flow, `MigrationHost` performs the effects the driver does not answer itself, and
-// `KeyValueStore` and `ObjectStore` are the two storage roles it does (Swift and the web have the same four names, C# has them
+// `KeyValueStore`, `ObjectStore` and `FileStore` are the three storage roles it does (Swift and the web have the same four names, C# has them
 // with an `I` prefix on the interfaces). The driver answers three kinds of effect itself: `deriveKey` (the core's own Argon2id
 // over the secret it holds), `readKeys` / `writeKeys` (the key-value store) and the six `object*` calls (the object store).
 // Everything else is the host's. The table of effects is in migration_flow.rs.
@@ -54,6 +54,7 @@ object MigrationFlow {
         secret: BundleSecret? = null,
         keys: KeyValueStore? = null,
         store: ObjectStore? = null,
+        files: FileStore? = null,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
@@ -66,7 +67,7 @@ object MigrationFlow {
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store)
+            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files)
             answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
         }
         error("The $flow flow did not end in $MAX_TURNS turns")
@@ -93,6 +94,7 @@ object MigrationFlow {
         secret: BundleSecret?,
         keys: KeyValueStore?,
         store: ObjectStore?,
+        files: FileStore?,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
         "deriveKey" -> {
             val key = BundleKeyDerivation.deriveKey(secret ?: error("no secret to derive a key from"), e["kdf"]!!.jsonObject)
@@ -108,7 +110,31 @@ object MigrationFlow {
         }
         "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace" ->
             if (store == null) host.perform(e) else performObject(type, e, store)
+        "listFiles", "writeFile", "syncFile", "deleteFile" -> if (files == null) host.perform(e) else performFile(type, e, files)
         else -> host.perform(e)
+    }
+
+    /** One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06). */
+    private suspend fun performFile(type: String, e: JsonObject, files: FileStore): JsonObject {
+        val path = e["path"]?.jsonPrimitive?.content ?: ""
+        return try {
+            when (type) {
+                "listFiles" -> buildJsonObject {
+                    put("files", buildJsonArray {
+                        files.list().forEach { f -> add(buildJsonObject { put("path", f.path); put("size", f.size) }) }
+                    })
+                }
+                "writeFile" -> {
+                    files.write(path, e["offset"]!!.jsonPrimitive.content.toLong(), e["data"]!!.jsonPrimitive.content.hexToBytes())
+                    buildJsonObject { put("ok", true) }
+                }
+                "syncFile" -> { files.sync(path); buildJsonObject { put("ok", true) } }
+                else -> { files.delete(path); buildJsonObject { put("ok", true) } }
+            }
+        } catch (ex: Exception) {
+            if (ex is kotlin.coroutines.cancellation.CancellationException) throw ex
+            buildJsonObject { put("failed", true) }
+        }
     }
 
     /** One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11). */

@@ -27,6 +27,23 @@ private final class KeyStore: KeyValueStore {
     func remove(_ key: String) { values.removeValue(forKey: key) }
 }
 
+/// The app's files in memory, with every call recorded in order and one call that can be made to throw.
+private final class MemoryFiles: FileStore {
+    struct Broken: Error {}
+    var files: [String: [UInt8]] = [:]
+    var events: [String] = []
+    var failOn: String?
+    private func check(_ call: String, _ path: String) throws { if failOn == "\(call):\(path)" { throw Broken() } }
+    func list() async throws -> [StoredFile] { files.sorted { $0.key < $1.key }.map { StoredFile(path: $0.key, size: Int64($0.value.count)) } }
+    func write(_ path: String, offset: Int64, bytes: Data) async throws {
+        try check("write", path)
+        files[path]?.replaceSubrange(Int(offset)..<Int(offset) + bytes.count, with: bytes)
+        events.append("write:\(path):\(offset):\(bytes.count)")
+    }
+    func sync(_ path: String) async throws { try check("sync", path); events.append("sync:\(path)") }
+    func delete(_ path: String) async throws { try check("delete", path); files.removeValue(forKey: path); events.append("delete:\(path)") }
+}
+
 /// A provider with named objects and a create-if-absent the store itself arbitrates.
 private final class MemoryStore: ObjectStore {
     struct Broken: Error {}
@@ -88,6 +105,8 @@ private final class Host: MigrationHost {
         case "runClearStep":
             ran.append(e["step"] as? String ?? "")
             return ["ok": true]
+        case "listFiles":
+            return ["files": [[String: Any]]()]
         default:
             throw NppsCore.Refusal(message: "unknown effect \(type)")
         }
@@ -153,7 +172,7 @@ final class MigrationFlowTests: XCTestCase {
         let after = try await MigrationFlow.run("clear", params: clearParams, host: host, keys: oldStore)
         XCTAssertEqual(after["ok"] as? Bool, true)
         XCTAssertEqual(after["removeOsBond"] as? Bool, true)
-        XCTAssertEqual(host.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"])
+        XCTAssertEqual(host.ran, ["destroyEncryptionKey", "forgetPairingRecord"])
         XCTAssertEqual(Array(oldStore.values.keys), ["np.migration.cleared"])
     }
 
@@ -213,6 +232,43 @@ final class MigrationFlowTests: XCTestCase {
         small.space = 10
         r = try await MigrationFlow.probe(store: small, bundleBytes: 1000, host: Host(route: Route(), seed: 7))
         XCTAssertEqual(r["failedOperation"] as? String, "space")
+    }
+
+    // @verifies SWR-MG-06
+    // @verifies SWR-MG-08
+    func testTheFilesAreOverwrittenInFullSyncedAndDeletedAfterTheKeyAndAFailedCallResumesAtTheNextLaunch() async throws {
+        let route = Route()
+        let oldStore = try filledStore()
+        let done = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: route, seed: 1), secret: try secret("a long enough passphrase"), keys: oldStore)
+        _ = try await MigrationFlow.run(
+            "restore", params: params(), host: Host(route: route, seed: 50),
+            secret: try secret("a long enough passphrase"), keys: KeyStore())
+        let clearParams: [String: Any] = ["bundleHash": done["bundleHash"] as? String ?? "", "canRemoveOsBond": true]
+
+        let files = MemoryFiles()
+        files.files = ["a-big.db": [UInt8](repeating: 0x11, count: 40_000), "b-empty.db": [], "c-small.db": [UInt8](repeating: 0x22, count: 100)]
+        files.failOn = "delete:c-small.db"
+        let host = Host(route: route, seed: 1)
+        let r1 = try await MigrationFlow.run("clear", params: clearParams, host: host, keys: oldStore, files: files)
+        XCTAssertEqual(r1["ok"] as? Bool, false)
+        XCTAssertEqual(r1["step"] as? String, "overwriteAndDeleteFiles")
+        XCTAssertEqual(Array(files.files.keys), ["c-small.db"], "what was not reached is left")
+        XCTAssertEqual(host.ran, ["destroyEncryptionKey"])
+
+        let writes = files.events.filter { $0.hasPrefix("write:a-big.db:") }.map { $0.split(separator: ":").map { Int($0) ?? 0 } }
+        XCTAssertEqual(writes.reduce(0) { $0 + $1[3] }, 40_000, "every byte of the big file was written")
+        XCTAssertTrue(writes.allSatisfy { $0[3] <= 16 * 1024 }, "in chunks")
+        XCTAssertLessThan(try XCTUnwrap(files.events.firstIndex(of: "sync:a-big.db")), try XCTUnwrap(files.events.firstIndex(of: "delete:a-big.db")))
+        XCTAssertEqual(files.events.filter { $0.contains("b-empty.db") }, ["delete:b-empty.db"], "an empty file is only deleted")
+
+        files.failOn = nil
+        let second = Host(route: Route(), seed: 1)
+        let r2 = try await MigrationFlow.run("clear", params: clearParams, host: second, keys: oldStore, files: files)
+        XCTAssertEqual(r2["ok"] as? Bool, true)
+        XCTAssertTrue(files.files.isEmpty)
+        XCTAssertEqual(second.ran, ["forgetPairingRecord"], "the key is not destroyed twice")
     }
 
     // @verifies SWR-MG-01

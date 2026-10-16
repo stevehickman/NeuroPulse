@@ -44,6 +44,20 @@ private class Recorder(private val failOn: String? = null) : ClearActions {
     }
 }
 
+/** The app's files in memory, with every call recorded in order and one call that can be made to throw. */
+private class MemoryFileStore(val events: MutableList<String>, var failOn: String? = null) : FileStore {
+    val files = linkedMapOf<String, ByteArray>()
+    private fun check(call: String, path: String) { if (failOn == "$call:$path") error("$call failed") }
+    override suspend fun list(): List<StoredFile> = files.map { (p, b) -> StoredFile(p, b.size.toLong()) }
+    override suspend fun write(path: String, offset: Long, bytes: ByteArray) {
+        check("write", path)
+        bytes.copyInto(files.getValue(path), offset.toInt())
+        events += "write:$path:$offset:${bytes.size}"
+    }
+    override suspend fun sync(path: String) { check("sync", path); events += "sync:$path" }
+    override suspend fun delete(path: String) { check("delete", path); files.remove(path); events += "delete:$path" }
+}
+
 /** A provider with named objects and a create-if-absent the store itself arbitrates. */
 private class MemoryObjectStore(var conditional: Boolean = true, var space: Long? = 1L shl 30, var failOn: String? = null) : ObjectStore {
     val objects = linkedMapOf<String, ByteArray>()
@@ -105,9 +119,10 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
         MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store)
 
-    suspend fun clear(route: BackupRoute, bundleHash: String, actions: ClearActions, canRemoveOsBond: Boolean) =
+    suspend fun clear(route: BackupRoute, bundleHash: String, actions: ClearActions, canRemoveOsBond: Boolean, files: FileStore? = null) =
         MigrationFlow.run(
             "clear", buildJsonObject { put("bundleHash", bundleHash); put("canRemoveOsBond", canRemoveOsBond) }, host(route, actions), null, kv,
+            files = files,
         )
 
     suspend fun probe(store: ObjectStore, bundleBytes: Long) = MigrationFlow.probe(store, bundleBytes, host())
@@ -274,7 +289,7 @@ class MigrationFlowTests {
         assertTrue(after.ok)
         assertTrue(after.flag("removeOsBond"), "the app could not remove the OS bond, so the person is told to")
         assertEquals("destroyEncryptionKey", actions.ran.first(), "the key goes first, so what flash still holds is unreadable")
-        assertEquals(listOf("destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"), actions.ran, "the app does only its own steps")
+        assertEquals(listOf("destroyEncryptionKey", "forgetPairingRecord"), actions.ran, "the app does only its own steps")
         assertEquals("true", old.kv.getString("np.migration.cleared"), "the proof that the clear ran stays")
         assertNull(old.kv.getString("np.migration.clear-progress"), "the progress key goes when the plan is complete")
         assertNull(old.kv.getString("ble.last-hub-id"), "the core forgets the last paired helmet id itself")
@@ -292,7 +307,7 @@ class MigrationFlowTests {
         val r1 = old.clear(route, done.text("bundleHash"), first, canRemoveOsBond = true)
         assertFalse(r1.ok)
         assertEquals("forgetPairingRecord", r1.text("step"))
-        assertEquals(listOf("destroyEncryptionKey", "overwriteAndDeleteFiles"), first.ran)
+        assertEquals(listOf("destroyEncryptionKey"), first.ran)
 
         // Next launch: the route is unreachable (no confirmation to read) but the clear is already under way.
         val gone = InMemoryBackupRoute()
@@ -302,6 +317,44 @@ class MigrationFlowTests {
         assertFalse(r2.flag("removeOsBond"))
         assertEquals("forgetPairingRecord", second.ran.first(), "steps already done are not run again")
         assertFalse("destroyEncryptionKey" in second.ran)
+    }
+
+    // @verifies SWR-MG-06
+    // @verifies SWR-MG-08
+    @Test
+    fun theFilesAreOverwrittenInFullSyncedAndDeletedAfterTheKeyAndAFailedCallResumesAtTheNextLaunch() = runTest {
+        val route = InMemoryBackupRoute()
+        val old = Phone(seed = 1).also { it.fill() }
+        val done = old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, route)
+        Phone(seed = 50).restore(route, route)
+
+        val events = mutableListOf<String>()
+        val files = MemoryFileStore(events)
+        files.files["a-big.db"] = ByteArray(40_000) { 0x11 }
+        files.files["b-empty.db"] = ByteArray(0)
+        files.files["c-small.db"] = ByteArray(100) { 0x22 }
+        files.failOn = "delete:c-small.db"
+        val first = object : ClearActions {
+            override suspend fun run(step: String): Boolean { events += "run:$step"; return true }
+        }
+        val r1 = old.clear(route, done.text("bundleHash"), first, canRemoveOsBond = true, files = files)
+        assertFalse(r1.ok)
+        assertEquals("overwriteAndDeleteFiles", r1.text("step"))
+        assertEquals(listOf("c-small.db"), files.files.keys.toList(), "what was not reached is left")
+        assertEquals("run:destroyEncryptionKey", events.first(), "the key goes before any file is touched")
+
+        val writes = events.filter { it.startsWith("write:a-big.db:") }.map { it.split(":") }
+        assertEquals(40_000, writes.sumOf { it[3].toInt() }, "every byte of the big file was written")
+        assertTrue(writes.all { it[3].toInt() <= 16 * 1024 }, "in chunks")
+        assertTrue(events.indexOf("sync:a-big.db") < events.indexOf("delete:a-big.db"), "synced before it is deleted")
+        assertTrue(events.none { it.contains("b-empty.db") && !it.startsWith("delete:") }, "an empty file is only deleted")
+
+        files.failOn = null
+        val second = Recorder()
+        val r2 = old.clear(InMemoryBackupRoute(), done.text("bundleHash"), second, canRemoveOsBond = true, files = files)
+        assertTrue(r2.ok)
+        assertTrue(files.files.isEmpty())
+        assertEquals(listOf("forgetPairingRecord"), second.ran, "the key is not destroyed twice")
     }
 
     // @verifies SWR-MG-10

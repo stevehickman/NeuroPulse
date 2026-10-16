@@ -16,8 +16,8 @@ import life.neurone.core.data.toHex
 /**
  * SWR-MG-06, SWR-MG-09: the old phone's clear steps that are the platform's own. The core runs the rest itself through the key
  * store (the last paired helmet id, every key the lists name, the cleared marker, and which steps are finished), so an app
- * writes only these three: `destroyEncryptionKey`, `overwriteAndDeleteFiles` and `forgetPairingRecord`. Returns true when the
- * step finished.
+ * writes only these two: `destroyEncryptionKey` and `forgetPairingRecord`. The files' overwrite is the core's, over a [FileStore].
+ * Returns true when the step finished.
  */
 interface ClearActions {
     suspend fun run(step: String): Boolean
@@ -70,6 +70,8 @@ class StandardMigrationHost(
             buildJsonObject { put("ok", true) }
         }
         "readConfirmation" -> buildJsonObject { put("confirmation", typed().readConfirmation() ?: JsonNull) }
+        // A host with no FileStore holds no files of its own for the clear to overwrite.
+        "listFiles" -> buildJsonObject { put("files", kotlinx.serialization.json.JsonArray(emptyList())) }
         "runClearStep" -> buildJsonObject { put("ok", actions!!.run(effect["step"]!!.jsonPrimitive.content)) }
         else -> error("unknown effect '$type'")
     }

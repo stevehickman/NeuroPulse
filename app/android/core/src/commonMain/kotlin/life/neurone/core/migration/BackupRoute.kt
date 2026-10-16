@@ -114,6 +114,27 @@ interface ObjectStore {
     suspend fun freeSpace(): Long?
 }
 
+/** A file the app holds, as [FileStore.list] reports it. */
+class StoredFile(val path: String, val size: Long)
+
+/**
+ * The calls the old phone's clear asks of the app's files (SWR-MG-06), and nothing else: the core decides how a file is
+ * overwritten (every byte, in chunks, then a sync, then the delete). [list] reports the UHDR-class files still there. A call
+ * that cannot be done throws, and the clear stops at that step and resumes at the next launch.
+ */
+interface FileStore {
+    suspend fun list(): List<StoredFile>
+
+    /** Overwrite [bytes].size bytes of [path] starting at [offset], in place. */
+    suspend fun write(path: String, offset: Long, bytes: ByteArray)
+
+    /** The writes so far have reached storage. */
+    suspend fun sync(path: String)
+
+    /** Not an error when there is no such file. */
+    suspend fun delete(path: String)
+}
+
 /**
  * A route that is an object store: the descriptor the flow's `route` param carries. The store itself is handed to
  * [MigrationFlow.run] as `store`, and the core then drives the route; the typed calls of [BackupRoute] never reach it.
