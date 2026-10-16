@@ -290,6 +290,17 @@ public class MigrationFlowTests
         Assert.Equal("route_unavailable", (string)r["reason"]!);
     }
 
+    // @verifies SWR-MG-03
+    [Fact]
+    public void TheCoreNamesTheLocaleKeyOfEveryReasonAndItem()
+    {
+        var keys = MigrationFlow.MessageKeys();
+        Assert.Equal("MIGRATION_REASON_CLAIMED", (string)keys["reasons"]!["claimed"]!);
+        Assert.Equal("MIGRATION_SECRET_BAD_CHECKSUM", (string)keys["secret"]!["bad_checksum"]!);
+        Assert.Equal("MIGRATION_PROBE_BACKUP_ONLY", (string)keys["probe"]!["backup_only"]!);
+        Assert.Equal("MIGRATION_ITEM_SESSION_HISTORY", (string)keys["items"]!["sessionHistory"]!);
+    }
+
     // @verifies SWR-MG-11
     [Fact]
     public async Task AnObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable()

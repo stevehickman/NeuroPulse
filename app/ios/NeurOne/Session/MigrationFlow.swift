@@ -259,6 +259,10 @@ enum MigrationFlow {
         }
     }
 
+    /// The locale key that words each reason, rejected secret, storage-check result and item (SWR-MG-03), from the core, so no
+    /// platform spells one its own way. Groups: `reasons`, `secret`, `probe`, `items`; each maps a code to a key.
+    static func messageKeys() throws -> [String: Any] { try NppsCore.migration(["op": "messageKeys"]) }
+
     /// The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07).
     static func objectNames() throws -> [String: Any] { try NppsCore.migration(["op": "objectNames"]) }
 

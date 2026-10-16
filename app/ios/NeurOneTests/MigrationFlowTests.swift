@@ -296,6 +296,15 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertEqual(r["reason"] as? String, "route_unavailable")
     }
 
+    // @verifies SWR-MG-03
+    func testTheCoreNamesTheLocaleKeyOfEveryReasonAndItem() throws {
+        let keys = try MigrationFlow.messageKeys()
+        XCTAssertEqual((keys["reasons"] as? [String: String])?["claimed"], "MIGRATION_REASON_CLAIMED")
+        XCTAssertEqual((keys["secret"] as? [String: String])?["bad_checksum"], "MIGRATION_SECRET_BAD_CHECKSUM")
+        XCTAssertEqual((keys["probe"] as? [String: String])?["backup_only"], "MIGRATION_PROBE_BACKUP_ONLY")
+        XCTAssertEqual((keys["items"] as? [String: String])?["sessionHistory"], "MIGRATION_ITEM_SESSION_HISTORY")
+    }
+
     // @verifies SWR-MG-11
     func testAnObjectCallThatThrowsEndsTheFlowWithTheRouteUnavailable() async throws {
         let store = MemoryStore()
