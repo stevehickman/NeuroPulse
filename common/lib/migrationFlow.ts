@@ -51,6 +51,28 @@ export interface ObjectStore {
   freeSpace(): Promise<number | null>;
 }
 
+/** A file the app holds, as `FileStore.list` reports it. */
+export interface StoredFile {
+  path: string;
+  size: number;
+}
+
+/**
+ * The calls the old phone's clear asks of the app's files (SWR-MG-06), and nothing else: the core decides how a file is
+ * overwritten (every byte, in chunks, then a sync, then the delete). `list` reports the UHDR-class files still there; the bytes
+ * of a write are lower-case hex. A call that cannot be done rejects, and the clear stops at that step and resumes at the next
+ * launch. The same role and names on every platform (Kotlin `FileStore`, Swift `FileStore`, C# `IFileStore`).
+ */
+export interface FileStore {
+  list(): Promise<StoredFile[]>;
+  /** Overwrite the bytes of `path` starting at `offset`, in place. */
+  write(path: string, offset: number, data: string): Promise<void>;
+  /** The writes so far have reached storage. */
+  sync(path: string): Promise<void>;
+  /** Not an error when there is no such file. */
+  delete(path: string): Promise<void>;
+}
+
 export type FlowName = 'backup' | 'inspect' | 'restore' | 'clear' | 'probe';
 
 export interface FlowOptions {
@@ -63,6 +85,8 @@ export interface FlowOptions {
    * encoded) and `host.perform` is asked for no route effect.
    */
   store?: ObjectStore;
+  /** The app's files, for the old phone's clear: the core overwrites and deletes them itself (SWR-MG-06). */
+  files?: FileStore;
 }
 
 // A restore of a large history is a few turns per item; this only stops a flow that never ends.
@@ -82,7 +106,7 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
   throw new Error(`The ${flow} flow did not end in ${MAX_TURNS} turns`);
 }
 
-async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store }: FlowOptions): Promise<Record<string, unknown>> {
+async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files }: FlowOptions): Promise<Record<string, unknown>> {
   switch (e.type) {
     case 'deriveKey':
       if (secret === undefined) throw new Error('no secret to derive a key from');
@@ -108,8 +132,36 @@ async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store
     case 'objectSpace':
       if (!store) break;
       return performObject(e, store);
+    case 'listFiles':
+    case 'writeFile':
+    case 'syncFile':
+    case 'deleteFile':
+      if (!files) break;
+      return performFile(e, files);
   }
   return host.perform(e);
+}
+
+/** One file call of the clear. A call that rejects is reported to the core as failed, and the clear stops at that step (SWR-MG-06). */
+async function performFile(e: FlowEffect, files: FileStore): Promise<Record<string, unknown>> {
+  const path = (e.path as string | undefined) ?? '';
+  try {
+    switch (e.type) {
+      case 'listFiles':
+        return { files: await files.list() };
+      case 'writeFile':
+        await files.write(path, e.offset as number, e.data as string);
+        return { ok: true };
+      case 'syncFile':
+        await files.sync(path);
+        return { ok: true };
+      default:
+        await files.delete(path);
+        return { ok: true };
+    }
+  } catch {
+    return { failed: true };
+  }
 }
 
 /** One object call. A call that rejects is reported to the core as failed; the core decides what that means (SWR-MG-11). */

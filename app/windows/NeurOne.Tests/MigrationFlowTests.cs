@@ -25,6 +25,26 @@ public class MigrationFlowTests
         public void Remove(string key) => Values.Remove(key);
     }
 
+    // The app's files in memory, with every call recorded in order and one call that can be made to throw.
+    private sealed class MemoryFiles : IFileStore
+    {
+        public readonly Dictionary<string, byte[]> Files = [];
+        public readonly List<string> Events = [];
+        public string? FailOn;
+        private void Check(string call, string path) { if (FailOn == $"{call}:{path}") throw new InvalidOperationException(call); }
+        public Task<IReadOnlyList<StoredFile>> ListAsync() =>
+            Task.FromResult<IReadOnlyList<StoredFile>>(Files.OrderBy(f => f.Key).Select(f => new StoredFile(f.Key, f.Value.Length)).ToList());
+        public Task WriteAsync(string path, long offset, byte[] bytes)
+        {
+            Check("write", path);
+            bytes.CopyTo(Files[path], (int)offset);
+            Events.Add($"write:{path}:{offset}:{bytes.Length}");
+            return Task.CompletedTask;
+        }
+        public Task SyncAsync(string path) { Check("sync", path); Events.Add($"sync:{path}"); return Task.CompletedTask; }
+        public Task DeleteAsync(string path) { Check("delete", path); Files.Remove(path); Events.Add($"delete:{path}"); return Task.CompletedTask; }
+    }
+
     // A provider with named objects and a create-if-absent the store itself arbitrates.
     private sealed class MemoryStore : IObjectStore
     {
@@ -68,6 +88,7 @@ public class MigrationFlowTests
                 "writeConfirmation" => Confirm(e),
                 "readConfirmation" => new JsonObject { ["confirmation"] = route.Confirmation?.DeepClone() },
                 "runClearStep" => RunStep(e),
+                "listFiles" => new JsonObject { ["files"] = new JsonArray() },
                 _ => throw new InvalidOperationException($"unknown effect {type}"),
             };
             return Task.FromResult(r);
@@ -163,7 +184,7 @@ public class MigrationFlowTests
         var after = await MigrationFlow.RunAsync("clear", clearParams, host, null, oldStore);
         Assert.True((bool)after["ok"]!);
         Assert.True((bool)after["removeOsBond"]!);
-        Assert.Equal(["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"], host.Ran);
+        Assert.Equal(["destroyEncryptionKey", "forgetPairingRecord"], host.Ran);
         Assert.Equal(["np.migration.cleared"], oldStore.Values.Keys.ToArray());
     }
 
@@ -222,6 +243,44 @@ public class MigrationFlowTests
 
         r = await MigrationFlow.ProbeAsync(new MemoryStore { Space = 10 }, 1000, new Host(new Route(), 7));
         Assert.Equal("space", (string)r["failedOperation"]!);
+    }
+
+    // @verifies SWR-MG-06
+    // @verifies SWR-MG-08
+    [Fact]
+    public async Task TheFilesAreOverwrittenInFullSyncedAndDeletedAfterTheKeyAndAFailedCallResumesAtTheNextLaunch()
+    {
+        var route = new Route();
+        var oldStore = Filled();
+        using var oldSecret = Secret("a long enough passphrase");
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        using var freshSecret = Secret("a long enough passphrase");
+        await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, new KeyStore());
+        JsonObject ClearParams() => new() { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = true };
+
+        var files = new MemoryFiles { FailOn = "delete:c-small.db" };
+        files.Files["a-big.db"] = Enumerable.Repeat((byte)0x11, 40_000).ToArray();
+        files.Files["b-empty.db"] = [];
+        files.Files["c-small.db"] = Enumerable.Repeat((byte)0x22, 100).ToArray();
+        var host = new Host(route, 1);
+        var r1 = await MigrationFlow.RunAsync("clear", ClearParams(), host, null, oldStore, null, files);
+        Assert.False((bool)r1["ok"]!);
+        Assert.Equal("overwriteAndDeleteFiles", (string)r1["step"]!);
+        Assert.Equal(["c-small.db"], files.Files.Keys.ToArray());
+        Assert.Equal(["destroyEncryptionKey"], host.Ran);
+
+        var writes = files.Events.Where(e => e.StartsWith("write:a-big.db:")).Select(e => e.Split(':').Skip(2).Select(int.Parse).ToArray()).ToList();
+        Assert.Equal(40_000, writes.Sum(w => w[1]));
+        Assert.All(writes, w => Assert.True(w[1] <= 16 * 1024));
+        Assert.True(files.Events.IndexOf("sync:a-big.db") < files.Events.IndexOf("delete:a-big.db"));
+        Assert.Equal(["delete:b-empty.db"], files.Events.Where(e => e.Contains("b-empty.db")).ToArray());
+
+        files.FailOn = null;
+        var second = new Host(new Route(), 1);
+        var r2 = await MigrationFlow.RunAsync("clear", ClearParams(), second, null, oldStore, null, files);
+        Assert.True((bool)r2["ok"]!);
+        Assert.Empty(files.Files);
+        Assert.Equal(["forgetPairingRecord"], second.Ran);
     }
 
     // @verifies SWR-MG-01

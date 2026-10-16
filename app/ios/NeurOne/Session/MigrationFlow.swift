@@ -52,6 +52,26 @@ protocol ObjectStore {
     func freeSpace() async throws -> Int64?
 }
 
+/// A file the app holds, as `FileStore.list` reports it.
+struct StoredFile {
+    let path: String
+    let size: Int64
+}
+
+/// The calls the old phone's clear asks of the app's files (SWR-MG-06), and nothing else: the core decides how a file is
+/// overwritten (every byte, in chunks, then a sync, then the delete). `list` reports the UHDR-class files still there. A call
+/// that cannot be done throws, and the clear stops at that step and resumes at the next launch. The same role and names on
+/// every platform (Kotlin `FileStore`, C# `IFileStore`, TypeScript `FileStore`).
+protocol FileStore {
+    func list() async throws -> [StoredFile]
+    /// Overwrite `bytes.count` bytes of `path` starting at `offset`, in place.
+    func write(_ path: String, offset: Int64, bytes: Data) async throws
+    /// The writes so far have reached storage.
+    func sync(_ path: String) async throws
+    /// Not an error when there is no such file.
+    func delete(_ path: String) async throws
+}
+
 enum MigrationFlow {
     /// A restore of a large history is a few turns per item; this only stops a flow that never ends.
     static let maxTurns = 100_000
@@ -65,7 +85,8 @@ enum MigrationFlow {
         host: MigrationHost,
         secret: BundleSecret? = nil,
         keys: KeyValueStore? = nil,
-        store: ObjectStore? = nil
+        store: ObjectStore? = nil,
+        files: FileStore? = nil
     ) async throws -> [String: Any] {
         var params = params
         if store != nil, params["objectStore"] == nil { params["objectStore"] = true }
@@ -79,7 +100,7 @@ enum MigrationFlow {
             guard let effect = answer["effect"] as? [String: Any], let state = answer["state"] else {
                 throw NppsCore.Refusal(message: "the core named no effect")
             }
-            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store)
+            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store, files: files)
             answer = try NppsCore.migration(["op": "flow", "flow": flow, "state": state, "result": result])
         }
         throw NppsCore.Refusal(message: "The \(flow) flow did not end in \(maxTurns) turns")
@@ -90,7 +111,8 @@ enum MigrationFlow {
         host: MigrationHost,
         secret: BundleSecret?,
         keys: KeyValueStore?,
-        store: ObjectStore?
+        store: ObjectStore?,
+        files: FileStore?
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
         case "deriveKey":
@@ -111,10 +133,48 @@ enum MigrationFlow {
         case "objectGet", "objectPut", "objectCreate", "objectDelete", "objectList", "objectSpace":
             guard let store else { break }
             return await performObject(e, store)
+        case "listFiles", "writeFile", "syncFile", "deleteFile":
+            guard let files else { break }
+            return await performFile(e, files)
         default:
             break
         }
         return try await host.perform(e)
+    }
+
+    /// One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).
+    private static func performFile(_ e: [String: Any], _ files: FileStore) async -> [String: Any] {
+        let path = e["path"] as? String ?? ""
+        do {
+            switch e["type"] as? String {
+            case "listFiles":
+                let list = try await files.list()
+                return ["files": list.map { ["path": $0.path, "size": $0.size] as [String: Any] }]
+            case "writeFile":
+                let offset = (e["offset"] as? NSNumber)?.int64Value ?? 0
+                try await files.write(path, offset: offset, bytes: hexData(e["data"] as? String ?? ""))
+                return ["ok": true]
+            case "syncFile":
+                try await files.sync(path)
+                return ["ok": true]
+            default:
+                try await files.delete(path)
+                return ["ok": true]
+            }
+        } catch {
+            return ["failed": true]
+        }
+    }
+
+    private static func hexData(_ hex: String) -> Data {
+        var bytes = [UInt8]()
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            bytes.append(UInt8(hex[index..<next], radix: 16) ?? 0)
+            index = next
+        }
+        return Data(bytes)
     }
 
     /// One object call. A call that throws is reported to the core as failed; the core decides what that means (SWR-MG-11).

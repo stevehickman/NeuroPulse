@@ -50,6 +50,24 @@ interface IObjectStore
     Task<long?> FreeSpaceAsync();
 }
 
+/// A file the app holds, as IFileStore.ListAsync reports it.
+record StoredFile(string Path, long Size);
+
+/// The calls the old phone's clear asks of the app's files (SWR-MG-06), and nothing else: the core decides how a file is
+/// overwritten (every byte, in chunks, then a sync, then the delete). ListAsync reports the UHDR-class files still there. A call
+/// that cannot be done throws, and the clear stops at that step and resumes at the next launch. The same role and names on
+/// every platform (Kotlin FileStore, Swift FileStore, TypeScript FileStore).
+interface IFileStore
+{
+    Task<IReadOnlyList<StoredFile>> ListAsync();
+    /// Overwrite bytes.Length bytes of path starting at offset, in place.
+    Task WriteAsync(string path, long offset, byte[] bytes);
+    /// The writes so far have reached storage.
+    Task SyncAsync(string path);
+    /// Not an error when there is no such file.
+    Task DeleteAsync(string path);
+}
+
 static class MigrationFlow
 {
     // A restore of a large history is a few turns per item; this only stops a flow that never ends.
@@ -60,7 +78,7 @@ static class MigrationFlow
     /// given, the items the core says are plain keys are declared to it as `keyItems`.
     public static async Task<JsonObject> RunAsync(
         string flow, JsonObject parameters, IMigrationHost host, BundleSecret? secret = null, IKeyValueStore? keys = null,
-        IObjectStore? store = null)
+        IObjectStore? store = null, IFileStore? files = null)
     {
         var p = (JsonObject)parameters.DeepClone();
         if (store is not null && p["objectStore"] is null) p["objectStore"] = true;
@@ -77,13 +95,13 @@ static class MigrationFlow
             if (answer["done"] is JsonObject done) return done;
             var effect = answer["effect"]?.AsObject() ?? throw new NppsRefusal("the core named no effect");
             var state = answer["state"]?.DeepClone();
-            var result = await PerformAsync(effect, host, secret, keys, store);
+            var result = await PerformAsync(effect, host, secret, keys, store, files);
             answer = NppsCore.Migration(new JsonObject { ["op"] = "flow", ["flow"] = flow, ["state"] = state, ["result"] = result }).AsObject();
         }
         throw new NppsRefusal($"The {flow} flow did not end in {MaxTurns} turns");
     }
 
-    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store)
+    private static Task<JsonObject> PerformAsync(JsonObject e, IMigrationHost host, BundleSecret? secret, IKeyValueStore? keys, IObjectStore? store, IFileStore? files)
     {
         switch ((string?)e["type"])
         {
@@ -102,8 +120,39 @@ static class MigrationFlow
                 return Task.FromResult(new JsonObject { ["ok"] = true });
             case "objectGet" or "objectPut" or "objectCreate" or "objectDelete" or "objectList" or "objectSpace" when store is not null:
                 return PerformObjectAsync(e, store);
+            case "listFiles" or "writeFile" or "syncFile" or "deleteFile" when files is not null:
+                return PerformFileAsync(e, files);
             default:
                 return host.PerformAsync(e);
+        }
+    }
+
+    // One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).
+    private static async Task<JsonObject> PerformFileAsync(JsonObject e, IFileStore files)
+    {
+        var path = (string?)e["path"] ?? "";
+        try
+        {
+            switch ((string?)e["type"])
+            {
+                case "listFiles":
+                    var list = new JsonArray();
+                    foreach (var f in await files.ListAsync()) list.Add(new JsonObject { ["path"] = f.Path, ["size"] = f.Size });
+                    return new JsonObject { ["files"] = list };
+                case "writeFile":
+                    await files.WriteAsync(path, (long)e["offset"]!, Convert.FromHexString((string)e["data"]!));
+                    return new JsonObject { ["ok"] = true };
+                case "syncFile":
+                    await files.SyncAsync(path);
+                    return new JsonObject { ["ok"] = true };
+                default:
+                    await files.DeleteAsync(path);
+                    return new JsonObject { ["ok"] = true };
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new JsonObject { ["failed"] = true };
         }
     }
 

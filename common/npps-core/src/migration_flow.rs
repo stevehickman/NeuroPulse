@@ -27,7 +27,11 @@
 //! | `getBundle` / `putBundle` | `bundle` (hex) | `{bundle: hex or null}` / `{ok}` |
 //! | `readClaim` / `createClaim` | `claim` | `{claim: object or null}` / `{created: bool}` |
 //! | `writeConfirmation` / `readConfirmation` | `confirmation` | `{ok}` / `{confirmation: object or null}` |
-//! | `runClearStep` | `step`: `destroyEncryptionKey`, `overwriteAndDeleteFiles` or `forgetPairingRecord` | `{ok: bool}` |
+//! | `runClearStep` | `step`: `destroyEncryptionKey` or `forgetPairingRecord` | `{ok: bool}` |
+//! | `listFiles` | none | `{files: [{path, size}]}`: every UHDR-class file the app holds that is still there |
+//! | `writeFile` | `path`, `offset`, `data` (hex) | `{ok}`: overwrite those bytes in place |
+//! | `syncFile` | `path` | `{ok}`: the overwrite has reached storage |
+//! | `deleteFile` | `path` | `{ok}`, true also when there was no such file |
 //!
 //! # Two ways an item is stored
 //! An item named in the host's `keyItems` is stored as plain keys in the app's key-value store: the core knows which keys
@@ -37,13 +41,17 @@
 //! `applyItem`. An item in neither is not applied, and the report says so.
 //!
 //! # The old phone's clear
-//! Of the six steps of `clearPlan`, three are the platform's own (the key store, the files, the pairing record) and are the
-//! only `runClearStep` effects. The other three are storage the core already reaches through `readKeys` and `writeKeys`, so
-//! it does them itself and no app writes them: forgetting the last paired helmet id, forgetting every key the lists name,
+//! Of the six steps of `clearPlan`, two are the platform's own (the key store and the pairing record) and are the only
+//! `runClearStep` effects. The files' overwrite is the core's algorithm over four file calls (below). The other three are
+//! storage the core already reaches through `readKeys` and `writeKeys`, so it does them itself and no app writes them: forgetting the last paired helmet id, forgetting every key the lists name,
 //! and writing the cleared marker. Which steps are finished is kept the same way, under a key of the core's own, so a clear
 //! a kill interrupts resumes at the next launch on every platform without a progress store per app. The marker and the
 //! progress key are in no list: the clear must not forget the proof that it ran, and the progress key goes only when the
 //! plan is complete.
+//!
+//! **The files' overwrite** (`SWR-MG-06`): the core asks for one chunk of random bytes, lists the files, and for each one
+//! overwrites every byte in chunks, syncs, then deletes it; a call that fails ends the clear at that step and the next launch
+//! resumes by listing what is left. A host implements only the four file calls (the `FileStore` role).
 //!
 //! Releasing a claim is the person's explicit act and is not a flow: the platform calls its route directly (`SWR-MG-07`).
 
@@ -59,6 +67,10 @@ const LAST_HUB_KEY: &str = "ble.last-hub-id";
 const CLEARED_MARKER_KEY: &str = "np.migration.cleared";
 /// The finished clear steps, comma-separated, so an interrupted clear resumes (`SWR-MG-08`).
 const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
+/// The step that overwrites and deletes the app's files (`SWR-MG-06`), and the size of one overwrite chunk. One chunk of
+/// random bytes is asked for once and written repeatedly (`UC-089`).
+const WIPE_STEP: &str = "overwriteAndDeleteFiles";
+const WIPE_CHUNK: u64 = 16 * 1024;
 const TOKEN_BYTES: u64 = 16;
 const SALT_AND_NONCE_BYTES: u64 = 32 + 12;
 
@@ -436,6 +448,10 @@ fn plan_next(st: Value) -> R<Value> {
     st["step"] = json!("ran");
     // Three steps are storage the core reaches itself (SWR-MG-09): no app keeps a list of what to forget.
     match step.as_str().unwrap_or("") {
+        WIPE_STEP => {
+            st["step"] = json!("wipeRandom");
+            effect(st, json!({ "type": "random", "bytes": WIPE_CHUNK }))
+        }
         "forgetLastPairedHelmetId" => effect(st, write_keys(&[LAST_HUB_KEY], json!({}))),
         "clearAppHeldState" => {
             let all = all_keys();
@@ -444,6 +460,53 @@ fn plan_next(st: Value) -> R<Value> {
         }
         "writeClearedMarker" => effect(st, write_keys(&[], json!({ CLEARED_MARKER_KEY: "true" }))),
         _ => effect(st, json!({ "type": "runClearStep", "step": step })),
+    }
+}
+
+/// A clear step is finished: record it, so an interrupted clear resumes after it (`SWR-MG-08`).
+fn complete_step(mut st: Value) -> R<Value> {
+    let mut finished: Vec<Value> = st["done"].as_array().cloned().unwrap_or_default();
+    finished.push(st["cur"].clone());
+    let text = finished.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",");
+    st["done"] = json!(finished);
+    st["wipe"] = Value::Null;
+    st["step"] = json!("marked");
+    effect(st, write_keys(&[], json!({ CLEAR_PROGRESS_KEY: text })))
+}
+
+fn wipe_failed() -> R<Value> {
+    done(json!({ "ok": false, "reason": "step_failed", "step": WIPE_STEP }))
+}
+
+/// The next file call of the overwrite: every byte of a file in chunks, then a sync, then the delete, file by file
+/// (`SWR-MG-06`). An empty file has nothing to overwrite and is only deleted.
+fn wipe_next(mut st: Value) -> R<Value> {
+    loop {
+        let w = &st["wipe"];
+        let (i, off) = (w["i"].as_u64().unwrap_or(0) as usize, w["off"].as_u64().unwrap_or(0));
+        let Some(file) = w["files"].as_array().and_then(|f| f.get(i)).cloned() else {
+            return complete_step(st);
+        };
+        let path = file["path"].as_str().ok_or("a listed file has no path")?.to_string();
+        let size = file["size"].as_u64().ok_or("a listed file has no size")?;
+        match w["phase"].as_str().unwrap_or("write") {
+            "write" if off < size => {
+                let len = WIPE_CHUNK.min(size - off);
+                let data = w["pat"].as_str().unwrap_or("")[..(2 * len) as usize].to_string();
+                st["wipe"]["len"] = json!(len);
+                st["step"] = json!("wipeWrote");
+                return effect(st, json!({ "type": "writeFile", "path": path, "offset": off, "data": data }));
+            }
+            "write" => st["wipe"]["phase"] = json!(if size == 0 { "delete" } else { "sync" }),
+            "sync" => {
+                st["step"] = json!("wipeSynced");
+                return effect(st, json!({ "type": "syncFile", "path": path }));
+            }
+            _ => {
+                st["step"] = json!("wipeDeleted");
+                return effect(st, json!({ "type": "deleteFile", "path": path }));
+            }
+        }
     }
 }
 
@@ -480,16 +543,41 @@ fn clear(req: &Value) -> R<Value> {
             plan_next(st)
         }
         "ran" => {
-            let step = st["cur"].clone();
             if req["result"]["ok"] != true {
-                return done(json!({ "ok": false, "reason": "step_failed", "step": step }));
+                return done(json!({ "ok": false, "reason": "step_failed", "step": st["cur"] }));
             }
-            let mut finished: Vec<Value> = st["done"].as_array().cloned().unwrap_or_default();
-            finished.push(step);
-            let text = finished.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(",");
-            st["done"] = json!(finished);
-            st["step"] = json!("marked");
-            effect(st, write_keys(&[], json!({ CLEAR_PROGRESS_KEY: text })))
+            complete_step(st)
+        }
+        "wipeRandom" => {
+            let pat = req["result"]["bytes"].as_str().unwrap_or("");
+            if pat.len() as u64 != 2 * WIPE_CHUNK {
+                return Err("random gave the wrong number of bytes".into());
+            }
+            st["wipe"] = json!({ "pat": pat, "files": [], "i": 0, "off": 0, "len": 0, "phase": "write" });
+            st["step"] = json!("wipeList");
+            effect(st, json!({ "type": "listFiles" }))
+        }
+        "wipeList" => {
+            if req["result"]["failed"] == true {
+                return wipe_failed();
+            }
+            st["wipe"]["files"] = req["result"]["files"].clone();
+            wipe_next(st)
+        }
+        "wipeWrote" | "wipeSynced" | "wipeDeleted" => {
+            if req["result"]["ok"] != true {
+                return wipe_failed();
+            }
+            match step_of(req) {
+                "wipeWrote" => st["wipe"]["off"] = json!(st["wipe"]["off"].as_u64().unwrap_or(0) + st["wipe"]["len"].as_u64().unwrap_or(0)),
+                "wipeSynced" => st["wipe"]["phase"] = json!("delete"),
+                _ => {
+                    st["wipe"]["i"] = json!(st["wipe"]["i"].as_u64().unwrap_or(0) + 1);
+                    st["wipe"]["off"] = json!(0);
+                    st["wipe"]["phase"] = json!("write");
+                }
+            }
+            wipe_next(st)
         }
         "marked" => plan_next(st),
         "finish" => done(json!({ "ok": true, "removeOsBond": st["osBondInstruction"] })),
@@ -528,6 +616,11 @@ mod tests {
         adapter: Vec<String>,
         key_items: Vec<String>,
         ran: Vec<String>,
+        /// The app's files, by path, and everything done to them or around them, in order.
+        files: BTreeMap<String, Vec<u8>>,
+        events: Vec<String>,
+        /// A file call that answers not-ok, by effect type and path.
+        fail_file: Option<(String, String)>,
         fail_on: Option<String>,
         corrupt_on_write: bool,
         counter: u8,
@@ -638,11 +731,32 @@ mod tests {
             "runClearStep" => {
                 let step = e["step"].as_str().unwrap().to_string();
                 assert!(
-                    ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"].contains(&step.as_str()),
+                    ["destroyEncryptionKey", "forgetPairingRecord"].contains(&step.as_str()),
                     "the host is asked only for the platform's own steps, not '{step}'"
                 );
                 if p.fail_on.as_deref() == Some(step.as_str()) { return json!({ "ok": false }); }
+                p.events.push(format!("run:{step}"));
                 p.ran.push(step);
+                json!({ "ok": true })
+            }
+            "listFiles" => json!({ "files": p.files.iter().map(|(path, b)| json!({ "path": path, "size": b.len() })).collect::<Vec<_>>() }),
+            "writeFile" | "syncFile" | "deleteFile" => {
+                let (kind, path) = (e["type"].as_str().unwrap().to_string(), e["path"].as_str().unwrap().to_string());
+                if p.fail_file.as_ref().is_some_and(|(k, f)| *k == kind && *f == path) {
+                    return json!({ "ok": false });
+                }
+                match kind.as_str() {
+                    "writeFile" => {
+                        let (off, data) = (e["offset"].as_u64().unwrap() as usize, unhex(e["data"].as_str().unwrap()));
+                        p.files.get_mut(&path).unwrap()[off..off + data.len()].copy_from_slice(&data);
+                        p.events.push(format!("write:{path}:{off}:{}", data.len()));
+                    }
+                    "syncFile" => p.events.push(format!("sync:{path}")),
+                    _ => {
+                        p.files.remove(&path);
+                        p.events.push(format!("delete:{path}"));
+                    }
+                }
                 json!({ "ok": true })
             }
             other => panic!("unknown effect {other}"),
@@ -894,13 +1008,75 @@ mod tests {
         let ok = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
         assert_eq!((ok["ok"].clone(), ok["removeOsBond"].clone()), (json!(true), json!(true)));
         assert_eq!(old.ran[0], "destroyEncryptionKey", "the key goes first");
-        assert_eq!(old.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles", "forgetPairingRecord"], "the host does only the platform's own steps");
+        assert_eq!(old.ran, ["destroyEncryptionKey", "forgetPairingRecord"], "the host does only the platform's own steps");
         // The core forgets every stored key itself, the per-install ones and the helmet id included, so no app keeps a list.
         assert_eq!(
             old.kv.keys().map(String::as_str).collect::<Vec<_>>(),
             ["np.migration.cleared"],
             "everything stored is forgotten but the proof that the clear ran; the progress key goes with the plan"
         );
+    }
+
+    fn unhex(h: &str) -> Vec<u8> {
+        (0..h.len()).step_by(2).map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap()).collect()
+    }
+
+    fn with_files(old: &mut Phone) {
+        old.files.insert("a-big.db".into(), vec![0xAA; 40_000]);
+        old.files.insert("b-empty.db".into(), vec![]);
+        old.files.insert("c-small.db".into(), vec![0xCC; 100]);
+    }
+
+    // @verifies SWR-MG-06
+    #[test]
+    fn the_files_are_overwritten_in_full_synced_and_deleted_after_the_key_is_destroyed() {
+        let (mut route, mut old, hash) = confirmed_route();
+        with_files(&mut old);
+        assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
+        let r = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        assert_eq!(r["ok"], true);
+        assert!(old.files.is_empty(), "the files are gone");
+        let key = old.events.iter().position(|e| e == "run:destroyEncryptionKey").unwrap();
+        let first_file_call = old.events.iter().position(|e| e.starts_with("write:") || e.starts_with("sync:") || e.starts_with("delete:")).unwrap();
+        assert!(key < first_file_call, "the key goes first, so what the overwrite misses is unreadable");
+        // Every byte of each file was written, in order, before its sync, and the sync came before its delete.
+        for (path, size) in [("a-big.db", 40_000usize), ("c-small.db", 100)] {
+            let writes: Vec<(usize, usize)> = old.events.iter().filter_map(|e| {
+                let p: Vec<&str> = e.split(':').collect();
+                (p[0] == "write" && p[1] == path).then(|| (p[2].parse().unwrap(), p[3].parse().unwrap()))
+            }).collect();
+            let mut at = 0;
+            for (off, len) in &writes { assert_eq!(*off, at, "{path}: contiguous"); at += len; }
+            assert_eq!(at, size, "{path}: every byte written");
+            assert!(writes.iter().all(|(_, len)| *len <= 16 * 1024), "{path}: in chunks");
+            let sync = old.events.iter().position(|e| *e == format!("sync:{path}")).unwrap();
+            let del = old.events.iter().position(|e| *e == format!("delete:{path}")).unwrap();
+            let last_write = old.events.iter().rposition(|e| e.starts_with(&format!("write:{path}:"))).unwrap();
+            assert!(last_write < sync && sync < del, "{path}: written, then synced, then deleted");
+        }
+        assert!(!old.events.iter().any(|e| e.contains("b-empty.db") && !e.starts_with("delete:")), "an empty file is only deleted");
+    }
+
+    // @verifies SWR-MG-06
+    // @verifies SWR-MG-08
+    #[test]
+    fn a_file_call_that_fails_stops_the_clear_at_that_step_and_the_next_launch_finishes_what_is_left() {
+        let (mut route, mut old, hash) = confirmed_route();
+        with_files(&mut old);
+        assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
+        old.fail_file = Some(("deleteFile".into(), "c-small.db".into()));
+        let r1 = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        assert_eq!((r1["ok"].clone(), r1["step"].clone()), (json!(false), json!("overwriteAndDeleteFiles")));
+        assert_eq!(old.files.keys().collect::<Vec<_>>(), ["c-small.db"], "what was not reached is left");
+        assert_eq!(old.ran, ["destroyEncryptionKey"], "the pairing is not forgotten until the files are gone");
+
+        old.fail_file = None;
+        old.ran.clear();
+        let mut gone = Route::default();
+        let r2 = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut gone, &mut old, SECRET);
+        assert_eq!(r2["ok"], true);
+        assert!(old.files.is_empty());
+        assert_eq!(old.ran, ["forgetPairingRecord"], "the key is not destroyed twice");
     }
 
     // @verifies SWR-MG-08
@@ -911,7 +1087,7 @@ mod tests {
         old.fail_on = Some("forgetPairingRecord".into());
         let r1 = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
         assert_eq!((r1["ok"].clone(), r1["step"].clone()), (json!(false), json!("forgetPairingRecord")));
-        assert_eq!(old.ran, ["destroyEncryptionKey", "overwriteAndDeleteFiles"]);
+        assert_eq!(old.ran, ["destroyEncryptionKey"]);
         assert_eq!(old.kv["np.migration.clear-progress"], "destroyEncryptionKey,overwriteAndDeleteFiles", "the progress is kept as a key");
 
         // Next launch: the route no longer answers, but the clear is already under way.

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
-import { type FlowEffect, type MigrationHost, type KeyValueStore, MigrationFlow, type ObjectStore } from './migrationFlow';
+import { type FlowEffect, type MigrationHost, type FileStore, type KeyValueStore, MigrationFlow, type ObjectStore, type StoredFile } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
 const toHex = (bytes: number[]) => bytes.map((b) => (b & 255).toString(16).padStart(2, '0')).join('');
@@ -61,10 +61,33 @@ class Host implements MigrationHost {
       case 'runClearStep':
         this.ran.push(e.step as string);
         return { ok: true };
+      case 'listFiles':
+        return { files: [] };
       default:
         throw new Error(`unknown effect ${e.type}`);
     }
   }
+}
+
+/** The app's files in memory, with every call recorded in order and one call that can be made to throw. */
+class MemoryFiles implements FileStore {
+  files = new Map<string, Uint8Array>();
+  events: string[] = [];
+  failOn: string | null = null;
+  private check(call: string, path: string) {
+    if (this.failOn === `${call}:${path}`) throw new Error(`${call} failed`);
+  }
+  async list(): Promise<StoredFile[]> {
+    return [...this.files].map(([path, b]) => ({ path, size: b.length }));
+  }
+  async write(path: string, offset: number, data: string) {
+    this.check('write', path);
+    const bytes = Uint8Array.from(data.match(/../g) ?? [], (h) => parseInt(h, 16));
+    this.files.get(path)!.set(bytes, offset);
+    this.events.push(`write:${path}:${offset}:${bytes.length}`);
+  }
+  async sync(path: string) { this.check('sync', path); this.events.push(`sync:${path}`); }
+  async delete(path: string) { this.check('delete', path); this.files.delete(path); this.events.push(`delete:${path}`); }
 }
 
 /** A provider with named objects and a create-if-absent the store itself arbitrates. */
@@ -160,8 +183,45 @@ describe('MigrationFlow.run', () => {
     const host = new Host(route, 1);
     const after = await MigrationFlow.run('clear', { bundleHash: done.bundleHash, canRemoveOsBond: false }, host, { keys: oldStore });
     expect(after).toMatchObject({ ok: true, removeOsBond: true });
-    expect(host.ran).toEqual(['destroyEncryptionKey', 'overwriteAndDeleteFiles', 'forgetPairingRecord']);
+    expect(host.ran).toEqual(['destroyEncryptionKey', 'forgetPairingRecord']);
     expect([...oldStore.values.keys()]).toEqual(['np.migration.cleared']);
+  }, 60_000);
+
+  // @verifies SWR-MG-06
+  // @verifies SWR-MG-08
+  it('overwrites every byte of the files, syncs and deletes them after the key, and resumes after a failed call', async () => {
+    await initNppsCore();
+    const route = new Route();
+    const oldStore = filled();
+    const done = await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(route, 1), {
+      secret: secretOf('a long enough passphrase'),
+      keys: oldStore,
+    });
+    await MigrationFlow.run('restore', { route: ROUTE }, new Host(route, 50), { secret: secretOf('a long enough passphrase'), keys: new Store() });
+
+    const files = new MemoryFiles();
+    files.files.set('a-big.db', new Uint8Array(40_000).fill(0x11));
+    files.files.set('b-empty.db', new Uint8Array(0));
+    files.files.set('c-small.db', new Uint8Array(100).fill(0x22));
+    files.failOn = 'delete:c-small.db';
+    const host = new Host(route, 1);
+    const r1 = await MigrationFlow.run('clear', { bundleHash: done.bundleHash, canRemoveOsBond: true }, host, { keys: oldStore, files });
+    expect(r1).toEqual({ ok: false, reason: 'step_failed', step: 'overwriteAndDeleteFiles' });
+    expect([...files.files.keys()]).toEqual(['c-small.db']);
+    expect(host.ran).toEqual(['destroyEncryptionKey']);
+
+    const writes = files.events.filter((e) => e.startsWith('write:a-big.db:')).map((e) => e.split(':').map(Number));
+    expect(writes.reduce((n, w) => n + w[3], 0)).toBe(40_000);
+    expect(writes.every((w) => w[3] <= 16 * 1024)).toBe(true);
+    expect(files.events.indexOf('sync:a-big.db')).toBeLessThan(files.events.indexOf('delete:a-big.db'));
+    expect(files.events.filter((e) => e.includes('b-empty.db'))).toEqual(['delete:b-empty.db']);
+
+    files.failOn = null;
+    const second = new Host(new Route(), 1);
+    const r2 = await MigrationFlow.run('clear', { bundleHash: done.bundleHash, canRemoveOsBond: true }, second, { keys: oldStore, files });
+    expect(r2).toMatchObject({ ok: true });
+    expect(files.files.size).toBe(0);
+    expect(second.ran).toEqual(['forgetPairingRecord']);
   }, 60_000);
 
   // @verifies SWR-MG-10
