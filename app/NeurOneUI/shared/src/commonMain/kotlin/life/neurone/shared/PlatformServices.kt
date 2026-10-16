@@ -3,6 +3,8 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.migration.ClearActions
+import life.neurone.core.migration.FileStore
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.migration.RouteDescriptor
 import life.neurone.core.session.ProtocolSigner
@@ -43,6 +45,16 @@ interface PlatformServices {
      * default so that a host with no storage for it needs no code; the hosts that have a folder or an account override it.
      */
     val migrationPlace: MigrationPlace? get() = null
+
+    /**
+     * The two clear steps only the platform can do (SWR-MG-06, SWR-MG-09): destroy the key that protects the app's data, and
+     * forget the helmet pairing record. Null when the host cannot do both truly, and the clear screen then says this device
+     * cannot clear itself: a host must not report a step done that it did not do.
+     */
+    val clearActions: ClearActions? get() = null
+
+    /** The app's own files, for the clear to overwrite and delete (SWR-MG-06), or null when the host holds none. */
+    val migrationFiles: FileStore? get() = null
 
     /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan

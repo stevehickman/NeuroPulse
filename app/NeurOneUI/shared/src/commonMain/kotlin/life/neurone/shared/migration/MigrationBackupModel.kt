@@ -46,8 +46,11 @@ class BackupPreview(
     val notYetSorted: List<String>,
 )
 
-/** Why a secret was refused, as the core's code (`malformed`, `bad_checksum`, `too_short`) and the minimum length if it has one. */
-class SecretProblem(val reason: String, val minChars: Int?)
+/**
+ * Why a secret was refused: the core's code, the [group] of its table that words it (a typing mistake is `SECRET`; a secret that
+ * did not open the backup is a `REASONS` code) and the minimum length if it has one.
+ */
+class SecretProblem(val reason: String, val minChars: Int?, val group: MessageGroup = MessageGroup.SECRET)
 
 /** The step the screen draws. */
 sealed interface BackupStep {

@@ -134,10 +134,7 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
                     Text(stringResource(Res.string.migration_backup_continue))
                 }
             }
-            BackupStep.Running -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator()
-                Text(stringResource(Res.string.migration_backup_running))
-            }
+            BackupStep.Running -> Busy(Res.string.migration_backup_running)
             is BackupStep.Done -> {
                 Text(stringResource(Res.string.migration_backup_done_title), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(Res.string.migration_backup_done_body, s.bundleHash.take(12)))
@@ -164,8 +161,16 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
 }
 
 @Composable
-private fun ProblemText(problem: SecretProblem) {
-    val res = MigrationBackupModel.messageKey(MessageGroup.SECRET, problem.reason)?.let(::migrationText)
+internal fun Busy(label: StringResource) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        CircularProgressIndicator()
+        Text(stringResource(label))
+    }
+}
+
+@Composable
+internal fun ProblemText(problem: SecretProblem) {
+    val res = MigrationBackupModel.messageKey(problem.group, problem.reason)?.let(::migrationText)
     if (res != null) Text(stringResource(res, problem.minChars?.toString() ?: ""))
 }
 
@@ -182,7 +187,7 @@ private fun KindCard(title: StringResource, body: StringResource, onChoose: () -
 }
 
 @Composable
-private fun ItemList(title: StringResource, codes: List<String>) {
+internal fun ItemList(title: StringResource, codes: List<String>) {
     if (codes.isEmpty()) return
     Spacer(Modifier.height(12.dp))
     Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
@@ -191,7 +196,7 @@ private fun ItemList(title: StringResource, codes: List<String>) {
 
 /** The words for a core code: its locale key from the core's table, found in the resources; the code itself if there is none. */
 @Composable
-private fun words(group: MessageGroup, code: String): String {
+internal fun words(group: MessageGroup, code: String): String {
     val res = MigrationBackupModel.messageKey(group, code)?.let(::migrationText)
     return if (res != null) stringResource(res) else code
 }
