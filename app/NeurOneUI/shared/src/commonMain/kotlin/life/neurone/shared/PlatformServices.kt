@@ -3,7 +3,7 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
-import life.neurone.core.migration.ClearActions
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.FileStore
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.migration.RouteDescriptor
@@ -48,11 +48,11 @@ interface PlatformServices {
     val migrationPlace: MigrationPlace? get() = null
 
     /**
-     * The two clear steps only the platform can do (SWR-MG-06, SWR-MG-09): destroy the key that protects the app's data, and
-     * forget the helmet pairing record. Null when the host cannot do both truly, and the clear screen then says this device
-     * cannot clear itself: a host must not report a step done that it did not do.
+     * Where the key that protects the app's UHDR-class data is kept: the platform's own keystore (SWR-MG-06). Null when the
+     * host has no keystore it can destroy a key in. The shared app then keeps its data unencrypted and says the device cannot
+     * clear itself, because a clear that cannot destroy the key would only claim to protect what it leaves readable.
      */
-    val clearActions: ClearActions? get() = null
+    val secretKeyStore: SecretKeyStore? get() = null
 
     /** The app's own files, for the clear to overwrite and delete (SWR-MG-06), or null when the host holds none. */
     val migrationFiles: FileStore? get() = null

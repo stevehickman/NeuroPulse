@@ -3,6 +3,7 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
@@ -23,6 +24,7 @@ class IosPlatformServices(
     override val bleCentral: BleCentral = IosBleCentral(),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
+    override val secretKeyStore: SecretKeyStore? = IosSecretKeyStore(),
 ) : PlatformServices {
 
     /**

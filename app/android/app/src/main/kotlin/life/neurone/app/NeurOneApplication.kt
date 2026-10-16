@@ -85,7 +85,9 @@ class NeurOneApplication : Application() {
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
         services = AppServices(
-            platform = AndroidPlatformServices(SharedPrefsKeyValueStore(this), bleCentral, AndroidProtocolSigner()),
+            platform = AndroidPlatformServices(
+                SharedPrefsKeyValueStore(this), bleCentral, AndroidProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
+            ),
             scope = bleScope,
         )
 
