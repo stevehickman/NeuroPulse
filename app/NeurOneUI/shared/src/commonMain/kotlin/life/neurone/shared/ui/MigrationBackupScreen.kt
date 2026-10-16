@@ -53,7 +53,7 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
     val transfer = app.platform.rememberFileTransfer()
     val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = app.platform.migrationPlace ?: portable?.place
-    val model = remember(place) { MigrationBackupModel(place, app.keyValueStore) }
+    val model = remember(place) { MigrationBackupModel(place, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
 

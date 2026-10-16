@@ -46,7 +46,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
     val transfer = app.platform.rememberFileTransfer()
     val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = app.platform.migrationPlace ?: portable?.place
-    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore) }
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.

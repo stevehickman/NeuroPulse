@@ -23,6 +23,9 @@ expect fun ed25519Verify(publicKeyRaw: ByteArray, message: ByteArray, signature:
 /** Today in the device's time zone, `yyyy-MM-dd`. */
 fun todayIso(): String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
 
+/** Now in UTC to the second, `yyyy-MM-ddTHH:mm:ssZ`; the form compares as text in time order (`SWR-MG-04`). */
+fun nowIso(): String = kotlinx.datetime.Instant.fromEpochSeconds(epochSeconds()).toString()
+
 /** Seconds since the Unix epoch. */
 fun epochSeconds(): Long = Clock.System.now().epochSeconds
 

@@ -267,27 +267,25 @@ class MigrationFlowTests {
         val route = InMemoryBackupRoute()
         val oldWithdrawal = MapItemStore("withdrawalState", buildJsonObject {
             put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z")
-            put("studyWithdrawals", JsonArray(listOf(JsonPrimitive("study-a"))))
-            put("categoryWithdrawals", JsonArray(emptyList()))
+            put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01T00:00:00Z") })
+            put("categoryWithdrawals", buildJsonObject { })
         })
-        val oldGrants = MapItemStore("consentGrants", buildJsonObject { put("grants", "g") })
-        val old = Phone(extra = listOf(oldWithdrawal, oldGrants), seed = 1).also { it.fill() }
+        val old = Phone(extra = listOf(oldWithdrawal), seed = 1).also { it.fill() }
         old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, route)
 
         // The new phone already holds a LATER withdrawal and another study's: the union stands, and the later time.
         val newWithdrawal = MapItemStore("withdrawalState", buildJsonObject {
             put("blanketConsentWithdrawnAt", "2026-06-01T00:00:00Z")
-            put("studyWithdrawals", JsonArray(listOf(JsonPrimitive("study-b"))))
-            put("categoryWithdrawals", JsonArray(emptyList()))
+            put("studyWithdrawals", buildJsonObject { put("study-b", "2026-05-01T00:00:00Z") })
+            put("categoryWithdrawals", buildJsonObject { })
         })
         val fresh = Phone(extra = listOf(newWithdrawal), seed = 50)
         val r = fresh.restore(route, route)
         assertTrue(r.ok)
         val merged = newWithdrawal.value!!.jsonObject
         assertEquals("2026-06-01T00:00:00Z", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
-        assertEquals(setOf("study-a", "study-b"), merged["studyWithdrawals"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet())
-        // This phone has no store for consentGrants: the bundle held them, and the report says they were not applied.
-        assertEquals(listOf("consentGrants"), r.strings("notApplied"))
+        assertEquals(setOf("study-a", "study-b"), merged["studyWithdrawals"]!!.jsonObject.keys)
+        // Grants are never carried: the person is asked again, and told their earlier choices were not restored.
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"))
     }
 

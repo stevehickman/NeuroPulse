@@ -99,9 +99,9 @@ class MigrationRestoreClearTest {
         assertTrue("protocols" in r.restored && "sessionHistory" in r.restored)
         assertTrue(r.confirmed)
         assertEquals(old.getString("np.session.history"), fresh.getString("np.session.history"))
-        // No consent adapter is wired yet, so the backup holds no consent record: the items are reported as missing, and the
-        // person is told their earlier choices were not restored (SWR-MG-04).
-        assertTrue("consentGrants" in r.missing && "withdrawalState" in r.missing)
+        // No consent adapter is wired here, so the backup holds no withdrawal record: it is reported as missing. Grants are
+        // never carried, and the person is told their earlier choices were not restored (SWR-MG-04).
+        assertTrue("withdrawalState" in r.missing)
         assertTrue(r.consentNotRestored)
     }
 

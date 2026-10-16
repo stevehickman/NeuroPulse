@@ -204,6 +204,19 @@ data class ResearchConsentState(
     // L4: Results + community
     val resultsOptIn: Boolean = false,
     val suggestionPortalOptIn: Boolean = false,
+
+    /**
+     * The instant (UTC, `yyyy-MM-ddTHH:mm:ssZ`) each consent was last withdrawn, or null if it never was (`SWR-MG-04`).
+     * Like [blanketConsentWithdrawnOnDay] these are the store's to set on a true→false transition and nothing else's, and
+     * a later re-grant does not clear them: a withdrawal is a record that stays (ruling, issue #569). They exist so a
+     * restore can carry "said stop" to another phone, where the later time wins and a grant is never added. They are
+     * UHDR-class and never reach SHDR or analytics.
+     */
+    val blanketConsentWithdrawnAt: String? = null,
+    val contactConsentWithdrawnAt: String? = null,
+    val resultsOptInWithdrawnAt: String? = null,
+    val suggestionPortalOptInWithdrawnAt: String? = null,
+    val categoryWithdrawnAt: Map<ResearchCategory, String> = emptyMap(),
 ) {
     val hasAnyResearchConsent: Boolean
         get() = contactConsentGranted || blanketConsentGranted ||
