@@ -51,6 +51,7 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var showLimits by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var showOwner by remember { mutableStateOf(false) }
+    var showMigration by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -58,6 +59,11 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showMigration -> MigrationBackupScreen(
+            app = app,
+            onDone = { showMigration = false },
+            modifier = modifier,
+        )
         showOwner -> WarrantyOwnerScreen(
             app = app,
             onDone = { showOwner = false },
@@ -111,6 +117,7 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
             onManageLimits = { showLimits = true },
             onManageProfiles = { showProfiles = true },
             onManageOwner = { showOwner = true },
+            onManageMigration = { showMigration = true },
             modifier = modifier,
         )
     }
@@ -128,6 +135,7 @@ private fun SettingsContent(
     onManageLimits: () -> Unit,
     onManageProfiles: () -> Unit,
     onManageOwner: () -> Unit,
+    onManageMigration: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -200,6 +208,11 @@ private fun SettingsContent(
         Text(stringResource(Res.string.settings_warranty_owner_body), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onManageOwner) { Text(stringResource(Res.string.settings_warranty_owner_button)) }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Back up, or move to a new phone (SWR-MG-02, SWR-MG-03).
+        OutlinedButton(onClick = onManageMigration) { Text(stringResource(Res.string.settings_migration_button)) }
 
         Spacer(Modifier.height(24.dp))
 

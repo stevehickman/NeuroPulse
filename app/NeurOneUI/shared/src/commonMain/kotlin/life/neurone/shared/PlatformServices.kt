@@ -3,6 +3,8 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.migration.ObjectStore
+import life.neurone.core.migration.RouteDescriptor
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
 
@@ -37,6 +39,12 @@ interface PlatformServices {
     val analyticsBackend: AnalyticsBackend
 
     /**
+     * Where this host can put a backup, or null when it has nowhere yet (the backup screen then says so). A member with a
+     * default so that a host with no storage for it needs no code; the hosts that have a folder or an account override it.
+     */
+    val migrationPlace: MigrationPlace? get() = null
+
+    /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan
      * (Android's runtime Bluetooth permissions) and then re-reads the adapter state. Composable
      * because Android registers its permission launcher with the composition; a platform with
@@ -45,6 +53,13 @@ interface PlatformServices {
     @Composable
     fun rememberBleConnectAction(): () -> Unit
 }
+
+/**
+ * A place a backup can go (SWR-MG-10): the six object calls of its [store], and the [route] descriptor that says what the
+ * place can promise (an exclusive create, above all), which the core checks before it offers the place for a migration.
+ * [label] names the place for the person, such as the folder; it is shown as given and is never a user's data.
+ */
+class MigrationPlace(val label: String, val store: ObjectStore, val route: RouteDescriptor)
 
 /** The analytics backend until the production vendor is selected and its DPA executed (NP-PRIV-AUDIT-001 HIGH-1). */
 class NoOpAnalyticsBackend : AnalyticsBackend {

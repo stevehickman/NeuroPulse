@@ -6,6 +6,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.platform.secureRandomBytes
 
 // The user-held key of a migration or backup bundle (SWR-MG-02, issue #569 package 6d).
 //
@@ -31,6 +32,9 @@ enum class BundleKeyMethod(val wire: String) {
 fun interface RandomSource {
     fun nextBytes(count: Int): ByteArray
 }
+
+/** The platform's CSPRNG as a [RandomSource]: what every flow and every screen uses unless a test passes its own. */
+val SystemRandomSource: RandomSource = RandomSource { secureRandomBytes(it) }
 
 /** What a secret from a person (or a fresh code) became. [reason] is a code for the screen to word from the locale files. */
 sealed class BundleSecretResult {

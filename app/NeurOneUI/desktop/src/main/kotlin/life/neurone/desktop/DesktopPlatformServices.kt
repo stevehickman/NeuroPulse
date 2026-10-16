@@ -3,8 +3,11 @@ package life.neurone.desktop
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.migration.DirectoryObjectStore
+import life.neurone.core.migration.ObjectStoreRoute
 import life.neurone.core.session.JvmProtocolSigner
 import life.neurone.core.session.ProtocolSigner
+import life.neurone.shared.MigrationPlace
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -23,6 +26,15 @@ class DesktopPlatformServices(
     override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
+
+    /**
+     * A folder beside the app's data: the person copies it to a USB drive or the new computer. The operating system arbitrates
+     * the claim (a hard link), so the folder promises an exclusive create (SWR-MG-07). Made on first use, not at start-up.
+     */
+    override val migrationPlace: MigrationPlace? by lazy {
+        val folder = appDataDirectory().resolve("backups")
+        MigrationPlace(folder.path, DirectoryObjectStore(folder.toPath()), ObjectStoreRoute("local-folder", atomicClaim = true))
+    }
 
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
