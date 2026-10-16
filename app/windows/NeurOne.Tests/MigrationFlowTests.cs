@@ -93,11 +93,10 @@ public class MigrationFlowTests
         return (new PipeEnd(ab, ba), new PipeEnd(ba, ab));
     }
 
-    private sealed class Host(Route route, int seed) : IMigrationHost
+    private sealed class Host(Route route) : IMigrationHost
     {
         public readonly List<string> Seen = [];
         public readonly List<string> Ran = [];
-        private int _n = seed;
 
         public Task<JsonObject> PerformAsync(JsonObject e)
         {
@@ -105,7 +104,6 @@ public class MigrationFlowTests
             Seen.Add(type);
             JsonObject r = type switch
             {
-                "random" => new JsonObject { ["bytes"] = Convert.ToHexString(Enumerable.Range(0, (int)e["bytes"]!).Select(_ => Next()).ToArray()).ToLowerInvariant() },
                 "getBundle" => new JsonObject { ["bundle"] = route.Bundle },
                 "putBundle" => Put(e),
                 "readClaim" => new JsonObject { ["claim"] = route.Claim?.DeepClone() },
@@ -124,8 +122,6 @@ public class MigrationFlowTests
             Ran.Add((string)e["step"]!);
             return new JsonObject { ["ok"] = true };
         }
-
-        private byte Next() => (byte)(_n = (_n * 31 + 7) & 255);
 
         private JsonObject Put(JsonObject e)
         {
@@ -176,12 +172,12 @@ public class MigrationFlowTests
         var route = new Route();
         var oldStore = Filled();
         using var oldSecret = Secret("a long enough passphrase");
-        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route), oldSecret, oldStore);
         Assert.True((bool)done["ok"]!);
 
         var fresh = new KeyStore();
         using var freshSecret = Secret("a long enough passphrase");
-        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, fresh);
+        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(route), freshSecret, fresh);
         Assert.True((bool)r["ok"]!);
         Assert.True((bool)r["confirmed"]!);
         Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
@@ -197,15 +193,15 @@ public class MigrationFlowTests
         var oldStore = Filled();
         oldStore.PutString("ble.last-hub-id", "hub-1");
         using var oldSecret = Secret("a long enough passphrase");
-        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route), oldSecret, oldStore);
         var clearParams = new JsonObject { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = false };
 
-        var before = await MigrationFlow.RunAsync("clear", clearParams.DeepClone().AsObject(), new Host(route, 1), null, oldStore);
+        var before = await MigrationFlow.RunAsync("clear", clearParams.DeepClone().AsObject(), new Host(route), null, oldStore);
         Assert.Equal("no_confirmation", (string)before["reason"]!);
 
         using var freshSecret = Secret("a long enough passphrase");
-        await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, new KeyStore());
-        var host = new Host(route, 1);
+        await MigrationFlow.RunAsync("restore", Params(), new Host(route), freshSecret, new KeyStore());
+        var host = new Host(route);
         var after = await MigrationFlow.RunAsync("clear", clearParams, host, null, oldStore);
         Assert.True((bool)after["ok"]!);
         Assert.True((bool)after["removeOsBond"]!);
@@ -222,12 +218,12 @@ public class MigrationFlowTests
         var store = new MemoryStore();
         var oldStore = Filled();
         using var oldSecret = Secret("a long enough passphrase");
-        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, oldStore, store);
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route()), oldSecret, oldStore, store);
         Assert.True((bool)done["ok"]!);
         Assert.Equal([(string)MigrationFlow.ObjectNames()["bundle"]!], store.Objects.Keys.ToArray());
 
         var fresh = new KeyStore();
-        var host = new Host(new Route(), 50);
+        var host = new Host(new Route());
         using var freshSecret = Secret("a long enough passphrase");
         var r = await MigrationFlow.RunAsync("restore", Params(), host, freshSecret, fresh, store);
         Assert.True((bool)r["ok"]!);
@@ -236,7 +232,7 @@ public class MigrationFlowTests
         Assert.DoesNotContain(host.Seen, t => t is "getBundle" or "putBundle" or "readClaim" or "createClaim");
 
         using var thirdSecret = Secret("a long enough passphrase");
-        var second = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), 90), thirdSecret, new KeyStore(), store);
+        var second = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route()), thirdSecret, new KeyStore(), store);
         Assert.Equal("claimed", (string)second["reason"]!);
     }
 
@@ -249,28 +245,28 @@ public class MigrationFlowTests
         var store = new MemoryStore();
         var oldStore = Filled();
         using var oldSecret = Secret("a long enough passphrase");
-        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, oldStore, store);
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route()), oldSecret, oldStore, store);
         Assert.True((bool)done["ok"]!);
 
-        async Task<JsonObject> RestoreOver(KeyStore keys, int seed)
+        async Task<JsonObject> RestoreOver(KeyStore keys)
         {
             var (client, server) = Pipe();
             var serving = MigrationFlow.ServeAsync(server, store, true);
             using var secret = Secret("a long enough passphrase");
-            var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), seed), secret, keys, link: client);
+            var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route()), secret, keys, link: client);
             client.Close();
             Assert.Equal("closed", (string)(await serving)["reason"]!);
             return r;
         }
         var fresh = new KeyStore();
-        var r = await RestoreOver(fresh, 50);
+        var r = await RestoreOver(fresh);
         Assert.True((bool)r["ok"]!);
         Assert.True((bool)r["confirmed"]!);
         Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
         var names = MigrationFlow.ObjectNames();
         Assert.Contains((string)names["claim"]!, store.Objects.Keys);
         Assert.Contains((string)names["confirmation"]!, store.Objects.Keys);
-        Assert.Equal("claimed", (string)(await RestoreOver(new KeyStore(), 90))["reason"]!);
+        Assert.Equal("claimed", (string)(await RestoreOver(new KeyStore()))["reason"]!);
     }
 
     // @verifies SWR-MG-10
@@ -290,7 +286,7 @@ public class MigrationFlowTests
         var (client, _) = Pipe();
         client.Broken = true;
         using var secret = Secret("a long enough passphrase");
-        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route(), 50), secret, new KeyStore(), link: client);
+        var r = await MigrationFlow.RunAsync("restore", Params(), new Host(new Route()), secret, new KeyStore(), link: client);
         Assert.Equal("route_unavailable", (string)r["reason"]!);
     }
 
@@ -300,7 +296,7 @@ public class MigrationFlowTests
     {
         var store = new MemoryStore { FailOn = "put" };
         using var oldSecret = Secret("a long enough passphrase");
-        var r = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route(), 1), oldSecret, Filled(), store);
+        var r = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(new Route()), oldSecret, Filled(), store);
         Assert.Equal("route_unavailable", (string)r["reason"]!);
     }
 
@@ -310,17 +306,17 @@ public class MigrationFlowTests
     {
         var good = new MemoryStore();
         good.Objects["users-file"] = "01";
-        var r = await MigrationFlow.ProbeAsync(good, 1000, new Host(new Route(), 7));
+        var r = await MigrationFlow.ProbeAsync(good, 1000, new Host(new Route()));
         Assert.Equal("sufficient", (string)r["result"]!);
         Assert.Equal(["users-file"], good.Objects.Keys.ToArray());
 
         var noConditional = new MemoryStore { Conditional = false };
-        r = await MigrationFlow.ProbeAsync(noConditional, 1000, new Host(new Route(), 7));
+        r = await MigrationFlow.ProbeAsync(noConditional, 1000, new Host(new Route()));
         Assert.Equal("backup_only", (string)r["result"]!);
         Assert.Equal("createIfAbsentSecondRefused", (string)r["failedOperation"]!);
         Assert.Empty(noConditional.Objects);
 
-        r = await MigrationFlow.ProbeAsync(new MemoryStore { Space = 10 }, 1000, new Host(new Route(), 7));
+        r = await MigrationFlow.ProbeAsync(new MemoryStore { Space = 10 }, 1000, new Host(new Route()));
         Assert.Equal("space", (string)r["failedOperation"]!);
     }
 
@@ -332,16 +328,16 @@ public class MigrationFlowTests
         var route = new Route();
         var oldStore = Filled();
         using var oldSecret = Secret("a long enough passphrase");
-        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        var done = await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route), oldSecret, oldStore);
         using var freshSecret = Secret("a long enough passphrase");
-        await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, new KeyStore());
+        await MigrationFlow.RunAsync("restore", Params(), new Host(route), freshSecret, new KeyStore());
         JsonObject ClearParams() => new() { ["bundleHash"] = (string)done["bundleHash"]!, ["canRemoveOsBond"] = true };
 
         var files = new MemoryFiles { FailOn = "delete:c-small.db" };
         files.Files["a-big.db"] = Enumerable.Repeat((byte)0x11, 40_000).ToArray();
         files.Files["b-empty.db"] = [];
         files.Files["c-small.db"] = Enumerable.Repeat((byte)0x22, 100).ToArray();
-        var host = new Host(route, 1);
+        var host = new Host(route);
         var r1 = await MigrationFlow.RunAsync("clear", ClearParams(), host, null, oldStore, null, files);
         Assert.False((bool)r1["ok"]!);
         Assert.Equal("overwriteAndDeleteFiles", (string)r1["step"]!);
@@ -355,7 +351,7 @@ public class MigrationFlowTests
         Assert.Equal(["delete:b-empty.db"], files.Events.Where(e => e.Contains("b-empty.db")).ToArray());
 
         files.FailOn = null;
-        var second = new Host(new Route(), 1);
+        var second = new Host(new Route());
         var r2 = await MigrationFlow.RunAsync("clear", ClearParams(), second, null, oldStore, null, files);
         Assert.True((bool)r2["ok"]!);
         Assert.Empty(files.Files);
@@ -371,10 +367,10 @@ public class MigrationFlowTests
         string[] installKeys = ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"];
         foreach (var k in installKeys) oldStore.PutString(k, "belongs-to-this-phone");
         using var oldSecret = Secret("a long enough passphrase");
-        await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, oldStore);
+        await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route), oldSecret, oldStore);
         var fresh = new KeyStore();
         using var freshSecret = Secret("a long enough passphrase");
-        await MigrationFlow.RunAsync("restore", Params(), new Host(route, 50), freshSecret, fresh);
+        await MigrationFlow.RunAsync("restore", Params(), new Host(route), freshSecret, fresh);
         foreach (var k in installKeys) Assert.Null(fresh.GetString(k));
         Assert.Equal("value-of-np.session.history", fresh.GetString("np.session.history"));
     }
@@ -385,8 +381,8 @@ public class MigrationFlowTests
     {
         var route = new Route();
         using var oldSecret = Secret("a long enough passphrase");
-        await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route, 1), oldSecret, Filled());
-        var wrong = new Host(route, 50);
+        await MigrationFlow.RunAsync("backup", Params(("kind", "migrate"), ("method", "passphrase")), new Host(route), oldSecret, Filled());
+        var wrong = new Host(route);
         using var wrongSecret = Secret("a different passphrase");
         var r = await MigrationFlow.RunAsync("restore", Params(), wrong, wrongSecret, new KeyStore());
         Assert.False((bool)r["ok"]!);

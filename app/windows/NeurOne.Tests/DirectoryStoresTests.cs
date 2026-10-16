@@ -23,24 +23,19 @@ public class DirectoryStoresTests : IDisposable
         foreach (var d in _dirs) if (Directory.Exists(d)) Directory.Delete(d, recursive: true);
     }
 
-    private sealed class RandomOnly(int seed) : IMigrationHost
+    // A host for a flow that asks it for nothing: a route that is an object store, and no item stored another way.
+    private sealed class NoHost : IMigrationHost
     {
-        private int _n = seed;
-        public Task<JsonObject> PerformAsync(JsonObject e)
-        {
-            if ((string?)e["type"] != "random") throw new InvalidOperationException($"unknown effect {(string?)e["type"]}");
-            var bytes = Enumerable.Range(0, (int)e["bytes"]!).Select(_ => (byte)(_n = (_n * 31 + 7) & 255)).ToArray();
-            return Task.FromResult(new JsonObject { ["bytes"] = Convert.ToHexString(bytes).ToLowerInvariant() });
-        }
+        public Task<JsonObject> PerformAsync(JsonObject e) => throw new InvalidOperationException($"unknown effect {(string?)e["type"]}");
     }
 
-    // The host of a clear: the key and the pairing are the platform's and here just succeed; the overwrite asks for randomness.
+    // The host of a clear: the key and the pairing are the platform's and here just succeed.
     private sealed class ClearHost : IMigrationHost
     {
-        private readonly RandomOnly _random = new(1);
-
         public Task<JsonObject> PerformAsync(JsonObject e) =>
-            (string?)e["type"] == "runClearStep" ? Task.FromResult(new JsonObject { ["ok"] = true }) : _random.PerformAsync(e);
+            (string?)e["type"] == "runClearStep"
+                ? Task.FromResult(new JsonObject { ["ok"] = true })
+                : throw new InvalidOperationException($"unknown effect {(string?)e["type"]}");
     }
 
     private sealed class Keys : IKeyValueStore
@@ -92,7 +87,7 @@ public class DirectoryStoresTests : IDisposable
     public async Task AFolderOnDiskPassesTheAccountCheckAndTheProbeLeavesItEmpty()
     {
         var dir = Temp();
-        var result = await MigrationFlow.ProbeAsync(new DirectoryObjectStore(dir), 1_000_000, new RandomOnly(7));
+        var result = await MigrationFlow.ProbeAsync(new DirectoryObjectStore(dir), 1_000_000, new NoHost());
         Assert.Equal("sufficient", (string)result["result"]!);
         Assert.Empty(Directory.EnumerateFileSystemEntries(dir));
     }
@@ -128,16 +123,16 @@ public class DirectoryStoresTests : IDisposable
         using var s1 = Secret();
         var backup = await MigrationFlow.RunAsync("backup",
             new JsonObject { ["kind"] = "migrate", ["method"] = "passphrase", ["route"] = Route(), ["hostItems"] = new JsonArray() },
-            new RandomOnly(1), s1, oldKeys, folder);
+            new NoHost(), s1, oldKeys, folder);
         Assert.True((bool)backup["ok"]!);
 
         var newKeys = new Keys();
         using var s2 = Secret();
-        var restore = await MigrationFlow.RunAsync("restore", new JsonObject { ["route"] = Route(), ["hostItems"] = new JsonArray() }, new RandomOnly(50), s2, newKeys, folder);
+        var restore = await MigrationFlow.RunAsync("restore", new JsonObject { ["route"] = Route(), ["hostItems"] = new JsonArray() }, new NoHost(), s2, newKeys, folder);
         Assert.True((bool)restore["ok"]!);
         Assert.Equal("history of the old phone", newKeys.GetString("np.session.history"));
         using var s3 = Secret();
-        var second = await MigrationFlow.RunAsync("restore", new JsonObject { ["route"] = Route(), ["hostItems"] = new JsonArray() }, new RandomOnly(90), s3, new Keys(), folder);
+        var second = await MigrationFlow.RunAsync("restore", new JsonObject { ["route"] = Route(), ["hostItems"] = new JsonArray() }, new NoHost(), s3, new Keys(), folder);
         Assert.Equal("claimed", (string)second["reason"]!);
 
         var data = Temp();

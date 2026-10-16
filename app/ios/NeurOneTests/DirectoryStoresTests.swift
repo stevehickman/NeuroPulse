@@ -10,14 +10,10 @@
 import XCTest
 @testable import NeurOne
 
+/// A host for a flow that asks it for nothing: a route that is an object store, and no item stored another way.
 private final class NoRoute: MigrationHost {
-    private var counter: Int
-    init(seed: Int) { counter = seed }
     func perform(_ e: [String: Any]) async throws -> [String: Any] {
-        guard e["type"] as? String == "random" else { throw NppsCore.Refusal(message: "unknown effect \(e["type"] ?? "")") }
-        let count = e["bytes"] as? Int ?? 0
-        let bytes = (0..<count).map { _ -> UInt8 in counter = (counter * 31 + 7) & 255; return UInt8(counter) }
-        return ["bytes": bytes.map { String(format: "%02x", $0) }.joined()]
+        throw NppsCore.Refusal(message: "unknown effect \(e["type"] ?? "")")
     }
 }
 
@@ -88,7 +84,7 @@ final class DirectoryStoresTests: XCTestCase {
     func testAFolderOnDiskPassesTheAccountCheckAndTheProbeLeavesItEmpty() async throws {
         let dir = try tempDirectory()
         let result = try await MigrationFlow.probe(
-            store: try DirectoryObjectStore(root: dir), bundleBytes: 1_000_000, host: NoRoute(seed: 7))
+            store: try DirectoryObjectStore(root: dir), bundleBytes: 1_000_000, host: NoRoute())
         XCTAssertEqual(result["result"] as? String, "sufficient")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), [], "the probe leaves nothing behind")
     }
@@ -125,17 +121,17 @@ final class DirectoryStoresTests: XCTestCase {
         oldKv.putString("np.session.history", "history of the old phone")
         let backup = try await MigrationFlow.run(
             "backup", params: ["kind": "migrate", "method": "passphrase", "route": route, "hostItems": [String]()],
-            host: NoRoute(seed: 1), secret: try secret(), keys: oldKv, store: folder)
+            host: NoRoute(), secret: try secret(), keys: oldKv, store: folder)
         XCTAssertEqual(backup["ok"] as? Bool, true)
 
         let newKv = MemoryKeys()
         let restore = try await MigrationFlow.run(
-            "restore", params: ["route": route, "hostItems": [String]()], host: NoRoute(seed: 50),
+            "restore", params: ["route": route, "hostItems": [String]()], host: NoRoute(),
             secret: try secret(), keys: newKv, store: folder)
         XCTAssertEqual(restore["ok"] as? Bool, true)
         XCTAssertEqual(newKv.getString("np.session.history"), "history of the old phone")
         let second = try await MigrationFlow.run(
-            "restore", params: ["route": route, "hostItems": [String]()], host: NoRoute(seed: 90),
+            "restore", params: ["route": route, "hostItems": [String]()], host: NoRoute(),
             secret: try secret(), keys: MemoryKeys(), store: folder)
         XCTAssertEqual(second["reason"] as? String, "claimed")
 
@@ -159,13 +155,11 @@ private final class MemoryKeys: KeyValueStore {
     func remove(_ key: String) { values.removeValue(forKey: key) }
 }
 
-/// The host of a clear: the key and the pairing are the platform's and here just succeed; the overwrite asks for randomness.
+/// The host of a clear: the key and the pairing are the platform's and here just succeed.
 private final class ClearHost: MigrationHost {
-    private let random = NoRoute(seed: 1)
-
     func perform(_ e: [String: Any]) async throws -> [String: Any] {
-        if e["type"] as? String == "runClearStep" { return ["ok": true] }
-        return try await random.perform(e)
+        guard e["type"] as? String == "runClearStep" else { throw NppsCore.Refusal(message: "unknown effect \(e["type"] ?? "")") }
+        return ["ok": true]
     }
 }
 

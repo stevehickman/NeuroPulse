@@ -5,9 +5,10 @@ import Foundation
 // The flows are state machines in the shared core (common/npps-core, migration_flow.rs): the ORDER (open the bundle before
 // taking a claim, verify before confirming, confirm before the old phone clears) is decided there, once, for iOS, Android,
 // Windows, macOS and the web. This file is the whole iOS driver: ask the core, perform the effect it names, hand back the
-// outcome, until the core says done. Three effects it answers itself, the same on every platform: `deriveKey` (the core's own
-// Argon2id over the secret this driver holds), and `readKeys` / `writeKeys` (the app's key-value store, whose key list the
-// core holds in common/npps/migration-keys.json). Everything else is the host's: the route, and any item the app stores
+// outcome, until the core says done. It answers these effects itself, the same on every platform: `random` (the platform's
+// CSPRNG), `deriveKey` (the core's own Argon2id over the secret this driver holds), `readKeys` / `writeKeys` (the app's
+// key-value store, whose key list the core holds in common/npps/migration-keys.json), the object, file and link calls.
+// Everything else is the host's: the route, and any item the app stores
 // another way. The table of effects is in migration_flow.rs. The Windows counterpart is
 // app/windows/NeurOne/Protocol/MigrationFlow.cs, the web's common/lib/migrationFlow.ts and Kotlin's MigrationFlow.kt, under the
 // same four names: MigrationFlow, MigrationHost, KeyValueStore and ObjectStore.
@@ -98,7 +99,8 @@ enum MigrationFlow {
         keys: KeyValueStore? = nil,
         store: ObjectStore? = nil,
         files: FileStore? = nil,
-        link: Link? = nil
+        link: Link? = nil,
+        random: BundleRandomSource = SystemBundleRandomSource()
     ) async throws -> [String: Any] {
         var params = params
         if store != nil || link != nil, params["objectStore"] == nil { params["objectStore"] = true }
@@ -113,7 +115,8 @@ enum MigrationFlow {
             guard let effect = answer["effect"] as? [String: Any], let state = answer["state"] else {
                 throw NppsCore.Refusal(message: "the core named no effect")
             }
-            let result = try await perform(effect, host: host, secret: secret, keys: keys, store: store, files: files, link: link)
+            let result = try await perform(
+                effect, host: host, secret: secret, keys: keys, store: store, files: files, link: link, random: random)
             answer = try NppsCore.migration(["op": "flow", "flow": flow, "state": state, "result": result])
         }
         throw NppsCore.Refusal(message: "The \(flow) flow did not end in \(maxTurns) turns")
@@ -126,9 +129,15 @@ enum MigrationFlow {
         keys: KeyValueStore?,
         store: ObjectStore?,
         files: FileStore?,
-        link: Link?
+        link: Link?,
+        random: BundleRandomSource
     ) async throws -> [String: Any] {
         switch e["type"] as? String {
+        case "random":
+            let n = (e["bytes"] as? NSNumber)?.intValue ?? 0
+            let bytes = try random.nextBytes(n)
+            guard bytes.count == n else { throw BundleKeyError.noRandomness }
+            return ["bytes": bytes.map { String(format: "%02x", $0) }.joined()]
         case "deriveKey":
             guard let secret, let kdf = e["kdf"] as? [String: Any] else {
                 throw NppsCore.Refusal(message: "no secret to derive a key from")
@@ -253,8 +262,10 @@ enum MigrationFlow {
     /// The object names the core uses, for a host that releases a claim on the person's explicit act (SWR-MG-07).
     static func objectNames() throws -> [String: Any] { try NppsCore.migration(["op": "objectNames"]) }
 
-    /// SWR-MG-12: check an account on throwaway objects that hold no user data. `host` answers `random`, as for any flow.
-    static func probe(store: ObjectStore, bundleBytes: Int, host: MigrationHost) async throws -> [String: Any] {
-        try await run("probe", params: ["bundleBytes": bundleBytes], host: host, store: store)
+    /// SWR-MG-12: check an account on throwaway objects that hold no user data.
+    static func probe(
+        store: ObjectStore, bundleBytes: Int, host: MigrationHost, random: BundleRandomSource = SystemBundleRandomSource()
+    ) async throws -> [String: Any] {
+        try await run("probe", params: ["bundleBytes": bundleBytes], host: host, store: store, random: random)
     }
 }

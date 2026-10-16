@@ -15,7 +15,6 @@ import kotlinx.serialization.json.put
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecretResult
-import life.neurone.core.data.RandomSource
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -30,13 +29,9 @@ import kotlin.test.assertTrue
 
 /** The folder-backed stores on a real disk: the route for a local computer or a USB drive, and the app's files for the clear. */
 class DirectoryStoresTests {
-    private class StepRandom(private var n: Int = 0) : RandomSource {
-        override fun nextBytes(count: Int): ByteArray = ByteArray(count) { (n++ * 31 + 7).toByte() }
-    }
-
     private fun temp(): Path = Files.createTempDirectory("np-dir-store")
     private val secret get() = (BundleKeyDerivation.passphraseSecret("a long enough passphrase") as BundleSecretResult.Ok).secret
-    private fun host(seed: Int) = StandardMigrationHost(StepRandom(seed))
+    private fun host() = StandardMigrationHost()
 
     // @verifies SWR-MG-07
     @Test
@@ -74,7 +69,7 @@ class DirectoryStoresTests {
     @Test
     fun aFolderOnDiskPassesTheAccountCheckAndTheProbeLeavesItEmpty() = runTest {
         val dir = temp()
-        val r = MigrationFlow.probe(DirectoryObjectStore(dir), 1_000_000, host(7))
+        val r = MigrationFlow.probe(DirectoryObjectStore(dir), 1_000_000, host())
         assertEquals("sufficient", r["result"]!!.jsonPrimitive.content)
         assertEquals(0, Files.list(dir).use { it.count() }, "the probe leaves nothing behind")
     }
@@ -90,15 +85,15 @@ class DirectoryStoresTests {
         val oldKv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the old phone") }
         val backup = MigrationFlow.run(
             "backup", buildJsonObject { put("kind", "migrate"); put("method", "passphrase"); put("route", route); put("hostItems", items) },
-            host(1), secret, oldKv, folder,
+            host(), secret, oldKv, folder,
         )
         assertTrue(backup["ok"]!!.jsonPrimitive.boolean)
 
         val newKv = InMemoryKeyValueStore()
-        val restore = MigrationFlow.run("restore", buildJsonObject { put("route", route); put("hostItems", items) }, host(50), secret, newKv, folder)
+        val restore = MigrationFlow.run("restore", buildJsonObject { put("route", route); put("hostItems", items) }, host(), secret, newKv, folder)
         assertTrue(restore["ok"]!!.jsonPrimitive.boolean)
         assertEquals("history of the old phone", newKv.getString("np.session.history"))
-        val second = MigrationFlow.run("restore", buildJsonObject { put("route", route); put("hostItems", items) }, host(90), secret, InMemoryKeyValueStore(), folder)
+        val second = MigrationFlow.run("restore", buildJsonObject { put("route", route); put("hostItems", items) }, host(), secret, InMemoryKeyValueStore(), folder)
         assertEquals("claimed", second["reason"]!!.jsonPrimitive.content)
 
         val dataDir = temp()
@@ -106,7 +101,7 @@ class DirectoryStoresTests {
         dataDir.resolve("settings.db").writeBytes(ByteArray(0))
         val clear = MigrationFlow.run(
             "clear", buildJsonObject { put("bundleHash", backup["bundleHash"]!!.jsonPrimitive.content); put("canRemoveOsBond", true) },
-            StandardMigrationHost(StepRandom(1), actions = object : ClearActions { override suspend fun run(step: String) = true }), null,
+            StandardMigrationHost(actions = object : ClearActions { override suspend fun run(step: String) = true }), null,
             oldKv, store = folder, files = DirectoryFileStore(dataDir),
         )
         assertTrue(clear["ok"]!!.jsonPrimitive.boolean, clear.toString())
