@@ -75,6 +75,7 @@ protocol FileStore {
 /// A pipe to the other phone (SWR-MG-10): bytes in, bytes out, as lower-case hex like the object store's. Bluetooth, a local
 /// socket or a cable is each one implementation; everything above the bytes (framing, which calls a peer may make, the claim)
 /// is in the core (link.rs). The same role and names on every platform (Kotlin `Link`, C# `ILink`, TypeScript `Link`).
+// Named `Link` on every platform; SwiftUI has a view of the same name, so a view that links to a URL writes `SwiftUI.Link`.
 protocol Link {
     /// Send the bytes; throws if the link broke.
     func send(_ data: String) async throws

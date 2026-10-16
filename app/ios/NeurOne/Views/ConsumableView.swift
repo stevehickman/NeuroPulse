@@ -87,7 +87,7 @@ struct ConsumableStatusRow: View {
             if state.isLow {
                 HStack(spacing: 8) {
                     if let url = ConsumableReminder(state: state).orderURL {
-                        Link(destination: url) {
+                        SwiftUI.Link(destination: url) {
                             Label("CONSUMABLE_ORDER_NOW", systemImage: "cart")
                                 .font(.caption)
                         }
@@ -147,7 +147,7 @@ struct ConsumableAlertRow: View {
 
             HStack {
                 if let url = reminder.orderURL {
-                    Link(destination: url) {
+                    SwiftUI.Link(destination: url) {
                         Label(
                             String(
                                 format: String(localized: "CONSUMABLE_ORDER_PACK_FORMAT"),
