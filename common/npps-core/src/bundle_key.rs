@@ -274,4 +274,34 @@ mod tests {
         assert_eq!(derive_key(b"a long enough passphrase", &other).unwrap_err(), "unsupported_kdf");
         assert_eq!(derive_key(b"", &kdf(1)).unwrap_err(), "empty_secret");
     }
+
+    // @verifies SWR-MG-02
+    #[test]
+    fn the_nfkc_corpus_of_known_answers_holds() {
+        let corpus: Value = serde_json::from_str(include_str!("../../../app/NeurOneShared/TestData/nfkc-corpus.json")).unwrap();
+        let pad = corpus["padding"].as_str().unwrap();
+        assert_eq!(corpus["minChars"].as_u64().unwrap() as usize, PASSPHRASE_MIN_CHARS);
+        assert!(corpus["cases"].as_array().unwrap().len() >= 25, "the corpus is not thinned out");
+        let mut wrong = vec![];
+        for c in corpus["cases"].as_array().unwrap() {
+            let (name, input, expected) = (c["name"].as_str().unwrap(), c["input"].as_str().unwrap(), c["expected"].as_str().unwrap());
+            let got = passphrase_secret(&format!("{pad}{input}")).map(|b| hex(&b));
+            let want = hex(format!("{pad}{expected}").as_bytes());
+            if got.as_deref() != Ok(want.as_str()) {
+                wrong.push(format!("{name}: {got:?} != {want}"));
+            }
+        }
+        for c in corpus["exact"].as_array().unwrap() {
+            let (name, input, expected) = (c["name"].as_str().unwrap(), c["input"].as_str().unwrap(), c["expected"].as_str().unwrap());
+            if passphrase_secret(input).map(|b| hex(&b)).as_deref() != Ok(hex(expected.as_bytes()).as_str()) {
+                wrong.push(format!("{name}: the floor is counted wrongly"));
+            }
+        }
+        for c in corpus["tooShort"].as_array().unwrap() {
+            if passphrase_secret(c["input"].as_str().unwrap()) != Err("too_short") {
+                wrong.push(format!("{}: accepted under the floor", c["name"]));
+            }
+        }
+        assert!(wrong.is_empty(), "{} answer(s) differ from the Unicode Standard's:\n{}", wrong.len(), wrong.join("\n"));
+    }
 }

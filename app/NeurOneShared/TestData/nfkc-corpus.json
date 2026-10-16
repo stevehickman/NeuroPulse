@@ -1,0 +1,183 @@
+{
+  "description": "Known answers for the Unicode NFKC normalisation a passphrase goes through before it becomes a bundle key (SWR-MG-02, NP-SOUP-RUST-001). Every answer is from the Unicode Standard's decomposition mappings and the NFKC algorithm (UnicodeData.txt, UAX #15), written by hand, not produced by the crate under test. Run by the Rust core against its own function and by Kotlin, Swift, C# and the web through their binding, so the corpus checks the crate's tables AND that each platform hands the core the same code points (the outside-the-BMP cases are where a UTF-16 or modified-UTF-8 boundary would go wrong). A case's input is `padding` followed by `input`; its secret is the UTF-8 of `padding` followed by `expected`, as hex. The crate's Unicode version is 17.0.0; a change to it that changes any answer here is a change to every sealed passphrase bundle.",
+  "unicodeVersion": "17.0.0",
+  "padding": "pad-pad-pad-",
+  "minChars": 12,
+  "cases": [
+    {
+      "name": "latin small ligature fi",
+      "input": "\ufb01",
+      "expected": "fi"
+    },
+    {
+      "name": "latin small ligature ffi",
+      "input": "\ufb03",
+      "expected": "ffi"
+    },
+    {
+      "name": "latin small long s",
+      "input": "\u017f",
+      "expected": "s"
+    },
+    {
+      "name": "angstrom sign is the Latin A with ring",
+      "input": "\u212b",
+      "expected": "\u00c5"
+    },
+    {
+      "name": "ohm sign is the Greek capital omega",
+      "input": "\u2126",
+      "expected": "\u03a9"
+    },
+    {
+      "name": "kelvin sign is the Latin K",
+      "input": "\u212a",
+      "expected": "K"
+    },
+    {
+      "name": "e and a combining acute compose",
+      "input": "e\u0301",
+      "expected": "\u00e9"
+    },
+    {
+      "name": "fullwidth Latin letters",
+      "input": "\uff48\uff45\uff4c\uff4c\uff4f",
+      "expected": "hello"
+    },
+    {
+      "name": "circled digit one",
+      "input": "\u2460",
+      "expected": "1"
+    },
+    {
+      "name": "superscript two",
+      "input": "\u00b2",
+      "expected": "2"
+    },
+    {
+      "name": "vulgar fraction one half uses the fraction slash",
+      "input": "\u00bd",
+      "expected": "1\u20442"
+    },
+    {
+      "name": "roman numeral twelve",
+      "input": "\u216b",
+      "expected": "XII"
+    },
+    {
+      "name": "trade mark sign",
+      "input": "\u2122",
+      "expected": "TM"
+    },
+    {
+      "name": "horizontal ellipsis",
+      "input": "\u2026",
+      "expected": "..."
+    },
+    {
+      "name": "square kg",
+      "input": "\u338f",
+      "expected": "kg"
+    },
+    {
+      "name": "square kiro",
+      "input": "\u3314",
+      "expected": "\u30ad\u30ed"
+    },
+    {
+      "name": "halfwidth katakana ka and the voiced mark compose to ga",
+      "input": "\uff76\uff9e",
+      "expected": "\u30ac"
+    },
+    {
+      "name": "hangul jamo compose to a syllable",
+      "input": "\u1112\u1161\u11ab",
+      "expected": "\ud55c"
+    },
+    {
+      "name": "hangul compatibility jamo kiyeok",
+      "input": "\u3131",
+      "expected": "\u1100"
+    },
+    {
+      "name": "latin small dz with caron",
+      "input": "\u01c6",
+      "expected": "d\u017e"
+    },
+    {
+      "name": "no-break space",
+      "input": "\u00a0",
+      "expected": " "
+    },
+    {
+      "name": "ideographic space",
+      "input": "\u3000",
+      "expected": " "
+    },
+    {
+      "name": "a, dot above, dot below reorders and composes",
+      "input": "a\u0307\u0323",
+      "expected": "\u1ea1\u0307"
+    },
+    {
+      "name": "a, dot below, dot above composes the same",
+      "input": "a\u0323\u0307",
+      "expected": "\u1ea1\u0307"
+    },
+    {
+      "name": "mathematical bold capital A (outside the BMP)",
+      "input": "\ud835\udc00",
+      "expected": "A"
+    },
+    {
+      "name": "mathematical bold digit zero (outside the BMP)",
+      "input": "\ud835\udfce",
+      "expected": "0"
+    },
+    {
+      "name": "mathematical double-struck digit one (outside the BMP)",
+      "input": "\ud835\udfd9",
+      "expected": "1"
+    },
+    {
+      "name": "an emoji is unchanged (outside the BMP)",
+      "input": "\ud83d\ude00",
+      "expected": "\ud83d\ude00"
+    },
+    {
+      "name": "plain ASCII is unchanged",
+      "input": "Passphrase",
+      "expected": "Passphrase"
+    }
+  ],
+  "exact": [
+    {
+      "name": "six ligatures count as twelve letters, so the floor is met",
+      "input": "\ufb01\ufb01\ufb01\ufb01\ufb01\ufb01",
+      "expected": "fifififififi"
+    },
+    {
+      "name": "twelve emoji are twelve characters, not twenty-four",
+      "input": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+      "expected": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+    }
+  ],
+  "tooShort": [
+    {
+      "name": "six emoji are six characters, not twelve",
+      "input": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+    },
+    {
+      "name": "eleven characters",
+      "input": "abcdefghij\u00e9"
+    },
+    {
+      "name": "six e-acute written as two code points each are six characters after normalising",
+      "input": "e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301"
+    },
+    {
+      "name": "six mathematical bold letters are six characters",
+      "input": "\ud835\udc00\ud835\udc00\ud835\udc00\ud835\udc00\ud835\udc00\ud835\udc00"
+    }
+  ]
+}
