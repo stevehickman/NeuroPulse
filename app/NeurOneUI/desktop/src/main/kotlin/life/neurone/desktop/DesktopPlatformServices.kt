@@ -7,7 +7,10 @@ import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.DirectoryObjectStore
+import life.neurone.core.migration.AppFolder
+import life.neurone.core.migration.FileStore
 import life.neurone.core.migration.ObjectStoreRoute
+import life.neurone.core.migration.appFileStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.MigrationPlace
@@ -40,8 +43,14 @@ class DesktopPlatformServices(
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
     override val linkTransport: LinkTransport = LanLinkTransport()
 
+    /**
+     * SWR-MG-06: every file in the app's data folder (the key-value store's file and its temporary copy, and anything else the app
+     * wrote there) except `backups`, which holds the backup the clear is clearing against. Built from [appDataDirectory].
+     */
+    override val migrationFiles: FileStore = desktopOwnFiles(appDataDirectory())
+
     override val migrationPlace: MigrationPlace? by lazy {
-        val folder = appDataDirectory().resolve("backups")
+        val folder = appDataDirectory().resolve(BACKUP_FOLDER)
         MigrationPlace(folder.path, DirectoryObjectStore(folder.toPath()), ObjectStoreRoute("local-folder", atomicClaim = true))
     }
 
@@ -96,3 +105,9 @@ class FileKeyValueStore(private val file: File) : KeyValueStore {
         properties.remove(key); persist()
     }
 }
+
+/** The desktop app's own files for the clear: the whole data folder, leaving the backup place alone (SWR-MG-06). */
+fun desktopOwnFiles(dataDirectory: File): FileStore = appFileStore(listOf(AppFolder("data", dataDirectory.toPath(), kept = listOf(BACKUP_FOLDER))))
+
+/** The folder of [DesktopPlatformServices.migrationPlace], inside the data folder. */
+internal const val BACKUP_FOLDER = "backups"

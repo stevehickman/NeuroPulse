@@ -21,6 +21,8 @@ import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.NPValidationText
 import life.neurone.core.research.ResearchSuggestionStore
+import life.neurone.core.migration.AppFolder
+import life.neurone.core.migration.appFileStore
 import life.neurone.core.session.SessionHistoryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -87,6 +89,7 @@ class NeurOneApplication : Application() {
         services = AppServices(
             platform = AndroidPlatformServices(
                 SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
+                migrationFiles = ownFiles(),
             ),
             scope = bleScope,
         )
@@ -108,6 +111,20 @@ class NeurOneApplication : Application() {
      *  (b) warrantyToken → adopt the hub-provisioned TRNG token (OI-BLE-01); nulls
      *      are dropped so a disconnect never downgrades the token.
      */
+    /**
+     * SWR-MG-06: the files the old phone's clear overwrites and deletes. The key-value store's backing file is
+     * `shared_prefs/np-app.xml`, and the framework keeps `np-app.xml.bak` beside it while it writes; both can hold the plain
+     * values of keys not yet sealed, so both are listed, with everything in the app's private `files` folder. The backup place
+     * is a document the person chose through the system's dialogs, outside these folders. The preferences are then written
+     * again from memory as the clear removes its keys, so a clear that stops part way does not lose its progress.
+     */
+    private fun ownFiles() = appFileStore(
+        listOf(
+            AppFolder("files", filesDir.toPath()),
+            AppFolder("shared_prefs", java.io.File(dataDir, "shared_prefs").toPath()),
+        ),
+    )
+
     private fun composeShdrUploadPipeline() {
         bleScope.launch {
             gattManager.warrantyToken.collect { token ->

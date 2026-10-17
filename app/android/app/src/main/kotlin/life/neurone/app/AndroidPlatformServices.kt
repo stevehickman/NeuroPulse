@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.migration.FileStore
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
@@ -25,6 +26,8 @@ class AndroidPlatformServices(
     override val protocolSigner: ProtocolSigner,
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
     override val secretKeyStore: SecretKeyStore? = null,
+    /** The app's own files for the clear to overwrite (SWR-MG-06); see [NeurOneApplication]'s `ownFiles`. */
+    override val migrationFiles: FileStore? = null,
 ) : PlatformServices {
 
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */

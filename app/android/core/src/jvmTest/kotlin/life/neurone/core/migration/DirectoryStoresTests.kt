@@ -123,4 +123,49 @@ class DirectoryStoresTests {
         assertFalse(dir.resolve("x.db").exists())
         for (bad in listOf("../x.db", "/etc/passwd", "")) assertFailsWith<IllegalArgumentException> { files.delete(bad) }
     }
+
+    // The host's own files, as the Android and desktop apps assemble them (appFileStore): the clear overwrites and deletes the data
+    // folders' files, including the backing file of the key-value store and its leftovers, and leaves the backup it is clearing
+    // against, which on a computer is inside the app's own data folder.
+    // @verifies SWR-MG-06
+    @Test
+    fun theClearTakesTheHostsDataFilesAndLeavesTheBackupItClearsAgainst() = runTest {
+        val data = temp()
+        data.resolve("np-app.properties").writeBytes(ByteArray(300) { 0x41 })
+        data.resolve("np-app.properties.tmp").writeBytes(ByteArray(10) { 0x42 })
+        data.resolve("logs").also { Files.createDirectories(it) }.resolve("session.log").writeBytes(ByteArray(70_000) { 0x43 })
+        val place = data.resolve("backups")
+        val folder = DirectoryObjectStore(place)
+        val prefs = temp().also { it.resolve("np-app.xml").writeBytes(ByteArray(120) { 0x44 }); it.resolve("np-app.xml.bak").writeBytes(ByteArray(80) { 0x45 }) }
+
+        val oldKv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the old phone") }
+        val route = buildJsonObject { put("id", "local-folder"); put("atomicClaim", true) }
+        val backup = MigrationFlow.run(
+            "backup", buildJsonObject { put("kind", "migrate"); put("method", "passphrase"); put("route", route); put("hostItems", buildJsonArray { }) },
+            host(), secret, oldKv, folder,
+        )
+        assertTrue(backup["ok"]!!.jsonPrimitive.boolean)
+        val restore = MigrationFlow.run(
+            "restore", buildJsonObject { put("route", route); put("hostItems", buildJsonArray { }) }, host(), secret, InMemoryKeyValueStore(), folder,
+        )
+        assertTrue(restore["ok"]!!.jsonPrimitive.boolean)
+        fun placeContents() = place.toFile().list()!!.sorted().associateWith { place.resolve(it).readBytes().toList() }
+        val before = placeContents()
+        assertTrue(before.isNotEmpty())
+
+        val files = appFileStore(listOf(AppFolder("data", data, kept = listOf("backups")), AppFolder("shared_prefs", prefs)))
+        assertEquals(
+            listOf("data/logs/session.log", "data/np-app.properties", "data/np-app.properties.tmp", "shared_prefs/np-app.xml", "shared_prefs/np-app.xml.bak"),
+            files.list().map { it.path },
+        )
+        val clear = MigrationFlow.run(
+            "clear", buildJsonObject { put("bundleHash", backup["bundleHash"]!!.jsonPrimitive.content); put("canRemoveOsBond", true) },
+            StandardMigrationHost(actions = object : ClearActions { override suspend fun run(step: String) = true }), null,
+            oldKv, store = folder, files = files,
+        )
+        assertTrue(clear["ok"]!!.jsonPrimitive.boolean, clear.toString())
+        assertEquals(emptyList(), files.list(), "every data file is gone")
+        assertEquals(0, Files.walk(prefs).use { s -> s.filter { Files.isRegularFile(it) }.count() })
+        assertEquals(before, placeContents(), "the backup and the new phone's confirmation are still there, unchanged")
+    }
 }
