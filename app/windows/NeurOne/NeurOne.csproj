@@ -48,8 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Ed25519 signing — wraps libsodium, matches CryptoKit Curve25519.Signing on iOS -->
-    <PackageReference Include="NSec.Cryptography" Version="24.10.0" />
+    <!-- Ed25519 and every other primitive are the shared Rust core's (CLAUDE.md §22); NSec/libsodium is gone. -->
     <!-- DPAPI key protection (Windows-only, user-scope) -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>

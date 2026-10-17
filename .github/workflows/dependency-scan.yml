@@ -1,0 +1,93 @@
+name: Dependency scan (OSV)
+
+# OI-SOUPKT-01 items 2 and 3. Two checks over what the shipped apps are built from:
+#
+#   1. The Gradle lock files (gradle.lockfile in :core, :shared, :desktop and :web) are the committed record of what
+#      resolved. They are regenerated here and must not differ from what is committed: a changed transitive
+#      version shows up as a diff in review, not as a surprise. (:app needs the Android SDK and is not locked;
+#      its libraries are a subset of the shared ones plus the AndroidX list in NP-SOUP-KOTLIN-001 §5.)
+#   2. OSV-Scanner reads those lock files and common/Cargo.lock and fails on a known vulnerability.
+#
+# The Swift package (PostHog) and the NuGet references have no lock file and are not covered
+# (NP-SOUP-NATIVE-001 §4). Runs on a change to a dependency declaration and weekly, because an advisory is published
+# against a version that did not change.
+
+on:
+  push:
+    branches: [main]
+    paths: &paths
+      - 'app/android/**/build.gradle.kts'
+      - 'app/android/build.gradle.kts'
+      - 'app/android/settings.gradle.kts'
+      - 'app/NeurOneUI/**/build.gradle.kts'
+      - '**/gradle.lockfile'
+      - 'common/Cargo.lock'
+      - 'common/**/Cargo.toml'
+      - '.github/workflows/dependency-scan.yml'
+  pull_request:
+    paths: *paths
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gradle-locks:
+    name: Gradle lock files are current
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Regenerate the lock files
+        run: gradle :core:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks --stacktrace
+
+      - name: The committed lock files match
+        run: |
+          git status --short -- '*gradle.lockfile'
+          git diff --exit-code -- '*gradle.lockfile' || {
+            echo "::error::A lock file changed. Run 'gradle :core:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks' from app/android and commit the result, then update NP-SOUP-KOTLIN-001 §5."
+            exit 1
+          }
+          [ -z "$(git ls-files --others --exclude-standard -- '*gradle.lockfile')" ] || { echo "::error::A lock file is not committed"; exit 1; }
+
+  osv-scan:
+    name: OSV-Scanner (Cargo.lock and the Gradle lock files)
+    runs-on: ubuntu-latest
+    env:
+      OSV_SCANNER_VERSION: v1.9.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The binary and its checksum file come from the same release; the check is that the download is the file
+      # the release published, not an independent attestation.
+      - name: Install OSV-Scanner
+        run: |
+          base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
+          curl -fsSL -o osv-scanner "${base}/osv-scanner_linux_amd64"
+          curl -fsSL -o SHA256SUMS "${base}/osv-scanner_SHA256SUMS"
+          grep ' osv-scanner_linux_amd64$' SHA256SUMS | sed 's/osv-scanner_linux_amd64/osv-scanner/' | sha256sum -c -
+          chmod +x osv-scanner
+
+      - name: Scan
+        run: |
+          args=(--lockfile common/Cargo.lock)
+          while IFS= read -r f; do args+=(--lockfile "$f"); done < <(git ls-files '*gradle.lockfile')
+          ./osv-scanner "${args[@]}"

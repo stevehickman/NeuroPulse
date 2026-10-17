@@ -7,19 +7,21 @@
 // hub could parse, and are gone.
 
 using System.Security.Cryptography;
-using NSec.Cryptography;
+using System.Text.Json.Nodes;
+using NeurOne.Protocol;
 
 namespace NeurOne.Session;
 
 // MARK: - Protocol signer
 
 // Mirrors SessionProtocolSigner.swift.
-// The Ed25519 private key is generated once at first launch, protected with
-// DPAPI (Windows user-scope), and persisted to %LOCALAPPDATA%\NeurOne\.
-// The paired hub stores the corresponding public key registered at BLE pairing.
+// The Ed25519 key is a 32-byte seed, generated once at first launch, protected with DPAPI (Windows user-scope),
+// and persisted to %LOCALAPPDATA%\NeurOne\. The Ed25519 arithmetic is the shared Rust core's (CLAUDE.md §22);
+// this class only holds the seed and moves bytes. The file holds the same 32 raw bytes the earlier NSec build wrote,
+// so an existing key keeps working. The paired hub stores the corresponding public key registered at BLE pairing.
 static class SessionProtocolSigner
 {
-    private static readonly SignatureAlgorithm Ed25519Alg = SignatureAlgorithm.Ed25519;
+    private const int SeedBytes = 32;
     private static readonly string KeyPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "NeurOne", "signing.key");
@@ -27,22 +29,38 @@ static class SessionProtocolSigner
     /// Ed25519 over the descriptor's raw signed region (NP-FW-HUB-001 §4.1): the bytes, not a digest.
     public static (byte[] Signature, string Fingerprint) Sign(byte[] region)
     {
-        using var key = LoadOrCreateSigningKey();
-        var sig = Ed25519Alg.Sign(key, region);
-        var fp = Convert.ToHexString(key.PublicKey.Export(KeyBlobFormat.RawPublicKey).AsSpan()[..8]).ToLowerInvariant();
-        return (sig, fp);
+        var seed = LoadOrCreateSeed();
+        try
+        {
+            var sig = Convert.FromHexString(Ask("ed25519Sign", seed, ("message", region))["signature"]!.GetValue<string>());
+            var fp = Convert.ToHexString(PublicKey(seed).AsSpan()[..8]).ToLowerInvariant();
+            return (sig, fp);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(seed);
+        }
     }
 
     public static byte[] PublicKeyData()
     {
-        using var key = LoadOrCreateSigningKey();
-        return key.PublicKey.Export(KeyBlobFormat.RawPublicKey);
+        var seed = LoadOrCreateSeed();
+        try { return PublicKey(seed); }
+        finally { CryptographicOperations.ZeroMemory(seed); }
     }
 
-    private static Key LoadOrCreateSigningKey()
-    {
-        var creationParams = new KeyCreationParameters { ExportPolicy = KeyExportPolicies.AllowPlaintextExport };
+    private static byte[] PublicKey(byte[] seed)
+        => Convert.FromHexString(Ask("ed25519PublicKey", seed)["publicKey"]!.GetValue<string>());
 
+    private static JsonNode Ask(string op, byte[] seed, (string Name, byte[] Value)? extra = null)
+    {
+        var request = new JsonObject { ["op"] = op, ["seed"] = Convert.ToHexString(seed).ToLowerInvariant() };
+        if (extra is { } e) request[e.Name] = Convert.ToHexString(e.Value).ToLowerInvariant();
+        return NppsCore.Migration(request);
+    }
+
+    private static byte[] LoadOrCreateSeed()
+    {
         if (File.Exists(KeyPath))
         {
             // Read-then-unprotect in a single try so a concurrent delete between
@@ -51,7 +69,7 @@ static class SessionProtocolSigner
             {
                 var dpapi = File.ReadAllBytes(KeyPath);
                 var raw = ProtectedData.Unprotect(dpapi, null, DataProtectionScope.CurrentUser);
-                return Key.Import(Ed25519Alg, raw, KeyBlobFormat.RawPrivateKey, creationParams);
+                if (raw.Length == SeedBytes) return raw;
             }
             catch (FileNotFoundException)
             {
@@ -60,18 +78,9 @@ static class SessionProtocolSigner
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(KeyPath)!);
-        var key = Key.Create(Ed25519Alg, creationParams);
-        var exported = key.Export(KeyBlobFormat.RawPrivateKey);
-        try
-        {
-            var protected_ = ProtectedData.Protect(exported, null, DataProtectionScope.CurrentUser);
-            File.WriteAllBytes(KeyPath, protected_);
-        }
-        finally
-        {
-            // Zero private key bytes before GC can observe them.
-            CryptographicOperations.ZeroMemory(exported);
-        }
-        return key;
+        var seed = RandomNumberGenerator.GetBytes(SeedBytes);
+        var protected_ = ProtectedData.Protect(seed, null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(KeyPath, protected_);
+        return seed;
     }
 }

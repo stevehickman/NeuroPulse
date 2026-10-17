@@ -10,3 +10,21 @@ plugins {
     id("com.android.application") version "8.9.3" apply false
     id("com.android.library") version "8.9.3" apply false
 }
+
+// Dependency locking (OI-SOUPKT-01 item 3). Every version in this build is fixed, so locking pins nothing new; the
+// lock files are the record of what actually resolved, the input of the vulnerability scan
+// (.github/workflows/dependency-scan.yml) and the thing a changed transitive version shows up in review against.
+// LENIENT: a library missing from a lock file does not fail a build, so a new dependency is never blocked by a stale
+// lock; the scan job fails on drift instead. Regenerate: gradle resolveAndLockAll --write-locks
+allprojects {
+    dependencyLocking {
+        lockAllConfigurations()
+        lockMode.set(LockMode.LENIENT)
+    }
+    tasks.register("resolveAndLockAll") {
+        notCompatibleWithConfigurationCache("resolves configurations at execution time")
+        doLast {
+            configurations.filter { it.isCanBeResolved }.forEach { runCatching { it.resolve() } }
+        }
+    }
+}
