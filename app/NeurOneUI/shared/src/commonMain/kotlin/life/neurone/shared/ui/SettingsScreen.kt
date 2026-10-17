@@ -54,6 +54,8 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var showMigration by remember { mutableStateOf(false) }
     var showRestore by remember { mutableStateOf(false) }
     var showClear by remember { mutableStateOf(false) }
+    var showLinkSend by remember { mutableStateOf(false) }
+    var showLinkReceive by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -61,6 +63,8 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showLinkSend -> MigrationLinkSendScreen(app = app, onDone = { showLinkSend = false }, modifier = modifier)
+        showLinkReceive -> MigrationLinkReceiveScreen(app = app, onDone = { showLinkReceive = false }, modifier = modifier)
         showRestore -> MigrationRestoreScreen(
             app = app,
             onDone = { showRestore = false },
@@ -132,6 +136,8 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
             onManageMigration = { showMigration = true },
             onRestore = { showRestore = true },
             onClear = { showClear = true },
+            onLinkSend = { showLinkSend = true },
+            onLinkReceive = { showLinkReceive = true },
             modifier = modifier,
         )
     }
@@ -152,6 +158,8 @@ private fun SettingsContent(
     onManageMigration: () -> Unit,
     onRestore: () -> Unit,
     onClear: () -> Unit,
+    onLinkSend: () -> Unit,
+    onLinkReceive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -231,6 +239,11 @@ private fun SettingsContent(
         OutlinedButton(onClick = onManageMigration) { Text(stringResource(Res.string.settings_migration_button)) }
         OutlinedButton(onClick = onRestore) { Text(stringResource(Res.string.settings_restore_button)) }
         OutlinedButton(onClick = onClear) { Text(stringResource(Res.string.settings_clear_button)) }
+        // A direct move between two phones on the same Wi-Fi, when this host can reach one (SWR-MG-10).
+        if (app.platform.linkTransport != null) {
+            OutlinedButton(onClick = onLinkSend) { Text(stringResource(Res.string.settings_link_send_button)) }
+            OutlinedButton(onClick = onLinkReceive) { Text(stringResource(Res.string.settings_link_receive_button)) }
+        }
 
         Spacer(Modifier.height(24.dp))
 

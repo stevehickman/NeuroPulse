@@ -18,6 +18,8 @@ targets:
         # The Files app shows the app's Documents folder, where a backup is kept (SWR-MG-02).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        # Finding the other phone on the same Wi-Fi for a direct move asks for local-network access (SWR-MG-10).
+        NSLocalNetworkUsageDescription: NeurOne finds your other phone on this Wi-Fi network to move your data to it.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: life.neurone.ui

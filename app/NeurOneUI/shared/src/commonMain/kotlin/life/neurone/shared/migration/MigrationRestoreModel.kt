@@ -113,19 +113,7 @@ class MigrationRestoreModel(
             secret.destroy()
         }
         if (done["ok"]!!.jsonPrimitive.boolean) {
-            fun list(key: String) = (done[key] as? JsonElement)?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
-            state.value = RestoreStep.Done(
-                RestoreReport(
-                    kind = BackupKind.entries.firstOrNull { it.wire == done["kind"]?.jsonPrimitive?.content },
-                    bundleHash = done["bundleHash"]!!.jsonPrimitive.content,
-                    restored = list("restored"),
-                    missing = list("missing"),
-                    omitted = list("omitted"),
-                    notApplied = list("notApplied"),
-                    consentNotRestored = done["tellConsentNotRestored"]?.jsonPrimitive?.boolean == true,
-                    confirmed = done["confirmed"]?.jsonPrimitive?.boolean == true,
-                ),
-            )
+            state.value = RestoreStep.Done(restoreReportOf(done))
         } else {
             val reason = done["reason"]!!.jsonPrimitive.content
             // A secret that does not open the backup is the person's to retry; every other reason ends the restore.
@@ -136,4 +124,19 @@ class MigrationRestoreModel(
             }
         }
     }
+}
+
+/** What a finished restore says, as the screen shows it. Shared by the restore from a backup and from another phone. */
+internal fun restoreReportOf(done: kotlinx.serialization.json.JsonObject): RestoreReport {
+    fun list(key: String) = (done[key] as? JsonElement)?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+    return RestoreReport(
+        kind = BackupKind.entries.firstOrNull { it.wire == done["kind"]?.jsonPrimitive?.content },
+        bundleHash = done["bundleHash"]!!.jsonPrimitive.content,
+        restored = list("restored"),
+        missing = list("missing"),
+        omitted = list("omitted"),
+        notApplied = list("notApplied"),
+        consentNotRestored = done["tellConsentNotRestored"]?.jsonPrimitive?.boolean == true,
+        confirmed = done["confirmed"]?.jsonPrimitive?.boolean == true,
+    )
 }

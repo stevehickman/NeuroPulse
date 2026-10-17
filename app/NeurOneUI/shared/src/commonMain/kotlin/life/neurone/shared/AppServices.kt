@@ -14,6 +14,8 @@ import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.migration.ClearActions
 import life.neurone.core.consent.ConsentStore
+import life.neurone.core.migration.LINK_ROUTE
+import life.neurone.core.migration.MemoryObjectStore
 import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.models.ActiveUserTag
@@ -57,6 +59,13 @@ class AppServices(
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
     val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
+
+    /**
+     * Where a bundle waits while it goes straight to another phone (SWR-MG-10): in memory, behind a claim only this process
+     * can take, so nothing of it is left on disk to find. Null when the host cannot reach another phone. The send screen and
+     * the clear screen share it, because the clear reads the new phone's confirmation from the same store.
+     */
+    val linkPlace: MigrationPlace? = platform.linkTransport?.let { MigrationPlace("", MemoryObjectStore(), LINK_ROUTE) }
 
     /** The items a migration carries that are not plain keys: the withdrawal records (`SWR-MG-04`). */
     val migrationItems: List<life.neurone.core.migration.MigrationItemStore> =

@@ -18,6 +18,8 @@
 	<string>NeurOne uses Bluetooth to communicate with your NeurOne hub in real time.</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>NeurOne finds your other phone on this Wi-Fi network to move your data to it.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>

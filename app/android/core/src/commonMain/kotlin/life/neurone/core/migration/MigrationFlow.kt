@@ -112,6 +112,9 @@ object MigrationFlow {
     /** The pairing code's digits, life and tries: `{digits, lifetimeSeconds, tries, randomBytes}` (SWR-MG-10). */
     fun pairingPolicy(): JsonObject = ask("pairingPolicy")
 
+    /** How a waiting phone is found on the local network: `{port, probe, reply}` (SWR-MG-10). */
+    fun linkDiscovery(): JsonObject = ask("linkDiscovery")
+
     /** A pairing code from [random] bytes (as many as the policy says). */
     fun pairingCode(random: ByteArray): String = ask("pairingCode") { put("bytes", random.toHex()) }["code"]!!.jsonPrimitive.content
 

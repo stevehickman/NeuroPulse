@@ -5,6 +5,7 @@ import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.FileStore
+import life.neurone.core.migration.LinkTransport
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.migration.RouteDescriptor
 import life.neurone.shared.migration.FileTransfer
@@ -53,6 +54,13 @@ interface PlatformServices {
      * clear itself, because a clear that cannot destroy the key would only claim to protect what it leaves readable.
      */
     val secretKeyStore: SecretKeyStore? get() = null
+
+    /**
+     * How this host reaches another phone on the local network for a direct move (SWR-MG-10), or null when it cannot (the
+     * browser has no sockets). The sockets are written once for Android, the desktop apps and iOS (`LanLinkTransport`);
+     * everything above them is the core's.
+     */
+    val linkTransport: LinkTransport? get() = null
 
     /** The app's own files, for the clear to overwrite and delete (SWR-MG-06), or null when the host holds none. */
     val migrationFiles: FileStore? get() = null

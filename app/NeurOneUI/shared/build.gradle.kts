@@ -79,6 +79,19 @@ kotlin {
         }
     }
 
+    // The local-network link (SWR-MG-10) needs sockets, which Ktor has for the JVM and iOS but not for the browser. Its code
+    // lives in `socketsMain`, shared by Android, the desktop and iOS, so it is written once and the web build never sees it.
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("sockets") {
+                withAndroidTarget()
+                withJvm()
+                withIos()
+            }
+        }
+    }
+
     sourceSets {
         commonMain {
             kotlin.srcDir(generateValidationStrings.map { generatedValidationDir.get() })
@@ -95,6 +108,10 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+        }
+        // Created by the hierarchy template above, so configured by name once it exists.
+        matching { it.name == "socketsMain" }.configureEach {
+            dependencies { implementation("io.ktor:ktor-network:3.0.3") }
         }
         val desktopTest by getting {
             dependencies {

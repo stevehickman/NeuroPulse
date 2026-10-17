@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import life.neurone.shared.AppServices
+import life.neurone.shared.MigrationPlace
 import life.neurone.shared.migration.BackupKind
 import life.neurone.shared.migration.BackupStep
 import life.neurone.shared.migration.LIST_MARK
@@ -49,19 +51,31 @@ import org.jetbrains.compose.resources.stringResource
 // secret must be and what ends a backup are the shared core's, and every word it shows for them is a locale key the core names.
 
 @Composable
-fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
+fun MigrationBackupScreen(
+    app: AppServices,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Back up into this place instead of the host's own: the bundle for a direct move to another phone (SWR-MG-10). */
+    linkPlace: MigrationPlace? = null,
+    /** With [linkPlace]: what the person does once the backup is made, which is to be shown the code. */
+    onBackedUp: (() -> Unit)? = null,
+) {
     val transfer = app.platform.rememberFileTransfer()
-    val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
-    val place = app.platform.migrationPlace ?: portable?.place
+    val portable = remember(transfer) {
+        if (linkPlace == null && app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null
+    }
+    val place = linkPlace ?: app.platform.migrationPlace ?: portable?.place
     val model = remember(place) { MigrationBackupModel(place, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
+    // A move to another phone is a migration and nothing else: there is no kind to choose.
+    LaunchedEffect(model) { if (linkPlace != null) model.chooseKind(BackupKind.MIGRATE) }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
         Text(stringResource(Res.string.migration_backup_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(stringResource(Res.string.migration_backup_intro), style = MaterialTheme.typography.bodyMedium)
-        if (place != null && portable == null) {
+        if (place != null && portable == null && linkPlace == null) {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)
         }
@@ -78,9 +92,11 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
                     // The core withholds this place from a migration; say so rather than offer what would be refused.
                     Text(words(MessageGroup.PROBE, "backup_only"), style = MaterialTheme.typography.bodySmall)
                 }
-                Spacer(Modifier.height(12.dp))
-                KindCard(Res.string.migration_backup_kind_uhdr_title, Res.string.migration_backup_kind_uhdr_body) {
-                    model.chooseKind(BackupKind.UHDR)
+                if (linkPlace == null) {
+                    Spacer(Modifier.height(12.dp))
+                    KindCard(Res.string.migration_backup_kind_uhdr_title, Res.string.migration_backup_kind_uhdr_body) {
+                        model.chooseKind(BackupKind.UHDR)
+                    }
                 }
             }
             is BackupStep.Preview -> {
@@ -148,6 +164,10 @@ fun MigrationBackupScreen(app: AppServices, onDone: () -> Unit, modifier: Modifi
                 Text(stringResource(Res.string.migration_backup_done_body, s.bundleHash.take(12)))
                 ItemList(Res.string.migration_backup_carried_title, s.written)
                 ItemList(Res.string.migration_backup_left_out_title, s.omitted)
+                if (onBackedUp != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = onBackedUp) { Text(stringResource(Res.string.migration_link_show_code)) }
+                }
                 if (portable != null) {
                     var saved by remember { mutableStateOf<Boolean?>(null) }
                     Spacer(Modifier.height(12.dp))

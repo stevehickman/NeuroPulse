@@ -67,6 +67,9 @@ sealed interface LinkSendState {
     /** The other phone has the bundle and took the claim: this phone may now clear (SWR-MG-08). */
     data object Sent : LinkSendState
 
+    /** The phone could not wait for another (no network, a port in use): the person is told and may try again. */
+    data object Failed : LinkSendState
+
     /** The code ran out or was used up ([reason] is the core's: `code_expired` or `code_spent`). */
     class Spent(val reason: String) : LinkSendState
 }
@@ -90,7 +93,14 @@ class LinkSendSession(
         while (true) {
             state.value = LinkSendState.Waiting(offer, Pairing.display(offer.code))
             val remaining = (offer.expiresAt - clock()) * 1000
-            val link = if (remaining > 0) withTimeoutOrNull(remaining) { transport.accept() } else null
+            val link = try {
+                if (remaining > 0) withTimeoutOrNull(remaining) { transport.accept() } else null
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                state.value = LinkSendState.Failed
+                return state.value
+            }
             if (link == null) {
                 state.value = if (clock() >= offer.expiresAt) LinkSendState.Spent("code_expired") else LinkSendState.Idle
                 return state.value

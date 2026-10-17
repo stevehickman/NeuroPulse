@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import life.neurone.shared.AppServices
+import life.neurone.shared.MigrationPlace
 import life.neurone.shared.migration.ClearStep
 import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationClearModel
@@ -36,10 +37,16 @@ import org.jetbrains.compose.resources.stringResource
 // person confirms it, and the core goes ahead only against the new phone's confirmation of the backup on the place.
 
 @Composable
-fun MigrationClearScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
+fun MigrationClearScreen(
+    app: AppServices,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Clear against the new phone's confirmation held here instead of the host's own place (a direct move, SWR-MG-10). */
+    place: MigrationPlace? = null,
+) {
     val platform = app.platform
     val model = remember {
-        MigrationClearModel(platform.migrationPlace, app.keyValueStore, app.clearActions, platform.migrationFiles, app.migrationItems)
+        MigrationClearModel(place ?: platform.migrationPlace, app.keyValueStore, app.clearActions, platform.migrationFiles, app.migrationItems)
     }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
