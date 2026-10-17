@@ -59,7 +59,7 @@ Set by the principal on 2026-10-17 and applied to every library in this record. 
 2. **No pre-release.** An alpha, beta, release-candidate or snapshot version is not used where a stable one exists. Where only a pre-release exists, the library is replaced rather than accepted, and the record says why if it cannot be.
 3. **Real-time and cryptographic work is Rust.** Argon2, AES-GCM, SPAKE2, HMAC, HKDF and the sealing of stored values are in the shared core (`common/npps-core`), reached by every platform, and not in a Kotlin or platform library. The platform keeps only what only it can do: holding a key in its keystore, and moving bytes.
 4. **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU and the main processor (`CLAUDE.md` §4.1, §4.2) and meets its real-time constraints there. Everything in this record is companion-app code on a phone, a computer or a browser.
-5. **A copyleft licence is a decision, not a default.** A library whose own metadata declares one is not added without that decision.
+5. **A copyleft licence is not a bar.** The principal confirmed on 2026-10-17 that a library whose metadata declares one may be used. The record states the licence and what it obliges (source offer, linking, notices) in the library's row, so the obligation is known before the product ships.
 
 What these rules leave in Kotlin, as of this revision, and why it is not yet Rust: the Ed25519 verification and signing and the SHA-256 and SHA-512 that `:core` carries in `platform/` (`Ed25519.kt`, `Sha512.kt`, `Digests.kt`), `Ed25519ProtocolSigner.kt`, `StudyDescriptorSigning.kt`, and the JDK signer on Android and the desktop. They predate rule 3. Moving them to the core is the next step and is part of `OI-SOUPKT-01`.
 

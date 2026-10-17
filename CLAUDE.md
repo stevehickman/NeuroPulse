@@ -531,8 +531,8 @@ written again in Kotlin, Swift, C# or TypeScript, and not taken from a platform 
   §4.2) and meets its real-time constraints there. Kotlin, Java and any other managed-runtime code is
   companion-app code on a phone, a computer or a browser, and is never moved onto the headset.
 - **Library selection.** A declared dependency that nothing imports is removed. An alpha, beta, release
-  candidate or snapshot is not used where a stable version exists. A library whose own metadata declares
-  a copyleft licence is a decision, not a default, and is not added without it (`docs/np_soup_kotlin_001.md` §2a).
+  candidate or snapshot is not used where a stable version exists. A copyleft licence is not a bar
+  (the principal, 2026-10-17); its obligations are recorded in the SOUP record (`docs/np_soup_kotlin_001.md` §2a).
 - **Adding a Kotlin, Swift, C# or TypeScript implementation of a primitive** to a platform tree is a
   design decision, recorded as an open item first. Code already there when this section was written is
   listed in the SOUP record's open item (`OI-SOUPKT-01`) and moves to the core.
