@@ -56,7 +56,9 @@ jobs:
           gradle-version: '8.11.1'
 
       - name: Regenerate the lock files
-        run: gradle :core:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks --stacktrace
+        run: |
+          find .. -name gradle.lockfile -not -path '*/build/*' -delete
+          gradle :core:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks --stacktrace
 
       - name: The committed lock files match
         run: |
