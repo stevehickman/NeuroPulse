@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 69 (current)  
+**Revision:** 70 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -517,10 +517,31 @@ test that merely has no row yet.
   part that does not exist, a `@verifies-none` with no reason, a tag with no test, and any test that is untraced.
   `bun scripts/req-trace.ts` prints the report, including every requirement with no test.
 
+## 22. RUST FIRST — REAL-TIME AND CRYPTOGRAPHIC CODE (locked) → `docs/np_soup_kotlin_001.md` §2a
+
+**Real-time and cryptographic work is written in Rust, once, in `common/npps-core`, and every
+platform reaches it** (JNI on Android, the C ABI on iOS and Windows, WebAssembly on the web). It is not
+written again in Kotlin, Swift, C# or TypeScript, and not taken from a platform or third-party library.
+
+- **Cryptographic means** hashing, signatures and their verification, key derivation, password hashing,
+  key agreement, message authentication, AEAD sealing, and the generation of keys and nonces. The
+  platform keeps only what only it can do: hold a key in its keystore or secure enclave, supply entropy,
+  and move bytes. A non-security use (an RFC 4122 name-based UUID) is the one exception, and the code says so.
+- **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU and the main processor (§4.1,
+  §4.2) and meets its real-time constraints there. Kotlin, Java and any other managed-runtime code is
+  companion-app code on a phone, a computer or a browser, and is never moved onto the headset.
+- **Library selection.** A declared dependency that nothing imports is removed. An alpha, beta, release
+  candidate or snapshot is not used where a stable version exists. A library whose own metadata declares
+  a copyleft licence is a decision, not a default, and is not added without it (`docs/np_soup_kotlin_001.md` §2a).
+- **Adding a Kotlin, Swift, C# or TypeScript implementation of a primitive** to a platform tree is a
+  design decision, recorded as an open item first. Code already there when this section was written is
+  listed in the SOUP record's open item (`OI-SOUPKT-01`) and moves to the core.
+- **Every new crate** joins `docs/np_soup_rust_001.md` in the change that adds it.
+
 ---
 
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§21) and every
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§22) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*
