@@ -50,7 +50,9 @@ class AppServices(
      * seals, the data stays as the host stores it and [clearActions] is null.
      */
     private val encrypted: EncryptedKeyValueStore? = platform.secretKeyStore?.let { secrets ->
-        runCatching { EncryptedKeyValueStore(platform.keyValueStore, secrets, EncryptedKeyValueStore.uhdrKeys()).also { it.migrate() } }
+        runCatching { EncryptedKeyValueStore(
+                platform.keyValueStore, secrets, EncryptedKeyValueStore.uhdrKeys() + EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY,
+            ).also { it.migrate() } }
             .getOrNull()
     }
 

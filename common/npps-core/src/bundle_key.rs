@@ -21,12 +21,14 @@ use unicode_normalization::UnicodeNormalization;
 type R<T> = Result<T, String>;
 
 /// Argon2id cost for a bundle key. The same memory, passes and lanes as the UHDR key (`NP-FW-EMMC-001` §6, RFC 9106), so
-/// each app's one Argon2 implementation serves both; only the output length differs (32 bytes, one AES-256 key).
+/// one Argon2 implementation (this one) serves both; only the output length differs (32 bytes, one AES-256 key).
 pub const KDF_MEMORY_KIB: u64 = 65_536;
 pub const KDF_ITERATIONS: u64 = 4;
 pub const KDF_PARALLELISM: u64 = 1;
 pub const KDF_OUTPUT_LEN: u64 = 32;
 pub const KDF_SALT_LEN: usize = 32;
+/// The UHDR key is two AES-256 keys (XTS): 64 bytes.
+pub const UHDR_OUTPUT_LEN: usize = 64;
 
 /// A recovery code carries 32 random bytes (a 256-bit secret).
 pub const RECOVERY_BYTES: usize = 32;
@@ -102,6 +104,26 @@ pub fn derive_key(secret: &[u8], kdf: &Value) -> Result<Zeroizing<Vec<u8>>, &'st
     let mut out = Zeroizing::new(vec![0u8; KDF_OUTPUT_LEN as usize]);
     Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
         .hash_password_into(secret, &salt, &mut out)
+        .map_err(|_| "unsupported_kdf")?;
+    Ok(out)
+}
+
+/// The UHDR key (`REQ-SW03-08`, `NP-FW-EMMC-001` §6): Argon2id (RFC 9106, version 0x13) at the same fixed cost as the bundle key,
+/// 64 bytes out (AES-256-XTS K1 and K2), from the credential-protected seed and the device-bound 32-byte salt. Held here and
+/// not in each app, so the cost cannot differ and no platform needs an Argon2 library of its own. The seed is an argument
+/// and is not kept; the returned key is the caller's to use in memory and drop.
+pub fn derive_uhdr_key(seed: &[u8], salt: &[u8]) -> Result<Zeroizing<Vec<u8>>, &'static str> {
+    if seed.is_empty() {
+        return Err("empty_secret");
+    }
+    if salt.len() != KDF_SALT_LEN {
+        return Err("malformed");
+    }
+    let params = Params::new(KDF_MEMORY_KIB as u32, KDF_ITERATIONS as u32, KDF_PARALLELISM as u32, Some(UHDR_OUTPUT_LEN))
+        .map_err(|_| "unsupported_kdf")?;
+    let mut out = Zeroizing::new(vec![0u8; UHDR_OUTPUT_LEN]);
+    Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+        .hash_password_into(seed, salt, &mut out)
         .map_err(|_| "unsupported_kdf")?;
     Ok(out)
 }
@@ -205,6 +227,14 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
                 Err(reason) => json!({ "ok": false, "reason": reason }),
             })
         })(),
+        "deriveUhdrKey" => (|| {
+            let seed = Zeroizing::new(unhex(req["seed"].as_str().ok_or("seed is required")?, "seed")?);
+            let salt = unhex(req["salt"].as_str().ok_or("salt is required")?, "salt")?;
+            Ok(match derive_uhdr_key(&seed, &salt) {
+                Ok(k) => json!({ "ok": true, "key": hex(&k) }),
+                Err(reason) => json!({ "ok": false, "reason": reason }),
+            })
+        })(),
         "encodeRecoveryCode" => (|| {
             let b = unhex(req["bytes"].as_str().ok_or("bytes is required")?, "bytes")?;
             Ok(json!({ "code": encode_recovery_code(&b)? }))
@@ -261,6 +291,24 @@ mod tests {
         let mut direct = [0u8; 32];
         Argon2::new(Algorithm::Argon2id, Version::V0x13, params).hash_password_into(b"a long enough passphrase", &[1u8; 32], &mut direct).unwrap();
         assert_eq!(*k1, direct);
+    }
+
+    // @verifies REQ-SW03-08
+    #[test]
+    fn the_uhdr_key_is_argon2id_at_the_locked_cost_64_bytes_and_follows_the_seed_and_the_salt() {
+        let (seed, salt) = ([1u8; 32], [2u8; KDF_SALT_LEN]);
+        let k = derive_uhdr_key(&seed, &salt).unwrap();
+        assert_eq!(k.len(), 64);
+        assert_eq!(*k, *derive_uhdr_key(&seed, &salt).unwrap(), "deterministic");
+        assert_ne!(*k, *derive_uhdr_key(&[3u8; 32], &salt).unwrap(), "another seed");
+        assert_ne!(*k, *derive_uhdr_key(&seed, &[4u8; KDF_SALT_LEN]).unwrap(), "another salt");
+        // The locked parameters (RFC 9106, NP-FW-EMMC-001 section 6), spelled out here and not read from the constants.
+        let params = Params::new(65_536, 4, 1, Some(64)).unwrap();
+        let mut direct = [0u8; 64];
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params).hash_password_into(&seed, &salt, &mut direct).unwrap();
+        assert_eq!(*k, direct);
+        assert_eq!(derive_uhdr_key(b"", &salt).unwrap_err(), "empty_secret");
+        assert_eq!(derive_uhdr_key(&seed, &[0u8; 16]).unwrap_err(), "malformed");
     }
 
     // @verifies SWR-MG-05

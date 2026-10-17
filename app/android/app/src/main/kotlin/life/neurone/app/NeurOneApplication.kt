@@ -3,7 +3,7 @@ package life.neurone.app
 import android.app.Application
 import android.content.Context
 import life.neurone.app.ble.AndroidBleCentral
-import life.neurone.app.data.EncryptedPrefsDeviceTokenStore
+import life.neurone.app.data.SealedDeviceTokenStore
 import life.neurone.app.data.ShdrUploadWiring
 import life.neurone.app.data.ShdrUploader
 import life.neurone.app.session.AndroidProtocolSigner
@@ -93,9 +93,9 @@ class NeurOneApplication : Application() {
 
         // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
         // (WarrantyAnalyticsGate), structurally independent of user research consent.
-        // Device identity is a Keystore-encrypted CSPRNG token, upgraded to the
+        // Device identity is a CSPRNG token sealed by the shared core, upgraded to the
         // hub-provisioned TRNG token when the GATT characteristic ships (OI-BLE-01).
-        shdrUploader = ShdrUploader(EncryptedPrefsDeviceTokenStore(this), warrantyAnalyticsGate)
+        shdrUploader = ShdrUploader(SealedDeviceTokenStore(services.keyValueStore), warrantyAnalyticsGate)
         composeShdrUploadPipeline()
     }
 

@@ -2,18 +2,18 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-KOTLIN-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-10-17
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
 **Approved By:** — (DRAFT, not approved)
 **References:** `app/android/core/build.gradle.kts`, `app/android/app/build.gradle.kts`, `app/NeurOneUI/shared/build.gradle.kts`, `app/NeurOneUI/desktop/build.gradle.kts`, `app/NeurOneUI/web/build.gradle.kts` (the declared versions), `NP-SOUP-RUST-001` (the Rust record and the method precedent), `NP-SOUP-BTLE-001`, `NP-SW-001` §9.4 (the firmware SOUP register, which this record does not extend)
-**Related Issues:** GitHub #569 (package 6u), `OI-SOUPKT-01`
+**Related Issues:** GitHub #569 (packages 6u, 6v), `OI-SOUPKT-01`
 **Gate:** G2
 **IEC 62304 Class:** Not assigned. See §3.
 **Supersedes:** None
-**Change Summary:** Rev 1 (2026-10-17) — first issue. Written when `ktor-network` 3.0.3 joined the shared app (issue #569 package 6u), which made the absence of any record of the Kotlin libraries a gap: the Rust core (`NP-SOUP-RUST-001`) and the desktop Bluetooth crate (`NP-SOUP-BTLE-001`) had records and the Kotlin side, which is most of what ships, had none. The inventory (242 libraries) is generated from Gradle's resolved graphs for the four shipped targets. **Two findings, neither fixed here:** `org.signal:argon2` 13.1, declared by the Android app and shipped in it, is licensed GPLv3 by its own POM and no source file uses it; and no vulnerability scan could be run (§6.2). The rest of the anomaly evaluation is not done, and the record says so.
+**Change Summary:** Rev 2 (2026-10-17) — **the unused and pre-release libraries are gone, and the cryptography is the Rust core's** (issue #569, on the principal's direction: use no library that is not used, avoid pre-releases, prefer Rust to Kotlin for real-time or cryptographic work, and no JVM code on the helmet). Removed from `:app`: `org.signal:argon2` (GPLv3, unused), `androidx.security:security-crypto` 1.1.0-alpha06 and `androidx.biometric:biometric` 1.2.0-alpha05 (both pre-releases), and `navigation-compose`, `lifecycle-viewmodel-compose`, `lifecycle-runtime-compose`, `ui-tooling-preview` and `material3` (declared, imported nowhere). The SHDR device token is now sealed by the core's AES-256-GCM through the app's `EncryptedKeyValueStore`, with the data key wrapped by the Android Keystore, which replaces `security-crypto`; the UHDR key is derived by the core's `argon2` crate (`deriveUhdrKey`), which removes the `Argon2Provider` that no Android code ever implemented. `MainActivity` is a `ComponentActivity` (it was a `FragmentActivity` only for the biometric prompt, which was never built). The inventory is regenerated: **216** libraries, was 242, none a pre-release. §2a records the selection rules. A device token an earlier build stored in `EncryptedSharedPreferences` is not read: no released build is known, and a new token is made. Rev 1 (2026-10-17) (2026-10-17) — first issue. Written when `ktor-network` 3.0.3 joined the shared app (issue #569 package 6u), which made the absence of any record of the Kotlin libraries a gap: the Rust core (`NP-SOUP-RUST-001`) and the desktop Bluetooth crate (`NP-SOUP-BTLE-001`) had records and the Kotlin side, which is most of what ships, had none. The inventory (242 libraries) is generated from Gradle's resolved graphs for the four shipped targets. **Two findings, neither fixed here:** `org.signal:argon2` 13.1, declared by the Android app and shipped in it, is licensed GPLv3 by its own POM and no source file uses it; and no vulnerability scan could be run (§6.2). The rest of the anomaly evaluation is not done, and the record says so.
 **Review Cadence:** On any change to a `build.gradle.kts` dependency or the Kotlin, Compose or Android Gradle plugin version, and at G2
 
 ---
@@ -45,15 +45,23 @@ The version in the third column is what a `build.gradle.kts` declares; the resol
 | io.ktor:ktor-network | `:shared` (sockets source set: Android, desktop, iOS) | 3.0.3 | The TCP and UDP sockets of the direct link (`LanLinkTransport`, `SWR-MG-10`). Pulls `ktor-io`, `ktor-utils`, `kotlinx-io` |
 | org.jetbrains.compose (runtime, foundation, ui, material3, components-resources) | `:shared`, `:web` | 1.7.3 | The screens, written once for every target; the string resources generated from `locales/` |
 | org.jetbrains.compose.material:material-icons-core | `:shared` | 1.7.3 | The icons the screens draw |
-| androidx.compose (BOM) with material3, ui, ui-tooling-preview | `:app` | BOM 2024.12.01 | Android's Compose runtime and Material |
+| androidx.compose (BOM) with ui | `:app` | BOM 2024.12.01 | Compose's `LocalContext`, used by the host's file dialogs |
 | androidx.activity:activity-compose | `:app` | 1.9.3 | The activity that hosts the shared screens |
-| androidx.navigation:navigation-compose | `:app` | 2.8.5 | Android navigation |
-| androidx.lifecycle (viewmodel-compose, runtime-compose) | `:app` | 2.8.7 | Android lifecycle bindings |
-| androidx.security:security-crypto | `:app` | **1.1.0-alpha06** | Keystore-backed storage of the opaque SHDR warranty token and the data key (`SWR-MG-06`). **A pre-release** |
-| androidx.biometric:biometric | `:app` | **1.2.0-alpha05** | BiometricPrompt with device-credential fallback, the UHDR key credential (`REQ-SW03-08`). **A pre-release** |
-| com.squareup.okhttp3:okhttp | `:app` | 4.12.0 | The SHDR fleet upload, with SPKI certificate pinning |
-| org.signal:argon2 | `:app` | 13.1 | Declared for the UHDR key derivation. **No source file uses it, and its POM declares GPLv3** (§6.3, `OI-SOUPKT-01`) |
+| com.squareup.okhttp3:okhttp | `:app` | 4.12.0 | The SHDR fleet upload, with SPKI certificate pinning (the transport only; the token it sends is sealed by the Rust core) |
+| Removed in Rev 2 | `:app` | — | `org.signal:argon2` 13.1 (GPLv3, unused), `androidx.security:security-crypto` 1.1.0-alpha06, `androidx.biometric:biometric` 1.2.0-alpha05, `androidx.navigation:navigation-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose` and `lifecycle-runtime-compose`, `androidx.compose.ui:ui-tooling-preview`, `androidx.compose.material3:material3` |
 | Test only: kotlin-test, kotlinx-coroutines-test 1.9.0, junit 4.13.2, junit-jupiter 5.10.2, compose.uiTest, compose.desktop.currentOs | tests | as stated | Not shipped |
+
+## 2a. Selection rules
+
+Set by the principal on 2026-10-17 and applied to every library in this record. They are a standing rule for adding or keeping one.
+
+1. **A library that nothing uses is not declared.** A declared dependency that no source file imports is removed, with the comments that name it.
+2. **No pre-release.** An alpha, beta, release-candidate or snapshot version is not used where a stable one exists. Where only a pre-release exists, the library is replaced rather than accepted, and the record says why if it cannot be.
+3. **Real-time and cryptographic work is Rust.** Argon2, AES-GCM, SPAKE2, HMAC, HKDF and the sealing of stored values are in the shared core (`common/npps-core`), reached by every platform, and not in a Kotlin or platform library. The platform keeps only what only it can do: holding a key in its keystore, and moving bytes.
+4. **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU and the main processor (`CLAUDE.md` §4.1, §4.2) and meets its real-time constraints there. Everything in this record is companion-app code on a phone, a computer or a browser.
+5. **A copyleft licence is a decision, not a default.** A library whose own metadata declares one is not added without that decision.
+
+What these rules leave in Kotlin, as of this revision, and why it is not yet Rust: the Ed25519 verification and signing and the SHA-256 and SHA-512 that `:core` carries in `platform/` (`Ed25519.kt`, `Sha512.kt`, `Digests.kt`), `Ed25519ProtocolSigner.kt`, `StudyDescriptorSigning.kt`, and the JDK signer on Android and the desktop. They predate rule 3. Moving them to the core is the next step and is part of `OI-SOUPKT-01`.
 
 ## 3. Class
 
@@ -79,7 +87,7 @@ date below, and not of what every build ships.
 Every library on the resolved runtime classpath of each shipped target, generated on 2026-10-17 from `gradle dependencies`:
 `:app` `releaseRuntimeClasspath` (Android), `:shared` `desktopRuntimeClasspath` (macOS and Windows), `:shared`
 `wasmJsRuntimeClasspath` (the browser) and `:shared` `iosArm64CompileKlibraries` (iOS; Kotlin/Native libraries are linked into the
-framework). **242** libraries; a library that resolves to different versions on different targets lists both. Licences are the
+framework). **216** libraries; a library that resolves to different versions on different targets lists both. Licences are the
 `<license>` element of each library's own POM, read from the Gradle cache; they are **declared**, not checked against the licence
 text. A library whose POM declares none says so.
 
@@ -92,12 +100,9 @@ text. A library whose POM declares none says so.
 | androidx.annotation:annotation-experimental | 1.4.1 | android | Apache-2.0 |
 | androidx.annotation:annotation-iosarm64 | 1.8.0 | ios | Apache-2.0 |
 | androidx.annotation:annotation-jvm | 1.8.0, 1.8.1 | android, desktop | Apache-2.0 |
-| androidx.appcompat:appcompat | 1.2.0 | android | Apache-2.0 |
-| androidx.appcompat:appcompat-resources | 1.2.0 | android | Apache-2.0 |
 | androidx.arch.core:core-common | 2.2.0 | android, desktop | Apache-2.0 |
 | androidx.arch.core:core-runtime | 2.2.0 | android | Apache-2.0 |
 | androidx.autofill:autofill | 1.0.0 | android | Apache-2.0 |
-| androidx.biometric:biometric | 1.2.0-alpha05 | android | Apache-2.0 |
 | androidx.collection:collection | 1.4.0, 1.4.4 | android, desktop, ios | Apache-2.0 |
 | androidx.collection:collection-iosarm64 | 1.4.0 | ios | Apache-2.0 |
 | androidx.collection:collection-jvm | 1.4.0, 1.4.4 | android, desktop | Apache-2.0 |
@@ -129,8 +134,6 @@ text. A library whose POM declares none says so.
 | androidx.compose.ui:ui-graphics-android | 1.7.6 | android | Apache-2.0 |
 | androidx.compose.ui:ui-text | 1.7.6 | android | Apache-2.0 |
 | androidx.compose.ui:ui-text-android | 1.7.6 | android | Apache-2.0 |
-| androidx.compose.ui:ui-tooling-preview | 1.7.6 | android | Apache-2.0 |
-| androidx.compose.ui:ui-tooling-preview-android | 1.7.6 | android | Apache-2.0 |
 | androidx.compose.ui:ui-unit | 1.7.6 | android | Apache-2.0 |
 | androidx.compose.ui:ui-unit-android | 1.7.6 | android | Apache-2.0 |
 | androidx.compose.ui:ui-util | 1.7.6 | android | Apache-2.0 |
@@ -138,57 +141,37 @@ text. A library whose POM declares none says so.
 | androidx.concurrent:concurrent-futures | 1.1.0 | android | Apache-2.0 |
 | androidx.core:core | 1.13.1 | android | Apache-2.0 |
 | androidx.core:core-ktx | 1.13.1 | android | Apache-2.0 |
-| androidx.cursoradapter:cursoradapter | 1.0.0 | android | Apache-2.0 |
-| androidx.customview:customview | 1.0.0 | android | Apache-2.0 |
 | androidx.customview:customview-poolingcontainer | 1.0.0 | android | Apache-2.0 |
-| androidx.drawerlayout:drawerlayout | 1.0.0 | android | Apache-2.0 |
 | androidx.emoji2:emoji2 | 1.3.0 | android | Apache-2.0 |
-| androidx.fragment:fragment | 1.2.5 | android | Apache-2.0 |
 | androidx.graphics:graphics-path | 1.0.1 | android | Apache-2.0 |
 | androidx.interpolator:interpolator | 1.0.0 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-common | 2.8.5, 2.8.7 | android, desktop, ios | Apache-2.0 |
+| androidx.lifecycle:lifecycle-common | 2.8.5 | android, desktop, ios | Apache-2.0 |
 | androidx.lifecycle:lifecycle-common-iosarm64 | 2.8.5 | ios | Apache-2.0 |
-| androidx.lifecycle:lifecycle-common-java8 | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-common-jvm | 2.8.5, 2.8.7 | android, desktop | Apache-2.0 |
-| androidx.lifecycle:lifecycle-livedata | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-livedata-core | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-livedata-core-ktx | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-process | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime | 2.8.5, 2.8.7 | android, desktop, ios | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime-android | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime-compose | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime-compose-android | 2.8.7 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-common-java8 | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-common-jvm | 2.8.5 | android, desktop | Apache-2.0 |
+| androidx.lifecycle:lifecycle-livedata-core | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-process | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime | 2.8.5 | android, desktop, ios | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime-android | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime-compose | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime-compose-android | 2.8.5 | android | Apache-2.0 |
 | androidx.lifecycle:lifecycle-runtime-desktop | 2.8.5 | desktop | Apache-2.0 |
 | androidx.lifecycle:lifecycle-runtime-iosarm64 | 2.8.5 | ios | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime-ktx | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-runtime-ktx-android | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel | 2.8.5, 2.8.7 | android, desktop, ios | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel-android | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel-compose | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel-compose-android | 2.8.7 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime-ktx | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-runtime-ktx-android | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-viewmodel | 2.8.5 | android, desktop, ios | Apache-2.0 |
+| androidx.lifecycle:lifecycle-viewmodel-android | 2.8.5 | android | Apache-2.0 |
 | androidx.lifecycle:lifecycle-viewmodel-desktop | 2.8.5 | desktop | Apache-2.0 |
 | androidx.lifecycle:lifecycle-viewmodel-iosarm64 | 2.8.5 | ios | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel-ktx | 2.8.7 | android | Apache-2.0 |
-| androidx.lifecycle:lifecycle-viewmodel-savedstate | 2.8.7 | android | Apache-2.0 |
-| androidx.loader:loader | 1.0.0 | android | Apache-2.0 |
-| androidx.navigation:navigation-common | 2.8.5 | android | Apache-2.0 |
-| androidx.navigation:navigation-common-ktx | 2.8.5 | android | Apache-2.0 |
-| androidx.navigation:navigation-compose | 2.8.5 | android | Apache-2.0 |
-| androidx.navigation:navigation-runtime | 2.8.5 | android | Apache-2.0 |
-| androidx.navigation:navigation-runtime-ktx | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-viewmodel-ktx | 2.8.5 | android | Apache-2.0 |
+| androidx.lifecycle:lifecycle-viewmodel-savedstate | 2.8.5 | android | Apache-2.0 |
 | androidx.profileinstaller:profileinstaller | 1.3.1 | android | Apache-2.0 |
 | androidx.savedstate:savedstate | 1.2.1 | android | Apache-2.0 |
 | androidx.savedstate:savedstate-ktx | 1.2.1 | android | Apache-2.0 |
-| androidx.security:security-crypto | 1.1.0-alpha06 | android | Apache-2.0 |
 | androidx.startup:startup-runtime | 1.1.1 | android | Apache-2.0 |
 | androidx.tracing:tracing | 1.0.0 | android | Apache-2.0 |
-| androidx.vectordrawable:vectordrawable | 1.1.0 | android | Apache-2.0 |
-| androidx.vectordrawable:vectordrawable-animated | 1.1.0 | android | Apache-2.0 |
 | androidx.versionedparcelable:versionedparcelable | 1.1.1 | android | Apache-2.0 |
-| androidx.viewpager:viewpager | 1.0.0 | android | Apache-2.0 |
-| com.google.code.gson:gson | 2.8.9 | android | Apache-2.0 |
-| com.google.crypto.tink:tink-android | 1.8.0 | android | Apache-2.0 |
-| com.google.guava:listenablefuture | 1.0 | android | not in the local cache |
+| com.google.guava:listenablefuture | 1.0 | android | none declared in the cached POM |
 | com.squareup.okhttp3:okhttp | 4.12.0 | android | Apache-2.0 |
 | com.squareup.okio:okio | 3.6.0 | android | Apache-2.0 |
 | com.squareup.okio:okio-jvm | 3.6.0 | android | Apache-2.0 |
@@ -325,11 +308,10 @@ text. A library whose POM declares none says so.
 | org.jetbrains.skiko:skiko-iosarm64 | 0.8.18 | ios | Apache-2.0 |
 | org.jetbrains.skiko:skiko-js-wasm-runtime | 0.8.18 | web | Apache-2.0 |
 | org.jetbrains.skiko:skiko-wasm-js | 0.8.18 | web | Apache-2.0 |
-| org.signal:argon2 | 13.1 | android | GPLv3 |
-| org.slf4j:slf4j-api | 2.0.16 | android, desktop | not in the local cache |
+| org.slf4j:slf4j-api | 2.0.16 | android, desktop | none declared in the cached POM |
 
-**The licences.** Every library whose POM declares a licence declares Apache-2.0 except one: `org.signal:argon2` declares
-**GPLv3** (§6.3). `com.google.guava:listenablefuture` and `org.slf4j:slf4j-api` declare none in the cached POM
+**The licences.** Every library whose POM declares a licence declares Apache-2.0. (Rev 1 found one that did not, `org.signal:argon2`,
+GPLv3; it is removed, §6.3.) `com.google.guava:listenablefuture` and `org.slf4j:slf4j-api` declare none in the cached POM
 (`listenablefuture` is an empty marker artifact; SLF4J is MIT-licensed upstream, which was not checked against the artifact).
 The Skia-based `skiko` native binaries and the Android platform libraries carry their own notices, which this record has not
 collected: the licence inventory for the app bundles (also owed by `NP-SOUP-RUST-001` §5 for `unicode-ident`) has to carry them.
@@ -350,30 +332,27 @@ The inventory (§5) and a reading of each library's declared licence. Nothing el
   Run it where the network allows (OSV-Scanner over the four resolutions, or the Gradle `dependencyCheck` plugin) and record the
   date, the database and the result in this section (`OI-SOUPKT-01`).
 - **No reading of any library's changelog or issue tracker** for the resolved version.
-- **Two direct dependencies are pre-releases** (`security-crypto` 1.1.0-alpha06, `biometric` 1.2.0-alpha05). Both guard UHDR-class
-  keys. A pre-release has no stability promise and its anomaly list is shorter because fewer people ran it (`OI-SOUPKT-01`).
+- **No pre-release remains** in the resolved set of any target (checked for alpha, beta, rc, snapshot, dev and milestone
+  markers on 2026-10-17). Rev 1 had two direct ones, now removed (§2a).
 - **No known-answer or behaviour test of a library beyond what the app's own tests exercise.** `ktor-network` is exercised by
   real-socket tests on the loopback address (`LanLinkTransportTest`); `kotlinx-serialization-json` by every store test;
-  `okhttp`, `security-crypto` and `biometric` by none on a device.
-- **No run on a device** of the Android keystore, biometric or pinned-TLS paths, and no run of the iOS socket code (`OI-SOUPKT-01`).
+  `okhttp` by none on a device. The sealing of the device token is the Rust core's and is tested there and through `EncryptedKeyValueStore`.
+- **No run on a device** of the Android keystore wrapping or the pinned-TLS path, and no run of the iOS socket code (`OI-SOUPKT-01`). The `:app` module itself was not compiled in the sandbox (no Android SDK); CI does.
 - **No check of the licence texts** against the declared identifiers, and no collection of the notices the Skia binaries carry.
 
-### 6.3 A licence finding: org.signal:argon2
+### 6.3 A licence finding, resolved: org.signal:argon2
 
-The Android app declares `implementation("org.signal:argon2:13.1")` (`app/android/app/build.gradle.kts`). The library's own POM
-declares its licence as **GPLv3** (`https://www.gnu.org/licenses/gpl-3.0.txt`). It is on the release runtime classpath (§5), so it
-is packaged into the app unless a shrinker removes it, and the build does not say that one does. Searching the source finds **no
-use of it**: the only mentions are comments, and the UHDR key derivation (`UhdrKeyDerivation`) takes an `Argon2Provider` interface
-that no Android code implements. A copyleft library in a distributed app has consequences for the app's own licence that this
-record cannot decide, and an unused one has no reason to be there. **This record recommends removing the dependency and does not
-remove it**, because the removal changes what the Android build ships and the decision on a production Argon2 provider for the
-device-bound UHDR key is open (`UhdrKeyDerivation.kt` header; `NP-SOUP-RUST-001` §2 says the core's `argon2` crate, MIT OR
-Apache-2.0, covers the bundle key but "the device-bound UHDR key keeps each app's own"). Raised as `OI-SOUPKT-01`.
+Rev 1 found that the Android app declared `org.signal:argon2` 13.1, whose own POM declares **GPLv3**, that it was on the release
+runtime classpath, and that no source file used it: the only mentions were comments, and the `Argon2Provider` that
+`UhdrKeyDerivation` asked for had no Android implementation. **Rev 2 removes the dependency and the comments that named it**, and
+removes `Argon2Provider` with it: the UHDR key is derived by the shared core's `argon2` crate (MIT OR Apache-2.0, already linked for
+the bundle key; `deriveUhdrKey`), which is also what the selection rules ask for (§2a, rule 3). The Swift app keeps its vendored
+PHC argon2 until it is moved too. Nothing the Android build shipped used the removed library, so no behaviour changes.
 
 ## 7. Hazard reading
 
 Only the libraries whose fault would reach UHDR-class data, SHDR or the stored records are read. The others (Compose, Material,
-AndroidX navigation and lifecycle, Skia, the icon set) can draw a wrong screen and no more.
+Skia, the icon set) can draw a wrong screen and no more.
 
 | Library | Fault | Effect | Held by |
 |---------|-------|--------|---------|
@@ -381,8 +360,7 @@ AndroidX navigation and lifecycle, Skia, the icon set) can draw a wrong screen a
 | kotlinx-datetime | A wrong date or instant | A withdrawal is stamped with a wrong time, or a code's expiry is misjudged | The withdrawal times and the code's clock are tested with an injected clock; the core compares them as text |
 | ktor-network | Delivers bytes to the wrong peer, drops or reorders them, or reads past a bound | A phone receives another phone's frames, or a frame is lost mid-bundle | Nothing is trusted from it: the core proves the peer holds the code, seals every frame and refuses a replayed, altered or reordered one; the loopback tests carry 300 kB both ways |
 | okhttp | Accepts a certificate the pin should refuse | SHDR is uploaded to a party that is not NeurOne | The pin is the app's configuration, not the library's default; no test against a wrong certificate on a device (§6.2) |
-| androidx.security:security-crypto, androidx.biometric | A pre-release defect in key storage or the credential prompt | The data key or the warranty token is exposed or lost; the credential prompt is bypassed | The keystore is the platform's; the app proves a key can be kept, returned and removed before it relies on it (`SWR-MG-06`). No device test (§6.2) |
-| org.signal:argon2 | Not used | None, but see §6.3 | Remove it |
+| (none: the cryptography is the Rust core's) | A fault in AES-256-GCM sealing, Argon2id, SPAKE2, HMAC or HKDF | A stored value or a link is readable or alterable by another party | `NP-SOUP-RUST-001` §7 and the core's tests; the platform contributes only the Android Keystore wrapping of the data key (`AndroidSecretKeyStore`), which the app proves can keep, return and remove a key before it relies on it (`SWR-MG-06`). No device test (§6.2) |
 | the rest (§5) | A fault in a support library | As the library that depends on it | Nothing; no advisory scan was run (§6.2) |
 
 ## 8. Keeping this record true
@@ -390,7 +368,7 @@ AndroidX navigation and lifecycle, Skia, the icon set) can draw a wrong screen a
 - A change to a dependency declaration or a plugin version regenerates §5 and re-runs the scan of §6.2 in the same change.
   Regenerate §5 with `gradle :app:dependencies --configuration releaseRuntimeClasspath` and `:shared:dependencies` for
   `desktopRuntimeClasspath`, `wasmJsRuntimeClasspath` and `iosArm64CompileKlibraries`, from `app/android`.
-- Adding a direct dependency adds a row to §2 and, if its fault could reach UHDR-class data, SHDR or a stored record, a row to §7.
+- Adding a direct dependency checks it against §2a first, and adds a row to §2 and, if its fault could reach UHDR-class data, SHDR or a stored record, a row to §7.
 - This record does not extend `NP-SW-001` §9.4, which is the firmware register for SW-01 and SW-02, as `NP-SOUP-RUST-001` §8
   says of itself. If the app SOUP is to be registered in the software development plan, that is a change to the plan.
 - The legacy native apps (Swift package, NuGet) have no record. They are retiring, and a record for them is owed only if they ship.

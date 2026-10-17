@@ -95,4 +95,18 @@ class EncryptedKeyValueStoreTests {
         inner.putString(history, sealedBefore)
         assertNull(s.getString(history), "the old value does not open under the new key")
     }
+
+    // @verifies SWR-MG-06
+    @Test
+    fun theSealedSetTheAppUsesCoversTheSessionHistoryAndTheShdrDeviceToken() {
+        val keys = EncryptedKeyValueStore.uhdrKeys() + EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY
+        val inner = InMemoryKeyValueStore()
+        val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), keys)
+        val token = "cd".repeat(32)
+        s.putString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY, token)
+        assertTrue(inner.getString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY)!!.startsWith(EncryptedKeyValueStore.PREFIX))
+        assertFalse(token in inner.getString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY)!!, "the token is in the stored value")
+        assertEquals(token, s.getString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY))
+        assertTrue(history in keys, "UHDR-class state stays sealed")
+    }
 }

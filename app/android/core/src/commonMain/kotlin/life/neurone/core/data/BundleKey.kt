@@ -125,7 +125,7 @@ object BundleKeyDerivation {
 
     /**
      * The bundle key for a secret and a header's `kdf` block: Argon2id computed by the shared core, so every app derives
-     * the same key and none carries a second implementation (the device-bound UHDR key keeps [Argon2Provider]). The core
+     * the same key and none carries a second implementation (the device-bound UHDR key is the same crate in the same core, `deriveUhdrKey`, on Kotlin; Swift keeps its vendored PHC argon2 for now). The core
      * checks the block against the fixed cost first, so a bundle cannot ask this phone for a cheaper derivation or another
      * algorithm. Throws [IllegalArgumentException] for a block the core refuses.
      */

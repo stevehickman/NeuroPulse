@@ -9,7 +9,7 @@ Compose, native only. System of record: [ISA.md](ISA.md).
 |--------|------|----------|
 | `core/` | Kotlin Multiplatform (`commonMain`; JVM, wasmJs, iOS): models, GATT UUIDs/parsers, consent store + engine models, analytics gates (research/warranty), engagement tier, session history (day-coarsened), consumable tracker, NPPS protocol engine, UHDR key derivation core | JDK 17 only (`:core:jvmTest`) |
 | `../NeurOneUI/shared` (`:shared`) | The UI every platform shares (Compose Multiplatform), the composition root, the hub link — see [../NeurOneUI/README.md](../NeurOneUI/README.md) | Android SDK 35 for the Android target |
-| `app/`  | Android host: the activity, BLE central + GATT manager, SHDR uploader (Keystore token + SPKI pinning), UHDR key manager (BiometricPrompt + Argon2id), manifest with backup exclusion | Android SDK 35 |
+| `app/`  | Android host: the activity, BLE central + GATT manager, SHDR uploader (token sealed by the shared core + SPKI pinning), manifest with backup exclusion | Android SDK 35 |
 
 ## Build
 
@@ -43,6 +43,5 @@ daemon at JDK 17 (see the comment in `gradle.properties`).
   (ISA ISC-8, NP-AND-BUILD-01).
 - SPKI pins in `ShdrUploader` are placeholders — derive from production
   fleet-endpoint certificates before deploy.
-- `org.signal:argon2` requires an NP-SW-001 SOUP table entry before beta.
 - Analytics vendor not selected (NP-PRIV-AUDIT-001 HIGH-1) — `NoOpAnalyticsBackend`
   keeps the gate architecture exercised until the DPA is executed.

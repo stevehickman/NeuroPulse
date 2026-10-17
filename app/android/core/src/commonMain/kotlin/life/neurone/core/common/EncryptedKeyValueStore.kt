@@ -140,6 +140,13 @@ class EncryptedKeyValueStore(
         const val PREFIX = "np-enc:1:"
 
         /**
+         * The opaque device token the SHDR upload sends (`np.shdr.device-token`, a per-install key of the core's list). It is
+         * not user health data, but it is a secret that identifies the install to the fleet, so it is sealed under the same
+         * data key rather than left in the clear or kept by a second library.
+         */
+        const val SHDR_DEVICE_TOKEN_KEY = "np.shdr.device-token"
+
+        /**
          * The keys that hold UHDR-class state: every key of every item a migration carries and the consent keys (SWR-MG-01),
          * from the core's one list. Per-install and not-yet-sorted keys are not user health data and stay as they are.
          */
