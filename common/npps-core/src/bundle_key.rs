@@ -311,6 +311,22 @@ mod tests {
         assert_eq!(derive_uhdr_key(&seed, &[0u8; 16]).unwrap_err(), "malformed");
     }
 
+    // The iOS app derived this key with the vendored PHC reference Argon2 (phc-winner-argon2, 2021 release, built with
+    // `np_argon2id_hash`: 64 MiB, 4 passes, 1 lane, 64 bytes out). The same inputs through the core must give the same
+    // bytes, or a person's UHDR key would change on the update that removed the vendored copy and their records would not open.
+    // The expected value was produced by compiling that vendored source and calling it on these inputs (2026-10-17).
+    // @verifies REQ-SW03-08
+    #[test]
+    fn the_uhdr_key_equals_what_the_vendored_phc_reference_derived_for_ios() {
+        let seed = b"test-credential-32-bytes-padded!";
+        let salt = b"test-salt-1234567890123456789012";
+        let k = derive_uhdr_key(seed, salt).unwrap();
+        assert_eq!(
+            hex(&k),
+            "98082a570eac3b86a7b8e0c51388d736717dcf9420518f741b4991f100a5d201715dc5fb0a891b6dd2086a2e0cc3d5a34ea7014189ab52a04cfe7fd3c8155bba"
+        );
+    }
+
     // @verifies SWR-MG-05
     #[test]
     fn a_header_cannot_ask_for_a_cheaper_derivation_or_an_empty_secret_be_used() {

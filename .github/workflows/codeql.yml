@@ -81,9 +81,6 @@ jobs:
         scripts/ci-changed-scope.sh
       NP_SCOPE_CPP: |
         firmware/**
-        # np_bridge.c and the vendored Argon2 sources, built into the Swift
-        # package. Buildless c-cpp extraction reads every C file in the checkout.
-        app/NeurOneShared/**
         .github/workflows/codeql.yml
         scripts/ci-changed-scope.sh
       NP_SCOPE_CSHARP: |
@@ -168,10 +165,10 @@ jobs:
             assert scope.$l.paths true  .github/workflows/codeql.yml
           done
           assert scope.cpp.paths     true  firmware/safety_mcu/src/np_safety_main.c
-          assert scope.cpp.paths     true  app/NeurOneShared/Sources/NeurOneArgon2/np_bridge.c
+          assert scope.cpp.paths     false app/NeurOneShared/Sources/NeurOneShared/SessionState.swift
           assert scope.cpp.paths     false app/web/src/main.ts
           assert scope.swift.paths   true  app/ios/NeurOne/Analytics/AnalyticsBackend.swift
-          assert scope.swift.paths   true  app/NeurOneShared/Sources/NeurOneArgon2/np_bridge.c
+          assert scope.swift.paths   true  app/NeurOneShared/Sources/NeurOneShared/SessionState.swift
           assert scope.swift.paths   false firmware/safety_mcu/src/np_safety_main.c
           assert scope.java.paths    true  app/android/app/build.gradle.kts
           assert scope.java.paths    false locales/en.json

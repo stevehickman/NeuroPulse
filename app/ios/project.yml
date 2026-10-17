@@ -194,7 +194,9 @@ packages:
     path: ../NeurOneShared
   PostHog:
     url: https://github.com/PostHog/posthog-ios
-    from: "3.60.0"
+    # Exact, not a range: this SDK sits behind the research-consent gate and vendors libwebp and PLCrashReporter, so a
+    # version changes only by a deliberate edit that also updates NP-SOUP-NATIVE-001 (OI-SOUPKT-01).
+    exactVersion: "3.60.0"
 
 schemes:
   NeurOne:

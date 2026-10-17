@@ -8,7 +8,7 @@ import Security
 // code the app shows once, or a passphrase the user chooses. The rules (the cost parameters, the code's text form and
 // checksum, the passphrase's normalisation and minimum length, what a header's kdf block may say) are decided once in the
 // shared core (`NppsCore.migration`), the Argon2id derivation included, so there is one implementation for every app
-// (the device-bound UHDR key keeps `npArgon2idDeriveKey`). This file only marshals them.
+// (the device-bound UHDR key is the core's too, `deriveUhdrKey`). This file only marshals them.
 //
 // The secret and the key are memory-only, like the UHDR key: never written to the Keychain, a file or a log, never
 // transmitted, zeroed on deinit. NeurOne never holds either (CLAUDE.md §5.1).

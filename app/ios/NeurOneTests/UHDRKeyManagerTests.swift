@@ -154,23 +154,22 @@ final class UHDRKeyManagerTests: XCTestCase {
         XCTAssertFalse(authAfterLock, "lock() must clear isAuthenticated.")
     }
 
-    // MARK: testArgon2idDeterministic (uses test-only variant with small memory)
+    // MARK: testUhdrKeyIsTheCoresArgon2id
 
+    // The derivation is the Rust core's (`deriveUhdrKey`); its known-answer test, against the vendored PHC reference this
+    // app used before, is `bundle_key.rs`. This pins the same bytes through the Swift marshalling (64 MiB, as production).
     // @verifies REQ-SW03-08
-    func testArgon2idDeterministic() throws {
-        let password = Data("test-credential-32-bytes-padded!".utf8) // 32 bytes
-        let salt     = Data("test-salt-1234567890123456789012".utf8) // 32 bytes
-        let out1 = try npArgon2idDeriveKeyTestOnly(
-            password: password, salt: salt, memoryKib: 64, iterations: 1, outputLength: 64)
-        let out2 = try npArgon2idDeriveKeyTestOnly(
-            password: password, salt: salt, memoryKib: 64, iterations: 1, outputLength: 64)
-        XCTAssertEqual(out1, out2, "Argon2id must be deterministic for equal inputs.")
-        XCTAssertEqual(out1.count, 64)
-        // Different password → different output
-        let differentPassword = Data("different-credential-32-bytes!!!".utf8)
-        let out3 = try npArgon2idDeriveKeyTestOnly(
-            password: differentPassword, salt: salt, memoryKib: 64, iterations: 1, outputLength: 64)
-        XCTAssertNotEqual(out1, out3, "Different passwords must produce different keys.")
+    func testUhdrKeyIsTheCoresArgon2id() throws {
+        let password = Data("test-credential-32-bytes-padded!".utf8)
+        let salt     = Data("test-salt-1234567890123456789012".utf8)
+        let hex: (Data) -> String = { $0.map { String(format: "%02x", $0) }.joined() }
+        let answer = try NppsCore.migration(["op": "deriveUhdrKey", "seed": hex(password), "salt": hex(salt)])
+        XCTAssertEqual(answer["ok"] as? Bool, true)
+        XCTAssertEqual(
+            answer["key"] as? String,
+            "98082a570eac3b86a7b8e0c51388d736717dcf9420518f741b4991f100a5d201715dc5fb0a891b6dd2086a2e0cc3d5a34ea7014189ab52a04cfe7fd3c8155bba")
+        let different = try NppsCore.migration(["op": "deriveUhdrKey", "seed": hex(Data("different-credential-32-bytes!!!".utf8)), "salt": hex(salt)])
+        XCTAssertNotEqual(answer["key"] as? String, different["key"] as? String, "Different passwords must produce different keys.")
     }
 
     // MARK: testKeyNeverTransmitted (static analysis of production source)

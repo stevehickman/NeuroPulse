@@ -12,21 +12,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "NeurOneArgon2",
-            path: "Sources/NeurOneArgon2",
-            publicHeadersPath: "include",
-            cSettings: [
-                .headerSearchPath("phc/include"),
-                .headerSearchPath("phc/src"),
-                .define("ARGON2_NO_THREADS"),
-                // Gate test-only KDF out of release binaries.
-                // Swift #if DEBUG in Argon2Bridge.swift mirrors this guard.
-                .define("NP_ARGON2_CUSTOM_ENABLED", .when(configuration: .debug)),
-            ]
-        ),
-        .target(
             name: "NeurOneShared",
-            dependencies: ["NeurOneArgon2"],
             path: "Sources/NeurOneShared"
         ),
     ]

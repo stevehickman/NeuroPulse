@@ -7,6 +7,9 @@ name: Dependency scan (OSV)
 #      version shows up as a diff in review, not as a surprise. (:app needs the Android SDK and is not locked;
 #      its libraries are a subset of the shared ones plus the AndroidX list in NP-SOUP-KOTLIN-001 §5.)
 #   2. OSV-Scanner reads those lock files and common/Cargo.lock and fails on a known vulnerability.
+#   3. :app (the Android host) needs the Android SDK to resolve, so its lock is generated here, in a job that has the SDK,
+#      and scanned without being committed: its libraries are checked, but a change in them is not a diff in review.
+#      (Checksum verification metadata is not used; NP-SOUP-KOTLIN-001 §4 says why.)
 #
 # The Swift package (PostHog) and the NuGet references have no lock file and are not covered
 # (NP-SOUP-NATIVE-001 §4). Runs on a change to a dependency declaration and weekly, because an advisory is published
@@ -93,3 +96,52 @@ jobs:
           args=(--lockfile common/Cargo.lock)
           while IFS= read -r f; do args+=(--lockfile "$f"); done < <(git ls-files '*gradle.lockfile')
           ./osv-scanner "${args[@]}"
+
+  app-scan:
+    name: OSV-Scanner (:app, lock generated here)
+    runs-on: ubuntu-latest
+    env:
+      OSV_SCANNER_VERSION: v1.9.2
+    defaults:
+      run:
+        working-directory: app/android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Generate the :app lock file
+        run: gradle :app:resolveAndLockAll --write-locks --stacktrace
+
+      - name: Install OSV-Scanner
+        run: |
+          base="https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}"
+          curl -fsSL -o osv-scanner "${base}/osv-scanner_linux_amd64"
+          curl -fsSL -o SHA256SUMS "${base}/osv-scanner_SHA256SUMS"
+          grep ' osv-scanner_linux_amd64$' SHA256SUMS | sed 's/osv-scanner_linux_amd64/osv-scanner/' | sha256sum -c -
+          chmod +x osv-scanner
+
+      - name: Scan
+        run: |
+          test -s app/gradle.lockfile
+          ./osv-scanner --lockfile app/gradle.lockfile

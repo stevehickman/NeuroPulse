@@ -216,9 +216,23 @@ final class UHDRKeyManager: ObservableObject {
 
     // MARK: - Key derivation (Argon2id)
 
+    /// Argon2id at the locked cost (64 MiB, 4 passes, 1 lane, 64 bytes out), computed by the shared Rust core
+    /// (`deriveUhdrKey`, `CLAUDE.md` §22). The core gives the bytes the vendored PHC reference gave this app before it
+    /// was removed (`bundle_key.rs`, a known-answer test), so a key made by an earlier build is unchanged.
     private func deriveKey(credential: Data, salt: Data) throws -> UHDRKey {
-        var keyMaterial = try npArgon2idDeriveKey(
-            password: credential, salt: salt, outputLength: 64)
+        let hex: (Data) -> String = { $0.map { String(format: "%02x", $0) }.joined() }
+        let answer = try NppsCore.migration(["op": "deriveUhdrKey", "seed": hex(credential), "salt": hex(salt)])
+        guard answer["ok"] as? Bool == true, let keyHex = answer["key"] as? String, keyHex.count == 128 else {
+            throw UHDRKeyError.derivationFailed
+        }
+        var keyMaterial = Data(capacity: 64)
+        var index = keyHex.startIndex
+        while index < keyHex.endIndex {
+            let next = keyHex.index(index, offsetBy: 2)
+            guard let byte = UInt8(keyHex[index..<next], radix: 16) else { throw UHDRKeyError.derivationFailed }
+            keyMaterial.append(byte)
+            index = next
+        }
         defer { keyMaterial.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } } }
         // Explicit Data copies before keyMaterial is zeroed by the defer block.
         return UHDRKey(k1: Data(keyMaterial[0..<32]), k2: Data(keyMaterial[32..<64]))
