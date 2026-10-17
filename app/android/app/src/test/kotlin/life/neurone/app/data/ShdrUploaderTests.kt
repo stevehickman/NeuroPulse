@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  */
 class ShdrUploaderTests {
 
-    /** In-memory stand-in for EncryptedPrefsDeviceTokenStore. */
+    /** In-memory stand-in for SealedDeviceTokenStore. */
     private class FakeTokenStore(var value: String? = null) : DeviceTokenStore {
         override fun load(): String? = value
         override fun save(token: String) { value = token }
@@ -178,5 +178,16 @@ DQe5uIuf3oUzoLfX59gNvtxE5zZD
         assertFailsWith<SSLPeerUnverifiedException> {
             defaultPinner().check(ShdrUploader.FLEET_HOST, listOf(stranger()))
         }
+    }
+
+    // @verifies-none the token store is a one-line adapter over the key-value store; the sealing it relies on is tested in :core.
+    @Test
+    fun sealedDeviceTokenStoreRoundTripsThroughTheKeyValueStore() {
+        val kv = InMemoryKeyValueStore()
+        val store = SealedDeviceTokenStore(kv)
+        assertNull(store.load())
+        store.save("ab".repeat(32))
+        assertEquals("ab".repeat(32), store.load())
+        assertEquals("ab".repeat(32), kv.getString(ShdrUploader.TOKEN_PREF))
     }
 }

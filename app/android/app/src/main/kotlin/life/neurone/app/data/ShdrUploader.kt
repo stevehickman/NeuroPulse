@@ -1,9 +1,8 @@
 package life.neurone.app.data
 
-import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import life.neurone.core.analytics.WarrantyAnalyticsGate
+import life.neurone.core.common.EncryptedKeyValueStore
+import life.neurone.core.common.KeyValueStore
 import java.security.SecureRandom
 import okhttp3.CertificatePinner
 import okhttp3.MediaType.Companion.toMediaType
@@ -14,7 +13,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 /**
  * Persistence seam for the opaque SHDR device token.
  *
- * Production is Keystore-encrypted SharedPreferences ([EncryptedPrefsDeviceTokenStore]);
+ * Production is the app's sealed key-value store ([SealedDeviceTokenStore]);
  * tests supply an in-memory implementation so the OI-BLE-01 token logic (CSPRNG
  * fallback generation, hex encoding, 32-byte hub-token validation) is exercisable
  * on plain JVM without the Android Keystore — the same "privacy-critical logic must
@@ -26,24 +25,14 @@ interface DeviceTokenStore {
     fun save(token: String)
 }
 
-/** Keystore-encrypted SharedPreferences backing for the device token (production). */
-class EncryptedPrefsDeviceTokenStore(context: Context) : DeviceTokenStore {
-    private val prefs = run {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            ShdrUploader.PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }
-
-    override fun load(): String? = prefs.getString(ShdrUploader.TOKEN_PREF, null)
-    override fun save(token: String) =
-        prefs.edit().putString(ShdrUploader.TOKEN_PREF, token).apply()
+/**
+ * The device token kept in a [KeyValueStore] that seals it (production: the app's `EncryptedKeyValueStore`, whose AES-256-GCM
+ * sealing is the shared Rust core's and whose data key is wrapped by the Android Keystore). No Android crypto library is
+ * involved, so the token is sealed the way the rest of the app's secrets are.
+ */
+class SealedDeviceTokenStore(private val store: KeyValueStore) : DeviceTokenStore {
+    override fun load(): String? = store.getString(ShdrUploader.TOKEN_PREF)
+    override fun save(token: String) = store.putString(ShdrUploader.TOKEN_PREF, token)
 }
 
 /**
@@ -54,8 +43,8 @@ class EncryptedPrefsDeviceTokenStore(context: Context) : DeviceTokenStore {
  * reference ConsentStore or ResearchAnalyticsGate (code-structural
  * independence of the two consent subjects).
  *
- * Device identity: an opaque locally generated 32-byte CSPRNG token stored in
- * Keystore-encrypted SharedPreferences (via [DeviceTokenStore]) — NEVER
+ * Device identity: an opaque locally generated 32-byte CSPRNG token stored
+ * sealed (via [DeviceTokenStore]) — NEVER
  * ANDROID_ID, advertising ID, or any hardware identifier (parallel of the iOS
  * Keychain token replacing identifierForVendor, NP-PRIV-ANALYSIS-002 HIGH).
  * Upgraded to the hub-provisioned TRNG warranty token when the GATT
@@ -74,8 +63,7 @@ class ShdrUploader(
         const val FLEET_HOST = "fleet.neurone.life"
         const val FLEET_ENDPOINT = "https://$FLEET_HOST/v1/shdr"
         const val DEVICE_TOKEN_HEADER = "X-NP-Device-Token"
-        internal const val TOKEN_PREF = "np.shdr.device-token"
-        internal const val PREFS_FILE = "np-shdr-secure"
+        internal const val TOKEN_PREF = EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY
 
         // PLACEHOLDERS — replace with production SPKI SHA-256 pins before deploy.
         private val PINNED_SPKI_HASHES = listOf(
