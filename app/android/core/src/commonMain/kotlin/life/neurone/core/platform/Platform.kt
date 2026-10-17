@@ -14,11 +14,9 @@ import kotlinx.datetime.todayIn
 /** Cryptographically secure random bytes. */
 expect fun secureRandomBytes(count: Int): ByteArray
 
-/**
- * Verify an Ed25519 signature against a raw 32-byte public key, or return null when this target
- * has no Ed25519 verifier. Null is "cannot check", never "valid": callers refuse on null.
- */
-expect fun ed25519Verify(publicKeyRaw: ByteArray, message: ByteArray, signature: ByteArray): Boolean?
+/** Verify an Ed25519 signature against a raw 32-byte public key. The core does the check on every target. */
+fun ed25519Verify(publicKeyRaw: ByteArray, message: ByteArray, signature: ByteArray): Boolean =
+    Ed25519.verify(publicKeyRaw, message, signature)
 
 /** Today in the device's time zone, `yyyy-MM-dd`. */
 fun todayIso(): String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()

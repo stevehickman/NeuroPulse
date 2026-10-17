@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 70 (2026-10-17) — §22 added: real-time and cryptographic code is Rust, in the shared core. A process rule; no design decision, limit or interlock changed.**
+
+**What changed.** A new §22. Cryptographic and real-time work is written once in `common/npps-core` and reached by every platform; no JVM code runs on the helmet; unused and pre-release libraries are not added. A copyleft licence is allowed only if it does not oblige NeurOne's own code to become copyleft; its obligations are recorded in the SOUP record.
+
+**Why.** The principal directed it on 2026-10-17 (issue #569), after the unused GPLv3 `org.signal:argon2` and two pre-release AndroidX libraries were found in the Android app and the cryptography was moved to the core (PR #612). The rules were recorded in `docs/np_soup_kotlin_001.md` §2a; this section makes them binding on later work.
+
 **Rev 69 (2026-10-12) — §21 added: every test carries a tag naming the requirement it verifies. A process rule; no design decision, limit or interlock changed.**
 
 **What changed.** A new §21, and a Document Map row for it. A test names its requirement in an `@verifies` tag; a test with no requirement to name means a row is missing and is written first, to §18's standard; tests are written for behaviour that exists, and a requirement for an unbuilt feature stays untested until the code that meets it is written; a test of one part of a requirement tags that part. `scripts/req-trace.ts --check` enforces it in CI.

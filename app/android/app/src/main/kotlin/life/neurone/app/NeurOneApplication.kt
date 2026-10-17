@@ -6,7 +6,7 @@ import life.neurone.app.ble.AndroidBleCentral
 import life.neurone.app.data.SealedDeviceTokenStore
 import life.neurone.app.data.ShdrUploadWiring
 import life.neurone.app.data.ShdrUploader
-import life.neurone.app.session.AndroidProtocolSigner
+import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.session.ProtocolUploader
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
@@ -86,7 +86,7 @@ class NeurOneApplication : Application() {
         bleCentral = AndroidBleCentral(this)
         services = AppServices(
             platform = AndroidPlatformServices(
-                SharedPrefsKeyValueStore(this), bleCentral, AndroidProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
+                SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
             ),
             scope = bleScope,
         )

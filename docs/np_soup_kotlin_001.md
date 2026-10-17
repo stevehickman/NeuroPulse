@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-KOTLIN-001
-**Revision:** 2
+**Revision:** 4
 **Date:** 2026-10-17
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** G2
 **IEC 62304 Class:** Not assigned. See §3.
 **Supersedes:** None
-**Change Summary:** Rev 2 (2026-10-17) — **the unused and pre-release libraries are gone, and the cryptography is the Rust core's** (issue #569, on the principal's direction: use no library that is not used, avoid pre-releases, prefer Rust to Kotlin for real-time or cryptographic work, and no JVM code on the helmet). Removed from `:app`: `org.signal:argon2` (GPLv3, unused), `androidx.security:security-crypto` 1.1.0-alpha06 and `androidx.biometric:biometric` 1.2.0-alpha05 (both pre-releases), and `navigation-compose`, `lifecycle-viewmodel-compose`, `lifecycle-runtime-compose`, `ui-tooling-preview` and `material3` (declared, imported nowhere). The SHDR device token is now sealed by the core's AES-256-GCM through the app's `EncryptedKeyValueStore`, with the data key wrapped by the Android Keystore, which replaces `security-crypto`; the UHDR key is derived by the core's `argon2` crate (`deriveUhdrKey`), which removes the `Argon2Provider` that no Android code ever implemented. `MainActivity` is a `ComponentActivity` (it was a `FragmentActivity` only for the biometric prompt, which was never built). The inventory is regenerated: **216** libraries, was 242, none a pre-release. §2a records the selection rules. A device token an earlier build stored in `EncryptedSharedPreferences` is not read: no released build is known, and a new token is made. Rev 1 (2026-10-17) (2026-10-17) — first issue. Written when `ktor-network` 3.0.3 joined the shared app (issue #569 package 6u), which made the absence of any record of the Kotlin libraries a gap: the Rust core (`NP-SOUP-RUST-001`) and the desktop Bluetooth crate (`NP-SOUP-BTLE-001`) had records and the Kotlin side, which is most of what ships, had none. The inventory (242 libraries) is generated from Gradle's resolved graphs for the four shipped targets. **Two findings, neither fixed here:** `org.signal:argon2` 13.1, declared by the Android app and shipped in it, is licensed GPLv3 by its own POM and no source file uses it; and no vulnerability scan could be run (§6.2). The rest of the anomaly evaluation is not done, and the record says so.
+**Change Summary:** Rev 4 (2026-10-17) — **lock files, a scan job and the native-app record** (`OI-SOUPKT-01` items 2 to 4). Gradle dependency locking is on in lenient mode and `gradle.lockfile` is committed for `:core`, `:shared`, `:desktop` and `:web` (§4); `.github/workflows/dependency-scan.yml` regenerates them and fails on drift, and runs OSV-Scanner over them and `common/Cargo.lock` (§6.2). The first CI run found advisories only in build and test tooling, and the locks were narrowed to the shipped classpaths because of it (§6.2). Dependency verification metadata (checksums) is not added, and §4 says why. The Swift and NuGet dependencies have a record, `NP-SOUP-NATIVE-001`. Rev 3 (2026-10-17) — **the Kotlin Ed25519 and SHA-2 are the Rust core's** (issue #569 package 6w, `OI-SOUPKT-01` item 1, `CLAUDE.md` §22). `Digests.sha256`/`sha512` and `Ed25519` (public key, sign, verify) call the core; the hand-written `Sha512.kt` and the TweetNaCl port in `Ed25519.kt` are gone, and so are the JDK signers (`JvmProtocolSigner`, `AndroidProtocolSigner`) and the per-target `ed25519Verify` actuals: every host signs with the common `Ed25519ProtocolSigner`, and a study descriptor's signature is now checked on iOS and in the browser too (it was refused there). Android no longer needs API 33 to sign. Only MD5 stays in Kotlin, for RFC 4122 version-3 UUIDs (not a security use). No library was added or removed, so the inventory (§5) is unchanged. The licence reading is extended (§5, end). Rev 2 (2026-10-17) — **the unused and pre-release libraries are gone, and the cryptography is the Rust core's** (issue #569, on the principal's direction: use no library that is not used, avoid pre-releases, prefer Rust to Kotlin for real-time or cryptographic work, and no JVM code on the helmet). Removed from `:app`: `org.signal:argon2` (GPLv3, unused), `androidx.security:security-crypto` 1.1.0-alpha06 and `androidx.biometric:biometric` 1.2.0-alpha05 (both pre-releases), and `navigation-compose`, `lifecycle-viewmodel-compose`, `lifecycle-runtime-compose`, `ui-tooling-preview` and `material3` (declared, imported nowhere). The SHDR device token is now sealed by the core's AES-256-GCM through the app's `EncryptedKeyValueStore`, with the data key wrapped by the Android Keystore, which replaces `security-crypto`; the UHDR key is derived by the core's `argon2` crate (`deriveUhdrKey`), which removes the `Argon2Provider` that no Android code ever implemented. `MainActivity` is a `ComponentActivity` (it was a `FragmentActivity` only for the biometric prompt, which was never built). The inventory is regenerated: **216** libraries, was 242, none a pre-release. §2a records the selection rules. A device token an earlier build stored in `EncryptedSharedPreferences` is not read: no released build is known, and a new token is made. Rev 1 (2026-10-17) (2026-10-17) — first issue. Written when `ktor-network` 3.0.3 joined the shared app (issue #569 package 6u), which made the absence of any record of the Kotlin libraries a gap: the Rust core (`NP-SOUP-RUST-001`) and the desktop Bluetooth crate (`NP-SOUP-BTLE-001`) had records and the Kotlin side, which is most of what ships, had none. The inventory (242 libraries) is generated from Gradle's resolved graphs for the four shipped targets. **Two findings, neither fixed here:** `org.signal:argon2` 13.1, declared by the Android app and shipped in it, is licensed GPLv3 by its own POM and no source file uses it; and no vulnerability scan could be run (§6.2). The rest of the anomaly evaluation is not done, and the record says so.
 **Review Cadence:** On any change to a `build.gradle.kts` dependency or the Kotlin, Compose or Android Gradle plugin version, and at G2
 
 ---
@@ -27,7 +27,7 @@ is SOUP. This record **lists** that SOUP and records what has and has not been c
 work, plus the licence reading, which the inventory made possible.
 
 It does not cover the Rust core (`NP-SOUP-RUST-001`), the desktop Bluetooth crate (`NP-SOUP-BTLE-001`), the firmware (`NP-SW-001`
-§9.4) or the legacy native apps (the Swift package manifest and the NuGet references of the Windows app have no record yet). Build
+§9.4) or the native apps (`NP-SOUP-NATIVE-001`: the Swift package dependencies and the NuGet references). Build
 tools (Gradle 8.11.1, the Kotlin compiler 2.0.21, the Compose compiler plugin, the Android Gradle Plugin 8.9.3, Xcode) are not in
 the shipped product and are not listed.
 
@@ -59,9 +59,9 @@ Set by the principal on 2026-10-17 and applied to every library in this record. 
 2. **No pre-release.** An alpha, beta, release-candidate or snapshot version is not used where a stable one exists. Where only a pre-release exists, the library is replaced rather than accepted, and the record says why if it cannot be.
 3. **Real-time and cryptographic work is Rust.** Argon2, AES-GCM, SPAKE2, HMAC, HKDF and the sealing of stored values are in the shared core (`common/npps-core`), reached by every platform, and not in a Kotlin or platform library. The platform keeps only what only it can do: holding a key in its keystore, and moving bytes.
 4. **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU and the main processor (`CLAUDE.md` §4.1, §4.2) and meets its real-time constraints there. Everything in this record is companion-app code on a phone, a computer or a browser.
-5. **A copyleft licence is a decision, not a default.** A library whose own metadata declares one is not added without that decision.
+5. **A copyleft licence is allowed only if it does not force NeurOne's own code to be copyleft.** Set by the principal on 2026-10-17. A strong-copyleft licence (GPL, AGPL) or any licence whose terms reach the code linked with the library is not accepted. A file-level or link-exception licence (MPL, LGPL used as it allows, Classpath exception) is, and the library's row states the licence and what it obliges (source offer, relinking, notices).
 
-What these rules leave in Kotlin, as of this revision, and why it is not yet Rust: the Ed25519 verification and signing and the SHA-256 and SHA-512 that `:core` carries in `platform/` (`Ed25519.kt`, `Sha512.kt`, `Digests.kt`), `Ed25519ProtocolSigner.kt`, `StudyDescriptorSigning.kt`, and the JDK signer on Android and the desktop. They predate rule 3. Moving them to the core is the next step and is part of `OI-SOUPKT-01`.
+What these rules leave in Kotlin, as of this revision: MD5 for version-3 UUIDs (`Digests.md5`, a non-security use), and the bytes-moving wrappers over the core (`Digests`, `Ed25519`). The Ed25519 and SHA-2 that predated rule 3 moved to the core in Rev 3. Still outside the rules: the Swift and NuGet code (`NSec.Cryptography` in the Windows app is a cryptographic library, `OI-SOUPKT-01`).
 
 ## 3. Class
 
@@ -76,11 +76,17 @@ for the same reasons; this record repeats the argument and not the conclusion.
 ## 4. Where the versions are pinned
 
 They are not pinned as a set. Each `build.gradle.kts` declares the versions of its direct dependencies and Gradle resolves the
-rest to the highest version any path asks for (the Compose BOM and the Ktor and coroutines BOMs align their families). There is
-**no dependency lock file and no dependency verification metadata** in the repository (`gradle.lockfile`,
-`gradle/verification-metadata.xml`), so a transitive library can move between two builds that change no file, and a downloaded
-artifact is not checked against a recorded checksum (`OI-SOUPKT-01`). §5 is therefore a record of one resolution, taken on the
-date below, and not of what every build ships.
+rest to the highest version any path asks for (the Compose BOM and the Ktor and coroutines BOMs align their families). Since Rev 4
+**Gradle dependency locking is on** (`lockAllConfigurations`, lenient mode, in `app/android/build.gradle.kts`) and a
+`gradle.lockfile` is committed for `:core`, `:shared`, `:desktop` and `:web`, holding the shipped classpaths only (runtime classpaths and the native compile klibs; not tests, not build tooling). Every version here is already fixed except those
+the BOMs and the highest-wins rule choose, so the lock files pin the transitive set and make a change in it a diff. Lenient mode
+means a library missing from a lock file does not fail a build; `dependency-scan.yml` is what fails on drift. **`:app` is not
+locked** (resolving it needs the Android SDK, which only its CI job has); its libraries are the AndroidX and Compose set of §5.
+**There is still no dependency verification metadata** (`gradle/verification-metadata.xml`), so a downloaded artifact is not
+checked against a recorded checksum. It is not added because it must also cover `:app`'s configurations and the Kotlin, Compose and
+Android plugin artifacts, cannot be generated here, and fails every build on any artifact it does not list; adding it blind would
+break CI for no information. It is `OI-SOUPKT-01` item 3's remainder. §5 remains a record of one resolution, taken on the date
+below, now with the lock files as its source.
 
 ## 5. Transitive inventory
 
@@ -316,6 +322,8 @@ GPLv3; it is removed, §6.3.) `com.google.guava:listenablefuture` and `org.slf4j
 The Skia-based `skiko` native binaries and the Android platform libraries carry their own notices, which this record has not
 collected: the licence inventory for the app bundles (also owed by `NP-SOUP-RUST-001` §5 for `unicode-ident`) has to carry them.
 
+**Checked against §2a rule 5 (2026-10-17).** None of the 216 libraries declares a copyleft licence: 214 declare Apache-2.0 and two declare none (above). The check is of the declared identifiers only. The Rust core's 154 crates (`cargo metadata --locked`) declare MIT, Apache-2.0, BSD-3-Clause, Unlicense, Zlib or combinations of them, and the four with none are NeurOne's own workspace crates. No library in either inventory is GPL, AGPL, LGPL or MPL. Outside this inventory the Windows app declares `NSec.Cryptography` 24.10.0 (a cryptographic library, which §22 moves to the core), and the Swift and NuGet dependencies have no SOUP record yet (`OI-SOUPKT-01`).
+
 ## 6. Anomaly evaluation
 
 IEC 62304 asks for the published anomaly list of each SOUP version in use to be evaluated for anomalies that could lead to a
@@ -327,10 +335,7 @@ The inventory (§5) and a reading of each library's declared licence. Nothing el
 
 ### 6.2 What was not done
 
-- **No vulnerability scan.** The sandbox this record was written in cannot reach the OSV or GitHub advisory services, so no
-  library was checked against any advisory database. The absence of a finding here is **not** the absence of an advisory.
-  Run it where the network allows (OSV-Scanner over the four resolutions, or the Gradle `dependencyCheck` plugin) and record the
-  date, the database and the result in this section (`OI-SOUPKT-01`).
+- **Vulnerability scan: first result 2026-10-17, and what it changed.** The scan (`.github/workflows/dependency-scan.yml`, OSV-Scanner v1.9.2, run on PR #613 against the OSV database of that day) found **no advisory in `common/Cargo.lock`** (154 packages) and, in the first version of the lock files, advisories only in libraries that are not in the product: `io.netty` 4.1.93.Final (45 advisories) and `com.google.protobuf:protobuf-java`/`protobuf-kotlin` 3.24.4 (one), both brought by the Android Gradle Plugin's `_internal-unified-test-platform-*` configurations, and `com.google.guava:guava` 28.1-android (two) in `desktopTestRuntimeClasspath`. Those were in the lock files because every resolvable configuration was locked. **The lock files now hold only the shipped classpaths** (runtime classpaths of the production targets and the native compile klibs, `app/android/build.gradle.kts`), so build tooling and tests are no longer scanned as if they shipped, and none of the libraries above remains in them. **Re-run on the narrowed locks (PR #613, commit `fa7b8bc`, 2026-10-17): no advisory** in `Cargo.lock` or in the four shipped-classpath lock files (OSV-Scanner v1.9.2; the database is OSV's of that day, and a later advisory against an unchanged version is what the weekly run is for). `:app` and the libraries it alone brings are outside the scan (no lock file, §4); build tooling and tests are outside it by choice and are not checked by any other tool. The Rust core was also scanned with `cargo audit` (`NP-SOUP-RUST-001` §6.1), a different database.
 - **No reading of any library's changelog or issue tracker** for the resolved version.
 - **No pre-release remains** in the resolved set of any target (checked for alpha, beta, rc, snapshot, dev and milestone
   markers on 2026-10-17). Rev 1 had two direct ones, now removed (§2a).
@@ -347,7 +352,7 @@ runtime classpath, and that no source file used it: the only mentions were comme
 `UhdrKeyDerivation` asked for had no Android implementation. **Rev 2 removes the dependency and the comments that named it**, and
 removes `Argon2Provider` with it: the UHDR key is derived by the shared core's `argon2` crate (MIT OR Apache-2.0, already linked for
 the bundle key; `deriveUhdrKey`), which is also what the selection rules ask for (§2a, rule 3). The Swift app keeps its vendored
-PHC argon2 until it is moved too. Nothing the Android build shipped used the removed library, so no behaviour changes.
+PHC argon2 until it is moved too (`NP-SOUP-NATIVE-001` §3). Nothing the Android build shipped used the removed library, so no behaviour changes.
 
 ## 7. Hazard reading
 
@@ -365,10 +370,10 @@ Skia, the icon set) can draw a wrong screen and no more.
 
 ## 8. Keeping this record true
 
-- A change to a dependency declaration or a plugin version regenerates §5 and re-runs the scan of §6.2 in the same change.
+- A change to a dependency declaration or a plugin version regenerates the lock files (`gradle :core:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks`, from `app/android`), §5 and the scan of §6.2 in the same change.
   Regenerate §5 with `gradle :app:dependencies --configuration releaseRuntimeClasspath` and `:shared:dependencies` for
   `desktopRuntimeClasspath`, `wasmJsRuntimeClasspath` and `iosArm64CompileKlibraries`, from `app/android`.
 - Adding a direct dependency checks it against §2a first, and adds a row to §2 and, if its fault could reach UHDR-class data, SHDR or a stored record, a row to §7.
 - This record does not extend `NP-SW-001` §9.4, which is the firmware register for SW-01 and SW-02, as `NP-SOUP-RUST-001` §8
   says of itself. If the app SOUP is to be registered in the software development plan, that is a change to the plan.
-- The legacy native apps (Swift package, NuGet) have no record. They are retiring, and a record for them is owed only if they ship.
+- The native apps (Swift package, NuGet) are `NP-SOUP-NATIVE-001`.
