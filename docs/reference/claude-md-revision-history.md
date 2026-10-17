@@ -21,7 +21,7 @@
 
 **Rev 70 (2026-10-17) — §22 added: real-time and cryptographic code is Rust, in the shared core. A process rule; no design decision, limit or interlock changed.**
 
-**What changed.** A new §22. Cryptographic and real-time work is written once in `common/npps-core` and reached by every platform; no JVM code runs on the helmet; unused and pre-release libraries are not added. A copyleft licence is not a bar; its obligations are recorded in the SOUP record.
+**What changed.** A new §22. Cryptographic and real-time work is written once in `common/npps-core` and reached by every platform; no JVM code runs on the helmet; unused and pre-release libraries are not added. A copyleft licence is allowed only if it does not oblige NeurOne's own code to become copyleft; its obligations are recorded in the SOUP record.
 
 **Why.** The principal directed it on 2026-10-17 (issue #569), after the unused GPLv3 `org.signal:argon2` and two pre-release AndroidX libraries were found in the Android app and the cryptography was moved to the core (PR #612). The rules were recorded in `docs/np_soup_kotlin_001.md` §2a; this section makes them binding on later work.
 

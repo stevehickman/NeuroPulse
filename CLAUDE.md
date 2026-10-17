@@ -531,8 +531,11 @@ written again in Kotlin, Swift, C# or TypeScript, and not taken from a platform 
   §4.2) and meets its real-time constraints there. Kotlin, Java and any other managed-runtime code is
   companion-app code on a phone, a computer or a browser, and is never moved onto the headset.
 - **Library selection.** A declared dependency that nothing imports is removed. An alpha, beta, release
-  candidate or snapshot is not used where a stable version exists. A copyleft licence is not a bar
-  (the principal, 2026-10-17); its obligations are recorded in the SOUP record (`docs/np_soup_kotlin_001.md` §2a).
+  candidate or snapshot is not used where a stable version exists. A copyleft licence is allowed only if
+  it does not oblige NeurOne's own code to be released under a copyleft licence (the principal, 2026-10-17). A
+  library whose licence would (GPL, AGPL, or any licence that reaches the code linked with it) is not added;
+  a file-level or dynamically-linked one (MPL, LGPL used as the licence allows) is, with its obligations in the
+  SOUP record (`docs/np_soup_kotlin_001.md` §2a).
 - **Adding a Kotlin, Swift, C# or TypeScript implementation of a primitive** to a platform tree is a
   design decision, recorded as an open item first. Code already there when this section was written is
   listed in the SOUP record's open item (`OI-SOUPKT-01`) and moves to the core.
