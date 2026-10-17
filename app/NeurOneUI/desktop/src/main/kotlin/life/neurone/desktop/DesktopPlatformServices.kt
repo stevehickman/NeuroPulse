@@ -8,7 +8,7 @@ import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.DirectoryObjectStore
 import life.neurone.core.migration.ObjectStoreRoute
-import life.neurone.core.session.JvmProtocolSigner
+import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.MigrationPlace
 import life.neurone.shared.NoOpAnalyticsBackend
@@ -26,7 +26,7 @@ import java.util.Properties
 class DesktopPlatformServices(
     override val keyValueStore: KeyValueStore = FileKeyValueStore(appDataDirectory().resolve("np-app.properties")),
     override val bleCentral: BleCentral = createDesktopBleCentral(keyValueStore),
-    override val protocolSigner: ProtocolSigner = JvmProtocolSigner(),
+    override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
 

@@ -135,7 +135,6 @@ class Ed25519StudyDescriptorVerifier(
         // cannot check, and a device holding a key can. Collapsing them would let a forged
         // descriptor read as a configuration problem.
         val ok = ed25519Verify(publicKeyRaw, StudyDescriptorCanonicalForm.bytes(descriptor), signature)
-            ?: return StudyDescriptorVerification.Unavailable
 
         return if (ok) {
             StudyDescriptorVerification.Verified(

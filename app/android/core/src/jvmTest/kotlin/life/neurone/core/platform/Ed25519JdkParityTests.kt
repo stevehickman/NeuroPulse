@@ -1,7 +1,6 @@
 package life.neurone.core.platform
 
 import life.neurone.core.session.Ed25519ProtocolSigner
-import life.neurone.core.session.JvmProtocolSigner
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
@@ -10,7 +9,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The common Ed25519 and SHA-512 against the JDK's, byte for byte, on random inputs: Ed25519 is deterministic. */
+/** The Rust core's Ed25519 and SHA-512, reached through Kotlin, against the JDK's, byte for byte, on random inputs: Ed25519 is deterministic. */
 class Ed25519JdkParityTests {
 
     private val pkcs8Prefix = byteArrayOf(0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20)
@@ -43,10 +42,12 @@ class Ed25519JdkParityTests {
     }
 
     // @verifies REQ-SW03-10
-    @Test fun fingerprints_areTheSameShapeOnTheCommonAndTheJdkSigner() {
+    @Test fun fingerprint_isTheFirstEightBytesOfTheSpkiDigest_asTheJdkComputesIt() {
         val seed = ByteArray(32) { (it * 3).toByte() }
         val common = Ed25519ProtocolSigner { seed }.sign(byteArrayOf(1, 2, 3))
         assertEquals(Digests.sha256(Ed25519.spki(Ed25519.publicKey(seed))).copyOf(8).toHex(), common.publicKeyFingerprint)
-        assertEquals(16, JvmProtocolSigner().sign(byteArrayOf(1)).publicKeyFingerprint.length)
+        val jdkSpki = java.security.KeyFactory.getInstance("Ed25519")
+            .generatePublic(java.security.spec.X509EncodedKeySpec(Ed25519.spki(Ed25519.publicKey(seed)))).encoded
+        assertEquals(MessageDigest.getInstance("SHA-256").digest(jdkSpki).copyOf(8).toHex(), common.publicKeyFingerprint)
     }
 }

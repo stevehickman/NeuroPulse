@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-10-15
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** G2
 **IEC 62304 Class:** B, following the app items the core serves. See §3.
 **Supersedes:** None
-**Change Summary:** Rev 5 (2026-10-17) — the core derives the UHDR key too (`derive_uhdr_key`, issue #569 package 6v): the same `argon2` crate at the same cost with 64 bytes out, so the Kotlin app needs no Argon2 library of its own. No dependency changed; the argon2 row's role is amended and `REQ-SW03-08` now has a core test. Rev 4 (2026-10-16) — the direct-link pairing joins the core (issue #569 package 6t): `spake2` 0.4.0 (SPAKE2 over Ed25519, the password-authenticated key exchange that lets an 8-digit code pair two phones), `hmac` and `hkdf` (the key confirmation and the directions' keys) and `rand_core` (the randomness trait SPAKE2 asks for, fed from the driver's bytes) become direct dependencies; `curve25519-dalek` 4.1.3, `curve25519-dalek-derive` and `fiat-crypto` come with `spake2`. Inventory regenerated (46 crates, was 40) and the RustSec scan re-run against 1,329 advisories (147 packages in the lock file): 0 vulnerabilities. `spake2` has no known-answer test in this repository and no independent review of its use was done (§6.2). Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
+**Change Summary:** Rev 6 (2026-10-17) — SHA-2 and Ed25519 for every platform (issue #569 package 6w, `OI-SOUPKT-01`, `CLAUDE.md` §22): `ed25519-dalek` 2.2.0 (default features off; `alloc`, `zeroize`) signs and verifies, and the core's `sha256`, `sha512`, `ed25519PublicKey`, `ed25519Sign` and `ed25519Verify` operations replace the Kotlin Ed25519 (a TweetNaCl port that was not constant-time) and SHA-2 that `:core` carried. Verification is `verify_strict`. Six crates join the tree as its dependencies: `ed25519`, `signature`, `pkcs8`, `spki`, `der`, `const-oid`; **53** crates now (was 46). `cargo audit` re-run on `Cargo.lock` (1,334 advisories, 154 crates): no vulnerability. Rev 5 (2026-10-17) — the core derives the UHDR key too (`derive_uhdr_key`, issue #569 package 6v): the same `argon2` crate at the same cost with 64 bytes out, so the Kotlin app needs no Argon2 library of its own. No dependency changed; the argon2 row's role is amended and `REQ-SW03-08` now has a core test. Rev 4 (2026-10-16) — the direct-link pairing joins the core (issue #569 package 6t): `spake2` 0.4.0 (SPAKE2 over Ed25519, the password-authenticated key exchange that lets an 8-digit code pair two phones), `hmac` and `hkdf` (the key confirmation and the directions' keys) and `rand_core` (the randomness trait SPAKE2 asks for, fed from the driver's bytes) become direct dependencies; `curve25519-dalek` 4.1.3, `curve25519-dalek-derive` and `fiat-crypto` come with `spake2`. Inventory regenerated (46 crates, was 40) and the RustSec scan re-run against 1,329 advisories (147 packages in the lock file): 0 vulnerabilities. `spake2` has no known-answer test in this repository and no independent review of its use was done (§6.2). Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
 **Review Cadence:** On any change to `common/Cargo.lock` that touches the tree below, and at G2
 
 ---
@@ -49,6 +49,7 @@ The core (`common/npps-core/Cargo.toml`) names ten crates. The FFI crate adds no
 | rand_core | 0.6.4 | default | The `RngCore` and `CryptoRng` traits `spake2` asks for; the core implements them over the bytes the driver gave (`link.rs`, `Given`) | MIT OR Apache-2.0 |
 | hmac | 0.12.1 | default | HMAC-SHA-256 over the two SPAKE2 messages: each phone's proof that it holds the shared key (`link.rs`) | MIT OR Apache-2.0 |
 | hkdf | 0.12.4 | default | HKDF-SHA-256: the two directions' keys of the sealed link, from the shared key (`link.rs`) | MIT OR Apache-2.0 |
+| ed25519-dalek | 2.2.0 | `alloc`, `zeroize`; default features **off** (no `std`, no `rand_core`, no `pkcs8` or `serde` feature) | Ed25519 (RFC 8032): the public key of a seed, the signature of the hub descriptor's signed region, and the strict verification of a study descriptor's signature (`primitives.rs`). Verification uses `verify_strict`, which also refuses a weak or small-order key. The secret is created inside the call from a seed the driver supplied, and the signing key is zeroized when dropped | BSD-3-Clause |
 
 The JNI crate (`common/npps-jni`) also links `jni` 0.21.1 (MIT / Apache-2.0), the JNI surface. The first-party core contains
 no `unsafe` block; the FFI and JNI crates do, at the foreign-function boundary, as that is what they are.
@@ -74,7 +75,7 @@ cargo itself: it copies a library built beforehand, and whether that build passe
 ## 5. Transitive inventory
 
 Every crate in `common/Cargo.lock` reachable from `neurone-npps-core` through normal and build dependencies, over all
-targets: **46** crates. Generated with `cargo metadata --locked` on 2026-10-16. The `jni` crate and its dependencies add 25 more
+targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (Rev 6 adds the seven in the Ed25519 row's tree). The `jni` crate and its dependencies add 25 more
 (the same crates sit in the tree `NP-SOUP-BTLE-001` §4 inventories, which also links `jni`). The proc-macro and build-script crates (`proc-macro2`, `quote`, `syn`, `serde_derive`,
 `version_check`) run at build time and are not in the shipped library.
 
@@ -89,12 +90,16 @@ targets: **46** crates. Generated with `cargo metadata --locked` on 2026-10-16. 
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | cipher | 0.4.4 | MIT OR Apache-2.0 |
+| const-oid | 0.9.6 | Apache-2.0 OR MIT |
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
 | ctr | 0.9.2 | MIT OR Apache-2.0 |
 | curve25519-dalek | 4.1.3 | BSD-3-Clause |
 | curve25519-dalek-derive | 0.1.1 | MIT/Apache-2.0 |
+| der | 0.7.10 | Apache-2.0 OR MIT |
 | digest | 0.10.7 | MIT OR Apache-2.0 |
+| ed25519 | 2.2.3 | Apache-2.0 OR MIT |
+| ed25519-dalek | 2.2.0 | BSD-3-Clause |
 | fiat-crypto | 0.2.9 | MIT OR Apache-2.0 OR BSD-1-Clause |
 | generic-array | 0.14.7 | MIT |
 | ghash | 0.5.1 | Apache-2.0 OR MIT |
@@ -106,6 +111,7 @@ targets: **46** crates. Generated with `cargo metadata --locked` on 2026-10-16. 
 | memchr | 2.8.3 | Unlicense OR MIT |
 | opaque-debug | 0.3.1 | MIT OR Apache-2.0 |
 | password-hash | 0.5.0 | MIT OR Apache-2.0 |
+| pkcs8 | 0.10.2 | Apache-2.0 OR MIT |
 | polyval | 0.6.2 | Apache-2.0 OR MIT |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
@@ -115,7 +121,9 @@ targets: **46** crates. Generated with `cargo metadata --locked` on 2026-10-16. 
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 |
 | serde_json | 1.0.151 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
+| signature | 2.2.0 | Apache-2.0 OR MIT |
 | spake2 | 0.4.0 | MIT OR Apache-2.0 |
+| spki | 0.7.3 | Apache-2.0 OR MIT |
 | subtle | 2.6.1 | BSD-3-Clause |
 | syn | 3.0.6 | MIT OR Apache-2.0 |
 | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
@@ -181,6 +189,7 @@ Three advisories exist for crates the core uses, and none applies to the pinned 
 | serde_json | Rejects or mis-parses a request | An operation refuses a valid request, or reads a field as another type | Parsing errors return an error and no answer; the tests of each operation. Recursion depth is the crate's default limit |
 | spake2 | A password-authenticated exchange that leaks the password, or accepts a wrong one | A bystander on the same network pairs with the old phone and is sent the (encrypted) bundle and the claim, or learns the code offline | Both phones check the other's MAC over the two messages before any bundle byte moves; the session cost a try whatever happens; the bundle is still sealed under the person's own secret, so a paired bystander holds ciphertext only; the construction is not independently reviewed (§6.2) |
 | hmac / hkdf | A wrong MAC or a key derived the same for both directions | A proof that does not prove, or a sealed link whose two directions share a keystream | The MAC is verified in constant time (`verify_slice`); the two directions use distinct HKDF labels and distinct keys, tested by the link tests |
+| ed25519-dalek | Accepts a forged or malleable signature, or signs wrongly | A study descriptor from a forged source is trusted and admitted (`ConsentEngine.admit()` re-checks consent but not the source); a hub rejects a good protocol | `verify_strict` refuses a malleable signature and a small-order key; the RFC 8032 test 1 vector (`primitives.rs`); the Kotlin parity tests against the JDK's Ed25519 on random inputs |
 | the rest (§5) | A fault in a support crate | As the crate that depends on it | RustSec (§6.1) |
 
 ## 8. Keeping this record true

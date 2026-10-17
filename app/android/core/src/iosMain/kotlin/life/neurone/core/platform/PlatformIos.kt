@@ -13,6 +13,3 @@ actual fun secureRandomBytes(count: Int): ByteArray {
     check(status == 0) { "SecRandomCopyBytes failed: $status" }
     return out
 }
-
-/** No Ed25519 verifier on this target yet, so a signed descriptor is refused, never trusted. */
-actual fun ed25519Verify(publicKeyRaw: ByteArray, message: ByteArray, signature: ByteArray): Boolean? = null

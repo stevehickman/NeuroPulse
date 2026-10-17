@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 private fun hex(s: String): ByteArray = ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
 /**
- * The common Ed25519 and SHA-512, pinned to the published vectors (FIPS 180-4 and RFC 8032 §7.1). The JVM test
+ * The core's Ed25519 and SHA-512 reached through Kotlin, pinned to the published vectors (FIPS 180-4 and RFC 8032 §7.1). The JVM test
  * (`Ed25519JdkParityTests`) additionally compares them with the JDK's own on random inputs.
  */
 class Ed25519Tests {
