@@ -1,5 +1,7 @@
 package life.neurone.app
 
+import life.neurone.core.migration.LinkTransport
+import life.neurone.shared.migration.LanLinkTransport
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,6 +26,9 @@ class AndroidPlatformServices(
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
     override val secretKeyStore: SecretKeyStore? = null,
 ) : PlatformServices {
+
+    /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
+    override val linkTransport: LinkTransport = LanLinkTransport()
 
     /** A backup is a file the person saves and later opens, through the system's own dialogs (SAF). */
     @Composable

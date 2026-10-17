@@ -91,6 +91,14 @@ const SERVER_ID: &[u8] = b"np-migration-old";
 const CLIENT_ID: &[u8] = b"np-migration-new";
 const AAD: &[u8] = b"np-link-v1";
 
+/// How a phone that is waiting is found on the local network (`SWR-MG-10`, package 6u): the new phone broadcasts `PROBE` to
+/// the UDP `DISCOVERY_PORT`; a waiting phone answers the sender with `REPLY`, a space and the TCP port it accepts on. The
+/// answer names no code, so anything on the network can see that a migration is waiting but not what to guess (`UC-093`).
+/// The values are the platforms' to read (`linkDiscovery`), so no two spell them differently.
+const DISCOVERY_PORT: u16 = 47731;
+const PROBE: &str = "np-link-probe-v1";
+const REPLY: &str = "np-link-here-v1";
+
 /// The digits of what was typed, in any grouping; exactly `CODE_DIGITS` of them or nothing.
 fn parse_code(text: &str) -> R<String> {
     let digits: String = text.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
@@ -114,6 +122,7 @@ fn make_code(random: &[u8]) -> R<String> {
 pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
     Some(match name {
         "pairingPolicy" => Ok(json!({ "digits": CODE_DIGITS, "lifetimeSeconds": CODE_LIFETIME_SECONDS, "tries": CODE_TRIES, "randomBytes": CODE_RANDOM })),
+        "linkDiscovery" => Ok(json!({ "port": DISCOVERY_PORT, "probe": PROBE, "reply": REPLY })),
         "pairingCode" => unhex(req["bytes"].as_str().unwrap_or(""), "bytes").and_then(|b| make_code(&b)).map(|code| json!({ "code": code })),
         "pairingParse" => Ok(match parse_code(req["text"].as_str().unwrap_or("")) {
             Ok(code) => json!({ "ok": true, "code": code }),
@@ -754,6 +763,14 @@ mod tests {
         assert_eq!(step(&a, json!({ "failed": true }))["done"]["reason"], "link_failed");
         // A phone that connects and leaves without a word costs no try.
         assert_eq!(step(&a, json!({ "chunk": null }))["done"], json!({ "ok": true, "reason": "closed", "paired": false, "triesLeft": 3 }));
+    }
+
+    // @verifies SWR-MG-10
+    #[test]
+    fn the_discovery_values_are_the_cores_and_name_no_code() {
+        let d = ask(json!({ "op": "linkDiscovery" }));
+        assert_eq!(d, json!({ "port": 47731, "probe": "np-link-probe-v1", "reply": "np-link-here-v1" }));
+        assert!(!d.to_string().contains(CODE));
     }
 
     // @verifies SWR-MG-10

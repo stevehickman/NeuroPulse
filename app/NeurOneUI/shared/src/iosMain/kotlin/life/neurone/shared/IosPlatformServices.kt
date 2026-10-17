@@ -1,5 +1,7 @@
 package life.neurone.shared
 
+import life.neurone.core.migration.LinkTransport
+import life.neurone.shared.migration.LanLinkTransport
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
@@ -31,6 +33,9 @@ class IosPlatformServices(
      * A folder in the app's Documents directory, which the Files app shows (the host declares file sharing), so the person can
      * copy the backup to a drive or another phone. The file system arbitrates the claim (a hard link), as on the desktop.
      */
+    /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
+    override val linkTransport: LinkTransport = LanLinkTransport()
+
     override val migrationPlace: MigrationPlace? by lazy {
         val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
         MigrationPlace(FOLDER_NAME, IosFolderObjectStore("$documents/$FOLDER_NAME"), ObjectStoreRoute("documents-folder", atomicClaim = true))

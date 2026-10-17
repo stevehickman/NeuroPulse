@@ -33,6 +33,7 @@ import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.MigrationRestoreModel
 import life.neurone.shared.migration.PortableFilePlace
+import life.neurone.shared.migration.RestoreReport
 import life.neurone.shared.migration.RestoreStep
 import life.neurone.shared.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -106,25 +107,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
                 Button(onClick = { scope.launch { model.submitSecret(text) } }) { Text(stringResource(Res.string.migration_restore_button)) }
             }
             RestoreStep.Running -> Busy(Res.string.migration_restore_running)
-            is RestoreStep.Done -> {
-                val r = s.report
-                Text(stringResource(Res.string.migration_restore_done_title), style = MaterialTheme.typography.titleMedium)
-                ItemList(Res.string.migration_restore_restored_title, r.restored)
-                ItemList(Res.string.migration_restore_missing_title, r.missing)
-                ItemList(Res.string.migration_restore_omitted_title, r.omitted)
-                ItemList(Res.string.migration_restore_not_applied_title, r.notApplied)
-                if (r.consentNotRestored) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(Res.string.migration_restore_consent_notice))
-                }
-                if (r.kind == BackupKind.MIGRATE) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        stringResource(if (r.confirmed) Res.string.migration_restore_confirmed else Res.string.migration_restore_not_confirmed),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
+            is RestoreStep.Done -> RestoreReportView(s.report)
             is RestoreStep.Failed -> {
                 Text(stringResource(Res.string.migration_restore_failed_title), style = MaterialTheme.typography.titleMedium)
                 Text(words(MessageGroup.REASONS, s.reason))
@@ -135,5 +118,26 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
 
         Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = { if (step != RestoreStep.Running) onDone() }) { Text(stringResource(Res.string.common_back)) }
+    }
+}
+
+/** What a finished restore did, shared by the restore from a backup and from another phone. */
+@Composable
+internal fun RestoreReportView(r: RestoreReport) {
+    Text(stringResource(Res.string.migration_restore_done_title), style = MaterialTheme.typography.titleMedium)
+    ItemList(Res.string.migration_restore_restored_title, r.restored)
+    ItemList(Res.string.migration_restore_missing_title, r.missing)
+    ItemList(Res.string.migration_restore_omitted_title, r.omitted)
+    ItemList(Res.string.migration_restore_not_applied_title, r.notApplied)
+    if (r.consentNotRestored) {
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(Res.string.migration_restore_consent_notice))
+    }
+    if (r.kind == BackupKind.MIGRATE) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(if (r.confirmed) Res.string.migration_restore_confirmed else Res.string.migration_restore_not_confirmed),
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }

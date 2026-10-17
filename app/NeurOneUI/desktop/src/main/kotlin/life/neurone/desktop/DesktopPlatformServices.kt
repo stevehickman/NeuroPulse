@@ -1,5 +1,7 @@
 package life.neurone.desktop
 
+import life.neurone.core.migration.LinkTransport
+import life.neurone.shared.migration.LanLinkTransport
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
@@ -35,6 +37,9 @@ class DesktopPlatformServices(
      * A folder beside the app's data: the person copies it to a USB drive or the new computer. The operating system arbitrates
      * the claim (a hard link), so the folder promises an exclusive create (SWR-MG-07). Made on first use, not at start-up.
      */
+    /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
+    override val linkTransport: LinkTransport = LanLinkTransport()
+
     override val migrationPlace: MigrationPlace? by lazy {
         val folder = appDataDirectory().resolve("backups")
         MigrationPlace(folder.path, DirectoryObjectStore(folder.toPath()), ObjectStoreRoute("local-folder", atomicClaim = true))
