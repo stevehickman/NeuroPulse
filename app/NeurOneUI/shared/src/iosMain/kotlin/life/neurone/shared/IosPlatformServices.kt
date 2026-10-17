@@ -9,7 +9,11 @@ import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.ble.BleCentral
+import life.neurone.core.migration.FileStore
+import life.neurone.core.migration.FolderUnionFileStore
+import life.neurone.core.migration.KeepingFileStore
 import life.neurone.core.migration.ObjectStoreRoute
+import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDefaults
@@ -39,6 +43,22 @@ class IosPlatformServices(
     override val migrationPlace: MigrationPlace? by lazy {
         val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
         MigrationPlace(FOLDER_NAME, IosFolderObjectStore("$documents/$FOLDER_NAME"), ObjectStoreRoute("documents-folder", atomicClaim = true))
+    }
+
+    /**
+     * SWR-MG-06: the app's own files for the clear to overwrite and delete: its Documents folder, except the backup place the
+     * clear is clearing against, and its Application Support folder. The key-value store is `NSUserDefaults`, which the system
+     * keeps in a property list it owns; the clear removes those keys through the store and cannot overwrite that list in place.
+     */
+    override val migrationFiles: FileStore by lazy {
+        fun folder(directory: platform.Foundation.NSSearchPathDirectory) =
+            NSSearchPathForDirectoriesInDomains(directory, NSUserDomainMask, true).first() as String
+        FolderUnionFileStore(
+            mapOf(
+                "documents" to KeepingFileStore(IosDirectoryFileStore(folder(NSDocumentDirectory)), listOf(FOLDER_NAME)),
+                "support" to IosDirectoryFileStore(folder(NSApplicationSupportDirectory)),
+            ),
+        )
     }
 
     @Composable
