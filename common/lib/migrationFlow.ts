@@ -125,6 +125,9 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
 
 async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link, random = systemRandom }: FlowOptions): Promise<Record<string, unknown>> {
   switch (e.type) {
+    case 'now':
+      // The pairing code's expiry reads the platform clock (SWR-MG-10).
+      return { seconds: Math.floor(Date.now() / 1000) };
     case 'random': {
       const n = e.bytes as number;
       const bytes = random(n);
@@ -254,16 +257,59 @@ const noHost: MigrationHost = {
 };
 
 /**
- * SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
- * `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
- * serve without it. Resolves to `{ok, reason}`.
+ * What the phone that holds the bundle shows, and keeps until it is spent (SWR-MG-10). `expiresAt` is Unix seconds;
+ * `triesLeft` is what is left after the sessions already tried (each one costs a try, wrong or not).
  */
-async function serve(link: Link, store: ObjectStore, authenticated: boolean) {
-  return run('serve', { authenticated }, noHost, { store, link });
+export interface PairingOffer {
+  code: string;
+  expiresAt: number;
+  triesLeft: number;
+}
+
+/**
+ * SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes,
+ * once that phone has proved it knows the `offer`'s code. Resolves to `{ok, reason, paired, triesLeft}`: the host keeps the
+ * offer across connections and passes the tries left back in, and ends it when `paired` or when none are left.
+ */
+async function serve(link: Link, store: ObjectStore, offer: PairingOffer, random?: RandomBytes) {
+  return run('serve', { pairing: offer }, noHost, { store, link, random });
+}
+
+/** The pairing code's digits, life and tries (SWR-MG-10). */
+function pairingPolicy(): { digits: number; lifetimeSeconds: number; tries: number; randomBytes: number } {
+  return nppsMigration({ op: 'pairingPolicy' });
+}
+
+/** The digits of a code a person typed, in any grouping, or null if it is not eight of them. */
+function parsePairingCode(text: string): string | null {
+  const r = nppsMigration({ op: 'pairingParse', text });
+  return r.ok ? r.code : null;
+}
+
+/** The offer after a `serve` ended: the same code and expiry with the tries the core says are left, or null once it is spent. */
+function offerAfter(offer: PairingOffer, result: { paired?: boolean; triesLeft?: number; reason?: string }): PairingOffer | null {
+  if (result.paired) return null;
+  const left = result.triesLeft ?? offer.triesLeft;
+  return left <= 0 || result.reason === 'code_expired' ? null : { ...offer, triesLeft: left };
+}
+
+/** A new offer: the core's code from the platform's randomness, valid for the core's lifetime and tries. */
+function newPairingOffer(random: RandomBytes = systemRandom, nowSeconds: number = Math.floor(Date.now() / 1000)): PairingOffer {
+  const policy = pairingPolicy();
+  const bytes = random(policy.randomBytes);
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  const code: string = nppsMigration({ op: 'pairingCode', bytes: hex }).code;
+  return { code, expiresAt: nowSeconds + policy.lifetimeSeconds, triesLeft: policy.tries };
+}
+
+/** The code as shown: the digits in two groups, so it is easy to read out and to type. */
+function displayPairingCode(code: string): string {
+  const half = code.length / 2;
+  return `${code.slice(0, half)} ${code.slice(half)}`;
 }
 
 /**
  * The flows, under the one name every platform uses for this role: `MigrationFlow.run`, `MigrationFlow.probe`,
  * `MigrationFlow.serve` and `MigrationFlow.objectNames` (Swift `MigrationFlow`, C# `MigrationFlow`, Kotlin `MigrationFlow`).
  */
-export const MigrationFlow = { run, probe, serve, objectNames, messageKeys };
+export const MigrationFlow = { run, probe, serve, objectNames, messageKeys, pairingPolicy, parsePairingCode, offerAfter, newPairingOffer, displayPairingCode };

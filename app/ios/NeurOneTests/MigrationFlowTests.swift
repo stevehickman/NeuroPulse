@@ -257,13 +257,14 @@ final class MigrationFlowTests: XCTestCase {
 
         func restoreOver(_ keys: KeyStore) async throws -> [String: Any] {
             let (client, server) = pipe()
-            async let serving = MigrationFlow.serve(link: server, store: store, authenticated: true)
+            async let serving = MigrationFlow.serve(link: server, store: store, offer: offer())
             let r = try await MigrationFlow.run(
-                "restore", params: params(), host: Host(route: Route()),
+                "restore", params: params(["pairing": ["code": "12345678"]]), host: Host(route: Route()),
                 secret: try secret("a long enough passphrase"), keys: keys, link: client)
             await client.close()
             let served = try await serving
             XCTAssertEqual(served["reason"] as? String, "closed")
+            XCTAssertEqual(served["paired"] as? Bool, true)
             return r
         }
         let freshStore = KeyStore()
@@ -278,12 +279,50 @@ final class MigrationFlowTests: XCTestCase {
         XCTAssertEqual(second["reason"] as? String, "claimed")
     }
 
+    private func offer() -> PairingOffer {
+        PairingOffer(code: "12345678", expiresAt: Int(Date().timeIntervalSince1970) + 120, triesLeft: 3)
+    }
+
     // @verifies SWR-MG-10
-    func testAServingPhoneWhoseLinkIsNotAuthenticatedServesNothing() async throws {
+    func testAServingPhoneWithNoValidOfferServesNothing() async throws {
         let (_, server) = pipe()
-        let r = try await MigrationFlow.serve(link: server, store: MemoryStore(), authenticated: false)
+        let r = try await MigrationFlow.serve(
+            link: server, store: MemoryStore(),
+            offer: PairingOffer(code: "1234", expiresAt: Int(Date().timeIntervalSince1970) + 120, triesLeft: 3))
         XCTAssertEqual(r["ok"] as? Bool, false)
         XCTAssertEqual(r["reason"] as? String, "not_authenticated")
+    }
+
+    // @verifies SWR-MG-10
+    func testAWrongCodeIsRefusedOnTheRestoringPhoneAndCostsTheOfferATry() async throws {
+        let store = MemoryStore()
+        let oldStore = try filledStore()
+        _ = try await MigrationFlow.run(
+            "backup", params: params(["kind": "migrate", "method": "passphrase"]),
+            host: Host(route: Route()), secret: try secret("a long enough passphrase"), keys: oldStore, store: store)
+        let (client, server) = pipe()
+        let first = offer()
+        async let serving = MigrationFlow.serve(link: server, store: store, offer: first)
+        let fresh = KeyStore()
+        let r = try await MigrationFlow.run(
+            "restore", params: params(["pairing": ["code": "87654321"]]), host: Host(route: Route()),
+            secret: try secret("a long enough passphrase"), keys: fresh, link: client)
+        await client.close()
+        XCTAssertEqual(r["reason"] as? String, "wrong_code")
+        XCTAssertTrue(fresh.values.isEmpty, "nothing was restored")
+        let served = try await serving
+        XCTAssertEqual(served["paired"] as? Bool, false)
+        XCTAssertEqual(first.after(served)?.triesLeft, 2)
+        XCTAssertNil(first.after(["paired": true]), "a paired offer is done")
+    }
+
+    // @verifies SWR-MG-10
+    func testTheCodeIsMadeAndReadByTheCoreAndShownInTwoGroups() throws {
+        let made = try PairingOffer.make()
+        XCTAssertEqual(made.code.count, 8)
+        XCTAssertEqual(try MigrationFlow.parsePairingCode(made.display), made.code)
+        XCTAssertEqual(PairingOffer(code: "12345678", expiresAt: 0, triesLeft: 3).display, "1234 5678")
+        XCTAssertNil(try MigrationFlow.parsePairingCode("1234 567"))
     }
 
     // @verifies SWR-MG-11
@@ -291,9 +330,9 @@ final class MigrationFlowTests: XCTestCase {
         let (client, _) = pipe()
         client.broken = true
         let r = try await MigrationFlow.run(
-            "restore", params: params(), host: Host(route: Route()),
+            "restore", params: params(["pairing": ["code": "12345678"]]), host: Host(route: Route()),
             secret: try secret("a long enough passphrase"), keys: KeyStore(), link: client)
-        XCTAssertEqual(r["reason"] as? String, "route_unavailable")
+        XCTAssertEqual(r["reason"] as? String, "link_failed")
     }
 
     // @verifies SWR-MG-03

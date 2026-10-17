@@ -121,6 +121,9 @@ static class MigrationFlow
     {
         switch ((string?)e["type"])
         {
+            // The pairing code's expiry reads the platform clock (SWR-MG-10).
+            case "now":
+                return Task.FromResult(new JsonObject { ["seconds"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             case "random":
                 var n = (int)e["bytes"]!;
                 var bytes = random(n);
@@ -174,11 +177,25 @@ static class MigrationFlow
             throw new NppsRefusal("a serving phone is asked for no host effect");
     }
 
-    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes.
-    /// `authenticated` is the app's assertion that the link was paired (the pairing is not designed yet); the core refuses to
-    /// serve without it. Returns {ok, reason}.
-    public static Task<JsonObject> ServeAsync(ILink link, IObjectStore store, bool authenticated) =>
-        RunAsync("serve", new JsonObject { ["authenticated"] = authenticated }, new NoHost(), null, null, store, null, link);
+    /// SWR-MG-10: serve this phone's migration objects from `store` to the phone on the other end of `link`, until it closes,
+    /// once that phone has proved it knows the `offer`'s code. Returns {ok, reason, paired, triesLeft}: the host keeps the
+    /// offer across connections and passes the tries left back in, and ends it when `paired` or when none are left.
+    public static Task<JsonObject> ServeAsync(ILink link, IObjectStore store, PairingOffer offer, Func<int, byte[]>? random = null) =>
+        RunAsync("serve", new JsonObject { ["pairing"] = offer.ToJson() }, new NoHost(), null, null, store, null, link, random);
+
+    /// The pairing code's digits, life and tries: digits, lifetimeSeconds, tries, randomBytes (SWR-MG-10).
+    public static JsonObject PairingPolicy() => NppsCore.Migration(new JsonObject { ["op"] = "pairingPolicy" }).AsObject();
+
+    /// A pairing code from `random` bytes (as many as the policy says).
+    public static string PairingCode(byte[] random) =>
+        (string)NppsCore.Migration(new JsonObject { ["op"] = "pairingCode", ["bytes"] = Convert.ToHexString(random).ToLowerInvariant() })["code"]!;
+
+    /// The digits of a code a person typed, in any grouping, or null if it is not eight of them.
+    public static string? ParsePairingCode(string text)
+    {
+        var r = NppsCore.Migration(new JsonObject { ["op"] = "pairingParse", ["text"] = text }).AsObject();
+        return (bool)r["ok"]! ? (string)r["code"]! : null;
+    }
 
     // One file call of the clear. A call that throws is reported to the core as failed, and the clear stops at that step (SWR-MG-06).
     private static async Task<JsonObject> PerformFileAsync(JsonObject e, IFileStore files)
@@ -251,4 +268,34 @@ static class MigrationFlow
     /// SWR-MG-12: check an account on throwaway objects that hold no user data.
     public static Task<JsonObject> ProbeAsync(IObjectStore store, long bundleBytes, IMigrationHost host, Func<int, byte[]>? random = null) =>
         RunAsync("probe", new JsonObject { ["bundleBytes"] = bundleBytes }, host, null, null, store, random: random);
+}
+
+/// What the phone that holds the bundle shows, and keeps until it is spent (SWR-MG-10). `ExpiresAt` is Unix seconds;
+/// `TriesLeft` is what is left after the sessions already tried (each one costs a try, wrong or not).
+public sealed record PairingOffer(string Code, long ExpiresAt, int TriesLeft)
+{
+    internal JsonObject ToJson() => new() { ["code"] = Code, ["expiresAt"] = ExpiresAt, ["triesLeft"] = TriesLeft };
+
+    /// The offer after a serve ended: the same code and expiry with the tries the core says are left, or null once it is spent.
+    public PairingOffer? After(JsonObject result)
+    {
+        if (result["paired"]?.GetValue<bool>() == true) return null;
+        var left = result["triesLeft"]?.GetValue<int>() ?? TriesLeft;
+        if (left <= 0 || (string?)result["reason"] == "code_expired") return null;
+        return this with { TriesLeft = left };
+    }
+
+    /// A new offer: the core's code from the platform's randomness, valid for the core's lifetime and tries.
+    public static PairingOffer Make(Func<int, byte[]>? random = null, DateTimeOffset? now = null)
+    {
+        var policy = MigrationFlow.PairingPolicy();
+        var bytes = (random ?? RandomNumberGenerator.GetBytes)((int)policy["randomBytes"]!);
+        return new PairingOffer(
+            MigrationFlow.PairingCode(bytes),
+            (now ?? DateTimeOffset.UtcNow).ToUnixTimeSeconds() + (long)policy["lifetimeSeconds"]!,
+            (int)policy["tries"]!);
+    }
+
+    /// The code as shown: the digits in two groups, so it is easy to read out and to type.
+    public string Display => Code[..(Code.Length / 2)] + " " + Code[(Code.Length / 2)..];
 }

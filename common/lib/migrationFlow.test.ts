@@ -298,14 +298,14 @@ describe('MigrationFlow.run', () => {
 
     const restoreOver = async (keys: Store) => {
       const [client, server] = pipe();
-      const serving = MigrationFlow.serve(server, store, true);
-      const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route()), {
+      const serving = MigrationFlow.serve(server, store, offer());
+      const r = await MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
         secret: secretOf('a long enough passphrase'),
         keys,
         link: client,
       });
       client.close();
-      expect(await serving).toEqual({ ok: true, reason: 'closed' });
+      expect(await serving).toEqual({ ok: true, reason: 'closed', paired: true, triesLeft: 2 });
       return r;
     };
     const fresh = new Store();
@@ -316,11 +316,53 @@ describe('MigrationFlow.run', () => {
     expect(await restoreOver(new Store())).toEqual({ ok: false, reason: 'claimed' });
   }, 60_000);
 
+  const offer = () => ({ code: '12345678', expiresAt: Math.floor(Date.now() / 1000) + 120, triesLeft: 3 });
+
   // @verifies SWR-MG-10
-  it('serves nothing over a link that is not authenticated', async () => {
+  it('serves nothing without a valid offer', async () => {
     await initNppsCore();
     const [, server] = pipe();
-    expect(await MigrationFlow.serve(server, new MemoryStore(), false)).toEqual({ ok: false, reason: 'not_authenticated' });
+    expect(await MigrationFlow.serve(server, new MemoryStore(), { code: '1234', expiresAt: 9e9, triesLeft: 3 })).toEqual({
+      ok: false,
+      reason: 'not_authenticated',
+    });
+  });
+
+  // @verifies SWR-MG-10
+  it('refuses a wrong code on the restoring phone and counts the session against the offer', async () => {
+    await initNppsCore();
+    const store = new MemoryStore();
+    await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route()), {
+      secret: secretOf('a long enough passphrase'),
+      keys: filled(),
+      store,
+    });
+    const [client, server] = pipe();
+    const first = offer();
+    const serving = MigrationFlow.serve(server, store, first);
+    const fresh = new Store();
+    const r = await MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '87654321' } }, new Host(new Route()), {
+      secret: secretOf('a long enough passphrase'),
+      keys: fresh,
+      link: client,
+    });
+    client.close();
+    expect(r).toEqual({ ok: false, reason: 'wrong_code' });
+    expect(fresh.values.size).toBe(0);
+    const served = await serving;
+    expect(served.paired).toBe(false);
+    expect(MigrationFlow.offerAfter(first, served)?.triesLeft).toBe(2);
+    expect(MigrationFlow.offerAfter(first, { paired: true })).toBeNull();
+  }, 60_000);
+
+  // @verifies SWR-MG-10
+  it('makes and reads the code in the core and shows it in two groups', async () => {
+    await initNppsCore();
+    const made = MigrationFlow.newPairingOffer();
+    expect(made.code).toMatch(/^\d{8}$/);
+    expect(MigrationFlow.parsePairingCode(MigrationFlow.displayPairingCode(made.code))).toBe(made.code);
+    expect(MigrationFlow.displayPairingCode('12345678')).toBe('1234 5678');
+    expect(MigrationFlow.parsePairingCode('1234 567')).toBeNull();
   });
 
   // @verifies SWR-MG-11
@@ -328,12 +370,12 @@ describe('MigrationFlow.run', () => {
     await initNppsCore();
     const [client] = pipe();
     client.broken = true;
-    const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route()), {
+    const r = await MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
       secret: secretOf('a long enough passphrase'),
       keys: new Store(),
       link: client,
     });
-    expect(r).toEqual({ ok: false, reason: 'route_unavailable' });
+    expect(r).toEqual({ ok: false, reason: 'link_failed' });
   }, 60_000);
 
   // @verifies SWR-MG-03

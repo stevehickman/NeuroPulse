@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-10-15
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** G2
 **IEC 62304 Class:** B, following the app items the core serves. See §3.
 **Supersedes:** None
-**Change Summary:** Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
+**Change Summary:** Rev 4 (2026-10-16) — the direct-link pairing joins the core (issue #569 package 6t): `spake2` 0.4.0 (SPAKE2 over Ed25519, the password-authenticated key exchange that lets an 8-digit code pair two phones), `hmac` and `hkdf` (the key confirmation and the directions' keys) and `rand_core` (the randomness trait SPAKE2 asks for, fed from the driver's bytes) become direct dependencies; `curve25519-dalek` 4.1.3, `curve25519-dalek-derive` and `fiat-crypto` come with `spake2`. Inventory regenerated (46 crates, was 40) and the RustSec scan re-run against 1,329 advisories (147 packages in the lock file): 0 vulnerabilities. `spake2` has no known-answer test in this repository and no independent review of its use was done (§6.2). Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
 **Review Cadence:** On any change to `common/Cargo.lock` that touches the tree below, and at G2
 
 ---
@@ -35,7 +35,7 @@ record says so, so it does not read as "no known hazardous anomaly".
 
 ## 2. Direct dependencies
 
-The core (`common/npps-core/Cargo.toml`) names six crates. The FFI crate adds none. The JNI crate adds `jni`.
+The core (`common/npps-core/Cargo.toml`) names ten crates. The FFI crate adds none. The JNI crate adds `jni`.
 
 | Crate | Version | Features | Role in the core | Licence |
 |-------|---------|----------|------------------|---------|
@@ -45,6 +45,10 @@ The core (`common/npps-core/Cargo.toml`) names six crates. The FFI crate adds no
 | argon2 | 0.5.3 | `alloc`, `zeroize`; default features **off** (no `std`, no `password-hash` string API, no `rand`) | Argon2id (RFC 9106, version 0x13) at the fixed cost of the bundle key: 64 MiB, 4 passes, 1 lane, 32 bytes out (`bundle_key.rs`, `derive_key`, `SWR-MG-02`). One implementation for every app; the device-bound UHDR key keeps each app's own (`NP-FW-EMMC-001` §6). Pulls `blake2`, `base64ct` and `password-hash` | MIT OR Apache-2.0 |
 | zeroize | 1.9.1 | default | The derived key and the secret are `Zeroizing` buffers, cleared when dropped (`bundle_key.rs`) | Apache-2.0 OR MIT |
 | unicode-normalization | 0.1.25 | default | Unicode NFKC of a passphrase before it becomes a key secret (`bundle_key.rs`, `SWR-MG-02`). The crate's tables are Unicode 17.0.0 | MIT OR Apache-2.0 |
+| spake2 | 0.4.0 | default features **off** | SPAKE2 over Ed25519 (the `Ed25519Group`), the password-authenticated key exchange of the direct-link pairing: the 8-digit code is the password, and a wrong guess gives an attacker one guess per session and nothing to test offline (`link.rs`, `SWR-MG-10`). The core calls the `_with_rng` entry points only, with the driver's bytes, so the crate's own operating-system randomness is never used | MIT OR Apache-2.0 |
+| rand_core | 0.6.4 | default | The `RngCore` and `CryptoRng` traits `spake2` asks for; the core implements them over the bytes the driver gave (`link.rs`, `Given`) | MIT OR Apache-2.0 |
+| hmac | 0.12.1 | default | HMAC-SHA-256 over the two SPAKE2 messages: each phone's proof that it holds the shared key (`link.rs`) | MIT OR Apache-2.0 |
+| hkdf | 0.12.4 | default | HKDF-SHA-256: the two directions' keys of the sealed link, from the shared key (`link.rs`) | MIT OR Apache-2.0 |
 
 The JNI crate (`common/npps-jni`) also links `jni` 0.21.1 (MIT / Apache-2.0), the JNI surface. The first-party core contains
 no `unsafe` block; the FFI and JNI crates do, at the foreign-function boundary, as that is what they are.
@@ -70,7 +74,7 @@ cargo itself: it copies a library built beforehand, and whether that build passe
 ## 5. Transitive inventory
 
 Every crate in `common/Cargo.lock` reachable from `neurone-npps-core` through normal and build dependencies, over all
-targets: **40** crates. Generated with `cargo metadata --locked` on 2026-10-15. The `jni` crate and its dependencies add 25 more
+targets: **46** crates. Generated with `cargo metadata --locked` on 2026-10-16. The `jni` crate and its dependencies add 25 more
 (the same crates sit in the tree `NP-SOUP-BTLE-001` §4 inventories, which also links `jni`). The proc-macro and build-script crates (`proc-macro2`, `quote`, `syn`, `serde_derive`,
 `version_check`) run at build time and are not in the shipped library.
 
@@ -88,9 +92,14 @@ targets: **40** crates. Generated with `cargo metadata --locked` on 2026-10-15. 
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
 | ctr | 0.9.2 | MIT OR Apache-2.0 |
+| curve25519-dalek | 4.1.3 | BSD-3-Clause |
+| curve25519-dalek-derive | 0.1.1 | MIT/Apache-2.0 |
 | digest | 0.10.7 | MIT OR Apache-2.0 |
+| fiat-crypto | 0.2.9 | MIT OR Apache-2.0 OR BSD-1-Clause |
 | generic-array | 0.14.7 | MIT |
 | ghash | 0.5.1 | Apache-2.0 OR MIT |
+| hkdf | 0.12.4 | MIT OR Apache-2.0 |
+| hmac | 0.12.1 | MIT OR Apache-2.0 |
 | inout | 0.1.4 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | libc | 0.2.190 | MIT OR Apache-2.0 |
@@ -106,6 +115,7 @@ targets: **40** crates. Generated with `cargo metadata --locked` on 2026-10-15. 
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 |
 | serde_json | 1.0.151 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
+| spake2 | 0.4.0 | MIT OR Apache-2.0 |
 | subtle | 2.6.1 | BSD-3-Clause |
 | syn | 3.0.6 | MIT OR Apache-2.0 |
 | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
@@ -129,8 +139,8 @@ hazardous situation. One source was read on 2026-10-14. The others were not.
 
 ### 6.1 RustSec advisory database
 
-`cargo audit` 0.22.2 against the RustSec database (commit `edb58f59`, 1,329 advisories) scanned `common/Cargo.lock`
-(141 packages, a superset of the 40 in §5, as the lock file also holds the `btle-jni` tree). **Result: 0
+`cargo audit` 0.22.2 against the RustSec database (1,329 advisories; re-run on 2026-10-16 for Rev 4, the commit not recorded) scanned `common/Cargo.lock`
+(147 packages, a superset of the 46 in §5, as the lock file also holds the `btle-jni` tree). **Result: 0
 vulnerabilities and 0 warnings** (none unmaintained, unsound or yanked). This covers every crate in §5, but only for what
 RustSec has published: it is an absence of reports.
 
@@ -150,6 +160,11 @@ Three advisories exist for crates the core uses, and none applies to the pinned 
   and on the known-answer and round-trip tests in `common/npps-core` (which test the core's use of them). **Argon2id has a
   known-answer test**: `the_argon2_crate_reproduces_the_rfc_9106_argon2id_test_vector` runs the RFC 9106 §5.3 vector and
   passes. There is still no AES-GCM known-answer test against a published vector in this repository.
+- **`spake2` has no known-answer test here and the use of it was not independently reviewed.** The pairing is tested for what
+  it must do (the right code pairs, a wrong one does not, a session costs a try, a frame is sealed, replayed or altered
+  frames are refused), but not against a published SPAKE2 vector, and the crate itself says it is not audited. The pin is
+  0.4.0, the last release before 0.5.0-pre. A review of the construction (`link.rs`, "The pairing") by someone who does this
+  for a living is owed before the direct link ships to people (`UC-093`).
 - **No check of the licence texts** against the declared SPDX identifiers.
 - **No run on iOS, Android, Windows or in a browser of the cryptographic path.** The Rust tests run on Linux; the
   WebAssembly path is exercised by the web test; the JNI and C ABI paths are exercised by CI.
@@ -164,6 +179,8 @@ Three advisories exist for crates the core uses, and none applies to the pinned 
 | argon2 | A wrong derivation (another variant, version or parameter set) | Every app derives a key that differs from another app's, so a bundle sealed on one cannot be opened on another (the person is told the secret is wrong); or, if the derivation were cheaper than stated, a bundle would be easier to attack offline | The RFC 9106 test vector (§6.2); a test that the wrapper equals the crate called directly at the fixed cost; the header's `kdf` block is compared with the fixed one before any derivation (`unsupported_kdf`), so a bundle cannot choose a cheaper cost |
 | sha2 | A wrong digest | A protocol family's identity (and so its used flag) or a bundle hash (and so a claim or confirmation) does not match | The identity tests (`tests/`), the claim tests (`migration.rs`) and the SHA-256 vector the Kotlin test checks. A wrong digest fails closed for migration (no clear without a matching confirmation) |
 | serde_json | Rejects or mis-parses a request | An operation refuses a valid request, or reads a field as another type | Parsing errors return an error and no answer; the tests of each operation. Recursion depth is the crate's default limit |
+| spake2 | A password-authenticated exchange that leaks the password, or accepts a wrong one | A bystander on the same network pairs with the old phone and is sent the (encrypted) bundle and the claim, or learns the code offline | Both phones check the other's MAC over the two messages before any bundle byte moves; the session cost a try whatever happens; the bundle is still sealed under the person's own secret, so a paired bystander holds ciphertext only; the construction is not independently reviewed (§6.2) |
+| hmac / hkdf | A wrong MAC or a key derived the same for both directions | A proof that does not prove, or a sealed link whose two directions share a keystream | The MAC is verified in constant time (`verify_slice`); the two directions use distinct HKDF labels and distinct keys, tested by the link tests |
 | the rest (§5) | A fault in a support crate | As the crate that depends on it | RustSec (§6.1) |
 
 ## 8. Keeping this record true
