@@ -2,19 +2,19 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-NATIVE-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-10-17
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
 **Approved By:** — (DRAFT, not approved)
-**References:** `app/ios/project.yml`, `app/watchos/project.yml` (the SwiftPM dependencies), `app/NeurOneShared/Package.swift`, `app/NeurOneShared/Sources/NeurOneArgon2/phc/VENDOR.md`, `app/windows/NeurOne/NeurOne.csproj`, `app/windows/NeurOne.Tests/NeurOne.Tests.csproj`, `NP-SOUP-KOTLIN-001` and `NP-SOUP-RUST-001` (the method precedent and the rules, §2a of the former), `CLAUDE.md` §22
+**References:** `app/ios/project.yml`, `app/watchos/project.yml` (the SwiftPM dependencies), `app/NeurOneShared/Package.swift`, `app/windows/NeurOne/NeurOne.csproj`, `app/windows/NeurOne.Tests/NeurOne.Tests.csproj`, `NP-SOUP-KOTLIN-001` and `NP-SOUP-RUST-001` (the method precedent and the rules, §2a of the former), `CLAUDE.md` §22
 **Related Issues:** GitHub #569, `OI-SOUPKT-01` item 4
 **Gate:** G2
 **IEC 62304 Class:** Not assigned. See `NP-SOUP-KOTLIN-001` §3, whose argument applies unchanged.
 **Supersedes:** None
-**Change Summary:** Rev 1 (2026-10-17) — first issue. Closes the gap `NP-SOUP-KOTLIN-001` §1 named: the Swift package manifest, the Swift package dependencies and the NuGet references had no record. Written together with the removal of `NSec.Cryptography` from the Windows app (the Ed25519 signer now calls the Rust core, `CLAUDE.md` §22), so the Windows runtime inventory is one library.
-**Review Cadence:** On any change to a SwiftPM dependency, the vendored Argon2, or a `PackageReference`, and at G2
+**Change Summary:** Rev 2 (2026-10-17) — **the vendored Argon2 is removed and PostHog is pinned** (`OI-SOUPKT-01`). iOS derives the UHDR key through the Rust core (`deriveUhdrKey`); `NeurOneArgon2`, `Argon2Bridge.swift` and the 12 vendored files are deleted. Before deleting, the vendored source was compiled and called on a fixed input, and the core was made to reproduce its output byte for byte (a test in `bundle_key.rs`), so a key made by an earlier build is unchanged. PostHog is `exactVersion` 3.60.0 in `project.yml`, so the version that ships is the one this record reads. Rev 1 (2026-10-17) — first issue. Closes the gap `NP-SOUP-KOTLIN-001` §1 named: the Swift package manifest, the Swift package dependencies and the NuGet references had no record. Written together with the removal of `NSec.Cryptography` from the Windows app (the Ed25519 signer now calls the Rust core, `CLAUDE.md` §22), so the Windows runtime inventory is one library.
+**Review Cadence:** On any change to a SwiftPM dependency or a `PackageReference`, and at G2
 
 ---
 
@@ -26,11 +26,10 @@ The iOS and watchOS apps are Swift; the Windows app is C# on .NET 8. They are th
 
 | Item | Version | Platform | Shipped | Licence (as declared) | Role |
 |------|---------|----------|---------|-----------------------|------|
-| PostHog (`posthog-ios`) | `from: "3.60.0"` in `app/ios/project.yml`; the resolved version is **not recorded** (§4) | iOS | Yes | MIT (the repository's `LICENSE` at 3.60.0) | The analytics backend behind the research-consent gate (`PostHogAnalyticsBackend.swift`). A fault in it can send events the user did not allow (§5) |
+| PostHog (`posthog-ios`) | **3.60.0, exact** (`exactVersion` in `app/ios/project.yml`) | iOS | Yes | MIT (the repository's `LICENSE` at 3.60.0) | The analytics backend behind the research-consent gate (`PostHogAnalyticsBackend.swift`). A fault in it can send events the user did not allow (§5) |
 | libwebp, vendored in PostHog as target `phlibwebp` | with PostHog | iOS | Yes | BSD-3-Clause (the vendored `COPYING`) | Image coding inside the SDK |
 | PLCrashReporter, vendored in PostHog as `PHPLCrashReporter` | with PostHog | iOS (not watchOS) | Yes | MIT (the vendored `LICENSE`, with the notices of the upstream project and its dependencies) | Crash capture inside the SDK |
 | protobuf-c, vendored in `PHPLCrashReporter` | with PostHog | iOS | Yes | BSD-2-Clause (its own header notice; not checked against the file) | PLCrashReporter's report encoding |
-| phc-winner-argon2 (vendored C, target `NeurOneArgon2`) | the 2021 reference release; no commit recorded; file hashes in `VENDOR.md` | iOS, watchOS | Yes | CC0-1.0 OR Apache-2.0, at NeurOne's choice (the file headers) | Argon2id for the device-bound UHDR key (`Argon2Bridge.swift`, `UHDRKeyManager.swift`). **Cryptographic code outside the core, which `CLAUDE.md` §22 moves** (§3) |
 | System.Security.Cryptography.ProtectedData | 8.0.0 | Windows | Yes | MIT | DPAPI wrapping of the signing seed in `SessionProtocol.cs`. It is a platform key-protection wrapper, which §22 leaves to the platform. It has no dependency on .NET 8 (the nuspec lists `System.Memory` only for .NET Standard 2.0) |
 | Microsoft.NET.Test.Sdk | 17.11.1 | Windows tests | No | MIT | Test host |
 | xunit | 2.9.2 | Windows tests | No | Apache-2.0 | Test framework |
@@ -45,17 +44,17 @@ The licence entries were read from the packages' own nuspec files and repositori
 `NP-SOUP-KOTLIN-001` §2a binds these apps too (`CLAUDE.md` §22).
 
 1. **No unused library.** None found: every item above is imported or linked.
-2. **No pre-release.** None declared. `from: "3.60.0"` allows any later 3.x stable release; SwiftPM does not select a pre-release for a `from` requirement.
-3. **Cryptographic work is the core's.** Met on Windows with this revision. **Not met on Swift:** the vendored Argon2 derives the device-bound UHDR key (`UHDRKeyManager.swift`), while the core already has the same derivation (`deriveUhdrKey`, `REQ-SW03-08`) and the Kotlin app uses it. Moving iOS and watchOS to it deletes `NeurOneArgon2`, the 12 vendored files and their hash table. It needs an Xcode build and the device test of an existing key (the same salt and secret must give the same key), neither of which can be run from this environment, so it is left open as `OI-SOUPKT-01` item 4.
+2. **No pre-release.** None declared, and PostHog is pinned exactly, so no later release (stable or not) enters a build without an edit to `project.yml`.
+3. **Cryptographic work is the core's.** Met on Windows (Ed25519 signing) and on iOS (the UHDR key, `deriveUhdrKey`; the vendored PHC Argon2 is deleted, Rev 2). The Swift app has no cryptographic library of its own; it uses CryptoKit and the Keychain, which are platform (the platform keeps key custody, `CLAUDE.md` §22).
 4. **No managed-runtime code on the helmet.** These are phone and computer apps.
 5. **Copyleft only if it does not reach NeurOne's code.** None is copyleft.
 
 ## 4. What was not done
 
-- **No resolved dependency record for Swift.** No `Package.resolved` is committed (XcodeGen regenerates the project), so the PostHog version that ships is whatever resolved at build time. Its package manifest also names three test-only dependencies (Quick, Nimble, OHHTTPStubs), which SwiftPM fetches for the graph but does not link into the product. Pinning (an exact version in `project.yml`, or committing `Package.resolved`) is a decision for the iOS maintainers.
-- **No vulnerability scan** of PostHog, its vendored code, or the Argon2 reference. SwiftPM and the vendored C are not covered by the scan job of `NP-SOUP-KOTLIN-001` §6.2, which reads Gradle and Cargo locks.
+- **No `Package.resolved`.** PostHog is pinned `exactVersion` 3.60.0, so the version is known. Its transitive packages are not recorded: PostHog's own manifest at 3.60.0 names three test-only dependencies (Quick, Nimble, OHHTTPStubs), which SwiftPM fetches for the graph but does not link into the product; that was read from the manifest, not from a resolved build.
+- **No vulnerability scan** of PostHog or its vendored code. SwiftPM is not read by the scan job of `NP-SOUP-KOTLIN-001` §6.2, which reads Gradle and Cargo locks, and the NuGet references are not either.
 - **No anomaly list** for PostHog beyond its repository's public issues, which were not read.
-- **No NuGet lock file.** The four references are fixed versions; `RestorePackagesWithLockFile` would add `packages.lock.json`, which needs a restore this environment cannot run.
+- **No NuGet lock file.** The remaining references are fixed versions (ProtectedData is platform-adjacent and the others are test-only); `RestorePackagesWithLockFile` would add `packages.lock.json`, which needs a restore this environment cannot run. Not adopted: one shipped library does not earn a lock.
 
 ## 5. Hazard reading
 
@@ -63,12 +62,12 @@ The licence entries were read from the packages' own nuspec files and repositori
 |------|-------|--------|---------|
 | PostHog | Sends an event, or identifies a user, with research consent withdrawn or never given | UHDR-class behaviour data leaves the device against the user's decision | `ResearchAnalyticsGate` and `WarrantyAnalyticsGate`: the backend is configured only after a gate allows it, and withdrawal opts the SDK out (`PostHogAnalyticsBackend.swift`, `ResearchAnalyticsGateTests`; `CLAUDE.md` §6.2). Whether the SDK honours `optOut` for everything it captures was not tested |
 | PostHog / PLCrashReporter | A crash report carries memory contents | UHDR-class data in a report that leaves the device | Not held beyond the same gate: the crash reporter is part of the SDK that the gate keeps off |
-| phc-winner-argon2 | A wrong derivation | A UHDR key that differs from the one the data was sealed with: the person's records cannot be opened | Only a determinism test (`testArgon2idDeterministic`, reduced memory). **No known-answer vector for the production parameters** exists on Swift; the core's Argon2 has one. The parameters are fixed in code |
+| PHC Argon2 (removed, Rev 2) | A wrong derivation | A UHDR key that differs from the one the data was sealed with | Removed. The core's `deriveUhdrKey` reproduces the vendored reference byte for byte on a pinned vector (`bundle_key.rs`) and is tested at the locked cost; a Swift test pins the same bytes through the marshalling (`testUhdrKeyIsTheCoresArgon2id`) |
 | ProtectedData | The seed is unwrapped by another Windows user | The protocol-signing key is exposed, so a descriptor could be signed in the user's name; no stimulation enable follows (the hub's safety MCU owns it, `CLAUDE.md` §4.2) | DPAPI user scope |
 | the rest | A fault in a test library | None in the product (not shipped) | — |
 
 ## 6. Keeping this record true
 
-- A change to a SwiftPM dependency, the vendored Argon2 or a `PackageReference` changes §2 in the same change, and §5 if the item could reach UHDR-class data.
-- When the iOS and watchOS apps derive the UHDR key through the core, the Argon2 row and `VENDOR.md` move to a "removed" line here, and `NeurOneArgon2` is deleted.
+- A change to a SwiftPM dependency or a `PackageReference` changes §2 in the same change, and §5 if the item could reach UHDR-class data. A PostHog version change is an edit to `exactVersion` and to §2 together.
+- The vendored Argon2 (`NeurOneArgon2`, 12 files, phc-winner-argon2 2021 release, CC0-1.0 OR Apache-2.0) was removed in Rev 2; its file hashes are in git history at `app/NeurOneShared/Sources/NeurOneArgon2/phc/VENDOR.md`.
 - This record does not extend `NP-SW-001` §9.4 (the firmware register).
