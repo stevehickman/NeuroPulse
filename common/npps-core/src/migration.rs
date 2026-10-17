@@ -60,6 +60,24 @@ pub(crate) fn all_keys() -> Vec<String> {
     v
 }
 
+/// `SWR-MG-06`: the keys whose values a host seals at rest, so that destroying the data key makes them unreadable. It is every key
+/// of every item a migration carries, the consent keys, **and the keys not yet sorted**. A key still waiting to be sorted for
+/// migration has no ruling that it is not user data, and `CLAUDE.md` §5.1 says what to do then: when in doubt it is UHDR, and a
+/// reclassification needs a positive demonstration of no user biology. The unsorted keys also include the cervical fault
+/// acknowledgement (a cardiac fact) and the onboarding records (age, biometric-privacy consent), which are about the person. The
+/// per-install keys are not listed: they name a device, an install or a warranty registration, and the SHDR device token a host
+/// seals for another reason. The list is computed here so every platform seals the same keys, and a key moved out of `unsorted`
+/// into a list that is not sealed has to be taken out of this one on purpose.
+pub(crate) fn sealed_at_rest() -> Vec<String> {
+    let m = key_map();
+    let mut v: Vec<String> = m["carried"].as_object().into_iter().flat_map(|o| o.values()).chain(["consent", "unsorted"].iter().map(|k| &m[*k]))
+        .flat_map(|a| a.as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>())
+        .collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
 const MIGRATE_ITEMS: [&str; 5] = [
     "protocols",
     "sessionHistory",
@@ -450,7 +468,11 @@ pub(crate) fn dispatch(op: &str, req: &Value) -> R<Value> {
 fn migration_op(op: &str, req: &Value) -> R<Value> {
     Ok(match op {
         "inventory" => inventory(req)?,
-        "itemKeys" => key_map(),
+        "itemKeys" => {
+            let mut m = key_map();
+            m["sealedAtRest"] = json!(sealed_at_rest());
+            m
+        }
         "readHeader" => read_header(req)?,
         "restoreReport" => restore_report(req)?,
         "mergeWithdrawal" => merge_withdrawal(req)?,
@@ -925,5 +947,29 @@ mod tests {
     fn an_unknown_key_method_or_a_short_salt_is_refused() {
         assert!(migration_json(&json!({"op":"bundleKdf","method":"fingerprint","salt":"5a".repeat(32)}).to_string()).is_err());
         assert!(migration_json(&json!({"op":"bundleKdf","method":"passphrase","salt":"5a"}).to_string()).is_err());
+    }
+
+    // @verifies SWR-MG-06
+    #[test]
+    fn the_sealed_set_is_every_carried_consent_and_unsorted_key_and_no_per_install_key() {
+        let m = ask(json!({"op":"itemKeys"}));
+        let sealed: Vec<String> = m["sealedAtRest"].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect();
+        let list = |name: &str| -> Vec<String> { m[name].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect() };
+        let mut sorted = sealed.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sealed, sorted, "sorted, no duplicates");
+        for k in m["carried"].as_object().unwrap().values().flat_map(|a| a.as_array().unwrap()) {
+            assert!(sealed.contains(&k.as_str().unwrap().to_string()), "carried key {k}");
+        }
+        for k in list("consent").into_iter().chain(list("unsorted")) {
+            assert!(sealed.contains(&k), "consent or unsorted key {k}");
+        }
+        for k in list("perInstall") {
+            assert!(!sealed.contains(&k), "per-install key {k} is not in the sealed set");
+        }
+        assert!(sealed.contains(&"np.cvns.fault-ledger.last-acknowledged-session".to_string()), "the cardiac fault acknowledgement");
+        assert!(sealed.contains(&"np.onboarding.bipa-accepted".to_string()), "the biometric-privacy consent record");
+        assert!(sealed.iter().all(|k| all_keys().contains(k)), "every sealed key is a sorted key");
     }
 }
