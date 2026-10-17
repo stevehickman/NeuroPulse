@@ -316,6 +316,8 @@ GPLv3; it is removed, §6.3.) `com.google.guava:listenablefuture` and `org.slf4j
 The Skia-based `skiko` native binaries and the Android platform libraries carry their own notices, which this record has not
 collected: the licence inventory for the app bundles (also owed by `NP-SOUP-RUST-001` §5 for `unicode-ident`) has to carry them.
 
+**Checked against §2a rule 5 (2026-10-17).** None of the 216 libraries declares a copyleft licence: 214 declare Apache-2.0 and two declare none (above). The check is of the declared identifiers only. The Rust core's 154 crates (`cargo metadata --locked`) declare MIT, Apache-2.0, BSD-3-Clause, Unlicense, Zlib or combinations of them, and the four with none are NeurOne's own workspace crates. No library in either inventory is GPL, AGPL, LGPL or MPL. Outside this inventory the Windows app declares `NSec.Cryptography` 24.10.0 (a cryptographic library, which §22 moves to the core), and the Swift and NuGet dependencies have no SOUP record yet (`OI-SOUPKT-01`).
+
 ## 6. Anomaly evaluation
 
 IEC 62304 asks for the published anomaly list of each SOUP version in use to be evaluated for anomalies that could lead to a
