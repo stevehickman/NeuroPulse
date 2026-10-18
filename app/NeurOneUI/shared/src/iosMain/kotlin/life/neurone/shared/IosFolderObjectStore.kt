@@ -11,7 +11,6 @@ import platform.Foundation.NSUUID
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.length
-import platform.Foundation.bytes
 import platform.posix.EEXIST
 import platform.posix.errno
 import platform.posix.link

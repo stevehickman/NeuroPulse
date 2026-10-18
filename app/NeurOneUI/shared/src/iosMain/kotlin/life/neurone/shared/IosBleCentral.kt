@@ -1,8 +1,7 @@
 package life.neurone.shared
 
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.ObjCSignatureOverride
 import life.neurone.core.common.UUID
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
@@ -18,12 +17,9 @@ import platform.CoreBluetooth.CBPeripheral
 import platform.CoreBluetooth.CBPeripheralDelegateProtocol
 import platform.CoreBluetooth.CBService
 import platform.CoreBluetooth.CBUUID
-import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
-import platform.Foundation.create
 import platform.darwin.NSObject
-import platform.posix.memcpy
 
 /**
  * The Apple [BleCentral], over CoreBluetooth: a `CBCentralManager` and the one hub peripheral, driven by the same
@@ -34,13 +30,16 @@ import platform.posix.memcpy
  * manager's state flows need no hop. Written without a macOS host to compile it on (`OI-UI-KMP-06`).
  */
 @OptIn(ExperimentalForeignApi::class)
-class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, CBPeripheralDelegateProtocol {
+class IosBleCentral : BleCentral {
 
-    private var listener: BleCentralListener? = null
-    private var peripheral: CBPeripheral? = null
-    private var wantedCharacteristics: List<CBUUID> = emptyList()
-    private val characteristics = mutableMapOf<String, CBCharacteristic>()
-    private val manager: CBCentralManager = CBCentralManager(delegate = this, queue = null)
+    // The delegate callbacks live in [HubDelegate]: Kotlin/Native does not allow one class to have both a Kotlin interface
+    // ([BleCentral]) and Objective-C supertypes. The manager holds its delegate weakly, so this keeps the strong reference.
+    internal var listener: BleCentralListener? = null
+    internal var peripheral: CBPeripheral? = null
+    internal var wantedCharacteristics: List<CBUUID> = emptyList()
+    internal val characteristics = mutableMapOf<String, CBCharacteristic>()
+    private val delegate = HubDelegate(this)
+    private val manager: CBCentralManager = CBCentralManager(delegate = delegate, queue = null)
 
     override val adapterState: AdapterState
         get() = when (manager.state) {
@@ -97,11 +96,16 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
             p.writeValue(value.toNSData(), forCharacteristic = it, type = CBCharacteristicWriteWithResponse)
         }
     }
+}
+
+/** The CoreBluetooth callbacks, translated into [BleCentralListener] calls on [owner]. */
+@OptIn(ExperimentalForeignApi::class)
+private class HubDelegate(private val owner: IosBleCentral) : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDelegateProtocol {
 
     // ── Up: CBCentralManagerDelegate ─────────────────────────────────────
 
     override fun centralManagerDidUpdateState(central: CBCentralManager) {
-        listener?.onAdapterStateChanged(adapterState)
+        owner.listener?.onAdapterStateChanged(owner.adapterState)
     }
 
     override fun centralManager(
@@ -110,54 +114,44 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
         advertisementData: Map<Any?, *>,
         RSSI: NSNumber,
     ) {
-        peripheral = didDiscoverPeripheral.also { it.delegate = this }
-        listener?.onDeviceFound(didDiscoverPeripheral.identifier.UUIDString)
+        owner.peripheral = didDiscoverPeripheral.also { it.delegate = this }
+        owner.listener?.onDeviceFound(didDiscoverPeripheral.identifier.UUIDString)
     }
 
     override fun centralManager(central: CBCentralManager, didConnectPeripheral: CBPeripheral) {
-        listener?.onConnected(didConnectPeripheral.identifier.UUIDString)
+        owner.listener?.onConnected(didConnectPeripheral.identifier.UUIDString)
     }
 
+    @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didDisconnectPeripheral: CBPeripheral, error: NSError?) {
-        characteristics.clear()
-        listener?.onDisconnected(didDisconnectPeripheral.identifier.UUIDString)
+        owner.characteristics.clear()
+        owner.listener?.onDisconnected(didDisconnectPeripheral.identifier.UUIDString)
     }
 
+    @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didFailToConnectPeripheral: CBPeripheral, error: NSError?) {
         // A failed connect is a disconnect to the manager: it rescans after its two-second delay.
-        listener?.onDisconnected(didFailToConnectPeripheral.identifier.UUIDString)
+        owner.listener?.onDisconnected(didFailToConnectPeripheral.identifier.UUIDString)
     }
 
     // ── Up: CBPeripheralDelegate ─────────────────────────────────────────
 
     override fun peripheral(peripheral: CBPeripheral, didDiscoverServices: NSError?) {
         peripheral.services?.filterIsInstance<CBService>()?.forEach {
-            peripheral.discoverCharacteristics(wantedCharacteristics, forService = it)
+            peripheral.discoverCharacteristics(owner.wantedCharacteristics, forService = it)
         }
     }
 
     override fun peripheral(peripheral: CBPeripheral, didDiscoverCharacteristicsForService: CBService, error: NSError?) {
         didDiscoverCharacteristicsForService.characteristics?.filterIsInstance<CBCharacteristic>()?.forEach {
-            characteristics[it.UUID.UUIDString.lowercase()] = it
+            owner.characteristics[it.UUID.UUIDString.lowercase()] = it
         }
-        listener?.onCharacteristicsDiscovered(characteristics.keys.map(UUID::fromString).toSet())
+        owner.listener?.onCharacteristicsDiscovered(owner.characteristics.keys.map(UUID::fromString).toSet())
     }
 
     override fun peripheral(peripheral: CBPeripheral, didUpdateValueForCharacteristic: CBCharacteristic, error: NSError?) {
         val data = didUpdateValueForCharacteristic.value ?: return
         // A read and a notification arrive here alike, and the manager treats them alike.
-        listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
+        owner.listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
     }
 }
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArray(): ByteArray {
-    val size = length.toInt()
-    val out = ByteArray(size)
-    if (size > 0) out.usePinned { memcpy(it.addressOf(0), bytes, length) }
-    return out
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun ByteArray.toNSData(): NSData =
-    if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }
