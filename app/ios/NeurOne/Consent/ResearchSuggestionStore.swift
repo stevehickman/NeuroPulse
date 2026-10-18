@@ -90,7 +90,7 @@ final class ResearchSuggestionStore: ObservableObject {
     // MARK: - Persistence
 
     private func loadLocal() {
-        guard let data = UserDefaults.standard.data(forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY),
+        guard let data = ProtectedDefaults.standard.data(forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY),
               let decoded = try? JSONDecoder().decode([ResearchSuggestion].self, from: data)
         else { return }
         suggestions = decoded
@@ -98,7 +98,7 @@ final class ResearchSuggestionStore: ObservableObject {
 
     private func saveLocal() {
         if let data = try? JSONEncoder().encode(suggestions) {
-            UserDefaults.standard.set(data, forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY)
+            ProtectedDefaults.standard.set(data, forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY)
         }
     }
 
