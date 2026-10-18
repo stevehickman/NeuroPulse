@@ -127,6 +127,11 @@ class NeurOneApplication : Application() {
 
     private fun composeShdrUploadPipeline() {
         bleScope.launch {
+            gattManager.hubIdentifier.collect { hub ->
+                ShdrUploadWiring.applyHubIdentifier(hub, shdrUploader)
+            }
+        }
+        bleScope.launch {
             gattManager.warrantyToken.collect { token ->
                 ShdrUploadWiring.applyWarrantyToken(token, shdrUploader)
             }

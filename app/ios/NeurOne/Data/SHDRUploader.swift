@@ -14,12 +14,14 @@ import Security
 
 enum SHDRUploadError: LocalizedError {
     case noData
+    case noHubIdentity
     case networkError(Error)
     case serverRejected(Int)
 
     var errorDescription: String? {
         switch self {
         case .noData:                return "No SHDR data available to upload."
+        case .noHubIdentity:         return "No helmet is connected to say whose record this is."
         case .networkError(let e):   return "Network error during SHDR upload: \(e.localizedDescription)"
         case .serverRejected(let c): return "Fleet server rejected SHDR upload (HTTP \(c))."
         }
@@ -203,6 +205,13 @@ final class SHDRUploader: ObservableObject {
     // downgrade us back to the Keychain token — the device identity is unchanged.
     private var hubWarrantyToken: String?
 
+    // Which helmet the link is to, `nil` when not connected. The interim token is kept per helmet, never per phone: a phone used
+    // with two helmets would otherwise send one token for both, and a clinic's phone for every helmet it touches (privacy review
+    // Finding 6, REQ-SHDR-05).
+    private var hubIdentifier: String?
+    // The last helmet seen, kept across a disconnect so a different one is noticed when it connects.
+    private var lastHubSeen: String?
+
     // Dedicated session with SPKI pinning — never use URLSession.shared for fleet uploads.
     private let session: URLSession
 
@@ -210,8 +219,10 @@ final class SHDRUploader: ObservableObject {
         self.uploadTrigger = gatt
         let delegate = SHDRFleetPinningDelegate(host: "fleet.neurone.internal")
         self.session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+        Self.removePerPhoneToken()
         observeUploadTrigger()
         observeWarrantyToken()
+        observeHubIdentifier()
     }
 
     private func observeUploadTrigger() {
@@ -236,6 +247,21 @@ final class SHDRUploader: ObservableObject {
             .store(in: &cancellables)
     }
 
+    // A different helmet is a different device: the token the last one delivered must not be sent for this one. A `nil`
+    // (disconnect) only forgets which helmet it is; the token a connected helmet delivered stays for the rest of that link.
+    private func observeHubIdentifier() {
+        uploadTrigger.hubIdentifierPublisher
+            .sink { [weak self] id in
+                guard let self else { return }
+                if let id {
+                    if let seen = self.lastHubSeen, id != seen { self.hubWarrantyToken = nil }
+                    self.lastHubSeen = id
+                }
+                self.hubIdentifier = id
+            }
+            .store(in: &cancellables)
+    }
+
     // Replace the active device token with the hub-provisioned TRNG value.
     // The hub GATT characteristic carries exactly 32 bytes; anything else is rejected
     // rather than silently truncated so a corrupt/partial read never becomes the fleet key.
@@ -246,8 +272,11 @@ final class SHDRUploader: ObservableObject {
 
     // The 64-char hex device token used as the SHDR fleet DB linkage key for this upload:
     // the hub-provisioned TRNG token once known, otherwise the interim Keychain fallback.
-    func currentDeviceToken() -> String {
-        hubWarrantyToken ?? warrantyTokenFromKeychain()
+    // With neither, there is no token: nothing is sent for a helmet nobody can name.
+    func currentDeviceToken() -> String? {
+        if let hubWarrantyToken { return hubWarrantyToken }
+        guard let hubIdentifier else { return nil }
+        return warrantyTokenFromKeychain(forHub: hubIdentifier)
     }
 
     func uploadIfConsented() async {
@@ -269,7 +298,11 @@ final class SHDRUploader: ObservableObject {
         // token — never to any vendor-assigned or user-linked identifier. Prefers the
         // hub-provisioned TRNG token when known, falling back to the interim Keychain
         // token before the hub delivers it over GATT (OI-BLE-01).
-        let warrantyToken = currentDeviceToken()
+        guard let warrantyToken = currentDeviceToken() else {
+            let err = SHDRUploadError.noHubIdentity
+            lastError = err
+            throw err
+        }
 
         // In production the hub pushes the SHDR binary blob over USB-C bulk transfer;
         // the app reads it from a staging file dropped by the hub's CDC interface.
@@ -310,15 +343,28 @@ final class SHDRUploader: ObservableObject {
 
     // MARK: - Warranty token (NP-FW-EMMC-002 Rev A §A)
 
-    // Opaque 256-bit random token, generated once at first run and stored in the
-    // Keychain with ThisDeviceOnly accessibility. Used as the SHDR fleet DB linkage
+    // Opaque 256-bit random token, generated once per helmet (the first time that helmet is connected) and stored in the
+    // Keychain with ThisDeviceOnly accessibility, under an account named for the helmet. Used as the SHDR fleet DB linkage
     // key — it is never joined to user identity.
     // Interim fallback only: once the hub delivers its 256-bit TRNG token over the GATT
     // warrantyToken characteristic, upgradeDeviceToken(_:) supersedes this value and
     // currentDeviceToken() prefers the hub token (OI-BLE-01, pending hub firmware OI-WA-03).
     private static let WARRANTY_TOKEN_TAG = "life.neurone.shdr.warranty-token"
 
-    private func warrantyTokenFromKeychain() -> String {
+    // Before the app kept the token per helmet it kept one per phone, in this account. A per-phone token is what Finding 6
+    // removes, so it is deleted (an upload cannot have succeeded under it while the pinned certificate hashes are placeholders).
+    private static func removePerPhoneToken() {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: WARRANTY_TOKEN_TAG,
+            kSecAttrAccount: "warranty-token",
+        ]
+        _ = SecItemDelete(query as CFDictionary)
+    }
+
+    private func warrantyTokenFromKeychain(forHub hub: String) -> String {
+        let account = "warranty-token.\(hub)"
+
         // kSecAttrAccount is part of the Keychain primary key for kSecClassGenericPassword
         // alongside kSecAttrService. Both must be present in read and write queries to
         // avoid ambiguous matches if another item ever shares the service string.
@@ -329,7 +375,7 @@ final class SHDRUploader: ObservableObject {
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
             kSecAttrService:        Self.WARRANTY_TOKEN_TAG,
-            kSecAttrAccount:        "warranty-token",
+            kSecAttrAccount:        account,
             kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecMatchLimit:         kSecMatchLimitOne,
             kSecReturnData:         true,
@@ -352,7 +398,7 @@ final class SHDRUploader: ObservableObject {
         let addQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
             kSecAttrService:        Self.WARRANTY_TOKEN_TAG,
-            kSecAttrAccount:        "warranty-token",
+            kSecAttrAccount:        account,
             kSecValueData:          tokenData,
             kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecAttrSynchronizable: false

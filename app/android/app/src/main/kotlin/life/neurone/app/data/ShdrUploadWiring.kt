@@ -23,6 +23,14 @@ object ShdrUploadWiring {
     }
 
     /**
+     * Which helmet the link is to (`null` after a disconnect). The uploader keeps its token per helmet, so it must be told which
+     * one before it is asked for a token or given one (privacy review Finding 6, REQ-SHDR-05).
+     */
+    fun applyHubIdentifier(hub: String?, uploader: ShdrUploader) {
+        uploader.setHubIdentifier(hub)
+    }
+
+    /**
      * SHDR upload gate. Upload only when the hub signalled a pending upload, the
      * warranty owner has consented (WarrantyAnalyticsGate), and the hub actually
      * staged a payload. [ShdrUploader.upload] re-checks the warranty gate as a

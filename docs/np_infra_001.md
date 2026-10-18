@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 1
-**Date:** 2026-06-14  
+**Revision:** 2
+**Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -84,6 +84,20 @@ The device token is a 256-bit TRNG opaque warranty token — it is never joined 
 | Error responses | `400` for malformed token format; `5xx` for server error (client retries on next USB-C connect) |
 
 The server must not attempt to correlate `X-NP-Device-Token` with any user identity, email, or purchase record. The token is the sole linkage key between the SHDR blob and any warranty record. See NP-FW-EMMC-002 Rev 1 §A for the token architecture.
+
+### 3.3a What the ingest keeps and what it cannot hide (Rev 2, privacy review Finding 6)
+
+The device token is permanent, and the server sees the connection's source address. A record that holds both places a device on a household, clinic or employer network, which is the link `CLAUDE.md` §5.1 says SHDR never has. So the edge in front of `POST /v1/shdr` must:
+
+1. **Write the source address and the token in no log.** The access log and the runtime/error log both drop the client address and port, any forwarded address and the `X-NP-Device-Token` header (`REQ-SHDR-06` (a)).
+2. **Not pass the address on.** The ingest service gets neither `X-Forwarded-For` nor `X-Real-IP` (`REQ-SHDR-06` (b)), so it cannot write one beside the token.
+3. **Keep what it does log for a short time.** Log files are rolled by age (`REQ-SHDR-06` (c)). The reference figure, 72 hours, has no derivation (`UC-095`, `OI-FLEET-01`).
+
+`infra/fleet/Caddyfile` is the reference edge and `ci/test_fleet_ingest_config.py` (CI: `fleet-infra-ci.yml`) checks it. The deployed edge is not in this repository, so the check shows the reference does this, not that the deployment does.
+
+**What this does not remove.** The address still reaches the edge, because the connection needs it, and the network path (an internet provider, a corporate proxy) sees that a device talks to the fleet host at some time and how much it sends. Only a relay the sender does not trust with both halves, such as Oblivious HTTP, removes that, and it is not built (`OI-FLEET-01`). **The notice the warranty owner is shown before the first upload must say so:** that the fleet service sees the connection's network address while it receives the record, that NeurOne's service does not keep it, and that the record carries a device token and no name. No screen shows that notice today (nothing calls `WarrantyAnalyticsGate.grant()`), so the wording is a requirement on the screen when it is built (`OI-FLEET-01`).
+
+**The interim token.** Until the hub delivers its own (OI-BLE-01), the app sends a token it made for the connected helmet, kept per helmet and never per phone (`REQ-SHDR-05`).
 
 ### 3.4 Infrastructure setup
 
