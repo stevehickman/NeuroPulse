@@ -30,13 +30,16 @@ import platform.darwin.NSObject
  * manager's state flows need no hop. Written without a macOS host to compile it on (`OI-UI-KMP-06`).
  */
 @OptIn(ExperimentalForeignApi::class)
-class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, CBPeripheralDelegateProtocol {
+class IosBleCentral : BleCentral {
 
-    private var listener: BleCentralListener? = null
-    private var peripheral: CBPeripheral? = null
-    private var wantedCharacteristics: List<CBUUID> = emptyList()
-    private val characteristics = mutableMapOf<String, CBCharacteristic>()
-    private val manager: CBCentralManager = CBCentralManager(delegate = this, queue = null)
+    // The delegate callbacks live in [HubDelegate]: Kotlin/Native does not allow one class to have both a Kotlin interface
+    // ([BleCentral]) and Objective-C supertypes. The manager holds its delegate weakly, so this keeps the strong reference.
+    internal var listener: BleCentralListener? = null
+    internal var peripheral: CBPeripheral? = null
+    internal var wantedCharacteristics: List<CBUUID> = emptyList()
+    internal val characteristics = mutableMapOf<String, CBCharacteristic>()
+    private val delegate = HubDelegate(this)
+    private val manager: CBCentralManager = CBCentralManager(delegate = delegate, queue = null)
 
     override val adapterState: AdapterState
         get() = when (manager.state) {
@@ -93,11 +96,16 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
             p.writeValue(value.toNSData(), forCharacteristic = it, type = CBCharacteristicWriteWithResponse)
         }
     }
+}
+
+/** The CoreBluetooth callbacks, translated into [BleCentralListener] calls on [owner]. */
+@OptIn(ExperimentalForeignApi::class)
+private class HubDelegate(private val owner: IosBleCentral) : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDelegateProtocol {
 
     // ── Up: CBCentralManagerDelegate ─────────────────────────────────────
 
     override fun centralManagerDidUpdateState(central: CBCentralManager) {
-        listener?.onAdapterStateChanged(adapterState)
+        owner.listener?.onAdapterStateChanged(owner.adapterState)
     }
 
     override fun centralManager(
@@ -106,44 +114,44 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
         advertisementData: Map<Any?, *>,
         RSSI: NSNumber,
     ) {
-        peripheral = didDiscoverPeripheral.also { it.delegate = this }
-        listener?.onDeviceFound(didDiscoverPeripheral.identifier.UUIDString)
+        owner.peripheral = didDiscoverPeripheral.also { it.delegate = this }
+        owner.listener?.onDeviceFound(didDiscoverPeripheral.identifier.UUIDString)
     }
 
     override fun centralManager(central: CBCentralManager, didConnectPeripheral: CBPeripheral) {
-        listener?.onConnected(didConnectPeripheral.identifier.UUIDString)
+        owner.listener?.onConnected(didConnectPeripheral.identifier.UUIDString)
     }
 
     @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didDisconnectPeripheral: CBPeripheral, error: NSError?) {
-        characteristics.clear()
-        listener?.onDisconnected(didDisconnectPeripheral.identifier.UUIDString)
+        owner.characteristics.clear()
+        owner.listener?.onDisconnected(didDisconnectPeripheral.identifier.UUIDString)
     }
 
     @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didFailToConnectPeripheral: CBPeripheral, error: NSError?) {
         // A failed connect is a disconnect to the manager: it rescans after its two-second delay.
-        listener?.onDisconnected(didFailToConnectPeripheral.identifier.UUIDString)
+        owner.listener?.onDisconnected(didFailToConnectPeripheral.identifier.UUIDString)
     }
 
     // ── Up: CBPeripheralDelegate ─────────────────────────────────────────
 
     override fun peripheral(peripheral: CBPeripheral, didDiscoverServices: NSError?) {
         peripheral.services?.filterIsInstance<CBService>()?.forEach {
-            peripheral.discoverCharacteristics(wantedCharacteristics, forService = it)
+            peripheral.discoverCharacteristics(owner.wantedCharacteristics, forService = it)
         }
     }
 
     override fun peripheral(peripheral: CBPeripheral, didDiscoverCharacteristicsForService: CBService, error: NSError?) {
         didDiscoverCharacteristicsForService.characteristics?.filterIsInstance<CBCharacteristic>()?.forEach {
-            characteristics[it.UUID.UUIDString.lowercase()] = it
+            owner.characteristics[it.UUID.UUIDString.lowercase()] = it
         }
-        listener?.onCharacteristicsDiscovered(characteristics.keys.map(UUID::fromString).toSet())
+        owner.listener?.onCharacteristicsDiscovered(owner.characteristics.keys.map(UUID::fromString).toSet())
     }
 
     override fun peripheral(peripheral: CBPeripheral, didUpdateValueForCharacteristic: CBCharacteristic, error: NSError?) {
         val data = didUpdateValueForCharacteristic.value ?: return
         // A read and a notification arrive here alike, and the manager treats them alike.
-        listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
+        owner.listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
     }
 }
