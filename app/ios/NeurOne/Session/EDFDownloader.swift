@@ -81,6 +81,8 @@ final class EDFDownloader: ObservableObject {
         try? FileManager.default.createDirectory(at: uhdrDirectory, withIntermediateDirectories: true)
         // EDF+ files contain raw EEG/HRV waveforms (UHDR) — must not sync to iCloud/iTunes.
         try? (uhdrDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        // An explicit protection class on the folder and on every file already in it (Finding 8, UHDRFileProtection).
+        UHDRFileProtection.applyToFolderAndContents(uhdrDirectory)
     }
 
     // Request EDF+ download for a session by ID.
@@ -116,6 +118,7 @@ final class EDFDownloader: ObservableObject {
 
         // Exclude the landed file from iCloud/iTunes backup — UHDR (raw waveforms).
         try? (expectedURL as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        UHDRFileProtection.apply(to: expectedURL)
 
         let session = try parseEDFFile(at: expectedURL, sessionID: sessionID)
         // Deduplicate: a re-download of an existing session must not create a second entry.
