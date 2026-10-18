@@ -289,6 +289,7 @@ private fun DashboardContent(
             },
             style = MaterialTheme.typography.bodySmall,
         )
+        WithdrawnNote(withdrawnDay(research.contactConsentGranted, research.contactConsentWithdrawnAt))
         Spacer(Modifier.height(12.dp))
 
         // L3 posture is its own control, separate from the L2 category list below, because
@@ -363,7 +364,10 @@ private fun DashboardContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(category.displayName, style = MaterialTheme.typography.bodyMedium)
+                Column(Modifier.weight(1f)) {
+                    Text(category.displayName, style = MaterialTheme.typography.bodyMedium)
+                    WithdrawnNote(withdrawnDay(granted, research.categoryWithdrawnAt[category]))
+                }
                 Checkbox(checked = granted, onCheckedChange = null, enabled = false)
             }
         }
@@ -611,6 +615,7 @@ private fun StudyParticipationCard(
                         stringResource(Res.string.dashboard_withdrawn_label),
                         style = MaterialTheme.typography.labelSmall,
                     )
+                    WithdrawnNote(record.withdrawnAtDay)
                 }
             }
             if (record.isActive) {

@@ -354,6 +354,7 @@
   "DASHBOARD_STOP_PREAPPROVING_MESSAGE": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept.",
   "DASHBOARD_TITLE": "Privacy & Consent",
   "DASHBOARD_WITHDRAWN_LABEL": "Withdrawn",
+  "DASHBOARD_WITHDRAWN_ON_FORMAT": "Withdrawn on {0}",
   "DASHBOARD_WITHDRAW_BUTTON": "Withdraw",
   "DASHBOARD_WITHDRAW_DIALOG_MESSAGE": "No further data will flow to this study. Data already included in published results cannot be individually removed.",
   "DASHBOARD_WITHDRAW_DIALOG_TITLE": "Withdraw from study?",
