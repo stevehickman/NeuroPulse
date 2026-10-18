@@ -262,8 +262,16 @@ final class ConsentStore: ObservableObject {
     /// The blanket time is handled by the callers, which also tear down analytics on that transition.
     private func withTimes(old: ResearchConsentState, new: ResearchConsentState) -> ResearchConsentState {
         var next = new
-        let t = now()
-        func at(_ was: Bool, _ will: Bool, _ previous: Date?) -> Date? { was && !will ? t : previous }
+        // Read the clock only when something was withdrawn (as the Kotlin store does), and once for the whole commit, so
+        // every decision withdrawn together carries one time and a plain grant never consumes a reading.
+        var stamp: Date?
+        func t() -> Date {
+            if let stamp { return stamp }
+            let read = now()
+            stamp = read
+            return read
+        }
+        func at(_ was: Bool, _ will: Bool, _ previous: Date?) -> Date? { was && !will ? t() : previous }
         next.contactConsentWithdrawnAt = at(old.contactConsentGranted, new.contactConsentGranted, old.contactConsentWithdrawnAt)
         next.resultsOptInWithdrawnAt = at(old.resultsOptIn, new.resultsOptIn, old.resultsOptInWithdrawnAt)
         next.suggestionPortalOptInWithdrawnAt = at(
@@ -272,7 +280,7 @@ final class ConsentStore: ObservableObject {
         var categories = old.categoryWithdrawnAt ?? [:]
         for category in ResearchCategory.allCases
         where old.categoryConsents[category] == true && new.categoryConsents[category] != true {
-            categories[category.rawValue] = t
+            categories[category.rawValue] = t()
         }
         next.categoryWithdrawnAt = categories.isEmpty ? nil : categories
         return next
