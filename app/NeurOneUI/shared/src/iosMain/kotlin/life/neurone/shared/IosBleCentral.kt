@@ -1,8 +1,7 @@
 package life.neurone.shared
 
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.ObjCSignatureOverride
 import life.neurone.core.common.UUID
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
@@ -18,12 +17,9 @@ import platform.CoreBluetooth.CBPeripheral
 import platform.CoreBluetooth.CBPeripheralDelegateProtocol
 import platform.CoreBluetooth.CBService
 import platform.CoreBluetooth.CBUUID
-import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
-import platform.Foundation.create
 import platform.darwin.NSObject
-import platform.posix.memcpy
 
 /**
  * The Apple [BleCentral], over CoreBluetooth: a `CBCentralManager` and the one hub peripheral, driven by the same
@@ -118,11 +114,13 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
         listener?.onConnected(didConnectPeripheral.identifier.UUIDString)
     }
 
+    @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didDisconnectPeripheral: CBPeripheral, error: NSError?) {
         characteristics.clear()
         listener?.onDisconnected(didDisconnectPeripheral.identifier.UUIDString)
     }
 
+    @ObjCSignatureOverride
     override fun centralManager(central: CBCentralManager, didFailToConnectPeripheral: CBPeripheral, error: NSError?) {
         // A failed connect is a disconnect to the manager: it rescans after its two-second delay.
         listener?.onDisconnected(didFailToConnectPeripheral.identifier.UUIDString)
@@ -149,15 +147,3 @@ class IosBleCentral : NSObject(), BleCentral, CBCentralManagerDelegateProtocol, 
         listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
     }
 }
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArray(): ByteArray {
-    val size = length.toInt()
-    val out = ByteArray(size)
-    if (size > 0) out.usePinned { memcpy(it.addressOf(0), bytes, length) }
-    return out
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun ByteArray.toNSData(): NSData =
-    if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }

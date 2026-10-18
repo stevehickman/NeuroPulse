@@ -87,7 +87,9 @@ kotlin {
             group("sockets") {
                 withAndroidTarget()
                 withJvm()
-                withIos()
+                // The default template's own `ios` group (iosMain), not only its two targets: code in iosMain
+                // (IosPlatformServices) reads LanLinkTransport, and a target's source set is not visible from iosMain.
+                group("ios")
             }
         }
     }
