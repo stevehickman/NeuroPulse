@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: e1b194d99335d3dffc56625049a4136aebc7ce1ff55345507eac2f17cd5269f8
+// sources-sha256: f625d3eb37b5b02a6fb99c064585b2c8f050558839614af40460ef76c2079815
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,

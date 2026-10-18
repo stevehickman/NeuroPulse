@@ -163,7 +163,7 @@ const WITHDRAWAL_TIMES: [&str; 4] = [
     "suggestionPortalOptInWithdrawnAt",
 ];
 
-/// The withdrawals that are one time per id: each research category (L2) and each study.
+/// The withdrawals that are one time per id: each research category (L2, named by its wire name, e.g. `PTSD`) and each study.
 const WITHDRAWAL_BY_ID: [&str; 2] = ["categoryWithdrawals", "studyWithdrawals"];
 
 /// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings, and a withdrawal
@@ -192,6 +192,38 @@ fn merge_withdrawal(req: &Value) -> R<Value> {
         out.insert(key.into(), json!(merged));
     }
     Ok(Value::Object(out))
+}
+
+/// `SWR-MG-04`: what a restore changes on a phone that already holds withdrawals. Every platform asks the core instead of
+/// comparing times itself. `applied` names each decision whose incoming withdrawal is later than the held one (or the phone
+/// held none), and the app switches exactly those grants off and records the time: a grant made here after the withdrawal
+/// stands, and nothing here turns a grant on. `merged` is the withdrawal state to hold afterwards (`mergeWithdrawal`).
+fn apply_withdrawal(req: &Value) -> R<Value> {
+    let (held, incoming) = (&req["held"], &req["incoming"]);
+    let later_than_held = |held: &Value, incoming: &Value| match (incoming.as_str(), held.as_str()) {
+        (Some(i), Some(h)) => i > h,
+        (Some(_), None) => true,
+        _ => false,
+    };
+    let mut applied = Map::new();
+    let mut times = vec![];
+    for key in WITHDRAWAL_TIMES {
+        if later_than_held(&held[key], &incoming[key]) {
+            times.push(key);
+        }
+    }
+    applied.insert("times".into(), json!(times));
+    for key in WITHDRAWAL_BY_ID {
+        let ids: Vec<&String> = incoming[key]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(id, at)| later_than_held(&held[key][id.as_str()], at))
+            .map(|(id, _)| id)
+            .collect();
+        applied.insert(key.into(), json!(ids));
+    }
+    Ok(json!({ "merged": merge_withdrawal(&json!({ "local": held, "incoming": incoming }))?, "applied": applied }))
 }
 
 /// `SWR-MG-04`: a restore makes the app ask and not assume, and the app says the consent choices were not restored. Grants
@@ -476,6 +508,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "readHeader" => read_header(req)?,
         "restoreReport" => restore_report(req)?,
         "mergeWithdrawal" => merge_withdrawal(req)?,
+        "applyWithdrawal" => apply_withdrawal(req)?,
         "consentAfterRestore" => consent_after_restore(req)?,
         "offerRoutes" => offer_routes(req)?,
         "claimDecision" => claim_decision(req)?,
@@ -679,6 +712,24 @@ mod tests {
         // The other way round: a fresh install brings none, the bundle's stands; an older one never replaces a later one.
         let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
         assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
+    }
+
+    // @verifies SWR-MG-04
+    #[test]
+    fn a_restore_applies_only_a_later_withdrawal_and_never_a_grant() {
+        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z","contactConsentWithdrawnAt":null,
+            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-04-01T00:00:00Z"}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","contactConsentWithdrawnAt":"2026-03-04T00:00:00Z",
+            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-06-01T00:00:00Z"}});
+        let r = ask(json!({"op":"applyWithdrawal","held":held,"incoming":incoming}));
+        // Older than the held blanket withdrawal and equal for s1: not applied. New, or later: applied.
+        assert_eq!(r["applied"]["times"], json!(["contactConsentWithdrawnAt"]));
+        assert_eq!(r["applied"]["studyWithdrawals"], json!(["s2"]));
+        assert_eq!(r["applied"]["categoryWithdrawals"], json!(["c1"]));
+        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
+        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01T00:00:00Z");
+        let none = ask(json!({"op":"applyWithdrawal","held":{},"incoming":{}}));
+        assert_eq!(none["applied"]["times"], json!([]));
     }
 
     // @verifies SWR-MG-04
