@@ -2,7 +2,10 @@ import Foundation
 import Combine
 
 // Persisted consent state — clinician grants, research consent, study participation audit trail.
-// All state serialized to UserDefaults (encrypted by iOS file system protection).
+// All state serialized to ProtectedDefaults: backup-excluded, file-protected files — NOT UserDefaults,
+// whose plist is included in iCloud/iTunes backups and MDM-readable. Consent state reveals health
+// conditions by inference (research categories, clinician grants). Consent is deliberately
+// re-established on a new device, as on Android.
 // UHDR/SHDR boundary: study audit trail written to SHDR (study ID, hash, timestamp, byte count).
 //
 // TWO CONSENT SUBJECTS:
@@ -501,25 +504,25 @@ final class ConsentStore: ObservableObject {
     // MARK: - Persistence
 
     private func load() {
-        if let data = UserDefaults.standard.data(forKey: grantsKey),
+        if let data = ProtectedDefaults.standard.data(forKey: grantsKey),
            let decoded = try? JSONDecoder().decode([ClinicianConsentGrant].self, from: data) {
             clinicianGrants = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: researchKey),
+        if let data = ProtectedDefaults.standard.data(forKey: researchKey),
            let decoded = try? JSONDecoder().decode(ResearchConsentState.self, from: data) {
             researchConsent = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: PersistedKeys.PARTICIPATION_KEY),
+        if let data = ProtectedDefaults.standard.data(forKey: PersistedKeys.PARTICIPATION_KEY),
            let decoded = try? JSONDecoder().decode([StudyParticipationRecord].self, from: data) {
             studyParticipations = decoded
         }
-        if let data = UserDefaults.standard.data(forKey: studyWithdrawalsKey),
+        if let data = ProtectedDefaults.standard.data(forKey: studyWithdrawalsKey),
            let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
             studyWithdrawals = decoded
         }
         // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
         // user can dismiss by backgrounding the app is not one.
-        if let data = UserDefaults.standard.data(forKey: expansionsKey),
+        if let data = ProtectedDefaults.standard.data(forKey: expansionsKey),
            let decoded = try? JSONDecoder().decode([ClinicianAccessExpansionRequest].self, from: data) {
             expansionRequests = decoded
         }
@@ -528,7 +531,7 @@ final class ConsentStore: ObservableObject {
         // emptied by the next app launch cannot hold. While they were in-memory only, an accepted
         // study's participation record outlived the invitation that recorded the acceptance, so
         // the trail and the inbox disagreed after every restart.
-        if let data = UserDefaults.standard.data(forKey: invitationsKey),
+        if let data = ProtectedDefaults.standard.data(forKey: invitationsKey),
            let decoded = try? JSONDecoder().decode([StudyInvitation].self, from: data) {
             pendingInvitations = decoded
         }
@@ -536,22 +539,22 @@ final class ConsentStore: ObservableObject {
 
     private func save() {
         if let data = try? JSONEncoder().encode(clinicianGrants) {
-            UserDefaults.standard.set(data, forKey: grantsKey)
+            ProtectedDefaults.standard.set(data, forKey: grantsKey)
         }
         if let data = try? JSONEncoder().encode(researchConsent) {
-            UserDefaults.standard.set(data, forKey: researchKey)
+            ProtectedDefaults.standard.set(data, forKey: researchKey)
         }
         if let data = try? JSONEncoder().encode(studyParticipations) {
-            UserDefaults.standard.set(data, forKey: PersistedKeys.PARTICIPATION_KEY)
+            ProtectedDefaults.standard.set(data, forKey: PersistedKeys.PARTICIPATION_KEY)
         }
         if let data = try? JSONEncoder().encode(studyWithdrawals) {
-            UserDefaults.standard.set(data, forKey: studyWithdrawalsKey)
+            ProtectedDefaults.standard.set(data, forKey: studyWithdrawalsKey)
         }
         if let data = try? JSONEncoder().encode(expansionRequests) {
-            UserDefaults.standard.set(data, forKey: expansionsKey)
+            ProtectedDefaults.standard.set(data, forKey: expansionsKey)
         }
         if let data = try? JSONEncoder().encode(pendingInvitations) {
-            UserDefaults.standard.set(data, forKey: invitationsKey)
+            ProtectedDefaults.standard.set(data, forKey: invitationsKey)
         }
     }
 }

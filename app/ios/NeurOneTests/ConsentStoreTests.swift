@@ -23,7 +23,8 @@ final class ConsentStoreTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // Isolate each test from UserDefaults by clearing consent keys.
+        // Isolate each test from persisted state by clearing consent keys (ProtectedDefaults.removeObject
+        // also clears any legacy UserDefaults copy).
         clearConsentDefaults()
         store = ConsentStore()
     }
@@ -36,7 +37,7 @@ final class ConsentStoreTests: XCTestCase {
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
                     "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals"]
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        keys.forEach { ProtectedDefaults.standard.removeObject(forKey: $0) }
     }
 
     // MARK: - ISC-74: updateResearchConsent persists

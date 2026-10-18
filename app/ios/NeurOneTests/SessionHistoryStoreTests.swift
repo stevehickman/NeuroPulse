@@ -16,10 +16,15 @@ final class SessionHistoryStoreTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeSuite(_ name: String) -> UserDefaults {
-        let suite = UserDefaults(suiteName: name)!
-        suite.removePersistentDomain(forName: name)
-        return suite
+    // An isolated ProtectedDefaults: a fresh temp directory and a throwaway legacy suite, so
+    // neither the standard store nor the standard UserDefaults is touched.
+    private func makeSuite(_ name: String) -> ProtectedDefaults {
+        let legacyName = "SessionHistoryStoreTests.legacy.\(name)"
+        let legacy = UserDefaults(suiteName: legacyName)!
+        legacy.removePersistentDomain(forName: legacyName)
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SessionHistoryStoreTests-\(UUID().uuidString)", isDirectory: true)
+        return ProtectedDefaults(directory: dir, legacy: legacy)
     }
 
     private func makeSummary(

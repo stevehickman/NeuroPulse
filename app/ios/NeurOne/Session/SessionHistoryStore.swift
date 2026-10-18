@@ -8,20 +8,22 @@ import OSLog
 // average coherence score, RMSSD as an integer, and the EEG impedance pass count.
 // These are the same values surfaced live in SessionView. Raw biological time
 // series remains exclusively in the on-device encrypted UHDR partition and is
-// never copied into UserDefaults.
+// never copied into UserDefaults or ProtectedDefaults.
 //
 // completedAt is UHDR-class data (CLAUDE.md §5.1 — "session timestamps → UHDR")
 // and is NOT stored here. Only the calendar day is persisted (sessionDay, "yyyy-MM-dd"
 // in local timezone). Day granularity is sufficient for all display purposes and
-// is safe to store in UserDefaults, which is included in iCloud/iTunes backups and
-// MDM-accessible. Exact timestamps go to the encrypted UHDR partition only.
+// is coarse enough for display, but even day-level HRV history is health-adjacent, so it is
+// kept in ProtectedDefaults (backup-excluded, file-protected) and NOT in UserDefaults, whose
+// plist is included in iCloud/iTunes backups and is MDM-accessible. Exact timestamps go to the
+// encrypted UHDR partition only.
 // (NP-PRIV-ANALYSIS-002 MEDIUM-07)
 //
 // The EDF+ file itself (full waveform archive) lives in Documents/UHDR and is
 // referenced here only by its hub-assigned session ID (edfSessionID) — the
 // store never decodes or stores its contents.
 
-// One persisted history row. Codable for UserDefaults JSON storage.
+// One persisted history row. Codable for ProtectedDefaults JSON storage.
 struct SessionRecord: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var protocolName: String
@@ -37,7 +39,7 @@ struct SessionRecord: Identifiable, Codable, Equatable {
     var impedancePassCount: Int         // 0–8 EEG electrodes that passed
     // edfSessionID is held in-memory only — intentionally excluded from Codable
     // serialization. gatt.session.epoch is a Unix-ms timestamp (UHDR-class,
-    // CLAUDE.md §5.1) and must not be persisted to the backed-up UserDefaults store.
+    // CLAUDE.md §5.1) and must not be persisted to any app-side store.
     // The download button is available in the live post-session window; after app
     // restart the hub presents historical sessions via Mode 4 on reconnect.
     var edfSessionID: UInt32? = nil
@@ -64,14 +66,14 @@ final class SessionHistoryStore: ObservableObject {
     // Newest-first ordering is maintained on every mutation.
     @Published private(set) var records: [SessionRecord] = []
 
-    private let defaults: UserDefaults
+    private let defaults: ProtectedDefaults
     private static let MAX_RECORDS = 100
     // Monotonically increasing; tiebreaks same-day records newest-first.
     private var nextInsertionIndex = 0
 
     private static let logger = Logger(subsystem: "life.neurone.app", category: "SessionHistoryStore")
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: ProtectedDefaults = .standard) {
         self.defaults = defaults
         load()
     }

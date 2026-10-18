@@ -23,7 +23,11 @@ import life.neurone.shared.ble.BleCentral
  */
 interface PlatformServices {
 
-    /** Durable, app-private key-value storage. Excluded from any cloud or device backup. */
+    /**
+     * Durable, app-private key-value storage. Excluded from any cloud or device backup. A host with nowhere safe to keep a
+     * person's records may hold some keys in memory only (the browser does: `MemoryOnlyKeysKeyValueStore`), so a key can read as
+     * absent after a restart and every reader of it must treat absent as an empty start.
+     */
     val keyValueStore: KeyValueStore
 
     /** The Bluetooth LE central that talks to the hub. */
