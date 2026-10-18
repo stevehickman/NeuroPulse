@@ -15,6 +15,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/** The one helmet most tests connect. */
+private const val HUB = "AA:BB:CC:00:00:01"
+
 /**
  * Mirrors iOS SHDRUploaderTests OI-BLE-01 cases. Exercises the token identity
  * logic and the composition (ShdrUploadWiring) on plain JVM via the injected
@@ -34,11 +37,10 @@ class ShdrUploaderTests {
         val value: String? get() = byHub[HUB]
     }
 
-    private val HUB = "AA:BB:CC:00:00:01"
-
     /** An uploader with a helmet connected, as it is whenever an upload is under way. */
-    private fun uploader(store: DeviceTokenStore, hub: String? = HUB) =
-        ShdrUploader(store, WarrantyAnalyticsGate(InMemoryKeyValueStore())).also { it.setHubIdentifier(hub) }
+    private fun uploader(store: DeviceTokenStore, hub: String? = HUB, consented: Boolean = false) =
+        ShdrUploader(store, WarrantyAnalyticsGate(InMemoryKeyValueStore()).also { if (consented) it.grant() })
+            .also { it.setHubIdentifier(hub) }
 
     // 1. Fallback token: 32-byte CSPRNG → 64 lowercase-hex chars, generated once
     //    and persisted so the fleet-DB linkage is stable across reads.
@@ -77,7 +79,8 @@ class ShdrUploaderTests {
     // @verifies REQ-SHDR-05#b
     @Test
     fun noHelmetMeansNoTokenAndNoUpload() {
-        val up = uploader(FakeTokenStore(), hub = null)
+        // The warranty owner has consented, so only the missing helmet can stop the upload: a request would be async.
+        val up = uploader(FakeTokenStore(), hub = null, consented = true)
         var result: Boolean? = null
 
         assertNull(up.deviceToken)
