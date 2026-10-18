@@ -1,0 +1,119 @@
+name: Kotlin iOS CI (Gradle, macOS)
+
+# Compiles the Kotlin iOS targets of :core and :shared, and links the NeurOneShared framework for the
+# simulator. Nothing else compiles them: android-ci.yml runs on Linux, where the Apple targets are
+# disabled (kotlin.native.ignoreDisabledTargets), so iosMain code (IosBleCentral, IosDirectoryFileStore,
+# the NPPS cinterop, the iOS wiring) was unbuilt until this job (OI-UI-KMP-06).
+#
+# It then builds the Xcode host app/NeurOneUI/iosApp for the simulator, whose pre-build phase runs Gradle's
+# embedAndSignAppleFrameworkForXcode. This is a build gate only: no iOS test runs and no simulator starts.
+# Kotlin/Native needs Xcode, so the job runs on macOS; :core's cinterop needs
+# libneurone_npps_ffi.a for each Apple architecture, which :core builds with cargo on a macOS host.
+#
+# .github/workflows/android-ci.yml provisions the same JDK, Android SDK and Gradle: :shared also has an
+# Android target, so Gradle configures it here. Keep the versions in the two files in sync.
+
+on:
+  push:
+    paths:
+      - 'app/android/**'
+      - 'app/NeurOneUI/**'
+      - 'app/NeurOneShared/TestData/**'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'protocols/predefined/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/kotlin-ios-ci.yml'
+  pull_request:
+    paths:
+      - 'app/android/**'
+      - 'app/NeurOneUI/**'
+      - 'app/NeurOneShared/TestData/**'
+      - 'common/Cargo.toml'
+      - 'common/Cargo.lock'
+      - 'common/npps/**'
+      - 'common/npps-core/**'
+      - 'common/npps-ffi/**'
+      - 'protocols/predefined/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
+      - '.github/workflows/kotlin-ios-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the job only checks out and builds; nothing reads GITHUB_TOKEN or publishes.
+permissions:
+  contents: read
+
+jobs:
+  kotlin-ios-compile:
+    name: Compile Kotlin iOS targets and build iosApp
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: app/android
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install SDK packages (compileSdk 36 + build-tools + platform-tools)
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+
+      # The build generates resources from locales/*.json with bun (CLAUDE.md §17).
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # :core's cinterop links libneurone_npps_ffi.a, which Gradle builds with cargo for each Apple triple.
+      - name: Set up Rust (stable) with the iOS targets
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+          cargo --version
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Compile the iOS targets and link the NeurOneShared framework
+        run: >
+          gradle
+          :core:compileKotlinIosArm64 :core:compileKotlinIosSimulatorArm64
+          :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64
+          :shared:linkDebugFrameworkIosSimulatorArm64
+          --stacktrace
+
+      # The host's pre-build phase calls ./gradlew, which reads ANDROID_HOME and needs bun and cargo on PATH,
+      # all of which the steps above leave in the environment.
+      - name: Build the Xcode host (iosApp) for the simulator
+        working-directory: app/NeurOneUI/iosApp
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec project.yml
+          xcodebuild build -project NeurOneUI.xcodeproj -scheme NeurOneUI \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
