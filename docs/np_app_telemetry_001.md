@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
-**Revision:** 2
-**Date:** 2026-06-03
+**Revision:** 3
+**Date:** 2026-10-18
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
@@ -15,7 +15,7 @@
 **Applicable Standard:** FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1
 **Next Review:** Annual; also triggered by any analytics vendor change or new SDK addition
 **Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR), US state (WA MHMD), EU/EEA GDPR, Apple/Google platform policies
-**Change Summary:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev 2 finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev 2 STEP-33 cross-reference added.
+**Change Summary:** **Rev 3 (2026-10-18):** §3 is now enforced in code as an allowlist (privacy review Finding 5, `REQ-SW03-07`). The apps checked an event against a list of twelve keys to forbid, which passes any key nobody thought of, so the permitted list in §3 was a statement the code did not keep. The shared core (`common/npps-core/src/analytics.rs`, data in `common/npps/analytics-properties.json`) now drops any event whose name is not lowercase snake_case without a §7 term, or that carries a property §3 does not name, or a value not of its property's form. The text of §3 and §7 is unchanged. **Rev 2:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev 2 finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev 2 STEP-33 cross-reference added.
 
 ---
 
@@ -81,6 +81,8 @@ At the time of this policy's adoption, no analytics or crash reporting vendor ha
 ## 3. Permitted Event Properties
 
 Analytics events may include only the following properties. Any event that requires a property not on this list must be reviewed and approved by the Privacy Lead before implementation.
+
+**This list is enforced in code, and the code is the shared core's, once** (Rev 3): `common/npps/analytics-properties.json` states each property and the form of its value, and `checkAnalyticsEvent` in `common/npps-core/src/analytics.rs` drops the whole event if its name is not lowercase snake_case of at most 40 characters or contains a term of §7, if a property is not named here, or if a value is not of its form. Both apps ask that one rule. A property or a value is added by changing this table and that file together, after the Privacy Lead's review; the bounds the table leaves open (the digit counts, the 40 characters, the platform prefixes of `os_version`) are `docs/status/unjustified-choices.md` UC-094.
 
 | Property | Description | Format |
 |---|---|---|

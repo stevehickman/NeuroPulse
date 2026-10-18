@@ -1,0 +1,47 @@
+{
+  "_comment": "The analytics events the apps may send, once (NP-APP-TELEMETRY-001 §3 and §7; REQ-SW03-07). The shared core reads this file at build time (common/npps-core/src/analytics.rs, op checkAnalyticsEvent) and every app asks the core, so iOS and Android cannot disagree about what leaves the phone. It is an ALLOWLIST: an event is sent only if its name has the allowed shape and contains none of the forbidden terms, and every property is named here and carries a value of one of its forms. A property not named here, or a value not of its form, drops the whole event; there is no list of keys to forbid, because a key nobody thought of would pass one. A form is {literal: [..]} (one of these exact texts), {digits: {max}} (digits only, at most max of them), {prefixDigits: {prefix, max}} (the prefix then digits, at most max of them) or {dotted: {prefixes, parts, max}} (one of the prefixes and a space, then `parts` numbers joined by dots, each at most max digits; with no prefixes, just the numbers). To add a property or a value, change the spec (NP-APP-TELEMETRY-001 §3, Privacy Lead review) and this file together. The bounds on digits and the event-name shape are not in the spec: docs/status/unjustified-choices.md UC-094.",
+  "eventName": {
+    "snake": { "max": 40 },
+    "forbiddenTerms": [
+      "tdcs", "tacs", "tms", "eeg", "vns", "pbm", "rtms", "tbs", "emdr", "binaural",
+      "depression", "anxiety", "ptsd", "tbi", "parkinson", "alzheimer", "dementia",
+      "sleep", "seizure", "cognitive", "focus", "calm", "theta", "alpha", "gamma",
+      "1064nm", "808nm", "660nm", "cortical", "neural", "neuro", "brain",
+      "hrv", "coherence", "impedance", "session_type", "protocol_name",
+      "email", "name", "token", "uid", "device_id", "serial"
+    ]
+  },
+  "properties": {
+    "app_version": [
+      { "dotted": { "prefixes": [], "parts": 3, "max": 3 } }
+    ],
+    "os_version": [
+      { "dotted": { "prefixes": ["iOS", "watchOS", "Android", "macOS", "Windows", "Web"], "parts": 2, "max": 3 } }
+    ],
+    "device_class": [
+      { "literal": ["iPhone_flagship", "iPhone_mid", "iPhone_legacy", "iPad", "Android_flagship", "Android_mid", "Android_budget"] }
+    ],
+    "screen_name": [
+      { "literal": [
+        "session_setup", "session_active", "session_results", "protocol_library", "protocol_detail",
+        "research_consent", "clinical_consent", "account_settings", "device_management"
+      ] }
+    ],
+    "engagement_tier": [
+      { "literal": ["new", "active", "established"] }
+    ],
+    "app_start_type": [
+      { "literal": ["cold_start", "warm_start", "background_resume"] }
+    ],
+    "onboarding_step": [
+      { "literal": ["consent_flow_complete"] },
+      { "prefixDigits": { "prefix": "consent_flow_step_", "max": 2 } }
+    ],
+    "error_code": [
+      { "digits": { "max": 4 } }
+    ],
+    "connectivity_type": [
+      { "literal": ["wifi", "cellular", "none"] }
+    ]
+  }
+}

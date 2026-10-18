@@ -30,16 +30,6 @@ enum ResearchAnalyticsGate {
     /// Idempotency flag so `configure()` only ever starts the SDK once.
     private static var isConfigured = false
 
-    /// Property keys that must NEVER appear in a tracked event (ISC-97 /
-    /// NP-APP-TELEMETRY-001 Rev B). `session_count` / `session_sequence` are the
-    /// deprecated raw-count fields replaced by `engagement_tier`.
-    private static let PROHIBITED_KEYS: Set<String> = [
-        "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id",
-        "session_count", "session_sequence",
-        // Impedance data is UHDR-class (raw per-electrode bitmask at named scalp positions).
-        "imp", "impedance", "impedance_flags", "pass_flags"
-    ]
-
     /// True only when the user has actively completed the research consent flow
     /// (tapped Done, not Skip), as recorded by `RESEARCH_ANALYTICS_KEY`.
     static var isOpen: Bool {
@@ -88,19 +78,18 @@ enum ResearchAnalyticsGate {
     }
 
     /// Record a research analytics event. Silently no-ops if the research gate is closed.
-    /// Drops the event entirely (does NOT transmit) if any prohibited key is
-    /// present (ISC-97).
+    /// Drops the event entirely (does NOT transmit) unless `AnalyticsEventPolicy` permits it: a property the
+    /// telemetry policy does not name, or a value not of its form, drops the whole event (an allowlist,
+    /// NP-APP-TELEMETRY-001 §3), and so does an event that cannot be checked (ISC-97).
     static func track(event: String, properties: [String: String]) {
         guard isOpen else { return }
 
-        let offending = PROHIBITED_KEYS.intersection(properties.keys)
-        guard offending.isEmpty else {
-            // Log the offending key names (not values) so the leak source is
-            // traceable, and drop the event rather than transmitting it.
-            let names = offending.sorted().joined(separator: ", ")
+        guard AnalyticsEventPolicy.permits(event: event, properties: properties) else {
+            // Log the event name only (never a property value), so the source is traceable and nothing the
+            // vendor was not to have is written down.
             log.error("""
-                ResearchAnalyticsGate.track dropped event '\(event, privacy: .public)' \
-                — prohibited keys present: \(names, privacy: .public)
+                ResearchAnalyticsGate.track dropped event '\(event, privacy: .private)' \
+                — not on the permitted list (NP-APP-TELEMETRY-001 §3)
                 """)
             return
         }

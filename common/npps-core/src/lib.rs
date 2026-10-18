@@ -7,6 +7,7 @@
 //! Covers every block of an `.npps` file (`protocol`, `composite`, `limits`, `zone`, `condition`,
 //! `wavelength_rules`) and the descriptor compiler.
 
+pub mod analytics;
 pub mod api;
 pub mod at_rest;
 pub mod bundle_key;

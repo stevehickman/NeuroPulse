@@ -80,7 +80,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
         let config = PostHogConfig(projectToken: token, host: "https://analytics.neurone.internal")
 
         // Disable all auto-capture. Every event is intentionally sent via
-        // ResearchAnalyticsGate.track(), which enforces the prohibited-key list (ISC-97).
+        // ResearchAnalyticsGate.track(), which enforces the permitted-event allowlist (ISC-97, REQ-SW03-07).
         config.captureApplicationLifecycleEvents = false
         config.captureScreenViews = false
         config.captureElementInteractions = false

@@ -45,26 +45,55 @@ class AnalyticsGateTests {
         assertEquals(listOf("configure"), backend.calls)
     }
 
-    // @verifies REQ-SW03-07
-    @Test
-    fun trackDropsEventsWithProhibitedKeys() {
+    private fun openGate(): Pair<ResearchAnalyticsGate, SpyAnalyticsBackend> {
         val store = InMemoryKeyValueStore()
         store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = SpyAnalyticsBackend()
-        val gate = ResearchAnalyticsGate(store, backend)
+        return ResearchAnalyticsGate(store, backend) to backend
+    }
 
-        // Every prohibited key must cause a full drop — identical set to iOS.
+    // @verifies REQ-SW03-07
+    @Test
+    fun trackSendsAnEventWhoseNameAndPropertiesAreAllOnThePermittedList() {
+        val (gate, backend) = openGate()
+        val props = mapOf(
+            "app_version" to "1.0.3", "os_version" to "Android 15.0", "device_class" to "Android_mid",
+            "screen_name" to "protocol_detail", "engagement_tier" to "established", "app_start_type" to "warm_start",
+            "onboarding_step" to "consent_flow_step_2", "error_code" to "12", "connectivity_type" to "cellular",
+        )
+        gate.track("app_opened", props)
+        gate.track("app_foregrounded", emptyMap())
+        assertEquals(listOf("app_opened" to props, "app_foregrounded" to emptyMap()), backend.trackedEvents)
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun trackDropsAnEventWithAPropertyTheTelemetryPolicyDoesNotName() {
+        val (gate, backend) = openGate()
+        // The twelve keys the old denylist knew, and ones it never thought of: an allowlist drops all of them.
         for (key in listOf(
-            "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id",
-            "session_count", "session_sequence",
+            "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id", "session_count", "session_sequence",
             "imp", "impedance", "impedance_flags", "pass_flags",
+            "heart_rate", "alpha_power", "electrode_site", "condition", "email", "duration_s", "timestamp",
         )) {
-            gate.track("evt", mapOf(key to "1", "ok" to "2"))
+            gate.track("evt", mapOf(key to "1", "engagement_tier" to "new"))
         }
         assertTrue(backend.trackedEvents.isEmpty())
-
         gate.track("evt", mapOf("engagement_tier" to "new"))
         assertEquals(1, backend.trackedEvents.size)
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun trackDropsAnEventWithAValueNotOfItsPropertysFormOrAnEventNameThatCarriesAHealthTerm() {
+        val (gate, backend) = openGate()
+        gate.track("evt", mapOf("engagement_tier" to "42"))            // the raw count the tier replaced
+        gate.track("evt", mapOf("screen_name" to "tdcs_depression"))   // a protocol or condition as a screen
+        gate.track("evt", mapOf("error_code" to "1746000000000"))      // a timestamp in an error code
+        gate.track("evt", mapOf("os_version" to "Android 15.0.1"))     // a patch version
+        gate.track("tdcs_started", emptyMap())                         // a modality in the event name
+        gate.track("User Email Sent", emptyMap())                      // not snake_case
+        assertTrue(backend.trackedEvents.isEmpty())
     }
 
     // @verifies REQ-CONSENT-14

@@ -20,22 +20,6 @@ class ResearchAnalyticsGate(
     private val store: KeyValueStore,
     private val backend: AnalyticsBackend,
 ) {
-    companion object {
-
-        /**
-         * Property keys that must NEVER appear in a tracked event
-         * (NP-APP-TELEMETRY-001 Rev B). Identical to the iOS set.
-         * Impedance data is UHDR-class (raw per-electrode bitmask at named
-         * scalp positions); session_count/session_sequence are the deprecated
-         * raw-count fields replaced by engagement_tier.
-         */
-        val PROHIBITED_KEYS: Set<String> = setOf(
-            "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id",
-            "session_count", "session_sequence",
-            "imp", "impedance", "impedance_flags", "pass_flags",
-        )
-    }
-
     /** Idempotency flag so configure() only ever starts the SDK once. */
     private var isConfigured = false
 
@@ -69,12 +53,14 @@ class ResearchAnalyticsGate(
 
     /**
      * Record a research analytics event. Silently no-ops when the gate is
-     * closed. Drops the event entirely (does NOT transmit) when any prohibited
-     * key is present.
+     * closed. Drops the event entirely (does NOT transmit) unless [AnalyticsEventPolicy]
+     * permits it: a property the telemetry policy does not name, or a value not of
+     * its form, drops the whole event (an allowlist, NP-APP-TELEMETRY-001 §3), and
+     * so does an event that cannot be checked.
      */
     fun track(event: String, properties: Map<String, String>) {
         if (!isOpen) return
-        if (properties.keys.any { it in PROHIBITED_KEYS }) return
+        if (!AnalyticsEventPolicy.permits(event, properties)) return
         backend.track(event, properties)
     }
 }
