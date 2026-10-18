@@ -35,7 +35,7 @@ final class ConsentStoreTests: XCTestCase {
 
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
-                    "np.consent.clinician-expansions", "np.consent.study-invitations"]
+                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals"]
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -999,6 +999,99 @@ final class ConsentStoreTests: XCTestCase {
 
         XCTAssertEqual(sync.ingest(makeRequest(requestID, to: .assess)), .refusedNotAnExpansion)
         XCTAssertTrue(store.expansionRequests.isEmpty)
+    }
+
+    // MARK: - Withdrawal records (SWR-MG-04)
+
+    private func storeWithClock(_ times: [String]) -> ConsentStore {
+        var remaining = times.map { ConsentTime.date($0)! }
+        return ConsentStore(now: { remaining.isEmpty ? Date() : remaining.removeFirst() })
+    }
+
+    /// The store alone stamps a withdrawal, on a true→false transition, for every decision it records.
+    // @verifies SWR-MG-04
+    func testEveryWithdrawalIsStampedByTheStoreOnTheTransition() {
+        store = storeWithClock(["2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z"])
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true
+        state.resultsOptIn = true
+        state.suggestionPortalOptIn = true
+        state.categoryConsents[.ptsd] = true
+        store.updateResearchConsent(state)
+        XCTAssertNil(store.researchConsent.contactConsentWithdrawnAt, "granting is not a withdrawal")
+
+        state.contactConsentGranted = false
+        state.resultsOptIn = false
+        state.categoryConsents[.ptsd] = false
+        store.updateResearchConsent(state)
+
+        let r = store.researchConsent
+        XCTAssertEqual(r.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertEqual(r.resultsOptInWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertNil(r.suggestionPortalOptInWithdrawnAt, "still granted")
+        XCTAssertEqual(r.categoryWithdrawnAt?[ResearchCategory.ptsd.rawValue].map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertNil(r.categoryWithdrawnAt?[ResearchCategory.sleep.rawValue], "never granted, so never withdrawn")
+    }
+
+    /// A screen that commits a state with the times cleared cannot erase the record, and a re-grant keeps it.
+    // @verifies SWR-MG-04
+    func testAScreenCannotEraseAWithdrawalAndARegrantKeepsIt() {
+        store = storeWithClock(["2026-03-01T00:00:00Z"])
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true
+        store.updateResearchConsent(state)
+        state.contactConsentGranted = false
+        store.updateResearchConsent(state)
+
+        state.contactConsentWithdrawnAt = nil
+        state.contactConsentGranted = true
+        store.updateResearchConsent(state)
+
+        XCTAssertTrue(store.researchConsent.contactConsentGranted)
+        XCTAssertEqual(store.researchConsent.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
+    }
+
+    // @verifies SWR-MG-04
+    func testWithdrawingFromAStudyRecordsTheTimeApartFromTheParticipation() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
+        store.ingestStudyDescriptor(makeDescriptor())
+        XCTAssertNil(store.studyWithdrawals[studyID], "in the study, not withdrawn")
+
+        store.withdrawFromStudy(studyID: studyID)
+
+        XCTAssertNotNil(store.studyWithdrawals[studyID])
+        XCTAssertFalse(store.studyParticipations[0].isActive)
+        XCTAssertNotNil(ConsentStore().studyWithdrawals[studyID], "the record is persisted and outlives the participation row")
+    }
+
+    /// A restore applies a later withdrawal by switching the grant off, never turns a grant on, and a grant made
+    /// here after an older withdrawal stands. The comparison is the core's.
+    // @verifies SWR-MG-04
+    func testARestoreOnlyReducesConsent() throws {
+        store = storeWithClock(["2026-05-01T00:00:00Z"])
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true
+        state.resultsOptIn = true
+        state.categoryConsents[.depression] = true
+        store.updateResearchConsent(state)
+        state.resultsOptIn = false
+        store.updateResearchConsent(state)   // results withdrawn 2026-05-01
+
+        try store.applyWithdrawals([
+            "contactConsentWithdrawnAt": "2026-04-01T00:00:00Z",
+            "resultsOptInWithdrawnAt": "2026-04-02T00:00:00Z",
+            "categoryWithdrawals": [ResearchCategory.depression.rawValue: "2026-04-03T00:00:00Z"],
+            "studyWithdrawals": ["study-z": "2026-04-04T00:00:00Z"],
+        ])
+
+        let r = store.researchConsent
+        XCTAssertFalse(r.contactConsentGranted, "the incoming withdrawal is later than none held")
+        XCTAssertEqual(r.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-04-01T00:00:00Z")
+        XCTAssertEqual(r.resultsOptInWithdrawnAt.map(ConsentTime.string), "2026-05-01T00:00:00Z", "the later held time stands")
+        XCTAssertFalse(r.categoryConsents[.depression] ?? true)
+        XCTAssertFalse(r.blanketConsentGranted, "nothing here turns a grant on")
+        XCTAssertEqual(store.studyWithdrawals["study-z"].map(ConsentTime.string), "2026-04-04T00:00:00Z")
+        XCTAssertNotNil(store.exportWithdrawals()["studyWithdrawals"])
     }
 }
 

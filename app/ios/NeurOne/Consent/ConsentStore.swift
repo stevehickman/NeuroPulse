@@ -35,13 +35,26 @@ final class ConsentStore: ObservableObject {
     private let researchKey      = "np.consent.research"
     private let expansionsKey    = "np.consent.clinician-expansions"
     private let invitationsKey   = "np.consent.study-invitations"
+    private let studyWithdrawalsKey = "np.consent.study-withdrawals"
+
+    /// Studies the user withdrew from, and when. UHDR-class and kept apart from `studyParticipations`
+    /// (SHDR-class). A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put
+    /// the user back in a study they left (`SWR-MG-04`).
+    @Published private(set) var studyWithdrawals: [String: Date] = [:]
+
+    /// The clock for withdrawal times; injectable so a test can order two withdrawals.
+    private let now: () -> Date
 
     /// Checks the signature on every study descriptor before anything derived from it reaches the
     /// user (§5.3 step 1). The default refuses everything: see `RefusingStudyDescriptorVerifier`.
     private let descriptorVerifier: StudyDescriptorVerifier
 
-    init(descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier()) {
+    init(
+        descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier(),
+        now: @escaping () -> Date = { Date() }
+    ) {
         self.descriptorVerifier = descriptorVerifier
+        self.now = now
         load()
     }
 
@@ -189,9 +202,9 @@ final class ConsentStore: ObservableObject {
         // whole state and cannot see the transition this method is built around; carrying the
         // committed value through would let a stale screen erase the record of the user having
         // said stop, which is the one thing §6.0 needs to survive.
-        var next = state
+        var next = withTimes(old: researchConsent, new: state)
         next.blanketConsentWithdrawnAt = isWithdrawal
-            ? Date()
+            ? now()
             : researchConsent.blanketConsentWithdrawnAt
         researchConsent = next
         save()
@@ -208,7 +221,7 @@ final class ConsentStore: ObservableObject {
         // Guarded on the transition, like the teardown below and like `updateResearchConsent`:
         // calling this when blanket consent was never granted stops nothing, and marking it would
         // silently bar an L2 participant from studies they are still consenting to.
-        if wasGranted { researchConsent.blanketConsentWithdrawnAt = Date() }
+        if wasGranted { researchConsent.blanketConsentWithdrawnAt = now() }
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
@@ -238,8 +251,103 @@ final class ConsentStore: ObservableObject {
     }
 
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {
-        researchConsent.categoryConsents[category] = granted
+        var next = researchConsent
+        next.categoryConsents[category] = granted
+        researchConsent = withTimes(old: researchConsent, new: next)
         save()
+    }
+
+    /// `new` with every withdrawal time the store owns taken from `old`, and stamped now on a true→false
+    /// transition, so a screen that commits a whole state can neither set nor erase one (`SWR-MG-04`).
+    /// The blanket time is handled by the callers, which also tear down analytics on that transition.
+    private func withTimes(old: ResearchConsentState, new: ResearchConsentState) -> ResearchConsentState {
+        var next = new
+        let t = now()
+        func at(_ was: Bool, _ will: Bool, _ previous: Date?) -> Date? { was && !will ? t : previous }
+        next.contactConsentWithdrawnAt = at(old.contactConsentGranted, new.contactConsentGranted, old.contactConsentWithdrawnAt)
+        next.resultsOptInWithdrawnAt = at(old.resultsOptIn, new.resultsOptIn, old.resultsOptInWithdrawnAt)
+        next.suggestionPortalOptInWithdrawnAt = at(
+            old.suggestionPortalOptIn, new.suggestionPortalOptIn, old.suggestionPortalOptInWithdrawnAt
+        )
+        var categories = old.categoryWithdrawnAt ?? [:]
+        for category in ResearchCategory.allCases
+        where old.categoryConsents[category] == true && new.categoryConsents[category] != true {
+            categories[category.rawValue] = t
+        }
+        next.categoryWithdrawnAt = categories.isEmpty ? nil : categories
+        return next
+    }
+
+    // MARK: - Withdrawal records in a migration (SWR-MG-04)
+
+    /// The withdrawal records in the shape the shared core merges (`mergeWithdrawal`): UTC instants, a category
+    /// by its wire name, a study by its id. Grants are not here and never travel: a restore can only reduce
+    /// what a phone is consented to.
+    func exportWithdrawals() -> [String: Any] {
+        let r = researchConsent
+        var out: [String: Any] = [:]
+        if let t = r.blanketConsentWithdrawnAt { out["blanketConsentWithdrawnAt"] = ConsentTime.string(t) }
+        if let t = r.contactConsentWithdrawnAt { out["contactConsentWithdrawnAt"] = ConsentTime.string(t) }
+        if let t = r.resultsOptInWithdrawnAt { out["resultsOptInWithdrawnAt"] = ConsentTime.string(t) }
+        if let t = r.suggestionPortalOptInWithdrawnAt { out["suggestionPortalOptInWithdrawnAt"] = ConsentTime.string(t) }
+        out["categoryWithdrawals"] = (r.categoryWithdrawnAt ?? [:]).mapValues(ConsentTime.string)
+        out["studyWithdrawals"] = studyWithdrawals.mapValues(ConsentTime.string)
+        return out
+    }
+
+    /// Apply merged withdrawal records. Which of them are later than the ones held here is the core's to say
+    /// (`applyWithdrawal`), so every platform applies a restore the same way; this switches the matching grants
+    /// off and records the times. A grant made here after the withdrawal stands, and nothing here turns one on.
+    func applyWithdrawals(_ incoming: [String: Any]) throws {
+        let verdict = try NppsCore.migration([
+            "op": "applyWithdrawal", "held": exportWithdrawals(), "incoming": incoming,
+        ])
+        let applied = verdict["applied"] as? [String: Any] ?? [:]
+        let keys = Set(applied["times"] as? [String] ?? [])
+        func time(_ key: String) -> Date? {
+            guard keys.contains(key), let text = incoming[key] as? String else { return nil }
+            return ConsentTime.date(text)
+        }
+        var r = researchConsent
+        if let t = time("blanketConsentWithdrawnAt") {
+            r.blanketConsentGranted = false
+            r.blanketConsentGrantedAt = nil
+            r.blanketConsentWithdrawnAt = t
+        }
+        if let t = time("contactConsentWithdrawnAt") {
+            r.contactConsentGranted = false
+            r.contactConsentWithdrawnAt = t
+        }
+        if let t = time("resultsOptInWithdrawnAt") {
+            r.resultsOptIn = false
+            r.resultsOptInWithdrawnAt = t
+        }
+        if let t = time("suggestionPortalOptInWithdrawnAt") {
+            r.suggestionPortalOptIn = false
+            r.suggestionPortalOptInWithdrawnAt = t
+        }
+        let theirCategories = incoming["categoryWithdrawals"] as? [String: String] ?? [:]
+        var categories = r.categoryWithdrawnAt ?? [:]
+        for name in applied["categoryWithdrawals"] as? [String] ?? [] {
+            guard let category = ResearchCategory(rawValue: name), let t = theirCategories[name].flatMap(ConsentTime.date) else {
+                continue
+            }
+            r.categoryConsents[category] = false
+            categories[name] = t
+        }
+        r.categoryWithdrawnAt = categories.isEmpty ? nil : categories
+        let theirStudies = incoming["studyWithdrawals"] as? [String: String] ?? [:]
+        for id in applied["studyWithdrawals"] as? [String] ?? [] {
+            guard let t = theirStudies[id].flatMap(ConsentTime.date) else { continue }
+            studyWithdrawals[id] = t
+            for idx in studyParticipations.indices where studyParticipations[idx].studyID == id && studyParticipations[idx].isActive {
+                studyParticipations[idx].withdrawnAt = t
+            }
+        }
+        let blanketApplied = time("blanketConsentWithdrawnAt") != nil
+        researchConsent = r
+        save()
+        if blanketApplied { revokeResearchAnalytics() }
     }
 
     // MARK: - Study invitations (§6.3 per-project workflow)
@@ -375,7 +483,9 @@ final class ConsentStore: ObservableObject {
 
     func withdrawFromStudy(studyID: String) {
         if let idx = studyParticipations.firstIndex(where: { $0.studyID == studyID && $0.isActive }) {
-            studyParticipations[idx].withdrawnAt = Date()
+            let at = now()
+            studyParticipations[idx].withdrawnAt = at
+            studyWithdrawals[studyID] = at
             save()
         }
     }
@@ -394,6 +504,10 @@ final class ConsentStore: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: PersistedKeys.PARTICIPATION_KEY),
            let decoded = try? JSONDecoder().decode([StudyParticipationRecord].self, from: data) {
             studyParticipations = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: studyWithdrawalsKey),
+           let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
+            studyWithdrawals = decoded
         }
         // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
         // user can dismiss by backgrounding the app is not one.
@@ -422,6 +536,9 @@ final class ConsentStore: ObservableObject {
         if let data = try? JSONEncoder().encode(studyParticipations) {
             UserDefaults.standard.set(data, forKey: PersistedKeys.PARTICIPATION_KEY)
         }
+        if let data = try? JSONEncoder().encode(studyWithdrawals) {
+            UserDefaults.standard.set(data, forKey: studyWithdrawalsKey)
+        }
         if let data = try? JSONEncoder().encode(expansionRequests) {
             UserDefaults.standard.set(data, forKey: expansionsKey)
         }
@@ -429,4 +546,19 @@ final class ConsentStore: ObservableObject {
             UserDefaults.standard.set(data, forKey: invitationsKey)
         }
     }
+}
+
+/// The form a withdrawal time takes in a bundle: a UTC instant to the second (`2026-03-01T00:00:00Z`), which orders
+/// as text, so the core can say which of two is later without parsing (`SWR-MG-04`).
+enum ConsentTime {
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        return f
+    }()
+
+    static func string(_ date: Date) -> String { formatter.string(from: date) }
+    static func date(_ text: String) -> Date? { formatter.date(from: text) }
 }

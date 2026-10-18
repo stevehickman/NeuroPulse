@@ -1373,7 +1373,7 @@ class ConsentStoreTests {
         s.applyWithdrawals(
             buildJsonObject {
                 put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z")
-                put("categoryWithdrawals", buildJsonObject { put(c.name, "2026-03-01T00:00:00Z") })
+                put("categoryWithdrawals", buildJsonObject { put(c.wireName, "2026-03-01T00:00:00Z") })
                 put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01T00:00:00Z") })
             },
         )

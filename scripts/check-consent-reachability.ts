@@ -150,6 +150,22 @@ const SURFACE: Record<string, Reach> = {
       "with no waiver. Android routed it correctly even when iOS did not, which is why the Rev 37 " +
       "regression was one-sided",
   },
+  exportWithdrawals: {
+    kind: "ingest",
+    via: {
+      ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
+      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
+    },
+    note: "SWR-MG-04: the withdrawal records go into a bundle through the migration item, not a control the user operates",
+  },
+  applyWithdrawals: {
+    kind: "ingest",
+    via: {
+      ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
+      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
+    },
+    note: "SWR-MG-04: a restore applies a later withdrawal through the migration item. It can only switch a grant off; the later-time comparison is the core's (applyWithdrawal)",
+  },
   revokeResearchAnalytics: {
     kind: "internal",
     note: "§6.0 teardown. Reached from withdrawBlanketResearchConsent() and from updateResearchConsent()'s true→false transition (§6.2.5); a direct UI opt-out toggle is optional, not required",

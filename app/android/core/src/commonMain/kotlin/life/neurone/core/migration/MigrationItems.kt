@@ -29,7 +29,7 @@ interface MigrationItemStore {
  * Consent in a bundle: the withdrawal records, and nothing else. **Grants are never carried** (ruling, issue #569): a grant
  * is stated afresh on each device, so an out-of-date one can never be restored, and a restore can only reduce what a phone
  * is consented to. The shape is the core's `withdrawalState` (`mergeWithdrawal`): the withdrawal times (UTC instants) and
- * `categoryWithdrawals` / `studyWithdrawals` as id → time. A withdrawal is sticky: the later time wins and none is erased.
+ * `categoryWithdrawals` / `studyWithdrawals` as id → time (a category's id is its wire name, the one a signed study descriptor uses, so the apps agree on it; a study's id is the study id). A withdrawal is sticky: the later time wins and none is erased.
  */
 class StoreConsentMigrationAdapter(private val consent: ConsentStore) : MigrationItemStore {
     override val item: String = "withdrawalState"

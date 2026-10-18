@@ -228,6 +228,17 @@ struct ResearchConsentState: Codable {
     var resultsOptIn: Bool = false
     var suggestionPortalOptIn: Bool = false
 
+    /// When each of these was last withdrawn, or `nil` if it never was (`SWR-MG-04`). Like
+    /// `blanketConsentWithdrawnAt` they are the store's to set on a true→false transition and nothing
+    /// else's, and a later re-grant does not clear them: a withdrawal is a record that stays. They let a
+    /// restore carry "said stop" to another phone, where the later time wins and a grant is never added.
+    var contactConsentWithdrawnAt: Date? = nil
+    var resultsOptInWithdrawnAt: Date? = nil
+    var suggestionPortalOptInWithdrawnAt: Date? = nil
+    /// Per research category, by `ResearchCategory.rawValue` (the wire name, which is the id the other
+    /// apps use too). Optional only so a record saved before this existed still decodes.
+    var categoryWithdrawnAt: [String: Date]? = nil
+
     var hasAnyResearchConsent: Bool {
         contactConsentGranted || blanketConsentGranted ||
         categoryConsents.values.contains(true)

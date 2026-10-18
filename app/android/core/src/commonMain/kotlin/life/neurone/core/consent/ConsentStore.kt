@@ -16,6 +16,7 @@ import life.neurone.core.models.StudyDescriptorAdmission
 import life.neurone.core.models.StudyDescriptorVerifier
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.StudyParticipationRecord
+import life.neurone.core.npps.NppsCore
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.common.UUID
 import kotlinx.serialization.builtins.ListSerializer
@@ -26,6 +27,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -358,13 +360,13 @@ class ConsentStore(
      * The withdrawal records, in the shape the shared core merges (`mergeWithdrawal`). Grants are not here and never travel:
      * a restore can only reduce what a phone is consented to.
      */
-    internal fun exportWithdrawals(): JsonObject = buildJsonObject {
+    fun exportWithdrawals(): JsonObject = buildJsonObject {
         val r = researchConsent
         r.blanketConsentWithdrawnAt?.let { put("blanketConsentWithdrawnAt", it) }
         r.contactConsentWithdrawnAt?.let { put("contactConsentWithdrawnAt", it) }
         r.resultsOptInWithdrawnAt?.let { put("resultsOptInWithdrawnAt", it) }
         r.suggestionPortalOptInWithdrawnAt?.let { put("suggestionPortalOptInWithdrawnAt", it) }
-        put("categoryWithdrawals", buildJsonObject { r.categoryWithdrawnAt.forEach { (c, t) -> put(c.name, t) } })
+        put("categoryWithdrawals", buildJsonObject { r.categoryWithdrawnAt.forEach { (c, t) -> put(c.wireName, t) } })
         put("studyWithdrawals", buildJsonObject { studyWithdrawals.forEach { (id, t) -> put(id, t) } })
     }
 
@@ -373,18 +375,31 @@ class ConsentStore(
      * its time; an equal or older one changes nothing, so a grant made here after the withdrawal stands. Nothing here turns a
      * grant on.
      */
-    internal fun applyWithdrawals(value: JsonElement) {
-        val o = value.jsonObject
-        fun time(key: String): String? = o[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content
-        fun newer(incoming: String?, held: String?): String? = incoming?.takeIf { held == null || it > held }
+    fun applyWithdrawals(value: JsonElement) {
+        val incoming = value.jsonObject
+        // Which withdrawals are later than the ones held here is the core's to say (`applyWithdrawal`), so every platform
+        // applies a restore the same way. This store only switches the matching grants off and records the times.
+        val verdict = NppsCore.migration(
+            buildJsonObject {
+                put("op", "applyWithdrawal")
+                put("held", exportWithdrawals())
+                put("incoming", incoming)
+            },
+        )
+        val applied = verdict["applied"]!!.jsonObject
+        fun names(key: String): Set<String> = applied[key]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+        fun time(key: String): String? = incoming[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content
+        val keys = names("times")
+        fun applies(key: String) = key in keys
         val r = researchConsent
-        val blanket = newer(time("blanketConsentWithdrawnAt"), r.blanketConsentWithdrawnAt)
-        val contact = newer(time("contactConsentWithdrawnAt"), r.contactConsentWithdrawnAt)
-        val results = newer(time("resultsOptInWithdrawnAt"), r.resultsOptInWithdrawnAt)
-        val portal = newer(time("suggestionPortalOptInWithdrawnAt"), r.suggestionPortalOptInWithdrawnAt)
-        val categories = (o["categoryWithdrawals"] as? JsonObject).orEmpty().mapNotNull { (name, t) ->
-            val c = ResearchCategory.entries.firstOrNull { it.name == name } ?: return@mapNotNull null
-            newer(t.jsonPrimitive.content, r.categoryWithdrawnAt[c])?.let { c to it }
+        val blanket = time("blanketConsentWithdrawnAt").takeIf { applies("blanketConsentWithdrawnAt") }
+        val contact = time("contactConsentWithdrawnAt").takeIf { applies("contactConsentWithdrawnAt") }
+        val results = time("resultsOptInWithdrawnAt").takeIf { applies("resultsOptInWithdrawnAt") }
+        val portal = time("suggestionPortalOptInWithdrawnAt").takeIf { applies("suggestionPortalOptInWithdrawnAt") }
+        val categoryNames = names("categoryWithdrawals")
+        val categories = (incoming["categoryWithdrawals"] as? JsonObject).orEmpty().mapNotNull { (name, t) ->
+            val c = ResearchCategory.entries.firstOrNull { it.wireName == name } ?: return@mapNotNull null
+            if (name in categoryNames) c to t.jsonPrimitive.content else null
         }.toMap()
         researchConsent = r.copy(
             blanketConsentGranted = r.blanketConsentGranted && blanket == null,
@@ -399,9 +414,10 @@ class ConsentStore(
             categoryConsents = r.categoryConsents + categories.keys.associateWith { false },
             categoryWithdrawnAt = r.categoryWithdrawnAt + categories,
         )
-        val studies = (o["studyWithdrawals"] as? JsonObject).orEmpty().mapNotNull { (id, t) ->
-            newer(t.jsonPrimitive.content, studyWithdrawals[id])?.let { id to it }
-        }.toMap()
+        val studyNames = names("studyWithdrawals")
+        val studies = (incoming["studyWithdrawals"] as? JsonObject).orEmpty()
+            .filterKeys { it in studyNames }
+            .mapValues { it.value.jsonPrimitive.content }
         studyWithdrawals = studyWithdrawals + studies
         studyParticipations = studyParticipations.map {
             val t = studies[it.studyId]
