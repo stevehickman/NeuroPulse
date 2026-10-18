@@ -2,10 +2,10 @@ package life.neurone.web
 
 import androidx.compose.runtime.Composable
 import kotlinx.browser.localStorage
+import kotlinx.browser.window
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.MemoryOnlyKeysKeyValueStore
-import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.NoOpAnalyticsBackend
@@ -21,12 +21,13 @@ import life.neurone.shared.migration.FileTransfer
  * lost storage.
  *
  * `localStorage` is readable in the clear by every script on the page and every extension, the browser has no keystore to seal
- * a key in (SWR-MG-06), and no backup rule governs it. So the records of a person's sessions are not written to it at all:
- * [MEMORY_ONLY_KEYS] are held in memory for the life of the page (REQ-SW03-18 (b)). Everything else the app keeps here is
- * configuration or consent state, which is a separate decision (see the privacy review, Finding 2).
+ * a key in (SWR-MG-06), and no backup rule governs it. So the records of a person's sessions and their consent state are not
+ * written to it at all: the keys of [MemoryOnlyKeysKeyValueStore.browserKeys] are held in memory for the life of the page
+ * (REQ-SW03-18 (b)), and the person can erase the rest ([eraseLocalData], REQ-SW03-18 (c)).
  */
 class WebPlatformServices(
-    override val keyValueStore: KeyValueStore = MemoryOnlyKeysKeyValueStore(LocalStorageKeyValueStore(), MEMORY_ONLY_KEYS),
+    private val storage: LocalStorageKeyValueStore = LocalStorageKeyValueStore(),
+    override val keyValueStore: KeyValueStore = MemoryOnlyKeysKeyValueStore(storage, MemoryOnlyKeysKeyValueStore.browserKeys()),
     override val bleCentral: BleCentral = WebBleCentral(),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
@@ -38,13 +39,16 @@ class WebPlatformServices(
 
     private val fileTransfer = WebFileTransfer()
 
+    // Empties what this page keeps and reloads, which also drops what is held in memory (the session history, the consent state).
+    override val eraseLocalData: (() -> Unit) = {
+        storage.eraseAll()
+        window.location.reload()
+    }
+
     // The chooser must open inside the click, so the action is the central's own, not a generic refresh.
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { (bleCentral as? WebBleCentral)?.requestDevice() }
 }
-
-/** Keys the browser keeps in memory only: the session history is a record of the person's health (CLAUDE.md §5.1). */
-val MEMORY_ONLY_KEYS: Set<String> = setOf(PersistedKeys.SESSION_HISTORY_KEY)
 
 class LocalStorageKeyValueStore(private val prefix: String = "np-app:") : KeyValueStore {
     override fun getString(key: String): String? = localStorage.getItem(prefix + key)
@@ -54,4 +58,10 @@ class LocalStorageKeyValueStore(private val prefix: String = "np-app:") : KeyVal
     override fun getBoolean(key: String, default: Boolean): Boolean = getString(key)?.toBooleanStrictOrNull() ?: default
     override fun putBoolean(key: String, value: Boolean) = putString(key, value.toString())
     override fun remove(key: String) = localStorage.removeItem(prefix + key)
+
+    /** Removes every item this app wrote (those under [prefix]), and leaves any other page's items alone. */
+    fun eraseAll() {
+        val mine = (0 until localStorage.length).mapNotNull { localStorage.key(it) }.filter { it.startsWith(prefix) }
+        mine.forEach { localStorage.removeItem(it) }
+    }
 }

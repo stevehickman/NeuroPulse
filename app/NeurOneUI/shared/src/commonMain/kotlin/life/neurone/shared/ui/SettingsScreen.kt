@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
@@ -245,6 +247,12 @@ private fun SettingsContent(
             OutlinedButton(onClick = onLinkReceive) { Text(stringResource(Res.string.settings_link_receive_button)) }
         }
 
+        // Erase what this host keeps, where it offers that (the browser does): the person's own way to empty it.
+        app.platform.eraseLocalData?.let { erase ->
+            Spacer(Modifier.height(24.dp))
+            EraseLocalDataSection(erase)
+        }
+
         Spacer(Modifier.height(24.dp))
 
         // Research analytics gate
@@ -272,4 +280,22 @@ private fun SettingsContent(
         Spacer(Modifier.height(24.dp))
         Text(stringResource(Res.string.and_ui_neurone_home_0_1_0), style = MaterialTheme.typography.bodySmall)
     }
+}
+
+/**
+ * Erase everything this host keeps and start afresh. It cannot be undone, so the button stays disabled until the person has said
+ * they understand that; the host does its own restart once [erase] returns.
+ */
+@Composable
+internal fun EraseLocalDataSection(erase: () -> Unit) {
+    var understood by remember { mutableStateOf(false) }
+    Text(stringResource(Res.string.settings_erase_local_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.settings_erase_local_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = understood, onCheckedChange = { understood = it })
+        Text(stringResource(Res.string.settings_erase_local_confirm))
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(enabled = understood, onClick = erase) { Text(stringResource(Res.string.settings_erase_local_button)) }
 }
