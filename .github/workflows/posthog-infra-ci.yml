@@ -1,0 +1,52 @@
+name: PostHog Infra CI (privacy review Finding 4)
+
+# infra/posthog had no CI, and its compose file did not parse. This runs when the stack, its tests or this file change.
+on:
+  push:
+    paths:
+      - 'infra/posthog/**'
+      - 'ci/test_posthog_infra.py'
+      - 'ci/test_posthog_project_settings.py'
+      - '.github/workflows/posthog-infra-ci.yml'
+  pull_request:
+    paths:
+      - 'infra/posthog/**'
+      - 'ci/test_posthog_infra.py'
+      - 'ci/test_posthog_project_settings.py'
+      - '.github/workflows/posthog-infra-ci.yml'
+  workflow_dispatch:
+
+# Least privilege: checks out the repo and runs tests; nothing reads GITHUB_TOKEN or publishes.
+permissions:
+  contents: read
+
+jobs:
+  posthog-infra:
+    name: PostHog stack keeps its privacy configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # The checks are negative, so a green tick is worth nothing until each has been shown to go red on a broken copy.
+      - name: Gate self-test (prove each check can fail)
+        run: python3 ci/test_posthog_infra.py --self-test --require-docker
+      - name: Compose, Caddyfile and .env.example invariants
+        run: python3 ci/test_posthog_infra.py --require-docker
+      - name: Settings-test self-test (prove the suite goes red on a broken script)
+        run: python3 ci/test_posthog_project_settings.py --self-test
+      - name: Project-settings script against a fake PostHog
+        run: python3 ci/test_posthog_project_settings.py
+      # The only check that asks Caddy itself whether the Caddyfile is valid (the header_up removals and the `not host` matcher
+      # are Caddy syntax the Python checks cannot judge). The image is the one the stack runs.
+      - name: Caddyfile is valid Caddy
+        run: |
+          image=$(python3 - <<'PY'
+          import re
+          print(re.search(r'image:\s*(caddy:[^\s]+)', open('infra/posthog/docker-compose.yml').read()).group(1))
+          PY
+          )
+          docker run --rm -e POSTHOG_HOST=localhost \
+            -v "$PWD/infra/posthog/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            "$image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

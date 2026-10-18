@@ -56,6 +56,10 @@ settings:
     # PostHog analytics token — set via local .xcconfig or CI secret.
     # Never commit the real token to source. See PostHogAnalyticsBackend.swift.
     POSTHOG_PROJECT_TOKEN: ""
+    # The analytics host (a bare host name, no scheme: an .xcconfig reads // as a comment), for events and for erasure
+    # requests. This default is the self-hosted TEST instance; a release build overrides it with the production domain
+    # (EU for EU users). See AnalyticsHost.swift and np_analytics_001 §7.6.
+    ANALYTICS_HOST: "analytics.neurone.internal"
     CODE_SIGN_STYLE: Automatic
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     SDKROOT: iphoneos
