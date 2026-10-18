@@ -100,7 +100,7 @@ class EncryptedKeyValueStore(
 
     override fun getBoolean(key: String, default: Boolean): Boolean =
         if (key in protectedKeys) {
-            read(key)?.toBooleanStrictOrNull() ?: legacy { inner.getBoolean(key, default) } ?: default
+            read(key)?.let(::flagOf) ?: legacy { inner.getBoolean(key, default) } ?: default
         } else {
             inner.getBoolean(key, default)
         }
@@ -111,14 +111,31 @@ class EncryptedKeyValueStore(
 
     override fun remove(key: String) = inner.remove(key)
 
+    /** A flag as text: `true` and `false`, and `1` and `0`, which some host stores give for a flag they kept as a number. */
+    private fun flagOf(text: String): Boolean? = when (text) { "1" -> true; "0" -> false; else -> text.toBooleanStrictOrNull() }
+
     /** A value written before this store existed, as an Int or a Boolean; null if there is none or it is not of that type. */
     private fun <T> legacy(read: () -> T): T? = try { read() } catch (ignored: ClassCastException) { null }
 
-    /** Seal every protected value still held in the clear. Called once at start-up; a value already sealed is left alone. */
+    /**
+     * Seal every protected value still held in the clear, whatever type the host stored it as. Called once at start-up; a value
+     * already sealed is left alone. A flag or a number from before this store existed is a Boolean or an Int in the host's own
+     * store, not a string, so it is found by asking for it with two different defaults: only a value that is there answers both
+     * the same. It is sealed as its text, and read back as the type it is asked for.
+     */
     fun migrate() {
         for (name in protectedKeys) {
-            val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: continue
-            if (!stored.startsWith(PREFIX)) putString(name, stored)
+            val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null }
+            if (stored != null) {
+                if (!stored.startsWith(PREFIX)) putString(name, stored)
+                continue
+            }
+            val flag = legacy { inner.getBoolean(name, false).takeIf { it == inner.getBoolean(name, true) } }
+            val number = if (flag == null) legacy { inner.getInt(name, 0).takeIf { it == inner.getInt(name, 1) } } else null
+            when {
+                flag != null -> putString(name, flag.toString())
+                number != null -> putString(name, number.toString())
+            }
         }
     }
 
@@ -147,14 +164,11 @@ class EncryptedKeyValueStore(
         const val SHDR_DEVICE_TOKEN_KEY = "np.shdr.device-token"
 
         /**
-         * The keys that hold UHDR-class state: every key of every item a migration carries and the consent keys (SWR-MG-01),
-         * from the core's one list. Per-install and not-yet-sorted keys are not user health data and stay as they are.
+         * The keys whose values are sealed at rest (SWR-MG-06), from the core's one list (`itemKeys`, `sealedAtRest`): every key of
+         * every item a migration carries, the consent keys, and the keys not yet sorted for migration, which are UHDR until shown
+         * not to be (`CLAUDE.md` §5.1). Per-install keys name a device or an install, not the person, and stay as they are.
          */
-        fun uhdrKeys(): Set<String> {
-            val m = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })
-            val carried = m["carried"]!!.jsonObject.values.flatMap { it.jsonArray.map { k -> k.jsonPrimitive.content } }
-            val consent = m["consent"]!!.jsonArray.map { it.jsonPrimitive.content }
-            return (carried + consent).toSet()
-        }
+        fun uhdrKeys(): Set<String> =
+            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
     }
 }

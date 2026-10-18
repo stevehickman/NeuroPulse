@@ -1,5 +1,10 @@
 package life.neurone.core.common
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import life.neurone.core.npps.NppsCore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -108,5 +113,68 @@ class EncryptedKeyValueStoreTests {
         assertFalse(token in inner.getString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY)!!, "the token is in the stored value")
         assertEquals(token, s.getString(EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY))
         assertTrue(history in keys, "UHDR-class state stays sealed")
+    }
+
+    // The keys not yet sorted for migration are sealed too: until shown not to be, they are UHDR (CLAUDE.md section 5.1). They include
+    // the cervical fault acknowledgement and the onboarding records, which are facts about the person.
+    // @verifies SWR-MG-06
+    @Test
+    fun theKeysNotYetSortedForMigrationAreSealedAndStillReadAsWhatWasWritten() {
+        val keys = EncryptedKeyValueStore.uhdrKeys()
+        val unsorted = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["unsorted"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(unsorted.isNotEmpty() && keys.containsAll(unsorted), "every unsorted key is in the sealed set")
+
+        val inner = InMemoryKeyValueStore()
+        val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), keys)
+        s.putBoolean("np.onboarding.bipa-accepted", true)
+        s.putBoolean("np.setup.first-complete", true)
+        s.putString("np.cvns.fault-ledger.last-acknowledged-session", "session-0042")
+        s.putString("np.consumable.snooze-counts", "{\"sleeve\":2}")
+        for (k in listOf("np.onboarding.bipa-accepted", "np.setup.first-complete", "np.cvns.fault-ledger.last-acknowledged-session", "np.consumable.snooze-counts")) {
+            assertTrue(inner.getString(k)!!.startsWith(EncryptedKeyValueStore.PREFIX), "$k is sealed in the host's store")
+        }
+        assertFalse("session-0042" in inner.getString("np.cvns.fault-ledger.last-acknowledged-session")!!)
+        assertTrue(s.getBoolean("np.onboarding.bipa-accepted", false))
+        assertEquals("session-0042", s.getString("np.cvns.fault-ledger.last-acknowledged-session"))
+        assertEquals("{\"sleeve\":2}", s.getString("np.consumable.snooze-counts"))
+
+        // A per-install key is the device's and stays as it is.
+        s.putString("ble.last-hub-id", "hub-1")
+        assertEquals("hub-1", inner.getString("ble.last-hub-id"))
+    }
+
+    // A flag, a number and a text written before the store sealed them are Boolean, Int and String in the host's own store. All three
+    // are found and sealed at start-up and read back as the type asked for; a key that is not there is not invented.
+    // @verifies SWR-MG-06
+    @Test
+    fun valuesFromBeforeAreSealedAtStartUpWhateverTypeTheHostKeptThemAs() {
+        val inner = InMemoryKeyValueStore().also {
+            it.putBoolean("np.onboarding.age-confirmed", true)
+            it.putBoolean("np.onboarding.bipa-shown", false)
+            it.putInt("np.limits.global", 12)
+            it.putString("np.session.history", "old history")
+        }
+        val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), EncryptedKeyValueStore.uhdrKeys())
+        s.migrate()
+        for (k in listOf("np.onboarding.age-confirmed", "np.onboarding.bipa-shown", "np.limits.global", "np.session.history")) {
+            assertTrue(inner.getString(k)!!.startsWith(EncryptedKeyValueStore.PREFIX), "$k is sealed after start-up")
+        }
+        assertEquals(true, s.getBoolean("np.onboarding.age-confirmed", false))
+        assertEquals(false, s.getBoolean("np.onboarding.bipa-shown", true), "a stored false is not the default")
+        assertEquals(12, s.getInt("np.limits.global", 0))
+        assertEquals("old history", s.getString("np.session.history"))
+        assertNull(inner.getString("np.setup.first-complete"), "a key that is not there is not made")
+        s.migrate()
+        assertEquals(12, s.getInt("np.limits.global", 0), "a second start-up leaves sealed values alone")
+    }
+
+    // @verifies SWR-MG-06
+    @Test
+    fun aFlagThatAHostKeptAsOneOrZeroReadsAsAFlag() {
+        val inner = InMemoryKeyValueStore().also { it.putString("np.setup.first-complete", "1"); it.putString("np.onboarding.consent-shown", "0") }
+        val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), EncryptedKeyValueStore.uhdrKeys())
+        s.migrate()
+        assertEquals(true, s.getBoolean("np.setup.first-complete", false))
+        assertEquals(false, s.getBoolean("np.onboarding.consent-shown", true))
     }
 }
