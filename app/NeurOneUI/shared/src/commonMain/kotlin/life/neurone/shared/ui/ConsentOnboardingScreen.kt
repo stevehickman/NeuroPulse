@@ -138,6 +138,7 @@ private fun ScreenWhatYouGetBack(
     SwitchRow(stringResource(Res.string.consent_l4_results_toggle), state.resultsOptIn) {
         onChange(state.copy(resultsOptIn = it))
     }
+    WithdrawnNote(withdrawnDay(state.resultsOptIn, state.resultsOptInWithdrawnAt))
     Text(
         stringResource(Res.string.consent_l4_results_caption),
         style = MaterialTheme.typography.bodySmall,
@@ -146,6 +147,7 @@ private fun ScreenWhatYouGetBack(
     SwitchRow(stringResource(Res.string.consent_l4_portal_toggle), state.suggestionPortalOptIn) {
         onChange(state.copy(suggestionPortalOptIn = it))
     }
+    WithdrawnNote(withdrawnDay(state.suggestionPortalOptIn, state.suggestionPortalOptInWithdrawnAt))
     Text(
         stringResource(Res.string.consent_submit_study_ideas_vote_on_priorities_expres),
         style = MaterialTheme.typography.bodySmall,
@@ -172,6 +174,7 @@ private fun ScreenWhatYouGetBack(
     SwitchRow(stringResource(Res.string.consent_l1_toggle), state.contactConsentGranted) {
         onChange(state.copy(contactConsentGranted = it))
     }
+    WithdrawnNote(withdrawnDay(state.contactConsentGranted, state.contactConsentWithdrawnAt))
     if (state.contactConsentGranted) {
         Spacer(Modifier.height(12.dp))
         Text(stringResource(Res.string.consent_how_often_at_most), style = MaterialTheme.typography.bodyMedium)
@@ -230,7 +233,10 @@ private fun ScreenWhatYouShare(
         ) {
             Checkbox(checked = checked, onCheckedChange = null)
             Spacer(Modifier.width(8.dp))
-            Text(category.displayName)
+            Column {
+                Text(category.displayName)
+                WithdrawnNote(withdrawnDay(checked, state.categoryWithdrawnAt[category]))
+            }
         }
     }
 
@@ -253,6 +259,7 @@ private fun ScreenWhatYouShare(
     ) {
         onChange(state.copy(blanketConsentGranted = it))
     }
+    WithdrawnNote(withdrawnDay(state.blanketConsentGranted, state.blanketConsentWithdrawnAt))
     Text(
         stringResource(Res.string.consent_you_will_still_get_a_notification_about_each) +
             stringResource(Res.string.consent_a_question_you_can_opt_out_of_any_individual) +
