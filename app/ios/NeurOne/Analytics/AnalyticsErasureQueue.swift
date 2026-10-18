@@ -39,8 +39,10 @@ final class HTTPAnalyticsErasureRelay: AnalyticsErasureRelaying {
 
     private let session: URLSession
 
-    init(session: URLSession = URLSession(configuration: .ephemeral)) {
-        self.session = session
+    // The default is made in the body: a default-argument expression is not main-actor isolated in Swift 5 mode, and this
+    // initializer is.
+    init(session: URLSession? = nil) {
+        self.session = session ?? URLSession(configuration: .ephemeral)
     }
 
     func erase(distinctID: String) async -> ErasureOutcome {
@@ -76,9 +78,10 @@ final class AnalyticsErasureQueue {
     private let relay: any AnalyticsErasureRelaying
     private var isDraining = false
 
-    init(store: ProtectedDefaults = .standard, relay: any AnalyticsErasureRelaying = HTTPAnalyticsErasureRelay()) {
+    // The relay default is made in the body for the same reason as `HTTPAnalyticsErasureRelay.init`.
+    init(store: ProtectedDefaults = .standard, relay: (any AnalyticsErasureRelaying)? = nil) {
         self.store = store
-        self.relay = relay
+        self.relay = relay ?? HTTPAnalyticsErasureRelay()
     }
 
     /// The IDs still waiting, oldest first.
