@@ -43,7 +43,8 @@
 # STEP-19): deploy the entire stack on an EU-region cloud instance. Caddy's
 # ACME server is configurable if a specific CA is required by your DPA.
 
-{env.POSTHOG_HOST} {
+# {$VAR} is read when the file is parsed; a site address cannot use the runtime {env.VAR} placeholder.
+{$POSTHOG_HOST} {
 
   # Reverse proxy all traffic to the PostHog web server
   reverse_proxy posthog:8000 {
@@ -53,7 +54,6 @@
     # is the second layer.
     header_up -X-Forwarded-For
     header_up -X-Real-IP
-    header_up X-Forwarded-Proto {scheme}
 
     # Increase timeouts for long-running PostHog dashboard queries
     transport http {

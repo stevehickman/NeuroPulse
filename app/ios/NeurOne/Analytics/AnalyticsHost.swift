@@ -25,7 +25,8 @@ enum AnalyticsHost {
               host == "localhost" || host.contains(".")
         else { return nil }
         if parts.count == 2 {
-            guard let port = parts.last, !port.isEmpty, port.count <= 5, port.allSatisfy(\.isNumber), let n = Int(port), (1...65535).contains(n)
+            guard let port = parts.last, !port.isEmpty, port.count <= 5, port.allSatisfy(\.isNumber),
+                  let n = Int(port), (1...65535).contains(n)
             else { return nil }
         }
         return URL(string: "https://\(value)")
