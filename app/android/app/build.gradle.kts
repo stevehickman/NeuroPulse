@@ -77,6 +77,20 @@ if (!project.hasProperty("skipNppsCoreNative")) {
         .configureEach { dependsOn(buildNppsCoreNative) }
 }
 
+// ── Release builds refuse the placeholder fleet certificate pins (privacy review Finding 9, REQ-SHDR-04) ──
+//
+// The pins in ShdrUploader are placeholders until the real fleet certificate exists. They fail closed, so a release built with
+// them looks fine and uploads no SHDR record, ever. This stops assembleRelease and bundleRelease instead. Debug builds and the
+// unit-test variants are untouched, so CI stays green while the placeholders are in the tree.
+val checkReleaseFleetPins by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Fails if a fleet certificate pin is a placeholder (scripts/check-release-pins.ts --release)."
+    workingDir = repoRoot
+    commandLine("bun", "scripts/check-release-pins.ts", "--release")
+}
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }
+    .configureEach { dependsOn(checkReleaseFleetPins) }
+
 // preBuild is an ancestor of every variant task, resource merging included, so
 // this single edge covers debug, release and the unit-test variants alike.
 tasks.named("preBuild") { dependsOn(syncLocales) }
