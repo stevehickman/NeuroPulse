@@ -107,6 +107,8 @@ jobs:
           :shared:linkDebugFrameworkIosSimulatorArm64
           --stacktrace
 
+      # arm64 only: a generic simulator destination also builds x86_64, which :shared has no target for, and Compose's
+      # resource sync (syncComposeResourcesForIos) then has no value to use for that architecture.
       # The host's pre-build phase calls ./gradlew, which reads ANDROID_HOME and needs bun and cargo on PATH,
       # all of which the steps above leave in the environment.
       - name: Build the Xcode host (iosApp) for the simulator
@@ -116,4 +118,4 @@ jobs:
           xcodegen generate --spec project.yml
           xcodebuild build -project NeurOneUI.xcodeproj -scheme NeurOneUI \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
