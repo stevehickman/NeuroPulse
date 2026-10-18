@@ -3,8 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--
+    Content-Security-Policy (privacy review, Finding 1). Anything the app keeps in the browser (localStorage, memory) is readable by
+    script that runs in this page, so the page runs only its own script. Everything is same-origin: the script, the WebAssembly
+    modules, the fonts and the stylesheet. 'wasm-unsafe-eval' is what compiling WebAssembly needs and does not allow eval() of
+    strings. There is no 'unsafe-inline', so a script or style injected into the markup does not run. A meta policy cannot set
+    frame-ancestors; a host that serves this page should also send the header with `frame-ancestors 'none'`.
+    Tested by loading the built page in Chromium and clicking through the age gate (no violation).
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>NeurOne</title>
-  <style>html, body { margin: 0; height: 100%; overflow: hidden; }</style>
+  <link rel="stylesheet" href="neurone-web.css">
   <script type="application/javascript" src="neurone-web.js"></script>
 </head>
 <body></body>
