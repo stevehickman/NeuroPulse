@@ -18,11 +18,19 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     private let consentKey = "np.research.consent-granted"
     private var spy: SpyAnalyticsBackend!
+    private var erasureDir: URL!
 
     override func setUp() async throws {
         try await super.setUp()
         spy = SpyAnalyticsBackend()
         ResearchAnalyticsGate._backend = spy
+        // A withdrawal queues the old analytics ID for erasure (REQ-SW03-19): give the gate a queue that keeps it in a temporary
+        // folder and asks a fake relay, so no test writes to the real queue or makes a network call.
+        erasureDir = FileManager.default.temporaryDirectory.appendingPathComponent("gate-erasure-\(UUID().uuidString)")
+        ResearchAnalyticsGate._erasureQueue = AnalyticsErasureQueue(
+            store: ProtectedDefaults(directory: erasureDir, legacy: UserDefaults(suiteName: "gate-erasure-\(UUID().uuidString)")!),
+            relay: FakeErasureRelay(outcome: .retryLater)
+        )
         ResearchAnalyticsGate._resetForTesting()
         UserDefaults.standard.removeObject(forKey: consentKey)
     }
@@ -31,6 +39,8 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         // Restore real backend and clear internal gate state so tests don't bleed.
         ResearchAnalyticsGate._resetForTesting()
         ResearchAnalyticsGate._backend = PostHogAnalyticsBackend()
+        ResearchAnalyticsGate._erasureQueue = .shared
+        try? FileManager.default.removeItem(at: erasureDir)
         UserDefaults.standard.removeObject(forKey: consentKey)
         try await super.tearDown()
     }

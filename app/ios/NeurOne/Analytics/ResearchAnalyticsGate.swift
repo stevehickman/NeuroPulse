@@ -41,6 +41,10 @@ enum ResearchAnalyticsGate {
     /// to assert call counts without touching the real PostHog SDK (ISC-157).
     static var _backend: any AnalyticsBackend = PostHogAnalyticsBackend()
 
+    /// Where the withdrawn person's old pseudonymous ID waits to be erased from the vendor (REQ-SW03-19). Tests inject a queue
+    /// with a fake relay so no test makes a network call.
+    static var _erasureQueue: AnalyticsErasureQueue = .shared
+
     // MARK: - Public interface
 
     /// Initialize the analytics SDK. Call exactly once, after the research consent
@@ -73,8 +77,16 @@ enum ResearchAnalyticsGate {
         // a concurrent configure() call re-initialize the SDK before the previous
         // instance is actually shut down.
         log.debug("ResearchAnalyticsGate.reset() — research analytics revoked; tearing down SDK.")
+        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` makes a new one, and the old one is what the vendor
+        // holds this person's events under. It is queued, durably, and erased from the vendor within 30 days
+        // (NP-APP-TELEMETRY-001 §5, REQ-SW03-19).
+        let withdrawnID = _backend.distinctID
         _backend.reset()
         isConfigured = false
+        if let withdrawnID {
+            _erasureQueue.enqueue(withdrawnID)
+            Task { await _erasureQueue.drain() }
+        }
     }
 
     /// Record a research analytics event. Silently no-ops if the research gate is closed.

@@ -102,6 +102,8 @@ struct NeurOneApp: App {
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
                     EngagementTier.incrementLaunchCount()
+                    // An erasure request a withdrawal could not send (offline, relay down) is retried at launch (REQ-SW03-19).
+                    Task { await AnalyticsErasureQueue.shared.drain() }
                     presentNextOnboardingStep()
                 }
                 // Age gate first — full-screen, no Skip (ISC-83, ISC-130).

@@ -24,7 +24,8 @@
     "np.backup.destination",
     "np.backup.folder",
     "np.backup.last-epoch",
-    "ble.last-hub-id"
+    "ble.last-hub-id",
+    "np.analytics.pending-erasures"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",
