@@ -27,6 +27,7 @@ final class ProtectedDefaultsTests: XCTestCase {
         super.tearDown()
     }
 
+    // @verifies REQ-SW03-18#a
     func testRoundTrip() {
         let blob = Data("hello".utf8)
         store.set(blob, forKey: "np.consent.research")
@@ -35,10 +36,12 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertEqual(ProtectedDefaults(directory: dir, legacy: legacy).data(forKey: "np.consent.research"), blob)
     }
 
+    // @verifies REQ-SW03-18#a
     func testMissingKeyIsNil() {
         XCTAssertNil(store.data(forKey: "np.nothing"))
     }
 
+    // @verifies REQ-SW03-18#a
     func testFilesAreExcludedFromBackup() {
         store.set(Data("x".utf8), forKey: "np.session.history")
         XCTAssertTrue(store.isExcludedFromBackup(forKey: "np.session.history"))
@@ -46,6 +49,7 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertEqual(dirValues?.isExcludedFromBackup, true)
     }
 
+    // @verifies REQ-SW03-18#a
     func testWriteDoesNotLeaveALegacyCopy() {
         legacy.set(Data("old".utf8), forKey: "np.consent.research")
         store.set(Data("new".utf8), forKey: "np.consent.research")
@@ -54,6 +58,7 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertEqual(store.data(forKey: "np.consent.research"), Data("new".utf8))
     }
 
+    // @verifies REQ-SW03-18#a
     func testMigratesLegacyValueOnceAndRemovesIt() {
         let old = Data("legacy-consent".utf8)
         legacy.set(old, forKey: "np.consent.clinician-grants")
@@ -67,6 +72,7 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertEqual(store.data(forKey: "np.consent.clinician-grants"), old)
     }
 
+    // @verifies REQ-SW03-18#a
     func testRemoveClearsBothStores() {
         legacy.set(Data("a".utf8), forKey: "np.k")
         store.set(Data("b".utf8), forKey: "np.k2")
@@ -77,6 +83,7 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertNil(legacy.data(forKey: "np.k"))
     }
 
+    // @verifies REQ-SW03-18#a
     func testUnsafeKeyCharactersStayInsideTheDirectory() {
         store.set(Data("x".utf8), forKey: "../escape/attempt")
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
