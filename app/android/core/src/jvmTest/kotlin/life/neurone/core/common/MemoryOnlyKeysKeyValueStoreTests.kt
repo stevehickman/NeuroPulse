@@ -1,6 +1,12 @@
 package life.neurone.core.common
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import life.neurone.core.npps.NppsCore
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -77,4 +83,22 @@ class MemoryOnlyKeysKeyValueStoreTests {
         assertEquals(0, inner.getInt("a"), "neither reached the host store")
         assertFalse(inner.getBoolean("b"))
     }
+
+    // @verifies REQ-SW03-18#b
+    @Test
+    fun theBrowserKeepsTheSessionHistoryAndEveryConsentKeyInMemoryAndNothingElseSorted() {
+        val keys = MemoryOnlyKeysKeyValueStore.browserKeys()
+        val map = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })
+        fun list(name: String) = map[name]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(history in keys, "the session history")
+        assertTrue(list("consent").all { it in keys }, "every consent key, including the contact the person gave")
+        assertTrue("np.consent.research" in keys && "np.research.suggestions" in keys)
+        assertTrue(list("perInstall").none { it in keys }, "per-install keys name a device, not the person, and stay as they are")
+        assertTrue(list("unsorted").none { it in keys }, "the onboarding records and the rest are a separate decision")
+        assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles").flatMap { c.jsonObjectList(it) }.none { it in keys } },
+            "saved protocols and limits are configuration, not the person's records")
+    }
+
+    private fun kotlinx.serialization.json.JsonElement.jsonObjectList(name: String): List<String> =
+        (this as kotlinx.serialization.json.JsonObject)[name]!!.jsonArray.map { it.jsonPrimitive.content }
 }

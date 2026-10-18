@@ -86,6 +86,15 @@ interface PlatformServices {
     fun rememberFileTransfer(): FileTransfer? = null
 
     /**
+     * Erases everything this host keeps for the app and starts it afresh, or null when the host has no such action to offer.
+     * The browser has one: its storage is a page's, readable by any script on it, so the person is given a way to empty it
+     * (the privacy review, Finding 2). A phone or a computer has the device-clear after a move (SWR-MG-06) and the system's own
+     * "delete app data". The host does its own restart (the browser reloads the page); the shared screen only asks, after
+     * the person has said they understand it cannot be undone.
+     */
+    val eraseLocalData: (() -> Unit)? get() = null
+
+    /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan
      * (Android's runtime Bluetooth permissions) and then re-reads the adapter state. Composable
      * because Android registers its permission launcher with the composition; a platform with

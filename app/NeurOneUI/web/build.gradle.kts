@@ -29,7 +29,12 @@ kotlin {
     wasmJs {
         moduleName = "neurone-web"
         browser {
-            commonWebpackConfig { outputFileName = "neurone-web.js" }
+            commonWebpackConfig {
+                outputFileName = "neurone-web.js"
+                // The page's Content-Security-Policy allows no eval(). webpack's development default (`eval-source-map`) wraps every
+                // module in eval(), which the policy refuses, so the dev build would load nothing. A plain source map needs no eval.
+                devtool = "source-map"
+            }
         }
         binaries.executable()
     }
