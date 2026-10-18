@@ -3,9 +3,12 @@ package life.neurone.shared
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,11 +59,11 @@ class EraseLocalDataTest {
         }
         onNodeWithText(text(Res.string.settings_erase_local_title)).assertExists()
         onNodeWithText(text(Res.string.settings_erase_local_button)).assertIsNotEnabled()
-        onNodeWithText(text(Res.string.settings_erase_local_button)).performClick()
+        onNodeWithText(text(Res.string.settings_erase_local_button)).performScrollTo().performClick()
         assertEquals(0, erased, "a disabled button erases nothing")
 
-        onNode(isToggleable().and(androidx.compose.ui.test.hasAnySibling(androidx.compose.ui.test.hasText(text(Res.string.settings_erase_local_confirm))))).performClick()
-        onNodeWithText(text(Res.string.settings_erase_local_button)).assertIsEnabled()
+        onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox)).performScrollTo().performClick()
+        onNodeWithText(text(Res.string.settings_erase_local_button)).performScrollTo().assertIsEnabled()
         onNodeWithText(text(Res.string.settings_erase_local_button)).performClick()
         assertEquals(1, erased, "the host's action runs once, when asked")
     }
