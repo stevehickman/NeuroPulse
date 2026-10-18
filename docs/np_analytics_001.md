@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 1
-**Date:** 2026-06-13  
+**Revision:** 2
+**Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -126,6 +126,8 @@ These settings are not configurable via environment variables. Complete them imm
 | Person retention | **90 days** | Anonymous person records only; matches event retention |
 
 > **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeurOne account or any UHDR data. However, 90-day retention still satisfies data minimisation.
+
+> **Retention against the withdrawal rule (Rev 2).** `NP-APP-TELEMETRY-001` §5 says a withdrawn person's analytics ID is deleted from the vendor within **30 days**. With 90-day retention, and the erasure relay of §7.6 not built, the events of a person who withdrew stay for up to 90 days: **the policy is not met today.** Either the retention is set to 30 days (§7.1; shorter retention loses long-term trend data) or the relay is built; the choice is the principal's (`OI-ANALYTICS-01`).
 
 **Navigate to: Project Settings → Autocapture & Heatmaps**
 
@@ -404,6 +406,25 @@ Expected steady-state disk usage at 90-day retention with ~10,000 MAU:
 Monitor with: `docker compose exec clickhouse clickhouse-client -q "SELECT formatReadableSize(sum(bytes_on_disk)) FROM system.parts WHERE active"`
 
 ---
+
+### 7.6 The erasure relay (not built, `OI-ANALYTICS-01`)
+
+When a person withdraws research analytics the app sends their old pseudonymous analytics ID to a NeurOne service, the **erasure relay**, which holds the PostHog private API key (the key must never be in the app) and deletes what PostHog holds under that ID. The app side is built: the ID is queued on the phone and retried until the relay answers (`AnalyticsErasureQueue`, `REQ-SW03-19`). The relay is not, so a queued ID stays queued and nothing is erased yet.
+
+What the app sends and expects:
+
+| | |
+|---|---|
+| Request | `POST https://<analytics host>/np/erase`, `Content-Type: application/json`, body `{"distinct_id": "<the old ID>"}` and nothing else. No account, device name, token or consent record, and no `Authorization` header: the ID is a random value only the phone and PostHog know, so presenting it is the proof the request is the owner's. |
+| `200`–`299` | Accepted. Erasing an ID PostHog does not hold must also answer `2xx`: the call is idempotent. The app drops the ID from its queue. |
+| `4xx` other than `408` and `429` | Refused for good (a malformed ID, say). The app drops the ID; retrying cannot change the answer. |
+| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch. |
+
+What the relay must do, before it is built:
+
+- Rate-limit by source, and keep neither the source address nor the ID in any log (counts only): a log of IDs would be the list this feature exists to erase.
+- Delete the events PostHog holds under the ID. **Not verified:** the app sets `personProfiles = .never`, so PostHog may hold no person record for the ID, and the person-deletion call of §7.2 needs one. Whether PostHog can delete the events of an ID with no person record has to be checked against the PostHog version in use before the relay is written; if it cannot, shorter retention (§3.4) is the only control.
+- Finish within the policy's 30 days of the withdrawal.
 
 ## 8. Permitted and prohibited property reference
 

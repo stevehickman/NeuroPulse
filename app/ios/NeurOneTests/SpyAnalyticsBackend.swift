@@ -13,6 +13,9 @@ final class SpyAnalyticsBackend: AnalyticsBackend {
     var trackCallCount = 0
     var resetCallCount = 0
 
+    /// The pseudonymous ID this spy pretends the vendor holds; nil models an SDK that was never set up.
+    var distinctID: String? = "spy-distinct-id"
+
     struct TrackedEvent: Equatable {
         let event: String
         let properties: [String: String]
@@ -30,5 +33,7 @@ final class SpyAnalyticsBackend: AnalyticsBackend {
 
     func reset() {
         resetCallCount += 1
+        // The real SDK makes a NEW anonymous ID on reset, so the old one is only readable before it (REQ-SW03-19).
+        distinctID = "spy-distinct-id-after-reset"
     }
 }

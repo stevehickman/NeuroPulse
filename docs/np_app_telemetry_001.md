@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-10-18
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
@@ -15,7 +15,7 @@
 **Applicable Standard:** FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1
 **Next Review:** Annual; also triggered by any analytics vendor change or new SDK addition
 **Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR), US state (WA MHMD), EU/EEA GDPR, Apple/Google platform policies
-**Change Summary:** **Rev 3 (2026-10-18):** §3 is now enforced in code as an allowlist (privacy review Finding 5, `REQ-SW03-07`). The apps checked an event against a list of twelve keys to forbid, which passes any key nobody thought of, so the permitted list in §3 was a statement the code did not keep. The shared core (`common/npps-core/src/analytics.rs`, data in `common/npps/analytics-properties.json`) now drops any event whose name is not lowercase snake_case without a §7 term, or that carries a property §3 does not name, or a value not of its property's form. The text of §3 and §7 is unchanged. **Rev 2:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev 2 finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev 2 STEP-33 cross-reference added.
+**Change Summary:** **Rev 4 (2026-10-18):** §5's withdrawal rule now says how the deletion is made to happen on the phone (privacy review Finding 3, `REQ-SW03-19`): the app reads the pseudonymous analytics ID before the SDK resets it and keeps it in a durable queue until the erasure relay has accepted or permanently refused it. The 30 days and the vendor deletion call are unchanged. The relay is not built (`docs/np_analytics_001.md` §7.6, `OI-ANALYTICS-01`). **Rev 3 (2026-10-18):** §3 is now enforced in code as an allowlist (privacy review Finding 5, `REQ-SW03-07`). The apps checked an event against a list of twelve keys to forbid, which passes any key nobody thought of, so the permitted list in §3 was a statement the code did not keep. The shared core (`common/npps-core/src/analytics.rs`, data in `common/npps/analytics-properties.json`) now drops any event whose name is not lowercase snake_case without a §7 term, or that carries a property §3 does not name, or a value not of its property's form. The text of §3 and §7 is unchanged. **Rev 2:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev 2 finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev 2 STEP-33 cross-reference added.
 
 ---
 
@@ -173,7 +173,7 @@ func consentCompleted() {
 }
 ```
 
-**Research consent withdrawal:** If a user withdraws blanket research consent (L3), the research analytics SDK must be de-initialised and all locally cached events must be deleted immediately. The user's pseudonymous analytics identifier must be deleted from the vendor's servers within 30 days (enforce via vendor deletion API call at withdrawal time). Partial withdrawals (specific study or category) do not revoke research analytics. Warranty consent withdrawal (SHDR fleet telemetry) is independent and handled by `WarrantyAnalyticsGate`.
+**Research consent withdrawal:** If a user withdraws blanket research consent (L3), the research analytics SDK must be de-initialised and all locally cached events must be deleted immediately. The user's pseudonymous analytics identifier must be deleted from the vendor's servers within 30 days (enforce via vendor deletion API call at withdrawal time). **The identifier is read before the SDK resets it** (the reset makes a new one, so the old one would otherwise be lost) **and kept in a durable on-device queue, which asks the erasure relay at withdrawal and at every launch until the relay has accepted it or refused it for good** (`REQ-SW03-19`). The relay holds the vendor's private key, which is never in the app, and is specified in `docs/np_analytics_001.md` §7.6. Partial withdrawals (specific study or category) do not revoke research analytics. Warranty consent withdrawal (SHDR fleet telemetry) is independent and handled by `WarrantyAnalyticsGate`.
 
 **Apple PrivacyInfo.xcprivacy requirement:** The PrivacyInfo.xcprivacy manifest must accurately declare all APIs used by the analytics and crash reporting SDKs, including any use of `NSPrivacyAccessedAPICategoryUserDefaults`, `NSPrivacyAccessedAPICategoryFileTimestamp`, `NSPrivacyAccessedAPICategorySystemBootTime`, or `NSPrivacyAccessedAPICategoryDiskSpace`. These declarations must be completed at vendor selection.
 

@@ -11,8 +11,12 @@ protocol AnalyticsBackend: AnyObject {
     func configure()
 
     /// Forward a pre-validated event to the SDK. Called only when the gate is open
-    /// and all the permitted-event check (AnalyticsEventPolicy) have already passed.
+    /// and the permitted-event check (AnalyticsEventPolicy) has already passed.
     func track(event: String, properties: [String: String])
+
+    /// The pseudonymous ID the vendor holds this person's events under, or nil when there is none (the SDK was never set
+    /// up). Read BEFORE `reset()`, which makes a new one: the old ID is what has to be erased from the vendor (REQ-SW03-19).
+    var distinctID: String? { get }
 
     /// Opt the SDK out and reset the anonymous distinct ID on consent withdrawal.
     func reset()

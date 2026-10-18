@@ -30,8 +30,8 @@ import PostHog
 ///       No source changes are needed — the token is injected at build time only.
 ///   (4) In PostHog project settings confirm: no session replay, no heatmaps.
 ///       All autocapture is disabled in code below; double-check the project toggle matches.
-///   (5) OI-ANALYTICS-01 (open): implement server-side distinct_id deletion relay endpoint
-///       for the consent-withdrawal deletion flow in reset() below.
+///   (5) OI-ANALYTICS-01 (open): the server-side erasure relay (`/np/erase`, which holds the PostHog private API key)
+///       is not built. The app side is: a withdrawal queues the old distinct_id (AnalyticsErasureQueue) and retries.
 ///
 /// ISC-9: the phc_... token must NEVER appear in source. It is read at runtime from
 /// Info.plist. The no_hardcoded_secret SwiftLint rule enforces this in CI.
@@ -105,7 +105,14 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
         PostHogSDK.shared.capture(event, properties: properties as [String: Any])
     }
 
+    var distinctID: String? {
+        isSetUp ? PostHogSDK.shared.getDistinctId() : nil
+    }
+
     func reset() {
+        // `ResearchAnalyticsGate.reset()` has already read `distinctID` and queued it for erasure
+        // (AnalyticsErasureQueue, REQ-SW03-19): the call below makes a NEW anonymous ID, so the old one would otherwise be lost.
+
         // Stop all future data collection and clear the locally queued event queue.
         PostHogSDK.shared.optOut()
 
@@ -113,14 +120,6 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
         // from pre-withdrawal events even if the user re-consents later.
         PostHogSDK.shared.reset()
 
-        // OI-ANALYTICS-01: call the PostHog server-side deletion API for the
-        // distinct_id that was active at the time of withdrawal to honour the
-        // NP-APP-TELEMETRY-001 §5 "deletion within 30 days" requirement.
-        // Implementation requires capturing `PostHogSDK.shared.getDistinctId()`
-        // BEFORE calling reset() above, then making an authenticated
-        // DELETE /api/person/?distinct_id=<id> request against the EU endpoint
-        // using a server-side PostHog Personal API key (must not be embedded in
-        // the app binary). Implement via a NeurOne backend relay endpoint.
         Self.log.debug("PostHogAnalyticsBackend: opted out and distinct_id reset on consent withdrawal.")
     }
 }
