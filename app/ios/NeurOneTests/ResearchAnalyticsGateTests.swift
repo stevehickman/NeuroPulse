@@ -6,7 +6,7 @@
 //
 //  Verifies:
 //  - ISC-92: backend.configure() is never called before the research consent gate opens
-//  - ISC-97: prohibited-key events are dropped before reaching the backend
+//  - ISC-97: an event off the permitted list (NP-APP-TELEMETRY-001 §3) is dropped before reaching the backend
 //  - Gate semantics: keys, Skip behavior, blanket research consent coupling
 //  - ISC-157 compliance: this file imports only XCTest + NeurOne — no PostHog
 
@@ -278,84 +278,63 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "A true→true blanket state is not a withdrawal")
     }
 
-    // MARK: - Prohibited key enforcement (ISC-97)
+    // MARK: - Permitted-event allowlist (ISC-97, NP-APP-TELEMETRY-001 §3)
 
+    // The twelve keys the old denylist knew and ones it never thought of: an allowlist drops every one.
     // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeyEEG() {
+    func testTrackDropsEventWithAPropertyTheTelemetryPolicyDoesNotName() {
         UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_start", properties: ["eeg": "some_value"])
-        XCTAssertEqual(spy.trackCallCount, 0, "Prohibited key 'eeg' must prevent backend call")
-        XCTAssertTrue(ResearchAnalyticsGate.isOpen, "Dropping a prohibited event must not close the gate")
+        let keys = [
+            "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id", "session_count", "session_sequence",
+            "imp", "impedance", "impedance_flags", "pass_flags",
+            "heart_rate", "alpha_power", "electrode_site", "condition", "email", "duration_s", "timestamp",
+        ]
+        for key in keys {
+            ResearchAnalyticsGate.track(event: "evt", properties: [key: "1", "engagement_tier": "new"])
+        }
+        XCTAssertEqual(spy.trackCallCount, 0, "A property not on the permitted list must prevent the backend call")
+        XCTAssertTrue(ResearchAnalyticsGate.isOpen, "Dropping an event must not close the gate")
     }
 
     // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeyHRV() {
+    func testTrackDropsEventWithAValueNotOfItsPropertysForm() {
         UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_end", properties: ["hrv": "80"])
+        ResearchAnalyticsGate.track(event: "evt", properties: ["engagement_tier": "42"])           // the raw count the tier replaced
+        ResearchAnalyticsGate.track(event: "evt", properties: ["screen_name": "tdcs_depression"])  // a protocol or condition as a screen
+        ResearchAnalyticsGate.track(event: "evt", properties: ["error_code": "1746000000000"])     // a timestamp in an error code
+        ResearchAnalyticsGate.track(event: "evt", properties: ["os_version": "iOS 18.2.1"])        // a patch version
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
     // @verifies REQ-SW03-07
-    func testTrackDropsEventWithDeprecatedSessionCount() {
+    func testTrackDropsEventWhoseNameIsNotSnakeCaseOrCarriesAHealthTerm() {
         UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "app_open", properties: ["session_count": "5"])
+        ResearchAnalyticsGate.track(event: "tdcs_started", properties: [:])
+        ResearchAnalyticsGate.track(event: "User Email Sent", properties: [:])
         XCTAssertEqual(spy.trackCallCount, 0)
     }
 
     // @verifies REQ-SW03-07
-    func testTrackDropsEventWithDeprecatedSessionSequence() {
+    func testTrackDropsTheWholeEventWhenOneOfSeveralPropertiesIsNotPermitted() {
         UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "app_open", properties: ["session_sequence": "5"])
-        XCTAssertEqual(spy.trackCallCount, 0)
-    }
-
-    // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeyRMSSD() {
-        UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_end", properties: ["rmssd": "42"])
-        XCTAssertEqual(spy.trackCallCount, 0)
-    }
-
-    // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeyCoherence() {
-        UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_end", properties: ["coherence": "8.5"])
-        XCTAssertEqual(spy.trackCallCount, 0)
-    }
-
-    // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeySessionID() {
-        UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_end", properties: ["session_id": "abc123"])
-        XCTAssertEqual(spy.trackCallCount, 0)
-    }
-
-    // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedKeyProtocolID() {
-        UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "session_end", properties: ["protocol_id": "p1"])
-        XCTAssertEqual(spy.trackCallCount, 0)
-    }
-
-    // @verifies REQ-SW03-07
-    func testTrackDropsEventWithProhibitedImpedanceKeys() {
-        UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "setup", properties: ["imp": "0xFF"])
-        XCTAssertEqual(spy.trackCallCount, 0, "Prohibited key 'imp' must prevent backend call")
+        ResearchAnalyticsGate.track(event: "evt", properties: ["engagement_tier": "new", "app_version": "1.0.3", "hrv": "50"])
+        XCTAssertEqual(spy.trackCallCount, 0, "An event is dropped whole, never trimmed to fit")
     }
 
     // MARK: - Allowed events reach the backend
 
     // @verifies REQ-SW03-07
-    func testTrackAllowsEventWithSafeProperties() {
+    func testTrackAllowsEveryPropertyTheTelemetryPolicyPermits() {
         UserDefaults.standard.set(true, forKey: consentKey)
-        ResearchAnalyticsGate.track(event: "app_open", properties: [
-            "engagement_tier": "active",
-            "screen_name": "home"
-        ])
+        let properties = [
+            "app_version": "1.0.3", "os_version": "iOS 18.2", "device_class": "iPhone_flagship",
+            "screen_name": "protocol_detail", "engagement_tier": "active", "app_start_type": "cold_start",
+            "onboarding_step": "consent_flow_step_1", "error_code": "42", "connectivity_type": "wifi",
+        ]
+        ResearchAnalyticsGate.track(event: "app_open", properties: properties)
         XCTAssertEqual(spy.trackCallCount, 1)
         XCTAssertEqual(spy.trackedEvents.first?.event, "app_open")
-        XCTAssertEqual(spy.trackedEvents.first?.properties["engagement_tier"], "active")
+        XCTAssertEqual(spy.trackedEvents.first?.properties, properties)
     }
 
     // @verifies REQ-SW03-07
