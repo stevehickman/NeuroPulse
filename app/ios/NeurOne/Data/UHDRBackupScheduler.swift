@@ -114,35 +114,18 @@ final class UHDRBackupScheduler: ObservableObject {
             at: uhdrDirectory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles)
         else { return }
 
-        let lastDate = lastBackupEpoch > 0 ? Date(timeIntervalSince1970: lastBackupEpoch) : Date.distantPast
+        // Without the sealed index the directory is in the old form (or new), and the write below removes the old archives, so
+        // every file is backed up, not only the changed ones (Finding 7, UHDRBackupFormat).
+        let isFirstInNewForm = !UHDRBackupFormat.hasIndex(in: backupDirectory)
+        let lastDate = lastBackupEpoch > 0 && !isFirstInNewForm ? Date(timeIntervalSince1970: lastBackupEpoch) : Date.distantPast
         let changedFiles = uhdrFiles.filter { url in
             guard let attrs = try? url.resourceValues(forKeys: [.contentModificationDateKey]),
                   let modDate = attrs.contentModificationDate else { return false }
             return modDate > lastDate
         }
 
-        for sourceURL in changedFiles {
-            let destURL = backupDirectory.appendingPathComponent(sourceURL.lastPathComponent + ".enc")
-            let plaintext = try Data(contentsOf: sourceURL)
-            let ciphertext = try encryptForBackup(plaintext, key: key)
-            try ciphertext.write(to: destURL, options: .atomic)
-        }
-
-        // Generate incremental manifest — plaintext, no key material.
-        let manifest = BackupManifest(
-            createdAt: Date(),
-            fileCount: changedFiles.count
-        )
-        let manifestData = try JSONEncoder().encode(manifest)
-        try manifestData.write(to: backupDirectory.appendingPathComponent("manifest.json"), options: .atomic)
-    }
-
-    // AES-256-GCM using K1. K2 is reserved for AES-XTS on the hub side; app uses GCM
-    // because iOS CryptoKit does not expose XTS mode.
-    private func encryptForBackup(_ plaintext: Data, key: UHDRKey) throws -> Data {
-        let symKey = SymmetricKey(data: key.k1)
-        let sealed = try AES.GCM.seal(plaintext, using: symKey)
-        return sealed.combined ?? Data()
+        // No plaintext manifest, no time of backup and no count are written: see UHDRBackupFormat.
+        try UHDRBackupFormat.write(changedFiles, to: backupDirectory, key: SymmetricKey(data: key.k1))
     }
 
     // MARK: - Background task scheduling
@@ -160,12 +143,4 @@ final class UHDRBackupScheduler: ObservableObject {
         let state = UIDevice.current.batteryState
         return state == .charging || state == .full
     }
-}
-
-struct BackupManifest: Codable {
-    var createdAt: Date
-    var fileCount: Int
-    // keyFingerprint removed: SHA-256(K1) truncated to 8 bytes was stored in a plaintext
-    // manifest that lands in the unencrypted backup directory. Any partial hash of key
-    // material belongs only in secure storage, not in a JSON file.
 }
