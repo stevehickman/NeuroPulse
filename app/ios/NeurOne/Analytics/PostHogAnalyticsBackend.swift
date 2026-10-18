@@ -7,7 +7,7 @@ import PostHog
 /// Consumed only by `ResearchAnalyticsGate`. Nothing else in the app imports PostHog
 /// directly — this is the single integration point (ISC-157).
 ///
-/// INFRASTRUCTURE — analytics.neurone.internal (self-hosted testing instance)
+/// INFRASTRUCTURE — the build's ANALYTICS_HOST (default analytics.neurone.internal, the self-hosted testing instance)
 ///
 /// Domain   : NeurOne-owned. Requires running a self-hosted PostHog instance.
 /// Purpose  : Analytics event ingestion — engagement funnels only. No health data.
@@ -37,7 +37,7 @@ import PostHog
 /// Info.plist. The no_hardcoded_secret SwiftLint rule enforces this in CI.
 ///
 /// Configuration decisions:
-/// - Self-hosted testing endpoint (https://analytics.neurone.internal).
+/// - The host is the build's `ANALYTICS_HOST` (default: the self-hosted testing instance, analytics.neurone.internal).
 /// - All auto-capture features disabled — we control every event via ResearchAnalyticsGate.track().
 /// - personProfiles = .never — no Person record created server-side; the anonymous
 ///   distinct_id is sent with events for funnel analysis but PostHog does not build
@@ -77,7 +77,13 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
             return
         }
 
-        let config = PostHogConfig(projectToken: token, host: "https://analytics.neurone.internal")
+        // The host is a build setting (AnalyticsHost, REQ-SW03-20). Without a valid one nothing is sent.
+        guard let host = AnalyticsHost.baseURL() else {
+            Self.log.error("PostHogAnalyticsBackend: AnalyticsHost missing or not a plain host name in Info.plist — analytics disabled.")
+            return
+        }
+
+        let config = PostHogConfig(projectToken: token, host: host.absoluteString)
 
         // Disable all auto-capture. Every event is intentionally sent via
         // ResearchAnalyticsGate.track(), which enforces the permitted-event allowlist (ISC-97, REQ-SW03-07).

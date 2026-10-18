@@ -32,6 +32,8 @@
 	<string>NeurOne uses Face ID to protect your health data encryption key. Your biometric data never leaves your device.</string>
 	<key>PostHogProjectToken</key>
 	<string>$(POSTHOG_PROJECT_TOKEN)</string>
+	<key>AnalyticsHost</key>
+	<string>$(ANALYTICS_HOST)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

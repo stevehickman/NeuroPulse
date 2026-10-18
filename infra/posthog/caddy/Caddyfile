@@ -47,12 +47,13 @@
 
   # Reverse proxy all traffic to the PostHog web server
   reverse_proxy posthog:8000 {
-    # Forward the originating IP. PostHog records this for audit purposes;
-    # GeoIP resolution is disabled (DISABLE_MMDB=true), so no location
-    # data is derived from it.
-    header_up X-Forwarded-For {remote_host}
+    # Do NOT pass the client's address on. An IP next to an anonymous ID is linkable (a household, a clinic's network), and the
+    # policy keeps no IP with any event (NP-APP-TELEMETRY-001 §4). Caddy sets X-Forwarded-For itself unless told not to, so it is
+    # removed here, with X-Real-IP; PostHog then sees only this proxy's address. The project's IP setting (np_analytics_001 §3.4)
+    # is the second layer.
+    header_up -X-Forwarded-For
+    header_up -X-Real-IP
     header_up X-Forwarded-Proto {scheme}
-    header_up X-Real-IP {remote_host}
 
     # Increase timeouts for long-running PostHog dashboard queries
     transport http {
@@ -73,15 +74,17 @@
     # Avoids leaking PostHog project details to external resources.
     Referrer-Policy "strict-origin-when-cross-origin"
 
-    # Strict Transport Security: browser remembers HTTPS for 1 year.
-    # includeSubDomains only if all subdomains also use HTTPS.
-    # Remove this header for localhost/self-signed setups — it can lock
-    # your browser into HTTPS-only for localhost permanently.
-    # Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    # (Strict-Transport-Security is set below, for every host except localhost.)
 
     # Remove Caddy's Server header
     -Server
   }
+
+  # Strict Transport Security: the browser remembers HTTPS for a year. Sent for every host EXCEPT localhost and 127.0.0.1,
+  # where it could lock a developer's browser into HTTPS-only for localhost for good. includeSubDomains is safe only if every
+  # subdomain also uses HTTPS: the production host is a dedicated analytics domain.
+  @public not host localhost 127.0.0.1
+  header @public Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
   # Compress responses to reduce bandwidth
   encode gzip

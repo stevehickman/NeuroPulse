@@ -21,7 +21,7 @@ name: neurone-analytics
 
 # Shared environment block — referenced by all three PostHog services
 x-posthog-env: &posthog-env
-  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env — generate with: python3 -c "import secrets; print(secrets.token_hex(32))"}
+  SECRET_KEY: "${SECRET_KEY:?Set SECRET_KEY in .env (generate one with python3 -c 'import secrets; print(secrets.token_hex(32))')}"
   DATABASE_URL: postgres://posthog:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/posthog
   REDIS_URL: redis://redis:6379/
   CLICKHOUSE_HOST: clickhouse
@@ -184,7 +184,7 @@ services:
   # Django/Gunicorn application. Handles the management UI, REST API, and
   # the /capture event ingestion endpoint that the iOS SDK posts to.
   posthog:
-    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -198,7 +198,9 @@ services:
     environment:
       <<: *posthog-env
     ports:
-      - "${POSTHOG_PORT:-8000}:8000"
+      # Loopback only. The stack is reached from other machines through Caddy (profile https), which terminates TLS;
+      # a port published on every interface would let a client skip it and send events over plain HTTP.
+      - "127.0.0.1:${POSTHOG_PORT:-8000}:8000"
     command: >
       sh -c "./bin/migrate &&
       gunicorn posthog.wsgi
@@ -215,7 +217,7 @@ services:
   # Handles async tasks: cohort calculations, scheduled exports, email, action
   # matching, and data deletion requests (GDPR erasure — important for us).
   posthog-worker:
-    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
       - posthog
@@ -231,7 +233,7 @@ services:
   # server-side property denylist before events reach ClickHouse.
   # See docs/np_analytics_001.md §4 for denylist configuration.
   posthog-plugin-server:
-    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
       - posthog
