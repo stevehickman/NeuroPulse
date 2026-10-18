@@ -169,7 +169,7 @@ final class AnalyticsErasureTests: XCTestCase {
     }
 
     // @verifies REQ-SW03-19#a
-    func testWithdrawalAsksTheRelayStraightAway() {
+    func testWithdrawalAsksTheRelayStraightAway() async {
         let relay = FakeErasureRelay(outcome: .done)
         let asked = expectation(description: "the relay is asked about the withdrawn ID")
         relay.onErase = { asked.fulfill() }
@@ -180,7 +180,7 @@ final class AnalyticsErasureTests: XCTestCase {
 
         ResearchAnalyticsGate.reset()
 
-        wait(for: [asked], timeout: 2)
+        await fulfillment(of: [asked], timeout: 2)
         XCTAssertEqual(relay.asked, ["id-to-erase"])
     }
 
