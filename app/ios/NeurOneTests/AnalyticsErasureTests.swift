@@ -215,8 +215,10 @@ final class AnalyticsErasureTests: XCTestCase {
         StubURLProtocol.handler = { request in
             HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
         }
-        return HTTPAnalyticsErasureRelay(session: URLSession(configuration: config))
+        return HTTPAnalyticsErasureRelay(session: URLSession(configuration: config), baseURL: host)
     }
+
+    private let host = URL(string: "https://analytics.example.test")!
 
     // @verifies REQ-SW03-19#c
     func testTheRequestIsOnePOSTOfTheIDAndNothingElse() async throws {
@@ -224,7 +226,7 @@ final class AnalyticsErasureTests: XCTestCase {
         XCTAssertEqual(outcome, .done)
         let request = try XCTUnwrap(StubURLProtocol.lastRequest)
         XCTAssertEqual(request.httpMethod, "POST")
-        XCTAssertEqual(request.url, HTTPAnalyticsErasureRelay.endpoint)
+        XCTAssertEqual(request.url, URL(string: "https://analytics.example.test/np/erase"))
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         let body = try XCTUnwrap(StubURLProtocol.lastBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
@@ -247,7 +249,33 @@ final class AnalyticsErasureTests: XCTestCase {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
-        let outcome = await HTTPAnalyticsErasureRelay(session: URLSession(configuration: config)).erase(distinctID: "id")
+        let outcome = await HTTPAnalyticsErasureRelay(session: URLSession(configuration: config), baseURL: host).erase(distinctID: "id")
         XCTAssertEqual(outcome, .retryLater)
+    }
+
+    // MARK: - The host is a build setting (REQ-SW03-20)
+
+    // @verifies REQ-SW03-20
+    func testWithNoHostConfiguredNothingIsSentAndTheIDStaysQueued() async {
+        StubURLProtocol.lastRequest = nil
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)! }
+        let relay = HTTPAnalyticsErasureRelay(session: URLSession(configuration: config), baseURL: nil)
+        let outcome = await relay.erase(distinctID: "id")
+        XCTAssertEqual(outcome, .retryLater)
+        XCTAssertNil(StubURLProtocol.lastRequest, "no request is made without a configured host")
+    }
+
+    // @verifies REQ-SW03-20
+    func testOnlyAPlainHostNameIsAcceptedAsTheAnalyticsHost() {
+        XCTAssertEqual(AnalyticsHost.baseURL(from: "analytics.neurone.internal")?.absoluteString, "https://analytics.neurone.internal")
+        XCTAssertEqual(AnalyticsHost.baseURL(from: "eu.analytics.example.org:8443")?.absoluteString, "https://eu.analytics.example.org:8443")
+        XCTAssertEqual(AnalyticsHost.baseURL(from: "localhost:8000")?.absoluteString, "https://localhost:8000")
+        for bad in [nil, "", "$(ANALYTICS_HOST)", "https://analytics.example.org", "analytics.example.org/path", "analytics example.org",
+                    "user@analytics.example.org", "analytics.example.org?x=1", ".example.org", "example..org", "-example.org",
+                    "example.org.", "singlelabel", "a.b:", "a.b:0", "a.b:65536", "a.b:80:90", "a.b:80x", "é.example.org"] as [String?] {
+            XCTAssertNil(AnalyticsHost.baseURL(from: bad), "\(bad ?? "nil")")
+        }
     }
 }

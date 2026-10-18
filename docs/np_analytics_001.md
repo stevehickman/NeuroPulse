@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -108,7 +108,7 @@ docker compose logs -f posthog
 
 ### 3.4 Required project-level privacy settings (UI)
 
-These settings are not configurable via environment variables. Complete them immediately after project creation.
+Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/posthog/apply_project_settings.py --check` reads the project's `anonymize_ips`, `session_recording_opt_in` and `autocapture_opt_out` and exits non-zero if one differs, and `--apply` sets them and reads them back (`POSTHOG_PERSONAL_API_KEY` from the environment). **The script has not been run against a real PostHog instance** (`OI-ANALYTICS-02`); run `--check` against yours before relying on it. Heatmaps, web analytics, event and person retention, and the Property Filter transformation are not covered and stay manual. They are not configurable via environment variables. Complete them immediately after project creation.
 
 **Navigate to: Project Settings → Privacy**
 
@@ -124,6 +124,8 @@ These settings are not configurable via environment variables. Complete them imm
 |---------|-------|-----|
 | Event retention | **90 days** | Balances product insight needs with data minimisation. See §7.1 to adjust. |
 | Person retention | **90 days** | Anonymous person records only; matches event retention |
+
+> **Retention is unverified (Rev 3).** The Data Retention settings above are what this document has always asked for, but I could not confirm from PostHog's documentation that a **self-hosted** instance enforces them at all: the retention feature may exist only on PostHog Cloud. Until it is shown to delete old events on this stack, treat the 90 days (and the 30 of `NP-APP-TELEMETRY-001` §5) as a wish, not a control (`OI-ANALYTICS-02`).
 
 > **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeurOne account or any UHDR data. However, 90-day retention still satisfies data minimisation.
 

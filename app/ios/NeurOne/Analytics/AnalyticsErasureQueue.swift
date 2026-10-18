@@ -34,19 +34,24 @@ protocol AnalyticsErasureRelaying: AnyObject {
 /// no device name and no consent record.
 @MainActor
 final class HTTPAnalyticsErasureRelay: AnalyticsErasureRelaying {
-    /// Same self-hosted instance as the analytics host (`PostHogAnalyticsBackend`); change both to the production domain.
-    static let endpoint = URL(string: "https://analytics.neurone.internal/np/erase")!
+    /// The relay's path on the analytics host (`docs/np_analytics_001.md` §7.6).
+    static let path = "np/erase"
 
     private let session: URLSession
+    private let baseURL: URL?
 
-    // The default is made in the body: a default-argument expression is not main-actor isolated in Swift 5 mode, and this
-    // initializer is.
-    init(session: URLSession? = nil) {
+    // The session default is made in the body: a default-argument expression is not main-actor isolated in Swift 5 mode, and
+    // this initializer is.
+    /// - Parameter baseURL: the analytics host (`AnalyticsHost`, a build setting). With none, a request is not made and the
+    ///   ID stays queued (REQ-SW03-20).
+    init(session: URLSession? = nil, baseURL: URL? = AnalyticsHost.baseURL()) {
         self.session = session ?? URLSession(configuration: .ephemeral)
+        self.baseURL = baseURL
     }
 
     func erase(distinctID: String) async -> ErasureOutcome {
-        var request = URLRequest(url: Self.endpoint)
+        guard let baseURL else { return .retryLater }
+        var request = URLRequest(url: baseURL.appendingPathComponent(Self.path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["distinct_id": distinctID])
