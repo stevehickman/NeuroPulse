@@ -1,0 +1,67 @@
+# NeurOne SHDR fleet ingest — reference edge configuration (NP-INFRA-001 §3.3a)
+#
+# privacy review Finding 6. The fleet endpoint receives a permanent 256-bit device token (X-NP-Device-Token) over a
+# connection whose source address the server sees. A log that holds both lets whoever reads it place a device on a household,
+# clinic or employer network, which is the link CLAUDE.md §5.1 says SHDR never has (SHDR is linked to the device, never to a
+# place or a person). So the edge keeps neither the address nor the token in any log, passes neither on, and keeps what it does
+# log for a short time.
+#
+# The address still reaches this proxy (TCP needs it). The rule is that it is written nowhere and handed on to nothing: the
+# access log below drops it, the upstream never gets it (header_up), and error logs, which Caddy writes with the address, go to
+# the default logger configured here with the same filter.
+#
+# Run, with FLEET_HOST set (a parse-time {$VAR}, because a site address cannot use the runtime {env.VAR}).
+#   FLEET_HOST=fleet.neurone.internal FLEET_UPSTREAM=ingest:8080 caddy run --config infra/fleet/Caddyfile
+#
+# Check it: python3 ci/test_fleet_ingest_config.py   (CI: fleet-infra-ci.yml)
+
+{
+	# Error and runtime logs carry the client's address too, so they get the same filter and the same retention.
+	log default {
+		output file /var/log/caddy/runtime.log {
+			roll_keep_for 72h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>headers>X-Forwarded-For delete
+				request>headers>X-Np-Device-Token delete
+			}
+		}
+	}
+}
+
+{$FLEET_HOST} {
+	# Only the SHDR ingest route is served.
+	@ingest path /v1/shdr
+	handle @ingest {
+		reverse_proxy {$FLEET_UPSTREAM} {
+			# Do not hand the client's address to the ingest service: it would write it beside the token.
+			header_up -X-Forwarded-For
+			header_up -X-Real-IP
+		}
+	}
+	handle {
+		respond 404
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			# Short retention for what is logged at all (the figure is provisional: OI-FLEET-01, UC-095).
+			roll_keep_for 72h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>headers>X-Forwarded-For delete
+				request>headers>X-Np-Device-Token delete
+			}
+		}
+	}
+}

@@ -9,6 +9,7 @@ import javax.net.ssl.SSLPeerUnverifiedException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertFailsWith
@@ -25,13 +26,19 @@ import kotlin.test.assertTrue
 class ShdrUploaderTests {
 
     /** In-memory stand-in for SealedDeviceTokenStore. */
-    private class FakeTokenStore(var value: String? = null) : DeviceTokenStore {
-        override fun load(): String? = value
-        override fun save(token: String) { value = token }
+    private class FakeTokenStore : DeviceTokenStore {
+        val byHub = mutableMapOf<String, String>()
+        override fun load(hub: String): String? = byHub[hub]
+        override fun save(hub: String, token: String) { byHub[hub] = token }
+        /** The token kept for the one helmet a test connects. */
+        val value: String? get() = byHub[HUB]
     }
 
-    private fun uploader(store: DeviceTokenStore) =
-        ShdrUploader(store, WarrantyAnalyticsGate(InMemoryKeyValueStore()))
+    private val HUB = "AA:BB:CC:00:00:01"
+
+    /** An uploader with a helmet connected, as it is whenever an upload is under way. */
+    private fun uploader(store: DeviceTokenStore, hub: String? = HUB) =
+        ShdrUploader(store, WarrantyAnalyticsGate(InMemoryKeyValueStore())).also { it.setHubIdentifier(hub) }
 
     // 1. Fallback token: 32-byte CSPRNG → 64 lowercase-hex chars, generated once
     //    and persisted so the fleet-DB linkage is stable across reads.
@@ -41,11 +48,74 @@ class ShdrUploaderTests {
         val store = FakeTokenStore()
         val up = uploader(store)
 
-        val token = up.deviceToken
+        val token = up.deviceToken!!
         assertEquals(64, token.length, "32-byte token must render as 64 hex chars")
         assertTrue(token.all { it in "0123456789abcdef" }, "token must be lowercase hex")
         assertEquals(token, store.value, "fallback token must be persisted on first read")
         assertEquals(token, up.deviceToken, "token must be stable across reads")
+    }
+
+    // Finding 6: the interim token is per helmet. Two helmets on one phone get two tokens; each keeps its own on reconnect.
+    // @verifies REQ-SHDR-05#a
+    @Test
+    fun tokenIsPerHelmetNotPerPhone() {
+        val store = FakeTokenStore()
+        val up = uploader(store, hub = "AA:BB:CC:00:00:01")
+        val a = up.deviceToken
+        up.setHubIdentifier(null)
+        up.setHubIdentifier("AA:BB:CC:00:00:02")
+        val b = up.deviceToken
+        up.setHubIdentifier(null)
+        up.setHubIdentifier("AA:BB:CC:00:00:01")
+
+        assertNotNull(a)
+        assertNotEquals(a, b, "two helmets on one phone must not share a token")
+        assertEquals(a, up.deviceToken, "a helmet keeps its own token across a reconnect")
+    }
+
+    // Finding 6: with no helmet named there is no token, so nothing is sent.
+    // @verifies REQ-SHDR-05#b
+    @Test
+    fun noHelmetMeansNoTokenAndNoUpload() {
+        val up = uploader(FakeTokenStore(), hub = null)
+        var result: Boolean? = null
+
+        assertNull(up.deviceToken)
+        up.upgradeDeviceToken(ByteArray(32) { 1 })   // no helmet to attach it to: ignored
+        up.upload(byteArrayOf(1, 2, 3)) { result = it }
+
+        assertEquals(false, result, "nothing may be sent for a helmet nobody can name")
+    }
+
+    // Finding 6: a token a helmet delivered is that helmet's alone; another helmet starts with its own.
+    // @verifies REQ-SHDR-05#c
+    @Test
+    fun hubTokenBelongsToItsHelmetOnly() {
+        val store = FakeTokenStore()
+        val up = uploader(store, hub = "AA:BB:CC:00:00:01")
+        up.upgradeDeviceToken(ByteArray(32) { 0x42 })
+        val a = up.deviceToken
+
+        up.setHubIdentifier(null)
+        up.setHubIdentifier("AA:BB:CC:00:00:02")
+
+        assertNotEquals(a, up.deviceToken, "helmet A's token must not identify helmet B")
+    }
+
+    // The sealed store keeps every helmet's token in the one sealed value.
+    // @verifies REQ-SHDR-05#a
+    @Test
+    fun sealedStoreKeepsATokenPerHelmetAndDropsAPerPhoneValue() {
+        val kv = InMemoryKeyValueStore()
+        val store = SealedDeviceTokenStore(kv)
+        kv.putString(ShdrUploader.TOKEN_PREF, "a-token-written-before-tokens-were-per-helmet")
+
+        assertNull(store.load("hub-1"), "a value with no helmet on it belongs to no helmet")
+        store.save("hub-1", "t1")
+        store.save("hub-2", "t2")
+
+        assertEquals("t1", store.load("hub-1"))
+        assertEquals("t2", store.load("hub-2"))
     }
 
     // 2. OI-BLE-01: upgrade adopts the hub-provisioned 32-byte TRNG token.
@@ -178,16 +248,5 @@ DQe5uIuf3oUzoLfX59gNvtxE5zZD
         assertFailsWith<SSLPeerUnverifiedException> {
             defaultPinner().check(ShdrUploader.FLEET_HOST, listOf(stranger()))
         }
-    }
-
-    // @verifies-none the token store is a one-line adapter over the key-value store; the sealing it relies on is tested in :core.
-    @Test
-    fun sealedDeviceTokenStoreRoundTripsThroughTheKeyValueStore() {
-        val kv = InMemoryKeyValueStore()
-        val store = SealedDeviceTokenStore(kv)
-        assertNull(store.load())
-        store.save("ab".repeat(32))
-        assertEquals("ab".repeat(32), store.load())
-        assertEquals("ab".repeat(32), kv.getString(ShdrUploader.TOKEN_PREF))
     }
 }

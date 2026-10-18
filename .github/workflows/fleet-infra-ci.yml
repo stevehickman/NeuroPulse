@@ -1,0 +1,41 @@
+name: Fleet Ingest Infra CI (privacy review Finding 6)
+
+# The SHDR fleet edge must keep neither a source address nor a device token in any log. This runs when its reference
+# configuration, its test or this file change.
+on:
+  push:
+    paths:
+      - 'infra/fleet/**'
+      - 'ci/test_fleet_ingest_config.py'
+      - '.github/workflows/fleet-infra-ci.yml'
+  pull_request:
+    paths:
+      - 'infra/fleet/**'
+      - 'ci/test_fleet_ingest_config.py'
+      - '.github/workflows/fleet-infra-ci.yml'
+  workflow_dispatch:
+
+# Least privilege: checks out the repo and runs tests; nothing reads GITHUB_TOKEN or publishes.
+permissions:
+  contents: read
+
+jobs:
+  fleet-ingest:
+    name: Fleet ingest logs keep no address and no device token
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # The checks are negative, so a green tick is worth nothing until each has been shown to go red on a broken copy.
+      - name: Gate self-test (prove each check can fail)
+        run: python3 ci/test_fleet_ingest_config.py --self-test
+      - name: Reference Caddyfile invariants
+        run: python3 ci/test_fleet_ingest_config.py
+      # The only check that asks Caddy itself whether the file is valid (the log filter syntax is Caddy's, not Python's).
+      - name: Caddyfile is valid Caddy
+        run: |
+          docker run --rm -e FLEET_HOST=localhost -e FLEET_UPSTREAM=ingest:8080 \
+            -v "$PWD/infra/fleet/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

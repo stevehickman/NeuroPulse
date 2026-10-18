@@ -31,6 +31,7 @@ private final class MockSHDRUploadTrigger: SHDRUploadTriggering {
     // CurrentValueSubject mirrors @Published semantics (emits current value on subscribe),
     // matching NeurOneGATTManager.$warrantyToken which starts at nil.
     private let tokenSubject = CurrentValueSubject<Data?, Never>(nil)
+    private let hubSubject = CurrentValueSubject<String?, Never>(nil)
 
     var shdrUploadPendingPublisher: AnyPublisher<Bool, Never> {
         subject.eraseToAnyPublisher()
@@ -38,6 +39,14 @@ private final class MockSHDRUploadTrigger: SHDRUploadTriggering {
 
     var warrantyTokenPublisher: AnyPublisher<Data?, Never> {
         tokenSubject.eraseToAnyPublisher()
+    }
+
+    var hubIdentifierPublisher: AnyPublisher<String?, Never> {
+        hubSubject.eraseToAnyPublisher()
+    }
+
+    func sendHub(_ id: String?) {
+        hubSubject.send(id)
     }
 
     func sendPending(_ value: Bool) {
@@ -74,7 +83,7 @@ final class SHDRUploaderTests: XCTestCase {
     // EEG waveforms, HRV time series, session timestamps, or PPG signal in the
     // POST body regardless of any future refactor.
 
-    // @verifies REQ-SHDR-03#b
+    // @verifies REQ-SHDR-05#b
     func testNoUHDRElementsInUploaderSource() throws {
         let source = try Self.uploaderSource()
 
@@ -100,7 +109,7 @@ final class SHDRUploaderTests: XCTestCase {
         }
     }
 
-    // @verifies REQ-SHDR-03#a
+    // @verifies REQ-SHDR-05#a
     func testUploaderOnlyReadsSHDRStagingFile() throws {
         let source = try Self.uploaderSource()
 
@@ -199,8 +208,9 @@ final class SHDRUploaderTests: XCTestCase {
     func testDeviceTokenFallsBackToKeychainBeforeHubToken() {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
+        trigger.sendHub("hub-fallback-test-\(UUID().uuidString)")
 
-        let token = uploader.currentDeviceToken()
+        guard let token = uploader.currentDeviceToken() else { return XCTFail("A connected helmet must have a token.") }
         XCTAssertEqual(token.count, 64,
                        "Fallback Keychain token must be a 64-char hex (256-bit) string.")
         XCTAssertTrue(token.allSatisfy { $0.isHexDigit },
@@ -214,6 +224,7 @@ final class SHDRUploaderTests: XCTestCase {
     func testUpgradeToHubProvisionedToken() async {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
+        trigger.sendHub("hub-upgrade-test-\(UUID().uuidString)")
 
         let keychainToken = uploader.currentDeviceToken()
 
@@ -255,6 +266,7 @@ final class SHDRUploaderTests: XCTestCase {
     func testShortHubTokenIsRejected() async {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
+        trigger.sendHub("hub-short-test-\(UUID().uuidString)")
         let before = uploader.currentDeviceToken()
 
         trigger.sendWarrantyToken(Data(repeating: 0xFF, count: 16)) // too short
@@ -264,9 +276,62 @@ final class SHDRUploaderTests: XCTestCase {
                        "A sub-32-byte token must be rejected, leaving the device token unchanged.")
     }
 
+    // MARK: - Finding 6: the interim token is per helmet, never per phone
+
+    // Two helmets on one phone must not send the same token, and a helmet keeps its own across reconnects.
+    @MainActor
+    // @verifies REQ-SHDR-05#a
+    func testInterimTokenIsPerHelmet() async {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+        let a = "hub-a-\(UUID().uuidString)", b = "hub-b-\(UUID().uuidString)"
+
+        trigger.sendHub(a)
+        let tokenA = uploader.currentDeviceToken()
+        trigger.sendHub(nil)
+        trigger.sendHub(b)
+        let tokenB = uploader.currentDeviceToken()
+        trigger.sendHub(nil)
+        trigger.sendHub(a)
+
+        XCTAssertNotNil(tokenA)
+        XCTAssertNotEqual(tokenA, tokenB, "Two helmets on one phone must not share an interim token.")
+        XCTAssertEqual(uploader.currentDeviceToken(), tokenA, "A helmet keeps its own token across a reconnect.")
+    }
+
+    // With no helmet named there is no token to send.
+    @MainActor
+    // @verifies REQ-SHDR-05#b
+    func testNoHelmetMeansNoToken() async {
+        let uploader = SHDRUploader(gatt: MockSHDRUploadTrigger())
+        XCTAssertNil(uploader.currentDeviceToken(), "Nothing may be sent for a helmet nobody can name.")
+    }
+
+    // The token one helmet delivered must not be sent for the next helmet that connects.
+    @MainActor
+    // @verifies REQ-SHDR-05#c
+    func testHubTokenIsNotCarriedToAnotherHelmet() async {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+        let a = "hub-a-\(UUID().uuidString)", b = "hub-b-\(UUID().uuidString)"
+
+        trigger.sendHub(a)
+        trigger.sendWarrantyToken(Data(repeating: 0xCD, count: 32))
+        await Task.yield()
+        let hubAToken = uploader.currentDeviceToken()
+
+        trigger.sendWarrantyToken(nil)
+        trigger.sendHub(nil)
+        trigger.sendHub(b)
+        await Task.yield()
+
+        XCTAssertNotEqual(uploader.currentDeviceToken(), hubAToken,
+                          "Helmet A's token must not identify helmet B.")
+    }
+
     // MARK: - ISC-65 / ISC-66 SHDR-only fields in request
 
-    // @verifies REQ-SHDR-03#c
+    // @verifies REQ-SHDR-05#c
     func testUploaderDoesNotBuildJSONRequestBody() throws {
         let source = try Self.uploaderSource()
 

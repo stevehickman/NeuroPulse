@@ -103,6 +103,11 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
     @Published private(set) var warrantyToken: Data?
 
+    /// Which helmet this link is to: the system's identifier for the connected peripheral (a UUID this phone made up for it,
+    /// not a hardware address). `nil` when not connected. SHDRUploader keys its interim token by it, so one phone used with two
+    /// helmets does not send the same token for both (privacy review Finding 6, REQ-SHDR-05).
+    @Published private(set) var hubIdentifier: String?
+
     /// The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2), read from the encrypted-link
     /// `deviceSerial` characteristic. Held in memory for this link only: it is neither persisted
     /// nor uploaded, and is cleared on disconnect. nil until read, and on a hub that predates the
@@ -298,6 +303,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         socketMapAssembler.reset()
         allCharacteristicsResolved = false
         warrantyToken = nil
+        hubIdentifier = nil
         deviceSerial = nil
         hubFirmwareVersion = nil
         cervicalPadAlert = nil
@@ -663,6 +669,7 @@ extension NeurOneGATTManager: @preconcurrency CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectionState = .connected
+        hubIdentifier = peripheral.identifier.uuidString
         peripheral.delegate = self
         peripheral.discoverServices([CBUUID(string: GattUuidStrings.SERVICE_ID)])
     }
