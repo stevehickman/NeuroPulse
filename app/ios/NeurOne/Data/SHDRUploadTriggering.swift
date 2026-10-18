@@ -24,6 +24,10 @@ protocol SHDRUploadTriggering: AnyObject {
     /// SHDRUploader upgrades from its Keychain fallback to this token when non-nil
     /// (NP-FW-EMMC-002 Rev A §A — SHDR fleet DB no-join rule).
     var warrantyTokenPublisher: AnyPublisher<Data?, Never> { get }
+
+    /// Emits which helmet the link is to (an identifier the system made up for the peripheral), `nil` when not connected.
+    /// The interim token is kept per helmet by it (privacy review Finding 6, REQ-SHDR-05).
+    var hubIdentifierPublisher: AnyPublisher<String?, Never> { get }
 }
 
 extension NeurOneGATTManager: SHDRUploadTriggering {
@@ -33,5 +37,9 @@ extension NeurOneGATTManager: SHDRUploadTriggering {
 
     var warrantyTokenPublisher: AnyPublisher<Data?, Never> {
         $warrantyToken.eraseToAnyPublisher()
+    }
+
+    var hubIdentifierPublisher: AnyPublisher<String?, Never> {
+        $hubIdentifier.eraseToAnyPublisher()
     }
 }

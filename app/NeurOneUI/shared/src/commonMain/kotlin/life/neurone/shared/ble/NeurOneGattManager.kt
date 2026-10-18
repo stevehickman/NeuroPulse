@@ -168,6 +168,13 @@ class NeurOneGattManager(
     val warrantyToken: StateFlow<ByteArray?> = _warrantyToken
 
     /**
+     * Which helmet the link is to (the central's id for the peripheral), `null` when not connected. The SHDR token is kept
+     * per helmet by it (REQ-SHDR-05).
+     */
+    private val _hubIdentifier = MutableStateFlow<String?>(null)
+    val hubIdentifier: StateFlow<String?> = _hubIdentifier
+
+    /**
      * The hub's 32-byte replay-guard serial (NP-FW-HUB-001 §4.2), read over the encrypted link.
      * Memory only: neither persisted nor uploaded, and cleared on disconnect. null until read, and
      * before the read completes (OI-AND-WIRE-02).
@@ -263,6 +270,7 @@ class NeurOneGattManager(
 
     override fun onConnected(deviceId: String) {
         _connectionState.value = ConnectionState.CONNECTED
+        _hubIdentifier.value = deviceId
         central.discoverCharacteristics(
             UUID.fromString(GattUuidStrings.SERVICE_ID),
             GattUuidStrings.REQUIRED_IDS.map(UUID::fromString) + listOf(
@@ -591,6 +599,7 @@ class NeurOneGattManager(
         socketMapAssembler.reset()
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
+        _hubIdentifier.value = null
         deviceSerial = null
         _cervicalPadAlert.value = null
         _cervicalFaultStatus.value = null

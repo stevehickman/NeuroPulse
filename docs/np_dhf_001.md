@@ -308,7 +308,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 8 | 2026-08-31 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
-| NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 1 | 2026-06-14 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
+| NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 2 | 2026-10-18 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
 | NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 1 | 2026-08-11 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |
