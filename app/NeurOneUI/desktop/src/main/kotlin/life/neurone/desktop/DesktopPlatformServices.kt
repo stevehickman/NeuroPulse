@@ -6,14 +6,11 @@ import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
-import life.neurone.core.migration.DirectoryObjectStore
-import life.neurone.core.migration.AppFolder
 import life.neurone.core.migration.FileStore
-import life.neurone.core.migration.ObjectStoreRoute
-import life.neurone.core.migration.appFileStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
-import life.neurone.shared.MigrationPlace
+import life.neurone.shared.migration.BACKUP_FOLDER_KEY
+import life.neurone.shared.migration.FolderPlaces
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -37,22 +34,25 @@ class DesktopPlatformServices(
     override val secretKeyStore: SecretKeyStore? by lazy { DesktopSecretKeyStore.create() }
 
     /**
-     * A folder beside the app's data: the person copies it to a USB drive or the new computer. The operating system arbitrates
-     * the claim (a hard link), so the folder promises an exclusive create (SWR-MG-07). Made on first use, not at start-up.
+     * Where a backup goes: the folder the person chose, or `backups` beside the app's data, from which they copy it to a USB drive or
+     * the new computer. The operating system arbitrates the claim (a hard link), so a folder promises an exclusive create (SWR-MG-07).
+     * Made on first use, not at start-up.
      */
-    /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
-    override val linkTransport: LinkTransport = LanLinkTransport()
+    override val folderPlaces: FolderPlaces = DesktopFolderPlaces(appDataDirectory())
 
     /**
      * SWR-MG-06: every file in the app's data folder (the key-value store's file and its temporary copy, and anything else the app
-     * wrote there) except `backups`, which holds the backup the clear is clearing against. Built from [appDataDirectory].
+     * wrote there) except the chosen backup folder when it is inside it, which the clear runs against. Read each time, because the
+     * choice can change.
      */
-    override val migrationFiles: FileStore = desktopOwnFiles(appDataDirectory())
+    override val migrationFiles: FileStore
+        get() = desktopOwnFiles(
+            appDataDirectory(),
+            keyValueStore.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() } ?: folderPlaces.defaultFolder,
+        )
 
-    override val migrationPlace: MigrationPlace? by lazy {
-        val folder = appDataDirectory().resolve(BACKUP_FOLDER)
-        MigrationPlace(folder.path, DirectoryObjectStore(folder.toPath()), ObjectStoreRoute("local-folder", atomicClaim = true))
-    }
+    /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
+    override val linkTransport: LinkTransport = LanLinkTransport()
 
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
@@ -106,8 +106,5 @@ class FileKeyValueStore(private val file: File) : KeyValueStore {
     }
 }
 
-/** The desktop app's own files for the clear: the whole data folder, leaving the backup place alone (SWR-MG-06). */
-fun desktopOwnFiles(dataDirectory: File): FileStore = appFileStore(listOf(AppFolder("data", dataDirectory.toPath(), kept = listOf(BACKUP_FOLDER))))
-
-/** The folder of [DesktopPlatformServices.migrationPlace], inside the data folder. */
+/** The folder `backups` inside the data folder, which is where a backup goes until another is chosen. */
 internal const val BACKUP_FOLDER = "backups"

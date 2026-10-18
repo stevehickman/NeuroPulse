@@ -61,10 +61,11 @@ fun MigrationBackupScreen(
     onBackedUp: (() -> Unit)? = null,
 ) {
     val transfer = app.platform.rememberFileTransfer()
-    val portable = remember(transfer) {
-        if (linkPlace == null && app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null
+    val hostPlace by app.backupPlace.collectAsState()
+    val portable = remember(transfer, hostPlace == null) {
+        if (linkPlace == null && hostPlace == null && transfer != null) PortableFilePlace(transfer) else null
     }
-    val place = linkPlace ?: app.platform.migrationPlace ?: portable?.place
+    val place = linkPlace ?: hostPlace ?: portable?.place
     val model = remember(place) { MigrationBackupModel(place, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
@@ -78,6 +79,7 @@ fun MigrationBackupScreen(
         if (place != null && portable == null && linkPlace == null) {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)
+            BackupFolderRow(app)
         }
         Spacer(Modifier.height(16.dp))
 
