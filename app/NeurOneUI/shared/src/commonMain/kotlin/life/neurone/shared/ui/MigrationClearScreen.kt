@@ -46,7 +46,7 @@ fun MigrationClearScreen(
 ) {
     val platform = app.platform
     val model = remember {
-        MigrationClearModel(place ?: platform.migrationPlace, app.keyValueStore, app.clearActions, platform.migrationFiles, app.migrationItems)
+        MigrationClearModel(place ?: app.backupPlace.value, app.keyValueStore, app.clearActions, platform.migrationFiles, app.migrationItems)
     }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()

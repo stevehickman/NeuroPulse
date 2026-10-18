@@ -22,6 +22,7 @@
     "np.analytics.launch-count",
     "np.warranty.consent-granted",
     "np.backup.destination",
+    "np.backup.folder",
     "np.backup.last-epoch",
     "ble.last-hub-id"
   ],

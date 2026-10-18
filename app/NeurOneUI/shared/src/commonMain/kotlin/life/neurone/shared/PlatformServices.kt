@@ -49,6 +49,13 @@ interface PlatformServices {
     val migrationPlace: MigrationPlace? get() = null
 
     /**
+     * Folders a backup may be kept in, chosen by the person, or null when the host has no choice to offer (a fixed
+     * [migrationPlace], or the system's own dialogs on a phone). When it is supplied the screens take the place from the chosen
+     * folder ([AppServices.backupPlace]) and offer the choice; [migrationPlace] is then not used.
+     */
+    val folderPlaces: life.neurone.shared.migration.FolderPlaces? get() = null
+
+    /**
      * Where the key that protects the app's UHDR-class data is kept: the platform's own keystore (SWR-MG-06). Null when the
      * host has no keystore it can destroy a key in. The shared app then keeps its data unencrypted and says the device cannot
      * clear itself, because a clear that cannot destroy the key would only claim to protect what it leaves readable.

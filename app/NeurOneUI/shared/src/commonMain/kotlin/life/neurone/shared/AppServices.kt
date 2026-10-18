@@ -63,6 +63,17 @@ class AppServices(
     val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
 
     /**
+     * The folder the person has chosen to keep a backup in, for a host that offers the choice ([PlatformServices.folderPlaces]);
+     * null for a host with a fixed place or none. Common to every host that has folders.
+     */
+    val backupFolder: life.neurone.shared.migration.BackupFolderModel? =
+        platform.folderPlaces?.let { life.neurone.shared.migration.BackupFolderModel(it, keyValueStore) }
+
+    /** The place the backup, restore and clear screens use: the chosen folder, or the host's own fixed place. */
+    val backupPlace: StateFlow<MigrationPlace?> =
+        backupFolder?.place ?: kotlinx.coroutines.flow.MutableStateFlow(platform.migrationPlace)
+
+    /**
      * Where a bundle waits while it goes straight to another phone (SWR-MG-10): in memory, behind a claim only this process
      * can take, so nothing of it is left on disk to find. Null when the host cannot reach another phone. The send screen and
      * the clear screen share it, because the clear reads the new phone's confirmation from the same store.

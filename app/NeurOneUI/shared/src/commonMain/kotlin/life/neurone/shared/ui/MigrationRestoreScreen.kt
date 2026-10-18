@@ -45,8 +45,9 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
     val transfer = app.platform.rememberFileTransfer()
-    val portable = remember(transfer) { if (app.platform.migrationPlace == null && transfer != null) PortableFilePlace(transfer) else null }
-    val place = app.platform.migrationPlace ?: portable?.place
+    val hostPlace by app.backupPlace.collectAsState()
+    val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }
+    val place = hostPlace ?: portable?.place
     val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
@@ -59,9 +60,10 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
         Text(stringResource(Res.string.migration_restore_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(stringResource(Res.string.migration_restore_intro), style = MaterialTheme.typography.bodyMedium)
-        app.platform.migrationPlace?.let {
+        hostPlace?.let {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, it.label), style = MaterialTheme.typography.bodySmall)
+            BackupFolderRow(app)
         }
         Spacer(Modifier.height(16.dp))
 
