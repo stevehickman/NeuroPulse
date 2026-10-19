@@ -50,6 +50,9 @@
 //! progress key are in no list: the clear must not forget the proof that it ran, and the progress key goes only when the
 //! plan is complete.
 //!
+//! **An erase** (`SWR-MG-17`) is the same plan asked for by the person with no move under way: `params.erase` is true, `bundleHash`
+//! is not needed and the flow does not wait for a confirmation. Nothing else differs, so the order (the key first) is the same.
+//!
 //! **The files' overwrite** (`SWR-MG-06`): the core asks for one chunk of random bytes, lists the files, and for each one
 //! overwrites every byte in chunks, syncs, then deletes it; a call that fails ends the clear at that step and the next launch
 //! resumes by listing what is left. A host implements only the four file calls (the `FileStore` role).
@@ -524,8 +527,16 @@ fn clear(req: &Value) -> R<Value> {
     match step_of(req) {
         "start" => {
             let p = &req["params"];
+            // `erase`: the person asks to erase this device, with no move under way, so there is no bundle and no confirmation to
+            // wait for (`SWR-MG-17`). The same ordered plan runs: the key first, the files overwritten, everything forgotten.
+            let erase = p["erase"].as_bool().unwrap_or(false);
             effect(
-                json!({ "step": "progress", "bundleHash": s(p, "bundleHash")?, "canRemoveOsBond": p["canRemoveOsBond"].as_bool().unwrap_or(false) }),
+                json!({
+                    "step": "progress",
+                    "bundleHash": if erase { String::new() } else { s(p, "bundleHash")?.to_string() },
+                    "erase": erase,
+                    "canRemoveOsBond": p["canRemoveOsBond"].as_bool().unwrap_or(false),
+                }),
                 json!({ "type": "readKeys", "keys": [CLEAR_PROGRESS_KEY] }),
             )
         }
@@ -533,7 +544,7 @@ fn clear(req: &Value) -> R<Value> {
             let saved = req["result"]["values"][CLEAR_PROGRESS_KEY].as_str().unwrap_or("");
             let done: Vec<&str> = saved.split(',').filter(|d| !d.is_empty()).collect();
             st["done"] = json!(done);
-            if !done.is_empty() {
+            if !done.is_empty() || st["erase"] == true {
                 // A clear already under way resumes without asking again: by now the old state is half gone (SWR-MG-08).
                 return plan_next(st);
             }
@@ -1038,6 +1049,27 @@ mod tests {
         old.files.insert("a-big.db".into(), vec![0xAA; 40_000]);
         old.files.insert("b-empty.db".into(), vec![]);
         old.files.insert("c-small.db".into(), vec![0xCC; 100]);
+    }
+
+    // @verifies SWR-MG-17#a
+    #[test]
+    fn an_erase_runs_the_whole_plan_with_no_backup_and_no_confirmation_and_the_key_first() {
+        let (mut route, mut old, _hash) = confirmed_route();
+        with_files(&mut old);
+        let r = run("clear", json!({ "erase": true, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!(r["ok"], true, "{r}");
+        assert_eq!(old.ran, ["destroyEncryptionKey", "forgetPairingRecord"], "the key first, then the pairing record");
+        assert!(old.files.is_empty(), "the files are overwritten and gone");
+        assert_eq!(old.kv.keys().map(String::as_str).collect::<Vec<_>>(), ["np.migration.cleared"], "every stored key is forgotten");
+    }
+
+    // @verifies SWR-MG-17#a
+    #[test]
+    fn without_the_erase_flag_a_clear_still_waits_for_the_matching_confirmation() {
+        let (mut route, mut old, hash) = confirmed_route();
+        let r = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!(r["reason"], "no_confirmation");
+        assert!(old.ran.is_empty());
     }
 
     // @verifies SWR-MG-06

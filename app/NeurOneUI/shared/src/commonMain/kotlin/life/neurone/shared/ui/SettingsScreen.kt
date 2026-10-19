@@ -21,12 +21,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import life.neurone.shared.AppServices
+import life.neurone.shared.migration.EraseDeviceModel
+import life.neurone.shared.migration.EraseStep
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 import life.neurone.core.protocol.PersistedKeys
@@ -253,6 +257,14 @@ private fun SettingsContent(
             EraseLocalDataSection(erase)
         }
 
+        // Erase this computer's copy of everything the app keeps, where the host can end the run afterwards (SWR-MG-17).
+        app.eraseDevice?.let { model ->
+            app.platform.endRunAfterErase?.let { endRun ->
+                Spacer(Modifier.height(24.dp))
+                EraseDeviceSection(model, endRun)
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
 
         // Research analytics gate
@@ -298,4 +310,39 @@ internal fun EraseLocalDataSection(erase: () -> Unit) {
     }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(enabled = understood, onClick = erase) { Text(stringResource(Res.string.settings_erase_local_button)) }
+}
+
+/**
+ * Erase this device's copy of everything the app keeps (SWR-MG-17). It cannot be undone, so the button stays disabled until the
+ * person has said they understand that. When it has finished the person closes the app, which the host does ([endRun]): the run
+ * still holds the old state in memory and must not carry on and write it back.
+ */
+@Composable
+internal fun EraseDeviceSection(model: EraseDeviceModel, endRun: () -> Unit) {
+    var understood by remember { mutableStateOf(false) }
+    val step by model.step.collectAsState()
+    val scope = rememberCoroutineScope()
+    Text(stringResource(Res.string.settings_erase_device_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.settings_erase_device_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    when (val s = step) {
+        is EraseStep.Done -> {
+            Text(stringResource(Res.string.settings_erase_device_done))
+            if (s.keyKept) Text(stringResource(Res.string.settings_erase_device_key_kept), style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = endRun) { Text(stringResource(Res.string.settings_erase_device_close)) }
+        }
+        else -> {
+            if (s is EraseStep.Failed) Text(stringResource(Res.string.settings_erase_device_failed), color = MaterialTheme.colorScheme.error)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = understood, onCheckedChange = { understood = it })
+                Text(stringResource(Res.string.settings_erase_device_confirm))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                enabled = understood && s !is EraseStep.Running,
+                onClick = { scope.launch { model.erase() } },
+            ) { Text(stringResource(Res.string.settings_erase_device_button)) }
+        }
+    }
 }
