@@ -1,5 +1,6 @@
 package life.neurone.app.data
 
+import life.neurone.core.analytics.FleetOhttp
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
@@ -63,22 +64,33 @@ class SealedDeviceTokenStore(private val store: KeyValueStore) : DeviceTokenStor
  * Upgraded to the hub-provisioned TRNG warranty token when the GATT
  * characteristic ships (OI-BLE-01 / OI-WA-03, NP-FW-EMMC-002 Rev A §A).
  *
- * Transport: TLS with SPKI SHA-256 certificate pinning (parallel of the iOS
- * SHDRFleetPinningDelegate). Replace the placeholder pins with hashes derived
- * from the production fleet endpoint certificates before deployment.
+ * Transport: Oblivious HTTP (RFC 9458, [FleetOhttp], privacy review Finding 6, `OI-FLEET-01` (1)). The record is sealed to the
+ * fleet *gateway's* key and posted to the *relay*, so the server that reads it never sees the network address, and the relay never
+ * sees the record. The relay connection is TLS with SPKI SHA-256 pinning (parallel of the iOS SHDRFleetPinningDelegate). Replace
+ * the placeholder pins with hashes of the relay's certificates, and [GATEWAY_KEY_CONFIG_HEX] with the gateway's key
+ * configuration, before deployment. An empty key configuration uploads nothing (fail closed).
  */
 class ShdrUploader(
     private val tokenStore: DeviceTokenStore,
     private val warrantyGate: WarrantyAnalyticsGate,
     private val client: OkHttpClient = defaultPinnedClient(),
+    private val gatewayKeyConfigHex: String = GATEWAY_KEY_CONFIG_HEX,
 ) {
     companion object {
+        /** The fleet service as the gateway forwards to it: the authority and path of the sealed request, never connected to from the phone. */
         const val FLEET_HOST = "fleet.neurone.life"
-        const val FLEET_ENDPOINT = "https://$FLEET_HOST/v1/shdr"
+        const val FLEET_PATH = "/v1/shdr"
+
+        /** The relay the phone connects to (`NP-INFRA-001` §3.3b). Run by a party other than the gateway's operator; a placeholder until it exists. */
+        const val RELAY_HOST = "relay.neurone.internal"
+        const val RELAY_ENDPOINT = "https://$RELAY_HOST/relay"
+
+        /** The gateway's key configuration (hex, one configuration); empty until the gateway exists, and then nothing is uploaded. */
+        const val GATEWAY_KEY_CONFIG_HEX = ""
         const val DEVICE_TOKEN_HEADER = "X-NP-Device-Token"
         internal const val TOKEN_PREF = EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY
 
-        // PLACEHOLDERS — replace with production SPKI SHA-256 pins before deploy.
+        // PLACEHOLDERS — replace with production SPKI SHA-256 pins of the RELAY's certificates before deploy.
         private val PINNED_SPKI_HASHES = listOf(
             "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
@@ -88,7 +100,7 @@ class ShdrUploader(
             OkHttpClient.Builder()
                 .certificatePinner(
                     CertificatePinner.Builder()
-                        .apply { PINNED_SPKI_HASHES.forEach { add(FLEET_HOST, it) } }
+                        .apply { PINNED_SPKI_HASHES.forEach { add(RELAY_HOST, it) } }
                         .build(),
                 )
                 .build()
@@ -140,15 +152,26 @@ class ShdrUploader(
             onResult(false)
             return
         }
+        if (gatewayKeyConfigHex.isEmpty()) {
+            onResult(false)
+            return
+        }
+        val sealed = try {
+            FleetOhttp.seal(gatewayKeyConfigHex, FLEET_HOST, FLEET_PATH, DEVICE_TOKEN_HEADER, token, shdrPayload)
+        } catch (e: IllegalArgumentException) {
+            onResult(false)
+            return
+        }
         val request = Request.Builder()
-            .url(FLEET_ENDPOINT)
-            .header(DEVICE_TOKEN_HEADER, token)
-            .post(shdrPayload.toRequestBody("application/octet-stream".toMediaType()))
+            .url(RELAY_ENDPOINT)
+            .post(sealed.request.toRequestBody(FleetOhttp.REQUEST_MEDIA_TYPE.toMediaType()))
             .build()
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) = onResult(false)
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                response.use { onResult(it.isSuccessful) }
+                response.use {
+                    onResult(FleetOhttp.accepted(sealed, it.isSuccessful, it.header("Content-Type"), it.body?.bytes()))
+                }
             }
         })
     }
