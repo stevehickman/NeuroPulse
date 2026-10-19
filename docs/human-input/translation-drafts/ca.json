@@ -1,0 +1,112 @@
+{
+  "locale": "ca",
+  "sourceLocale": "en",
+  "exportedOn": "2026-10-19",
+  "strings": {
+    "STORAGE_LOCKED_NOTICE": {
+      "source": "Your saved data on this device cannot be opened right now, because the system's secure key store is not available. Nothing has been changed or deleted. Anything you do now is not saved and is lost when the app closes. Close the app, unlock or restore access to the key store, and open it again.",
+      "sourceHash": "c0abe55463e8b6a7",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Ara mateix no es poden obrir les dades desades en aquest dispositiu, perquè el magatzem de claus segur del sistema no està disponible. No s'ha canviat ni eliminat res. Tot el que feu ara no es desa i es perdrà en tancar l'aplicació. Tanqueu l'aplicació, desbloquegeu o restabliu l'accés al magatzem de claus i torneu-la a obrir."
+    },
+    "STORAGE_UNSEALED_NOTICE": {
+      "source": "This device's secure key store is not available, so the app keeps your saved data on disk without encrypting it. Make the key store available and restart the app to protect it.",
+      "sourceHash": "a56bb26212e1c59d",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "El magatzem de claus segur d'aquest dispositiu no està disponible, de manera que l'aplicació desa les vostres dades al disc sense xifrar-les. Feu que el magatzem de claus estigui disponible i reinicieu l'aplicació per protegir-les."
+    },
+    "STORAGE_MEMORY_ONLY_NOTICE": {
+      "source": "Nothing is saved in this browser. Your protocols, settings and answers are gone when you close or reload this page. To keep them, save a backup file before you leave.",
+      "sourceHash": "a601a9dbfaad4629",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "No es desa res en aquest navegador. Els vostres protocols, paràmetres i respostes desapareixen en tancar o recarregar aquesta pàgina. Per conservar-los, deseu un fitxer de còpia de seguretat abans de marxar."
+    },
+    "SETTINGS_ERASE_LOCAL_TITLE": {
+      "source": "Data kept in this browser",
+      "sourceHash": "ab61b94d6125e9e8",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Dades desades en aquest navegador"
+    },
+    "SETTINGS_ERASE_LOCAL_BODY": {
+      "source": "This page keeps nothing in this browser between visits. Erasing removes anything an earlier version of the app left here, and cannot be undone. Nothing on your helmet is changed.",
+      "sourceHash": "4b85815dc879b969",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Aquesta pàgina no conserva res en aquest navegador entre visites. Esborrar elimina tot el que una versió anterior de l'aplicació hi hagi deixat i no es pot desfer. No es modifica res al vostre casc."
+    },
+    "SETTINGS_ERASE_LOCAL_BUTTON": {
+      "source": "Erase this browser's data",
+      "sourceHash": "92a71b2577a006ef",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Esborra les dades d'aquest navegador"
+    },
+    "SETTINGS_ERASE_LOCAL_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Entenc que això no es pot desfer."
+    },
+    "SETTINGS_ERASE_DEVICE_TITLE": {
+      "source": "Erase the data on this computer",
+      "sourceHash": "95171d6bb38c0caf",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Esborra les dades d'aquest ordinador"
+    },
+    "SETTINGS_ERASE_DEVICE_BODY": {
+      "source": "Erases everything NeurOne keeps on this computer: your settings, your session history, your consent choices and the key that protects them. It cannot be undone. Backups you made are kept where you put them, and so is anything on your helmet. When it has finished, close and reopen the app.",
+      "sourceHash": "482eb1d0f2704e36",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Esborra tot el que NeurOne desa en aquest ordinador: els vostres paràmetres, l'historial de sessions, les vostres opcions de consentiment i la clau que els protegeix. No es pot desfer. Les còpies de seguretat que hàgiu fet es conserven allà on les heu posat, igual que el que hi hagi al vostre casc. Quan acabi, tanqueu i torneu a obrir l'aplicació."
+    },
+    "SETTINGS_ERASE_DEVICE_BUTTON": {
+      "source": "Erase this computer's data",
+      "sourceHash": "8767f6c279ea3445",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Esborra les dades d'aquest ordinador"
+    },
+    "SETTINGS_ERASE_DEVICE_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Entenc que això no es pot desfer."
+    },
+    "SETTINGS_ERASE_DEVICE_DONE": {
+      "source": "Everything NeurOne kept on this computer has been erased. Close the app now. It starts fresh the next time you open it.",
+      "sourceHash": "3e7ac2e0e92b804a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "S'ha esborrat tot el que NeurOne desava en aquest ordinador. Tanqueu l'aplicació ara. Començarà de zero la propera vegada que l'obriu."
+    },
+    "SETTINGS_ERASE_DEVICE_FAILED": {
+      "source": "The erase did not finish. Nothing more was written. Try again, and close the app if it keeps failing.",
+      "sourceHash": "6a399258b9fb619a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "L'esborrat no ha acabat. No s'ha escrit res més. Torneu-ho a provar i tanqueu l'aplicació si continua fallant."
+    },
+    "SETTINGS_ERASE_DEVICE_KEY_KEPT": {
+      "source": "The key that protected your data could not be removed from this computer's credential store. The data it protected is gone, so it opens nothing. You can delete the entry named life.neurone.data-key there.",
+      "sourceHash": "9a771a14221b1f8f",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "No s'ha pogut eliminar del magatzem de credencials d'aquest ordinador la clau que protegia les vostres dades. Les dades que protegia ja no hi són, així que no obre res. Hi podeu eliminar l'entrada anomenada life.neurone.data-key."
+    },
+    "SETTINGS_ERASE_DEVICE_CLOSE": {
+      "source": "Close NeurOne",
+      "sourceHash": "751d966344a99597",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Tanca NeurOne"
+    }
+  }
+}

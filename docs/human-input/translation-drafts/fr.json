@@ -1,0 +1,112 @@
+{
+  "locale": "fr",
+  "sourceLocale": "en",
+  "exportedOn": "2026-10-19",
+  "strings": {
+    "STORAGE_LOCKED_NOTICE": {
+      "source": "Your saved data on this device cannot be opened right now, because the system's secure key store is not available. Nothing has been changed or deleted. Anything you do now is not saved and is lost when the app closes. Close the app, unlock or restore access to the key store, and open it again.",
+      "sourceHash": "c0abe55463e8b6a7",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Vos données enregistrées sur cet appareil ne peuvent pas être ouvertes pour le moment, car le magasin de clés sécurisé du système n'est pas disponible. Rien n'a été modifié ni supprimé. Tout ce que vous faites maintenant n'est pas enregistré et sera perdu à la fermeture de l'application. Fermez l'application, déverrouillez le magasin de clés ou rétablissez l'accès, puis rouvrez-la."
+    },
+    "STORAGE_UNSEALED_NOTICE": {
+      "source": "This device's secure key store is not available, so the app keeps your saved data on disk without encrypting it. Make the key store available and restart the app to protect it.",
+      "sourceHash": "a56bb26212e1c59d",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Le magasin de clés sécurisé de cet appareil n'est pas disponible : l'application conserve donc vos données enregistrées sur le disque sans les chiffrer. Rendez le magasin de clés disponible et redémarrez l'application pour les protéger."
+    },
+    "STORAGE_MEMORY_ONLY_NOTICE": {
+      "source": "Nothing is saved in this browser. Your protocols, settings and answers are gone when you close or reload this page. To keep them, save a backup file before you leave.",
+      "sourceHash": "a601a9dbfaad4629",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Rien n'est enregistré dans ce navigateur. Vos protocoles, réglages et réponses disparaissent lorsque vous fermez ou rechargez cette page. Pour les conserver, enregistrez un fichier de sauvegarde avant de partir."
+    },
+    "SETTINGS_ERASE_LOCAL_TITLE": {
+      "source": "Data kept in this browser",
+      "sourceHash": "ab61b94d6125e9e8",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Données conservées dans ce navigateur"
+    },
+    "SETTINGS_ERASE_LOCAL_BODY": {
+      "source": "This page keeps nothing in this browser between visits. Erasing removes anything an earlier version of the app left here, and cannot be undone. Nothing on your helmet is changed.",
+      "sourceHash": "4b85815dc879b969",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Cette page ne conserve rien dans ce navigateur d'une visite à l'autre. L'effacement supprime tout ce qu'une version antérieure de l'application y a laissé et est irréversible. Rien n'est modifié sur votre casque."
+    },
+    "SETTINGS_ERASE_LOCAL_BUTTON": {
+      "source": "Erase this browser's data",
+      "sourceHash": "92a71b2577a006ef",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Effacer les données de ce navigateur"
+    },
+    "SETTINGS_ERASE_LOCAL_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Je comprends que cette action est irréversible."
+    },
+    "SETTINGS_ERASE_DEVICE_TITLE": {
+      "source": "Erase the data on this computer",
+      "sourceHash": "95171d6bb38c0caf",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Effacer les données de cet ordinateur"
+    },
+    "SETTINGS_ERASE_DEVICE_BODY": {
+      "source": "Erases everything NeurOne keeps on this computer: your settings, your session history, your consent choices and the key that protects them. It cannot be undone. Backups you made are kept where you put them, and so is anything on your helmet. When it has finished, close and reopen the app.",
+      "sourceHash": "482eb1d0f2704e36",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Efface tout ce que NeurOne conserve sur cet ordinateur : vos réglages, l'historique de vos séances, vos choix de consentement et la clé qui les protège. Cette action est irréversible. Les sauvegardes que vous avez faites restent là où vous les avez placées, tout comme ce qui se trouve sur votre casque. Une fois l'effacement terminé, fermez puis rouvrez l'application."
+    },
+    "SETTINGS_ERASE_DEVICE_BUTTON": {
+      "source": "Erase this computer's data",
+      "sourceHash": "8767f6c279ea3445",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Effacer les données de cet ordinateur"
+    },
+    "SETTINGS_ERASE_DEVICE_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Je comprends que cette action est irréversible."
+    },
+    "SETTINGS_ERASE_DEVICE_DONE": {
+      "source": "Everything NeurOne kept on this computer has been erased. Close the app now. It starts fresh the next time you open it.",
+      "sourceHash": "3e7ac2e0e92b804a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Tout ce que NeurOne conservait sur cet ordinateur a été effacé. Fermez maintenant l'application. Elle repartira de zéro à sa prochaine ouverture."
+    },
+    "SETTINGS_ERASE_DEVICE_FAILED": {
+      "source": "The erase did not finish. Nothing more was written. Try again, and close the app if it keeps failing.",
+      "sourceHash": "6a399258b9fb619a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "L'effacement n'a pas abouti. Rien de plus n'a été écrit. Réessayez, et fermez l'application si l'échec persiste."
+    },
+    "SETTINGS_ERASE_DEVICE_KEY_KEPT": {
+      "source": "The key that protected your data could not be removed from this computer's credential store. The data it protected is gone, so it opens nothing. You can delete the entry named life.neurone.data-key there.",
+      "sourceHash": "9a771a14221b1f8f",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "La clé qui protégeait vos données n'a pas pu être supprimée du gestionnaire d'identifiants de cet ordinateur. Les données qu'elle protégeait ont disparu : elle n'ouvre plus rien. Vous pouvez y supprimer l'entrée nommée life.neurone.data-key."
+    },
+    "SETTINGS_ERASE_DEVICE_CLOSE": {
+      "source": "Close NeurOne",
+      "sourceHash": "751d966344a99597",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "Fermer NeurOne"
+    }
+  }
+}

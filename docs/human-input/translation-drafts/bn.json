@@ -1,0 +1,112 @@
+{
+  "locale": "bn",
+  "sourceLocale": "en",
+  "exportedOn": "2026-10-19",
+  "strings": {
+    "STORAGE_LOCKED_NOTICE": {
+      "source": "Your saved data on this device cannot be opened right now, because the system's secure key store is not available. Nothing has been changed or deleted. Anything you do now is not saved and is lost when the app closes. Close the app, unlock or restore access to the key store, and open it again.",
+      "sourceHash": "c0abe55463e8b6a7",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই ডিভাইসে সংরক্ষিত আপনার ডেটা এখন খোলা যাচ্ছে না, কারণ সিস্টেমের নিরাপদ কী স্টোর পাওয়া যাচ্ছে না। কিছুই পরিবর্তন বা মুছে ফেলা হয়নি। এখন আপনি যা করবেন তা সংরক্ষিত হবে না এবং অ্যাপ বন্ধ করলে হারিয়ে যাবে। অ্যাপ বন্ধ করুন, কী স্টোর আনলক করুন বা তার অ্যাক্সেস ফিরিয়ে আনুন, তারপর আবার অ্যাপ খুলুন।"
+    },
+    "STORAGE_UNSEALED_NOTICE": {
+      "source": "This device's secure key store is not available, so the app keeps your saved data on disk without encrypting it. Make the key store available and restart the app to protect it.",
+      "sourceHash": "a56bb26212e1c59d",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই ডিভাইসের নিরাপদ কী স্টোর পাওয়া যাচ্ছে না, তাই অ্যাপ আপনার সংরক্ষিত ডেটা এনক্রিপ্ট না করেই ডিস্কে রাখছে। ডেটা সুরক্ষিত করতে কী স্টোর চালু করুন এবং অ্যাপ আবার চালু করুন।"
+    },
+    "STORAGE_MEMORY_ONLY_NOTICE": {
+      "source": "Nothing is saved in this browser. Your protocols, settings and answers are gone when you close or reload this page. To keep them, save a backup file before you leave.",
+      "sourceHash": "a601a9dbfaad4629",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই ব্রাউজারে কিছুই সংরক্ষিত হয় না। এই পেজ বন্ধ বা রিলোড করলে আপনার প্রোটোকল, সেটিংস ও উত্তরগুলো মুছে যাবে। এগুলো রাখতে চলে যাওয়ার আগে একটি ব্যাকআপ ফাইল সংরক্ষণ করুন।"
+    },
+    "SETTINGS_ERASE_LOCAL_TITLE": {
+      "source": "Data kept in this browser",
+      "sourceHash": "ab61b94d6125e9e8",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই ব্রাউজারে রাখা ডেটা"
+    },
+    "SETTINGS_ERASE_LOCAL_BODY": {
+      "source": "This page keeps nothing in this browser between visits. Erasing removes anything an earlier version of the app left here, and cannot be undone. Nothing on your helmet is changed.",
+      "sourceHash": "4b85815dc879b969",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই পেজ দুই ভিজিটের মধ্যে এই ব্রাউজারে কিছুই রাখে না। মুছে ফেললে অ্যাপের আগের কোনো সংস্করণ এখানে যা রেখে গেছে তা মুছে যাবে, এবং এটি ফেরানো যায় না। আপনার হেলমেটে কিছুই বদলায় না।"
+    },
+    "SETTINGS_ERASE_LOCAL_BUTTON": {
+      "source": "Erase this browser's data",
+      "sourceHash": "92a71b2577a006ef",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই ব্রাউজারের ডেটা মুছুন"
+    },
+    "SETTINGS_ERASE_LOCAL_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "আমি বুঝতে পারছি যে এটি ফেরানো যাবে না।"
+    },
+    "SETTINGS_ERASE_DEVICE_TITLE": {
+      "source": "Erase the data on this computer",
+      "sourceHash": "95171d6bb38c0caf",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই কম্পিউটারের ডেটা মুছুন"
+    },
+    "SETTINGS_ERASE_DEVICE_BODY": {
+      "source": "Erases everything NeurOne keeps on this computer: your settings, your session history, your consent choices and the key that protects them. It cannot be undone. Backups you made are kept where you put them, and so is anything on your helmet. When it has finished, close and reopen the app.",
+      "sourceHash": "482eb1d0f2704e36",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "NeurOne এই কম্পিউটারে যা কিছু রাখে সব মুছে দেয়: আপনার সেটিংস, সেশনের ইতিহাস, সম্মতির পছন্দ এবং সেগুলো সুরক্ষিত রাখা কী। এটি ফেরানো যায় না। আপনার তৈরি ব্যাকআপ আপনি যেখানে রেখেছেন সেখানেই থাকে, আপনার হেলমেটে থাকা সবকিছুও থাকে। শেষ হলে অ্যাপ বন্ধ করে আবার খুলুন।"
+    },
+    "SETTINGS_ERASE_DEVICE_BUTTON": {
+      "source": "Erase this computer's data",
+      "sourceHash": "8767f6c279ea3445",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "এই কম্পিউটারের ডেটা মুছুন"
+    },
+    "SETTINGS_ERASE_DEVICE_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "আমি বুঝতে পারছি যে এটি ফেরানো যাবে না।"
+    },
+    "SETTINGS_ERASE_DEVICE_DONE": {
+      "source": "Everything NeurOne kept on this computer has been erased. Close the app now. It starts fresh the next time you open it.",
+      "sourceHash": "3e7ac2e0e92b804a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "NeurOne এই কম্পিউটারে যা কিছু রেখেছিল সব মুছে ফেলা হয়েছে। এখন অ্যাপ বন্ধ করুন। পরের বার খুললে এটি নতুন করে শুরু হবে।"
+    },
+    "SETTINGS_ERASE_DEVICE_FAILED": {
+      "source": "The erase did not finish. Nothing more was written. Try again, and close the app if it keeps failing.",
+      "sourceHash": "6a399258b9fb619a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "মুছে ফেলা সম্পন্ন হয়নি। আর কিছু লেখা হয়নি। আবার চেষ্টা করুন, এবং বারবার ব্যর্থ হলে অ্যাপ বন্ধ করুন।"
+    },
+    "SETTINGS_ERASE_DEVICE_KEY_KEPT": {
+      "source": "The key that protected your data could not be removed from this computer's credential store. The data it protected is gone, so it opens nothing. You can delete the entry named life.neurone.data-key there.",
+      "sourceHash": "9a771a14221b1f8f",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "আপনার ডেটা সুরক্ষিত রাখা কীটি এই কম্পিউটারের ক্রেডেনশিয়াল স্টোর থেকে সরানো যায়নি। এটি যে ডেটা সুরক্ষিত রাখত তা মুছে গেছে, তাই এটি আর কিছুই খোলে না। আপনি সেখানে life.neurone.data-key নামের এন্ট্রিটি মুছে দিতে পারেন।"
+    },
+    "SETTINGS_ERASE_DEVICE_CLOSE": {
+      "source": "Close NeurOne",
+      "sourceHash": "751d966344a99597",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "NeurOne বন্ধ করুন"
+    }
+  }
+}
