@@ -26,11 +26,17 @@ import life.neurone.core.protocol.PersistedKeys
 class MemoryOnlyKeysKeyValueStore(
     private val inner: KeyValueStore,
     private val memoryOnlyKeys: Set<String>,
+    /**
+     * Whether to remove what [inner] holds under the memory-only keys. True for the browser, where an earlier build's plaintext
+     * must not stay readable. **False for [ProtectedStorage]'s locked state**, where what [inner] holds under those keys is the
+     * person's sealed data that this run cannot open and must leave exactly as it is.
+     */
+    removeStaleFromInner: Boolean = true,
 ) : KeyValueStore {
     private val memory = mutableMapOf<String, String>()
 
     init {
-        memoryOnlyKeys.forEach { inner.remove(it) }
+        if (removeStaleFromInner) memoryOnlyKeys.forEach { inner.remove(it) }
     }
 
     private fun held(key: String) = key in memoryOnlyKeys

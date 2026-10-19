@@ -1,5 +1,6 @@
 package life.neurone.shared.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -11,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -24,7 +26,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
+import life.neurone.core.common.StorageProtection
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
@@ -64,7 +68,28 @@ fun NeurOneApp(services: AppServices) {
     // The validator's messages are locale keys until their text is read (asynchronously, once).
     LaunchedEffect(Unit) { installValidationText() }
     MaterialTheme {
-        Root(services)
+        Column {
+            StorageNotice(services)
+            Root(services)
+        }
+    }
+}
+
+/**
+ * Says so when the protected data is not sealed on this run (desktop audit item 1, SWR-MG-13). Locked: the saved data cannot be
+ * opened and is untouched, and what is done now is not saved. Unsealed: the host has no usable credential store, so the data is
+ * on disk as plain text. Shown above every screen, and nothing when the data is sealed.
+ */
+@Composable
+private fun StorageNotice(services: AppServices) {
+    val text = when {
+        services.storageProtection == StorageProtection.LOCKED -> Res.string.storage_locked_notice
+        services.storageProtection == StorageProtection.UNSEALED && services.platform.reportsUnsealedStorage ->
+            Res.string.storage_unsealed_notice
+        else -> return
+    }
+    Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) {
+        Text(stringResource(text), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
