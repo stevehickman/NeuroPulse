@@ -30,7 +30,7 @@ class SecretKeyAnswerTest {
         val key = DesktopSecretKeyStore.interpretLoad(Os.MAC, 0, "$hex\n", "")!!
         assertEquals(32, key.size)
         assertEquals(0x01.toByte(), key[0])
-        assertEquals(0xef.toByte(), key[3])
+        assertEquals(0xef.toByte(), key[7])
         assertFailsWith<SecretKeyUnavailableException> { DesktopSecretKeyStore.interpretLoad(Os.MAC, 0, "garbage", "") }
         assertFailsWith<SecretKeyUnavailableException> { DesktopSecretKeyStore.interpretLoad(Os.MAC, 0, "", "") }
     }
