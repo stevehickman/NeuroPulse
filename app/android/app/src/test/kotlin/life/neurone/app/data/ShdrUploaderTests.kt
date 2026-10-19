@@ -238,7 +238,7 @@ DQe5uIuf3oUzoLfX59gNvtxE5zZD
 
     // @verifies REQ-SHDR-04#a
     @Test
-    fun theFleetHostHasAPrimaryAndAtLeastOneDistinctBackupPin() {
+    fun theRelayHostHasAPrimaryAndAtLeastOneDistinctBackupPin() {
         val pins = pinnedSet()
         assertTrue(pins.size >= 2, "expected a primary and a backup pin, found $pins")
         assertEquals(pins.size, pins.toSet().size, "the pins are distinct")
@@ -247,9 +247,10 @@ DQe5uIuf3oUzoLfX59gNvtxE5zZD
 
     // @verifies REQ-SHDR-04#b
     @Test
-    fun aLeafWhoseKeyIsNotPinnedIsRefusedForTheFleetHost() {
+    fun aLeafWhoseKeyIsNotPinnedIsRefusedForTheRelayHost() {
         assertFailsWith<SSLPeerUnverifiedException> {
-            defaultPinner().check(ShdrUploader.FLEET_HOST, listOf(stranger()))
+            // The phone connects to the relay only (REQ-SHDR-07), so the pins are the relay's.
+            defaultPinner().check(ShdrUploader.RELAY_HOST, listOf(stranger()))
         }
     }
 }

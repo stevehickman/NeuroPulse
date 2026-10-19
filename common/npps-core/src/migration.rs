@@ -523,6 +523,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
                 .or_else(|| crate::migration_text::op(other, req))
                 .or_else(|| crate::at_rest::op(other, req))
                 .or_else(|| crate::analytics::op(other, req))
+                .or_else(|| crate::ohttp::op(other, req))
                 .or_else(|| crate::primitives::op(other, req))
                 .unwrap_or_else(|| Err(format!("unknown migration operation '{other}'")))
         }

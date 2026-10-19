@@ -1354,7 +1354,7 @@
   "VISUAL_MODE_RETINALPBM": "Retinal PBM",
   "WARRANTY_FLEET_BODY": "The helmet can send NeurOne a report about the helmet itself: how its parts are wearing, so that faults can be found early. It holds nothing about any person who uses it. This choice is the helmet owner's, and it is separate from any person's research choices.",
   "WARRANTY_FLEET_NOTICE_ACCEPT": "Turn on",
-  "WARRANTY_FLEET_NOTICE_BODY": "The report carries a code that stands for this helmet and no name. NeurOne's service sees the network address of the connection while it receives the report, and does not keep it. The network the report crosses, such as your internet provider or an employer's network, can see that this phone talks to NeurOne's service and how much it sends. You can turn reports off here at any time, and nothing more is sent after that.",
+  "WARRANTY_FLEET_NOTICE_BODY": "The report carries a code that stands for this helmet and no name. It is sent through a relay that is run separately from NeurOne's fleet service, so the fleet service does not see your network address and the relay cannot read the report. The relay does see your network address while it passes the report on, and does not keep it. The network the report crosses, such as your internet provider or an employer's network, can see that this phone talks to the relay and how much it sends. You can turn reports off here at any time, and nothing more is sent after that.",
   "WARRANTY_FLEET_NOTICE_CONFIRM": "I own this helmet, or I may decide this for it",
   "WARRANTY_FLEET_NOTICE_TITLE": "Before you turn reports on",
   "WARRANTY_FLEET_STATUS_OFF": "Reports are off. Nothing is sent.",

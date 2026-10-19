@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-10-15
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** G2
 **IEC 62304 Class:** B, following the app items the core serves. See §3.
 **Supersedes:** None
-**Change Summary:** Rev 8 (2026-10-17) — the iOS app derives its device-bound UHDR key with the core too (`OI-SOUPKT-01`, `CLAUDE.md` §22): the vendored PHC Argon2 is deleted. A known-answer test (`bundle_key.rs`) pins the core's output to what that vendored reference derived for the same inputs, so an existing key is unchanged. No crate changed. Rev 7 (2026-10-17) — `common/Cargo.lock` is also read by OSV-Scanner in `.github/workflows/dependency-scan.yml` (`OI-SOUPKT-01` item 2), on a dependency change and weekly, so §6.1's `cargo audit` is no longer the only scan. No crate changed. Rev 6 (2026-10-17) — SHA-2 and Ed25519 for every platform (issue #569 package 6w, `OI-SOUPKT-01`, `CLAUDE.md` §22): `ed25519-dalek` 2.2.0 (default features off; `alloc`, `zeroize`) signs and verifies, and the core's `sha256`, `sha512`, `ed25519PublicKey`, `ed25519Sign` and `ed25519Verify` operations replace the Kotlin Ed25519 (a TweetNaCl port that was not constant-time) and SHA-2 that `:core` carried. Verification is `verify_strict`. Six crates join the tree as its dependencies: `ed25519`, `signature`, `pkcs8`, `spki`, `der`, `const-oid`; **53** crates now (was 46). `cargo audit` re-run on `Cargo.lock` (1,334 advisories, 154 crates): no vulnerability. Rev 5 (2026-10-17) — the core derives the UHDR key too (`derive_uhdr_key`, issue #569 package 6v): the same `argon2` crate at the same cost with 64 bytes out, so the Kotlin app needs no Argon2 library of its own. No dependency changed; the argon2 row's role is amended and `REQ-SW03-08` now has a core test. Rev 4 (2026-10-16) — the direct-link pairing joins the core (issue #569 package 6t): `spake2` 0.4.0 (SPAKE2 over Ed25519, the password-authenticated key exchange that lets an 8-digit code pair two phones), `hmac` and `hkdf` (the key confirmation and the directions' keys) and `rand_core` (the randomness trait SPAKE2 asks for, fed from the driver's bytes) become direct dependencies; `curve25519-dalek` 4.1.3, `curve25519-dalek-derive` and `fiat-crypto` come with `spake2`. Inventory regenerated (46 crates, was 40) and the RustSec scan re-run against 1,329 advisories (147 packages in the lock file): 0 vulnerabilities. `spake2` has no known-answer test in this repository and no independent review of its use was done (§6.2). Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
+**Change Summary:** Rev 9 (2026-10-19) — Oblivious HTTP for the fleet upload joins the core (`OI-FLEET-01` (1), `REQ-SHDR-07`, `CLAUDE.md` §22): `hpke` 0.13.0 (RFC 9180, default features off; `alloc`, `x25519`) seals the request to the gateway's key, and `rand_core` 0.9 (named `rand_core09`, because `hpke` takes that version's traits) carries the host's entropy to it. Eight crates join the tree: `hpke`, `rand_core` 0.9.5, `x25519-dalek`, `chacha20poly1305`, `chacha20`, `poly1305`, `getrandom` and `zeroize_derive`; **61** crates now (was 53). `chacha20poly1305` is a dependency of `hpke` with its default features, which turns on `getrandom`, and `aes-gcm`'s entry above no longer keeps `getrandom` out of the tree. A `wasm32-unknown-unknown` build has no operating-system entropy, so the core registers a `getrandom` source that always refuses (`ohttp.rs`, target-specific in `Cargo.toml`); the core asks for no entropy of its own. **The RustSec scan was not re-run** (`cargo audit` is not installed where this was written): §6.1 describes Rev 4's scan and says nothing about the eight. The gateway in `infra/fleet/gateway` is a separate crate with its own lock file that depends on the core by path and adds `serde_json` only. Rev 8 (2026-10-17) — the iOS app derives its device-bound UHDR key with the core too (`OI-SOUPKT-01`, `CLAUDE.md` §22): the vendored PHC Argon2 is deleted. A known-answer test (`bundle_key.rs`) pins the core's output to what that vendored reference derived for the same inputs, so an existing key is unchanged. No crate changed. Rev 7 (2026-10-17) — `common/Cargo.lock` is also read by OSV-Scanner in `.github/workflows/dependency-scan.yml` (`OI-SOUPKT-01` item 2), on a dependency change and weekly, so §6.1's `cargo audit` is no longer the only scan. No crate changed. Rev 6 (2026-10-17) — SHA-2 and Ed25519 for every platform (issue #569 package 6w, `OI-SOUPKT-01`, `CLAUDE.md` §22): `ed25519-dalek` 2.2.0 (default features off; `alloc`, `zeroize`) signs and verifies, and the core's `sha256`, `sha512`, `ed25519PublicKey`, `ed25519Sign` and `ed25519Verify` operations replace the Kotlin Ed25519 (a TweetNaCl port that was not constant-time) and SHA-2 that `:core` carried. Verification is `verify_strict`. Six crates join the tree as its dependencies: `ed25519`, `signature`, `pkcs8`, `spki`, `der`, `const-oid`; **53** crates now (was 46). `cargo audit` re-run on `Cargo.lock` (1,334 advisories, 154 crates): no vulnerability. Rev 5 (2026-10-17) — the core derives the UHDR key too (`derive_uhdr_key`, issue #569 package 6v): the same `argon2` crate at the same cost with 64 bytes out, so the Kotlin app needs no Argon2 library of its own. No dependency changed; the argon2 row's role is amended and `REQ-SW03-08` now has a core test. Rev 4 (2026-10-16) — the direct-link pairing joins the core (issue #569 package 6t): `spake2` 0.4.0 (SPAKE2 over Ed25519, the password-authenticated key exchange that lets an 8-digit code pair two phones), `hmac` and `hkdf` (the key confirmation and the directions' keys) and `rand_core` (the randomness trait SPAKE2 asks for, fed from the driver's bytes) become direct dependencies; `curve25519-dalek` 4.1.3, `curve25519-dalek-derive` and `fiat-crypto` come with `spake2`. Inventory regenerated (46 crates, was 40) and the RustSec scan re-run against 1,329 advisories (147 packages in the lock file): 0 vulnerabilities. `spake2` has no known-answer test in this repository and no independent review of its use was done (§6.2). Rev 3 (2026-10-15) — the NFKC corpus owed under `unicode-normalization` (§6.3) is built (issue #569 package 6i): `app/NeurOneShared/TestData/nfkc-corpus.json`, 29 known answers from the Unicode Standard written by hand plus the boundary cases of the 12-character floor, run by the core and by Kotlin, Swift, C# and the web through their binding, so it checks the crate's tables and that each platform hands the core the same code points. No dependency changed. Rev 2 (2026-10-15) — `argon2` 0.5.3 joins the core (issue #569 package 6f): the Argon2id derivation of the bundle key now runs once in the core instead of once per app, so the dependency moves from each app's own library to this record. `zeroize` becomes a direct dependency. Inventory regenerated (40 crates, was 34) and the RustSec scan re-run (0 advisories). The argon2 crate is checked against the RFC 9106 test vector by a test in `bundle_key.rs`, which closes the "no known-answer test" gap for it (§6.2). Rev 1 (2026-10-14) — first issue. Written when `aes-gcm` and `unicode-normalization` joined the core (issue #569 packages 6c and 6d), which made the absence of any record of the core's Rust dependencies a gap: until then the core linked `serde_json` and `sha2` and no document listed them. Inventory regenerated from `common/Cargo.lock` with `cargo metadata --locked`; RustSec scan run (0 advisories). The rest of the anomaly evaluation is not done (§6.2), and the record says so.
 **Review Cadence:** On any change to `common/Cargo.lock` that touches the tree below, and at G2
 
 ---
@@ -35,7 +35,7 @@ record says so, so it does not read as "no known hazardous anomaly".
 
 ## 2. Direct dependencies
 
-The core (`common/npps-core/Cargo.toml`) names ten crates. The FFI crate adds none. The JNI crate adds `jni`.
+The core (`common/npps-core/Cargo.toml`) names fourteen crates. The FFI crate adds none. The JNI crate adds `jni`.
 
 | Crate | Version | Features | Role in the core | Licence |
 |-------|---------|----------|------------------|---------|
@@ -47,6 +47,9 @@ The core (`common/npps-core/Cargo.toml`) names ten crates. The FFI crate adds no
 | unicode-normalization | 0.1.25 | default | Unicode NFKC of a passphrase before it becomes a key secret (`bundle_key.rs`, `SWR-MG-02`). The crate's tables are Unicode 17.0.0 | MIT OR Apache-2.0 |
 | spake2 | 0.4.0 | default features **off** | SPAKE2 over Ed25519 (the `Ed25519Group`), the password-authenticated key exchange of the direct-link pairing: the 8-digit code is the password, and a wrong guess gives an attacker one guess per session and nothing to test offline (`link.rs`, `SWR-MG-10`). The core calls the `_with_rng` entry points only, with the driver's bytes, so the crate's own operating-system randomness is never used | MIT OR Apache-2.0 |
 | rand_core | 0.6.4 | default | The `RngCore` and `CryptoRng` traits `spake2` asks for; the core implements them over the bytes the driver gave (`link.rs`, `Given`) | MIT OR Apache-2.0 |
+| hpke | 0.13.0 | `alloc`, `x25519`; default features **off** (no `p256`, no `std`) | HPKE (RFC 9180) for Oblivious HTTP (RFC 9458): DHKEM(X25519, HKDF-SHA256) with HKDF-SHA256 and AES-128-GCM seals the fleet upload to the gateway's key and opens it at the gateway, and exports the secret the answer is sealed under (`ohttp.rs`, `REQ-SHDR-07`). The ephemeral key comes from the host's entropy, never from the operating system | MIT OR Apache-2.0 |
+| getrandom (`wasm32` only) | 0.2.17 | `custom` | Not used for entropy: `hpke`'s dependency `chacha20poly1305` asks `getrandom` for an operating-system source, which a `wasm32-unknown-unknown` build lacks, so the core registers one that always refuses (`ohttp.rs`). The core takes no entropy from the platform | MIT OR Apache-2.0 |
+| rand_core (as `rand_core09`) | 0.9.5 | default features off | The `RngCore` and `CryptoRng` traits of the version `hpke` takes; `ohttp.rs` implements them over the 32 bytes the host supplied and stops rather than repeat them | MIT OR Apache-2.0 |
 | hmac | 0.12.1 | default | HMAC-SHA-256 over the two SPAKE2 messages: each phone's proof that it holds the shared key (`link.rs`) | MIT OR Apache-2.0 |
 | hkdf | 0.12.4 | default | HKDF-SHA-256: the two directions' keys of the sealed link, from the shared key (`link.rs`) | MIT OR Apache-2.0 |
 | ed25519-dalek | 2.2.0 | `alloc`, `zeroize`; default features **off** (no `std`, no `rand_core`, no `pkcs8` or `serde` feature) | Ed25519 (RFC 8032): the public key of a seed, the signature of the hub descriptor's signed region, and the strict verification of a study descriptor's signature (`primitives.rs`). Verification uses `verify_strict`, which also refuses a weak or small-order key. The secret is created inside the call from a seed the driver supplied, and the signing key is zeroized when dropped | BSD-3-Clause |
@@ -75,7 +78,7 @@ cargo itself: it copies a library built beforehand, and whether that build passe
 ## 5. Transitive inventory
 
 Every crate in `common/Cargo.lock` reachable from `neurone-npps-core` through normal and build dependencies, over all
-targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (Rev 6 adds the seven in the Ed25519 row's tree). The `jni` crate and its dependencies add 25 more
+targets: **61** crates. Generated with `cargo metadata --locked` on 2026-10-16 (Rev 6 adds the seven in the Ed25519 row's tree; Rev 9 adds the eight in the `hpke` row's tree: `hpke`, `rand_core` 0.9.5, `x25519-dalek`, `chacha20poly1305`, `chacha20`, `poly1305`, `getrandom` and `zeroize_derive`). The `jni` crate and its dependencies add 25 more
 (the same crates sit in the tree `NP-SOUP-BTLE-001` §4 inventories, which also links `jni`). The proc-macro and build-script crates (`proc-macro2`, `quote`, `syn`, `serde_derive`,
 `version_check`) run at build time and are not in the shipped library.
 
@@ -89,6 +92,8 @@ targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (
 | blake2 | 0.10.6 | MIT OR Apache-2.0 |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
+| chacha20 | 0.9.1 | Apache-2.0 OR MIT |
+| chacha20poly1305 | 0.10.1 | Apache-2.0 OR MIT |
 | cipher | 0.4.4 | MIT OR Apache-2.0 |
 | const-oid | 0.9.6 | Apache-2.0 OR MIT |
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
@@ -102,9 +107,11 @@ targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (
 | ed25519-dalek | 2.2.0 | BSD-3-Clause |
 | fiat-crypto | 0.2.9 | MIT OR Apache-2.0 OR BSD-1-Clause |
 | generic-array | 0.14.7 | MIT |
+| getrandom | 0.2.17 | MIT OR Apache-2.0 |
 | ghash | 0.5.1 | Apache-2.0 OR MIT |
 | hkdf | 0.12.4 | MIT OR Apache-2.0 |
 | hmac | 0.12.1 | MIT OR Apache-2.0 |
+| hpke | 0.13.0 | MIT/Apache-2.0 |
 | inout | 0.1.4 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | libc | 0.2.190 | MIT OR Apache-2.0 |
@@ -112,10 +119,12 @@ targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (
 | opaque-debug | 0.3.1 | MIT OR Apache-2.0 |
 | password-hash | 0.5.0 | MIT OR Apache-2.0 |
 | pkcs8 | 0.10.2 | Apache-2.0 OR MIT |
+| poly1305 | 0.8.0 | Apache-2.0 OR MIT |
 | polyval | 0.6.2 | Apache-2.0 OR MIT |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | rand_core | 0.6.4 | MIT OR Apache-2.0 |
+| rand_core | 0.9.5 | MIT OR Apache-2.0 |
 | serde | 1.0.229 | MIT OR Apache-2.0 |
 | serde_core | 1.0.229 | MIT OR Apache-2.0 |
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 |
@@ -132,7 +141,9 @@ targets: **53** crates. Generated with `cargo metadata --locked` on 2026-10-16 (
 | unicode-normalization | 0.1.25 | MIT OR Apache-2.0 |
 | universal-hash | 0.5.1 | MIT OR Apache-2.0 |
 | version_check | 0.9.5 | MIT/Apache-2.0 |
+| x25519-dalek | 2.0.1 | BSD-3-Clause |
 | zeroize | 1.9.1 | Apache-2.0 OR MIT |
+| zeroize_derive | 1.5.0 | Apache-2.0 OR MIT |
 | zmij | 1.0.23 | MIT |
 
 Two licence points for the record. `unicode-ident` is `(MIT OR Apache-2.0) AND Unicode-3.0`: the Unicode-3.0 half is
@@ -173,6 +184,7 @@ Three advisories exist for crates the core uses, and none applies to the pinned 
   frames are refused), but not against a published SPAKE2 vector, and the crate itself says it is not audited. The pin is
   0.4.0, the last release before 0.5.0-pre. A review of the construction (`link.rs`, "The pairing") by someone who does this
   for a living is owed before the direct link ships to people (`UC-093`).
+- **`hpke` and the Oblivious HTTP construction have no known-answer test and no interoperability test.** `ohttp.rs` is tested against its own gateway side only, so a mistake made identically on both sides (a wrong info string, say) would pass and still not interoperate with a third-party gateway or relay. The RFC 9180 and RFC 9458 vectors, or another implementation, would show it. Owed before the fleet upload ships (`OI-FLEET-01`).
 - **No check of the licence texts** against the declared SPDX identifiers.
 - **No run on iOS, Android, Windows or in a browser of the cryptographic path.** The Rust tests run on Linux; the
   WebAssembly path is exercised by the web test; the JNI and C ABI paths are exercised by CI.
@@ -189,6 +201,7 @@ Three advisories exist for crates the core uses, and none applies to the pinned 
 | serde_json | Rejects or mis-parses a request | An operation refuses a valid request, or reads a field as another type | Parsing errors return an error and no answer; the tests of each operation. Recursion depth is the crate's default limit |
 | spake2 | A password-authenticated exchange that leaks the password, or accepts a wrong one | A bystander on the same network pairs with the old phone and is sent the (encrypted) bundle and the claim, or learns the code offline | Both phones check the other's MAC over the two messages before any bundle byte moves; the session cost a try whatever happens; the bundle is still sealed under the person's own secret, so a paired bystander holds ciphertext only; the construction is not independently reviewed (§6.2) |
 | hmac / hkdf | A wrong MAC or a key derived the same for both directions | A proof that does not prove, or a sealed link whose two directions share a keystream | The MAC is verified in constant time (`verify_slice`); the two directions use distinct HKDF labels and distinct keys, tested by the link tests |
+| hpke | A wrong key schedule, or a request that opens for a party that does not hold the gateway's key | A helmet's SHDR record, with its device token, is readable by the relay or a bystander, or a gateway refuses a good record; the sender's address is no longer hidden from the party that reads the record | The sealing is tested end to end against the same core's gateway side (`ohttp.rs`, `FleetOhttpTests`, `infra/fleet/gateway`): a wrong key, a tampered request and a tampered answer all fail to open. **Not tested against a published HPKE or Oblivious HTTP vector, or against another implementation** (§6.2) |
 | ed25519-dalek | Accepts a forged or malleable signature, or signs wrongly | A study descriptor from a forged source is trusted and admitted (`ConsentEngine.admit()` re-checks consent but not the source); a hub rejects a good protocol | `verify_strict` refuses a malleable signature and a small-order key; the RFC 8032 test 1 vector (`primitives.rs`); the Kotlin parity tests against the JDK's Ed25519 on random inputs |
 | the rest (§5) | A fault in a support crate | As the crate that depends on it | RustSec (§6.1) |
 

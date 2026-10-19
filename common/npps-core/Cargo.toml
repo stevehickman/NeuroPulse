@@ -17,6 +17,8 @@ rand_core = "0.6"
 hmac = "0.12"
 hkdf = "0.12"
 ed25519-dalek = { version = "2", default-features = false, features = ["alloc", "zeroize"] }
+hpke = { version = "0.13", default-features = false, features = ["alloc", "x25519"] }
+rand_core09 = { package = "rand_core", version = "0.9" }
 
 [build-dependencies]
 serde_json = "1"
@@ -24,3 +26,9 @@ serde_json = "1"
 [lib]
 name = "neurone_npps_core"
 path = "src/lib.rs"
+
+# hpke pulls in chacha20poly1305, whose default features ask `getrandom` for an operating-system entropy source, and a
+# `wasm32-unknown-unknown` build has none. This core never asks for entropy (the host supplies every random byte), so the
+# browser build registers a source that always refuses, which also means no code path can quietly start using one.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["custom"] }

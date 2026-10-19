@@ -17,6 +17,7 @@ enum SHDRUploadError: LocalizedError {
     case noHubIdentity
     case networkError(Error)
     case serverRejected(Int)
+    case notConfigured
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +25,7 @@ enum SHDRUploadError: LocalizedError {
         case .noHubIdentity:         return "No helmet is connected to say whose record this is."
         case .networkError(let e):   return "Network error during SHDR upload: \(e.localizedDescription)"
         case .serverRejected(let c): return "Fleet server rejected SHDR upload (HTTP \(c))."
+        case .notConfigured:         return "The fleet gateway's key is not set, so nothing is sent."
         }
     }
 }
@@ -49,7 +51,20 @@ enum SHDRUploadError: LocalizedError {
 //         openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
 //   (3) Replace the placeholder values in SHDRFleetPinningDelegate.PINNED_HASHES
 //       with real hashes (primary key + at least one backup for zero-downtime rotation).
-private let FLEET_ENDPOINT = URL(string: "https://fleet.neurone.internal/v1/shdr")!
+//
+// Transport (privacy review Finding 6, OI-FLEET-01 (1)): Oblivious HTTP (RFC 9458, FleetOhttp). The record is sealed to the
+// fleet GATEWAY's key and posted to the RELAY, so the server that reads it never sees the network address and the relay never
+// sees the record. The pins above are the RELAY's. Until `GATEWAY_KEY_CONFIG_HEX` is set to the gateway's key configuration
+// nothing is uploaded (fail closed). NP-INFRA-001 §3.3b.
+//
+// The fleet service as the gateway forwards to it: the authority and path of the sealed request, never connected to from the phone.
+private let FLEET_AUTHORITY = "fleet.neurone.internal"
+private let FLEET_PATH = "/v1/shdr"
+// The relay the phone connects to: run by a party other than the gateway's operator. A placeholder until it exists.
+private let RELAY_HOST = "relay.neurone.internal"
+private let RELAY_ENDPOINT = URL(string: "https://\(RELAY_HOST)/relay")!
+// The gateway's key configuration (hex, one configuration). Empty until the gateway exists.
+private let GATEWAY_KEY_CONFIG_HEX = ""
 
 // MARK: - SPKI certificate pinning (NP-PRIV-ANALYSIS-002 LOW-11)
 //
@@ -217,7 +232,7 @@ final class SHDRUploader: ObservableObject {
 
     init(gatt: SHDRUploadTriggering) {
         self.uploadTrigger = gatt
-        let delegate = SHDRFleetPinningDelegate(host: "fleet.neurone.internal")
+        let delegate = SHDRFleetPinningDelegate(host: RELAY_HOST)
         self.session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
         Self.removePerPhoneToken()
         observeUploadTrigger()
@@ -316,23 +331,42 @@ final class SHDRUploader: ObservableObject {
             throw SHDRUploadError.noData
         }
 
-        var request = URLRequest(url: FLEET_ENDPOINT)
-        request.httpMethod = "POST"
-        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        request.setValue(warrantyToken, forHTTPHeaderField: "X-NP-Device-Token")
-        request.httpBody = shdrData
-
-        let (_, response): (Data, URLResponse)
+        guard !GATEWAY_KEY_CONFIG_HEX.isEmpty else {
+            let err = SHDRUploadError.notConfigured
+            lastError = err
+            throw err
+        }
+        let sealed: FleetOhttp.Sealed
         do {
-            (_, response) = try await session.data(for: request)
+            sealed = try FleetOhttp.seal(
+                keyConfigHex: GATEWAY_KEY_CONFIG_HEX, authority: FLEET_AUTHORITY, path: FLEET_PATH,
+                tokenHeader: "X-NP-Device-Token", token: warrantyToken, payload: shdrData)
+        } catch {
+            let err = SHDRUploadError.notConfigured
+            lastError = err
+            throw err
+        }
+
+        var request = URLRequest(url: RELAY_ENDPOINT)
+        request.httpMethod = "POST"
+        request.setValue(FleetOhttp.requestMediaType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = sealed.request
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
         } catch {
             let err = SHDRUploadError.networkError(error)
             lastError = err
             throw err
         }
 
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            let err = SHDRUploadError.serverRejected(http.statusCode)
+        let http = response as? HTTPURLResponse
+        guard FleetOhttp.accepted(
+            sealed, relayOK: http?.statusCode == 200,
+            contentType: http?.value(forHTTPHeaderField: "Content-Type"), body: data)
+        else {
+            let err = SHDRUploadError.serverRejected(http?.statusCode ?? 0)
             lastError = err
             throw err
         }

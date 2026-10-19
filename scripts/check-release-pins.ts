@@ -10,6 +10,8 @@
  *
  *   P1  Each pinned file yields at least two well-formed pins (a primary and a backup, which REQ-SHDR-04 requires).
  *   P2  Every pin-shaped literal is a well-formed SHA-256 SPKI pin: 43 base64 characters and one "=".
+ *   P4  Each pinned file declares GATEWAY_KEY_CONFIG_HEX, and (--release) it is not empty. The fleet upload is Oblivious HTTP (REQ-SHDR-07):
+ *       the record is sealed to the gateway's key, and an empty key sends nothing, which is the same silent failure as a placeholder pin.
  *   P3  (--release) No pin is a placeholder. A placeholder is a pin that is one character repeated: a real SHA-256 of a public
  *       key is not.
  *
@@ -41,6 +43,7 @@ export const PIN_FILES = [
 const PIN_SHAPED = /"(?:sha256\/)?([A-Za-z0-9+/]{30,}={0,2})"/g;
 const WELL_FORMED = /^[A-Za-z0-9+/]{43}=$/;
 const PLACEHOLDER = /^(.)\1{42}=$/;
+const KEY_CONFIG = /GATEWAY_KEY_CONFIG_HEX\s*(?::\s*\w+\s*)?=\s*"([^"]*)"/;
 
 export interface Finding {
   file: string;
@@ -55,7 +58,9 @@ export interface Pins {
 export function pinsIn(source: string): Pins {
   const wellFormed: string[] = [];
   const malformed: string[] = [];
-  for (const m of source.matchAll(PIN_SHAPED)) {
+  // The gateway's key configuration is hex of the right alphabet and length to look like a pin; it is not one.
+  const withoutKey = source.replace(new RegExp(KEY_CONFIG.source, "g"), "");
+  for (const m of withoutKey.matchAll(PIN_SHAPED)) {
     const pin = m[1]!;
     (WELL_FORMED.test(pin) ? wellFormed : malformed).push(pin);
   }
@@ -77,6 +82,12 @@ export function check(files: Record<string, string>, release: boolean): { findin
     for (const bad of malformed) {
       findings.push({ file, message: `P2 "${bad.slice(0, 12)}…" is pin-shaped but not 43 base64 characters and one "="` });
     }
+    const kc = KEY_CONFIG.exec(source);
+    if (!kc) {
+      findings.push({ file, message: "P4 GATEWAY_KEY_CONFIG_HEX is not declared" });
+    } else if (release && kc[1] === "") {
+      findings.push({ file, message: "P4 GATEWAY_KEY_CONFIG_HEX is empty: a release build would send nothing; set the gateway's key configuration (docs/np_infra_001.md §3.3b)" });
+    }
     const placeholder = wellFormed.filter(isPlaceholder);
     placeholders += placeholder.length;
     if (release && placeholder.length > 0) {
@@ -94,8 +105,9 @@ function selfTest(): number {
   const real2 = "Zr1B8dEw0tUy5KfQh3nPaLs7VcXgJ2mO4iNeAoT6bYk=";
   const A = "A".repeat(43) + "=";
   const B = "B".repeat(43) + "=";
-  const swift = (...p: string[]) => `static let PINNED_HASHES: Set<Data> = { let h = [${p.map((x) => `"${x}"`).join(",")}] }()`;
-  const kt = (...p: string[]) => `private val PINNED_SPKI_HASHES = listOf(${p.map((x) => `"sha256/${x}"`).join(",")})`;
+  const KEY = "01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500080001000100010003";
+  const swift = (...p: string[]) => `private let GATEWAY_KEY_CONFIG_HEX = "${KEY}"\nstatic let PINNED_HASHES: Set<Data> = { let h = [${p.map((x) => `"${x}"`).join(",")}] }()`;
+  const kt = (...p: string[]) => `const val GATEWAY_KEY_CONFIG_HEX = "${KEY}"\nprivate val PINNED_SPKI_HASHES = listOf(${p.map((x) => `"sha256/${x}"`).join(",")})`;
   const files = (s: string, k: string) => ({ ios: s, android: k });
   const failures: string[] = [];
   const t = (name: string, ok: boolean) => ok || failures.push(name);
@@ -109,8 +121,11 @@ function selfTest(): number {
   t("placeholders fail with --release (P3, both files)", codes(check(ph, true).findings).filter((c) => c === "P3").length === 2);
   t("one placeholder among real pins fails with --release", codes(check(files(swift(real, B), kt(real, real2)), true).findings).join() === "P3");
   t("a single pin fails (P1) even without --release", codes(check(files(swift(real), kt(real, real2)), false).findings).join() === "P1");
-  t("no pins at all fails (P1): the detector must not go vacuous", codes(check(files("nothing here", kt(real, real2)), false).findings).join() === "P1");
+  t("no pins at all fails (P1): the detector must not go vacuous", codes(check(files(`private let GATEWAY_KEY_CONFIG_HEX = "${KEY}"\nnothing here`, kt(real, real2)), false).findings).join() === "P1");
   t("a short pin is P2, not silently skipped", codes(check(files(swift(real, real2, real.slice(0, 40) + "="), kt(real, real2)), false).findings).join() === "P2");
+  const noKey = (src: string) => src.replace(/GATEWAY_KEY_CONFIG_HEX = "[0-9a-f]+"/, 'GATEWAY_KEY_CONFIG_HEX = ""');
+  t("an empty gateway key fails with --release (P4) and passes without", codes(check(files(noKey(swift(real, real2)), kt(real, real2)), true).findings).join() === "P4" && check(files(noKey(swift(real, real2)), kt(real, real2)), false).findings.length === 0);
+  t("a missing gateway key declaration fails (P4) even without --release", codes(check(files(swift(real, real2).replace(/private let GATEWAY_KEY_CONFIG_HEX = "[0-9a-f]+"\n/, ""), kt(real, real2)), false).findings).join() === "P4");
   t("a real hash made of one repeated pair is not a placeholder", !isPlaceholder("ABABABABABABABABABABABABABABABABABABABABABA="));
   t("a placeholder is", isPlaceholder(A) && isPlaceholder(B));
   t("the real source files carry pins the detector can see", (() => {

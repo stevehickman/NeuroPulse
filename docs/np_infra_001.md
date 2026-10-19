@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
@@ -95,7 +95,25 @@ The device token is permanent, and the server sees the connection's source addre
 
 `infra/fleet/Caddyfile` is the reference edge and `ci/test_fleet_ingest_config.py` (CI: `fleet-infra-ci.yml`) checks it. The deployed edge is not in this repository, so the check shows the reference does this, not that the deployment does.
 
-**What this does not remove.** The address still reaches the edge, because the connection needs it, and the network path (an internet provider, a corporate proxy) sees that a device talks to the fleet host at some time and how much it sends. Only a relay the sender does not trust with both halves, such as Oblivious HTTP, removes that, and it is not built (`OI-FLEET-01`). **The notice the warranty owner is shown before the first upload must say so:** that the fleet service sees the connection's network address while it receives the record, that NeurOne's service does not keep it, and that the record carries a device token and no name. The Helmet owner screen now shows it in a dialog before reports can be turned on, and turning on is the only call to `WarrantyAnalyticsGate.grant()` (`REQ-SW03-23`, Rev 4); the wording is `WARRANTY_FLEET_NOTICE_BODY` in `locales/en.json`, and must be changed with this paragraph. It says the service does not keep the address, which is true of the reference edge and unverified for any deployment (`OI-FLEET-01`).
+**What this does not remove, and what removes it.** The address still reaches whatever the phone connects to, because the connection needs it, and the network path (an internet provider, a corporate proxy) sees that a device talks to that host at some time and how much it sends. §3.3b moves that host from the fleet service to a relay, so the party that reads the record no longer sees the address. **The notice the warranty owner is shown before the first upload must say so:** that a relay run separately from the fleet service sees the connection's network address while it passes the report on, that it does not keep it and cannot read the report, that the fleet service does not see the address, and that the record carries a device token and no name. The Helmet owner screen shows it in a dialog before reports can be turned on, and turning on is the only call to `WarrantyAnalyticsGate.grant()` (`REQ-SW03-23`); the wording is `WARRANTY_FLEET_NOTICE_BODY` in `locales/en.json` and must be changed with this paragraph. **It is true only of a deployment that meets §3.3b**, which none yet does (`OI-FLEET-01`).
+
+### 3.3b The Oblivious HTTP relay and gateway (Rev 5, `OI-FLEET-01` (1), `REQ-SHDR-07`)
+
+The fleet upload is Oblivious HTTP (RFC 9458). The phone seals the request (`POST /v1/shdr`, the device token header and the SHDR record) to the **gateway's** public key, and posts the sealed message to a **relay**. The relay forwards it to the gateway; the gateway opens it, passes the record to the ingest service on the internal network, and seals the ingest's status back along the same path.
+
+| Party | Sees the phone's address | Reads the record and the token |
+|---|---|---|
+| Relay | Yes | No (ciphertext) |
+| Gateway | No (the relay's) | Yes |
+| Ingest | No (the gateway's) | Yes |
+
+- **The relay and the gateway must be run by different parties.** One party running both can join the address to the record by timing and size, which is exactly the link this removes. Nothing in the repository, and no test, can check this; it is a deployment fact and a contract with whoever runs the relay, and until it is true §3.3a's notice must not be shown. A NeurOne-run relay beside a NeurOne-run gateway protects against a breach of one, not against NeurOne.
+- **The relay keeps no log.** `infra/fleet/relay/Caddyfile` configures no access log, discards the runtime log, strips every forwarded header and serves only `POST /relay` carrying `message/ohttp-req` (`REQ-SHDR-07` (g), `ci/test_fleet_relay_config.py`).
+- **The gateway** is `infra/fleet/gateway` (Rust, on the shared core's `ohttp.rs`, `CLAUDE.md` §22). It forwards only `POST /v1/shdr`, with only the token and content-type headers, and answers anything else sealed to it with a sealed 403. It writes no per-request log. `neurone-fleet-gateway --generate <file>` makes its key (a file readable by its owner only: keep it as a secret, never in the repository); the key configuration it prints is what the apps carry as `GATEWAY_KEY_CONFIG_HEX`, and `GET /ohttp-keys` serves the same.
+- **The phone** carries three build settings per app: the relay's host and its SPKI pins (§3.5, now the relay's certificate, not the fleet's) and the gateway's key configuration. With the key configuration empty the app sends nothing, and a release build refuses it empty (`scripts/check-release-pins.ts`, P4).
+- **Key rotation is not designed.** A key configuration change needs an app release. A second key configuration accepted at once, with an identifier, would allow rotation without one; the format has the room (`key_id`) and nothing uses it.
+- **What it does not hide.** The relay, or the network between the phone and the relay, still sees that this phone sends something to the fleet's relay at some time and about how much (the padding is to 1 KiB, `UC-097`). A phone that connects only to upload makes the timing a signal. The gateway sees the relay's address, so a relay that is one machine shows the gateway one address for every phone.
+- **Not tested against another implementation.** The sealing is checked against this repository's own gateway side only, with no published vector (`NP-SOUP-RUST-001` §6.2). A matching mistake on both sides would pass and still fail to interoperate with a third-party relay or gateway.
 
 **The interim token.** Until the hub delivers its own (OI-BLE-01), the app sends a token it made for the connected helmet, kept per helmet and never per phone (`REQ-SHDR-05`).
 

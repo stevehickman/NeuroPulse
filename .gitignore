@@ -110,3 +110,4 @@ simulator/js/generated/
 
 # Kotlin Gradle plugin session data.
 .kotlin/
+infra/fleet/gateway/target/

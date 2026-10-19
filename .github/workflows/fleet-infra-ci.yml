@@ -1,17 +1,24 @@
 name: Fleet Ingest Infra CI (privacy review Finding 6)
 
-# The SHDR fleet edge must keep neither a source address nor a device token in any log. This runs when its reference
-# configuration, its test or this file change.
+# The SHDR fleet edge must keep neither a source address nor a device token in any log, and the Oblivious HTTP relay and gateway
+# in front of it must work as designed (REQ-SHDR-07). This runs when their configuration, their tests, the shared core they
+# build on, or this file change.
 on:
   push:
     paths:
       - 'infra/fleet/**'
       - 'ci/test_fleet_ingest_config.py'
+      - 'ci/test_fleet_relay_config.py'
+      - 'common/npps-core/**'
+      - 'common/npps/**'
       - '.github/workflows/fleet-infra-ci.yml'
   pull_request:
     paths:
       - 'infra/fleet/**'
       - 'ci/test_fleet_ingest_config.py'
+      - 'ci/test_fleet_relay_config.py'
+      - 'common/npps-core/**'
+      - 'common/npps/**'
       - '.github/workflows/fleet-infra-ci.yml'
   workflow_dispatch:
 
@@ -39,3 +46,23 @@ jobs:
           docker run --rm -e FLEET_HOST=localhost -e FLEET_UPSTREAM=ingest:8080 \
             -v "$PWD/infra/fleet/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  fleet-relay:
+    name: Oblivious HTTP relay keeps no log, gateway opens and forwards (REQ-SHDR-07)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Relay gate self-test (prove each check can fail)
+        run: python3 ci/test_fleet_relay_config.py --self-test
+      - name: Relay reference Caddyfile invariants
+        run: python3 ci/test_fleet_relay_config.py
+      - name: Relay Caddyfile is valid Caddy
+        run: |
+          docker run --rm -e RELAY_HOST=localhost -e GATEWAY_UPSTREAM=https://gateway.example \
+            -v "$PWD/infra/fleet/relay/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Gateway against a fake ingest
+        run: cargo test --locked --manifest-path infra/fleet/gateway/Cargo.toml
