@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.common.SecretKeyUnavailableException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -37,15 +38,20 @@ class AndroidSecretKeyStore(context: Context) : SecretKeyStore {
 
     override fun load(): ByteArray? {
         val wrapped = prefs.getString(WRAPPED, null) ?: return null
-        val key = wrappingKey(create = false) ?: return null
         return try {
+            val key = wrappingKey(create = false) ?: return null
             val bytes = wrapped.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
             val cipher = Cipher.getInstance(TRANSFORM)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, bytes.copyOfRange(0, IV_BYTES)))
             cipher.doFinal(bytes, IV_BYTES, bytes.size - IV_BYTES)
-        } catch (ex: java.security.GeneralSecurityException) {
-            // A wrapped key that no longer opens is a key that is gone.
+        } catch (ex: javax.crypto.AEADBadTagException) {
+            // The wrapped bytes do not open under the Keystore's key: it is a different key, so this one is gone.
             null
+        } catch (ex: java.security.GeneralSecurityException) {
+            // The Keystore could not be used (not the same as the key being gone): never answer "no key" (OI-DESKTOP-01, item 3).
+            throw SecretKeyUnavailableException("the Android Keystore could not open the data key", ex)
+        } catch (ex: java.io.IOException) {
+            throw SecretKeyUnavailableException("the Android Keystore could not be loaded", ex)
         }
     }
 

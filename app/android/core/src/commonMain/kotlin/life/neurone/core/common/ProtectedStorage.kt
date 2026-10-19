@@ -45,11 +45,12 @@ class ProtectedStorage private constructor(
                 ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
             if (secrets != null) {
                 val sealing = runCatching {
-                    // With sealed values on disk, building the store does not touch the keystore (migrate() only seals plain
-                    // values), so ask it once here: a keystore that throws when asked would otherwise fail on the first read.
-                    // A null answer is "no key", not a failure: after a clear destroyed the key the store must still be
-                    // built, so that a clear interrupted part-way resumes at the next launch (SWR-MG-08).
-                    if (holdsSealedValue(host, keys)) secrets.load()
+                    // Building the store does not touch the keystore when there is nothing plain to seal, so ask it once here: a
+                    // keystore that cannot be asked would otherwise fail on the first read or write. A throw is "could not ask"
+                    // and the run is LOCKED (or UNSEALED if nothing is sealed); a null answer is "no key", not a failure: after a
+                    // clear destroyed the key the store must still be built, so that a clear interrupted part-way resumes at the
+                    // next launch (SWR-MG-08).
+                    secrets.load()
                     EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
                 }.getOrNull()
                 if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing)

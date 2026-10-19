@@ -1,6 +1,7 @@
 package life.neurone.desktop
 
 import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.common.SecretKeyUnavailableException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -16,32 +17,37 @@ import java.util.concurrent.TimeUnit
 class DesktopSecretKeyStore private constructor(private val os: Os, private val service: String) : SecretKeyStore {
     enum class Os { MAC, WINDOWS, LINUX }
 
-    private class Result(val exit: Int, val out: String)
+    private class Result(val exit: Int, val out: String, val err: String = "")
 
     private fun run(command: List<String>, stdin: String? = null): Result {
         val process = ProcessBuilder(command).redirectErrorStream(false).start()
         if (stdin != null) process.outputStream.use { it.write(stdin.toByteArray()) } else process.outputStream.close()
         val out = process.inputStream.bufferedReader().readText()
-        process.errorStream.readBytes()
+        val err = process.errorStream.bufferedReader().readText()
         if (!process.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             process.destroyForcibly()
-            return Result(-1, "")
+            return Result(TIMED_OUT, "", err)
         }
-        return Result(process.exitValue(), out)
+        return Result(process.exitValue(), out, err)
     }
 
     private fun powershell(script: String, stdin: String? = null): Result =
         run(listOf("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", VAULT + script), stdin)
 
     override fun load(): ByteArray? {
-        val r = when (os) {
-            Os.MAC -> run(listOf("security", "find-generic-password", "-a", ACCOUNT, "-s", service, "-w"))
-            Os.LINUX -> run(listOf("secret-tool", "lookup", "service", service, "account", ACCOUNT))
-            Os.WINDOWS -> powershell("try { \$c = \$v.Retrieve('$service','$ACCOUNT'); \$c.RetrievePassword(); [Console]::Out.Write(\$c.Password) } catch { exit 3 }")
+        val r = try {
+            when (os) {
+                Os.MAC -> run(listOf("security", "find-generic-password", "-a", ACCOUNT, "-s", service, "-w"))
+                Os.LINUX -> run(listOf("secret-tool", "lookup", "service", service, "account", ACCOUNT))
+                Os.WINDOWS -> powershell(
+                    "try { \$c = \$v.Retrieve('$service','$ACCOUNT'); \$c.RetrievePassword(); [Console]::Out.Write(\$c.Password) } " +
+                        "catch { if (\$_.Exception.HResult -eq $HRESULT_NOT_FOUND) { exit $EXIT_NOT_FOUND } else { exit 3 } }",
+                )
+            }
+        } catch (ex: java.io.IOException) {
+            throw SecretKeyUnavailableException("the system credential tool could not be run", ex)
         }
-        val hex = r.out.trim()
-        if (r.exit != 0 || hex.length != KEY_HEX_CHARS || !hex.all { it in "0123456789abcdef" }) return null
-        return ByteArray(KEY_HEX_CHARS / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        return interpretLoad(os, r.exit, r.out, r.err)
     }
 
     override fun store(key: ByteArray) {
@@ -70,6 +76,10 @@ class DesktopSecretKeyStore private constructor(private val os: Os, private val 
     }
 
     companion object {
+        private const val TIMED_OUT = -1
+        private const val EXIT_NOT_FOUND = 4
+        private const val HRESULT_NOT_FOUND = -2147023728 // 0x80070490, ERROR_NOT_FOUND
+        private const val MAC_ITEM_NOT_FOUND = 44 // errSecItemNotFound, as `security` exits
         private const val ACCOUNT = "np-data-key"
         private const val SERVICE = "life.neurone.data-key"
         private const val TIMEOUT_SECONDS = 20L
@@ -79,6 +89,28 @@ class DesktopSecretKeyStore private constructor(private val os: Os, private val 
         private const val VAULT =
             "[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; " +
                 "\$v = New-Object Windows.Security.Credentials.PasswordVault; "
+
+        /**
+         * What a credential tool's answer means for the data key: the key, null if the tool says there is none, and a
+         * [SecretKeyUnavailableException] for everything else (a timeout, a locked keychain, an unreadable answer). Only the tool's
+         * own "not found" is "no key": a failure taken for it would let a new key replace the real one (OI-DESKTOP-01, item 3).
+         */
+        internal fun interpretLoad(os: Os, exit: Int, out: String, err: String): ByteArray? {
+            val notFound = when (os) {
+                Os.MAC -> exit == MAC_ITEM_NOT_FOUND
+                Os.LINUX -> exit == 1 && err.isBlank() && out.isBlank() // `secret-tool lookup` says nothing when there is no item
+                Os.WINDOWS -> exit == EXIT_NOT_FOUND
+            }
+            if (exit != 0) {
+                if (notFound) return null
+                throw SecretKeyUnavailableException("the system credential store did not answer (exit $exit)")
+            }
+            val hex = out.trim()
+            if (hex.length != KEY_HEX_CHARS || !hex.all { it in "0123456789abcdef" }) {
+                throw SecretKeyUnavailableException("the system credential store gave an answer that is not a data key")
+            }
+            return ByteArray(KEY_HEX_CHARS / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        }
 
         fun osOf(name: String = System.getProperty("os.name").lowercase()): Os = when {
             "mac" in name -> Os.MAC

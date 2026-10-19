@@ -6,6 +6,7 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.common.SecretKeyUnavailableException
 import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFDictionarySetValue
 import platform.CoreFoundation.CFMutableDictionaryRef
@@ -20,6 +21,7 @@ import platform.Foundation.NSData
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
+import platform.Security.errSecItemNotFound
 import platform.Security.errSecSuccess
 import platform.Security.kSecAttrAccessible
 import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -59,8 +61,12 @@ class IosSecretKeyStore(
         val result = alloc<CFTypeRefVar>()
         val status = SecItemCopyMatching(q, result.ptr)
         CFRelease(q)
-        if (status != errSecSuccess) return@memScoped null
-        (CFBridgingRelease(result.value) as? NSData)?.toByteArray()
+        // Only the Keychain's own "not found" is "no key". Any other status (a Keychain that is locked until the first unlock, an
+        // interaction that is not allowed) is "could not ask": answering null would let a new key replace the real one.
+        if (status == errSecItemNotFound) return@memScoped null
+        if (status != errSecSuccess) throw SecretKeyUnavailableException("the Keychain did not answer (status $status)")
+        val data = CFBridgingRelease(result.value) as? NSData ?: throw SecretKeyUnavailableException("the Keychain gave no data")
+        data.toByteArray()
     }
 
     override fun store(key: ByteArray) {
