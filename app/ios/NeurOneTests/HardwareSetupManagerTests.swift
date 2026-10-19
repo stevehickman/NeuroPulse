@@ -142,15 +142,20 @@ private func popCount(_ v: UInt16) -> Int {
 @MainActor
 final class HardwareSetupManagerTests: XCTestCase {
 
-    private var defaults: UserDefaults!
+    private var defaults: ProtectedDefaults!
+    private var directory: URL!
+    private var legacy: UserDefaults!
 
     override func setUp() {
         super.setUp()
-        defaults = UserDefaults(suiteName: "HardwareSetupManagerTests-\(UUID().uuidString)")!
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HardwareSetupManagerTests-\(UUID().uuidString)", isDirectory: true)
+        legacy = UserDefaults(suiteName: "HardwareSetupManagerTests-\(UUID().uuidString)")!
+        defaults = ProtectedDefaults(directory: directory, legacy: legacy)
     }
 
     override func tearDown() {
-        defaults.removeSuite(named: defaults.description)
+        try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }
 
@@ -190,14 +195,15 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // @verifies REQ-SW03-05
     func testSafetyAcknowledgedIsNeverPersistedToUserDefaults() {
-        // PRIVACY: safetyAcknowledged must not be written to UserDefaults.
+        // PRIVACY: safetyAcknowledged must not be written to UserDefaults, or to ProtectedDefaults either.
         // Persisting "accepted T1 contraindications" constitutes inferred health status
         // under GDPR Art. 9 and Illinois BIPA.
         let mgr = HardwareSetupManager(gatt: MockSetupGATT(), userDefaults: defaults)
         mgr.acknowledgeSafety()
-        let all = defaults.dictionaryRepresentation()
+        let legacyKeys = Array(legacy.dictionaryRepresentation().keys)
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         XCTAssertFalse(
-            all.keys.contains { $0.contains("safety") || $0.contains("ack") },
+            (legacyKeys + files).contains { $0.contains("safety") || $0.contains("ack") },
             "safetyAcknowledged must never be persisted (GDPR Art. 9 / BIPA)"
         )
     }

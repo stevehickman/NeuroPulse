@@ -9,7 +9,7 @@ enum EngagementTier: String {
     case established = "established" // 51+ app launches
 
     static func current() -> EngagementTier {
-        let count = UserDefaults.standard.integer(forKey: "np.analytics.launch-count")
+        let count = ProtectedDefaults.standard.integer(forKey: "np.analytics.launch-count")
         switch count {
         case ..<6:   return .new       // covers 0 (key absent) and 1–5
         case 6...50: return .active
@@ -19,7 +19,7 @@ enum EngagementTier: String {
 
     static func incrementLaunchCount() {
         let key = "np.analytics.launch-count"
-        let current = UserDefaults.standard.integer(forKey: key)
-        UserDefaults.standard.set(current + 1, forKey: key)
+        let current = ProtectedDefaults.standard.integer(forKey: key)
+        ProtectedDefaults.standard.set(current + 1, forKey: key)
     }
 }

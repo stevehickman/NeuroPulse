@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import NeurOne
 
@@ -90,4 +91,82 @@ final class ProtectedDefaultsTests: XCTestCase {
         XCTAssertEqual(contents.count, 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: dir.deletingLastPathComponent().appendingPathComponent("escape").path))
     }
+
+    // MARK: - Typed values (flags, counters, lists): the calls the flag stores used on UserDefaults (SWR-MG-16)
+
+    // @verifies REQ-SW03-18#a
+    func testFlagsNumbersTextAndListsRoundTripAndSurviveARelaunch() {
+        store.set(true, forKey: "np.onboarding.bipa-accepted")
+        store.set(7, forKey: "np.analytics.launch-count")
+        store.set(1_760_000_000.5, forKey: "np.backup.last-epoch")
+        store.set("Encrypted Cloud (User Key)", forKey: "np.backup.destination")
+        store.set(["fam-a", "fam-b"], forKey: "np.used-families")
+        store.set(["fam-a": "fam-b"], forKey: "np.clone-sources")
+
+        let again = ProtectedDefaults(directory: dir, legacy: legacy)
+        XCTAssertTrue(again.bool(forKey: "np.onboarding.bipa-accepted"))
+        XCTAssertEqual(again.integer(forKey: "np.analytics.launch-count"), 7)
+        XCTAssertEqual(again.double(forKey: "np.backup.last-epoch"), 1_760_000_000.5)
+        XCTAssertEqual(again.string(forKey: "np.backup.destination"), "Encrypted Cloud (User Key)")
+        XCTAssertEqual(again.array(forKey: "np.used-families") as? [String], ["fam-a", "fam-b"])
+        XCTAssertEqual(again.dictionary(forKey: "np.clone-sources") as? [String: String], ["fam-a": "fam-b"])
+        XCTAssertFalse(again.bool(forKey: "np.nothing"), "an absent flag is false, as UserDefaults gave")
+        XCTAssertEqual(again.integer(forKey: "np.nothing"), 0)
+        XCTAssertNil(again.string(forKey: "np.nothing"))
+    }
+
+    // @verifies REQ-SW03-18#a
+    func testTypedValuesAreExcludedFromBackupAndNeverWrittenToTheLegacyPlist() {
+        store.set(true, forKey: "np.warranty.consent-granted")
+        XCTAssertTrue(store.isExcludedFromBackup(forKey: "np.warranty.consent-granted"))
+        XCTAssertNil(legacy.object(forKey: "np.warranty.consent-granted"))
+    }
+
+    // @verifies REQ-SW03-18#a
+    func testATypedValueFromTheLegacyPlistIsMovedOnceAndTheCopyRemoved() {
+        legacy.set(true, forKey: "np.onboarding.age-confirmed")
+        legacy.set(12, forKey: "np.analytics.launch-count")
+        legacy.set(["fam-a"], forKey: "np.used-families")
+
+        XCTAssertTrue(store.bool(forKey: "np.onboarding.age-confirmed"))
+        XCTAssertEqual(store.integer(forKey: "np.analytics.launch-count"), 12)
+        XCTAssertEqual(store.array(forKey: "np.used-families") as? [String], ["fam-a"])
+        for key in ["np.onboarding.age-confirmed", "np.analytics.launch-count", "np.used-families"] {
+            XCTAssertNil(legacy.object(forKey: key), "the plaintext copy of \(key) is gone once moved")
+        }
+        // And it is still there from the protected copy.
+        XCTAssertEqual(store.integer(forKey: "np.analytics.launch-count"), 12)
+    }
+
+    // @verifies REQ-SW03-18#a
+    func testSettingNilOrRemovingClearsATypedValueFromBothStores() {
+        legacy.set(3, forKey: "np.k")
+        store.set(4, forKey: "np.k")
+        store.set(nil, forKey: "np.k")
+        XCTAssertEqual(store.integer(forKey: "np.k"), 0)
+        XCTAssertNil(legacy.object(forKey: "np.k"))
+        store.set("x", forKey: "np.k2")
+        store.removeObject(forKey: "np.k2")
+        XCTAssertNil(store.string(forKey: "np.k2"))
+    }
+
+    // @verifies REQ-SW03-18#a
+    func testAWriteAnnouncesAChangeSoAViewReadingAFlagRedraws() {
+        var announced = 0
+        let cancellable = store.objectWillChange.sink { announced += 1 }
+        store.set(true, forKey: "np.onboarding.bipa-shown")
+        store.removeObject(forKey: "np.onboarding.bipa-shown")
+        XCTAssertEqual(announced, 2)
+        cancellable.cancel()
+    }
+
+    // @verifies REQ-SW03-18#a
+    func testAProtectedAppStorageValueIsRebuiltFromWhatTheFileHolds() {
+        XCTAssertEqual(Bool(protectedValue: NSNumber(value: true)), true)
+        XCTAssertEqual(Int(protectedValue: NSNumber(value: 5)), 5)
+        XCTAssertEqual(Double(protectedValue: NSNumber(value: 1.5)), 1.5)
+        XCTAssertEqual(String(protectedValue: "x"), "x")
+        XCTAssertNil(Bool(protectedValue: "yes"), "a value of another type is not a flag")
+    }
 }
+

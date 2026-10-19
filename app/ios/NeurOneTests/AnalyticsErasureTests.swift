@@ -75,14 +75,14 @@ final class AnalyticsErasureTests: XCTestCase {
         spy = SpyAnalyticsBackend()
         ResearchAnalyticsGate._backend = spy
         ResearchAnalyticsGate._resetForTesting()
-        UserDefaults.standard.removeObject(forKey: consentKey)
+        ProtectedDefaults.standard.removeObject(forKey: consentKey)
     }
 
     override func tearDown() async throws {
         ResearchAnalyticsGate._resetForTesting()
         ResearchAnalyticsGate._backend = PostHogAnalyticsBackend()
         ResearchAnalyticsGate._erasureQueue = .shared
-        UserDefaults.standard.removeObject(forKey: consentKey)
+        ProtectedDefaults.standard.removeObject(forKey: consentKey)
         UserDefaults(suiteName: legacyName)?.removePersistentDomain(forName: legacyName)
         try? FileManager.default.removeItem(at: dir)
         StubURLProtocol.handler = nil
@@ -157,7 +157,7 @@ final class AnalyticsErasureTests: XCTestCase {
         let relay = FakeErasureRelay(outcome: .retryLater)
         let q = queue(relay)
         ResearchAnalyticsGate._erasureQueue = q
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         spy.distinctID = "the-id-with-the-vendor"
 
@@ -174,7 +174,7 @@ final class AnalyticsErasureTests: XCTestCase {
         let asked = expectation(description: "the relay is asked about the withdrawn ID")
         relay.onErase = { asked.fulfill() }
         ResearchAnalyticsGate._erasureQueue = queue(relay)
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         spy.distinctID = "id-to-erase"
 
@@ -188,7 +188,7 @@ final class AnalyticsErasureTests: XCTestCase {
     func testNothingIsQueuedWhenTheSDKHeldNoID() {
         let q = queue(FakeErasureRelay(outcome: .retryLater))
         ResearchAnalyticsGate._erasureQueue = q
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         spy.distinctID = nil
 

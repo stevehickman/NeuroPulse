@@ -132,10 +132,10 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     @Published private(set) var unacknowledgedCervicalFaults: [CervicalFaultRecord] = []
 
     /// Where the acknowledgement point is kept.  `internal` so tests can inject a suite.
-    var cervicalFaultLedgerDefaults: UserDefaults = .standard
+    var cervicalFaultLedgerDefaults: ProtectedDefaults = .standard
 
     /// Where replacements not yet written to the hub are queued (OI-ACC-08). Injectable for tests.
-    var consumableResetDefaults: UserDefaults = .standard
+    var consumableResetDefaults: ProtectedDefaults = .standard
 
     /// Whether this connection's blanket warning has been read (reset on disconnect).
     @Published private(set) var cardiacWarningAcknowledged = false

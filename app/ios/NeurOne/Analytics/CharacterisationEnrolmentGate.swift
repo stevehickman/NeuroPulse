@@ -60,8 +60,8 @@ enum CharacterisationEnrolmentGate {
     /// `WarrantyAnalyticsGate`'s key.
     static var isOpen: Bool {
         guard WarrantyAnalyticsGate.isOpen else { return false }
-        guard UserDefaults.standard.bool(forKey: PersistedKeys.ENROLMENT_KEY) else { return false }
-        guard UserDefaults.standard.integer(forKey: PersistedKeys.PROGRAMME_ID_KEY) == PersistedKeys.CURRENT_PROGRAMME_ID else {
+        guard ProtectedDefaults.standard.bool(forKey: PersistedKeys.ENROLMENT_KEY) else { return false }
+        guard ProtectedDefaults.standard.integer(forKey: PersistedKeys.PROGRAMME_ID_KEY) == PersistedKeys.CURRENT_PROGRAMME_ID else {
             return false
         }
         return consentEpoch >= 1
@@ -70,7 +70,7 @@ enum CharacterisationEnrolmentGate {
     /// Non-zero only after a grant. Zero means "never granted", which the
     /// firmware treats as not enrolled.
     static var consentEpoch: Int {
-        UserDefaults.standard.integer(forKey: PersistedKeys.CONSENT_EPOCH_KEY)
+        ProtectedDefaults.standard.integer(forKey: PersistedKeys.CONSENT_EPOCH_KEY)
     }
 
     /// Record an affirmative enrolment by the warranty owner.
@@ -90,9 +90,9 @@ enum CharacterisationEnrolmentGate {
             return nil
         }
         let epoch = consentEpoch + 1
-        UserDefaults.standard.set(true, forKey: PersistedKeys.ENROLMENT_KEY)
-        UserDefaults.standard.set(epoch, forKey: PersistedKeys.CONSENT_EPOCH_KEY)
-        UserDefaults.standard.set(PersistedKeys.CURRENT_PROGRAMME_ID, forKey: PersistedKeys.PROGRAMME_ID_KEY)
+        ProtectedDefaults.standard.set(true, forKey: PersistedKeys.ENROLMENT_KEY)
+        ProtectedDefaults.standard.set(epoch, forKey: PersistedKeys.CONSENT_EPOCH_KEY)
+        ProtectedDefaults.standard.set(PersistedKeys.CURRENT_PROGRAMME_ID, forKey: PersistedKeys.PROGRAMME_ID_KEY)
         log.debug("Characterisation enrolment recorded — epoch \(epoch), programme \(PersistedKeys.CURRENT_PROGRAMME_ID).")
         return epoch
     }
@@ -111,7 +111,7 @@ enum CharacterisationEnrolmentGate {
     /// Has no effect on `WarrantyAnalyticsGate`, `ConsentStore`,
     /// `ResearchAnalyticsGate`, or any UHDR flow.
     static func withdraw() {
-        UserDefaults.standard.set(false, forKey: PersistedKeys.ENROLMENT_KEY)
+        ProtectedDefaults.standard.set(false, forKey: PersistedKeys.ENROLMENT_KEY)
         log.debug("Characterisation enrolment withdrawn — extended collection stops next gap.")
     }
 
@@ -124,9 +124,9 @@ enum CharacterisationEnrolmentGate {
     /// and asks again — including the epoch, because the new owner's first
     /// enrolment is genuinely their first.
     static func clearForDeviceTransfer() {
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.ENROLMENT_KEY)
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.CONSENT_EPOCH_KEY)
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.PROGRAMME_ID_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.ENROLMENT_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.CONSENT_EPOCH_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.PROGRAMME_ID_KEY)
         log.debug("Characterisation enrolment cleared for device transfer.")
     }
 }

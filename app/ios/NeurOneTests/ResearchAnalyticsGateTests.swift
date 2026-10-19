@@ -32,7 +32,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
             relay: FakeErasureRelay(outcome: .retryLater)
         )
         ResearchAnalyticsGate._resetForTesting()
-        UserDefaults.standard.removeObject(forKey: consentKey)
+        ProtectedDefaults.standard.removeObject(forKey: consentKey)
     }
 
     override func tearDown() async throws {
@@ -41,7 +41,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         ResearchAnalyticsGate._backend = PostHogAnalyticsBackend()
         ResearchAnalyticsGate._erasureQueue = .shared
         try? FileManager.default.removeItem(at: erasureDir)
-        UserDefaults.standard.removeObject(forKey: consentKey)
+        ProtectedDefaults.standard.removeObject(forKey: consentKey)
         try await super.tearDown()
     }
 
@@ -55,26 +55,26 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-14
     func testGateIsClosedWhenConsentKeyIsFalse() {
-        UserDefaults.standard.set(false, forKey: consentKey)
+        ProtectedDefaults.standard.set(false, forKey: consentKey)
         XCTAssertFalse(ResearchAnalyticsGate.isOpen)
     }
 
     // @verifies REQ-CONSENT-14
     func testGateIsOpenAfterConsentAccepted() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         XCTAssertTrue(ResearchAnalyticsGate.isOpen)
     }
 
     // @verifies REQ-CONSENT-14
     func testGateDoesNotOpenOnOnboardingShownKey() {
-        UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
+        ProtectedDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
                        "Gate must not open on consent-shown — only research-consent-granted counts")
     }
 
     // @verifies REQ-CONSENT-14
     func testGateDoesNotOpenOnLegacyOnboardingAcceptedKey() {
-        UserDefaults.standard.set(true, forKey: "np.onboarding.consent-accepted")
+        ProtectedDefaults.standard.set(true, forKey: "np.onboarding.consent-accepted")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
                        "Retired onboarding key must not open the research analytics gate")
     }
@@ -86,7 +86,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-14
     func testSkipDoesNotOpenResearchAnalyticsGate() {
-        UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
+        ProtectedDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
         XCTAssertFalse(ResearchAnalyticsGate.isOpen,
                        "Pressing Skip must not open the research analytics gate")
     }
@@ -102,7 +102,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testISC92_backendCalledOnceWhenGateOpen() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         XCTAssertEqual(spy.configureCallCount, 1,
                        "ISC-92: backend.configure() must be called exactly once after gate opens")
@@ -110,7 +110,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testISC92_backendCalledOnlyOnceOnRepeatConfigure() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         ResearchAnalyticsGate.configure()
         XCTAssertEqual(spy.configureCallCount, 1,
@@ -148,7 +148,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-03
     func testResetCallsBackendWhenConfigured() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         ResearchAnalyticsGate.reset()
         XCTAssertEqual(spy.resetCallCount, 1)
@@ -156,7 +156,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-03
     func testResetAllowsReconfigureAfterwards() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         ResearchAnalyticsGate.reset()
         // Simulate re-consent
@@ -170,7 +170,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     // @verifies REQ-CONSENT-02#b
     func testWithdrawBlanketResearchConsentRevokesResearchAnalytics() {
         // Open the gate and configure the SDK.
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         XCTAssertEqual(spy.configureCallCount, 1)
         XCTAssertTrue(ResearchAnalyticsGate.isOpen)
@@ -191,7 +191,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     func testWithdrawCategoryConsentDoesNotRevokeResearchAnalytics() {
         // Partial withdrawal (specific category) must NOT revoke research analytics
         // — the user remains a research participant in other categories.
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
         XCTAssertEqual(spy.configureCallCount, 1)
 
@@ -218,13 +218,13 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     /// Clears the store's own persistence so a stale `np.consent.research` blob from another
     /// test cannot decide the transition under test.
     private func makeCleanStore() -> ConsentStore {
-        UserDefaults.standard.removeObject(forKey: "np.consent.research")
+        ProtectedDefaults.standard.removeObject(forKey: "np.consent.research")
         return ConsentStore()
     }
 
     // @verifies REQ-CONSENT-03#a
     func testCommitPathBlanketWithdrawalRevokesResearchAnalytics() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
 
         let store = makeCleanStore()
@@ -247,7 +247,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-03#b
     func testCommitPathCategoryOnlyEditDoesNotRevokeResearchAnalytics() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
 
         let store = makeCleanStore()
@@ -271,7 +271,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-CONSENT-03#c
     func testCommitPathBlanketStaysOnDoesNotRevokeResearchAnalytics() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.configure()
 
         let store = makeCleanStore()
@@ -293,7 +293,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     // The twelve keys the old denylist knew and ones it never thought of: an allowlist drops every one.
     // @verifies REQ-SW03-07
     func testTrackDropsEventWithAPropertyTheTelemetryPolicyDoesNotName() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         let keys = [
             "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id", "session_count", "session_sequence",
             "imp", "impedance", "impedance_flags", "pass_flags",
@@ -308,7 +308,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testTrackDropsEventWithAValueNotOfItsPropertysForm() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "evt", properties: ["engagement_tier": "42"])           // the raw count the tier replaced
         ResearchAnalyticsGate.track(event: "evt", properties: ["screen_name": "tdcs_depression"])  // a protocol or condition as a screen
         ResearchAnalyticsGate.track(event: "evt", properties: ["error_code": "1746000000000"])     // a timestamp in an error code
@@ -318,7 +318,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testTrackDropsEventWhoseNameIsNotSnakeCaseOrCarriesAHealthTerm() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "tdcs_started", properties: [:])
         ResearchAnalyticsGate.track(event: "User Email Sent", properties: [:])
         XCTAssertEqual(spy.trackCallCount, 0)
@@ -326,7 +326,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testTrackDropsTheWholeEventWhenOneOfSeveralPropertiesIsNotPermitted() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "evt", properties: ["engagement_tier": "new", "app_version": "1.0.3", "hrv": "50"])
         XCTAssertEqual(spy.trackCallCount, 0, "An event is dropped whole, never trimmed to fit")
     }
@@ -335,7 +335,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testTrackAllowsEveryPropertyTheTelemetryPolicyPermits() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         let properties = [
             "app_version": "1.0.3", "os_version": "iOS 18.2", "device_class": "iPhone_flagship",
             "screen_name": "protocol_detail", "engagement_tier": "active", "app_start_type": "cold_start",
@@ -349,14 +349,14 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testTrackAllowsEventWithEmptyProperties() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_foregrounded", properties: [:])
         XCTAssertEqual(spy.trackCallCount, 1)
     }
 
     // @verifies REQ-SW03-07
     func testEngagementTierIsAllowed() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "app_open", properties: ["engagement_tier": "new"])
         XCTAssertEqual(spy.trackCallCount, 1,
                        "engagement_tier is the approved replacement for session_count — must be allowed")
@@ -364,7 +364,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
 
     // @verifies REQ-SW03-07
     func testMultipleSafeEventsAccumulate() {
-        UserDefaults.standard.set(true, forKey: consentKey)
+        ProtectedDefaults.standard.set(true, forKey: consentKey)
         ResearchAnalyticsGate.track(event: "e1", properties: [:])
         ResearchAnalyticsGate.track(event: "e2", properties: [:])
         XCTAssertEqual(spy.trackCallCount, 2)

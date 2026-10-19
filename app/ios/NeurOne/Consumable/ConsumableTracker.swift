@@ -23,13 +23,13 @@ final class ConsumableTracker: ObservableObject {
 
     private var cancellable: AnyCancellable?
     private let countsProvider: ConsumableCountsProviding
-    private let defaults: UserDefaults
+    private let defaults: ProtectedDefaults
     /// Tells the hub a part was replaced (OI-ACC-08): the hub owns the count, and without this
     /// its next CONSUMABLE_STATUS notification would restore the old one. NeurOneApp wires it to
     /// NeurOneGATTManager.requestConsumableReset(kind:).
     private let onReplaced: ((Int) -> Void)?
 
-    init(countsProvider: ConsumableCountsProviding, defaults: UserDefaults = .standard,
+    init(countsProvider: ConsumableCountsProviding, defaults: ProtectedDefaults = .standard,
          onReplaced: ((Int) -> Void)? = nil) {
         self.countsProvider = countsProvider
         self.defaults = defaults

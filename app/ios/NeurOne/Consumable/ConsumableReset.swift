@@ -23,7 +23,7 @@ enum ConsumableResetWire {
 
 struct ConsumableResetQueue {
 
-    let defaults: UserDefaults
+    let defaults: ProtectedDefaults
 
     /// Kinds replaced and not yet written to the hub, in kind order, no duplicates.
     var pending: [Int] {

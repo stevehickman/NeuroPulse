@@ -33,7 +33,7 @@ enum ResearchAnalyticsGate {
     /// True only when the user has actively completed the research consent flow
     /// (tapped Done, not Skip), as recorded by `RESEARCH_ANALYTICS_KEY`.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
+        ProtectedDefaults.standard.bool(forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
     }
 
     /// The active analytics backend. Defaults to `PostHogAnalyticsBackend` in

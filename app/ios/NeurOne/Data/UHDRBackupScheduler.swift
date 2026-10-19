@@ -37,8 +37,23 @@ final class UHDRBackupScheduler: ObservableObject {
         case encryptedCloud = "Encrypted Cloud (User Key)"
     }
 
-    @AppStorage("np.backup.destination") var destination: String = BackupDestination.localUSBC.rawValue
-    @AppStorage("np.backup.last-epoch") private var lastBackupEpoch: Double = 0
+    /// Where the backup goes, and when the last one ran. Kept in `ProtectedDefaults`, not the backup-eligible `UserDefaults` plist
+    /// (`SWR-MG-16`): this is a class and not a view, so they are plain properties and a change is announced by hand.
+    private static let destinationKey = "np.backup.destination"
+    private static let lastEpochKey = "np.backup.last-epoch"
+
+    var destination: String {
+        get { ProtectedDefaults.standard.string(forKey: Self.destinationKey) ?? BackupDestination.localUSBC.rawValue }
+        set {
+            objectWillChange.send()
+            ProtectedDefaults.standard.set(newValue, forKey: Self.destinationKey)
+        }
+    }
+
+    private var lastBackupEpoch: Double {
+        get { ProtectedDefaults.standard.double(forKey: Self.lastEpochKey) }
+        set { ProtectedDefaults.standard.set(newValue, forKey: Self.lastEpochKey) }
+    }
 
     init(keyManager: UHDRKeyManager) {
         self.keyManager = keyManager

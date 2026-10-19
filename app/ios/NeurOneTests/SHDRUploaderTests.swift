@@ -67,11 +67,11 @@ final class SHDRUploaderTests: XCTestCase {
         // Ensure warranty consent is revoked so uploads gate out by default in each test.
         // WarrantyAnalyticsGate is @MainActor; manipulate the underlying key directly
         // so setUp can run without being @MainActor itself.
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.WARRANTY_CONSENT_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.WARRANTY_CONSENT_KEY)
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.WARRANTY_CONSENT_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.WARRANTY_CONSENT_KEY)
         super.tearDown()
     }
 

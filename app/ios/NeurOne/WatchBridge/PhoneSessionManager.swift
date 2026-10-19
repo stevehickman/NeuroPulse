@@ -129,7 +129,7 @@ extension PhoneSessionManager: WCSessionDelegate {
         // Watch → phone protocol selector (Phase 1 feature).
         // Placeholder: route to hub via GATT write when firmware write characteristic is added.
         if let presetID = message["select_preset"] as? Int {
-            let consentGranted = UserDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
+            let consentGranted = ProtectedDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
             if let accepted = Self.acceptedPreset(presetID, consentGranted: consentGranted) {
                 _ = accepted // TODO: compile preset to protocol chunk and upload via GATT protocolUpload (Mode 2)
             } else {

@@ -16,8 +16,8 @@ struct SetupView: View {
 
     // BIPA written-release re-presentation (ISC-91). Illinois users can re-open the
     // brainwave-data consent screen here to grant or revoke EEG data consent.
-    @AppStorage("np.onboarding.bipa-shown") private var bipaShown = false
-    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @ProtectedAppStorage("np.onboarding.bipa-shown") private var bipaShown = false
+    @ProtectedAppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
     @State private var showBIPADisclosure = false
 
     var body: some View {

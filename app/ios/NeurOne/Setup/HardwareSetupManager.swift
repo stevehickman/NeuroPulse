@@ -163,7 +163,7 @@ final class HardwareSetupManager: ObservableObject {
     let MINIMUM_IMPEDANCE_PASS_COUNT = 6
 
     private let gatt: SetupGATTProviding
-    private let userDefaults: UserDefaults
+    private let userDefaults: ProtectedDefaults
     private let announcer: ZoneModuleAnnouncing
     private var cancellables = Set<AnyCancellable>()
 
@@ -173,7 +173,7 @@ final class HardwareSetupManager: ObservableObject {
     ///   announcer here rather than in a default argument, which Swift evaluates
     ///   in a nonisolated context this @MainActor type cannot reach.
     init(gatt: SetupGATTProviding,
-         userDefaults: UserDefaults = .standard,
+         userDefaults: ProtectedDefaults = .standard,
          announcer: ZoneModuleAnnouncing? = nil) {
         self.gatt = gatt
         self.userDefaults = userDefaults

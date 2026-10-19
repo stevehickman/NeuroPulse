@@ -63,17 +63,17 @@ struct NeurOneApp: App {
     // Age gate is the FIRST onboarding screen, before any personal data is
     // collected or any consent layer is presented (ISC-83, ISC-127).
     // Launch-blocking privacy requirement (NP-PRIV-001 Rev B MEDIUM-03).
-    @AppStorage(PersistedKeys.AGE_CONFIRMED_KEY) private var ageConfirmed = false
+    @ProtectedAppStorage(PersistedKeys.AGE_CONFIRMED_KEY) private var ageConfirmed = false
     @State private var showAgeGate = false
 
-    @AppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false
+    @ProtectedAppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false
     @State private var showConsentOnboarding = false
 
     // BIPA written-release state (ISC-88..91). Wiring into the onboarding sequence
     // is handled by the separate `onboarding-sequence` feature; these keys exist so
     // both features share the same persisted state.
-    @AppStorage("np.onboarding.bipa-shown") private var bipaShown = false
-    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @ProtectedAppStorage("np.onboarding.bipa-shown") private var bipaShown = false
+    @ProtectedAppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
     @State private var showBIPADisclosure = false
 
     var body: some Scene {

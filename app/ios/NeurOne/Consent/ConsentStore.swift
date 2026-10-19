@@ -249,7 +249,7 @@ final class ConsentStore: ObservableObject {
     ///
     /// Does NOT affect `WarrantyAnalyticsGate` or SHDR fleet uploads.
     func revokeResearchAnalytics() {
-        UserDefaults.standard.removeObject(forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
+        ProtectedDefaults.standard.removeObject(forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
         ResearchAnalyticsGate.reset()
     }
 

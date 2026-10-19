@@ -641,8 +641,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     private func isolatedManager() -> NeurOneGATTManager {
         let m = NeurOneGATTManager(mockCentral: MockBLECentral())
-        let suite = "np.test.cvns-ledger.\(UUID().uuidString)"
-        m.cervicalFaultLedgerDefaults = UserDefaults(suiteName: suite)!
+        m.cervicalFaultLedgerDefaults = makeIsolatedProtectedDefaults()
         return m
     }
 
