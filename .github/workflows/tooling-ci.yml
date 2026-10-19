@@ -140,6 +140,7 @@ jobs:
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
       sharedplace: ${{ steps.scope.outputs.sharedplace }}
       migrationkeys: ${{ steps.scope.outputs.migrationkeys }}
+      releasepins: ${{ steps.scope.outputs.releasepins }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
       reqtrace: ${{ steps.scope.outputs.reqtrace }}
     env:
@@ -357,6 +358,16 @@ jobs:
         common/npps/migration-keys.json
         scripts/check-migration-keys.ts
         .github/workflows/tooling-ci.yml
+      # The release-pin gate (privacy review Finding 9). It reads the two SHDR uploaders that hold the SPKI pin
+      # lists, and the two build files that call it with --release: the edit that breaks it is a pin list, the gate
+      # or the build wiring.
+      NP_SCOPE_RELEASEPINS: |
+        app/ios/NeurOne/Data/SHDRUploader.swift
+        app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt
+        app/ios/project.yml
+        app/android/app/build.gradle.kts
+        scripts/check-release-pins.ts
+        .github/workflows/tooling-ci.yml
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
         firmware/hub_control/include/np_pbm_model.generated.h
@@ -425,6 +436,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
           printf '%s\n' "$NP_SCOPE_SHAREDPLACE" > scope.sharedplace.paths
           printf '%s\n' "$NP_SCOPE_MIGRATIONKEYS" > scope.migrationkeys.paths
+          printf '%s\n' "$NP_SCOPE_RELEASEPINS" > scope.releasepins.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
           printf '%s\n' "$NP_SCOPE_REQTRACE" > scope.reqtrace.paths
 
@@ -434,7 +446,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.unjustified.paths scope.reqtrace.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.releasepins.paths scope.unjustified.paths scope.reqtrace.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -592,6 +604,14 @@ jobs:
           assert scope.migrationkeys.paths false docs/np_art_001.md
           assert scope.migrationkeys.paths false firmware/hub_control/src/np_session_log.c
 
+          # The release-pin gate. The two uploaders that hold the pins and the two build files that call it are in.
+          assert scope.releasepins.paths true  app/ios/NeurOne/Data/SHDRUploader.swift
+          assert scope.releasepins.paths true  app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt
+          assert scope.releasepins.paths true  app/ios/project.yml
+          assert scope.releasepins.paths true  app/android/app/build.gradle.kts
+          assert scope.releasepins.paths false app/ios/NeurOne/Data/SessionStore.swift
+          assert scope.releasepins.paths false docs/np_art_001.md
+
           # The unjustified-choices register gate. The register, a firmware
           # header that carries a marker, the hardware JSON, an app source and
           # the script are in; the locale files are not, because the gate reads
@@ -684,6 +704,7 @@ jobs:
           emit pbmmodel  scope.pbmmodel.paths
           emit sharedplace scope.sharedplace.paths
           emit migrationkeys scope.migrationkeys.paths
+          emit releasepins scope.releasepins.paths
           emit unjustified scope.unjustified.paths
           emit reqtrace  scope.reqtrace.paths
 
@@ -1377,6 +1398,30 @@ jobs:
       # keys. One list, read by the shared core and by this, so a key added in any app is sorted at the change that adds it.
       - name: Every stored key is in one list of common/npps/migration-keys.json
         run: bun scripts/check-migration-keys.ts
+
+  release-pins:
+    name: a release build cannot ship the placeholder fleet certificate pins (REQ-SHDR-04)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.releasepins != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Gate self-test (prove a placeholder, a lone pin, a short pin and a vacuous scan can fail)
+        run: bun scripts/check-release-pins.ts --self-test
+
+      # Not --release: the placeholders are still in the tree until the fleet certificate exists, and CI must stay green.
+      # This still fails if a pin list is broken or the detector can no longer see it. The release build runs --release.
+      - name: The pin lists are well formed and the detector sees them
+        run: bun scripts/check-release-pins.ts
 
   shared-placement:
     name: files used by more than one app live in app/NeurOneShared (CLAUDE.md §20)

@@ -172,6 +172,29 @@ targets:
           cd "${SRCROOT}/../.."
           bun scripts/sync-locales.ts
 
+      # A Release build must not carry the placeholder fleet certificate pins (privacy review Finding 9, REQ-SHDR-04).
+      # They fail closed, so a release built with them looks fine and uploads no SHDR record, ever. Debug builds are
+      # unaffected: the placeholders are in the tree until the real fleet certificate exists.
+      - name: "Refuse placeholder fleet certificate pins (Release)"
+        basedOnDependencyAnalysis: false
+        script: |
+          set -eu
+
+          if [ "${CONFIGURATION}" != "Release" ]; then
+            exit 0
+          fi
+
+          export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+          if ! command -v bun >/dev/null 2>&1; then
+            echo "error: bun not found. A Release build checks its fleet certificate pins with scripts/check-release-pins.ts."
+            echo "note: install bun (https://bun.sh)."
+            exit 1
+          fi
+
+          cd "${SRCROOT}/../.."
+          bun scripts/check-release-pins.ts --release
+
   NeurOneTests:
     type: bundle.unit-test
     platform: iOS

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
@@ -123,6 +123,8 @@ openssl x509 -in fleet-cert.pem -pubkey -noout \
   | openssl dgst -sha256 -binary \
   | base64
 ```
+
+**A Release build refuses the placeholders (Rev 3, privacy review Finding 9).** The placeholders fail closed, so a release built with them looks fine and uploads no SHDR record, ever. The iOS Release pre-build phase (`app/ios/project.yml`) and the Android `assembleRelease` / `bundleRelease` tasks (`app/android/app/build.gradle.kts`) run `bun scripts/check-release-pins.ts --release`, which fails naming the file while any pin is one repeated character. Debug builds and CI are unaffected. Pins are in two places, `SHDRFleetPinningDelegate.PINNED_HASHES` (Swift) and `PINNED_SPKI_HASHES` (Kotlin), and both change together. The gate does not check that a real-looking pin matches the real certificate.
 
 Replace `pinnedHashes` in `SHDRFleetPinningDelegate` with at least two hashes: the current active key and one backup (for zero-downtime key rotation). The backup hash should correspond to a pre-generated key pair held offline.
 
