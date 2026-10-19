@@ -24,7 +24,7 @@ import java.util.Properties
  * [life.neurone.shared.ble.UnavailableBleCentral] and everything that does not need the hub still works.
  */
 class DesktopPlatformServices(
-    override val keyValueStore: KeyValueStore = FileKeyValueStore(appDataDirectory().resolve("np-app.properties")),
+    override val keyValueStore: KeyValueStore = FileKeyValueStore(desktopDataDirectory.resolve(KEY_VALUE_FILE)),
     override val bleCentral: BleCentral = createDesktopBleCentral(keyValueStore),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
@@ -41,7 +41,7 @@ class DesktopPlatformServices(
      * the new computer. The operating system arbitrates the claim (a hard link), so a folder promises an exclusive create (SWR-MG-07).
      * Made on first use, not at start-up.
      */
-    override val folderPlaces: FolderPlaces = DesktopFolderPlaces(appDataDirectory())
+    override val folderPlaces: FolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
 
     /**
      * SWR-MG-06: every file in the app's data folder (the key-value store's file and its temporary copy, and anything else the app
@@ -50,7 +50,7 @@ class DesktopPlatformServices(
      */
     override val migrationFiles: FileStore
         get() = desktopOwnFiles(
-            appDataDirectory(),
+            desktopDataDirectory,
             keyValueStore.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() } ?: folderPlaces.defaultFolder,
         )
 
@@ -61,16 +61,49 @@ class DesktopPlatformServices(
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
 }
 
-/** The per-user application-data directory of the operating system the app is running on. */
+/**
+ * The per-user application-data directory of the operating system the app is running on. Windows uses the per-machine `LOCALAPPDATA`,
+ * not the roaming `APPDATA`: the data key is held in a per-machine credential store, so a data file that roamed would reach a machine
+ * with no key (OI-DESKTOP-01, item 2).
+ */
 fun appDataDirectory(
     os: String = System.getProperty("os.name").lowercase(),
     home: String = System.getProperty("user.home"),
     env: (String) -> String? = System::getenv,
 ): File = when {
     "mac" in os -> File(home, "Library/Application Support/NeurOne")
-    "win" in os -> File(env("APPDATA") ?: "$home/AppData/Roaming", "NeurOne")
+    "win" in os -> File(env("LOCALAPPDATA") ?: "$home/AppData/Local", "NeurOne")
     else -> File(env("XDG_DATA_HOME") ?: "$home/.local/share", "NeurOne")
 }
+
+/** Where earlier releases kept the data on Windows (roaming), which [moveLegacyDataDirectory] moves out of; null on the other systems. */
+fun legacyAppDataDirectory(
+    os: String = System.getProperty("os.name").lowercase(),
+    home: String = System.getProperty("user.home"),
+    env: (String) -> String? = System::getenv,
+): File? = if ("win" in os) File(env("APPDATA") ?: "$home/AppData/Roaming", "NeurOne") else null
+
+/**
+ * Moves what an earlier release left in [legacy] to [current], once. It acts only when [current] has no key-value file of its own, so
+ * state already made here is never overwritten, and it leaves [legacy] untouched if the move fails (the next start tries again). A
+ * rename is tried first, so the data never exists in two places; a copy-then-delete is the fallback across volumes.
+ */
+fun moveLegacyDataDirectory(legacy: File?, current: File) {
+    if (legacy == null || !legacy.isDirectory || legacy.canonicalFile == current.canonicalFile) return
+    if (current.resolve(KEY_VALUE_FILE).exists()) return
+    runCatching {
+        current.parentFile?.mkdirs()
+        if (current.exists() && current.list().isNullOrEmpty()) current.delete()
+        if (!current.exists() && legacy.renameTo(current)) return
+        legacy.copyRecursively(current, overwrite = false)
+        legacy.deleteRecursively()
+    }
+}
+
+internal const val KEY_VALUE_FILE = "np-app.properties"
+
+/** The data folder for this run, with anything an earlier release left elsewhere moved into it first. */
+val desktopDataDirectory: File by lazy { appDataDirectory().also { moveLegacyDataDirectory(legacyAppDataDirectory(), it) } }
 
 /**
  * [KeyValueStore] in one properties file, written whole to a temporary file and renamed over the
