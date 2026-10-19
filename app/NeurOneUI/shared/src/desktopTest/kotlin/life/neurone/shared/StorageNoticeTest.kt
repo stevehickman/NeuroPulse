@@ -23,11 +23,11 @@ import kotlin.test.assertEquals
 /** The person is told when the protected data is not sealed on this run, and a run that cannot open it does not overwrite it (SWR-MG-13). */
 @OptIn(ExperimentalTestApi::class)
 class StorageNoticeTest {
-    private val used = listOf(Res.string.storage_locked_notice, Res.string.storage_unsealed_notice)
+    private val used = listOf(Res.string.storage_locked_notice, Res.string.storage_unsealed_notice, Res.string.storage_memory_only_notice)
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
 
-    private fun services(kv: KeyValueStore, secrets: SecretKeyStore?, reports: Boolean) = AppServices(
+    private fun services(kv: KeyValueStore, secrets: SecretKeyStore?, reports: Boolean, memoryOnly: Boolean = false) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
             override val bleCentral = UnavailableBleCentral()
@@ -35,6 +35,7 @@ class StorageNoticeTest {
             override val analyticsBackend = NoOpAnalyticsBackend()
             override val secretKeyStore = secrets
             override val reportsUnsealedStorage = reports
+            override val holdsStateInMemoryOnly = memoryOnly
             @androidx.compose.runtime.Composable
             override fun rememberBleConnectAction(): () -> Unit = {}
         },
@@ -105,5 +106,17 @@ class StorageNoticeTest {
         waitForIdle()
         onNodeWithText(text(Res.string.storage_locked_notice)).assertDoesNotExist()
         onNodeWithText(text(Res.string.storage_unsealed_notice)).assertDoesNotExist()
+    }
+
+    // @verifies REQ-SW03-18#b
+    @Test
+    fun aHostThatKeepsStateInMemoryOnlyTellsThePersonNothingIsSaved() = runComposeUiTest {
+        val app = services(InMemoryKeyValueStore(), null, reports = false, memoryOnly = true)
+        setContent {
+            strings = used.associateWith { stringResource(it) }
+            NeurOneApp(app)
+        }
+        waitForIdle()
+        onNodeWithText(text(Res.string.storage_memory_only_notice)).assertExists()
     }
 }

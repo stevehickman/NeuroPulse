@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-/** The browser keeps the session history in memory and nowhere else (REQ-SW03-18 (b)). */
+/** The browser keeps the app's state in memory and nowhere else (REQ-SW03-18 (b)). */
 class MemoryOnlyKeysKeyValueStoreTests {
     private val history = "np.session.history"
     private val other = "np.limits.global"
@@ -86,17 +86,23 @@ class MemoryOnlyKeysKeyValueStoreTests {
 
     // @verifies REQ-SW03-18#b
     @Test
-    fun theBrowserKeepsTheSessionHistoryAndEveryConsentKeyInMemoryAndNothingElseSorted() {
+    fun theBrowserKeepsEveryKeyTheCoreListsInMemoryAndWritesNoneOfThemToLocalStorage() {
         val keys = MemoryOnlyKeysKeyValueStore.browserKeys()
         val map = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })
         fun list(name: String) = map[name]!!.jsonArray.map { it.jsonPrimitive.content }
         assertTrue(history in keys, "the session history")
         assertTrue(list("consent").all { it in keys }, "every consent key, including the contact the person gave")
-        assertTrue("np.consent.research" in keys && "np.research.suggestions" in keys)
-        assertTrue(list("perInstall").none { it in keys }, "per-install keys name a device, not the person, and stay as they are")
-        assertTrue(list("unsorted").none { it in keys }, "the onboarding records and the rest are a separate decision")
-        assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles").flatMap { c.jsonObjectList(it) }.none { it in keys } },
-            "saved protocols and limits are configuration, not the person's records")
+        assertTrue(list("perInstall").all { it in keys }, "the per-install keys: a launch count, a path, a helmet id")
+        assertTrue(list("unsorted").all { it in keys }, "the onboarding records (age, biometric-privacy consent) and the rest")
+        assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles", "characterisationEnrolment").flatMap { c.jsonObjectList(it) }.all { it in keys } },
+            "saved protocols, limits and the research enrolment")
+        assertEquals(map["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet(), keys, "the core's one list, so a new key is covered")
+
+        val inner = InMemoryKeyValueStore()
+        val s = MemoryOnlyKeysKeyValueStore(inner, keys)
+        for (k in keys) s.putString(k, "value of $k")
+        assertTrue(keys.all { inner.getString(it) == null }, "nothing reaches the host store")
+        assertTrue(keys.all { s.getString(it) == "value of $it" }, "and all of it is read back within the page")
     }
 
     private fun kotlinx.serialization.json.JsonElement.jsonObjectList(name: String): List<String> =

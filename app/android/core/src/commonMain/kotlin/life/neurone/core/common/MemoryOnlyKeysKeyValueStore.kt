@@ -67,19 +67,20 @@ class MemoryOnlyKeysKeyValueStore(
 
     companion object {
         /**
-         * The keys the browser keeps in memory only: the session history, and every consent key, from the core's one list
-         * (`itemKeys`, `consent`). The consent keys hold the research categories the person ticked, the clinicians they granted,
-         * their study answers and the contact they gave (a mail address or a number), so they are the person's data, and the
-         * browser has no keystore to seal them in. What the browser still keeps (the onboarding records, the saved protocols
-         * and limits, the per-install keys) is listed in `common/npps/migration-keys.json` and is a separate decision.
+         * The keys the browser keeps in memory only: **every key the core lists as sealed at rest** (`itemKeys`, `sealedAtRest`),
+         * which is every key the apps store. Other hosts seal those keys under a key in the platform's keystore (SWR-MG-06,
+         * SWR-MG-16); the browser has no keystore, and `localStorage` is readable in the clear by every script on the page and every
+         * extension, so it holds none of them. That is the session history, the consent state, the saved protocols and limits, the
+         * research enrolment, the onboarding records (age, biometric-privacy consent) and the per-install keys. Using the core's one
+         * list means a key added to it is covered here without a second edit.
          *
-         * **A consent withdrawal is therefore not remembered across a reload in the browser** (a person who said stop reads as
-         * never asked there, `CLAUDE.md` §6.0). That cannot let data flow: the browser has no analytics vendor, no clinician
-         * channel, and a study-descriptor verifier that refuses everything (`OI-CONSENT-07`). A browser flow that could
-         * start one has to settle this first.
+         * **The page forgets all of it on a reload**: the person answers the onboarding screens again, and keeps their protocols and
+         * limits through the backup file the browser can make and read (REQ-SW03-18 (b)). A consent withdrawal is not remembered
+         * across a reload either (a person who said stop reads as never asked there, `CLAUDE.md` §6.0). That cannot let data flow:
+         * the browser has no analytics vendor, no clinician channel and a study-descriptor verifier that refuses everything
+         * (`OI-CONSENT-07`). A browser flow that could start one has to settle this first.
          */
         fun browserKeys(): Set<String> =
-            setOf(PersistedKeys.SESSION_HISTORY_KEY) +
-                NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["consent"]!!.jsonArray.map { it.jsonPrimitive.content }
+            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
     }
 }
