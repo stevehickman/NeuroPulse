@@ -1,0 +1,112 @@
+{
+  "locale": "zh-Hans",
+  "sourceLocale": "en",
+  "exportedOn": "2026-10-19",
+  "strings": {
+    "STORAGE_LOCKED_NOTICE": {
+      "source": "Your saved data on this device cannot be opened right now, because the system's secure key store is not available. Nothing has been changed or deleted. Anything you do now is not saved and is lost when the app closes. Close the app, unlock or restore access to the key store, and open it again.",
+      "sourceHash": "c0abe55463e8b6a7",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "目前无法打开此设备上已保存的数据，因为系统的安全密钥库不可用。没有任何内容被更改或删除。您现在所做的操作不会被保存，关闭应用后将丢失。请关闭应用，解锁或恢复对密钥库的访问，然后重新打开应用。"
+    },
+    "STORAGE_UNSEALED_NOTICE": {
+      "source": "This device's secure key store is not available, so the app keeps your saved data on disk without encrypting it. Make the key store available and restart the app to protect it.",
+      "sourceHash": "a56bb26212e1c59d",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "此设备的安全密钥库不可用，因此应用会将您已保存的数据以未加密的方式存放在磁盘上。请恢复密钥库的可用性并重启应用，以保护这些数据。"
+    },
+    "STORAGE_MEMORY_ONLY_NOTICE": {
+      "source": "Nothing is saved in this browser. Your protocols, settings and answers are gone when you close or reload this page. To keep them, save a backup file before you leave.",
+      "sourceHash": "a601a9dbfaad4629",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "此浏览器不会保存任何内容。关闭或刷新此页面后，您的协议、设置和回答都会消失。如需保留，请在离开前保存一个备份文件。"
+    },
+    "SETTINGS_ERASE_LOCAL_TITLE": {
+      "source": "Data kept in this browser",
+      "sourceHash": "ab61b94d6125e9e8",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "此浏览器中保存的数据"
+    },
+    "SETTINGS_ERASE_LOCAL_BODY": {
+      "source": "This page keeps nothing in this browser between visits. Erasing removes anything an earlier version of the app left here, and cannot be undone. Nothing on your helmet is changed.",
+      "sourceHash": "4b85815dc879b969",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "此页面在两次访问之间不会在此浏览器中保留任何内容。清除会删除应用早期版本留在此处的所有内容，且无法撤销。您的头盔上不会有任何更改。"
+    },
+    "SETTINGS_ERASE_LOCAL_BUTTON": {
+      "source": "Erase this browser's data",
+      "sourceHash": "92a71b2577a006ef",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "清除此浏览器的数据"
+    },
+    "SETTINGS_ERASE_LOCAL_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "我明白此操作无法撤销。"
+    },
+    "SETTINGS_ERASE_DEVICE_TITLE": {
+      "source": "Erase the data on this computer",
+      "sourceHash": "95171d6bb38c0caf",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "清除这台电脑上的数据"
+    },
+    "SETTINGS_ERASE_DEVICE_BODY": {
+      "source": "Erases everything NeurOne keeps on this computer: your settings, your session history, your consent choices and the key that protects them. It cannot be undone. Backups you made are kept where you put them, and so is anything on your helmet. When it has finished, close and reopen the app.",
+      "sourceHash": "482eb1d0f2704e36",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "清除 NeurOne 在这台电脑上保存的全部内容：您的设置、会话历史、同意选择，以及保护它们的密钥。此操作无法撤销。您已创建的备份会保留在您存放的位置，头盔上的内容也不受影响。清除完成后，请关闭并重新打开应用。"
+    },
+    "SETTINGS_ERASE_DEVICE_BUTTON": {
+      "source": "Erase this computer's data",
+      "sourceHash": "8767f6c279ea3445",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "清除这台电脑上的数据"
+    },
+    "SETTINGS_ERASE_DEVICE_CONFIRM": {
+      "source": "I understand this cannot be undone.",
+      "sourceHash": "c9836d78c88e0fad",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "我明白此操作无法撤销。"
+    },
+    "SETTINGS_ERASE_DEVICE_DONE": {
+      "source": "Everything NeurOne kept on this computer has been erased. Close the app now. It starts fresh the next time you open it.",
+      "sourceHash": "3e7ac2e0e92b804a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "NeurOne 在这台电脑上保存的全部内容已被清除。请立即关闭应用。下次打开时它将从头开始。"
+    },
+    "SETTINGS_ERASE_DEVICE_FAILED": {
+      "source": "The erase did not finish. Nothing more was written. Try again, and close the app if it keeps failing.",
+      "sourceHash": "6a399258b9fb619a",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "清除未能完成。没有再写入任何内容。请重试；如果仍然失败，请关闭应用。"
+    },
+    "SETTINGS_ERASE_DEVICE_KEY_KEPT": {
+      "source": "The key that protected your data could not be removed from this computer's credential store. The data it protected is gone, so it opens nothing. You can delete the entry named life.neurone.data-key there.",
+      "sourceHash": "9a771a14221b1f8f",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "保护您数据的密钥无法从这台电脑的凭据库中移除。它所保护的数据已被删除，因此这把密钥已无任何用途。您可以在凭据库中删除名为 life.neurone.data-key 的条目。"
+    },
+    "SETTINGS_ERASE_DEVICE_CLOSE": {
+      "source": "Close NeurOne",
+      "sourceHash": "751d966344a99597",
+      "status": "untranslated",
+      "placeholders": [],
+      "translation": "关闭 NeurOne"
+    }
+  }
+}
