@@ -171,16 +171,17 @@ class EncryptedKeyValueStore(
         const val PREFIX = "np-enc:1:"
 
         /**
-         * The opaque device token the SHDR upload sends (`np.shdr.device-token`, a per-install key of the core's list). It is
-         * not user health data, but it is a secret that identifies the install to the fleet, so it is sealed under the same
-         * data key rather than left in the clear or kept by a second library.
+         * The opaque device token the SHDR upload sends (`np.shdr.device-token`, a per-install key of the core's list, sealed like
+         * the rest of it). It is not user health data, but it is a secret that identifies the install to the fleet, so it is sealed
+         * under the same data key rather than left in the clear or kept by a second library.
          */
         const val SHDR_DEVICE_TOKEN_KEY = "np.shdr.device-token"
 
         /**
-         * The keys whose values are sealed at rest (SWR-MG-06), from the core's one list (`itemKeys`, `sealedAtRest`): every key of
-         * every item a migration carries, the consent keys, and the keys not yet sorted for migration, which are UHDR until shown
-         * not to be (`CLAUDE.md` §5.1). Per-install keys name a device or an install, not the person, and stay as they are.
+         * The keys whose values are sealed at rest (SWR-MG-06, SWR-MG-16), from the core's one list (`itemKeys`, `sealedAtRest`):
+         * every key the apps store, which is UHDR until shown not to be (`CLAUDE.md` §5.1): every key of every item a migration
+         * carries, the consent keys, the keys not yet sorted, and the per-install keys. Those name a device or an install, but
+         * several say something about the person by inference, and nothing shows the others do not.
          */
         fun uhdrKeys(): Set<String> =
             NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()

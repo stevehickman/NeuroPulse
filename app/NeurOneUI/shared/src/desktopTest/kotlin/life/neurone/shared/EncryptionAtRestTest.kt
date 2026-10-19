@@ -53,9 +53,10 @@ class EncryptionAtRestTest {
         assertTrue(raw.getString("np.session.history")!!.startsWith(EncryptedKeyValueStore.PREFIX), "the data is sealed in the host's store")
         assertEquals("history of the person", app.keyValueStore.getString("np.session.history"))
         assertNotNull(app.clearActions)
-        // A key that is not user health data is left as it is.
+        // A per-install key is sealed too (SWR-MG-16), and the app reads it back.
         app.keyValueStore.putString("ble.last-hub-id", "hub-1")
-        assertEquals("hub-1", raw.getString("ble.last-hub-id"))
+        assertTrue(raw.getString("ble.last-hub-id")!!.startsWith(EncryptedKeyValueStore.PREFIX))
+        assertEquals("hub-1", app.keyValueStore.getString("ble.last-hub-id"))
     }
 
     // @verifies SWR-MG-06

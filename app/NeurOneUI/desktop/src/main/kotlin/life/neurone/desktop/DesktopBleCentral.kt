@@ -25,11 +25,12 @@ import life.neurone.shared.ble.UnavailableBleCentral
  */
 internal class DesktopBleCentral(
     private val link: BtleLink,
-    /** Holds the last hub's device id; null keeps none. The id is the OS's own and names a device, not a person. */
-    private val identity: KeyValueStore? = null,
+    /** Holds the last hub's device id; null keeps none until [useIdentityStore] gives one. The id is the OS's own. */
+    identity: KeyValueStore? = null,
     private val preferenceWindowMs: Long = PREFERENCE_WINDOW_MS,
     private val now: () -> Long = System::currentTimeMillis,
 ) : BleCentral {
+    @Volatile private var identity: KeyValueStore? = identity
     @Volatile private var listener: BleCentralListener? = null
     @Volatile private var state = AdapterState.UNKNOWN
     @Volatile private var running = true
@@ -37,6 +38,8 @@ internal class DesktopBleCentral(
     /** A device found while another is remembered: reported after [preferenceWindowMs] unless the remembered one appears. */
     @Volatile private var held: String? = null
     @Volatile private var heldDeadline = 0L
+
+    override fun useIdentityStore(store: KeyValueStore) { identity = store }
 
     override val canForgetHub: Boolean get() = identity?.getString(HUB_KEY) != null
 

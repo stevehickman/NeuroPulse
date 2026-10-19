@@ -50,4 +50,12 @@ interface BleCentral {
 
     /** Clears the remembered hub, so the next one found is taken at once. A central that remembers none ignores it. */
     fun forgetHub() {}
+
+    /**
+     * The store the remembered hub's id is kept in: the app's protected store, which seals it at rest (`ble.last-hub-id` is a
+     * per-install key, `SWR-MG-16`). Called once, before anything else is done with the central, by the app once it has opened that
+     * store. A central that remembers no hub ignores it; one that was given a store of its own replaces it, since reading the
+     * host's raw store would see the sealed value as it is on disk.
+     */
+    fun useIdentityStore(store: life.neurone.core.common.KeyValueStore) {}
 }
