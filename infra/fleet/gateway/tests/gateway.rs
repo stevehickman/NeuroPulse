@@ -30,9 +30,23 @@ fn fake_ingest(status: u16) -> (SocketAddr, Arc<Mutex<Vec<String>>>) {
     let s2 = seen.clone();
     thread::spawn(move || {
         for mut c in l.incoming().flatten() {
-            let mut buf = vec![0u8; 65536];
-            let n = c.read(&mut buf).unwrap_or(0);
-            s2.lock().unwrap().push(String::from_utf8_lossy(&buf[..n]).to_string());
+            // Read until the whole request (head and the body its Content-Length names) has arrived, however it was split.
+            let mut got = Vec::new();
+            let mut chunk = [0u8; 4096];
+            loop {
+                let n = c.read(&mut chunk).unwrap_or(0);
+                got.extend_from_slice(&chunk[..n]);
+                let text = String::from_utf8_lossy(&got).to_string();
+                let done = text.split_once("\r\n\r\n").is_some_and(|(head, body)| {
+                    let want = head.to_ascii_lowercase().split("content-length: ").nth(1)
+                        .and_then(|r| r.split("\r\n").next()).and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0);
+                    body.len() >= want
+                });
+                if n == 0 || done {
+                    break;
+                }
+            }
+            s2.lock().unwrap().push(String::from_utf8_lossy(&got).to_string());
             let _ = c.write_all(format!("HTTP/1.1 {status} X\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes());
         }
     });

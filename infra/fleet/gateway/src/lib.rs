@@ -152,7 +152,9 @@ fn forward(ingest: &str, headers: &[(String, String)], body: &[u8]) -> u16 {
         }
     }
     req.push_str("\r\n");
-    if s.write_all(req.as_bytes()).and_then(|_| s.write_all(body)).is_err() {
+    let mut message = req.into_bytes();
+    message.extend_from_slice(body);
+    if s.write_all(&message).is_err() {
         return 502;
     }
     let mut answer = Vec::new();
