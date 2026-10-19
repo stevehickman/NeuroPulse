@@ -19,11 +19,11 @@ final class EEGConsentGateTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: acceptedKey)
+        ProtectedDefaults.standard.removeObject(forKey: acceptedKey)
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: acceptedKey)
+        ProtectedDefaults.standard.removeObject(forKey: acceptedKey)
         super.tearDown()
     }
 
@@ -143,7 +143,7 @@ final class EEGConsentGateTests: XCTestCase {
     @MainActor
     // @verifies REQ-ONBOARD-06#c
     func testLibrarySeedsConsentFromUserDefaults() {
-        UserDefaults.standard.set(true, forKey: acceptedKey)
+        ProtectedDefaults.standard.set(true, forKey: acceptedKey)
         let library = NPProtocolLibrary()
         XCTAssertTrue(library.eegConsentGranted,
                       "eegConsentGranted must seed from np.onboarding.bipa-accepted")

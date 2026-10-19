@@ -27,7 +27,7 @@ struct ProtocolMenuView: View {
     // BIPA biometric written-release acceptance (ISC-90). Pushed into the library so
     // EEG-dependent protocols are blocked in every selection path — list row, context
     // menu, and program mode — when consent was declined.
-    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @ProtectedAppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
 
     // When true, selecting a protocol programs it onto the hub for Mode 3
     // Autonomous use (via SessionProtocolUploader.programAutonomous) instead of

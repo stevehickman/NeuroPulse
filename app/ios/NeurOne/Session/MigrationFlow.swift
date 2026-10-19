@@ -29,8 +29,8 @@ protocol KeyValueStore {
     func remove(_ key: String)
 }
 
-struct UserDefaultsKeyValueStore: KeyValueStore {
-    let defaults: UserDefaults
+struct ProtectedDefaultsKeyValueStore: KeyValueStore {
+    let defaults: ProtectedDefaults
     func getString(_ key: String) -> String? { defaults.string(forKey: key) }
     func putString(_ key: String, _ value: String) { defaults.set(value, forKey: key) }
     func remove(_ key: String) { defaults.removeObject(forKey: key) }

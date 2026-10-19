@@ -44,7 +44,7 @@ struct SessionView: View {
 
     // Biometric written-release acceptance (ISC-90). EEG features disabled until
     // the user has consented to brainwave-data collection (shown to all users once).
-    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @ProtectedAppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
 
     /// Whether EEG/closed-loop neurofeedback features may be shown and used.
     var eegConsentGranted: Bool { bipaAccepted }

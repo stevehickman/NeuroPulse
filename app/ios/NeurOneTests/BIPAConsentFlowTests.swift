@@ -22,13 +22,13 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: shownKey)
-        UserDefaults.standard.removeObject(forKey: acceptedKey)
+        ProtectedDefaults.standard.removeObject(forKey: shownKey)
+        ProtectedDefaults.standard.removeObject(forKey: acceptedKey)
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: shownKey)
-        UserDefaults.standard.removeObject(forKey: acceptedKey)
+        ProtectedDefaults.standard.removeObject(forKey: shownKey)
+        ProtectedDefaults.standard.removeObject(forKey: acceptedKey)
         super.tearDown()
     }
 
@@ -42,8 +42,8 @@ final class BIPAConsentFlowTests: XCTestCase {
         // Simulate the onAccept closure that NeurOneApp provides.
         let onAccept: () -> Void = {
             acceptCount += 1
-            UserDefaults.standard.set(true, forKey: "np.onboarding.bipa-accepted")
-            UserDefaults.standard.set(true, forKey: "np.onboarding.bipa-shown")
+            ProtectedDefaults.standard.set(true, forKey: "np.onboarding.bipa-accepted")
+            ProtectedDefaults.standard.set(true, forKey: "np.onboarding.bipa-shown")
         }
         let onDecline: () -> Void = { declineCount += 1 }
 
@@ -51,8 +51,8 @@ final class BIPAConsentFlowTests: XCTestCase {
 
         XCTAssertEqual(acceptCount, 1, "onAccept must fire exactly once")
         XCTAssertEqual(declineCount, 0, "onDecline must not fire on accept")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: shownKey),  "bipa-shown must be true after accept")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must be true after accept")
+        XCTAssertTrue(ProtectedDefaults.standard.bool(forKey: shownKey),  "bipa-shown must be true after accept")
+        XCTAssertTrue(ProtectedDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must be true after accept")
     }
 
     // @verifies REQ-ONBOARD-06#a
@@ -63,16 +63,16 @@ final class BIPAConsentFlowTests: XCTestCase {
         let onAccept: () -> Void = { acceptCount += 1 }
         let onDecline: () -> Void = {
             declineCount += 1
-            UserDefaults.standard.set(false, forKey: "np.onboarding.bipa-accepted")
-            UserDefaults.standard.set(true,  forKey: "np.onboarding.bipa-shown")
+            ProtectedDefaults.standard.set(false, forKey: "np.onboarding.bipa-accepted")
+            ProtectedDefaults.standard.set(true,  forKey: "np.onboarding.bipa-shown")
         }
 
         onDecline()
 
         XCTAssertEqual(declineCount, 1, "onDecline must fire exactly once")
         XCTAssertEqual(acceptCount, 0, "onAccept must not fire on decline")
-        XCTAssertTrue( UserDefaults.standard.bool(forKey: shownKey),   "bipa-shown must be true after decline")
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must remain false after decline")
+        XCTAssertTrue( ProtectedDefaults.standard.bool(forKey: shownKey),   "bipa-shown must be true after decline")
+        XCTAssertFalse(ProtectedDefaults.standard.bool(forKey: acceptedKey), "bipa-accepted must remain false after decline")
     }
 
     // @verifies REQ-ONBOARD-06#a
@@ -178,16 +178,16 @@ final class BIPAConsentFlowTests: XCTestCase {
         // SessionView.eegConsentGranted == bipaAccepted (via @AppStorage).
         // Verify the key used by SessionView matches the key set by the BIPA flow.
         let sessionViewKey = "np.onboarding.bipa-accepted"
-        UserDefaults.standard.set(true, forKey: sessionViewKey)
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: sessionViewKey),
+        ProtectedDefaults.standard.set(true, forKey: sessionViewKey)
+        XCTAssertTrue(ProtectedDefaults.standard.bool(forKey: sessionViewKey),
             "eegConsentGranted in SessionView must be true when bipa-accepted is true")
     }
 
     // @verifies REQ-ONBOARD-06#b
     func testEEGConsentGranted_isFalseWhenBIPADeclined() {
         let sessionViewKey = "np.onboarding.bipa-accepted"
-        UserDefaults.standard.set(false, forKey: sessionViewKey)
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: sessionViewKey),
+        ProtectedDefaults.standard.set(false, forKey: sessionViewKey)
+        XCTAssertFalse(ProtectedDefaults.standard.bool(forKey: sessionViewKey),
             "eegConsentGranted in SessionView must be false when bipa-accepted is false")
     }
 
@@ -200,12 +200,12 @@ final class BIPAConsentFlowTests: XCTestCase {
         let setupViewShownKey    = "np.onboarding.bipa-shown"
         let setupViewAcceptedKey = "np.onboarding.bipa-accepted"
 
-        UserDefaults.standard.set(true, forKey: setupViewShownKey)
-        UserDefaults.standard.set(true, forKey: setupViewAcceptedKey)
+        ProtectedDefaults.standard.set(true, forKey: setupViewShownKey)
+        ProtectedDefaults.standard.set(true, forKey: setupViewAcceptedKey)
 
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: shownKey),
+        XCTAssertTrue(ProtectedDefaults.standard.bool(forKey: shownKey),
             "SetupView bipa-shown key must match the onboarding chain key")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: acceptedKey),
+        XCTAssertTrue(ProtectedDefaults.standard.bool(forKey: acceptedKey),
             "SetupView bipa-accepted key must match the onboarding chain key")
     }
 
@@ -221,19 +221,19 @@ final class BIPAConsentFlowTests: XCTestCase {
         let consentShownKey      = "np.onboarding.consent-shown"
 
         defer {
-            UserDefaults.standard.removeObject(forKey: ageConfirmedKey)
-            UserDefaults.standard.removeObject(forKey: bipaShownKey)
-            UserDefaults.standard.removeObject(forKey: consentShownKey)
+            ProtectedDefaults.standard.removeObject(forKey: ageConfirmedKey)
+            ProtectedDefaults.standard.removeObject(forKey: bipaShownKey)
+            ProtectedDefaults.standard.removeObject(forKey: consentShownKey)
         }
 
         // Age confirmed but BIPA not shown — the chain should surface BIPA next.
-        UserDefaults.standard.set(true, forKey: ageConfirmedKey)
-        UserDefaults.standard.set(false, forKey: bipaShownKey)
-        UserDefaults.standard.set(false, forKey: consentShownKey)
+        ProtectedDefaults.standard.set(true, forKey: ageConfirmedKey)
+        ProtectedDefaults.standard.set(false, forKey: bipaShownKey)
+        ProtectedDefaults.standard.set(false, forKey: consentShownKey)
 
-        let ageConfirmed   = UserDefaults.standard.bool(forKey: ageConfirmedKey)
-        let bipaShown      = UserDefaults.standard.bool(forKey: bipaShownKey)
-        let consentShown   = UserDefaults.standard.bool(forKey: consentShownKey)
+        let ageConfirmed   = ProtectedDefaults.standard.bool(forKey: ageConfirmedKey)
+        let bipaShown      = ProtectedDefaults.standard.bool(forKey: bipaShownKey)
+        let consentShown   = ProtectedDefaults.standard.bool(forKey: consentShownKey)
 
         // Replicate presentNextOnboardingStep logic from NeurOneApp.
         func nextStep() -> String {

@@ -46,10 +46,10 @@ final class NPProtocolLibrary: ObservableObject {
 
     /// Whether the user has granted the BIPA biometric written release. EEG-dependent
     /// protocols are blocked until this is true (ISC-90). Seeded from the same
-    /// `np.onboarding.bipa-accepted` UserDefaults key the views read via `@AppStorage`;
+    /// `np.onboarding.bipa-accepted` key (in `ProtectedDefaults`) the views read via `@ProtectedAppStorage`;
     /// views push live changes in via `updateEEGConsent(_:)`.
     @Published var eegConsentGranted: Bool =
-        UserDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
+        ProtectedDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
 
     // MARK: Family state (SWR-FM-03…07, SWR-WO-02)
 
@@ -448,7 +448,7 @@ final class NPProtocolLibrary: ObservableObject {
     // MARK: Family state persistence
 
     private func loadFamilyState() {
-        let defaults = UserDefaults.standard
+        let defaults = ProtectedDefaults.standard
         // A used record is the family id and nothing else; a stored value the core does not recognise is dropped.
         let used = (defaults.array(forKey: Self.usedFamiliesKey) as? [String]) ?? []
         usedFamilies = Set(used.filter { NPLibraryRules.isValidUsedRecord(NPLibraryRules.usedRecord(familyId: $0)) })
@@ -457,7 +457,7 @@ final class NPProtocolLibrary: ObservableObject {
     }
 
     private func saveFamilyState() {
-        let defaults = UserDefaults.standard
+        let defaults = ProtectedDefaults.standard
         defaults.set(Array(usedFamilies).sorted(), forKey: Self.usedFamiliesKey)
         defaults.set(Array(archivedFamilies).sorted(), forKey: Self.archivedFamiliesKey)
         defaults.set(cloneSources, forKey: Self.cloneSourcesKey)

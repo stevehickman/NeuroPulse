@@ -11,12 +11,11 @@ import XCTest
 
 final class ConsumableResetTests: XCTestCase {
 
-    private var defaults: UserDefaults!
+    private var defaults: ProtectedDefaults!
 
     override func setUp() {
         super.setUp()
-        defaults = UserDefaults(suiteName: "ConsumableResetTests")
-        defaults.removePersistentDomain(forName: "ConsumableResetTests")
+        defaults = makeIsolatedProtectedDefaults()
     }
 
     // @verifies REQ-SW03-04

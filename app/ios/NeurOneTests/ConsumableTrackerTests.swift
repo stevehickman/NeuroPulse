@@ -149,19 +149,15 @@ final class ConsumableInventoryTests: XCTestCase {
 @MainActor
 final class ConsumableTrackerDirectTests: XCTestCase {
 
-    private var testSuiteName: String!
-    private var testDefaults: UserDefaults!
+    private var testDefaults: ProtectedDefaults!
 
     override func setUp() {
         super.setUp()
-        testSuiteName = "life.neurone.test.\(UUID().uuidString)"
-        testDefaults = UserDefaults(suiteName: testSuiteName)!
+        testDefaults = makeIsolatedProtectedDefaults()
     }
 
     override func tearDown() {
-        testDefaults.removePersistentDomain(forName: testSuiteName)
         testDefaults = nil
-        testSuiteName = nil
         super.tearDown()
     }
 

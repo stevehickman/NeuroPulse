@@ -135,7 +135,7 @@ struct AgeGateView: View {
         // Guard: only proceed when confirmed. The button is already disabled
         // until `ageConfirmed`, but this keeps the side effect honest.
         guard ageConfirmed else { return }
-        UserDefaults.standard.set(true, forKey: PersistedKeys.AGE_CONFIRMED_KEY)
+        ProtectedDefaults.standard.set(true, forKey: PersistedKeys.AGE_CONFIRMED_KEY)
         onComplete()
     }
 }
