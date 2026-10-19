@@ -24,7 +24,10 @@ import java.util.Properties
  * [life.neurone.shared.ble.UnavailableBleCentral] and everything that does not need the hub still works.
  */
 class DesktopPlatformServices(
-    override val keyValueStore: KeyValueStore = FileKeyValueStore(desktopDataDirectory.resolve(KEY_VALUE_FILE)),
+    override val keyValueStore: KeyValueStore = FileKeyValueStore(
+        desktopDataDirectory.resolve(KEY_VALUE_FILE),
+        DataFileProtection.forThisSystem(),
+    ),
     override val bleCentral: BleCentral = createDesktopBleCentral(keyValueStore),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
@@ -114,16 +117,26 @@ val desktopDataDirectory: File by lazy { appDataDirectory().also { moveLegacyDat
  * at once: this store holds consent decisions, and a decision the user made must survive the
  * process being killed a moment later.
  */
-class FileKeyValueStore(private val file: File) : KeyValueStore {
+class FileKeyValueStore(
+    private val file: File,
+    private val protection: DataFileProtection = DataFileProtection.NONE,
+) : KeyValueStore {
     private val properties = Properties()
 
     init {
-        if (file.exists()) file.inputStream().use { properties.load(it) }
+        if (file.exists()) {
+            // A file an earlier release wrote is brought under the protection now, not at the next save.
+            protection.prepare(file)
+            file.inputStream().use { properties.load(it) }
+        }
     }
 
     @Synchronized private fun persist() {
-        file.parentFile?.mkdirs()
+        file.parentFile?.let { it.mkdirs(); protection.prepare(it) }
         val temporary = File(file.parentFile, file.name + ".tmp")
+        // The temporary file is made owner-only and excluded from backups before anything is written to it, and the rename carries
+        // both to the real file, so the real file is never in the open (SWR-MG-18).
+        protection.prepare(temporary)
         temporary.outputStream().use { properties.store(it, null) }
         java.nio.file.Files.move(
             temporary.toPath(), file.toPath(),
