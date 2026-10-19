@@ -138,10 +138,12 @@ services:
       CLICKHOUSE_USER: posthog
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      ERASE_CLICKHOUSE_PASSWORD: ${ERASE_CLICKHOUSE_PASSWORD:-}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_log:/var/log/clickhouse-server
       - ./clickhouse/np-privacy.xml:/etc/clickhouse-server/config.d/np-privacy.xml:ro
+      - ./clickhouse/np-erase-user.xml:/etc/clickhouse-server/users.d/np-erase-user.xml:ro
     ulimits:
       nofile:
         soft: 262144
@@ -242,6 +244,34 @@ services:
     command: ./bin/plugin-server --no-restart-loop
     networks:
       - analytics-internal
+
+  # ── Erasure relay (activate with --profile https, beside Caddy) ──────────────
+  # Receives POST /np/erase {"distinct_id": …} from the app's AnalyticsErasureQueue (REQ-SW03-19) and deletes that ID's events
+  # from ClickHouse, as a user that may do nothing else (clickhouse/np-erase-user.xml). It keeps no ID and no address.
+  # NOT yet exercised against a live stack: run `docker compose run --rm erase-relay python /app/erase_relay.py --self-check`
+  # (np_analytics_001 §7.6, OI-ANALYTICS-01) before relying on it.
+  erase-relay:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      ERASE_CLICKHOUSE_USER: np_erase
+      ERASE_CLICKHOUSE_PASSWORD: ${ERASE_CLICKHOUSE_PASSWORD:?Set ERASE_CLICKHOUSE_PASSWORD in .env}
+      ERASE_TABLES: ${ERASE_TABLES:-posthog.sharded_events}
+      ERASE_LISTEN: 0.0.0.0:8080
+      ERASE_RATE_PER_SECOND: ${ERASE_RATE_PER_SECOND:-5}
+      ERASE_BURST: ${ERASE_BURST:-20}
+    volumes:
+      - ./erase_relay.py:/app/erase_relay.py:ro
+    command: ["python", "-I", "/app/erase_relay.py"]
+    networks:
+      - analytics-internal
+      - analytics-external
+    profiles:
+      - https
 
   # ── Caddy (optional — activate with --profile https) ────────────────────────
   # HTTPS termination. Required for:

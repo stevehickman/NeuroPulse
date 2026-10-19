@@ -7,12 +7,14 @@ on:
       - 'infra/posthog/**'
       - 'ci/test_posthog_infra.py'
       - 'ci/test_posthog_project_settings.py'
+      - 'ci/test_posthog_erase_relay.py'
       - '.github/workflows/posthog-infra-ci.yml'
   pull_request:
     paths:
       - 'infra/posthog/**'
       - 'ci/test_posthog_infra.py'
       - 'ci/test_posthog_project_settings.py'
+      - 'ci/test_posthog_erase_relay.py'
       - '.github/workflows/posthog-infra-ci.yml'
   workflow_dispatch:
 
@@ -38,6 +40,10 @@ jobs:
         run: python3 ci/test_posthog_project_settings.py --self-test
       - name: Project-settings script against a fake PostHog
         run: python3 ci/test_posthog_project_settings.py
+      - name: Erasure-relay self-test (prove the suite goes red on a broken relay)
+        run: python3 ci/test_posthog_erase_relay.py --self-test
+      - name: Erasure relay against a fake ClickHouse
+        run: python3 ci/test_posthog_erase_relay.py
       # The only check that asks Caddy itself whether the Caddyfile is valid (the header_up removals and the `not host` matcher
       # are Caddy syntax the Python checks cannot judge). The image is the one the stack runs.
       - name: Caddyfile is valid Caddy

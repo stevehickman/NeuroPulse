@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 3
-**Date:** 2026-10-18  
+**Revision:** 4
+**Date:** 2026-10-19  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -409,9 +409,9 @@ Monitor with: `docker compose exec clickhouse clickhouse-client -q "SELECT forma
 
 ---
 
-### 7.6 The erasure relay (not built, `OI-ANALYTICS-01`)
+### 7.6 The erasure relay (built, not verified against a live stack, `OI-ANALYTICS-01`)
 
-When a person withdraws research analytics the app sends their old pseudonymous analytics ID to a NeurOne service, the **erasure relay**, which holds the PostHog private API key (the key must never be in the app) and deletes what PostHog holds under that ID. The app side is built: the ID is queued on the phone and retried until the relay answers (`AnalyticsErasureQueue`, `REQ-SW03-19`). The relay is not, so a queued ID stays queued and nothing is erased yet.
+When a person withdraws research analytics the app sends their old pseudonymous analytics ID to a NeurOne service, the **erasure relay**, which holds the PostHog private API key (the key must never be in the app) and deletes what PostHog holds under that ID. The app side is built: the ID is queued on the phone and retried until the relay answers (`AnalyticsErasureQueue`, `REQ-SW03-19`). The relay is `infra/posthog/erase_relay.py` (`REQ-SW03-22`), run by the `erase-relay` service of the `https` compose profile behind Caddy's `/np/erase` route. **It has been tested only against a fake ClickHouse; until the `--self-check` below passes on a real stack, treat no ID as erased.**
 
 What the app sends and expects:
 
@@ -422,11 +422,16 @@ What the app sends and expects:
 | `4xx` other than `408` and `429` | Refused for good (a malformed ID, say). The app drops the ID; retrying cannot change the answer. |
 | `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch. |
 
-What the relay must do, before it is built:
+What the relay does:
 
-- Rate-limit by source, and keep neither the source address nor the ID in any log (counts only): a log of IDs would be the list this feature exists to erase.
-- Delete the events PostHog holds under the ID. **Not verified:** the app sets `personProfiles = .never`, so PostHog may hold no person record for the ID, and the person-deletion call of §7.2 needs one. Whether PostHog can delete the events of an ID with no person record has to be checked against the PostHog version in use before the relay is written; if it cannot, shorter retention (§3.4) is the only control.
-- Finish within the policy's 30 days of the withdrawal.
+- **Deletes in ClickHouse, not through PostHog's API.** The app sets `personProfiles = .never`, so PostHog may hold no person record for the ID, and the person-deletion call of §7.2 needs one. The relay runs `ALTER TABLE posthog.sharded_events DELETE WHERE distinct_id = {id:String}` with the ID as a bound parameter. It connects as `np_erase`, a ClickHouse user that may `ALTER DELETE` on that table and do nothing else (`clickhouse/np-erase-user.xml`), so it holds no PostHog key at all.
+- **Accepts exactly one shape.** A body that is one JSON object with the single key `distinct_id` and a 16–64 character value of letters, digits and hyphens; anything else is `400`. Over 1 KiB is `413`. A store that refuses or does not answer is `502`, so the app keeps the ID. One bucket for the service (5 a second, burst 20; `ERASE_RATE_PER_SECOND`, `ERASE_BURST`) answers `429`; the ID is a 122-bit random value, so guessing one is not the threat, flooding the store with mutations is.
+- **Keeps nothing.** Neither the source address (Caddy strips it, the relay logs none) nor the ID is written anywhere; the only record is four counters (erased, refused, limited, failed) printed at shutdown.
+- **Finishes within the policy's 30 days** only if the mutation runs; a ClickHouse mutation is asynchronous and the relay answers `200` when the store accepts it, not when the rows are gone.
+
+**Before relying on it** (`OI-ANALYTICS-01` (2)): on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm erase-relay python /app/erase_relay.py --self-check`. It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
+
+**Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so the erased ID can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay.
 
 ## 8. Permitted and prohibited property reference
 
