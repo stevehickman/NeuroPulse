@@ -61,21 +61,19 @@ pub(crate) fn all_keys() -> Vec<String> {
 }
 
 /// `SWR-MG-06`: the keys whose values a host seals at rest, so that destroying the data key makes them unreadable. It is every key
-/// of every item a migration carries, the consent keys, **and the keys not yet sorted**. A key still waiting to be sorted for
-/// migration has no ruling that it is not user data, and `CLAUDE.md` §5.1 says what to do then: when in doubt it is UHDR, and a
+/// the apps store: every key of every item a migration carries, the consent keys, **the per-install keys and the keys not yet
+/// sorted**. A key still waiting to be sorted for migration has no ruling that it is not user data, and `CLAUDE.md` §5.1 says what to do then: when in doubt it is UHDR, and a
 /// reclassification needs a positive demonstration of no user biology. The unsorted keys also include the cervical fault
 /// acknowledgement (a cardiac fact) and the onboarding records (age, biometric-privacy consent), which are about the person. The
-/// per-install keys are not listed: they name a device, an install or a warranty registration, and the SHDR device token a host
-/// seals for another reason. The list is computed here so every platform seals the same keys, and a key moved out of `unsorted`
-/// into a list that is not sealed has to be taken out of this one on purpose.
+/// per-install keys are sealed too (`OI-DESKTOP-01` item 4, `SWR-MG-16`). They name a device, an install or a warranty registration
+/// and so are not the person's, but several say something about the person by inference: the launch count is an engagement
+/// measure, the backup folder is a path with the person's name in it, the pending analytics erasures are pseudonymous IDs, and the
+/// helmet and the research device token tie a person to a device. Nothing shows that any of them is free of that, and `CLAUDE.md`
+/// §5.1 says what to do then. They never move in a migration (that is `perInstall`'s meaning); sealing is about what is left on
+/// the disk. The list is computed here so every platform seals the same keys, and a key moved out of `unsorted` into a list that
+/// is not sealed has to be taken out of this one on purpose.
 pub(crate) fn sealed_at_rest() -> Vec<String> {
-    let m = key_map();
-    let mut v: Vec<String> = m["carried"].as_object().into_iter().flat_map(|o| o.values()).chain(["consent", "unsorted"].iter().map(|k| &m[*k]))
-        .flat_map(|a| a.as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>())
-        .collect();
-    v.sort();
-    v.dedup();
-    v
+    all_keys()
 }
 
 const MIGRATE_ITEMS: [&str; 5] = [
@@ -1002,8 +1000,9 @@ mod tests {
     }
 
     // @verifies SWR-MG-06
+    // @verifies SWR-MG-16#a
     #[test]
-    fn the_sealed_set_is_every_carried_consent_and_unsorted_key_and_no_per_install_key() {
+    fn the_sealed_set_is_every_stored_key_the_apps_sort() {
         let m = ask(json!({"op":"itemKeys"}));
         let sealed: Vec<String> = m["sealedAtRest"].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect();
         let list = |name: &str| -> Vec<String> { m[name].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect() };
@@ -1014,12 +1013,10 @@ mod tests {
         for k in m["carried"].as_object().unwrap().values().flat_map(|a| a.as_array().unwrap()) {
             assert!(sealed.contains(&k.as_str().unwrap().to_string()), "carried key {k}");
         }
-        for k in list("consent").into_iter().chain(list("unsorted")) {
-            assert!(sealed.contains(&k), "consent or unsorted key {k}");
+        for k in list("consent").into_iter().chain(list("perInstall")).chain(list("unsorted")) {
+            assert!(sealed.contains(&k), "consent, per-install or unsorted key {k}");
         }
-        for k in list("perInstall") {
-            assert!(!sealed.contains(&k), "per-install key {k} is not in the sealed set");
-        }
+        assert_eq!(sealed.len(), all_keys().len(), "every key the apps store is sealed, so none is left in the clear by omission");
         assert!(sealed.contains(&"np.cvns.fault-ledger.last-acknowledged-session".to_string()), "the cardiac fault acknowledgement");
         assert!(sealed.contains(&"np.onboarding.bipa-accepted".to_string()), "the biometric-privacy consent record");
         assert!(sealed.iter().all(|k| all_keys().contains(k)), "every sealed key is a sorted key");

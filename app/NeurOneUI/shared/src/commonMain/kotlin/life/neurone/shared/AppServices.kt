@@ -56,7 +56,7 @@ class AppServices(
      * read as ciphertext nor overwritten with plaintext. [storageProtection] says which of the three states this run is in.
      */
     private val protectedStorage: ProtectedStorage = ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) {
-        EncryptedKeyValueStore.uhdrKeys() + EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY
+        EncryptedKeyValueStore.uhdrKeys()
     }
 
     /** How the protected keys are held on this run; the screens tell the person when it is not [StorageProtection.SEALED]. */
@@ -65,6 +65,9 @@ class AppServices(
     private val encrypted: EncryptedKeyValueStore? = protectedStorage.sealing
 
     val keyValueStore: KeyValueStore = protectedStorage.store
+
+    // The remembered hub's id is a sealed key (SWR-MG-16): a central that read the host's raw store would see it as ciphertext.
+    init { platform.bleCentral.useIdentityStore(keyValueStore) }
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)

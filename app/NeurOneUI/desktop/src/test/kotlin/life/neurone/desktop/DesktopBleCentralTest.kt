@@ -171,4 +171,24 @@ class DesktopBleCentralTest {
         assertEquals(null, store.getString("ble.last-hub-id"))
         central.close()
     }
+
+    // The hub's id is a sealed key (SWR-MG-16): the app gives the central its protected store, and the central keeps the id there and
+    // not in the host's raw store it was built with, where it would be read back as ciphertext.
+    // @verifies SWR-MG-16#b
+    @Test fun the_hub_is_remembered_in_the_store_the_app_gives_the_central() {
+        val raw = InMemoryKeyValueStore()
+        val protectedStore = InMemoryKeyValueStore()
+        val link = FakeLink()
+        val central = DesktopBleCentral(link, raw)
+        central.useIdentityStore(protectedStore)
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+
+        link.events += byteArrayOf(3) + "hub-1".encodeToByteArray()
+        assertEquals("connected hub-1", rec.next())
+        assertEquals("hub-1", protectedStore.getString("ble.last-hub-id"))
+        assertEquals(null, raw.getString("ble.last-hub-id"), "nothing is written to the host's raw store")
+        central.close()
+    }
 }

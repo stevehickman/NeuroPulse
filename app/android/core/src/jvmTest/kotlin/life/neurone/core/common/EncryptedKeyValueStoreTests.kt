@@ -139,9 +139,32 @@ class EncryptedKeyValueStoreTests {
         assertEquals("session-0042", s.getString("np.cvns.fault-ledger.last-acknowledged-session"))
         assertEquals("{\"sleeve\":2}", s.getString("np.consumable.snooze-counts"))
 
-        // A per-install key is the device's and stays as it is.
+        // A key the apps do not store at all is left as it is.
+        s.putString("np.not-a-listed-key", "x")
+        assertEquals("x", inner.getString("np.not-a-listed-key"))
+    }
+
+    // The per-install keys are sealed too (SWR-MG-16): each is something the person's install says, and nothing shows it is free of
+    // what that says about the person. They are read back as what was written.
+    // @verifies SWR-MG-16#a
+    @Test
+    fun thePerInstallKeysAreSealedAndStillReadAsWhatWasWritten() {
+        val perInstall = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["perInstall"]!!.jsonArray.map { it.jsonPrimitive.content }
+        val keys = EncryptedKeyValueStore.uhdrKeys()
+        assertTrue(perInstall.isNotEmpty() && perInstall.all { it in keys }, "every per-install key is in the sealed set")
+        val inner = InMemoryKeyValueStore()
+        val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), keys)
         s.putString("ble.last-hub-id", "hub-1")
-        assertEquals("hub-1", inner.getString("ble.last-hub-id"))
+        s.putInt("np.analytics.launch-count", 7)
+        s.putBoolean("np.warranty.consent-granted", true)
+        s.putString("np.backup.folder", "/Users/a-person/Backups")
+        for (k in listOf("ble.last-hub-id", "np.analytics.launch-count", "np.warranty.consent-granted", "np.backup.folder")) {
+            assertTrue(inner.getString(k)!!.startsWith(EncryptedKeyValueStore.PREFIX), "$k is sealed in the host's store")
+        }
+        assertFalse("a-person" in inner.getString("np.backup.folder")!!, "the path is not in the stored value")
+        assertEquals("hub-1", s.getString("ble.last-hub-id"))
+        assertEquals(7, s.getInt("np.analytics.launch-count"))
+        assertTrue(s.getBoolean("np.warranty.consent-granted"))
     }
 
     // A flag, a number and a text written before the store sealed them are Boolean, Int and String in the host's own store. All three
