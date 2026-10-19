@@ -103,6 +103,14 @@ interface PlatformServices {
     val eraseLocalData: (() -> Unit)? get() = null
 
     /**
+     * Ends this run of the app, for a host that keeps its state on disk and has a way to stop (the desktop apps). Having it is what
+     * offers the person "erase this device" (SWR-MG-17): the erase deletes the files and the stored keys, and the run still holds
+     * the old state in memory, so the app must end and be started again rather than carry on and write it back. Null for a host
+     * that is not asked to (the browser has [eraseLocalData]; a phone's data goes with the app).
+     */
+    val endRunAfterErase: (() -> Unit)? get() = null
+
+    /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan
      * (Android's runtime Bluetooth permissions) and then re-reads the adapter state. Composable
      * because Android registers its permission launcher with the composition; a platform with

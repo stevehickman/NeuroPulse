@@ -105,6 +105,16 @@ class AppServices(
      */
     val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager) }
 
+    /**
+     * The person's "erase this device" (SWR-MG-17), or null on a host that does not offer it ([PlatformServices.endRunAfterErase]).
+     * It works against the host's raw store and the keystore as they are, not through [keyValueStore], so it also works on a run
+     * that is locked or unsealed.
+     */
+    val eraseDevice: life.neurone.shared.migration.EraseDeviceModel? =
+        platform.endRunAfterErase?.let {
+            life.neurone.shared.migration.EraseDeviceModel(platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager)
+        }
+
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
     val protocolUploader = ProtocolUploader(gattManager, platform.protocolSigner)
 

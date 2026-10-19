@@ -54,6 +54,9 @@ class DesktopPlatformServices(
             keyValueStore.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() } ?: folderPlaces.defaultFolder,
         )
 
+    /** After "erase this device" the run holds the old state in memory, so the app ends and is started again (SWR-MG-17). */
+    override val endRunAfterErase: (() -> Unit) = { kotlin.system.exitProcess(0) }
+
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
     override val linkTransport: LinkTransport = LanLinkTransport()
 
