@@ -23,7 +23,12 @@ import life.neurone.core.npps.NppsCore
  * unencrypted and says the device cannot clear itself, rather than claim a protection it does not give.
  */
 interface SecretKeyStore {
-    /** The data key, or null when there is none (never made, or destroyed). */
+    /**
+     * The data key, or null when the keystore answered and there is none (never made, or destroyed). **Null means "no key" and
+     * nothing else**: when the keystore cannot be asked or its answer cannot be read (a timeout, a locked keychain, a tool that
+     * fails), throw [SecretKeyUnavailableException]. A caller that took "could not ask" for "no key" would make a new key over the
+     * real one, and everything sealed under the real one would be lost (OI-DESKTOP-01, item 3).
+     */
     fun load(): ByteArray?
 
     /** Keep [key], replacing any earlier one. */
@@ -32,6 +37,9 @@ interface SecretKeyStore {
     /** Destroy the key in the keystore, not merely forget it: what it protected is unreadable from here on. */
     fun destroy()
 }
+
+/** The keystore could not be asked for the data key, or what it answered cannot be read. The key may well exist: it is not "no key". */
+class SecretKeyUnavailableException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /** A key held in memory, for tests. */
 class InMemorySecretKeyStore : SecretKeyStore {
@@ -44,7 +52,8 @@ class InMemorySecretKeyStore : SecretKeyStore {
 /**
  * A [KeyValueStore] that seals the values of its [protectedKeys] under the data key and leaves every other key as it is. The
  * data key is made the first time a protected value is written and kept in [secrets]; a value sealed under a key that no
- * longer exists reads as absent. A plain value found under a protected key (from before this store existed) is read as it is
+ * longer exists reads as absent, and so does one while the keystore cannot be asked (it opens again when it can). A write while the
+ * keystore cannot be asked throws [SecretKeyUnavailableException] and replaces nothing. A plain value found under a protected key (from before this store existed) is read as it is
  * and sealed by [migrate].
  */
 class EncryptedKeyValueStore(
@@ -55,8 +64,13 @@ class EncryptedKeyValueStore(
 ) : KeyValueStore {
     private var cached: ByteArray? = null
 
+    /** The data key, or null if the keystore says there is none. Throws [SecretKeyUnavailableException] if it could not be asked. */
     private fun key(): ByteArray? = cached ?: secrets.load()?.also { cached = it }
 
+    /**
+     * A key is made only when the keystore answered that there is none. If it could not be asked, [key] throws and nothing is made
+     * or stored, so the real key, which may be there, is not replaced (OI-DESKTOP-01, item 3). The write fails instead.
+     */
     private fun ensureKey(): ByteArray {
         key()?.let { return it }
         val fresh = random.nextBytes(KEY_BYTES)
@@ -80,7 +94,7 @@ class EncryptedKeyValueStore(
     private fun read(name: String): String? {
         val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: return null
         if (!stored.startsWith(PREFIX)) return stored
-        val k = key() ?: return null
+        val k = (try { key() } catch (ignored: SecretKeyUnavailableException) { null }) ?: return null
         val r = ask("openValue") { put("key", k.toHex()); put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
         return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
     }

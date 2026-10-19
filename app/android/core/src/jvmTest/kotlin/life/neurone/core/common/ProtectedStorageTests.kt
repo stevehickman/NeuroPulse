@@ -126,4 +126,17 @@ class ProtectedStorageTests {
         assertFalse(ProtectedStorage.holdsSealedValue(host, keys))
         assertTrue(ProtectedStorage.holdsSealedValue(sealedByAnEarlierRun().first, keys))
     }
+
+    // @verifies SWR-MG-15#a
+    @Test
+    fun aKeystoreThatCannotBeAskedIsNotUsedEvenWhenNothingIsSealedYet() {
+        val host = InMemoryKeyValueStore()
+
+        val open = ProtectedStorage.open(host, BrokenKeystore) { keys }
+
+        assertEquals(StorageProtection.UNSEALED, open.state, "no key is made on a keystore that cannot be asked")
+        open.store.putString(history, "history of the person")
+        assertEquals("history of the person", host.getString(history))
+    }
 }
+

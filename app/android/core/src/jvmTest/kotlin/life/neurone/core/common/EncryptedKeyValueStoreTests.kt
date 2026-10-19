@@ -7,6 +7,7 @@ import kotlinx.serialization.json.put
 import life.neurone.core.npps.NppsCore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
@@ -177,4 +178,35 @@ class EncryptedKeyValueStoreTests {
         assertEquals(true, s.getBoolean("np.setup.first-complete", false))
         assertEquals(false, s.getBoolean("np.onboarding.consent-shown", true))
     }
+
+    /** A keystore that holds a key and, on this run, cannot be asked for it. */
+    private class Unreachable(private val real: SecretKeyStore) : SecretKeyStore {
+        var stores = 0
+        var reachable = false
+        override fun load(): ByteArray? = if (reachable) real.load() else throw SecretKeyUnavailableException("timed out")
+        override fun store(key: ByteArray) { stores++; real.store(key) }
+        override fun destroy() = real.destroy()
+    }
+
+    // @verifies SWR-MG-15#a
+    @Test
+    fun aKeystoreThatCannotBeAskedNeverGetsANewKeyAndTheRealOneStillOpensTheDataAfterwards() {
+        val inner = InMemoryKeyValueStore()
+        val real = InMemorySecretKeyStore()
+        EncryptedKeyValueStore(inner, real, setOf(history)).putString(history, "history of the person")
+        val sealed = inner.getString(history)
+        val key = real.load()!!
+
+        val unreachable = Unreachable(real)
+        val later = EncryptedKeyValueStore(inner, unreachable, setOf(history))
+        assertNull(later.getString(history), "absent while the keystore cannot be asked, never ciphertext")
+        assertFailsWith<SecretKeyUnavailableException> { later.putString(history, "new") }
+        assertEquals(0, unreachable.stores, "no key was made")
+        assertEquals(sealed, inner.getString(history), "the sealed value was not replaced")
+        assertTrue(key.contentEquals(real.load()!!), "the real key was not replaced")
+
+        unreachable.reachable = true
+        assertEquals("history of the person", later.getString(history), "it opens again when the keystore can be asked")
+    }
 }
+
