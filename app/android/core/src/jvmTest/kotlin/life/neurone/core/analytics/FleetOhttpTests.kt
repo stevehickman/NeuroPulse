@@ -14,7 +14,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The fleet upload as Oblivious HTTP, from the Kotlin side to a gateway played by the same core (`REQ-SW03-24`). */
+/** The fleet upload as Oblivious HTTP, from the Kotlin side to a gateway played by the same core (`REQ-SHDR-07`). */
 class FleetOhttpTests {
     private fun core(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
         NppsCore.migration(buildJsonObject { put("op", op); build() })
@@ -27,7 +27,7 @@ class FleetOhttpTests {
         keyConfig, "fleet.example", "/v1/shdr", "X-NP-Device-Token", "tok", payload, entropy = ByteArray(32) { 9 },
     )
 
-    // @verifies REQ-SW03-24#a
+    // @verifies REQ-SHDR-07#a
     @Test fun theGatewayReadsTheRecordAndTheTokenAndTheAnswerComesBack() {
         val sealed = seal("record".encodeToByteArray())
         val g = core("ohttpGatewayOpen") { put("keyConfig", keyConfig); put("privateKey", privateKey); put("request", sealed.request.toHex()) }
@@ -45,7 +45,7 @@ class FleetOhttpTests {
         assertTrue(answer.accepted)
     }
 
-    // @verifies REQ-SW03-24#b
+    // @verifies REQ-SHDR-07#b
     @Test fun whatTheRelayCanSeeNamesNeitherTheHostNorTheToken() {
         val wire = seal("record".encodeToByteArray()).request.toHex()
         assertFalse(wire.contains("fleet.example".encodeToByteArray().toHex()))
@@ -53,13 +53,13 @@ class FleetOhttpTests {
         assertEquals(seal(ByteArray(1)).request.size, seal(ByteArray(300)).request.size, "two sizes in one bucket are one length")
     }
 
-    // @verifies REQ-SW03-24#c
+    // @verifies REQ-SHDR-07#c
     @Test fun anAnswerThatDoesNotAuthenticateIsRefused() {
         val sealed = seal("r".encodeToByteArray())
         assertFailsWith<IllegalArgumentException> { FleetOhttp.open(sealed, ByteArray(64) { 3 }) }
     }
 
-    // @verifies REQ-SW03-24#c
+    // @verifies REQ-SHDR-07#c
     @Test fun aKeyConfigurationForAnotherSuiteIsRefused() {
         val other = keyConfig.hexToBytes().also { it[2] = 0x10 }.toHex()
         assertFailsWith<IllegalArgumentException> { FleetOhttp.seal(other, "a", "/", "h", "t", ByteArray(1), entropy = ByteArray(32)) }
@@ -73,7 +73,7 @@ class FleetOhttpTests {
         }["response"]!!.jsonPrimitive.content.hexToBytes()
     }
 
-    // @verifies REQ-SW03-24#c
+    // @verifies REQ-SHDR-07#c
     @Test fun onlyTheFleetServicesOwnSuccessInsideAnAuthenticAnswerCountsAsUploaded() {
         val sealed = seal("r".encodeToByteArray())
         val ok = gatewayReply(sealed, 204)

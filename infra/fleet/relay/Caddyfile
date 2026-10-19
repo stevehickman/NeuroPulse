@@ -1,0 +1,51 @@
+# NeurOne SHDR fleet — Oblivious HTTP relay, reference configuration (NP-INFRA-001 §3.3b; REQ-SHDR-07 (g); OI-FLEET-01 (1))
+#
+# The relay is the half of Oblivious HTTP that sees the phone's network address. It passes the sealed message to the gateway and
+# the sealed answer back, and it can read neither. That is the whole protection, and it holds ONLY IF:
+#
+#   1. the relay is run by a party other than the one that runs the gateway and the ingest. One party running both can join the
+#      address to the record, which is what this exists to prevent. Nothing in this file, and no test, can check that; it is a
+#      contract and a deployment fact (OI-FLEET-01).
+#   2. the relay keeps no log. A relay log of addresses and times, joined to the gateway's log of arrivals, links a phone to a
+#      device token by timing alone. So no access log is configured and the default (runtime) log is discarded.
+#
+# It serves one route, POST /relay carrying message/ohttp-req, and passes nothing the phone's connection added (no forwarded
+# address, no cookie, no authorization) on to the gateway.
+#
+# Run, with RELAY_HOST and GATEWAY_UPSTREAM set (a parse-time {$VAR}, because a site address cannot use the runtime {env.VAR}):
+#   RELAY_HOST=relay.example GATEWAY_UPSTREAM=https://gateway.example caddy run --config infra/fleet/relay/Caddyfile
+#
+# Check it: python3 ci/test_fleet_relay_config.py   (CI: fleet-infra-ci.yml)
+
+{
+	# No access log is configured, and Caddy's runtime log (which writes the client address with an error) goes nowhere.
+	log default {
+		output discard
+	}
+}
+
+{$RELAY_HOST} {
+	@relay {
+		method POST
+		path /relay
+		header Content-Type message/ohttp-req
+	}
+	handle @relay {
+		# A sealed record is small; refuse more than the gateway would (it caps at 1 MiB).
+		request_body {
+			max_size 1MB
+		}
+		rewrite * /gateway
+		reverse_proxy {$GATEWAY_UPSTREAM} {
+			# Hand the gateway nothing the phone's connection carried: it must not learn the address from a header.
+			header_up -X-Forwarded-For
+			header_up -X-Real-IP
+			header_up -Forwarded
+			header_up -Cookie
+			header_up -Authorization
+		}
+	}
+	handle {
+		respond 404
+	}
+}

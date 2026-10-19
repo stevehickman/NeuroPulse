@@ -1,5 +1,5 @@
 //! Oblivious HTTP (RFC 9458) for the fleet upload: the sender's address never reaches the server that reads the record
-//! (`OI-FLEET-01` (1), `REQ-SW03-24`; `NP-INFRA-001` §3.3b; `CLAUDE.md` §22).
+//! (`OI-FLEET-01` (1), `REQ-SHDR-07`; `NP-INFRA-001` §3.3b; `CLAUDE.md` §22).
 //!
 //! The helmet's SHDR record carries a permanent device token, and a plain upload shows the fleet server the connection's
 //! network address beside it (`NP-INFRA-001` §3.3a). Here the request is sealed to the *gateway's* key and sent through a

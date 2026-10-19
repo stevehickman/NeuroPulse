@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-// The fleet upload as Oblivious HTTP (RFC 9458; privacy review Finding 6, OI-FLEET-01 (1), REQ-SW03-24).
+// The fleet upload as Oblivious HTTP (RFC 9458; privacy review Finding 6, OI-FLEET-01 (1), REQ-SHDR-07).
 //
 // The record is sealed to the fleet *gateway's* key and posted to the *relay*, so the server that reads it never sees the
 // connection's network address and the relay never sees the record. The sealing is the shared Rust core's (`ohttp.rs`,

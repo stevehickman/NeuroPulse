@@ -12,7 +12,7 @@ import life.neurone.core.platform.secureRandomBytes
 import life.neurone.core.platform.toHex
 
 /**
- * The fleet upload as Oblivious HTTP (RFC 9458; `OI-FLEET-01` (1), `REQ-SW03-24`), so that the server that reads a helmet's
+ * The fleet upload as Oblivious HTTP (RFC 9458; `OI-FLEET-01` (1), `REQ-SHDR-07`), so that the server that reads a helmet's
  * SHDR record never sees the connection's network address. The sealing is the Rust core's (`ohttp.rs`, `CLAUDE.md` §22); this
  * only moves bytes and supplies entropy. A platform's uploader sends [Sealed.request] as `message/ohttp-req` to the **relay**
  * (not the gateway) and hands the answer to [open].
