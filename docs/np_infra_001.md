@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
@@ -95,7 +95,7 @@ The device token is permanent, and the server sees the connection's source addre
 
 `infra/fleet/Caddyfile` is the reference edge and `ci/test_fleet_ingest_config.py` (CI: `fleet-infra-ci.yml`) checks it. The deployed edge is not in this repository, so the check shows the reference does this, not that the deployment does.
 
-**What this does not remove.** The address still reaches the edge, because the connection needs it, and the network path (an internet provider, a corporate proxy) sees that a device talks to the fleet host at some time and how much it sends. Only a relay the sender does not trust with both halves, such as Oblivious HTTP, removes that, and it is not built (`OI-FLEET-01`). **The notice the warranty owner is shown before the first upload must say so:** that the fleet service sees the connection's network address while it receives the record, that NeurOne's service does not keep it, and that the record carries a device token and no name. No screen shows that notice today (nothing calls `WarrantyAnalyticsGate.grant()`), so the wording is a requirement on the screen when it is built (`OI-FLEET-01`).
+**What this does not remove.** The address still reaches the edge, because the connection needs it, and the network path (an internet provider, a corporate proxy) sees that a device talks to the fleet host at some time and how much it sends. Only a relay the sender does not trust with both halves, such as Oblivious HTTP, removes that, and it is not built (`OI-FLEET-01`). **The notice the warranty owner is shown before the first upload must say so:** that the fleet service sees the connection's network address while it receives the record, that NeurOne's service does not keep it, and that the record carries a device token and no name. The Helmet owner screen now shows it in a dialog before reports can be turned on, and turning on is the only call to `WarrantyAnalyticsGate.grant()` (`REQ-SW03-23`, Rev 4); the wording is `WARRANTY_FLEET_NOTICE_BODY` in `locales/en.json`, and must be changed with this paragraph. It says the service does not keep the address, which is true of the reference edge and unverified for any deployment (`OI-FLEET-01`).
 
 **The interim token.** Until the hub delivers its own (OI-BLE-01), the app sends a token it made for the connected helmet, kept per helmet and never per phone (`REQ-SHDR-05`).
 

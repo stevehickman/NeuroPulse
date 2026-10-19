@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +61,8 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     val published by gatt.pauseLimitPublished.collectAsState()
     val pauseLimit by gatt.pauseLimitSeconds.collectAsState()
     val pairingRequired by gatt.pairingRequired.collectAsState()
+
+    var fleetOn by remember { mutableStateOf(app.warrantyAnalyticsGate.isOpen) }
 
     val offeredLabel = stringResource(Res.string.warranty_owner_offered_switch)
 
@@ -119,7 +122,64 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
         )
 
         Spacer(Modifier.height(24.dp))
+        FleetReportsSection(
+            isOn = fleetOn,
+            onGrant = { app.warrantyAnalyticsGate.grant(); fleetOn = app.warrantyAnalyticsGate.isOpen },
+            onRevoke = { app.warrantyAnalyticsGate.revoke(); fleetOn = app.warrantyAnalyticsGate.isOpen },
+        )
+
+        Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = onDone) { Text(stringResource(Res.string.common_back)) }
+    }
+}
+
+/**
+ * The warranty owner's choice to let the helmet send its health reports to the fleet service (CLAUDE.md §6.0: the consent
+ * subject is the warranty owner, not the wearer, and this gate is independent of every research choice). `NP-INFRA-001` §3.3a
+ * requires the notice before the first upload: the service sees the connection's network address while it receives the
+ * record, does not keep it, and the record carries a device token and no name. Turning on is therefore a dialog that says so
+ * and asks the person to confirm they may decide this for the helmet; turning off needs no dialog and takes effect at once.
+ */
+@Composable
+private fun FleetReportsSection(isOn: Boolean, onGrant: () -> Unit, onRevoke: () -> Unit) {
+    var asking by remember { mutableStateOf(false) }
+    var mayDecide by remember { mutableStateOf(false) }
+
+    Text(stringResource(Res.string.warranty_fleet_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.warranty_fleet_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        stringResource(if (isOn) Res.string.warranty_fleet_status_on else Res.string.warranty_fleet_status_off),
+        style = MaterialTheme.typography.bodyLarge,
+    )
+    Spacer(Modifier.height(8.dp))
+    if (isOn) {
+        OutlinedButton(onClick = onRevoke) { Text(stringResource(Res.string.warranty_fleet_turn_off)) }
+    } else {
+        Button(onClick = { mayDecide = false; asking = true }) { Text(stringResource(Res.string.warranty_fleet_turn_on)) }
+    }
+
+    if (asking) {
+        AlertDialog(
+            onDismissRequest = { asking = false },
+            title = { Text(stringResource(Res.string.warranty_fleet_notice_title)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(stringResource(Res.string.warranty_fleet_notice_body))
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = mayDecide, onCheckedChange = { mayDecide = it })
+                        Text(stringResource(Res.string.warranty_fleet_notice_confirm), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = mayDecide, onClick = { asking = false; onGrant() }) {
+                    Text(stringResource(Res.string.warranty_fleet_notice_accept))
+                }
+            },
+            dismissButton = { TextButton(onClick = { asking = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
     }
 }
 
