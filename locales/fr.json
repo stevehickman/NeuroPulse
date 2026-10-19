@@ -1113,6 +1113,8 @@
   "SOCKET_ERR_UNKNOWN_ZONE": "PBM transcranial references zone \"{0}\", which is not a zone this app build knows. Zone names are authored in protocols/predefined/00-zones.npps.",
   "SOCKET_ERR_WHY_NO_SOCKET": "this lattice has no socket there",
   "SOCKET_ERR_WHY_OUT_OF_RANGE": "valid ids are {0}",
+  "STORAGE_LOCKED_NOTICE": "Your saved data on this device cannot be opened right now, because the system's secure key store is not available. Nothing has been changed or deleted. Anything you do now is not saved and is lost when the app closes. Close the app, unlock or restore access to the key store, and open it again.",
+  "STORAGE_UNSEALED_NOTICE": "This device's secure key store is not available, so the app keeps your saved data on disk without encrypting it. Make the key store available and restart the app to protect it.",
   "TAB_CONSUMABLES": "Consumables",
   "TAB_FIRMWARE": "Firmware",
   "TAB_HISTORY": "History",

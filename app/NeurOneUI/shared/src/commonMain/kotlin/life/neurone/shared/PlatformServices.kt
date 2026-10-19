@@ -67,6 +67,14 @@ interface PlatformServices {
     val secretKeyStore: SecretKeyStore? get() = null
 
     /**
+     * Whether the person is told when the app holds this host's data unsealed (no usable keystore). True for a host that keeps
+     * the data on disk and can lose its keystore between runs (the desktop apps); the browser keeps nothing of the protected
+     * keys at rest, so a notice that the data is not sealed would say nothing true about it. A host whose keystore is always
+     * there (a phone) never reaches the notice either way.
+     */
+    val reportsUnsealedStorage: Boolean get() = false
+
+    /**
      * How this host reaches another phone on the local network for a direct move (SWR-MG-10), or null when it cannot (the
      * browser has no sockets). The sockets are written once for Android, the desktop apps and iOS (`LanLinkTransport`);
      * everything above them is the core's.

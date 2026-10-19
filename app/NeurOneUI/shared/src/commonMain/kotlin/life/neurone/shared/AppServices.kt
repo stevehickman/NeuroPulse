@@ -12,6 +12,8 @@ import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.ProtectedStorage
+import life.neurone.core.common.StorageProtection
 import life.neurone.core.migration.ClearActions
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.migration.LINK_ROUTE
@@ -48,15 +50,21 @@ class AppServices(
      * The UHDR-class state is sealed at rest when the host has a keystore to keep the key in (SWR-MG-06); every store and
      * gate below reads and writes through it, so none of them knows. Without a keystore, or without the NPPS core binding that
      * seals, the data stays as the host stores it and [clearActions] is null.
+     *
+     * **A run that cannot open what an earlier run sealed does not fall back to the host's plain store** ([ProtectedStorage],
+     * SWR-MG-13): it holds those keys in memory for the run and writes nothing to them on disk, so the sealed data is neither
+     * read as ciphertext nor overwritten with plaintext. [storageProtection] says which of the three states this run is in.
      */
-    private val encrypted: EncryptedKeyValueStore? = platform.secretKeyStore?.let { secrets ->
-        runCatching { EncryptedKeyValueStore(
-                platform.keyValueStore, secrets, EncryptedKeyValueStore.uhdrKeys() + EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY,
-            ).also { it.migrate() } }
-            .getOrNull()
+    private val protectedStorage: ProtectedStorage = ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) {
+        EncryptedKeyValueStore.uhdrKeys() + EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY
     }
 
-    val keyValueStore: KeyValueStore = encrypted ?: platform.keyValueStore
+    /** How the protected keys are held on this run; the screens tell the person when it is not [StorageProtection.SEALED]. */
+    val storageProtection: StorageProtection = protectedStorage.state
+
+    private val encrypted: EncryptedKeyValueStore? = protectedStorage.sealing
+
+    val keyValueStore: KeyValueStore = protectedStorage.store
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
