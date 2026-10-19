@@ -82,6 +82,20 @@ class ProtectedStorageTests {
         assertEquals(sealedBefore, host.getString(history))
     }
 
+    // @verifies SWR-MG-08
+    @Test
+    fun aKeystoreThatHasNoKeyIsStillBuiltSealedSoAnInterruptedClearCanResume() {
+        // The clear destroys the key first. A clear interrupted after that leaves sealed values and no key, and the next launch
+        // must still get the sealing store and its clear actions to finish the job, not a locked store without them.
+        val (host, secrets, _) = sealedByAnEarlierRun()
+        secrets.destroy()
+
+        val open = ProtectedStorage.open(host, secrets) { keys }
+
+        assertEquals(StorageProtection.SEALED, open.state)
+        assertTrue(open.sealing != null, "the clear's key destruction needs the sealing store")
+    }
+
     // @verifies SWR-MG-13#b
     @Test
     fun aHostThatNeverSealedAnythingAndHasNoKeystoreKeepsItsDataAsTheHostStoresIt() {

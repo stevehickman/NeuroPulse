@@ -44,7 +44,14 @@ class ProtectedStorage private constructor(
             val keys = runCatching(protectedKeys).getOrNull()
                 ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
             if (secrets != null) {
-                val sealing = runCatching { EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() } }.getOrNull()
+                val sealing = runCatching {
+                    // With sealed values on disk, building the store does not touch the keystore (migrate() only seals plain
+                    // values), so ask it once here: a keystore that throws when asked would otherwise fail on the first read.
+                    // A null answer is "no key", not a failure: after a clear destroyed the key the store must still be
+                    // built, so that a clear interrupted part-way resumes at the next launch (SWR-MG-08).
+                    if (holdsSealedValue(host, keys)) secrets.load()
+                    EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
+                }.getOrNull()
                 if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing)
             }
             return if (holdsSealedValue(host, keys)) {
