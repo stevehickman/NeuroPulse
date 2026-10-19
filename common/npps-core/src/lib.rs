@@ -26,6 +26,7 @@ pub mod migration;
 pub mod migration_flow;
 pub mod migration_text;
 pub mod object_route;
+pub mod ohttp;
 pub mod parser;
 pub mod primitives;
 pub mod resolve;
