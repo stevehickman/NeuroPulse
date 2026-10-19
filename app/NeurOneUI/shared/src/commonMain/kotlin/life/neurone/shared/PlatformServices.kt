@@ -75,6 +75,13 @@ interface PlatformServices {
     val reportsUnsealedStorage: Boolean get() = false
 
     /**
+     * Whether this host keeps the app's state in memory only, so that it is gone when the page or the app ends (the browser:
+     * it has no keystore to seal state in and its storage is readable by any script, REQ-SW03-18 (b)). The person is told once, above
+     * every screen, so that the onboarding screens coming back and the settings that did not stay are not a surprise.
+     */
+    val holdsStateInMemoryOnly: Boolean get() = false
+
+    /**
      * How this host reaches another phone on the local network for a direct move (SWR-MG-10), or null when it cannot (the
      * browser has no sockets). The sockets are written once for Android, the desktop apps and iOS (`LanLinkTransport`);
      * everything above them is the core's.
