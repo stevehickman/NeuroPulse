@@ -1,0 +1,22 @@
+<!--
+  NeurOne PostHog — ClickHouse user for the erasure relay
+  NP-ANALYTICS-001 §7.6 (OI-ANALYTICS-01)
+  Path: /etc/clickhouse-server/users.d/np-erase-user.xml
+
+  The relay (erase_relay.py) deletes one pseudonymous ID's events and nothing else, so its user may ALTER ... DELETE on the
+  events table and do nothing more: it cannot read, insert or drop. The password comes from the container's environment
+  (ERASE_CLICKHOUSE_PASSWORD, set in .env). The table name must match ERASE_TABLES and POSTHOG_VERSION's schema.
+-->
+<clickhouse>
+  <users>
+    <np_erase>
+      <password from_env="ERASE_CLICKHOUSE_PASSWORD"/>
+      <networks><ip>::/0</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <grants>
+        <query>GRANT ALTER DELETE ON posthog.sharded_events</query>
+      </grants>
+    </np_erase>
+  </users>
+</clickhouse>

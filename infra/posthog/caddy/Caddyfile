@@ -46,19 +46,31 @@
 # {$VAR} is read when the file is parsed; a site address cannot use the runtime {env.VAR} placeholder.
 {$POSTHOG_HOST} {
 
-  # Reverse proxy all traffic to the PostHog web server
-  reverse_proxy posthog:8000 {
-    # Do NOT pass the client's address on. An IP next to an anonymous ID is linkable (a household, a clinic's network), and the
-    # policy keeps no IP with any event (NP-APP-TELEMETRY-001 §4). Caddy sets X-Forwarded-For itself unless told not to, so it is
-    # removed here, with X-Real-IP; PostHog then sees only this proxy's address. The project's IP setting (np_analytics_001 §3.4)
-    # is the second layer.
-    header_up -X-Forwarded-For
-    header_up -X-Real-IP
+  # The erasure request (np_analytics_001 §7.6) goes to the relay, which deletes the ID's events from ClickHouse. It is a
+  # separate service because PostHog's person-delete needs a person record, and the app creates none (personProfiles = .never).
+  # The client's address is withheld from it as from PostHog: the relay keeps none, and is given none to keep.
+  handle /np/erase {
+    reverse_proxy erase-relay:8080 {
+      header_up -X-Forwarded-For
+      header_up -X-Real-IP
+    }
+  }
 
-    # Increase timeouts for long-running PostHog dashboard queries
-    transport http {
-      dial_timeout 30s
-      response_header_timeout 300s
+  # Reverse proxy all other traffic to the PostHog web server
+  handle {
+    reverse_proxy posthog:8000 {
+      # Do NOT pass the client's address on. An IP next to an anonymous ID is linkable (a household, a clinic's network), and the
+      # policy keeps no IP with any event (NP-APP-TELEMETRY-001 §4). Caddy sets X-Forwarded-For itself unless told not to, so it is
+      # removed here, with X-Real-IP; PostHog then sees only this proxy's address. The project's IP setting (np_analytics_001 §3.4)
+      # is the second layer.
+      header_up -X-Forwarded-For
+      header_up -X-Real-IP
+
+      # Increase timeouts for long-running PostHog dashboard queries
+      transport http {
+        dial_timeout 30s
+        response_header_timeout 300s
+      }
     }
   }
 
