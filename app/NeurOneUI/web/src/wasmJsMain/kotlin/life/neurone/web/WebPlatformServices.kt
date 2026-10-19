@@ -16,14 +16,13 @@ import life.neurone.shared.migration.FileTransfer
 /**
  * The browser half of the cross-platform seam.
  *
- * The hub link is Web Bluetooth ([WebBleCentral]). Storage is
- * `localStorage`, which a user can clear; the app treats that as a fresh install, as it would any other
- * lost storage.
+ * The hub link is Web Bluetooth ([WebBleCentral]). The app keeps its state in memory only (below), so a reload is a fresh start,
+ * as it would be after any other lost storage.
  *
  * `localStorage` is readable in the clear by every script on the page and every extension, the browser has no keystore to seal
- * a key in (SWR-MG-06), and no backup rule governs it. So the records of a person's sessions and their consent state are not
- * written to it at all: the keys of [MemoryOnlyKeysKeyValueStore.browserKeys] are held in memory for the life of the page
- * (REQ-SW03-18 (b)), and the person can erase the rest ([eraseLocalData], REQ-SW03-18 (c)).
+ * a key in (SWR-MG-06), and no backup rule governs it. So nothing the app stores is written to it: the keys of
+ * [MemoryOnlyKeysKeyValueStore.browserKeys], which are every key the core lists, are held in memory for the life of the page
+ * (REQ-SW03-18 (b)), and the person can erase whatever an earlier build left there ([eraseLocalData], REQ-SW03-18 (c)).
  */
 class WebPlatformServices(
     private val storage: LocalStorageKeyValueStore = LocalStorageKeyValueStore(),
@@ -32,6 +31,9 @@ class WebPlatformServices(
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
 ) : PlatformServices {
+
+    /** Nothing the app keeps is written to `localStorage`, so the person is told it is gone when the page is (REQ-SW03-18 (b)). */
+    override val holdsStateInMemoryOnly: Boolean = true
 
     /** A backup is a file the person downloads and later chooses: a browser has no folder to keep one in. */
     @Composable

@@ -83,6 +83,7 @@ fun NeurOneApp(services: AppServices) {
 @Composable
 private fun StorageNotice(services: AppServices) {
     val text = when {
+        services.platform.holdsStateInMemoryOnly -> Res.string.storage_memory_only_notice
         services.storageProtection == StorageProtection.LOCKED -> Res.string.storage_locked_notice
         services.storageProtection == StorageProtection.UNSEALED && services.platform.reportsUnsealedStorage ->
             Res.string.storage_unsealed_notice
