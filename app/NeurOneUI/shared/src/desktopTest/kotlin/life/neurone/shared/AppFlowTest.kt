@@ -46,6 +46,7 @@ class AppFlowTest {
         Res.string.dashboard_add_clinician, Res.string.clinician_grant_title, Res.string.common_cancel,
         Res.string.ota_firmware, Res.string.dashboard_revoke_button, Res.string.and_ui_brainwave_eeg_data_consent,
         Res.string.and_ui_review_consent, Res.string.and_ui_blanket_research_consent, Res.string.dashboard_per_category,
+        Res.string.bipa_step4_decline_button,
     )
 
     /** The English text of [resource], read in composition: that is where the resource environment is defined. */
@@ -159,6 +160,60 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.tab_protocols)).assertDoesNotExist()
         onNodeWithText(text(Res.string.session_title)).performClick()
         onNodeWithText(text(Res.string.setup_title_welcome)).assertExists()
+    }
+
+    // @verifies REQ-ONBOARD-04
+    @Test
+    fun decliningTheBiometricRelease_isRemembered_keepsEegOff_andOpensTheRestOfTheApp() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
+        }
+        show(services(kv))
+
+        onNodeWithText(text(Res.string.age_your_brainwave_data)).assertExists()
+        onNodeWithText(text(Res.string.bipa_step4_decline_button)).performClick()
+        assertFalse(kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED), "a decline grants nothing")
+        assertTrue(kv.getBoolean(OnboardingKeys.BIPA_SHOWN), "a decline is remembered, so the release is not asked again")
+        // The next step is research consent, as after an accept.
+        onNodeWithText(text(Res.string.consent_research_participation)).assertExists()
+
+        // A later launch does not ask again.
+        show(services(kv))
+        onNodeWithText(text(Res.string.age_your_brainwave_data)).assertDoesNotExist()
+    }
+
+    // @verifies REQ-ONBOARD-04
+    @Test
+    fun anInstallThatAcceptedBeforeTheShownFlagExisted_isNotAskedAgain() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+            putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
+        }
+        show(services(kv))
+        onNodeWithText(text(Res.string.age_your_brainwave_data)).assertDoesNotExist()
+    }
+
+    // @verifies REQ-CONSENT-02
+    @Test
+    fun settings_decliningTheReviewedRelease_revokesIt() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+            putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
+        }
+        show(services(kv))
+        onNodeWithText(text(Res.string.tab_settings)).performClick()
+        // Revoke, then review the release and decline it: the answer stays "no".
+        onNodeWithText(text(Res.string.dashboard_revoke_button)).performClick()
+        onNodeWithText(text(Res.string.and_ui_review_consent)).performClick()
+        onNodeWithText(text(Res.string.bipa_step4_decline_button)).performClick()
+        assertFalse(kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
+        assertTrue(kv.getBoolean(OnboardingKeys.BIPA_SHOWN))
+        onNodeWithText(text(Res.string.and_ui_review_consent)).assertExists()
     }
 
     // @verifies REQ-CONSENT-16

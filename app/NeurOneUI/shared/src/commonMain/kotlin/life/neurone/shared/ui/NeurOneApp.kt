@@ -40,6 +40,9 @@ import org.jetbrains.compose.resources.stringResource
 /** Storage keys of the onboarding steps. The values are the ones the Android app has always written. */
 object OnboardingKeys {
     const val BIPA_ACCEPTED = "np.onboarding.bipa-accepted"
+
+    /** Set by either answer to the biometric release, so a decline is remembered and the screen is not asked again. */
+    const val BIPA_SHOWN = "np.onboarding.bipa-shown"
     const val CONSENT_SHOWN = "np.onboarding.consent-shown"
 }
 
@@ -99,7 +102,10 @@ private fun StorageNotice(services: AppServices) {
 private fun Root(services: AppServices) {
     val kv = services.keyValueStore
     var ageConfirmed by remember { mutableStateOf(kv.getBoolean(PersistedKeys.AGE_CONFIRMED_KEY)) }
-    var bipaAccepted by remember { mutableStateOf(kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED)) }
+    // An install that accepted before the shown flag existed has answered.
+    var bipaAnswered by remember {
+        mutableStateOf(kv.getBoolean(OnboardingKeys.BIPA_SHOWN) || kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
+    }
     var consentShown by remember { mutableStateOf(kv.getBoolean(OnboardingKeys.CONSENT_SHOWN)) }
 
     when {
@@ -109,10 +115,17 @@ private fun Root(services: AppServices) {
                 ageConfirmed = true
             },
         )
-        !bipaAccepted -> BipaConsentScreen(
+        !bipaAnswered -> BipaConsentScreen(
             onAccepted = {
                 kv.putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
-                bipaAccepted = true
+                kv.putBoolean(OnboardingKeys.BIPA_SHOWN, true)
+                bipaAnswered = true
+            },
+            // Declined: EEG stays off (the protocol menu's consent gate reads the accepted flag), and the rest of the app opens.
+            onDeclined = {
+                kv.putBoolean(OnboardingKeys.BIPA_ACCEPTED, false)
+                kv.putBoolean(OnboardingKeys.BIPA_SHOWN, true)
+                bipaAnswered = true
             },
         )
         // Research-consent onboarding (L1–L4) follows biometric consent, before the app proper.
