@@ -33,12 +33,19 @@ interface DeviceTokenStore {
  * sealing is the shared Rust core's and whose data key is wrapped by the Android Keystore). No Android crypto library is
  * involved, so the token is sealed the way the rest of the app's secrets are.
  */
-class SealedDeviceTokenStore(private val store: KeyValueStore) : DeviceTokenStore {
+class SealedDeviceTokenStore(
+    private val store: KeyValueStore,
+    sha256: (ByteArray) -> ByteArray = life.neurone.core.platform.Digests::sha256,
+) : DeviceTokenStore {
     // One sealed value holds every helmet's token, a line each, keyed by a salted hash of the helmet's identifier and not by the
     // identifier (a Bluetooth hardware address on Android; REQ-SHDR-05 (d)). A key per helmet would be a key the store is not told
     // to seal, so the table is kept inside the one that is. A value written before tokens were per helmet has no tab on its line,
     // so it reads as no helmet's token and is dropped on the next save.
-    private val table = HubTokenTable({ store.getString(ShdrUploader.TOKEN_PREF) }, { store.putString(ShdrUploader.TOKEN_PREF, it) })
+    private val table = HubTokenTable(
+        read = { store.getString(ShdrUploader.TOKEN_PREF) },
+        write = { store.putString(ShdrUploader.TOKEN_PREF, it) },
+        sha256 = sha256,
+    )
 
     override fun load(hub: String): String? = table.load(hub)
 

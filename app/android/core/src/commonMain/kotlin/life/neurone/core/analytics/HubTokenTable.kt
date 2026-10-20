@@ -24,6 +24,8 @@ class HubTokenTable(
     private val read: () -> String?,
     private val write: (String) -> Unit,
     private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
+    /** SHA-256, the Rust core's by default (`CLAUDE.md` §22); a host test with no native library supplies its own. */
+    private val sha256: (ByteArray) -> ByteArray = Digests::sha256,
 ) {
     private class Parsed(val salt: String?, val entries: LinkedHashMap<String, String>)
 
@@ -42,7 +44,7 @@ class HubTokenTable(
         return Parsed(salt, entries)
     }
 
-    private fun keyFor(salt: String, hub: String): String = Digests.sha256(hexBytes(salt) + hub.encodeToByteArray()).toHex()
+    private fun keyFor(salt: String, hub: String): String = sha256(hexBytes(salt) + hub.encodeToByteArray()).toHex()
 
     /**
      * The token kept for this helmet, or `null` if there is none. A line under the raw identifier is read too, and is rewritten
