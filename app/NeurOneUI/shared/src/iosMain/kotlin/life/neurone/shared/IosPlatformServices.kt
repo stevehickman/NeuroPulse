@@ -73,6 +73,12 @@ class IosPlatformServices(
         )
     }
 
+    /** The system's document picker, for the person's protocols as a file and for a backup they carry. */
+    private val fileTransfer = IosFileTransfer()
+
+    @Composable
+    override fun rememberFileTransfer(): life.neurone.shared.migration.FileTransfer = fileTransfer
+
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
 }
