@@ -1,6 +1,7 @@
 package life.neurone.app.data
 
 import life.neurone.core.analytics.FleetOhttp
+import life.neurone.core.analytics.HubTokenTable
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
@@ -33,20 +34,15 @@ interface DeviceTokenStore {
  * involved, so the token is sealed the way the rest of the app's secrets are.
  */
 class SealedDeviceTokenStore(private val store: KeyValueStore) : DeviceTokenStore {
-    // One sealed value holds every helmet's token, a line each: `<hub>\t<token>`. A key per helmet would be a key the store
-    // is not told to seal, so the map is kept inside the one that is. A value written before tokens were per helmet has no tab
-    // on its line, so it reads as no helmet's token and is dropped on the next save.
-    private fun read(): Map<String, String> =
-        store.getString(ShdrUploader.TOKEN_PREF).orEmpty().lines()
-            .mapNotNull { line -> line.split('\t').takeIf { it.size == 2 && it[0].isNotEmpty() && it[1].isNotEmpty() } }
-            .associate { it[0] to it[1] }
+    // One sealed value holds every helmet's token, a line each, keyed by a salted hash of the helmet's identifier and not by the
+    // identifier (a Bluetooth hardware address on Android; REQ-SHDR-05 (d)). A key per helmet would be a key the store is not told
+    // to seal, so the table is kept inside the one that is. A value written before tokens were per helmet has no tab on its line,
+    // so it reads as no helmet's token and is dropped on the next save.
+    private val table = HubTokenTable({ store.getString(ShdrUploader.TOKEN_PREF) }, { store.putString(ShdrUploader.TOKEN_PREF, it) })
 
-    override fun load(hub: String): String? = read()[hub]
+    override fun load(hub: String): String? = table.load(hub)
 
-    override fun save(hub: String, token: String) {
-        val all = read() + (hub to token)
-        store.putString(ShdrUploader.TOKEN_PREF, all.entries.joinToString("\n") { "${it.key}\t${it.value}" })
-    }
+    override fun save(hub: String, token: String) = table.save(hub, token)
 }
 
 /**
