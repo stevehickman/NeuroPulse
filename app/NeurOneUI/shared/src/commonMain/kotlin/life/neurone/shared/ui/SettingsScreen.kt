@@ -71,6 +71,7 @@ fun SettingsScreen(
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
+    val hubIdentifier by app.gattManager.hubIdentifier.collectAsState()
     val firmwareVersion by app.gattManager.hubFirmwareVersion.collectAsState()
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
@@ -104,6 +105,7 @@ fun SettingsScreen(
         )
         showLimits -> LimitsSettingsScreen(
             store = app.limitsStore,
+            hubId = hubIdentifier,
             onDone = { showLimits = false },
             modifier = modifier,
         )
