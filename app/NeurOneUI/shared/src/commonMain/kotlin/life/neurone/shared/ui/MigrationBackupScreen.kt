@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -66,7 +67,11 @@ fun MigrationBackupScreen(
         if (linkPlace == null && hostPlace == null && transfer != null) PortableFilePlace(transfer) else null
     }
     val place = linkPlace ?: hostPlace ?: portable?.place
-    val model = remember(place) { MigrationBackupModel(place, app.keyValueStore, app.migrationItems) }
+    // Automatic backup needs a place the app can write without a dialog: the host's own folder, not a saved file or a direct move.
+    val unattended = portable == null && linkPlace == null && place != null
+    val model = remember(place) {
+        MigrationBackupModel(place, app.keyValueStore, app.migrationItems, scheduled = if (unattended) app.scheduledBackup else null)
+    }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A move to another phone is a migration and nothing else: there is no kind to choose.
@@ -80,6 +85,7 @@ fun MigrationBackupScreen(
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)
             BackupFolderRow(app)
+            AutomaticBackupStatus(app)
         }
         Spacer(Modifier.height(16.dp))
 
@@ -112,6 +118,15 @@ fun MigrationBackupScreen(
             is BackupStep.ChooseMethod -> {
                 Text(stringResource(Res.string.migration_backup_method_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
+                if (unattended && s.preview.kind == BackupKind.UHDR) {
+                    var keep by remember { mutableStateOf(model.keepAutomatic) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = keep, onCheckedChange = { keep = it; model.keepAutomatic = it })
+                        Text(stringResource(Res.string.migration_backup_auto_option))
+                    }
+                    Text(stringResource(Res.string.migration_backup_auto_option_note), style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                }
                 Button(onClick = { model.useRecoveryCode() }) { Text(stringResource(Res.string.migration_backup_method_code)) }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { model.usePassphrase() }) {
@@ -239,4 +254,22 @@ internal fun ItemList(title: StringResource, codes: List<String>) {
 internal fun words(group: MessageGroup, code: String): String {
     val res = MigrationBackupModel.messageKey(group, code)?.let(::migrationText)
     return if (res != null) stringResource(res) else code
+}
+
+/** Whether the automatic backup is on and when it last ran, with the way to turn it off. Draws nothing when it is off. */
+@Composable
+private fun AutomaticBackupStatus(app: AppServices) {
+    val scheduled = app.scheduledBackup
+    var on by remember { mutableStateOf(scheduled.isOn) }
+    if (!on) return
+    val last = scheduled.lastBackupSeconds?.let { kotlinx.datetime.Instant.fromEpochSeconds(it).toString().substringBefore('T') }
+    Spacer(Modifier.height(8.dp))
+    Text(
+        if (last != null) stringResource(Res.string.migration_backup_auto_on, last) else stringResource(Res.string.migration_backup_auto_on_never),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    scheduled.lastFailure?.let { reason ->
+        Text(stringResource(Res.string.migration_backup_auto_failed, words(MessageGroup.REASONS, reason)), style = MaterialTheme.typography.bodySmall)
+    }
+    TextButton(onClick = { scheduled.turnOff(); on = false }) { Text(stringResource(Res.string.migration_backup_auto_off_button)) }
 }

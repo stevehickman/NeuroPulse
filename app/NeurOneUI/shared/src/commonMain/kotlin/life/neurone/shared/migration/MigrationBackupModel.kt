@@ -88,7 +88,12 @@ class MigrationBackupModel(
     private val keys: KeyValueStore,
     private val items: List<MigrationItemStore> = emptyList(),
     private val random: RandomSource = SystemRandomSource,
+    /** The automatic backup, when this host's place allows one; null when it does not (a file the person must save, a direct move). */
+    private val scheduled: ScheduledBackup? = null,
 ) {
+    /** Whether a health-data backup made now should also turn the automatic backup on, under the same code or passphrase. */
+    var keepAutomatic: Boolean = false
+
     private val state = MutableStateFlow<BackupStep>(if (place == null) BackupStep.NoPlace else BackupStep.ChooseKind)
     val step: StateFlow<BackupStep> = state.asStateFlow()
 
@@ -164,32 +169,56 @@ class MigrationBackupModel(
     private suspend fun run(preview: BackupPreview, method: BundleKeyMethod, secret: BundleSecret) {
         val place = place ?: return
         state.value = BackupStep.Running
-        val host = StandardMigrationHost(items)
-        val params = buildJsonObject {
-            put("route", place.route.toJson())
-            put("hostItems", JsonArray(host.hostItems.map { JsonPrimitive(it) }))
-            put("kind", preview.kind.wire)
-            put("method", method.wire)
-        }
-        val done = try {
-            MigrationFlow.run("backup", params, host, secret, keys, place.store, random = random)
+        val outcome = try {
+            runBackup(place, keys, items, preview.kind, method, secret, random).also { done ->
+                // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
+                // (the automatic backup, `ScheduledBackup`), and is destroyed here either way.
+                if (done is BackupStep.Done && preview.kind == BackupKind.UHDR && scheduled != null) {
+                    scheduled.noteMade()
+                    if (keepAutomatic) scheduled.turnOn(method, secret)
+                }
+            }
         } finally {
             secret.destroy()
         }
-        state.value = if (done["ok"]!!.jsonPrimitive.boolean) {
-            BackupStep.Done(
-                done["bundleHash"]!!.jsonPrimitive.content,
-                done["written"]!!.jsonArray.map { it.jsonPrimitive.content },
-                done["omitted"]!!.jsonArray.map { it.jsonPrimitive.content },
-            )
-        } else {
-            BackupStep.Failed(done["reason"]!!.jsonPrimitive.content)
-        }
+        state.value = outcome
     }
 
     companion object {
         /** The locale key that words a core code in [group] ([MessageGroup]), from the core's table. */
         fun messageKey(group: MessageGroup, code: String): String? =
             MigrationFlow.messageKeys()[group.wire]?.jsonObject?.get(code)?.jsonPrimitive?.content
+    }
+}
+
+/**
+ * Make one backup of [kind] into [place] under [secret] and say how it ended: the core's flow, asked the same way for the screen
+ * and for the automatic backup. The secret is the caller's to destroy.
+ */
+internal suspend fun runBackup(
+    place: MigrationPlace,
+    keys: KeyValueStore,
+    items: List<MigrationItemStore>,
+    kind: BackupKind,
+    method: BundleKeyMethod,
+    secret: BundleSecret,
+    random: RandomSource = SystemRandomSource,
+): BackupStep {
+    val host = StandardMigrationHost(items)
+    val params = buildJsonObject {
+        put("route", place.route.toJson())
+        put("hostItems", JsonArray(host.hostItems.map { JsonPrimitive(it) }))
+        put("kind", kind.wire)
+        put("method", method.wire)
+    }
+    val done = MigrationFlow.run("backup", params, host, secret, keys, place.store, random = random)
+    return if (done["ok"]!!.jsonPrimitive.boolean) {
+        BackupStep.Done(
+            done["bundleHash"]!!.jsonPrimitive.content,
+            done["written"]!!.jsonArray.map { it.jsonPrimitive.content },
+            done["omitted"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+    } else {
+        BackupStep.Failed(done["reason"]!!.jsonPrimitive.content)
     }
 }
