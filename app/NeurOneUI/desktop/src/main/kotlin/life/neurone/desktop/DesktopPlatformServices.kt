@@ -73,6 +73,12 @@ class DesktopPlatformServices(
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
     override val linkTransport: LinkTransport = LanLinkTransport()
 
+    /** The system's save and open dialogs, for the person's protocols as a file and for a backup they carry. */
+    private val fileTransfer = DesktopFileTransfer()
+
+    @androidx.compose.runtime.Composable
+    override fun rememberFileTransfer(): life.neurone.shared.migration.FileTransfer = fileTransfer
+
     @Composable
     override fun rememberBleConnectAction(): () -> Unit = { bleCentral.refresh() }
 }

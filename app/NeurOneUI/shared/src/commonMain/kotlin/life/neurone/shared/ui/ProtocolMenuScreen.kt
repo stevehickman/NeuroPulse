@@ -34,6 +34,10 @@ import life.neurone.core.protocol.NPLimitsSet
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
+import life.neurone.shared.migration.FileTransfer
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import org.jetbrains.compose.resources.StringResource
 import life.neurone.core.protocol.DeleteResult
 import life.neurone.core.protocol.ProtocolAvailability
 import life.neurone.core.protocol.UploadGate
@@ -61,6 +65,9 @@ private sealed interface ProtocolEditor {
     data class Modality(val def: NPProtocolDefinition) : ProtocolEditor
 }
 
+/** The name a person's saved protocols file is offered under. */
+internal const val PROTOCOLS_FILE_NAME = "neurone-protocols.npps"
+
 @Composable
 fun ProtocolMenuScreen(
     library: NPProtocolLibrary,
@@ -72,6 +79,8 @@ fun ProtocolMenuScreen(
     modifier: Modifier = Modifier,
     // The helmet's hardware version, read from the helmet (SWR-HV-06); version 1, the only one that exists, until it is.
     helmetHardwareVersion: Int = 1,
+    // How the person keeps their protocols as a file (a host without save and open dialogs passes null, and the two buttons are not shown).
+    fileTransfer: FileTransfer? = null,
 ) {
     // Reflect the current BIPA consent into the library so EEG-adaptive rows gate live.
     library.updateEEGConsent(consentGranted)
@@ -79,6 +88,9 @@ fun ProtocolMenuScreen(
     var editor by remember { mutableStateOf<ProtocolEditor?>(null) }
     var version by remember { mutableIntStateOf(0) } // bump to re-read the (non-observable) library
     var deleteRefused by remember { mutableStateOf<NPProtocolEntry?>(null) }
+    var fileMessage by remember { mutableStateOf<StringResource?>(null) }
+    var fileCounts by remember { mutableStateOf<NPProtocolLibrary.OpenResult?>(null) }
+    val scope = rememberCoroutineScope()
     var refusedUpload by remember { mutableStateOf<Pair<NPProtocolEntry, UploadGate>?>(null) }
 
     // What an upload meets before any byte is sent (SWR-PL-06, SWR-HV-04): the core's gate, then the caller's upload.
@@ -143,6 +155,34 @@ fun ProtocolMenuScreen(
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text(stringResource(Res.string.protocol_menu_compose)) }
                     TextButton(onClick = { editor = ProtocolEditor.New }) { Text(stringResource(Res.string.protocol_menu_new)) }
+                }
+                if (fileTransfer != null) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            val text = library.exportAllScript()
+                            if (text == null) { fileMessage = Res.string.web_protocols_backup_none; fileCounts = null }
+                            else scope.launch {
+                                fileMessage = null; fileCounts = null
+                                fileTransfer.save(PROTOCOLS_FILE_NAME, text.encodeToByteArray())
+                            }
+                        }) { Text(stringResource(Res.string.web_protocols_backup_save)) }
+                        TextButton(onClick = {
+                            scope.launch {
+                                val bytes = fileTransfer.open() ?: return@launch
+                                val result = library.openScript(bytes.decodeToString())
+                                fileMessage = if (result.unreadable) Res.string.web_protocols_backup_unreadable else Res.string.web_protocols_backup_opened
+                                fileCounts = result.takeUnless { it.unreadable }
+                                version++
+                            }
+                        }) { Text(stringResource(Res.string.web_protocols_backup_open)) }
+                    }
+                    fileMessage?.let { m ->
+                        val c = fileCounts
+                        Text(
+                            if (c != null) stringResource(m, c.opened, c.refused) else stringResource(m),
+                            modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
