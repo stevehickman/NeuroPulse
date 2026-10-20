@@ -157,6 +157,9 @@ dependencies {
     // SHDR fleet upload with SPKI certificate pinning.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // The automatic backup's wake-up request to the system (SWR-MG-03): a periodic job the system runs when it chooses.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
 }
