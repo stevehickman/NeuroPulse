@@ -52,6 +52,9 @@ class IosPlatformServices(
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
     override val linkTransport: LinkTransport = LanLinkTransport()
 
+    /** iOS wakes the app for the backup through `BGTaskScheduler` ([registerBackgroundBackup] is called by the host at launch). */
+    override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler = IosBackgroundBackupScheduler()
+
     override val migrationPlace: MigrationPlace? by lazy {
         val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
         MigrationPlace(FOLDER_NAME, IosFolderObjectStore("$documents/$FOLDER_NAME"), ObjectStoreRoute("documents-folder", atomicClaim = true))

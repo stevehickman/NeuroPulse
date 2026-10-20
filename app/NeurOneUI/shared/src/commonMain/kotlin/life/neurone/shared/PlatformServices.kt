@@ -76,6 +76,12 @@ interface PlatformServices {
     val migrationPlace: MigrationPlace? get() = null
 
     /**
+     * The system scheduler the automatic backup asks to wake the app, or null where the host has none (the desktop apps run their own
+     * tray, a browser keeps nothing). A member with a default so that a host without one needs no code.
+     */
+    val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler? get() = null
+
+    /**
      * Folders a backup may be kept in, chosen by the person, or null when the host has no choice to offer (a fixed
      * [migrationPlace], or the system's own dialogs on a phone). When it is supplied the screens take the place from the chosen
      * folder ([AppServices.backupPlace]) and offer the choice; [migrationPlace] is then not used.

@@ -24,7 +24,8 @@ import life.neurone.shared.MigrationPlace
  *
  * Only a place the host can write without a dialog is used (a folder). A host whose only place is a file the person must save
  * ([PortableFilePlace]) cannot run unattended and has no automatic backup. The schedule is "when the app runs", one rule for every
- * platform, with no operating-system background scheduler.
+ * platform; a host that has an operating-system scheduler also asks it to wake the app (`BackgroundBackupScheduler`), and the app
+ * says when the schedule changed through [onChange].
  */
 class ScheduledBackup(
     /** The host's own folder place now, or null when it has none. Read at each run, because the person may change the folder. */
@@ -33,6 +34,8 @@ class ScheduledBackup(
     private val items: List<MigrationItemStore> = emptyList(),
     private val nowSeconds: () -> Long = { epochSeconds() },
     private val random: RandomSource = SystemRandomSource,
+    /** Called after the backup is turned on or off, so the host's scheduler can follow. */
+    private val onChange: () -> Unit = {},
 ) {
     /** How a [runIfDue] ended. */
     sealed interface Outcome {
@@ -57,12 +60,14 @@ class ScheduledBackup(
     fun turnOn(method: BundleKeyMethod, secret: BundleSecret) {
         keys.putString(SECRET_KEY, method.wire + ":" + secret.toStoredText())
         keys.remove(FAILURE_KEY)
+        onChange()
     }
 
     /** Stop, and destroy the kept secret. */
     fun turnOff() {
         keys.remove(SECRET_KEY)
         keys.remove(FAILURE_KEY)
+        onChange()
     }
 
     /** Record that a backup was made now (the manual one counts, so the first automatic run follows it by a day). */

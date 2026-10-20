@@ -6,6 +6,6 @@ import platform.UIKit.UIViewController
 
 /** The one entry point the Swift host calls: the whole app, as a view controller. */
 fun MainViewController(): UIViewController {
-    val services = AppServices(IosPlatformServices(), createAppScope())
+    val services = IosApp.services
     return ComposeUIViewController { NeurOneApp(services) }
 }

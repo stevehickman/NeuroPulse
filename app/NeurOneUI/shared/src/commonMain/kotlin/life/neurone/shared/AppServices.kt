@@ -125,7 +125,31 @@ class AppServices(
      * The automatic health-data backup (SWR-MG-03): off until the person turns it on while making a backup, then made again at launch
      * and hourly while the app stays open, whenever the last is over 20 hours old. Only the host's folder place can run unattended.
      */
-    val scheduledBackup = life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems)
+    val scheduledBackup =
+        life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems, onChange = { syncBackgroundSchedule() })
+
+    /**
+     * Keep the system's wake-up request in step with the automatic backup: asked for while it is on and there is a folder, withdrawn
+     * otherwise. A run that could not open the sealed store ([StorageProtection.LOCKED]) knows nothing about whether it is on, so
+     * it asks again and withdraws nothing.
+     */
+    fun syncBackgroundSchedule() {
+        val scheduler = platform.backgroundBackup ?: return
+        val interval = life.neurone.shared.migration.ScheduledBackup.INTERVAL_SECONDS
+        if (storageProtection == StorageProtection.LOCKED || (scheduledBackup.isOn && backupPlace.value != null)) scheduler.request(interval)
+        else scheduler.cancel()
+    }
+
+    /**
+     * What a host calls when the system wakes the app for the backup. Null when the saved data could not be opened on this run
+     * (the phone has not been unlocked since it started): nothing is read or written, and the system is asked to try later. Otherwise
+     * the backup is made if it is due, and the next wake-up is requested whatever happened.
+     */
+    suspend fun runBackgroundBackup(): life.neurone.shared.migration.ScheduledBackup.Outcome? {
+        val outcome = if (storageProtection == StorageProtection.LOCKED) null else scheduledBackup.runIfDue()
+        syncBackgroundSchedule()
+        return outcome
+    }
     val sessionHistoryStore = SessionHistoryStore(keyValueStore)
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 
@@ -176,6 +200,7 @@ class AppServices(
     val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
 
     init {
+        syncBackgroundSchedule()
         EngagementTier.incrementLaunchCount(keyValueStore)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure() no-ops unless the user
         // actively completed the consent flow.
