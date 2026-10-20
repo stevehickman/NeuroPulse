@@ -16,8 +16,11 @@ import life.neurone.core.platform.secureRandomBytes
 // length, what a header's kdf block may say) are decided once in the shared core. This file marshals them and runs the
 // Argon2id computation, which the core also runs, so there is one implementation for every app.
 //
-// The secret and the key are memory-only, like the UHDR key: never written to a KeyValueStore, a file or a log, never
-// transmitted. NeurOne never holds either (CLAUDE.md §5.1).
+// The secret and the key are memory-only, like the UHDR key: never written to a file or a log, never transmitted. NeurOne never
+// holds either (CLAUDE.md §5.1). One exception, which the person chooses: to make a backup without asking again, the secret may
+// be kept in the app's SEALED per-install store (`np.backup.auto-secret`, encrypted under the device-only data key, never in a
+// bundle and never moved to another phone), by `toStoredText` and `storedSecret`. It is the person's own phone holding the
+// person's own secret, and it is destroyed by turning the automatic backup off and by the clear.
 
 enum class BundleKeyMethod(val wire: String) {
     RECOVERY_CODE("recoveryCode"),
@@ -58,6 +61,15 @@ class BundleSecret internal constructor(bytes: ByteArray) {
         material.fill(0)
         destroyed = true
     }
+}
+
+/** The secret as text, for the sealed per-install store only (the automatic backup). Never for a file, a log or the network. */
+fun BundleSecret.toStoredText(): String = bytes().toHex()
+
+/** The secret kept by [toStoredText], or null when [text] is not one. */
+fun BundleKeyDerivation.storedSecret(text: String): BundleSecret? {
+    val bytes = runCatching { text.hexToBytes() }.getOrNull()?.takeIf { it.isNotEmpty() } ?: return null
+    return BundleSecret(bytes).also { bytes.fill(0) }
 }
 
 /** A recovery code just made: the [text] to show the user once, and the [secret] it stands for. */

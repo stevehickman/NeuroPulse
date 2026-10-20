@@ -27,7 +27,9 @@
     "ble.last-hub-id",
     "np.analytics.pending-erasures",
     "np.analytics.distinct-id",
-    "np.limits.helmets"
+    "np.limits.helmets",
+    "np.backup.auto-secret",
+    "np.backup.auto-failure"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

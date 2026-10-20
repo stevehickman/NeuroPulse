@@ -120,6 +120,12 @@ class AppServices(
     /** The items a migration carries that are not plain keys: the withdrawal records (`SWR-MG-04`). */
     val migrationItems: List<life.neurone.core.migration.MigrationItemStore> =
         listOf(life.neurone.core.migration.StoreConsentMigrationAdapter(consentStore))
+
+    /**
+     * The automatic health-data backup (SWR-MG-03): off until the person turns it on while making a backup, then made again at launch
+     * and hourly while the app stays open, whenever the last is over 20 hours old. Only the host's folder place can run unattended.
+     */
+    val scheduledBackup = life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems)
     val sessionHistoryStore = SessionHistoryStore(keyValueStore)
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 
@@ -176,6 +182,12 @@ class AppServices(
         researchAnalyticsGate.configure()
         // A withdrawal made offline, or one the relay could not take, is retried at launch (REQ-SW03-19).
         scope.launch { analyticsErasureQueue.drain() }
+        scope.launch {
+            while (true) {
+                scheduledBackup.runIfDue()
+                kotlinx.coroutines.delay(BACKUP_CHECK_MILLIS)
+            }
+        }
         // The connected hub is the helmet whose limits tier applies; none connected means no helmet tier.
         scope.launch { gattManager.hubIdentifier.collect { limitsStore.activeHelmetSerial = it } }
         composeFleetUpload()
@@ -221,3 +233,6 @@ private class GattConsumableCountsProvider(
 
 /** The scope hosts give [AppServices]: lives as long as the process, and one failed child does not cancel the rest. */
 fun createAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+/** How often an app that stays open looks for an automatic backup that is due. */
+private const val BACKUP_CHECK_MILLIS = 3_600_000L
