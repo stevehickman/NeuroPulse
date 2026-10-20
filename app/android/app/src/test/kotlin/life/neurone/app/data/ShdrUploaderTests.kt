@@ -110,7 +110,8 @@ class ShdrUploaderTests {
     @Test
     fun sealedStoreKeepsATokenPerHelmetAndDropsAPerPhoneValue() {
         val kv = InMemoryKeyValueStore()
-        val store = SealedDeviceTokenStore(kv)
+        // The unit tests of this module have no native core library, so the digest is the JDK's here; production uses the core's.
+        val store = SealedDeviceTokenStore(kv) { java.security.MessageDigest.getInstance("SHA-256").digest(it) }
         kv.putString(ShdrUploader.TOKEN_PREF, "a-token-written-before-tokens-were-per-helmet")
 
         assertNull(store.load("hub-1"), "a value with no helmet on it belongs to no helmet")
