@@ -89,6 +89,7 @@ class NeurOneApplication : Application() {
                 analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
                 shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
                 folderPlaces = AndroidFolderPlaces(this),
+                backgroundBackup = AndroidBackgroundBackupScheduler(this),
             ),
             scope = bleScope,
         )

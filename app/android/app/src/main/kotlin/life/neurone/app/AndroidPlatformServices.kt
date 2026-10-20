@@ -36,6 +36,8 @@ class AndroidPlatformServices(
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging? = null,
     /** The folder a backup is kept in, once the person has chosen one (SWR-MG-10); see [AndroidFolderPlaces]. */
     override val folderPlaces: AndroidFolderPlaces? = null,
+    /** The system job that wakes the app for the automatic backup (SWR-MG-03); see [AndroidBackgroundBackupScheduler]. */
+    override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler? = null,
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */
