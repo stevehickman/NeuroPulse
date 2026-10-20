@@ -9,5 +9,10 @@ publish = false
 neurone-npps-core = { path = "../../../common/npps-core" }
 serde_json = "1"
 
+[dev-dependencies]
+# An independent implementation (Mozilla's, with the RustCrypto-based `rust-hpke` backend), used only by tests/interop.rs to show
+# that what the shared core seals another implementation opens, and the reverse (REQ-SHDR-07).
+ohttp = { version = "0.7", default-features = false, features = ["client", "server", "rust-hpke"] }
+
 # Its own workspace root: this is server infrastructure, built and shipped on its own, not a member of the apps' workspace.
 [workspace]

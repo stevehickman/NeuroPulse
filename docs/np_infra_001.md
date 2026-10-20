@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-10-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
@@ -111,9 +111,26 @@ The fleet upload is Oblivious HTTP (RFC 9458). The phone seals the request (`POS
 - **The relay keeps no log.** `infra/fleet/relay/Caddyfile` configures no access log, discards the runtime log, strips every forwarded header and serves only `POST /relay` carrying `message/ohttp-req` (`REQ-SHDR-07` (g), `ci/test_fleet_relay_config.py`).
 - **The gateway** is `infra/fleet/gateway` (Rust, on the shared core's `ohttp.rs`, `CLAUDE.md` §22). It forwards only `POST /v1/shdr`, with only the token and content-type headers, and answers anything else sealed to it with a sealed 403. It writes no per-request log. `neurone-fleet-gateway --generate <file>` makes its key (a file readable by its owner only: keep it as a secret, never in the repository); the key configuration it prints is what the apps carry as `GATEWAY_KEY_CONFIG_HEX`, and `GET /ohttp-keys` serves the same.
 - **The phone** carries three build settings per app: the relay's host and its SPKI pins (§3.5, now the relay's certificate, not the fleet's) and the gateway's key configuration. With the key configuration empty the app sends nothing, and a release build refuses it empty (`scripts/check-release-pins.ts`, P4).
-- **Key rotation is not designed.** A key configuration change needs an app release. A second key configuration accepted at once, with an identifier, would allow rotation without one; the format has the room (`key_id`) and nothing uses it.
+- **Key rotation is designed (§3.3c) and not built.** Until it is, a key configuration change needs an app release.
 - **What it does not hide.** The relay, or the network between the phone and the relay, still sees that this phone sends something to the fleet's relay at some time and about how much (the padding is to 1 KiB, `UC-097`). A phone that connects only to upload makes the timing a signal. The gateway sees the relay's address, so a relay that is one machine shows the gateway one address for every phone.
-- **Not tested against another implementation.** The sealing is checked against this repository's own gateway side only, with no published vector (`NP-SOUP-RUST-001` §6.2). A matching mistake on both sides would pass and still fail to interoperate with a third-party relay or gateway.
+- **Tested against published vectors and one independent implementation** (`REQ-SHDR-07` (h)): RFC 9180 A.1.1, RFC 9458 Appendix A, and Mozilla's `ohttp` crate in both directions. That crate uses the same `hpke` crate, so it does not test it; no third-party relay or gateway product was tried (`NP-SOUP-RUST-001` §6.2).
+
+### 3.3c Key rotation (designed, not built; `OI-FLEET-01`)
+
+The phone must use the gateway's real key, and nobody on the path may be able to substitute another. Fetching the key configuration from the gateway directly shows the gateway the phone's address, which is what Oblivious HTTP removes. Fetching it through the relay lets the relay hand the phone its own key and read every record. Baking one key into the app avoids both and makes every rotation, and every key compromise, an app release.
+
+**The design: a signed key list, fetched through the relay.**
+
+- NeurOne holds an Ed25519 **key-list signing key**, offline (hardware-held). Its public half is a build setting in each app (`KEY_LIST_PUBLIC_KEY_HEX`) and changes only by app release, which should be rare. The key configuration baked into the app today stays as the fallback.
+- The gateway operator publishes a **signed key list**: the context `np-ohttp-keys-v1`, `issued` and `notAfter` (Unix seconds, 8 bytes each), the key configurations as `application/ohttp-keys` (each length-prefixed, newest first), and an Ed25519 signature over all of it. The list is served at the gateway and relayed by the relay at `GET /keys`, so the phone fetches it without the gateway seeing the phone's address.
+- The phone verifies it in the shared core (a new operation on the existing Ed25519 `verify_strict`; no new crate), refuses a list whose `notAfter` has passed or whose `issued` is older than the newest list it has accepted (a relay replaying an old list), keeps the last good list in its sealed store, and uses the first configuration that offers this build's suite. With no good list it uses the baked key.
+- The gateway holds **several private keys** and picks by the `key_id` in the request (RFC 9458 §4.3), so a retiring key keeps working while phones catch up.
+
+**Rotation:** add the new key to the gateway; publish a list with the new key first and the old second; wait longer than the longest time a phone goes between refreshes plus `notAfter`; remove the old key. **Compromise of a gateway key:** publish a list without it. Phones that cache a list keep using the compromised key until their copy expires, so `notAfter` bounds the exposure; the window is a choice with no derivation and is registered when the feature is built (`CLAUDE.md` §19). **Compromise of the signing key** lets its holder point every phone at their key: the worst case, and the reason it is offline and the reason this design does not try to survive it (only an app release recovers).
+
+**What it does not solve:** a relay can withhold the list (the phone falls back to its cache, then its baked key, so a withheld list delays a rotation and does not break uploads), and can serve a stale list inside its window.
+
+**To build:** the core operation and its tests; the fetch, cache and fallback in `FleetOhttp` (Kotlin and Swift); the relay route (`REQ-SHDR-07` (g) must be extended: `GET /keys` only, still no log); a multi-key gateway and a signing tool. None exists.
 
 **The interim token.** Until the hub delivers its own (OI-BLE-01), the app sends a token it made for the connected helmet, kept per helmet and never per phone (`REQ-SHDR-05`).
 
