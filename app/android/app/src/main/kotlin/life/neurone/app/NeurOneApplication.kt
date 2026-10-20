@@ -3,9 +3,6 @@ package life.neurone.app
 import android.app.Application
 import android.content.Context
 import life.neurone.app.ble.AndroidBleCentral
-import life.neurone.app.data.SealedDeviceTokenStore
-import life.neurone.app.data.ShdrUploadWiring
-import life.neurone.app.data.ShdrUploader
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.session.ProtocolUploader
 import life.neurone.core.analytics.ResearchAnalyticsGate
@@ -69,8 +66,6 @@ class NeurOneApplication : Application() {
     lateinit var bleCentral: AndroidBleCentral
         private set
     val protocolUploader: ProtocolUploader get() = services.protocolUploader
-    lateinit var shdrUploader: ShdrUploader
-        private set
 
     private val bleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -92,27 +87,12 @@ class NeurOneApplication : Application() {
                 migrationFiles = ownFiles(),
                 httpTransport = OkHttpTransport(),
                 analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
+                shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
             ),
             scope = bleScope,
         )
-
-        // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
-        // (WarrantyAnalyticsGate), structurally independent of user research consent.
-        // Device identity is a CSPRNG token sealed by the shared core, upgraded to the
-        // hub-provisioned TRNG token when the GATT characteristic ships (OI-BLE-01).
-        shdrUploader = ShdrUploader(SealedDeviceTokenStore(services.keyValueStore), warrantyAnalyticsGate)
-        composeShdrUploadPipeline()
     }
 
-    /**
-     * Compose the Android SHDR upload pipeline to iOS parity (SHDRUploader.swift +
-     * SHDRUploadTriggering.swift). Two long-lived collectors on [bleScope]:
-     *
-     *  (a) shdrUploadPending → upload the hub-staged SHDR payload when the warranty
-     *      owner has consented and a payload is available (deleted on success).
-     *  (b) warrantyToken → adopt the hub-provisioned TRNG token (OI-BLE-01); nulls
-     *      are dropped so a disconnect never downgrades the token.
-     */
     /**
      * SWR-MG-06: the files the old phone's clear overwrites and deletes. The key-value store's backing file is
      * `shared_prefs/np-app.xml`, and the framework keeps `np-app.xml.bak` beside it while it writes; both can hold the plain
@@ -127,48 +107,4 @@ class NeurOneApplication : Application() {
         ),
     )
 
-    private fun composeShdrUploadPipeline() {
-        bleScope.launch {
-            gattManager.hubIdentifier.collect { hub ->
-                ShdrUploadWiring.applyHubIdentifier(hub, shdrUploader)
-            }
-        }
-        bleScope.launch {
-            gattManager.warrantyToken.collect { token ->
-                ShdrUploadWiring.applyWarrantyToken(token, shdrUploader)
-            }
-        }
-        bleScope.launch {
-            gattManager.shdrUploadPending.collect { pending ->
-                val gateOpen = warrantyAnalyticsGate.isOpen
-                val payload =
-                    if (pending && gateOpen) withContext(Dispatchers.IO) { readShdrStaging() }
-                    else null
-                ShdrUploadWiring.applyUploadPending(
-                    pending = pending,
-                    warrantyGateOpen = gateOpen,
-                    stagingPayload = payload,
-                    uploader = shdrUploader,
-                ) { success -> if (success) deleteShdrStaging() }
-            }
-        }
-    }
-
-    /**
-     * The hub drops the SHDR binary blob into the app-private files directory over
-     * its USB-C CDC interface (parallel of iOS's Documents/shdr_staging.bin, read
-     * from the same staging convention). Returns null when nothing is staged.
-     */
-    private fun readShdrStaging(): ByteArray? {
-        val file = File(filesDir, SHDR_STAGING_FILE)
-        return if (file.exists()) file.readBytes() else null
-    }
-
-    private fun deleteShdrStaging() {
-        File(filesDir, SHDR_STAGING_FILE).delete()
-    }
-
-    private companion object {
-        const val SHDR_STAGING_FILE = "shdr_staging.bin"
-    }
 }

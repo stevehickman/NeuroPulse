@@ -3,7 +3,7 @@
  * check-release-pins.ts — a release build cannot ship with the placeholder fleet certificate pins.
  *
  * Privacy review Finding 9, REQ-SHDR-04. The SHDR fleet endpoint is SPKI-pinned (iOS `SHDRFleetPinningDelegate`, Android
- * `ShdrUploader`), and both apps ship placeholder hashes ("AAAA…=", "BBBB…=") until the real fleet certificate exists. A
+ * `FleetConfig`), and both apps ship placeholder hashes ("AAAA…=", "BBBB…=") until the real fleet certificate exists. A
  * placeholder fails closed: it matches no certificate, so every fleet upload is refused. That is the right default and also a
  * silent one, because a release built with them looks fine and uploads nothing, forever. This makes the failure loud, where a
  * release is built.
@@ -29,14 +29,15 @@
  * CI-Self-Test: bun scripts/check-release-pins.ts --self-test
  * CI-Scans: the SPKI pin literals in the iOS and Android SHDR uploaders (P1 two pins each, P2 well-formed, P3 no placeholder under --release)
  * CI-Self-Test-Reads-Tree: one case reads the real iOS and Android uploaders to prove the detector can see their pins, which a fixture cannot show
- * CI-Scan-Paths: app/ios/NeurOne/Data/SHDRUploader.swift app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt scripts/check-release-pins.ts
+ * CI-Scan-Paths: app/ios/NeurOne/Data/SHDRUploader.swift app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt scripts/check-release-pins.ts
  */
 import { readFileSync } from "fs";
 import { join, resolve } from "path";
 
 export const PIN_FILES = [
   "app/ios/NeurOne/Data/SHDRUploader.swift",
-  "app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt",
+  // The relay's pins and the gateway key for every Kotlin host (Android, desktop, the shared iOS host): one file.
+  "app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt",
 ];
 
 // A quoted string that looks like a pin: an optional "sha256/" and a run of base64 characters (and its padding).

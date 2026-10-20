@@ -37,6 +37,35 @@ class JdkHttpTransport(
     }
 }
 
+/**
+ * A client that accepts a server only if its certificate chain verifies as usual AND its leaf public key (SPKI SHA-256, as
+ * `sha256/<base64>`) is among [pins] (`REQ-SHDR-04`). A transport made with it is for the one host the pins belong to; any other
+ * host fails the pin check, which is the intended direction. The hash is the Rust core's (`CLAUDE.md` §22).
+ */
+fun pinnedHttpClient(pins: List<String>): HttpClient {
+    val factory = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+    factory.init(null as java.security.KeyStore?)
+    val system = factory.trustManagers.filterIsInstance<javax.net.ssl.X509TrustManager>().first()
+    val pinning = object : javax.net.ssl.X509TrustManager {
+        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = system.checkClientTrusted(chain, authType)
+
+        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {
+            system.checkServerTrusted(chain, authType)
+            val leaf = chain.firstOrNull() ?: throw java.security.cert.CertificateException("no certificate")
+            val pin = "sha256/" + java.util.Base64.getEncoder().encodeToString(life.neurone.core.platform.Digests.sha256(leaf.publicKey.encoded))
+            if (pin !in pins) throw java.security.cert.CertificateException("the certificate's public key is not pinned")
+        }
+
+        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = system.acceptedIssuers
+    }
+    val context = javax.net.ssl.SSLContext.getInstance("TLS").apply { init(null, arrayOf(pinning), null) }
+    return HttpClient.newBuilder()
+        .sslContext(context)
+        .followRedirects(HttpClient.Redirect.NEVER)
+        .connectTimeout(Duration.ofSeconds(15))
+        .build()
+}
+
 /** The build's analytics settings on a desktop run: environment variables, or system properties for a packaged app. */
 fun desktopAnalyticsConfig(): life.neurone.core.analytics.AnalyticsConfig = life.neurone.core.analytics.AnalyticsConfig(
     host = System.getProperty("neurone.analytics.host") ?: System.getenv("ANALYTICS_HOST"),

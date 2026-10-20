@@ -60,6 +60,16 @@ interface PlatformServices {
     val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? get() = null
 
     /**
+     * An [HttpTransport][life.neurone.core.net.HttpTransport] that refuses any connection to [relayHost] whose leaf public key
+     * (SPKI SHA-256, `sha256/<base64>`) is not among [pins], for the SHDR fleet upload (`REQ-SHDR-04`, `REQ-SHDR-07`). Null where a
+     * host cannot pin (the browser) or has no fleet upload; the uploader is then not built.
+     */
+    fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport? = null
+
+    /** Where the hub leaves the SHDR record to upload, or null on a host with no hub USB path. */
+    val shdrStaging: life.neurone.core.analytics.ShdrStaging? get() = null
+
+    /**
      * Where this host can put a backup, or null when it has nowhere yet (the backup screen then says so). A member with a
      * default so that a host with no storage for it needs no code; the hosts that have a folder or an account override it.
      */
