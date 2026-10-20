@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,7 +43,7 @@ import life.neurone.shared.resources.*
 // blocking badge, an order link, and snooze/replaced actions. Fed by the core
 // ConsumableTracker (measurement-triggered per CLAUDE.md §5.2). Counts are SHDR-class.
 
-private fun ConsumableKind.displayNameRes(): StringResource = when (this) {
+internal fun ConsumableKind.displayNameRes(): StringResource = when (this) {
     ConsumableKind.INTRANASAL_SLEEVES -> Res.string.consumable_intranasal_name
     ConsumableKind.ELECTRODE_HYDROGEL -> Res.string.consumable_hydrogel_name
     ConsumableKind.VNS_PADS -> Res.string.consumable_vns_name
@@ -56,6 +57,8 @@ fun ConsumablesScreen(app: AppServices, modifier: Modifier = Modifier) {
     val session by app.gattManager.session.collectAsState()
     var refresh by remember { mutableIntStateOf(0) }
     val tracker = app.consumableTracker
+    // Ask for permission to notify when the person first sees why (NP-PRIV-ANALYSIS-003 LOW-2), never at launch.
+    LaunchedEffect(Unit) { app.platform.reminderNotifier?.requestPermission() }
     // Touch `session` + `refresh` so this recomposes on either signal.
     @Suppress("UNUSED_EXPRESSION") session
     @Suppress("UNUSED_EXPRESSION") refresh

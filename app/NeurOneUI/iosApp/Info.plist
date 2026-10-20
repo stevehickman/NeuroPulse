@@ -32,11 +32,20 @@
 	<array>
 		<string>processing</string>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>NeurOne reads your heart rate variability during HRV biofeedback sessions to display live coherence guidance. This data is never stored or transmitted.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
 </plist>

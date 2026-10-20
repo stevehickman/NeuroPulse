@@ -84,6 +84,8 @@ fun SessionScreen(
     pairingRequired: Boolean = false,
     /** Null when the platform remembers no hub to forget. */
     onForgetHub: (() -> Unit)? = null,
+    /** The phone's own HRV (SDNN, ms) for this session, read-only and for display only; null where the host has none. */
+    healthHrvMilliseconds: Double? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     // The controls follow the helmet's state (SWR-SS-05): a paused session is still a session in progress.
@@ -122,7 +124,7 @@ fun SessionScreen(
                     SessionControls(progress, onPause = onPause, onResume = onResume)
                     Spacer(Modifier.height(16.dp))
                 }
-                LiveMetricsGrid(session)
+                LiveMetricsGrid(session, healthHrvMilliseconds)
                 Spacer(Modifier.height(16.dp))
                 BreathingPacer(session.pacerPhase, session.pacerElapsedPercent)
                 Spacer(Modifier.height(16.dp))
@@ -494,7 +496,7 @@ private fun SessionStatusCard(status: SessionStatus) {
 }
 
 @Composable
-private fun LiveMetricsGrid(session: SessionState) {
+private fun LiveMetricsGrid(session: SessionState, healthHrv: Double?) {
     val coherence = session.hrv?.coherenceScore
     val rmssd = session.hrv?.rmssdMilliseconds
     val impedancePass = (0 until 8).count { (session.impedancePassFlags and (1 shl it)) != 0 }
@@ -507,6 +509,14 @@ private fun LiveMetricsGrid(session: SessionState) {
                 Metric(stringResource(Res.string.session_metric_coherence), coherence?.let { formatFixed(it.toDouble(), 1) } ?: "—", coherenceColor(coherence))
                 Metric(stringResource(Res.string.session_metric_rmssd), rmssd?.let { "$it ms" } ?: "—", MaterialTheme.colorScheme.onSurface)
                 Metric(stringResource(Res.string.session_impedance), "$impedancePass/8", MaterialTheme.colorScheme.onSurface)
+            }
+            if (healthHrv != null) {
+                Spacer(Modifier.height(8.dp))
+                Metric(
+                    stringResource(Res.string.session_metric_healthkit_hrv),
+                    stringResource(Res.string.session_rmssd_value_format, formatFixed(healthHrv, 0)),
+                    MaterialTheme.colorScheme.onSurface,
+                )
             }
         }
     }

@@ -5,6 +5,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPZoneCaution
+import life.neurone.core.models.SessionStatus
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
 import life.neurone.shared.session.ProtocolUploader
@@ -46,6 +49,11 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val unreadCervicalFaults by gatt.unacknowledgedCervicalFaults.collectAsState()
     val cardiacWarningAcknowledged by gatt.cardiacWarningAcknowledged.collectAsState()
     val pairingRequired by gatt.pairingRequired.collectAsState()
+
+    // The phone's health store, read only while HRV biofeedback is running (ISC-94).
+    val health = services.platform.healthSignals
+    HealthSignalsEffect(health, hrvBiofeedbackActive(session))
+    val healthHrv = health?.hrvSdnnMilliseconds?.collectAsState()?.value
     // canForgetHub reads storage, so re-read it after a forget.
     var hubForgotten by remember { mutableStateOf(0) }
     val canForgetHub = hubForgotten >= 0 && gatt.canForgetHub
@@ -154,6 +162,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             pairingRequired = pairingRequired,
             onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); hubForgotten++ }) else null,
             session = session,
+            healthHrvMilliseconds = healthHrv,
             onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },
             onStop = { gatt.requestSessionStop() },
@@ -171,4 +180,22 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onConfirmCervicalResume = { gatt.sendCervicalReenableConfirm() },
         )
     }
+}
+
+
+/**
+ * Whether HRV biofeedback is the running modality: the hub sends coherence for those protocols alone, so a running session with HRV data
+ * is the signal (the Swift app's `hrvBiofeedbackActive`, ISC-94).
+ */
+internal fun hrvBiofeedbackActive(session: life.neurone.core.models.SessionState): Boolean =
+    session.status == SessionStatus.RUNNING && session.hrv != null
+
+/**
+ * Reads the phone's health store while [active], and only then (`REQ-HEALTH-01`): asked for when it becomes true, never at launch,
+ * stopped and cleared when it turns false, and cleared when the screen goes.
+ */
+@Composable
+internal fun HealthSignalsEffect(health: life.neurone.shared.HealthSignals?, active: Boolean) {
+    LaunchedEffect(health, active) { if (health != null) { if (active) health.start() else health.stopAndClear() } }
+    DisposableEffect(health) { onDispose { health?.stopAndClear() } }
 }

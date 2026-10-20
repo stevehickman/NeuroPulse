@@ -55,6 +55,12 @@ class IosPlatformServices(
     /** iOS wakes the app for the backup through `BGTaskScheduler` ([registerBackgroundBackup] is called by the host at launch). */
     override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler = IosBackgroundBackupScheduler()
 
+    /** The consumable reminders as local notifications. */
+    override val reminderNotifier: ReminderNotifier = IosReminderNotifier()
+
+    /** HealthKit, read-only, for the live HRV display of an HRV biofeedback session. */
+    override val healthSignals: HealthSignals = IosHealthSignals()
+
     override val migrationPlace: MigrationPlace? by lazy {
         val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
         MigrationPlace(FOLDER_NAME, IosFolderObjectStore("$documents/$FOLDER_NAME"), ObjectStoreRoute("documents-folder", atomicClaim = true))
