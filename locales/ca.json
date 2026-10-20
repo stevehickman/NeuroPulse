@@ -169,6 +169,7 @@
   "COMPOSITE_CONFLICT_OVERRIDE": "Override (later layer wins)",
   "COMPOSITE_CONFLICT_SEQUENTIAL": "Sequential (no overlap)",
   "CONDITION_LINK_A11Y_OPENS": "{0}. Opens a definition on {1}.",
+  "CONDITION_LINK_DESTINATION": "Destination",
   "CONDITION_LINK_NOT_IN_REGISTRY": "This condition is not in the registry.",
   "CONSENT_AND_PERMANENTLY_STOPS_ANY_FURTHER_DATA_FLOWI": "and permanently stops any further data flowing to any future dataset — including ",
   "CONSENT_AND_RETURNED_NOTHING_THESE_TWO_OPTIONS_ARE_T": "and returned nothing. These two options are the other half of that exchange — ",
