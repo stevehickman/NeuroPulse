@@ -93,10 +93,12 @@ fun LimitsSettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Spacer(Modifier.height(12.dp))
-                        LimitsFieldsEditor(
+                        LimitsTierEditor(
                             initial = store.globalLimits,
                             name = globalName,
                             clearLabel = stringResource(Res.string.limits_clear_all_global_limits),
+                            exportScript = store::exportLimitsAsNPPS,
+                            importScript = store::importLimitsFromNPPS,
                             onSave = { store.saveGlobalLimits(it); revision++ },
                             onClear = { store.clearGlobalLimits(); revision++ },
                         )
@@ -116,10 +118,12 @@ private fun HelmetTier(store: NPLimitsStore, hubId: String?, changed: () -> Unit
     } else {
         Text(stringResource(Res.string.limits_saved_for_this_helmet), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(8.dp))
-        LimitsFieldsEditor(
+        LimitsTierEditor(
             initial = store.helmetLimits[hubId],
             name = hubId,
             clearLabel = stringResource(Res.string.limits_clear_these_limits),
+            exportScript = store::exportLimitsAsNPPS,
+            importScript = store::importLimitsFromNPPS,
             onSave = { store.saveHelmetLimits(it, hubId); changed() },
             onClear = { store.clearHelmetLimits(hubId); changed() },
         )
@@ -162,80 +166,14 @@ private fun IndividualTier(store: NPLimitsStore, changed: () -> Unit) {
     Text(stringResource(Res.string.limits_saved_for_this_person, profile.name), style = MaterialTheme.typography.titleSmall)
     Spacer(Modifier.height(8.dp))
     key(profile.id) {
-        LimitsFieldsEditor(
+        LimitsTierEditor(
             initial = store.individualLimits[profile.id],
             name = profile.name,
             clearLabel = stringResource(Res.string.limits_clear_these_limits),
+            exportScript = store::exportLimitsAsNPPS,
+            importScript = store::importLimitsFromNPPS,
             onSave = { store.saveIndividualLimits(it, profile.id); changed() },
             onClear = { store.clearIndividualLimits(profile.id); changed() },
         )
     }
 }
-
-@Composable
-private fun LimitsFieldsEditor(
-    initial: NPLimitsSet?,
-    name: String,
-    clearLabel: String,
-    onSave: (NPLimitsSet) -> Unit,
-    onClear: () -> Unit,
-) {
-    val existing = initial
-    var pbmIntensity by remember { mutableStateOf(existing?.pbmTranscranial?.maxIrradianceMWcm2.toField()) }
-    var pbmDose by remember { mutableStateOf(existing?.pbmTranscranial?.maxSessionDoseJCm2.toField()) }
-    var besMa by remember { mutableStateOf(existing?.besTacs?.maxIntensityMilliamps.toField()) }
-    var tdcsMa by remember { mutableStateOf(existing?.tdcs?.maxIntensityMilliamps.toField()) }
-    var vnsMa by remember { mutableStateOf(existing?.vnsHrv?.maxIntensityMilliamps.toField()) }
-    var blockHighRisk by remember { mutableStateOf(existing?.visualStimulation?.blockHighRiskRange ?: false) }
-
-    fun save() {
-        // Preserve any fields this simplified editor doesn't expose; overwrite the ones it does.
-        val base = existing ?: NPLimitsSet(name = name)
-        val updated = base.copy(
-            name = name,
-            pbmTranscranial = (base.pbmTranscranial ?: NPPBMTranscranialLimits()).copy(
-                maxIrradianceMWcm2 = pbmIntensity.toDoubleOrNull(),
-                maxSessionDoseJCm2 = pbmDose.toDoubleOrNull(),
-            ),
-            besTacs = (base.besTacs ?: NPBESTacsLimits()).copy(maxIntensityMilliamps = besMa.toDoubleOrNull()),
-            tdcs = (base.tdcs ?: NPTDCSLimits()).copy(maxIntensityMilliamps = tdcsMa.toDoubleOrNull()),
-            vnsHrv = (base.vnsHrv ?: NPVNSHRVLimits()).copy(maxIntensityMilliamps = vnsMa.toDoubleOrNull()),
-            visualStimulation = (base.visualStimulation ?: NPVisualStimLimits()).copy(blockHighRiskRange = blockHighRisk),
-        )
-        onSave(updated)
-    }
-
-    Column {
-        NumberField(stringResource(Res.string.limits_pbm_max_irradiance), pbmIntensity) { pbmIntensity = it }
-        NumberField(stringResource(Res.string.limits_pbm_max_session_dose_j_cm), pbmDose) { pbmDose = it }
-        NumberField(stringResource(Res.string.limits_bes_tacs_max_current_ma), besMa) { besMa = it }
-        NumberField(stringResource(Res.string.limits_tdcs_max_current_ma), tdcsMa) { tdcsMa = it }
-        NumberField(stringResource(Res.string.limits_vns_max_current_ma), vnsMa) { vnsMa = it }
-
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(Res.string.limits_block_3_30_hz_photoparoxysmal_range), Modifier.weight(1f))
-            Switch(checked = blockHighRisk, onCheckedChange = { blockHighRisk = it })
-        }
-
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { save() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(Res.string.protocol_composer_save))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth()) { Text(clearLabel) }
-    }
-}
-
-@Composable
-private fun NumberField(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.filter { c -> c.isDigit() || c == '.' }) },
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
-}
-
-private fun Double?.toField(): String = this?.let { if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString() } ?: ""
