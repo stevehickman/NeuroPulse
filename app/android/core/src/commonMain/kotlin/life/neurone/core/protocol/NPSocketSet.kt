@@ -32,7 +32,7 @@ object NPSocketSet {
     fun parse(text: String): NPSocketSetResult = of(Regex("[0-9]+").findAll(text).map { it.value }.toList())
 
     /** Union of any number of lists: deduplicated and sorted. The call to reach for whenever more than one zone contributes sockets. */
-    fun union(vararg lists: Iterable<Int>): List<Int> = lists.flatMap { it }.filter(SocketLattice::isValid).toSortedSet().toList()
+    fun union(vararg lists: Iterable<Int>): List<Int> = lists.flatMap { it }.filter(SocketLattice::isValid).distinct().sorted()
 }
 
 /**
@@ -60,7 +60,7 @@ class NPZoneGrouping(zones: Collection<NPZoneDefinition>) {
         val primary = LinkedHashMap<Int, String>()
         val membership = LinkedHashMap<Int, MutableList<String>>()
         for (zone in bySpecificity) for (id in zone.sockets) {
-            primary.putIfAbsent(id, zone.name)
+            if (id !in primary) primary[id] = zone.name
             membership.getOrPut(id) { mutableListOf() }.add(zone.name)
         }
         primaryOf = primary
