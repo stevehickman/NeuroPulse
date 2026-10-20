@@ -8,9 +8,9 @@
 // eligibility check and the compiler use, so what is shown as runnable is what
 // compiles.
 //
-// Storage holds configuration only, nothing about a person. localStorage is a
-// per-browser convenience here, like limitsStore: every read is guarded, and a
-// missing or unreadable value falls back to the defaults.
+// Storage holds configuration only, nothing about a person, and it is the page's memory (appStorage), not localStorage
+// (REQ-SW03-18 (b)): a reload starts from the defaults. Every read is guarded, and a missing or unreadable value falls back to
+// the defaults.
 
 import {
   DEFAULT_WAVELENGTH_RULES,
@@ -21,6 +21,7 @@ import {
 } from '../../../../common/lib/wavelengthRules';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { serializeWavelengthRules } from '../../../../common/lib/nppsSerializer';
+import { appStorage } from './appStorage';
 
 const STORAGE_KEY_USER = 'np_wavelength_rules_user';
 
@@ -102,8 +103,8 @@ class WavelengthRulesStore extends EventTarget {
 
   private persist(): void {
     try {
-      if (this._user) localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(this._user));
-      else localStorage.removeItem(STORAGE_KEY_USER);
+      if (this._user) appStorage.setItem(STORAGE_KEY_USER, JSON.stringify(this._user));
+      else appStorage.removeItem(STORAGE_KEY_USER);
     } catch (e) {
       console.warn('WavelengthRulesStore persist failed:', e);
     }
@@ -111,7 +112,7 @@ class WavelengthRulesStore extends EventTarget {
 
   private load(): void {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY_USER);
+      const raw = appStorage.getItem(STORAGE_KEY_USER);
       if (!raw) return;
       const parsed = JSON.parse(raw) as NPWavelengthRules;
       // A stored override that no longer validates is discarded, not trusted.

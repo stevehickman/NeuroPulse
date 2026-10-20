@@ -21,6 +21,7 @@ import { ConditionChips } from './ConditionLinkDialog';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
 import type { NPConditionDefinition } from '../../../../common/types/protocol';
 import { t, tPlural } from '../../../../common/lib/i18n';
+import { BACKUP_FILE_NAME, backupText, openBackup } from '../lib/protocolBackup';
 
 // Stable identity so ConditionChips doesn't see a new Map every render.
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
@@ -49,6 +50,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [notice, setNotice] = useState<{ title: string; body: string; actionLabel: string; onAction: () => void } | null>(null);
   const [showLimits, setShowLimits] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [, setLimitsVersion] = useState(0);
   const [, setLibraryVersion] = useState(0);
 
@@ -63,6 +65,39 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   useEffect(() => {
     return protocolLibrary.subscribe(() => setLibraryVersion(v => v + 1));
   }, []);
+
+  // The app keeps nothing in the browser (REQ-SW03-18 (b)); these two are how the person keeps their protocols.
+  function saveBackup() {
+    const text = backupText(protocolLibrary);
+    if (text === null) {
+      setBackupMessage(t('WEB_PROTOCOLS_BACKUP_NONE'));
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = BACKUP_FILE_NAME;
+    a.click();
+    URL.revokeObjectURL(url);
+    setBackupMessage(null);
+  }
+
+  function openBackupFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.npps,.txt';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const result = openBackup(protocolLibrary, await file.text());
+      setBackupMessage(
+        result.unreadable
+          ? t('WEB_PROTOCOLS_BACKUP_UNREADABLE')
+          : t('WEB_PROTOCOLS_BACKUP_OPENED', { 0: String(result.opened), 1: String(result.refused) }),
+      );
+    };
+    input.click();
+  }
 
   const { limits: resolvedLimits, sources: limitSources } = limitsStore.resolve();
   const activeProfile = limitsStore.activeProfile;
@@ -187,6 +222,12 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           >
             {t('UI_LIMITS')}
           </button>
+          <button className="btn btn-secondary" onClick={saveBackup} style={{ fontSize: 13 }}>
+            {t('WEB_PROTOCOLS_BACKUP_SAVE')}
+          </button>
+          <button className="btn btn-secondary" onClick={openBackupFile} style={{ fontSize: 13 }}>
+            {t('WEB_PROTOCOLS_BACKUP_OPEN')}
+          </button>
           <button className="btn btn-secondary" onClick={onOpenComposer}>
             {t('WEB_COMPOSE')}
           </button>
@@ -195,6 +236,12 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           </button>
         </div>
       </div>
+
+      {backupMessage && (
+        <div className="memory-only-notice" role="status" onClick={() => setBackupMessage(null)}>
+          {backupMessage}
+        </div>
+      )}
 
       <div className="protocol-list">
         {isLoadingPredefined && filter !== 'mine' && (

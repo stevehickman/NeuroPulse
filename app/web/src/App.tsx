@@ -170,6 +170,8 @@ export default function App() {
         </div>
       </div>
 
+      <div className="memory-only-notice" role="note">{t('STORAGE_MEMORY_ONLY_NOTICE')}</div>
+
       <div className="app-body">
         <nav className="sidebar">
           <div className="sidebar-section">{t('WEB_NAV_SECTION')}</div>

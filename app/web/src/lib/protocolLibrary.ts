@@ -13,6 +13,7 @@ import {
 } from './libraryRules';
 import { parseNPPS } from '../../../../common/lib/nppsParser';
 import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
+import { appStorage } from './appStorage';
 
 export interface ProtocolAvailability {
   available: boolean;
@@ -30,18 +31,15 @@ export const ARCHIVED_FAMILIES_KEY = 'np_archived_families';
 /** Clone entry id → the entry it was cloned from, for the unmodified-clone check at upload (SWR-PL-06). */
 export const CLONE_SOURCES_KEY = 'np_clone_sources';
 
-/** The storage the library keeps its state in: `localStorage` in a browser, anything with these two calls in a test. */
+/** The storage the library keeps its state in: the page's memory in a browser (`appStorage`), anything with these two calls in a test. */
 export interface KeyValueStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 }
 
 function defaultStorage(): KeyValueStorage | null {
-  try {
-    return typeof localStorage !== 'undefined' ? localStorage : null;
-  } catch {
-    return null;
-  }
+  // Memory only (REQ-SW03-18 (b)): nothing the library keeps is written to the browser.
+  return appStorage;
 }
 
 // Modalities available at each tier

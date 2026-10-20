@@ -7,6 +7,7 @@ import {
 } from '../../../../common/types/limits';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { appStorage } from './appStorage';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -218,31 +219,31 @@ class LimitsStore extends EventTarget {
   private persist(): void {
     try {
       if (this._globalLimits) {
-        localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(this._globalLimits));
+        appStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(this._globalLimits));
       } else {
-        localStorage.removeItem(STORAGE_KEY_GLOBAL);
+        appStorage.removeItem(STORAGE_KEY_GLOBAL);
       }
 
-      localStorage.setItem(
+      appStorage.setItem(
         STORAGE_KEY_HELMET,
         JSON.stringify(Object.fromEntries(this._helmetLimits))
       );
-      localStorage.setItem(
+      appStorage.setItem(
         STORAGE_KEY_INDIVIDUAL,
         JSON.stringify(Object.fromEntries(this._individualLimits))
       );
-      localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(this._profiles));
+      appStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(this._profiles));
 
       if (this._activeProfileId) {
-        localStorage.setItem(STORAGE_KEY_ACTIVE_PROFILE, this._activeProfileId);
+        appStorage.setItem(STORAGE_KEY_ACTIVE_PROFILE, this._activeProfileId);
       } else {
-        localStorage.removeItem(STORAGE_KEY_ACTIVE_PROFILE);
+        appStorage.removeItem(STORAGE_KEY_ACTIVE_PROFILE);
       }
 
       if (this._activeHelmetSerial) {
-        localStorage.setItem(STORAGE_KEY_ACTIVE_HELMET, this._activeHelmetSerial);
+        appStorage.setItem(STORAGE_KEY_ACTIVE_HELMET, this._activeHelmetSerial);
       } else {
-        localStorage.removeItem(STORAGE_KEY_ACTIVE_HELMET);
+        appStorage.removeItem(STORAGE_KEY_ACTIVE_HELMET);
       }
     } catch (e) {
       console.warn('LimitsStore persist failed:', e);
@@ -251,28 +252,28 @@ class LimitsStore extends EventTarget {
 
   private load(): void {
     try {
-      const g = localStorage.getItem(STORAGE_KEY_GLOBAL);
+      const g = appStorage.getItem(STORAGE_KEY_GLOBAL);
       if (g) this._globalLimits = JSON.parse(g) as NPLimitsSet;
 
-      const h = localStorage.getItem(STORAGE_KEY_HELMET);
+      const h = appStorage.getItem(STORAGE_KEY_HELMET);
       if (h) {
         const obj = JSON.parse(h) as Record<string, NPLimitsSet>;
         this._helmetLimits = new Map(Object.entries(obj));
       }
 
-      const ind = localStorage.getItem(STORAGE_KEY_INDIVIDUAL);
+      const ind = appStorage.getItem(STORAGE_KEY_INDIVIDUAL);
       if (ind) {
         const obj = JSON.parse(ind) as Record<string, NPLimitsSet>;
         this._individualLimits = new Map(Object.entries(obj));
       }
 
-      const p = localStorage.getItem(STORAGE_KEY_PROFILES);
+      const p = appStorage.getItem(STORAGE_KEY_PROFILES);
       if (p) this._profiles = JSON.parse(p) as NPIndividualProfile[];
 
-      const ap = localStorage.getItem(STORAGE_KEY_ACTIVE_PROFILE);
+      const ap = appStorage.getItem(STORAGE_KEY_ACTIVE_PROFILE);
       this._activeProfileId = ap ?? undefined;
 
-      const ah = localStorage.getItem(STORAGE_KEY_ACTIVE_HELMET);
+      const ah = appStorage.getItem(STORAGE_KEY_ACTIVE_HELMET);
       this._activeHelmetSerial = ah ?? undefined;
     } catch (e) {
       console.warn('LimitsStore load failed:', e);
