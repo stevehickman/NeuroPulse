@@ -136,12 +136,23 @@ fun SettingsScreen(
             modifier = modifier,
         )
         // Re-present the biometric written release (parity with iOS "Manage EEG data consent").
-        showBipa -> BipaConsentScreen(onAccepted = {
-            app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
-            app.protocolLibrary.updateEEGConsent(true)
-            eegGranted = true
-            showBipa = false
-        })
+        showBipa -> BipaConsentScreen(
+            onAccepted = {
+                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_SHOWN, true)
+                app.protocolLibrary.updateEEGConsent(true)
+                eegGranted = true
+                showBipa = false
+            },
+            // Declining a release that was already given is a revoke.
+            onDeclined = {
+                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, false)
+                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_SHOWN, true)
+                app.protocolLibrary.updateEEGConsent(false)
+                eegGranted = false
+                showBipa = false
+            },
+        )
         // Re-open the L1–L4 research-consent flow.
         showResearch -> ConsentOnboardingScreen(
             store = app.consentStore,

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -97,9 +98,12 @@ fun Under16Screen(onBack: () -> Unit) {
  * (NP-PRIV-001 Rev B HIGH-01). Shown to ALL users regardless of location
  * (OI-PA-03 resolution: locale gate removed). EEG neurofeedback and
  * closed-loop adaptive stimulation stay disabled until accepted.
+ *
+ * The person must answer: there is no skip, and declining is as explicit as agreeing (iOS ISC-88). A decline leaves the
+ * app usable without EEG, and the release can be given later from Settings.
  */
 @Composable
-fun BipaConsentScreen(onAccepted: () -> Unit) {
+fun BipaConsentScreen(onAccepted: () -> Unit, onDeclined: () -> Unit) {
     var checked by remember { mutableStateOf(false) }
 
     Column(
@@ -127,6 +131,9 @@ fun BipaConsentScreen(onAccepted: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Button(onClick = onAccepted, enabled = checked) {
             Text(stringResource(Res.string.age_agree_and_continue))
+        }
+        OutlinedButton(onClick = onDeclined) {
+            Text(stringResource(Res.string.bipa_step4_decline_button))
         }
         Spacer(Modifier.height(16.dp))
         Text(
