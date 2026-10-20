@@ -28,6 +28,10 @@ class AndroidPlatformServices(
     override val secretKeyStore: SecretKeyStore? = null,
     /** The app's own files for the clear to overwrite (SWR-MG-06); see [NeurOneApplication]'s `ownFiles`. */
     override val migrationFiles: FileStore? = null,
+    /** The network leg of analytics and the erasure request (REQ-SW03-19, REQ-SW03-20). */
+    override val httpTransport: life.neurone.core.net.HttpTransport? = null,
+    /** The analytics host and project token this build was made with; null or unusable means analytics is off. */
+    override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = null,
 ) : PlatformServices {
 
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */

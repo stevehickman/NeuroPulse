@@ -90,6 +90,8 @@ class NeurOneApplication : Application() {
             platform = AndroidPlatformServices(
                 SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
                 migrationFiles = ownFiles(),
+                httpTransport = OkHttpTransport(),
+                analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
             ),
             scope = bleScope,
         )

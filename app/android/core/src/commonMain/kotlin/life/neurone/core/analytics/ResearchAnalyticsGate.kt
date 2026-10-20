@@ -1,5 +1,6 @@
 package life.neurone.core.analytics
 
+import kotlinx.coroutines.launch
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.protocol.PersistedKeys
 
@@ -19,6 +20,10 @@ import life.neurone.core.protocol.PersistedKeys
 class ResearchAnalyticsGate(
     private val store: KeyValueStore,
     private val backend: AnalyticsBackend,
+    /** Where a withdrawn person's old analytics ID waits to be erased from the vendor (`REQ-SW03-19`); null in a build with no vendor. */
+    private val erasureQueue: AnalyticsErasureQueue? = null,
+    /** Runs the erasure request after a withdrawal; null runs none (the queue is drained at the next launch). */
+    private val scope: kotlinx.coroutines.CoroutineScope? = null,
 ) {
     /** Idempotency flag so configure() only ever starts the SDK once. */
     private var isConfigured = false
@@ -47,8 +52,16 @@ class ResearchAnalyticsGate(
      */
     fun reset() {
         if (!isConfigured) return
+        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` makes a new one, and the old one is what the vendor
+        // holds this person's events under. It is queued, durably, and erased from the vendor within 30 days
+        // (NP-APP-TELEMETRY-001 §5, REQ-SW03-19).
+        val withdrawnId = backend.distinctId
         backend.reset()
         isConfigured = false
+        if (withdrawnId != null && erasureQueue != null) {
+            erasureQueue.enqueue(withdrawnId)
+            scope?.launch { erasureQueue.drain() }
+        }
     }
 
     /**

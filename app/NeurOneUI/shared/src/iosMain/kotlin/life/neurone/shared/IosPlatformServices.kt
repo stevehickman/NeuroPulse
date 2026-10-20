@@ -31,6 +31,8 @@ class IosPlatformServices(
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
     override val secretKeyStore: SecretKeyStore? = IosSecretKeyStore(),
+    override val httpTransport: life.neurone.core.net.HttpTransport? = IosHttpTransport(),
+    override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = iosAnalyticsConfig(),
 ) : PlatformServices {
 
     /**

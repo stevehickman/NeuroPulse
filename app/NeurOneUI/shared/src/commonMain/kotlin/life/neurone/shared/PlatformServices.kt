@@ -47,6 +47,19 @@ interface PlatformServices {
     val analyticsBackend: AnalyticsBackend
 
     /**
+     * The host's one network call (`HttpTransport`: an HTTPS POST that is answered or is not), used by the common analytics
+     * backend and the erasure queue. Null when the host cannot or should not make it (the browser, whose state is memory-only and
+     * which cannot pin a certificate); analytics is then whatever [analyticsBackend] says, which is nothing.
+     */
+    val httpTransport: life.neurone.core.net.HttpTransport? get() = null
+
+    /**
+     * The analytics host and project token this build was made with, or null. With a usable config and a [httpTransport], the
+     * common PostHog backend replaces [analyticsBackend]; either missing, analytics stays off (`REQ-SW03-20`).
+     */
+    val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? get() = null
+
+    /**
      * Where this host can put a backup, or null when it has nowhere yet (the backup screen then says so). A member with a
      * default so that a host with no storage for it needs no code; the hosts that have a folder or an account override it.
      */
