@@ -62,7 +62,10 @@ private sealed interface LimitField {
     class Num(
         val label: StringResource, val unit: String, val range: ClosedFloatingPointRange<Double>,
         val get: (NPLimitsSet) -> Double?, val set: (NPLimitsSet, Double?) -> NPLimitsSet,
-    ) : LimitField
+    ) : LimitField {
+        /** A unit that is a word, not a symbol, so it is a string resource; replaces [unit] when set. */
+        var unitLabel: StringResource? = null
+    }
     class Whole(
         val label: StringResource, val unit: String, val range: IntRange,
         val get: (NPLimitsSet) -> Int?, val set: (NPLimitsSet, Int?) -> NPLimitsSet,
@@ -90,21 +93,21 @@ private class LimitSection(
 private val MAX_SESSION_DURATION = Res.string.web_lim_max_session_duration
 
 private val eegBands = listOf(
-    "delta" to Res.string.eeg_band_delta, "theta" to Res.string.eeg_band_theta, "alpha" to Res.string.eeg_band_alpha,
-    "beta" to Res.string.eeg_band_beta, "gamma" to Res.string.eeg_band_gamma,
-    "alphaTheta" to Res.string.eeg_band_alphatheta, "gammaTheta" to Res.string.eeg_band_gammatheta,
+    NPEEGNeurofeedbackParams.EEGBand.DELTA.rawValue to Res.string.eeg_band_delta, NPEEGNeurofeedbackParams.EEGBand.THETA.rawValue to Res.string.eeg_band_theta, NPEEGNeurofeedbackParams.EEGBand.ALPHA.rawValue to Res.string.eeg_band_alpha,
+    NPEEGNeurofeedbackParams.EEGBand.BETA.rawValue to Res.string.eeg_band_beta, NPEEGNeurofeedbackParams.EEGBand.GAMMA.rawValue to Res.string.eeg_band_gamma,
+    NPEEGNeurofeedbackParams.EEGBand.ALPHA_THETA.rawValue to Res.string.eeg_band_alphatheta, NPEEGNeurofeedbackParams.EEGBand.GAMMA_THETA.rawValue to Res.string.eeg_band_gammatheta,
 )
 private val hrvProtocols = listOf(
-    "standalone" to Res.string.hrv_protocol_standalone, "tavnsSync" to Res.string.hrv_protocol_tavnssync,
-    "eegBiofeedback" to Res.string.hrv_protocol_eegbiofeedback, "combinedPBM" to Res.string.hrv_protocol_combinedpbm,
+    NPVNSHRVParams.HRVProtocol.STANDALONE.rawValue to Res.string.hrv_protocol_standalone, NPVNSHRVParams.HRVProtocol.TAVNS_SYNC.rawValue to Res.string.hrv_protocol_tavnssync,
+    NPVNSHRVParams.HRVProtocol.EEG_BIOFEEDBACK.rawValue to Res.string.hrv_protocol_eegbiofeedback, NPVNSHRVParams.HRVProtocol.COMBINED_PBM.rawValue to Res.string.hrv_protocol_combinedpbm,
 )
 private val visualModes = listOf(
-    "binocular" to Res.string.visual_mode_binocular, "emdr" to Res.string.visual_mode_emdr,
-    "retinal_pbm" to Res.string.visual_mode_retinalpbm, "mode_f" to Res.string.visual_mode_modef,
+    NPVisualStimParams.VisualMode.BINOCULAR.rawValue to Res.string.visual_mode_binocular, NPVisualStimParams.VisualMode.EMDR.rawValue to Res.string.visual_mode_emdr,
+    NPVisualStimParams.VisualMode.RETINAL_PBM.rawValue to Res.string.visual_mode_retinalpbm, NPVisualStimParams.VisualMode.MODE_F.rawValue to Res.string.visual_mode_modef,
 )
 private val hdMontages = listOf(
-    "ring_4x1" to Res.string.hdtdcs_montage_ring4x1, "bilateral_4x1" to Res.string.hdtdcs_montage_bilateral4x1,
-    "standard_2_electrode" to Res.string.hdtdcs_montage_standard2el,
+    NPHDTdcsParams.Montage.RING_4X1.rawValue to Res.string.hdtdcs_montage_ring4x1, NPHDTdcsParams.Montage.BILATERAL_4X1.rawValue to Res.string.hdtdcs_montage_bilateral4x1,
+    NPHDTdcsParams.Montage.STANDARD_2EL.rawValue to Res.string.hdtdcs_montage_standard2el,
 )
 
 private val sections: List<LimitSection> = listOf(
@@ -170,7 +173,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_audio,
         { it.audioEntrainment != null }, { l, on -> l.copy(audioEntrainment = if (on) NPAudioEntrainmentLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_volume, "dB SPL", 40.0..90.0, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) },
+            LimitField.Num(Res.string.web_lim_max_volume, "", 40.0..90.0, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) }.also { it.unitLabel = Res.string.unit_db_spl },
             LimitField.Num(Res.string.limits_max_binaural_beats, "Hz", 0.0..100.0, { it.audioEntrainment?.maxBinauralBeatsHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxBinauralBeatsHz = v)) },
             LimitField.Num(Res.string.limits_max_isochronic_tones, "Hz", 0.0..100.0, { it.audioEntrainment?.maxIsochronicTonesHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxIsochronicTonesHz = v)) },
         ),
@@ -326,7 +329,7 @@ private fun ScriptPane(initialText: String, importScript: (String) -> NPLimitsSe
 private fun FieldRow(field: LimitField, working: NPLimitsSet, update: (NPLimitsSet) -> Unit) {
     when (field) {
         is LimitField.Num -> OptionalNumber(
-            stringResource(field.label), field.unit, field.get(working)?.let(::formatNumber), field.range.start, field.range.endInclusive,
+            stringResource(field.label), field.unitLabel?.let { stringResource(it) } ?: field.unit, field.get(working)?.let(::formatNumber), field.range.start, field.range.endInclusive,
             toValue = { it.toDoubleOrNull() }, onChange = { update(field.set(working, it)) },
         )
         is LimitField.Whole -> OptionalNumber(
