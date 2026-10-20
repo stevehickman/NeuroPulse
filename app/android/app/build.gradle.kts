@@ -108,6 +108,14 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        // The analytics host and the vendor's project token, from the build and not from source (REQ-SW03-20). Either empty and
+        // analytics is off on this build. Set ANALYTICS_HOST (a bare host name, e.g. analytics.example.org) and
+        // POSTHOG_PROJECT_TOKEN in the environment or as Gradle properties; never commit a token.
+        fun setting(name: String): String = (providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull ?: "")
+            .replace("\\", "").replace("\"", "")
+        buildConfigField("String", "ANALYTICS_HOST", "\"${setting("ANALYTICS_HOST")}\"")
+        buildConfigField("String", "POSTHOG_PROJECT_TOKEN", "\"${setting("POSTHOG_PROJECT_TOKEN")}\"")
     }
 
     buildTypes {
@@ -123,7 +131,10 @@ android {
     sourceSets["main"].res.srcDir(generatedLocaleRes)
     sourceSets["main"].jniLibs.srcDir(nppsCoreJniLibs)
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

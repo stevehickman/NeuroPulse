@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import life.neurone.core.analytics.EngagementTier
+import life.neurone.core.analytics.AnalyticsBackend
+import life.neurone.core.analytics.AnalyticsErasureQueue
+import life.neurone.core.analytics.PostHogAnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
@@ -69,7 +72,16 @@ class AppServices(
     // The remembered hub's id is a sealed key (SWR-MG-16): a central that read the host's raw store would see it as ciphertext.
     init { platform.bleCentral.useIdentityStore(keyValueStore) }
 
-    val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, platform.analyticsBackend)
+    /** Withdrawn people's old analytics IDs, kept until the erasure relay has answered for each (`REQ-SW03-19`). */
+    val analyticsErasureQueue = AnalyticsErasureQueue(keyValueStore, platform.httpTransport) { platform.analyticsConfig?.baseUrl }
+
+    /** The common PostHog backend where the build has a usable host, token and transport; otherwise the host's own (none). */
+    private val analyticsBackend: AnalyticsBackend =
+        platform.analyticsConfig?.takeIf { it.usable }?.let { config ->
+            platform.httpTransport?.let { PostHogAnalyticsBackend(keyValueStore, it, config, scope) }
+        } ?: platform.analyticsBackend
+
+    val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, analyticsBackend, analyticsErasureQueue, scope)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
     val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
 
@@ -145,6 +157,8 @@ class AppServices(
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure() no-ops unless the user
         // actively completed the consent flow.
         researchAnalyticsGate.configure()
+        // A withdrawal made offline, or one the relay could not take, is retried at launch (REQ-SW03-19).
+        scope.launch { analyticsErasureQueue.drain() }
     }
 }
 

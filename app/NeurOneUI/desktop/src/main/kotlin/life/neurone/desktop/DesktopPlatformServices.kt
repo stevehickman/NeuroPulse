@@ -31,6 +31,8 @@ class DesktopPlatformServices(
     override val bleCentral: BleCentral = createDesktopBleCentral(keyValueStore),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
+    override val httpTransport: life.neurone.core.net.HttpTransport? = JdkHttpTransport(),
+    override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = desktopAnalyticsConfig(),
 ) : PlatformServices {
 
     /** The system credential store, if it proves it can keep and remove a secret; otherwise none (SWR-MG-06). */

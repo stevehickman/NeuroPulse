@@ -20,6 +20,10 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         # Finding the other phone on the same Wi-Fi for a direct move asks for local-network access (SWR-MG-10).
         NSLocalNetworkUsageDescription: NeurOne finds your other phone on this Wi-Fi network to move your data to it.
+        # The analytics host (a bare host name) and the vendor's project token come from the build, not from source (REQ-SW03-20).
+        # Set ANALYTICS_HOST and POSTHOG_PROJECT_TOKEN in a local .xcconfig or CI secret; unset or unexpanded means analytics is off.
+        AnalyticsHost: $(ANALYTICS_HOST)
+        PostHogProjectToken: $(POSTHOG_PROJECT_TOKEN)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: life.neurone.ui
