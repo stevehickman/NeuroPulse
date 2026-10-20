@@ -9,11 +9,14 @@ import platform.HealthKit.HKAnchoredObjectQuery
 import platform.HealthKit.HKHealthStore
 import platform.HealthKit.HKMetricPrefixMilli
 import platform.HealthKit.HKObjectType
-import platform.HealthKit.HKQuantityIdentifierHeartRate
-import platform.HealthKit.HKQuantityIdentifierHeartRateVariabilitySDNN
+import platform.HealthKit.HKQuantityTypeIdentifierHeartRate
+import platform.HealthKit.HKQuantityTypeIdentifierHeartRateVariabilitySDNN
 import platform.HealthKit.HKQuantitySample
 import platform.HealthKit.HKQuantityType
 import platform.HealthKit.HKUnit
+import platform.HealthKit.countUnit
+import platform.HealthKit.minuteUnit
+import platform.HealthKit.secondUnitWithMetricPrefix
 import platform.HealthKit.HKObjectQueryNoLimit
 import kotlin.coroutines.resume
 
@@ -36,8 +39,8 @@ class IosHealthSignals : HealthSignals {
 
     override suspend fun start() {
         if (queries.isNotEmpty() || !HKHealthStore.isHealthDataAvailable()) return
-        val hrvType = HKQuantityType.quantityTypeForIdentifier(HKQuantityIdentifierHeartRateVariabilitySDNN) ?: return
-        val heartRateType = HKQuantityType.quantityTypeForIdentifier(HKQuantityIdentifierHeartRate) ?: return
+        val hrvType = HKQuantityType.quantityTypeForIdentifier(HKQuantityTypeIdentifierHeartRateVariabilitySDNN) ?: return
+        val heartRateType = HKQuantityType.quantityTypeForIdentifier(HKQuantityTypeIdentifierHeartRate) ?: return
 
         val asked = suspendCancellableCoroutine { done ->
             // Read only: the share set is empty.
