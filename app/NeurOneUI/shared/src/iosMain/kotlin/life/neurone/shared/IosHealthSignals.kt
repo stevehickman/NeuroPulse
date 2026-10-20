@@ -17,6 +17,7 @@ import platform.HealthKit.HKUnit
 import platform.HealthKit.countUnit
 import platform.HealthKit.minuteUnit
 import platform.HealthKit.secondUnitWithMetricPrefix
+import platform.HealthKit.unitDividedByUnit
 import platform.HealthKit.HKObjectQueryNoLimit
 import kotlin.coroutines.resume
 
