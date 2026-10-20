@@ -1,5 +1,6 @@
 package life.neurone.core.analytics
 
+import kotlin.concurrent.Volatile
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.net.HttpRequest
