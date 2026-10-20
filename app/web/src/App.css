@@ -1385,3 +1385,13 @@ body {
 
   .condition-modal { width: 95vw; }
 }
+
+/* The app keeps nothing in the browser (REQ-SW03-18 (b)): said once, above every screen, and again when a backup is opened. */
+.memory-only-notice {
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 20px;
+  flex-shrink: 0;
+}
