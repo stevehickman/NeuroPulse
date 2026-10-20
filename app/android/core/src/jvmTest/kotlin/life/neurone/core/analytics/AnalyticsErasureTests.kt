@@ -96,7 +96,7 @@ class AnalyticsErasureTests {
         override fun track(event: String, properties: Map<String, String>) {}
     }
 
-    // @verifies REQ-SW03-19
+    // @verifies REQ-SW03-25#d
     @Test fun withdrawingResearchConsentQueuesTheOldIdBeforeTheBackendForgetsIt() {
         val store = InMemoryKeyValueStore()
         store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
@@ -115,7 +115,7 @@ class AnalyticsErasureTests {
 
     private fun scope() = CoroutineScope(Job() + Dispatchers.Unconfined)
 
-    // @verifies REQ-SW03-20
+    // @verifies REQ-SW03-25#a
     @Test fun aBuildWithoutAUsableHostAndTokenNeverSends() {
         for (bad in listOf(AnalyticsConfig(null, "phc_x"), AnalyticsConfig("analytics.example.org", null), AnalyticsConfig("https://x.org", "phc_x"),
             AnalyticsConfig("analytics.example.org", "\$(POSTHOG_PROJECT_TOKEN)"), AnalyticsConfig("localhost", ""))) {
@@ -128,7 +128,7 @@ class AnalyticsErasureTests {
         }
     }
 
-    // @verifies REQ-SW03-20
+    // @verifies REQ-SW03-25#a,b
     @Test fun anEventCarriesTheAllowedPropertiesAndTheTwoSwitchesAndNothingElse() {
         val t = Fake()
         val b = PostHogAnalyticsBackend(InMemoryKeyValueStore(), t, config, scope())
@@ -147,7 +147,7 @@ class AnalyticsErasureTests {
         assertEquals("true", props["\$geoip_disable"]!!.jsonPrimitive.content)
     }
 
-    // @verifies REQ-SW03-20
+    // @verifies REQ-SW03-25#c
     @Test fun theIdIsKeptAcrossRestartsAndRemadeOnReset() {
         val store = InMemoryKeyValueStore()
         val a = PostHogAnalyticsBackend(store, Fake(), config, scope()).also { it.configure() }
