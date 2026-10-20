@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
+import life.neurone.core.setup.SetupFlow
 import life.neurone.core.common.StorageProtection
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.AppServices
@@ -129,7 +130,11 @@ private fun Root(services: AppServices) {
 
 @Composable
 private fun MainScaffold(services: AppServices) {
-    var selected by remember { mutableStateOf(AppTab.SESSION) }
+    // Parity with iOS MainTabView: until hardware setup has finished once, the Session tab cannot be
+    // reached and the app opens on Settings, where the setup wizard is shown.
+    val flow = remember { SetupFlow(services.keyValueStore) }
+    var setupComplete by remember { mutableStateOf(flow.isFirstSetupComplete) }
+    var selected by remember { mutableStateOf(if (setupComplete) AppTab.SESSION else AppTab.SETTINGS) }
 
     val snackbar = remember { SnackbarHostState() }
     Scaffold(
@@ -139,7 +144,7 @@ private fun MainScaffold(services: AppServices) {
                 AppTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = selected == tab,
-                        onClick = { selected = tab },
+                        onClick = { if (tab != AppTab.SESSION || setupComplete) selected = tab },
                         icon = { Icon(tab.icon, contentDescription = null) },
                         label = { Text(stringResource(tab.label)) },
                     )
@@ -154,7 +159,14 @@ private fun MainScaffold(services: AppServices) {
                 AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
                 AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
                 AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
-                AppTab.SETTINGS -> SettingsScreen(services, modifier)
+                AppTab.SETTINGS -> SettingsScreen(
+                    services,
+                    modifier,
+                    setupRequired = !setupComplete,
+                    onSetupFinished = {
+                        setupComplete = flow.isFirstSetupComplete
+                    },
+                )
             }
         }
     }
