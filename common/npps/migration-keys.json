@@ -3,7 +3,7 @@
   "carried": {
     "protocols": ["np.user-protocols.npps", "np.used-families", "np.archived-families", "np.clone-sources"],
     "sessionHistory": ["np.session.history"],
-    "limitsProfiles": ["np.limits.global", "np.limits.profiles", "np.limits.active-profile", "np.limits.individuals"],
+    "limitsProfiles": ["np.limits.global", "np.limits.profiles", "np.limits.active-profile", "np.limits.individuals", "np.wavelength-rules.user"],
     "characterisationEnrolment": ["np.characterisation.enrolled", "np.characterisation.consent-epoch", "np.characterisation.programme-id"]
   },
   "consent": [
