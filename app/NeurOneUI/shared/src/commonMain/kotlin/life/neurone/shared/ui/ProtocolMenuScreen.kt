@@ -295,6 +295,17 @@ private fun ProtocolRow(
                 )
             }
 
+            // The conditions this protocol targets, each a link that asks before it leaves the app (NP-COND-LINK-001).
+            val conditions = when (entry) {
+                is NPProtocolEntry.Single -> entry.protocol.conditions
+                is NPProtocolEntry.Composite -> entry.composite.conditions
+                else -> emptyList()
+            }
+            if (conditions.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                ConditionChips(conditions)
+            }
+
             val reason = unavailableReason(availability, eegUnavailableMessage)
             if (reason != null) {
                 Spacer(Modifier.height(4.dp))
