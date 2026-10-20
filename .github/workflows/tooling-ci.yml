@@ -363,7 +363,7 @@ jobs:
       # or the build wiring.
       NP_SCOPE_RELEASEPINS: |
         app/ios/NeurOne/Data/SHDRUploader.swift
-        app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt
+        app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt
         app/ios/project.yml
         app/android/app/build.gradle.kts
         scripts/check-release-pins.ts
@@ -606,7 +606,7 @@ jobs:
 
           # The release-pin gate. The two uploaders that hold the pins and the two build files that call it are in.
           assert scope.releasepins.paths true  app/ios/NeurOne/Data/SHDRUploader.swift
-          assert scope.releasepins.paths true  app/android/app/src/main/kotlin/life/neurone/app/data/ShdrUploader.kt
+          assert scope.releasepins.paths true  app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt
           assert scope.releasepins.paths true  app/ios/project.yml
           assert scope.releasepins.paths true  app/android/app/build.gradle.kts
           assert scope.releasepins.paths false app/ios/NeurOne/Data/SessionStore.swift

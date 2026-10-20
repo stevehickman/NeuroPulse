@@ -32,7 +32,13 @@ class AndroidPlatformServices(
     override val httpTransport: life.neurone.core.net.HttpTransport? = null,
     /** The analytics host and project token this build was made with; null or unusable means analytics is off. */
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = null,
+    /** Where the hub leaves the SHDR record: a file in the app's private folder (REQ-SHDR-01). */
+    override val shdrStaging: life.neurone.core.analytics.ShdrStaging? = null,
 ) : PlatformServices {
+
+    /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */
+    override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
+        OkHttpTransport(OkHttpTransport.pinnedClient(relayHost, pins))
 
     /** A direct move to another phone on the same Wi-Fi: sockets written once for every host that has them (SWR-MG-10). */
     override val linkTransport: LinkTransport = LanLinkTransport()

@@ -8,6 +8,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import life.neurone.core.analytics.EngagementTier
+import life.neurone.core.analytics.FleetConfig
+import life.neurone.core.analytics.FleetUploadWiring
+import life.neurone.core.analytics.FleetUploader
+import life.neurone.core.analytics.SealedDeviceTokenStore
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.analytics.AnalyticsErasureQueue
 import life.neurone.core.analytics.PostHogAnalyticsBackend
@@ -83,6 +87,15 @@ class AppServices(
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, analyticsBackend, analyticsErasureQueue, scope)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
+
+    /**
+     * The SHDR fleet uploader, gated only by the warranty owner's consent (`REQ-SHDR-01`), on a host that can pin the relay's
+     * certificate (`REQ-SHDR-04`); null elsewhere. Its token store is the sealed one, so a helmet's token never leaves it in the clear.
+     */
+    val fleetUploader: FleetUploader? =
+        platform.fleetTransport(FleetConfig.RELAY_HOST, FleetConfig.PINNED_SPKI_HASHES)?.let {
+            FleetUploader(SealedDeviceTokenStore(keyValueStore), warrantyAnalyticsGate, it)
+        }
     val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
 
     /**
@@ -159,6 +172,26 @@ class AppServices(
         researchAnalyticsGate.configure()
         // A withdrawal made offline, or one the relay could not take, is retried at launch (REQ-SW03-19).
         scope.launch { analyticsErasureQueue.drain() }
+        composeFleetUpload()
+    }
+
+    /**
+     * The SHDR upload pipeline, the same on every host that has it (`REQ-SHDR-01`, `-02`, `-05`): the helmet the link is to names
+     * the token, a hub-delivered token replaces the interim one (a disconnect never downgrades it), and a pending upload with a
+     * staged record and an open warranty gate is sent, the staged file being removed only once the fleet service took it.
+     */
+    private fun composeFleetUpload() {
+        val uploader = fleetUploader ?: return
+        scope.launch { gattManager.hubIdentifier.collect { FleetUploadWiring.applyHubIdentifier(it, uploader) } }
+        scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, uploader) } }
+        val staging = platform.shdrStaging ?: return
+        scope.launch {
+            gattManager.shdrUploadPending.collect { pending ->
+                val gateOpen = warrantyAnalyticsGate.isOpen
+                val payload = if (pending && gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
+                FleetUploadWiring.applyUploadPending(pending, gateOpen, payload, uploader) { if (it) staging.clear() }
+            }
+        }
     }
 }
 

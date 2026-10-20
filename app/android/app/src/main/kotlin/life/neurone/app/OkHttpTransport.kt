@@ -6,6 +6,7 @@ import life.neurone.core.net.HttpResponse
 import life.neurone.core.net.HttpTransport
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.CertificatePinner
 import okhttp3.CookieJar
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -46,12 +47,17 @@ class OkHttpTransport(
     }
 
     companion object {
-        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+        fun defaultClient(): OkHttpClient = baseClient().build()
+
+        /** A client that refuses any connection to [host] whose leaf key (SPKI SHA-256, `sha256/<base64>`) is not among [pins]. */
+        fun pinnedClient(host: String, pins: List<String>): OkHttpClient =
+            baseClient().certificatePinner(CertificatePinner.Builder().apply { pins.forEach { add(host, it) } }.build()).build()
+
+        private fun baseClient(): OkHttpClient.Builder = OkHttpClient.Builder()
             .cookieJar(CookieJar.NO_COOKIES)
             .cache(null)
             .followRedirects(false)
             .followSslRedirects(false)
             .callTimeout(30, TimeUnit.SECONDS)
-            .build()
     }
 }

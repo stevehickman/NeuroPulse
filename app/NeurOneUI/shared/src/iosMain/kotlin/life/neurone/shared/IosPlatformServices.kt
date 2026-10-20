@@ -35,6 +35,16 @@ class IosPlatformServices(
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = iosAnalyticsConfig(),
 ) : PlatformServices {
 
+    /** `NSURLSession` with the relay's SPKI pins (REQ-SHDR-04). */
+    override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
+        IosHttpTransport(pinnedHost = relayHost, pins = pins.toSet())
+
+    /** The record the hub leaves in Documents, as the Swift app reads it (REQ-SHDR-01). */
+    override val shdrStaging: life.neurone.core.analytics.ShdrStaging by lazy {
+        val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
+        IosShdrStaging("$documents/shdr_staging.bin")
+    }
+
     /**
      * A folder in the app's Documents directory, which the Files app shows (the host declares file sharing), so the person can
      * copy the backup to a drive or another phone. The file system arbitrates the claim (a hard link), as on the desktop.

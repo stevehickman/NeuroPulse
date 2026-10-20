@@ -79,7 +79,7 @@ if (!project.hasProperty("skipNppsCoreNative")) {
 
 // ── Release builds refuse the placeholder fleet certificate pins (privacy review Finding 9, REQ-SHDR-04) ──
 //
-// The pins in ShdrUploader are placeholders until the real fleet certificate exists. They fail closed, so a release built with
+// The pins in FleetConfig (:core) are placeholders until the real fleet certificate exists. They fail closed, so a release built with
 // them looks fine and uploads no SHDR record, ever. This stops assembleRelease and bundleRelease instead. Debug builds and the
 // unit-test variants are untouched, so CI stays green while the placeholders are in the tree.
 val checkReleaseFleetPins by tasks.registering(Exec::class) {
