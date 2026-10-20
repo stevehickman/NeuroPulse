@@ -139,4 +139,42 @@ class NPLimitsStoreTests {
         val result = store.makeValidator().validate(def)
         assertTrue(result.errors.any { it.parameterKey == "irradianceMWcm2" })
     }
+
+    // @verifies REQ-NPPS-12
+    @Test
+    fun helmetAndIndividualTiersPersistAcrossReload_andCannotNameAnotherTier() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv)
+        val profile = NPIndividualProfile(name = "Alex")
+        store.saveProfile(profile)
+        store.saveHelmetLimits(NPLimitsSet(name = "h", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.5)), "hub-a")
+        store.saveIndividualLimits(NPLimitsSet(name = "i", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), profile.id)
+
+        val reloaded = NPLimitsStore(kv)
+        assertEquals(1.5, reloaded.helmetLimits["hub-a"]!!.tdcs!!.maxIntensityMilliamps)
+        assertEquals(NPLimitsSet.LimitLevel.HELMET, reloaded.helmetLimits["hub-a"]!!.level)
+        assertEquals(1.0, reloaded.individualLimits[profile.id]!!.tdcs!!.maxIntensityMilliamps)
+        // The restored tiers take part in resolution: helmet then individual narrow the cap.
+        reloaded.activeHelmetSerial = "hub-a"
+        assertEquals(1.5, reloaded.resolvedLimits.tdcs!!.maxIntensityMilliamps)
+        reloaded.activeProfileId = profile.id
+        assertEquals(1.0, reloaded.resolvedLimits.tdcs!!.maxIntensityMilliamps)
+    }
+
+    // @verifies REQ-NPPS-12
+    @Test
+    fun deletingAProfileDropsItsLimits_andClearingATierRemovesTheKey() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv)
+        val profile = NPIndividualProfile(name = "Alex")
+        store.saveProfile(profile)
+        store.saveIndividualLimits(NPLimitsSet(name = "i", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), profile.id)
+        store.deleteProfile(profile.id)
+        assertTrue(NPLimitsStore(kv).individualLimits.isEmpty())
+        assertNull(kv.getString(NPLimitsStore.INDIVIDUALS_KEY))
+
+        store.saveHelmetLimits(NPLimitsSet(name = "h"), "hub-a")
+        store.clearHelmetLimits("hub-a")
+        assertNull(kv.getString(NPLimitsStore.HELMETS_KEY))
+    }
 }

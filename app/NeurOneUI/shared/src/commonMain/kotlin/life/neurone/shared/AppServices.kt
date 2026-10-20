@@ -172,6 +172,8 @@ class AppServices(
         researchAnalyticsGate.configure()
         // A withdrawal made offline, or one the relay could not take, is retried at launch (REQ-SW03-19).
         scope.launch { analyticsErasureQueue.drain() }
+        // The connected hub is the helmet whose limits tier applies; none connected means no helmet tier.
+        scope.launch { gattManager.hubIdentifier.collect { limitsStore.activeHelmetSerial = it } }
         composeFleetUpload()
     }
 

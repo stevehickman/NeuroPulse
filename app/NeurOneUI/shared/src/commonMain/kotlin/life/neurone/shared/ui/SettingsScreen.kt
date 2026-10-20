@@ -49,11 +49,17 @@ import life.neurone.core.protocol.PersistedKeys
 // surface: clinician grants, research consent, study audit trail, invitations).
 
 @Composable
-fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    app: AppServices,
+    modifier: Modifier = Modifier,
+    /** True until hardware setup has finished once: the wizard opens at once and Session is blocked. */
+    setupRequired: Boolean = false,
+    onSetupFinished: () -> Unit = {},
+) {
     var showBipa by remember { mutableStateOf(false) }
     var showResearch by remember { mutableStateOf(false) }
     var showOta by remember { mutableStateOf(false) }
-    var showSetup by remember { mutableStateOf(false) }
+    var showSetup by remember { mutableStateOf(setupRequired) }
     var showLimits by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var showOwner by remember { mutableStateOf(false) }
@@ -65,6 +71,7 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
+    val hubIdentifier by app.gattManager.hubIdentifier.collectAsState()
     val firmwareVersion by app.gattManager.hubFirmwareVersion.collectAsState()
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
@@ -98,12 +105,16 @@ fun SettingsScreen(app: AppServices, modifier: Modifier = Modifier) {
         )
         showLimits -> LimitsSettingsScreen(
             store = app.limitsStore,
+            hubId = hubIdentifier,
             onDone = { showLimits = false },
             modifier = modifier,
         )
         showSetup -> SetupWizardScreen(
             app = app,
-            onFinish = { showSetup = false },
+            onFinish = {
+                showSetup = false
+                onSetupFinished()
+            },
             modifier = modifier,
         )
         showOta -> OtaScreen(

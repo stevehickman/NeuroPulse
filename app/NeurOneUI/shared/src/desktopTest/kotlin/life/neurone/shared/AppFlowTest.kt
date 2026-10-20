@@ -36,6 +36,7 @@ import kotlin.test.assertTrue
 class AppFlowTest {
 
     private val used = listOf(
+        Res.string.session_title,
         Res.string.setup_title_welcome, Res.string.setup_continue_button, Res.string.age_your_brainwave_data,
         Res.string.age_agree_and_continue, Res.string.consent_research_participation, Res.string.consent_skip_button,
         Res.string.tab_history, Res.string.history_session_history,
@@ -72,7 +73,7 @@ class AppFlowTest {
     // @verifies REQ-ONBOARD-04
     @Test
     fun freshInstall_walksAgeGate_biometricRelease_consent_thenTheTabs() = runComposeUiTest {
-        val kv = InMemoryKeyValueStore()
+        val kv = InMemoryKeyValueStore().apply { putBoolean(PersistedKeys.FIRST_SETUP_KEY, true) }
         val app = services(kv)
         show(app)
 
@@ -119,6 +120,7 @@ class AppFlowTest {
             putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
             putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
             putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         }
         show(services(kv))
         onNodeWithText(text(Res.string.tab_consumables)).assertExists()
@@ -131,6 +133,7 @@ class AppFlowTest {
             putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
             putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
             putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         }
         show(services(kv))
 
@@ -141,6 +144,23 @@ class AppFlowTest {
         onNodeWithText("Alpha Calm").assertExists()
     }
 
+    // @verifies REQ-ONBOARD-04
+    @Test
+    fun beforeFirstSetup_theAppOpensOnTheSetupWizard_andTheSessionTabIsBlocked() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore().apply {
+            putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
+            putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
+            putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+        }
+        show(services(kv))
+
+        onNodeWithText(text(Res.string.setup_title_welcome)).assertExists()
+        // Session is the iOS-guarded tab: tapping it leaves the wizard on screen.
+        onNodeWithText(text(Res.string.tab_protocols)).assertDoesNotExist()
+        onNodeWithText(text(Res.string.session_title)).performClick()
+        onNodeWithText(text(Res.string.setup_title_welcome)).assertExists()
+    }
+
     // @verifies REQ-CONSENT-16
     @Test
     fun privacyTab_opensTheClinicianGrantFormAndReturnsWithoutGrantingAnything() = runComposeUiTest {
@@ -148,6 +168,7 @@ class AppFlowTest {
             putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
             putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
             putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         }
         val app = services(kv)
         show(app)
@@ -169,6 +190,7 @@ class AppFlowTest {
             putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
             putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
             putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         }
         show(services(kv))
 
@@ -187,6 +209,7 @@ class AppFlowTest {
             putBoolean(PersistedKeys.AGE_CONFIRMED_KEY, true)
             putBoolean(OnboardingKeys.BIPA_ACCEPTED, true)
             putBoolean(OnboardingKeys.CONSENT_SHOWN, true)
+            putBoolean(PersistedKeys.FIRST_SETUP_KEY, true)
         }
         show(services(kv))
         onNodeWithText(text(Res.string.setup_privacy_card_title)).performClick()

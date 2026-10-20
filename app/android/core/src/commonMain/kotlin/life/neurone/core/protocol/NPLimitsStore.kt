@@ -5,6 +5,8 @@ import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.toNppsCoreLimitsJson
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -50,6 +52,9 @@ class NPLimitsStore(private val kv: KeyValueStore) {
         const val GLOBAL_KEY = "np.limits.global"
         const val PROFILES_KEY = "np.limits.profiles"
         const val ACTIVE_PROFILE_KEY = "np.limits.active-profile"
+        const val HELMETS_KEY = "np.limits.helmets"
+        const val INDIVIDUALS_KEY = "np.limits.individuals"
+        private val tierSerializer = MapSerializer(String.serializer(), String.serializer())
         private val profilesSerializer = ListSerializer(NPIndividualProfile.serializer())
         private val json = Json { ignoreUnknownKeys = true }
     }
@@ -57,10 +62,10 @@ class NPLimitsStore(private val kv: KeyValueStore) {
     var globalLimits: NPLimitsSet? = null
         private set
 
-    // Helmet/individual limit tiers are in-memory for now (global is the editable/persisted tier);
-    // persisting those maps is a follow-up (OI-AND-LIMITS-01). Profiles and the active profile ARE
-    // persisted: the active profile names the person on the device (per-user cardiac scope,
-    // NP-SW-FAULTMSG-001), and losing it on restart would make every relaunch "nobody named".
+    // Every tier is persisted. A tier a person configured and the app then forgot would make a cap
+    // silently stop applying, so a restart must not drop one. The active profile names the person on
+    // the device (per-user cardiac scope, NP-SW-FAULTMSG-001); losing it would make every relaunch
+    // "nobody named".
     var helmetLimits: Map<String, NPLimitsSet> = emptyMap()
         private set
     var individualLimits: Map<String, NPLimitsSet> = emptyMap()
@@ -85,6 +90,7 @@ class NPLimitsStore(private val kv: KeyValueStore) {
     init {
         loadGlobal()
         loadProfiles()
+        loadTiers()
     }
 
     /** individual > helmet > global effective limits for the current active context. */
@@ -116,10 +122,22 @@ class NPLimitsStore(private val kv: KeyValueStore) {
 
     fun saveHelmetLimits(limits: NPLimitsSet, serial: String) {
         helmetLimits = helmetLimits + (serial to limits.copy(level = NPLimitsSet.LimitLevel.HELMET, helmetId = serial))
+        persistTiers()
+    }
+
+    fun clearHelmetLimits(serial: String) {
+        helmetLimits = helmetLimits - serial
+        persistTiers()
     }
 
     fun saveIndividualLimits(limits: NPLimitsSet, profileId: String) {
         individualLimits = individualLimits + (profileId to limits.copy(level = NPLimitsSet.LimitLevel.INDIVIDUAL))
+        persistTiers()
+    }
+
+    fun clearIndividualLimits(profileId: String) {
+        individualLimits = individualLimits - profileId
+        persistTiers()
     }
 
     fun saveProfile(profile: NPIndividualProfile) {
@@ -136,6 +154,7 @@ class NPLimitsStore(private val kv: KeyValueStore) {
         individualLimits = individualLimits - id
         if (activeProfileId == id) activeProfileId = null
         persistProfiles()
+        persistTiers()
     }
 
     /**
@@ -184,5 +203,33 @@ class NPLimitsStore(private val kv: KeyValueStore) {
 
     private fun persistGlobal() {
         globalLimits?.let { kv.putString(GLOBAL_KEY, exportLimitsAsNPPS(it)) } ?: kv.remove(GLOBAL_KEY)
+    }
+
+    // Helmet and individual tiers: one JSON map each, id -> NPPS limits text (the global tier's format).
+    // The level and the id are stamped again on load, so a stored block cannot name another tier.
+    private fun loadTiers() {
+        helmetLimits = readTier(HELMETS_KEY).mapValues { (serial, l) ->
+            l.copy(level = NPLimitsSet.LimitLevel.HELMET, helmetId = serial)
+        }
+        individualLimits = readTier(INDIVIDUALS_KEY)
+            .filterKeys { id -> profiles.any { it.id == id } }
+            .mapValues { (_, l) -> l.copy(level = NPLimitsSet.LimitLevel.INDIVIDUAL) }
+    }
+
+    private fun readTier(key: String): Map<String, NPLimitsSet> {
+        val texts = kv.getString(key)
+            ?.let { runCatching { json.decodeFromString(tierSerializer, it) }.getOrNull() }
+            ?: return emptyMap()
+        return texts.mapNotNull { (id, text) -> runCatching { importLimitsFromNPPS(text) }.getOrNull()?.let { id to it } }.toMap()
+    }
+
+    private fun persistTiers() {
+        writeTier(HELMETS_KEY, helmetLimits)
+        writeTier(INDIVIDUALS_KEY, individualLimits)
+    }
+
+    private fun writeTier(key: String, tier: Map<String, NPLimitsSet>) {
+        if (tier.isEmpty()) { kv.remove(key); return }
+        kv.putString(key, json.encodeToString(tierSerializer, tier.mapValues { exportLimitsAsNPPS(it.value) }))
     }
 }
