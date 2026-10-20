@@ -561,6 +561,7 @@
   "MIGRATION_FOLDER_CHOOSE": "Choose a folder...",
   "MIGRATION_FOLDER_DEFAULT": "Use the default folder",
   "MIGRATION_FOLDER_HOLDS_APP_DATA": "That folder holds this app's own data, which is erased when you move to a new device. Choose another folder.",
+  "MIGRATION_FOLDER_NONE": "Stop using a folder (save a file each time)",
   "MIGRATION_FOLDER_NOT_WRITABLE": "The app could not save a file in that folder. Choose another folder, or check that the drive is connected.",
   "MIGRATION_ITEM_CERVICAL_FAULT_LEDGER": "The cervical fault acknowledgement record",
   "MIGRATION_ITEM_CHARACTERISATION_ENROLMENT": "Your characterisation study enrolment",

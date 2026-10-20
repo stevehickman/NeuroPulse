@@ -34,6 +34,8 @@ class AndroidPlatformServices(
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = null,
     /** Where the hub leaves the SHDR record: a file in the app's private folder (REQ-SHDR-01). */
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging? = null,
+    /** The folder a backup is kept in, once the person has chosen one (SWR-MG-10); see [AndroidFolderPlaces]. */
+    override val folderPlaces: AndroidFolderPlaces? = null,
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */
@@ -54,6 +56,9 @@ class AndroidPlatformServices(
         val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { transfer.onPicked(it) }
         transfer.launchSave = { name -> save.launch(name) }
         transfer.launchOpen = { open.launch(arrayOf("*/*")) }
+        // The folder dialog is registered here too: the backup and restore screens that offer the folder call this first.
+        val tree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { folderPlaces?.onPicked(it) }
+        folderPlaces?.launchTree = { tree.launch(null) }
         return transfer
     }
 

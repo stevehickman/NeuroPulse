@@ -27,7 +27,7 @@ class BackupFolderTest {
 
     /** A host with folders held in memory: [missing] folders cannot be opened, [readOnly] ones take no file, [refused] ones are the app's own. */
     private class FakeFolders(
-        override val defaultFolder: String = "/data/backups",
+        override val defaultFolder: String? = "/data/backups",
         var answer: String? = null,
         val missing: MutableSet<String> = mutableSetOf(),
         val readOnly: MutableSet<String> = mutableSetOf(),
@@ -57,22 +57,54 @@ class BackupFolderTest {
     }
 
     // @verifies SWR-MG-10
+    @Test fun a_host_with_no_default_folder_has_no_place_until_one_is_chosen_and_none_again_when_it_is_dropped() = runTest {
+        val keys = InMemoryKeyValueStore()
+        val folders = FakeFolders(defaultFolder = null, answer = "content://tree/backups")
+        val model = BackupFolderModel(folders, keys)
+        assertNull(model.folder.value)
+        assertNull(model.place.value, "the screens then use the host's other place, a file the person saves")
+        assertNull(model.defaultFolder)
+
+        model.choose()
+        assertEquals("content://tree/backups", model.folder.value)
+        assertEquals("content://tree/backups", model.place.value!!.label)
+        assertEquals("content://tree/backups", keys.getString(BACKUP_FOLDER_KEY))
+        assertEquals("content://tree/backups", BackupFolderModel(folders, keys).folder.value, "the next run starts on it")
+
+        model.useDefault()
+        assertNull(model.folder.value)
+        assertNull(model.place.value)
+        assertNull(keys.getString(BACKUP_FOLDER_KEY), "no folder is the absence of a choice")
+        assertNull(model.problem.value)
+    }
+
+    // @verifies SWR-MG-10
+    @Test fun a_chosen_folder_the_system_has_taken_back_leaves_no_place_and_says_so() = runTest {
+        val keys = InMemoryKeyValueStore().apply { putString(BACKUP_FOLDER_KEY, "content://tree/gone") }
+        val folders = FakeFolders(defaultFolder = null, missing = mutableSetOf("content://tree/gone"))
+        val model = BackupFolderModel(folders, keys)
+        assertNull(model.place.value)
+        assertEquals(FolderProblem.NotWritable, model.problem.value)
+        assertEquals("content://tree/gone", keys.getString(BACKUP_FOLDER_KEY), "the choice is kept, so the grant being back is enough")
+    }
+
+    // @verifies SWR-MG-10
     @Test fun the_default_folder_is_used_until_one_is_chosen_and_a_choice_is_remembered() = runTest {
         val keys = InMemoryKeyValueStore()
         val folders = FakeFolders(answer = "/media/usb/backups")
         val model = BackupFolderModel(folders, keys)
         assertEquals("/data/backups", model.folder.value)
-        assertEquals("/data/backups", model.place.value.label)
+        assertEquals("/data/backups", model.place.value!!.label)
 
         model.choose()
         assertEquals("/data/backups", folders.asked, "the dialog starts where the backup is now")
         assertEquals("/media/usb/backups", model.folder.value)
-        assertEquals("/media/usb/backups", model.place.value.label)
+        assertEquals("/media/usb/backups", model.place.value!!.label)
         assertEquals("/media/usb/backups", keys.getString(BACKUP_FOLDER_KEY))
         assertNull(model.problem.value)
 
         // The next run starts on the chosen folder.
-        assertEquals("/media/usb/backups", BackupFolderModel(folders, keys).place.value.label)
+        assertEquals("/media/usb/backups", BackupFolderModel(folders, keys).place.value!!.label)
 
         model.useDefault()
         assertEquals("/data/backups", model.folder.value)

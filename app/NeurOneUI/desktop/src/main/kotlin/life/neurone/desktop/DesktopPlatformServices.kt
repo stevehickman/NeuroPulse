@@ -10,7 +10,6 @@ import life.neurone.core.migration.FileStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.shared.migration.BACKUP_FOLDER_KEY
-import life.neurone.shared.migration.FolderPlaces
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -54,7 +53,7 @@ class DesktopPlatformServices(
      * the new computer. The operating system arbitrates the claim (a hard link), so a folder promises an exclusive create (SWR-MG-07).
      * Made on first use, not at start-up.
      */
-    override val folderPlaces: FolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
+    override val folderPlaces: DesktopFolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
 
     /**
      * SWR-MG-06: every file in the app's data folder (the key-value store's file and its temporary copy, and anything else the app

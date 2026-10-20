@@ -36,7 +36,8 @@ fun BackupFolderRow(app: AppServices, modifier: Modifier = Modifier) {
             OutlinedButton(onClick = { scope.launch { model.choose() } }) { Text(stringResource(Res.string.migration_folder_choose)) }
             if (folder != model.defaultFolder) {
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { scope.launch { model.useDefault() } }) { Text(stringResource(Res.string.migration_folder_default)) }
+                val label = if (model.defaultFolder == null) Res.string.migration_folder_none else Res.string.migration_folder_default
+                OutlinedButton(onClick = { scope.launch { model.useDefault() } }) { Text(stringResource(label)) }
             }
         }
         problem?.let {
