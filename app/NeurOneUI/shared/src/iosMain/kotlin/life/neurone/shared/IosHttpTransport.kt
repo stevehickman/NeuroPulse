@@ -17,12 +17,15 @@ import platform.Foundation.NSURLSessionAuthChallengeDisposition
 import platform.Foundation.NSURLSessionAuthChallengePerformDefaultHandling
 import platform.Foundation.NSURLSessionAuthChallengeUseCredential
 import platform.Foundation.credentialForTrust
+import platform.Foundation.dataWithContentsOfFile
+import platform.Foundation.serverTrust
 import platform.Security.SecCertificateCopyKey
 import platform.Security.SecKeyCopyExternalRepresentation
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustGetCertificateAtIndex
 import platform.Security.SecTrustRef
 import platform.Foundation.HTTPBody
+import platform.Foundation.NSData
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSURL
@@ -126,7 +129,7 @@ class IosHttpTransport(
  * may use (RSA 2048 or 4096, ECDSA P-256 or P-384). The system gives the raw key; the fixed DER header that precedes it in an SPKI
  * is added here, chosen by the key's size (the same headers the Swift app's pinning used). The hash is the Rust core's.
  */
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, kotlin.io.encoding.ExperimentalEncodingApi::class)
 private fun leafSpkiPin(trust: SecTrustRef): String? {
     val certificate = SecTrustGetCertificateAtIndex(trust, 0) ?: return null
     val key = SecCertificateCopyKey(certificate) ?: return null
@@ -156,8 +159,9 @@ private fun spkiHeader(raw: ByteArray): ByteArray? = when {
 }
 
 /** The SHDR record the hub leaves for the app: a file in the app's Documents folder (the same convention the Swift app reads). */
+@OptIn(ExperimentalForeignApi::class)
 class IosShdrStaging(private val path: String) : life.neurone.core.analytics.ShdrStaging {
-    override fun read(): ByteArray? = platform.Foundation.NSData.dataWithContentsOfFile(path)?.toByteArray()
+    override fun read(): ByteArray? = NSData.dataWithContentsOfFile(path)?.toByteArray()
 
     override fun clear() {
         platform.Foundation.NSFileManager.defaultManager.removeItemAtPath(path, error = null)
