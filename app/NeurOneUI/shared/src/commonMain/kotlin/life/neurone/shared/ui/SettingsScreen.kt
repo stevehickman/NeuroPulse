@@ -62,6 +62,7 @@ fun SettingsScreen(
     var showSetup by remember { mutableStateOf(setupRequired) }
     var showLimits by remember { mutableStateOf(false) }
     var showWavelengthRules by remember { mutableStateOf(false) }
+    var showZones by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var showOwner by remember { mutableStateOf(false) }
     var showMigration by remember { mutableStateOf(false) }
@@ -102,6 +103,11 @@ fun SettingsScreen(
         showProfiles -> ProfilesScreen(
             store = app.limitsStore,
             onDone = { showProfiles = false },
+            modifier = modifier,
+        )
+        showZones -> ZoneEditorScreen(
+            library = app.protocolLibrary,
+            onDone = { showZones = false },
             modifier = modifier,
         )
         showWavelengthRules -> WavelengthRulesScreen(
@@ -155,6 +161,7 @@ fun SettingsScreen(
             onDeviceSetup = { showSetup = true },
             onManageLimits = { showLimits = true },
             onManageWavelengthRules = { showWavelengthRules = true },
+            onManageZones = { showZones = true },
             onManageProfiles = { showProfiles = true },
             onManageOwner = { showOwner = true },
             onManageMigration = { showMigration = true },
@@ -178,6 +185,7 @@ private fun SettingsContent(
     onDeviceSetup: () -> Unit,
     onManageLimits: () -> Unit,
     onManageWavelengthRules: () -> Unit,
+    onManageZones: () -> Unit,
     onManageProfiles: () -> Unit,
     onManageOwner: () -> Unit,
     onManageMigration: () -> Unit,
@@ -257,6 +265,14 @@ private fun SettingsContent(
         Text(stringResource(Res.string.web_wl_rules_note), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onManageWavelengthRules) { Text(stringResource(Res.string.web_pane_wavelength_rules)) }
+
+        Spacer(Modifier.height(24.dp))
+
+        // The zones a protocol can name, and defining one of your own (NP-NPPS-REF-001 §8).
+        Text(stringResource(Res.string.web_pane_zones), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.zones_note), style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onManageZones) { Text(stringResource(Res.string.web_pane_zones)) }
 
         Spacer(Modifier.height(24.dp))
 
