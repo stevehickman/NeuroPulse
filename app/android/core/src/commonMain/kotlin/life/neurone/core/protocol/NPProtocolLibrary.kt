@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.UUID
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.namedZoneRefs
 import life.neurone.core.npps.toNppsCoreItem
 
 // Port of iOS NPProtocolLibrary (app/ios/NeurOne/Protocol/NPProtocolLibrary.swift).
@@ -291,6 +292,67 @@ class NPProtocolLibrary(
         saveToStore()
         publishZoneNamespace()
         return SaveResult.Saved
+    }
+
+    // MARK: User zones (NP-NPPS-REF-001 §8 *User-defined zones*)
+
+    /** The outcome of [addUserZone]. */
+    sealed interface ZoneSaveResult {
+        data object Saved : ZoneSaveResult
+        data object NameEmpty : ZoneSaveResult
+        /** A shipped or an earlier user zone already has the name: a name defined twice is undefined for every protocol. */
+        data object NameTaken : ZoneSaveResult
+        data object NoSockets : ZoneSaveResult
+        data class InvalidSockets(val sockets: List<Int>) : ZoneSaveResult
+    }
+
+    /** The outcome of [deleteUserZone]. */
+    sealed interface ZoneDeleteResult {
+        data object Deleted : ZoneDeleteResult
+        data object NotFound : ZoneDeleteResult
+        /** A user protocol names the zone, so deleting it would leave that protocol unresolvable. */
+        data class InUse(val protocols: List<String>) : ZoneDeleteResult
+    }
+
+    /** The zones the user defined, in the order they were made. */
+    val userZones: List<NPZoneDefinition>
+        get() = _userProtocols.filterIsInstance<NPProtocolEntry.Zone>().map { it.zone }
+
+    /**
+     * Define a zone as a name and a socket list, saved with the user's own scripts so it resolves exactly as a shipped zone
+     * does: the registry is re-pointed at the namespace that now holds it. Nothing is saved on any refusal.
+     */
+    fun addUserZone(name: String, sockets: List<Int>): ZoneSaveResult {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return ZoneSaveResult.NameEmpty
+        val set = NPSocketSet.union(sockets)
+        if (sockets.isEmpty()) return ZoneSaveResult.NoSockets
+        val bad = sockets.filterNot(SocketLattice::isValid)
+        if (bad.isNotEmpty()) return ZoneSaveResult.InvalidSockets(bad.distinct())
+        if (NPZoneRegistry.zones.containsKey(trimmed) || _userProtocols.any { it is NPProtocolEntry.Zone && it.zone.name == trimmed }) {
+            return ZoneSaveResult.NameTaken
+        }
+        _userProtocols.add(NPProtocolEntry.Zone(NPZoneDefinition(name = trimmed, sockets = set)))
+        saveToStore()
+        publishZoneNamespace()
+        return ZoneSaveResult.Saved
+    }
+
+    /** Names of the user protocols that target [zone] by name. */
+    fun protocolsUsingZone(zone: String): List<String> =
+        _userProtocols.filterIsInstance<NPProtocolEntry.Single>()
+            .filter { zone in it.protocol.namedZoneRefs() }
+            .map { it.protocol.name }
+
+    /** Delete a zone the user defined, unless a user protocol still names it. A shipped zone is not the user's to delete. */
+    fun deleteUserZone(name: String): ZoneDeleteResult {
+        val entry = _userProtocols.firstOrNull { it is NPProtocolEntry.Zone && it.zone.name == name } ?: return ZoneDeleteResult.NotFound
+        val users = protocolsUsingZone(name)
+        if (users.isNotEmpty()) return ZoneDeleteResult.InUse(users)
+        _userProtocols.remove(entry)
+        saveToStore()
+        publishZoneNamespace()
+        return ZoneDeleteResult.Deleted
     }
 
     /** Delete a user protocol. A used family is archived, never deleted (SWR-FM-05). */

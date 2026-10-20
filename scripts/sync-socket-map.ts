@@ -1296,6 +1296,11 @@ function wrapSwiftArrayItems(items: string[], indent: string): string[] {
 //
 // Socket count and numbering stay here because they are hardware, not zones.
 
+/** A number as a Kotlin Double literal: `1` would be an Int, which a Double parameter does not accept. */
+function kotlinDouble(n: number): string {
+  return Number.isInteger(n) ? `${n}.0` : `${n}`;
+}
+
 function emitKotlinLattice(sockets: SocketGeometry[]): string {
   const min = sockets.length === 0 ? 0 : Math.min(...sockets.map(s => s.id));
   const max = sockets.length === 0 ? 0 : Math.max(...sockets.map(s => s.id));
@@ -1334,6 +1339,16 @@ function emitKotlinLattice(sockets: SocketGeometry[]): string {
     "    val rangeLabel: String get() = \"$NP_SOCKET_ID_MIN\u2013$NP_SOCKET_ID_MAX\"",
     "",
     "    fun isValid(id: Int): Boolean = id in NP_SOCKET_ID_MIN..NP_SOCKET_ID_MAX",
+    "",
+    "    /**",
+    "     * Where a socket is drawn on the unrolled-helmet map: provisional unit-hex lattice coordinates (front at",
+    "     * small y, left at negative x), layout only and not millimetres. Selection never depends on them.",
+    "     */",
+    "    class Cell(val id: Int, val x: Double, val y: Double)",
+    "",
+    "    val cells: List<Cell> = listOf(",
+    ...sockets.map(s => `        Cell(${s.id}, ${kotlinDouble(s.x)}, ${kotlinDouble(s.y)}),`),
+    "    )",
     "}",
     "",
   ].join("\n");
