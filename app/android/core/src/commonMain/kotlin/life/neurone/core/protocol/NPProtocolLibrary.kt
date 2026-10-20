@@ -553,16 +553,75 @@ class NPProtocolLibrary(
     // MARK: Script export / import
 
     /** The script for [entry], carrying the used flag when its family is used (SWR-WO-03). The flag is not part of the content hash. */
-    fun exportScript(entry: NPProtocolEntry): String {
+    fun exportScript(entry: NPProtocolEntry): String = NppsCore.serialize(listOf(flaggedItem(entry)))
+
+    private fun flaggedItem(entry: NPProtocolEntry): JsonObject {
         val item = entry.toNppsCoreItem()
-        val flagged = if (entry is NPProtocolEntry.Single && isUsed(entry)) {
+        return if (entry is NPProtocolEntry.Single && isUsed(entry)) {
             val protocol = JsonObject(item["protocol"]!!.jsonObject + ("isUsed" to JsonPrimitive(true)))
             JsonObject(item + ("protocol" to protocol))
         } else if (entry is NPProtocolEntry.Composite && isUsed(entry)) {
             val composite = JsonObject(item["composite"]!!.jsonObject + ("isUsed" to JsonPrimitive(true)))
             JsonObject(item + ("composite" to composite))
         } else item
-        return NppsCore.serialize(listOf(flagged))
+    }
+
+    /** What [openScript] did with a file: how many entries went in, how many the library's rules refused, or that it was unreadable. */
+    data class OpenResult(val opened: Int, val refused: Int, val unreadable: Boolean)
+
+    /**
+     * Everything the user made (protocols, composites and zones) as one `.npps` text, for a person to keep in a file; null when
+     * there is nothing of theirs to save. Each protocol carries its used flag (SWR-WO-03), so opening the file elsewhere keeps a
+     * used family used.
+     */
+    fun exportAllScript(): String? =
+        if (_userProtocols.isEmpty()) null else NppsCore.serialize(_userProtocols.map(::flaggedItem))
+
+    /**
+     * Open a file made by [exportAllScript] (or any `.npps` file): every protocol, composite and zone in it goes through the
+     * library's own rules, one at a time (SWR-PL-02/03, SWR-FM-03/06), so a read-only protocol, a used family, a variant that
+     * exists and a zone name that is taken are refused and counted, never overwritten. A file that does not parse changes nothing.
+     * Limits and conditions in the file are not library items and are counted as refused. A used flag in the file makes that family
+     * used here; an import never clears one (SWR-WO-03).
+     */
+    fun openScript(text: String): OpenResult {
+        val raw: JsonObject
+        val entries: List<NPProtocolEntry>
+        try {
+            raw = NppsCore.parse(text)
+            entries = NPPSParser.parse(text)
+        } catch (e: IllegalArgumentException) {
+            return OpenResult(0, 0, unreadable = true)
+        } catch (e: NPPSError) {
+            return OpenResult(0, 0, unreadable = true)
+        }
+        // The runnable entries come first, in the file's order, so the flags line up with them.
+        val rawRunnable = raw["entries"]?.jsonArray ?: JsonArray(emptyList())
+        val flags = rawRunnable.map { e ->
+            val o = e.jsonObject
+            (o["protocol"] ?: o["composite"])?.jsonObject?.get("isUsed")?.jsonPrimitive?.boolean == true
+        }
+        val runnable = entries.take(rawRunnable.size)
+        val usedHashes = allProtocols.filter { isUsed(it) }.mapNotNull { contentHash(it) }
+        val merged = NPLibraryRules.mergeImport(
+            usedHashes, runnable.mapIndexed { i, e -> Triple(e.id.toString(), contentHash(e), flags[i]) },
+        )
+
+        var opened = 0
+        var refused = 0
+        for (entry in entries) {
+            val saved = when (entry) {
+                is NPProtocolEntry.Single, is NPProtocolEntry.Composite -> {
+                    val ok = save(entry) == SaveResult.Saved
+                    if (ok && merged[entry.id.toString()] == true) markUsed(entry)
+                    ok
+                }
+                is NPProtocolEntry.Zone -> addUserZone(entry.zone.name, entry.zone.sockets) == ZoneSaveResult.Saved
+                is NPProtocolEntry.Limits, is NPProtocolEntry.Condition -> false
+            }
+            if (saved) opened++ else refused++
+        }
+        return OpenResult(opened, refused, unreadable = false)
     }
 
     /**

@@ -145,6 +145,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onSelect = { entry -> uploadAndReport(entry) },
             onBack = { showMenu = false },
             helmetHardwareVersion = hardwareVersion,
+            fileTransfer = services.platform.rememberFileTransfer(),
             modifier = modifier,
         )
     } else {
