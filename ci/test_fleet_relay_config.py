@@ -66,6 +66,11 @@ def problems(text):
     return out
 
 
+def test_the_reference_relay_config_holds():
+    """R1-R5 on the real file, as a unit the requirement trace can count."""
+    assert problems(CADDYFILE.read_text()) == []
+
+
 def self_test(text):
     failures = []
 
