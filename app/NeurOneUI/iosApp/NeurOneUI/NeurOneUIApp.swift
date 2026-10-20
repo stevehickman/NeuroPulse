@@ -5,6 +5,11 @@ import NeurOneShared
 // all flow logic are in app/NeurOneUI/shared; this file only hosts them.
 @main
 struct NeurOneUIApp: App {
+    // iOS refuses a background-task handler registered after launch finishes, so it is registered here, before any scene.
+    init() {
+        IosBackgroundBackupKt.registerBackgroundBackup()
+    }
+
     var body: some Scene {
         WindowGroup {
             ComposeHost().ignoresSafeArea()
