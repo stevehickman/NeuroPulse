@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Apple privacy manifest for the iOS host of the shared app (app/NeurOneUI). It mirrors the Swift app's
+         (app/ios/NeurOne/PrivacyInfo.xcprivacy) for what this host does, and declares less where this host does less:
+         it reads no HealthKit data and sends no crash reports, so neither is declared. CoreBluetooth is not a
+         required-reason API; its disclosure is the NSBluetoothAlwaysUsageDescription in Info.plist.
+
+         The Kotlin, Compose and Skiko frameworks that are linked in carry their own manifests for what they call. App Store
+         Connect's upload check is what finds a category this file or those manifests miss, and any it names is added here. -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- UserDefaults: the host's key-value store (UserDefaultsKeyValueStore). The protected keys in it are sealed under a
+             Keychain key that never leaves the device. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- CA92.1: access information from the same app only. -->
+                <string>CA92.1</string>
+            </array>
+        </dict>
+        <!-- File attributes: IosDirectoryFileStore lists the app's own backup and support folders through
+             attributesOfItemAtPath, which can return file dates. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- C617.1: timestamps of files inside the app container. -->
+                <string>C617.1</string>
+            </array>
+        </dict>
+    </array>
+
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- Device ID: the opaque warranty token and the hashed hub identifier the SHDR record is linked to (never a user
+             identity), sent through the Oblivious HTTP relay with the warranty owner's consent (REQ-SHDR-07). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeDeviceID</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Product interaction: the analytics events the person consented to (PostHog capture, no person profile). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+        <!-- Other usage data: the allowlisted properties attached to those events. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
