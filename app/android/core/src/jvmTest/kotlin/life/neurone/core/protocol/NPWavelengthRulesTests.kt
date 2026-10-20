@@ -137,4 +137,78 @@ class NPWavelengthRulesTests {
         }.toList()
         assertEquals(rules.channels, fromFile)
     }
+
+    private fun store(kv: life.neurone.core.common.KeyValueStore = life.neurone.core.common.InMemoryKeyValueStore()) =
+        NPWavelengthRulesStore(kv)
+
+    private fun widened808(store: NPWavelengthRulesStore): List<String> =
+        store.setChannel(NPWavelengthChannelRule(NPPBMChannelElement.LED_808, 808.0, 798.0, 860.0))
+
+    // @verifies REQ-NPPS-03
+    @Test
+    fun aUserWindowReplacesOneChannel_andResetRestoresTheDefault() {
+        val s = store()
+        assertEquals(rules, s.resolved.copy(name = rules.name))
+        assertTrue(widened808(s).isEmpty())
+        assertEquals(860.0, s.resolved.channels.first { it.element == NPPBMChannelElement.LED_808 }.maxNm)
+        // The other channels keep the default.
+        assertEquals(680.0, s.resolved.channels.first { it.element == NPPBMChannelElement.LED_660 }.maxNm)
+        assertEquals(setOf(NPPBMChannelElement.LED_808), s.editedChannels)
+        s.resetChannel(NPPBMChannelElement.LED_808)
+        assertNull(s.userRules)
+        assertEquals(840.0, s.resolved.channels.first { it.element == NPPBMChannelElement.LED_808 }.maxNm)
+    }
+
+    // @verifies REQ-NPPS-03
+    @Test
+    fun anInvalidWindowIsRefusedAndNeverSaved() {
+        val kv = life.neurone.core.common.InMemoryKeyValueStore()
+        val s = store(kv)
+        val errors = s.setChannel(NPWavelengthChannelRule(NPPBMChannelElement.LED_808, 808.0, 900.0, 800.0))
+        assertTrue(errors.isNotEmpty())
+        assertNull(s.userRules)
+        assertNull(kv.getString(NPWavelengthRulesStore.USER_KEY))
+    }
+
+    // @verifies REQ-NPPS-03
+    @Test
+    fun theOverridePersists_andAStoredOneThatNoLongerValidatesIsDropped() {
+        val kv = life.neurone.core.common.InMemoryKeyValueStore()
+        widened808(store(kv))
+        assertEquals(860.0, store(kv).resolved.channels.first { it.element == NPPBMChannelElement.LED_808 }.maxNm)
+
+        kv.putString(
+            NPWavelengthRulesStore.USER_KEY,
+            """{"name":"x","level":"user","channels":[{"element":"led_808","nominalNm":808,"minNm":900,"maxNm":800}]}""",
+        )
+        assertNull(store(kv).userRules, "an invalid stored window is discarded, not trusted")
+        kv.putString(NPWavelengthRulesStore.USER_KEY, "not json")
+        assertNull(store(kv).userRules)
+    }
+
+    // @verifies REQ-NPPS-03
+    @Test
+    fun theOverrideExportsAsAScript_andImportsBack() {
+        val s = store()
+        widened808(s)
+        val text = s.exportUserRules()
+        assertTrue(text.contains("wavelength_rules"), text)
+        val other = store()
+        other.importUserRules(text)
+        assertEquals(s.resolved.channels, other.resolved.channels)
+        assertFailsWith<IllegalArgumentException> { other.importUserRules("protocol \"x\" { duration: 1m }") }
+    }
+
+    // @verifies REQ-NPPS-03#b
+    @Test
+    fun theCompilerUsesTheRulesInForce() {
+        val s = store()
+        val protocol = (parse(SERIES.replace("start: 4m\n", "").replace("810nm", "850nm"))[0] as NPProtocolEntry.Single).protocol
+        val compiler = HubDescriptorCompiler({ SignatureResult(ByteArray(64), "00") }, wavelengthRules = { s.resolved })
+        assertFailsWith<IllegalArgumentException> { compiler.compile(protocol) }   // 850 nm: no default window takes it
+        widened808(s)
+        assertNotNull(compiler.compile(protocol))                                    // the user widened the 808 nm channel
+        s.resetChannel()
+        assertFailsWith<IllegalArgumentException> { compiler.compile(protocol) }
+    }
 }

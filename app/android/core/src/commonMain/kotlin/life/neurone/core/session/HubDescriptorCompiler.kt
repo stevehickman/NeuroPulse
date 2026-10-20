@@ -5,6 +5,8 @@ import life.neurone.core.npps.namedZoneRefs
 import life.neurone.core.npps.toNppsCoreJson
 import life.neurone.core.protocol.HubDescriptorWire
 import life.neurone.core.protocol.NPProtocolDefinition
+import life.neurone.core.protocol.NPWavelengthRules
+import life.neurone.core.protocol.toCoreJson
 import life.neurone.core.protocol.NPZoneRegistry
 import life.neurone.core.platform.epochSeconds
 import life.neurone.core.platform.secureRandomBytes
@@ -49,6 +51,8 @@ class HubDescriptorCompiler(
     private val signer: ProtocolSigner,
     private val clockSeconds: () -> Long = { epochSeconds() },
     private val randomBytes: (Int) -> ByteArray = { n -> secureRandomBytes(n) },
+    /** The wavelength rules in force (defaults with the user's windows), read at each compile; null keeps the core's shipped defaults. */
+    private val wavelengthRules: () -> NPWavelengthRules? = { null },
 ) {
     /**
      * @param deviceSerial the 32-byte replay guard the hub checks (§4.2). Omitted only for
@@ -94,6 +98,7 @@ class HubDescriptorCompiler(
                 nowUnix = clockSeconds(),
                 sessionUuid = uuid,
                 acknowledgedCautions = acknowledgedCautions,
+                wavelengthRules = wavelengthRules()?.let(::toCoreJson),
             ),
         )
         return Unsigned(blob, uuid, (blob[6].toInt() and HubDescriptorWire.FLAG_T2_TIER) != 0, blob[7].toInt() and 0xFF)

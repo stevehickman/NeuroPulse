@@ -61,6 +61,7 @@ fun SettingsScreen(
     var showOta by remember { mutableStateOf(false) }
     var showSetup by remember { mutableStateOf(setupRequired) }
     var showLimits by remember { mutableStateOf(false) }
+    var showWavelengthRules by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var showOwner by remember { mutableStateOf(false) }
     var showMigration by remember { mutableStateOf(false) }
@@ -101,6 +102,11 @@ fun SettingsScreen(
         showProfiles -> ProfilesScreen(
             store = app.limitsStore,
             onDone = { showProfiles = false },
+            modifier = modifier,
+        )
+        showWavelengthRules -> WavelengthRulesScreen(
+            store = app.wavelengthRulesStore,
+            onDone = { showWavelengthRules = false },
             modifier = modifier,
         )
         showLimits -> LimitsSettingsScreen(
@@ -148,6 +154,7 @@ fun SettingsScreen(
             onManageFirmware = { showOta = true },
             onDeviceSetup = { showSetup = true },
             onManageLimits = { showLimits = true },
+            onManageWavelengthRules = { showWavelengthRules = true },
             onManageProfiles = { showProfiles = true },
             onManageOwner = { showOwner = true },
             onManageMigration = { showMigration = true },
@@ -170,6 +177,7 @@ private fun SettingsContent(
     onManageFirmware: () -> Unit,
     onDeviceSetup: () -> Unit,
     onManageLimits: () -> Unit,
+    onManageWavelengthRules: () -> Unit,
     onManageProfiles: () -> Unit,
     onManageOwner: () -> Unit,
     onManageMigration: () -> Unit,
@@ -241,6 +249,14 @@ private fun SettingsContent(
         Text(stringResource(Res.string.and_ui_set_global_caps_on_stimulation_dose_and_inte), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onManageLimits) { Text(stringResource(Res.string.and_ui_edit_dosage_limits)) }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Which emitter channel may deliver a protocol's stated wavelength (NP-NPPS-REF-001 §7a).
+        Text(stringResource(Res.string.web_pane_wavelength_rules), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.web_wl_rules_note), style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onManageWavelengthRules) { Text(stringResource(Res.string.web_pane_wavelength_rules)) }
 
         Spacer(Modifier.height(24.dp))
 

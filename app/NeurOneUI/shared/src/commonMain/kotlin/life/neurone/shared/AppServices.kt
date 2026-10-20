@@ -30,6 +30,7 @@ import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.SessionState
 import life.neurone.core.protocol.NPLimitsStore
+import life.neurone.core.protocol.NPWavelengthRulesStore
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.session.SessionHistoryStore
@@ -141,7 +142,10 @@ class AppServices(
         }
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
-    val protocolUploader = ProtocolUploader(gattManager, platform.protocolSigner)
+    /** The user's PBM wavelength rules; the descriptor compiler reads the resolved set at each upload (NP-NPPS-REF-001 §7a). */
+    val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore)
+
+    val protocolUploader = ProtocolUploader(gattManager, { wavelengthRulesStore.resolved }, platform.protocolSigner)
 
     /** Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class). */
     val consumableTracker = ConsumableTracker(

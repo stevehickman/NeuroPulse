@@ -21,9 +21,11 @@ import life.neurone.core.models.UploadVerdict
 // class only sequences the GATT writes.
 class ProtocolUploader(
     private val gatt: NeurOneGattManager,
+    /** The wavelength rules in force, read at each upload; null keeps the shipped defaults. */
+    wavelengthRules: () -> life.neurone.core.protocol.NPWavelengthRules? = { null },
     signer: ProtocolSigner,
 ) {
-    private val compiler = HubDescriptorCompiler(signer)
+    private val compiler = HubDescriptorCompiler(signer, wavelengthRules = wavelengthRules)
 
     sealed interface Result {
         /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */
