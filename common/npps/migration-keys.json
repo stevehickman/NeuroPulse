@@ -29,7 +29,8 @@
     "np.analytics.distinct-id",
     "np.limits.helmets",
     "np.backup.auto-secret",
-    "np.backup.auto-failure"
+    "np.backup.auto-failure",
+    "np.presence.enabled"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

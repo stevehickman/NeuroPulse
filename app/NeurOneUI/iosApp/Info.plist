@@ -16,6 +16,8 @@
 	<string>APPL</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>NeurOne uses Bluetooth to communicate with your NeurOne hub in real time.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>NeurOne asks for Face ID to confirm it is you before it opens your health data, if you turn that on.</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
