@@ -1,6 +1,15 @@
 package life.neurone.shared.ui
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -150,37 +159,66 @@ private fun MainScaffold(services: AppServices) {
     var selected by remember { mutableStateOf(if (setupComplete) AppTab.SESSION else AppTab.SETTINGS) }
 
     val snackbar = remember { SnackbarHostState() }
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            NavigationBar {
-                AppTab.entries.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selected == tab,
-                        onClick = { if (tab != AppTab.SESSION || setupComplete) selected = tab },
-                        icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(stringResource(tab.label)) },
-                    )
+    // A wide window (a tablet, a desktop window) puts the destinations in a rail at the side and keeps the content to a readable width;
+    // a narrow one (a phone) keeps the bottom bar and the full width. The screens are the same either way.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= WIDE_LAYOUT_MIN_WIDTH
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                if (!wide) {
+                    NavigationBar {
+                        AppTab.entries.forEach { tab ->
+                            NavigationBarItem(
+                                selected = selected == tab,
+                                onClick = { if (tab != AppTab.SESSION || setupComplete) selected = tab },
+                                icon = { Icon(tab.icon, contentDescription = null) },
+                                label = { Text(stringResource(tab.label)) },
+                            )
+                        }
+                    }
                 }
-            }
-        },
-    ) { padding ->
-        val modifier = Modifier.padding(padding)
-        CompositionLocalProvider(LocalSnackbarHost provides snackbar) {
-            when (selected) {
-                AppTab.SESSION -> SessionTab(services, modifier)
-                AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
-                AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
-                AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
-                AppTab.SETTINGS -> SettingsScreen(
-                    services,
-                    modifier,
-                    setupRequired = !setupComplete,
-                    onSetupFinished = {
-                        setupComplete = flow.isFirstSetupComplete
-                    },
-                )
+            },
+        ) { padding ->
+            Row(Modifier.padding(padding).fillMaxSize()) {
+                if (wide) {
+                    NavigationRail {
+                        AppTab.entries.forEach { tab ->
+                            NavigationRailItem(
+                                selected = selected == tab,
+                                onClick = { if (tab != AppTab.SESSION || setupComplete) selected = tab },
+                                icon = { Icon(tab.icon, contentDescription = null) },
+                                label = { Text(stringResource(tab.label)) },
+                            )
+                        }
+                    }
+                }
+                Column(Modifier.fillMaxHeight().weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val modifier = Modifier.fillMaxWidth().widthIn(max = CONTENT_MAX_WIDTH)
+                    CompositionLocalProvider(LocalSnackbarHost provides snackbar) {
+                        when (selected) {
+                            AppTab.SESSION -> SessionTab(services, modifier)
+                            AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
+                            AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
+                            AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
+                            AppTab.SETTINGS -> SettingsScreen(
+                                services,
+                                modifier,
+                                setupRequired = !setupComplete,
+                                onSetupFinished = {
+                                    setupComplete = flow.isFirstSetupComplete
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
+
+/** From this width the destinations move to a side rail (the Material guidance for a medium window). */
+private val WIDE_LAYOUT_MIN_WIDTH = 600.dp
+
+/** The widest a screen's content is drawn; wider windows leave the rest empty rather than stretch lines of text across them. */
+private val CONTENT_MAX_WIDTH = 840.dp

@@ -23,12 +23,24 @@ targets:
         # The automatic backup asks iOS to wake the app now and then (BGProcessingTask, SWR-MG-03). The identifier is IosBackgroundBackup.kt's.
         BGTaskSchedulerPermittedIdentifiers: [life.neurone.ui.backup]
         UIBackgroundModes: [processing]
+        # HRV from HealthKit is read-only and only while an HRV biofeedback session runs (HealthKit.kt, ISC-94 to ISC-96). The text is the Swift app's.
+        NSHealthShareUsageDescription: NeurOne reads your heart rate variability during HRV biofeedback sessions to display live coherence guidance. This data is never stored or transmitted.
+        # iPhone stays portrait. iPad turns every way, which is also what lets it run beside another app (an app limited to some
+        # orientations must take the whole screen).
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # The analytics host (a bare host name) and the vendor's project token come from the build, not from source (REQ-SW03-20).
         # Set ANALYTICS_HOST and POSTHOG_PROJECT_TOKEN in a local .xcconfig or CI secret; unset or unexpanded means analytics is off.
         AnalyticsHost: $(ANALYTICS_HOST)
         PostHogProjectToken: $(POSTHOG_PROJECT_TOKEN)
+    # Reading HealthKit needs the capability; the app never writes to it. The App ID needs HealthKit enabled in the developer account.
+    entitlements:
+      path: NeurOneUI/NeurOneUI.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: "1,2"
         PRODUCT_BUNDLE_IDENTIFIER: life.neurone.ui
         SWIFT_VERSION: "5.10"
         # Where `embedAndSignAppleFrameworkForXcode` puts NeurOneShared.framework.

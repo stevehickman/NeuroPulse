@@ -1,6 +1,7 @@
 package life.neurone.shared
 
 import kotlinx.coroutines.CoroutineScope
+import life.neurone.shared.ui.showReminder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
@@ -183,6 +184,7 @@ class AppServices(
         keyValueStore,
         // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
         onReplaced = { gattManager.requestConsumableReset(it) },
+        onReminderNotification = { reminder -> platform.reminderNotifier?.let { notifier -> scope.launch { notifier.showReminder(reminder) } } },
     )
 
     val limitsStore = NPLimitsStore(keyValueStore).also { limits ->
