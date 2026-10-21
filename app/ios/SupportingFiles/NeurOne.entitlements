@@ -8,7 +8,7 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
-	<!-- HealthKit intentionally absent — NeurOne never writes to HealthKit.
+	<!-- HealthKit absent: NeurOne neither reads nor writes it (the HRV is the auricular clip's, read through the hub).
 	     EEG/HRV data stays on-device in the UHDR partition under user-held key. -->
 </dict>
 </plist>

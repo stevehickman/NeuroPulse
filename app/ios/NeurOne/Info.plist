@@ -9,10 +9,6 @@
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>NeurOne uses Bluetooth to communicate with your NeurOne hub.</string>
 
-    <!-- HealthKit read usage — HRV during HRV biofeedback sessions, on-device only. -->
-    <key>NSHealthShareUsageDescription</key>
-    <string>NeurOne reads your heart rate variability during HRV biofeedback sessions to display live coherence guidance. This data is never stored or transmitted.</string>
-
     <!-- Background task identifier for the nightly UHDR backup
          (UHDRBackupScheduler / BGTaskScheduler). -->
     <key>BGTaskSchedulerPermittedIdentifiers</key>

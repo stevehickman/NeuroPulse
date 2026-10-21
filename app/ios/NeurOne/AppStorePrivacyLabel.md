@@ -16,7 +16,7 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 |-----------|-----------|---------------------|--------------------|---------|
 | Device ID | Yes | Yes (warranty owner linkage — SHDR opaque token only) | No | App functionality |
 | Crash Data | Yes (post-consent only) | Yes | No | App functionality — crash diagnostics |
-| Health & Fitness — HRV | Yes | No | No | App functionality — real-time session display only, session-scoped |
+| Health & Fitness — HRV | **No — retired 2026-10-21** | — | — | The app no longer reads HealthKit. The clip's HRV reaches the app from the hub and stays on the device (see the section below) |
 | Email Address | Optional (research contact only, user-provided) | No | No | App functionality — optional research study invitations |
 | Product Interaction | Yes (post-consent only) | No | No | Analytics — anonymous in-app events (PostHog) |
 | Other Usage Data | Yes (post-consent only) | No | No | Analytics — anonymous device/OS/app version (PostHog) |
@@ -44,7 +44,10 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 - **Used for tracking:** No.
 - **Purposes:** App Functionality (diagnostics, stability).
 
-### Health & Fitness (HRV) — **Collected, not linked, on-device only**
+### Health & Fitness (HRV) — **RETIRED 2026-10-21: the HealthKit read is removed**
+
+> **Retired.** The app no longer asks for or reads any HealthKit data (`NSHealthShareUsageDescription` and the HealthKit entitlement are removed; NP-APP-ROADMAP-001 Rev 10, `REQ-HEALTH-01` retired). The text below describes what the label said while the read existed. The HRV the app shows is the auricular clip's, sent by the hub, processed in memory and never transmitted.
+
 - **App Store Connect category:** Health & Fitness → Health
 - **What:** Heart-rate-variability values read during HRV biofeedback sessions to
   drive the live coherence display and breathing pacer.
