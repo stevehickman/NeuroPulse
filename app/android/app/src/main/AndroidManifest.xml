@@ -34,6 +34,8 @@
 
     <!-- Consumable reminders (measurement-triggered local notifications). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The system prompt that establishes the person's presence before UHDR is readable (NP-APP-PRESENCE-001). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <uses-feature
         android:name="android.hardware.bluetooth_le"
