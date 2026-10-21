@@ -166,7 +166,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 10 | 2026-10-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 4 | 2026-10-18 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
-| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 6 | 2026-10-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
+| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 7 | 2026-10-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
 | NP-NPPS-REF-001 | NPPS Language Reference | 31 | 2026-10-13 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |

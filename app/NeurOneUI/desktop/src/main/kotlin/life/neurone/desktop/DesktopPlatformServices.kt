@@ -47,12 +47,25 @@ class DesktopPlatformServices(
 
     /**
      * The presence gate by a passphrase, on every desktop system until the native presence call exists (`NP-APP-PRESENCE-001` §6,
-     * increment 6, `OI-PRES-03`): macOS and Windows will use their own credential then, Linux has none to bind to. It is kept in the
+     * increment 6, `OI-PRES-03`): macOS and Windows keep it until a native presence call is wanted, Linux has none to bind to. It is kept in the
      * app's plain store because it is read before anyone is present. Dark: null until installs that already hold sealed UHDR can be
-     * moved to it (`REQ-PRES-07`). This host has no foreground signal yet, so the lock asks at start and not after a timeout.
+     * moved to it (`REQ-PRES-07`). The window's focus is its foreground signal ([setWindowFocused]), so the lock also asks after the background timeout.
      */
     override val gatedKeyStore: life.neurone.core.common.GatedSecretKeyStore? =
         if (OFFER_PRESENCE_GATE) life.neurone.core.common.PassphraseGatedSecretKeyStore(keyValueStore) else null
+
+    private val foreground = kotlinx.coroutines.flow.MutableStateFlow(true)
+
+    /** Whether the app's window is the one the person is working in, for the presence lock's background timeout (`REQ-PRES-03`). */
+    override val appInForeground: kotlinx.coroutines.flow.StateFlow<Boolean> get() = foreground
+
+    /**
+     * Called by the window with its focus: the app is "in the background" when its window is hidden in the tray, minimised or not the
+     * focused window. The passphrase prompt is inside the window, so asking for it never counts as leaving.
+     */
+    fun setWindowFocused(focused: Boolean) {
+        foreground.value = focused
+    }
 
     /** The credential store can be missing on a run (a tool blocked, a keychain locked), and the data is then on disk unsealed. */
     override val reportsUnsealedStorage: Boolean get() = true
