@@ -8,6 +8,8 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributeView
+import java.nio.file.attribute.FileTime
 
 // A folder on disk as the app's two storage roles (SWR-MG-06, SWR-MG-10, issue #569 package 6k): [DirectoryObjectStore] is the
 // route for a local computer, a USB drive or a shared folder, and [DirectoryFileStore] is the app's own files for the old
@@ -41,6 +43,7 @@ class DirectoryObjectStore(private val root: Path) : ObjectStore {
         val temp = Files.createTempFile(root, TEMP_PREFIX, "")
         try {
             Files.write(temp, bytes)
+            withoutTimes(temp)
             Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } finally {
             Files.deleteIfExists(temp)
@@ -52,6 +55,7 @@ class DirectoryObjectStore(private val root: Path) : ObjectStore {
         val temp = Files.createTempFile(root, TEMP_PREFIX, "")
         try {
             Files.write(temp, bytes)
+            withoutTimes(temp)
             return try {
                 Files.createLink(target, temp)
                 true
@@ -76,6 +80,20 @@ class DirectoryObjectStore(private val root: Path) : ObjectStore {
 
     companion object {
         const val TEMP_PREFIX = ".tmp-"
+
+        /**
+         * Set the file's creation, modification and access times to the epoch, so the folder does not show when each backup ran
+         * (`REQ-UHDRBK-01` d; session times are UHDR, CLAUDE.md §5.1). Set before the file is moved or linked into place, so it never
+         * has its real time under its final name. A file system that cannot set them leaves the file as written.
+         */
+        private fun withoutTimes(file: Path) {
+            val epoch = FileTime.fromMillis(0)
+            try {
+                Files.getFileAttributeView(file, BasicFileAttributeView::class.java).setTimes(epoch, epoch, epoch)
+            } catch (ignored: java.io.IOException) {
+            } catch (ignored: UnsupportedOperationException) {
+            }
+        }
 
         /** A name is one path segment of ASCII letters, digits, dot, dash and underscore, and does not start with a dot. */
         fun isSafeName(name: String): Boolean =

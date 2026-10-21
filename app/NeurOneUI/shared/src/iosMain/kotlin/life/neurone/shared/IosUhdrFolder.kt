@@ -16,8 +16,7 @@ import platform.Foundation.NSURLIsExcludedFromBackupKey
  * the background while the phone is locked. A class that could not be set is not an error: the download still succeeds.
  */
 @OptIn(ExperimentalForeignApi::class)
-class IosUhdrFolder(private val root: String) : UhdrFolder {
-    private val files = NSFileManager.defaultManager
+class IosUhdrFolder(private val root: String, private val files: NSFileManager = NSFileManager.defaultManager) : UhdrFolder {
 
     override val store: ObjectStore by lazy { IosFolderObjectStore(root) }
 
@@ -27,10 +26,17 @@ class IosUhdrFolder(private val root: String) : UhdrFolder {
         (files.contentsOfDirectoryAtPath(root, error = null) ?: emptyList<Any?>()).forEach { name -> apply("$root/$name") }
     }
 
-    override fun protect(name: String) = apply("$root/$name")
+    override fun protect(name: String) { apply("$root/$name") }
 
-    private fun apply(path: String) {
-        files.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), ofItemAtPath = path, error = null)
+    /** True when the class was set; a refusal is returned, never thrown, so the rest of the folder still gets its class (`REQ-UHDRFP-01` c). */
+    private fun apply(path: String): Boolean {
+        val set = files.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to PROTECTION_CLASS), ofItemAtPath = path, error = null)
         NSURL.fileURLWithPath(path).setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null)
+        return set
+    }
+
+    internal companion object {
+        /** Not `complete`: the automatic backup reads these files in the background while the phone is locked (`REQ-UHDRFP-01` b). */
+        val PROTECTION_CLASS: String? = NSFileProtectionCompleteUntilFirstUserAuthentication
     }
 }

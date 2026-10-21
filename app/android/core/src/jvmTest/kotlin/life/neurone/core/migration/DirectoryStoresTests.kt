@@ -45,6 +45,19 @@ class DirectoryStoresTests {
         assertEquals(listOf("claim.json"), store.list(""), "no temporary file is left")
     }
 
+    // @verifies REQ-SW03-29#f
+    @Test
+    fun everyFileTheStoreWritesHasTheEpochAsItsModificationTime() = runTest {
+        val dir = temp()
+        val store = DirectoryObjectStore(dir)
+        store.put("a.bin", byteArrayOf(1))
+        store.put("a.bin", byteArrayOf(2))
+        store.createIfAbsent("b.bin", byteArrayOf(3))
+        listOf("a.bin", "b.bin").forEach {
+            assertEquals(0L, Files.getLastModifiedTime(dir.resolve(it)).toMillis(), "$it shows when the backup ran")
+        }
+    }
+
     // @verifies SWR-MG-11
     @Test
     fun anObjectIsWrittenReplacedReadListedAndDeletedAndANameCannotLeaveTheFolder() = runTest {

@@ -6,9 +6,13 @@ import kotlinx.cinterop.convert
 import kotlinx.cinterop.usePinned
 import life.neurone.core.migration.ObjectStore
 import platform.Foundation.NSData
+import platform.Foundation.NSDate
+import platform.Foundation.NSFileCreationDate
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileModificationDate
 import platform.Foundation.NSUUID
 import platform.Foundation.create
+import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.length
 import platform.posix.EEXIST
@@ -39,7 +43,11 @@ class IosFolderObjectStore(private val root: String) : ObjectStore {
 
     private fun writeTemp(bytes: ByteArray): String {
         val temp = "$root/$TEMP_PREFIX${NSUUID().UUIDString}"
-        check(files.createFileAtPath(temp, contents = bytes.toNSData(), attributes = null)) { "could not write $temp" }
+        // The epoch, so the folder does not show when each backup ran (REQ-UHDRBK-01 d). Set on the temporary file, which is renamed or
+        // linked into place, so the file never has its real time under its final name. A time the file system refuses stays as written.
+        val epoch = NSDate.dateWithTimeIntervalSince1970(0.0)
+        check(files.createFileAtPath(temp, contents = bytes.toNSData(), attributes = mapOf<Any?, Any?>(NSFileCreationDate to epoch, NSFileModificationDate to epoch))) { "could not write $temp" }
+        files.setAttributes(mapOf<Any?, Any?>(NSFileCreationDate to epoch, NSFileModificationDate to epoch), ofItemAtPath = temp, error = null)
         return temp
     }
 
