@@ -29,6 +29,7 @@ import platform.Foundation.NSData
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSURLRequest
 import platform.Foundation.NSURLRequestReloadIgnoringLocalCacheData
 import platform.Foundation.NSURLSession
@@ -162,7 +163,11 @@ private fun spkiHeader(raw: ByteArray): ByteArray? = when {
 /** The SHDR record the hub leaves for the app: a file in the app's Documents folder (the same convention the Swift app reads). */
 @OptIn(ExperimentalForeignApi::class)
 class IosShdrStaging(private val path: String) : life.neurone.core.analytics.ShdrStaging {
-    override fun read(): ByteArray? = NSData.dataWithContentsOfFile(path)?.toByteArray()
+    override fun read(): ByteArray? {
+        // Transient device telemetry, not user data that needs to survive a restore: kept out of iCloud and device backups, as the Swift app did.
+        NSURL.fileURLWithPath(path).setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null)
+        return NSData.dataWithContentsOfFile(path)?.toByteArray()
+    }
 
     override fun clear() {
         platform.Foundation.NSFileManager.defaultManager.removeItemAtPath(path, error = null)

@@ -276,10 +276,11 @@ class AppServices(
         scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, uploader) } }
         val staging = platform.shdrStaging ?: return
         scope.launch {
-            gattManager.shdrUploadPending.collect { pending ->
+            // One attempt per notification of 0x01 (a repeat is a retry the hub asked for); attempts never overlap, as this collects in turn.
+            gattManager.shdrUploadSignal.collect {
                 val gateOpen = warrantyAnalyticsGate.isOpen
-                val payload = if (pending && gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
-                FleetUploadWiring.applyUploadPending(pending, gateOpen, payload, uploader) { if (it) staging.clear() }
+                val payload = if (gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
+                FleetUploadWiring.applyUploadPending(true, gateOpen, payload, uploader) { if (it) staging.clear() }
             }
         }
     }
