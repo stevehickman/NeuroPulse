@@ -1,5 +1,6 @@
 package life.neurone.shared.migration
 
+import life.neurone.core.platform.epochSeconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -181,9 +182,11 @@ class MigrationBackupModel(
             runBackup(place, keys, items, preview.kind, method, secret, random, waveforms).also { done ->
                 // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
                 // (the automatic backup, `ScheduledBackup`), and is destroyed here either way.
-                if (done is BackupStep.Done && preview.kind == BackupKind.UHDR && scheduled != null) {
-                    scheduled.noteMade()
-                    if (keepAutomatic) scheduled.turnOn(method, secret)
+                if (done is BackupStep.Done && preview.kind == BackupKind.UHDR) {
+                    // Every health-data backup is recorded, whatever the place (a file the person saves included): the presence gate is not
+                    // turned on until one exists (`REQ-PRES-08`), and only the automatic place used to leave a mark.
+                    if (scheduled != null) scheduled.noteMade() else keys.putString(ScheduledBackup.LAST_KEY, epochSeconds().toString())
+                    if (scheduled != null && keepAutomatic) scheduled.turnOn(method, secret)
                 }
             }
         } finally {

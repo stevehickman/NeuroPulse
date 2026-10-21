@@ -3,6 +3,9 @@ package life.neurone.shared
 import androidx.compose.runtime.Composable
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.common.KeyValueStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import life.neurone.core.common.GatedSecretKeyStore
 import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.FileStore
 import life.neurone.core.migration.LinkTransport
@@ -109,6 +112,20 @@ interface PlatformServices {
     val secretKeyStore: SecretKeyStore? get() = null
 
     /**
+     * The key that protects UHDR once the person's presence is established (`NP-APP-PRESENCE-001`), or null where the host has none to
+     * offer. **Null until a host's binding and its migration of sealed installs are built** (`REQ-PRES-07`), so no host supplies one
+     * yet and the gate does not appear. It is used only while [GatedSecretKeyStore.isEnabled]; [secretKeyStore] still holds the device tier.
+     */
+    val gatedKeyStore: GatedSecretKeyStore? get() = null
+
+    /**
+     * Whether the app is in the foreground, as the host knows it (an activity resumed, a scene active, a window focused). The shared
+     * code has no lifecycle library, so the presence lock's background timeout (`REQ-PRES-03`) reads this. A host with no notion of
+     * background leaves the default, and the lock then only asks at cold start.
+     */
+    val appInForeground: StateFlow<Boolean> get() = ALWAYS_FOREGROUND
+
+    /**
      * Whether the person is told when the app holds this host's data unsealed (no usable keystore). True for a host that keeps
      * the data on disk and can lose its keystore between runs (the desktop apps); the browser keeps nothing of the protected
      * keys at rest, so a notice that the data is not sealed would say nothing true about it. A host whose keystore is always
@@ -182,3 +199,6 @@ class NoOpAnalyticsBackend : AnalyticsBackend {
     override fun reset() {}
     override fun track(event: String, properties: Map<String, String>) {}
 }
+
+/** What a host with no foreground signal reports. */
+internal val ALWAYS_FOREGROUND: StateFlow<Boolean> = MutableStateFlow(true)
