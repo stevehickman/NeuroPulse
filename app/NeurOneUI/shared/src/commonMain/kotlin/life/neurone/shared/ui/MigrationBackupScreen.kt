@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -258,7 +259,7 @@ internal fun words(group: MessageGroup, code: String): String {
 
 /** Whether the automatic backup is on and when it last ran, with the way to turn it off. Draws nothing when it is off. */
 @Composable
-private fun AutomaticBackupStatus(app: AppServices) {
+internal fun AutomaticBackupStatus(app: AppServices) {
     val scheduled = app.scheduledBackup
     var on by remember { mutableStateOf(scheduled.isOn) }
     if (!on) return
@@ -271,5 +272,21 @@ private fun AutomaticBackupStatus(app: AppServices) {
     scheduled.lastFailure?.let { reason ->
         Text(stringResource(Res.string.migration_backup_auto_failed, words(MessageGroup.REASONS, reason)), style = MaterialTheme.typography.bodySmall)
     }
+    app.platform.loginItem?.let { LoginItemRow(it) }
     TextButton(onClick = { scheduled.turnOff(); on = false }) { Text(stringResource(Res.string.migration_backup_auto_off_button)) }
+}
+
+/**
+ * The choice to start the app when the person signs in (the desktop apps), offered only while the automatic backup is on. It is off until
+ * they turn it on, and a system that refuses says so.
+ */
+@Composable
+internal fun LoginItemRow(item: life.neurone.shared.LoginItem) {
+    var on by remember { mutableStateOf(item.isOn) }
+    var refused by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Switch(checked = on, onCheckedChange = { want -> refused = !item.set(want); on = item.isOn })
+        Text(stringResource(Res.string.login_item_option), style = MaterialTheme.typography.bodySmall)
+    }
+    if (refused) Text(stringResource(Res.string.login_item_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
 }

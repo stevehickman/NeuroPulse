@@ -55,6 +55,9 @@ class DesktopPlatformServices(
      */
     override val folderPlaces: DesktopFolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
 
+    /** Starting at sign-in, for an installed copy; null in a development run, which has no launcher to start. */
+    override val loginItem: life.neurone.shared.LoginItem? by lazy { DesktopLoginItem.forThisSystem() }
+
     /** Mode 4: the hub's EDF+ recordings, in the data folder so the clear overwrites them with the rest. */
     override val uhdrFolder: life.neurone.shared.session.UhdrFolder by lazy { DesktopUhdrFolder(desktopDataDirectory.resolve("UHDR")) }
 
