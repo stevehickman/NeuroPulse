@@ -9,13 +9,16 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.isTraySupported
 import life.neurone.shared.AppServices
+import life.neurone.shared.LoginItemFiles
 import life.neurone.shared.createAppScope
 import life.neurone.shared.ui.NeurOneApp
 import life.neurone.shared.ui.trayText
 
-fun main() = application {
+fun main(args: Array<String>) = application {
     val services = remember { AppServices(DesktopPlatformServices(), createAppScope()) }
-    var windowShown by remember { mutableStateOf(true) }
+    // Started at sign-in (LoginItemFiles.BACKGROUND_ARGUMENT), the app stays out of sight in the tray; without a tray there would be no
+    // way back to the window, so then it opens as usual.
+    var windowShown by remember { mutableStateOf(!LoginItemFiles.startsInTray(args.toList(), isTraySupported)) }
     // Closing the window ends the app, except while the automatic backup is on: the app then stays in the tray so the backup keeps
     // being made (SWR-MG-03). The tray has the one way back and the one way out.
     Window(

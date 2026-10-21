@@ -130,7 +130,7 @@ class AppServices(
      * and hourly while the app stays open, whenever the last is over 20 hours old. Only the host's folder place can run unattended.
      */
     val scheduledBackup =
-        life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems, onChange = { syncBackgroundSchedule() })
+        life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems, onChange = { syncBackgroundSchedule(); syncLoginItem() })
 
     /**
      * Keep the system's wake-up request in step with the automatic backup: asked for while it is on and there is a folder, withdrawn
@@ -142,6 +142,15 @@ class AppServices(
         val interval = life.neurone.shared.migration.ScheduledBackup.INTERVAL_SECONDS
         if (storageProtection == StorageProtection.LOCKED || (scheduledBackup.isOn && backupPlace.value != null)) scheduler.request(interval)
         else scheduler.cancel()
+    }
+
+    /**
+     * Starting at sign-in exists for the automatic backup, so it ends with it: while the backup is off the app is not set to start by
+     * itself (`REQ-SW03-28`). A run that could not open the saved data knows nothing about whether the backup is on, and leaves it alone.
+     */
+    fun syncLoginItem() {
+        val item = platform.loginItem ?: return
+        if (storageProtection != StorageProtection.LOCKED && !scheduledBackup.isOn && item.isOn) item.set(false)
     }
 
     /**
@@ -220,6 +229,7 @@ class AppServices(
     val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
 
     init {
+        syncLoginItem()
         scope.launch { gattManager.session.collect { sessionRecorder.observe(it) { id -> runCatching { getString(Res.string.session_protocol_label, id) }.getOrDefault("") } } }
         syncBackgroundSchedule()
         EngagementTier.incrementLaunchCount(keyValueStore)

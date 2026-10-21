@@ -87,6 +87,9 @@ interface PlatformServices {
      */
     val uhdrFolder: life.neurone.shared.session.UhdrFolder? get() = null
 
+    /** Starting the app at sign-in, or null where the host cannot (a phone, the browser, a desktop copy that is not installed). */
+    val loginItem: LoginItem? get() = null
+
     /** The host's local notifications for the consumable reminders, or null where the host shows none. */
     val reminderNotifier: ReminderNotifier? get() = null
 
