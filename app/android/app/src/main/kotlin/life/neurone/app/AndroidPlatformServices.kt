@@ -40,6 +40,8 @@ class AndroidPlatformServices(
     override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler? = null,
     /** Where the hub's EDF+ recordings are kept (Mode 4); see [AndroidUhdrFolder]. */
     override val uhdrFolder: life.neurone.shared.session.UhdrFolder? = null,
+    /** The consumable reminders as notifications; see [AndroidReminderNotifier]. */
+    override val reminderNotifier: life.neurone.shared.ReminderNotifier? = null,
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */

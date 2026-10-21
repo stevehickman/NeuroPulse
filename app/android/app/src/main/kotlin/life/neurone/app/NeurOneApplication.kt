@@ -91,6 +91,7 @@ class NeurOneApplication : Application() {
                 folderPlaces = AndroidFolderPlaces(this),
                 backgroundBackup = AndroidBackgroundBackupScheduler(this),
                 uhdrFolder = AndroidUhdrFolder(File(filesDir, "UHDR")),
+                reminderNotifier = AndroidReminderNotifier(this),
             ),
             scope = bleScope,
         )

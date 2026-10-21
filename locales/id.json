@@ -735,6 +735,7 @@
   "MODEDIT_T1_MODALITIES": "T1 Modalities",
   "MODEDIT_T2_MODALITIES_REQUIRES_T2_HARDWARE": "T2 Modalities (Requires T2 hardware)",
   "NOTIFY_ACTION_REQUIRED": "Action required — tap to view",
+  "NOTIFY_CHANNEL_REMINDERS": "Consumable reminders",
   "OTA_ABORT": "Abort",
   "OTA_ERROR_CODE_0": "Error code {0}",
   "OTA_FINGERPRINT_LABEL": "Security fingerprint (Ed25519):",
