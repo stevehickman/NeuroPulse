@@ -23,6 +23,8 @@ import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PassphraseKey
+import life.neurone.core.common.PassphraseResult
 import life.neurone.core.common.PresenceEnablement
 import life.neurone.core.common.PresenceLock
 import life.neurone.core.common.ProtectedStorage
@@ -107,6 +109,9 @@ class AppServices(
 
         /** The host could not (the person declined the prompt, or the move of the sealed data failed); nothing changed. */
         REFUSED,
+
+        /** A passphrase was chosen and it is shorter than the core's minimum; nothing changed. */
+        PASSPHRASE_TOO_SHORT,
     }
 
     /** Whether this host offers the gate, and whether the person has it on. */
@@ -116,10 +121,25 @@ class AppServices(
     /** A backup the person completed, under a code or passphrase they hold, exists: the backup screens record the time of each (`ScheduledBackup.LAST_KEY`). */
     fun hasRecoverableBackup(): Boolean = keyValueStore.getString(life.neurone.shared.migration.ScheduledBackup.LAST_KEY) != null
 
-    /** Turn the gate on ([on]) or off. Turning on is refused until a backup exists. */
-    suspend fun setPresenceGate(on: Boolean): PresenceChange {
+    /** The host's key when its presence is a passphrase the person sets (a host with no device credential, `REQ-PRES-06`), else null. */
+    val presencePassphraseKey: PassphraseKey? get() = platform.gatedKeyStore as? PassphraseKey
+
+    /**
+     * Turn the gate on ([on]) or off. Turning on is refused until a backup exists. A passphrase host needs [passphrase] to turn on: it
+     * is what the data key is wrapped under, so there is no gate without one.
+     */
+    suspend fun setPresenceGate(on: Boolean, passphrase: String? = null): PresenceChange {
         val gated = platform.gatedKeyStore ?: return PresenceChange.REFUSED
         if (on && PresenceEnablement.decide(hasRecoverableBackup()) is PresenceEnablement.Decision.BackupRequired) return PresenceChange.BACKUP_REQUIRED
+        val byPassphrase = gated as? PassphraseKey
+        if (on && byPassphrase != null) {
+            if (passphrase == null) return PresenceChange.REFUSED
+            return when (runCatching { byPassphrase.setPassphrase(passphrase) }.getOrDefault(PassphraseResult.FAILED)) {
+                PassphraseResult.OK -> PresenceChange.CHANGED
+                PassphraseResult.TOO_SHORT -> PresenceChange.PASSPHRASE_TOO_SHORT
+                else -> PresenceChange.REFUSED
+            }
+        }
         val done = runCatching { if (on) gated.enable() else gated.disable() }.getOrDefault(false)
         return if (done) PresenceChange.CHANGED else PresenceChange.REFUSED
     }
