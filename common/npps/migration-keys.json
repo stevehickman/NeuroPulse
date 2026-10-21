@@ -40,5 +40,6 @@
     "np.onboarding.bipa-shown",
     "np.onboarding.consent-shown",
     "np.setup.first-complete"
-  ]
+  ],
+  "deviceTier": ["np.shdr.device-token", "np.warranty.consent-granted", "ble.last-hub-id"]
 }

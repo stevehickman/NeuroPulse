@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 71 (current)  
+**Revision:** 72 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -43,6 +43,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Any BOM / COGS / GM% / price figure** | `docs/np_cost_001.md` |
 | **Whether a PBM protocol fits the power envelope; any `.npps` or zone edit** | `docs/np_ses_pwr_001.md` |
 | **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
+| **UHDR presence gate** (who may read UHDR on a phone, a computer or a browser, and what runs locked) | `docs/np_app_presence_001.md` |
 | **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |
 | PBM optical resolution floor ("targets region X" claims) | `docs/np_opt_psf_001.md` |
 | **Any shielding claim, or adding to / removing from the §4.3 stack** | `docs/np_bib_emf_001.md` |
@@ -280,6 +281,7 @@ file.
 - Researcher access: anonymized aggregate only, separate IRB + explicit research consent
 - Defining test: does this record tell us something about the **person**? If yes → UHDR
 - Storage: on-device eMMC UHDR partition, AES-256 with a user biometric-derived key (NeurOne does not hold it); nightly incremental backup to USB-C local or E2E-encrypted cloud (user-held key)
+- Presence (ruled 2026-10-21): **on every platform the app holds UHDR on, reading it requires the person's presence** (the device credential binds the data key; a passphrase on a host with none, and the host says so). Only the device tier of `docs/np_app_presence_001.md` §4 is readable locked. **Not yet built** (`OI-PRES-01` to `OI-PRES-05`); until it is, the apps seal UHDR under a key the device releases without the person.
 
 **SHDR — System Health Data Record**
 - Owner: NeurOne

@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 72 (2026-10-21) — §5.1 records that UHDR requires the person's presence on every platform. A decision about the apps; no limit or interlock changed.**
+
+**What changed.** One bullet in §5.1 and one Document Map row. The principal ruled that reading UHDR on a phone, a computer or a browser requires the person's presence: the data key is bound to the device credential, asked at cold start and after a background timeout, with a passphrase on a host that has no credential, and only a short device tier readable while locked. The architecture, the requirements (`REQ-PRES-01` to `-07`) and the increments are in `docs/np_app_presence_001.md`.
+
+**Why.** The audit of the SwiftUI app against the shared app found that no platform asks for presence: the data key is released by the device, and the SwiftUI app's biometric-derived key is never called. The principal asked that all platforms behave the same. **Nothing is built by this revision;** the bullet says so, so it does not read as a claim that the gate exists.
+
 **Rev 71 (2026-10-21) — the Apple Watch app is retired, so §20 no longer lists watchOS among the apps. A scope correction; no design decision, limit or interlock changed.**
 
 **What changed.** §20's list of apps that share files reads "iOS, Android, Windows, web". `app/watchos/` is deleted, and `scripts/check-shared-placement.ts` no longer names it as an app directory.

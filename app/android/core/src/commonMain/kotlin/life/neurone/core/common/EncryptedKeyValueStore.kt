@@ -61,6 +61,8 @@ class EncryptedKeyValueStore(
     private val secrets: SecretKeyStore,
     private val protectedKeys: Set<String>,
     private val random: RandomSource = SystemRandomSource,
+    /** Stores whose keys are destroyed with this one: the other tier of a presence-gated pair, so a clear leaves neither key (`SWR-MG-06`). */
+    private val siblings: List<EncryptedKeyValueStore> = emptyList(),
 ) : KeyValueStore {
     private var cached: ByteArray? = null
 
@@ -153,11 +155,18 @@ class EncryptedKeyValueStore(
         }
     }
 
+    /** Drop the key held in memory, so a store over a gated key cannot read again until it is unlocked (`REQ-PRES-01`). The key in the keystore is untouched. */
+    fun forgetKey() {
+        cached?.fill(0)
+        cached = null
+    }
+
     /**
      * Destroy the data key (SWR-MG-06). What was sealed under it cannot be opened again, here or anywhere. A value written
      * afterwards is sealed under a new key, so the app can go on being used as a new install.
      */
     fun destroyKey() {
+        siblings.forEach { it.destroyKey() }
         secrets.destroy()
         cached?.fill(0)
         cached = null
@@ -185,5 +194,12 @@ class EncryptedKeyValueStore(
          */
         fun uhdrKeys(): Set<String> =
             NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+
+        /**
+         * The keys that stay readable while the app is locked (`REQ-PRES-05`, `NP-APP-PRESENCE-001` §4): the fleet device token, the warranty
+         * consent flag and the last-paired helmet. The principal accepted this list on 2026-10-21. Every other sealed key is UHDR.
+         */
+        fun deviceTierKeys(): Set<String> =
+            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["deviceTier"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
     }
 }
