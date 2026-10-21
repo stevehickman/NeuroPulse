@@ -61,7 +61,8 @@ interface PlatformServices {
 
     /**
      * An [HttpTransport][life.neurone.core.net.HttpTransport] that refuses any connection to [relayHost] whose leaf public key
-     * (SPKI SHA-256, `sha256/<base64>`) is not among [pins], for the SHDR fleet upload (`REQ-SHDR-04`, `REQ-SHDR-07`). Null where a
+     * (SPKI SHA-256, `sha256/<base64>`) is not among [pins], for the SHDR fleet upload (`REQ-SHDR-04`, `REQ-SHDR-07`) and, with the
+     * firmware host's name and pins, for the firmware update (`DI-PERF-21`). Null where a
      * host cannot pin (the browser) or has no fleet upload; the uploader is then not built.
      */
     fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport? = null

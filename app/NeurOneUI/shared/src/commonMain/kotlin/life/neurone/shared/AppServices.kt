@@ -173,6 +173,18 @@ class AppServices(
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
 
     /**
+     * Firmware updates (`DI-PERF-21`): the manifest and image come from the firmware host through a transport pinned to its
+     * certificate, and go to the hub over [gattManager]. A host that cannot pin (the browser) has no source, and the screen then
+     * says updates are unavailable; the hub verifies every image's signature whatever the source.
+     */
+    val otaManager = life.neurone.shared.ota.OtaManager(
+        gattManager,
+        platform.fleetTransport(life.neurone.core.ota.FirmwareConfig.HOST, life.neurone.core.ota.FirmwareConfig.PINNED_SPKI_HASHES)
+            ?.let { life.neurone.core.ota.FirmwareUpdateService(it) },
+        scope,
+    )
+
+    /**
      * Mode 4: fetching a finished session's EDF+ recording from the hub into the UHDR folder; null where the host has no such folder
      * (the browser). One at a time for the whole app.
      */

@@ -1,7 +1,16 @@
 package life.neurone.core.net
 
-/** One HTTPS POST: the full URL, its headers and its body. */
-class HttpRequest(val url: String, val headers: Map<String, String>, val body: ByteArray)
+/**
+ * One HTTPS request: the full URL, its headers and its body. [method] is `POST` unless the caller needs a `GET` (the firmware
+ * manifest and image, which carry no body); [timeoutSeconds] is how long the whole call may take, longer for an image than for a POST.
+ */
+class HttpRequest(
+    val url: String,
+    val headers: Map<String, String>,
+    val body: ByteArray,
+    val method: String = "POST",
+    val timeoutSeconds: Int = 30,
+)
 
 /** What came back: the status, the headers (names as the platform gave them) and the body. */
 class HttpResponse(val status: Int, val headers: Map<String, String>, val body: ByteArray) {
@@ -10,7 +19,7 @@ class HttpResponse(val status: Int, val headers: Map<String, String>, val body: 
 }
 
 /**
- * The one network call the app's common code makes: an HTTPS POST that is answered or is not. Every host supplies its own
+ * The one network call the app's common code makes: an HTTPS request (a POST, or the GET of [HttpRequest.method]) that is answered or is not. Every host supplies its own
  * (OkHttp, the JDK's client, NSURLSession, `fetch`), because each is an operating-system API; what is sent and what is done
  * with the answer are common code.
  *

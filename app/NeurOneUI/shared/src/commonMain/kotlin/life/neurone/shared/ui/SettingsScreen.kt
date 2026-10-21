@@ -75,7 +75,7 @@ fun SettingsScreen(
     }
     val hubIdentifier by app.gattManager.hubIdentifier.collectAsState()
     val firmwareVersion by app.gattManager.hubFirmwareVersion.collectAsState()
-    val otaStatus by app.gattManager.otaStatus.collectAsState()
+    val connectionState by app.gattManager.connectionState.collectAsState()
 
     when {
         showLinkSend -> MigrationLinkSendScreen(app = app, onDone = { showLinkSend = false }, modifier = modifier)
@@ -130,8 +130,9 @@ fun SettingsScreen(
             modifier = modifier,
         )
         showOta -> OtaScreen(
+            ota = app.otaManager,
             firmwareVersion = firmwareVersion,
-            status = otaStatus,
+            connection = connectionState,
             onBack = { showOta = false },
             modifier = modifier,
         )
