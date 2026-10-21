@@ -90,6 +90,7 @@ class NeurOneApplication : Application() {
                 shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
                 folderPlaces = AndroidFolderPlaces(this),
                 backgroundBackup = AndroidBackgroundBackupScheduler(this),
+                uhdrFolder = AndroidUhdrFolder(File(filesDir, "UHDR")),
             ),
             scope = bleScope,
         )

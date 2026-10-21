@@ -55,6 +55,9 @@ class DesktopPlatformServices(
      */
     override val folderPlaces: DesktopFolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
 
+    /** Mode 4: the hub's EDF+ recordings, in the data folder so the clear overwrites them with the rest. */
+    override val uhdrFolder: life.neurone.shared.session.UhdrFolder by lazy { DesktopUhdrFolder(desktopDataDirectory.resolve("UHDR")) }
+
     /**
      * SWR-MG-06: every file in the app's data folder (the key-value store's file and its temporary copy, and anything else the app
      * wrote there) except the chosen backup folder when it is inside it, which the clear runs against. Read each time, because the

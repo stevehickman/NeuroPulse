@@ -38,6 +38,8 @@ class AndroidPlatformServices(
     override val folderPlaces: AndroidFolderPlaces? = null,
     /** The system job that wakes the app for the automatic backup (SWR-MG-03); see [AndroidBackgroundBackupScheduler]. */
     override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler? = null,
+    /** Where the hub's EDF+ recordings are kept (Mode 4); see [AndroidUhdrFolder]. */
+    override val uhdrFolder: life.neurone.shared.session.UhdrFolder? = null,
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */

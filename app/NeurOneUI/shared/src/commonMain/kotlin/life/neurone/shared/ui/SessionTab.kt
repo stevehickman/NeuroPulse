@@ -21,6 +21,7 @@ import life.neurone.core.models.SessionStatus
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
 import life.neurone.shared.session.ProtocolUploader
+import life.neurone.shared.session.shouldShowSessionDownload
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -52,6 +53,10 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
 
     // The phone's health store, read only while HRV biofeedback is running (ISC-94).
     val health = services.platform.healthSignals
+    val edf = services.edfDownload
+    val fileTransfer = services.platform.rememberFileTransfer()
+    // A new session clears the last download's outcome.
+    LaunchedEffect(session.status == SessionStatus.RUNNING) { if (session.status == SessionStatus.RUNNING) edf?.reset() }
     HealthSignalsEffect(health, hrvBiofeedbackActive(session))
     val healthHrv = health?.hrvSdnnMilliseconds?.collectAsState()?.value
     // canForgetHub reads storage, so re-read it after a forget.
@@ -153,7 +158,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onSelect = { entry -> uploadAndReport(entry) },
             onBack = { showMenu = false },
             helmetHardwareVersion = hardwareVersion,
-            fileTransfer = services.platform.rememberFileTransfer(),
+            fileTransfer = fileTransfer,
             modifier = modifier,
         )
     } else {
@@ -163,6 +168,9 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); hubForgotten++ }) else null,
             session = session,
             healthHrvMilliseconds = healthHrv,
+            finishedContent = if (edf != null && shouldShowSessionDownload(session.status, session.epoch)) {
+                { EdfDownloadSection(edf, session.epoch, fileTransfer) }
+            } else null,
             onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },
             onStop = { gatt.requestSessionStop() },

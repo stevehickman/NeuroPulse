@@ -38,12 +38,18 @@ import life.neurone.shared.resources.*
 // live in UHDR), so the history-opened card shows its empty state — parity with iOS.
 
 @Composable
-fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
+fun HistoryScreen(
+    store: SessionHistoryStore,
+    modifier: Modifier = Modifier,
+    /** Mode 4: the recording download, or null where the host keeps none. */
+    edfDownload: life.neurone.shared.session.EdfDownloadModel? = null,
+    fileTransfer: life.neurone.shared.migration.FileTransfer? = null,
+) {
     var selected by remember { mutableStateOf<SessionRecord?>(null) }
 
     val record = selected
     if (record != null) {
-        SessionDetail(record = record, onBack = { selected = null }, modifier = modifier)
+        SessionDetail(record = record, onBack = { selected = null }, modifier = modifier, edfDownload = edfDownload, fileTransfer = fileTransfer)
         return
     }
 
@@ -71,7 +77,13 @@ fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SessionDetail(record: SessionRecord, onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun SessionDetail(
+    record: SessionRecord,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    edfDownload: life.neurone.shared.session.EdfDownloadModel?,
+    fileTransfer: life.neurone.shared.migration.FileTransfer?,
+) {
     val summary = remember(record.id) { CompletedSessionSummary.fromRecord(record) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
@@ -90,6 +102,13 @@ private fun SessionDetail(record: SessionRecord, onBack: () -> Unit, modifier: M
 
         Spacer(Modifier.height(16.dp))
         AdaptiveAdjustmentsCard(events = summary.adaptationEvents)
+
+        // The hub's session id is held in memory only (REQ-SW03-06), so only a session finished in this run can be downloaded.
+        val sessionId = record.edfSessionId
+        if (edfDownload != null && sessionId != null) {
+            Spacer(Modifier.height(16.dp))
+            EdfDownloadSection(edfDownload, sessionId, fileTransfer)
+        }
     }
 }
 

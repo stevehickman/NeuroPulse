@@ -55,6 +55,12 @@ class IosPlatformServices(
     /** iOS wakes the app for the backup through `BGTaskScheduler` ([registerBackgroundBackup] is called by the host at launch). */
     override val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler = IosBackgroundBackupScheduler()
 
+    /** Mode 4: the hub's EDF+ recordings in `Documents/UHDR`, protected as the Swift app protects them. */
+    override val uhdrFolder: life.neurone.shared.session.UhdrFolder by lazy {
+        val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
+        IosUhdrFolder("$documents/UHDR")
+    }
+
     /** The consumable reminders as local notifications. */
     override val reminderNotifier: ReminderNotifier = IosReminderNotifier()
 

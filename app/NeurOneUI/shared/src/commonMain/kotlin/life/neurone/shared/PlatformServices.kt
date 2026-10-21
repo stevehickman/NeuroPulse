@@ -81,6 +81,12 @@ interface PlatformServices {
      */
     val backgroundBackup: life.neurone.shared.migration.BackgroundBackupScheduler? get() = null
 
+    /**
+     * Where the EDF+ recordings fetched from the hub are kept (Mode 4), or null where the host has no such folder (the browser). The
+     * folder is inside what the clear overwrites, and the host protects each file that lands in it.
+     */
+    val uhdrFolder: life.neurone.shared.session.UhdrFolder? get() = null
+
     /** The host's local notifications for the consumable reminders, or null where the host shows none. */
     val reminderNotifier: ReminderNotifier? get() = null
 
