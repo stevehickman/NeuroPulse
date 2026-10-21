@@ -24,7 +24,6 @@ class PresenceMigrationTests {
         override suspend fun unlock(reason: String): Boolean { isUnlocked = true; return true }
         override fun lock() { isUnlocked = false }
         override suspend fun enable(reason: String) = true
-        override suspend fun disable() = false
         override fun load(): ByteArray? { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); return real.load() }
         override fun store(key: ByteArray) { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); real.store(key) }
         override fun destroy() = real.destroy()
@@ -145,5 +144,49 @@ class PresenceMigrationTests {
         app.gated.lock()
         again.unlock()
         assertEquals("ten sessions", again.storage.store.getString(history), "and it moves once the earlier key can be asked")
+    }
+}
+
+/** UHDR protection is never made weaker (REQ-PRES-09, `CLAUDE.md` §5.1). */
+class PresenceNeverWeakerTests {
+    private val history = "np.session.history"
+    private val token = "np.shdr.device-token"
+
+    private class DownGated : GatedSecretKeyStore {
+        val real = InMemorySecretKeyStore()
+        override var isUnlocked = false
+            private set
+        override val isEnabled = true
+        override suspend fun unlock(reason: String): Boolean { isUnlocked = true; return true }
+        override fun lock() { isUnlocked = false }
+        override suspend fun enable(reason: String) = true
+        override fun load(): ByteArray? { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); return real.load() }
+        override fun store(key: ByteArray) { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); real.store(key) }
+        override fun destroy() = real.destroy()
+    }
+
+    // @verifies REQ-PRES-09#a
+    @Test fun the_key_interfaces_have_no_way_to_turn_the_gate_off() {
+        val offered = listOf(GatedSecretKeyStore::class.java, PassphraseKey::class.java).flatMap { c -> c.methods.map { it.name } }.toSet()
+        assertTrue(offered.none { it.contains("disable", ignoreCase = true) || it.contains("turnOff", ignoreCase = true) }, "found: $offered")
+    }
+
+    // @verifies REQ-PRES-09#b
+    @Test fun a_gated_install_that_cannot_open_its_tiers_writes_nothing_in_the_clear() {
+        val host = InMemoryKeyValueStore()
+        // The earlier keystore cannot be asked, so the device tier cannot be built.
+        val broken = object : SecretKeyStore {
+            override fun load(): ByteArray? = throw SecretKeyUnavailableException("down")
+            override fun store(key: ByteArray) = throw SecretKeyUnavailableException("down")
+            override fun destroy() {}
+        }
+        host.putString(token, "plain-left-over")
+        val gated = DownGated()
+        val lock = PresenceLock(gated, { 0L })
+        val storage = ProtectedStorage.openGated(host, broken, gated, lock, { setOf(history, token) }, { setOf(token) })
+        assertEquals(StorageProtection.LOCKED, storage.state, "the run is held in memory, not opened ungated")
+        storage.store.putString(history, "a new session")
+        assertNull(host.getString(history), "nothing was written to disk, in the clear or sealed")
+        assertEquals("a new session", storage.store.getString(history), "and it still reads for this run")
     }
 }

@@ -34,8 +34,8 @@ import kotlin.coroutines.resume
  * destroy the person's record. Removing the screen lock does: Android deletes such keys, and the wrapped bytes then open under
  * nothing, exactly as after [destroy]. That is the case the backup the app insists on first is for (`REQ-PRES-08`).
  *
- * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and turning the gate off is not
- * (`OI-PRES-09`, [disable] refuses). [NeurOneApplication] does not pass this store to the shared app until the device run (`OI-PRES-06`).
+ * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and there is no way to turn the gate
+ * off (`REQ-PRES-09`). [NeurOneApplication] does not pass this store to the shared app until the device run (`OI-PRES-06`).
  */
 class AndroidGatedSecretKeyStore(private val context: Context) : GatedSecretKeyStore {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -56,8 +56,6 @@ class AndroidGatedSecretKeyStore(private val context: Context) : GatedSecretKeyS
         if (!unlock(reason)) return false
         return prefs.edit().putBoolean(ENABLED, true).commit()
     }
-
-    override suspend fun disable(): Boolean = false
 
     override suspend fun unlock(reason: String): Boolean {
         if (unlocked) return true

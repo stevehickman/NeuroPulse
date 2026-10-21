@@ -44,7 +44,6 @@ class PresenceGateTest {
         override suspend fun unlock(reason: String): Boolean { prompts++; if (allow) isUnlocked = true; return allow }
         override fun lock() { isUnlocked = false }
         override suspend fun enable(reason: String): Boolean { if (canChange) isEnabled = true; return canChange }
-        override suspend fun disable(): Boolean { if (canChange) isEnabled = false; return canChange }
         override fun load(): ByteArray? { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); return real.load() }
         override fun store(key: ByteArray) { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); real.store(key) }
         override fun destroy() = real.destroy()
@@ -144,23 +143,23 @@ class PresenceGateTest {
         val gated = Gated(isEnabled = false)
         val app = services(gated, host)
         assertFalse(app.presenceEnabled)
-        assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.setPresenceGate(true) })
+        assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.turnOnPresenceGate() })
         assertFalse(gated.isEnabled, "nothing was changed")
 
         app.keyValueStore.putString(ScheduledBackup.LAST_KEY, "1")
-        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.setPresenceGate(true) })
+        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.turnOnPresenceGate() })
         assertTrue(app.presenceEnabled)
     }
 
     // @verifies REQ-PRES-08
     @Test
-    fun turningTheGateOffNeedsNoBackupAndAHostThatCannotLeavesItAsItWas() {
-        val gated = Gated(isEnabled = true, canChange = false)
-        val app = services(gated)
-        assertEquals(AppServices.PresenceChange.REFUSED, runBlocking { app.setPresenceGate(false) })
-        assertTrue(gated.isEnabled)
-        gated.canChange = true
-        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.setPresenceGate(false) })
+    fun aHostThatCannotTurnItOnLeavesTheGateOffAndSaysSo() {
+        val host = InMemoryKeyValueStore()
+        val gated = Gated(isEnabled = false, canChange = false)
+        val app = services(gated, host)
+        app.keyValueStore.putString(ScheduledBackup.LAST_KEY, "1")
+        assertEquals(AppServices.PresenceChange.REFUSED, runBlocking { app.turnOnPresenceGate() })
+        assertFalse(gated.isEnabled)
     }
 
     // @verifies REQ-PRES-01#a
@@ -213,12 +212,12 @@ class PresenceGateTest {
     fun aPassphraseIsNotAcceptedUntilABackupExistsAndAShortOneIsRefused() {
         val host = InMemoryKeyValueStore()
         val app = services(PassphraseGatedSecretKeyStore(host), host)
-        assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.setPresenceGate(true, longPassphrase) })
+        assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.turnOnPresenceGate(longPassphrase) })
         assertFalse(host.getString(PassphraseGatedSecretKeyStore.WRAP_KEY) != null)
 
         app.keyValueStore.putString(ScheduledBackup.LAST_KEY, "1")
-        assertEquals(AppServices.PresenceChange.PASSPHRASE_TOO_SHORT, runBlocking { app.setPresenceGate(true, "short") })
-        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.setPresenceGate(true, longPassphrase) })
+        assertEquals(AppServices.PresenceChange.PASSPHRASE_TOO_SHORT, runBlocking { app.turnOnPresenceGate("short") })
+        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.turnOnPresenceGate(longPassphrase) })
         assertTrue(app.presenceEnabled)
         assertEquals(PassphraseResult.OK, runBlocking { app.presencePassphraseKey!!.changePassphrase(longPassphrase, "another long passphrase") })
     }

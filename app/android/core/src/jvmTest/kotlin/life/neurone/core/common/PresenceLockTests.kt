@@ -22,7 +22,6 @@ class PresenceLockTests {
         override fun lock() { isUnlocked = false }
         override var isEnabled = true
         override suspend fun enable(reason: String): Boolean { isEnabled = true; return true }
-        override suspend fun disable(): Boolean { isEnabled = false; return true }
         override fun load(): ByteArray? { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); return real.load() }
         override fun store(key: ByteArray) { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); stored++; real.store(key) }
         override fun destroy() = real.destroy()

@@ -61,8 +61,11 @@ class ProtectedStorage private constructor(
             val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
             val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
             val uhdrKeys = all - deviceKeys
+            // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
+            // is written in the clear. It never falls back to the ungated or unsealed store, which would lower the protection UHDR has
+            // (`CLAUDE.md` §5.1, `REQ-PRES-09`).
             val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
-                ?: return openInternal(host, null, protectedKeys)
+                ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null)
             val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
             return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr)
         }
