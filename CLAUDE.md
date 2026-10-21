@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 70 (current)  
+**Revision:** 71 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -451,7 +451,7 @@ reasoning stays in the owning open item (OI), so a row points at it and never re
 
 ## 20. SHARED FILES — ONE HOME EACH: `app/NeurOneShared/` and `common/` (locked) → `scripts/check-shared-placement.ts`
 
-**A file whose content is common to more than one app (iOS, watchOS, Android, Windows, web) lives in
+**A file whose content is common to more than one app (iOS, Android, Windows, web) lives in
 `app/NeurOneShared/`, directly or in a subdirectory of it, and is never stored in one app's
 directory for the others to reach into.** Subdirectories are made as needed: `TestData/` for
 fixtures several apps' tests read (`hub-descriptor-golden.json`), `Resources/` for generated or

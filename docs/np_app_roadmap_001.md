@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-10-21  
 **Status:** BASELINED  
 **Effective Date:** 2026-07-13  
@@ -13,15 +13,15 @@
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** NP-APP-ROADMAP-001 Rev 2  
-**Change Summary:** Rev 8 (2026-10-21) — `REQ-NOTIFY-01` (a) says what a host with no private body shows: the desktop balloon carries the title and subtitle only, never the consumable or its count (the stricter reading of `NP-PRIV-ANALYSIS-003` LOW-1; no requirement is relaxed). Rev 7 (2026-10-20) — §9.7 gives the HealthKit residency rule (§9.1) and the lock-screen and permission-timing rules for consumable reminders (`NP-PRIV-ANALYSIS-003` LOW-1, LOW-2) an ID each (`REQ-HEALTH-01`, `REQ-NOTIFY-01`), so the shared iOS host's tests can name them. No requirement is added, changed or relaxed. Rev 6 (2026-10-11) — §9.6 gives the onboarding rules §9.2 and §9.3 already make binding an ID each (`REQ-ONBOARD-01` to `-06`), so a test can name the rule it verifies (`scripts/req-trace.ts`). No requirement is added, changed or relaxed. Rev 5 (2026-09-23) — §5 gains three optional T2 characteristics for `NP-SW-FAULTMSG-001`: `CVNS_FAULT_STATUS` (offline cervical faults, the hub re-enable state and the per-user cardiac flags), `CVNS_REENABLE_CONFIRM` (the wearer's `REQ-CVNS-09` confirmation) and `ACTIVE_USER` (the opaque profile tag). None is required, and no hub publishes them yet (`OI-WA-03`). Rev 4 (2026-09-22) — §5 gains `CVNS_PAD_STATUS` (T2, optional, NOTIFY 4 B): the cervical gel pad contact result with the side of the neck of each pad, so the phone app can tell the wearer which pad location failed (`OI-ACC-07`). Rev 3: Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
+**Change Summary:** Rev 9 (2026-10-21) — **The Apple Watch app is retired (the principal, 2026-10-21).** §4 (the Watch sync app, Phases 1 to 4), the WatchConnectivity mirror in §5 and the Watch statements in §6 are retired in place, not deleted (`CLAUDE.md` §18); `OI-WA-02`, `OI-WA-03` (the Watch latency item; the same ID names the hub warranty-token item elsewhere, which this does not touch) and `OI-WA-05` are retired with them, and `OI-WA-01`, `OI-WA-04` stay superseded. The code is deleted: `app/watchos/`, the iOS `WatchBridge`, `watchos-ci.yml`. The phone-side Watch preset gate (the old `PhoneSessionManager.acceptedPreset`) goes with it; the protocol menu's consent gate, which is the gate that matters, is unchanged (`REQ-ONBOARD-05`). No requirement on the helmet, the hub or the shared apps is changed. Rev 8 (2026-10-21) — `REQ-NOTIFY-01` (a) says what a host with no private body shows: the desktop balloon carries the title and subtitle only, never the consumable or its count (the stricter reading of `NP-PRIV-ANALYSIS-003` LOW-1; no requirement is relaxed). Rev 7 (2026-10-20) — §9.7 gives the HealthKit residency rule (§9.1) and the lock-screen and permission-timing rules for consumable reminders (`NP-PRIV-ANALYSIS-003` LOW-1, LOW-2) an ID each (`REQ-HEALTH-01`, `REQ-NOTIFY-01`), so the shared iOS host's tests can name them. No requirement is added, changed or relaxed. Rev 6 (2026-10-11) — §9.6 gives the onboarding rules §9.2 and §9.3 already make binding an ID each (`REQ-ONBOARD-01` to `-06`), so a test can name the rule it verifies (`scripts/req-trace.ts`). No requirement is added, changed or relaxed. Rev 5 (2026-09-23) — §5 gains three optional T2 characteristics for `NP-SW-FAULTMSG-001`: `CVNS_FAULT_STATUS` (offline cervical faults, the hub re-enable state and the per-user cardiac flags), `CVNS_REENABLE_CONFIRM` (the wearer's `REQ-CVNS-09` confirmation) and `ACTIVE_USER` (the opaque profile tag). None is required, and no hub publishes them yet (`OI-WA-03`). Rev 4 (2026-09-22) — §5 gains `CVNS_PAD_STATUS` (T2, optional, NOTIFY 4 B): the cervical gel pad contact result with the side of the neck of each pad, so the phone app can tell the wearer which pad location failed (`OI-ACC-07`). Rev 3: Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
 
 ---
 
 ## 1. Scope
 
-This document defines the development roadmap for the NeurOne iOS application, including all core session-management functionality and the Apple Watch companion sync app. The Watch app is a Year 1 deliverable, scheduled for development immediately after core iOS app launch.
+This document defines the development roadmap for the NeurOne iOS application, including all core session-management functionality. **The Apple Watch companion sync app this document once also planned is retired (Rev 9, 2026-10-21): §4 is kept for the record and builds nothing.**
 
-Both iOS app and Watch app are software-only additions. BOM delta: $0.
+The iOS app is a software-only addition. BOM delta: $0.
 
 ---
 
@@ -33,23 +33,18 @@ NeurOne Hub (BT 5.3 LE, antennas in hub)
         │  BLE GATT custom service
         │  Sub-50ms sync latency target
         ▼
-iOS App (WatchConnectivity framework)
-        │
-        │  WatchConnectivity session
-        ▼
-watchOS App
-        ├── Haptic session cue (WKInterfaceDevice.play — named haptic, NOT 40Hz)
-        ├── Audio playback to AirPods (AVAudioSession)
-        └── Watch display (SwiftUI)
+iOS App
 ```
 
-BT 5.3 LE radio and antennas reside in the control hub only — not the headset. The iOS app communicates with the hub over a custom BLE GATT service. The Watch app communicates with the hub exclusively via the iPhone app using WatchConnectivity; it does not open a direct BLE connection to the hub.
+*(Rev 9: the watchOS app that used to hang off the iOS app over WatchConnectivity is retired.)*
+
+BT 5.3 LE radio and antennas reside in the control hub only — not the headset. The iOS app communicates with the hub over a custom BLE GATT service. 
 
 ---
 
-## 3. Core iOS App — Required Before Watch App
+## 3. Core iOS App
 
-The Watch app depends on the core iOS app being App Store-live. Core iOS app scope (not detailed in this document):
+Core iOS app scope (not detailed in this document):
 
 - Session protocol authoring, signing, and upload to hub (Mode 2 Programming)
 - Real-time EEG/HRV/session status display (Mode 1 Connected)
@@ -63,7 +58,9 @@ The Watch app depends on the core iOS app being App Store-live. Core iOS app sco
 
 ---
 
-## 4. Apple Watch Sync App — Year 1 Post-Launch
+## 4. Apple Watch Sync App — RETIRED (Rev 9, 2026-10-21)
+
+> **RETIRED.** The principal retired the Watch app on 2026-10-21. Nothing below is planned, built or maintained; the text is kept in place so the history of why it was specified is not lost (`CLAUDE.md` §18). The therapeutic 40 Hz vibrotactile channel is the mastoid LRA pad, which never depended on the Watch.
 
 ### 4.1 Overview
 
@@ -161,11 +158,13 @@ Characteristic layout:
 
 Notification interval: 100ms for SESSION_STATE and PACER_PHASE; 5s for HRV_COHERENCE; event-driven for IMPEDANCE_RESULT, CONSUMABLE_STATUS and CVNS_PAD_STATUS (on a change of result within a session attempt, and at each new attempt).
 
-WatchConnectivity message from iPhone app to Watch app mirrors the GATT data in real time, reformatted as a WCSession `sendMessage` dictionary.
+~~WatchConnectivity message from iPhone app to Watch app mirrors the GATT data in real time, reformatted as a WCSession `sendMessage` dictionary.~~ *Retired, Rev 9.*
 
 ---
 
 ## 6. Regulatory Notes
+
+*(Rev 9: the Watch statements in this section are retired with the Watch app; they bind nothing.)*
 
 All Watch-delivered functions must be described in App Store metadata and in-app UI as:
 
@@ -183,10 +182,10 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 | ID | Item | Owner | Blocking |
 |----|------|-------|---------|
 | OI-WA-01 | SUPERSEDED (2026-07-13) — no continuous Core Haptics path exists on watchOS to characterise. Phase 3 is now a low-rate WKInterfaceDevice cue; the lightweight repeating-timer thermal cost is handled at runtime via `ProcessInfo.thermalState` auto-pause. | SW Engineering | Not blocking |
-| OI-WA-02 | Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
-| OI-WA-03 | WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
+| OI-WA-02 | RETIRED (2026-10-21, the Watch app is retired) — Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
+| OI-WA-03 | RETIRED (2026-10-21, the Watch app is retired) — WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
 | OI-WA-04 | SUPERSEDED (2026-07-13) — `CHHapticEngine` does not exist on watchOS; there is no 40Hz Core Haptics frequency to verify on any Apple Watch model. (40Hz verification applies only to the iPhone Core Haptics path and the mastoid LRA pad, tracked elsewhere.) | SW Engineering | Not blocking |
-| OI-WA-05 | App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
+| OI-WA-05 | RETIRED (2026-10-21, the Watch app is retired) — App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
 
 ---
 
@@ -194,10 +193,10 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 
 | Phase | Channel | Complexity | Target | Status |
 |-------|---------|------------|--------|--------|
-| 1 | Session status + HRV breathing ring | Low | Month 1–2 post-core-app | Planned |
-| 2 | Audio sync to AirPods | Medium | Month 3–4 post-core-app | Planned |
-| 3 | Haptic session cue (WKInterfaceDevice, not 40Hz) | Low | Month 4–5 post-core-app | Planned |
-| 4 | 40Hz visual flicker | High | Month 6+ post-core-app | Blocked — OI-WA-02 |
+| 1 | Session status + HRV breathing ring | Low | Month 1–2 post-core-app | Retired (Rev 9) |
+| 2 | Audio sync to AirPods | Medium | Month 3–4 post-core-app | Retired (Rev 9) |
+| 3 | Haptic session cue (WKInterfaceDevice, not 40Hz) | Low | Month 4–5 post-core-app | Retired (Rev 9) |
+| 4 | 40Hz visual flicker | High | Month 6+ post-core-app | Retired (Rev 9) |
 
 ---
 
@@ -209,7 +208,7 @@ The following are binding engineering constraints, not optional guidelines. Devi
 
 ### 9.1 HealthKit data residency (NP-PRIV-REM-001 STEP-16)
 
-> **HealthKit data accessed by the NeurOne iOS or Watch app is used for real-time session display only. It is not persisted, not cached beyond the active session, not transmitted to NeurOne servers, not transmitted to any analytics or crash reporting vendor, and not used for any purpose outside the active session in which it was read.**
+> **HealthKit data accessed by the NeurOne iOS app is used for real-time session display only. It is not persisted, not cached beyond the active session, not transmitted to NeurOne servers, not transmitted to any analytics or crash reporting vendor, and not used for any purpose outside the active session in which it was read.**
 
 Permitted HealthKit quantity types (Phase 1): `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`, `HKQuantityTypeIdentifierHeartRate`. No other HealthKit types may be requested without a formal design change order and App Store privacy label update.
 
@@ -302,10 +301,10 @@ No analytics or crash reporting SDK may initialise before the consent flow is co
 | ID | Item | Owner | Blocking |
 |----|------|-------|---------|
 | OI-WA-01 | SUPERSEDED (2026-07-13) — no continuous Core Haptics path exists on watchOS to characterise. Phase 3 is now a low-rate WKInterfaceDevice cue; the lightweight repeating-timer thermal cost is handled at runtime via `ProcessInfo.thermalState` auto-pause. | SW Engineering | Not blocking |
-| OI-WA-02 | Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
-| OI-WA-03 | WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
+| OI-WA-02 | RETIRED (2026-10-21, the Watch app is retired) — Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
+| OI-WA-03 | RETIRED (2026-10-21, the Watch app is retired) — WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
 | OI-WA-04 | SUPERSEDED (2026-07-13) — `CHHapticEngine` does not exist on watchOS; there is no 40Hz Core Haptics frequency to verify on any Apple Watch model. (40Hz verification applies only to the iPhone Core Haptics path and the mastoid LRA pad, tracked elsewhere.) | SW Engineering | Not blocking |
-| OI-WA-05 | App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
+| OI-WA-05 | RETIRED (2026-10-21, the Watch app is retired) — App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
 | OI-WA-06 | HealthKit permission review + privacy nutrition label sign-off before App Store submission | Privacy Lead | Phase 1 App Store submission |
 | OI-PA-01 | Legal counsel confirms 16 as correct minimum age threshold for age gate | Legal Counsel | Age gate implementation |
 | OI-PA-02 | Design and implement Authorised Guardian consent pathway for T2 minor patients | SW Engineering + Legal | T2 clinical launch |

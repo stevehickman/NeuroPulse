@@ -4,6 +4,8 @@
 
 ## Mastoid LRA pad vs Apple Watch — messaging for marketing literature
 
+> **The Apple Watch app is retired (2026-10-21, `NP-APP-ROADMAP-001` Rev 9).** Do not offer, mention or compare against a NeurOne Watch app. The copy below is kept as history and is not approved for use.
+
 **Framing:** Lead with why our add-on is better, not with why Apple Watch is worse. Acknowledge the Apple Watch sync app exists and is available — but be clear about what it does and doesn't do.
 
 ---

@@ -7,7 +7,6 @@ struct NeurOneApp: App {
     // All services declared without default values; initialized together in init()
     // so dependent services share the same NeurOneGATTManager instance.
     @StateObject private var gatt:        NeurOneGATTManager
-    @StateObject private var bridge:      PhoneSessionManager
     @StateObject private var keyManager:  UHDRKeyManager
     @StateObject private var consentStore: ConsentStore
     @StateObject private var uploader:    SessionProtocolUploader
@@ -27,7 +26,6 @@ struct NeurOneApp: App {
         let km = UHDRKeyManager()
 
         _gatt            = StateObject(wrappedValue: g)
-        _bridge          = StateObject(wrappedValue: PhoneSessionManager(gatt: g))
         _keyManager      = StateObject(wrappedValue: km)
         _consentStore    = StateObject(wrappedValue: ConsentStore())
         _uploader        = StateObject(wrappedValue: SessionProtocolUploader(gatt: g))
@@ -80,7 +78,6 @@ struct NeurOneApp: App {
         WindowGroup {
             MainTabView()
                 .environmentObject(gatt)
-                .environmentObject(bridge)
                 .environmentObject(keyManager)
                 .environmentObject(consentStore)
                 .environmentObject(uploader)

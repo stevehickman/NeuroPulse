@@ -5,7 +5,6 @@ let package = Package(
     name: "NeurOneShared",
     platforms: [
         .iOS(.v17),
-        .watchOS(.v10),
     ],
     products: [
         .library(name: "NeurOneShared", targets: ["NeurOneShared"]),

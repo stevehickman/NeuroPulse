@@ -4,7 +4,7 @@ Claude.ai is being used as much as possible to further these goals. CLAUDE.md co
 
 The /docs directory contains design documents. Start reading there.
 The /editscripts directory contains generated scripts that Claude used to modify documents. The content of that directory is probably not for human consumption.
-The /app directory contains code for iOS and watchOS devices
+The /app directory contains code for the iOS, Android, desktop and web apps
 The /firmware directory contains the code that runs the hardware
 
 This all started with the following prompt to Claude:

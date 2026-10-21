@@ -1,7 +1,6 @@
 import Foundation
 
-// Shared session state model — consumed by the iOS app and watchOS companion app.
-// This is the single source of truth. Do not duplicate this file in either target.
+// Shared session state model — consumed by the iOS app.
 
 public enum SessionStatus: UInt8, Sendable {
     case idle       = 0
@@ -66,66 +65,4 @@ public struct SessionState: Sendable {
         impedancePassFlags: 0,
         consumableSessionCounts: [0, 0, 0, 0]
     )
-}
-
-// WatchConnectivity dictionary keys — must match on both sides of the bridge.
-// epoch is intentionally excluded: it is UHDR-class data (session timestamp,
-// CLAUDE.md §5.1) and is not needed for Watch display — elapsed time is driven
-// by a local Timer on the Watch side. (NP-PRIV-ANALYSIS-002 MEDIUM-08)
-public enum WCKey {
-    public static let PROTOCOL_ID        = "pid"
-    public static let STATUS            = "st"
-    public static let COHERENCE_X100     = "coh"
-    public static let RMSSD             = "rmssd"
-    public static let PACER_PHASE        = "pp"
-    public static let PACER_PERCENT      = "pct"
-    public static let CONSUMABLE_COUNTS  = "con"
-}
-
-extension SessionState {
-    public func toWCMessage() -> [String: Any] {
-        // impedancePassFlags is UHDR-class (raw per-electrode bitmask at named scalp positions;
-        // CLAUDE.md §5.1 "Raw EEG impedance → UHDR"). Must not flow over unencrypted WC bridge.
-        var msg: [String: Any] = [
-            WCKey.PROTOCOL_ID:       Int(protocolID),
-            WCKey.STATUS:           Int(status.rawValue),
-            WCKey.PACER_PHASE:       Int(pacerPhase.rawValue),
-            WCKey.PACER_PERCENT:     Int(pacerElapsedPercent),
-            WCKey.CONSUMABLE_COUNTS: consumableSessionCounts.map { Int($0) },
-        ]
-        if let h = hrv {
-            msg[WCKey.COHERENCE_X100] = Int((h.coherenceScore * 100).rounded())
-            msg[WCKey.RMSSD]         = Int(h.rmssdMilliseconds)
-        }
-        return msg
-    }
-
-    public static func from(wcMessage msg: [String: Any]) -> SessionState? {
-        guard
-            let pid        = msg[WCKey.PROTOCOL_ID]  as? Int,
-            let statusRaw  = msg[WCKey.STATUS]      as? Int,
-            let status     = SessionStatus(rawValue: UInt8(statusRaw)),
-            let phaseRaw   = msg[WCKey.PACER_PHASE]  as? Int,
-            let phase      = PacerPhase(rawValue: UInt8(phaseRaw)),
-            let pct        = msg[WCKey.PACER_PERCENT]   as? Int,
-            let conRaw     = msg[WCKey.CONSUMABLE_COUNTS] as? [Int]
-        else { return nil }
-
-        var hrv: HRVData?
-        if let cohRaw = msg[WCKey.COHERENCE_X100] as? Int,
-           let rmssd  = msg[WCKey.RMSSD] as? Int {
-            hrv = HRVData(coherenceScore: Float(cohRaw) / 100.0, rmssdMilliseconds: UInt16(rmssd))
-        }
-
-        return SessionState(
-            epoch: 0,                // not transmitted over WC bridge (UHDR boundary)
-            protocolID: UInt8(pid),
-            status: status,
-            hrv: hrv,
-            pacerPhase: phase,
-            pacerElapsedPercent: UInt8(pct),
-            impedancePassFlags: 0,   // UHDR-class — not transmitted over WC bridge
-            consumableSessionCounts: conRaw.prefix(4).map { UInt16($0) }
-        )
-    }
 }

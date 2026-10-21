@@ -119,8 +119,8 @@ custom_rules:
 
   # ISC-97 / NP-APP-TELEMETRY-001 Rev 2: these biometric / identifier strings
   # must never appear as analytics event property keys. Scoped to the
-  # dictionary-key shape (`"<key>":`) so that UI labels, search tags, and
-  # WatchConnectivity message keys are not flagged — only string literals used
+  # dictionary-key shape (`"<key>":`) so that UI labels and search tags
+  # are not flagged — only string literals used
   # as keys in event property dictionaries.
   no_analytics_keys:
     name: "No prohibited analytics property keys"

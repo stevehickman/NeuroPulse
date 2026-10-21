@@ -111,7 +111,6 @@ jobs:
       NP_SCOPE_SWIFT: |
         # Same reasoning as the java list for locales/**.
         app/ios/**
-        app/watchos/**
         app/NeurOneShared/**
         .github/workflows/codeql.yml
         scripts/ci-changed-scope.sh

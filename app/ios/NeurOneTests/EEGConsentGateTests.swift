@@ -2,13 +2,11 @@
 //
 // Verifies ISC-90 (second half): when the user declines the BIPA biometric
 // written release, EEG-neurofeedback-dependent protocols are blocked in the
-// protocol menu — and the Watch preset picker cannot bypass that block via the
-// phone. SessionView's closed-loop-metrics half of ISC-90 is covered elsewhere.
+// protocol menu. SessionView's closed-loop-metrics half of ISC-90 is covered elsewhere.
 //
 // Subjects under test:
 //   • NPProtocolDefinition.isEEGDependent (app/ios/NeurOne/Protocol/NPProtocolDefinition.swift)
 //   • NPProtocolLibrary.availability(for:) BIPA gate (…/NPProtocolLibrary.swift)
-//   • PhoneSessionManager.acceptedPreset(_:consentGranted:) (…/WatchBridge/PhoneSessionManager.swift)
 
 import XCTest
 @testable import NeurOne
@@ -147,27 +145,5 @@ final class EEGConsentGateTests: XCTestCase {
         let library = NPProtocolLibrary()
         XCTAssertTrue(library.eegConsentGranted,
                       "eegConsentGranted must seed from np.onboarding.bipa-accepted")
-    }
-
-    // MARK: - ISC-11  Watch preset gate on the phone
-
-    // @verifies REQ-ONBOARD-05#a
-    func testAcceptedPreset_dropsEEGPresetsWithoutConsent() {
-        // Gamma Clarity (0) and Alpha Calm (1) are EEG-adaptive.
-        XCTAssertNil(PhoneSessionManager.acceptedPreset(0, consentGranted: false))
-        XCTAssertNil(PhoneSessionManager.acceptedPreset(1, consentGranted: false))
-    }
-
-    // @verifies REQ-ONBOARD-05#b
-    func testAcceptedPreset_allowsSleepPresetWithoutConsent() {
-        // Sleep Deep (2) is not EEG-adaptive — always allowed.
-        XCTAssertEqual(PhoneSessionManager.acceptedPreset(2, consentGranted: false), 2)
-    }
-
-    // @verifies REQ-ONBOARD-05#c
-    func testAcceptedPreset_allowsAllPresetsWithConsent() {
-        XCTAssertEqual(PhoneSessionManager.acceptedPreset(0, consentGranted: true), 0)
-        XCTAssertEqual(PhoneSessionManager.acceptedPreset(1, consentGranted: true), 1)
-        XCTAssertEqual(PhoneSessionManager.acceptedPreset(2, consentGranted: true), 2)
     }
 }

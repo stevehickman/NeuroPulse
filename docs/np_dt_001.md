@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** 7
-**Date:** 2026-10-01
+**Revision:** 8
+**Date:** 2026-10-21
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -16,6 +16,8 @@
 **Parent Document:** NP-QMS-DC-001
 
 ---
+
+**Rev 8 (2026-10-21):** **DI-INT-04 (the Apple Watch sync) is retired in place, with `OI-DT-05` and `VE-13`: the Apple Watch app is retired (the principal, 2026-10-21; `NP-APP-ROADMAP-001` Rev 9, `NP-SW-001` Rev 103).** Nothing is built to it and nothing verifies it; the rows stay, struck through, so the trace is not lost (`CLAUDE.md` §18). `OI-WA-02` retires with it. The therapeutic 40 Hz vibrotactile channel is the mastoid LRA pad, which never depended on the Watch. Nothing else in this matrix changes.
 
 **Rev 7 (2026-10-04):** **DI-SAFE-03's strike-through on the ±5 BPM cross-validation is reversed: it is built** (`NP-FW-CVNS-001` Rev 14 §14.7, OI-CVNS-14 closed by principal decision). The safety MCU compares its own heart rate with the hub's and cuts and latches on a difference over 5 BPM. Host-tested only, not run on silicon, and its constants are chosen rather than derived (OI-CVNS-15). No other row changed.
 
@@ -293,7 +295,7 @@ and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the diff
 | DI-INT-01 | Interface | USB-C PD compliance: any PD-compliant charger must work; app displays "power level: reduced" informatively and never blocks session; EU requirement: no proprietary lock-in | CLAUDE.md §2.2 | High | T1+T2 |
 | DI-INT-02 | Interface | BT 5.3 LE Audio GATT custom service: session status, HRV breathing ring, protocol upload; antennas in hub only; single rear toggle; sub-50 ms sync latency target | CLAUDE.md §4.1; NP-APP-ROADMAP-001 | Medium | T1+T2 |
 | DI-INT-03 | Interface | FHIR R4 NeurOne T2 Clinical Profile: NP-Patient (opaque MRN), NP-Observation (EEG bands, HRV RMSSD, coherence, dose), NP-DiagnosticReport, NP-Procedure; LSL TLS streaming | NP-INT-FHIR-001 Rev 1 | High | T2 |
-| DI-INT-04 | Interface | Apple Watch WatchConnectivity sync (provisional, HOPE Phase 3 gated): Channel 1 haptic 40 Hz; Channel 2 audio sync; Channel 3 visual flicker ≥100 nits; OI-WA-02 brightness gate | CLAUDE.md §3b; NP-APP-ROADMAP-001 | Low | T1 |
+| DI-INT-04 | Interface | RETIRED (2026-10-21, the Apple Watch app is retired) — Apple Watch WatchConnectivity sync (provisional, HOPE Phase 3 gated): Channel 1 haptic 40 Hz; Channel 2 audio sync; Channel 3 visual flicker ≥100 nits; OI-WA-02 brightness gate | CLAUDE.md §3b; NP-APP-ROADMAP-001 | Low | T1 |
 | DI-INT-05 | Interface | LSL streaming for research data acquisition: real-time EEG, HRV, PBM dose, session events over Lab Streaming Layer; TLS encryption required | CLAUDE.md §3 T2 | Medium | T2 |
 
 ---
@@ -425,7 +427,7 @@ and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the diff
 | DI-INT-01 | USB-C PD any-charger compliance | DO-HW-02, DO-FW-08 | Hub PCB Rev B PD negotiation; hub control power mgr | VE-05 | Partial |
 | DI-INT-02 | BT 5.3 LE Audio GATT custom service | DO-SW-09 | iOS app BLE GATT session service | VE-05 | Partial |
 | DI-INT-03 | FHIR R4 NP T2 Clinical Profile | DO-FHIR-01, DO-API-01 | FHIR IG NP-Patient/Observation/Report; API spec | VE-06 | Partial |
-| DI-INT-04 | Apple Watch provisional 40 Hz haptic | DO-SW-09 | iOS Watch bridge (provisional OI-WA-02 gate) | VE-13 | Open |
+| DI-INT-04 | RETIRED (2026-10-21) — Apple Watch provisional 40 Hz haptic | DO-SW-09 | iOS Watch bridge (deleted) | VE-13 | Retired |
 | DI-INT-05 | LSL streaming TLS (T2) | DO-FHIR-01, DO-API-01 | FHIR IG §5 LSL endpoint; API spec §4 | VE-06 | Open |
 
 ---
@@ -446,7 +448,7 @@ and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the diff
 | VE-10 | FMEA | NP-FMEA-001 Rev 1 — SW-01 Safety MCU FMEA SW01-M01..M08 complete; OI-FMEA-01 watchdog GPIO timing hardware bench and OI-FMEA-02 cardiac interlock oscilloscope bench open | Complete (HW bench OI items open) | G3 |
 | VE-11 | Standards testing | IEC 60601-1, IEC 60601-2-10, IEC 62471, IEC 62133, FCC Part 15 at accredited laboratory; planned G3 phase Month 10–14 | Open | G3 |
 | VE-12 | HFE Testing | NP-HFE-001 Rev 1 (released 2026-07-27) — URRA; formative testing including eject-lever Parkinson's/post-stroke study (n=5) **and the NP-HFE-002 accessible-placement study with blind/low-vision participants (a separate population — NP-HFE-001 OI-HFE-07)**; summative Month 14–18 including NP-HFE-002 HFE-R-13 (blind user completes a standard T1 build unaided) | Open — plans authored, no testing performed | G3 |
-| VE-13 | Watch App testing | OI-WA-02 — Watch 40 Hz visual flicker brightness characterisation; ≥100 nits at 40 Hz required before phase 4 Watch app development begins | Open | Post-G3 |
+| VE-13 | RETIRED (2026-10-21, the Watch app is retired) — Watch App testing | OI-WA-02 — Watch 40 Hz visual flicker brightness characterisation; ≥100 nits at 40 Hz required before phase 4 Watch app development begins | Open | Post-G3 |
 
 ---
 
@@ -468,7 +470,7 @@ and its SHDR divergence flag (`OI-FMEA-07`) are the control that covers the diff
 
 | Gap | Affected DIs | Notes |
 |-----|--------------|-------|
-| Apple Watch provisional gated on HOPE Phase 3 | DI-INT-04 | Not required for T1 launch; OI-WA-02 brightness test open |
+| Apple Watch provisional gated on HOPE Phase 3 | DI-INT-04 | Retired 2026-10-21 with the Watch app; nothing to trace |
 | LSL streaming T2 roadmap | DI-INT-05 | No T1 blocker; T2 development roadmap |
 | T2 qEEG and TMS | DI-PERF-02, DI-PERF-12 | T2 platform only; not required for T1 launch |
 | OI-PA-04 Privacy Lead copy sign-off on AdaptiveAdjustmentsCard | DI-REG-12 | Process gate only; code complete; must not ship without sign-off |
@@ -533,7 +535,7 @@ Remaining requirements to reach **"Complete"**:
 | OI-DT-02 | Enter VE-11 accredited lab test results when G3 standards testing completes; update all DI-REG-01/02/04/05/09 status to Traced | Quality Lead | G3 (Month 10–14) |
 | OI-DT-03 | Author NP-HFE-001 Human Factors Engineering Plan; add as DO entry; update VE-12 status to Partial when plan is complete | Quality Lead | Month 9 |
 | OI-DT-04 | Update DI-PERF-04 and DI-REG-03 from Partial to Traced once RISK-03 regulatory opinion letter received from outside counsel | Regulatory Lead | G1 close |
-| OI-DT-05 | Confirm Apple Watch app DI-INT-04 scope: update from provisional/low to committed/medium if HOPE Phase 3 positive and Watch app moves to committed roadmap | Engineering | Month 12 |
+| OI-DT-05 | RETIRED (2026-10-21, the Watch app is retired) — Confirm Apple Watch app DI-INT-04 scope: update from provisional/low to committed/medium if HOPE Phase 3 positive and Watch app moves to committed roadmap | Engineering | Month 12 |
 | OI-DT-06 | Enter VE-07 FAI-TC02 (PDMS thermal cycling) and FAI-IPX-02 (IPX4 swap cycles) when PDMS CAT-C supplier qualification complete and 200-cycle test passes | Quality Lead | Pre-production |
 | OI-DT-07 | Enter VE-03 hardware bench result (FAI-CV02 oscilloscope) and VE-06 phantom bench results (FAI-HD01/HD03/HD04) once T2 prototype hardware is available | Engineering | G3 hardware bench |
 | OI-DT-08 | Update NP-DHF-001 to Rev 7 to reflect NP-DT-001 Rev 1 as active DHF document; update design inputs completeness rating from Partial to Good | Quality Lead | Within 5 business days of NP-DT-001 approval |
