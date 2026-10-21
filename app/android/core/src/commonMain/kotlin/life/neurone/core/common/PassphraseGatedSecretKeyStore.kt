@@ -74,7 +74,7 @@ class PassphraseGatedSecretKeyStore(
     /** On once a passphrase has been set. */
     override val isEnabled: Boolean get() = host.getString(WRAP_KEY) != null
 
-    override suspend fun enable(): Boolean = false
+    override suspend fun enable(reason: String): Boolean = false
 
     override suspend fun disable(): Boolean = false
 

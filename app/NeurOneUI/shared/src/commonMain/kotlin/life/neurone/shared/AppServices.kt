@@ -128,7 +128,7 @@ class AppServices(
      * Turn the gate on ([on]) or off. Turning on is refused until a backup exists. A passphrase host needs [passphrase] to turn on: it
      * is what the data key is wrapped under, so there is no gate without one.
      */
-    suspend fun setPresenceGate(on: Boolean, passphrase: String? = null): PresenceChange {
+    suspend fun setPresenceGate(on: Boolean, passphrase: String? = null, reason: String = ""): PresenceChange {
         val gated = platform.gatedKeyStore ?: return PresenceChange.REFUSED
         if (on && PresenceEnablement.decide(hasRecoverableBackup()) is PresenceEnablement.Decision.BackupRequired) return PresenceChange.BACKUP_REQUIRED
         val byPassphrase = gated as? PassphraseKey
@@ -140,7 +140,7 @@ class AppServices(
                 else -> PresenceChange.REFUSED
             }
         }
-        val done = runCatching { if (on) gated.enable() else gated.disable() }.getOrDefault(false)
+        val done = runCatching { if (on) gated.enable(reason) else gated.disable() }.getOrDefault(false)
         return if (done) PresenceChange.CHANGED else PresenceChange.REFUSED
     }
 

@@ -29,12 +29,14 @@ interface GatedSecretKeyStore : SecretKeyStore {
     val isEnabled: Boolean
 
     /**
-     * Turn the gate on. The caller has already checked [PresenceEnablement] (`REQ-PRES-08`). The host moves any sealed UHDR to the gated
-     * key (`REQ-PRES-07`) and returns false, changing nothing, if it cannot. Takes effect when storage is next opened.
+     * Turn the gate on. The caller has already checked [PresenceEnablement] (`REQ-PRES-08`). The host establishes the person's presence
+     * once ([reason] is the prompt's text) so the key is made, and returns false, changing nothing, if it cannot. **It moves no data:**
+     * storage is next opened gated, and the first unlock seals each value again under the gated key (`REQ-PRES-07`,
+     * [EncryptedKeyValueStore.resealFromLegacy]), so a failure cannot lose anything.
      */
-    suspend fun enable(): Boolean
+    suspend fun enable(reason: String): Boolean
 
-    /** Turn the gate off: the host moves the sealed UHDR back to an ungated key. False, changing nothing, if it cannot. */
+    /** Turn the gate off. **Not built** (`OI-PRES-09`): sealed UHDR would have to move back to the ungated key, so every host refuses. */
     suspend fun disable(): Boolean
 }
 

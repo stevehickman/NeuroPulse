@@ -31,6 +31,8 @@ class TieredKeyValueStore(
 
     /** Apply what was held, now that the key can be read. A write that fails stays held, and the ones after it with it. */
     private fun applyPending() {
+        // First the values sealed before the gate was on are moved to the gated key (REQ-PRES-07), so a held write lands on top of them.
+        uhdr.resealFromLegacy()
         uhdr.migrate()
         val it = pending.entries.iterator()
         while (it.hasNext()) {
