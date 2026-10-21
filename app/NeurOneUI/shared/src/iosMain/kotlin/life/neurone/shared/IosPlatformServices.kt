@@ -35,6 +35,18 @@ class IosPlatformServices(
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = iosAnalyticsConfig(),
 ) : PlatformServices {
 
+    private val foreground = IosAppForeground()
+
+    /** Whether an app scene is in the foreground, for the presence lock's background timeout; see [IosAppForeground]. */
+    override val appInForeground: kotlinx.coroutines.flow.StateFlow<Boolean> get() = foreground.inForeground
+
+    /**
+     * The key behind the presence gate. Dark: null until installs that already hold sealed UHDR can be moved to it (`REQ-PRES-07`);
+     * offering it earlier would let a person turn on a gate that cannot keep their record.
+     */
+    override val gatedKeyStore: life.neurone.core.common.GatedSecretKeyStore? =
+        if (OFFER_PRESENCE_GATE) IosGatedSecretKeyStore() else null
+
     /** `NSURLSession` with the relay's SPKI pins (REQ-SHDR-04). */
     override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
         IosHttpTransport(pinnedHost = relayHost, pins = pins.toSet())
@@ -111,3 +123,6 @@ class UserDefaultsKeyValueStore(
     override fun putBoolean(key: String, value: Boolean) = defaults.setBool(value, forKey = key)
     override fun remove(key: String) = defaults.removeObjectForKey(key)
 }
+
+/** Whether the iOS app offers the presence gate (`NP-APP-PRESENCE-001`); false until `REQ-PRES-07` is built. */
+private const val OFFER_PRESENCE_GATE = false

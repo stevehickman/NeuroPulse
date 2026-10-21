@@ -20,6 +20,8 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         # Finding the other phone on the same Wi-Fi for a direct move asks for local-network access (SWR-MG-10).
         NSLocalNetworkUsageDescription: NeurOne finds your other phone on this Wi-Fi network to move your data to it.
+        # Face ID confirms the person before their health data opens, if they turn that on (NP-APP-PRESENCE-001).
+        NSFaceIDUsageDescription: NeurOne asks for Face ID to confirm it is you before it opens your health data, if you turn that on.
         # The automatic backup asks iOS to wake the app now and then (BGProcessingTask, SWR-MG-03). The identifier is IosBackgroundBackup.kt's.
         BGTaskSchedulerPermittedIdentifiers: [life.neurone.ui.backup]
         UIBackgroundModes: [processing]
