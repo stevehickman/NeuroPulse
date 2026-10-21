@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 72 (current)  
+**Revision:** 73 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -282,6 +282,7 @@ file.
 - Defining test: does this record tell us something about the **person**? If yes → UHDR
 - Storage: on-device eMMC UHDR partition, AES-256 with a user biometric-derived key (NeurOne does not hold it); nightly incremental backup to USB-C local or E2E-encrypted cloud (user-held key)
 - Presence (ruled 2026-10-21): **on every platform the app holds UHDR on, reading it requires the person's presence** (the device credential binds the data key; a passphrase on a host with none, and the host says so). Only the device tier of `docs/np_app_presence_001.md` §4 is readable locked. **Not yet built** (`OI-PRES-01` to `OI-PRES-05`); until it is, the apps seal UHDR under a key the device releases without the person.
+- **Protection only goes up (ruled 2026-10-21): UHDR data protection is never made weaker, not now and not ever; making it stronger is fine.** Once the presence gate is on it stays on: there is no way to turn it off, no moving sealed UHDR back to a key the device releases alone, no unsealed or ungated fallback for an install that has the gate, and no shorter or easier passphrase rule. A change that would lower any protection UHDR has is the principal's decision and is not made as a detail (`REQ-PRES-09`).
 
 **SHDR — System Health Data Record**
 - Owner: NeurOne

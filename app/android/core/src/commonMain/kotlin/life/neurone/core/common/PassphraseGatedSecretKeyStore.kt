@@ -76,8 +76,6 @@ class PassphraseGatedSecretKeyStore(
 
     override suspend fun enable(reason: String): Boolean = false
 
-    override suspend fun disable(): Boolean = false
-
     override suspend fun unlock(reason: String): Boolean = unlocked
 
     override fun lock() {

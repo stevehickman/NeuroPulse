@@ -36,8 +36,7 @@ interface GatedSecretKeyStore : SecretKeyStore {
      */
     suspend fun enable(reason: String): Boolean
 
-    /** Turn the gate off. **Not built** (`OI-PRES-09`): sealed UHDR would have to move back to the ungated key, so every host refuses. */
-    suspend fun disable(): Boolean
+    // There is no way to turn the gate off, and none may be added: UHDR protection is never made weaker (CLAUDE.md §5.1, REQ-PRES-09).
 }
 
 enum class PresenceState {

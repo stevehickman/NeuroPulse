@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 73 (2026-10-21) — §5.1 records that UHDR data protection is never made weaker. A decision about the apps; no limit or interlock changed.**
+
+**What changed.** One bullet in §5.1. The principal ruled, when asked whether the presence gate may be turned off, that it may not, and generalised it: UHDR protection is never weakened, now or ever, and making it stronger is fine. The gate has no turn-off, sealed UHDR is never moved to a key the device releases alone, an install that has the gate never falls back to an ungated or unsealed store, and the passphrase rule is never relaxed (`REQ-PRES-09` in `docs/np_app_presence_001.md`).
+
+**Why.** `OI-PRES-09` asked whether a gate that cannot be turned off was acceptable for a first release. The principal's answer was a rule rather than a release decision, so it sits in the core file where the next author will see it. The code agrees: the key interface lost its `disable()`, and a gated install that cannot open its tiers now holds data in memory instead of opening ungated.
+
 **Rev 72 (2026-10-21) — §5.1 records that UHDR requires the person's presence on every platform. A decision about the apps; no limit or interlock changed.**
 
 **What changed.** One bullet in §5.1 and one Document Map row. The principal ruled that reading UHDR on a phone, a computer or a browser requires the person's presence: the data key is bound to the device credential, asked at cold start and after a background timeout, with a passphrase on a host that has no credential, and only a short device tier readable while locked. The architecture, the requirements (`REQ-PRES-01` to `-07`) and the increments are in `docs/np_app_presence_001.md`.

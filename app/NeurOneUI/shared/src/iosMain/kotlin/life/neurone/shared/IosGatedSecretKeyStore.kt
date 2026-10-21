@@ -57,8 +57,8 @@ import kotlin.coroutines.resume
  * [SecretKeyUnavailableException] ("could not ask", never "no key", `SWR-MG-15`). The read is made on a background dispatcher: it
  * blocks while the system prompt is up.
  *
- * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and turning the gate off is not
- * (`OI-PRES-09`, [disable] refuses). [IosPlatformServices] does not hand this store to the shared app until the device run (`OI-PRES-07`).
+ * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and there is no way to turn the gate
+ * off (`REQ-PRES-09`). [IosPlatformServices] does not hand this store to the shared app until the device run (`OI-PRES-07`).
  */
 @OptIn(ExperimentalForeignApi::class)
 class IosGatedSecretKeyStore(
@@ -81,8 +81,6 @@ class IosGatedSecretKeyStore(
         NSUserDefaults.standardUserDefaults.setBool(true, forKey = ENABLED)
         return true
     }
-
-    override suspend fun disable(): Boolean = false
 
     override suspend fun unlock(reason: String): Boolean {
         if (unlocked) return true

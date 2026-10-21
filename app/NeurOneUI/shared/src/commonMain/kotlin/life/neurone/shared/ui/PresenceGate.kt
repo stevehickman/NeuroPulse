@@ -140,7 +140,7 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
     }
     Spacer(Modifier.height(8.dp))
     Text(stringResource(if (on) Res.string.presence_state_on else Res.string.presence_state_off), style = MaterialTheme.typography.bodyMedium)
-    // There is no "turn off": sealed values would have to move back to the ungated key, which is not built (OI-PRES-09).
+    // There is no "turn off", and there never will be: UHDR protection is never made weaker (CLAUDE.md §5.1, REQ-PRES-09).
     if (!on) OutlinedButton(onClick = {
         scope.launch {
             refused = false
@@ -149,7 +149,7 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
                 if (app.hasRecoverableBackup()) choosing = true else needBackup = true
                 return@launch
             }
-            when (app.setPresenceGate(!on, reason = unlockReason)) {
+            when (app.turnOnPresenceGate(reason = unlockReason)) {
                 AppServices.PresenceChange.CHANGED -> { on = app.presenceEnabled; changed = true }
                 AppServices.PresenceChange.BACKUP_REQUIRED -> needBackup = true
                 else -> refused = true
@@ -165,7 +165,7 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
             askOld = false,
             onDismiss = { choosing = false },
             submit = { _, new ->
-                when (app.setPresenceGate(true, new)) {
+                when (app.turnOnPresenceGate(new)) {
                     AppServices.PresenceChange.CHANGED -> { on = app.presenceEnabled; changed = true; choosing = false; null }
                     AppServices.PresenceChange.PASSPHRASE_TOO_SHORT -> PassphraseResult.TOO_SHORT
                     else -> PassphraseResult.FAILED

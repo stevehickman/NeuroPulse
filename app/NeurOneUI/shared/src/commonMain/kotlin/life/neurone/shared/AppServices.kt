@@ -125,14 +125,14 @@ class AppServices(
     val presencePassphraseKey: PassphraseKey? get() = platform.gatedKeyStore as? PassphraseKey
 
     /**
-     * Turn the gate on ([on]) or off. Turning on is refused until a backup exists. A passphrase host needs [passphrase] to turn on: it
-     * is what the data key is wrapped under, so there is no gate without one.
+     * Turn the gate on. Refused until a backup exists. A passphrase host needs [passphrase]: it is what the data key is wrapped under, so
+     * there is no gate without one. **There is no turning it off**: UHDR protection is never made weaker (`CLAUDE.md` §5.1, `REQ-PRES-09`).
      */
-    suspend fun setPresenceGate(on: Boolean, passphrase: String? = null, reason: String = ""): PresenceChange {
+    suspend fun turnOnPresenceGate(passphrase: String? = null, reason: String = ""): PresenceChange {
         val gated = platform.gatedKeyStore ?: return PresenceChange.REFUSED
-        if (on && PresenceEnablement.decide(hasRecoverableBackup()) is PresenceEnablement.Decision.BackupRequired) return PresenceChange.BACKUP_REQUIRED
+        if (PresenceEnablement.decide(hasRecoverableBackup()) is PresenceEnablement.Decision.BackupRequired) return PresenceChange.BACKUP_REQUIRED
         val byPassphrase = gated as? PassphraseKey
-        if (on && byPassphrase != null) {
+        if (byPassphrase != null) {
             if (passphrase == null) return PresenceChange.REFUSED
             return when (runCatching { byPassphrase.setPassphrase(passphrase) }.getOrDefault(PassphraseResult.FAILED)) {
                 PassphraseResult.OK -> PresenceChange.CHANGED
@@ -140,7 +140,7 @@ class AppServices(
                 else -> PresenceChange.REFUSED
             }
         }
-        val done = runCatching { if (on) gated.enable(reason) else gated.disable() }.getOrDefault(false)
+        val done = runCatching { gated.enable(reason) }.getOrDefault(false)
         return if (done) PresenceChange.CHANGED else PresenceChange.REFUSED
     }
 
