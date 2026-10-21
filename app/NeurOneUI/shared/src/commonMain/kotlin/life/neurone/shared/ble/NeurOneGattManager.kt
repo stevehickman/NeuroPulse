@@ -26,7 +26,10 @@ import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -197,6 +200,14 @@ class NeurOneGattManager(
     val shdrUploadPending: StateFlow<Boolean> = _shdrUploadPending
 
     /**
+     * One event per SHDR_UPLOAD_STATUS notification of 0x01, including a repeat of the same value. The Swift app's `@Published`
+     * property fires on every assignment, so a hub that notifies again (because the last attempt did not take the record) starts
+     * another attempt; a state flow drops an equal value and would not. The upload pipeline listens to this.
+     */
+    private val _shdrUploadSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val shdrUploadSignal: SharedFlow<Unit> = _shdrUploadSignal
+
+    /**
      * A cervical VNS gel pad failure the wearer has not yet acknowledged (OI-ACC-07).
      * Set from CVNS_PAD_STATUS; cleared when the hub reports both pads passing, when the
      * wearer acknowledges it, or on disconnect. UHDR-class — display only, never persisted.
@@ -361,7 +372,9 @@ class NeurOneGattManager(
         if (uuid == UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID)) {
             // SHDR upload bookkeeping only; never touches session state. Publish the
             // pending trigger (0x01 = upload pending) for the SHDR upload pipeline.
-            _shdrUploadPending.value = value.isNotEmpty() && value[0] == 0x01.toByte()
+            val pending = value.isNotEmpty() && value[0] == 0x01.toByte()
+            _shdrUploadPending.value = pending
+            if (pending) _shdrUploadSignal.tryEmit(Unit)
             return
         }
         if (uuid == UUID.fromString(GattUuidStrings.SOCKET_MAP_ID)) {
