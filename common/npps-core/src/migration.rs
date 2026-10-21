@@ -76,6 +76,18 @@ pub(crate) fn sealed_at_rest() -> Vec<String> {
     all_keys()
 }
 
+/// `NP-APP-PRESENCE-001` §4 (`REQ-PRES-05`): the keys that stay readable while the person's presence has not been established, so that
+/// reminders, the fleet upload and the hub reconnect work locked. **Every other sealed key is UHDR and is gated.** The list is in the
+/// key file next to the sorting, so the apps read one list; it is a subset of the sorted keys, and a key joins it only by a ruling that
+/// shows it says nothing about the person (`CLAUDE.md` §5.1). **The three it holds are a proposal awaiting the Privacy Lead
+/// (`OI-PRES-01`).**
+pub(crate) fn device_tier() -> Vec<String> {
+    let mut v: Vec<String> = key_map()["deviceTier"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
 const MIGRATE_ITEMS: [&str; 5] = [
     "protocols",
     "sessionHistory",
@@ -501,6 +513,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "itemKeys" => {
             let mut m = key_map();
             m["sealedAtRest"] = json!(sealed_at_rest());
+            m["deviceTier"] = json!(device_tier());
             m
         }
         "readHeader" => read_header(req)?,
@@ -999,6 +1012,26 @@ mod tests {
     fn an_unknown_key_method_or_a_short_salt_is_refused() {
         assert!(migration_json(&json!({"op":"bundleKdf","method":"fingerprint","salt":"5a".repeat(32)}).to_string()).is_err());
         assert!(migration_json(&json!({"op":"bundleKdf","method":"passphrase","salt":"5a"}).to_string()).is_err());
+    }
+
+    // @verifies REQ-PRES-05
+    #[test]
+    fn the_device_tier_is_a_small_sorted_subset_of_the_sealed_keys() {
+        let m = ask(json!({"op":"itemKeys"}));
+        let list = |name: &str| -> Vec<String> { m[name].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect() };
+        let (tier, sealed) = (list("deviceTier"), list("sealedAtRest"));
+        let mut sorted = tier.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(tier, sorted, "sorted, no duplicates");
+        assert!(!tier.is_empty());
+        for k in &tier {
+            assert!(sealed.contains(k), "device-tier key {k} is a sealed key");
+        }
+        // Nothing about the person: no consent, history, onboarding or characterisation key is ever in it.
+        for k in list("consent").into_iter().chain(m["carried"].as_object().unwrap().values().flat_map(|a| a.as_array().unwrap()).map(|k| k.as_str().unwrap().to_string())).chain(list("unsorted")) {
+            assert!(!tier.contains(&k), "{k} says something about the person and is UHDR");
+        }
     }
 
     // @verifies SWR-MG-06

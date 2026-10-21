@@ -2,9 +2,9 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-10-21
-**Status:** DRAFT — the principal's rulings (§1) are decided; the device-tier list (§4), the timeout figure and the desktop mechanism (§6) are open
+**Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO (the rulings of §1). Document approval pending
@@ -12,7 +12,7 @@
 **Related Issues:** `OI-UI-KMP-05` (the SwiftUI app's UHDR key manager is never authenticated; nothing to port); `OI-PRES-01` to `OI-PRES-05`
 **Gate:** —
 **IEC 62304 Class:** Class B (SW-03 companion apps)
-**Change Summary:** Rev 1 (2026-10-21) — new document. Records the principal's ruling that **UHDR requires the person's presence on every platform**, the architecture that carries it, and the increments it is built in. Nothing is built by this revision.
+**Change Summary:** Rev 2 (2026-10-21) — **three open items decided by the principal the same day:** the three device-tier keys are accepted (`OI-PRES-01` closed); the 5-minute background timeout is fine for now (`OI-PRES-02` closed, the figure stays in the register because acceptance is not a derivation); and **the app insists on a backup before it gates** (`OI-PRES-04` closed, new `REQ-PRES-08`). `REQ-PRES-01` (b) now says a write made while locked is applied at the next unlock, not lost: a withdrawal made locked must survive. Increment 1 (the core model) is built. Rev 1 (2026-10-21) — new document. Records the principal's ruling that **UHDR requires the person's presence on every platform**, the architecture that carries it, and the increments it is built in. Nothing is built by this revision.
 
 ---
 
@@ -33,13 +33,14 @@ Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what go
 
 | ID | Requirement | Fails without it | Traces to |
 |----|-------------|------------------|-----------|
-| `REQ-PRES-01` | **UHDR-class values are readable only after the person's presence has been established on this run.** (a) Before it, a UHDR value reads as absent, never as ciphertext. (b) Before it, a write is held in memory for the run and nothing on disk changes, so the sealed values stay exactly as they were (the behaviour `StorageProtection.LOCKED` already has, `SWR-MG-13`). (c) A read that could not be asked is never taken for "no key" (`SWR-MG-15`). | Anyone holding an unlocked device or a process on it reads the person's health record. | `CLAUDE.md` §5.1 (UHDR is the user's unconditionally); the principal, 2026-10-21 |
+| `REQ-PRES-01` | **UHDR-class values are readable only after the person's presence has been established on this run.** (a) Before it, a UHDR value reads as absent, never as ciphertext. (b) Before it, a write is held in memory and nothing on disk changes, so the sealed values stay exactly as they were; the held writes are applied, in order, at the next unlock in the same run, so none is lost (a withdrawal of consent made while locked must survive, `CLAUDE.md` §6.0). A removal acts at once. This is not `StorageProtection.LOCKED` (`SWR-MG-13`), where the keystore is broken and nothing can ever be applied. (c) A read that could not be asked is never taken for "no key" (`SWR-MG-15`). | Anyone holding an unlocked device or a process on it reads the person's health record. | `CLAUDE.md` §5.1 (UHDR is the user's unconditionally); the principal, 2026-10-21 |
 | `REQ-PRES-02` | **The data key itself is bound to the device credential** on a platform that can bind it. Reading the key requires the credential; the platform's keystore, not the app, refuses otherwise. | A lock screen the OS does not enforce protects against someone using the app and not against reading the storage. | The principal, 2026-10-21 (ruling 1) |
 | `REQ-PRES-03` | **The person is asked at cold start and after the background timeout** (§7). The timeout is one figure, set in the shared core and applied by every host. | A figure per host would let one platform stay unlocked longer than another. | The principal, 2026-10-21 (ruling 2); `CLAUDE.md` §20 (one definition) |
 | `REQ-PRES-04` | **A person who cannot use biometrics can use the device passcode or PIN.** The prompt is never biometrics-only. | A wearer with a tremor, after a stroke, or without enrolled biometrics could not open their own health record. | The Swift key manager's own comment (`UHDRKeyManager.authenticate`); `NP-APP-ISA` accessibility intent |
 | `REQ-PRES-05` | **Only the device tier (§4) is readable while locked, and anything not on that list is UHDR.** A key is moved to the device tier only by a ruling that shows it tells nothing about the person. | Reminders and the fleet upload would stop when locked; or, worse, a key that says something about the person would be readable locked. | `CLAUDE.md` §5.1 (when in doubt → UHDR; reclassification needs a positive demonstration) |
 | `REQ-PRES-06` | **A host that cannot bind a key to a credential uses a passphrase and says so; it is never silently ungated.** The notice names the host's limit (as `holdsStateInMemoryOnly` does for the browser). | A person believes their record is gated when it is not. | The principal, 2026-10-21 (ruling 4); `SWR-MG-13` (c) (the person is told) |
 | `REQ-PRES-07` | **An install that already holds sealed UHDR is moved to the gated key without losing it.** The first unlock re-seals under the gated key; a failure leaves the earlier sealed values and the earlier key untouched. | An update destroys the person's history, consent state or withdrawal state (`CLAUDE.md` §6.0: the withdrawal must never reset). | `SWR-MG-04`, `SWR-MG-15` |
+| `REQ-PRES-08` | **The app does not turn the gate on until the person has a backup to restore from,** one they completed under a recovery code or passphrase they hold, and it asks them to make one first. | A lost credential or a lost keystore key makes the sealed UHDR unreadable, and the person has no way back. | The principal, 2026-10-21 (`OI-PRES-04`); `SWR-MG-02`, `-03` (the backup) |
 
 ## 3. Architecture
 
@@ -51,9 +52,9 @@ Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what go
 
 **While locked.** UHDR keys read as absent and take writes in memory only. The automatic backup, the history, the consent dashboard and the recordings wait. Consumable reminders use the counts the hub reports live (they are not stored) without their snooze state, so a locked reminder can repeat but never goes missing. The fleet upload and the hub reconnect use the device tier.
 
-## 4. The device tier (proposed — `OI-PRES-01`)
+## 4. The device tier (accepted by the principal, 2026-10-21 — `OI-PRES-01`)
 
-`CLAUDE.md` §5.1 says a field is UHDR until it is positively shown to say nothing about the person. Today every stored key is sealed as UHDR (`sealed_at_rest()` returns all of them). The ruling that reminders and the fleet upload work locked needs a short list moved out. **Proposed, for a Privacy Lead ruling:**
+`CLAUDE.md` §5.1 says a field is UHDR until it is positively shown to say nothing about the person. Today every stored key is sealed as UHDR (`sealed_at_rest()` returns all of them). The ruling that reminders and the fleet upload work locked needs a short list moved out. **The principal accepted these three on 2026-10-21; the list is `deviceTier` in `common/npps/migration-keys.json`, read by the core:**
 
 | Key | Why it may be device-tier | Why it might not |
 |-----|---------------------------|------------------|
@@ -78,7 +79,7 @@ Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what go
 
 Each is its own change and its own pull request; none is started by this revision.
 
-1. **Core model:** the two tiers, the gated key store interface, `PresenceLock`, the lock state; the classification of §4 once ruled (`OI-PRES-01`). JVM-tested.
+1. **Core model — built (Rev 2):** the two tiers (`TieredKeyValueStore`), the gated key store interface, `PresenceLock`, `PresenceEnablement`, the device-tier list in the key file and `ProtectedStorage.openGated`. JVM-tested. **No host calls `openGated` yet** (`REQ-PRES-07`'s migration comes first), so no behaviour changes.
 2. **The screens:** the unlock gate and the notice in common code; the background timeout wired through every host's lifecycle.
 3. **Android:** the Keystore binding and the prompt.
 4. **iOS:** the Keychain binding and `LAContext`.
@@ -91,8 +92,8 @@ Each is its own change and its own pull request; none is started by this revisio
 
 | ID | Item | Owner |
 |----|------|-------|
-| `OI-PRES-01` | The device-tier list of §4: a Privacy Lead ruling on each key. Until it is made, every key is UHDR and the reminders and the fleet upload stop when locked. | Privacy Lead |
-| `OI-PRES-02` | The background timeout. **PROPOSED, 5 minutes, with nothing behind it** (`UC-105`). | Principal |
+| `OI-PRES-01` | **CLOSED 2026-10-21:** the device-tier list of §4 accepted by the principal. | — |
+| `OI-PRES-02` | **CLOSED 2026-10-21:** the background timeout is 5 minutes "for now" (the principal). Nothing derives it, so it stays in the register (`UC-105`). | — |
 | `OI-PRES-03` | The macOS and Windows native presence call, and whether it is a new Rust crate. | Software |
-| `OI-PRES-04` | What the person does if the credential is removed or the Keystore key is lost: the sealed UHDR cannot be opened. The backup (the person's own recovery code or passphrase) is the way back; whether the app should insist on one before it gates is undecided. | Principal |
+| `OI-PRES-04` | **CLOSED 2026-10-21:** the app insists on a backup before gating (`REQ-PRES-08`). How it asks, and which backup counts when the person made it by hand, are for increment 2. | — |
 | `OI-PRES-05` | The Swift app (still shipping) is not given the gate; it is retired instead (`OI-UI-KMP-05`). Until it is, the iOS app that ships does not meet `REQ-PRES-01`. | Principal |

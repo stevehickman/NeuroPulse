@@ -41,6 +41,33 @@ class ProtectedStorage private constructor(
          *   its binding cannot call; then nothing can be sealed or told apart, and the host's store is used as it is.
          */
         fun open(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
+            return openInternal(host, secrets, protectedKeys)
+        }
+
+        /**
+         * The same, with the person's presence required for the UHDR tier (`NP-APP-PRESENCE-001`): the device tier (`deviceTierKeys`) is
+         * sealed under [secrets] and stays readable locked; every other protected key is sealed under [gated] and reads as absent until
+         * [lock] is unlocked. **A host passes this only when its sealed values were made under the gated key**: values sealed under an
+         * earlier, ungated key do not open under it (the migration, `REQ-PRES-07`, is a later increment, and until it exists no host calls this).
+         */
+        fun openGated(
+            host: KeyValueStore,
+            secrets: SecretKeyStore,
+            gated: GatedSecretKeyStore,
+            lock: PresenceLock,
+            protectedKeys: () -> Set<String>,
+            deviceTierKeys: () -> Set<String>,
+        ): ProtectedStorage {
+            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
+            val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
+            val uhdrKeys = all - deviceKeys
+            val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
+                ?: return openInternal(host, null, protectedKeys)
+            val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device))
+            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr)
+        }
+
+        private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
             val keys = runCatching(protectedKeys).getOrNull()
                 ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
             if (secrets != null) {

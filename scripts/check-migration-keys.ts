@@ -73,6 +73,10 @@ export function listedKeys(map: any, out: Finding[]): Map<string, string> {
 export function check(files: Map<string, string>, map: any): Finding[] {
   const out: Finding[] = [];
   const listed = listedKeys(map, out);
+  // The device tier (NP-APP-PRESENCE-001 §4) is a subset of the sorted keys: a key readable while locked is still a stored key.
+  for (const k of Array.isArray(map?.deviceTier) ? map.deviceTier : []) {
+    if (!listed.has(k)) out.push({ file: KEYS_JSON, message: `K5: device-tier key '${String(k)}' is in no list` });
+  }
   const found = new Map<string, string>();
   for (const [path, text] of files) {
     if (!SOURCE_EXT.test(path) || EXCLUDED.test(path)) continue;
@@ -116,6 +120,8 @@ function selfTest(): void {
   expect("a stale entry fails", new Map([["app/android/core/A.kt", 'val c = "np.consent.research"; val s = "np.session.history"']]), map, ["K3", "K3"]);
   expect("a key in two lists fails", src, { ...map, unsorted: [...map.unsorted, "np.session.history"] }, ["K2"]);
   expect("an entry that is not a key fails", src, { ...map, unsorted: [...map.unsorted, "session.history"] }, ["K4"]);
+  expect("a device-tier key in no list fails", src, { ...map, deviceTier: ["np.not.stored"] }, ["K5"]);
+  expect("a device-tier key that is listed passes", src, { ...map, deviceTier: ["ble.last-hub-id"] }, []);
   expect("a missing list fails", src, { carried: map.carried, consent: map.consent, perInstall: map.perInstall }, ["K4", "K1"]);
   console.log("check-migration-keys self-test: ok");
 }
