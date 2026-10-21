@@ -30,6 +30,9 @@ fun main(args: Array<String>) = application {
         visible = windowShown,
         title = "NeurOne",
     ) {
+        // The presence lock's background timeout follows the window's focus (REQ-PRES-03); hidden in the tray is not focused.
+        val focused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+        LaunchedEffect(focused, windowShown) { platform.setWindowFocused(focused && windowShown) }
         NeurOneApp(services)
     }
     if (isTraySupported) {
