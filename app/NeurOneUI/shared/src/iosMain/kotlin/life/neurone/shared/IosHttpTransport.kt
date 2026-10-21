@@ -103,8 +103,9 @@ class IosHttpTransport(
             return@suspendCancellableCoroutine
         }
         val req = NSMutableURLRequest(uRL = url).apply {
-            setHTTPMethod("POST")
-            setHTTPBody(request.body.toNSData())
+            setHTTPMethod(request.method)
+            if (request.method != "GET") setHTTPBody(request.body.toNSData())
+            timeoutInterval = request.timeoutSeconds.toDouble()
             request.headers.forEach { (k, v) -> setValue(v, forHTTPHeaderField = k) }
         }
         val task = session.dataTaskWithRequest(req) { data, response, error ->

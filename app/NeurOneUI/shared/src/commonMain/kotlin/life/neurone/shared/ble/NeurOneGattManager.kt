@@ -51,10 +51,10 @@ class NeurOneGattManager(
     private val scope: CoroutineScope,
     /** Holds the per-user offline-fault acknowledgement point (CervicalFaultLedger). */
     private val ledgerStore: KeyValueStore = InMemoryKeyValueStore(),
-) : BleCentralListener {
+) : BleCentralListener, life.neurone.shared.ota.OtaLink {
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<ConnectionState> = _connectionState
+    override val connectionState: StateFlow<ConnectionState> = _connectionState
 
     private val _session = MutableStateFlow(SessionState.EMPTY)
     val session: StateFlow<SessionState> = _session
@@ -158,10 +158,10 @@ class NeurOneGattManager(
     private val socketMapAssembler = SocketMapFrameAssembler()
 
     private val _otaStatus = MutableStateFlow<OtaStatusPacket?>(null)
-    val otaStatus: StateFlow<OtaStatusPacket?> = _otaStatus
+    override val otaStatus: StateFlow<OtaStatusPacket?> = _otaStatus
 
     private val _hubFirmwareVersion = MutableStateFlow<String?>(null)
-    val hubFirmwareVersion: StateFlow<String?> = _hubFirmwareVersion
+    override val hubFirmwareVersion: StateFlow<String?> = _hubFirmwareVersion
 
     /** SHDR-class opaque warranty token (NP-FW-EMMC-002 §A). Never mixed into session state. */
     private val _warrantyToken = MutableStateFlow<ByteArray?>(null)
@@ -456,7 +456,7 @@ class NeurOneGattManager(
         central.write(UUID.fromString(GattUuidStrings.EDF_REQUEST_ID), bytes)
     }
 
-    fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray = ByteArray(0)) =
+    override fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray) =
         central.write(UUID.fromString(GattUuidStrings.OTA_COMMAND_ID), byteArrayOf(opcode.rawValue.toByte()) + payload)
 
     /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.). */

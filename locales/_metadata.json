@@ -179,9 +179,18 @@
   "MODALITY_VNS_HRV_NAME": {
     "translate": false
   },
+  "OTA_ERROR_HUB_REJECTED": "Hub rejected the firmware (error {0}). The image may be corrupt.",
+  "OTA_ERROR_IMAGE_LOAD": "Could not download the firmware image.",
+  "OTA_ERROR_NOT_CONNECTED": "Hub not connected.",
+  "OTA_ERROR_SIGNATURE": "Firmware image signature verification failed. Do not install this image.",
+  "OTA_ERROR_TIMEOUT": "The update timed out. Reconnect and try again.",
+  "OTA_ERROR_TRANSFER": "Transfer failed. Reconnect and try again.",
+  "OTA_ERROR_VERIFICATION": "Hub signature verification failed. Do not install this image.",
+  "OTA_ERROR_WRONG_IMAGE": "This image is for the other processor, so it was not sent.",
   "OTA_SAFETY_MCU_WARNING": {
     "legal_review_required": true
   },
+  "OTA_UPDATES_UNAVAILABLE": "Firmware updates cannot be checked right now.",
   "REGULATORY_FOOTER": {
     "legal_review_required": true
   },

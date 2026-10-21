@@ -28,9 +28,9 @@ class OkHttpTransport(
         val contentType = request.headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
         val builder = okhttp3.Request.Builder()
             .url(request.url)
-            .post(request.body.toRequestBody(contentType?.toMediaTypeOrNull()))
+        if (request.method == "GET") builder.get() else builder.post(request.body.toRequestBody(contentType?.toMediaTypeOrNull()))
         request.headers.forEach { (k, v) -> if (!k.equals("Content-Type", ignoreCase = true)) builder.header(k, v) }
-        val call = client.newCall(builder.build())
+        val call = client.newBuilder().callTimeout(request.timeoutSeconds.toLong(), TimeUnit.SECONDS).build().newCall(builder.build())
         cont.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
