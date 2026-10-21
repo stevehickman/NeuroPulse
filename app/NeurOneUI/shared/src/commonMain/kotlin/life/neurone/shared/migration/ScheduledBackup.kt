@@ -34,6 +34,8 @@ class ScheduledBackup(
     private val items: List<MigrationItemStore> = emptyList(),
     private val nowSeconds: () -> Long = { epochSeconds() },
     private val random: RandomSource = SystemRandomSource,
+    /** The recordings sealed beside each backup, or null where the host keeps none. */
+    private val waveforms: WaveformBackup? = null,
     /** Called after the backup is turned on or off, so the host's scheduler can follow. */
     private val onChange: () -> Unit = {},
 ) {
@@ -87,14 +89,15 @@ class ScheduledBackup(
         val secret = BundleKeyDerivation.storedSecret(stored.substringAfter(':'))
         if (method == null || secret == null) return fail("secret_unreadable")
         val outcome = try {
-            runBackup(place, keys, items, BackupKind.UHDR, method, secret, random)
+            runBackup(place, keys, items, BackupKind.UHDR, method, secret, random, waveforms)
         } finally {
             secret.destroy()
         }
         return when (outcome) {
             is BackupStep.Done -> {
                 keys.putString(LAST_KEY, now.toString())
-                keys.remove(FAILURE_KEY)
+                // The settings backup was made either way; recordings that could not be sealed are said, and tried again at the next run.
+                if (outcome.waveforms is WaveformBackupResult.Failed) keys.putString(FAILURE_KEY, WAVEFORMS_FAILED) else keys.remove(FAILURE_KEY)
                 Outcome.Made(now)
             }
             is BackupStep.Failed -> fail(outcome.reason)
@@ -111,6 +114,9 @@ class ScheduledBackup(
         const val SECRET_KEY = "np.backup.auto-secret"
         const val LAST_KEY = "np.backup.last-epoch"
         const val FAILURE_KEY = "np.backup.auto-failure"
+
+        /** The failure code when the backup was made but its recordings were not; not one of the core's reasons, so the screen words it itself. */
+        const val WAVEFORMS_FAILED = "waveforms_failed"
 
         /** The Swift app's interval: a backup that ran within 20 hours is not repeated, so a day's several launches make one. */
         const val INTERVAL_SECONDS = 20L * 3600L

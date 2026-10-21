@@ -41,6 +41,8 @@ class RestoreReport(
     val consentNotRestored: Boolean,
     /** The backup was marked as received, which is what lets the old phone clear (SWR-MG-08). Only a migration needs it. */
     val confirmed: Boolean,
+    /** What happened to the backup's recordings, for a health-data backup; null when it has none to restore or this host keeps none. */
+    val waveforms: WaveformRestoreResult? = null,
 )
 
 sealed interface RestoreStep {
@@ -65,6 +67,8 @@ class MigrationRestoreModel(
     private val keys: KeyValueStore,
     private val items: List<MigrationItemStore> = emptyList(),
     private val random: RandomSource = SystemRandomSource,
+    /** Puts the backup's recordings back in the UHDR folder; null where the host keeps none. */
+    private val waveforms: WaveformBackup? = null,
 ) {
     private val state = MutableStateFlow<RestoreStep>(if (place == null) RestoreStep.NoPlace else RestoreStep.Looking)
     val step: StateFlow<RestoreStep> = state.asStateFlow()
@@ -107,13 +111,17 @@ class MigrationRestoreModel(
             put("route", place.route.toJson())
             put("hostItems", JsonArray(host.hostItems.map { JsonPrimitive(it) }))
         }
+        var recordings: WaveformRestoreResult? = null
         val done = try {
-            MigrationFlow.run("restore", params, host, secret, keys, place.store, random = random)
+            MigrationFlow.run("restore", params, host, secret, keys, place.store, random = random).also { r ->
+                // The recordings are restored under the same secret, only from a health-data backup, and only after the rest has opened.
+                if (r["ok"]!!.jsonPrimitive.boolean && restoreReportOf(r).kind == BackupKind.UHDR) recordings = waveforms?.restore(place, secret)
+            }
         } finally {
             secret.destroy()
         }
         if (done["ok"]!!.jsonPrimitive.boolean) {
-            state.value = RestoreStep.Done(restoreReportOf(done))
+            state.value = RestoreStep.Done(restoreReportOf(done).withWaveforms(recordings))
         } else {
             val reason = done["reason"]!!.jsonPrimitive.content
             // A secret that does not open the backup is the person's to retry; every other reason ends the restore.
@@ -140,3 +148,6 @@ internal fun restoreReportOf(done: kotlinx.serialization.json.JsonObject): Resto
         confirmed = done["confirmed"]?.jsonPrimitive?.boolean == true,
     )
 }
+
+private fun RestoreReport.withWaveforms(result: WaveformRestoreResult?): RestoreReport =
+    RestoreReport(kind, bundleHash, restored, missing, omitted, notApplied, consentNotRestored, confirmed, result)

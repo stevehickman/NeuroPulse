@@ -71,7 +71,13 @@ sealed interface BackupStep {
 
     data object Running : BackupStep
 
-    class Done(val bundleHash: String, val written: List<String>, val omitted: List<String>) : BackupStep
+    class Done(
+        val bundleHash: String,
+        val written: List<String>,
+        val omitted: List<String>,
+        /** How the recordings fared, for a health-data backup into a folder; null when this backup does not carry them. */
+        val waveforms: WaveformBackupResult? = null,
+    ) : BackupStep
 
     /** The core's reason code; [messageKey] words it. */
     class Failed(val reason: String) : BackupStep
@@ -90,6 +96,8 @@ class MigrationBackupModel(
     private val random: RandomSource = SystemRandomSource,
     /** The automatic backup, when this host's place allows one; null when it does not (a file the person must save, a direct move). */
     private val scheduled: ScheduledBackup? = null,
+    /** The recordings in the UHDR folder, sealed beside the bundle in a health-data backup; null where the place cannot hold them or the host keeps none. */
+    private val waveforms: WaveformBackup? = null,
 ) {
     /** Whether a health-data backup made now should also turn the automatic backup on, under the same code or passphrase. */
     var keepAutomatic: Boolean = false
@@ -170,7 +178,7 @@ class MigrationBackupModel(
         val place = place ?: return
         state.value = BackupStep.Running
         val outcome = try {
-            runBackup(place, keys, items, preview.kind, method, secret, random).also { done ->
+            runBackup(place, keys, items, preview.kind, method, secret, random, waveforms).also { done ->
                 // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
                 // (the automatic backup, `ScheduledBackup`), and is destroyed here either way.
                 if (done is BackupStep.Done && preview.kind == BackupKind.UHDR && scheduled != null) {
@@ -203,6 +211,8 @@ internal suspend fun runBackup(
     method: BundleKeyMethod,
     secret: BundleSecret,
     random: RandomSource = SystemRandomSource,
+    /** A health-data backup also seals the recordings (SWR-MG-03); a migration never does. */
+    waveforms: WaveformBackup? = null,
 ): BackupStep {
     val host = StandardMigrationHost(items)
     val params = buildJsonObject {
@@ -217,6 +227,7 @@ internal suspend fun runBackup(
             done["bundleHash"]!!.jsonPrimitive.content,
             done["written"]!!.jsonArray.map { it.jsonPrimitive.content },
             done["omitted"]!!.jsonArray.map { it.jsonPrimitive.content },
+            if (kind == BackupKind.UHDR) waveforms?.backUp(place, method, secret) else null,
         )
     } else {
         BackupStep.Failed(done["reason"]!!.jsonPrimitive.content)

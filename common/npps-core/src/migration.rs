@@ -522,6 +522,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
             return crate::link::op(other, req)
                 .or_else(|| crate::migration_text::op(other, req))
                 .or_else(|| crate::at_rest::op(other, req))
+                .or_else(|| crate::archive::op(other, req))
                 .or_else(|| crate::analytics::op(other, req))
                 .or_else(|| crate::ohttp::op(other, req))
                 .or_else(|| crate::primitives::op(other, req))

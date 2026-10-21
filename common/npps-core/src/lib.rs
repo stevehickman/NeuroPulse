@@ -8,6 +8,7 @@
 //! `wavelength_rules`) and the descriptor compiler.
 
 pub mod analytics;
+pub mod archive;
 pub mod api;
 pub mod at_rest;
 pub mod bundle_key;
