@@ -30,7 +30,8 @@
     "np.limits.helmets",
     "np.backup.auto-secret",
     "np.backup.auto-failure",
-    "np.presence.enabled"
+    "np.presence.enabled",
+    "np.presence.passphrase-wrap"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

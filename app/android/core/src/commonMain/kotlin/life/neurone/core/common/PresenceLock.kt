@@ -80,6 +80,23 @@ class PresenceLock(
         return ok
     }
 
+    /** Open the lock with a passphrase, on a host whose key is a [PassphraseKey] (`REQ-PRES-06`). Any other key answers `FAILED`. */
+    suspend fun unlockWithPassphrase(passphrase: String): PassphraseResult {
+        if (isUnlocked) return PassphraseResult.OK
+        val passphraseKey = key as? PassphraseKey ?: return PassphraseResult.FAILED
+        val result = runCatching { passphraseKey.unlockWithPassphrase(passphrase) }.getOrDefault(PassphraseResult.FAILED)
+        if (result == PassphraseResult.OK && key.isUnlocked) {
+            backgroundedAtMs = null
+            set(PresenceState.UNLOCKED)
+        } else if (result == PassphraseResult.OK) {
+            return PassphraseResult.FAILED
+        }
+        return result
+    }
+
+    /** The key behind this lock when it is a passphrase (so the screen asks for one instead of the platform), else null. */
+    val passphraseKey: PassphraseKey? get() = key as? PassphraseKey
+
     fun lock() {
         key.lock()
         backgroundedAtMs = null

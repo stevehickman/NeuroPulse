@@ -45,6 +45,15 @@ class DesktopPlatformServices(
     /** The system credential store, if it proves it can keep and remove a secret; otherwise none (SWR-MG-06). */
     override val secretKeyStore: SecretKeyStore? by lazy { DesktopSecretKeyStore.create() }
 
+    /**
+     * The presence gate by a passphrase, on every desktop system until the native presence call exists (`NP-APP-PRESENCE-001` §6,
+     * increment 6, `OI-PRES-03`): macOS and Windows will use their own credential then, Linux has none to bind to. It is kept in the
+     * app's plain store because it is read before anyone is present. Dark: null until installs that already hold sealed UHDR can be
+     * moved to it (`REQ-PRES-07`). This host has no foreground signal yet, so the lock asks at start and not after a timeout.
+     */
+    override val gatedKeyStore: life.neurone.core.common.GatedSecretKeyStore? =
+        if (OFFER_PRESENCE_GATE) life.neurone.core.common.PassphraseGatedSecretKeyStore(keyValueStore) else null
+
     /** The credential store can be missing on a run (a tool blocked, a keychain locked), and the data is then on disk unsealed. */
     override val reportsUnsealedStorage: Boolean get() = true
 
@@ -184,3 +193,6 @@ class FileKeyValueStore(
 
 /** The folder `backups` inside the data folder, which is where a backup goes until another is chosen. */
 internal const val BACKUP_FOLDER = "backups"
+
+/** Whether the desktop app offers the presence gate (`NP-APP-PRESENCE-001`); false until `REQ-PRES-07` is built. */
+private const val OFFER_PRESENCE_GATE = false

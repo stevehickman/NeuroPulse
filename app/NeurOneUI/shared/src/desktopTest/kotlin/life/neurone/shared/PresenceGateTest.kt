@@ -2,7 +2,10 @@ package life.neurone.shared
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +16,9 @@ import kotlinx.coroutines.runBlocking
 import life.neurone.core.common.GatedSecretKeyStore
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.InMemorySecretKeyStore
+import life.neurone.core.common.PassphraseGatedSecretKeyStore
+import life.neurone.core.common.PassphraseResult
+import life.neurone.core.common.GatedSecretKeyStore as GatedKey
 import life.neurone.core.common.PresenceState
 import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.session.Ed25519ProtocolSigner
@@ -52,7 +58,7 @@ class PresenceGateTest {
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
 
-    private fun services(gated: Gated?, host: InMemoryKeyValueStore = InMemoryKeyValueStore()) = AppServices(
+    private fun services(gated: GatedKey?, host: InMemoryKeyValueStore = InMemoryKeyValueStore()) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = host
             override val bleCentral = UnavailableBleCentral()
@@ -169,5 +175,51 @@ class PresenceGateTest {
         }
         waitForIdle()
         onNodeWithText(text(Res.string.setup_title_welcome)).assertExists()
+    }
+
+    private val longPassphrase = "correct horse battery staple"
+
+    /** A passphrase host whose gate was set up on an earlier run, so this run starts locked. */
+    private fun passphraseApp(): AppServices {
+        val host = InMemoryKeyValueStore()
+        runBlocking { PassphraseGatedSecretKeyStore(host).setPassphrase(longPassphrase) }
+        return services(PassphraseGatedSecretKeyStore(host), host)
+    }
+
+    // @verifies REQ-PRES-06
+    @Test
+    fun aPassphraseHostAsksForThePassphraseSaysWhyAndOpensWithIt() = runComposeUiTest {
+        val app = passphraseApp()
+        setContent {
+            strings = (used + Res.string.presence_passphrase_notice + Res.string.presence_passphrase_wrong).associateWith { stringResource(it) }
+            NeurOneApp(app)
+        }
+        waitForIdle()
+        onNodeWithText(text(Res.string.presence_passphrase_notice)).assertExists()
+        onNodeWithText(text(Res.string.setup_title_welcome)).assertDoesNotExist()
+
+        onNode(hasSetTextAction()).performTextInput("not the passphrase at all")
+        onNodeWithText(text(Res.string.presence_unlock_button)).performClick()
+        waitUntil(timeoutMillis = 30_000) { runCatching { onNodeWithText(text(Res.string.presence_passphrase_wrong)).assertExists() }.isSuccess }
+        onNodeWithText(text(Res.string.setup_title_welcome)).assertDoesNotExist()
+
+        onNode(hasSetTextAction()).performTextReplacement(longPassphrase)
+        onNodeWithText(text(Res.string.presence_unlock_button)).performClick()
+        waitUntil(timeoutMillis = 30_000) { runCatching { onNodeWithText(text(Res.string.setup_title_welcome)).assertExists() }.isSuccess }
+    }
+
+    // @verifies REQ-PRES-08
+    @Test
+    fun aPassphraseIsNotAcceptedUntilABackupExistsAndAShortOneIsRefused() {
+        val host = InMemoryKeyValueStore()
+        val app = services(PassphraseGatedSecretKeyStore(host), host)
+        assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.setPresenceGate(true, longPassphrase) })
+        assertFalse(host.getString(PassphraseGatedSecretKeyStore.WRAP_KEY) != null)
+
+        app.keyValueStore.putString(ScheduledBackup.LAST_KEY, "1")
+        assertEquals(AppServices.PresenceChange.PASSPHRASE_TOO_SHORT, runBlocking { app.setPresenceGate(true, "short") })
+        assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.setPresenceGate(true, longPassphrase) })
+        assertTrue(app.presenceEnabled)
+        assertEquals(PassphraseResult.OK, runBlocking { app.presencePassphraseKey!!.changePassphrase(longPassphrase, "another long passphrase") })
     }
 }
