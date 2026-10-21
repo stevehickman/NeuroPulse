@@ -33,6 +33,7 @@ import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.MigrationRestoreModel
 import life.neurone.shared.migration.PortableFilePlace
+import life.neurone.shared.migration.WaveformRestoreResult
 import life.neurone.shared.migration.RestoreReport
 import life.neurone.shared.migration.RestoreStep
 import life.neurone.shared.resources.*
@@ -48,7 +49,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = hostPlace ?: portable?.place
-    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems) }
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.
@@ -131,6 +132,15 @@ internal fun RestoreReportView(r: RestoreReport) {
     ItemList(Res.string.migration_restore_missing_title, r.missing)
     ItemList(Res.string.migration_restore_omitted_title, r.omitted)
     ItemList(Res.string.migration_restore_not_applied_title, r.notApplied)
+    when (val w = r.waveforms) {
+        is WaveformRestoreResult.Done -> {
+            Text(stringResource(Res.string.migration_restore_waveforms_done, w.restored))
+            if (w.unreadable > 0) Text(stringResource(Res.string.migration_restore_waveforms_unreadable, w.unreadable))
+        }
+        WaveformRestoreResult.WrongSecret -> Text(stringResource(Res.string.migration_restore_waveforms_locked))
+        WaveformRestoreResult.Failed -> Text(stringResource(Res.string.migration_restore_waveforms_failed))
+        WaveformRestoreResult.NoneInBackup, null -> {}
+    }
     if (r.consentNotRestored) {
         Spacer(Modifier.height(12.dp))
         Text(stringResource(Res.string.migration_restore_consent_notice))

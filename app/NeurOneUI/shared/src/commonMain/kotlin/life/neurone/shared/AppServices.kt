@@ -129,8 +129,12 @@ class AppServices(
      * The automatic health-data backup (SWR-MG-03): off until the person turns it on while making a backup, then made again at launch
      * and hourly while the app stays open, whenever the last is over 20 hours old. Only the host's folder place can run unattended.
      */
-    val scheduledBackup =
-        life.neurone.shared.migration.ScheduledBackup({ backupPlace.value }, keyValueStore, migrationItems, onChange = { syncBackgroundSchedule(); syncLoginItem() })
+    /** The recordings in the UHDR folder, sealed beside each health-data backup and put back by its restore; null where the host keeps none. */
+    val waveformBackup: life.neurone.shared.migration.WaveformBackup? = platform.uhdrFolder?.let { life.neurone.shared.migration.WaveformBackup(it) }
+
+    val scheduledBackup = life.neurone.shared.migration.ScheduledBackup(
+        { backupPlace.value }, keyValueStore, migrationItems, waveforms = waveformBackup, onChange = { syncBackgroundSchedule(); syncLoginItem() },
+    )
 
     /**
      * Keep the system's wake-up request in step with the automatic backup: asked for while it is on and there is a folder, withdrawn

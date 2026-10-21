@@ -43,6 +43,8 @@ import life.neurone.shared.migration.LIST_MARK
 import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.PortableFilePlace
+import life.neurone.shared.migration.ScheduledBackup
+import life.neurone.shared.migration.WaveformBackupResult
 import life.neurone.shared.migration.SecretProblem
 import life.neurone.shared.resources.*
 import org.jetbrains.compose.resources.StringResource
@@ -71,7 +73,12 @@ fun MigrationBackupScreen(
     // Automatic backup needs a place the app can write without a dialog: the host's own folder, not a saved file or a direct move.
     val unattended = portable == null && linkPlace == null && place != null
     val model = remember(place) {
-        MigrationBackupModel(place, app.keyValueStore, app.migrationItems, scheduled = if (unattended) app.scheduledBackup else null)
+        MigrationBackupModel(
+            place, app.keyValueStore, app.migrationItems,
+            scheduled = if (unattended) app.scheduledBackup else null,
+            // A folder can hold the recordings beside the bundle; a saved file or a direct move holds the bundle alone.
+            waveforms = if (unattended) app.waveformBackup else null,
+        )
     }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
@@ -182,6 +189,11 @@ fun MigrationBackupScreen(
                 Text(stringResource(Res.string.migration_backup_done_body, s.bundleHash.take(12)))
                 ItemList(Res.string.migration_backup_carried_title, s.written)
                 ItemList(Res.string.migration_backup_left_out_title, s.omitted)
+                when (val w = s.waveforms) {
+                    is WaveformBackupResult.Done -> Text(stringResource(Res.string.migration_backup_waveforms_done, w.total, w.written))
+                    WaveformBackupResult.Failed -> Text(stringResource(Res.string.migration_backup_waveforms_failed), color = MaterialTheme.colorScheme.error)
+                    WaveformBackupResult.NothingToBackUp, null -> {}
+                }
                 if (onBackedUp != null) {
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = onBackedUp) { Text(stringResource(Res.string.migration_link_show_code)) }
@@ -270,7 +282,11 @@ internal fun AutomaticBackupStatus(app: AppServices) {
         style = MaterialTheme.typography.bodySmall,
     )
     scheduled.lastFailure?.let { reason ->
-        Text(stringResource(Res.string.migration_backup_auto_failed, words(MessageGroup.REASONS, reason)), style = MaterialTheme.typography.bodySmall)
+        Text(
+            if (reason == ScheduledBackup.WAVEFORMS_FAILED) stringResource(Res.string.migration_backup_auto_waveforms_failed)
+            else stringResource(Res.string.migration_backup_auto_failed, words(MessageGroup.REASONS, reason)),
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
     app.platform.loginItem?.let { LoginItemRow(it) }
     TextButton(onClick = { scheduled.turnOff(); on = false }) { Text(stringResource(Res.string.migration_backup_auto_off_button)) }
