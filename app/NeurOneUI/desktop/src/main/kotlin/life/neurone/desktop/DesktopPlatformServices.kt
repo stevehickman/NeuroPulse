@@ -55,6 +55,9 @@ class DesktopPlatformServices(
      */
     override val folderPlaces: DesktopFolderPlaces = DesktopFolderPlaces(desktopDataDirectory)
 
+    /** The consumable reminders as tray balloons, generic by design; the host attaches the tray once it is composed. */
+    override val reminderNotifier: DesktopReminderNotifier = DesktopReminderNotifier()
+
     /** Starting at sign-in, for an installed copy; null in a development run, which has no launcher to start. */
     override val loginItem: life.neurone.shared.LoginItem? by lazy { DesktopLoginItem.forThisSystem() }
 
