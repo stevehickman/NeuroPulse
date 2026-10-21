@@ -296,6 +296,10 @@ private fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
 
+        // Ask for the person's presence before showing UHDR, where the host offers it (NP-APP-PRESENCE-001); the backup comes first (REQ-PRES-08).
+        PresenceSettingsSection(app, onMakeBackup = onManageMigration)
+        Spacer(Modifier.height(24.dp))
+
         // Back up, or move to a new phone (SWR-MG-02, SWR-MG-03).
         OutlinedButton(onClick = onManageMigration) { Text(stringResource(Res.string.settings_migration_button)) }
         OutlinedButton(onClick = onRestore) { Text(stringResource(Res.string.settings_restore_button)) }

@@ -83,7 +83,7 @@ fun NeurOneApp(services: AppServices) {
     MaterialTheme {
         Column {
             StorageNotice(services)
-            Root(services)
+            PresenceGate(services) { Root(services) }
         }
     }
 }

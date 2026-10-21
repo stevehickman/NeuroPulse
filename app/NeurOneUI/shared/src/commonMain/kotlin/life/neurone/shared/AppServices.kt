@@ -23,9 +23,12 @@ import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceEnablement
+import life.neurone.core.common.PresenceLock
 import life.neurone.core.common.ProtectedStorage
 import life.neurone.core.common.StorageProtection
 import life.neurone.core.migration.ClearActions
+import life.neurone.core.platform.epochSeconds
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.migration.LINK_ROUTE
 import life.neurone.core.migration.MemoryObjectStore
@@ -57,6 +60,8 @@ class AppServices(
     val platform: PlatformServices,
     /** Long-lived scope for the GATT manager and the consumable subscription. */
     val scope: CoroutineScope,
+    /** The clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. */
+    private val nowMs: () -> Long = { epochSeconds() * 1000 },
 ) {
     /**
      * The UHDR-class state is sealed at rest when the host has a keystore to keep the key in (SWR-MG-06); every store and
@@ -67,8 +72,56 @@ class AppServices(
      * SWR-MG-13): it holds those keys in memory for the run and writes nothing to them on disk, so the sealed data is neither
      * read as ciphertext nor overwritten with plaintext. [storageProtection] says which of the three states this run is in.
      */
-    private val protectedStorage: ProtectedStorage = ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) {
-        EncryptedKeyValueStore.uhdrKeys()
+    /**
+     * The person's presence for UHDR (`NP-APP-PRESENCE-001`), or null when the gate is not on: no host supplies [PlatformServices.gatedKeyStore]
+     * yet, and a host that does answers [GatedSecretKeyStore.isEnabled] false until the person turns it on, so this is null and storage opens as before.
+     * Starts locked; the screens ask ([PresenceGate]) before showing anything.
+     */
+    val presenceLock: PresenceLock? = platform.gatedKeyStore?.takeIf { it.isEnabled && platform.secretKeyStore != null }?.let { gated ->
+        PresenceLock(gated, nowMs)
+    }
+
+    init {
+        // Checks the background timeout while the window stays open but unfocused (`REQ-PRES-03`); the foreground event checks it at once.
+        presenceLock?.let { lock -> scope.launch { while (true) { kotlinx.coroutines.delay(PRESENCE_TICK_MS); lock.tick() } } }
+    }
+
+    private val protectedStorage: ProtectedStorage = run {
+        val gated = platform.gatedKeyStore
+        val lock = presenceLock
+        val secrets = platform.secretKeyStore
+        if (gated != null && lock != null && secrets != null) {
+            ProtectedStorage.openGated(platform.keyValueStore, secrets, gated, lock, { EncryptedKeyValueStore.uhdrKeys() }, { EncryptedKeyValueStore.deviceTierKeys() })
+        } else {
+            ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
+        }
+    }
+
+    /** What turning the gate on or off came to. */
+    enum class PresenceChange {
+        /** Done. It takes effect the next time the app opens, because storage is opened once per run. */
+        CHANGED,
+
+        /** The gate was not turned on: no backup exists yet (`REQ-PRES-08`). The screen asks for one first. */
+        BACKUP_REQUIRED,
+
+        /** The host could not (the person declined the prompt, or the move of the sealed data failed); nothing changed. */
+        REFUSED,
+    }
+
+    /** Whether this host offers the gate, and whether the person has it on. */
+    val presenceAvailable: Boolean get() = platform.gatedKeyStore != null
+    val presenceEnabled: Boolean get() = platform.gatedKeyStore?.isEnabled == true
+
+    /** A backup the person completed, under a code or passphrase they hold, exists: the backup screens record the time of each (`ScheduledBackup.LAST_KEY`). */
+    fun hasRecoverableBackup(): Boolean = keyValueStore.getString(life.neurone.shared.migration.ScheduledBackup.LAST_KEY) != null
+
+    /** Turn the gate on ([on]) or off. Turning on is refused until a backup exists. */
+    suspend fun setPresenceGate(on: Boolean): PresenceChange {
+        val gated = platform.gatedKeyStore ?: return PresenceChange.REFUSED
+        if (on && PresenceEnablement.decide(hasRecoverableBackup()) is PresenceEnablement.Decision.BackupRequired) return PresenceChange.BACKUP_REQUIRED
+        val done = runCatching { if (on) gated.enable() else gated.disable() }.getOrDefault(false)
+        return if (done) PresenceChange.CHANGED else PresenceChange.REFUSED
     }
 
     /** How the protected keys are held on this run; the screens tell the person when it is not [StorageProtection.SEALED]. */
@@ -309,3 +362,6 @@ fun createAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatch
 
 /** How often an app that stays open looks for an automatic backup that is due. */
 private const val BACKUP_CHECK_MILLIS = 3_600_000L
+
+/** How often the open app checks whether the background timeout has run out (`UC-106`). */
+internal const val PRESENCE_TICK_MS = 15_000L

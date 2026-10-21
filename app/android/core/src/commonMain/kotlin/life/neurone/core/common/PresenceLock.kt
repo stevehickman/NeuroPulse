@@ -21,6 +21,21 @@ interface GatedSecretKeyStore : SecretKeyStore {
 
     /** Forget that presence was established: the key is not readable again until [unlock]. Destroying the key needs no presence. */
     fun lock()
+
+    /**
+     * Whether the person has the gate turned on. Read before storage is opened: a host answers false until the person turns it on, and
+     * the app then opens storage ungated, exactly as before.
+     */
+    val isEnabled: Boolean
+
+    /**
+     * Turn the gate on. The caller has already checked [PresenceEnablement] (`REQ-PRES-08`). The host moves any sealed UHDR to the gated
+     * key (`REQ-PRES-07`) and returns false, changing nothing, if it cannot. Takes effect when storage is next opened.
+     */
+    suspend fun enable(): Boolean
+
+    /** Turn the gate off: the host moves the sealed UHDR back to an ungated key. False, changing nothing, if it cannot. */
+    suspend fun disable(): Boolean
 }
 
 enum class PresenceState {

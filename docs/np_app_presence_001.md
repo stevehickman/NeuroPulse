@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-10-21
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
@@ -12,7 +12,7 @@
 **Related Issues:** `OI-UI-KMP-05` (the SwiftUI app's UHDR key manager is never authenticated; nothing to port); `OI-PRES-01` to `OI-PRES-05`
 **Gate:** —
 **IEC 62304 Class:** Class B (SW-03 companion apps)
-**Change Summary:** Rev 2 (2026-10-21) — **three open items decided by the principal the same day:** the three device-tier keys are accepted (`OI-PRES-01` closed); the 5-minute background timeout is fine for now (`OI-PRES-02` closed, the figure stays in the register because acceptance is not a derivation); and **the app insists on a backup before it gates** (`OI-PRES-04` closed, new `REQ-PRES-08`). `REQ-PRES-01` (b) now says a write made while locked is applied at the next unlock, not lost: a withdrawal made locked must survive. Increment 1 (the core model) is built. Rev 1 (2026-10-21) — new document. Records the principal's ruling that **UHDR requires the person's presence on every platform**, the architecture that carries it, and the increments it is built in. Nothing is built by this revision.
+**Change Summary:** Rev 3 (2026-10-21) — **increment 2 is built, and dark:** the unlock screen, the background-timeout feed (`PlatformServices.appInForeground`), the Settings section with the backup-first dialog, and `AppServices.setPresenceGate`. Every health-data backup now records its time whatever the place (`REQ-PRES-08`: only the automatic place left a mark before), and that mark is the "a backup exists" test. No host supplies a gated key, so nothing is visible yet. Rev 2 (2026-10-21) — **three open items decided by the principal the same day:** the three device-tier keys are accepted (`OI-PRES-01` closed); the 5-minute background timeout is fine for now (`OI-PRES-02` closed, the figure stays in the register because acceptance is not a derivation); and **the app insists on a backup before it gates** (`OI-PRES-04` closed, new `REQ-PRES-08`). `REQ-PRES-01` (b) now says a write made while locked is applied at the next unlock, not lost: a withdrawal made locked must survive. Increment 1 (the core model) is built. Rev 1 (2026-10-21) — new document. Records the principal's ruling that **UHDR requires the person's presence on every platform**, the architecture that carries it, and the increments it is built in. Nothing is built by this revision.
 
 ---
 
@@ -80,7 +80,7 @@ Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what go
 Each is its own change and its own pull request; none is started by this revision.
 
 1. **Core model — built (Rev 2):** the two tiers (`TieredKeyValueStore`), the gated key store interface, `PresenceLock`, `PresenceEnablement`, the device-tier list in the key file and `ProtectedStorage.openGated`. JVM-tested. **No host calls `openGated` yet** (`REQ-PRES-07`'s migration comes first), so no behaviour changes.
-2. **The screens:** the unlock gate and the notice in common code; the background timeout wired through every host's lifecycle.
+2. **The screens — built (Rev 3):** the unlock gate (`PresenceGate`) and the Settings section in common code; the background timeout reads `PlatformServices.appInForeground`, which each host feeds from its lifecycle in its own increment. **While locked the content is not composed at all**, so a screen cannot write a default over a sealed value; the cost is that a screen the person was on is rebuilt after an unlock. `GatedSecretKeyStore` gained `isEnabled`, `enable()` and `disable()`: the host owns moving the sealed data between keys (`REQ-PRES-07`), and the setting takes effect the next time the app opens. Dark: no host supplies `gatedKeyStore`.
 3. **Android:** the Keystore binding and the prompt.
 4. **iOS:** the Keychain binding and `LAContext`.
 5. **Passphrase fallback:** the derived key, the set-up and change flow, the browser and Linux hosts.
