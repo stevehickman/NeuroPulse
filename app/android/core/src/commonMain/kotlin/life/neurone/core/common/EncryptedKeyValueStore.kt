@@ -63,6 +63,11 @@ class EncryptedKeyValueStore(
     private val random: RandomSource = SystemRandomSource,
     /** Stores whose keys are destroyed with this one: the other tier of a presence-gated pair, so a clear leaves neither key (`SWR-MG-06`). */
     private val siblings: List<EncryptedKeyValueStore> = emptyList(),
+    /**
+     * The key this install's values were sealed under before the gate was turned on (`REQ-PRES-07`). A value that does not open under
+     * [secrets] is tried under it, so a value not yet moved still reads; [resealFromLegacy] moves them. Never written to.
+     */
+    private val legacy: SecretKeyStore? = null,
 ) : KeyValueStore {
     private var cached: ByteArray? = null
 
@@ -97,8 +102,41 @@ class EncryptedKeyValueStore(
         val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: return null
         if (!stored.startsWith(PREFIX)) return stored
         val k = (try { key() } catch (ignored: SecretKeyUnavailableException) { null }) ?: return null
+        return open(name, stored, k) ?: legacyKey()?.let { open(name, stored, it) }
+    }
+
+    private fun open(name: String, stored: String, k: ByteArray): String? {
         val r = ask("openValue") { put("key", k.toHex()); put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
         return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
+    }
+
+    /** The earlier key, or null if there is none or it cannot be asked (then an unmoved value reads as absent until it can). */
+    private fun legacyKey(): ByteArray? = try { legacy?.load() } catch (ignored: SecretKeyUnavailableException) { null }
+
+    /**
+     * Move every value still sealed under the earlier key to the key of this store (`REQ-PRES-07`). A value that already opens under this
+     * store's key is left alone; one that opens only under the earlier key is sealed again and **read back before the pass moves on**.
+     * Each value is one write to the host, which either lands or does not, so a pass that stops part-way (a crash, a keystore that
+     * stops answering) leaves every value readable, some under each key, and the next pass finishes it. Nothing is deleted and the
+     * earlier key is not touched. Returns the number moved.
+     */
+    fun resealFromLegacy(): Int {
+        val old = legacyKey() ?: return 0
+        var moved = 0
+        for (name in protectedKeys) {
+            val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: continue
+            if (!stored.startsWith(PREFIX)) continue
+            val current = try { key() } catch (ignored: SecretKeyUnavailableException) { null }
+            if (current != null && open(name, stored, current) != null) continue
+            val value = open(name, stored, old) ?: continue
+            try {
+                inner.putString(name, seal(name, value))
+            } catch (ignored: SecretKeyUnavailableException) {
+                return moved
+            }
+            if (read(name) == value) moved++ else inner.putString(name, stored)
+        }
+        return moved
     }
 
     override fun getString(key: String): String? = if (key in protectedKeys) read(key) else inner.getString(key)

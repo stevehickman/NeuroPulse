@@ -57,8 +57,8 @@ import kotlin.coroutines.resume
  * [SecretKeyUnavailableException] ("could not ask", never "no key", `SWR-MG-15`). The read is made on a background dispatcher: it
  * blocks while the system prompt is up.
  *
- * **Not offered yet.** [enable] and [disable] move already-sealed UHDR between keys (`REQ-PRES-07`, increment 7) and refuse until
- * that exists; [IosPlatformServices] does not hand this store to the shared app.
+ * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and turning the gate off is not
+ * (`OI-PRES-09`, [disable] refuses). [IosPlatformServices] does not hand this store to the shared app until the device run (`OI-PRES-07`).
  */
 @OptIn(ExperimentalForeignApi::class)
 class IosGatedSecretKeyStore(
@@ -72,7 +72,15 @@ class IosGatedSecretKeyStore(
 
     override val isEnabled: Boolean get() = NSUserDefaults.standardUserDefaults.boolForKey(ENABLED)
 
-    override suspend fun enable(): Boolean = false
+    /**
+     * Turn the gate on: the person passes the prompt once and the flag is kept. No data moves here. The next launch opens storage gated,
+     * and the first unlock seals each value again under this key (`REQ-PRES-07`); the Keychain item is made by the first write ([store]).
+     */
+    override suspend fun enable(reason: String): Boolean {
+        if (!evaluate(LAContext(), reason)) return false
+        NSUserDefaults.standardUserDefaults.setBool(true, forKey = ENABLED)
+        return true
+    }
 
     override suspend fun disable(): Boolean = false
 

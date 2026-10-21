@@ -47,8 +47,8 @@ class ProtectedStorage private constructor(
         /**
          * The same, with the person's presence required for the UHDR tier (`NP-APP-PRESENCE-001`): the device tier (`deviceTierKeys`) is
          * sealed under [secrets] and stays readable locked; every other protected key is sealed under [gated] and reads as absent until
-         * [lock] is unlocked. **A host passes this only when its sealed values were made under the gated key**: values sealed under an
-         * earlier, ungated key do not open under it (the migration, `REQ-PRES-07`, is a later increment, and until it exists no host calls this).
+         * [lock] is unlocked. Values sealed under the earlier, ungated key ([secrets]) still read, and the first unlock seals each of
+         * them again under the gated key (`REQ-PRES-07`, [EncryptedKeyValueStore.resealFromLegacy]).
          */
         fun openGated(
             host: KeyValueStore,
@@ -63,7 +63,7 @@ class ProtectedStorage private constructor(
             val uhdrKeys = all - deviceKeys
             val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
                 ?: return openInternal(host, null, protectedKeys)
-            val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device))
+            val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
             return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr)
         }
 

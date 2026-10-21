@@ -851,7 +851,6 @@
   "PRESENCE_BACKUP_MAKE": "Make a backup",
   "PRESENCE_BACKUP_TITLE": "Make a backup first",
   "PRESENCE_CHANGE_FAILED": "It could not be changed, and nothing was changed.",
-  "PRESENCE_DISABLE_BUTTON": "Turn off",
   "PRESENCE_ENABLE_BUTTON": "Turn on",
   "PRESENCE_PASSPHRASE_CANCEL": "Cancel",
   "PRESENCE_PASSPHRASE_CHANGE_BUTTON": "Change passphrase",

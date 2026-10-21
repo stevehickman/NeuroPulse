@@ -128,6 +128,7 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
     var choosing by remember { mutableStateOf(false) }
     var changing by remember { mutableStateOf(false) }
     val passphraseKey = app.presencePassphraseKey
+    val unlockReason = stringResource(Res.string.presence_unlock_reason)
 
     Text(stringResource(Res.string.presence_settings_title), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
@@ -139,7 +140,8 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
     }
     Spacer(Modifier.height(8.dp))
     Text(stringResource(if (on) Res.string.presence_state_on else Res.string.presence_state_off), style = MaterialTheme.typography.bodyMedium)
-    OutlinedButton(onClick = {
+    // There is no "turn off": sealed values would have to move back to the ungated key, which is not built (OI-PRES-09).
+    if (!on) OutlinedButton(onClick = {
         scope.launch {
             refused = false
             if (passphraseKey != null && !on) {
@@ -147,13 +149,13 @@ internal fun PresenceSettingsSection(app: AppServices, onMakeBackup: () -> Unit)
                 if (app.hasRecoverableBackup()) choosing = true else needBackup = true
                 return@launch
             }
-            when (app.setPresenceGate(!on)) {
+            when (app.setPresenceGate(!on, reason = unlockReason)) {
                 AppServices.PresenceChange.CHANGED -> { on = app.presenceEnabled; changed = true }
                 AppServices.PresenceChange.BACKUP_REQUIRED -> needBackup = true
                 else -> refused = true
             }
         }
-    }) { Text(stringResource(if (on) Res.string.presence_disable_button else Res.string.presence_enable_button)) }
+    }) { Text(stringResource(Res.string.presence_enable_button)) }
     if (passphraseKey != null && on) {
         OutlinedButton(onClick = { changing = true }) { Text(stringResource(Res.string.presence_passphrase_change_button)) }
     }

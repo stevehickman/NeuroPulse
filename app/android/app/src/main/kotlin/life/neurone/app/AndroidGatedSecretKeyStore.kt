@@ -34,8 +34,8 @@ import kotlin.coroutines.resume
  * destroy the person's record. Removing the screen lock does: Android deletes such keys, and the wrapped bytes then open under
  * nothing, exactly as after [destroy]. That is the case the backup the app insists on first is for (`REQ-PRES-08`).
  *
- * **Not offered yet.** [enable] and [disable] move already-sealed UHDR between keys, which is `REQ-PRES-07` (increment 7), so they
- * refuse and change nothing until it exists; [NeurOneApplication] does not pass this store to the shared app.
+ * **Not offered yet.** The migration of sealed UHDR to this key is built (`REQ-PRES-07`, in `:core`), and turning the gate off is not
+ * (`OI-PRES-09`, [disable] refuses). [NeurOneApplication] does not pass this store to the shared app until the device run (`OI-PRES-06`).
  */
 class AndroidGatedSecretKeyStore(private val context: Context) : GatedSecretKeyStore {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -47,7 +47,15 @@ class AndroidGatedSecretKeyStore(private val context: Context) : GatedSecretKeyS
 
     override val isEnabled: Boolean get() = prefs.getBoolean(ENABLED, false)
 
-    override suspend fun enable(): Boolean = false
+    /**
+     * Turn the gate on: the person passes the prompt once, which proves they can and opens the Keystore window, and the flag is kept. No
+     * data moves here. The next launch opens storage gated, and the first unlock seals each value again under this key
+     * (`REQ-PRES-07`); the key itself is made by the first write ([store]), inside that unlock's window.
+     */
+    override suspend fun enable(reason: String): Boolean {
+        if (!unlock(reason)) return false
+        return prefs.edit().putBoolean(ENABLED, true).commit()
+    }
 
     override suspend fun disable(): Boolean = false
 

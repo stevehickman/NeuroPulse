@@ -43,7 +43,7 @@ class PresenceGateTest {
         var prompts = 0
         override suspend fun unlock(reason: String): Boolean { prompts++; if (allow) isUnlocked = true; return allow }
         override fun lock() { isUnlocked = false }
-        override suspend fun enable(): Boolean { if (canChange) isEnabled = true; return canChange }
+        override suspend fun enable(reason: String): Boolean { if (canChange) isEnabled = true; return canChange }
         override suspend fun disable(): Boolean { if (canChange) isEnabled = false; return canChange }
         override fun load(): ByteArray? { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); return real.load() }
         override fun store(key: ByteArray) { if (!isUnlocked) throw SecretKeyUnavailableException("locked"); real.store(key) }
