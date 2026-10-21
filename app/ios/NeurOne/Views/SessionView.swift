@@ -12,7 +12,6 @@ struct SessionView: View {
     @EnvironmentObject private var consumable:  ConsumableTracker
     @EnvironmentObject private var setup:       HardwareSetupManager
     @EnvironmentObject private var library:     NPProtocolLibrary
-    @EnvironmentObject private var healthKit:   HealthKitSessionReader
     @EnvironmentObject private var history:     SessionHistoryStore
     @EnvironmentObject private var edfLoader:   EDFDownloader
 
@@ -47,14 +46,6 @@ struct SessionView: View {
 
     /// Whether EEG/closed-loop neurofeedback features may be shown and used.
     var eegConsentGranted: Bool { bipaAccepted }
-
-    // True only while an HRV biofeedback session is live. The hub streams the HRV
-    // coherence characteristic only for protocols that include HRV biofeedback, so
-    // a non-nil session.hrv during a running session is the signal that HRV
-    // biofeedback is the active modality. HealthKit is gated on this (ISC-94).
-    private var hrvBiofeedbackActive: Bool {
-        gatt.session.status == .running && gatt.session.hrv != nil
-    }
 
     private static let logger = Logger(subsystem: "life.neurone.app", category: "SessionView")
 
@@ -160,14 +151,12 @@ struct SessionView: View {
                     }
                 }
                 .sessionObservers(
-                    healthKit: healthKit,
                     gatt: gatt,
                     coherenceDebounceTask: $coherenceDebounceTask,
                     voiceOverCoherence: $voiceOverCoherence,
                     lastCoherenceScore: $lastCoherenceScore,
                     lastRMSSD: $lastRMSSD,
                     lastImpedancePass: $lastImpedancePass,
-                    hrvBiofeedbackActive: hrvBiofeedbackActive,
                     onStatusChange: handleStatusChange
                 )
                 .onDisappear { downloadTask?.cancel() }
@@ -473,13 +462,6 @@ struct SessionView: View {
             MetricCard(title: String(localized: "SESSION_METRIC_EEG_CONTACTS"),
                        value: "\(impedancePassCount) / 8",
                        icon: "brain", color: impedancePassCount == 8 ? .green : .orange)
-            if let healthKitHRV = healthKit.latestHRVSDNN {
-                MetricCard(
-                    title: String(localized: "SESSION_METRIC_HEALTHKIT_HRV"),
-                    value: String(format: String(localized: "SESSION_RMSSD_VALUE_FORMAT"),
-                                  NPNumberFormatter.decimal0(healthKitHRV)),
-                    icon: "heart.text.square", color: .purple)
-            }
         }
     }
 
@@ -740,23 +722,17 @@ struct SessionView: View {
 // MARK: - Session observer modifier
 
 private struct SessionObserversModifier: ViewModifier {
-    let healthKit: HealthKitSessionReader
     let gatt: NeurOneGATTManager
     @Binding var coherenceDebounceTask: Task<Void, Never>?
     @Binding var voiceOverCoherence: Float?
     @Binding var lastCoherenceScore: Float?
     @Binding var lastRMSSD: UInt16?
     @Binding var lastImpedancePass: Int
-    let hrvBiofeedbackActive: Bool
     let onStatusChange: (SessionStatus, SessionStatus) -> Void
 
     func body(content: Content) -> some View {
         let v1 = content
-            .onChange(of: hrvBiofeedbackActive) { _, isActive in
-                if isActive { Task { await healthKit.requestAuthorizationAndStart() } }
-                else { healthKit.stopAndClear() }
-            }
-            .onDisappear { healthKit.stopAndClear(); coherenceDebounceTask?.cancel() }
+            .onDisappear { coherenceDebounceTask?.cancel() }
         let v2 = v1
             .onChange(of: gatt.session.status) { old, new in onStatusChange(old, new) }
             .onChange(of: gatt.session.impedancePassFlags) { _, flags in
@@ -778,25 +754,21 @@ private struct SessionObserversModifier: ViewModifier {
 
 private extension View {
     func sessionObservers(
-        healthKit: HealthKitSessionReader,
         gatt: NeurOneGATTManager,
         coherenceDebounceTask: Binding<Task<Void, Never>?>,
         voiceOverCoherence: Binding<Float?>,
         lastCoherenceScore: Binding<Float?>,
         lastRMSSD: Binding<UInt16?>,
         lastImpedancePass: Binding<Int>,
-        hrvBiofeedbackActive: Bool,
         onStatusChange: @escaping (SessionStatus, SessionStatus) -> Void
     ) -> some View {
         modifier(SessionObserversModifier(
-            healthKit: healthKit,
             gatt: gatt,
             coherenceDebounceTask: coherenceDebounceTask,
             voiceOverCoherence: voiceOverCoherence,
             lastCoherenceScore: lastCoherenceScore,
             lastRMSSD: lastRMSSD,
             lastImpedancePass: lastImpedancePass,
-            hrvBiofeedbackActive: hrvBiofeedbackActive,
             onStatusChange: onStatusChange
         ))
     }

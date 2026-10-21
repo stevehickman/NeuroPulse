@@ -18,26 +18,3 @@ interface ReminderNotifier {
     /** Show one notification now. A second with the same [id] replaces the first, so a reminder is never shown twice. */
     fun show(id: String, title: String, subtitle: String, body: String)
 }
-
-/**
- * The host's read-only view of the person's heart rate and heart rate variability from the phone's health store, for one session at
- * a time (iOS HealthKit). The values are for the live display only: held in memory, never written to the app's storage, never sent
- * anywhere, and cleared when the session ends (NP-APP-ROADMAP-001 Rev B §9.1; iOS ISC-94 to ISC-96). The host never writes to the
- * health store.
- */
-interface HealthSignals {
-    /** Latest HRV (SDNN) in milliseconds, or null when there is none. */
-    val hrvSdnnMilliseconds: kotlinx.coroutines.flow.StateFlow<Double?>
-
-    /** Latest heart rate in beats per minute, or null when there is none. */
-    val heartRateBpm: kotlinx.coroutines.flow.StateFlow<Double?>
-
-    /**
-     * Ask for read permission and begin. Called only while an HRV biofeedback session is running, never at launch or at consent, so
-     * the system's dialog comes in the context that explains it (ISC-94).
-     */
-    suspend fun start()
-
-    /** Stop reading and clear both values at once. */
-    fun stopAndClear()
-}

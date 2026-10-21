@@ -18,7 +18,6 @@ struct NeurOneApp: App {
     @StateObject private var setupMgr:        HardwareSetupManager
     @StateObject private var protocolLibrary: NPProtocolLibrary
     @StateObject private var limitsStore:     NPLimitsStore
-    @StateObject private var healthKit:       HealthKitSessionReader
     @StateObject private var historyStore:    SessionHistoryStore
 
     init() {
@@ -40,7 +39,6 @@ struct NeurOneApp: App {
         _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())
         _limitsStore     = StateObject(wrappedValue: NPLimitsStore())
-        _healthKit       = StateObject(wrappedValue: HealthKitSessionReader())
         _historyStore    = StateObject(wrappedValue: SessionHistoryStore())
 
         // Register background task for nightly UHDR backup.
@@ -89,7 +87,6 @@ struct NeurOneApp: App {
                 .environmentObject(setupMgr)
                 .environmentObject(protocolLibrary)
                 .environmentObject(limitsStore)
-                .environmentObject(healthKit)
                 .environmentObject(historyStore)
                 // Per-user cardiac scope: tell the device who is using it, from the active
                 // individual profile (an opaque tag, no identity).

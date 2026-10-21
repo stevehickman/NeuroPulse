@@ -94,9 +94,6 @@ interface PlatformServices {
     /** The host's local notifications for the consumable reminders, or null where the host shows none. */
     val reminderNotifier: ReminderNotifier? get() = null
 
-    /** The host's read-only heart rate and HRV source for the live session display, or null where there is none. */
-    val healthSignals: HealthSignals? get() = null
-
     /**
      * Folders a backup may be kept in, chosen by the person, or null when the host has no choice to offer (a fixed
      * [migrationPlace], or the system's own dialogs on a phone). When it is supplied the screens take the place from the chosen

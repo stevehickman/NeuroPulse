@@ -51,14 +51,10 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val cardiacWarningAcknowledged by gatt.cardiacWarningAcknowledged.collectAsState()
     val pairingRequired by gatt.pairingRequired.collectAsState()
 
-    // The phone's health store, read only while HRV biofeedback is running (ISC-94).
-    val health = services.platform.healthSignals
     val edf = services.edfDownload
     val fileTransfer = services.platform.rememberFileTransfer()
     // A new session clears the last download's outcome.
     LaunchedEffect(session.status == SessionStatus.RUNNING) { if (session.status == SessionStatus.RUNNING) edf?.reset() }
-    HealthSignalsEffect(health, hrvBiofeedbackActive(session))
-    val healthHrv = health?.hrvSdnnMilliseconds?.collectAsState()?.value
     // canForgetHub reads storage, so re-read it after a forget.
     var hubForgotten by remember { mutableStateOf(0) }
     val canForgetHub = hubForgotten >= 0 && gatt.canForgetHub
@@ -167,7 +163,6 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             pairingRequired = pairingRequired,
             onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); hubForgotten++ }) else null,
             session = session,
-            healthHrvMilliseconds = healthHrv,
             finishedContent = if (edf != null && shouldShowSessionDownload(session.status, session.epoch)) {
                 { EdfDownloadSection(edf, session.epoch, fileTransfer) }
             } else null,
@@ -188,22 +183,4 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onConfirmCervicalResume = { gatt.sendCervicalReenableConfirm() },
         )
     }
-}
-
-
-/**
- * Whether HRV biofeedback is the running modality: the hub sends coherence for those protocols alone, so a running session with HRV data
- * is the signal (the Swift app's `hrvBiofeedbackActive`, ISC-94).
- */
-internal fun hrvBiofeedbackActive(session: life.neurone.core.models.SessionState): Boolean =
-    session.status == SessionStatus.RUNNING && session.hrv != null
-
-/**
- * Reads the phone's health store while [active], and only then (`REQ-HEALTH-01`): asked for when it becomes true, never at launch,
- * stopped and cleared when it turns false, and cleared when the screen goes.
- */
-@Composable
-internal fun HealthSignalsEffect(health: life.neurone.shared.HealthSignals?, active: Boolean) {
-    LaunchedEffect(health, active) { if (health != null) { if (active) health.start() else health.stopAndClear() } }
-    DisposableEffect(health) { onDispose { health?.stopAndClear() } }
 }
