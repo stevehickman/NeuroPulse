@@ -86,6 +86,8 @@ fun SessionScreen(
     onForgetHub: (() -> Unit)? = null,
     /** The phone's own HRV (SDNN, ms) for this session, read-only and for display only; null where the host has none. */
     healthHrvMilliseconds: Double? = null,
+    /** Shown under a finished session: the offer to download its recording (Mode 4), or nothing where the host keeps none. */
+    finishedContent: (@Composable () -> Unit)? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     // The controls follow the helmet's state (SWR-SS-05): a paused session is still a session in progress.
@@ -134,6 +136,10 @@ fun SessionScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
                 ) { Text(stringResource(Res.string.session_end_button)) }
             } else {
+                if (session.status == SessionStatus.COMPLETED && finishedContent != null) {
+                    finishedContent()
+                    Spacer(Modifier.height(16.dp))
+                }
                 Button(onClick = onChooseProtocol, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(Res.string.session_choose_protocol_button))
                 }

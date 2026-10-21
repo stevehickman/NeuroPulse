@@ -198,7 +198,7 @@ private fun MainScaffold(services: AppServices) {
                     CompositionLocalProvider(LocalSnackbarHost provides snackbar) {
                         when (selected) {
                             AppTab.SESSION -> SessionTab(services, modifier)
-                            AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier)
+                            AppTab.HISTORY -> HistoryScreen(services.sessionHistoryStore, modifier, services.edfDownload, services.platform.rememberFileTransfer())
                             AppTab.CONSUMABLES -> ConsumablesScreen(services, modifier)
                             AppTab.PRIVACY -> ConsentDashboardScreen(services, modifier)
                             AppTab.SETTINGS -> SettingsScreen(

@@ -1,6 +1,9 @@
 package life.neurone.shared
 
 import kotlinx.coroutines.CoroutineScope
+import life.neurone.shared.resources.Res
+import life.neurone.shared.resources.session_protocol_label
+import org.jetbrains.compose.resources.getString
 import life.neurone.shared.ui.showReminder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -157,6 +160,21 @@ class AppServices(
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
 
     /**
+     * Mode 4: fetching a finished session's EDF+ recording from the hub into the UHDR folder; null where the host has no such folder
+     * (the browser). One at a time for the whole app.
+     */
+    val edfDownload: life.neurone.shared.session.EdfDownloadModel? = platform.uhdrFolder?.let { folder ->
+        life.neurone.shared.session.EdfDownloadModel(
+            folder,
+            connected = { gattManager.connectionState.value == life.neurone.shared.ble.ConnectionState.CONNECTED },
+            ask = { gattManager.requestEdfDownload(it) },
+        )
+    }
+
+    /** Writes a session into the history when the hub reports it complete, whichever screen is showing. */
+    val sessionRecorder = life.neurone.shared.session.SessionRecorder(sessionHistoryStore)
+
+    /**
      * The clear's two platform steps (SWR-MG-06, SWR-MG-09), written once: destroy the data key in the keystore, and drop the
      * link to the helmet and forget it. Null when the data is not sealed, so there is no key to destroy.
      */
@@ -202,6 +220,7 @@ class AppServices(
     val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
 
     init {
+        scope.launch { gattManager.session.collect { sessionRecorder.observe(it) { id -> runCatching { getString(Res.string.session_protocol_label, id) }.getOrDefault("") } } }
         syncBackgroundSchedule()
         EngagementTier.incrementLaunchCount(keyValueStore)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure() no-ops unless the user
