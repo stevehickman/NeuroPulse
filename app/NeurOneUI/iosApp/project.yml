@@ -25,8 +25,9 @@ targets:
         # The automatic backup asks iOS to wake the app now and then (BGProcessingTask, SWR-MG-03). The identifier is IosBackgroundBackup.kt's.
         BGTaskSchedulerPermittedIdentifiers: [life.neurone.ui.backup]
         UIBackgroundModes: [processing]
-        # iPhone stays portrait. iPad turns every way, which is also what lets it run beside another app (an app limited to some
-        # orientations must take the whole screen).
+        # iPhone turns to either landscape as well as portrait (the principal, 2026-10-21). iPad turns every way, which is also what lets it
+        # run beside another app (an app limited to some orientations must take the whole screen).
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # The analytics host (a bare host name) and the vendor's project token come from the build, not from source (REQ-SW03-20).
         # Set ANALYTICS_HOST and POSTHOG_PROJECT_TOKEN in a local .xcconfig or CI secret; unset or unexpanded means analytics is off.
@@ -36,7 +37,7 @@ targets:
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "1,2"
-        PRODUCT_BUNDLE_IDENTIFIER: life.neurone.ui
+        PRODUCT_BUNDLE_IDENTIFIER: life.neurone.app
         SWIFT_VERSION: "5.10"
         # Where `embedAndSignAppleFrameworkForXcode` puts NeurOneShared.framework.
         FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
