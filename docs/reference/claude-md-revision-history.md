@@ -21,7 +21,7 @@
 
 **Rev 73 (2026-10-21) — §5.1 records that UHDR data protection is never made weaker. A decision about the apps; no limit or interlock changed.**
 
-**What changed.** One bullet in §5.1. The principal ruled, when asked whether the presence gate may be turned off, that it may not, and generalised it: UHDR protection is never weakened, now or ever, and making it stronger is fine. The gate has no turn-off, sealed UHDR is never moved to a key the device releases alone, an install that has the gate never falls back to an ungated or unsealed store, and the passphrase rule is never relaxed (`REQ-PRES-09` in `docs/np_app_presence_001.md`).
+**What changed.** One bullet in §5.1. The principal ruled, when asked whether the presence gate may be turned off, that it may not, and generalised it: UHDR protection is never weakened, now or ever, and making it stronger is fine. The gate has no turn-off, sealed UHDR is never moved to a key the device releases alone, an install that has the gate never falls back to an ungated or unsealed store, and the passphrase rule is never relaxed (`REQ-PRES-09` in `docs/np_app_presence_001.md`). An erase is the one thing that removes the gate, and the principal ruled it is not a weakening: it destroys the data the gate protected and returns the device to factory state.
 
 **Why.** `OI-PRES-09` asked whether a gate that cannot be turned off was acceptable for a first release. The principal's answer was a rule rather than a release decision, so it sits in the core file where the next author will see it. The code agrees: the key interface lost its `disable()`, and a gated install that cannot open its tiers now holds data in memory instead of opening ungated.
 
