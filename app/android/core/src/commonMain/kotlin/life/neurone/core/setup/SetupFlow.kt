@@ -70,9 +70,10 @@ class SetupFlow(private val store: KeyValueStore) {
 
     fun back() {
         val prev = SetupStep.from(currentStep.index - 1) ?: return
+        // Leaving the safety step backwards, or going back into it, clears the acknowledgement so it must be given again
+        // (the requirement's "resets on retry"; leaving it set would let the way forward again skip the checkbox).
+        if (currentStep == SetupStep.SAFETY_ACKNOWLEDGEMENT || prev == SetupStep.SAFETY_ACKNOWLEDGEMENT) safetyAcknowledged = false
         currentStep = prev
-        // Re-entering the safety step clears the acknowledgement so it must be given again.
-        if (prev == SetupStep.SAFETY_ACKNOWLEDGEMENT) safetyAcknowledged = false
     }
 
     fun acknowledgeSafety() {

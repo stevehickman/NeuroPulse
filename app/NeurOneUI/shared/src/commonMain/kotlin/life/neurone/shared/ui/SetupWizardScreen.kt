@@ -37,8 +37,10 @@ import androidx.compose.ui.unit.dp
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
-import life.neurone.shared.ble.ConnectionState
-import life.neurone.core.ble.CalibrationOpcode
+import life.neurone.shared.setup.SetupCoordinator
+import life.neurone.shared.setup.SetupError
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleStatus
 import life.neurone.core.models.ZoneModuleType
@@ -58,20 +60,13 @@ fun SetupWizardScreen(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val flow = remember { SetupFlow(app.keyValueStore) }
-    var step by remember { mutableStateOf(flow.currentStep) }
-    var safetyChecked by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<SetupError?>(null) }
-    val connectionState by app.gattManager.connectionState.collectAsState()
-    val session by app.gattManager.session.collectAsState()
+    val coordinator = remember { SetupCoordinator(SetupFlow(app.keyValueStore), app.gattManager) }
+    val scope = rememberCoroutineScope()
+    val step by coordinator.step.collectAsState()
+    val safetyChecked by coordinator.safetyAcknowledged.collectAsState()
+    val error by coordinator.error.collectAsState()
+    val processing by coordinator.isProcessing.collectAsState()
     val zoneModules by app.gattManager.zoneModules.collectAsState()
-
-    fun advance() {
-        flow.advance()
-        safetyChecked = false
-        error = null
-        step = flow.currentStep
-    }
 
     Column(
         modifier = modifier
@@ -88,6 +83,15 @@ fun SetupWizardScreen(
         Spacer(Modifier.height(12.dp))
         Text(stringResource(instructionFor(step)), style = MaterialTheme.typography.bodyLarge)
 
+        if (processing) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(if (step == SetupStep.IMPEDANCE_CHECK) Res.string.setup_checking_contacts else Res.string.setup_calibrating_amplifier),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+
         error?.let {
             Spacer(Modifier.height(12.dp))
             Text(it.text(), color = Color(0xFFD32F2F), style = MaterialTheme.typography.bodyMedium)
@@ -103,10 +107,7 @@ fun SetupWizardScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = safetyChecked,
-                    onCheckedChange = {
-                        safetyChecked = it
-                        if (it) flow.acknowledgeSafety()
-                    },
+                    onCheckedChange = { if (it) coordinator.acknowledgeSafety() },
                 )
                 Text(stringResource(Res.string.setup_i_have_read_the_contraindications_and_it_is))
             }
@@ -115,57 +116,20 @@ fun SetupWizardScreen(
         Spacer(Modifier.height(24.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (step.index > 0 && step != SetupStep.COMPLETE) {
-                OutlinedButton(onClick = {
-                    flow.back()
-                    safetyChecked = false
-                    error = null
-                    step = flow.currentStep
-                }) { Text(stringResource(Res.string.consent_back_button)) }
+                OutlinedButton(onClick = { coordinator.back() }, enabled = !processing) { Text(stringResource(Res.string.consent_back_button)) }
             }
             Spacer(Modifier.weight(1f))
             Button(onClick = {
-                error = null
-                when {
-                    step == SetupStep.COMPLETE -> onFinish()
-
-                    step.requiresHardwareConfirmation -> {
-                        if (connectionState != ConnectionState.CONNECTED) {
-                            error = SetupError.ConnectFirst
-                        } else when (step) {
-                            SetupStep.ZONE_MODULES -> when (val r = flow.evaluateZoneModules(zoneModules)) {
-                                SetupFlow.ZoneModuleResult.Passed -> advance()
-                                SetupFlow.ZoneModuleResult.NoneDetected ->
-                                    error = SetupError.NoZoneModules
-                                is SetupFlow.ZoneModuleResult.Faulted -> error = SetupError.ZoneMissing(r.socketIds)
-                            }
-                            SetupStep.IMPEDANCE_CHECK -> {
-                                app.gattManager.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)
-                                val r = flow.evaluateImpedance(session.impedancePassFlags)
-                                if (r.passed) advance()
-                                else error = SetupError.WeakContact(r.passCount)
-                            }
-                            SetupStep.ADS1299_CALIBRATION -> {
-                                app.gattManager.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)
-                                advance()
-                            }
-                            else -> advance() // BLE confirmed by connection
-                        }
-                    }
-
-                    step == SetupStep.SAFETY_ACKNOWLEDGEMENT -> {
-                        when (flow.advance()) {
-                            is SetupFlow.AdvanceResult.BlockedBySafety ->
-                                error = SetupError.SafetyUnconfirmed
-                            else -> {
-                                safetyChecked = false
-                                step = flow.currentStep
-                            }
-                        }
-                    }
-
-                    else -> advance()
+                coordinator.clearError()
+                when (step) {
+                    SetupStep.COMPLETE -> onFinish()
+                    SetupStep.BLE_CONFIRMATION -> coordinator.confirmBlePairing()
+                    SetupStep.ZONE_MODULES -> coordinator.confirmZoneModules()
+                    SetupStep.IMPEDANCE_CHECK -> scope.launch { coordinator.confirmImpedanceCheck() }
+                    SetupStep.ADS1299_CALIBRATION -> scope.launch { coordinator.confirmCalibration() }
+                    else -> coordinator.advance()
                 }
-            }) { Text(stringResource(primaryLabelFor(step))) }
+            }, enabled = !processing) { Text(stringResource(primaryLabelFor(step))) }
         }
     }
 }
@@ -265,28 +229,22 @@ private fun spokenConfirmation(socket: ZoneModuleStatus): String {
     else stringResource(Res.string.zone_announce_no_type, place)
 }
 
-/** Why a step did not advance. Data, not text, because the words are read in composition (CLAUDE.md §17). */
-private sealed interface SetupError {
-    data object ConnectFirst : SetupError
-    data object NoZoneModules : SetupError
-    data class ZoneMissing(val socketIds: List<Int>) : SetupError
-    data class WeakContact(val passCount: Int) : SetupError
-    data object SafetyUnconfirmed : SetupError
-}
-
 @Composable
 private fun SetupError.text(): String = when (this) {
-    SetupError.ConnectFirst -> stringResource(Res.string.setup_connect_to_your_hub_first)
-    SetupError.NoZoneModules -> stringResource(Res.string.setup_error_no_zone_modules)
-    is SetupError.ZoneMissing -> stringResource(
-        Res.string.setup_error_zone_missing,
+    SetupError.NotConnected -> stringResource(Res.string.setup_error_not_connected)
+    SetupError.Timeout -> stringResource(Res.string.setup_error_timeout)
+    SetupError.CalibrationFailed -> stringResource(Res.string.setup_error_calibration_failed)
+    is SetupError.ImpedanceFailed -> stringResource(
+        Res.string.setup_error_impedance_failed,
         // `map` is inline, so stringResource may be called inside it; joinToString's transform is not.
-        socketIds.map { stringResource(Res.string.setup_socket_label, it) }.joinToString(", "),
+        failedElectrodes.map { stringResource(Res.string.setup_electrode_label, it + 1) }.joinToString(", "),
     )
-    is SetupError.WeakContact ->
-        stringResource(Res.string.setup_only_0_of_8_electrodes_made_good_contact, passCount) +
-            stringResource(Res.string.setup_adjust_the_fit_and_try_again)
-    SetupError.SafetyUnconfirmed -> stringResource(Res.string.setup_please_confirm_the_safety_acknowledgement_to)
+    SetupError.NoZoneModules -> stringResource(Res.string.setup_error_no_zone_modules)
+    is SetupError.ZoneModulesMissing -> stringResource(
+        Res.string.setup_error_zone_missing,
+        sockets.map { stringResource(Res.string.setup_socket_label, it) }.joinToString(", "),
+    )
+    SetupError.SafetyAcknowledgementRequired -> stringResource(Res.string.setup_please_confirm_the_safety_acknowledgement_to)
 }
 
 private fun moduleTypeName(type: ZoneModuleType): StringResource? = when (type) {
