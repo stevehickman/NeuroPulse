@@ -1,0 +1,98 @@
+# UHDR Presence Gate — Decision and Plan
+
+**Project:** NeurOne
+**Document:** NP-APP-PRESENCE-001
+**Revision:** 1
+**Date:** 2026-10-21
+**Status:** DRAFT — the principal's rulings (§1) are decided; the device-tier list (§4), the timeout figure and the desktop mechanism (§6) are open
+**Effective Date:** —
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO (the rulings of §1). Document approval pending
+**References:** `CLAUDE.md` §5.1, §6.0, §17, §18, §19, §22; `NP-SW-001` `SWR-MG-06`, `-13`, `-15`, `-16`; `NP-FW-EMMC-002` §C; `docs/reference/data-architecture-detail.md` §5.1; `docs/status/unjustified-choices.md`
+**Related Issues:** `OI-UI-KMP-05` (the SwiftUI app's UHDR key manager is never authenticated; nothing to port); `OI-PRES-01` to `OI-PRES-05`
+**Gate:** —
+**IEC 62304 Class:** Class B (SW-03 companion apps)
+**Change Summary:** Rev 1 (2026-10-21) — new document. Records the principal's ruling that **UHDR requires the person's presence on every platform**, the architecture that carries it, and the increments it is built in. Nothing is built by this revision.
+
+---
+
+> **Why this document exists.** `OI-UI-KMP-05`'s audit found that no platform asks the person to be present to read their own UHDR. The apps seal the UHDR-class state under a random data key held by the operating system's keystore, readable by the app whenever the device is unlocked (`SWR-MG-06`), and the SwiftUI app's biometric-derived key is code that nothing calls. The principal ruled on 2026-10-21 that **UHDR should require the person's presence on all platforms**, to the extent each platform allows. This document turns that into requirements, an architecture and increments small enough to build and review one at a time.
+
+## 1. The rulings (the principal, 2026-10-21)
+
+| # | Question | Ruling |
+|---|----------|--------|
+| 1 | How is presence enforced? | **The data key is bound to the device credential** (biometric, or the device passcode). The key itself needs the credential to be read; a lock screen alone does not satisfy this. |
+| 2 | When is the person asked? | **At cold start, and again after a background timeout.** The figure is open (§7, `OI-PRES-02`). |
+| 3 | What runs while locked? | **Only UHDR is gated.** Device-tier values (§4) stay readable, so consumable reminders and the fleet upload work locked. UHDR (history, consent, recordings, the automatic backup) waits for the next unlock. A session already running on the hub is unaffected: the hub owns it (`CLAUDE.md` §4.2). |
+| 4 | A host with no device credential or keystore to bind to? | **Say so, and fall back to a passphrase the person sets.** The key is derived from it (Argon2id, the core's existing `deriveUhdrKey`), with a notice that the host cannot use biometrics. |
+
+## 2. Requirements
+
+Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what goes wrong if it is not met; *Traces to* is where the rule comes from.
+
+| ID | Requirement | Fails without it | Traces to |
+|----|-------------|------------------|-----------|
+| `REQ-PRES-01` | **UHDR-class values are readable only after the person's presence has been established on this run.** (a) Before it, a UHDR value reads as absent, never as ciphertext. (b) Before it, a write is held in memory for the run and nothing on disk changes, so the sealed values stay exactly as they were (the behaviour `StorageProtection.LOCKED` already has, `SWR-MG-13`). (c) A read that could not be asked is never taken for "no key" (`SWR-MG-15`). | Anyone holding an unlocked device or a process on it reads the person's health record. | `CLAUDE.md` §5.1 (UHDR is the user's unconditionally); the principal, 2026-10-21 |
+| `REQ-PRES-02` | **The data key itself is bound to the device credential** on a platform that can bind it. Reading the key requires the credential; the platform's keystore, not the app, refuses otherwise. | A lock screen the OS does not enforce protects against someone using the app and not against reading the storage. | The principal, 2026-10-21 (ruling 1) |
+| `REQ-PRES-03` | **The person is asked at cold start and after the background timeout** (§7). The timeout is one figure, set in the shared core and applied by every host. | A figure per host would let one platform stay unlocked longer than another. | The principal, 2026-10-21 (ruling 2); `CLAUDE.md` §20 (one definition) |
+| `REQ-PRES-04` | **A person who cannot use biometrics can use the device passcode or PIN.** The prompt is never biometrics-only. | A wearer with a tremor, after a stroke, or without enrolled biometrics could not open their own health record. | The Swift key manager's own comment (`UHDRKeyManager.authenticate`); `NP-APP-ISA` accessibility intent |
+| `REQ-PRES-05` | **Only the device tier (§4) is readable while locked, and anything not on that list is UHDR.** A key is moved to the device tier only by a ruling that shows it tells nothing about the person. | Reminders and the fleet upload would stop when locked; or, worse, a key that says something about the person would be readable locked. | `CLAUDE.md` §5.1 (when in doubt → UHDR; reclassification needs a positive demonstration) |
+| `REQ-PRES-06` | **A host that cannot bind a key to a credential uses a passphrase and says so; it is never silently ungated.** The notice names the host's limit (as `holdsStateInMemoryOnly` does for the browser). | A person believes their record is gated when it is not. | The principal, 2026-10-21 (ruling 4); `SWR-MG-13` (c) (the person is told) |
+| `REQ-PRES-07` | **An install that already holds sealed UHDR is moved to the gated key without losing it.** The first unlock re-seals under the gated key; a failure leaves the earlier sealed values and the earlier key untouched. | An update destroys the person's history, consent state or withdrawal state (`CLAUDE.md` §6.0: the withdrawal must never reset). | `SWR-MG-04`, `SWR-MG-15` |
+
+## 3. Architecture
+
+**Two sealed tiers, one core.** `EncryptedKeyValueStore` today seals every protected key under one data key. It becomes two stores over the same host store: the **UHDR tier** under a *gated* key, and the **device tier** under the key it has today (§4 lists what is in it). The sealing, the "not ciphertext", the "could not ask is not no key" and the LOCKED behaviour are written once in `:core`, as now.
+
+**A gated key store.** `SecretKeyStore` gains a sibling for the gated key: the same `load` / `store` / `destroy`, plus a way to ask the platform to establish presence (`unlock(reason)`) and to say whether the key is currently usable. While it is not, `load()` throws `SecretKeyUnavailableException` (the existing "could not ask"), so every existing rule (`REQ-PRES-01` (a) to (c)) applies without a second code path.
+
+**The lock lives in common code.** One `PresenceLock` in `:core` holds the state (locked, unlocked since, the timeout) and the clock; hosts only say "the app went to the background" and "the app came to the foreground", and supply the platform prompt. The screens read one state (`ProtectedStorage` already carries a `LOCKED` state and a notice above every screen, `SWR-MG-13` (c)).
+
+**While locked.** UHDR keys read as absent and take writes in memory only. The automatic backup, the history, the consent dashboard and the recordings wait. Consumable reminders use the counts the hub reports live (they are not stored) without their snooze state, so a locked reminder can repeat but never goes missing. The fleet upload and the hub reconnect use the device tier.
+
+## 4. The device tier (proposed — `OI-PRES-01`)
+
+`CLAUDE.md` §5.1 says a field is UHDR until it is positively shown to say nothing about the person. Today every stored key is sealed as UHDR (`sealed_at_rest()` returns all of them). The ruling that reminders and the fleet upload work locked needs a short list moved out. **Proposed, for a Privacy Lead ruling:**
+
+| Key | Why it may be device-tier | Why it might not |
+|-----|---------------------------|------------------|
+| `np.shdr.device-token` | An opaque random token naming the install to the fleet; SHDR is linked to the device and nothing else (`REQ-SHDR-02`). | None found: it is already argued not to be the person's (`EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY`). |
+| `np.warranty.consent-granted` | The warranty owner's consent to fleet telemetry; the warranty owner is not assumed to be the wearer (`CLAUDE.md` §6.0). | A clinic's choice could be read as saying something about its patients. |
+| `ble.last-hub-id` | The helmet's identifier, to find it again without the person scanning. | It ties a person to a device (`sealed_at_rest()` already says so). |
+
+**Not proposed:** `np.consumable.snooze-counts` and `np.consumable.pending-resets` (how the person answered a reminder is behaviour), the launch count, the analytics identifiers, the backup folder and secret, and every consent, history and onboarding key. They stay UHDR.
+
+## 5. Platforms
+
+| Platform | Binding | Status |
+|----------|---------|--------|
+| Android | Keystore AES key with `setUserAuthenticationRequired(true)`, valid for the unlock window; device credential allowed (`AUTH_BIOMETRIC_STRONG or AUTH_DEVICE_CREDENTIAL`); prompt from the framework `BiometricPrompt`. `minSdk` is 29, so the window uses `setUserAuthenticationValidityDurationSeconds` below API 30. A new biometric enrolment must not invalidate the key (`setInvalidatedByBiometricEnrollment(false)`), or the person loses their record. | Buildable only in CI (no SDK here). |
+| iOS | Keychain item with `SecAccessControl` `.userPresence` (passcode fallback), read through an `LAContext` that carries the unlock window. | Compiles only in CI. |
+| macOS | Keychain access control with user presence. The `security` tool cannot set it, so this needs a native call (§6). | Open (`OI-PRES-03`). |
+| Windows | Windows Hello (`KeyCredentialManager` / user-consent verification) to release the key. Needs a native call (§6). | Open (`OI-PRES-03`). |
+| Linux | No portable biometric or presence API; the Secret Service unlocks with the login. Passphrase fallback (`REQ-PRES-06`). | Decided. |
+| Browser | No keystore; state is in memory only today. A passphrase gates what the page holds (`REQ-PRES-06`). | Decided. |
+
+## 6. Increments
+
+Each is its own change and its own pull request; none is started by this revision.
+
+1. **Core model:** the two tiers, the gated key store interface, `PresenceLock`, the lock state; the classification of §4 once ruled (`OI-PRES-01`). JVM-tested.
+2. **The screens:** the unlock gate and the notice in common code; the background timeout wired through every host's lifecycle.
+3. **Android:** the Keystore binding and the prompt.
+4. **iOS:** the Keychain binding and `LAContext`.
+5. **Passphrase fallback:** the derived key, the set-up and change flow, the browser and Linux hosts.
+6. **macOS and Windows:** the native presence call (a Rust crate beside `npps-jni` and `btle-jni` is the likely home, `CLAUDE.md` §22), or the passphrase until it exists.
+7. **Migration:** `REQ-PRES-07` for installs that already hold sealed state.
+8. **Clean-up:** retire the SwiftUI key manager and its backup scheduler with the Swift app. The core's `deriveUhdrKey` is kept: increment 5 uses it.
+
+## 7. Open items
+
+| ID | Item | Owner |
+|----|------|-------|
+| `OI-PRES-01` | The device-tier list of §4: a Privacy Lead ruling on each key. Until it is made, every key is UHDR and the reminders and the fleet upload stop when locked. | Privacy Lead |
+| `OI-PRES-02` | The background timeout. **PROPOSED, 5 minutes, with nothing behind it** (`UC-105`). | Principal |
+| `OI-PRES-03` | The macOS and Windows native presence call, and whether it is a new Rust crate. | Software |
+| `OI-PRES-04` | What the person does if the credential is removed or the Keystore key is lost: the sealed UHDR cannot be opened. The backup (the person's own recovery code or passphrase) is the way back; whether the app should insist on one before it gates is undecided. | Principal |
+| `OI-PRES-05` | The Swift app (still shipping) is not given the gate; it is retired instead (`OI-UI-KMP-05`). Until it is, the iOS app that ships does not meet `REQ-PRES-01`. | Principal |
