@@ -51,7 +51,7 @@ class NeurOneGattManager(
     private val scope: CoroutineScope,
     /** Holds the per-user offline-fault acknowledgement point (CervicalFaultLedger). */
     private val ledgerStore: KeyValueStore = InMemoryKeyValueStore(),
-) : BleCentralListener, life.neurone.shared.ota.OtaLink {
+) : BleCentralListener, life.neurone.shared.ota.OtaLink, life.neurone.shared.setup.SetupLink {
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<ConnectionState> = _connectionState
@@ -128,7 +128,11 @@ class NeurOneGattManager(
      * replaces the retired fixed five-slot list (NP-HFE-002 OI-HFE2-02). SHDR-class.
      */
     private val _zoneModules = MutableStateFlow(ZoneModuleConfiguration.EMPTY)
-    val zoneModules: StateFlow<ZoneModuleConfiguration> = _zoneModules
+    override val zoneModules: StateFlow<ZoneModuleConfiguration> = _zoneModules
+
+    /** The latest IMPEDANCE_RESULT notification and how many have come, so a wait can tell a fresh result from the one before it. */
+    private val _impedanceReading = MutableStateFlow<life.neurone.shared.setup.ImpedanceReading?>(null)
+    override val impedanceReading: StateFlow<life.neurone.shared.setup.ImpedanceReading?> = _impedanceReading
 
     /** This helmet's socket geometry (SOCKET_MAP), read once at link. SHDR-class. */
     private val _socketMap = MutableStateFlow(SocketMap.EMPTY)
@@ -400,6 +404,7 @@ class NeurOneGattManager(
             }
             UUID.fromString(GattUuidStrings.IMPEDANCE_RESULT_ID) -> GattParser.parseImpedanceResult(value)?.let { flags ->
                 _session.value = _session.value.copy(impedancePassFlags = flags)
+                _impedanceReading.value = life.neurone.shared.setup.ImpedanceReading((_impedanceReading.value?.sequence ?: 0L) + 1, flags)
             }
             UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID) -> GattParser.parseConsumableStatus(value)?.let { counts ->
                 _session.value = _session.value.copy(consumableSessionCounts = counts)
@@ -460,7 +465,7 @@ class NeurOneGattManager(
         central.write(UUID.fromString(GattUuidStrings.OTA_COMMAND_ID), byteArrayOf(opcode.rawValue.toByte()) + payload)
 
     /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.). */
-    fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode) =
+    override fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode) =
         central.write(UUID.fromString(GattUuidStrings.CALIBRATION_CMD_ID), byteArrayOf(opcode.rawValue.toByte()))
 
     /**
