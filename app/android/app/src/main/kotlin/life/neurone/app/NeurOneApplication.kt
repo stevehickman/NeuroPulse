@@ -50,6 +50,9 @@ class NeurOneApplication : Application() {
     lateinit var services: AppServices
         private set
 
+    /** Whether an activity is on screen: the presence lock's background timeout reads it (`REQ-PRES-03`). */
+    private val foreground = AndroidAppForeground()
+
     val keyValueStore: KeyValueStore get() = services.keyValueStore
     val researchAnalyticsGate: ResearchAnalyticsGate get() = services.researchAnalyticsGate
     val warrantyAnalyticsGate: WarrantyAnalyticsGate get() = services.warrantyAnalyticsGate
@@ -81,6 +84,7 @@ class NeurOneApplication : Application() {
         // runtime permission and calls bleCentral.refresh() (adapterState = UNAUTHORIZED
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
+        foreground.register(this)
         services = AppServices(
             platform = AndroidPlatformServices(
                 SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
@@ -92,6 +96,9 @@ class NeurOneApplication : Application() {
                 backgroundBackup = AndroidBackgroundBackupScheduler(this),
                 uhdrFolder = AndroidUhdrFolder(File(filesDir, "UHDR")),
                 reminderNotifier = AndroidReminderNotifier(this),
+                // Dark: the gated key is built but not offered until installs that already hold sealed UHDR can be moved to it (REQ-PRES-07).
+                gatedKeyStore = if (OFFER_PRESENCE_GATE) AndroidGatedSecretKeyStore(this) else null,
+                appInForeground = foreground.inForeground,
             ),
             scope = bleScope,
         )
@@ -111,4 +118,11 @@ class NeurOneApplication : Application() {
         ),
     )
 
+    private companion object {
+        /**
+         * Whether the app offers the presence gate (`NP-APP-PRESENCE-001`). False until `REQ-PRES-07` (moving an install that already holds
+         * sealed UHDR to the gated key) is built: offering it earlier would let a person turn on a gate that cannot keep their record.
+         */
+        const val OFFER_PRESENCE_GATE = false
+    }
 }

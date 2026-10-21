@@ -42,6 +42,10 @@ class AndroidPlatformServices(
     override val uhdrFolder: life.neurone.shared.session.UhdrFolder? = null,
     /** The consumable reminders as notifications; see [AndroidReminderNotifier]. */
     override val reminderNotifier: life.neurone.shared.ReminderNotifier? = null,
+    /** The key behind the presence gate; null until migration of installs that already hold sealed UHDR exists (`REQ-PRES-07`). */
+    override val gatedKeyStore: life.neurone.core.common.GatedSecretKeyStore? = null,
+    /** Whether an activity is on screen, for the presence lock's background timeout; see [AndroidAppForeground]. */
+    override val appInForeground: kotlinx.coroutines.flow.StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(true),
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */
