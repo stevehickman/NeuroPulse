@@ -2,7 +2,7 @@
 /**
  * check-shared-placement.ts — a file two apps use lives in app/NeurOneShared/.
  *
- * CLAUDE.md §20. A file whose content is common to more than one app (iOS, watchOS, Android,
+ * CLAUDE.md §20. A file whose content is common to more than one app (iOS, Android,
  * Windows, web) is placed in app/NeurOneShared/ — directly or in a subdirectory of it — and never
  * in one app's directory, where the others reach across into a sibling's tree. The case that
  * motivated the rule: hub-descriptor-golden.json lived under app/android/core/src/test/resources/
@@ -44,7 +44,7 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { basename, dirname, join, resolve } from "path";
 
-export const APP_DIRS = ["ios", "watchos", "macos", "android", "windows", "web"];
+export const APP_DIRS = ["ios", "macos", "android", "windows", "web"];
 export const SHARED = "NeurOneShared";
 const DATA_EXT = ["json", "xcstrings", "plist", "xcprivacy", "entitlements", "xml", "npps", "csv", "txt", "bin", "properties", "strings"];
 // Same-name, same-content files that each toolchain demands in its own tree.
@@ -132,14 +132,14 @@ function selfTest(): void {
   };
   expect("clean tree passes", base, 0);
   expect("reach-across fails", new Map([...base, ["app/windows/T.cs", "// app/android/core/src/test/resources/golden.json"]]), 1);
-  expect("relative reach-across fails", new Map([...base, ["app/watchos/project.yml", "path: ../ios/NeurOne/Localizable.xcstrings"]]), 1);
+  expect("relative reach-across fails", new Map([...base, ["app/android/project.yml", "path: ../ios/NeurOne/Localizable.xcstrings"]]), 1);
   expect("own-app reference passes", new Map([...base, ["app/android/a.kt", "// app/android/x/y.json"]]), 0);
   expect("reference to code passes", new Map([...base, ["app/ios/b.swift", "// app/web/src/lib/hubCompiler.ts"]]), 0);
   const body = "x".repeat(200);
   const shim = "// moved\n@_exported import NeurOneShared\n" + body;
-  expect("shim duplicate passes", new Map([...base, ["app/ios/S.swift", shim], ["app/watchos/S.swift", shim]]), 0);
+  expect("shim duplicate passes", new Map([...base, ["app/ios/S.swift", shim], ["app/android/S.swift", shim]]), 0);
   expect("duplicate fails", new Map([...base, ["app/ios/d.json", body], ["app/android/d.json", body]]), 1);
-  expect("exempt duplicate passes", new Map([...base, ["app/ios/Info.plist", body], ["app/watchos/Info.plist", body]]), 0);
+  expect("exempt duplicate passes", new Map([...base, ["app/ios/Info.plist", body], ["app/android/Info.plist", body]]), 0);
   expect("same app duplicate passes", new Map([...base, ["app/ios/d1.json", body], ["app/ios/d2.json", body]]), 0);
   expect("simulator importing an app fails", new Map([...base, ["simulator/src/r.ts", "import { x } from '../../app/web/src/lib/nppsParser';"]]), 1);
   expect("simulator importing common passes", new Map([...base, ["simulator/src/r.ts", "import { x } from '../../common/lib/nppsParser';"]]), 0);

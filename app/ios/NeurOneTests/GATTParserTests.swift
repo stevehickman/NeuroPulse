@@ -736,34 +736,6 @@ final class GATTParserTests: XCTestCase {
         }
     }
 
-    // @verifies REQ-SW03-04
-    func testWatchBridgeConsumableCountsSourcedFromCorrectKey() {
-        // SessionState.from(wcMessage:) is the only other code path that can populate
-        // consumableSessionCounts (via WatchConnectivity). Verify it reads from
-        // WCKey.CONSUMABLE_COUNTS (SHDR) not from any UHDR key (coherenceX100, rmssd).
-        // impedancePassFlags (formerly WCKey.impedanceFlags) is UHDR-class and must not be
-        // transmitted over WatchConnectivity. It is excluded from WC messages entirely.
-        let msg: [String: Any] = [
-            WCKey.PROTOCOL_ID:       Int(3),
-            WCKey.STATUS:           Int(SessionStatus.running.rawValue),
-            WCKey.PACER_PHASE:       Int(PacerPhase.inhale.rawValue),
-            WCKey.PACER_PERCENT:     Int(25),
-            WCKey.CONSUMABLE_COUNTS: [2, 15, 5, 80],  // SHDR device counts
-            WCKey.COHERENCE_X100:    Int(750),          // UHDR — must NOT affect counts
-            WCKey.RMSSD:            Int(42),           // UHDR — must NOT affect counts
-        ]
-        guard let state = SessionState.from(wcMessage: msg) else {
-            XCTFail("Valid WC message must decode to a non-nil SessionState.")
-            return
-        }
-        XCTAssertEqual(state.consumableSessionCounts, [2, 15, 5, 80],
-                       "Watch bridge must source consumableSessionCounts from WCKey.CONSUMABLE_COUNTS only.")
-        // UHDR fields decoded correctly and did not bleed into counts.
-        XCTAssertEqual(state.hrv?.coherenceScore ?? 0, 7.50, accuracy: 0.01)
-        XCTAssertEqual(state.hrv?.rmssdMilliseconds, 42)
-        XCTAssertEqual(state.consumableSessionCounts.count, 4)
-    }
-
     // MARK: - ISC-15: all 8 parsers return non-nil for their canonical byte sequences
 
     /// Single omnibus test matching the ISA test strategy entry for ISC-15.

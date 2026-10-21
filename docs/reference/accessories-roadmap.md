@@ -80,7 +80,9 @@ The chiller arrives with a mains base station, so it raises both terms; the ice 
   options, the Watch app and the deferred fit-over goggle below it. `D-2` (whether the sealed pneumatic loop is in scope at all) is
   separate and was decided out of scope on 2026-08-30; `OI-THCOOL-06` closed with it.
 
-## Apple Watch Sync App (provisional)
+## Apple Watch Sync App — RETIRED (2026-10-21)
+
+> **RETIRED.** The principal retired the Apple Watch app on 2026-10-21 (`NP-APP-ROADMAP-001` Rev 9). Nothing below is planned or built; the page is kept as the record (`CLAUDE.md` §18). The 40 Hz somatosensory channel is the mastoid LRA pad above, which never depended on the Watch.
 
 Companion watchOS app extending NeurOne session experience to Apple Watch. Three sync channels. Does **not** replace purpose-built NeurOne hardware for any therapeutic function — supplements it.
 
@@ -92,7 +94,7 @@ Companion watchOS app extending NeurOne session experience to Apple Watch. Three
 - **Regulatory note:** All Watch-delivered functions are declared as session monitoring / user interface aids, not therapeutic delivery. Therapeutic claims attach to NeurOne hardware only.
 - **BOM delta:** $0 hardware. Software development cost only.
 - **Priority: rank 18 of 19** — `NP-ACC-PRIORITY-001` §5, class **C5 (experience)**. The class is set by this page's own regulatory note above and `NP-APP-ROADMAP-001` §6 — every Watch-delivered function is declared session monitoring / user-interface aid, not therapeutic delivery, which forecloses the four higher classes. Highest reach in its class and $0 hardware BOM; capability class is the primary key and neither is a tie-break against it.
-- **Status:** PROVISIONAL. Added to Year 1 iOS app development roadmap (NP-APP-ROADMAP-001 Rev 1 — Issue #32). Develops in 4 phases post-core-app-launch: Phase 1 session status + HRV breathing ring (Month 1–2), Phase 2 audio sync (Month 3–4), Phase 3 haptic sync 40Hz (Month 4–5), Phase 4 40Hz visual flicker (Month 6+, blocked on OI-WA-02 screen brightness characterization ≥100 nits at 40Hz). See `docs/np_app_roadmap_001.md`.
+- **Status:** RETIRED 2026-10-21 (was PROVISIONAL). Added to Year 1 iOS app development roadmap (NP-APP-ROADMAP-001 Rev 1 — Issue #32). Develops in 4 phases post-core-app-launch: Phase 1 session status + HRV breathing ring (Month 1–2), Phase 2 audio sync (Month 3–4), Phase 3 haptic sync 40Hz (Month 4–5), Phase 4 40Hz visual flicker (Month 6+, blocked on OI-WA-02 screen brightness characterization ≥100 nits at 40Hz). See `docs/np_app_roadmap_001.md`.
 
 ## Fit-Over Goggle Assembly (DEFERRED — not on the development plan)
 

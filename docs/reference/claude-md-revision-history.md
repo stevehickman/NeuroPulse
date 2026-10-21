@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 71 (2026-10-21) — the Apple Watch app is retired, so §20 no longer lists watchOS among the apps. A scope correction; no design decision, limit or interlock changed.**
+
+**What changed.** §20's list of apps that share files reads "iOS, Android, Windows, web". `app/watchos/` is deleted, and `scripts/check-shared-placement.ts` no longer names it as an app directory.
+
+**Why.** The principal retired the Watch app on 2026-10-21 (`NP-APP-ROADMAP-001` Rev 9; the narrative is in `docs/status/completed-decisions.md`). A rule that names an app that no longer exists would send a reader looking for it.
+
 **Rev 70 (2026-10-17) — §22 added: real-time and cryptographic code is Rust, in the shared core. A process rule; no design decision, limit or interlock changed.**
 
 **What changed.** A new §22. Cryptographic and real-time work is written once in `common/npps-core` and reached by every platform; no JVM code runs on the helmet; unused and pre-release libraries are not added. A copyleft licence is allowed only if it does not oblige NeurOne's own code to become copyleft; its obligations are recorded in the SOUP record.

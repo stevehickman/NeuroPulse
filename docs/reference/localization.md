@@ -107,11 +107,9 @@ which must precede *any* `xcodebuild` invocation) creates the file in time; the 
 it fresh within an open session. Gradle needs no equivalent because a generated res `srcDir` is a
 declared task output, and Vite's `buildStart` runs before module resolution.
 
-**The watch app bundles that same file.** `app/watchos/project.yml` names
-`../NeurOneShared/Resources/Localizable.xcstrings` as a resource and runs the generator in its own
-`preGenCommand` and scheme pre-action, so there is no watch copy. `watchos-ci.yml` then reads the
-built bundle and checks that every locale's compiled table carries a probe key, because a green
-build proves nothing here: without the resource the watch builds cleanly and renders raw keys.
+**The watch app that used to bundle that same file is retired** (2026-10-21, `NP-APP-ROADMAP-001`
+Rev 9): `app/watchos/` and `watchos-ci.yml` are deleted, and the iOS app is the only project that
+bundles the catalogue.
 
 **A build needs `bun` on `PATH`** — that is now true of the Android and iOS builds, not just the
 web one, and CI installs it on every leg that compiles either (`android-ci`, `ios-ci`, and both
@@ -135,8 +133,8 @@ makes the hand-edit unrepresentable rather than merely detectable. `bun scripts/
 `PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
 (no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
 gate's reach stays legible. Those three generate nothing today because they read no locale file
-yet; each becomes a generator target when it does, not another committed copy. watchOS is not a
-fourth target: it bundles the iOS catalogue itself (§17.4).
+yet; each becomes a generator target when it does, not another committed copy. watchOS is retired
+and is not a target.
 
 ### 17.7 Translation (GitHub #191)
 

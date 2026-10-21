@@ -95,7 +95,6 @@ const COVERED_PATHS = [
   "app/ios/NeurOne/Localization/",
   "app/ios/NeurOne/Protocol/",
   "app/ios/NeurOne/Models/",
-  "app/watchos/",
   "app/android/app/src/main/kotlin/life/neurone/app/ui/",
   "app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/", // the screens every platform shares (Compose Multiplatform)
 ];

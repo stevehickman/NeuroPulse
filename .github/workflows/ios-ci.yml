@@ -3,8 +3,7 @@ name: iOS CI (xcodebuild)
 # Builds the NeurOne iOS app and runs the NeurOneTests suite.
 # NeurOne.xcodeproj — including the shared NeurOne.xcscheme — is generated from
 # app/ios/project.yml via XcodeGen and is not committed (Issue #189), so the
-# spec is the source of truth and no tracked project can drift from it. This is
-# the same arrangement as watchos-ci.yml.
+# spec is the source of truth and no tracked project can drift from it.
 
 on:
   # Push only validates the integration branch after merge. Feature branches are

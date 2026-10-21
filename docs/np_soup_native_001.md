@@ -1,26 +1,26 @@
-# Native App SOUP Inventory — Swift (iOS, watchOS) and .NET (Windows)
+# Native App SOUP Inventory — Swift (iOS) and .NET (Windows)
 
 **Project:** NeurOne
 **Document:** NP-SOUP-NATIVE-001
-**Revision:** 2
-**Date:** 2026-10-17
+**Revision:** 3
+**Date:** 2026-10-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
 **Approved By:** — (DRAFT, not approved)
-**References:** `app/ios/project.yml`, `app/watchos/project.yml` (the SwiftPM dependencies), `app/NeurOneShared/Package.swift`, `app/windows/NeurOne/NeurOne.csproj`, `app/windows/NeurOne.Tests/NeurOne.Tests.csproj`, `NP-SOUP-KOTLIN-001` and `NP-SOUP-RUST-001` (the method precedent and the rules, §2a of the former), `CLAUDE.md` §22
+**References:** `app/ios/project.yml` (the SwiftPM dependencies), `app/NeurOneShared/Package.swift`, `app/windows/NeurOne/NeurOne.csproj`, `app/windows/NeurOne.Tests/NeurOne.Tests.csproj`, `NP-SOUP-KOTLIN-001` and `NP-SOUP-RUST-001` (the method precedent and the rules, §2a of the former), `CLAUDE.md` §22
 **Related Issues:** GitHub #569, `OI-SOUPKT-01` item 4
 **Gate:** G2
 **IEC 62304 Class:** Not assigned. See `NP-SOUP-KOTLIN-001` §3, whose argument applies unchanged.
 **Supersedes:** None
-**Change Summary:** Rev 2 (2026-10-17) — **the vendored Argon2 is removed and PostHog is pinned** (`OI-SOUPKT-01`). iOS derives the UHDR key through the Rust core (`deriveUhdrKey`); `NeurOneArgon2`, `Argon2Bridge.swift` and the 12 vendored files are deleted. Before deleting, the vendored source was compiled and called on a fixed input, and the core was made to reproduce its output byte for byte (a test in `bundle_key.rs`), so a key made by an earlier build is unchanged. PostHog is `exactVersion` 3.60.0 in `project.yml`, so the version that ships is the one this record reads. Rev 1 (2026-10-17) — first issue. Closes the gap `NP-SOUP-KOTLIN-001` §1 named: the Swift package manifest, the Swift package dependencies and the NuGet references had no record. Written together with the removal of `NSec.Cryptography` from the Windows app (the Ed25519 signer now calls the Rust core, `CLAUDE.md` §22), so the Windows runtime inventory is one library.
+**Change Summary:** Rev 3 (2026-10-21) — **the watchOS app is retired and its project is deleted** (`NP-APP-ROADMAP-001` Rev 9): the record covers iOS and Windows only, and the PLCrashReporter row no longer says "(not watchOS)". No dependency is added, removed or changed. Rev 2 (2026-10-17) — **the vendored Argon2 is removed and PostHog is pinned** (`OI-SOUPKT-01`). iOS derives the UHDR key through the Rust core (`deriveUhdrKey`); `NeurOneArgon2`, `Argon2Bridge.swift` and the 12 vendored files are deleted. Before deleting, the vendored source was compiled and called on a fixed input, and the core was made to reproduce its output byte for byte (a test in `bundle_key.rs`), so a key made by an earlier build is unchanged. PostHog is `exactVersion` 3.60.0 in `project.yml`, so the version that ships is the one this record reads. Rev 1 (2026-10-17) — first issue. Closes the gap `NP-SOUP-KOTLIN-001` §1 named: the Swift package manifest, the Swift package dependencies and the NuGet references had no record. Written together with the removal of `NSec.Cryptography` from the Windows app (the Ed25519 signer now calls the Rust core, `CLAUDE.md` §22), so the Windows runtime inventory is one library.
 **Review Cadence:** On any change to a SwiftPM dependency or a `PackageReference`, and at G2
 
 ---
 
 ## 1. What this record is, and is not
 
-The iOS and watchOS apps are Swift; the Windows app is C# on .NET 8. They are the native apps that predate the shared Compose UI (`CLAUDE.md` §20) and are still built. Everything they link that NeurOne did not write is SOUP. This record **lists** it and says what has and has not been checked. The shared Rust core they all link is `NP-SOUP-RUST-001`; the shared Kotlin app is `NP-SOUP-KOTLIN-001`. The operating-system frameworks (Foundation, CryptoKit, Security, CoreBluetooth, the .NET 8 runtime) are platform, not SOUP, and are not listed. Build tools (Xcode, XcodeGen, the .NET SDK) are not in the shipped product.
+The iOS app is Swift; the Windows app is C# on .NET 8. They are the native apps that predate the shared Compose UI (`CLAUDE.md` §20) and are still built. Everything they link that NeurOne did not write is SOUP. This record **lists** it and says what has and has not been checked. The shared Rust core they all link is `NP-SOUP-RUST-001`; the shared Kotlin app is `NP-SOUP-KOTLIN-001`. The operating-system frameworks (Foundation, CryptoKit, Security, CoreBluetooth, the .NET 8 runtime) are platform, not SOUP, and are not listed. Build tools (Xcode, XcodeGen, the .NET SDK) are not in the shipped product.
 
 ## 2. Inventory
 
@@ -28,7 +28,7 @@ The iOS and watchOS apps are Swift; the Windows app is C# on .NET 8. They are th
 |------|---------|----------|---------|-----------------------|------|
 | PostHog (`posthog-ios`) | **3.60.0, exact** (`exactVersion` in `app/ios/project.yml`) | iOS | Yes | MIT (the repository's `LICENSE` at 3.60.0) | The analytics backend behind the research-consent gate (`PostHogAnalyticsBackend.swift`). A fault in it can send events the user did not allow (§5) |
 | libwebp, vendored in PostHog as target `phlibwebp` | with PostHog | iOS | Yes | BSD-3-Clause (the vendored `COPYING`) | Image coding inside the SDK |
-| PLCrashReporter, vendored in PostHog as `PHPLCrashReporter` | with PostHog | iOS (not watchOS) | Yes | MIT (the vendored `LICENSE`, with the notices of the upstream project and its dependencies) | Crash capture inside the SDK |
+| PLCrashReporter, vendored in PostHog as `PHPLCrashReporter` | with PostHog | iOS | Yes | MIT (the vendored `LICENSE`, with the notices of the upstream project and its dependencies) | Crash capture inside the SDK |
 | protobuf-c, vendored in `PHPLCrashReporter` | with PostHog | iOS | Yes | BSD-2-Clause (its own header notice; not checked against the file) | PLCrashReporter's report encoding |
 | System.Security.Cryptography.ProtectedData | 8.0.0 | Windows | Yes | MIT | DPAPI wrapping of the signing seed in `SessionProtocol.cs`. It is a platform key-protection wrapper, which §22 leaves to the platform. It has no dependency on .NET 8 (the nuspec lists `System.Memory` only for .NET Standard 2.0) |
 | Microsoft.NET.Test.Sdk | 17.11.1 | Windows tests | No | MIT | Test host |

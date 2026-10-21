@@ -16,7 +16,7 @@
       { "dotted": { "prefixes": [], "parts": 3, "max": 3 } }
     ],
     "os_version": [
-      { "dotted": { "prefixes": ["iOS", "watchOS", "Android", "macOS", "Windows", "Web"], "parts": 2, "max": 3 } }
+      { "dotted": { "prefixes": ["iOS", "Android", "macOS", "Windows", "Web"], "parts": 2, "max": 3 } }
     ],
     "device_class": [
       { "literal": ["iPhone_flagship", "iPhone_mid", "iPhone_legacy", "iPad", "Android_flagship", "Android_mid", "Android_budget"] }

@@ -1,6 +1,6 @@
 # XcodeGen spec for the NeurOne iOS app — the single source of truth for the
 # Xcode project. `NeurOne.xcodeproj` is GENERATED from this file and is NOT
-# committed (Issue #189); the watchOS target has worked this way since PR #190.
+# committed (Issue #189).
 #
 # Bootstrap a checkout, from anywhere in the repository:
 #
@@ -104,8 +104,7 @@ targets:
       # a missing manifest.
       - path: ../../protocols/predefined
         type: folder
-      # The generated String Catalog lives in app/NeurOneShared/Resources (shared with the
-      # watch), so it is not under NeurOne/ and needs its own entry. This is the DIRECTORY,
+      # The generated String Catalog lives in app/NeurOneShared/Resources so it is not under NeurOne/ and needs its own entry. This is the DIRECTORY,
       # not the single file: XcodeGen reads knownRegions only out of a catalogue it finds by
       # scanning a directory, and a single-file entry collapses eleven locales to en + Base
       # (the failure described under preGenCommand above). The directory holds only the
