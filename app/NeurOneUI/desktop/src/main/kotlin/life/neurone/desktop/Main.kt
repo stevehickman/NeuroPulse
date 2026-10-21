@@ -1,13 +1,16 @@
 package life.neurone.desktop
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.isTraySupported
+import androidx.compose.ui.window.rememberTrayState
 import life.neurone.shared.AppServices
 import life.neurone.shared.LoginItemFiles
 import life.neurone.shared.createAppScope
@@ -15,7 +18,8 @@ import life.neurone.shared.ui.NeurOneApp
 import life.neurone.shared.ui.trayText
 
 fun main(args: Array<String>) = application {
-    val services = remember { AppServices(DesktopPlatformServices(), createAppScope()) }
+    val platform = remember { DesktopPlatformServices() }
+    val services = remember { AppServices(platform, createAppScope()) }
     // Started at sign-in (LoginItemFiles.BACKGROUND_ARGUMENT), the app stays out of sight in the tray; without a tray there would be no
     // way back to the window, so then it opens as usual.
     var windowShown by remember { mutableStateOf(!LoginItemFiles.startsInTray(args.toList(), isTraySupported)) }
@@ -30,7 +34,13 @@ fun main(args: Array<String>) = application {
     }
     if (isTraySupported) {
         val text = trayText()
+        val trayState = rememberTrayState()
+        // The consumable reminders go out as balloons from this tray, generic by design (DesktopReminderNotifier).
+        LaunchedEffect(trayState) {
+            platform.reminderNotifier.attach { title, message -> trayState.sendNotification(Notification(title, message, Notification.Type.Info)) }
+        }
         Tray(
+            state = trayState,
             icon = remember { TrayIcon },
             tooltip = text.tooltip,
             onAction = { windowShown = true },
