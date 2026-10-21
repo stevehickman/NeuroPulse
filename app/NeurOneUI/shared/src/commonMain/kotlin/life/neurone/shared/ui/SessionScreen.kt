@@ -508,6 +508,7 @@ private fun LiveMetricsGrid(session: SessionState) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
+            CoherenceAnnouncer(coherence)
             Text(stringResource(Res.string.session_live_metrics), style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
