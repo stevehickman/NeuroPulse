@@ -54,7 +54,9 @@ class IosUhdrFolderTest {
         assertTrue(fm.calls.all { it.second == IosUhdrFolder.PROTECTION_CLASS }, "every call asks for the one class")
         fm.calls.clear()
         folder.protect("session_1.edf")
-        assertEquals(listOf("$root/session_1.edf" to IosUhdrFolder.PROTECTION_CLASS), fm.calls)
+        assertEquals(1, fm.calls.size)
+        assertEquals("$root/session_1.edf", fm.calls[0].first)
+        assertEquals(IosUhdrFolder.PROTECTION_CLASS, fm.calls[0].second)
     }
 
     // @verifies REQ-UHDRFP-01#c
