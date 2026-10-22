@@ -31,6 +31,8 @@ Sorted by open item.
 |------|----------|------|--------|
 | `OI-CVNS-13` | `oi-cvns-13-nuisance-cutoff-rate.md` | Clinical: acceptable false-cutoff rate. Engineering: measure missed and split R-peak rates on A13. Drives 25-c and 25-e. | DRAFT, not sent |
 | `OI-I18N-04` | `oi-i18n-04-audit-string-translations.md` | Native-speaker verification of machine-drafted translations of 15 privacy-review strings in 9 locales (en-GB read-through). Drafts in `translation-drafts/`; nothing in `locales/`. | DRAFT, not sent |
+| `OI-PRES-06` | `oi-pres-06-android-device-run.md` | Run the Android presence gate on devices at API 29, 30 and 36 and report pass or fail per step. | DRAFT, not sent |
+| `OI-PRES-07` | `oi-pres-07-ios-device-run.md` | Run the iOS presence gate on an iPhone, with the first device run of the shared iOS host (`OI-UI-KMP-06`), and report pass or fail per step. | DRAFT, not sent |
 | `OI-RISK2-01` | `oi-risk2-01-rescore-carried-risks.md` | Commission the S × P re-score of the carried risks: scope, order, scorer and approver, provisional inputs, record form. | DRAFT, not sent |
 | `OI-RISK2-02` | `oi-risk2-02-hazard-analysis-commission.md` | Commission the hazard analysis for A11, A12, A13 and A15: owners, register location, scope, order, DRAFT-spec handling. | DRAFT, not sent |
 | `OI-RISK2-03` | `oi-risk2-03-second-reader.md` | Second reader: confirm or challenge the five RETIRED risk dispositions (five, per the table). | DRAFT, not sent |
