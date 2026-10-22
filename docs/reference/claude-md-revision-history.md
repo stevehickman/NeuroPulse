@@ -19,6 +19,10 @@
 
 ## Current revision
 
+**Rev 75 (2026-10-22) — CLAUDE.md slimmed again: §17, §21 and the Document Map. No design decision, limit or interlock changed.**
+
+**What changed.** §21 no longer restates the tag syntax, parts mechanism or the checker's failure list; the header of `scripts/req-trace.ts` holds them. §17 folds its two key-naming bullets into one and points at `localization.md` §17.3. In the Document Map, the FAI, risk and tooling/review rows became one pointer to `np_art_001.md` (indexed in `np_dhf_001.md`), and the two `docs/reference/` rows became one. Every rule, section number and referenced file is kept.
+
 **Rev 74 (2026-10-22) — CLAUDE.md slimmed (about 40 KB to 35 KB). No design decision, limit or interlock changed.**
 
 **What changed.** §20 and §22 keep their rules; the layout, scope, generated-file, test-placement, UI-host, cryptographic-means and library-selection detail moved verbatim to `docs/reference/engineering-rules.md` (new Document Map row). §2 intro, §2.1 and §2.1a no longer repeat the preamble's "no price is set" constraint. §5.1 lost the ruling dates from the presence and "protection only goes up" bullets (the rules are unchanged; `REQ-PRES-09` and Rev 72/73 hold the history). The VNS ≤40 mA row lost its Rev 67/68 narrative (it is in `modality-stack.md`) and the §3 PBM "two controls" block was shortened to the two controls and their open items.

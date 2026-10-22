@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 74 (current)  
+**Revision:** 75 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -51,15 +51,11 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Cavity resonance, the retired Layer 4 station** | `docs/np_emc_cav_001.md` |
 | **T1 → T2 path, tier gating, cross-tier interfaces** | `docs/np_reg_upg_001.md` |
 | Accessory / applicator hardware (audio cup, nasal probe, VNS clip, cVNS, TMS coil, tACS driver) — DRAFT, requirements-grade; §3 is not their spec | `docs/np_hw_{audio,nasal,vnsclip,cvns,tms,tacsdrv}_001.md` |
-| Accessories + companion SW · durability · service network | `docs/reference/{accessories-roadmap,durability-maintenance,service-network}.md` |
-| Competitive position · regulatory strategy · clinical evidence · marketing | `docs/reference/{competitive-position,regulatory-strategy,clinical,marketing-notes}.md` |
+| Accessories + companion SW · durability · service · competitive position · regulatory · clinical · marketing | `docs/reference/{accessories-roadmap,durability-maintenance,service-network,competitive-position,regulatory-strategy,clinical,marketing-notes}.md` |
 | Open items · locked-decision log · document + firmware register | `docs/status/{pending-decisions,completed-decisions,document-register}.md` |
 | **Every choice with no derivation, measurement or checked source**, and where it was decided (§19) | `docs/status/unjustified-choices.md` |
 | Formal DHF index: the **single maintained index**, gated by `scripts/check-dhf-index.ts`. `document-register.md` is frozen history (`OI-CONV-07`, closed) | `docs/np_dhf_001.md` |
-| Manufactured artifacts + which spec / risk register / FAI exists | `docs/np_art_001.md` |
-| FAI programme | `docs/np_fai_001.md` |
-| Risk: ISO 14971 index · hex-tile · shell/socket/hub | `docs/np_risk_002.md` · `_003` · `_004` |
-| Hex-tile mould tooling · shell interconnect review | `docs/np_tool_hextile_001.md` · `docs/np_rev_shell_001.md` |
+| Manufactured artifacts, and which spec / risk register / FAI exists for each. Risk (`np_risk_002`–`_004`), FAI (`np_fai_001`), tooling and review records are indexed there and in `np_dhf_001.md` | `docs/np_art_001.md` |
 | **Which requirement a test verifies**, the tag syntax, the report of untested requirements (§21) | `scripts/req-trace.ts` (header) · `docs/status/requirement-parts.json` |
 | Is this figure / file the current one? | `docs/superseded/README.md` |
 | Questions drafted for a human reviewer (clinical, regulatory, principal); not design inputs | `docs/human-input/README.md` |
@@ -399,10 +395,8 @@ committed copy. There are 11 locales, flat and sorted. The web, Apple and Androi
 - **Add the key to all eleven locales, then reference it** (`t('KEY')` web · `String(localized:)`
   Apple · `stringResource(R.string.key)` Android). **Read `localization.md` §17.1–§17.3 before
   adding a key**, because a malformed placeholder or plural family fails the build.
-- **Module-level tables hold keys, not text.** Resolve them with `t()` at render time.
-- **Each modality has exactly one name and one description:** `MODALITY_<ID>_NAME` and
-  `MODALITY_<ID>_DESC`, from the `.npps` token. §3's consumer names live in the `bes_tacs` and
-  `tdcs` descriptions.
+- **Module-level tables hold keys, not text**, and each modality has exactly one name and one
+  description (`MODALITY_<ID>_NAME`, `MODALITY_<ID>_DESC`; conventions in `localization.md` §17.3).
 - **Firmware renders no text and references no locale file.** If one appears under `firmware/`,
   that is a design decision, not a detail.
 
@@ -464,22 +458,20 @@ Layout, scope, generated files, test placement and the UI hosts: `docs/reference
 
 ## 21. TESTS NAME THE REQUIREMENT THEY VERIFY (locked) → `scripts/req-trace.ts`
 
-**Every test carries a tag naming the requirement it verifies.** The tag is a comment directly above the test:
-`@verifies REQ-X-NN` (or `DI-…`, `SWR-…`), with `#a` or `#a,b` to name a part. `@verifies-file` tags a whole
-file. `@verifies-none <reason>` is for a harness self-check or a helper that only looks like a test, never for a
-test that merely has no row yet.
+**Every test carries a tag naming the requirement it verifies**, a comment directly above the test
+(`@verifies REQ-X-NN#a`). `@verifies-none <reason>` is for a harness self-check or a helper that only looks
+like a test, never for a test that merely has no row yet. Tag syntax, test units and parts: the header of
+`scripts/req-trace.ts`.
 
 - **A test with no requirement to name means a requirement is missing.** Write the row first, to §18's standard:
   what fails if it is not met, and where it traces. A row restates a rule already binding somewhere; never invent
   a rule to give a test a home.
 - **Tests are written for behaviour that exists.** A requirement for a feature that is not built stays untested.
   Its test is written with the code that meets it and tagged then.
-- **Name the part, not the whole.** A test of one part of a multi-part requirement tags that part, so the report
-  shows what is still untested. Parts are the `(a)(b)` of the row, or declared in
-  `docs/status/requirement-parts.json`.
-- **Enforced** by `bun scripts/req-trace.ts --check` (CI job `req-trace`): it fails an unknown or retired ID, a
-  part that does not exist, a `@verifies-none` with no reason, a tag with no test, and any test that is untraced.
-  `bun scripts/req-trace.ts` prints the report, including every requirement with no test.
+- **Name the part, not the whole.** A test of one part of a multi-part requirement tags that part, so the
+  report shows what is still untested.
+- **Enforced** by `bun scripts/req-trace.ts --check` (CI job `req-trace`); `bun scripts/req-trace.ts` prints
+  the requirements with no test.
 
 ## 22. RUST FIRST — REAL-TIME AND CRYPTOGRAPHIC CODE (locked) → `docs/np_soup_kotlin_001.md` §2a
 
