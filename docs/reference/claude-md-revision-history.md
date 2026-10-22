@@ -19,6 +19,12 @@
 
 ## Current revision
 
+**Rev 74 (2026-10-22) — CLAUDE.md slimmed (about 40 KB to 35 KB). No design decision, limit or interlock changed.**
+
+**What changed.** §20 and §22 keep their rules; the layout, scope, generated-file, test-placement, UI-host, cryptographic-means and library-selection detail moved verbatim to `docs/reference/engineering-rules.md` (new Document Map row). §2 intro, §2.1 and §2.1a no longer repeat the preamble's "no price is set" constraint. §5.1 lost the ruling dates from the presence and "protection only goes up" bullets (the rules are unchanged; `REQ-PRES-09` and Rev 72/73 hold the history). The VNS ≤40 mA row lost its Rev 67/68 narrative (it is in `modality-stack.md`) and the §3 PBM "two controls" block was shortened to the two controls and their open items.
+
+**Why.** The core file loads every session; rationale, layout and history belong in the files it points to. Every section and subsection number is kept.
+
 **Rev 73 (2026-10-21) — §5.1 records that UHDR data protection is never made weaker. A decision about the apps; no limit or interlock changed.**
 
 **What changed.** One bullet in §5.1. The principal ruled, when asked whether the presence gate may be turned off, that it may not, and generalised it: UHDR protection is never weakened, now or ever, and making it stronger is fine. The gate has no turn-off, sealed UHDR is never moved to a key the device releases alone, an install that has the gate never falls back to an ungated or unsealed store, and the passphrase rule is never relaxed (`REQ-PRES-09` in `docs/np_app_presence_001.md`). An erase is the one thing that removes the gate, and the principal ruled it is not a weakening: it destroys the data the gate protected and returns the device to factory state.
