@@ -1,5 +1,6 @@
 package life.neurone.core.protocol
 
+import life.neurone.core.common.InMemoryKeyValueStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -147,5 +148,32 @@ class ProtocolConsentGateTests {
     fun messageResourceName_matchesIOSLocalizationKey() {
         // iOS uses SESSION_EEG_UNAVAILABLE_BODY; Android resolves this res name.
         assertEquals("session_eeg_unavailable_body", ProtocolConsentGate.EEG_UNAVAILABLE_MESSAGE_RES)
+    }
+
+    // MARK: - The recorded answer is what the gate reads (REQ-ONBOARD-06)
+
+    // @verifies REQ-ONBOARD-06#b
+    @Test
+    fun eegConsentIsGrantedExactlyWhenTheReleaseWasAccepted() {
+        for (accepted in listOf(true, false)) {
+            val kv = InMemoryKeyValueStore()
+            kv.putBoolean(NPProtocolLibrary.BIPA_ACCEPTED_KEY, accepted)
+            assertEquals(accepted, NPProtocolLibrary(kv).eegConsentGranted, "accepted = $accepted")
+        }
+        assertFalse(NPProtocolLibrary(InMemoryKeyValueStore()).eegConsentGranted, "never asked is not consent")
+    }
+
+    // @verifies REQ-ONBOARD-06#c
+    @Test
+    fun theLibrarySeedsConsentFromThePersistedAnswer_soARelaunchDoesNotResetIt() {
+        val kv = InMemoryKeyValueStore()
+        kv.putBoolean(NPProtocolLibrary.BIPA_ACCEPTED_KEY, true)
+        assertTrue(NPProtocolLibrary(kv).eegConsentGranted)
+        // A second construction over the same store is a relaunch: the answer is still there.
+        assertTrue(NPProtocolLibrary(kv).eegConsentGranted)
+
+        // And a later decline is what the next launch reads, not the earlier acceptance.
+        kv.putBoolean(NPProtocolLibrary.BIPA_ACCEPTED_KEY, false)
+        assertFalse(NPProtocolLibrary(kv).eegConsentGranted)
     }
 }

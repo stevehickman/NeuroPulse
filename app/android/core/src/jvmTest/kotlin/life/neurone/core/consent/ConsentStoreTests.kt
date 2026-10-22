@@ -775,6 +775,29 @@ class ConsentStoreTests {
         assertTrue(state.blanketConsentGranted)
     }
 
+    // @verifies REQ-CONSENT-05#d
+    @Test
+    fun allFourConsentLayersRemainIndependentlySettable() {
+        // Four layers, two screens. Each layer still has its own field and can be set without touching the others.
+        val (store, kv, _) = makeStore()
+        store.updateResearchConsent(
+            ResearchConsentState(
+                contactConsentGranted = true, // L1
+                categoryConsents = ResearchCategory.entries.associateWith { it == ResearchCategory.entries.first() }, // L2
+                blanketConsentGranted = true, // L3
+                resultsOptIn = true, // L4
+                suggestionPortalOptIn = false, // L4
+            ),
+        )
+
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).researchConsent
+        assertTrue(reloaded.contactConsentGranted)
+        assertEquals(true, reloaded.categoryConsents[ResearchCategory.entries.first()])
+        assertTrue(reloaded.blanketConsentGranted)
+        assertTrue(reloaded.resultsOptIn)
+        assertFalse(reloaded.suggestionPortalOptIn)
+    }
+
     // @verifies REQ-CONSENT-02
     @Test
     fun consentStatePersistsAcrossInstances() {

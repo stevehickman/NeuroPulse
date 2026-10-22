@@ -123,6 +123,12 @@ fun BipaConsentScreen(onAccepted: () -> Unit, onDeclined: () -> Unit) {
                 stringResource(Res.string.age_on_your_device_for_session_delivery_and_neur),
             style = MaterialTheme.typography.bodyLarge,
         )
+        // What NeurOne will not do with the data: BIPA 15(b) asks for it in the written release, and the SwiftUI release had it
+        // (`REQ-ONBOARD-03`). Without it, deleting that app would drop the disclosure.
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(Res.string.bipa_step3_limits_heading), style = MaterialTheme.typography.titleSmall)
+        Text("\u2022 " + stringResource(Res.string.bipa_step3_limit_1), style = MaterialTheme.typography.bodyLarge)
+        Text("\u2022 " + stringResource(Res.string.bipa_step3_limit_2), style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked, onCheckedChange = { checked = it })
