@@ -43,7 +43,7 @@ jobs:
 
   watch:
     name: Has spake2 published a stable release at or above the floor?
-    if: true # TEMPORARY: run on this PR to prove the comment step (reverted next commit)
+    if: true # TEMPORARY: run on this PR to prove the comment step and its idempotence (reverted next commit)
     needs: self-test
     runs-on: ubuntu-latest
     permissions:
