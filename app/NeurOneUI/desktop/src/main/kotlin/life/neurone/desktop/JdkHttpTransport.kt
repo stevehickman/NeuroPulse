@@ -24,7 +24,9 @@ class JdkHttpTransport(
     override suspend fun post(request: HttpRequest): HttpResponse? = try {
         val builder = JdkRequest.newBuilder(URI.create(request.url))
             .timeout(Duration.ofSeconds(request.timeoutSeconds.toLong()))
-        if (request.method == "GET") builder.GET() else builder.POST(JdkRequest.BodyPublishers.ofByteArray(request.body))
+        // Any method the caller names (the cloud object stores need DELETE and others); a GET or HEAD carries no body.
+        if (request.method == "GET" || request.method == "HEAD") builder.method(request.method, JdkRequest.BodyPublishers.noBody())
+        else builder.method(request.method, JdkRequest.BodyPublishers.ofByteArray(request.body))
         request.headers.forEach { (k, v) -> builder.header(k, v) }
         val answer = client.sendAsync(builder.build(), JdkResponse.BodyHandlers.ofByteArray()).await()
         HttpResponse(answer.statusCode(), answer.headers().map().mapValues { it.value.firstOrNull().orEmpty() }, answer.body())

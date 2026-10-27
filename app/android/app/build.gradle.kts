@@ -162,4 +162,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
+    // HttpTransportChecks, shared with the desktop transport (common/cloudstore).
+    testImplementation(project(path = ":cloudstore", configuration = "testClasses"))
+    testRuntimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }

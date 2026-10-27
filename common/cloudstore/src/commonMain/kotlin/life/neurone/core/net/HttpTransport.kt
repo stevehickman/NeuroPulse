@@ -1,8 +1,9 @@
 package life.neurone.core.net
 
 /**
- * One HTTPS request: the full URL, its headers and its body. [method] is `POST` unless the caller needs a `GET` (the firmware
- * manifest and image, which carry no body); [timeoutSeconds] is how long the whole call may take, longer for an image than for a POST.
+ * One HTTPS request: the full URL, its headers and its body. [method] is `POST` unless the caller needs another: `GET` (the firmware
+ * manifest and image, which carry no body), or the `DELETE` and `GET` of the cloud object stores (`life.neurone.core.cloud`); a
+ * `GET` or `HEAD` carries no body. [timeoutSeconds] is how long the whole call may take, longer for an image than for a POST.
  */
 class HttpRequest(
     val url: String,

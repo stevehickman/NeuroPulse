@@ -68,6 +68,11 @@
       "a": "The pinned set holds a primary and at least one backup key",
       "b": "The app refuses a TLS handshake whose leaf SPKI SHA-256 is not in the pinned set",
       "c": "The pinned hashes are production values, not placeholders"
+    },
+    "SWR-MG-11": {
+      "calls": "The common cloud storage API covers only what backup and restore need: put and get the encrypted bundle, find it, write a claim marker with create-if-absent, read the claim, write and read the confirmation, and release a claim",
+      "verified": "For each provider the conditional-write behaviour of the storage the app actually uses is verified against the provider's current documentation and recorded with the date",
+      "contract": "A contract test suite is run against each provider, including two simultaneous claim writes"
     }
   },
   "nonTest": {

@@ -26,6 +26,10 @@ rootProject.name = "neurone-android"
 include(":core")
 include(":app")
 
+// Kotlin several apps use lives in common/ (CLAUDE.md section 20); :core depends on it.
+include(":cloudstore")
+project(":cloudstore").projectDir = file("../../common/cloudstore")
+
 // The multiplatform UI lives beside the apps it serves, not under android/ (app/NeurOneUI/README.md).
 include(":shared")
 project(":shared").projectDir = file("../NeurOneUI/shared")
