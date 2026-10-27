@@ -21,7 +21,7 @@ plugins {
 // used to be a hand-maintained duplicate and had drifted — 8 of its 17 protocols were missing the
 // conditions/references fields added in NP-NPPS-REF-001 Rev 2 — and a JVM resource path does not
 // exist on iOS or in a browser.
-val predefinedProtocolsDir = layout.projectDirectory.dir("../../../protocols/predefined")
+val predefinedProtocolsDir = layout.projectDirectory.dir("../../protocols/predefined")
 val generatedBundledDir = layout.buildDirectory.dir("generated/bundled/commonMain/kotlin")
 
 val generateBundledProtocols by tasks.registering {
@@ -66,9 +66,9 @@ val generateBundledProtocols by tasks.registering {
 // The binding parity tests (NppsBackendParityTests) run on every target, and only the JVM can read a file, so the
 // goldens the web parser and compiler produced (app/NeurOneShared/TestData) are generated into Kotlin. Strings
 // are chunked: one JVM constant is capped at 64 KB.
-val testDataDir = layout.projectDirectory.dir("../../NeurOneShared/TestData")
+val testDataDir = layout.projectDirectory.dir("../../app/NeurOneShared/TestData")
 val generatedGoldensDir = layout.buildDirectory.dir("generated/goldens/commonTest/kotlin")
-val repoFixtures: java.io.File = layout.projectDirectory.dir("../../../npps/fixtures").asFile
+val repoFixtures: java.io.File = layout.projectDirectory.dir("../../npps/fixtures").asFile
 
 val generateTestGoldens by tasks.registering {
     description = "Compiles the NPPS goldens into TestGoldens.kt for commonTest."
@@ -132,7 +132,7 @@ val appleRustTargets = mapOf(
     "iosArm64" to "aarch64-apple-ios",
     "iosSimulatorArm64" to "aarch64-apple-ios-sim",
 )
-val nppsFfiCommonDir: java.io.File = layout.projectDirectory.dir("../../../common").asFile
+val nppsFfiCommonDir: java.io.File = layout.projectDirectory.dir("..").asFile
 
 val buildNppsFfiTasks = appleRustTargets.mapValues { (kotlinTarget, triple) ->
     tasks.register<Exec>("buildNppsFfi${kotlinTarget.replaceFirstChar { it.uppercase() }}") {
@@ -219,9 +219,9 @@ kotlin {
         jvmTest {
             // Test data shared by every app lives in app/NeurOneShared/TestData, not under this module
             // (hub-descriptor-golden.json is read by the Android, iOS and Windows tests).
-            resources.srcDir(layout.projectDirectory.dir("../../NeurOneShared/TestData"))
+            resources.srcDir(layout.projectDirectory.dir("../../app/NeurOneShared/TestData"))
             // locales/en.json: the validator returns locale keys, and the tests resolve them in English (TestLocale).
-            resources.srcDir(layout.projectDirectory.dir("../../../locales"))
+            resources.srcDir(layout.projectDirectory.dir("../../locales"))
             dependencies {
                 implementation("org.junit.jupiter:junit-jupiter:5.10.2")
                 runtimeOnly("org.junit.platform:junit-platform-launcher")
@@ -246,7 +246,7 @@ tasks.matching { it.name == "wasmJsNodeTest" }.configureEach {
 // cargo must be on PATH; a missing toolchain fails the build rather than skipping the tests,
 // because a skipped test is a parity check that silently stopped checking. Packaging the
 // library for a device (cargo-ndk, four ABIs, :app jniLibs) is wired in :app.
-val repoCommon: java.io.File = layout.projectDirectory.dir("../../../common").asFile
+val repoCommon: java.io.File = layout.projectDirectory.dir("..").asFile
 val buildNppsCoreHost by tasks.registering(Exec::class) {
     group = "build"
     description = "Builds the host (JVM test) copy of the NPPS core's JNI library."

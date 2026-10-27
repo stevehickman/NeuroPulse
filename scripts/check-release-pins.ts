@@ -29,7 +29,7 @@
  * CI-Self-Test: bun scripts/check-release-pins.ts --self-test
  * CI-Scans: the SPKI pin literals in the iOS and Android SHDR uploaders (P1 two pins each, P2 well-formed, P3 no placeholder under --release)
  * CI-Self-Test-Reads-Tree: one case reads the real iOS and Android uploaders to prove the detector can see their pins, which a fixture cannot show
- * CI-Scan-Paths: app/ios/NeurOne/Data/SHDRUploader.swift app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt scripts/check-release-pins.ts
+ * CI-Scan-Paths: app/ios/NeurOne/Data/SHDRUploader.swift common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt scripts/check-release-pins.ts
  */
 import { readFileSync } from "fs";
 import { join, resolve } from "path";
@@ -37,7 +37,7 @@ import { join, resolve } from "path";
 export const PIN_FILES = [
   "app/ios/NeurOne/Data/SHDRUploader.swift",
   // The relay's pins and the gateway key for every Kotlin host (Android, desktop, the shared iOS host): one file.
-  "app/android/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt",
+  "common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt",
 ];
 
 // A quoted string that looks like a pin: an optional "sha256/" and a run of base64 characters (and its padding).

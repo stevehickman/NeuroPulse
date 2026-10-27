@@ -21,6 +21,7 @@ on:
     paths: &paths
       - 'app/android/**/build.gradle.kts'
       - 'app/android/build.gradle.kts'
+      - 'common/core/build.gradle.kts'
       - 'app/android/settings.gradle.kts'
       - 'app/NeurOneUI/**/build.gradle.kts'
       - '**/gradle.lockfile'

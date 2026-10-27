@@ -8,7 +8,7 @@ on:
   push:
     paths:
       - 'app/NeurOneUI/**'
-      - 'app/android/core/**'
+      - 'common/core/**'
       - 'common/Cargo.toml'
       - 'common/Cargo.lock'
       - 'common/npps/**'
@@ -21,7 +21,7 @@ on:
   pull_request:
     paths:
       - 'app/NeurOneUI/**'
-      - 'app/android/core/**'
+      - 'common/core/**'
       - 'common/Cargo.toml'
       - 'common/Cargo.lock'
       - 'common/npps/**'

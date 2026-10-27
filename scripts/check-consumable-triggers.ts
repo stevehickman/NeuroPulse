@@ -70,7 +70,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consumable-triggers.ts --self-test
  * CI-Scans: every row of the commercial-model.md §2.3 consumables table, against the ConsumableKind enums, reminder engines and GATT producers on iOS and Android, and firmware
- * CI-Scan-Paths: docs/reference/commercial-model.md app/ios/** app/android/** firmware/**
+ * CI-Scan-Paths: docs/reference/commercial-model.md app/ios/** app/android/** common/core/** firmware/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
@@ -84,20 +84,20 @@ const SECTION = "### 2.3 Consumables";
 
 const KIND_FILE: Record<Platform, string> = {
   ios: "app/ios/NeurOne/Models/ConsumableInventory.swift",
-  android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
+  android: "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
 };
 
 /** Where the characteristic feeding every ConsumableKind is declared. */
 const CONSUMABLE_STATUS: Record<Platform, { file: string; re: RegExp }> = {
   ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CONSUMABLE_STATUS_ID\b/ },
-  android: { file: "app/android/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CONSUMABLE_STATUS_ID\b/ },
+  android: { file: "common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CONSUMABLE_STATUS_ID\b/ },
 };
 
 /** Producers that are not a ConsumableKind: where each lives on each platform. */
 const PRODUCERS: Record<string, Record<Platform, { file: string; re: RegExp }>> = {
   CVNS_PAD_STATUS: {
     ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CVNS_PAD_STATUS_ID\b/ },
-    android: { file: "app/android/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CVNS_PAD_STATUS_ID\b/ },
+    android: { file: "common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CVNS_PAD_STATUS_ID\b/ },
   },
 };
 
@@ -105,8 +105,8 @@ const PRODUCERS: Record<string, Record<Platform, { file: string; re: RegExp }>> 
 const ENGINE_FILES: Record<Platform, string[]> = {
   ios: ["app/ios/NeurOne/Consumable/ConsumableTracker.swift", "app/ios/NeurOne/Models/ConsumableInventory.swift"],
   android: [
-    "app/android/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableTracker.kt",
-    "app/android/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
+    "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableTracker.kt",
+    "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
   ],
 };
 
