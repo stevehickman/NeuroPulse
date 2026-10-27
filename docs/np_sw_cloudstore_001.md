@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 1 (2026-10-27) — first draft. Records what was found so far for #566 and, as much, what could **not** be verified. **No provider's conditional-write behaviour is verified in this revision** (§3), so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -23,20 +23,20 @@
 #566 asks for a decision record: the supported providers, the common interface, the per-provider mapping against the
 storage an individual has, a verified conditional-write result for each, the build-or-adopt decision, a contract-test
 plan, and SOUP records for anything adopted. **This draft holds the research so far (task B of the issue). It decides
-nothing and verifies nothing.** It is not the decision record.
+nothing.** It is not the decision record.
 
-**How the evidence is graded.** The provider documentation hosts could not be reached from the environment where the
-research ran (DNS failure on the AWS, Microsoft, Google Cloud, Oracle and Google Drive documentation sites), so every
-provider statement below comes from a search-result excerpt or from general knowledge. Each is labelled:
+**How the evidence is graded.** Rev 1 rested on search excerpts. **Rev 2 (2026-10-27) reads the provider pages first-hand**
+(downloaded 2026-10-27 and converted to text; the page's own "last updated" date is given where the page shows one).
 
 | Grade | Meaning |
 |-------|---------|
-| **Excerpt** | A search result quoted an official provider page. The page itself was not read. |
-| **Secondary** | A non-official source (a vendor-compatible service, a forum, a blog). |
-| **Unverified** | General knowledge, or an inference. Nothing was found. |
+| **Read** | The provider's own page was read on 2026-10-27 and says so. |
+| **Excerpt** | A search result quoted an official page that was not read. |
+| **Unverified** | General knowledge, an inference, or nothing found on the pages read. |
 
-`SWR-MG-11` requires the result "verified against the provider's current documentation and recorded with the date". Only
-a first-hand reading of the provider page, with its version and date, meets that. **No row in §3 does yet.**
+`SWR-MG-11` requires the result "verified against the provider's current documentation and recorded with the date".
+**A "Read" row meets that for what it states. It is documentation, not a test:** a provider's page does not prove the
+behaviour, and the contract tests (two simultaneous claim writes) are still owed per provider (§5).
 
 ## 2. The interface already in the repository
 
@@ -76,7 +76,8 @@ provider is implemented in any of them.**
 
 1. **Large bundles.** `objectPut` and `objectCreate` take the whole payload as one hex string, which doubles its size in
    memory, and there is no chunked or resumable upload. The issue says "resumable or chunked if a provider needs it".
-   Bundle size is not stated in the documents read. This needs a decision and probably a change to `object_route.rs` or a
+   Bundle size is not stated in the documents read. Graph needs byte ranges in multiples of 320 KiB and recommends resumable
+   upload above 10 MiB (§3.2). This needs a decision and probably a change to `object_route.rs` or a
    driver-side chunking rule.
 2. **Sign-in failure cannot be told from other failure.** No network, no permission, a refused write and a signed-out
    account all return `{failed: true}`. M12 asks the message to say which operation failed *and what the user can do*
@@ -86,59 +87,80 @@ provider is implemented in any of them.**
    eventually consistent store. Each provider's read-after-write for get after create, put and delete must be written down
    before the claim is called atomic on it.
 4. **Name-based get and create may not exist on every consumer store.** The core addresses objects by fixed name. Google
-   Drive allows several files with one name, so "get by name" is a query and "create if absent by name" has no native form.
-   A client-chosen file identifier might serve; this is **unverified**. This is the largest risk to the consumer-account
-   mappings.
+   Drive's own reference says a name "isn't necessarily unique within a folder", so "get by name" is a query and "create if
+   absent by name" has no native form (**confirmed**, §3.2). A client-chosen file ID might serve; whether a repeated create
+   is refused is **not stated** on the pages read. This is the largest risk to the consumer-account mappings.
 5. **Where the adapters live.** Four driver languages are named; CLAUDE.md §20 says the UI is written once in Compose
    Multiplatform. Whether provider adapters are written once in shared Kotlin or once per platform is unstated, and it drives
    the cost of keeping up that #566 asks about.
+6. **`objectCreate` has two outcomes and the providers have more.** The core's `{created}` is true or false, and any call may
+   be `{failed}`. S3 can answer **409** when a concurrent delete wins (retry for a PutObject, restart for a multipart
+   upload), OneDrive reports a name conflict only at the end of an upload session, and a lost response leaves a claim
+   that may or may not have been written. The mapping from each provider's answers to created, already exists and
+   indeterminate has to be defined, because the flow treats a claim "written but not read back" as not owned
+   (`SWR-MG-07`).
 
 ## 3. Per-provider findings
+
+Every row was read on 2026-10-27 unless marked otherwise. Page dates are the page's own.
 
 ### 3.1 Conditional create and consistency
 
 | Provider (storage) | Conditional create | Consistency | Grade |
 |--------------------|--------------------|-------------|-------|
-| **AWS** S3 | `If-None-Match: *` on PutObject and CompleteMultipartUpload: a write to an empty key succeeds, to an existing key fails with 412; of concurrent conditional writes the first succeeds and the rest fail with 412. `If-Match` (ETag) gives compare-and-swap. Announced 2024-08-20; bucket-policy enforcement added 2024-11-25. | Strong read-after-write for GET, PUT and LIST announced 2020-12-01. DELETE not confirmed in what was read. Whether conditional writes are covered is not stated in what was read. | Excerpt (AWS announcements, InfoQ) |
-| **Azure** Blob Storage | Put Blob accepts conditional headers; a failed ETag precondition returns 412. **`If-None-Match: *` on a destination blob was not seen documented.** | Not found. | Excerpt for the general model; create-if-absent **unverified** |
-| **Google Cloud** Storage | Generation-match preconditions return 412 on mismatch. That `ifGenerationMatch=0` means "must not exist" is general knowledge, **not seen documented**. | Not found. | Excerpt for the precondition; the 0 case **unverified** |
-| **Oracle Cloud** Object Storage | Oracle's SDK reference says `if-none-match` accepts only `*`, meaning fail if the resource exists. The status code and the behaviour under concurrent writers were not seen from Oracle. | Not found. | Excerpt (SDK reference); the rest **unverified** |
-| **Apple** CloudKit | Default save policy `ifServerRecordUnchanged` compares the record change tag and fails with `serverRecordChanged`; `changedKeys` and `allKeys` do not compare. That a **new** record with an already-used record ID is refused is an inference by the fetch tool, **not documented**. Deletes by record ID carry no change tag. | Not found. | Excerpt for the policy; create-if-absent **unverified** |
+| **AWS** S3 | `If-None-Match: *` on PutObject, CopyObject and CompleteMultipartUpload; needs `s3:PutObject`. No object of that key: 200. An existing object: **412 Precondition Failed**. Of several conditional writes to one key, the first to finish succeeds and the rest get 412. **409 Conflict** is also possible if a concurrent delete completes before the conditional write (a PutObject may be retried; a CompleteMultipartUpload must restart from CreateMultipartUpload). In a versioned bucket only the current version counts, and a delete marker counts as absent. `If-Match` (ETag) gives compare-and-swap. Page: "Conditional writes" (page date not shown in the text). | "Strong read-after-write consistency for PUT and DELETE requests of objects … in all AWS Regions", for new objects, overwrites and deletes; updates to a single key are atomic. LIST consistency is **Excerpt** only (the 2020-12-01 announcement), not on the pages read. The pages do not say in so many words that conditional writes are covered. | Read |
+| **Azure** Blob Storage | "Conditional headers" page (last updated 2025-11-25): `If-None-Match` takes an ETag or the wildcard `*`; "Specify the wildcard character (*) to perform the operation only if the resource doesn't exist, and fail the operation if it does exist." Failure is **412 Precondition Failed**. The Put Blob page (last updated 2026-01-20) says Put Blob supports conditional headers. The page also lists conditions on the blob for "version 2025-11-05 and later". | **Not found** on the pages read. The redundancy page notes that with geo-replication the secondary region "is typically behind the primary", so reads must be pinned to the primary. | Read |
+| **Google Cloud** Storage | "Request preconditions" page (last updated 2026-10-22): `ifGenerationMatch=0` "only proceeds if no object with the specified name exists in the bucket or if there are only noncurrent versions"; "if there is a live version … the request fails with a status code of 412 Precondition Failed". The 0 value is for writing object data only. | "Strong global consistency" for object read-after-write, read-after-delete and object listing; a written object is "immediately available for reading … as soon as you receive a success response" (consistency page, last updated 2026-10-22). | Read |
+| **Oracle Cloud** Object Storage | The Python SDK reference for `put_object`: `if_none_match` "The only valid value is '*', which indicates that the request should fail if the resource already exists". `if_match` also exists. **The failure status code and the behaviour under concurrent writers are not stated** on the page read. The OCI API reference page itself is a script-built page and could not be read as text. | "STRONG CONSISTENCY: When a read request is made, Object Storage always serves the most recent copy of the data that was written to the system" (service overview). | Read (SDK reference, not the API reference) |
+| **Apple** CloudKit | **Native:** `ifServerRecordUnchanged` compares the record change tag; if the server record has a newer tag the save is not made and an error is reported (Apple documentation page, 2026 copyright). That a new record whose ID is already in use is refused is **not stated** on that page. **CloudKit Web Services** (Documentation Archive): operation type `create` is documented as "Create a new record. This operation fails if a record with the same record name already exists", the only documented create-if-absent in the CloudKit pages read. `forceUpdate`, `forceReplace` and `forceDelete` ignore conflicts. | **Not found.** | Read; native create-if-absent **Unverified** |
 
-Secondary sources (OVHcloud and CoreWeave S3-compatible documentation) describe the same 412 pattern for
-`If-None-Match: *`. They say nothing about AWS, Oracle or any provider named here, and are not evidence for them.
+Secondary sources (OVHcloud and CoreWeave S3-compatible documentation) describe the same 412 pattern. They say nothing
+about the providers named here and are not evidence for them.
 
 ### 3.2 What an individual has (the consumer-account question)
 
 | Provider | Consumer storage | What the app would use | Grade |
 |----------|------------------|------------------------|-------|
-| **AWS** | Believed to be none; the user would need an AWS account and a bucket. | A bucket the user creates. | **Unverified** |
-| **Oracle Cloud** | Believed to be none; same. | A bucket the user creates. | **Unverified** |
-| **Azure / Microsoft** | Blob Storage is an infrastructure product. The consumer route is OneDrive through Microsoft Graph. | The OneDrive app folder (`special/approot`, scope `Files.ReadWrite.AppFolder`). A forum report says some users see it named "Graph" rather than the application name. | Excerpt (forum, secondary) |
-| **Google Cloud / Google** | Cloud Storage needs a project. The consumer route is Google Drive. | The Drive `appDataFolder`, a hidden folder only the app can reach (a Drive guide excerpt, in Bengali). Conditional create not seen documented; see Gap 4. | Excerpt for the folder; the rest **unverified** |
-| **Apple** | iCloud through CloudKit. The private database counts against the user's iCloud quota and needs an active iCloud account on the device (Apple documentation excerpt). | The CloudKit private database. | Excerpt |
+| **AWS** | Believed to be none; the user would need an AWS account and a bucket. Free-tier terms not checked. | A bucket the user creates. | **Unverified** |
+| **Oracle Cloud** | Believed to be none; same. Free-tier terms not checked. | A bucket the user creates. | **Unverified** |
+| **Microsoft** | Blob Storage is an infrastructure product (an Azure storage account). The consumer route is OneDrive through Microsoft Graph. | The OneDrive **app folder**: `special/approot`, scope `Files.ReadWrite.AppFolder`. The folder "behaves like any other folder in the user's OneDrive, users can add, modify, and remove content" and can rename or move it; it is created on the first call and named after the app (app folder page, last updated 2026-05-14). | Read |
+| **Google** | Cloud Storage needs a project. The consumer route is Google Drive. | The Drive **appDataFolder**: hidden, "only accessible by your app", not reachable through the Drive user interface, scope `drive.appdata` (non-sensitive); files in it cannot be shared, moved or trashed (guide, last updated 2026-09-03). | Read |
+| **Apple** | iCloud through CloudKit. The private database counts against the user's iCloud quota and needs an active iCloud account on the device (Apple documentation, from Rev 1 excerpt). | The CloudKit private database. | Excerpt |
 
-**OneDrive, as far as seen.** `@microsoft.graph.conflictBehavior` takes `fail`, `rename` or `replace`, with `fail` the
-default (answers forum and an upload-session guide; secondary). An `if-match` ETag header on an upload returns 412 on a
-mismatch (Graph `createUploadSession` reference; excerpt). Where `conflictBehavior` is placed (URL, body, an `item` object)
-is disputed in the forum threads. Whether replacement is atomic is not established. Uploads in slices must be multiples of
-320 KiB (SDK guide), which bears on Gap 1.
+**Google Drive, conditional create.** The files reference (last updated 2026-07-14) says a file's name "isn't necessarily
+unique within a folder", which **confirms Gap 4**: there is no create-if-absent by name. `files.generateIds` produces IDs
+"which can be provided in create or copy requests". Neither the files resource nor the create page read shows an ETag or a
+precondition parameter, and **whether a second create with an already-used ID is refused is not stated** on the pages
+read. A client-chosen ID is the only candidate for an atomic claim on Drive and it is **Unverified**.
+
+**OneDrive, conditional create.** The `createUploadSession` page (last updated 2025-10-15): `@microsoft.graph.conflictBehavior`
+is `fail` (default), `replace` or `rename`; an `if-match` ETag that does not match returns 412, and an `if-none-match` ETag
+that matches returns 412. A conflict that arises during an upload session is reported **only when the last byte range is
+uploaded**, as `409 Conflict` with code `nameAlreadyExists`. Byte ranges must be multiples of 320 KiB (327,680 bytes),
+resumable upload is recommended above 10 MiB, and an explicit completion step (`deferCommit`) is supported only on OneDrive
+for Business and SharePoint. **Not read:** a simple (single-request) upload with `conflictBehavior`, and any consistency
+statement.
 
 ### 3.3 Reaching a provider from every target
 
-`OI-UI-KMP-11` M10 (d) says "Android to iOS rules out any provider that is not usable on both". **Nothing was found on
-whether CloudKit can be reached from Android or the desktop and web hosts** (CloudKit Web Services is the candidate and
-was not examined). If it cannot, the Apple route is excluded for the case that drove #566 and could serve iOS-to-iOS
-migration and UHDR-only backup only. This is the largest open unknown.
+`OI-UI-KMP-11` M10 (d) says "Android to iOS rules out any provider that is not usable on both". The CloudKit Web
+Services reference (Documentation Archive) says CloudKit web services and CloudKit JS let an app reach its CloudKit
+databases from the web. **How the private database is reached from a non-Apple native app, what sign-in it needs, and
+whether the archive page is current were not examined.** The Apple route stays open for Android until that is read. The
+other four providers are plain HTTPS services reachable from any target.
 
 ## 4. What this suggests (not decided)
 
-1. AWS and Oracle Cloud probably offer an individual no storage without an infrastructure account. If confirmed, the
-   issue's own finding applies: the user creates one, or the provider is listed as not supporting consumer accounts.
-2. The infrastructure object stores (S3, Cloud Storage, OCI, Blob) look closest to the six-call interface. The consumer
-   routes (iCloud, Drive, OneDrive) are the weakest on a verified create-if-absent, and for Drive the fixed-name
-   addressing is a structural mismatch (Gap 4).
-3. A provider without a usable conditional write is not offered for migration and stays listed for UHDR-only backup
+1. AWS and Oracle Cloud probably offer an individual no storage without an infrastructure account. This is still
+   **Unverified**; if confirmed, the issue's own finding applies: the user creates one, or the provider is listed as not
+   supporting consumer accounts.
+2. The four infrastructure object stores each document a create-if-absent (S3 `If-None-Match: *`, Blob `If-None-Match: *`,
+   Cloud Storage `ifGenerationMatch=0`, OCI `if_none_match`), and S3, Cloud Storage and OCI document strong consistency.
+   Azure's consistency and OCI's failure code and concurrency behaviour are the open items.
+3. The consumer routes differ. OneDrive has a documented `fail` conflict behaviour, with the drawbacks in Gap 6 and an app
+   folder the user can alter. CloudKit documents `create` only in its web-services form. Google Drive has no documented
+   create-if-absent by name, so it depends on a client-chosen ID that nothing read confirms.
+4. A provider without a usable conditional write is not offered for migration and stays listed for UHDR-only backup
    (`SWR-MG-10`, M12 as confirmed 2026-10-09). The in-app check is a capability check, not a proof of claim safety under two
    simultaneous writers (`SWR-MG-12`).
 
@@ -146,27 +168,37 @@ migration and UHDR-only backup only. This is the largest open unknown.
 
 | Step | Needs |
 |------|-------|
-| Read each provider's current documentation first-hand and record version and date against every §3 row | Network access to the provider documentation hosts, or the pages supplied |
-| Decide Gaps 1 to 5 (§2.2) | Principal / Software Engineering |
-| Confirm CloudKit reach from Android, desktop and web (§3.3) | Apple's CloudKit Web Services documentation |
+| Contract test per provider, including two simultaneous claim writes: documentation says what a provider promises, not that it keeps it | Test accounts at each provider; requirement rows first (CLAUDE.md §21, §18) |
+| Close the open reads: OCI failure status and concurrent behaviour; Azure consistency; OneDrive simple upload with `conflictBehavior` and its consistency; Drive duplicate-ID behaviour; CloudKit native create-if-absent and web reach (§3.3) | The OCI API reference (script-built page), or a live test |
+| Confirm consumer storage for AWS and Oracle Cloud (§3.2) | Provider pages |
+| Decide Gaps 1 to 6 (§2.2) | Principal / Software Engineering |
 | Check provider terms and app-store rules on what an app may store and how it signs in | Unchecked |
 | Build-or-adopt evaluation: licence (GPL and AGPL excluded, CLAUDE.md §22), platform fit, exposure of the conditional write, a SOUP record per adopted library | Not started |
-| Contract-test plan, including two simultaneous claim writes per provider; requirement rows first (CLAUDE.md §21, §18) | Not started |
 | Register any constant introduced without a derivation (CLAUDE.md §19) | None introduced here |
 
 ## 6. Sources
 
-Excerpts quoted by search results; none read first-hand.
+Pages read on 2026-10-27 (dates in §3 are the pages' own):
 
-- [Amazon S3 now supports conditional writes](https://aws.amazon.com/about-aws/whats-new/2024/08/amazon-s3-conditional-writes)
-- [InfoQ: Amazon S3 conditional writes](https://www.infoq.com/news/2024/08/amazon-s3-conditional-writes)
-- [Amazon S3 strong read-after-write consistency](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-s3-now-delivers-strong-read-after-write-consistency-automatically-for-all-applications)
-- [Azure: specifying conditional headers for Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
-- [Google Cloud Storage request preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions)
-- [OCI .NET SDK `PutObjectRequest`](https://docs.oracle.com/en-us/iaas/tools/dotnet/96.1.0/api/Oci.ObjectstorageService.Requests.PutObjectRequest.html)
-- [Apple: `ifServerRecordUnchanged`](https://developer.apple.com/tutorials/data/documentation/cloudkit/ckmodifyrecordsoperation/recordsavepolicy/ifserverrecordunchanged.md)
-- [Apple: `CKContainer`](https://developer.apple.com/documentation/cloudkit/ckcontainer.md)
-- [Microsoft Graph: `createUploadSession`](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_createuploadsession)
-- [Google Drive: app data folder](https://developers.google.com/workspace/drive/api/guides/appdata?hl=bn)
-- [OVHcloud: conditional writes](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-conditional-writes) (secondary)
-- [CoreWeave: conditional requests](https://docs.coreweave.com/products/storage/object-storage/buckets/conditional-requests) (secondary)
+- [S3: conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html)
+- [S3: user guide, data consistency model](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
+- [Azure: specify conditional headers for Blob operations](https://learn.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
+- [Azure: Put Blob](https://learn.microsoft.com/en-us/rest/api/storageservices/put-blob)
+- [Azure: storage redundancy](https://learn.microsoft.com/en-us/azure/storage/common/storage-redundancy)
+- [Cloud Storage: request preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions)
+- [Cloud Storage: consistency](https://docs.cloud.google.com/storage/docs/consistency)
+- [OCI: Object Storage overview](https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm)
+- [OCI: Python SDK `ObjectStorageClient`](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/object_storage/client/oci.object_storage.ObjectStorageClient.html)
+- [Google Drive: app data folder](https://developers.google.com/workspace/drive/api/guides/appdata)
+- [Google Drive: files resource](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)
+- [Google Drive: files.generateIds](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/generateIds)
+- [Microsoft Graph: createUploadSession](https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0)
+- [OneDrive: the app folder](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/special-folders-appfolder)
+- [Apple: `ifServerRecordUnchanged`](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/recordsavepolicy/ifserverrecordunchanged)
+- [Apple: CloudKit Web Services, modify records](https://developer.apple.com/library/archive/documentation/DataManagement/Conceptual/CloudKitWebServicesReference/ModifyRecords.html)
+- [Apple: CloudKit Web Services reference](https://developer.apple.com/library/archive/documentation/DataManagement/Conceptual/CloudKitWebServicesReference/index.html)
+
+Search excerpts only (not read): [AWS strong consistency announcement](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-s3-now-delivers-strong-read-after-write-consistency-automatically-for-all-applications),
+[Apple `CKContainer`](https://developer.apple.com/documentation/cloudkit/ckcontainer.md). Secondary:
+[OVHcloud](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-conditional-writes),
+[CoreWeave](https://docs.coreweave.com/products/storage/object-storage/buckets/conditional-requests).
