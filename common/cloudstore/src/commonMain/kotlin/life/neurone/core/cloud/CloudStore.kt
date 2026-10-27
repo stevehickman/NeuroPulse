@@ -37,6 +37,35 @@ internal fun percentEncode(text: String): String {
     return out.toString()
 }
 
+/** Percent-encoding of a path whose `/` separators are kept (a blob name with a virtual directory), each segment encoded alone. */
+internal fun percentEncodePath(path: String): String = path.split('/').joinToString("/") { percentEncode(it) }
+
+/** The reverse of [percentEncode], over the UTF-8 bytes. A `%` not followed by two hex digits stays as it is. */
+internal fun percentDecode(text: String): String {
+    val bytes = ArrayList<Byte>(text.length)
+    var i = 0
+    while (i < text.length) {
+        val c = text[i]
+        val hi = if (c == '%' && i + 2 < text.length) hexValue(text[i + 1]) else -1
+        val lo = if (hi >= 0) hexValue(text[i + 2]) else -1
+        if (hi >= 0 && lo >= 0) {
+            bytes.add(((hi shl 4) or lo).toByte())
+            i += 3
+        } else {
+            bytes.addAll(c.toString().encodeToByteArray().toList())
+            i++
+        }
+    }
+    return bytes.toByteArray().decodeToString()
+}
+
+private fun hexValue(c: Char): Int = when (c) {
+    in '0'..'9' -> c - '0'
+    in 'A'..'F' -> c - 'A' + 10
+    in 'a'..'f' -> c - 'a' + 10
+    else -> -1
+}
+
 private const val HEX = "0123456789ABCDEF"
 
 /** One request through [transport]; a missing answer is a [CloudStoreException], never a null the caller could mistake for "absent". */
