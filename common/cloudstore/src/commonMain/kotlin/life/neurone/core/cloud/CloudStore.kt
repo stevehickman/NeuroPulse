@@ -68,6 +68,30 @@ private fun hexValue(c: Char): Int = when (c) {
 
 private const val HEX = "0123456789ABCDEF"
 
+/** The five predefined XML entities and numeric character references, decoded (a key or blob name in a listing). */
+internal fun xmlText(s: String): String =
+    Regex("&(#x[0-9A-Fa-f]+|#[0-9]+|amp|lt|gt|quot|apos);").replace(s) { m ->
+        when (val e = m.groupValues[1]) {
+            "amp" -> "&"
+            "lt" -> "<"
+            "gt" -> ">"
+            "quot" -> "\""
+            "apos" -> "'"
+            else -> {
+                val cp = if (e[1] == 'x') e.substring(2).toInt(16) else e.substring(1).toInt()
+                codePointToString(cp)
+            }
+        }
+    }
+
+private fun codePointToString(cp: Int): String =
+    if (cp < 0x10000) cp.toChar().toString()
+    else {
+        val v = cp - 0x10000
+        charArrayOf((0xD800 + (v shr 10)).toChar(), (0xDC00 + (v and 0x3FF)).toChar()).concatToString()
+    }
+
+
 /** One request through [transport]; a missing answer is a [CloudStoreException], never a null the caller could mistake for "absent". */
 internal suspend fun HttpTransport.call(request: HttpRequest): HttpResponse =
     post(request) ?: throw CloudStoreException("no answer from the provider")

@@ -123,28 +123,5 @@ class AzureBlobObjectStore(
         val NAME = Regex("<Name((?: [^>]*)?)>([\\s\\S]*?)</Name>")
         val NEXT_MARKER = Regex("<NextMarker>([\\s\\S]*?)</NextMarker>")
         val CODE = Regex("<Code>([^<]*)</Code>")
-
-        /** The five predefined XML entities and numeric references. */
-        fun xmlText(s: String): String =
-            Regex("&(#x[0-9A-Fa-f]+|#[0-9]+|amp|lt|gt|quot|apos);").replace(s) { m ->
-                when (val e = m.groupValues[1]) {
-                    "amp" -> "&"
-                    "lt" -> "<"
-                    "gt" -> ">"
-                    "quot" -> "\""
-                    "apos" -> "'"
-                    else -> {
-                        val cp = if (e[1] == 'x') e.substring(2).toInt(16) else e.substring(1).toInt()
-                        codePointToString(cp)
-                    }
-                }
-            }
-
-        fun codePointToString(cp: Int): String =
-            if (cp < 0x10000) cp.toChar().toString()
-            else {
-                val v = cp - 0x10000
-                charArrayOf((0xD800 + (v shr 10)).toChar(), (0xDC00 + (v and 0x3FF)).toChar()).concatToString()
-            }
     }
 }
