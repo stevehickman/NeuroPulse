@@ -1,0 +1,84 @@
+name: Crate release watch (spake2, GitHub #689)
+
+# `spake2` (the direct-link pairing crate) has no stable release on the RustCrypto digest 0.11 generation, and that is the one
+# thing keeping `block-buffer` 0.10.4 in common/Cargo.lock. The OSV finding GHSA-qwgh-2vcv-g2f7 is accepted until it ships
+# (common/osv-scanner.toml, NP-SOUP-RUST-001 section 6.1a, tracking issue #689). This workflow asks crates.io once a week
+# whether a stable `spake2` at or above 0.5.0 exists, and when it does, comments ONCE on #689 so the work is picked up.
+# It changes nothing else. A broken watch (crates.io unreachable, an answer that is not a version list) fails the job, so
+# a silent "none" for ever is not possible.
+#
+# Retire it when #689 is closed.
+
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      floor:
+        description: 'Lowest stable version that counts (default 0.5.0). Set a floor that is already met, with a throwaway issue, to prove the comment step.'
+        required: false
+        default: '0.5.0'
+      issue:
+        description: 'Issue to comment on (default 689, the tracking issue)'
+        required: false
+        default: '689'
+  pull_request:
+    paths:
+      - 'scripts/watch-crate-release.ts'
+      - '.github/workflows/crate-release-watch.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    name: The version logic is proven to fire and not to fire
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun scripts/watch-crate-release.ts --self-test
+
+  watch:
+    name: Has spake2 published a stable release at or above the floor?
+    if: github.event_name != 'pull_request'
+    needs: self-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      CRATE: spake2
+      FLOOR: ${{ inputs.floor || '0.5.0' }}
+      ISSUE: ${{ inputs.issue || '689' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Ask crates.io
+        id: ask
+        run: bun scripts/watch-crate-release.ts "$CRATE" "$FLOOR"
+
+      - name: Comment once on the tracking issue
+        if: steps.ask.outputs.found == 'true'
+        env:
+          VERSION: ${{ steps.ask.outputs.version }}
+          PUBLISHED: ${{ steps.ask.outputs.published }}
+        run: |
+          marker="<!-- crate-release-watch:${CRATE}:${VERSION} -->"
+          if gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            echo "Already reported ${CRATE} ${VERSION} on #${ISSUE}."
+            exit 0
+          fi
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "${marker}
+          **\`${CRATE}\` ${VERSION} is now a stable release on crates.io** (published ${PUBLISHED}). The trigger for this issue has fired: the crypto stack can move to the next generation together (see the steps above), which clears GHSA-qwgh-2vcv-g2f7 and lets the entry in \`common/osv-scanner.toml\` go.
+
+          Before starting: check that \`${CRATE}\` ${VERSION} builds against stable \`curve25519-dalek\`, \`hkdf\` and \`sha2\` of the new generation (not release candidates), because its 0.5.0-pre.0 required release-candidate versions.
+
+          ---
+          _Posted by the weekly crate-release watch (\`.github/workflows/crate-release-watch.yml\`)._"
