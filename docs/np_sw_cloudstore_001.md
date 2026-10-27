@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -164,6 +164,82 @@ other four providers are plain HTTPS services reachable from any target.
    (`SWR-MG-10`, M12 as confirmed 2026-10-09). The in-app check is a capability check, not a proof of claim safety under two
    simultaneous writers (`SWR-MG-12`).
 
+## 4a. Build or adopt
+
+**Status: evaluated, not decided.** The decision is the principal's. Nothing here adopts a library, so no SOUP record is made
+(`NP-SOUP-RUST-001` and `NP-SOUP-KOTLIN-001` are where one would go).
+
+### 4a.1 What a candidate must pass
+
+From the issue and from the standing rules (`CLAUDE.md` §22; `NP-SOUP-KOTLIN-001` §2a):
+
+1. It exposes the **conditional create**. The issue: "a library that does not expose the conditional write is not enough".
+2. It runs on **every app target**: Android, iOS, desktop and web (`CLAUDE.md` §20).
+3. Its licence does not oblige NeurOne's code to be copyleft (§22; §2a rule 5).
+4. It is not a pre-release (§2a rule 2), and it is not used for cryptographic work that §22 gives to the Rust core.
+5. It would need a SOUP record (IEC 62304), and it covers providers the app offers.
+
+### 4a.2 Candidates
+
+Read on 2026-10-27 from the crate index and the projects' source on GitHub; the projects' own documentation sites could not
+be reached, so capability rows come from source, not from a documentation page.
+
+| Candidate | Licence and version | Conditional create | Providers of the five | Targets and maturity |
+|-----------|--------------------|--------------------|-----------------------|----------------------|
+| **Apache OpenDAL** (Rust) | Apache-2.0; `opendal` 0.59.5, 2026-10-18; pre-1.0 | `write_with_if_not_exists` is **true** for S3, Google Cloud Storage and Azure Blob (source). **OneDrive: `if_match` only, no create-if-absent flag.** **Google Drive: neither flag.** | S3, Cloud Storage, Blob, OneDrive (no create-if-absent), Drive (none). **No OCI or iCloud/CloudKit service seen** in the README. OCI through its S3-compatible endpoint is untested. | Rust core. Swift binding is "WIP … unreleased … not suitable for production use" (its README). A Java binding is published. Web not examined. |
+| **`object_store`** (Rust, Apache Arrow) | MIT or Apache-2.0; 0.14.2, 2026-09-15 | `PutMode::Create`: "an atomic write operation, returning `Error::AlreadyExists`"; `PutMode::Update(version)` for compare-and-swap (source). | S3, Azure Blob, Cloud Storage (and generic HTTP, local files). Nothing for OCI, OneDrive, Drive or CloudKit. | Rust. Its README: the `aws`, `azure`, `gcp` and `http` features are **not supported on `wasm32-unknown-unknown`**; each bundles a `reqwest` transport. |
+| **Apache jclouds** (Java) | Apache-2.0; `master` is `2.7.1-SNAPSHOT` (release status not checked) | **None exposed:** `PutOptions` carries multipart and executor options only (source). | Not examined further. | JVM only: no iOS and no web. **Fails tests 1 and 2.** |
+| **rclone** (Go) | MIT | `--immutable` is "existing files will never be updated"; a transfer-level rule, **not shown to be a server-arbitrated create-if-absent**. | Backends for OneDrive, Drive and iCloud exist (iCloud setup needs the user's Apple ID password and 2FA; app-specific passwords not accepted). OCI not confirmed. | Go. `librclone` (the embedding route) is marked experimental in its README. Needs a Go runtime and cgo. |
+| **Vendor SDKs**, one per provider | Not checked per SDK. | Each SDK exposes its provider's own precondition, but five SDKs are five stacks. | The AWS SDK for Kotlin README lists JVM, Android and GraalVM targets, **not iOS or web**. The Azure, Google, OCI, Graph and CloudKit SDKs were not examined. | Mixed; per provider. |
+| **Build thin adapters** | NeurOne's own code | Written to the provider's documented form (§3.1, §3.2), behind the six existing calls. | All five. | Each target's driver (`ObjectStore`). |
+
+`NP-SOUP-KOTLIN-001` §2 lists no cross-platform HTTP client: `ktor-network` is sockets only and `okhttp` is the Android
+app's SHDR upload. A thin adapter in Kotlin therefore also needs an HTTP client, which would itself be SOUP.
+
+### 4a.3 What the evidence supports
+
+1. **No candidate covers the five providers.** OpenDAL and `object_store` expose a conditional create for the three
+   infrastructure stores they share with the issue's list (S3, Cloud Storage, Azure Blob). Neither covers OCI natively, and
+   neither gives a create-if-absent for OneDrive, Google Drive or CloudKit, which are the consumer routes the issue most
+   cares about. **A library does not remove the per-provider work for the hardest rows.**
+2. **jclouds and rclone fail the issue's own tests.** jclouds exposes no conditional write and is JVM-only. rclone offers no
+   shown atomic create and is a Go runtime to embed.
+3. **Adopting a Rust library does not fit `npps-core` as it stands.** The core does no network input or output: a host
+   answers the six object calls, and the crate asks for no entropy (`object_route.rs`; the `getrandom` note in its
+   `Cargo.toml`). OpenDAL or `object_store` would bring a `reqwest` transport. It would have to be a separate crate behind the
+   same six calls, as `btle-jni` is, not part of the core. That is a placement decision for the principal.
+4. **Some of what a thin adapter needs is cryptography.** S3 request signing is HMAC-SHA256, which `CLAUDE.md` §22 puts in the
+   Rust core (which already depends on `hmac` and `sha2`). Not a reason to adopt a library, but a reason not to write it in
+   Kotlin.
+5. **The interface is smaller than any candidate's surface.** The six calls are a subset of what OpenDAL and `object_store`
+   do, which supports the issue's own suspicion that "building thin adapters may be cheaper than adopting a large library".
+   **This draft does not show it is cheaper**, because the cost of the dependencies was not measured (4a.5).
+6. **Sign-in is not in any candidate.** Google and Microsoft sign-in, and the iCloud account for CloudKit, are the platform's
+   and the host's. The issue's item 8 stays whichever route is chosen.
+
+### 4a.4 Cost of keeping up
+
+The provider contract suite (`SWR-MG-11`) is the same under every route, so it is not a difference between them. What
+differs is who tracks provider changes. With thin adapters NeurOne does, for five providers. With OpenDAL or `object_store`
+the library tracks three infrastructure providers and NeurOne still tracks OCI, OneDrive, Drive and CloudKit, and each
+upgrade of a pre-1.0 library (`opendal` is 0.59.5) is a SOUP change with its anomaly evaluation.
+
+### 4a.5 Not measured here, and needed before a decision
+
+- Transitive crate count, licences and RustSec result for `opendal` and `object_store` with only the S3, Cloud Storage and
+  Azure features on.
+- Whether either builds for iOS, Android, desktop and `wasm32-unknown-unknown` with a host-supplied transport (the
+  `object_store` README says the `wasm32-wasip1` route allows a supplied HTTP client).
+- The size each adds to the app.
+- Whether OCI's S3-compatible endpoint honours `If-None-Match: *` (§3.1 has OCI's own form only as an SDK parameter).
+- The licences and targets of the Azure, Google, OCI, Graph and CloudKit SDKs.
+
+### 4a.6 Leading option (not decided)
+
+Thin adapters per provider behind the existing six calls, because only that route reaches all five providers and the
+consumer routes, with a time-boxed spike on `object_store` or OpenDAL for the three infrastructure stores **only if** the
+measurements in 4a.5 are acceptable. If the principal prefers one dependency over three adapters, the spike decides it.
+
 ## 5. To close #566
 
 | Step | Needs |
@@ -173,7 +249,7 @@ other four providers are plain HTTPS services reachable from any target.
 | Confirm consumer storage for AWS and Oracle Cloud (§3.2) | Provider pages |
 | Decide Gaps 1 to 6 (§2.2) | Principal / Software Engineering |
 | Check provider terms and app-store rules on what an app may store and how it signs in | Unchecked |
-| Build-or-adopt evaluation: licence (GPL and AGPL excluded, CLAUDE.md §22), platform fit, exposure of the conditional write, a SOUP record per adopted library | Not started |
+| Decide build or adopt from §4a; measure §4a.5 first. A SOUP record per library adopted | Evaluated (§4a), decision pending |
 | Register any constant introduced without a derivation (CLAUDE.md §19) | None introduced here |
 
 ## 6. Sources
@@ -197,6 +273,15 @@ Pages read on 2026-10-27 (dates in §3 are the pages' own):
 - [Apple: `ifServerRecordUnchanged`](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/recordsavepolicy/ifserverrecordunchanged)
 - [Apple: CloudKit Web Services, modify records](https://developer.apple.com/library/archive/documentation/DataManagement/Conceptual/CloudKitWebServicesReference/ModifyRecords.html)
 - [Apple: CloudKit Web Services reference](https://developer.apple.com/library/archive/documentation/DataManagement/Conceptual/CloudKitWebServicesReference/index.html)
+
+Build-or-adopt candidates, read 2026-10-27 (crate index and source on GitHub):
+
+- [crates.io: `opendal`](https://crates.io/crates/opendal) and [OpenDAL source](https://github.com/apache/opendal) (`core/core/src/types/capability.rs` and the `services` backends)
+- [OpenDAL Swift binding README](https://github.com/apache/opendal/tree/main/bindings/swift)
+- [crates.io: `object_store`](https://crates.io/crates/object_store) and [its source](https://github.com/apache/arrow-rs-object-store) (`PutMode`, README)
+- [Apache jclouds `PutOptions`](https://github.com/apache/jclouds/blob/master/blobstore/src/main/java/org/jclouds/blobstore/options/PutOptions.java)
+- [rclone: iCloud Drive backend, `--immutable`, `librclone`](https://github.com/rclone/rclone)
+- [AWS SDK for Kotlin README](https://github.com/awslabs/aws-sdk-kotlin)
 
 Search excerpts only (not read): [AWS strong consistency announcement](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-s3-now-delivers-strong-read-after-write-consistency-automatically-for-all-applications),
 [Apple `CKContainer`](https://developer.apple.com/documentation/cloudkit/ckcontainer.md). Secondary:
