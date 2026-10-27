@@ -12,9 +12,9 @@ enum DirectoryStoreError: Error {
     case badHex
 }
 
-private func hexString(_ data: Data) -> String { data.map { String(format: "%02x", $0) }.joined() }
+func hexString(_ data: Data) -> String { data.map { String(format: "%02x", $0) }.joined() }
 
-private func hexData(_ hex: String) throws -> Data {
+func hexData(_ hex: String) throws -> Data {
     guard hex.count % 2 == 0 else { throw DirectoryStoreError.badHex }
     var bytes = [UInt8]()
     var index = hex.startIndex
