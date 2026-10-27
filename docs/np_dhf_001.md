@@ -322,7 +322,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 15 | 2026-09-28 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 6 | 2026-10-20 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 3 | 2026-10-21 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
-| NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 10 | 2026-10-20 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
+| NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 11 | 2026-10-27 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 35 | 2026-10-21 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 2 | 2026-09-14 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
