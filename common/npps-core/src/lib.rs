@@ -31,6 +31,7 @@ pub mod ohttp;
 pub mod parser;
 pub mod primitives;
 pub mod resolve;
+pub mod sigv4;
 pub mod serialize;
 pub mod table;
 pub mod validate;
