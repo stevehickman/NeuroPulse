@@ -1,8 +1,9 @@
 // NeurOne Android — Gradle multi-module project.
 //
-// :core — pure-JVM Kotlin. All privacy-critical logic (models, GATT parsing,
-//         consent, analytics gates, session history, consumables, NPPS engine).
-//         Buildable and unit-testable without the Android SDK.
+// :core — Kotlin Multiplatform, at common/core (every app uses it, so it is not under android/).
+//         All privacy-critical logic (models, GATT parsing, consent, analytics gates,
+//         session history, consumables, NPPS engine). Buildable and unit-testable without
+//         the Android SDK.
 // :app  — Android application shell (Compose UI, BLE, Keystore, uploads).
 //         Requires the Android SDK; mirrors app/ios/NeurOne module layout.
 
@@ -24,6 +25,7 @@ dependencyResolutionManagement {
 rootProject.name = "neurone-android"
 
 include(":core")
+project(":core").projectDir = file("../../common/core")
 include(":app")
 
 // Kotlin several apps use lives in common/ (CLAUDE.md section 20); :core depends on it.

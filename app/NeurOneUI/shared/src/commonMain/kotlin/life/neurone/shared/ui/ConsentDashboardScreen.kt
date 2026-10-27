@@ -74,7 +74,7 @@ import life.neurone.core.common.UUID
 //
 // Consent element, category and tier labels come from :core's `displayName`, which is
 // English-only: :core is a pure-JVM module by design (no Android plugin, ISC-2..4) so it
-// cannot name Res.string. That is the standing app/android/core/ backlog item in
+// cannot name Res.string. That is the standing common/core/ backlog item in
 // check-locale-strings.ts PENDING_PATHS, and it is how every other Android consent screen
 // renders these same enums today.
 

@@ -7,7 +7,7 @@ Compose, native only. System of record: [ISA.md](ISA.md).
 
 | Module | What | Requires |
 |--------|------|----------|
-| `core/` | Kotlin Multiplatform (`commonMain`; JVM, wasmJs, iOS): models, GATT UUIDs/parsers, consent store + engine models, analytics gates (research/warranty), engagement tier, session history (day-coarsened), consumable tracker, NPPS protocol engine, UHDR key derivation core | JDK 17 only (`:core:jvmTest`) |
+| `../../common/core` (`:core`) | Kotlin Multiplatform (`commonMain`; JVM, wasmJs, iOS): models, GATT UUIDs/parsers, consent store + engine models, analytics gates (research/warranty), engagement tier, session history (day-coarsened), consumable tracker, NPPS protocol engine, UHDR key derivation core | JDK 17 only (`:core:jvmTest`) |
 | `../NeurOneUI/shared` (`:shared`) | The UI every platform shares (Compose Multiplatform), the composition root, the hub link — see [../NeurOneUI/README.md](../NeurOneUI/README.md) | Android SDK 35 for the Android target |
 | `app/`  | Android host: the activity, BLE central + GATT manager, SHDR uploader (token sealed by the shared core + SPKI pinning), manifest with backup exclusion | Android SDK 35 |
 

@@ -71,7 +71,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-locale-strings.ts --self-test
  * CI-Scans: locale key usage, and user-facing literals in covered app code
- * CI-Scan-Paths: app/** locales/** firmware/**
+ * CI-Scan-Paths: app/** locales/** firmware/** common/core/**
  */
 import { createHash } from "crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "fs";
@@ -104,8 +104,8 @@ const COVERED_PATHS = [
  * legible: each entry is work, not an exemption on principle.
  */
 const PENDING_PATHS: Array<[string, string]> = [
-  ["common/cloudstore/", "a Kotlin multiplatform module with no UI or resource dependency, like app/android/core: it holds the HTTP and object-store seams and the cloud adapters, whose strings are URLs, headers and exception diagnostics, and it cannot reference R.string or Res.string. `common/` is covered for the TypeScript the web app and the simulator share, so this module is carved out of it (NON_UI_MODULES)"],
-  ["app/android/core/", "a multiplatform module with no UI or resource dependency by design (no Android plugin, ISC-2..4), so it cannot reference R.string or Res.string at all; its display text needs a key-to-resource indirection first"],
+  ["common/cloudstore/", "a Kotlin multiplatform module with no UI or resource dependency, like common/core: it holds the HTTP and object-store seams and the cloud adapters, whose strings are URLs, headers and exception diagnostics, and it cannot reference R.string or Res.string. `common/` is covered for the TypeScript the web app and the simulator share, so this module is carved out of it (NON_UI_MODULES)"],
+  ["common/core/", "a multiplatform module with no UI or resource dependency by design (no Android plugin, ISC-2..4), so it cannot reference R.string or Res.string at all; its display text needs a key-to-resource indirection first"],
   ["app/android/app/ (outside ui/)", "BLE, upload and signing code — diagnostics and protocol constants, not rendered text"],
   ["app/NeurOneUI/shared/ (outside ui/)", "the hub link and composition root — storage keys and protocol constants, not rendered text"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
@@ -646,7 +646,7 @@ function tracked(): string[] {
 }
 
 /** Kotlin modules under a covered tree that have no UI to render keys (see their PENDING_PATHS entries). */
-const NON_UI_MODULES = ["common/cloudstore/"];
+const NON_UI_MODULES = ["common/cloudstore/", "common/core/"]; // common/core was app/android/core
 
 function isCovered(f: string): boolean {
   if (DIAGNOSTIC_FILES.includes(f)) return false;

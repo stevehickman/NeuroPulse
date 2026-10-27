@@ -52,7 +52,19 @@ Android's activity hosts the same screens. A host differs only through the `Plat
 (storage, Bluetooth, permissions, analytics vendor) and the `expect`/`actual` set in `:core`
 (`life.neurone.core.platform`). **A screen written for one platform only is a defect to be moved, not a
 feature**; the screens not yet moved and the wiring not yet done are listed in `app/NeurOneUI/README.md`
-and `OI-UI-KMP-00`. `:core` (`app/android/core`) is Kotlin Multiplatform: its sources are `commonMain`.
+and `OI-UI-KMP-00`. `:core` (`common/core`) is Kotlin Multiplatform: its sources are `commonMain`.
+
+**Where `:core` lives (moved 2026-10-27, the principal's restatement of §20).** `:core` is the engine of every
+Kotlin app (Android, desktop, iOS, web: `:shared` has `api(project(":core"))`), so it lives at `common/core`, not
+under `app/android/`. One module, not several: its public packages (`life.neurone.core.*`) are unchanged and
+no caller changed. `app/android/settings.gradle.kts` registers it with
+`project(":core").projectDir = file("../../common/core")` and keeps the Gradle name `:core`; the Gradle build
+still runs from `app/android` (`./gradlew :core:jvmTest`). `app/android/` now holds only the Android shell
+(`:app`). Its build script reaches `../../protocols/predefined`, `../../locales`, `../../npps/fixtures` and
+the Rust workspace at `..`. It also reads `app/NeurOneShared/TestData` (jvmTest resources and the generated
+goldens), as `common/npps-core`'s Rust tests already do: the fixtures are shared by the iOS and Windows tests,
+so they stay in `NeurOneShared` and this one read-only reach into `app/` for test data is a stated exception
+to the lowest-layer rule, not a dependency on app code. `:core` depends on no `:app` code.
 
 ## §22 detail — Rust first, real-time and cryptographic code
 
