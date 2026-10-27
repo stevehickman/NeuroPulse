@@ -13,6 +13,15 @@ on:
   schedule:
     - cron: '41 6 * * 1'
   workflow_dispatch:
+    inputs:
+      floor:
+        description: 'Lowest stable version that counts (default 0.5.0). Set a floor that is already met, with a throwaway issue, to prove the comment step.'
+        required: false
+        default: '0.5.0'
+      issue:
+        description: 'Issue to comment on (default 689, the tracking issue)'
+        required: false
+        default: '689'
   pull_request:
     paths:
       - 'scripts/watch-crate-release.ts'
@@ -33,7 +42,7 @@ jobs:
       - run: bun scripts/watch-crate-release.ts --self-test
 
   watch:
-    name: Has spake2 published a stable release at or above 0.5.0?
+    name: Has spake2 published a stable release at or above the floor?
     if: github.event_name != 'pull_request'
     needs: self-test
     runs-on: ubuntu-latest
@@ -42,8 +51,8 @@ jobs:
       issues: write
     env:
       CRATE: spake2
-      FLOOR: 0.5.0
-      ISSUE: '689'
+      FLOOR: ${{ inputs.floor || '0.5.0' }}
+      ISSUE: ${{ inputs.issue || '689' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
