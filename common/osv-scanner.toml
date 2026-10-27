@@ -1,0 +1,9 @@
+# OSV-Scanner configuration for common/Cargo.lock (read from the lock file's own directory).
+#
+# One accepted finding, with the reason and an expiry, recorded in docs/np_soup_rust_001.md section 6.1a (NP-SOUP-RUST-001).
+# The expiry forces a re-read: a suppression without one would outlive the reason for it.
+
+[[IgnoredVulns]]
+id = "GHSA-qwgh-2vcv-g2f7"
+ignoreUntil = 2027-01-27
+reason = """block-buffer 0.10.4 (fixed in 0.12.1). The defect needs a panic inside a compression callback AND safe code that catches it and keeps using the same buffer; the core's catch_unwind sites wrap whole FFI/JNI calls whose hashers are locals. It cannot be upgraded: the direct-link pairing crate spake2 has no stable release on the digest 0.11 generation (0.4.0 pins digest 0.10; 0.5.0-pre.0 is a pre-release, against the no-pre-release rule). Revisit when spake2 ships a stable release (tracked by issue #689). See NP-SOUP-RUST-001 6.1a and UC-109."""
