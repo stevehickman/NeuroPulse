@@ -24,8 +24,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-migration-keys.ts --self-test
- * CI-Scans: every stored-key literal in the app sources (iOS, Android, Windows, macOS, web) and common/lib against the one key list common/npps/migration-keys.json
- * CI-Scan-Paths: app/** common/lib/** common/npps/migration-keys.json scripts/check-migration-keys.ts
+ * CI-Scans: every stored-key literal in the app sources (iOS, Android, Windows, macOS, web) common/lib and common/core against the one key list common/npps/migration-keys.json
+ * CI-Scan-Paths: app/** common/lib/** common/core/** common/npps/migration-keys.json scripts/check-migration-keys.ts
  */
 import { execFileSync } from "child_process";
 import { readFileSync } from "fs";
@@ -100,7 +100,7 @@ function selfTest(): void {
     unsorted: ["np.setup.first-complete"],
   };
   const src = new Map<string, string>([
-    ["app/android/core/A.kt", 'const val K = "np.session.history"; val c = "np.consent.research"'],
+    ["common/core/A.kt", 'const val K = "np.session.history"; val c = "np.consent.research"'],
     ["app/ios/NeurOne/B.swift", 'let k = "ble.last-hub-id"; let s = "np.setup.first-complete"'],
   ]);
   const expect = (name: string, files: Map<string, string>, m: any, want: string[]) => {
@@ -111,13 +111,13 @@ function selfTest(): void {
     }
   };
   expect("a sorted tree passes", src, map, []);
-  expect("a new key in Kotlin fails", new Map([...src, ["app/android/core/C.kt", 'val x = "np.new.key"']]), map, ["K1"]);
+  expect("a new key in Kotlin fails", new Map([...src, ["common/core/C.kt", 'val x = "np.new.key"']]), map, ["K1"]);
   expect("a new key in Swift fails", new Map([...src, ["app/ios/NeurOne/C.swift", 'let x = "np.new.key"']]), map, ["K1"]);
   expect("a new key in C# fails", new Map([...src, ["app/windows/NeurOne/C.cs", 'var x = "np.new.key";']]), map, ["K1"]);
   expect("a new key in the web app fails", new Map([...src, ["app/web/src/c.ts", 'const x = "np.new.key";']]), map, ["K1"]);
-  expect("a key in a test is not read", new Map([...src, ["app/android/core/src/jvmTest/T.kt", 'val x = "np.fixture.only"']]), map, []);
+  expect("a key in a test is not read", new Map([...src, ["common/core/src/jvmTest/T.kt", 'val x = "np.fixture.only"']]), map, []);
   expect("a key in a .test.ts is not read", new Map([...src, ["common/lib/x.test.ts", 'const x = "np.fixture.only";']]), map, []);
-  expect("a stale entry fails", new Map([["app/android/core/A.kt", 'val c = "np.consent.research"; val s = "np.session.history"']]), map, ["K3", "K3"]);
+  expect("a stale entry fails", new Map([["common/core/A.kt", 'val c = "np.consent.research"; val s = "np.session.history"']]), map, ["K3", "K3"]);
   expect("a key in two lists fails", src, { ...map, unsorted: [...map.unsorted, "np.session.history"] }, ["K2"]);
   expect("an entry that is not a key fails", src, { ...map, unsorted: [...map.unsorted, "session.history"] }, ["K4"]);
   expect("a device-tier key in no list fails", src, { ...map, deviceTier: ["np.not.stored"] }, ["K5"]);
@@ -129,7 +129,7 @@ function selfTest(): void {
 if (import.meta.main) {
   if (process.argv.includes("--self-test")) { selfTest(); process.exit(0); }
   const root = resolve(import.meta.dir, "..");
-  const tracked = execFileSync("git", ["ls-files", "-z", "app", "common/lib"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+  const tracked = execFileSync("git", ["ls-files", "-z", "app", "common/lib", "common/core"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
   const files = new Map<string, string>();
   for (const p of tracked) {
     if (!SOURCE_EXT.test(p)) continue;
@@ -137,7 +137,7 @@ if (import.meta.main) {
   }
   const map = JSON.parse(readFileSync(join(root, KEYS_JSON), "utf8"));
   const findings = check(files, map);
-  console.log(`scanned: ${files.size} source file(s) under app/ and common/lib/ against ${KEYS_JSON}`);
+  console.log(`scanned: ${files.size} source file(s) under app/, common/lib/ and common/core/ against ${KEYS_JSON}`);
   for (const f of findings) console.error(`${f.file}: ${f.message}`);
   if (findings.length) {
     console.error(`\n${findings.length} finding(s). SWR-MG-01: every stored key is sorted in ${KEYS_JSON}, for every platform.`);

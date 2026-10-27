@@ -93,6 +93,7 @@ jobs:
         # string resources, not code CodeQL analyses; a locale edit that breaks
         # the build is android-ci.yml's failure to report, not this one's.
         app/android/**
+        common/core/**
         .github/workflows/codeql.yml
         scripts/ci-changed-scope.sh
       NP_SCOPE_JS: |

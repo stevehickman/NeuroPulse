@@ -1,7 +1,7 @@
 import Foundation
 
 // The replacement reset for CONSUMABLE_STATUS (OI-ACC-08, GitHub #381).
-// Android port: app/android/core/.../consumable/ConsumableReset.kt.
+// Android port: common/core/.../consumable/ConsumableReset.kt.
 //
 // The hub owns the counts, and each is "sessions since this part was replaced". Mark replaced
 // zeroes the app's copy at once, but the next CONSUMABLE_STATUS notification overwrites it with

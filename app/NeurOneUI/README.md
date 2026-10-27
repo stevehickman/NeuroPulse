@@ -14,7 +14,7 @@ app/NeurOneUI/
 
 Android's host is `app/android/app` (an activity and the Android services); it depends on `:shared`. All five
 modules are in the one Gradle build rooted at `app/android` (`settings.gradle.kts`), which is why the build
-lives under `android/` while the code does not. `:core` (`app/android/core`) is the rules and stores, also
+lives under `android/` while the code does not. `:core` (`common/core`) is the rules and stores, also
 multiplatform, and `:shared` depends on it.
 
 ## Where a platform may differ
