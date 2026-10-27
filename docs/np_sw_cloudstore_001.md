@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -224,21 +224,66 @@ differs is who tracks provider changes. With thin adapters NeurOne does, for fiv
 the library tracks three infrastructure providers and NeurOne still tracks OCI, OneDrive, Drive and CloudKit, and each
 upgrade of a pre-1.0 library (`opendal` is 0.59.5) is a SOUP change with its anomaly evaluation.
 
-### 4a.5 Not measured here, and needed before a decision
+### 4a.5 Measurements (2026-10-27)
 
-- Transitive crate count, licences and RustSec result for `opendal` and `object_store` with only the S3, Cloud Storage and
-  Azure features on.
-- Whether either builds for iOS, Android, desktop and `wasm32-unknown-unknown` with a host-supplied transport (the
-  `object_store` README says the `wasm32-wasip1` route allows a supplied HTTP client).
-- The size each adds to the app.
-- Whether OCI's S3-compatible endpoint honours `If-None-Match: *` (§3.1 has OCI's own form only as an SDK parameter).
-- The licences and targets of the Azure, Google, OCI, Graph and CloudKit SDKs.
+**Method.** Three throwaway crates outside the repository, each a small program that builds the S3, Google Cloud Storage and
+Azure Blob backends and calls the create-if-absent write, read, delete and list, so the code is not dropped by the linker:
+`base` (Tokio only), `od` (`opendal` =0.59.5 with `services-s3`, `services-gcs`, `services-azblob`, `reqwest-rustls-tls`) and
+`os` (`object_store` =0.14.2 with `aws`, `gcp`, `azure`). Rust 1.97.0, host `x86_64-unknown-linux-gnu`, release profile with
+`opt-level = "z"`, LTO, one codegen unit, `strip` and `panic = "abort"`. Dependency and licence counts are
+`cargo tree -e normal` on the host; the advisory scan is `cargo-audit` 0.22.2 against 1,380 advisories (database loaded
+2026-10-27). **These are host builds of a probe, not of the app; the mobile and web sizes are not measured.**
+
+| | `base` | `od` (OpenDAL, 3 services + transport) | `os` (`object_store`, 3 services) |
+|---|---|---|---|
+| Release binary, host | 0.40 MB (396,296 B) | **3.74 MB** (3,735,136 B) | **4.80 MB** (4,804,168 B) |
+| Added over `base` | 0 | +3.34 MB | +4.41 MB |
+| Unique crates in the normal graph | 8 | 180 | 134 |
+| `cargo-audit` | not run | **1 vulnerability** (below) | none |
+| Licences (declared) | n/a | MIT, Apache-2.0, Unicode-3.0, BSD-3-Clause, Unlicense, ISC and dual forms | the same set |
+
+For scale, the repository's own `neurone-npps-core` has **54** crates in its normal graph, and `common/Cargo.lock` holds
+**no** `reqwest`, `rustls`, `ring` or `aws-lc` package.
+
+**Findings.**
+
+1. **Both configurations pull a C cryptography library.** `aws-lc-rs` 1.18.2 and `aws-lc-sys` 0.46.0 (through `rustls`) are in
+   both trees, with `hmac`, `sha1`/`sha2` and `md-5` additionally in `od`. The repository has none of this today. This meets
+   `CLAUDE.md` §22 head-on ("not taken from a platform or third-party library"), though the core already depends on the
+   RustCrypto crates. **Whether a TLS transport counts as the "cryptographic" work §22 means is for the principal.**
+2. **`opendal` with Azure carries RUSTSEC-2023-0071** (`rsa` 0.9.10, "Marvin Attack: potential key recovery through timing
+   sidechannels", **no fixed upgrade available**), through `reqsign-azure-storage` and `opendal-service-azblob`. Whether the
+   Azure path the app would use ever performs an RSA private-key operation was not examined. The `object_store` build
+   has no advisory.
+3. **Neither full configuration builds for iOS or Android on this host.** `cargo check` for `aarch64-apple-ios` and
+   `aarch64-linux-android` stops in `aws-lc-sys`'s build script, because the Apple SDK and the Android NDK are not installed
+   here. **That is not evidence the build is impossible with them.** It does show a C toolchain per mobile target is needed.
+4. **Web.** `od` with the transport fails on `wasm32-unknown-unknown` at `getrandom`; `os` fails on Tokio and `aws-lc-rs`
+   (its README says the same). Part of that is the probe's own Tokio features, so these two are **inconclusive for OpenDAL**
+   and **consistent with the README for `object_store`**.
+5. **The same OpenDAL core with the S3 service and no transport checks clean on every target.** A fourth throwaway crate with
+   only `services-s3` and `default-features = false` (no `reqwest`, no TLS) ran `cargo check` clean for
+   `wasm32-unknown-unknown`, `aarch64-apple-ios` and `aarch64-linux-android`; 103 crates; no `aws-lc`, `rustls` or `reqwest`
+   (it keeps `hmac`, `sha1`, `sha2`, `md-5`); `cargo-audit` found no vulnerability. **That it type-checks is all this shows.**
+   It was not run, a host-supplied transport was not wired, and the Google Cloud Storage and Azure services were not
+   added to this variant.
+
+**Still not measured:** the app-size effect on a device (iOS, Android, web); a run against any provider; whether OpenDAL
+accepts a host-supplied HTTP transport in practice; the licences and targets of the Azure, Google, OCI, Graph and CloudKit SDKs;
+and whether OCI's S3-compatible endpoint honours `If-None-Match: *` (OCI's "Amazon S3 Compatibility API" page, read
+2026-10-27, says nothing about conditional writes either way).
+
+**AWS SDK for Kotlin.** Its targets page (read 2026-10-27) lists JVM, Android (API 24+) and GraalVM; no iOS and no web. Its
+licence is Apache-2.0 (the repository `LICENSE`).
 
 ### 4a.6 Leading option (not decided)
 
 Thin adapters per provider behind the existing six calls, because only that route reaches all five providers and the
-consumer routes, with a time-boxed spike on `object_store` or OpenDAL for the three infrastructure stores **only if** the
-measurements in 4a.5 are acceptable. If the principal prefers one dependency over three adapters, the spike decides it.
+consumer routes. The measurements change what a library spike would look like: a full OpenDAL or `object_store` build adds
+3.3 to 4.4 MB on the host, a C cryptography library the repository does not have, and a mobile C toolchain, and OpenDAL with
+Azure carries an advisory with no fix. **The one variant that checked clean everywhere is OpenDAL's core without a transport
+(4a.5 item 5).** If the principal wants a library for the three infrastructure stores, that variant, with the transport
+supplied by the host so no TLS stack joins the core, is the one worth a spike; it is unproven.
 
 ## 5. To close #566
 
@@ -249,7 +294,7 @@ measurements in 4a.5 are acceptable. If the principal prefers one dependency ove
 | Confirm consumer storage for AWS and Oracle Cloud (§3.2) | Provider pages |
 | Decide Gaps 1 to 6 (§2.2) | Principal / Software Engineering |
 | Check provider terms and app-store rules on what an app may store and how it signs in | Unchecked |
-| Decide build or adopt from §4a; measure §4a.5 first. A SOUP record per library adopted | Evaluated (§4a), decision pending |
+| Decide build or adopt from §4a; the host measurements are in §4a.5, the device and run-time ones are not. A SOUP record per library adopted | Evaluated and measured on the host (§4a), decision pending |
 | Register any constant introduced without a derivation (CLAUDE.md §19) | None introduced here |
 
 ## 6. Sources
