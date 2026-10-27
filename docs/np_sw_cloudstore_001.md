@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 6 (2026-10-27) — new §4b: the thin-adapter library `life.neurone.core.cloud` (principal direction: build thin adapters as a reusable library), its first adapter (Google Cloud Storage) and a contract suite any adapter runs. **Written against a fake transport; no provider has been contacted.** Rev 5 (2026-10-27) — §4a.5 item 6: OpenDAL with the S3 service and **no** built-in transport ran against a host-supplied transport (an in-memory stand-in for S3). It sent `If-None-Match: *`, mapped the refusal to `ConditionNotMatch`, and listed, read and deleted; it checked for iOS and Android. This shows the seam works, **not** that S3 or any provider behaves as the stand-in does. Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 7 (2026-10-27) — the library moved from `app/android/core` to `common/cloudstore` (principal: code several platforms use belongs in `common/`); the tests were run and pass (§4b.3). Rev 6 (2026-10-27) — new §4b: the thin-adapter library `life.neurone.core.cloud` (principal direction: build thin adapters as a reusable library), its first adapter (Google Cloud Storage) and a contract suite any adapter runs. **Written against a fake transport; no provider has been contacted.** Rev 5 (2026-10-27) — §4a.5 item 6: OpenDAL with the S3 service and **no** built-in transport ran against a host-supplied transport (an in-memory stand-in for S3). It sent `If-None-Match: *`, mapped the refusal to `ConditionNotMatch`, and listed, read and deleted; it checked for iOS and Android. This shows the seam works, **not** that S3 or any provider behaves as the stand-in does. Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -323,11 +323,11 @@ and it is tested only against a stand-in for the provider (below), so it verifie
 
 | Part | Where | What it is |
 |------|-------|-----------|
-| The interface | `life.neurone.core.migration.ObjectStore` (existing) | The six calls: `get`, `put`, `createIfAbsent`, `delete`, `list`, `freeSpace`. A call that cannot be done throws. |
-| The library | `life.neurone.core.cloud` in `:core` `commonMain` (`app/android/core`) | `CloudStoreException`, `AccessToken` (the host's OAuth bearer token), percent-encoding, and one adapter per provider. |
+| The interface | `life.neurone.core.migration.ObjectStore`, moved to `common/cloudstore` | The six calls: `get`, `put`, `createIfAbsent`, `delete`, `list`, `freeSpace`. A call that cannot be done throws. |
+| The library | `life.neurone.core.cloud` in the Gradle module `:cloudstore` at **`common/cloudstore`** (`CLAUDE.md` §20) | `CloudStoreException`, `AccessToken` (the host's OAuth bearer token), percent-encoding, and one adapter per provider. |
 | The first adapter | `GcsObjectStore` | Google Cloud Storage JSON API: `ifGenerationMatch=0` for the claim (§3.1), 412 is "not created", 404 is "absent". |
-| The contract suite | `ObjectStoreContract` (`:core` `jvmTest`) | Seven tests every `ObjectStore` meets. A new adapter is added by subclassing it with its store. |
-| The HTTP seam | `life.neurone.core.net.HttpTransport` (existing) | Already implemented by OkHttp (Android), the JDK client (desktop) and NSURLSession (iOS). **No new library and no new SOUP.** |
+| The contract suite | `ObjectStoreContract` (`:cloudstore` `jvmTest`) | Seven tests every `ObjectStore` meets. A new adapter is added by subclassing it with its store. |
+| The HTTP seam | `life.neurone.core.net.HttpTransport`, moved to `common/cloudstore` | Already implemented by OkHttp (Android), the JDK client (desktop) and NSURLSession (iOS). **No new library and no new SOUP.** |
 
 **Why this is thin and reusable.** An adapter is one class over `HttpTransport` and an `AccessToken`; it holds no sign-in, no
 signing and no state. The same class runs on every target that has a transport. The contract suite is what makes a new
@@ -342,15 +342,19 @@ absent-versus-error rules run unchanged against it.
   Providers' extra cases (S3's 409, OneDrive's late conflict) are thrown, not retried, until a decision says otherwise.
 - **Gap 2 (sign-in vs other failure).** `CloudStoreException.status` carries the HTTP status (401 for a refused token), so a host
   can tell a sign-in failure from the rest. The core's probe still sees one `failed`; passing the reason through is not done.
-- **Gap 5 (where adapters live).** In `:core` `commonMain`, which the Android app and the shared Compose app already use. The
-  Swift and C# apps have their own driver interfaces and would need their own adapters; not done.
+- **Gap 5 (where adapters live).** In `common/cloudstore`, a Kotlin Multiplatform module (JVM, wasmJs, iOS arm64 and simulator)
+  that `:core` depends on, so the Android app and the shared Compose app reach it and neither app's tree holds it. The package names
+  are unchanged (`life.neurone.core.*`), so no caller changed. The Swift and C# apps have their own driver interfaces and would
+  need their own adapters; not done.
 - **Gap 1 (large bundles).** Not addressed. `put` sends the whole array in one request.
 
 ### 4b.3 What changed in shipped code
 
+`HttpTransport` (with `HttpRequest` and `HttpResponse`) and the `ObjectStore` interface moved out of `app/android/core` into `common/cloudstore`, because the library needs them and `common/` imports nothing outside `common/`. `:core` re-exports the module with `api(project(":cloudstore"))`; `.github/workflows/desktop-package.yml` also triggers on `common/cloudstore/**`. **Code other apps use still sits in `app/android/core`** (the rest of `:core`); this change moves only what the cloud library needs and does not relocate it.
+
 `HttpRequest.method` was honoured as GET or POST only by the OkHttp and JDK transports (the iOS one already passed the method
 through). Both now pass any method through, with no body for GET and HEAD, because the object stores need DELETE. The GET and
-POST paths behave as before. **These two transport edits are not covered by a test run in this session.**
+POST paths behave as before. **These two transport edits are not covered by a test.** The moved module's 12 tests and 99 of `:core`'s migration, analytics and OTA tests passed after the move (2026-10-27); the iOS, wasmJs and Android-app builds were not run.
 
 ### 4b.4 What is not done
 

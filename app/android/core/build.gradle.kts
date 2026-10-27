@@ -200,6 +200,8 @@ kotlin {
                 // need it on their compile classpath.
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                // The cloud object-store seam and adapters, with HttpTransport and ObjectStore (common/cloudstore, SWR-MG-11).
+                api(project(":cloudstore"))
                 // The direct-link sessions wait on a connection with a timeout and publish their step as a flow (SWR-MG-10).
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             }
