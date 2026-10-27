@@ -19,6 +19,7 @@ on:
     paths:
       - 'app/android/**'
       - 'app/NeurOneUI/**'
+      - 'common/core/**'
       # :core's tests read the shared golden descriptors (OI-AND-WIRE-01).
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
@@ -42,6 +43,7 @@ on:
     paths:
       - 'app/android/**'
       - 'app/NeurOneUI/**'
+      - 'common/core/**'
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
       # push the shipped library and the fixtures through it.
@@ -158,6 +160,6 @@ jobs:
         with:
           name: android-test-reports
           path: |
-            app/android/core/build/reports/tests/
+            common/core/build/reports/tests/
             app/android/app/build/reports/tests/
           if-no-files-found: ignore

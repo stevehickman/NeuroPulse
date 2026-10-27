@@ -53,7 +53,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consent-reachability.ts --self-test
  * CI-Scans: every public ConsentStore method on iOS and Android, and its callers
- * CI-Scan-Paths: app/ios/** app/android/** app/NeurOneUI/**
+ * CI-Scan-Paths: app/ios/** app/android/** app/NeurOneUI/** common/core/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
@@ -63,10 +63,10 @@ type Platform = "ios" | "android";
 
 const STORE: Record<Platform, string> = {
   ios: "app/ios/NeurOne/Consent/ConsentStore.swift",
-  android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt",
+  android: "common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt",
 };
 // Android's screens live in two trees: its own app and the shared Compose UI every platform builds (app/NeurOneUI).
-const SOURCE_ROOTS: Record<Platform, string[]> = { ios: ["app/ios"], android: ["app/android", "app/NeurOneUI"] };
+const SOURCE_ROOTS: Record<Platform, string[]> = { ios: ["app/ios"], android: ["app/android", "app/NeurOneUI", "common/core"] };
 const EXT: Record<Platform, string> = { ios: ".swift", android: ".kt" };
 
 /** Declaration syntax for `func name(` / `fun name(` at one indent level. */
@@ -117,7 +117,7 @@ const SURFACE: Record<string, Reach> = {
     kind: "ingest",
     via: {
       ios: "app/ios/NeurOne/Consent/ClinicianPortalChannel.swift",
-      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
+      android: "common/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
     },
     note:
       "ingested by ClinicianPortalSync, never by a control the user operates. It was `pending` under " +
@@ -154,7 +154,7 @@ const SURFACE: Record<string, Reach> = {
     kind: "ingest",
     via: {
       ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
-      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
+      android: "common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
     },
     note: "SWR-MG-04: the withdrawal records go into a bundle through the migration item, not a control the user operates",
   },
@@ -162,7 +162,7 @@ const SURFACE: Record<string, Reach> = {
     kind: "ingest",
     via: {
       ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
-      android: "app/android/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
+      android: "common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
     },
     note: "SWR-MG-04: a restore applies a later withdrawal through the migration item. It can only switch a grant off; the later-time comparison is the core's (applyWithdrawal)",
   },
@@ -529,7 +529,7 @@ if (process.argv.includes("--self-test")) {
   const INGEST: Record<string, Reach> = {
     addExpansionRequest: {
       kind: "ingest",
-      via: { ios: "app/ios/NeurOne/Consent/Sync.swift", android: "app/android/core/Sync.kt" },
+      via: { ios: "app/ios/NeurOne/Consent/Sync.swift", android: "common/core/Sync.kt" },
       note: "fixture",
     },
   };
@@ -538,7 +538,7 @@ if (process.argv.includes("--self-test")) {
     "ingest whose named path calls it is clean",
     build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
       "app/ios/NeurOne/Consent/Sync.swift": "store.addExpansionRequest(r)\n",
-      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+      "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
     }),
     null,
     INGEST,
@@ -550,7 +550,7 @@ if (process.argv.includes("--self-test")) {
     "ingest whose named path does not call it is caught",
     build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
       "app/ios/NeurOne/Consent/Sync.swift": "// nothing\n",
-      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+      "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
     }),
     "but that file does not call it",
     INGEST,
@@ -559,7 +559,7 @@ if (process.argv.includes("--self-test")) {
   expect(
     "ingest naming a path that does not exist is caught",
     build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
-      "app/android/core/Sync.kt": "store.addExpansionRequest(r)\n",
+      "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
     }),
     "which does not exist",
     INGEST,

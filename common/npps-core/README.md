@@ -39,7 +39,7 @@ compiler, which remain the reference:
 ## Android binding
 
 `../npps-jni` is a `cdylib` of JNI functions over `src/api.rs` (`parse_json`, `namespace_json`, `compile_json`, `serialize_json`,
-`validate_json`: the one contract every binding wraps). `app/android/core/.../npps/NppsCore.kt` loads it and marshals; a refusal is
+`validate_json`: the one contract every binding wraps). `common/core/.../npps/NppsCore.kt` loads it and marshals; a refusal is
 thrown as `IllegalArgumentException` carrying the core's message. `NppsCoreTests` pushes the shipped
 library, the corpus and the 22 golden descriptors through the real native library from Kotlin (the messages
 contain `—` and `²`, so UTF-8 marshalling is exercised) and requires every entry, byte and message to match
