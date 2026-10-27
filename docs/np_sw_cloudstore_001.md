@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 5 (2026-10-27) — §4a.5 item 6: OpenDAL with the S3 service and **no** built-in transport ran against a host-supplied transport (an in-memory stand-in for S3). It sent `If-None-Match: *`, mapped the refusal to `ConditionNotMatch`, and listed, read and deleted; it checked for iOS and Android. This shows the seam works, **not** that S3 or any provider behaves as the stand-in does. Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -268,10 +268,38 @@ For scale, the repository's own `neurone-npps-core` has **54** crates in its nor
    It was not run, a host-supplied transport was not wired, and the Google Cloud Storage and Azure services were not
    added to this variant.
 
-**Still not measured:** the app-size effect on a device (iOS, Android, web); a run against any provider; whether OpenDAL
-accepts a host-supplied HTTP transport in practice; the licences and targets of the Azure, Google, OCI, Graph and CloudKit SDKs;
-and whether OCI's S3-compatible endpoint honours `If-None-Match: *` (OCI's "Amazon S3 Compatibility API" page, read
-2026-10-27, says nothing about conditional writes either way).
+6. **A host-supplied transport works, against a stand-in.** OpenDAL 0.59.5 has a seam for it: the trait `HttpTransport`
+   (`fetch(Request<Buffer>) -> Response<HttpBody>`), installed on an operator with
+   `with_context(OperationContext::new().with_http_transport(...))`. A fifth throwaway crate, `odt`, builds OpenDAL with only
+   `services-s3` (no `reqwest`, no TLS, **0** of `aws-lc`, `rustls`, `reqwest`, `hyper`, `ring`; 104 crates; `cargo-audit` found
+   no vulnerability), and supplies a transport that is an **in-memory object store written for the probe** and does not
+   speak to any provider. Against it:
+
+   | Step | Result |
+   |------|--------|
+   | First create-if-absent of `np-migration-claim.json` | succeeded |
+   | Second create of the same name | refused; OpenDAL reports `ConditionNotMatch` |
+   | Read back | the first writer's bytes |
+   | Read of a missing name | `NotFound` |
+   | List by the prefix `np-` | the one object |
+   | Two concurrent creates of one name | exactly one succeeded |
+   | Delete, then stat | `NotFound` |
+   | Requests the transport saw | `PUT` with `If-None-Match: *` for both creates |
+
+   The binary is 2.65 MB (same profile as 4a.5; 2.25 MB over `base`), and `cargo check` for `aarch64-apple-ios` and
+   `aarch64-linux-android` is clean. **What this shows:** OpenDAL sends the conditional header that the S3 documentation
+   calls for (§3.1), turns a 412 into a distinct error, and needs nothing from the host but the transport, so no TLS stack
+   has to join the Rust core. **What it does not show:** that S3 or any provider answers as the stand-in does (the stand-in
+   is mine, and its serialising lock is why exactly one concurrent create won, not S3's arbitration); that the 409 and
+   indeterminate cases of Gap 6 are handled; that the transport can be implemented by Kotlin or Swift across the C ABI
+   (a callback into a platform HTTP stack was not built); or the web target (the probe's Tokio entry point was not checked
+   for `wasm32`). The stand-in needed a `LastModified` and `ETag` in its list reply before OpenDAL would parse it, so a real
+   adapter must reproduce provider replies fully.
+
+**Still not measured:** the app-size effect on a device (iOS, Android, web); a run against any provider; a platform
+(Kotlin or Swift) implementation of the transport behind the C ABI; the licences and targets of the Azure, Google, OCI, Graph and CloudKit SDKs; and whether
+OCI's S3-compatible endpoint honours `If-None-Match: *` (OCI's "Amazon S3 Compatibility API" page, read 2026-10-27, says
+nothing about conditional writes either way).
 
 **AWS SDK for Kotlin.** Its targets page (read 2026-10-27) lists JVM, Android (API 24+) and GraalVM; no iOS and no web. Its
 licence is Apache-2.0 (the repository `LICENSE`).
@@ -282,8 +310,9 @@ Thin adapters per provider behind the existing six calls, because only that rout
 consumer routes. The measurements change what a library spike would look like: a full OpenDAL or `object_store` build adds
 3.3 to 4.4 MB on the host, a C cryptography library the repository does not have, and a mobile C toolchain, and OpenDAL with
 Azure carries an advisory with no fix. **The one variant that checked clean everywhere is OpenDAL's core without a transport
-(4a.5 item 5).** If the principal wants a library for the three infrastructure stores, that variant, with the transport
-supplied by the host so no TLS stack joins the core, is the one worth a spike; it is unproven.
+(4a.5 items 5 and 6).** If the principal wants a library for the three infrastructure stores, that variant, with the
+transport supplied by the host so no TLS stack joins the core, is the one worth a spike. Its seam works against a stand-in
+(item 6); the open steps are a platform transport behind the C ABI and a run against a real provider.
 
 ## 5. To close #566
 
