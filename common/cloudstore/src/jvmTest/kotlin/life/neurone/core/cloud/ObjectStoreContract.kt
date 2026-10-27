@@ -21,6 +21,19 @@ import kotlin.test.assertTrue
 abstract class ObjectStoreContract {
     protected abstract fun newStore(): ObjectStore
 
+    /**
+     * False for a store that cannot give an atomic create-if-absent and says so by throwing [CloudStoreException] from it
+     * (Google Drive, `SWR-MG-07`): the claim tests then check the throw and the rest of the suite runs unchanged.
+     */
+    protected open val claimsAreAtomic: Boolean = true
+
+    private suspend fun refusesToClaim(s: ObjectStore): Boolean {
+        if (claimsAreAtomic) return false
+        kotlin.test.assertFailsWith<CloudStoreException> { s.createIfAbsent("np-migration-claim.json", byteArrayOf(1)) }
+        assertNull(s.get("np-migration-claim.json"), "a refused claim writes nothing")
+        return true
+    }
+
     // @verifies SWR-MG-11#calls
     @Test
     fun aMissingObjectReadsAsNullAndDeletingItIsNotAnError() = runBlocking {
@@ -44,6 +57,7 @@ abstract class ObjectStoreContract {
     @Test
     fun aSecondCreateIsRefusedAndLeavesTheFirstWritersBytes() = runBlocking {
         val s = newStore()
+        if (refusesToClaim(s)) return@runBlocking
         assertTrue(s.createIfAbsent("np-migration-claim.json", "A".encodeToByteArray()))
         assertFalse(s.createIfAbsent("np-migration-claim.json", "B".encodeToByteArray()))
         assertEquals("A", s.get("np-migration-claim.json")!!.decodeToString())
@@ -53,6 +67,7 @@ abstract class ObjectStoreContract {
     @Test
     fun aReleasedClaimCanBeClaimedAgain() = runBlocking {
         val s = newStore()
+        if (refusesToClaim(s)) return@runBlocking
         assertTrue(s.createIfAbsent("np-migration-claim.json", "A".encodeToByteArray()))
         s.delete("np-migration-claim.json")
         assertNull(s.get("np-migration-claim.json"))
@@ -63,6 +78,7 @@ abstract class ObjectStoreContract {
     @Test
     fun ofManySimultaneousCreatesExactlyOneWins() = runBlocking {
         val s = newStore()
+        if (refusesToClaim(s)) return@runBlocking
         val won = (1..24).map { i -> async(Dispatchers.Default) { s.createIfAbsent("np-migration-claim.json", byteArrayOf(i.toByte())) } }.awaitAll()
         assertEquals(1, won.count { it })
         val winner = won.indexOf(true) + 1
