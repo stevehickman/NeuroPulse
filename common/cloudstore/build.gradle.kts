@@ -52,3 +52,15 @@ kotlin {
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
 }
+
+// The transport checks (src/jvmTest/.../net/HttpTransportChecks.kt) are shared with the modules that own a transport: the
+// compiled test classes are published as the "testClasses" configuration, and :app and :desktop put it on their test classpath.
+val jvmTestClassesJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("test-classes")
+    from(kotlin.targets.getByName("jvm").compilations.getByName("test").output.allOutputs)
+}
+val testClasses by configurations.creating {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+artifacts.add("testClasses", jvmTestClassesJar)

@@ -17,6 +17,8 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
     testImplementation(kotlin("test"))
+    // HttpTransportChecks, shared with the Android transport (common/cloudstore).
+    testImplementation(project(path = ":cloudstore", configuration = "testClasses"))
 }
 
 // The shared NPPS core is a native library on the JVM (common/npps-jni). `run` builds the host copy and
