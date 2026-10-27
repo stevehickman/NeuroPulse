@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-10-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -13,7 +13,7 @@
 **Gate:** None yet
 **IEC 62304 Class:** Not assigned. No SOUP is adopted by this draft.
 **Supersedes:** None
-**Change Summary:** Rev 5 (2026-10-27) — §4a.5 item 6: OpenDAL with the S3 service and **no** built-in transport ran against a host-supplied transport (an in-memory stand-in for S3). It sent `If-None-Match: *`, mapped the refusal to `ConditionNotMatch`, and listed, read and deleted; it checked for iOS and Android. This shows the seam works, **not** that S3 or any provider behaves as the stand-in does. Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
+**Change Summary:** Rev 6 (2026-10-27) — new §4b: the thin-adapter library `life.neurone.core.cloud` (principal direction: build thin adapters as a reusable library), its first adapter (Google Cloud Storage) and a contract suite any adapter runs. **Written against a fake transport; no provider has been contacted.** Rev 5 (2026-10-27) — §4a.5 item 6: OpenDAL with the S3 service and **no** built-in transport ran against a host-supplied transport (an in-memory stand-in for S3). It sent `If-None-Match: *`, mapped the refusal to `ConditionNotMatch`, and listed, read and deleted; it checked for iOS and Android. This shows the seam works, **not** that S3 or any provider behaves as the stand-in does. Rev 4 (2026-10-27) — §4a.5 now holds measurements of `opendal` and `object_store` (dependency count, licences, RustSec, size, targets). Both with a built-in transport pull a C cryptography library and cannot be built for iOS or Android on this host; `opendal` with the S3 service and **no** built-in transport checks clean for web, iOS and Android. Rev 3 (2026-10-27) — new §4a, the build-or-adopt evaluation (#566): six candidates read against the issue's tests. **No candidate is adopted and no SOUP record is made.** Rev 2 (2026-10-27) — the provider pages were read first-hand (network access opened); §3 now grades each row. All four infrastructure stores document a create-if-absent; OCI's failure code, Azure's consistency and the consumer routes' create-if-absent remain open. Gap 6 added. Rev 1 (2026-10-27) — first draft from search excerpts. Nothing is tested, so `SWR-MG-11` stays "Not built".
 **Review Cadence:** On each provider verified, and at G2
 
 ---
@@ -313,6 +313,56 @@ Azure carries an advisory with no fix. **The one variant that checked clean ever
 (4a.5 items 5 and 6).** If the principal wants a library for the three infrastructure stores, that variant, with the
 transport supplied by the host so no TLS stack joins the core, is the one worth a spike. Its seam works against a stand-in
 (item 6); the open steps are a platform transport behind the C ABI and a run against a real provider.
+
+## 4b. The thin-adapter library (built)
+
+**Direction (principal, 2026-10-27):** build the thin adapters as a reusable library. This is the first slice. It is code,
+and it is tested only against a stand-in for the provider (below), so it verifies the adapter and nothing about any provider.
+
+### 4b.1 What exists
+
+| Part | Where | What it is |
+|------|-------|-----------|
+| The interface | `life.neurone.core.migration.ObjectStore` (existing) | The six calls: `get`, `put`, `createIfAbsent`, `delete`, `list`, `freeSpace`. A call that cannot be done throws. |
+| The library | `life.neurone.core.cloud` in `:core` `commonMain` (`app/android/core`) | `CloudStoreException`, `AccessToken` (the host's OAuth bearer token), percent-encoding, and one adapter per provider. |
+| The first adapter | `GcsObjectStore` | Google Cloud Storage JSON API: `ifGenerationMatch=0` for the claim (§3.1), 412 is "not created", 404 is "absent". |
+| The contract suite | `ObjectStoreContract` (`:core` `jvmTest`) | Seven tests every `ObjectStore` meets. A new adapter is added by subclassing it with its store. |
+| The HTTP seam | `life.neurone.core.net.HttpTransport` (existing) | Already implemented by OkHttp (Android), the JDK client (desktop) and NSURLSession (iOS). **No new library and no new SOUP.** |
+
+**Why this is thin and reusable.** An adapter is one class over `HttpTransport` and an `AccessToken`; it holds no sign-in, no
+signing and no state. The same class runs on every target that has a transport. The contract suite is what makes a new
+provider cheap to add and safe to compare: the claim test (exactly one of 24 simultaneous creates wins) and the
+absent-versus-error rules run unchanged against it.
+
+### 4b.2 How it answers the gaps
+
+- **Gap 6 (create outcomes).** The interface already has two outcomes and an exception: `true` (created), `false` (the object
+  exists) and a thrown `CloudStoreException` for everything else, including no answer. The adapter never turns an unmapped status
+  or a lost reply into `false`, so the flow treats it as "route unavailable" and the claim is not assumed written or refused.
+  Providers' extra cases (S3's 409, OneDrive's late conflict) are thrown, not retried, until a decision says otherwise.
+- **Gap 2 (sign-in vs other failure).** `CloudStoreException.status` carries the HTTP status (401 for a refused token), so a host
+  can tell a sign-in failure from the rest. The core's probe still sees one `failed`; passing the reason through is not done.
+- **Gap 5 (where adapters live).** In `:core` `commonMain`, which the Android app and the shared Compose app already use. The
+  Swift and C# apps have their own driver interfaces and would need their own adapters; not done.
+- **Gap 1 (large bundles).** Not addressed. `put` sends the whole array in one request.
+
+### 4b.3 What changed in shipped code
+
+`HttpRequest.method` was honoured as GET or POST only by the OkHttp and JDK transports (the iOS one already passed the method
+through). Both now pass any method through, with no body for GET and HEAD, because the object stores need DELETE. The GET and
+POST paths behave as before. **These two transport edits are not covered by a test run in this session.**
+
+### 4b.4 What is not done
+
+- **No run against Google.** `FakeGcs` is written from the documentation (§3.1, §3.2): 412 for a repeated
+  `ifGenerationMatch=0`, 404 for a missing object, a paged list. It is not Google. The requirement's own test is "a contract
+  test suite run against each provider" (`SWR-MG-11`); that part, declared as `SWR-MG-11#contract`, has **no test**.
+- **No other provider.** S3 needs request signing (HMAC, which `CLAUDE.md` §22 puts in the Rust core); Azure Blob needs a
+  token or shared-key signing; OneDrive and Drive have the naming problem of Gap 4; CloudKit is Apple-only on the native side.
+- **No sign-in.** The host supplies an `AccessToken`; nothing here obtains one.
+- **Not wired in.** No screen or flow constructs a `GcsObjectStore`. The provider list, the capability check's UI and the
+  strings (`CLAUDE.md` §17) are not touched.
+- **The Swift, C# and TypeScript drivers** have no adapters.
 
 ## 5. To close #566
 
