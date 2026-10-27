@@ -183,7 +183,7 @@ The OSV-Scanner job (`dependency-scan.yml`) reads GitHub's advisory database as 
 
 **Why it is not upgraded.** `block-buffer` 0.10.4 is pulled in through `digest` 0.10 by `argon2` 0.5.3 (via `blake2`), `ed25519-dalek` 2.2.0, `hmac`, `hkdf`, `sha2`, `hpke` 0.13 and `spake2` 0.4.0 (via `curve25519-dalek` 4.1.3). Every one has a stable release on the next generation (`argon2` 0.6.0, `ed25519-dalek` 3.0.0, `hmac` and `hkdf` 0.13.0, `sha2` 0.11.1, `hpke` 0.15.0, read on crates.io 2026-10-27) **except `spake2`**: its only stable release is 0.4.0, and 0.5.0-pre.0 is a pre-release. Moving the rest and leaving `spake2` would not remove `block-buffer` 0.10.4 from the lock file, and taking the pre-release is against `NP-SOUP-KOTLIN-001` §2a rule 2. The principal chose to accept the finding (2026-10-27).
 
-**The acceptance.** `common/osv-scanner.toml` ignores the one identifier until **2027-01-27** (`UC-109`), with this reason. **Closes when** `spake2` publishes a stable release on the digest 0.11 generation (then the stack moves together), or `spake2` is replaced. Until then the job reports every other finding as before.
+**The acceptance.** `common/osv-scanner.toml` ignores the one identifier until **2027-01-27** (`UC-109`), with this reason. **Closes when** `spake2` publishes a stable release on the digest 0.11 generation (then the stack moves together), or `spake2` is replaced. Tracked by GitHub #689. Until then the job reports every other finding as before.
 
 ### 6.2 What was not done
 
