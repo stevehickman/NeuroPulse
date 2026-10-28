@@ -372,6 +372,19 @@ class CloudAuthTests {
         assertNull(CloudAuthException(CloudAuthProblem.NETWORK, "x").status)
     }
 
+    // @verifies SWR-MG-19#d
+    @Test
+    fun aProviderIsConfiguredOnlyWhenTheBuildHoldsItsRegistrationAndAwsAlwaysIs() {
+        val some = Rig(CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT))).auth
+        assertTrue(some.isConfigured(CloudService.GOOGLE_DRIVE))
+        assertTrue(some.isConfigured(CloudService.GOOGLE_CLOUD_STORAGE))
+        assertFalse(some.isConfigured(CloudService.ONEDRIVE))
+        assertFalse(some.isConfigured(CloudService.AZURE_BLOB))
+        assertFalse(some.isConfigured(CloudService.ICLOUD_CLOUDKIT))
+        assertTrue(some.isConfigured(CloudService.AWS_S3))
+        assertFalse(Rig(CloudAuthConfig()).auth.isConfigured(CloudService.GOOGLE_DRIVE))
+    }
+
     // @verifies SWR-MG-19#a
     @Test
     fun theRedirectParserReadsAQueryOrAFragmentAndKeepsOrDropsPlusAsAskedForCredential() {

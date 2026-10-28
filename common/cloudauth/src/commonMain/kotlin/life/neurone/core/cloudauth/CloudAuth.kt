@@ -57,6 +57,17 @@ class CloudAuth(
     private val json = Json { ignoreUnknownKeys = true }
 
     /** The accounts on this install. */
+    /**
+     * Whether this build holds a registration for [service]'s provider. False means a sign-in to it fails with [CloudAuthProblem.NOT_CONFIGURED]
+     * before anything is sent, so a screen can say so up front. AWS has no registration to hold: the person brings their own keys.
+     */
+    fun isConfigured(service: CloudService): Boolean = when (service.family) {
+        AccountFamily.GOOGLE -> config.google != null
+        AccountFamily.MICROSOFT -> config.microsoft != null
+        AccountFamily.APPLE -> config.cloudKit != null
+        AccountFamily.AWS -> true
+    }
+
     suspend fun accounts(): List<CloudAccount> = lock.withLock { credentials.load().accounts.map { it.view() } }
 
     // ── Sign-in ────────────────────────────────────────────────────────────────────────────────────────────────────

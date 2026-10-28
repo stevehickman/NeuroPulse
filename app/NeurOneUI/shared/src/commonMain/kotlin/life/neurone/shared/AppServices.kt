@@ -173,6 +173,9 @@ class AppServices(
         else life.neurone.core.cloudauth.CloudAuth(transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher)
     }
 
+    /** The cloud accounts screen's state and actions, or null where there is no [cloudAuth] (SWR-MG-20). */
+    val cloudAccounts: life.neurone.shared.cloud.CloudAccountsModel? = cloudAuth?.let { life.neurone.shared.cloud.CloudAccountsModel(it) }
+
     /** The common PostHog backend where the build has a usable host, token and transport; otherwise the host's own (none). */
     private val analyticsBackend: AnalyticsBackend =
         platform.analyticsConfig?.takeIf { it.usable }?.let { config ->

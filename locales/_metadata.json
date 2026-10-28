@@ -107,6 +107,24 @@
   "BIPA_STEP4_TITLE": {
     "legal_review_required": true
   },
+  "CLOUD_SERVICE_AWS_S3": {
+    "translate": false
+  },
+  "CLOUD_SERVICE_AZURE_BLOB": {
+    "translate": false
+  },
+  "CLOUD_SERVICE_GOOGLE_CLOUD_STORAGE": {
+    "translate": false
+  },
+  "CLOUD_SERVICE_GOOGLE_DRIVE": {
+    "translate": false
+  },
+  "CLOUD_SERVICE_ICLOUD_CLOUDKIT": {
+    "translate": false
+  },
+  "CLOUD_SERVICE_ONEDRIVE": {
+    "translate": false
+  },
   "CONSENT_IRREVERSIBILITY_NOTICE": {
     "legal_review_required": true
   },
