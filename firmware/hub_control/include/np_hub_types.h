@@ -73,6 +73,14 @@ typedef enum {
     /* The protocol is ramping up (session start or resume): a pause is not accepted until every ramp has finished.
      * Reaches the app as ATT 0x82, so it can say why (SWR-SS-05). */
     NP_HUB_ERR_RAMPING              = -26,
+    /* SWR-HV-08: the protocol was compiled for another hardware version than this helmet's (the one the safety MCU
+     * reports from its verified record).  An ordinary refusal with its own status the app can show, not a fault.
+     * The values -27 and -28 are the writer's proposal (the code was an open point of SWR-HV-08). */
+    NP_HUB_ERR_HW_VERSION_MISMATCH  = -27,
+    /* No valid report has arrived from the safety MCU yet, so this helmet's hardware version is not known (the
+     * hub's own value is only the SWR-HV-07 default, which would state a layout the helmet may not have).  Not a
+     * mismatch: retry after the first heartbeat.  Refused meanwhile: fail closed. */
+    NP_HUB_ERR_HW_VERSION_UNVERIFIED = -28,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

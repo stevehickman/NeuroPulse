@@ -927,6 +927,40 @@ static void test_tier_admit_matrix(void)
 
 /* ── Runner ───────────────────────────────────────────────────────────────────── */
 
+/* @verifies SWR-HV-08 */
+/* @verifies REQ-FWHUB-62 */
+static void test_hw_version_admit(void)
+{
+    np_session_desc_t d;
+    memset(&d, 0, sizeof d);
+    d.hardware_version = 1U;
+
+    check(np_protocol_hw_version_admit(&d, 1U, true) == NP_HUB_OK,
+          "hwadmit: a stamp equal to the helmet's version loads");
+    check(np_protocol_hw_version_admit(&d, 2U, true) == NP_HUB_ERR_HW_VERSION_MISMATCH,
+          "hwadmit: a stamp for another version is refused as a mismatch");
+    d.hardware_version = 2U;
+    check(np_protocol_hw_version_admit(&d, 1U, true) == NP_HUB_ERR_HW_VERSION_MISMATCH,
+          "hwadmit: the refusal is symmetric (a version 2 stamp on a version 1 helmet)");
+    check(np_protocol_hw_version_admit(&d, 2U, true) == NP_HUB_OK,
+          "hwadmit: and a version 2 stamp loads on a version 2 helmet");
+    /* Before the first valid report the helmet's version is only the SWR-HV-07 default, so even a stamp equal to
+     * it is not admitted: fail closed, and not a mismatch (retry after the first heartbeat). */
+    d.hardware_version = 1U;
+    check(np_protocol_hw_version_admit(&d, 1U, false) == NP_HUB_ERR_HW_VERSION_UNVERIFIED,
+          "hwadmit: no report from the safety MCU yet is unverified, never admitted");
+    d.hardware_version = 2U;
+    check(np_protocol_hw_version_admit(&d, 1U, false) == NP_HUB_ERR_HW_VERSION_UNVERIFIED,
+          "hwadmit: unverified takes precedence over a mismatch");
+    /* The two refusals are distinct statuses and neither is a tier refusal the apps already name. */
+    check(NP_HUB_ERR_HW_VERSION_MISMATCH != NP_HUB_ERR_HW_VERSION_UNVERIFIED &&
+          NP_HUB_ERR_HW_VERSION_MISMATCH != NP_HUB_ERR_TIER_F4 &&
+          NP_HUB_ERR_HW_VERSION_UNVERIFIED != NP_HUB_ERR_TIER_UNVERIFIED,
+          "hwadmit: the statuses are their own");
+    check(np_protocol_hw_version_admit(NULL, 1U, true) == NP_HUB_ERR_INVALID_ARG,
+          "hwadmit: NULL descriptor is an invalid argument");
+}
+
 int main(void)
 {
     test_wire_layout();
@@ -962,6 +996,7 @@ int main(void)
     test_t2_modality_set();
     test_t2_is_derived_not_flagged();
     test_tier_admit_matrix();
+    test_hw_version_admit();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

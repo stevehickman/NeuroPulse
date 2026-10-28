@@ -128,6 +128,23 @@ np_hub_status_t np_protocol_tier_admit(const np_session_desc_t *desc,
                                         uint8_t                  device_tier);
 
 /*
+ * np_protocol_hw_version_admit — SWR-HV-08, the hub's refusal of a protocol compiled for another helmet layout.
+ *
+ * `device_hw_version` is np_safety_spi_get_hardware_version(): the version the safety MCU reports from its verified
+ * tier-identity record, never anything the app or the protocol says.  `report_received` is whether a valid report
+ * has arrived at all (np_safety_spi_get_tier_report()); before it the version is only the SWR-HV-07 default.
+ *
+ *   report not received         → NP_HUB_ERR_HW_VERSION_UNVERIFIED  (retry; not a mismatch)
+ *   stamp equals the version    → NP_HUB_OK
+ *   any other stamp             → NP_HUB_ERR_HW_VERSION_MISMATCH
+ *
+ * The stamp is desc->hardware_version, read from the signed header by np_protocol_verify_and_parse().
+ */
+np_hub_status_t np_protocol_hw_version_admit(const np_session_desc_t *desc,
+                                              uint8_t                  device_hw_version,
+                                              bool                     report_received);
+
+/*
  * np_protocol_sort_cmds
  *
  * Sorts desc->cmds[0..cmd_count-1] by start_ms ascending.

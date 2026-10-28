@@ -35,7 +35,8 @@ data class UploadCheck(
 
         /**
          * `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. A
-         * refusal for the hardware version or an unmodified clone is not made by the hub (not decided), so no code names it.
+         * refusal for the hardware version is the hub's too (`NP_HUB_ERR_HW_VERSION_MISMATCH` 27 and `..._UNVERIFIED` 28, `SWR-HV-08`),
+         * but no app maps those yet; an unmodified clone is not made by the hub, so no code names it.
          */
         private val TIER_REFUSAL_CODES = setOf(19, 20)
 

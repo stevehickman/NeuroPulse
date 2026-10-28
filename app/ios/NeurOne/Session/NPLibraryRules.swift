@@ -161,7 +161,8 @@ enum NPLibraryRules {
 // ("accepted", "tier"), not text for a person, so they live beside the other core calls and not in the covered UI tree.
 extension UploadCheck {
     /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. A refusal
-    /// for the hardware version or an unmodified clone is not made by the hub (not decided), so no code names it.
+    /// for the hardware version is the hub's too (`NP_HUB_ERR_HW_VERSION_MISMATCH` 27 and `..._UNVERIFIED` 28, `SWR-HV-08`), but no
+    /// app maps those yet; an unmodified clone is not made by the hub, so no code names it.
     private static let tierRefusalCodes: Set<Int> = [19, 20]
 
     /// The `helmetRefusal` the library's upload rule takes for this refusal, or nil when it is none of the three it names.
