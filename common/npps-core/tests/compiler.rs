@@ -51,6 +51,7 @@ fn opts<'a>(c: &'a Ctx, with_clinician: bool) -> CompileOptions<'a> {
         autonomous: false,
         now_unix: c.now,
         session_uuid: c.uuid,
+        hardware_version: 1,
         acknowledged_cautions: &[],
     }
 }
@@ -121,4 +122,40 @@ fn autonomous_sets_only_the_mode_3_flag() {
     // Nothing else differs.
     assert_eq!(&plain[..6], &auto[..6]);
     assert_eq!(&plain[7..], &auto[7..]);
+}
+
+// @verifies SWR-HV-08
+#[test]
+fn the_descriptor_states_the_hardware_version_it_was_compiled_for() {
+    let cases = data("hub-descriptor-cases.json");
+    let c = ctx(&cases);
+    let case = &cases["cases"].as_object().unwrap().values().next().unwrap()["def"];
+    // The default is 1 (SWR-HV-07); the stamp is the first header byte after the session length, and its three
+    // reserved bytes stay zero.
+    let b = compile_protocol(case, &opts(&c, true)).unwrap().blob;
+    assert_eq!(&b[64..68], &[1, 0, 0, 0]);
+    // Another version is stamped as given, and the rest of the header does not move.
+    let mut o = opts(&c, true);
+    o.hardware_version = 3;
+    let b3 = compile_protocol(case, &o).unwrap().blob;
+    assert_eq!(&b3[64..68], &[3, 0, 0, 0]);
+    assert_eq!(&b[..64], &b3[..64]);
+    assert_eq!(&b[68..], &b3[68..]);
+}
+
+// @verifies SWR-HV-08
+#[test]
+fn a_hardware_version_a_helmet_cannot_have_is_refused_not_clamped() {
+    let cases = data("hub-descriptor-cases.json");
+    let c = ctx(&cases);
+    let case = &cases["cases"].as_object().unwrap().values().next().unwrap()["def"];
+    for bad in [0u8, 16, 255] {
+        let mut o = opts(&c, true);
+        o.hardware_version = bad;
+        let e = compile_protocol(case, &o).err().unwrap_or_else(|| panic!("{bad} compiled"));
+        assert!(e.contains("hardware version"), "{bad}: {e}");
+    }
+    let mut o = opts(&c, true);
+    o.hardware_version = 15;
+    assert!(compile_protocol(case, &o).is_ok());
 }

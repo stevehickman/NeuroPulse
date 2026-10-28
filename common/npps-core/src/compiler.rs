@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 pub const SIG_LEN: usize = 64;
 const MAGIC: u32 = 0x4E50_4850;
-const VERSION: u16 = 1;
-const HEADER_LEN: usize = 64;
+const VERSION: u16 = 2;
+const HEADER_LEN: usize = 68;
 const CMD_HDR_LEN: usize = 14;
 const CMD_MAX: usize = 64;
 const SOCKET_MASK_BYTES: usize = 16;
@@ -79,6 +79,9 @@ pub struct CompileOptions<'a> {
     pub autonomous: bool,
     pub now_unix: u32,
     pub session_uuid: [u8; 16],
+    /// The hardware version of the helmet the descriptor is compiled for (`SWR-HV-08`), 1 to 15. It is written into the
+    /// header, inside the signed region, and the hub compares it with its own at load.
+    pub hardware_version: u8,
     /// The ids of the cautions the author has acknowledged (`zones::Block::ack_id`). A protocol in the caution zone
     /// compiles only when every one of its cautions is here; one in the danger zone never compiles.
     pub acknowledged_cautions: &'a [String],
@@ -271,6 +274,14 @@ fn zone_gate(proto: &Value, opts: &CompileOptions) -> R<()> {
 }
 
 pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
+    // SWR-HV-08 / UC-080: the version is a nibble of the helmet's tier byte, so 1 to 15; 0 is no version. A value
+    // outside it is refused, never clamped, because a descriptor stamped for a layout that cannot exist is a mistake.
+    if !(1..=15).contains(&opts.hardware_version) {
+        return Err(format!(
+            "The hardware version {} is not one a helmet can have (1 to 15). Give the version of the helmet the protocol is compiled for.",
+            opts.hardware_version
+        ));
+    }
     let timing = &proto["timingMode"];
     let is_duration = timing["type"] == "duration";
     let session_ms = if is_duration { f(timing, "seconds") * 1000.0 } else { 0.0 };
@@ -371,6 +382,8 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         blob[28..28 + n].copy_from_slice(&serial[..n]);
     }
     blob[60..64].copy_from_slice(&to_u32(session_len_ms).to_le_bytes());
+    // The helmet hardware version, then three reserved bytes that stay zero (SWR-HV-08, NP-FW-HUB-001 §4.2).
+    blob[64] = opts.hardware_version;
 
     let mut off = HEADER_LEN;
     for (c, t) in cmds.iter().zip(&targets) {

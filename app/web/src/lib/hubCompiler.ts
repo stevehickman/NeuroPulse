@@ -13,8 +13,9 @@
  * refuses it, is decided in the core and is the same on every runtime.
  *
  * Binary layout (NP-FW-HUB-001 §4; little-endian, packed):
- *   [64]  header   magic u32 | version u16 | flags u8 (bit0 T2 tier, bit1 autonomous) | cmd_count u8 |
- *                  session_uuid[16] | compiled_at_unix u32 | device_serial[32] | session_duration_ms u32
+ *   [68]  header   magic u32 | version u16 | flags u8 (bit0 T2 tier, bit1 autonomous) | cmd_count u8 |
+ *                  session_uuid[16] | compiled_at_unix u32 | device_serial[32] | session_duration_ms u32 |
+ *                  hardware_version u8 (1..15) | reserved[3] (zero)
  *   [N]   commands cmd_hdr(14) + target[target_len] + params[params_len]
  *   [64]  Ed25519 signature slot, zeroed: signing is the caller's
  *
@@ -89,6 +90,12 @@ export interface CompileOptions {
    * never compiles.
    */
   acknowledgedCautions?: readonly string[];
+  /**
+   * The hardware version of the helmet the descriptor is compiled for (1 to 15), stamped in the signed header; the
+   * helmet compares it with its own and refuses a mismatch (SWR-HV-08). The version the helmet reported at link
+   * (SWR-HV-04). Absent is 1, the default until a hardware version 2 exists (SWR-HV-07).
+   */
+  hardwareVersion?: number;
 }
 
 const hex = (bytes: Uint8Array): string => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -134,6 +141,7 @@ export function compileProtocol(
       ? { name: opts.wavelengthRules.name, channels: opts.wavelengthRules.channels }
       : null,
     acknowledgedCautions: opts.acknowledgedCautions ? [...opts.acknowledgedCautions] : [],
+    ...(opts.hardwareVersion === undefined ? {} : { hardwareVersion: opts.hardwareVersion }),
   });
 
   return {
