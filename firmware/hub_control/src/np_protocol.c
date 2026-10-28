@@ -155,6 +155,14 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_INVALID_ARG;
     }
 
+    /* The helmet layout the descriptor was compiled for (SWR-HV-08): a nibble of the tier byte, so 1 to 15, and the
+     * three bytes after it are reserved and zero.  This only reads the stamp; the load step compares it with the
+     * helmet's own version. */
+    if (hdr->hardware_version < 1U || hdr->hardware_version > 15U ||
+        hdr->reserved[0] != 0U || hdr->reserved[1] != 0U || hdr->reserved[2] != 0U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     /* Ed25519 signature is the last NP_HUB_PROTO_SIG_LEN bytes of buf. */
     const uint8_t *sig = buf + len - NP_HUB_PROTO_SIG_LEN;
     size_t         msg_len = len - NP_HUB_PROTO_SIG_LEN;
@@ -194,6 +202,7 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     desc_out->duration_ms      = hdr->session_duration_ms;
     desc_out->flags            = hdr->flags;
     desc_out->cmd_count        = hdr->cmd_count;
+    desc_out->hardware_version = hdr->hardware_version;
 
     size_t offset = 0U;
     for (uint8_t i = 0U; i < hdr->cmd_count; i++) {

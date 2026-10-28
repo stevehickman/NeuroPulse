@@ -29,7 +29,7 @@ const zones: ReadonlyMap<string, NPZoneDefinition> = new Map(
 
 // ─── Wire layout constants (mirror np_hub_config.h / np_hub_types.h) ───────────
 
-const HEADER_LEN = 64;
+const HEADER_LEN = 68;
 const CMD_HDR_LEN = 14;
 const SIG_LEN = 64;
 const SOCKET_MASK_BYTES = 16;
@@ -149,16 +149,35 @@ function eegProtocol(): NPProtocolDefinition {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('hub protocol v1 wire format', () => {
+describe('hub protocol v2 wire format', () => {
   // @verifies REQ-FWHUB-10
-  it('emits protocol version 1', () => {
-    // No descriptor has shipped, so the format has one version (NP-FW-HUB-001
-    // §4.5). Must match NP_HUB_PROTO_VERSION in
+  it('emits protocol version 2', () => {
+    // v2 added the hardware version to the header (NP-FW-HUB-001 §4.5). Must match NP_HUB_PROTO_VERSION in
     // firmware/hub_control/include/np_hub_config.h, which np_protocol_tests.c
     // pins from the other side — the hub rejects anything else as
     // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    expect(readBlob(blob).version).toBe(1);
+    expect(readBlob(blob).version).toBe(2);
+  });
+
+  // @verifies SWR-HV-08
+  it('stamps the hardware version after the session length, and states 1 when none is given', () => {
+    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    const dflt = compileProtocol(p, { zones }).blob;
+    expect([...dflt.slice(64, 68)]).toEqual([1, 0, 0, 0]);
+    const three = compileProtocol(p, { zones, hardwareVersion: 3 }).blob;
+    expect([...three.slice(64, 68)]).toEqual([3, 0, 0, 0]);
+    // Nothing else in the header moves with it (uuid and clock are random and the time moves, so compare the rest).
+    expect(three.length).toBe(dflt.length);
+    expect([...three.slice(68)]).toEqual([...dflt.slice(68)]);
+  });
+
+  // @verifies SWR-HV-08
+  it('refuses a hardware version a helmet cannot have', () => {
+    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    for (const v of [0, 16, -1, 1.5]) {
+      expect(() => compileProtocol(p, { zones, hardwareVersion: v })).toThrow(/hardware version/);
+    }
   });
 
   // @verifies REQ-FWHUB-08

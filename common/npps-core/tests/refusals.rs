@@ -56,8 +56,8 @@ fn an_out_of_range_value_is_refused_not_clamped() {
 #[test]
 fn an_in_range_value_still_compiles() {
     let b = compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" })).unwrap();
-    // params follow the 14-byte command header after the 64-byte descriptor header: [0, freq mHz (LE), amp µA (LE), waveform].
-    assert_eq!(&b[64 + 14..64 + 14 + 5], &[0, 0x10, 0x27, 0xE8, 0x03]);
+    // params follow the 14-byte command header after the 68-byte descriptor header: [0, freq mHz (LE), amp µA (LE), waveform].
+    assert_eq!(&b[68 + 14..68 + 14 + 5], &[0, 0x10, 0x27, 0xE8, 0x03]);
 }
 
 // @verifies REQ-NPPS-04

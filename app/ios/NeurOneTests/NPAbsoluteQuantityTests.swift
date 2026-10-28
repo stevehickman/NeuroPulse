@@ -128,12 +128,12 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         // 250 mW/cm² at 808 nm: round(250 / 403 × 255) = 158 in the second current byte.
         let blob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .pbmTranscranial(transcranial))])).blob
-        // header(64) + cmd_hdr(14) + socket mask(16) → params [freq, duty, cur_660, cur_808]
+        // header(68) + cmd_hdr(14) + socket mask(16) → params [freq, duty, cur_660, cur_808]
         XCTAssertEqual(Array(blob.subdata(in: 94..<98)), [20, 50, 0, 158])
         // Audio: 70 dB SPL → (70 − 40) / 0.5 = 60 % volume register.
         let audioBlob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .audioEntrainment(audio))])).blob
-        XCTAssertEqual(audioBlob[64 + 14 + 5], 60)
+        XCTAssertEqual(audioBlob[68 + 14 + 5], 60)
         _ = nasal
 
         var retired = NPPBMTranscranialParams()

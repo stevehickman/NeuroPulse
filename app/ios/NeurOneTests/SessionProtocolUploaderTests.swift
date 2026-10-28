@@ -120,7 +120,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         let uploader = SessionProtocolUploader(gatt: gateway)
 
         // 20 min at 20 s on / 28 s off = 25 repeats: 25 ON commands (21 bytes) and 25 STOPs (14),
-        // plus the 64-byte header and 64-byte signature = 1003 bytes, a START + END split.
+        // plus the 68-byte header and 64-byte signature = 1007 bytes, a START + END split.
         let definition = NPProtocolDefinition(
             name: "Many commands",
             timingMode: .duration(20 * 60),
