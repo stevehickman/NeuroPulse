@@ -10,7 +10,10 @@ name: Web App CI (TypeScript + Vitest)
 # `conclusion: skipped`, which satisfies a required check. Same build surface,
 # one list instead of two kept identical by hand.
 on:
+  # Push only validates the default branch after a merge. A PR branch is covered by
+  # pull_request, so it no longer triggers two runs of the same commit.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -21,6 +24,12 @@ on:
 # GITHUB_TOKEN, so it needs no `actions:` permission.)
 permissions:
   contents: read
+
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # The relevance list that used to live in `on: … paths:`. Always runs, always

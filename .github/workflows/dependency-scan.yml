@@ -39,6 +39,12 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   gradle-locks:
     name: Gradle lock files are current

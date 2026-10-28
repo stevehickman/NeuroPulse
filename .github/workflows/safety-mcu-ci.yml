@@ -65,7 +65,10 @@ name: Safety MCU CI (STM32G071, Class C)
 # parses.  A common-only change is asserted in scope alongside crypto.
 
 on:
+  # Push only validates the default branch after a merge. A PR branch is covered by
+  # pull_request, so it no longer triggers two runs of the same commit.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -111,6 +114,12 @@ env:
   # host coverage of np_gpio_mgr.c (the only writer of the ten enable lines)
   # and of np_spi_watchdog_check()'s heartbeat-loss cutoff.
   NP_SAFETY_TEST_COUNT: '11'
+
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  Always runs, always
