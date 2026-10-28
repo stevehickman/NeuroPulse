@@ -52,6 +52,12 @@ on:
 # baseline for every future job here.
 permissions: {}
 
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # The relevance lists, one per CodeQL language. Always runs, always reports.
   changes:
