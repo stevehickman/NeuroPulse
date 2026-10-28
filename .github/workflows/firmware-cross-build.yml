@@ -163,7 +163,10 @@ name: Firmware Cross-Compile (ARM)
 # the guard that would make it self-detecting.
 
 on:
+  # Push only validates the default branch after a merge. A PR branch is covered by
+  # pull_request, so it no longer triggers two runs of the same commit.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -229,6 +232,12 @@ env:
   # 46 → 50: np_session_fitting_tests, np_session_pause_tests, np_pause_limit_tests, np_ramp_plan_tests
   #          (GitHub #569 package 3, SWR-HV-02 / SWR-SS-05).
   NP_CLASS_B_TEST_COUNT: '50'
+
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
