@@ -34,6 +34,7 @@ class IosPlatformServices(
     override val httpTransport: life.neurone.core.net.HttpTransport? = IosHttpTransport(),
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = iosAnalyticsConfig(),
     override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = IosAuthorizationLauncher(),
+    override val redirectPlatform: life.neurone.core.cloudauth.RedirectPlatform? = life.neurone.core.cloudauth.RedirectPlatform.IOS,
 ) : PlatformServices {
 
     private val foreground = IosAppForeground()
