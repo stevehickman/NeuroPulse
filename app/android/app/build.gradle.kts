@@ -109,6 +109,11 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
+        // The scheme the system browser returns a cloud sign-in to (SWR-MG-19). Each provider's registered redirect URI must begin
+        // with it, so it is set when the clients are registered: -PcloudAuthRedirectScheme=... on the build. Until then the
+        // default is a reverse-domain scheme of the application ID, which no provider has been told about.
+        manifestPlaceholders["cloudAuthRedirectScheme"] = (findProperty("cloudAuthRedirectScheme") as String?) ?: "life.neurone.app.oauth"
+
         // The analytics host and the vendor's project token, from the build and not from source (REQ-SW03-20). Either empty and
         // analytics is off on this build. Set ANALYTICS_HOST (a bare host name, e.g. analytics.example.org) and
         // POSTHOG_PROJECT_TOKEN in the environment or as Gradle properties; never commit a token.
@@ -146,6 +151,8 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":shared"))
+    // Sign-in to the cloud providers (SWR-MG-19): the browser launcher is the only part of it this module touches.
+    implementation(project(":cloudauth"))
 
     // Only what this module's own code imports. The screens are in :shared, which brings Compose; the cryptography is the
     // shared Rust core's (the SHDR token is sealed through it), so no crypto, biometric or Argon2 library is declared here.
