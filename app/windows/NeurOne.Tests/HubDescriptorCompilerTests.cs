@@ -254,12 +254,12 @@ public class HubDescriptorCompilerTests
     public void TheTargetBlockCarriesTheResolvedMask()
     {
         var blob = Build(Def(600, Pbm("808nm", 100, new PbmTarget.Named("Occipital Left")))).Blob;
-        Assert.Equal(0x01, blob[64 + 12]);   // target_kind = socket mask
-        Assert.Equal(16, blob[64 + 13]);     // target_len
+        Assert.Equal(0x01, blob[68 + 12]);   // target_kind = socket mask
+        Assert.Equal(16, blob[68 + 13]);     // target_len
         var ids = new List<int>();
         for (var i = 0; i < 16; i++)
             for (var bit = 0; bit < 8; bit++)
-                if ((blob[78 + i] & (1 << bit)) != 0) ids.Add(i * 8 + bit + 1);
+                if ((blob[82 + i] & (1 << bit)) != 0) ids.Add(i * 8 + bit + 1);
         Assert.Equal(new[] { 72, 73, 74, 77, 78 }, ids);
     }
 

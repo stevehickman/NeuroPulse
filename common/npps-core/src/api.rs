@@ -110,7 +110,8 @@ fn request_zones(req: &Value) -> Result<Option<HashMap<String, Vec<u32>>>, Strin
 ///   "wavelengthRules":{name,channels:[{element,nominalNm,minNm,maxNm}]}|null,
 ///   "autonomous":true|false (optional, default false: sets the Mode 3 header flag),
 ///   "hardwareVersion":n, "zonesByVersion":{name:{"1":[…],…}} (optional, together: the target helmet's hardware version, and
-///   the zone lists per version, used instead of "zones"; a named zone with no list for that version is refused, SWR-HV-05)}`.
+///   the zone lists per version, used instead of "zones"; a named zone with no list for that version is refused, SWR-HV-05).
+///   "hardwareVersion" is also the version the descriptor is stamped with (SWR-HV-08, 1 to 15, 1 when absent)}`.
 /// Returns the descriptor with a zeroed 64-byte signature slot, which the caller signs.
 /// The error is the compiler's refusal message.
 pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
@@ -128,6 +129,13 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
         .as_array()
         .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
         .unwrap_or_default();
+    // The version of the helmet the descriptor is for (SWR-HV-08). 1 when the request names none, the same default as the
+    // hub and the apps (SWR-HV-07, removed with it); one that is not a whole number in 1 to 15 is refused by the compiler.
+    let hardware_version = match req["hardwareVersion"].as_u64() {
+        None if req["hardwareVersion"].is_null() => 1,
+        Some(v) => u8::try_from(v).unwrap_or(0),
+        None => 0,
+    };
     let opts = CompileOptions {
         device_serial: serial.as_deref(),
         zones: zones.as_ref(),
@@ -136,6 +144,7 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
         autonomous: req["autonomous"].as_bool().unwrap_or(false),
         now_unix: req["nowUnix"].as_u64().and_then(|x| u32::try_from(x).ok()).ok_or("nowUnix is required and must fit in 32 bits")?,
         session_uuid,
+        hardware_version,
         acknowledged_cautions: &acknowledged,
     };
     compile_protocol(&req["def"], &opts).map(|c| c.blob)

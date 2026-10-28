@@ -62,8 +62,8 @@ fn the_study_parameters_survive_a_round_trip() {
 #[test]
 fn pulse_width_and_side_reach_the_wire() {
     let ok = |extra: &str| compile(&parse(&format!("        frequency: 25Hz\n        intensity: 0.8mA\n{extra}"), "")).unwrap();
-    // 64-byte header + 14-byte command header, then: side, freq mHz (LE16), amp µA (LE16), pulse width µs (LE16), ppg, eeg, hrv.
-    let params = |b: &[u8]| b[78..88].to_vec();
+    // 68-byte header + 14-byte command header, then: side, freq mHz (LE16), amp µA (LE16), pulse width µs (LE16), ppg, eeg, hrv.
+    let params = |b: &[u8]| b[82..92].to_vec();
     assert_eq!(params(&ok("")), [0, 0xA8, 0x61, 0x20, 0x03, 0, 0, 1, 1, 0], "no authored width is 0, the firmware's 250 µs");
     assert_eq!(params(&ok("        pulse_width_us: 300\n        side: right")), [1, 0xA8, 0x61, 0x20, 0x03, 0x2C, 0x01, 1, 1, 0], "300 µs does not fit a byte");
     assert_eq!(params(&ok("        pulse_width: 500\n        side: bilateral"))[5..7], [0xF4, 0x01], "the `pulse_width` spelling reads the same field");

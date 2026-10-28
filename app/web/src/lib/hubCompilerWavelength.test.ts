@@ -24,7 +24,7 @@ const zones: ReadonlyMap<string, NPZoneDefinition> = new Map(
   parseNPPSFile(fs.readFileSync(path.join(DIR, '00-zones.npps'), 'utf8')).zones.map(z => [z.name, z]),
 );
 
-const HEADER_LEN = 64;
+const HEADER_LEN = 68;
 const CMD_HDR_LEN = 14;
 const NP_MOD_PBM_BASE = 0x01;
 const NP_MOD_PBM_SMART = 0x02;

@@ -66,7 +66,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     /// Fixtures produced by running `hubCompiler.compileProtocol` on the same
     /// zone names and reading the 16-byte target block out of the emitted blob
-    /// (offset 64 + 14). If iOS and web ever disagree about a zone, one of them
+    /// (offset 68 + 14). If iOS and web ever disagree about a zone, one of them
     /// is lighting the wrong part of a skull.
     // @verifies REQ-FWHUB-08
     func testMaskBytesMatchTheWebEncoder() throws {
