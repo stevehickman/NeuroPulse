@@ -338,7 +338,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
   const C = cmd as Struct;
   const hf = (n: string) => H.fields.find((f) => f.name === n);
   const cf = (n: string) => C.fields.find((f) => f.name === n);
-  for (const n of ["magic", "version", "cmd_count", "session_duration_ms"]) {
+  for (const n of ["magic", "version", "cmd_count", "session_duration_ms", "hardware_version"]) {
     if (!hf(n)) v.push(`${TYPES}: np_proto_header_t has no field ${n}`);
   }
   for (const n of ["mod_type", "slot_id", "start_ms", "duration_ms", "params_len", "target_kind", "target_len"]) {
@@ -461,6 +461,13 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     const dur = readField(dv, 0, hf("session_duration_ms")!);
     if (magic !== fw("NP_HUB_PROTO_MAGIC")) v.push(`${at} header magic reads 0x${magic.toString(16)} at the firmware's offset`);
     if (version !== fw("NP_HUB_PROTO_VERSION")) v.push(`${at} header version reads ${version}, firmware expects ${fw("NP_HUB_PROTO_VERSION")}`);
+    // SWR-HV-08: the stamp is a helmet version (1..15; the golden protocols carry the default, 1), and the bytes
+    // after it, to the end of the header, are reserved and zero.
+    const hw = readField(dv, 0, hf("hardware_version")!);
+    if (hw !== 1) v.push(`${at} hardware_version reads ${hw} at the firmware's offset, expected 1 (the default, SWR-HV-07)`);
+    for (let i = hf("hardware_version")!.offset + 1; i < H.size; i++) {
+      if (blob[i] !== 0) v.push(`${at} reserved header byte ${i} is ${blob[i]}, expected 0`);
+    }
     if (dur !== DURATION_S * 1000) v.push(`${at} session_duration_ms reads ${dur} at the firmware's offset, expected ${DURATION_S * 1000}`);
     if (count < 1) { v.push(`${at} cmd_count reads ${count}`); continue; }
     let p = H.size;
@@ -537,7 +544,7 @@ if (process.argv.includes("--self-test")) {
     // Vacuity first: an agreeing tree must pass, or every failure proves nothing.
     ["the real tree, copied, passes", undefined, null],
     // DOC corner.
-    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 1", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
+    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 2", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
     ["doc: §4.6 byte count changed", { file: DOC, from: "| `np_mod_tdcs_params_t` | 8 |", to: "| `np_mod_tdcs_params_t` | 6 |" }, "§4.6 says 6 bytes"],
     ["doc: §4.6 row dropped", { file: DOC, from: /\n\| `0x10` \| `NP_MOD_VIBROTACTILE`[^\n]*/, to: "" }, "NP_MOD_VIBROTACTILE (16) has no"],
     ["doc: §4.6 slot changed", { file: DOC, from: "`NP_HUB_SLOT_TMS` (12)", to: "`NP_HUB_SLOT_PBM_1170NM` (13)" }, "slot_id is 12"],
@@ -549,7 +556,7 @@ if (process.argv.includes("--self-test")) {
     ["firmware: header fields reordered", { file: TYPES, from: /(uint8_t\s+flags;[^\n]*\n)(\s+uint8_t\s+cmd_count;[^\n]*\n)/, to: "$2$1" }, "cmd_count reads"],
     ["firmware: a params struct unpacked", { file: TYPES, from: /typedef struct __attribute__\(\(packed\)\) \{(\s+uint8_t  gain_reg)/, to: "typedef struct {$1" }, "is not packed"],
     // COMPILER corner, the Rust source, read statically.
-    ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 1;", to: "const VERSION: u16 = 2;" }, "VERSION = 2"],
+    ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 2;", to: "const VERSION: u16 = 3;" }, "VERSION = 3"],
     ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS: u32 = 12;", to: "const SLOT_TMS: u32 = 13;" }, "SLOT_TMS = 13"],
     ["compiler: target kinds swapped", { file: COMPILER, from: "const TARGET_SOCKET_MASK: u8 = 0x01;", to: "const TARGET_SOCKET_MASK: u8 = 0x02;" }, "TARGET_SOCKET_MASK = 2"],
   ];
@@ -559,7 +566,7 @@ if (process.argv.includes("--self-test")) {
   // output is tampered the way a miscompiling core would write it, and the decode must catch it.
   const cmdHeaderAt = (blob: Uint8Array, modType: number): number => {
     const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
-    let p = 64;
+    let p = 68;
     for (let i = 0; i < blob[7]!; i++) {
       if (blob[p] === modType && dv.getUint16(p + 10, true) > 0) return p;
       p += 14 + blob[p + 13]! + dv.getUint16(p + 10, true);
@@ -573,6 +580,12 @@ if (process.argv.includes("--self-test")) {
     ["compiler: header field at the wrong offset",
       (_l, b) => { b[4] = 0; b[5] = 1; return b; },
       "header version reads"],
+    ["compiler: hardware version stamped at the wrong offset",
+      (_l, b) => { b[64] = 0; b[65] = 1; return b; },
+      "hardware_version reads"],
+    ["compiler: a reserved header byte not zero",
+      (_l, b) => { b[67] = 9; return b; },
+      "reserved header byte 67"],
   ];
   for (const [label, tamper, needle] of tampered) await expect(label, build(), needle, tamper);
 

@@ -96,7 +96,8 @@ static void blob_begin(blob_t *b, uint16_t version)
     memcpy(b->buf + 24, &compiled_at, 4);
     const uint32_t duration = 60000UL;
     memcpy(b->buf + 60, &duration, 4);
-    b->len = 64U;
+    b->buf[64] = 1;                     /* hardware_version; 65..67 reserved, zero */
+    b->len = 68U;
 }
 
 static void blob_add_cmd(blob_t *b,
@@ -149,15 +150,50 @@ static void mask_set(uint8_t mask[NP_HUB_SOCKET_MASK_BYTES], unsigned socket)
 /* @verifies REQ-FWHUB-08 */
 static void test_wire_layout(void)
 {
-    check(sizeof(np_proto_header_t) == 64U, "layout: header is 64 bytes");
+    check(sizeof(np_proto_header_t) == 68U, "layout: header is 68 bytes");
+    check(offsetof(np_proto_header_t, hardware_version) == 64U &&
+          offsetof(np_proto_header_t, reserved) == 65U,
+          "layout: the hardware version is the byte after the session length, then three reserved");
     check(sizeof(np_proto_cmd_hdr_t) == 14U,
           "layout: v2 command header is 14 bytes (12 + target_kind + target_len)");
     check(NP_HUB_SOCKET_MASK_BYTES * 8U == 128U,
           "layout: socket bitmap covers the full 7-bit socket domain");
-    /* 1 until a descriptor has shipped (NP-FW-HUB-001 §4.5).  hubCompiler.ts
-     * PROTO_VERSION must move with this constant or every descriptor is
-     * rejected as BAD_VERSION. */
-    check(NP_HUB_PROTO_VERSION == 0x0001U, "layout: protocol version is v1");
+    /* 2: the header gained the hardware version (SWR-HV-08, NP-FW-HUB-001 §4.5).  The core's
+     * VERSION must move with this constant or every descriptor is rejected as BAD_VERSION. */
+    check(NP_HUB_PROTO_VERSION == 0x0002U, "layout: protocol version is v2");
+}
+
+/* ── The hardware version stamp (SWR-HV-08) ───────────────────────────────────── */
+
+/* @verifies SWR-HV-08 */
+/* @verifies REQ-FWHUB-61 */
+static void test_hardware_version_stamp(void)
+{
+    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
+    for (uint8_t v = 1U; v <= 15U; v += 14U) {      /* both ends of the range */
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        b.buf[64] = v;
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "hwver: parses");
+        check(desc.hardware_version == v, "hwver: the stamp reaches the descriptor");
+    }
+    /* A stamp no helmet can have, or a reserved byte that is not zero, is a malformed descriptor. */
+    const uint8_t bad[][2] = { { 64, 0 }, { 64, 16 }, { 64, 255 }, { 65, 1 }, { 66, 1 }, { 67, 0x80 } };
+    for (size_t i = 0U; i < sizeof bad / sizeof bad[0]; i++) {
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        b.buf[bad[i][0]] = bad[i][1];
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_INVALID_ARG,
+              "hwver: an impossible stamp or a non-zero reserved byte is refused");
+    }
 }
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */
@@ -506,11 +542,11 @@ static void test_expected_len_accounts_for_target(void)
 
     const np_proto_header_t *hdr = (const np_proto_header_t *)b.buf;
     size_t expected = np_protocol_compute_expected_len(
-        hdr, b.buf + 64, len - 64U - NP_HUB_PROTO_SIG_LEN);
+        hdr, b.buf + 68, len - 68U - NP_HUB_PROTO_SIG_LEN);
 
     check(expected == len,
           "expected-len: counts header + target + params + signature");
-    check(expected == 64U + 14U + NP_HUB_SOCKET_MASK_BYTES + 4U + NP_HUB_PROTO_SIG_LEN,
+    check(expected == 68U + 14U + NP_HUB_SOCKET_MASK_BYTES + 4U + NP_HUB_PROTO_SIG_LEN,
           "expected-len: matches the hand-computed v2 layout");
 }
 
@@ -521,7 +557,7 @@ static void test_rejects_other_versions(void)
 {
     /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now
      * folded into v1.  Any of them is refused, not reinterpreted. */
-    static const uint16_t VERSIONS[] = { 0x0000U, 0x0002U, 0x0003U };
+    static const uint16_t VERSIONS[] = { 0x0000U, 0x0001U, 0x0003U };
     for (size_t i = 0; i < sizeof VERSIONS / sizeof VERSIONS[0]; i++) {
         blob_t b;
         blob_begin(&b, VERSIONS[i]);
@@ -531,7 +567,7 @@ static void test_rejects_other_versions(void)
 
         np_session_desc_t desc;
         check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_BAD_VERSION,
-              "reject: a blob of any version but v1 is refused");
+              "reject: a blob of any version but v2 is refused (v1 has the 64-byte header)");
     }
 }
 
@@ -894,6 +930,7 @@ static void test_tier_admit_matrix(void)
 int main(void)
 {
     test_wire_layout();
+    test_hardware_version_stamp();
 
     test_slot_target_roundtrip();
     test_slot_command_has_no_sockets();
