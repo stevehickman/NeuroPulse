@@ -77,9 +77,13 @@ internal class FakeS3(
     }
 }
 
-/** A signer that signs nothing: it records what it was asked and returns the headers a real one returns, with a marker signature. */
+/**
+ * A signer that signs nothing: it records what it was asked and returns the headers a real one returns, with a marker signature.
+ * **Its log is synchronized**: the contract's "many simultaneous creates" calls the store from 24 threads, and the store signs before it reaches the
+ * (already synchronized) server stand-in, so an ordinary list here is appended to concurrently (an `ArrayIndexOutOfBoundsException` in CI).
+ */
 internal class RecordingSigner : AwsSigV4 {
-    val asked = mutableListOf<AwsSigningRequest>()
+    val asked: MutableList<AwsSigningRequest> = java.util.Collections.synchronizedList(mutableListOf())
     override fun sign(request: AwsSigningRequest): Map<String, String> {
         asked += request
         val names = (request.headers.keys.map { it.lowercase() } + listOf("host", "x-amz-content-sha256", "x-amz-date") +
