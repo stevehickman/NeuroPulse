@@ -5,8 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.net.ConnectException
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -17,6 +17,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private fun freePort(): Int = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+
+/** True if nothing is listening on the port: a connection to it is refused. Used to show a listener was closed, without binding the port again (a bind can lose a race to another process). */
+private fun isClosed(port: Int): Boolean = try { Socket("127.0.0.1", port).close(); false } catch (e: ConnectException) { true }
 
 /** One raw HTTP exchange with the listener; the whole reply text, or "" if the connection was closed unanswered. */
 private fun exchange(port: Int, request: String): String = Socket("127.0.0.1", port).use { s ->
@@ -121,16 +124,19 @@ class LoopbackAuthorizationLauncherTests {
     // @verifies SWR-MG-19#h
     @Test
     fun aPortInUseFailsBeforeAnythingOpensAndABrowserThatWillNotOpenFailsAndFreesThePort() = runBlocking {
-        val port = freePort()
         val opened = mutableListOf<String>()
-        ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).use {
-            val e = assertFailsWith<CloudAuthException> { LoopbackAuthorizationLauncher { opened += it }.authorize("https://x", "http://127.0.0.1:$port") }
+        // The busy port is one this test holds open, so it is busy by construction and not by a guess that a port just released stays free.
+        val held = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
+        val busy = held.localPort
+        held.use {
+            val e = assertFailsWith<CloudAuthException> { LoopbackAuthorizationLauncher { opened += it }.authorize("https://x", "http://127.0.0.1:$busy") }
             assertEquals(CloudAuthProblem.PROVIDER, e.problem)
             assertTrue(opened.isEmpty(), "the page is not opened when nothing could take the answer")
         }
+        val port = freePort()
         val broken = LoopbackAuthorizationLauncher { throw IllegalStateException("no browser") }
         assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { broken.authorize("https://x", "http://127.0.0.1:$port") }.problem)
-        ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).close() // the port was released
+        assertTrue(isClosed(port), "the listener was closed")
     }
 
     // @verifies SWR-MG-19#h
@@ -144,6 +150,6 @@ class LoopbackAuthorizationLauncherTests {
         for (i in 0 until 200) { if (up) break; Thread.sleep(10) }
         assertTrue(up)
         wait.cancelAndJoin()
-        withContext(Dispatchers.IO) { ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).close() }
+        assertTrue(isClosed(port), "the listener was closed")
     }
 }
