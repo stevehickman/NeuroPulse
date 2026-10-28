@@ -19,7 +19,7 @@ plugins {
 // (.github/workflows/dependency-scan.yml) and the thing a changed transitive version shows up in review against.
 // LENIENT: a library missing from a lock file does not fail a build, so a new dependency is never blocked by a stale
 // lock; the scan job fails on drift instead. Regenerate (delete the old files first):
-//   gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks
+//   gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :cloudauth:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks
 allprojects {
     dependencyLocking {
         lockAllConfigurations()

@@ -131,7 +131,7 @@ private class Rig(
 }
 
 class CloudAuthTests {
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun base64urlMatchesTheRfc4648VectorsAndUsesTheUrlAlphabetWithoutPadding() {
         listOf("" to "", "f" to "Zg", "fo" to "Zm8", "foo" to "Zm9v", "foob" to "Zm9vYg", "fooba" to "Zm9vYmE", "foobar" to "Zm9vYmFy").forEach { (i, o) ->
@@ -140,7 +140,7 @@ class CloudAuthTests {
         assertEquals("-_8", Base64Url.encode(byteArrayOf(0xFB.toByte(), 0xFF.toByte())), "'+' and '/' become '-' and '_'")
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun pkceChallengeMatchesTheRfc7636AppendixBVectorThroughTheRustCore() {
         val verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -150,7 +150,7 @@ class CloudAuthTests {
         assertTrue(made.verifier.all { it.isLetterOrDigit() || it == '-' || it == '_' })
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun aGoogleSignInSendsPkceAndTheDriveScopeRedeemsTheCodeAndKeepsTheRefreshToken() = runBlocking {
         val rig = Rig()
@@ -168,7 +168,7 @@ class CloudAuthTests {
         assertFalse("openid" in q["scope"]!! || "email" in q["scope"]!!, "the person's identity is not requested")
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun aDesktopGoogleClientSendsItsSecretAndAMicrosoftSignInAsksForARefreshTokenInThePersonalTenant() = runBlocking {
         val withSecret = Rig(CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT, clientSecret = "s3cret")))
@@ -188,7 +188,7 @@ class CloudAuthTests {
         assertEquals("https://storage.azure.com/user_impersonation offline_access", CloudAuth.queryParams(az.browser.urls.single(), true)["scope"])
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#b
     @Test
     fun theAccessTokenIsCachedUntilItIsNearExpiryThenRefreshedAndMicrosoftsRotatedRefreshTokenReplacesTheOld() = runBlocking {
         val rig = Rig(); rig.providers.rotateRefresh = true
@@ -205,7 +205,7 @@ class CloudAuthTests {
         assertEquals("Files.ReadWrite.AppFolder offline_access", rig.providers.form(rig.providers.seen.last())["scope"])
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#b
     @Test
     fun manySimultaneousCallsMakeOneRefresh() = runBlocking {
         val rig = Rig()
@@ -217,7 +217,7 @@ class CloudAuthTests {
         assertEquals(1, rig.providers.seen.count { rig.providers.form(it)["grant_type"] == "refresh_token" })
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#b
     @Test
     fun aRefreshTheProviderRefusesMarksTheAccountAndAsksForSignInWithStatus401ButNoAnswerDoesNot() = runBlocking {
         val rig = Rig()
@@ -246,7 +246,7 @@ class CloudAuthTests {
         assertEquals("access-2", rig.auth.accessToken(a.id).bearer())
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun aRefusedWrongStateOrForeignRedirectOrClosedBrowserFailsWithAReasonAndStoresNothing() = runBlocking {
         val rig = Rig()
@@ -261,7 +261,7 @@ class CloudAuthTests {
         assertTrue(rig.auth.accounts().isEmpty()); assertTrue(rig.providers.seen.isEmpty(), "nothing was redeemed")
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#d
     @Test
     fun aProviderWithNoClientConfiguredRefusesBeforeAnythingIsSentAndNamesIt() = runBlocking {
         val rig = Rig(CloudAuthConfig())
@@ -272,7 +272,7 @@ class CloudAuthTests {
         assertTrue(rig.browser.urls.isEmpty() && rig.providers.seen.isEmpty())
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#e
     @Test
     fun cloudKitSignInOpensAppleSignInPageKeepsThePlusSignedTokenAndTheSinkReplacesIt() = runBlocking {
         val rig = Rig()
@@ -297,7 +297,7 @@ class CloudAuthTests {
         assertTrue(assertFailsWith<CloudAuthException> { rig.auth.cloudKitCredentials(a.id).tokens() }.status == 401)
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#e
     @Test
     fun awsKeysAreCheckedStoredAndHandedBackAndTemporaryOnesExpire() = runBlocking {
         val rig = Rig()
@@ -315,7 +315,7 @@ class CloudAuthTests {
         assertTrue(rig.providers.seen.isEmpty(), "nothing is sent to AWS to add a key")
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#e
     @Test
     fun signOutDeletesTheCredentialAndRevokesWhereTheProviderCanAndSaysWhenItCannot() = runBlocking {
         val rig = Rig()
@@ -335,7 +335,7 @@ class CloudAuthTests {
         assertEquals(Revocation.NOT_AVAILABLE, rig.auth.signOut(rig.auth.addAwsKeys("AKID", "s").id))
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#c
     @Test
     fun anUnreadableStoreIsNeverOverwrittenAndSeveralAccountsKeepTheirOwnCredentials() = runBlocking {
         val rig = Rig()
@@ -348,7 +348,7 @@ class CloudAuthTests {
         assertEquals("{not json", rig.kv.getString(CredentialStore.KEY), "left as it was")
     }
 
-    // @verifies SWR-MG-16
+    // @verifies SWR-MG-19#c
     @Test
     fun theCredentialsAreOneValueSealedAtRestAndNoTokenIsReadableInTheHostsRawStore() = runBlocking {
         val raw = InMemoryKeyValueStore()
@@ -361,7 +361,7 @@ class CloudAuthTests {
         assertEquals("access-1", auth.accessToken(a.id).bearer())
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#b
     @Test
     fun needsSignInReadsTheAuthProblemAndTheStatusesAdaptersReport() {
         assertTrue(CloudAuth.needsSignIn(CloudStoreException("x", 401)))
@@ -372,7 +372,7 @@ class CloudAuthTests {
         assertNull(CloudAuthException(CloudAuthProblem.NETWORK, "x").status)
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-19#a
     @Test
     fun theRedirectParserReadsAQueryOrAFragmentAndKeepsOrDropsPlusAsAskedForCredential() {
         assertEquals(mapOf("code" to "4/P7q", "state" to "a b"), CloudAuth.queryParams("http://127.0.0.1:9004/?code=4%2FP7q&state=a+b", true))

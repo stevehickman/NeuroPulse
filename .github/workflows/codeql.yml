@@ -96,6 +96,7 @@ jobs:
         common/core/**
         # The cloud storage adapters (issue #566): :core depends on this module, so the Kotlin build analyses it.
         common/cloudstore/**
+        common/cloudauth/**
         .github/workflows/codeql.yml
         scripts/ci-changed-scope.sh
       NP_SCOPE_JS: |
@@ -174,6 +175,7 @@ jobs:
           assert scope.swift.paths   false firmware/safety_mcu/src/np_safety_main.c
           assert scope.java.paths    true  app/android/app/build.gradle.kts
           assert scope.java.paths    true  common/cloudstore/src/commonMain/kotlin/life/neurone/core/cloud/CloudStore.kt
+          assert scope.java.paths    true  common/cloudauth/src/commonMain/kotlin/life/neurone/core/cloudauth/CloudAuth.kt
           assert scope.java.paths    false locales/en.json
           assert scope.js.paths      true  app/web/src/main.ts
           assert scope.js.paths      true  npps/grammar/npps-parser.mjs

@@ -21,6 +21,7 @@ on:
       - 'common/core/**'
       # The cloud storage adapters (issue #566) compile for iOS as a dependency of :core.
       - 'common/cloudstore/**'
+      - 'common/cloudauth/**'
       - 'app/NeurOneShared/TestData/**'
       - 'common/Cargo.toml'
       - 'common/Cargo.lock'
@@ -38,6 +39,7 @@ on:
       - 'common/core/**'
       # The cloud storage adapters (issue #566) compile for iOS as a dependency of :core.
       - 'common/cloudstore/**'
+      - 'common/cloudauth/**'
       - 'app/NeurOneShared/TestData/**'
       - 'common/Cargo.toml'
       - 'common/Cargo.lock'

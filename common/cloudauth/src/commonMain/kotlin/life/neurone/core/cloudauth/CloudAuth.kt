@@ -47,8 +47,10 @@ class CloudAuth(
     private val random: RandomSource = SystemRandomSource,
     private val sha256: (ByteArray) -> ByteArray = Digests::sha256,
     private val now: () -> Long = ::epochSeconds,
+    // PROVISIONAL (UC-113): no measurement of how long a token endpoint takes on a slow network.
     private val timeoutSeconds: Int = 30,
     /** An access token this close to expiry is refreshed first, so it does not expire in flight. No figure is derived (`UC-112`). */
+    // PROVISIONAL (UC-112): no measurement of clock error or of how long a request holds a token.
     private val expirySkewSeconds: Long = 60,
 ) {
     private val lock = Mutex()
