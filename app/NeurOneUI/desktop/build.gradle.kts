@@ -14,6 +14,8 @@ plugins {
 
 dependencies {
     implementation(project(":shared"))
+    // Sign-in to the cloud providers (SWR-MG-19): the browser and the loopback listener that takes the answer.
+    implementation(project(":cloudauth"))
     implementation(compose.desktop.currentOs)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
     testImplementation(kotlin("test"))
