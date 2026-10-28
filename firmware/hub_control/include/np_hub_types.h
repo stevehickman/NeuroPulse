@@ -127,11 +127,13 @@ typedef struct __attribute__((packed)) {
     uint32_t compiled_at_unix;                   /* UHDR session timestamp          */
     uint8_t  device_serial[NP_GATT_DEVICE_SERIAL_LEN]; /* replay guard               */
     uint32_t session_duration_ms;                /* total session length            */
+    uint8_t  hardware_version;                   /* helmet layout it was compiled for, 1..15 (SWR-HV-08) */
+    uint8_t  reserved[3];                        /* zero; refused if not            */
 } np_proto_header_t;
 
-/* compile-time check: header is exactly 64 bytes
- * Layout: 4+2+1+1+16+4+32+4 = 64 bytes (packed, no reserved padding). */
-typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 64U) ? 1 : -1];
+/* compile-time check: header is exactly 68 bytes
+ * Layout: 4+2+1+1+16+4+32+4+1+3 = 68 bytes (packed). */
+typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 68U) ? 1 : -1];
 
 /* ── Command target kind ─────────────────────────────────────────────────────
  * How to read a command's target block. Values are wire constants: frozen once
@@ -220,6 +222,7 @@ typedef struct {
     uint32_t          duration_ms;
     uint8_t           flags;
     uint8_t           cmd_count;
+    uint8_t           hardware_version; /* from the signed header; compared with the helmet's at load (SWR-HV-08) */
     np_session_cmd_t  cmds[NP_HUB_PROTO_CMD_MAX];
 } np_session_desc_t;
 

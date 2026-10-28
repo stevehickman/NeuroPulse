@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 24
-**Date:** 2026-10-12
+**Revision:** 25
+**Date:** 2026-10-28
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -17,6 +17,8 @@
 
 ---
 
+> **Rev 25 (2026-10-28) — the descriptor header carries the hardware version (`SWR-HV-08`, `OI-UI-KMP-10` H4 (v), issue #569).** `np_proto_header_t` is 68 bytes, not 64: after `session_duration_ms` it has `hardware_version` (one byte, 1 to 15) and three reserved bytes that are zero, all inside the signed region. `NP_HUB_PROTO_VERSION` is 2 (§4.5). The principal chose an explicit field and a version bump (2026-10-28). `np_protocol_verify_and_parse` refuses a stamp outside 1 to 15 or a non-zero reserved byte (`REQ-FWHUB-61`, the writer's inference, see below) and keeps the stamp in `np_session_desc_t`. **The load step does not yet compare it with the helmet's version**: that refusal is the second pull request of `SWR-HV-08` and is not built. The core (`common/npps-core`) writes the stamp from the request's `hardwareVersion`, 1 when absent (`SWR-HV-07`), and refuses a value outside 1 to 15.
+>
 > **Rev 24 (2026-10-13) — `REQ-FWHUB-60`: the hub refuses a zero session duration (`SWR-SS-01`).** `np_protocol_verify_and_parse` now returns `NP_HUB_ERR_INVALID_ARG` for `session_duration_ms == 0`, because the session runner treats 0 as no limit and a session cannot be infinite. Any finite non-zero value is accepted.
 >
 > **Rev 23 (2026-10-12) — ten requirement rows for behaviour the host tests already pin (§10.1, `REQ-FWHUB-50…59`).**
@@ -700,14 +702,25 @@ Each command in the body is:
 ```
 
 Constants (`np_hub_config.h`): magic `NP_HUB_PROTO_MAGIC` = `0x4E504850` (`"NPHP"`); version
-`NP_HUB_PROTO_VERSION` = 1; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
+`NP_HUB_PROTO_VERSION` = 2; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
 `NP_HUB_PROTO_CMD_MAX` = 64 commands; at most `NP_HUB_PROTO_PARAMS_MAX` = 64 params bytes per
 command; target block at most `NP_HUB_PROTO_TARGET_MAX` = 16 B.
 
 ### 4.2 Header
 
 The header carries the magic, the version, the 16-byte session UUID (which is the UHDR key for this
-session's records), the 32-byte device serial, `compiled_at_unix`, and `cmd_count`.
+session's records), the 32-byte device serial, `compiled_at_unix`, and `cmd_count`. It is 68 bytes: the
+last four are `hardware_version` (offset 64, one byte, 1 to 15) and three reserved bytes (offsets 65 to 67)
+that are zero.
+
+**The hardware version is the layout the descriptor was compiled for** (`SWR-HV-08`). The compiler stamps
+the version of the helmet the protocol is authored for, and the stamp is in the signed region, so an edit
+after signing fails the signature check. A socket address names a place only on a given layout, which is why
+the stamp exists. The hub reads it at parse and keeps it in the session descriptor; comparing it with the
+helmet's own version, taken from the safety MCU (`np_safety_spi_get_hardware_version()`), is the load
+step's, beside the tier check, and **is not built yet**. A stamp outside 1 to 15 (a nibble of the tier byte,
+`UC-080`) or a non-zero reserved byte is a malformed descriptor and is refused with `NP_HUB_ERR_INVALID_ARG`
+(`REQ-FWHUB-61`).
 
 **The serial is a replay guard, not an identifier.** A descriptor signed for one device is refused
 by every other (`NP_HUB_ERR_WRONG_DEVICE`). Without it, a validly-signed protocol captured from one
@@ -783,14 +796,16 @@ parser does not partially populate.
 
 ### 4.5 Versioning
 
-**One version, until a descriptor ships** (*Rev 13*). No session has been created on any device,
-so there is no older blob for the hub to tell apart from the current one. The two reshapes below
-were numbered v2 and v3 while in development, and both are now **part of v1**. A hub that sees 2
-or 3 refuses the blob as `NP_HUB_ERR_BAD_VERSION`, the same as any other value.
+**Two versions, neither shipped** (*Rev 13*, *Rev 25*). No session has been created on any device. The two
+reshapes in the v1 row were numbered v2 and v3 while in development and are **part of v1**. Version 2 is
+the header change for the hardware version (*Rev 25*): the principal chose a new explicit field and a bump
+over reusing header bytes, so a v1 blob is refused as `NP_HUB_ERR_BAD_VERSION` like any other value. A hub
+that sees 3 refuses it too.
 
 | Version | Content |
 |---|---|
-| **1** | `slot_id` + variable target block with socket-mask targeting (was pre-release v2: 80 sockets do not fit in five bits, and are not slots); `np_mod_tdcs_params_t` with `electrode_area_mcm2`, 8 B (was pre-release v3, `OI-CHARGE-04`). The original `slot_mask` byte addressing never shipped and has no number |
+| 1 | `slot_id` + variable target block with socket-mask targeting (was pre-release v2: 80 sockets do not fit in five bits, and are not slots); `np_mod_tdcs_params_t` with `electrode_area_mcm2`, 8 B (was pre-release v3, `OI-CHARGE-04`). The original `slot_mask` byte addressing never shipped and has no number |
+| **2** | The header gains `hardware_version` (one byte) and three reserved zero bytes after `session_duration_ms`: 64 → 68 bytes (`SWR-HV-08`). Nothing else in the layout changes. A v1 blob is refused as `NP_HUB_ERR_BAD_VERSION`. |
 
 `REQ-FWHUB-10`: **from the first shipped descriptor on, any change to a per-modality parameter
 struct's length bumps `NP_HUB_PROTO_VERSION`.** Before that, a length change keeps the version at 1,
@@ -1932,6 +1947,7 @@ this line.
 | `REQ-FWHUB-57` | **(Rev 23)** A module is inventoried on first sight and not again while its UID stays. Every failure (a bad CRC, a read fault, a swap between the header read and the block read, a count mismatch, an unknown type, a malformed header) leaves the socket empty, including one that held a module. The module map resolves addresses, zones and groups from that inventory, fails closed on an invalid group kind or an overflow, and ties a calibration to the module's UID, so it follows the module and is cleared when the occupant changes. *Fails without it:* a command reaches a module that is not the one inventoried, or a calibration is applied to another module. *Traced to:* `NP-HEX-ZM-001` §4.1; `REQ-FWHUB-31`; `REQ-LFS-02`. |
 | `REQ-FWHUB-58` | **(Rev 23)** The log backend writes UHDR and SHDR as independent streams, one UHDR file per session named by the session count, created exclusively and capped per file. A write failure latches a fault and stops further records, a full partition returns `NP_HUB_ERR_LOG_FULL`, and an EEG block lands in time order after the UHDR records logged before it. *Fails without it:* a session's records mix with another's, or a torn write is followed by records that look valid. *Traced to:* `CLAUDE.md` §4.1, §5; `NP-FW-EMMC-001` §12; `REQ-FWHUB-44`. |
 | `REQ-FWHUB-60` | **(Rev 24)** The hub refuses a protocol descriptor whose `session_duration_ms` is 0, and accepts any finite non-zero value, however long. *Fails without it:* a descriptor with no length runs with no limit, because the runner reads 0 as unlimited. *Traced to:* `SWR-SS-01` (`NP-SW-001`); `REQ-NPPS-22`. |
+| `REQ-FWHUB-61` | **(Rev 25)** The hub reads the hardware version stamp from the descriptor header into the session descriptor, and refuses, as a malformed descriptor (`NP_HUB_ERR_INVALID_ARG`), one whose stamp is 0 or above 15 or whose three reserved bytes are not zero. *Fails without it:* a stamp that no helmet can have is carried to the load step as if it were a layout, and a reserved byte that is not zero cannot later be given a meaning without the older hubs having ignored it. *Traced to:* `SWR-HV-08` (`NP-SW-001`); the range is the nibble of `REQ-UPG-02`. The reserved-byte rule is the writer's inference (`OI-UI-KMP-10`). |
 | `REQ-FWHUB-59` | **(Rev 23)** A module driver drops its enable request on stop, on the terminal stage and on a fault, and logs a fault with its kind. A command to a module that is not initialised or a slot the driver does not own is refused. A latched channel is released only by an explicit clear. *Fails without it:* a stopped or faulted module keeps requesting its enable. *Traced to:* `CLAUDE.md` §4.2; `REQ-FWHUB-17`; `REQ-FWHUB-47`. |
 | `REQ-FWHUB-28` | **(Rev 7)** The wire format has a mechanical agreement check against `hubCompiler.ts`, falsified in both directions per `NP-CONV-001` §8. *Fails without it:* the two implementations agree only by inspection, and a length or offset drift surfaces on a device as `INVALID_ARG` | §4.6; `scripts/check-hub-wire-format.ts` (15 perturbation fixtures) |
 
