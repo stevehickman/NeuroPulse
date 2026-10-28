@@ -16,7 +16,24 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private fun freePort(): Int = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+/**
+ * A port that was free a moment ago, below the range the system hands out as the source port of its own connections (32768 and up on Linux,
+ * 49152 and up on macOS and Windows). An ephemeral port can be taken by one of the test's own client sockets between the check and the bind,
+ * and a connection to a closed ephemeral port can connect to itself (a TCP self-connect), which reads as "still listening".
+ */
+private fun freePort(): Int {
+    val random = java.util.Random()
+    repeat(200) {
+        val port = 20_000 + random.nextInt(10_000)
+        try {
+            ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).close()
+            return port
+        } catch (e: java.io.IOException) {
+            // in use: try another
+        }
+    }
+    error("no free port in 20000..29999")
+}
 
 /** True if nothing is listening on the port: a connection to it is refused. Used to show a listener was closed, without binding the port again (a bind can lose a race to another process). */
 private fun isClosed(port: Int): Boolean = try { Socket("127.0.0.1", port).close(); false } catch (e: ConnectException) { true }

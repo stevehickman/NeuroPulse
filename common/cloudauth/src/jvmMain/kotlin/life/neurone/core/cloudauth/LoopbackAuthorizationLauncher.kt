@@ -3,10 +3,13 @@ package life.neurone.core.cloudauth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.InetAddress
@@ -49,16 +52,22 @@ class LoopbackAuthorizationLauncher(
         val answer = CompletableDeferred<String>()
         val connections = Collections.synchronizedSet(mutableSetOf<Socket>())
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        var acceptLoop: Job? = null
         try {
-            scope.launch {
+            acceptLoop = scope.launch {
                 while (true) {
                     val socket = try {
                         server.accept()
                     } catch (e: IOException) {
                         return@launch // closed: the sign-in is over
                     }
+                    if (server.isClosed) {
+                        try { socket.close() } catch (_: IOException) {}
+                        return@launch
+                    }
                     connections += socket
-                    launch { serve(socket, redirect, answer) }
+                    // On the outer scope, not as a child of this loop: waiting for the loop to end must not wait on a connection's read.
+                    scope.launch { serve(socket, redirect, answer) }
                 }
             }
             try {
@@ -71,6 +80,10 @@ class LoopbackAuthorizationLauncher(
             scope.cancel(CancellationException("sign-in over"))
             try { server.close() } catch (_: IOException) {}
             synchronized(connections) { connections.forEach { try { it.close() } catch (_: IOException) {} } }
+            // Closing a listener that another thread is blocked in accept() on returns before that thread has woken, and until it does the
+            // socket still takes connections. Returning only once the loop has ended means the port is free when this returns (a sign-in
+            // started again at once can bind it) and nothing is accepted after a cancel. NonCancellable: this runs when the wait was cancelled.
+            withContext(NonCancellable) { acceptLoop?.join() }
         }
     }
 
