@@ -13,6 +13,7 @@ import life.neurone.core.cloudauth.CloudService
 import life.neurone.core.cloudauth.CredentialStore
 import life.neurone.core.cloudauth.MicrosoftClientConfig
 import life.neurone.core.cloudauth.OAuthClientConfig
+import life.neurone.core.cloudauth.TargetField
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
@@ -25,6 +26,7 @@ import life.neurone.core.net.HttpTransport
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral
 import life.neurone.shared.cloud.BACKUP_CLOUD_ACCOUNT_KEY
+import life.neurone.shared.cloud.BACKUP_CLOUD_TARGET_KEY
 import life.neurone.shared.cloud.CloudBackupModel
 import life.neurone.shared.migration.BackupKind
 import life.neurone.shared.migration.BackupStep
@@ -73,20 +75,24 @@ class CloudBackupTest {
         CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
 
     // @verifies SWR-MG-21#a
-    @Test fun only_signed_in_accounts_that_need_nothing_more_are_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
+    @Test fun every_signed_in_account_is_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
         val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
         val drive = a.signIn(CloudService.GOOGLE_DRIVE)
-        a.signIn(CloudService.GOOGLE_CLOUD_STORAGE) // needs a bucket: not offered
-        a.addAwsKeys("AKIAEXAMPLE", "secret")        // needs a bucket and a region: not offered
+        val gcs = a.signIn(CloudService.GOOGLE_CLOUD_STORAGE)
+        val s3 = a.addAwsKeys("AKIAEXAMPLE", "secret")
         val m = CloudBackupModel(a, f.transport, kv)
         m.refresh()
-        assertEquals(listOf(drive.id), m.destinations.value.map { it.accountId })
+        assertEquals(setOf(drive.id, gcs.id, s3.id), m.destinations.value.map { it.accountId }.toSet())
+        assertEquals(emptyList(), m.destinations.value.first { it.accountId == drive.id }.fields, "Drive needs nothing more")
+        assertEquals(listOf(TargetField.GCS_BUCKET), m.destinations.value.first { it.accountId == gcs.id }.fields)
+        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION), m.destinations.value.first { it.accountId == s3.id }.fields)
         assertNull(m.place.value, "this device until a choice is made")
 
-        m.choose(drive.id)
+        assertTrue(m.choose(drive.id))
         val place = assertNotNull(m.place.value)
         assertEquals("Google Drive", place.label)
         assertEquals(drive.id, kv.getString(BACKUP_CLOUD_ACCOUNT_KEY))
+        assertNull(kv.getString(BACKUP_CLOUD_TARGET_KEY), "Drive keeps no target")
         place.store.list("")
         assertEquals("Bearer access-token-1", f.api.last().headers["Authorization"], "the place is a Drive store with the account's token")
 
@@ -95,6 +101,40 @@ class CloudBackupTest {
         assertNull(later.place.value)
         later.refresh()
         assertEquals("Google Drive", later.place.value?.label)
+    }
+
+    // @verifies SWR-MG-22#c
+    @Test fun a_bucket_service_is_chosen_only_with_a_valid_name_which_is_remembered_with_the_choice() = runTest {
+        val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
+        val gcs = a.signIn(CloudService.GOOGLE_CLOUD_STORAGE)
+        val m = CloudBackupModel(a, f.transport, kv)
+        m.refresh()
+
+        assertFalse(m.choose(gcs.id), "no bucket named")
+        assertFalse(m.choose(gcs.id, mapOf(TargetField.GCS_BUCKET to "Bad Bucket/..")), "not a plain name")
+        assertNull(m.selected.value); assertNull(kv.getString(BACKUP_CLOUD_ACCOUNT_KEY)); assertNull(m.place.value)
+
+        assertTrue(m.choose(gcs.id, mapOf(TargetField.GCS_BUCKET to "neurone-backups")))
+        assertEquals("Google Cloud Storage", assertNotNull(m.place.value).label)
+        m.place.value!!.store.list("")
+        assertTrue("neurone-backups" in f.api.last().url, f.api.last().url)
+
+        val later = CloudBackupModel(a, f.transport, kv)
+        later.refresh()
+        assertEquals("neurone-backups", later.target.value?.values?.get(TargetField.GCS_BUCKET), "the name came back with the choice")
+        assertNotNull(later.place.value)
+
+        // A choice whose name is lost or unreadable does not stand: this device again, not a store at a guessed place.
+        kv.putString(BACKUP_CLOUD_TARGET_KEY, "not json")
+        val broken = CloudBackupModel(a, f.transport, kv)
+        broken.refresh()
+        assertNull(broken.selected.value); assertNull(broken.place.value); assertNull(kv.getString(BACKUP_CLOUD_ACCOUNT_KEY))
+
+        val s3 = a.addAwsKeys("AKIAEXAMPLE", "secret")
+        assertTrue(m.choose(s3.id, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "eu-west-2")))
+        assertEquals("Amazon S3", m.place.value?.label)
+        assertFalse(m.place.value!!.route.atomicClaim, "no cloud route carries a migration")
+        assertFalse(m.place.value!!.carriesRecordings)
     }
 
     // @verifies SWR-MG-21#c

@@ -8,6 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** A service's API: answers every call with an empty listing, and keeps what it was sent. */
@@ -28,8 +29,7 @@ class CloudStoresTests {
     // @verifies SWR-MG-21#c
     @Test
     fun everyCloudRouteDeclaresNoExclusiveCreateSoTheCoreCarriesABackupAndNeverAMigration() {
-        for (s in listOf(CloudService.GOOGLE_DRIVE, CloudService.ONEDRIVE, CloudService.ICLOUD_CLOUDKIT)) {
-            assertTrue(CloudStores.canKeepBackups(s))
+        for (s in CloudService.entries) {
             val route = CloudStores.routeFor(s)
             assertFalse(route.atomicClaim, "$s")
             assertFalse(route.direct)
@@ -38,16 +38,66 @@ class CloudStoresTests {
         assertEquals("cloud-icloud-cloudkit", CloudStores.routeFor(CloudService.ICLOUD_CLOUDKIT).id)
     }
 
-    // @verifies SWR-MG-21#a
+    // @verifies SWR-MG-22#a
     @Test
-    fun onlyTheServicesThatNeedNothingBeyondTheSignInCanKeepABackup() = runBlocking {
-        for (s in listOf(CloudService.GOOGLE_CLOUD_STORAGE, CloudService.AZURE_BLOB, CloudService.AWS_S3)) {
-            assertFalse(CloudStores.canKeepBackups(s), "$s needs a bucket or container")
-            assertFailsWith<IllegalArgumentException> { CloudStores.routeFor(s) }
+    fun aTargetIsOnlyAPlainNameForEveryFieldTheServiceAsksFor() {
+        val s3 = CloudService.AWS_S3
+        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION), CloudStores.targetFields(s3))
+        assertEquals(listOf(TargetField.GCS_BUCKET), CloudStores.targetFields(CloudService.GOOGLE_CLOUD_STORAGE))
+        assertEquals(listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER), CloudStores.targetFields(CloudService.AZURE_BLOB))
+        assertTrue(CloudStores.targetFields(CloudService.GOOGLE_DRIVE).isEmpty())
+
+        val ok = CloudStores.target(s3, mapOf(TargetField.BUCKET to " my-backups.2026 ", TargetField.REGION to "eu-west-2"))!!
+        assertEquals("my-backups.2026", ok.values[TargetField.BUCKET], "surrounding spaces are not part of the name")
+        assertNull(CloudStores.target(s3, mapOf(TargetField.BUCKET to "my-backups")), "a missing field")
+        for (bad in listOf("", "ab", "My-Bucket", "a/b", "bucket?x=1", "bucket@evil.example", "a b", "-lead", "trail-", "buc\nket", "x".repeat(64), "my_bucket")) {
+            assertNull(CloudStores.target(s3, mapOf(TargetField.BUCKET to bad, TargetField.REGION to "us-east-1")), "bucket '$bad'")
         }
+        for (bad in listOf("", "us", "US-EAST-1", "us-east-1.evil.example", "us east", "us-east-1/x")) {
+            assertNull(CloudStores.target(s3, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to bad)), "region '$bad'")
+        }
+        assertNull(CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "x".repeat(223))))
+        assertTrue(CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "x".repeat(222))) != null)
+        val azure = CloudService.AZURE_BLOB
+        assertNull(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "my-account", TargetField.CONTAINER to "backups")), "no hyphen in an account")
+        assertNull(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "acct.evil.example", TargetField.CONTAINER to "backups")), "no dot in an account")
+        assertNull(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "myaccount", TargetField.CONTAINER to "a--b")), "no double hyphen in a container")
+        assertTrue(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "myaccount", TargetField.CONTAINER to "neurone-backups")) != null)
+        assertTrue(CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "my_bucket.2026")) != null, "GCS allows an underscore")
+    }
+
+    // @verifies SWR-MG-22#b
+    @Test
+    fun aBucketStoreGoesToTheNamedBucketWithTheAccountsCredentialAndIsRefusedWithoutAValidTarget() = runBlocking {
+        suspend fun sent(rig: Rig, account: CloudAccount, target: BackupTarget?): HttpRequest {
+            val api = RecordingApi()
+            runCatching { CloudStores.storeFor(rig.auth, api, account, target).list("") } // the stand-in's reply is not a real listing; the request is what is checked
+            return api.seen.last()
+        }
+
         val rig = Rig()
-        val account = rig.auth.addAwsKeys("AKIAEXAMPLE", "secret")
-        assertFailsWith<IllegalArgumentException> { CloudStores.storeFor(rig.auth, RecordingApi(), account) }
+        val gcs = sent(rig, rig.auth.signIn(CloudService.GOOGLE_CLOUD_STORAGE), CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "my-bucket")))
+        assertTrue("storage.googleapis.com" in gcs.url && "my-bucket" in gcs.url, gcs.url)
+        assertEquals("Bearer access-1", gcs.headers["Authorization"])
+
+        val azure = sent(rig, rig.auth.signIn(CloudService.AZURE_BLOB), CloudStores.target(CloudService.AZURE_BLOB, mapOf(TargetField.STORAGE_ACCOUNT to "myaccount", TargetField.CONTAINER to "backups")))
+        assertTrue(azure.url.startsWith("https://myaccount.blob.core.windows.net/backups"), azure.url)
+        assertTrue(azure.headers["Authorization"]!!.startsWith("Bearer "))
+
+        val aws = rig.auth.addAwsKeys("AKIAEXAMPLE", "secret")
+        val s3 = sent(rig, aws, CloudStores.target(CloudService.AWS_S3, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "eu-west-2")))
+        assertTrue(s3.url.startsWith("https://my-backups.s3.eu-west-2.amazonaws.com/"), s3.url)
+        assertTrue(s3.headers.entries.any { it.key.equals("Authorization", true) && it.value.startsWith("AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE/") }, "signed with the account's keys")
+        val dotted = sent(rig, aws, CloudStores.target(CloudService.AWS_S3, mapOf(TargetField.BUCKET to "my.backups", TargetField.REGION to "eu-west-2")))
+        assertTrue(dotted.url.startsWith("https://s3.eu-west-2.amazonaws.com/my.backups"), "a dotted bucket is addressed by path: ${dotted.url}")
+
+        for (account in listOf(aws, rig.auth.signIn(CloudService.GOOGLE_CLOUD_STORAGE))) {
+            val e = assertFailsWith<CloudAuthException> { CloudStores.storeFor(rig.auth, RecordingApi(), account, null) }
+            assertEquals(CloudAuthProblem.INVALID_INPUT, e.problem)
+            // a hand-built target with a name that would have changed the host
+            val evil = BackupTarget(mapOf(TargetField.BUCKET to "x.evil.example/..", TargetField.REGION to "eu-west-2"))
+            assertFailsWith<CloudAuthException> { CloudStores.storeFor(rig.auth, RecordingApi(), account, evil) }
+        }
     }
 
     // @verifies SWR-MG-21#b
