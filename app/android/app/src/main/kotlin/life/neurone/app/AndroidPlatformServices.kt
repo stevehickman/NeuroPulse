@@ -32,6 +32,8 @@ class AndroidPlatformServices(
     override val httpTransport: life.neurone.core.net.HttpTransport? = null,
     /** The analytics host and project token this build was made with; null or unusable means analytics is off. */
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = null,
+    /** The system browser and the way back from it for a cloud sign-in (SWR-MG-19); see [AndroidBrowser]. */
+    override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = null,
     /** Where the hub leaves the SHDR record: a file in the app's private folder (REQ-SHDR-01). */
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging? = null,
     /** The folder a backup is kept in, once the person has chosen one (SWR-MG-10); see [AndroidFolderPlaces]. */

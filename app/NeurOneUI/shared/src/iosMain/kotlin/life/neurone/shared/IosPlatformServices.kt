@@ -33,6 +33,7 @@ class IosPlatformServices(
     override val secretKeyStore: SecretKeyStore? = IosSecretKeyStore(),
     override val httpTransport: life.neurone.core.net.HttpTransport? = IosHttpTransport(),
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = iosAnalyticsConfig(),
+    override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = IosAuthorizationLauncher(),
 ) : PlatformServices {
 
     private val foreground = IosAppForeground()

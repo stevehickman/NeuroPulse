@@ -97,6 +97,7 @@ class NeurOneApplication : Application() {
                 SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
                 migrationFiles = ownFiles(),
                 httpTransport = OkHttpTransport(),
+                authorizationLauncher = browserLauncher,
                 analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
                 shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
                 folderPlaces = AndroidFolderPlaces(this),

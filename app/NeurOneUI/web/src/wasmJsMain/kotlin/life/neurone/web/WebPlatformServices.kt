@@ -30,6 +30,8 @@ class WebPlatformServices(
     override val bleCentral: BleCentral = WebBleCentral(),
     override val protocolSigner: ProtocolSigner = Ed25519ProtocolSigner(),
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
+    // The sign-in window. The browser has no HttpTransport, so AppServices builds no CloudAuth from it yet (NP-SW-CLOUDSTORE-001 4c.6).
+    override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = WebAuthorizationLauncher(),
 ) : PlatformServices {
 
     /** Nothing the app keeps is written to `localStorage`, so the person is told it is gone when the page is (REQ-SW03-18 (b)). */
