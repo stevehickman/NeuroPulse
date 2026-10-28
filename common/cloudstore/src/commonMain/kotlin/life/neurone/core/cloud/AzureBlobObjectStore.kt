@@ -20,6 +20,11 @@ import life.neurone.core.net.HttpTransport
  * has `BlobAlreadyExists` as 409, so **both are read as "the blob exists"** (a 409 only when its error code is
  * `BlobAlreadyExists`). Any other status, and no answer, throws [CloudStoreException].
  *
+ * **A shared access signature** (SWR-MG-26) can authorize instead of a token, for an account the person has no Entra sign-in for. It is the
+ * query string of a container-level service SAS, appended to each URL (`sig`, `sp`, `se` and the rest, as Azure made them); no header carries it. The
+ * permissions each call needs are Azure\'s own (Put Blob: Create or Write, and Write to overwrite; List Blobs: List; Get: Read; Delete: Delete), so
+ * the person makes it with `rcwdl`. Azure says a service or account SAS "will not be permitted" when Shared Key access is disallowed on the account.
+ *
  * Mapping otherwise: a 404 on a read is `null` and on a delete is not an error. A blob goes up in one Put Blob call, which
  * Microsoft documents as at most 5,000 MiB in recent service versions (a larger body is a 413).
  */
@@ -27,21 +32,29 @@ class AzureBlobObjectStore(
     private val transport: HttpTransport,
     account: String,
     private val container: String,
-    private val token: AccessToken,
+    /** The Entra bearer token, or null when [sas] authorizes instead. Exactly one of the two. */
+    private val token: AccessToken?,
     /** How long one call may take. The host decides it (a bundle upload on a mobile link is not a claim write), so no figure is set here. */
     private val timeoutSeconds: Int,
     private val baseUrl: String = "https://$account.blob.core.windows.net",
     /** The service version sent with every call. 2025-11-05 is the version the conditional-headers page names; 2017-11-09 is the floor for OAuth. */
     private val serviceVersion: String = "2025-11-05",
+    /** A shared access signature instead of a token: its query string is appended to every URL and no `Authorization` header is sent (SWR-MG-26). */
+    private val sas: AzureSasProvider? = null,
 ) : ObjectStore {
+    init {
+        require((token == null) != (sas == null)) { "authorize with a token or a shared access signature, not both and not neither" }
+    }
+
     private val containerUrl get() = "$baseUrl/${percentEncode(container)}"
 
-    private suspend fun send(method: String, url: String, body: ByteArray = ByteArray(0), extra: Map<String, String> = emptyMap()): HttpResponse =
-        transport.call(
+    private suspend fun send(method: String, url: String, body: ByteArray = ByteArray(0), extra: Map<String, String> = emptyMap()): HttpResponse {
+        val signature = sas?.query()
+        return transport.call(
             HttpRequest(
-                url = url,
+                url = if (signature == null) url else url + (if ('?' in url) "&" else "?") + signature,
                 headers = buildMap {
-                    put("Authorization", "Bearer ${token.bearer()}")
+                    if (token != null) put("Authorization", "Bearer ${token.bearer()}")
                     put("x-ms-version", serviceVersion)
                     putAll(extra)
                 },
@@ -50,6 +63,7 @@ class AzureBlobObjectStore(
                 timeoutSeconds = timeoutSeconds,
             ),
         )
+    }
 
     private fun blobUrl(name: String) = "$containerUrl/${percentEncodePath(name)}"
 

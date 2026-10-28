@@ -11,6 +11,7 @@ import kotlinx.serialization.json.longOrNull
 import life.neurone.core.cloud.AccessToken
 import life.neurone.core.cloud.AwsCredentials
 import life.neurone.core.cloud.AwsCredentialsProvider
+import life.neurone.core.cloud.AzureSasProvider
 import life.neurone.core.cloud.WebDavLogin
 import life.neurone.core.cloud.WebDavLoginProvider
 import life.neurone.core.cloud.CloudKitCredentials
@@ -72,6 +73,7 @@ class CloudAuth(
         AccountFamily.AWS -> true
         AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
+        AccountFamily.AZURE_SAS -> true
     }
 
     private fun redirectWorks(family: AccountFamily, redirectUri: String): Boolean =
@@ -95,6 +97,7 @@ class CloudAuth(
             AccountFamily.APPLE -> cloudKitSignIn(replacing)
             AccountFamily.AWS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "AWS has no browser sign-in; the person's access key is added with addAwsKeys")
             AccountFamily.WEBDAV -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "WebDAV has no browser sign-in; the person's login is added with addWebDavLogin")
+            AccountFamily.AZURE_SAS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a shared access signature has no sign-in; it is added with addAzureSas")
         }
     }
 
@@ -273,6 +276,30 @@ class CloudAuth(
         }
     }
 
+    /**
+     * Keep a shared access signature the person pasted as an account of [CloudService.AZURE_BLOB_SAS]. [AzureSas.parse] checks it can do what a backup needs and
+     * has not expired. Nothing is sent to Azure here, so a wrong signature is found by the first request and not by this call.
+     */
+    suspend fun addAzureSas(sas: String, replacing: String? = null): CloudAccount {
+        val parsed = AzureSas.parse(sas, now()) ?: throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "that is not a usable shared access signature")
+        replacing?.let { checkReplacing(it, CloudService.AZURE_BLOB_SAS) }
+        return store(CloudService.AZURE_BLOB_SAS, replacing) { id, created ->
+            StoredAccount(id, CloudService.AZURE_BLOB_SAS, created, false, azureSas = parsed.query, azureSasExpiresAt = parsed.expiresAtEpochSeconds)
+        }
+    }
+
+    /** The signature of an Azure SAS account for `AzureBlobObjectStore`, read at every call. One past its expiry, or one Azure refused (flagged), asks for a new one. */
+    fun azureSas(accountId: String): AzureSasProvider = AzureSasProvider {
+        lock.withLock {
+            val acc = credentials.load().accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
+            if (acc.service != CloudService.AZURE_BLOB_SAS) throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} is not an access-signature account")
+            if (acc.needsSignIn || (acc.azureSasExpiresAt != 0L && acc.azureSasExpiresAt <= now())) {
+                throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the access signature has expired or was refused; a new one is needed")
+            }
+            acc.azureSas!!
+        }
+    }
+
     /** The login of a WebDAV account for `WebDavObjectStore`, read at every call. A login the server refused (flagged) asks the person to sign in again. */
     fun webDavLogin(accountId: String): WebDavLoginProvider = WebDavLoginProvider {
         lock.withLock {
@@ -301,7 +328,7 @@ class CloudAuth(
     private suspend fun freshAccessToken(accountId: String): String = lock.withLock {
         val vault = credentials.load()
         val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
-        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS || acc.service.family == AccountFamily.WEBDAV) {
+        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS || acc.service.family == AccountFamily.WEBDAV || acc.service.family == AccountFamily.AZURE_SAS) {
             throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} has no OAuth access token")
         }
         if (acc.needsSignIn) throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the person must sign in again")
