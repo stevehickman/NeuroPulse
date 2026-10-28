@@ -33,7 +33,8 @@
     "np.presence.enabled",
     "np.presence.passphrase-wrap",
     "np.cloud.accounts",
-    "np.backup.cloud-account"
+    "np.backup.cloud-account",
+    "np.backup.cloud-target"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",
