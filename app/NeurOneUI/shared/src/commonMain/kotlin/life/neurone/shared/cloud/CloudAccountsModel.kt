@@ -47,7 +47,11 @@ class CloudNotice(val kind: CloudNoticeKind, val service: CloudService?)
  *
  * A sign-in the person cancels says nothing: closing a browser is not an error. Every other failure is a [CloudNotice] of a kind, not a message.
  */
-class CloudAccountsModel(private val auth: CloudAuth) {
+class CloudAccountsModel(
+    private val auth: CloudAuth,
+    /** Told after every action and refresh that changed the accounts, so what is built on them (the backup destination) is read again. */
+    private val onChanged: suspend () -> Unit = {},
+) {
     private val _rows = MutableStateFlow<List<CloudServiceRow>>(emptyList())
     val rows: StateFlow<List<CloudServiceRow>> get() = _rows
 
@@ -131,6 +135,7 @@ class CloudAccountsModel(private val auth: CloudAuth) {
 
     private suspend fun end() {
         refresh()
+        onChanged()
         _busy.value = null
     }
 

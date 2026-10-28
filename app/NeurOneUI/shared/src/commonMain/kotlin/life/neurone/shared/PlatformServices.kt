@@ -197,8 +197,10 @@ interface PlatformServices {
  * A place a backup can go (SWR-MG-10): the six object calls of its [store], and the [route] descriptor that says what the
  * place can promise (an exclusive create, above all), which the core checks before it offers the place for a migration.
  * [label] names the place for the person, such as the folder; it is shown as given and is never a user's data.
+ * [carriesRecordings] is whether the recordings in the UHDR folder may go beside the bundle: a cloud service keeps the bundle only,
+ * because every object crosses the store's calls whole, in memory, and a recording is not small (SWR-MG-21).
  */
-class MigrationPlace(val label: String, val store: ObjectStore, val route: RouteDescriptor)
+class MigrationPlace(val label: String, val store: ObjectStore, val route: RouteDescriptor, val carriesRecordings: Boolean = true)
 
 /** The analytics backend until the production vendor is selected and its DPA executed (NP-PRIV-AUDIT-001 HIGH-1). */
 class NoOpAnalyticsBackend : AnalyticsBackend {

@@ -115,7 +115,7 @@ class MigrationRestoreModel(
         val done = try {
             MigrationFlow.run("restore", params, host, secret, keys, place.store, random = random).also { r ->
                 // The recordings are restored under the same secret, only from a health-data backup, and only after the rest has opened.
-                if (r["ok"]!!.jsonPrimitive.boolean && restoreReportOf(r).kind == BackupKind.UHDR) recordings = waveforms?.restore(place, secret)
+                if (r["ok"]!!.jsonPrimitive.boolean && restoreReportOf(r).kind == BackupKind.UHDR) recordings = if (place.carriesRecordings) waveforms?.restore(place, secret) else null
             }
         } finally {
             secret.destroy()
