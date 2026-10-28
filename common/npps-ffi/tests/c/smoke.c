@@ -25,8 +25,8 @@ int main(void) {
         "\"wavelengthRules\":null}";
     rc = npps_compile_json((const uint8_t *)req, strlen(req), &out, &len);
     CHECK(rc == NPPS_STATUS_OK, "compile succeeds");
-    /* header 64 + one command (14 header + 7 params, slot target has no block) + signature 64 */
-    CHECK(len == 64 + 14 + 7 + 64, "descriptor length");
+    /* header 68 + one command (14 header + 7 params, slot target has no block) + signature 64 */
+    CHECK(len == 68 + 14 + 7 + 64, "descriptor length");
     CHECK(out[0] == 0x50 && out[1] == 0x48 && out[2] == 0x50 && out[3] == 0x4E, "NP_HUB_PROTO_MAGIC");
     int sig_zero = 1;
     for (size_t i = len - 64; i < len; i++) if (out[i] != 0) sig_zero = 0;
