@@ -44,6 +44,8 @@ kotlin {
         }
         wasmJsMain.dependencies {
             implementation(project(":shared"))
+            // Sign-in to the cloud providers (SWR-MG-19): the sign-in window and the page it returns to.
+            implementation(project(":cloudauth"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
