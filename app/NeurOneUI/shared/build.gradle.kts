@@ -100,6 +100,8 @@ kotlin {
         }
         commonMain.dependencies {
             api(project(":core"))
+            // Sign-in to the cloud providers (SWR-MG-19): the iOS browser session is in iosMain.
+            implementation(project(":cloudauth"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.ui)
