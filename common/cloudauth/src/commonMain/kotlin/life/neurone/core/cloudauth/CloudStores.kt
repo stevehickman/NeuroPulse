@@ -35,7 +35,7 @@ object CloudStores {
 
     /** What a service needs the person to name, in the order the form asks. Empty for a service that needs nothing beyond the sign-in. */
     fun targetFields(service: CloudService): List<TargetField> = when (service) {
-        CloudService.AWS_S3 -> listOf(TargetField.BUCKET, TargetField.REGION)
+        CloudService.AWS_S3 -> listOf(TargetField.BUCKET, TargetField.REGION, TargetField.ENDPOINT)
         CloudService.GOOGLE_CLOUD_STORAGE -> listOf(TargetField.GCS_BUCKET)
         CloudService.AZURE_BLOB -> listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER)
         else -> emptyList()
@@ -50,8 +50,16 @@ object CloudStores {
      */
     fun target(service: CloudService, values: Map<TargetField, String>): BackupTarget? {
         val fields = targetFields(service)
-        val clean = fields.associateWith { (values[it] ?: return null).trim() }
-        if (clean.any { (f, v) -> !f.accepts(v) }) return null
+        val clean = LinkedHashMap<TargetField, String>()
+        for (f in fields) {
+            val v = (values[f] ?: "").trim()
+            if (v.isEmpty()) {
+                if (f.optional) continue
+                return null
+            }
+            if (!f.accepts(v)) return null
+            clean[f] = v
+        }
         return BackupTarget(clean)
     }
 
@@ -82,10 +90,12 @@ object CloudStores {
                 AzureBlobObjectStore(transport, need(TargetField.STORAGE_ACCOUNT), need(TargetField.CONTAINER), auth.accessToken(account.id), CALL_TIMEOUT_SECONDS)
             CloudService.AWS_S3 -> {
                 val bucket = need(TargetField.BUCKET)
+                val endpoint = target?.values?.get(TargetField.ENDPOINT)?.let { need(TargetField.ENDPOINT) }
                 S3ObjectStore(
                     transport, bucket, need(TargetField.REGION), auth.awsCredentials(account.id), NppsAwsSigV4(),
                     { NppsAwsSigV4.amzDate(Instant.fromEpochSeconds(epochSeconds())) }, CALL_TIMEOUT_SECONDS,
                     pathStyle = '.' in bucket, // a dotted bucket name does not match the virtual-hosted TLS name
+                    endpointHost = endpoint, // an S3-compatible store: addressed by path, at the host the person named
                 )
             }
         }
@@ -93,13 +103,17 @@ object CloudStores {
 }
 
 /** What the person names for a service that keeps a backup in a bucket or container. */
-enum class TargetField(private val pattern: Regex) {
+enum class TargetField(private val pattern: Regex, val optional: Boolean = false) {
     /** An Amazon S3 bucket. */
     BUCKET(Regex("[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")),
 
     /** A Google Cloud Storage bucket, which may be longer and may hold an underscore. */
     GCS_BUCKET(Regex("[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]")),
-    REGION(Regex("[a-z]{2}(-[a-z0-9]+){1,3}")),
+    /** An S3 region, or the name an S3-compatible store gives its one region (`auto`). */
+    REGION(Regex("[a-z][a-z0-9-]{1,30}[a-z0-9]")),
+
+    /** The host of an S3-compatible store (`<host>` or `<host>:<port>`), reached over HTTPS. Empty means Amazon S3. No scheme, user, path or query. */
+    ENDPOINT(Regex("[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:[0-9]{1,5})?"), optional = true),
     STORAGE_ACCOUNT(Regex("[a-z0-9]{3,24}")),
     CONTAINER(Regex("[a-z0-9](?:[a-z0-9]|-(?!-)){1,61}[a-z0-9]"));
 

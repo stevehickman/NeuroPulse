@@ -39,10 +39,11 @@ class CloudStoresTests {
     }
 
     // @verifies SWR-MG-22#a
+    // @verifies SWR-MG-22#e
     @Test
     fun aTargetIsOnlyAPlainNameForEveryFieldTheServiceAsksFor() {
         val s3 = CloudService.AWS_S3
-        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION), CloudStores.targetFields(s3))
+        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION, TargetField.ENDPOINT), CloudStores.targetFields(s3))
         assertEquals(listOf(TargetField.GCS_BUCKET), CloudStores.targetFields(CloudService.GOOGLE_CLOUD_STORAGE))
         assertEquals(listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER), CloudStores.targetFields(CloudService.AZURE_BLOB))
         assertTrue(CloudStores.targetFields(CloudService.GOOGLE_DRIVE).isEmpty())
@@ -58,6 +59,16 @@ class CloudStoresTests {
         }
         assertNull(CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "x".repeat(223))))
         assertTrue(CloudStores.target(CloudService.GOOGLE_CLOUD_STORAGE, mapOf(TargetField.GCS_BUCKET to "x".repeat(222))) != null)
+        // The endpoint is optional; when given it is a plain host (and port), nothing that could add a scheme, a user, a path or a query.
+        val base = mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto")
+        assertNull(CloudStores.target(s3, base)!!.values[TargetField.ENDPOINT], "empty or absent means Amazon S3")
+        assertNull(CloudStores.target(s3, base + (TargetField.ENDPOINT to "  "))!!.values[TargetField.ENDPOINT])
+        for (good in listOf("s3.example.com", "acct.r2.cloudflarestorage.com", "minio.local:9000", "s3.us-west-004.backblazeb2.com")) {
+            assertEquals(good, CloudStores.target(s3, base + (TargetField.ENDPOINT to good))!!.values[TargetField.ENDPOINT])
+        }
+        for (bad in listOf("https://s3.example.com", "s3.example.com/x", "user@s3.example.com", "s3.example.com?x=1", "S3.Example.com", "localhost", "s3.example.com:", "s3.example.com:123456", "-a.example.com", "a..example.com", "s3 example.com")) {
+            assertNull(CloudStores.target(s3, base + (TargetField.ENDPOINT to bad)), "endpoint '$bad'")
+        }
         val azure = CloudService.AZURE_BLOB
         assertNull(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "my-account", TargetField.CONTAINER to "backups")), "no hyphen in an account")
         assertNull(CloudStores.target(azure, mapOf(TargetField.STORAGE_ACCOUNT to "acct.evil.example", TargetField.CONTAINER to "backups")), "no dot in an account")
@@ -67,6 +78,7 @@ class CloudStoresTests {
     }
 
     // @verifies SWR-MG-22#b
+    // @verifies SWR-MG-22#e
     @Test
     fun aBucketStoreGoesToTheNamedBucketWithTheAccountsCredentialAndIsRefusedWithoutAValidTarget() = runBlocking {
         suspend fun sent(rig: Rig, account: CloudAccount, target: BackupTarget?): HttpRequest {
@@ -91,12 +103,18 @@ class CloudStoresTests {
         val dotted = sent(rig, aws, CloudStores.target(CloudService.AWS_S3, mapOf(TargetField.BUCKET to "my.backups", TargetField.REGION to "eu-west-2")))
         assertTrue(dotted.url.startsWith("https://s3.eu-west-2.amazonaws.com/my.backups"), "a dotted bucket is addressed by path: ${dotted.url}")
 
+        val compatible = sent(rig, aws, CloudStores.target(CloudService.AWS_S3, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto", TargetField.ENDPOINT to "acct.r2.example.com")))
+        assertTrue(compatible.url.startsWith("https://acct.r2.example.com/my-backups"), "an S3-compatible store is addressed by path at its own host: ${compatible.url}")
+        assertTrue(compatible.headers.entries.any { it.key.equals("Authorization", true) && "/auto/s3/aws4_request" in it.value }, "signed for the region it names")
+
         for (account in listOf(aws, rig.auth.signIn(CloudService.GOOGLE_CLOUD_STORAGE))) {
             val e = assertFailsWith<CloudAuthException> { CloudStores.storeFor(rig.auth, RecordingApi(), account, null) }
             assertEquals(CloudAuthProblem.INVALID_INPUT, e.problem)
             // a hand-built target with a name that would have changed the host
             val evil = BackupTarget(mapOf(TargetField.BUCKET to "x.evil.example/..", TargetField.REGION to "eu-west-2"))
             assertFailsWith<CloudAuthException> { CloudStores.storeFor(rig.auth, RecordingApi(), account, evil) }
+            val evilHost = BackupTarget(mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto", TargetField.ENDPOINT to "evil.example/x@y"))
+            assertFailsWith<CloudAuthException> { CloudStores.storeFor(rig.auth, RecordingApi(), account, evilHost) }
         }
     }
 

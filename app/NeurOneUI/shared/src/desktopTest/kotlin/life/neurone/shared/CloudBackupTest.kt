@@ -85,7 +85,7 @@ class CloudBackupTest {
         assertEquals(setOf(drive.id, gcs.id, s3.id), m.destinations.value.map { it.accountId }.toSet())
         assertEquals(emptyList(), m.destinations.value.first { it.accountId == drive.id }.fields, "Drive needs nothing more")
         assertEquals(listOf(TargetField.GCS_BUCKET), m.destinations.value.first { it.accountId == gcs.id }.fields)
-        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION), m.destinations.value.first { it.accountId == s3.id }.fields)
+        assertEquals(listOf(TargetField.BUCKET, TargetField.REGION, TargetField.ENDPOINT), m.destinations.value.first { it.accountId == s3.id }.fields)
         assertNull(m.place.value, "this device until a choice is made")
 
         assertTrue(m.choose(drive.id))
@@ -104,6 +104,7 @@ class CloudBackupTest {
     }
 
     // @verifies SWR-MG-22#c
+    // @verifies SWR-MG-22#e
     @Test fun a_bucket_service_is_chosen_only_with_a_valid_name_which_is_remembered_with_the_choice() = runTest {
         val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
         val gcs = a.signIn(CloudService.GOOGLE_CLOUD_STORAGE)
@@ -133,6 +134,10 @@ class CloudBackupTest {
         val s3 = a.addAwsKeys("AKIAEXAMPLE", "secret")
         assertTrue(m.choose(s3.id, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "eu-west-2")))
         assertEquals("Amazon S3", m.place.value?.label)
+        assertTrue(m.choose(s3.id, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto", TargetField.ENDPOINT to "acct.r2.example.com")))
+        assertEquals("acct.r2.example.com", m.place.value?.label, "a store the person named is shown by its host")
+        assertFalse(m.choose(s3.id, mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto", TargetField.ENDPOINT to "https://evil.example")), "a refused name changes nothing")
+        assertEquals("acct.r2.example.com", m.place.value?.label)
         assertFalse(m.place.value!!.route.atomicClaim, "no cloud route carries a migration")
         assertFalse(m.place.value!!.carriesRecordings)
     }
