@@ -66,6 +66,7 @@ class CloudAuth(
         AccountFamily.MICROSOFT -> config.microsoft != null
         AccountFamily.APPLE -> config.cloudKit != null
         AccountFamily.AWS -> true
+        AccountFamily.DROPBOX -> config.dropbox != null
     }
 
     /** The CloudKit container this build is registered with, or null; an adapter needs its name, environment and address. */
@@ -82,7 +83,7 @@ class CloudAuth(
     suspend fun signIn(service: CloudService, replacing: String? = null): CloudAccount {
         replacing?.let { checkReplacing(it, service) }
         return when (service.family) {
-            AccountFamily.GOOGLE, AccountFamily.MICROSOFT -> oauthSignIn(service, replacing)
+            AccountFamily.GOOGLE, AccountFamily.MICROSOFT, AccountFamily.DROPBOX -> oauthSignIn(service, replacing)
             AccountFamily.APPLE -> cloudKitSignIn(replacing)
             AccountFamily.AWS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "AWS has no browser sign-in; the person's access key is added with addAwsKeys")
         }
@@ -120,6 +121,11 @@ class CloudAuth(
                 null, c.clientId, c.redirectUri, null,
             )
         }
+        AccountFamily.DROPBOX -> {
+            val c = config.dropbox ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Dropbox app is configured")
+            // Recalled, not read (UC-116): the authorize page is on www.dropbox.com, the token call on api.dropboxapi.com, and a public client sends no secret.
+            OAuthEndpoints("https://www.dropbox.com/oauth2/authorize", "https://api.dropboxapi.com/oauth2/token", null, c.appKey, c.redirectUri, null)
+        }
         else -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${service.name} does not use OAuth")
     }
 
@@ -135,6 +141,8 @@ class CloudAuth(
             "state" to state,
             "code_challenge" to pkce.challenge,
             "code_challenge_method" to "S256",
+            // Dropbox gives a refresh token only to a request that asks for offline access.
+            *(if (service.family == AccountFamily.DROPBOX) arrayOf("token_access_type" to "offline") else emptyArray()),
         )
         val back = launcher.authorize(url, e.redirectUri)
         val code = codeFrom(back, e.redirectUri, state)
@@ -244,7 +252,7 @@ class CloudAuth(
     private suspend fun freshAccessToken(accountId: String): String = lock.withLock {
         val vault = credentials.load()
         val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
-        if (acc.service.family != AccountFamily.GOOGLE && acc.service.family != AccountFamily.MICROSOFT) {
+        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS) {
             throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} has no OAuth access token")
         }
         if (acc.needsSignIn) throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the person must sign in again")

@@ -3,7 +3,7 @@ package life.neurone.core.cloudauth
 import life.neurone.core.cloud.CloudStoreException
 
 /** Who issues the person's credential: one sign-in per family, whichever service of it is used. */
-enum class AccountFamily { GOOGLE, MICROSOFT, APPLE, AWS }
+enum class AccountFamily { GOOGLE, MICROSOFT, APPLE, AWS, DROPBOX }
 
 /**
  * A cloud store the person can sign in to, one per adapter of `:cloudstore`. A person who uses Google Drive and Google Cloud
@@ -24,6 +24,12 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
     /** CloudKit Web Services. No scope: the container's API token and the person's web authentication token. */
     ICLOUD_CLOUDKIT(AccountFamily.APPLE, null),
 
+    /**
+     * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes
+     * are the content ones and `account_info.read` for the space figure; **recalled, not read** from Dropbox's pages (`UC-116`).
+     */
+    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read account_info.read"),
+
     /** The person's own access key and secret (or temporary ones). No browser sign-in exists. */
     AWS_S3(AccountFamily.AWS, null),
 }
@@ -37,7 +43,14 @@ class CloudAuthConfig(
     val google: OAuthClientConfig? = null,
     val microsoft: MicrosoftClientConfig? = null,
     val cloudKit: CloudKitConfig? = null,
+    val dropbox: DropboxClientConfig? = null,
 )
+
+/**
+ * A Dropbox app registered as a public client (code flow with PKCE, no app secret). [appKey] is the app's key, a public identifier; [redirectUri]
+ * is the one registered in the app's settings (a loopback address on a computer, the app's own scheme or claimed address on a phone).
+ */
+class DropboxClientConfig(val appKey: String, val redirectUri: String)
 
 /**
  * A Google OAuth client. [redirectUri] is the one registered for the client and the platform: a loopback address
