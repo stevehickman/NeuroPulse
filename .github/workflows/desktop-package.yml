@@ -5,43 +5,111 @@ name: Desktop package (macOS, Windows)
 # libraries are the host build (:desktop stageNativeLibs). Installers are uploaded as build artifacts.
 
 on:
+  # Push only validates the default branch after a merge. A PR branch is covered by
+  # pull_request, so it no longer triggers two runs of the same commit.
   push:
-    paths:
-      - 'app/NeurOneUI/**'
-      - 'common/core/**'
-      - 'common/Cargo.toml'
-      - 'common/Cargo.lock'
-      - 'common/npps/**'
-      - 'common/npps-core/**'
-      - 'common/npps-jni/**'
-      - 'common/cloudstore/**'
-      - 'common/cloudauth/**'
-      - 'common/btle-jni/**'
-      - 'locales/**'
-      - '.github/workflows/desktop-package.yml'
+    branches: [main]
   pull_request:
-    paths:
-      - 'app/NeurOneUI/**'
-      - 'common/core/**'
-      - 'common/Cargo.toml'
-      - 'common/Cargo.lock'
-      - 'common/npps/**'
-      - 'common/npps-core/**'
-      - 'common/npps-jni/**'
-      - 'common/cloudstore/**'
-      - 'common/cloudauth/**'
-      - 'common/btle-jni/**'
-      - 'locales/**'
-      - '.github/workflows/desktop-package.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Cancel superseded runs when new commits land on the same PR. Only pull_request
+# runs are cancelled: a run on the default branch is never cancelled by a later merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Per-commit relevance (NP-SW-CI-001 §6.7). Replaces the `pull_request: paths:`
+  # filter, which GitHub evaluates against the WHOLE pull request: once a PR touched
+  # one of these paths, every later commit re-ran this workflow, however small. This
+  # job diffs from the last green run of this workflow on the branch instead, so a
+  # commit that cannot affect the build skips it. A job skipped by `if:` reports
+  # `skipped`, which satisfies a required check; a `paths:`-suppressed workflow
+  # never reports at all.
+  changes:
+    name: Relevance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+    env:
+      NP_SCOPE_PATHS: |
+        app/NeurOneUI/**
+        common/core/**
+        common/Cargo.toml
+        common/Cargo.lock
+        common/npps/**
+        common/npps-core/**
+        common/npps-jni/**
+        common/cloudstore/**
+        common/cloudauth/**
+        common/btle-jni/**
+        locales/**
+        .github/workflows/desktop-package.yml
+        scripts/ci-changed-scope.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write the relevance list
+        run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
+
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_EVENT: ${{ github.event_name }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          NP_REF: ${{ github.ref }}
+          GH_TOKEN: ${{ github.token }}
+          NP_REPO: ${{ github.repository }}
+          NP_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          NP_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          if ! merge_base=$(scripts/ci-changed-scope.sh --diff-base \
+                 "$NP_EVENT" "${NP_BASE:-}" "$NP_HEAD" "$NP_DEFAULT_BRANCH" "$NP_REF") \
+             || [ -z "$merge_base" ]; then
+            echo "::notice::no usable base revision (event=$NP_EVENT, ref=$NP_REF, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(scripts/ci-changed-scope.sh --resolve-base desktop-package.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
+          git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+            relevant=true
+          else
+            relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)
+            echo "--- in-scope files ---"
+            scripts/ci-changed-scope.sh --match scope.paths changed.txt
+          fi
+          echo "relevant=${relevant}" | tee -a "$GITHUB_OUTPUT"
+
   package:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     strategy:
       fail-fast: false
       matrix:

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 195
+**Revision:** 197
 **Date:** 2026-10-28
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 195 | 2026-10-28 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 197 | 2026-10-28 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 123 | 2026-10-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 124 | 2026-10-28 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 8 | 2026-10-21 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -124,7 +124,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-PROC-FPC-1064-001 | 1064nm Smart Zone Module — Component Selection and Procurement Specification | 3 | 2026-09-25 | [np_proc_fpc_1064_001.md](./np_proc_fpc_1064_001.md) | BASELINED | PROC |
 | NP-FEAS-FNIRS-001 | fNIRS on Existing NeurOne NIR Optics — Feasibility Assessment | 2 | 2026-09-27 | [np_feas_fnirs_001.md](./np_feas_fnirs_001.md) | DRAFT | FEAS |
 | NP-FEAS-PBMCH-001 | Independent 660 nm / 808 nm PBM Channel Control — Costed Design Study | 4 | 2026-09-29 | [np_feas_pbmch_001.md](./np_feas_pbmch_001.md) | DRAFT | FEAS |
-| NP-PWRSRC-001 | Power-Source Architecture — Multi-Source Supply, Purchase-Time Selection, and the Deliberate-Heat Proposition (Design Study) | 3 | 2026-09-26 | [np_pwrsrc_001.md](./np_pwrsrc_001.md) | DRAFT | SPEC-HW |
+| NP-PWRSRC-001 | Power-Source Architecture — Multi-Source Supply, Purchase-Time Selection, and the Deliberate-Heat Proposition (Design Study) | 4 | 2026-10-28 | [np_pwrsrc_001.md](./np_pwrsrc_001.md) | DRAFT | SPEC-HW |
 
 **Note on NP-HW-HEXTILE-001:** This is the electrical/FPC counterpart to NP-HEX-ZM-001's mechanical/socket/addressing model, and the successor to the retired NP-HW-FPC-001 for the hex-tile form factor. It is a **DESIGN STUDY, not a tooling baseline** — every numeric value is a derived engineering proposal with its assumption stated inline, not a measured or locked figure, and the document says so in its own status line and §10. It is indexed here for traceability of the design reasoning. It will formalise into design inputs (NP-DT-001) and a baselined hardware specification once its blocking open items close — principally OI-HEXTILE-01 (bezel-width conflict between NP-HEX-ZM-001 §3.1 and NP-THERM-BEZEL-001, which moves every irradiance figure by ±14.5 %) and OI-HEXTILE-02 (base-tile emitter selection, on which the irradiance derivation depends). **Two findings need principal decisions rather than engineering closure:** the ~$920/headset driver-and-metering BOM at 80 populated sockets (§6.4, quantifying the cost NP-HEX-ZM-001 §4a recorded as "not yet quantified"), and the ~6-concurrent-tile power ceiling the existing USB-C PD envelope imposes on whole-vault tiling (§9). The latter also surfaces OI-HEXTILE-09, a safety-adjacent gap in the delivered Protocol v2 wire format: nothing currently prevents a socket-mask protocol from commanding more tiles than the power contract supports. **No existing controlled document was modified by this release** beyond index entries; NP-HW-HUB-001's Rev 3 requirements (OI-HEXTILE-10) are stated as requirements on that future revision, not applied to Rev 2.
 
@@ -236,6 +236,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 3 | 2026-10-01 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 3 | 2026-09-23 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
+| NP-IFU-001 | Instructions for Use — Working Text | 1 | 2026-10-28 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
 | NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 5 | 2026-10-28 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
 
 **Note on NP-REG-PBM1064-001:** Rev 2 (2026-09-28) added scope item 5 (Q14–Q18) and left Q-13 reserved. A further revision is still required to add Q-13 covering Mode F (808-830nm bilateral retinal PBM during normal-looking wear) per NP-FW-EMMC-002 Rev 1 §F and NP-PRIV-REM-001 STEP-18. The Mode F firmware gate flag `NP_MODE_F_REGULATORY_CLEARED` remains 0 until the Rev 2 opinion letter is received.
@@ -323,7 +324,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 9 | 2026-10-28 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 3 | 2026-10-21 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 13 | 2026-10-28 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 35 | 2026-10-21 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 36 | 2026-10-28 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-CLOUDSTORE-001 | Common Cloud Storage API — Provider Findings (Draft) | 26 | 2026-10-28 | [np_sw_cloudstore_001.md](./np_sw_cloudstore_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 2 | 2026-09-14 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
