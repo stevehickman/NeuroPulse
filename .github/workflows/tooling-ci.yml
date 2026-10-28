@@ -387,6 +387,7 @@ jobs:
         firmware/**
         hardware/**
         app/**
+        common/**
         protocols/**
         simulator/**
         ci/**
