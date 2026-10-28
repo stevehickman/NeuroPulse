@@ -24,8 +24,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-migration-keys.ts --self-test
- * CI-Scans: every stored-key literal in the app sources (iOS, Android, Windows, macOS, web) common/lib and common/core against the one key list common/npps/migration-keys.json
- * CI-Scan-Paths: app/** common/lib/** common/core/** common/npps/migration-keys.json scripts/check-migration-keys.ts
+ * CI-Scans: every stored-key literal in the app sources (iOS, Android, Windows, macOS, web) common/lib, common/core and common/cloudauth against the one key list common/npps/migration-keys.json
+ * CI-Scan-Paths: app/** common/lib/** common/core/** common/cloudauth/** common/npps/migration-keys.json scripts/check-migration-keys.ts
  */
 import { execFileSync } from "child_process";
 import { readFileSync } from "fs";
@@ -129,7 +129,7 @@ function selfTest(): void {
 if (import.meta.main) {
   if (process.argv.includes("--self-test")) { selfTest(); process.exit(0); }
   const root = resolve(import.meta.dir, "..");
-  const tracked = execFileSync("git", ["ls-files", "-z", "app", "common/lib", "common/core"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+  const tracked = execFileSync("git", ["ls-files", "-z", "app", "common/lib", "common/core", "common/cloudauth"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
   const files = new Map<string, string>();
   for (const p of tracked) {
     if (!SOURCE_EXT.test(p)) continue;
@@ -137,7 +137,7 @@ if (import.meta.main) {
   }
   const map = JSON.parse(readFileSync(join(root, KEYS_JSON), "utf8"));
   const findings = check(files, map);
-  console.log(`scanned: ${files.size} source file(s) under app/, common/lib/ and common/core/ against ${KEYS_JSON}`);
+  console.log(`scanned: ${files.size} source file(s) under app/, common/lib/, common/core/ and common/cloudauth/ against ${KEYS_JSON}`);
   for (const f of findings) console.error(`${f.file}: ${f.message}`);
   if (findings.length) {
     console.error(`\n${findings.length} finding(s). SWR-MG-01: every stored key is sorted in ${KEYS_JSON}, for every platform.`);

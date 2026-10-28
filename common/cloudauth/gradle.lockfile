@@ -1,0 +1,33 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+org.jetbrains.kotlin:kotlin-stdlib-wasm-js:2.0.21=wasmJsRuntimeClasspath
+org.jetbrains.kotlin:kotlin-stdlib:2.0.21=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,jvmRuntimeClasspath,wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:atomicfu-iosarm64:0.25.0=iosArm64CompileKlibraries
+org.jetbrains.kotlinx:atomicfu-iossimulatorarm64:0.25.0=iosSimulatorArm64CompileKlibraries
+org.jetbrains.kotlinx:atomicfu-wasm-js:0.25.0=wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:atomicfu:0.25.0=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.9.0=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.9.0=iosArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-coroutines-core-iossimulatorarm64:1.9.0=iosSimulatorArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core-wasm-js:1.9.0=wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,jvmRuntimeClasspath,wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.6.1=iosArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-datetime-iossimulatorarm64:0.6.1=iosSimulatorArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.6.1=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-datetime-wasm-js:0.6.1=wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-datetime:0.6.1=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,jvmRuntimeClasspath,wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-bom:1.7.3=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.7.3=iosArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-serialization-core-iossimulatorarm64:1.7.3=iosSimulatorArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.7.3=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-core-wasm-js:1.7.3=wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,jvmRuntimeClasspath,wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.7.3=iosArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-serialization-json-iossimulatorarm64:1.7.3=iosSimulatorArm64CompileKlibraries
+org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.3=jvmRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-json-wasm-js:1.7.3=wasmJsRuntimeClasspath
+org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3=iosArm64CompileKlibraries,iosSimulatorArm64CompileKlibraries,jvmRuntimeClasspath,wasmJsRuntimeClasspath
+org.jetbrains:annotations:23.0.0=jvmRuntimeClasspath
+empty=

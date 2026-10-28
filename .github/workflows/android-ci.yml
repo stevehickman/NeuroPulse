@@ -1,7 +1,7 @@
 name: Android CI (Gradle)
 
 # Builds :core (pure JVM) and runs the :app unit tests (:app:testDebugUnitTest) and the
-# cloud storage adapters' tests (:cloudstore:jvmTest).
+# cloud storage adapters' tests (:cloudstore:jvmTest) and the sign-in tests (:cloudauth:jvmTest).
 # These are JVM unit tests — NO emulator/AVD required — so an ubuntu-latest
 # runner is sufficient and cheap. Add a separate connectedCheck job on a
 # macOS/KVM runner only if instrumented (androidTest) tests are ever added.
@@ -23,6 +23,7 @@ on:
       - 'common/core/**'
       # The cloud storage adapters and their tests (issue #566); :core depends on this module.
       - 'common/cloudstore/**'
+      - 'common/cloudauth/**'
       # :core's tests read the shared golden descriptors (OI-AND-WIRE-01).
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
@@ -49,6 +50,7 @@ on:
       - 'common/core/**'
       # The cloud storage adapters and their tests (issue #566); :core depends on this module.
       - 'common/cloudstore/**'
+      - 'common/cloudauth/**'
       - 'app/NeurOneShared/TestData/**'
       # The shared NPPS core (OI-NPPS-CORE-01): :core's tests build common/npps-jni with cargo and
       # push the shipped library and the fixtures through it.
@@ -145,7 +147,7 @@ jobs:
           gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
       - name: Build :core, :shared, :desktop and :web, and run unit tests
-        run: gradle :core:jvmTest :cloudstore:jvmTest :core:wasmJsNodeTest :shared:desktopTest :desktop:test :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
+        run: gradle :core:jvmTest :cloudstore:jvmTest :cloudauth:jvmTest :core:wasmJsNodeTest :shared:desktopTest :desktop:test :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
 
       # The compiler calls the core through JNI, so an APK without the library cannot upload a
       # protocol. The unit tests cannot see that; this does.

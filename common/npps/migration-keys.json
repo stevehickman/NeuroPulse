@@ -31,7 +31,8 @@
     "np.backup.auto-secret",
     "np.backup.auto-failure",
     "np.presence.enabled",
-    "np.presence.passphrase-wrap"
+    "np.presence.passphrase-wrap",
+    "np.cloud.accounts"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

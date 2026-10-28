@@ -14,7 +14,7 @@ import life.neurone.core.net.HttpTransport
  * status the adapter does not map. The migration flow treats a thrown call as "route unavailable" and the person retries, which
  * is also how a claim whose outcome is unknown is handled (a claim "written but not read back" is not owned, SWR-MG-07).
  */
-class CloudStoreException(message: String, val status: Int? = null) : Exception(message)
+open class CloudStoreException(message: String, val status: Int? = null) : Exception(message)
 
 /**
  * The OAuth 2.0 bearer token of the person's own account at the provider. The host obtains and refreshes it (Google sign-in,
@@ -26,7 +26,7 @@ fun interface AccessToken {
 }
 
 /** RFC 3986 percent-encoding of one URL component, over the UTF-8 bytes. Unreserved characters stay as they are. */
-internal fun percentEncode(text: String): String {
+fun percentEncode(text: String): String {
     val out = StringBuilder()
     for (b in text.encodeToByteArray()) {
         val c = b.toInt() and 0xFF
@@ -41,7 +41,7 @@ internal fun percentEncode(text: String): String {
 internal fun percentEncodePath(path: String): String = path.split('/').joinToString("/") { percentEncode(it) }
 
 /** The reverse of [percentEncode], over the UTF-8 bytes. A `%` not followed by two hex digits stays as it is. */
-internal fun percentDecode(text: String): String {
+fun percentDecode(text: String): String {
     val bytes = ArrayList<Byte>(text.length)
     var i = 0
     while (i < text.length) {

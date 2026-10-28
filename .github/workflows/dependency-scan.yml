@@ -2,7 +2,7 @@ name: Dependency scan (OSV)
 
 # OI-SOUPKT-01 items 2 and 3. Two checks over what the shipped apps are built from:
 #
-#   1. The Gradle lock files (gradle.lockfile in :core, :cloudstore, :shared, :desktop and :web) are the committed record of what
+#   1. The Gradle lock files (gradle.lockfile in :core, :cloudstore, :cloudauth, :shared, :desktop and :web) are the committed record of what
 #      resolved. They are regenerated here and must not differ from what is committed: a changed transitive
 #      version shows up as a diff in review, not as a surprise. (:app needs the Android SDK and is not locked;
 #      its libraries are a subset of the shared ones plus the AndroidX list in NP-SOUP-KOTLIN-001 §5.)
@@ -23,6 +23,7 @@ on:
       - 'app/android/build.gradle.kts'
       - 'common/core/build.gradle.kts'
       - 'common/cloudstore/build.gradle.kts'
+      - 'common/cloudauth/build.gradle.kts'
       - 'app/android/settings.gradle.kts'
       - 'app/NeurOneUI/**/build.gradle.kts'
       - '**/gradle.lockfile'
@@ -63,13 +64,13 @@ jobs:
       - name: Regenerate the lock files
         run: |
           find .. -name gradle.lockfile -not -path '*/build/*' -delete
-          gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks --stacktrace
+          gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :cloudauth:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks --stacktrace
 
       - name: The committed lock files match
         run: |
           git status --short -- '*gradle.lockfile'
           git diff --exit-code -- '*gradle.lockfile' || {
-            echo "::error::A lock file changed. Run 'gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks' from app/android and commit the result, then update NP-SOUP-KOTLIN-001 §5."
+            echo "::error::A lock file changed. Run 'gradle :core:resolveAndLockAll :cloudstore:resolveAndLockAll :cloudauth:resolveAndLockAll :shared:resolveAndLockAll :desktop:resolveAndLockAll :web:resolveAndLockAll --write-locks' from app/android and commit the result, then update NP-SOUP-KOTLIN-001 §5."
             exit 1
           }
           [ -z "$(git ls-files --others --exclude-standard -- '*gradle.lockfile')" ] || { echo "::error::A lock file is not committed"; exit 1; }

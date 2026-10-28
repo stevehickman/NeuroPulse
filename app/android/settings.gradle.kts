@@ -31,6 +31,9 @@ include(":app")
 // Kotlin several apps use lives in common/ (CLAUDE.md section 20); :core depends on it.
 include(":cloudstore")
 project(":cloudstore").projectDir = file("../../common/cloudstore")
+// Sign-in and credential storage for the cloud stores; above :core and :cloudstore, which do not depend on it.
+include(":cloudauth")
+project(":cloudauth").projectDir = file("../../common/cloudauth")
 
 // The multiplatform UI lives beside the apps it serves, not under android/ (app/NeurOneUI/README.md).
 include(":shared")

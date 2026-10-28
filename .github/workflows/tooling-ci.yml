@@ -358,6 +358,7 @@ jobs:
         app/**
         common/lib/**
         common/core/**
+        common/cloudauth/**
         common/npps/migration-keys.json
         scripts/check-migration-keys.ts
         .github/workflows/tooling-ci.yml
