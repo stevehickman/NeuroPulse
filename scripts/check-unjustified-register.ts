@@ -11,10 +11,10 @@
  * ── What this checks ─────────────────────────────────────────────────────────
  *
  *   R1  Every register row has seven cells, a unique UC-nnn ID, and one of the six classes.
- *   R2  Every firmware source or header, every hardware/*.json, and every app, protocol, simulator or CI
- *       file that carries an unjustified-value marker is named in the register by path. Markers:
+ *   R2  Every firmware source or header, every hardware/*.json, and every app, common, protocol, simulator
+ *       or CI file that carries an unjustified-value marker is named in the register by path. Markers:
  *       PROVISIONAL, PLACEHOLDER, UNCALIBRATED, UNVALIDATED, "NOT DERIVED" (upper case, as the source
- *       writes them), and a JSON "status": "provisional" or "placeholder". In app/, protocols/,
+ *       writes them), and a JSON "status": "provisional" or "placeholder". In app/, common/, protocols/,
  *       simulator/ and ci/ only a COMMENT line counts, because UI strings and locale keys such as
  *       "CLINICIAN_GRANT_NAME_PLACEHOLDER" are not choices. Tests and vendor/ are not scanned.
  *   R3  Every docs/, firmware/, hardware/ and scripts/ path the register names exists.
@@ -30,8 +30,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-unjustified-register.ts --self-test
- * CI-Scans: every UC row of docs/status/unjustified-choices.md, against the PROVISIONAL / PLACEHOLDER markers in firmware/, hardware/*.json and comment lines in app/, protocols/, simulator/ and ci/, and the OI IDs and paths it cites under docs/
- * CI-Scan-Paths: docs/** firmware/** hardware/** app/** protocols/** simulator/** ci/**
+ * CI-Scans: every UC row of docs/status/unjustified-choices.md, against the PROVISIONAL / PLACEHOLDER markers in firmware/, hardware/*.json and comment lines in app/, common/, protocols/, simulator/ and ci/, and the OI IDs and paths it cites under docs/
+ * CI-Scan-Paths: docs/** firmware/** hardware/** app/** common/** protocols/** simulator/** ci/**
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -42,6 +42,11 @@ const CLASSES = new Set([
   "NO-DERIVATION", "UNMEASURED", "ASSUMED", "PLACEHOLDER", "UNVERIFIED-SOURCE", "ATTRIBUTION",
 ]);
 const COLUMNS = 7;
+/** The trees whose comment lines are scanned. `common/` joined at the move of :core out of app/android (#688): the files that moved
+ * carried five markers, and the gate stopped seeing them because it did not list the directory they moved to. */
+export const WIDE_DIRS = ["app", "common", "protocols", "simulator", "ci"];
+/** The source extensions whose comment lines are scanned. */
+export const WIDE_EXT = /\.(kt|kts|swift|ts|tsx|cs|npps|sql|js|py|rs)$/;
 const SOURCE_MARKER = /PROVISIONAL|PLACEHOLDER|UNCALIBRATED|UNVALIDATED|NOT DERIVED/;
 const COMMENT_MARKER = /^\s*(\/\/|\*|\/\*|#|--|\/\/\/).*(PROVISIONAL|UNVALIDATED|UNCALIBRATED|NOT DERIVED|PLACEHOLDER)/m;
 const JSON_MARKER = /"status"\s*:\s*"(provisional|placeholder)"/;
@@ -115,12 +120,12 @@ function markedFiles(): string[] {
   }
   // Second population: comment lines in app, protocol, simulator and CI sources.
   const wider: string[] = [];
-  const skipWide = (rel: string) => /(^|\/)(node_modules|build|Pods|\.gradle)(\/|$)/.test(rel);
-  for (const d of ["app", "protocols", "simulator", "ci"]) {
+  const skipWide = (rel: string) => /(^|\/)(node_modules|build|target|Pods|\.gradle)(\/|$)/.test(rel);
+  for (const d of WIDE_DIRS) {
     if (existsSync(join(ROOT, d))) walk(join(ROOT, d), wider, skipWide);
   }
   for (const f of wider) {
-    if (!/\.(kt|kts|swift|ts|tsx|cs|npps|sql|js|py)$/.test(f)) continue;
+    if (!WIDE_EXT.test(f)) continue;
     if (/(Tests?\/|\/test\/|\.test\.|Tests\.|_test|selftest)/.test(f)) continue;
     if (COMMENT_MARKER.test(readFileSync(join(ROOT, f), "utf8"))) hits.push(f);
   }
@@ -182,6 +187,8 @@ function selfTest(): number {
   t("source marker matches", SOURCE_MARKER.test("/* PROVISIONAL */") && !SOURCE_MARKER.test("NP_HUB_ERR_TIER_UNVERIFIED"));
   t("comment marker matches code comments only", COMMENT_MARKER.test("    // UNVALIDATED PLACEHOLDER — x") && !COMMENT_MARKER.test('TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $n)'));
   t("escapeRegExp neutralises backslashes and metacharacters", new RegExp(escapeRegExp("a\\b.c")).test("a\\b.c") && !new RegExp(escapeRegExp("a.c")).test("abc"));
+  t("common/ and Rust sources are scanned", WIDE_DIRS.includes("common") && WIDE_EXT.test("common/npps-core/src/zones.rs") && WIDE_EXT.test("common/core/src/commonMain/kotlin/A.kt"));
+  t("a Rust comment marker matches", COMMENT_MARKER.test("    // PROVISIONAL — x") && !COMMENT_MARKER.test("let x = PLACEHOLDER_LEN;"));
   t("json marker matches", JSON_MARKER.test('"status": "placeholder"') && !JSON_MARKER.test('"status": "external-limit"'));
   if (!bad) console.log("self-test ok");
   return bad ? 1 : 0;
