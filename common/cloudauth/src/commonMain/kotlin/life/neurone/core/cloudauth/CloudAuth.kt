@@ -11,6 +11,8 @@ import kotlinx.serialization.json.longOrNull
 import life.neurone.core.cloud.AccessToken
 import life.neurone.core.cloud.AwsCredentials
 import life.neurone.core.cloud.AwsCredentialsProvider
+import life.neurone.core.cloud.WebDavLogin
+import life.neurone.core.cloud.WebDavLoginProvider
 import life.neurone.core.cloud.CloudKitCredentials
 import life.neurone.core.cloud.CloudStoreException
 import life.neurone.core.cloud.percentDecode
@@ -67,6 +69,7 @@ class CloudAuth(
         AccountFamily.APPLE -> config.cloudKit != null
         AccountFamily.AWS -> true
         AccountFamily.DROPBOX -> config.dropbox != null
+        AccountFamily.WEBDAV -> true
     }
 
     /** The CloudKit container this build is registered with, or null; an adapter needs its name, environment and address. */
@@ -86,6 +89,7 @@ class CloudAuth(
             AccountFamily.GOOGLE, AccountFamily.MICROSOFT, AccountFamily.DROPBOX -> oauthSignIn(service, replacing)
             AccountFamily.APPLE -> cloudKitSignIn(replacing)
             AccountFamily.AWS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "AWS has no browser sign-in; the person's access key is added with addAwsKeys")
+            AccountFamily.WEBDAV -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "WebDAV has no browser sign-in; the person's login is added with addWebDavLogin")
         }
     }
 
@@ -234,6 +238,35 @@ class CloudAuth(
         }
     }
 
+    /**
+     * Keep the person's WebDAV login as an account of [CloudService.WEBDAV]. [url] must be an `https` collection address that [WebDavAddress] accepts,
+     * [user] a name without a colon or control character (RFC 7617: the user name of Basic credentials cannot contain a colon), [password] any text
+     * without a control character. Nothing is sent to the server here, so a wrong login is found by the first request and not by this call.
+     */
+    suspend fun addWebDavLogin(url: String, user: String, password: String, replacing: String? = null): CloudAccount {
+        val address = WebDavAddress.parse(url) ?: throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "that is not an https address of a WebDAV folder")
+        if (user.isEmpty() || user.any { it == ':' || it.code < 0x20 || it.code == 0x7F }) {
+            throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a WebDAV user name may not be empty or contain a colon or control character")
+        }
+        if (password.isEmpty() || password.any { it.code < 0x20 || it.code == 0x7F }) {
+            throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a WebDAV password may not be empty or contain a control character")
+        }
+        replacing?.let { checkReplacing(it, CloudService.WEBDAV) }
+        return store(CloudService.WEBDAV, replacing) { id, created ->
+            StoredAccount(id, CloudService.WEBDAV, created, false, webdavUrl = address, webdavUser = user, webdavPassword = password)
+        }
+    }
+
+    /** The login of a WebDAV account for `WebDavObjectStore`, read at every call. A login the server refused (flagged) asks the person to sign in again. */
+    fun webDavLogin(accountId: String): WebDavLoginProvider = WebDavLoginProvider {
+        lock.withLock {
+            val acc = credentials.load().accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
+            if (acc.service != CloudService.WEBDAV) throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} is not a WebDAV account")
+            if (acc.needsSignIn) throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the person must enter the login again")
+            WebDavLogin(acc.webdavUrl!!, WebDavAddress.basic(acc.webdavUser!!, acc.webdavPassword!!))
+        }
+    }
+
     private suspend fun store(service: CloudService, replacing: String?, make: (String, Long) -> StoredAccount): CloudAccount =
         lock.withLock {
             val vault = credentials.load()
@@ -252,7 +285,7 @@ class CloudAuth(
     private suspend fun freshAccessToken(accountId: String): String = lock.withLock {
         val vault = credentials.load()
         val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
-        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS) {
+        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS || acc.service.family == AccountFamily.WEBDAV) {
             throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} has no OAuth access token")
         }
         if (acc.needsSignIn) throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the person must sign in again")

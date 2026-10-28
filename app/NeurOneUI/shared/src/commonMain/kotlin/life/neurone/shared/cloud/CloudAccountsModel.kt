@@ -36,6 +36,8 @@ enum class CloudNoticeKind {
     UNREADABLE,
     KEYS_SAVED,
     KEYS_INVALID,
+    LOGIN_SAVED,
+    LOGIN_INVALID,
 }
 
 class CloudNotice(val kind: CloudNoticeKind, val service: CloudService?)
@@ -82,7 +84,7 @@ class CloudAccountsModel(
     }
 
     suspend fun signIn(service: CloudService) {
-        if (service.family == AccountFamily.AWS || !begin(service)) return
+        if (service.family == AccountFamily.AWS || service.family == AccountFamily.WEBDAV || !begin(service)) return
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
             if (existing != null && !existing.needsSignIn) return
@@ -126,6 +128,21 @@ class CloudAccountsModel(
         }
     }
 
+    /** Keep a WebDAV login the person typed (SWR-MG-24). The caller empties its fields afterwards; nothing here keeps them. The password is not trimmed. */
+    suspend fun addWebDavLogin(url: String, user: String, password: String) {
+        val service = CloudService.WEBDAV
+        if (!begin(service)) return
+        try {
+            val existing = _rows.value.firstOrNull { it.service == service }?.account
+            auth.addWebDavLogin(url.trim(), user.trim(), password, replacing = existing?.id)
+            _notice.value = CloudNotice(CloudNoticeKind.LOGIN_SAVED, service)
+        } catch (e: CloudAuthException) {
+            report(e, service)
+        } finally {
+            end()
+        }
+    }
+
     private fun begin(service: CloudService): Boolean {
         if (_busy.value != null) return false
         _busy.value = service
@@ -146,7 +163,11 @@ class CloudAccountsModel(
             CloudAuthProblem.DENIED -> CloudNoticeKind.DENIED
             CloudAuthProblem.NETWORK -> CloudNoticeKind.NETWORK
             CloudAuthProblem.STORE_UNREADABLE -> CloudNoticeKind.UNREADABLE
-            CloudAuthProblem.INVALID_INPUT -> if (service.family == AccountFamily.AWS) CloudNoticeKind.KEYS_INVALID else CloudNoticeKind.FAILED
+            CloudAuthProblem.INVALID_INPUT -> when (service.family) {
+                AccountFamily.AWS -> CloudNoticeKind.KEYS_INVALID
+                AccountFamily.WEBDAV -> CloudNoticeKind.LOGIN_INVALID
+                else -> CloudNoticeKind.FAILED
+            }
             CloudAuthProblem.STATE_MISMATCH, CloudAuthProblem.SIGN_IN_REQUIRED, CloudAuthProblem.PROVIDER, CloudAuthProblem.UNKNOWN_ACCOUNT -> CloudNoticeKind.FAILED
         }
         _notice.value = CloudNotice(kind, service)

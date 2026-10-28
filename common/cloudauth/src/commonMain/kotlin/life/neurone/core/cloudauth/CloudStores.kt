@@ -9,6 +9,7 @@ import life.neurone.core.cloud.GoogleDriveObjectStore
 import life.neurone.core.cloud.NppsAwsSigV4
 import life.neurone.core.cloud.OneDriveObjectStore
 import life.neurone.core.cloud.S3ObjectStore
+import life.neurone.core.cloud.WebDavObjectStore
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.migration.ObjectStoreRoute
 import life.neurone.core.migration.RouteDescriptor
@@ -20,7 +21,7 @@ import life.neurone.core.platform.epochSeconds
  * The credential is [CloudAuth]'s lazy one, so **every call asks for a token and gets a fresh one**: a store built when the person opens a
  * screen is still good an hour later, and a refused sign-in comes back as a 401 the flow reports as "route unavailable" ([CloudAuth.needsSignIn]).
  *
- * **Which services.** All seven. Google Drive, OneDrive, iCloud and Dropbox need nothing beyond the sign-in. Amazon S3, Google Cloud Storage and Azure Blob
+ * **Which services.** All eight. Google Drive, OneDrive, iCloud, Dropbox and WebDAV (whose address, name and password are typed on the accounts screen) need nothing more when a backup place is chosen. Amazon S3, Google Cloud Storage and Azure Blob
  * also need a place the person names ([BackupTarget]: bucket and region, bucket, or storage account and container), which [targetFields] lists
  * and [target] checks. The names go into a host name or a path, so a value that is not a plain bucket, region, account or container name is refused
  * here, before it can reach a URL.
@@ -86,6 +87,7 @@ object CloudStores {
                 )
             }
             CloudService.DROPBOX -> DropboxObjectStore(transport, auth.accessToken(account.id), CALL_TIMEOUT_SECONDS)
+            CloudService.WEBDAV -> WebDavObjectStore(transport, auth.webDavLogin(account.id), CALL_TIMEOUT_SECONDS)
             CloudService.GOOGLE_CLOUD_STORAGE ->
                 GcsObjectStore(transport, need(TargetField.GCS_BUCKET), auth.accessToken(account.id), CALL_TIMEOUT_SECONDS)
             CloudService.AZURE_BLOB ->
