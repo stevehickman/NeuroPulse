@@ -26,6 +26,7 @@ internal const val GOOGLE_REVOKE = "https://oauth2.googleapis.com/revoke"
 internal const val MS_CONSUMERS_TOKEN = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
 internal const val MS_ORG_TOKEN = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
 internal const val DROPBOX_TOKEN = "https://api.dropboxapi.com/oauth2/token"
+internal const val DROPBOX_REVOKE = "https://api.dropboxapi.com/2/auth/token/revoke"
 internal const val DROPBOX_REDIRECT = "http://127.0.0.1:9005"
 internal const val GOOGLE_REDIRECT = "http://127.0.0.1:9004"
 internal const val MS_REDIRECT = "msal-test://auth"
@@ -69,6 +70,7 @@ internal class FakeProviders : HttpTransport {
         }
         val f = form(request)
         if (url == GOOGLE_REVOKE) return json(revokeStatus, "{}")
+        if (url == DROPBOX_REVOKE) return json(revokeStatus, "{}")
         if (url != GOOGLE_TOKEN && url != MS_CONSUMERS_TOKEN && url != MS_ORG_TOKEN && url != DROPBOX_TOKEN) return json(404, "{}")
         return when (f["grant_type"]) {
             "authorization_code" -> {
@@ -409,13 +411,36 @@ class CloudAuthTests {
         assertTrue(url.startsWith("https://www.dropbox.com/oauth2/authorize?"), url)
         assertEquals("db-key", p["client_id"]); assertEquals(DROPBOX_REDIRECT, p["redirect_uri"]); assertEquals("code", p["response_type"])
         assertEquals("offline", p["token_access_type"]); assertEquals("S256", p["code_challenge_method"])
-        assertEquals("files.content.write files.content.read account_info.read", p["scope"])
+        assertEquals("files.content.write files.content.read files.metadata.read account_info.read", p["scope"], "one scope for each route the store calls")
         val exchange = rig.providers.form(rig.providers.seen.single { it.url == DROPBOX_TOKEN })
         assertEquals("db-key", exchange["client_id"]); assertNull(exchange["client_secret"], "a public client sends no secret"); assertNull(exchange["scope"])
         assertEquals("access-1", rig.auth.accessToken(account.id).bearer())
         rig.clock += 3_600
         assertEquals("access-2", rig.auth.accessToken(account.id).bearer(), "refreshed with the refresh token")
-        assertEquals(Revocation.NOT_AVAILABLE, rig.auth.signOut(account.id), "no revoke call is used for Dropbox")
+        assertEquals(Revocation.REVOKED, rig.auth.signOut(account.id))
+        val revoke = rig.providers.seen.single { it.url == DROPBOX_REVOKE }
+        assertEquals("Bearer access-2", revoke.headers["Authorization"], "revoked with a current access token, and no body")
+        assertEquals(0, revoke.body.size)
+        assertTrue(rig.auth.accounts().isEmpty())
+    }
+
+    // @verifies SWR-MG-23#a
+    @Test
+    fun signingOutOfDropboxRemovesTheCredentialWhateverDropboxAnswersToTheRevoke() = runBlocking {
+        val rig = Rig()
+        val failing = rig.auth.signIn(CloudService.DROPBOX)
+        rig.providers.revokeStatus = 500
+        assertEquals(Revocation.FAILED, rig.auth.signOut(failing.id))
+        assertTrue(rig.auth.accounts().isEmpty())
+
+        // A refresh Dropbox refuses leaves nothing to revoke with; the credential is still deleted.
+        val rig2 = Rig()
+        val gone = rig2.auth.signIn(CloudService.DROPBOX)
+        rig2.clock += 3_600
+        rig2.providers.refreshError = "invalid_grant"
+        assertEquals(Revocation.FAILED, rig2.auth.signOut(gone.id))
+        assertTrue(rig2.auth.accounts().isEmpty())
+        assertTrue(rig2.providers.seen.none { it.url == DROPBOX_REVOKE })
     }
 
     // @verifies SWR-MG-23#a
