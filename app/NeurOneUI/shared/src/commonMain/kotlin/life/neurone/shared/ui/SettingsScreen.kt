@@ -70,6 +70,7 @@ fun SettingsScreen(
     var showClear by remember { mutableStateOf(false) }
     var showLinkSend by remember { mutableStateOf(false) }
     var showLinkReceive by remember { mutableStateOf(false) }
+    var showCloud by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -78,6 +79,7 @@ fun SettingsScreen(
     val connectionState by app.gattManager.connectionState.collectAsState()
 
     when {
+        showCloud -> CloudAccountsScreen(app = app, onDone = { showCloud = false }, modifier = modifier)
         showLinkSend -> MigrationLinkSendScreen(app = app, onDone = { showLinkSend = false }, modifier = modifier)
         showLinkReceive -> MigrationLinkReceiveScreen(app = app, onDone = { showLinkReceive = false }, modifier = modifier)
         showRestore -> MigrationRestoreScreen(
@@ -181,6 +183,7 @@ fun SettingsScreen(
             onClear = { showClear = true },
             onLinkSend = { showLinkSend = true },
             onLinkReceive = { showLinkReceive = true },
+            onManageCloud = { showCloud = true },
             modifier = modifier,
         )
     }
@@ -205,6 +208,7 @@ private fun SettingsContent(
     onClear: () -> Unit,
     onLinkSend: () -> Unit,
     onLinkReceive: () -> Unit,
+    onManageCloud: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
@@ -308,6 +312,15 @@ private fun SettingsContent(
         if (app.platform.linkTransport != null) {
             OutlinedButton(onClick = onLinkSend) { Text(stringResource(Res.string.settings_link_send_button)) }
             OutlinedButton(onClick = onLinkReceive) { Text(stringResource(Res.string.settings_link_receive_button)) }
+        }
+
+        // Sign in to the cloud services a backup can be kept in, where this host can (SWR-MG-20).
+        if (app.cloudAccounts != null) {
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(Res.string.cloud_accounts_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.cloud_accounts_settings_body), style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onManageCloud) { Text(stringResource(Res.string.cloud_accounts_button)) }
         }
 
         // Erase what this host keeps, where it offers that (the browser does): the person's own way to empty it.
