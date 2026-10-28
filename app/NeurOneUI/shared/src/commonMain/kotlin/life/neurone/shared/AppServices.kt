@@ -64,6 +64,8 @@ class AppServices(
     val scope: CoroutineScope,
     /** The clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. */
     private val nowMs: () -> Long = { epochSeconds() * 1000 },
+    /** The cloud providers this build was registered with (SWR-MG-19); generated from the build's properties, empty until the owner registers clients. */
+    cloudAuthConfig: life.neurone.core.cloudauth.CloudAuthConfig = CloudAuthBuildConfig.config,
 ) {
     /**
      * The UHDR-class state is sealed at rest when the host has a keystore to keep the key in (SWR-MG-06); every store and
@@ -156,6 +158,20 @@ class AppServices(
 
     /** Withdrawn people's old analytics IDs, kept until the erasure relay has answered for each (`REQ-SW03-19`). */
     val analyticsErasureQueue = AnalyticsErasureQueue(keyValueStore, platform.httpTransport) { platform.analyticsConfig?.baseUrl }
+
+    /**
+     * Sign-in to the cloud providers and the credentials it returns (SWR-MG-19), or null on a host that lacks either half: [PlatformServices.httpTransport]
+     * to reach the providers with, or an [PlatformServices.authorizationLauncher] to show their pages with (the browser has no transport, so it has none).
+     * The credentials are kept in [keyValueStore], where `np.cloud.accounts` is a sealed key (SWR-MG-16), and never move in a migration (SWR-MG-01).
+     * [cloudAuthConfig] is the build's provider registrations; a provider it does not hold fails its sign-in with NOT_CONFIGURED. Nothing offers a
+     * sign-in to the person yet.
+     */
+    val cloudAuth: life.neurone.core.cloudauth.CloudAuth? = run {
+        val transport = platform.httpTransport
+        val launcher = platform.authorizationLauncher
+        if (transport == null || launcher == null) null
+        else life.neurone.core.cloudauth.CloudAuth(transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher)
+    }
 
     /** The common PostHog backend where the build has a usable host, token and transport; otherwise the host's own (none). */
     private val analyticsBackend: AnalyticsBackend =

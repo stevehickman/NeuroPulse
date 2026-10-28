@@ -57,6 +57,13 @@ interface PlatformServices {
     val httpTransport: life.neurone.core.net.HttpTransport? get() = null
 
     /**
+     * What shows a cloud provider's sign-in page and takes the answer (SWR-MG-19): the system's browser and the way back from it, which
+     * differ on every host (a custom tab and an intent on Android, a web authentication session on iOS, a loopback listener on a
+     * computer, a window on the web). Null where a host has none; there is then no cloud sign-in ([AppServices.cloudAuth] is null).
+     */
+    val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? get() = null
+
+    /**
      * The analytics host and project token this build was made with, or null. With a usable config and a [httpTransport], the
      * common PostHog backend replaces [analyticsBackend]; either missing, analytics stays off (`REQ-SW03-20`).
      */

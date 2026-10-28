@@ -32,6 +32,7 @@ class DesktopPlatformServices(
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
     override val httpTransport: life.neurone.core.net.HttpTransport? = JdkHttpTransport(),
     override val analyticsConfig: life.neurone.core.analytics.AnalyticsConfig? = desktopAnalyticsConfig(),
+    override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = DesktopBrowser.launcher(),
 ) : PlatformServices {
 
     /** The JDK client with the relay's SPKI pins (REQ-SHDR-04). */
