@@ -11,63 +11,7 @@ on:
   # SHA (which doubled exposure to the CoreSimulator flake below).
   push:
     branches: [main]
-    paths:
-      - 'app/ios/**'
-      - 'app/NeurOneShared/**'
-      # Localizable.xcstrings is generated at build time and is not committed
-      # (CLAUDE.md §17), so a string edit no longer touches app/ios/**. Without
-      # these two entries a canonical change that breaks the String Catalog —
-      # a malformed format specifier, a plural family with no sibling — would
-      # not run this workflow at all.
-      - 'locales/**'
-      - 'scripts/sync-locales.ts'
-      # The bundled .npps library is a build input since Issue #189:
-      # app/ios/project.yml copies protocols/predefined into the app bundle as a
-      # folder reference, and NPProtocolLibraryTests reads its manifest.json out
-      # of that bundle. A protocol edit touches nothing under app/ios/**, so
-      # without this entry it would not run the tests that load it.
-      - 'protocols/predefined/**'
-      # The iOS app links the shared NPPS core (OI-NPPS-CORE-01), built from common/ by
-      # scripts/build-npps-xcframework.sh, and NppsCoreTests pushes the library and the fixtures through it.
-      - 'common/Cargo.toml'
-      - 'common/Cargo.lock'
-      - 'common/npps/**'
-      - 'common/npps-core/**'
-      - 'common/npps-ffi/**'
-      - 'scripts/build-npps-xcframework.sh'
-      - 'npps/fixtures/**'
-      # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
-      # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
-      - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
-      # The serializer and validator are the core's too: the tests push these goldens through the binding.
-      - 'app/NeurOneShared/TestData/npps-serialize-golden.json'
-      - 'app/NeurOneShared/TestData/npps-validate-golden.json'
-      - 'app/NeurOneShared/TestData/nfkc-corpus.json'
-      - '.github/workflows/ios-ci.yml'
   pull_request:
-    paths:
-      - 'app/ios/**'
-      - 'app/NeurOneShared/**'
-      - 'locales/**'
-      - 'scripts/sync-locales.ts'
-      - 'protocols/predefined/**'
-      # The iOS app links the shared NPPS core (OI-NPPS-CORE-01), built from common/ by
-      # scripts/build-npps-xcframework.sh, and NppsCoreTests pushes the library and the fixtures through it.
-      - 'common/Cargo.toml'
-      - 'common/Cargo.lock'
-      - 'common/npps/**'
-      - 'common/npps-core/**'
-      - 'common/npps-ffi/**'
-      - 'scripts/build-npps-xcframework.sh'
-      - 'npps/fixtures/**'
-      # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
-      # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
-      - 'app/NeurOneShared/TestData/hub-descriptor-golden.json'
-      # The serializer and validator are the core's too: the tests push these goldens through the binding.
-      - 'app/NeurOneShared/TestData/npps-serialize-golden.json'
-      - 'app/NeurOneShared/TestData/npps-validate-golden.json'
-      - 'app/NeurOneShared/TestData/nfkc-corpus.json'
-      - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
 # Least privilege. Both jobs only check out the repo and build/test it; nothing
@@ -84,9 +28,104 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Per-commit relevance (NP-SW-CI-001 §6.7). Replaces the `pull_request: paths:`
+  # filter, which GitHub evaluates against the WHOLE pull request: once a PR touched
+  # one of these paths, every later commit re-ran this workflow, however small. This
+  # job diffs from the last green run of this workflow on the branch instead, so a
+  # commit that cannot affect the build skips it. A job skipped by `if:` reports
+  # `skipped`, which satisfies a required check; a `paths:`-suppressed workflow
+  # never reports at all.
+  changes:
+    name: Relevance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+    env:
+      NP_SCOPE_PATHS: |
+        app/ios/**
+        app/NeurOneShared/**
+        locales/**
+        scripts/sync-locales.ts
+        protocols/predefined/**
+        # The iOS app links the shared NPPS core (OI-NPPS-CORE-01), built from common/ by
+        # scripts/build-npps-xcframework.sh, and NppsCoreTests pushes the library and the fixtures through it.
+        common/Cargo.toml
+        common/Cargo.lock
+        common/npps/**
+        common/npps-core/**
+        common/npps-ffi/**
+        scripts/build-npps-xcframework.sh
+        npps/fixtures/**
+        # HubDescriptorCompilerTests diffs against the web compiler's golden descriptors, which
+        # live beside Android's tests and are shared by all three native compilers (OI-AND-WIRE-01).
+        app/NeurOneShared/TestData/hub-descriptor-golden.json
+        # The serializer and validator are the core's too: the tests push these goldens through the binding.
+        app/NeurOneShared/TestData/npps-serialize-golden.json
+        app/NeurOneShared/TestData/npps-validate-golden.json
+        app/NeurOneShared/TestData/nfkc-corpus.json
+        .github/workflows/ios-ci.yml
+        scripts/ci-changed-scope.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write the relevance list
+        run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
+
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_EVENT: ${{ github.event_name }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          NP_REF: ${{ github.ref }}
+          GH_TOKEN: ${{ github.token }}
+          NP_REPO: ${{ github.repository }}
+          NP_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          NP_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          if ! merge_base=$(scripts/ci-changed-scope.sh --diff-base \
+                 "$NP_EVENT" "${NP_BASE:-}" "$NP_HEAD" "$NP_DEFAULT_BRANCH" "$NP_REF") \
+             || [ -z "$merge_base" ]; then
+            echo "::notice::no usable base revision (event=$NP_EVENT, ref=$NP_REF, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(scripts/ci-changed-scope.sh --resolve-base ios-ci.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
+          git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+            relevant=true
+          else
+            relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)
+            echo "--- in-scope files ---"
+            scripts/ci-changed-scope.sh --match scope.paths changed.txt
+          fi
+          echo "relevant=${relevant}" | tee -a "$GITHUB_OUTPUT"
+
   swiftlint:
     name: SwiftLint — strict
     runs-on: macos-15
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,6 +140,8 @@ jobs:
   ios-build-test:
     name: xcodebuild test — NeurOne
     runs-on: macos-15   # Xcode 16+ with iOS 18 simulator
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
 
     steps:
       - name: Checkout
