@@ -25,10 +25,11 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
     ICLOUD_CLOUDKIT(AccountFamily.APPLE, null),
 
     /**
-     * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes
-     * are the content ones and `account_info.read` for the space figure; **recalled, not read** from Dropbox's pages (`UC-116`).
+     * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes are
+     * the ones the routes the store calls declare in Dropbox's API spec (read 2026-10-28, `UC-116`): `files.content.write` for upload and delete,
+     * `files.content.read` for download, `files.metadata.read` for listing the folder, `account_info.read` for the space figure.
      */
-    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read account_info.read"),
+    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read account_info.read"),
 
     /**
      * A WebDAV server the person runs or rents (Nextcloud, ownCloud, a NAS): its address, a user name and a password (an app password, where the

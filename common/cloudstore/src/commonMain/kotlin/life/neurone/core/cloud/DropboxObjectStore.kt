@@ -17,20 +17,20 @@ import life.neurone.core.net.HttpTransport
  * An [ObjectStore] over the **app folder** of the person's Dropbox, through the Dropbox HTTP API v2 (SWR-MG-11, `docs/np_sw_cloudstore_001.md`
  * §3.3 and §4b). An app registered with the "App folder" access type sees only `Apps/<app name>`, and its paths are relative to it (the root is `""`).
  *
- * **Written from memory of the API, not from its pages.** `www.dropbox.com` could not be reached from the session that wrote this, so none of
- * the request shapes, the error tags or the limits below were read there (`UC-116`). Two things were seen in search excerpts only: that
- * `files/upload` with `autorename` false fails on a name conflict where it would otherwise rename, and that the authorization-code flow with
- * PKCE needs no app secret. Everything else is the author's recollection, and the stand-in in the tests is written from the same recollection,
- * so **a test passing here shows the adapter agrees with itself**, not with Dropbox.
+ * **Checked against Dropbox's API definition and SDK, not yet against a server.** `www.dropbox.com`'s reference pages are script-rendered and could not be
+ * read as text, so the routes, arguments, scopes, limits and error unions were read from the public API spec (`dropbox/dropbox-api-spec`, `files.stone`,
+ * `users.stone`, `auth.stone`) and the official Python SDK (`dropbox-sdk-python`), read 2026-10-28 (`UC-116`). **Not shown by that reading:** that a real server
+ * answers as the spec says, the HTTP status codes other than 409 and 429 (the SDK treats 409 as an endpoint error and 429 as a rate limit), and whether racing
+ * uploads are arbitrated atomically. The stand-in in the tests is written from the same reading, so a pass shows agreement with the spec, not with a server.
  *
- * **Create-if-absent** is `files/upload` with `mode: add` and `autorename: false`: the name is taken, the call fails with HTTP 409 and an
- * `error_summary` that begins `path/conflict`, which is read as "the object exists". Any other 409, and every other status, throws. Whether two
+ * **Create-if-absent** is `files/upload` with `mode: add`, `autorename: false` and `strict_conflict: true`: the name is taken, the call fails with HTTP 409 and an
+ * `error` of `path` then `conflict`, which is read as "the object exists". Any other 409, and every other status, throws. Whether two
  * uploads racing for one name are arbitrated atomically is not something this class knows; the contract test against a real account
  * (`SWR-MG-11#contract`) is what would show it, and no route built on this class promises an exclusive create.
  *
- * **Upload** is one call, up to 150 MB (the limit as recalled); a larger object is refused here rather than half-sent, because the session-based
+ * **Upload** is one call, up to 150 MiB (the spec's limit); a larger object is refused here rather than half-sent, because the session-based
  * upload for larger files is not built. **Download** is `files/download`, whose arguments are in the `Dropbox-API-Arg` header; a missing
- * file is a 409 with `path/not_found`, read as null. The header is JSON and Dropbox wants non-ASCII characters in it written `\uXXXX`.
+ * file is a 409 with `path` then `not_found`, read as null. The header is JSON and Dropbox wants non-ASCII characters in it written `\uXXXX`.
  * **Delete** is `files/delete_v2`; a missing file is not an error. A deleted file stays recoverable by the person for a while, as ciphertext.
  * **List** is `files/list_folder` followed by `files/list_folder/continue` while `has_more`; folders are skipped.
  * **Free space** is `users/get_space_usage` (allocated minus used), null when the reply gives no allocation.
@@ -88,26 +88,40 @@ class DropboxObjectStore(
         append('"')
     }
 
-    /** The reply's `error_summary`, which names the error as a path of tags (`path/conflict/file/...`), or null. */
-    private fun errorSummary(r: HttpResponse): String? = try {
-        Json.parseToJsonElement(r.body.decodeToString()).jsonObject["error_summary"]?.jsonPrimitive?.contentOrNull
+    /**
+     * The error a 409 carries, as a path of tags (`path/conflict/file`, `path/not_found`, `path_lookup/not_found`). Dropbox's own SDK reads the reply's
+     * `error` object, a union written as `{".tag": <variant>, <variant>: <its value>}` (a struct such as the upload's failure holds its union in `reason`), so
+     * this follows that structure; the reply's `error_summary` string, which the SDK does not read, is the fallback.
+     */
+    private fun errorPath(r: HttpResponse): String? = try {
+        val root = Json.parseToJsonElement(r.body.decodeToString()).jsonObject
+        val tags = mutableListOf<String>()
+        var cur = root["error"] as? JsonObject
+        while (cur != null) {
+            val tag = cur[".tag"]?.jsonPrimitive?.contentOrNull ?: break
+            tags += tag
+            cur = (cur[tag] ?: cur["reason"]) as? JsonObject
+        }
+        if (tags.isNotEmpty()) tags.joinToString("/") else root["error_summary"]?.jsonPrimitive?.contentOrNull
     } catch (e: Exception) {
         null
     }
 
     private suspend fun upload(name: String, bytes: ByteArray, mode: String): Outcome {
         if (bytes.size > MAX_UPLOAD_BYTES) throw CloudStoreException("'$name' is larger than one Dropbox upload call takes")
+        // `strict_conflict` matters for a create: without it, "If the target path refers to a file with identical contents, nothing gets written; no
+        // conflict" (the WriteMode text), so a second claim with the same bytes would read as created. With it, any existing file is a conflict.
         val r = send(
             "POST", "$contentUrl/files/upload",
             mapOf(
                 "Content-Type" to "application/octet-stream",
-                "Dropbox-API-Arg" to arg("path" to path(name), "mode" to mode, "autorename" to false, "mute" to true),
+                "Dropbox-API-Arg" to arg("path" to path(name), "mode" to mode, "autorename" to false, "mute" to true, "strict_conflict" to (mode == "add")),
             ),
             bytes,
         )
         return when {
             r.status == 200 -> Outcome.CREATED
-            r.status == 409 && errorSummary(r)?.startsWith("path/conflict") == true -> Outcome.EXISTS
+            r.status == 409 && errorPath(r)?.startsWith("path/conflict") == true -> Outcome.EXISTS
             else -> throw CloudStoreException("upload '$name' answered ${r.status}", r.status)
         }
     }
@@ -116,7 +130,7 @@ class DropboxObjectStore(
         val r = send("POST", "$contentUrl/files/download", mapOf("Dropbox-API-Arg" to arg("path" to path(name))))
         return when {
             r.status == 200 -> r.body
-            r.status == 409 && errorSummary(r)?.startsWith("path/not_found") == true -> null
+            r.status == 409 && errorPath(r)?.startsWith("path/not_found") == true -> null
             else -> throw CloudStoreException("get '$name' answered ${r.status}", r.status)
         }
     }
@@ -130,7 +144,7 @@ class DropboxObjectStore(
     override suspend fun delete(name: String) {
         val r = rpc("files/delete_v2", """{"path":${asciiJson(path(name))}}""")
         if (r.status == 200) return
-        if (r.status == 409 && errorSummary(r)?.startsWith("path_lookup/not_found") == true) return
+        if (r.status == 409 && errorPath(r)?.startsWith("path_lookup/not_found") == true) return
         throw CloudStoreException("delete '$name' answered ${r.status}", r.status)
     }
 
@@ -162,8 +176,10 @@ class DropboxObjectStore(
         if (r.status != 200) throw CloudStoreException("space usage answered ${r.status}", r.status)
         return try {
             val o = Json.parseToJsonElement(r.body.decodeToString()).jsonObject
-            val used = o["used"]?.jsonPrimitive?.longOrNull ?: return null
-            val allocated = o["allocation"]?.jsonObject?.get("allocated")?.jsonPrimitive?.longOrNull ?: return null
+            val allocation = o["allocation"]?.jsonObject ?: return null
+            val allocated = allocation["allocated"]?.jsonPrimitive?.longOrNull ?: return null
+            // A team account shares its space: the team's own `used` is what counts against the team's `allocated`.
+            val used = (allocation["used"] ?: o["used"])?.jsonPrimitive?.longOrNull ?: return null
             (allocated - used).coerceAtLeast(0)
         } catch (e: Exception) {
             null
@@ -171,8 +187,8 @@ class DropboxObjectStore(
     }
 
     internal companion object {
-        /** One upload call's limit as recalled (150 MB); not read from Dropbox's pages. */
-        const val MAX_UPLOAD_BYTES = 150_000_000
+        /** One upload call's limit: "Do not use this to upload a file larger than 150 MiB" (the `upload` route's text in Dropbox's API spec). */
+        const val MAX_UPLOAD_BYTES = 150 * 1024 * 1024
         const val PAGE = 500
     }
 }

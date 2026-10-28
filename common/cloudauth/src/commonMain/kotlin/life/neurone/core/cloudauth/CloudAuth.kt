@@ -127,8 +127,8 @@ class CloudAuth(
         }
         AccountFamily.DROPBOX -> {
             val c = config.dropbox ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Dropbox app is configured")
-            // Recalled, not read (UC-116): the authorize page is on www.dropbox.com, the token call on api.dropboxapi.com, and a public client sends no secret.
-            OAuthEndpoints("https://www.dropbox.com/oauth2/authorize", "https://api.dropboxapi.com/oauth2/token", null, c.appKey, c.redirectUri, null)
+            // As Dropbox's Python SDK builds them (read 2026-10-28, UC-116): the authorize page is on www.dropbox.com, the token call on api.dropboxapi.com, and a PKCE client sends the verifier and no secret.
+            OAuthEndpoints("https://www.dropbox.com/oauth2/authorize", "https://api.dropboxapi.com/oauth2/token", DROPBOX_REVOKE, c.appKey, c.redirectUri, null)
         }
         else -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${service.name} does not use OAuth")
     }
@@ -369,11 +369,28 @@ class CloudAuth(
      * result says so). The local credential is deleted whatever the provider answers.
      */
     suspend fun signOut(accountId: String): Revocation {
+        // Dropbox's revoke call is authenticated with an access token, so a current one is got before the account is forgotten (a refresh that fails
+        // leaves nothing to revoke with, and the local credential is deleted all the same).
+        val dropboxToken = try {
+            if (credentials.load().accounts.firstOrNull { it.id == accountId }?.service?.family == AccountFamily.DROPBOX) freshAccessToken(accountId) else null
+        } catch (e: CloudAuthException) {
+            null
+        }
         val removed = lock.withLock {
             val vault = credentials.load()
             val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
             credentials.save(Vault(vault.version, vault.accounts.filter { it.id != accountId }))
             acc
+        }
+        if (removed.service.family == AccountFamily.DROPBOX) {
+            // `auth/token/revoke` takes no argument: "Disables the access token used to authenticate the call" and its refresh token (Dropbox API spec, auth.stone).
+            val token = dropboxToken ?: return Revocation.FAILED
+            return try {
+                val r = transport.post(HttpRequest(DROPBOX_REVOKE, mapOf("Authorization" to "Bearer $token"), ByteArray(0), "POST", timeoutSeconds))
+                if (r != null && r.status == 200) Revocation.REVOKED else Revocation.FAILED
+            } catch (e: CloudStoreException) {
+                Revocation.FAILED
+            }
         }
         val revoke = if (removed.service.family == AccountFamily.GOOGLE) endpoints(removed.service).revoke else null
         val token = removed.refreshToken ?: removed.accessToken
@@ -420,6 +437,8 @@ class CloudAuth(
     }
 
     companion object {
+        private const val DROPBOX_REVOKE = "https://api.dropboxapi.com/2/auth/token/revoke"
+
         /** OAuth errors on a refresh that mean the person must sign in again (RFC 6749 `invalid_grant`; Microsoft's `interaction_required` and kin). */
         private val SIGN_IN_ERRORS = setOf("invalid_grant", "interaction_required", "consent_required", "login_required")
 
