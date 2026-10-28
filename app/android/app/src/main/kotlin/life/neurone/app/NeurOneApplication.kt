@@ -3,6 +3,7 @@ package life.neurone.app
 import android.app.Application
 import android.content.Context
 import life.neurone.app.ble.AndroidBleCentral
+import life.neurone.core.cloudauth.ExternalBrowserLauncher
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.session.ProtocolUploader
 import life.neurone.core.analytics.ResearchAnalyticsGate
@@ -49,6 +50,12 @@ class NeurOneApplication : Application() {
     /** The cross-platform composition root (app/NeurOneUI/shared). Everything below is a view onto it. */
     lateinit var services: AppServices
         private set
+
+    /**
+     * The sign-in to a cloud provider opens the system browser and is answered by an intent to [life.neurone.app.ui.MainActivity],
+     * which reports it here (SWR-MG-19). Nothing constructs a `CloudAuth` yet; this is the launcher it will be given.
+     */
+    val browserLauncher = ExternalBrowserLauncher { AndroidBrowser.open(this, it) }
 
     /** Whether an activity is on screen: the presence lock's background timeout reads it (`REQ-PRES-03`). */
     private val foreground = AndroidAppForeground()
