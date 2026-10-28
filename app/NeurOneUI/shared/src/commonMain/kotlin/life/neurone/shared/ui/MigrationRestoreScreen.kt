@@ -61,6 +61,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
         Text(stringResource(Res.string.migration_restore_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(stringResource(Res.string.migration_restore_intro), style = MaterialTheme.typography.bodyMedium)
+        BackupDestinationRow(app)
         hostPlace?.let {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, it.label), style = MaterialTheme.typography.bodySmall)

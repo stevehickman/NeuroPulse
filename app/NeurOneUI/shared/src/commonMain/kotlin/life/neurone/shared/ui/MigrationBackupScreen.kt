@@ -89,6 +89,8 @@ fun MigrationBackupScreen(
         Text(stringResource(Res.string.migration_backup_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(stringResource(Res.string.migration_backup_intro), style = MaterialTheme.typography.bodyMedium)
+        // Where to keep it, when a cloud account could be chosen (SWR-MG-21); a direct move to another phone has no choice.
+        if (linkPlace == null) BackupDestinationRow(app)
         if (place != null && portable == null && linkPlace == null) {
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)

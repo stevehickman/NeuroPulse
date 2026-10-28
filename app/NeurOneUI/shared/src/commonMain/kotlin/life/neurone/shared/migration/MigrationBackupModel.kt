@@ -230,7 +230,7 @@ internal suspend fun runBackup(
             done["bundleHash"]!!.jsonPrimitive.content,
             done["written"]!!.jsonArray.map { it.jsonPrimitive.content },
             done["omitted"]!!.jsonArray.map { it.jsonPrimitive.content },
-            if (kind == BackupKind.UHDR) waveforms?.backUp(place, method, secret) else null,
+            if (kind == BackupKind.UHDR && place.carriesRecordings) waveforms?.backUp(place, method, secret) else null,
         )
     } else {
         BackupStep.Failed(done["reason"]!!.jsonPrimitive.content)

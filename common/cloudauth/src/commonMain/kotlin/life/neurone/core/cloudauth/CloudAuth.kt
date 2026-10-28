@@ -68,6 +68,9 @@ class CloudAuth(
         AccountFamily.AWS -> true
     }
 
+    /** The CloudKit container this build is registered with, or null; an adapter needs its name, environment and address. */
+    val cloudKitConfig: CloudKitConfig? get() = config.cloudKit
+
     suspend fun accounts(): List<CloudAccount> = lock.withLock { credentials.load().accounts.map { it.view() } }
 
     // ── Sign-in ────────────────────────────────────────────────────────────────────────────────────────────────────

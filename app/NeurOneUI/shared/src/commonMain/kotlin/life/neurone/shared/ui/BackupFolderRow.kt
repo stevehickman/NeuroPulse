@@ -26,6 +26,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun BackupFolderRow(app: AppServices, modifier: Modifier = Modifier) {
     val model = app.backupFolder ?: return
+    // A cloud account is the place while one is chosen; the folder is not, so its choice is not offered then (SWR-MG-21).
+    if (app.cloudBackup?.selected?.collectAsState()?.value != null) return
     val problem by model.problem.collectAsState()
     val folder by model.folder.collectAsState()
     val scope = rememberCoroutineScope()

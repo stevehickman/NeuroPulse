@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import life.neurone.core.analytics.EngagementTier
 import life.neurone.core.analytics.FleetConfig
@@ -174,7 +175,7 @@ class AppServices(
     }
 
     /** The cloud accounts screen's state and actions, or null where there is no [cloudAuth] (SWR-MG-20). */
-    val cloudAccounts: life.neurone.shared.cloud.CloudAccountsModel? = cloudAuth?.let { life.neurone.shared.cloud.CloudAccountsModel(it) }
+    val cloudAccounts: life.neurone.shared.cloud.CloudAccountsModel? = cloudAuth?.let { life.neurone.shared.cloud.CloudAccountsModel(it, onChanged = { cloudBackup?.refresh() }) }
 
     /** The common PostHog backend where the build has a usable host, token and transport; otherwise the host's own (none). */
     private val analyticsBackend: AnalyticsBackend =
@@ -202,9 +203,24 @@ class AppServices(
     val backupFolder: life.neurone.shared.migration.BackupFolderModel? =
         platform.folderPlaces?.let { life.neurone.shared.migration.BackupFolderModel(it, keyValueStore) }
 
-    /** The place the backup, restore and clear screens use: the chosen folder, or the host's own fixed place. */
-    val backupPlace: StateFlow<MigrationPlace?> =
-        backupFolder?.place ?: kotlinx.coroutines.flow.MutableStateFlow(platform.migrationPlace)
+    /**
+     * Which cloud account the backup is kept in, if the person chose one (SWR-MG-21); null on a host with no [cloudAuth]. It keeps the
+     * backup and nothing else: a cloud place carries no migration and no recordings.
+     */
+    val cloudBackup: life.neurone.shared.cloud.CloudBackupModel? =
+        cloudAuth?.let { auth -> platform.httpTransport?.let { life.neurone.shared.cloud.CloudBackupModel(auth, it, keyValueStore) } }
+
+    // The choice made in an earlier run takes effect now, so the automatic backup does not wait for a screen to be opened.
+    init { cloudBackup?.let { model -> scope.launch { model.refresh() } } }
+
+    /** The place the backup, restore and clear screens use: the cloud account the person chose, else the chosen folder, else the host's own fixed place. */
+    val backupPlace: StateFlow<MigrationPlace?> = run {
+        val local: StateFlow<MigrationPlace?> = backupFolder?.place ?: kotlinx.coroutines.flow.MutableStateFlow(platform.migrationPlace)
+        val cloud = cloudBackup?.place
+        if (cloud == null) local
+        else kotlinx.coroutines.flow.combine(cloud, local) { c, l -> c ?: l }
+            .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, cloud.value ?: local.value)
+    }
 
     /**
      * Where a bundle waits while it goes straight to another phone (SWR-MG-10): in memory, behind a claim only this process

@@ -21,16 +21,16 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private const val GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
-private const val GOOGLE_REVOKE = "https://oauth2.googleapis.com/revoke"
-private const val MS_CONSUMERS_TOKEN = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
-private const val MS_ORG_TOKEN = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
-private const val GOOGLE_REDIRECT = "http://127.0.0.1:9004"
-private const val MS_REDIRECT = "msal-test://auth"
-private const val CK_CALLBACK = "https://app.example.test/ck-callback"
+internal const val GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
+internal const val GOOGLE_REVOKE = "https://oauth2.googleapis.com/revoke"
+internal const val MS_CONSUMERS_TOKEN = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+internal const val MS_ORG_TOKEN = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
+internal const val GOOGLE_REDIRECT = "http://127.0.0.1:9004"
+internal const val MS_REDIRECT = "msal-test://auth"
+internal const val CK_CALLBACK = "https://app.example.test/ck-callback"
 
 /** A deterministic counter in place of the platform's randomness, so two draws differ and a test can predict none of it. */
-private class CountingRandom : RandomSource {
+internal class CountingRandom : RandomSource {
     private var n = 0
     override fun nextBytes(count: Int): ByteArray = ByteArray(count) { (n++ * 7 + it * 13 + 1).toByte() }
 }
@@ -40,7 +40,7 @@ private class CountingRandom : RandomSource {
  * native-app OAuth page, Microsoft's authorization-code-flow and refresh-token pages, Apple's CloudKit Web Services "Composing Web Service
  * Requests"). It checks that a code is redeemed with the verifier whose challenge the authorization request carried. **It is not a provider.**
  */
-private class FakeProviders : HttpTransport {
+internal class FakeProviders : HttpTransport {
     val seen = mutableListOf<HttpRequest>()
     var offline = false
     var refreshError: String? = null // answers a refresh with this OAuth error (HTTP 400)
@@ -92,7 +92,7 @@ private class FakeProviders : HttpTransport {
 }
 
 /** The platform side: reads the authorization URL like a browser would and sends the browser back to the redirect. */
-private class FakeBrowser(private val providers: FakeProviders) : AuthorizationLauncher {
+internal class FakeBrowser(private val providers: FakeProviders) : AuthorizationLauncher {
     val urls = mutableListOf<String>()
     var mode = "approve" // approve | deny | wrongState | cancel | other
     var callback: ((String, Map<String, String>) -> String)? = null
@@ -116,7 +116,7 @@ private class FakeBrowser(private val providers: FakeProviders) : AuthorizationL
     }
 }
 
-private class Rig(
+internal class Rig(
     val config: CloudAuthConfig = CloudAuthConfig(
         google = OAuthClientConfig("g-client", GOOGLE_REDIRECT),
         microsoft = MicrosoftClientConfig("m-client", MS_REDIRECT),
