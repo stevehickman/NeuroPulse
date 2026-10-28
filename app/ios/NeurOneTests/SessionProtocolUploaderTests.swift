@@ -147,7 +147,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
         let onCommands: Int = 25 * (14 + 7)   // 14-byte command header + 7 params bytes
         let stopCommands: Int = 25 * 14       // a STOP carries no params
-        let expectedSize: Int = 64 + onCommands + stopCommands + 64
+        let expectedSize: Int = 68 + onCommands + stopCommands + 64
         XCTAssertEqual(reassembled.count, expectedSize,
                        "header + 25 ON commands + 25 STOP commands + signature")
     }

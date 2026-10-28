@@ -259,7 +259,7 @@ public class HubDescriptorCompilerTests
         var ids = new List<int>();
         for (var i = 0; i < 16; i++)
             for (var bit = 0; bit < 8; bit++)
-                if ((blob[78 + i] & (1 << bit)) != 0) ids.Add(i * 8 + bit + 1);
+                if ((blob[82 + i] & (1 << bit)) != 0) ids.Add(i * 8 + bit + 1);
         Assert.Equal(new[] { 72, 73, 74, 77, 78 }, ids);
     }
 

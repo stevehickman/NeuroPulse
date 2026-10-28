@@ -268,7 +268,7 @@ final class HubDescriptorCompilerTests: XCTestCase {
         p.target = .named(["Occipital Left"])
         let blob = try build(def(600, mod(.pbmTranscranial(p)))).blob
         // header(68) + cmd_hdr(14) → target[16]
-        let mask = Array(blob.subdata(in: 78..<94))
+        let mask = Array(blob.subdata(in: 82..<98))
         XCTAssertEqual(blob[68 + 12], 0x01, "target_kind = socket mask")
         XCTAssertEqual(blob[68 + 13], 16, "target_len")
         var ids: [Int] = []
