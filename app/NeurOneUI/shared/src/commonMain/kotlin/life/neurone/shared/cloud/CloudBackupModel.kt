@@ -128,7 +128,7 @@ class CloudBackupModel(
 
     private fun place(account: CloudAccount): MigrationPlace? = try {
         MigrationPlace(
-            label = brand(account.service),
+            label = _target.value?.values?.get(TargetField.ENDPOINT) ?: brand(account.service), // a store the person named is shown by its host
             store = CloudStores.storeFor(auth, transport, account, _target.value),
             route = CloudStores.routeFor(account.service),
             carriesRecordings = false,

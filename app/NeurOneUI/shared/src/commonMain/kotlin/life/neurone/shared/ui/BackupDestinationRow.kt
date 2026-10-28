@@ -47,6 +47,7 @@ private fun fieldLabel(field: TargetField): StringResource = when (field) {
     TargetField.REGION -> Res.string.cloud_backup_field_region
     TargetField.STORAGE_ACCOUNT -> Res.string.cloud_backup_field_storage_account
     TargetField.CONTAINER -> Res.string.cloud_backup_field_container
+    TargetField.ENDPOINT -> Res.string.cloud_backup_field_endpoint
 }
 
 @Composable
@@ -101,7 +102,7 @@ fun BackupDestinationRow(app: AppServices, modifier: Modifier = Modifier) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        enabled = values.value.values.all { it.isNotBlank() },
+                        enabled = d.fields.filter { !it.optional }.all { values.value[it].orEmpty().isNotBlank() },
                         onClick = { scope.launch { if (model.choose(d.accountId, values.value)) editing = null else refused = true } },
                     ) { Text(stringResource(Res.string.cloud_backup_target_save)) }
                     OutlinedButton(onClick = { editing = null }) { Text(stringResource(Res.string.common_cancel)) }
