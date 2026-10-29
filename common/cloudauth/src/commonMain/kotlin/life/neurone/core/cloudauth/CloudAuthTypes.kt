@@ -3,7 +3,7 @@ package life.neurone.core.cloudauth
 import life.neurone.core.cloud.CloudStoreException
 
 /** Who issues the person's credential: one sign-in per family, whichever service of it is used. */
-enum class AccountFamily { GOOGLE, MICROSOFT, APPLE, AWS, DROPBOX }
+enum class AccountFamily { GOOGLE, MICROSOFT, APPLE, AWS, DROPBOX, WEBDAV }
 
 /**
  * A cloud store the person can sign in to, one per adapter of `:cloudstore`. A person who uses Google Drive and Google Cloud
@@ -30,6 +30,12 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
      * `files.content.read` for download, `files.metadata.read` for listing the folder, `account_info.read` for the space figure.
      */
     DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read account_info.read"),
+
+    /**
+     * A WebDAV server the person runs or rents (Nextcloud, ownCloud, a NAS): its address, a user name and a password (an app password, where the
+     * server has them), typed in. No browser sign-in and no registration with anyone. The address must be `https`, because the password goes with every call.
+     */
+    WEBDAV(AccountFamily.WEBDAV, null),
 
     /** The person's own access key and secret (or temporary ones). No browser sign-in exists. */
     AWS_S3(AccountFamily.AWS, null),

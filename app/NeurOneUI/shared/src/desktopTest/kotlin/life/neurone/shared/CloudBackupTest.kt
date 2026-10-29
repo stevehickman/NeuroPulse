@@ -160,6 +160,22 @@ class CloudBackupTest {
         assertEquals("Bearer access-token-1", f.api.last().headers["Authorization"])
     }
 
+    // @verifies SWR-MG-24#c
+    @Test fun a_webdav_login_is_chosen_with_nothing_to_type_and_keeps_a_backup_only_in_the_named_folder() = runTest {
+        val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
+        val dav = a.addWebDavLogin("https://nas.example/dav", "alice", "pw")
+        val m = CloudBackupModel(a, f.transport, kv)
+        m.refresh()
+        assertEquals(emptyList(), m.destinations.value.single().fields)
+        assertTrue(m.choose(dav.id))
+        val place = assertNotNull(m.place.value)
+        assertEquals("WebDAV", place.label)
+        assertFalse(place.route.atomicClaim); assertFalse(place.carriesRecordings)
+        place.store.get("np-migration-bundle.npbk")
+        assertEquals("https://nas.example/dav/neurone-backup/np-migration-bundle.npbk", f.api.last().url)
+        assertTrue(f.api.last().headers["Authorization"]!!.startsWith("Basic "))
+    }
+
     // @verifies SWR-MG-21#c
     @Test fun a_cloud_place_carries_a_backup_and_never_a_migration_or_recordings() = runTest {
         val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)

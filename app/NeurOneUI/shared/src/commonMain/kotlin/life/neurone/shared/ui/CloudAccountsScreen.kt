@@ -54,6 +54,7 @@ private fun serviceName(service: CloudService): StringResource = when (service) 
     CloudService.ICLOUD_CLOUDKIT -> Res.string.cloud_service_icloud_cloudkit
     CloudService.AWS_S3 -> Res.string.cloud_service_aws_s3
     CloudService.DROPBOX -> Res.string.cloud_service_dropbox
+    CloudService.WEBDAV -> Res.string.cloud_service_webdav
 }
 
 @Composable
@@ -92,6 +93,7 @@ fun CloudAccountsScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
                 onSignIn = { scope.launch { model.signIn(row.service) } },
                 onSignOut = { scope.launch { model.signOut(row.service) } },
                 onSaveKeys = { id, secret, token -> scope.launch { model.addAwsKeys(id, secret, token) } },
+                onSaveLogin = { url, user, password -> scope.launch { model.addWebDavLogin(url, user, password) } },
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -105,8 +107,10 @@ private fun ServiceCard(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onSaveKeys: (String, String, String?) -> Unit,
+    onSaveLogin: (String, String, String) -> Unit,
 ) {
     val isAws = row.service.family == AccountFamily.AWS
+    val isWebDav = row.service.family == AccountFamily.WEBDAV
     var enteringKeys by remember { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -126,8 +130,10 @@ private fun ServiceCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (row.configured) {
                     if (!row.signedIn) {
-                        if (isAws) {
-                            Button(enabled = enabled, onClick = { enteringKeys = true }) { Text(stringResource(Res.string.cloud_button_add_keys)) }
+                        if (isAws || isWebDav) {
+                            Button(enabled = enabled, onClick = { enteringKeys = true }) {
+                                Text(stringResource(if (isAws) Res.string.cloud_button_add_keys else Res.string.cloud_button_add_login))
+                            }
                         } else {
                             Button(enabled = enabled, onClick = onSignIn) {
                                 Text(stringResource(if (row.needsSignIn) Res.string.cloud_button_sign_in_again else Res.string.cloud_button_sign_in))
@@ -138,6 +144,16 @@ private fun ServiceCard(
                         OutlinedButton(enabled = enabled, onClick = onSignOut) { Text(stringResource(Res.string.cloud_button_sign_out)) }
                     }
                 }
+            }
+            if (isWebDav && enteringKeys && !row.signedIn) {
+                WebDavLoginForm(
+                    enabled = enabled,
+                    onSave = { url, user, password ->
+                        onSaveLogin(url, user, password)
+                        enteringKeys = false
+                    },
+                    onCancel = { enteringKeys = false },
+                )
             }
             if (isAws && enteringKeys && !row.signedIn) {
                 AwsKeysForm(
@@ -187,8 +203,40 @@ private fun AwsKeysForm(enabled: Boolean, onSave: (String, String, String?) -> U
     }
 }
 
+/** The fields are emptied when the form goes away: nothing here keeps what was typed once it has been handed on. */
+@Composable
+private fun WebDavLoginForm(enabled: Boolean, onSave: (String, String, String) -> Unit, onCancel: () -> Unit) {
+    var address by remember { mutableStateOf("") }
+    var user by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    Spacer(Modifier.height(8.dp))
+    Text(stringResource(Res.string.cloud_webdav_note), style = MaterialTheme.typography.bodySmall)
+    OutlinedTextField(
+        value = address, onValueChange = { address = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(Res.string.cloud_webdav_address)) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+    )
+    OutlinedTextField(
+        value = user, onValueChange = { user = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(Res.string.cloud_webdav_user)) },
+    )
+    OutlinedTextField(
+        value = password, onValueChange = { password = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(Res.string.cloud_webdav_password)) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    )
+    Spacer(Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(enabled = enabled && address.isNotBlank() && user.isNotBlank() && password.isNotEmpty(), onClick = { onSave(address, user, password) }) {
+            Text(stringResource(Res.string.cloud_button_save_login))
+        }
+        OutlinedButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
+    }
+}
+
 private fun CloudNotice.isProblem(): Boolean = when (kind) {
-    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED -> false
+    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED, CloudNoticeKind.LOGIN_SAVED -> false
     else -> true
 }
 
@@ -206,5 +254,7 @@ private fun noticeText(notice: CloudNotice): String {
         CloudNoticeKind.UNREADABLE -> stringResource(Res.string.cloud_notice_unreadable)
         CloudNoticeKind.KEYS_SAVED -> stringResource(Res.string.cloud_notice_keys_saved, name)
         CloudNoticeKind.KEYS_INVALID -> stringResource(Res.string.cloud_notice_keys_invalid)
+        CloudNoticeKind.LOGIN_SAVED -> stringResource(Res.string.cloud_notice_login_saved, name)
+        CloudNoticeKind.LOGIN_INVALID -> stringResource(Res.string.cloud_notice_login_invalid)
     }
 }

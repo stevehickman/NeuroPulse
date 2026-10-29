@@ -151,6 +151,33 @@ class CloudAccountsScreenTest {
         assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the fields are gone, and with them what was typed")
     }
 
+    // @verifies SWR-MG-24#e
+    @Test fun a_webdav_login_is_typed_into_a_form_with_a_masked_password_and_saving_needs_all_three() = runComposeUiTest {
+        var addLogin = ""
+        var save = ""
+        var saved = ""
+        setContent {
+            addLogin = stringResource(Res.string.cloud_button_add_login)
+            save = stringResource(Res.string.cloud_button_save_login)
+            saved = stringResource(Res.string.cloud_notice_login_saved, stringResource(Res.string.cloud_service_webdav))
+            CloudAccountsScreen(app(CloudAuthConfig()), onDone = {})
+        }
+        waitForIdle()
+        onNodeWithText(addLogin).performScrollTo().performClick()
+        val fields = onAllNodes(hasSetTextAction())
+        assertEquals(3, fields.fetchSemanticsNodes().size, "address, user name, password")
+        assertEquals(1, onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password)).fetchSemanticsNodes().size, "only the password is masked")
+
+        onNodeWithText(save).performScrollTo().assertIsNotEnabled()
+        fields[0].performScrollTo().performTextInput("https://nas.example/dav")
+        fields[1].performScrollTo().performTextInput("alice")
+        onNodeWithText(save).performScrollTo().assertIsNotEnabled()
+        fields[2].performScrollTo().performTextInput("pw")
+        onNodeWithText(save).performScrollTo().assertIsEnabled().performClick()
+        waitUntil(timeoutMillis = 10_000) { onAllNodesWithText(saved).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the fields are gone, and with them what was typed")
+    }
+
     // @verifies SWR-MG-20#f
     @Test fun settings_offers_the_cloud_accounts_only_on_a_host_that_has_a_cloud_sign_in() = runComposeUiTest {
         var button = ""

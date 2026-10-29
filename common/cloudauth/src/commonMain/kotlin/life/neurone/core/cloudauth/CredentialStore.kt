@@ -23,6 +23,9 @@ internal class StoredAccount(
     @SerialName("awsSecretAccessKey") val awsSecretAccessKey: String? = null,
     @SerialName("awsSessionToken") val awsSessionToken: String? = null,
     @SerialName("awsExpiresAt") val awsExpiresAt: Long = 0,
+    @SerialName("webdavUrl") val webdavUrl: String? = null,
+    @SerialName("webdavUser") val webdavUser: String? = null,
+    @SerialName("webdavPassword") val webdavPassword: String? = null,
 ) {
     fun view() = CloudAccount(id, service, createdAtEpochSeconds, needsSignIn)
 
@@ -34,7 +37,7 @@ internal class StoredAccount(
         webAuthToken: String? = this.webAuthToken,
     ) = StoredAccount(
         id, service, createdAtEpochSeconds, needsSignIn, accessToken, accessTokenExpiresAt, refreshToken, webAuthToken,
-        awsAccessKeyId, awsSecretAccessKey, awsSessionToken, awsExpiresAt,
+        awsAccessKeyId, awsSecretAccessKey, awsSessionToken, awsExpiresAt, webdavUrl, webdavUser, webdavPassword,
     )
 }
 

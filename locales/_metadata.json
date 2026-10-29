@@ -128,6 +128,9 @@
   "CLOUD_SERVICE_ONEDRIVE": {
     "translate": false
   },
+  "CLOUD_SERVICE_WEBDAV": {
+    "translate": false
+  },
   "CONSENT_IRREVERSIBILITY_NOTICE": {
     "legal_review_required": true
   },
