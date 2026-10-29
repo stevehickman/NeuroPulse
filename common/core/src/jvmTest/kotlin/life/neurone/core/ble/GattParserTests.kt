@@ -10,6 +10,7 @@ import life.neurone.core.models.RampPhase
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.UploadCheckStatus
+import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.UploadVerdict
 import life.neurone.core.models.SessionStatus
 import kotlin.test.Test
@@ -381,6 +382,29 @@ class GattParserTests {
         assertEquals(false, verdict(2, 6).helmetNotReady)
         assertEquals(false, verdict(1, 0).helmetNotReady)
         assertEquals(false, UploadVerdict.of(null).helmetNotReady)
+    }
+
+    // @verifies SWR-UP-02
+    @Test
+    fun everyReasonTheHelmetCanRefuseAProtocolForHasACauseAScreenCanSay() {
+        fun cause(reason: Int) = UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(2, reason, ByteArray(32)))).refusalCause
+        assertEquals(HelmetRefusalCause.TIER, cause(19))
+        assertEquals(HelmetRefusalCause.HARDWARE_VERSION, cause(27))
+        assertEquals(HelmetRefusalCause.NOT_READY, cause(20))
+        assertEquals(HelmetRefusalCause.NOT_READY, cause(28))
+        assertEquals(HelmetRefusalCause.SIGNATURE, cause(6))
+        assertEquals(HelmetRefusalCause.WRONG_DEVICE, cause(7))
+        assertEquals(HelmetRefusalCause.FORMAT_VERSION, cause(5))
+        assertEquals(HelmetRefusalCause.DAMAGED, cause(4))
+        for (reason in listOf(2, 8, 9)) assertEquals(HelmetRefusalCause.MALFORMED, cause(reason))
+        assertEquals(HelmetRefusalCause.SESSION_ACTIVE, cause(13))
+        assertEquals(HelmetRefusalCause.BOOT_REFUSED, cause(25))
+        // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
+        assertEquals(HelmetRefusalCause.OTHER, cause(0xFF))
+        assertEquals(HelmetRefusalCause.OTHER, cause(99))
+        // An accepted upload and no answer are not refusals.
+        assertNull(UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(1, 0, ByteArray(32)))).refusalCause)
+        assertNull(UploadVerdict.of(null).refusalCause)
     }
 
     // @verifies SWR-SS-05
