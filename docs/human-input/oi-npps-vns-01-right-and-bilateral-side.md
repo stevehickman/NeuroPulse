@@ -1,9 +1,10 @@
 # Risk question for review: OI-NPPS-VNS-01 (f), right-ear and bilateral auricular VNS
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software / Safety (`OI-NPPS-VNS-01` in `docs/status/pending-decisions.md`, item (f))
 **To:** Risk reviewer, with a clinical adviser (names to be assigned; the item's owner column reads "FW Hub + App + Clinical")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.
+**Sender's recommendation:** option B (principal's preference, 2026-10-29). It is a recommendation, not a ruling: the reviewer is asked to confirm, change or reject it, and nothing in the repository acts on it until a ruling is recorded.
 
 ## 1. The question
 
@@ -160,7 +161,7 @@ publisher's page returned a bot challenge.
 **A. Refuse right and bilateral** until a cardiac mitigation exists. Validator and compiler change;
 two stroke-literature configurations cannot be authored. Safest; rests on mechanism, not observed harm.
 
-**B. Allow with a warning the clinician acknowledges.** This would reuse the zone model's
+**B. Allow with a warning the clinician acknowledges. (Sender's recommendation.)** This would reuse the zone model's
 acknowledgement path (`OI-ZONE-01`), which is built but not run on a device and whose boundaries are
 placeholders. New caution case, text and tests. Protocols stay authorable by a person who has been told.
 
