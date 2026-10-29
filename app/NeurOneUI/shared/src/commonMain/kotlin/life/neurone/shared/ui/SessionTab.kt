@@ -82,6 +82,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
         HelmetRefusalCause.SESSION_ACTIVE to stringResource(Res.string.protocol_menu_refused_session_active),
         HelmetRefusalCause.BOOT_REFUSED to stringResource(Res.string.protocol_menu_refused_boot),
         HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_generic),
+        HelmetRefusalCause.UNMATCHED to stringResource(Res.string.protocol_menu_upload_unmatched),
     )
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
@@ -124,10 +125,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 )
                 // The "sent" message above was true when it was shown; this says what the helmet then decided, whatever its
                 // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
-                // A refusal report that carries another hash belongs to an earlier upload and is not this one's.
-                if (verdict.helmetHash == result.sentHash) {
-                    verdict.refusalCause?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
-                }
+                // A final answer for other bytes says nothing about this upload: the helmet may hold something else.
+                verdict.causeFor(result.sentHash)?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
             }
         }
         scope.launch { snackbar.showSnackbar(message) }

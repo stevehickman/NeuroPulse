@@ -29,6 +29,8 @@ Sorted by open item.
 
 | Item | Document | Asks | Status |
 |------|----------|------|--------|
+| `OI-CHARGE-06` | `oi-charge-06-dc-charge-ceiling.md` | Regulatory: is the 150 mC/cm² DC ceiling acceptable for T1 wellness tDCS, does it hold for T2 HD-tDCS (it does not fit the 3.5 mm electrode as declared), and should a current-density criterion sit beside it? | DRAFT, ready to send |
+| `OI-CONSENT-08` | `oi-consent-08-clinician-tiers.md` | Principal with a clinical adviser: which UHDR elements each clinician tier reaches, whether the tier sets stay derived, and whether the prices are decided. | DRAFT, ready to send |
 | `OI-CVNS-13` | `oi-cvns-13-nuisance-cutoff-rate.md` | Clinical: acceptable false-cutoff rate. Engineering: measure missed and split R-peak rates on A13. Drives 25-c and 25-e. | DRAFT, not sent |
 | `OI-I18N-04` | `oi-i18n-04-audit-string-translations.md` | Native-speaker verification of machine-drafted translations of 15 privacy-review strings in 9 locales (en-GB read-through). Drafts in `translation-drafts/`; nothing in `locales/`. | DRAFT, not sent |
 | `OI-NPPS-LIMITS-01` | `oi-npps-limits-01-stroke-protocol-30hz.md` | Clinical: the shipped taVNS stroke protocol authors 30 Hz against a 25 Hz ceiling. Re-cite to ≤25 Hz evidence, withdraw, or rule 25 Hz adequate? Waits on `OI-VNSCLIP-08`. | DRAFT, ready to send; recommends option A |

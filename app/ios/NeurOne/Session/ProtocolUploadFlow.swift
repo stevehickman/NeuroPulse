@@ -9,16 +9,16 @@ struct ProtocolUploadFlow {
     let library: NPProtocolLibrary
 
     /// Wait for the hub's report of the upload whose bytes hash to `sentHash` and record the result in the library. A
-    /// refusal for the upload just sent is passed to `say` and returned; a refusal report that carries another hash belongs
-    /// to an earlier upload and is not this one's. No answer at all is the unknown outcome and returns nil, as an accepted
-    /// upload does (SWR-UP-03).
+    /// refusal for the upload just sent is passed to `say` and returned, and so is a final answer for other bytes
+    /// (`.unmatched`): nothing is known about this upload then. No answer at all is the unknown outcome and returns nil, as
+    /// an accepted upload does (SWR-UP-03).
     @discardableResult
     func record(of entry: NPProtocolEntry, sentHash: String, say: (String) -> Void) async -> HelmetRefusalCause? {
         let verdict = await uploader.verify(sentHash: sentHash)
         library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
                                    helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
         // A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
-        let cause = verdict.helmetHash == sentHash ? verdict.refusalCause : nil
+        let cause = verdict.cause(forSentHash: sentHash)
         if let cause { say(Self.refusalMessage(for: cause)) }
         return cause
     }
@@ -45,6 +45,7 @@ struct ProtocolUploadFlow {
         case .sessionActive: return String(localized: "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE")
         case .bootRefused: return String(localized: "PROTOCOL_MENU_REFUSED_BOOT")
         case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
+        case .unmatched: return String(localized: "PROTOCOL_MENU_UPLOAD_UNMATCHED")
         }
     }
 }

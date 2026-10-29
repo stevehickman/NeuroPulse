@@ -87,6 +87,14 @@ struct UploadVerdict: Equatable {
         }
     }
 
+    /// What a screen should say about the upload whose bytes hash to `sentHash`: why the hub refused it, or `.unmatched` when the
+    /// hub's final answer is for other bytes (it holds something else, or answered an earlier upload), so nothing is known about
+    /// this one. Nil for an accepted upload and for no answer at all.
+    func cause(forSentHash sentHash: String) -> HelmetRefusalCause? {
+        guard helmetStatus != nil, let hash = helmetHash else { return nil }
+        return hash == sentHash ? refusalCause : .unmatched
+    }
+
     /// The hub refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`).
     var refusedForTier: Bool { helmetRefusal == UploadCheck.refusalTier }
 
@@ -100,4 +108,6 @@ struct UploadVerdict: Equatable {
 enum HelmetRefusalCause: Equatable {
     case tier, hardwareVersion, notReady, signature, wrongDevice, formatVersion, damaged, malformed, sessionActive
     case bootRefused, other
+    /// Not a refusal: the hub's final answer is for other bytes than the ones just sent (`UploadVerdict.cause(forSentHash:)`).
+    case unmatched
 }

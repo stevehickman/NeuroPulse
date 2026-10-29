@@ -132,6 +132,17 @@ data class UploadVerdict(
             else -> HelmetRefusalCause.OTHER
         }
 
+    /**
+     * What a screen should say about the upload whose bytes hash to [sentHash]: why the helmet refused it, or
+     * [HelmetRefusalCause.UNMATCHED] when the helmet's final answer is for other bytes (it holds something else, or answered an
+     * earlier upload), so nothing is known about this one. Null for an accepted upload and for no answer at all.
+     */
+    fun causeFor(sentHash: String): HelmetRefusalCause? = when {
+        helmetStatus == null || helmetHash == null -> null
+        helmetHash != sentHash -> HelmetRefusalCause.UNMATCHED
+        else -> refusalCause
+    }
+
     /** The helmet refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`). */
     val refusedForTier: Boolean
         get() = helmetRefusal == UploadCheck.REFUSAL_TIER
@@ -177,4 +188,7 @@ enum class HelmetRefusalCause {
     SESSION_ACTIVE,
     BOOT_REFUSED,
     OTHER,
+
+    /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */
+    UNMATCHED,
 }
