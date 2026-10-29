@@ -68,9 +68,36 @@ struct UploadVerdict: Equatable {
         helmetReason == UploadCheck.reasonTierUnverified || helmetReason == UploadCheck.reasonHardwareVersionUnverified
     }
 
+    /// Why the hub refused, for a screen to say so in words; nil when it did not refuse. The reasons are the `np_hub_status_t`
+    /// values `np_runner_load()` can return (`np_protocol.c`, `np_session_runner.c`), grouped by what the person can do about them.
+    var refusalCause: HelmetRefusalCause? {
+        guard let reason = helmetReason else { return nil }
+        switch reason {
+        case 19: return .tier                        // NP_HUB_ERR_TIER_F4
+        case 27: return .hardwareVersion             // NP_HUB_ERR_HW_VERSION_MISMATCH
+        case 20, 28: return .notReady                // the tier or version is not yet known (UNVERIFIED)
+        case 6: return .signature                    // NP_HUB_ERR_BAD_SIGNATURE
+        case 7: return .wrongDevice                  // NP_HUB_ERR_WRONG_DEVICE
+        case 5: return .formatVersion                // NP_HUB_ERR_BAD_VERSION
+        case 4: return .damaged                      // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
+        case 2, 8, 9: return .malformed              // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
+        case 13: return .sessionActive               // NP_HUB_ERR_SESSION_ACTIVE
+        case 25: return .bootRefused                 // NP_HUB_ERR_BOOT_REFUSED
+        default: return .other
+        }
+    }
+
     /// The hub refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`).
     var refusedForTier: Bool { helmetRefusal == UploadCheck.refusalTier }
 
     /// The hub refused for its hardware version (`NP_HUB_ERR_HW_VERSION_MISMATCH` or `_UNVERIFIED`).
     var refusedForHardwareVersion: Bool { helmetRefusal == UploadCheck.refusalHardwareVersion }
+}
+
+/// What a screen tells the person when the hub refuses a protocol (`UploadVerdict.refusalCause`). Each is a different thing
+/// to do next: try again, send the protocol again from a reconnected app, update, wait for the session to end, restart the
+/// helmet, or nothing the person can do. A tier refusal (F4) never names a purchase (`NP-PWRSRC-001` §6.3).
+enum HelmetRefusalCause: Equatable {
+    case tier, hardwareVersion, notReady, signature, wrongDevice, formatVersion, damaged, malformed, sessionActive
+    case bootRefused, other
 }

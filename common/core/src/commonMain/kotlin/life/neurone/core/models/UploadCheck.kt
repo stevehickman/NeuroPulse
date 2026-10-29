@@ -111,6 +111,27 @@ data class UploadVerdict(
     val helmetNotReady: Boolean
         get() = helmetReason == UploadCheck.REASON_TIER_UNVERIFIED || helmetReason == UploadCheck.REASON_HW_VERSION_UNVERIFIED
 
+    /**
+     * Why the helmet refused, for a screen to say so in words; null when it did not refuse. The reasons are the
+     * `np_hub_status_t` values `np_runner_load()` can return (`np_protocol.c`, `np_session_runner.c`), grouped by what the
+     * person can do about them.
+     */
+    val refusalCause: HelmetRefusalCause?
+        get() = when (helmetReason) {
+            null -> null
+            19 -> HelmetRefusalCause.TIER                      // NP_HUB_ERR_TIER_F4
+            27 -> HelmetRefusalCause.HARDWARE_VERSION          // NP_HUB_ERR_HW_VERSION_MISMATCH
+            20, 28 -> HelmetRefusalCause.NOT_READY             // the tier or version is not yet known (UNVERIFIED)
+            6 -> HelmetRefusalCause.SIGNATURE                  // NP_HUB_ERR_BAD_SIGNATURE
+            7 -> HelmetRefusalCause.WRONG_DEVICE               // NP_HUB_ERR_WRONG_DEVICE
+            5 -> HelmetRefusalCause.FORMAT_VERSION             // NP_HUB_ERR_BAD_VERSION
+            4 -> HelmetRefusalCause.DAMAGED                    // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
+            2, 8, 9 -> HelmetRefusalCause.MALFORMED            // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
+            13 -> HelmetRefusalCause.SESSION_ACTIVE            // NP_HUB_ERR_SESSION_ACTIVE
+            25 -> HelmetRefusalCause.BOOT_REFUSED              // NP_HUB_ERR_BOOT_REFUSED
+            else -> HelmetRefusalCause.OTHER
+        }
+
     /** The helmet refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`). */
     val refusedForTier: Boolean
         get() = helmetRefusal == UploadCheck.REFUSAL_TIER
@@ -137,4 +158,23 @@ data class UploadVerdict(
             )
         }
     }
+}
+
+/**
+ * What a screen tells the person when the helmet refuses a protocol (`UploadVerdict.refusalCause`). Each is a different thing
+ * to do next: try again, send the protocol again from a reconnected app, update, wait for the session to end, restart the
+ * helmet, or nothing the person can do. A tier refusal (F4) never names a purchase (`NP-PWRSRC-001` §6.3).
+ */
+enum class HelmetRefusalCause {
+    TIER,
+    HARDWARE_VERSION,
+    NOT_READY,
+    SIGNATURE,
+    WRONG_DEVICE,
+    FORMAT_VERSION,
+    DAMAGED,
+    MALFORMED,
+    SESSION_ACTIVE,
+    BOOT_REFUSED,
+    OTHER,
 }

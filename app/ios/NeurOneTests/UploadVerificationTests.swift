@@ -118,6 +118,28 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertFalse(UploadVerdict.of(nil).helmetNotReady)
     }
 
+    // @verifies SWR-UP-02
+    func testEveryReasonTheHubCanRefuseAProtocolForHasACauseAScreenCanSay() {
+        func cause(_ reason: Int) -> HelmetRefusalCause? { UploadVerdict.of(report(.refused, reason: reason, hash: sent)).refusalCause }
+        XCTAssertEqual(cause(19), .tier)
+        XCTAssertEqual(cause(27), .hardwareVersion)
+        XCTAssertEqual(cause(20), .notReady)
+        XCTAssertEqual(cause(28), .notReady)
+        XCTAssertEqual(cause(6), .signature)
+        XCTAssertEqual(cause(7), .wrongDevice)
+        XCTAssertEqual(cause(5), .formatVersion)
+        XCTAssertEqual(cause(4), .damaged)
+        for reason in [2, 8, 9] { XCTAssertEqual(cause(reason), .malformed) }
+        XCTAssertEqual(cause(13), .sessionActive)
+        XCTAssertEqual(cause(25), .bootRefused)
+        // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
+        XCTAssertEqual(cause(0xFF), .other)
+        XCTAssertEqual(cause(99), .other)
+        // An accepted upload and no answer are not refusals.
+        XCTAssertNil(UploadVerdict.of(report(.accepted, hash: sent)).refusalCause)
+        XCTAssertNil(UploadVerdict.of(nil).refusalCause)
+    }
+
     // @verifies SWR-UP-01
     @MainActor
     func testAReportWithTheSentHashAndAcceptedIsPassedOn() async {
