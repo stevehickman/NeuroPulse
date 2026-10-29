@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 26
-**Date:** 2026-10-28
+**Revision:** 27
+**Date:** 2026-10-29
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -17,6 +17,8 @@
 
 ---
 
+> **Rev 27 (2026-10-29) — the VNS parameter block is 12 bytes; the auricular frequency ceiling is gone (§4.6; `OI-VNSCLIP-08`, the principal).** `np_mod_vns_hrv_params_t.freq_mhz` is 32 bits, widened from 16, so no frequency the descriptor can author is cut off (a 16-bit field topped out at 65.535 Hz) now that the 25 Hz equivalence bound is removed (`CLAUDE.md` Rev 76). Every later field moves two bytes; the §4.6 row, `np_hub_types.h`, the platform HAL signature (`np_mod_vns_hal_stim_set`) and the compiler change together and `check-hub-wire-format.ts` passes with the compiler run. The HRV taVNS gate (`np_hrv_tavns_init`) drops its 25 Hz upper bound and keeps the 1 Hz floor. **Version skew:** `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped); a 10-byte block from an older app is refused by `np_mod_vns_control` (`len < sizeof`), so it fails closed, and a 12-byte block sent to older firmware would be misread, so flash the hub and update the app together. The cervical device's `freq_mhz` and its 1–25 Hz are unchanged.
+>
 > **Rev 26 (2026-10-28) — the hub refuses a protocol compiled for another hardware version (`SWR-HV-08`, issue #569, second pull request).** `np_runner_load()` calls the new `np_protocol_hw_version_admit()` beside the tier check, with the helmet's version from `np_safety_spi_get_hardware_version()` and whether a valid safety MCU report has arrived (`np_safety_spi_get_tier_report()`). A different stamp is refused with the new `NP_HUB_ERR_HW_VERSION_MISMATCH` (-27); before the first report it is refused with `NP_HUB_ERR_HW_VERSION_UNVERIFIED` (-28, retry), because the hub's own value is then only the `SWR-HV-07` default. The refusal clears the descriptor and releases the lease, as the tier refusal does (§5.2, `REQ-FWHUB-62`). **The two status values and the fail-closed rule before the first report are the principal's decision, 2026-10-29** (they were an open point of `SWR-HV-08`; the principal kept both). The apps do not yet map them to the library's upload rule. `np_runner_load()` has no host test (the runner is built into the firmware application only), so the order at load is not tested; the admit function is.
 >
 > **Rev 25 (2026-10-28) — the descriptor header carries the hardware version (`SWR-HV-08`, `OI-UI-KMP-10` H4 (v), issue #569).** `np_proto_header_t` is 68 bytes, not 64: after `session_duration_ms` it has `hardware_version` (one byte, 1 to 15) and three reserved bytes that are zero, all inside the signed region. `NP_HUB_PROTO_VERSION` is 2 (§4.5). The principal chose an explicit field and a version bump (2026-10-28). `np_protocol_verify_and_parse` refuses a stamp outside 1 to 15 or a non-zero reserved byte (`REQ-FWHUB-61`, the writer's inference, see below) and keeps the stamp in `np_session_desc_t`. **The load step does not yet compare it with the helmet's version**: that refusal is the second pull request of `SWR-HV-08` and is not built. The core (`common/npps-core`) writes the stamp from the request's `hardwareVersion`, 1 when absent (`SWR-HV-07`), and refuses a value outside 1 to 15.
@@ -830,7 +832,7 @@ the stop command. Each modality has exactly one target form.
 | `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
 | `0x06` | `NP_MOD_TDCS` | `np_mod_tdcs_params_t` | 8 | `NP_HUB_SLOT_TDCS` (18) |
-| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 10 | `NP_HUB_SLOT_VNS_HRV` (8) |
+| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 12 | `NP_HUB_SLOT_VNS_HRV` (8) |
 | `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 8 | `NP_HUB_SLOT_AUDIO` (6) |
 | `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
 | `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |

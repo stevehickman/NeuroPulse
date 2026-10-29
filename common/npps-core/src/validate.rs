@@ -392,10 +392,11 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     s(format!("{} mA", num_string(hw::VNS_MAX_MILLIAMPS))), "hardware",
                     msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw::VNS_MAX_MILLIAMPS)]));
             }
-            if freq < hw::VNS_MIN_HZ || freq > hw::VNS_MAX_HZ {
+            // No ceiling: the 25 Hz bound was an equivalence bound and is removed (OI-VNSCLIP-08, 2026-10-29).
+            if freq < hw::VNS_MIN_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-                    s(format!("{}–{} Hz", num_string(hw::VNS_MIN_HZ), num_string(hw::VNS_MAX_HZ))), "hardware",
-                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw::VNS_MIN_HZ), n(hw::VNS_MAX_HZ)]));
+                    s(format!("≥ {} Hz", num_string(hw::VNS_MIN_HZ))), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw::VNS_MIN_HZ)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
@@ -583,10 +584,10 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
                     s(format!("{} mA", num_string(m))), "@maxIntensityMilliamps", msg("VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS_2", vec![n(ma), n(m)]));
             }
-            if freq < hw::VNS_MIN_HZ || freq > hw::VNS_MAX_HZ {
+            if freq < hw::CERVICAL_VNS_MIN_HZ || freq > hw::CERVICAL_VNS_MAX_HZ {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(fmt_hz(freq)),
-                    s(format!("{}–{}", fmt_hz(hw::VNS_MIN_HZ), fmt_hz(hw::VNS_MAX_HZ))), "hardware",
-                    msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ_2", vec![s(fmt_hz(freq)), n(hw::VNS_MIN_HZ), n(hw::VNS_MAX_HZ)]));
+                    s(format!("{}–{}", fmt_hz(hw::CERVICAL_VNS_MIN_HZ), fmt_hz(hw::CERVICAL_VNS_MAX_HZ))), "hardware",
+                    msg("VALIDATE_MSG_GENERAL_FREQUENCYHZ_2", vec![s(fmt_hz(freq)), n(hw::CERVICAL_VNS_MIN_HZ), n(hw::CERVICAL_VNS_MAX_HZ)]));
             }
             session_duration(out, kind, l, interval, "VALIDATE_MSG_GENERAL_SESSIONDURATION");
             // Always say so: the interlock is the safety MCU's and no limit set can lift it.

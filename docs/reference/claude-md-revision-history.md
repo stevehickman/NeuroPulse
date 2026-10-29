@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 76 (2026-10-29) — §3: the 25 Hz auricular VNS frequency ceiling is removed. A limit changed; the 40 µC/cm² per-phase charge ceiling, the 40 mA stop-gap and every interlock are unchanged.**
+
+**What changed.** The `VNS (auricular)` row of the §3 hard-limits table loses "1–25 Hz" and says there is no frequency ceiling. `VNS_MAX_HZ` is deleted from `common/npps/constants.json` and its generated outputs; `VNS_MIN_HZ` (1 Hz) stays. The cervical device keeps its 1–25 Hz as `CERVICAL_VNS_MIN_HZ` and `CERVICAL_VNS_MAX_HZ`, because the gammaCore equivalence claim (`NP-REG-CVNS-001` §3) rests on it. The validator checks a floor only; the compiler no longer clamps to 25 Hz and writes the frequency in a **32-bit** field (`np_mod_vns_hrv_params_t.freq_mhz`, so the VNS block is 12 bytes, not 10, and a 16-bit field would have topped out at 65.535 Hz); the hub's HAL signature, the HRV taVNS gate (`np_hrv_tavns_init`) and the web editor's maximum follow. `REQ-VNSC-03`'s frequency clause is retired in place (§18). `NP_HUB_PROTO_VERSION` is not bumped (no descriptor has shipped; `REQ-FWHUB-10`).
+
+**Why.** The principal ruled (2026-10-29, `OI-VNSCLIP-08`) that a safety bound must rest on evidence from the literature and that no arbitrary bound is kept. The only traceable origin of the figure is the cervical predicate's fixed 25 Hz, a substantial-equivalence argument; no document carries it to the auricular clip; the per-phase charge limit and the safety MCU's charge monitor contain no frequency term; and no source read states a safety or efficacy reason for it (register row `UC-070`, now in the retired table).
+
+**What it leaves.** A waveform whose two phases cannot fit in one period is refused by the compiler, which is geometry and not a limit anyone chose. The app-side zone model still refuses a high frequency at a high current, through the mean current density (`UC-075`, `UC-076`, placeholder boundaries), so this change does not leave frequency unbounded in the compiler, only unjustified at those boundaries. The frequency-dependent dose (mean current, skin heating at the pad) is unanalysed in the repository and is not made safe by this entry. The clinician-limit editor in the shared UI (`LimitsTierEditor.kt`) still has a 1–25 Hz input range and needs a Gradle build to change.
+
 **Rev 75 (2026-10-22) — CLAUDE.md slimmed again: §17, §21 and the Document Map. No design decision, limit or interlock changed.**
 
 **What changed.** §21 no longer restates the tag syntax, parts mechanism or the checker's failure list; the header of `scripts/req-trace.ts` holds them. §17 folds its two key-naming bullets into one and points at `localization.md` §17.3. In the Document Map, the FAI, risk and tooling/review rows became one pointer to `np_art_001.md` (indexed in `np_dhf_001.md`), and the two `docs/reference/` rows became one. Every rule, section number and referenced file is kept.

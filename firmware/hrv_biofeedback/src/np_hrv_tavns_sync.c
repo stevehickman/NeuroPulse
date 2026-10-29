@@ -29,7 +29,9 @@ np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
      * callbacks and stimulus parameters are module statics, so returning early
      * without clearing them kept the PREVIOUS session's enable callback, rate
      * and current live — and np_hrv_tavns_process_rr() would fire them. */
-    if (stim_freq_hz < 1U || stim_freq_hz > NP_TAVNS_DEFAULT_FREQ_HZ ||
+    /* No frequency ceiling: the 25 Hz bound was an equivalence bound with no derivation and is removed
+     * (OI-VNSCLIP-08, the principal, 2026-10-29). The 1 Hz floor stays; 0 would divide by zero downstream. */
+    if (stim_freq_hz < 1U ||
         stim_current_ua < 100U || stim_current_ua > NP_VNS_MAX_CURRENT_UA) {
         s_enable_cb       = NULL;
         s_disable_cb      = NULL;

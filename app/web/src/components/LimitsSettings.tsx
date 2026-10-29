@@ -1133,8 +1133,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.vnsHrv.maxFrequencyHz}
               unit="Hz"
-              min={hw.VNS_MIN_HZ} max={hw.VNS_MAX_HZ} step={1}
-              hint={`Hardware: ${hw.VNS_MIN_HZ}–${hw.VNS_MAX_HZ} Hz`}
+              min={hw.VNS_MIN_HZ} step={1}
+              hint={`Hardware minimum: ${hw.VNS_MIN_HZ} Hz; no hardware maximum`}
               onChange={v => patchModality('vnsHrv', { maxFrequencyHz: v })}
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
             />
@@ -1468,7 +1468,8 @@ function LimitField({
   value: number | undefined;
   unit: string;
   min: number;
-  max: number;
+  /** Absent when the hardware states no ceiling (auricular VNS frequency, OI-VNSCLIP-08): then there is no slider, no clamp above, and a newly ticked limit starts at `min`. */
+  max?: number;
   step: number;
   hint?: string;
   onChange: (v: number) => void;
@@ -1482,21 +1483,23 @@ function LimitField({
       <input
         type="checkbox"
         checked={isSet}
-        onChange={() => isSet ? onClear() : onChange(max)}
+        onChange={() => isSet ? onClear() : onChange(max ?? min)}
         style={{ accentColor: 'var(--accent)', flexShrink: 0 }}
       />
       <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 150, flexShrink: 0 }}>{label}</span>
       {isSet ? (
         <>
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={displayVal}
-            onChange={e => onChange(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: 'var(--accent)' }}
-          />
+          {max !== undefined && (
+            <input
+              type="range"
+              min={min}
+              max={max}
+              step={step}
+              value={displayVal}
+              onChange={e => onChange(parseFloat(e.target.value))}
+              style={{ flex: 1, accentColor: 'var(--accent)' }}
+            />
+          )}
           <input
             type="number"
             min={min}
@@ -1505,7 +1508,7 @@ function LimitField({
             value={displayVal}
             onChange={e => {
               const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)));
+              if (!isNaN(v)) onChange(max === undefined ? Math.max(min, v) : Math.min(max, Math.max(min, v)));
             }}
             style={{
               width: 64,
