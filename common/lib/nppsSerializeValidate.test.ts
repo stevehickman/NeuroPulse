@@ -65,6 +65,8 @@ describe('serializer wrapper', () => {
  * web's output, so they are set aside. common/npps-core/tests/validate_union.rs holds each of them.
  */
 const ADDED = new Set([
+  // The auricular VNS frequency check is a floor only now (OI-VNSCLIP-08); the old range issue is set aside below.
+  'VALIDATE_MSG_VNS_HRV_FREQUENCYHZ',
   'VALIDATE_MSG_GENERAL_DURATION_3', 'VALIDATE_MSG_PBM_CW_DUTY', 'VALIDATE_MSG_PBM_SESSION_DOSE',
   'VALIDATE_MSG_GENERAL_SESSIONDURATION', ...[2, 3, 4, 5, 6, 7, 8].map(n => `VALIDATE_MSG_GENERAL_SESSIONDURATION_${n}`),
   'VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT', 'VALIDATE_MSG_GENERAL_CARDIACINTERLOCK', 'VALIDATE_MSG_GENERAL_FREQUENCYHZ',
@@ -104,7 +106,10 @@ describe('validator wrapper', () => {
         !(i.modality === 'vns_hrv' && i.parameterKey === 'intensityMilliamps' && i.limitSource === 'hardware'
           && i.message.startsWith('VNS intensity'))
         // ...and "PBM frequency cannot be negative.", which the PBM range check now states with its range (REQ-NPPS-23).
-        && i.message !== 'PBM frequency cannot be negative.');
+        && i.message !== 'PBM frequency cannot be negative.'
+        // ...and the auricular VNS "outside hardware range 1–25 Hz" error: the ceiling is removed (OI-VNSCLIP-08, 2026-10-29).
+        && !(i.modality === 'vns_hrv' && i.parameterKey === 'frequencyHz' && i.limitSource === 'hardware'
+          && i.message.startsWith('VNS frequency') && i.message.includes('outside hardware range')));
       expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(want);
     }
   });

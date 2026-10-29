@@ -43,4 +43,4 @@ Sorted by open item.
 | `OI-RISK2-06` | `oi-risk2-06-clinical-question.md` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `OI-RISK2-07` | `oi-risk2-07-update-path-test.md` | Confirm the owed NV-pages-survive-update test, where it binds, and who carries it. Waits on the first safety-MCU update path. | DRAFT, not sent |
 | `OI-RISK2-09` | `oi-risk2-09-cvns-detection-adequacy.md` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
-| `OI-VNSCLIP-08` | `oi-vnsclip-08-frequency-ceiling.md` | Clinical + Risk: is the 25 Hz auricular VNS ceiling a hazard control or an equivalence bound? No source found states a safety reason for it. | ANSWERED 2026-10-29 (principal): option A; follow-up pending |
+| `OI-VNSCLIP-08` | `oi-vnsclip-08-frequency-ceiling.md` | Clinical + Risk: is the 25 Hz auricular VNS ceiling a hazard control or an equivalence bound? No source found states a safety reason for it. | ANSWERED 2026-10-29 (principal): option A; follow-up done |

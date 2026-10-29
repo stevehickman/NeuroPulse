@@ -93,7 +93,7 @@ qEEG's A1/A2 linked-ear reference (`CLAUDE.md` §3 T2 additions). Per-configurat
 | ID | Requirement | Source |
 |---|---|---|
 | **REQ-VNSC-02** | Stimulation target is the **auricular branch of CN X**; the clip is worn on the auricle | `CLAUDE.md` §3 modality ⑥ |
-| **REQ-VNSC-03** | **1–25 Hz**, **≤ 40 mA**, **biphasic charge-balanced**. The former ~~**≤ 2 mA**~~ is RETIRED in place (Rev 67, 2026-10-08). The 40 mA is a stop-gap (Rev 68) derived from `REQ-VNSC-04`: 40 µC/cm² × 0.5 cm² (provisional) ÷ 500 µs (longest authored pulse width). It is not a sensory, heating or cardiac limit. Whether any ceiling is needed is GitHub #554 and #559 (`OI-VNSCLIP-09`) | `CLAUDE.md` §3 hard-limits table; `NP_VNS_MAX_CURRENT_UA` = 40000; `VNS_MAX_MILLIAMPS` note in `common/npps/constants.json` |
+| **REQ-VNSC-03** | ~~**1–25 Hz**~~ is RETIRED in place (Rev 76, 2026-10-29, `OI-VNSCLIP-08`, the principal): an equivalence bound carried over from the cervical predicate (`NP-REG-CVNS-001` §3), with no derivation. What remains is a **≥ 1 Hz** floor (`UC-118`), **≤ 40 mA**, **biphasic charge-balanced**. The former ~~**≤ 2 mA**~~ is RETIRED in place (Rev 67, 2026-10-08). The 40 mA is a stop-gap (Rev 68) derived from `REQ-VNSC-04`: 40 µC/cm² × 0.5 cm² (provisional) ÷ 500 µs (longest authored pulse width). It is not a sensory, heating or cardiac limit. Whether any ceiling is needed is GitHub #554 and #559 (`OI-VNSCLIP-09`) | `CLAUDE.md` §3 hard-limits table; `NP_VNS_MAX_CURRENT_UA` = 40000; `VNS_MAX_MILLIAMPS` note in `common/npps/constants.json` |
 | **REQ-VNSC-04** | Per-phase commanded-charge ceiling **40 µC/cm²**, enforced by the safety MCU against the **declared electrode area** | `CLAUDE.md` §3, §4.2; `NP-DT-001` DI-SAFE-01a; `NP-SW-001` §5.1 SW01-M03 |
 | **REQ-VNSC-05** | **PPG HRV at 808–830 nm in the same clip** | `docs/reference/modality-stack.md` modality 6 |
 | **REQ-VNSC-06** | **A1/A2 EEG references on the clip contact pads**, using **2 spare conductors in the existing 6-pin cable** | `docs/reference/modality-stack.md` modality 6 |
@@ -111,7 +111,7 @@ qEEG's A1/A2 linked-ear reference (`CLAUDE.md` §3 T2 additions). Per-configurat
 | Parameter | Value | Source |
 |---|---|---|
 | Hub slot | 8, `NP_MOD_VNS_HRV` = `0x07`, detected by **accessory-port impedance** | `np_hub_config.h`; `NP-FW-HUB-001` §8.4 |
-| Command block | `np_mod_vns_hrv_params_t` — `side`, `freq_mhz` (1000–25000), `amplitude_ua` (≤ 2000), `pulse_width_us` (16 bits since NP-NPPS-REF-001 Rev 19; 0 = default **250 µs**; authored range 50–500 µs, `UC-071`), `ppg_enable`, `eeg_ref_enable`, `hrv_proto` | `np_hub_types.h` |
+| Command block | `np_mod_vns_hrv_params_t` — `side`, `freq_mhz` (32 bits since CLAUDE.md Rev 76, `OI-VNSCLIP-08`; ≥ 1000, no ceiling), `amplitude_ua` (≤ 40000), `pulse_width_us` (16 bits since NP-NPPS-REF-001 Rev 19; 0 = default **250 µs**; authored range 50–500 µs, `UC-071`), `ppg_enable`, `eeg_ref_enable`, `hrv_proto` | `np_hub_types.h` |
 | Contact window | `[VNS_CONTACT_MIN_OHM, VNS_CONTACT_MAX_OHM]` = **[500 Ω, 5000 Ω]** | `NP-FW-HUB-001` §8.4 |
 | Safety enable | `NP_SAFETY_EN_VNS_HRV` = bit 7 | `np_hub_config.h` |
 | Declared electrode area | `NP_VNS_ELECTRODE_AREA_MCM2` = **500** (0.5 cm²), **PROVISIONAL — NOT MEASURED** | `np_hub_config.h`; `OI-CHARGE-07` |

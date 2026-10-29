@@ -111,19 +111,15 @@ describe('predefined NPPS library', () => {
       level: 'global',
     };
 
-    // One known, documented exception, waived by NAME so the waiver cannot
-    // outlive the defect: if the protocol is fixed, or if a second protocol
+    // Known, documented exceptions, waived by NAME so a waiver cannot
+    // outlive its defect: if a protocol is fixed, or if another protocol
     // starts failing, this list stops matching and the test fails. (Same
     // discipline as the consent-reachability waivers.)
     //
-    // OI-NPPS-LIMITS-01: "taVNS — Stroke Motor Rehab (paired)" authors 30 Hz, which is
-    // Dawson 2021 VNS-REHAB's frequency — but VNS-REHAB is the IMPLANTED
-    // Vivistim device, and NeurOne's auricular VNS ceiling is 1–25 Hz
-    // (CLAUDE.md §3, locked). The protocol transcribed a source trial's
-    // parameter that this hardware cannot deliver. It is NOT silently retuned
-    // to 25 Hz here: that would put a number in a cited clinical protocol that
-    // the citation does not support, which is the same class of move as
-    // inflating a declared pad area to satisfy a ceiling.
+    // The taVNS stroke protocol's 30 Hz waiver (OI-NPPS-LIMITS-01) was removed on 2026-10-29: the 25 Hz auricular
+    // ceiling it failed against was an equivalence bound and is gone (OI-VNSCLIP-08, the principal). The protocol still
+    // cites Dawson 2021 VNS-REHAB, an IMPLANTED Vivistim trial, for an auricular parameter; that citation problem is
+    // not a hardware-validation failure and OI-NPPS-LIMITS-01 stays open on it.
     //
     // Schiffer 2009 ran CW (100% duty) at 250 mW/cm², 4 min at F3 then 4 min
     // at F4. The protocol states exactly that and is refused: a PBM ceiling
@@ -148,7 +144,6 @@ describe('predefined NPPS library', () => {
     // so Vascular Baseline (660 + 808 nm) lists twice and TBI and stroke list once per block
     // (scalp + two intranasal channels).
     const WAIVED = [
-      'taVNS — Stroke Motor Rehab (paired): frequencyHz = 30 Hz (limit 1–25 Hz (hardware))',
       'PBM — Anxiety (Wang 2023, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',
       'PBM — Depression (Schiffer 2009, high-irradiance): dutyCyclePercent = 100% (limit 25% (hardware))',

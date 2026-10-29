@@ -64,6 +64,8 @@ fn resolve(i: &Value, en: &Value) -> Value {
 /// made and the web one did not (OI-NPPS-CORE-01). The golden is the web's output, so it is compared after
 /// setting these aside; `tests/validate_union.rs` holds each of them.
 const ADDED: &[&str] = &[
+    // The auricular VNS frequency check is now a floor only (OI-VNSCLIP-08); see `is_removed_vns_frequency`.
+    "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ",
     "VALIDATE_MSG_GENERAL_DURATION_3",
     "VALIDATE_MSG_PBM_CW_DUTY",
     "VALIDATE_MSG_PBM_SESSION_DOSE",
@@ -99,6 +101,17 @@ const ADDED: &[&str] = &[
 fn is_removed(issue: &Value) -> bool {
     issue["message"].as_str() == Some("PBM frequency cannot be negative.")
         || is_removed_vns(issue)
+        || is_removed_vns_frequency(issue)
+}
+
+/// The auricular VNS "outside hardware range 1–25 Hz" error. The 25 Hz ceiling was an equivalence bound carried over from
+/// the cervical predicate and is removed (OI-VNSCLIP-08, the principal, 2026-10-29); what remains is a floor, which has
+/// its own message and is held by `tests/vns_frequency.rs`. The golden is frozen, so the old issue is set aside here.
+fn is_removed_vns_frequency(issue: &Value) -> bool {
+    issue["modality"] == "vns_hrv"
+        && issue["parameterKey"] == "frequencyHz"
+        && issue["limitSource"] == "hardware"
+        && issue["message"].as_str().map_or(false, |m| m.starts_with("VNS frequency") && m.contains("outside hardware range"))
 }
 
 fn is_removed_vns(issue: &Value) -> bool {

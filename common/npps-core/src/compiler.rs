@@ -197,6 +197,10 @@ fn put16(buf: &mut [u8], at: usize, v: f64) {
     buf[at..at + 2].copy_from_slice(&to_u16(v).to_le_bytes());
 }
 
+fn put32(buf: &mut [u8], at: usize, v: f64) {
+    buf[at..at + 4].copy_from_slice(&to_u32(v).to_le_bytes());
+}
+
 // ── targets ──────────────────────────────────────────────────────────────────
 
 struct SerializedTarget {
@@ -718,7 +722,9 @@ fn encode_tdcs(p: &Value) -> R<Encoded> {
 
 fn encode_vns(p: &Value) -> R<Encoded> {
     use crate::constants::hardware_limits as hw;
-    let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, 25000.0, "Hz")?;
+    // The upper bound is the wire field's width (32-bit mHz), not a safety limit: the 25 Hz ceiling was an equivalence
+    // bound and is removed (OI-VNSCLIP-08, the principal, 2026-10-29). The 1 Hz floor is the validator's.
+    let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, u32::MAX as f64, "Hz")?;
     // 40 mA = hw::VNS_MAX_MILLIAMPS, derived from the per-phase charge limit (see its note in constants.json).
     let amp_ua = scaled(p, "intensityMilliamps", "VNS", 1000.0, hw::VNS_MAX_MILLIAMPS * 1000.0, "mA")?;
     // What the descriptor cannot yet deliver is refused, never run as something else: a movement-triggered burst run
@@ -761,20 +767,31 @@ fn encode_vns(p: &Value) -> R<Encoded> {
             js_round(w)
         }
     };
+    // A biphasic pulse of width w at f Hz needs 2·w ≤ 1/f. This is geometry, not a limit anyone chose: a waveform that
+    // cannot fit in its own period is not a different stimulus, it is not a stimulus. The width on the wire is 0 for the
+    // firmware default, 250 µs.
+    let effective_pw_us = if pulse_width_us == 0.0 { 250.0 } else { pulse_width_us };
+    if 2.0 * effective_pw_us * 1e-6 * (freq_mhz / 1000.0) > 1.0 {
+        return Err(format!(
+            "VNS: {} Hz with a {} µs pulse does not fit: a biphasic pulse needs two phases inside one period. The protocol is refused, not reduced to fit.",
+            num_string(freq_mhz / 1000.0),
+            num_string(effective_pw_us)
+        ));
+    }
     let proto = match s(p, "hrvProtocol") {
         "combined_pbm" => 1,
         "tavns_sync" => 2,
         "eeg_biofeedback" => 3,
         _ => 0,
     };
-    let mut buf = vec![0u8; 10];
+    let mut buf = vec![0u8; 12];
     buf[0] = side;
-    put16(&mut buf, 1, freq_mhz);
-    put16(&mut buf, 3, amp_ua);
-    put16(&mut buf, 5, pulse_width_us);
-    buf[7] = 1;
-    buf[8] = 1;
-    buf[9] = proto;
+    put32(&mut buf, 1, freq_mhz);
+    put16(&mut buf, 5, amp_ua);
+    put16(&mut buf, 7, pulse_width_us);
+    buf[9] = 1;
+    buf[10] = 1;
+    buf[11] = proto;
     Ok(slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf))
 }
 

@@ -111,10 +111,11 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
     }
 
     /* Validate the taVNS stimulus BEFORE anything is marked running
-     * (OI-HRV-05).  0 still selects the default; any other out-of-range value
-     * — the 1–25 Hz window is NP_TAVNS_DEFAULT_FREQ_HZ's ceiling, and a
-     * shipped protocol asked for 30 Hz (GitHub #386) — refuses the session
-     * rather than starting it with taVNS silently unconfigured. */
+     * (OI-HRV-05).  0 still selects the default; a current outside its window
+     * refuses the session rather than starting it with taVNS silently
+     * unconfigured.  There is no frequency ceiling: it was an equivalence bound
+     * and is removed (OI-VNSCLIP-08, 2026-10-29), so the 30 Hz of GitHub #386
+     * is no longer refused here. */
     if (sess->config.protocol == NP_HRV_PROTO_TAVNS_SYNC) {
         np_hrv_status_t st = np_hrv_tavns_init(
             &sess->tavns,

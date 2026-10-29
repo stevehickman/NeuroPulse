@@ -116,10 +116,16 @@
         },
         {
           "name": "VNS_MIN_HZ",
-          "value": 1.0
+          "value": 1.0,
+          "note": "Auricular VNS frequency floor. The 25 Hz ceiling that stood beside it was an equivalence bound carried over from the cervical predicate, with no derivation, and is removed (OI-VNSCLIP-08, the principal, 2026-10-29, CLAUDE.md Rev 76). The floor was not part of that ruling and has no recorded derivation either: UC-118."
         },
         {
-          "name": "VNS_MAX_HZ",
+          "name": "CERVICAL_VNS_MIN_HZ",
+          "value": 1.0,
+          "note": "Cervical VNS (T2) frequency range, 1-25 Hz, from the gammaCore predicate (K163334, fixed 25 Hz; NP-REG-CVNS-001 section 3). This one stays: it is the equivalence claim the regulatory argument rests on. It was the same constant as the auricular range until OI-VNSCLIP-08."
+        },
+        {
+          "name": "CERVICAL_VNS_MAX_HZ",
           "value": 25.0
         },
         {

@@ -398,7 +398,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
       const p = params.params as VNSHRVParams;
       return (
         <div className="param-grid">
-          <FrequencyField label={t('WEB_MOD_VNS_FREQUENCY')} value={p.frequencyHz} min={1} max={25} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('WEB_MOD_VNS_FREQUENCY')} value={p.frequencyHz} min={1} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMilliamps} min={0.1} max={2.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />
           <SelectField label={t('WEB_MOD_HRV_PROTOCOL')} value={p.hrvProtocol} onChange={v => update<typeof params>({ ...p, hrvProtocol: v as VNSHRVParams['hrvProtocol'] })}
             options={[
@@ -581,7 +581,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
       const p = params.params as CervicalVnsParams;
       return (
         <div className="param-grid">
-          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={1} max={25} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={1} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMilliamps} min={0.1} max={2.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />
         </div>
       );

@@ -757,7 +757,7 @@ vns_hrv {
 }
 ```
 
-Limits that bear on them: the per-phase charge ceiling (40 µC/cm²) divides by the **authored** pulse width, as the safety MCU does, and the 1–25 Hz range is unchanged (`OI-VNSCLIP-08` asks what the 25 Hz is for) and the 2 mA ceiling is replaced by a 40 mA stop-gap (Rev 68, GitHub #554, #559).
+Limits that bear on them: the per-phase charge ceiling (40 µC/cm²) divides by the **authored** pulse width, as the safety MCU does, and the 25 Hz ceiling is removed (`OI-VNSCLIP-08`, the principal, 2026-10-29; a 1 Hz floor remains, `UC-118`) and the 2 mA ceiling is replaced by a 40 mA stop-gap (Rev 68, GitHub #554, #559).
 
 **HRV protocol modes:**
 

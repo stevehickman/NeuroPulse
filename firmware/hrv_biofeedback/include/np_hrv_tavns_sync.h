@@ -36,7 +36,7 @@
  * The callback is responsible for programming taVNS pulse parameters and
  * requesting safety MCU enable.
  *
- * `freq_hz`    — carrier frequency (1–25 Hz)
+ * `freq_hz`    — carrier frequency (≥ 1 Hz; no ceiling, OI-VNSCLIP-08)
  * `current_ua` — peak current in microamperes (100–40000)
  */
 typedef void (*np_tavns_enable_cb_t)(uint16_t freq_hz, uint16_t current_ua);
