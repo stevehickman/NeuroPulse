@@ -30,19 +30,26 @@ data class UploadCheck(
     val refusalKind: String?
         get() = when {
             status != UploadCheckStatus.REFUSED -> null
-            reason in TIER_REFUSAL_CODES -> "tier"
-            reason in HARDWARE_VERSION_REFUSAL_CODES -> "hardware_version"
+            reason in TIER_REFUSAL_CODES -> REFUSAL_TIER
+            reason in HARDWARE_VERSION_REFUSAL_CODES -> REFUSAL_HARDWARE_VERSION
             else -> null
         }
 
     companion object {
         const val LENGTH = 34
 
+        /** The library's `helmetRefusal` codes (`SWR-UP-02`) for a refusal the helmet gives for its tier or hardware version. */
+        const val REFUSAL_TIER = "tier"
+        const val REFUSAL_HARDWARE_VERSION = "hardware_version"
+
         /**
          * `NP_HUB_ERR_HW_VERSION_UNVERIFIED`: the helmet had not yet heard its own hardware version from the safety MCU, so it
          * checked nothing (`SWR-HV-08`). Unlike the mismatch (27), sending the same protocol again can succeed.
          */
         const val REASON_HW_VERSION_UNVERIFIED = 28
+
+        /** `NP_HUB_ERR_TIER_UNVERIFIED`: the helmet had not yet heard its tier from the safety MCU, so it checked nothing. */
+        const val REASON_TIER_UNVERIFIED = 20
 
         /** `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. */
         private val TIER_REFUSAL_CODES = setOf(19, 20)
@@ -92,10 +99,26 @@ data class UploadVerdict(
     /**
      * The helmet's refusal reason (`np_hub_status_t` as a positive number) when it refused, else null. The library needs only
      * the kind ([helmetRefusal]); a screen needs the reason to say whether to try again
-     * ([UploadCheck.REASON_HW_VERSION_UNVERIFIED]) or not.
+     * ([helmetNotReady]) or not.
      */
     val helmetReason: Int? = null,
 ) {
+    /**
+     * True when the helmet refused only because it had not yet heard its own tier or hardware version from the safety MCU
+     * (`NP_HUB_ERR_TIER_UNVERIFIED`, `NP_HUB_ERR_HW_VERSION_UNVERIFIED`): it checked nothing, and sending the same protocol
+     * again can succeed. The other refusals will not change on a second try.
+     */
+    val helmetNotReady: Boolean
+        get() = helmetReason == UploadCheck.REASON_TIER_UNVERIFIED || helmetReason == UploadCheck.REASON_HW_VERSION_UNVERIFIED
+
+    /** The helmet refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`). */
+    val refusedForTier: Boolean
+        get() = helmetRefusal == UploadCheck.REFUSAL_TIER
+
+    /** The helmet refused for its hardware version (`NP_HUB_ERR_HW_VERSION_MISMATCH` or `_UNVERIFIED`). */
+    val refusedForHardwareVersion: Boolean
+        get() = helmetRefusal == UploadCheck.REFUSAL_HARDWARE_VERSION
+
     companion object {
         /**
          * The verdict from the last report the helmet gave ([check], null if it never gave one). A final report (accepted

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 202
+**Revision:** 203
 **Date:** 2026-10-29
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 202 | 2026-10-29 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 203 | 2026-10-29 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 129 | 2026-10-29 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 130 | 2026-10-29 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 8 | 2026-10-21 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -237,7 +237,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 3 | 2026-09-23 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
 | NP-IFU-001 | Instructions for Use — Working Text | 1 | 2026-10-28 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
-| NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 5 | 2026-10-28 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
+| NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 6 | 2026-10-29 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
 
 **Note on NP-REG-PBM1064-001:** Rev 2 (2026-09-28) added scope item 5 (Q14–Q18) and left Q-13 reserved. A further revision is still required to add Q-13 covering Mode F (808-830nm bilateral retinal PBM during normal-looking wear) per NP-FW-EMMC-002 Rev 1 §F and NP-PRIV-REM-001 STEP-18. The Mode F firmware gate flag `NP_MODE_F_REGULATORY_CLEARED` remains 0 until the Rev 2 opinion letter is received.
 
