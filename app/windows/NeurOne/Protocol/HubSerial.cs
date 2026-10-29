@@ -1,8 +1,9 @@
 // HubSerial.cs — the hub's replay-guard serial (NP-FW-HUB-001 §4.2, OI-AND-WIRE-02).
 //
 // The hub publishes it as the DEVICE_SERIAL GATT characteristic (0x0017, READ 32 B, encrypted link
-// only). Windows has no hub transport yet, so nothing reads it here; this is the seam the transport
-// will fill and `HubDescriptorCompiler.Compile(deviceSerial: …)` will consume, matching iOS
+// only). This C# project has no hub transport, so nothing reads it here (the Windows desktop host reads it
+// through the shared Kotlin hub link, `OI-UI-KMP-03`); this is the seam a transport will fill and
+// `HubDescriptorCompiler.Compile(deviceSerial: …)` will consume, matching iOS
 // (`NeurOneGATTManager.deviceSerial`) and Android (`NeurOneGattManager.deviceSerial`).
 //
 // Memory only: never persist, upload or display it.
