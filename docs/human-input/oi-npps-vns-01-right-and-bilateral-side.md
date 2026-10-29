@@ -36,8 +36,8 @@ An absent `side` is left and is unchanged by any ruling here.
 ## 4. What the literature says, and how far we have checked it
 
 **Status of this section:** the full texts of the three reviews below and of Hatik 2023 (primary
-study) were read on 2026-10-29. **Kraus 2007 could not be read** (the publisher host is outside the
-session's network allowance), and neither could Sinkovec 2021, Gauthey 2020 or the other primary
+study) were read on 2026-10-29. **Kraus 2007 was read at abstract level only** (the publisher page is blocked), and
+Sinkovec 2021, Gauthey 2020 or the other primary
 studies; every statement about them is a review's account of them. The repository's own
 count of stroke studies by side (see the last bullet) was not re-checked.
 
@@ -92,7 +92,7 @@ count of stroke studies by side (see the last bullet) was not re-checked.
 - The row records "the eight stroke studies that state a side used left, one bilateral, none right".
   The counts are ambiguous as written, and the Matsuoka laterality table was not located in the text
   read. Re-check against the paper.
-- Kraus 2007 (see above), Sinkovec 2021 and Gauthey 2020, the only two right-sided studies in
+- The full text of Kraus 2007 (see above), and Sinkovec 2021 and Gauthey 2020, the only two right-sided studies in
   Matsuoka's review.
 - The registered trial NCT05370027 (left, right and bilateral in healthy adults) has no results in
   anything read.
@@ -116,14 +116,19 @@ safety study):
 - Matsuoka's other use of this paper, that bilateral stimulation caused "significantly less
   stimulation-related pain," matches the abstract (pain and fatigue improved with bilateral).
 
-**Kraus 2007 (not read).** The reference list of Matsuoka 2025 gives it as "BOLD fMRI deactivation of
-limbic and temporal brain structures and mood enhancing effect by transcutaneous vagus nerve
-stimulation," *J Neural Transm* 114:1485, an fMRI mood study. Matsuoka cites it for the statement that
-bilateral effects were unknown because the heart's parasympathetic supply is from the right vagus.
-Crossref confirms the title, authors (Kraus, Hösl, Kiess, Schanze, Kornhuber, Forster), journal and
-pages, and holds no abstract. The publisher's page returned a bot challenge instead of the article, so
-the text was not read. Nothing in the title suggests it was a cardiac or bilateral safety study, so
-the attribution should be checked at the source before it is repeated.
+**Kraus 2007 (abstract read; full text not).** Kraus, Hösl, Kiess, Schanze, Kornhuber, Forster, *J Neural
+Transm* 114:1485 (PMID 17564758), "BOLD fMRI deactivation of limbic and temporal brain structures and
+mood enhancing effect by transcutaneous vagus nerve stimulation." Read from the Europe PMC record; the
+publisher's page returned a bot challenge.
+- 22 healthy subjects, stimulation of the **left** outer auditory canal, ear lobe as sham; an fMRI and
+  mood-scale study. "No significant effects on heart rate, blood pressure or peripheral microcirculation
+  could be detected during the stimulation procedure."
+- The abstract says nothing about right-sided or bilateral stimulation, or about the right vagus
+  supplying the heart. Matsuoka 2025 cites this paper for exactly that point (bilateral effects
+  unknown because the heart's parasympathetic supply is from the right vagus). **The abstract does not
+  support that attribution.** It may be in the paper's discussion, which was not read, so treat it as
+  unconfirmed. The paper is, at most, evidence that left-ear stimulation at that setting did not
+  change heart rate or blood pressure in 22 healthy people.
 
 ## 5. Options and what each costs
 
