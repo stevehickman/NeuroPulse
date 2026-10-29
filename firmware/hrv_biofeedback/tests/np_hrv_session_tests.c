@@ -72,6 +72,15 @@ static void test_rejected_init_disarms_previous(void)
     CHECK(g_enables == 0,
           "after a refused init, inspiration does not fire the previous session's enable");
 
+    /* The removed ceiling (OI-VNSCLIP-08): 30 Hz, GitHub #386's value, is accepted and is what fires. */
+    g_enables = 0;
+    memset(&t, 0, sizeof(t));
+    CHECK(np_hrv_tavns_init(&t, 30U, 800U, rec_enable, rec_disable) == NP_HRV_OK,
+          "30 Hz / 800 uA accepted now that there is no frequency ceiling");
+    drive_inspiration(&t);
+    CHECK(g_enables >= 1 && g_last_freq == 30U && g_last_ua == 800U,
+          "inspiration onset fires the enable at 30 Hz, the configured rate");
+
     /* Same for an out-of-range current (below the 100 uA floor). */
     (void)np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable);
     CHECK(np_hrv_tavns_init(&t, 10U, 99U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
@@ -156,6 +165,8 @@ static void test_session_accepts_window(void)
           "25 Hz / 40000 uA, the default frequency and the current ceiling, run");
     CHECK(start_with(30U, 0U, &running) == NP_HRV_OK && running,
           "30 Hz runs: the 25 Hz ceiling is removed (OI-VNSCLIP-08; GitHub #386's value)");
+    CHECK(start_with(100U, 0U, &running) == NP_HRV_OK && running,
+          "100 Hz runs: nothing above the old ceiling is refused here");
 }
 
 int main(void)
