@@ -61,14 +61,17 @@ class HubDescriptorCompiler(
      * @param clinicianSockets operator-chosen 1-based socket ids for `clinician_selected` targets.
      * @param acknowledgedCautions the ids of the cautions the author acknowledged (`NPZoneCaution.ackId`); a protocol
      *   in the caution zone is refused without them.
+     * @param hardwareVersion the helmet's hardware version (1 to 15), stamped in the signed header so the helmet can
+     *   refuse a protocol compiled for another layout (`SWR-HV-08`); null stamps the default, 1 (`SWR-HV-07`).
      */
     fun compile(
         definition: NPProtocolDefinition,
         deviceSerial: ByteArray? = null,
         clinicianSockets: List<Int>? = null,
         acknowledgedCautions: List<String> = emptyList(),
+        hardwareVersion: Int? = null,
     ): HubDescriptor {
-        val unsigned = build(definition, deviceSerial, clinicianSockets, acknowledgedCautions)
+        val unsigned = build(definition, deviceSerial, clinicianSockets, acknowledgedCautions, hardwareVersion)
         val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - HubDescriptorWire.SIG_LEN))
         require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
         sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
@@ -83,6 +86,7 @@ class HubDescriptorCompiler(
         deviceSerial: ByteArray?,
         clinicianSockets: List<Int>?,
         acknowledgedCautions: List<String> = emptyList(),
+        hardwareVersion: Int? = null,
     ): Unsigned {
         val uuid = randomBytes(HubDescriptorWire.UUID_LEN)
         require(uuid.size == HubDescriptorWire.UUID_LEN)
@@ -99,6 +103,7 @@ class HubDescriptorCompiler(
                 nowUnix = clockSeconds(),
                 sessionUuid = uuid,
                 acknowledgedCautions = acknowledgedCautions,
+                hardwareVersion = hardwareVersion,
                 wavelengthRules = wavelengthRules()?.let(::toCoreJson),
             ),
         )

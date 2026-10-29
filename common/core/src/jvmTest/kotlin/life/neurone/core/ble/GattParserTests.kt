@@ -332,9 +332,12 @@ class GattParserTests {
 
     // @verifies SWR-UP-02
     @Test
-    fun aTierRefusalIsNamedAndOtherRefusalsAreNot() {
+    fun aTierOrHardwareVersionRefusalIsNamedAndOtherRefusalsAreNot() {
         assertEquals("tier", GattParser.parseUploadCheck(uploadFrame(2, 19, ByteArray(32)))!!.refusalKind)
         assertEquals("tier", GattParser.parseUploadCheck(uploadFrame(2, 20, ByteArray(32)))!!.refusalKind)
+        assertEquals("hardware_version", GattParser.parseUploadCheck(uploadFrame(2, 27, ByteArray(32)))!!.refusalKind, "SWR-HV-08 mismatch")
+        assertEquals("hardware_version", GattParser.parseUploadCheck(uploadFrame(2, 28, ByteArray(32)))!!.refusalKind, "SWR-HV-08 not yet verified")
+        assertNull(GattParser.parseUploadCheck(uploadFrame(1, 27, ByteArray(32)))!!.refusalKind, "only a refusal has a refusal kind")
         assertNull(GattParser.parseUploadCheck(uploadFrame(2, 6, ByteArray(32)))!!.refusalKind, "a bad signature is a failure, not a tier")
         assertNull(GattParser.parseUploadCheck(uploadFrame(1, 19, ByteArray(32)))!!.refusalKind, "only a refusal has a refusal kind")
     }

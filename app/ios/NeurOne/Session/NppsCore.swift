@@ -32,6 +32,9 @@ enum NppsCore {
         /// Ids of the zone-model cautions the author acknowledged (`NPZoneCaution.ackId`); a protocol in the caution
         /// zone compiles only when every one of its cautions is here (docs/reference/safety-zones.md).
         var acknowledgedCautions: [String] = []
+        /// The hardware version of the helmet the descriptor is compiled for (1 to 15), stamped in the signed header; the
+        /// helmet refuses a different one (SWR-HV-08). nil leaves the core's default of 1 (SWR-HV-07).
+        var hardwareVersion: Int?
     }
 
     private typealias Entry = (
@@ -153,7 +156,7 @@ enum NppsCore {
             throw Refusal(message: "sessionUUID must be 16 bytes")
         }
         let def = try JSONSerialization.jsonObject(with: protocolJSON)
-        let request: [String: Any] = [
+        var request: [String: Any] = [
             "def": def,
             "zones": options.zones.map { $0 as Any } ?? NSNull(),
             "clinicianSockets": options.clinicianSockets.map { $0 as Any } ?? NSNull(),
@@ -164,6 +167,7 @@ enum NppsCore {
             "autonomous": options.autonomous,
             "acknowledgedCautions": options.acknowledgedCautions
         ]
+        if let version = options.hardwareVersion { request["hardwareVersion"] = version }
         return try call(npps_compile_json, JSONSerialization.data(withJSONObject: request))
     }
 

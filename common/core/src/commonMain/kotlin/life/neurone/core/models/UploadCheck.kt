@@ -28,17 +28,26 @@ data class UploadCheck(
 ) {
     /** The `helmetRefusal` the library's upload rule takes for this refusal, or null when it is none of the three it names. */
     val refusalKind: String?
-        get() = if (status == UploadCheckStatus.REFUSED && reason in TIER_REFUSAL_CODES) "tier" else null
+        get() = when {
+            status != UploadCheckStatus.REFUSED -> null
+            reason in TIER_REFUSAL_CODES -> "tier"
+            reason in HARDWARE_VERSION_REFUSAL_CODES -> "hardware_version"
+            else -> null
+        }
 
     companion object {
         const val LENGTH = 34
 
-        /**
-         * `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. A
-         * refusal for the hardware version is the hub's too (`NP_HUB_ERR_HW_VERSION_MISMATCH` 27 and `..._UNVERIFIED` 28, `SWR-HV-08`),
-         * but no app maps those yet; an unmodified clone is not made by the hub, so no code names it.
-         */
+        /** `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. */
         private val TIER_REFUSAL_CODES = setOf(19, 20)
+
+        /**
+         * `NP_HUB_ERR_HW_VERSION_MISMATCH` (27) and `NP_HUB_ERR_HW_VERSION_UNVERIFIED` (28): the helmet refused a protocol
+         * compiled for another hardware version, or has not yet heard its own version from the safety MCU (`SWR-HV-08`).
+         * Neither is a failed upload and neither marks the protocol used, as for a tier refusal. An unmodified clone is
+         * not made by the hub, so no code names it.
+         */
+        private val HARDWARE_VERSION_REFUSAL_CODES = setOf(27, 28)
 
         /** Null for a frame of the wrong length or an unknown status: no part of it is believed. */
         fun fromWire(data: ByteArray): UploadCheck? {

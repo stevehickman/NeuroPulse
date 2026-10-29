@@ -36,6 +36,9 @@ sealed class NppsCompileOptions
     /// Ids of the zone-model cautions the author acknowledged; a protocol in the caution zone compiles only
     /// when every one of its cautions is here (docs/reference/safety-zones.md).
     public IReadOnlyList<string> AcknowledgedCautions { get; init; } = Array.Empty<string>();
+    /// The hardware version of the helmet the descriptor is compiled for (1 to 15), stamped in the signed header; the
+    /// helmet refuses a different one (SWR-HV-08). Null leaves the core's default of 1 (SWR-HV-07).
+    public int? HardwareVersion { get; init; }
 }
 
 static class NppsCore
@@ -161,6 +164,7 @@ static class NppsCore
             ["autonomous"] = options.Autonomous,
             ["acknowledgedCautions"] = JsonSerializer.SerializeToNode(options.AcknowledgedCautions),
         };
+        if (options.HardwareVersion is { } hardwareVersion) request["hardwareVersion"] = hardwareVersion;
         return Call(npps_compile_json, Encoding.UTF8.GetBytes(request.ToJsonString()));
     }
 

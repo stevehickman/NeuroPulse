@@ -135,6 +135,22 @@ class HubDescriptorCompilerTests {
         assertContentEquals(serial, blob.copyOfRange(28, 60))
     }
 
+    // @verifies SWR-HV-08
+    @Test fun theDescriptorStatesTheHelmetsHardwareVersion() {
+        val d = def(600, pbm("808nm", 100.0))
+        // None given: the default, 1 (SWR-HV-07). Given: stamped as is, in the byte after the session length.
+        assertEquals(listOf<Byte>(1, 0, 0, 0), compiler.build(d, null, null).blob.copyOfRange(64, 68).toList())
+        assertEquals(listOf<Byte>(3, 0, 0, 0), compiler.build(d, null, null, hardwareVersion = 3).blob.copyOfRange(64, 68).toList())
+        // The stamp is inside the signed region the signature covers.
+        var seen: ByteArray? = null
+        val c = HubDescriptorCompiler({ m -> seen = m; SignatureResult(ByteArray(64), "fp") }, { 1L }, { ByteArray(it) })
+        c.compile(d, hardwareVersion = 5)
+        assertEquals(5, seen!![64].toInt())
+        // A version a helmet cannot have is refused, not clamped.
+        assertFailsWith<IllegalArgumentException> { compiler.build(d, null, null, hardwareVersion = 0) }
+        assertFailsWith<IllegalArgumentException> { compiler.build(d, null, null, hardwareVersion = 16) }
+    }
+
     // @verifies REQ-NPPS-03#c REQ-NPPS-04 REQ-NPPS-08#c REQ-NPPS-09
     @Test fun refusalsNameTheProblemAndNeverReshape() {
         assertFailsWith<IllegalArgumentException> { compiler.build(def(600, pbm("808nm", 500.0)), null, null) } // above 403 full scale
