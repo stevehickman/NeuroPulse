@@ -375,3 +375,19 @@ np_hub_status_t np_protocol_tier_admit(const np_session_desc_t *desc,
     }
     return NP_HUB_ERR_TIER_F4;   /* T1, or any code that is not exactly T2 */
 }
+
+np_hub_status_t np_protocol_hw_version_admit(const np_session_desc_t *desc,
+                                              uint8_t                  device_hw_version,
+                                              bool                     report_received)
+{
+    if (desc == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    if (!report_received) {
+        return NP_HUB_ERR_HW_VERSION_UNVERIFIED;
+    }
+    if (desc->hardware_version != device_hw_version) {
+        return NP_HUB_ERR_HW_VERSION_MISMATCH;
+    }
+    return NP_HUB_OK;
+}

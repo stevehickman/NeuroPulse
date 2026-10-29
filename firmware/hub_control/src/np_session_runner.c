@@ -646,6 +646,18 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
+    /* SWR-HV-08: a protocol compiled for another hardware version is refused here, beside the tier check and before
+     * anything is requested of the safety MCU: a socket address names a place only on a given layout.  The helmet's
+     * version is the safety MCU's, from its verified record, and a flag in the protocol or the app changes nothing. */
+    rc = np_protocol_hw_version_admit(&s_ctx.desc, np_safety_spi_get_hardware_version(),
+                                      np_safety_spi_get_tier_report(NULL, NULL));
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
     /* Initialize stop-tracking to "no stop pending". */
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
         s_ctx.stop_at_ms[i] = 0U;
