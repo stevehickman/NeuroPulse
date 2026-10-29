@@ -35,9 +35,10 @@ An absent `side` is left and is unchanged by any ruling here.
 
 ## 4. What the literature says, and how far we have checked it
 
-**Status of this section:** the full texts of the three reviews below were read on 2026-10-29. The
-primary studies they cite (Kraus 2007, Hatik 2023, Sinkovec 2021, Gauthey 2020 and the others) were
-**not** read; every statement about them is the review's account of them. The repository's own
+**Status of this section:** the full texts of the three reviews below and of Hatik 2023 (primary
+study) were read on 2026-10-29. **Kraus 2007 could not be read** (the publisher host is outside the
+session's network allowance), and neither could Sinkovec 2021, Gauthey 2020 or the other primary
+studies; every statement about them is a review's account of them. The repository's own
 count of stroke studies by side (see the last bullet) was not re-checked.
 
 **Reviews read in full**
@@ -91,8 +92,36 @@ count of stroke studies by side (see the last bullet) was not re-checked.
 - The row records "the eight stroke studies that state a side used left, one bilateral, none right".
   The counts are ambiguous as written, and the Matsuoka laterality table was not located in the text
   read. Re-check against the paper.
+- Kraus 2007 (see above), Sinkovec 2021 and Gauthey 2020, the only two right-sided studies in
+  Matsuoka's review.
 - The registered trial NCT05370027 (left, right and bilateral in healthy adults) has no results in
   anything read.
+
+**Primary study read: Hatik, Asrlan, Demirbilek, Ozden 2023, *Brain Behav* 13:e3332** (the paper the
+repository row calls "Hatik 2023", a study of cycling recovery in healthy young adults, not a cardiac
+safety study):
+- 90 healthy adults aged 18 to 23, randomised to bilateral sham, unilateral left, or bilateral
+  stimulation (30 per group), 20 minutes a day for 4 days, at the cymba concha and tragus, 10 Hz,
+  biphasic, 300 µs, with the current set at each person's detection threshold (no mA figure is stated).
+- Pulse and systolic and diastolic blood pressure were measured as side-effect monitors. The authors
+  "did not encounter bradycardia and hypotension in any group" and "VNS (left or bilateral) did not
+  cause bradycardia or hypotension." Seen as a safety result, this is a monitoring note, not a
+  designed cardiac endpoint, with no stated power for it.
+- **Exclusions included "existing cardiac system disease history and receiving treatment."** So it
+  says nothing about people with heart disease. The authors' limitations: short follow-up, and a real
+  sham may not have been fully formed.
+- The authors argue right and left ear stimulation are cardiac-safe because auricular afferents end
+  at the same brainstem nuclei (citing Chen 2015 and Murray 2016). This is their reasoning, not a
+  finding of their trial.
+- Matsuoka's other use of this paper, that bilateral stimulation caused "significantly less
+  stimulation-related pain," matches the abstract (pain and fatigue improved with bilateral).
+
+**Kraus 2007 (not read).** The reference list of Matsuoka 2025 gives it as "BOLD fMRI deactivation of
+limbic and temporal brain structures and mood enhancing effect by transcutaneous vagus nerve
+stimulation," *J Neural Transm* 114:1485, an fMRI mood study. Matsuoka cites it for the statement that
+bilateral effects were unknown because the heart's parasympathetic supply is from the right vagus.
+Nothing in the title suggests it was a cardiac or bilateral safety study, so the attribution should
+be checked at the source before it is repeated.
 
 ## 5. Options and what each costs
 
