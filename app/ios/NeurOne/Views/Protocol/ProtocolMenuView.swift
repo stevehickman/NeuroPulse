@@ -570,33 +570,44 @@ struct ProtocolMenuView: View {
     // SWR-UP-01/-02: the upload is not over when the last chunk is written. The hub's report decides whether it holds the
     // protocol, and the library marks the family used for a confirmed or an unknown outcome and never for a refusal before
     // sending (SWR-UP-02). It runs on its own task, so leaving this screen does not cancel it: a protocol the hub holds
-    // must still be marked used. The task returns the verdict for a caller that has to wait for it (Mode 3 programming).
+    // must still be marked used. The task returns why the hub refused this upload, if it did, for a caller that has to wait
+    // for it (Mode 3 programming). A refusal report that carries another hash belongs to an earlier upload and is not this one's.
     @discardableResult
-    private func recordUpload(of entry: NPProtocolEntry, sentHash: String) -> Task<UploadVerdict, Never> {
+    private func recordUpload(of entry: NPProtocolEntry, sentHash: String) -> Task<HelmetRefusalCause?, Never> {
         let uploader = self.uploader
         let library = self.library
         return Task { @MainActor in
             let verdict = await uploader.verify(sentHash: sentHash)
             library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
                                        helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
-            // SWR-HV-08, REQ-UPG-01: the hub checks the layout the protocol was made for and the tier it needs, and refuses
-            // a different one. The "sent" banner was true when it was shown; this says what the hub then decided, and keeps
-            // the screen open to show it. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
-            if verdict.refusedForTier || verdict.refusedForHardwareVersion {
-                let message: String
-                if verdict.helmetNotReady {
-                    message = String(localized: "PROTOCOL_MENU_HELMET_NOT_READY")
-                } else if verdict.refusedForTier {
-                    message = String(localized: "PROTOCOL_MENU_TIER_REFUSED")
-                } else {
-                    message = String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED")
-                }
+            // The "sent" banner was true when it was shown; this says what the hub then decided, whatever its reason, and
+            // keeps the screen open to show it (SWR-HV-08, REQ-UPG-01, SWR-UP-02). A tier refusal never names a purchase
+            // (NP-PWRSRC-001 §6.3).
+            let cause = verdict.helmetHash == sentHash ? verdict.refusalCause : nil
+            if let cause {
                 withAnimation {
                     showUploadSuccess = false
-                    uploadError = message
+                    uploadError = Self.refusalMessage(for: cause)
                 }
             }
-            return verdict
+            return cause
+        }
+    }
+
+    /// What to say for each reason the hub can refuse a protocol.
+    private static func refusalMessage(for cause: HelmetRefusalCause) -> String {
+        switch cause {
+        case .tier: return String(localized: "PROTOCOL_MENU_TIER_REFUSED")
+        case .hardwareVersion: return String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED")
+        case .notReady: return String(localized: "PROTOCOL_MENU_HELMET_NOT_READY")
+        case .signature: return String(localized: "PROTOCOL_MENU_REFUSED_SIGNATURE")
+        case .wrongDevice: return String(localized: "PROTOCOL_MENU_REFUSED_WRONG_DEVICE")
+        case .formatVersion: return String(localized: "PROTOCOL_MENU_REFUSED_FORMAT_VERSION")
+        case .damaged: return String(localized: "PROTOCOL_MENU_REFUSED_DAMAGED")
+        case .malformed: return String(localized: "PROTOCOL_MENU_REFUSED_MALFORMED")
+        case .sessionActive: return String(localized: "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE")
+        case .bootRefused: return String(localized: "PROTOCOL_MENU_REFUSED_BOOT")
+        case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
         }
     }
 
@@ -608,11 +619,11 @@ struct ProtocolMenuView: View {
                 if programMode {
                     let sentHash = try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions)
                     // Mode 3 closes this screen and tells the person "Protocol stored. Hub will run session without phone."
-                    // That is true only if the hub holds the protocol, so wait for its report (SWR-HV-08, REQ-UPG-01). A
-                    // refusal for its tier or hardware version has put its message up by then: leave it on screen, and do
-                    // not call `onProgrammed`. No answer at all is the unknown outcome, treated as sent, as for Mode 2.
-                    let verdict = await recordUpload(of: entry, sentHash: sentHash).value
-                    if verdict.refusedForTier || verdict.refusedForHardwareVersion { return }
+                    // That is true only if the hub holds the protocol, so wait for its report (SWR-UP-02). A refusal, for
+                    // whatever reason, has put its message up by then: leave it on screen, and do not call `onProgrammed`.
+                    // No answer at all is the unknown outcome, treated as sent, as for Mode 2.
+                    let refusal = await recordUpload(of: entry, sentHash: sentHash).value
+                    if refusal != nil { return }
                     dismiss()
                     onProgrammed?()
                 } else {
