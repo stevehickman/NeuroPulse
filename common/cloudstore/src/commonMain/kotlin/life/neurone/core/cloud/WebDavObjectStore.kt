@@ -155,8 +155,8 @@ class WebDavObjectStore(
  */
 internal object DavXml {
     private const val P = "(?:[A-Za-z_][\\w.-]*:)?"
-    private val response = Regex("<${P}response(?:\\s[^>]*)?>(.*?)</${P}response\\s*>", RegexOption.DOT_MATCHES_ALL)
-    private val href = Regex("<${P}href(?:\\s[^>]*)?>\\s*(.*?)\\s*</${P}href\\s*>", RegexOption.DOT_MATCHES_ALL)
+    private val response = Regex("<${P}response(?:\\s[^>]*)?>([\\s\\S]*?)</${P}response\\s*>")
+    private val href = Regex("<${P}href(?:\\s[^>]*)?>\\s*([\\s\\S]*?)\\s*</${P}href\\s*>")
     private val collection = Regex("<${P}collection\\b")
     private val quota = Regex("<${P}quota-available-bytes(?:\\s[^>]*)?>\\s*(\\d+)\\s*</${P}quota-available-bytes\\s*>")
 
