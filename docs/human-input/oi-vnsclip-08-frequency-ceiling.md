@@ -1,6 +1,6 @@
 # Clinical and risk question for review: OI-VNSCLIP-08, the 25 Hz auricular VNS ceiling
 
-**Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-10-29 by the principal: option A, the 25 Hz auricular ceiling is an equivalence bound (`docs/status/completed-decisions.md`). Not sent; no reviewer was engaged. The file stays as the trail. The follow-up changes to `CLAUDE.md` §3 and the code are not yet made. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software / Safety (`OI-VNSCLIP-08` in `docs/status/pending-decisions.md`; register row `UC-070`)
 **To:** Clinical reviewer and Risk reviewer (names to be assigned; the item's owner column reads "Clinical + Risk")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.

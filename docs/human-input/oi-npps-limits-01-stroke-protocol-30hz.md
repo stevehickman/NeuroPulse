@@ -5,7 +5,8 @@
 **To:** Clinical reviewer (name to be assigned; the item's owner column reads "Clinical")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.
 **Sender's recommendation:** option A (principal's preference, 2026-10-29), on the principle that protocols are based on literature evidence. It is a recommendation, not a ruling: the reviewer is asked to confirm, change or reject it, and nothing in the repository acts on it until a ruling is recorded.
-**Depends on:** `OI-VNSCLIP-08` (`oi-vnsclip-08-frequency-ceiling.md`). Evidence on the 25 Hz ceiling is there and is not repeated here. Option C below is only available if that item rules the ceiling an equivalence bound.
+**Update 2026-10-29:** `OI-VNSCLIP-08` was decided by the principal (the 25 Hz ceiling is an equivalence bound, to be removed). This question is **not** answered by that: the protocol still cites an implanted-device trial (Dawson 2021) for an auricular parameter. Option C below no longer depends on the ceiling, and B no longer has a ceiling to wait for.
+**Depends on (superseded, see update):** `OI-VNSCLIP-08` (`oi-vnsclip-08-frequency-ceiling.md`). Evidence on the 25 Hz ceiling is there and is not repeated here. Option C below is only available if that item rules the ceiling an equivalence bound.
 
 ## 1. The question
 
