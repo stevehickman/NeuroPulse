@@ -81,7 +81,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
         HelmetRefusalCause.MALFORMED to stringResource(Res.string.protocol_menu_refused_malformed),
         HelmetRefusalCause.SESSION_ACTIVE to stringResource(Res.string.protocol_menu_refused_session_active),
         HelmetRefusalCause.BOOT_REFUSED to stringResource(Res.string.protocol_menu_refused_boot),
-        HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_other),
+        HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_generic),
     )
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
