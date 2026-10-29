@@ -276,6 +276,59 @@ fn upload_result(req: &Value) -> R<Value> {
     }
 }
 
+/// The helmet's `np_hub_status_t` refusal reasons that `np_runner_load()` can give, as a positive number
+/// (`firmware/hub_control/include/np_hub_types.h`): the one place the apps read them from.
+const REASON_TIER_F4: u64 = 19;
+const REASON_TIER_UNVERIFIED: u64 = 20;
+const REASON_HW_VERSION_MISMATCH: u64 = 27;
+const REASON_HW_VERSION_UNVERIFIED: u64 = 28;
+
+/// `SWR-UP-02`, `SWR-HV-08`, `REQ-UPG-01`: what an upload report means to a person, decided once for every app. The request is
+/// the helmet's last `UPLOAD_CHECK` report as the apps hold it, `{"status": "accepted"|"refused"|absent, "reason": n|absent,
+/// "helmetHash": h|absent}`, and, when the screen is about the upload whose bytes hash to `sentHash`, that hash.
+///
+/// * `refusalKind` is the library's `helmetRefusal` for `uploadResult`: `tier` (19, 20) or `hardware_version` (27, 28) for a
+///   refusal, else null. A refusal for any other reason is a failed upload.
+/// * `notReady` is true for a refusal only because the helmet had not yet heard its tier or hardware version from the safety
+///   MCU (20, 28): it checked nothing, and sending the same protocol again can succeed.
+/// * `cause` is what a screen says, grouped by what the person can do next. With `sentHash`, a final report (accepted or
+///   refused) for other bytes is `unmatched` whatever it said: it tells nothing about this upload. No answer is null.
+///   An accepted upload has no cause. A tier refusal never names a purchase (`NP-PWRSRC-001` §6.3).
+fn helmet_cause(req: &Value) -> R<Value> {
+    let refused = req["status"].as_str() == Some("refused");
+    let reason = if refused { req["reason"].as_u64() } else { None };
+    let kind = match reason {
+        Some(REASON_TIER_F4 | REASON_TIER_UNVERIFIED) => Some("tier"),
+        Some(REASON_HW_VERSION_MISMATCH | REASON_HW_VERSION_UNVERIFIED) => Some("hardware_version"),
+        _ => None,
+    };
+    let not_ready = matches!(reason, Some(REASON_TIER_UNVERIFIED | REASON_HW_VERSION_UNVERIFIED));
+    let refusal_cause = reason.map(|r| match r {
+        REASON_TIER_F4 => "tier",
+        REASON_HW_VERSION_MISMATCH => "hardware_version",
+        REASON_TIER_UNVERIFIED | REASON_HW_VERSION_UNVERIFIED => "not_ready",
+        6 => "signature",       // NP_HUB_ERR_BAD_SIGNATURE
+        7 => "wrong_device",    // NP_HUB_ERR_WRONG_DEVICE
+        5 => "format_version",  // NP_HUB_ERR_BAD_VERSION
+        4 => "damaged",         // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
+        2 | 8 | 9 => "malformed", // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
+        13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
+        25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
+        _ => "other",
+    });
+    let final_report = matches!(req["status"].as_str(), Some("accepted" | "refused"));
+    let cause = match req["sentHash"].as_str() {
+        None => refusal_cause,
+        Some(_) if !final_report => None,
+        Some(sent) => match req["helmetHash"].as_str() {
+            None => None,
+            Some(h) if h != sent => Some("unmatched"),
+            Some(_) => refusal_cause,
+        },
+    };
+    Ok(json!({ "refusalKind": kind, "notReady": not_ready, "cause": cause }))
+}
+
 /// `SWR-WO-03`: an import merges the used flag by OR. A protocol that arrives used is used; one that arrives unused but
 /// whose content hash is already used locally stays used; an import never clears the flag.
 fn merge_import(req: &Value) -> R<Value> {
@@ -462,6 +515,7 @@ pub fn library_json(request: &str) -> R<String> {
         "layoutDiff" => layout_diff(&req)?,
         "uploadGate" => upload_gate(&req)?,
         "uploadResult" => upload_result(&req)?,
+        "helmetCause" => helmet_cause(&req)?,
         "mergeImport" => merge_import(&req)?,
         "offered" => offered(&req)?,
         "usedRecord" => used_record(&req)?,
