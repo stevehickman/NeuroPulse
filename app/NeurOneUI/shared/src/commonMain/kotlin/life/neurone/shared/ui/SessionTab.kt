@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPZoneCaution
+import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.SessionStatus
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
@@ -68,9 +69,20 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val requestConnect = services.platform.rememberBleConnectAction()
 
     val sentToHub = stringResource(Res.string.protocol_menu_protocol_sent_to_hub)
-    val hardwareVersionRefused = stringResource(Res.string.protocol_menu_hardware_version_refused)
-    val helmetNotReady = stringResource(Res.string.protocol_menu_helmet_not_ready)
-    val tierRefused = stringResource(Res.string.protocol_menu_tier_refused)
+    // What to say for each reason the helmet can refuse a protocol (SWR-HV-08, REQ-UPG-01, SWR-UP-02).
+    val refusalText: Map<HelmetRefusalCause, String> = mapOf(
+        HelmetRefusalCause.TIER to stringResource(Res.string.protocol_menu_tier_refused),
+        HelmetRefusalCause.HARDWARE_VERSION to stringResource(Res.string.protocol_menu_hardware_version_refused),
+        HelmetRefusalCause.NOT_READY to stringResource(Res.string.protocol_menu_helmet_not_ready),
+        HelmetRefusalCause.SIGNATURE to stringResource(Res.string.protocol_menu_refused_signature),
+        HelmetRefusalCause.WRONG_DEVICE to stringResource(Res.string.protocol_menu_refused_wrong_device),
+        HelmetRefusalCause.FORMAT_VERSION to stringResource(Res.string.protocol_menu_refused_format_version),
+        HelmetRefusalCause.DAMAGED to stringResource(Res.string.protocol_menu_refused_damaged),
+        HelmetRefusalCause.MALFORMED to stringResource(Res.string.protocol_menu_refused_malformed),
+        HelmetRefusalCause.SESSION_ACTIVE to stringResource(Res.string.protocol_menu_refused_session_active),
+        HelmetRefusalCause.BOOT_REFUSED to stringResource(Res.string.protocol_menu_refused_boot),
+        HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_generic),
+    )
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
     val compositeUnsupported = stringResource(Res.string.and_ui_composite_protocol_upload_is_not_yet_support)
@@ -110,16 +122,12 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 services.protocolLibrary.recordUploadResult(
                     entry, result.sentHash, verdict.helmetStatus, verdict.helmetHash, verdict.helmetRefusal,
                 )
-                // SWR-HV-08, REQ-UPG-01: the helmet checks the layout the protocol was made for and the tier it needs, and
-                // refuses a different one. The "sent" message above was true when it was shown; this says what the helmet
-                // then decided. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
-                val refusal = when {
-                    !verdict.refusedForTier && !verdict.refusedForHardwareVersion -> null
-                    verdict.helmetNotReady -> helmetNotReady
-                    verdict.refusedForTier -> tierRefused
-                    else -> hardwareVersionRefused
+                // The "sent" message above was true when it was shown; this says what the helmet then decided, whatever its
+                // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
+                // A refusal report that carries another hash belongs to an earlier upload and is not this one's.
+                if (verdict.helmetHash == result.sentHash) {
+                    verdict.refusalCause?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
                 }
-                if (refusal != null) snackbar.showSnackbar(refusal)
             }
         }
         scope.launch { snackbar.showSnackbar(message) }
