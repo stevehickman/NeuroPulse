@@ -4,6 +4,7 @@
 **From:** NeurOne Software / Safety (`OI-VNSCLIP-08` in `docs/status/pending-decisions.md`; register row `UC-070`)
 **To:** Clinical reviewer and Risk reviewer (names to be assigned; the item's owner column reads "Clinical + Risk")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.
+**Sender's recommendation:** option A (principal's preference, 2026-10-29), on the principle that a safety bound must rest on evidence and no source found supports this one. It is a recommendation, not a ruling: the reviewer is asked to confirm, change or reject it, and nothing in the repository acts on it until a ruling is recorded.
 **Related:** `OI-NPPS-LIMITS-01` (`oi-npps-limits-01-stroke-protocol-30hz.md`) cannot be answered until this is.
 
 ## 1. The question
@@ -65,7 +66,7 @@ through skin electrodes, and the ones above were not designed to.
 
 ## 5. Options and what each costs
 
-**A. It is an equivalence bound.** Record that, and move 25 Hz out of the `CLAUDE.md` §3 hard-limits
+**A. It is an equivalence bound. (Sender's recommendation.)** Record that, and move 25 Hz out of the `CLAUDE.md` §3 hard-limits
 table (a locked-section change, so the principal's). Validators and the MCU keep or drop it as a
 protocol-level limit afterwards. Unblocks the 30 Hz stroke protocol (`OI-NPPS-LIMITS-01`). Cost: the
 platform no longer claims a hard frequency limit and relies on the 40 µC/cm² per-phase limit and the

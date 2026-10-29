@@ -4,6 +4,7 @@
 **From:** NeurOne Software (`OI-NPPS-LIMITS-01` in `docs/status/pending-decisions.md`)
 **To:** Clinical reviewer (name to be assigned; the item's owner column reads "Clinical")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.
+**Sender's recommendation:** option A (principal's preference, 2026-10-29), on the principle that protocols are based on literature evidence. It is a recommendation, not a ruling: the reviewer is asked to confirm, change or reject it, and nothing in the repository acts on it until a ruling is recorded.
 **Depends on:** `OI-VNSCLIP-08` (`oi-vnsclip-08-frequency-ceiling.md`). Evidence on the 25 Hz ceiling is there and is not repeated here. Option C below is only available if that item rules the ceiling an equivalence bound.
 
 ## 1. The question
@@ -38,7 +39,7 @@ support makes the check pass and the document wrong.
 
 ## 4. Options and what each costs
 
-**A. Re-cite the protocol to auricular evidence at or below 25 Hz** (for example Capone 2017 at
+**A. Re-cite the protocol to auricular evidence at or below 25 Hz (sender's recommendation)** (for example Capone 2017 at
 20 Hz, or the four 25 Hz studies) and set the frequency to match. Cost: the protocol's pattern should
 follow the cited study too (trains or movement-paired bursts, not continuous 30 Hz), and the
 description and citation change; the reviewer must say which study the protocol should follow.
