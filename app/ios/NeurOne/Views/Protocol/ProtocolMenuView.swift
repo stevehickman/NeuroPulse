@@ -47,12 +47,10 @@ struct ProtocolMenuView: View {
     @State private var gateEntry: NPProtocolEntry? = nil
     @State private var unavailableAlert: NPProtocolEntry? = nil
     @State private var uploadConfirm: NPProtocolEntry? = nil
-    @State private var uploadError: String? = nil
     /// Per-user cardiac scope: another person on this device has an outstanding cardiac cutoff,
     /// and this cervical protocol needs the "different person" confirmation first.
-    @State private var askDifferentPerson = false
+    @StateObject private var screen = ProtocolUploadScreen()
     @State private var lastSelectedEntry: NPProtocolEntry? = nil
-    @State private var showUploadSuccess = false
     @State private var uploadTask: Task<Void, Never>? = nil
     @State private var showLimitsSettings = false
     @State private var validationDetailEntry: NPProtocolEntry? = nil
@@ -70,7 +68,7 @@ struct ProtocolMenuView: View {
                 }
             }
             .navigationTitle(String(localized: "TAB_PROTOCOLS"))
-            .confirmationDialog("CVNS_DIFFERENT_PERSON_TITLE", isPresented: $askDifferentPerson,
+            .confirmationDialog("CVNS_DIFFERENT_PERSON_TITLE", isPresented: $screen.askDifferentPerson,
                                 titleVisibility: .visible) {
                 Button("CVNS_DIFFERENT_PERSON_CONFIRM", role: .destructive) {
                     uploader.confirmDifferentPerson()
@@ -180,7 +178,7 @@ struct ProtocolMenuView: View {
                     }
                 })
             .safeAreaInset(edge: .top, spacing: 0) {
-                if let errorMsg = uploadError {
+                if let errorMsg = screen.uploadError {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.white)
@@ -193,7 +191,7 @@ struct ProtocolMenuView: View {
                         Spacer()
                         Button {
                             let retry = lastSelectedEntry
-                            uploadError = nil
+                            screen.uploadError = nil
                             if let entry = retry { handleSelect(entry) }
                         } label: {
                             Text(String(localized: "SETUP_RETRY_BUTTON"))
@@ -212,7 +210,7 @@ struct ProtocolMenuView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if showUploadSuccess {
+                if screen.showUploadSuccess {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.white)
@@ -228,8 +226,8 @@ struct ProtocolMenuView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: uploadError != nil)
-            .animation(.easeInOut(duration: 0.3), value: showUploadSuccess)
+            .animation(.easeInOut(duration: 0.3), value: screen.uploadError != nil)
+            .animation(.easeInOut(duration: 0.3), value: screen.showUploadSuccess)
         }
     }
 
@@ -548,7 +546,7 @@ struct ProtocolMenuView: View {
         }
 
         lastSelectedEntry = entry
-        withAnimation { uploadError = nil }
+        screen.uploadError = nil
 
         // The library's refusals come before any byte is sent (SWR-PL-06, SWR-HV-04): nothing is marked used.
         let gate = library.uploadGate(entry, helmetHardwareVersion: uploader.helmetHardwareVersion)
@@ -568,80 +566,21 @@ struct ProtocolMenuView: View {
     }
 
     // SWR-UP-01/-02: the upload is not over when the last chunk is written. The hub's report decides whether it holds the
-    // protocol, and the library marks the family used for a confirmed or an unknown outcome and never for a refusal before
-    // sending (SWR-UP-02). It runs on its own task, so leaving this screen does not cancel it: a protocol the hub holds
-    // must still be marked used. The task returns why the hub refused this upload, if it did, for a caller that has to wait
-    // for it (Mode 3 programming). A refusal report that carries another hash belongs to an earlier upload and is not this one's.
-    @discardableResult
-    private func recordUpload(of entry: NPProtocolEntry, sentHash: String) -> Task<HelmetRefusalCause?, Never> {
-        let uploader = self.uploader
-        let library = self.library
-        return Task { @MainActor in
-            let verdict = await uploader.verify(sentHash: sentHash)
-            library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
-                                       helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
-            // The "sent" banner was true when it was shown; this says what the hub then decided, whatever its reason, and
-            // keeps the screen open to show it (SWR-HV-08, REQ-UPG-01, SWR-UP-02). A tier refusal never names a purchase
-            // (NP-PWRSRC-001 §6.3).
-            let cause = verdict.helmetHash == sentHash ? verdict.refusalCause : nil
-            if let cause {
-                withAnimation {
-                    showUploadSuccess = false
-                    uploadError = Self.refusalMessage(for: cause)
-                }
-            }
-            return cause
-        }
-    }
-
-    /// What to say for each reason the hub can refuse a protocol.
-    private static func refusalMessage(for cause: HelmetRefusalCause) -> String {
-        switch cause {
-        case .tier: return String(localized: "PROTOCOL_MENU_TIER_REFUSED")
-        case .hardwareVersion: return String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED")
-        case .notReady: return String(localized: "PROTOCOL_MENU_HELMET_NOT_READY")
-        case .signature: return String(localized: "PROTOCOL_MENU_REFUSED_SIGNATURE")
-        case .wrongDevice: return String(localized: "PROTOCOL_MENU_REFUSED_WRONG_DEVICE")
-        case .formatVersion: return String(localized: "PROTOCOL_MENU_REFUSED_FORMAT_VERSION")
-        case .damaged: return String(localized: "PROTOCOL_MENU_REFUSED_DAMAGED")
-        case .malformed: return String(localized: "PROTOCOL_MENU_REFUSED_MALFORMED")
-        case .sessionActive: return String(localized: "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE")
-        case .bootRefused: return String(localized: "PROTOCOL_MENU_REFUSED_BOOT")
-        case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
-        }
-    }
+    // protocol (`ProtocolUploadFlow`). It runs on its own task, so leaving this screen does not cancel it: a protocol the hub
+    // holds must still be marked used. The "sent" banner was true when it was shown; a refusal puts its message up and keeps
+    // the screen open to show it.
+    private var uploadFlow: ProtocolUploadFlow { ProtocolUploadFlow(uploader: uploader, library: library) }
 
     private func send(_ proto: NPProtocolDefinition, entry: NPProtocolEntry, acknowledgedCautions: [String]) {
         lastSelectedEntry = entry
         uploadTask?.cancel()
-        uploadTask = Task {
-            do {
-                if programMode {
-                    let sentHash = try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions)
-                    // Mode 3 closes this screen and tells the person "Protocol stored. Hub will run session without phone."
-                    // That is true only if the hub holds the protocol, so wait for its report (SWR-UP-02). A refusal, for
-                    // whatever reason, has put its message up by then: leave it on screen, and do not call `onProgrammed`.
-                    // No answer at all is the unknown outcome, treated as sent, as for Mode 2.
-                    let refusal = await recordUpload(of: entry, sentHash: sentHash).value
-                    if refusal != nil { return }
-                    dismiss()
-                    onProgrammed?()
-                } else {
-                    let sentHash = try await uploader.upload(proto, acknowledgedCautions: acknowledgedCautions)
-                    recordUpload(of: entry, sentHash: sentHash)
-                    withAnimation { showUploadSuccess = true }
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                    withAnimation { showUploadSuccess = false }
-                    // A refusal from the hub (SWR-HV-08) has put its message up by now: leave it on screen.
-                    if uploadError == nil { dismiss() }
-                }
-            } catch UploadError.differentPersonConfirmationRequired {
-                guard !Task.isCancelled else { return }
-                askDifferentPerson = true
-            } catch {
-                guard !Task.isCancelled else { return }
-                withAnimation { uploadError = error.localizedDescription }
-            }
+        let uploader = self.uploader
+        let send: () async throws -> String = programMode
+            ? { try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions) }
+            : { try await uploader.upload(proto, acknowledgedCautions: acknowledgedCautions) }
+        uploadTask = Task { @MainActor in
+            await screen.run(flow: uploadFlow, entry: entry, programMode: programMode, send: send,
+                             close: { dismiss() }, programmed: onProgrammed)
         }
     }
 }

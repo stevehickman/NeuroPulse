@@ -13,7 +13,7 @@ import CoreBluetooth
 @testable import NeurOne
 
 /// A hub whose reports are scripted: each request for the upload check delivers the next one.
-private final class ScriptedUploadHub: ProtocolUploadGateway {
+final class ScriptedUploadHub: ProtocolUploadGateway {
     var isHubConnected = true
     var uploadCheck: UploadCheck?
     private let reports: [UploadCheck?]
