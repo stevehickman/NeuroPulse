@@ -20,8 +20,23 @@ the only thing that keeps these from being forgotten.
 | **MT-05** | Cardiac interlock detection and cutoff latency (`FAI-CV02`) | T2 hub, cVNS accessory, R-peak generator, oscilloscope | **No.** Hardware | `docs/np_fw_cvns_001.md` §9; `OI-FMEA-02` | Hardware bench |
 | **MT-06** | Watchdog cutoff latency to all enable nets | Safety-MCU hardware, oscilloscope | **No.** Hardware | `docs/np_fmea_001.md` `OI-FMEA-01` | Hardware bench |
 
-MT-05 and MT-06 are firmware timing checks, not app tests. They are listed because they have no automated
-form and a person has to run them. Their full procedures are in the owner docs and are **not** repeated here.
+MT-05 to MT-17 are hardware or bench tests. None can run today: the project is pre-tooling and no hardware
+exists (`CLAUDE.md` header; `NP-SW-CI-001`). Their procedures, criteria and figures stay in the owner docs
+and are **not** repeated here. Where a row says "gated", the owner doc names the open item that must close first.
+
+| ID | Test | Needs | Owner doc | State per owner doc |
+|----|------|-------|-----------|---------------------|
+| **MT-07** | Cervical electrode placement (`FAI-CV01`) | Neck phantom, cVNS cable, hub | `NP-FW-CVNS-001` §9 | PENDING, hardware |
+| **MT-08** | Cervical VNS tolerability in 3 healthy adults (`FAI-CV03`) | Volunteers, clinician, ECG, **IRB approval** | `NP-FW-CVNS-001` §9 | PENDING. Blocks T2 clinical release, not the G3-08 software gate |
+| **MT-09** | HD-tDCS plumbing, focality, SNR constants (`FAI-HD01`, `HD03`, `HD04`) | T2 prototype, phantom | `NP-FW-HD-001` §12–13 | Software passes; bench BLOCKING for G3-07 |
+| **MT-10** | 1064 nm module: 3-channel irradiance, dose metering, fouling, aging (`FAI-SM-04`, `SM-06`, `SM-07`, `SM-08`) | Calibrated 1064 nm optical bench | `NP-FW-PBM1064-001` (FAI table) | Hardware bench |
+| **MT-11** | 1170 nm dose metering and TEC interlock (`FAI-T2-05`, `T2-06`) | Calibrated 1170 nm bench, T2 prototype | `NP-SES-1064-001` (FAI table) | Hardware bench, PENDING |
+| **MT-12** | ADS1299 EMI rejection ratio, 420 MHz–3 GHz | Injection board, parts in hand, RF set-up | `NP-EMC-EMIRR-001` | DRAFT, never run, no data. Bounds `REQ-CAV-01`, `OI-EMCCAV-01` |
+| **MT-13** | Shielding and cavity sweeps (`EMF-1`, `EMF-1a`–`1f`, `EMF-1-SINK-1`, `-2`) | `EMF-1` fixture, VNA, head phantoms 52/57/62 cm, fluxgate/Helmholtz bench | `NP-HEX-ZM-001` §5.6.1; `NP-EMC-CAV-001` §7 | Fixture does not exist; **`EMF-1` has never run**; the plan is not a procedure |
+| **MT-14** | PDMS–polyimide thermal-cycling qualification (`FAI-TC01`–`TC06`) | Bonded coupons, thermal chamber, peel tester, spectrophotometer | `NP-FAI-001` §4 | `FAI-TC02` is BLOCKING and QUAL |
+| **MT-15** | Ingress: IPX4 as-built, post-service, gasket ageing (`FAI-IPX-01`–`IPX-05`) | IEC 60529 spray rig, 40 °C/75 % RH chamber (90 days for `IPX-04`) | `NP-FAI-001` §5 | `FAI-IPX-02` BLOCKING; `IPX-05` gated on `NP-TOOL-HEXTILE-001` `OI-THEX-03` |
+| **MT-16** | Hub enclosure first article (`FAI-HUB-01`–`26`) | Physical hub parts, gauges, force gauge, IEC 60601-1 test finger | `NP-FAI-HUB-001` | Several rows gated (`OI-HTOOL-02`, `-03`, `-08`; `OI-NASAL-09`); `HUB-23` and `HUB-24` BLOCKING |
+| **MT-17** | PDMS–PI bond line visual and peel (`FAI-M01`–`M03`) | 10× magnifier, peel tester | `NP-FAI-001` §4 | Not checked |
 
 ## 2. Common step lists
 
@@ -55,6 +70,15 @@ Steps that recur. A test cites a list by ID and names only what differs.
 2. Confirm instrument calibration dates are current; record instrument IDs.
 3. Power from a USB-C PD source that matches the tier's charger policy (CLAUDE.md §2.2, §4.5).
 4. No person is connected to any stimulation output. Use a dummy load.
+
+**CS-F. Bench record for a pass criterion**
+1. Copy the pass criterion from the owner doc **as it stands at the revision you are testing against**.
+   Record that revision. Do not copy a figure from this index: several owner docs restate criteria across
+   revisions (for example `OI-FMEA-02` and `FAI-CV02`).
+2. Record each trial, not only the worst one, and record the instrument reading beside the criterion.
+3. A measurement outside the criterion is a fail even if close.
+4. Where the owner doc says "never quote as a measurement" until the test has run (`EMF-1`, `EMIRR`), the
+   record is the first measurement. Say so in it.
 
 ## 3. Procedures
 
@@ -114,13 +138,40 @@ recorded separately, and a cutoff time is never quoted without its detection tim
 **Not runnable (hardware).** Follow `NP-FMEA-001` `OI-FMEA-01`. Use CS-E and CS-D. The item names two
 nodes to be read, and the pass criterion is the item's.
 
+### MT-07 to MT-17. Hardware and bench tests
+For each: CS-E, then the owner doc's procedure, then CS-F, then CS-D. Notes the owner docs make that change
+how you run them:
+
+- **MT-07 / `FAI-CV01`:** silicone neck phantom, 0.25 S/m. The four pass criteria (`CV01-A` to `D`) are in the owner doc.
+- **MT-08 / `FAI-CV03`:** a clinical study. It needs IRB approval, an attending clinician and emergency
+  equipment, and screening exclusions. This is not a bench test and no one runs it without those. Do not
+  start it from this index.
+- **MT-09 / `FAI-HD01`, `HD03`, `HD04`:** the cap has no register row yet, so these have no nameable
+  artifact checklist (`NP-HW-TACSDRV-001`, `OI-FAI-06`, `OI-ART-08`, `OI-TCAP-06`).
+- **MT-10 / MT-11:** need a calibrated optical bench at the stated wavelength. 1064 nm and 1170 nm are T2
+  or smart-module lines: do not run them on a unit presented as T1 (`REQ-UPG-01`).
+- **MT-12 / MT-13:** `NP-EMC-EMIRR-001` and `EMF-1` have never run, so no dB figure from either may be
+  published as measured (CLAUDE.md §4.3). Order for `EMF-1`: `1a` first, `1d` last, per the owner doc.
+- **MT-14 to MT-17:** mechanical and materials first-article checks. `FAI-HUB-23` and `FAI-HUB-24` are
+  rotating-fan and finger-probe safety checks. Run with the fan guard and a stop within reach.
+
 ## 4. Coverage and gaps
 
 - **Not found:** any manual test in `app/android/ISA.md` (it has no `manual` rows), and any manual
   procedure for the Windows or web apps.
-- **Not read:** the other FAI bench procedures (`NP-FAI-001`, `NP-EMC-EMIRR-001`, `EMF-1` in
-  `NP-HEX-ZM-001`, `NP-FW-BENCH-001`, `FAI-HD01/03/04`, `FAI-SM-*`). They are hardware tests. Adding them
-  here is a decision for the owner: this index is software-first.
+- **Hardware rows are an index only.** MT-05 to MT-17 were taken from the owner docs' test tables and
+  headings, not from reading each procedure end to end. I read `FAI-CV01`, `CV02`, `CV03`, the `FAI-SM`,
+  `FAI-T2` and `FAI-HD` tables, the `EMF-1` plan and the head of `NP-EMC-EMIRR-001`. I did not read the
+  `NP-FAI-001` and `NP-FAI-HUB-001` rows in full.
+- **Not included, deliberately:** `FAI-SM-01`/`02`/`03`/`05`/`09`/`10`/`11`, `FAI-T2-01`–`04` (marked
+  Software PASS in their docs), and `FAI-ANON-01`–`09` (firmware tests whose execution mode I did not
+  confirm). If any of these turns out to be run by hand, it belongs here.
+- **Not included:** `OI-FMEA` items beyond `01` and `02`; `OI-SWCI-34`, `-39`, `-42` bench confirmations
+  (impedance read, FlexRAM, DTCM), `SH2-DRC-17` (coil field), `HT-DRC-12` (populated-module states) and
+  `OI-HEXTILE-24` (U3/U4 values). They are bench confirmations owed to their documents; each should get a row
+  once its owner confirms it is a distinct test.
+- **Same measurement, two places:** `FAI-CV02` is `OI-FMEA-02`'s test, and `FAI-HD01/03/04` and `FAI-SM-04`
+  also appear in `NP-QMS-DC-001`'s design-verification list. This index lists each test once.
 - **Not read:** `simulator/HOWTO.md` is a user manual and has no test script that I found.
 - **Not assigned:** nobody owns MT-01 or MT-03. MT-02's source names the engineering lead. MT-04's owners
   are unassigned.
