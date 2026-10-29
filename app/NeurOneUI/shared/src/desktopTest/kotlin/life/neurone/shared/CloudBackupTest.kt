@@ -176,6 +176,23 @@ class CloudBackupTest {
         assertTrue(f.api.last().headers["Authorization"]!!.startsWith("Basic "))
     }
 
+    // @verifies SWR-MG-26#d
+    @Test fun an_azure_signature_account_is_chosen_with_an_account_and_container_and_keeps_a_backup_only() = runTest {
+        val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
+        val sas = a.addAzureSas("sv=2024-11-04&sr=c&sp=rcwdl&sig=abc")
+        val m = CloudBackupModel(a, f.transport, kv)
+        m.refresh()
+        assertEquals(listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER), m.destinations.value.single().fields)
+        assertFalse(m.choose(sas.id), "no account or container named")
+        assertTrue(m.choose(sas.id, mapOf(TargetField.STORAGE_ACCOUNT to "myaccount", TargetField.CONTAINER to "backups")))
+        val place = assertNotNull(m.place.value)
+        assertEquals("Azure Blob (SAS)", place.label)
+        assertFalse(place.route.atomicClaim); assertFalse(place.carriesRecordings)
+        place.store.get("np-migration-bundle.npbk")
+        assertEquals("https://myaccount.blob.core.windows.net/backups/np-migration-bundle.npbk?sv=2024-11-04&sr=c&sp=rcwdl&sig=abc", f.api.last().url)
+        assertTrue(f.api.last().headers.keys.none { it.equals("Authorization", true) })
+    }
+
     // @verifies SWR-MG-21#c
     @Test fun a_cloud_place_carries_a_backup_and_never_a_migration_or_recordings() = runTest {
         val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)

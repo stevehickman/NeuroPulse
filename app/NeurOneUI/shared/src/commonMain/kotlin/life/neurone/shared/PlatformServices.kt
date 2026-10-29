@@ -64,6 +64,12 @@ interface PlatformServices {
     val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? get() = null
 
     /**
+     * Which kind of host this is as far as a cloud sign-in coming back to it, or null where it has no launcher. With it, a provider whose registered
+     * redirect address this host cannot receive reads "not set up" instead of sending the person to an error page (`SWR-MG-25`).
+     */
+    val redirectPlatform: life.neurone.core.cloudauth.RedirectPlatform? get() = null
+
+    /**
      * The analytics host and project token this build was made with, or null. With a usable config and a [httpTransport], the
      * common PostHog backend replaces [analyticsBackend]; either missing, analytics stays off (`REQ-SW03-20`).
      */

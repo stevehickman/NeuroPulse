@@ -66,6 +66,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="${cloudAuthRedirectScheme}" />
             </intent-filter>
+            <!-- The same, as an https App Link (SWR-MG-25): Google does not take a custom scheme on Android. The system verifies that the domain names
+                 this app in /.well-known/assetlinks.json before it hands the link here; until a real host is set the placeholder is a reserved name
+                 that never resolves. Same trust as above: the state value and the PKCE verifier decide the answer. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${cloudAuthRedirectHost}" android:pathPrefix="${cloudAuthRedirectPath}" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

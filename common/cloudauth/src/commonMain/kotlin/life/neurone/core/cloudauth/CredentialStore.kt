@@ -26,6 +26,8 @@ internal class StoredAccount(
     @SerialName("webdavUrl") val webdavUrl: String? = null,
     @SerialName("webdavUser") val webdavUser: String? = null,
     @SerialName("webdavPassword") val webdavPassword: String? = null,
+    @SerialName("azureSas") val azureSas: String? = null,
+    @SerialName("azureSasExpiresAt") val azureSasExpiresAt: Long = 0,
 ) {
     fun view() = CloudAccount(id, service, createdAtEpochSeconds, needsSignIn)
 
@@ -37,7 +39,7 @@ internal class StoredAccount(
         webAuthToken: String? = this.webAuthToken,
     ) = StoredAccount(
         id, service, createdAtEpochSeconds, needsSignIn, accessToken, accessTokenExpiresAt, refreshToken, webAuthToken,
-        awsAccessKeyId, awsSecretAccessKey, awsSessionToken, awsExpiresAt, webdavUrl, webdavUser, webdavPassword,
+        awsAccessKeyId, awsSecretAccessKey, awsSessionToken, awsExpiresAt, webdavUrl, webdavUser, webdavPassword, azureSas, azureSasExpiresAt,
     )
 }
 

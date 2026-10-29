@@ -39,7 +39,7 @@ object CloudStores {
     fun targetFields(service: CloudService): List<TargetField> = when (service) {
         CloudService.AWS_S3 -> listOf(TargetField.BUCKET, TargetField.REGION, TargetField.ENDPOINT)
         CloudService.GOOGLE_CLOUD_STORAGE -> listOf(TargetField.GCS_BUCKET)
-        CloudService.AZURE_BLOB -> listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER)
+        CloudService.AZURE_BLOB, CloudService.AZURE_BLOB_SAS -> listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER)
         else -> emptyList()
     }
 
@@ -87,6 +87,8 @@ object CloudStores {
                 )
             }
             CloudService.DROPBOX -> DropboxObjectStore(transport, auth.accessToken(account.id), CALL_TIMEOUT_SECONDS)
+            CloudService.AZURE_BLOB_SAS ->
+                AzureBlobObjectStore(transport, need(TargetField.STORAGE_ACCOUNT), need(TargetField.CONTAINER), null, CALL_TIMEOUT_SECONDS, sas = auth.azureSas(account.id))
             CloudService.WEBDAV -> WebDavObjectStore(transport, auth.webDavLogin(account.id), CALL_TIMEOUT_SECONDS)
             CloudService.GOOGLE_CLOUD_STORAGE ->
                 GcsObjectStore(transport, need(TargetField.GCS_BUCKET), auth.accessToken(account.id), CALL_TIMEOUT_SECONDS)

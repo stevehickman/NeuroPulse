@@ -178,6 +178,29 @@ class CloudAccountsScreenTest {
         assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the fields are gone, and with them what was typed")
     }
 
+    // @verifies SWR-MG-26#e
+    @Test fun an_azure_signature_is_pasted_into_one_masked_field_and_saving_needs_text() = runComposeUiTest {
+        var addSas = ""
+        var save = ""
+        var saved = ""
+        setContent {
+            addSas = stringResource(Res.string.cloud_button_add_sas)
+            save = stringResource(Res.string.cloud_button_save_sas)
+            saved = stringResource(Res.string.cloud_notice_sas_saved, stringResource(Res.string.cloud_service_azure_blob_sas))
+            CloudAccountsScreen(app(CloudAuthConfig()), onDone = {})
+        }
+        waitForIdle()
+        onNodeWithText(addSas).performScrollTo().performClick()
+        val fields = onAllNodes(hasSetTextAction())
+        assertEquals(1, fields.fetchSemanticsNodes().size, "one field")
+        assertEquals(1, onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password)).fetchSemanticsNodes().size, "and it is masked")
+        onNodeWithText(save).performScrollTo().assertIsNotEnabled()
+        fields[0].performScrollTo().performTextInput("sv=2024-11-04&sr=c&sp=rcwdl&sig=abc")
+        onNodeWithText(save).performScrollTo().assertIsEnabled().performClick()
+        waitUntil(timeoutMillis = 10_000) { onAllNodesWithText(saved).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the field is gone, and with it what was pasted")
+    }
+
     // @verifies SWR-MG-20#f
     @Test fun settings_offers_the_cloud_accounts_only_on_a_host_that_has_a_cloud_sign_in() = runComposeUiTest {
         var button = ""

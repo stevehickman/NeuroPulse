@@ -114,6 +114,13 @@ android {
         // default is a reverse-domain scheme of the application ID, which no provider has been told about.
         manifestPlaceholders["cloudAuthRedirectScheme"] = (findProperty("cloudAuthRedirectScheme") as String?) ?: "life.neurone.app.oauth"
 
+        // The https App Link the system browser can also return a sign-in to (SWR-MG-25). Google does not take a custom scheme on Android (its installed-app
+        // page: "Custom URI schemes are no longer supported on Android and Chrome apps"), so its redirect must be an https address of a domain the
+        // owner controls, with /.well-known/assetlinks.json on it naming this app. -PcloudAuthRedirectHost=... and -PcloudAuthRedirectPath=... on the build.
+        // The default host ends in .invalid, which RFC 6761 reserves so that it never resolves: until a real one is set, nothing can claim the link.
+        manifestPlaceholders["cloudAuthRedirectHost"] = (findProperty("cloudAuthRedirectHost") as String?) ?: "oauth.invalid"
+        manifestPlaceholders["cloudAuthRedirectPath"] = (findProperty("cloudAuthRedirectPath") as String?) ?: "/oauth2redirect"
+
         // The analytics host and the vendor's project token, from the build and not from source (REQ-SW03-20). Either empty and
         // analytics is off on this build. Set ANALYTICS_HOST (a bare host name, e.g. analytics.example.org) and
         // POSTHOG_PROJECT_TOKEN in the environment or as Gradle properties; never commit a token.
@@ -146,6 +153,32 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+// A registered redirect the manifest does not claim is a sign-in that ends at an error page (SWR-MG-25). Checked here, from the same properties
+// :shared reads (cloudAuth.<provider>.redirectUri, or the environment variable), so the mismatch fails the build and not the person's sign-in.
+run {
+    fun input(property: String, env: String): String? =
+        ((findProperty(property) as String?) ?: System.getenv(env))?.trim()?.takeIf { it.isNotEmpty() }
+    val scheme = (findProperty("cloudAuthRedirectScheme") as String?) ?: "life.neurone.app.oauth"
+    val host = (findProperty("cloudAuthRedirectHost") as String?) ?: "oauth.invalid"
+    val path = (findProperty("cloudAuthRedirectPath") as String?) ?: "/oauth2redirect"
+    val registered = listOf(
+        "Google" to input("cloudAuth.google.redirectUri", "CLOUDAUTH_GOOGLE_REDIRECT_URI"),
+        "Microsoft" to input("cloudAuth.microsoft.redirectUri", "CLOUDAUTH_MICROSOFT_REDIRECT_URI"),
+        "Dropbox" to input("cloudAuth.dropbox.redirectUri", "CLOUDAUTH_DROPBOX_REDIRECT_URI"),
+    )
+    for ((provider, uri) in registered) {
+        if (uri == null) continue
+        val claimed = uri.startsWith("$scheme:") || uri.startsWith("https://$host$path")
+        if (!claimed) {
+            throw GradleException(
+                "The $provider redirect address does not match what the Android manifest claims. It must begin with \"$scheme:\" " +
+                    "(cloudAuthRedirectScheme) or with \"https://$host$path\" (cloudAuthRedirectHost and cloudAuthRedirectPath). " +
+                    "Google needs the https form on Android. See docs/np_sw_cloudstore_001.md section 4c.13.",
+            )
+        }
+    }
 }
 
 dependencies {

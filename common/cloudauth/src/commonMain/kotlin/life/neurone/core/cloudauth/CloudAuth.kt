@@ -11,6 +11,7 @@ import kotlinx.serialization.json.longOrNull
 import life.neurone.core.cloud.AccessToken
 import life.neurone.core.cloud.AwsCredentials
 import life.neurone.core.cloud.AwsCredentialsProvider
+import life.neurone.core.cloud.AzureSasProvider
 import life.neurone.core.cloud.WebDavLogin
 import life.neurone.core.cloud.WebDavLoginProvider
 import life.neurone.core.cloud.CloudKitCredentials
@@ -54,6 +55,8 @@ class CloudAuth(
     /** An access token this close to expiry is refreshed first, so it does not expire in flight. No figure is derived (`UC-112`). */
     // PROVISIONAL (UC-112): no measurement of clock error or of how long a request holds a token.
     private val expirySkewSeconds: Long = 60,
+    /** Where this runs, so a redirect the platform cannot receive is [isConfigured] false and fails with NOT_CONFIGURED before a browser opens (`SWR-MG-25`). Null checks nothing. */
+    private val redirectPlatform: RedirectPlatform? = null,
 ) {
     private val lock = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
@@ -64,13 +67,17 @@ class CloudAuth(
      * before anything is sent, so a screen can say so up front. AWS has no registration to hold: the person brings their own keys.
      */
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
-        AccountFamily.GOOGLE -> config.google != null
-        AccountFamily.MICROSOFT -> config.microsoft != null
+        AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
+        AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
         AccountFamily.APPLE -> config.cloudKit != null
         AccountFamily.AWS -> true
-        AccountFamily.DROPBOX -> config.dropbox != null
+        AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
+        AccountFamily.AZURE_SAS -> true
     }
+
+    private fun redirectWorks(family: AccountFamily, redirectUri: String): Boolean =
+        redirectPlatform == null || RedirectRules.problem(redirectPlatform, family, redirectUri) == null
 
     /** The CloudKit container this build is registered with, or null; an adapter needs its name, environment and address. */
     val cloudKitConfig: CloudKitConfig? get() = config.cloudKit
@@ -90,6 +97,7 @@ class CloudAuth(
             AccountFamily.APPLE -> cloudKitSignIn(replacing)
             AccountFamily.AWS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "AWS has no browser sign-in; the person's access key is added with addAwsKeys")
             AccountFamily.WEBDAV -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "WebDAV has no browser sign-in; the person's login is added with addWebDavLogin")
+            AccountFamily.AZURE_SAS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a shared access signature has no sign-in; it is added with addAzureSas")
         }
     }
 
@@ -111,6 +119,7 @@ class CloudAuth(
     private fun endpoints(service: CloudService): OAuthEndpoints = when (service.family) {
         AccountFamily.GOOGLE -> {
             val c = config.google ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Google OAuth client is configured")
+            checkRedirect(family = AccountFamily.GOOGLE, c.redirectUri)
             OAuthEndpoints(
                 "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token",
                 "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.clientSecret,
@@ -118,6 +127,7 @@ class CloudAuth(
         }
         AccountFamily.MICROSOFT -> {
             val c = config.microsoft ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Microsoft app registration is configured")
+            checkRedirect(family = AccountFamily.MICROSOFT, c.redirectUri)
             val tenant = if (service == CloudService.ONEDRIVE) c.oneDriveTenant else c.azureTenant
             OAuthEndpoints(
                 "https://login.microsoftonline.com/${percentEncode(tenant)}/oauth2/v2.0/authorize",
@@ -127,10 +137,19 @@ class CloudAuth(
         }
         AccountFamily.DROPBOX -> {
             val c = config.dropbox ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Dropbox app is configured")
+            checkRedirect(family = AccountFamily.DROPBOX, c.redirectUri)
             // As Dropbox's Python SDK builds them (read 2026-10-28, UC-116): the authorize page is on www.dropbox.com, the token call on api.dropboxapi.com, and a PKCE client sends the verifier and no secret.
             OAuthEndpoints("https://www.dropbox.com/oauth2/authorize", "https://api.dropboxapi.com/oauth2/token", DROPBOX_REVOKE, c.appKey, c.redirectUri, null)
         }
         else -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${service.name} does not use OAuth")
+    }
+
+    /** A redirect this platform cannot receive is not a configuration: the message names the problem and never the address. */
+    private fun checkRedirect(family: AccountFamily, redirectUri: String) {
+        val platform = redirectPlatform ?: return
+        RedirectRules.problem(platform, family, redirectUri)?.let {
+            throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "the registered redirect cannot work on $platform: $it")
+        }
     }
 
     private suspend fun oauthSignIn(service: CloudService, replacing: String?): CloudAccount {
@@ -257,6 +276,30 @@ class CloudAuth(
         }
     }
 
+    /**
+     * Keep a shared access signature the person pasted as an account of [CloudService.AZURE_BLOB_SAS]. [AzureSas.parse] checks it can do what a backup needs and
+     * has not expired. Nothing is sent to Azure here, so a wrong signature is found by the first request and not by this call.
+     */
+    suspend fun addAzureSas(sas: String, replacing: String? = null): CloudAccount {
+        val parsed = AzureSas.parse(sas, now()) ?: throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "that is not a usable shared access signature")
+        replacing?.let { checkReplacing(it, CloudService.AZURE_BLOB_SAS) }
+        return store(CloudService.AZURE_BLOB_SAS, replacing) { id, created ->
+            StoredAccount(id, CloudService.AZURE_BLOB_SAS, created, false, azureSas = parsed.query, azureSasExpiresAt = parsed.expiresAtEpochSeconds)
+        }
+    }
+
+    /** The signature of an Azure SAS account for `AzureBlobObjectStore`, read at every call. One past its expiry, or one Azure refused (flagged), asks for a new one. */
+    fun azureSas(accountId: String): AzureSasProvider = AzureSasProvider {
+        lock.withLock {
+            val acc = credentials.load().accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
+            if (acc.service != CloudService.AZURE_BLOB_SAS) throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} is not an access-signature account")
+            if (acc.needsSignIn || (acc.azureSasExpiresAt != 0L && acc.azureSasExpiresAt <= now())) {
+                throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the access signature has expired or was refused; a new one is needed")
+            }
+            acc.azureSas!!
+        }
+    }
+
     /** The login of a WebDAV account for `WebDavObjectStore`, read at every call. A login the server refused (flagged) asks the person to sign in again. */
     fun webDavLogin(accountId: String): WebDavLoginProvider = WebDavLoginProvider {
         lock.withLock {
@@ -285,7 +328,7 @@ class CloudAuth(
     private suspend fun freshAccessToken(accountId: String): String = lock.withLock {
         val vault = credentials.load()
         val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
-        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS || acc.service.family == AccountFamily.WEBDAV) {
+        if (acc.service.family == AccountFamily.APPLE || acc.service.family == AccountFamily.AWS || acc.service.family == AccountFamily.WEBDAV || acc.service.family == AccountFamily.AZURE_SAS) {
             throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} has no OAuth access token")
         }
         if (acc.needsSignIn) throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the person must sign in again")
