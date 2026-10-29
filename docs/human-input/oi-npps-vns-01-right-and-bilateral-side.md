@@ -120,8 +120,10 @@ safety study):
 limbic and temporal brain structures and mood enhancing effect by transcutaneous vagus nerve
 stimulation," *J Neural Transm* 114:1485, an fMRI mood study. Matsuoka cites it for the statement that
 bilateral effects were unknown because the heart's parasympathetic supply is from the right vagus.
-Nothing in the title suggests it was a cardiac or bilateral safety study, so the attribution should
-be checked at the source before it is repeated.
+Crossref confirms the title, authors (Kraus, Hösl, Kiess, Schanze, Kornhuber, Forster), journal and
+pages, and holds no abstract. The publisher's page returned a bot challenge instead of the article, so
+the text was not read. Nothing in the title suggests it was a cardiac or bilateral safety study, so
+the attribution should be checked at the source before it is repeated.
 
 ## 5. Options and what each costs
 
