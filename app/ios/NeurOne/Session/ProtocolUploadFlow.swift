@@ -44,7 +44,7 @@ struct ProtocolUploadFlow {
         case .malformed: return String(localized: "PROTOCOL_MENU_REFUSED_MALFORMED")
         case .sessionActive: return String(localized: "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE")
         case .bootRefused: return String(localized: "PROTOCOL_MENU_REFUSED_BOOT")
-        case .other: return String(localized: "PROTOCOL_MENU_REFUSED_OTHER")
+        case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
         }
     }
 }
