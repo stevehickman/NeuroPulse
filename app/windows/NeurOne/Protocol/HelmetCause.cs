@@ -1,7 +1,8 @@
 // HelmetCause.cs — what a helmet's upload report means to a person (SWR-UP-02, SWR-HV-08, REQ-UPG-01).
 //
-// Windows has no hub transport yet, so nothing reads UPLOAD_CHECK here; this is the seam the transport will fill, matching
-// iOS (`UploadVerdict`) and Android (`UploadVerdict`). Nothing is decided here: the reasons the helmet can refuse a protocol
+// This C# project has no hub transport, so nothing reads UPLOAD_CHECK here. The Windows app people run is the shared desktop
+// host (`app/NeurOneUI/desktop`, hub link `OI-UI-KMP-03`), which uses the Kotlin `UploadVerdict`; this is the same call for
+// C# code, in a project `OI-UI-KMP-05` retires, matching iOS (`UploadVerdict`) and Android (`UploadVerdict`). Nothing is decided here: the reasons the helmet can refuse a protocol
 // for, and how they are grouped by what the person can do next, are the shared core's (`helmetCause` in
 // common/npps-core/src/library.rs), so Windows says what every other app says. The screen maps a cause to a locale key and
 // compares no reason codes.
