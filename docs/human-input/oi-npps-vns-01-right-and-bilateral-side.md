@@ -35,10 +35,10 @@ An absent `side` is left and is unchanged by any ruling here.
 
 ## 4. What the literature says, and how far we have checked it
 
-**Status of this section:** the full texts of the three reviews below and of Hatik 2023 (primary
-study) were read on 2026-10-29. **Kraus 2007 was read at abstract level only** (the publisher page is blocked), and
-Sinkovec 2021, Gauthey 2020 or the other primary
-studies; every statement about them is a review's account of them. The repository's own
+**Status of this section:** the full texts of the three reviews below, of Hatik 2023 and of Gauthey
+2020 were read on 2026-10-29. **Kraus 2007 and Sinkovec 2021 were read at abstract level only** (the
+publisher pages are blocked). The other primary studies the reviews cite were not read; every statement
+about them is a review's account of them. The repository's own
 count of stroke studies by side (see the last bullet) was not re-checked.
 
 **Reviews read in full**
@@ -92,8 +92,7 @@ count of stroke studies by side (see the last bullet) was not re-checked.
 - The row records "the eight stroke studies that state a side used left, one bilateral, none right".
   The counts are ambiguous as written, and the Matsuoka laterality table was not located in the text
   read. Re-check against the paper.
-- The full text of Kraus 2007 (see above), and Sinkovec 2021 and Gauthey 2020, the only two right-sided studies in
-  Matsuoka's review.
+- The full text of Kraus 2007 and Sinkovec 2021 (see above).
 - The registered trial NCT05370027 (left, right and bilateral in healthy adults) has no results in
   anything read.
 
@@ -129,6 +128,32 @@ publisher's page returned a bot challenge.
   support that attribution.** It may be in the paper's discussion, which was not read, so treat it as
   unconfirmed. The paper is, at most, evidence that left-ear stimulation at that setting did not
   change heart rate or blood pressure in 22 healthy people.
+
+**The only two right-sided studies in Matsuoka's review**
+- **Gauthey et al. 2020, *Front Physiol* 11:599896 (full text read).** 28 healthy men, mean age 27,
+  right ear, cymba (5 Hz and 20 Hz) and ear lobe as active control, each stimulation 10 minutes; the
+  purpose was sympathetic nerve activity by microneurography. Mean current 1.5 ± 0.6 mA (5 Hz cymba),
+  1.2 ± 0.5 mA (20 Hz cymba) and 5.5 ± 1.6 mA (lobe control), set by sensory perception. Result:
+  "No stimulation effect on RR intervals and HRV parameters" except a slight rise in the LF/HF ratio at
+  cymba 5 Hz; "acute right cymba aLL-tVNS did not induce any overall effects neither on heart rate, HRV
+  nor MSNA variables." No adverse events or bradycardia are reported in the text read, and cardiac
+  safety was not its question. 10-minute sessions in young healthy men, with a small sample (the
+  authors cite type II error) and a 10-minute washout.
+- **Sinkovec, Trobec, Meglic 2021, *Auton Neurosci* 236:102851 (abstract only, via Europe PMC).** 15 male
+  volunteers, mean age 23, **right tragus**, 20 Hz, constant current at sensation threshold, 1 ms
+  pulses, one hour of rest followed by autonomic testing. Reported: "significant reductions of left
+  ventricular contractility and output parameters, a trend for heart rate reduction," and, in the same
+  abstract, "significant increases of blood pressure and total peripheral resistance... possibly as a
+  reflex response." **This differs from how Matsuoka reports it** ("significant reductions in HR"):
+  the abstract says a *trend* for heart rate and also a *rise* in blood pressure and peripheral
+  resistance. The authors read the cardiac effect as autonomic modulation to be studied further, not
+  as a harm.
+- **What these two show, together:** right-ear stimulation in 43 young healthy men, at
+  threshold-level current (about 1 to 2 mA at the cymba in Gauthey; Sinkovec states no mA figure),
+  produced no reported bradycardia or other cardiac
+  adverse event. Sinkovec shows a measurable cardiac effect from right tragus stimulation, which is
+  the pathway the convention is cautious about, but not a harmful one at that dose. Neither studied
+  people with heart disease, women, older people, or higher currents.
 
 ## 5. Options and what each costs
 
