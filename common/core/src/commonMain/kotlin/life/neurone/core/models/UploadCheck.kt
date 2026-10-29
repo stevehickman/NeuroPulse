@@ -38,6 +38,12 @@ data class UploadCheck(
     companion object {
         const val LENGTH = 34
 
+        /**
+         * `NP_HUB_ERR_HW_VERSION_UNVERIFIED`: the helmet had not yet heard its own hardware version from the safety MCU, so it
+         * checked nothing (`SWR-HV-08`). Unlike the mismatch (27), sending the same protocol again can succeed.
+         */
+        const val REASON_HW_VERSION_UNVERIFIED = 28
+
         /** `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. */
         private val TIER_REFUSAL_CODES = setOf(19, 20)
 
@@ -83,6 +89,12 @@ data class UploadVerdict(
     val helmetStatus: String?,
     val helmetHash: String?,
     val helmetRefusal: String?,
+    /**
+     * The helmet's refusal reason (`np_hub_status_t` as a positive number) when it refused, else null. The library needs only
+     * the kind ([helmetRefusal]); a screen needs the reason to say whether to try again
+     * ([UploadCheck.REASON_HW_VERSION_UNVERIFIED]) or not.
+     */
+    val helmetReason: Int? = null,
 ) {
     companion object {
         /**
@@ -98,6 +110,7 @@ data class UploadVerdict(
                 helmetStatus = if (check.status == UploadCheckStatus.ACCEPTED) "accepted" else "refused",
                 helmetHash = check.receivedHash,
                 helmetRefusal = check.refusalKind,
+                helmetReason = if (check.status == UploadCheckStatus.REFUSED) check.reason else null,
             )
         }
     }

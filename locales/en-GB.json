@@ -1009,6 +1009,8 @@
   "PROTOCOL_MENU_ERRORS_COUNT": "Errors ({0})",
   "PROTOCOL_MENU_FILTER": "Filter",
   "PROTOCOL_MENU_HARDWARE_UNAVAILABLE": "This protocol requires hardware not currently available.",
+  "PROTOCOL_MENU_HARDWARE_VERSION_NOT_READY": "The helmet is not ready to check this protocol yet. Wait a moment and send it again. Nothing will run.",
+  "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED": "The helmet did not accept this protocol: it was made for a different hardware version than this helmet. Nothing will run, and the protocol has not been changed.",
   "PROTOCOL_MENU_ISSUE_LIMIT": "Limit: {0}",
   "PROTOCOL_MENU_ISSUE_VALUE": "Value: {0}",
   "PROTOCOL_MENU_LIMIT_RESOLUTION": "Limit Resolution",

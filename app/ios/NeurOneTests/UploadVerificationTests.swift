@@ -88,6 +88,19 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertEqual(UploadVerdict.of(report(.accepted, hash: sent)).helmetStatus, "accepted")
     }
 
+    // @verifies SWR-HV-08
+    func testAHardwareVersionRefusalKeepsItsReasonSoAScreenCanSayWhetherToTryAgain() {
+        let mismatch = UploadVerdict.of(report(.refused, reason: 27, hash: sent))
+        XCTAssertEqual(mismatch.helmetRefusal, "hardware_version")
+        XCTAssertEqual(mismatch.helmetReason, 27)
+        let notReady = UploadVerdict.of(report(.refused, reason: 28, hash: sent))
+        XCTAssertEqual(notReady.helmetRefusal, "hardware_version")
+        XCTAssertEqual(notReady.helmetReason, UploadCheck.reasonHardwareVersionUnverified)
+        // Only a refusal has a reason; an accepted upload and no answer have none.
+        XCTAssertNil(UploadVerdict.of(report(.accepted, hash: sent)).helmetReason)
+        XCTAssertNil(UploadVerdict.of(nil).helmetReason)
+    }
+
     // @verifies SWR-UP-01
     @MainActor
     func testAReportWithTheSentHashAndAcceptedIsPassedOn() async {
