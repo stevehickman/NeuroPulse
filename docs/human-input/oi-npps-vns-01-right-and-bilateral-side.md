@@ -35,37 +35,64 @@ An absent `side` is left and is unchanged by any ruling here.
 
 ## 4. What the literature says, and how far we have checked it
 
-**Status of this section: not verified against the full texts.** The session that drafted it could
-read abstracts and search snippets only; the full-text hosts were outside its network allowance.
-A reader must check each point against its source before relying on it.
+**Status of this section:** the full texts of the three reviews below were read on 2026-10-29. The
+primary studies they cite (Kraus 2007, Hatik 2023, Sinkovec 2021, Gauthey 2020 and the others) were
+**not** read; every statement about them is the review's account of them. The repository's own
+count of stroke studies by side (see the last bullet) was not re-checked.
 
-Recorded in the repository (from `OI-NPPS-VNS-01` (f), quoting Matsuoka 2025 pp. 4, 5, 11):
-- Most taVNS studies stimulate the left ear for the cardiac reason above. The row records "the eight
-  stroke studies that state a side used left, one bilateral, none right"; the counts are ambiguous as
-  written and need re-checking against the paper. No stroke study used right alone.
-- Right and bilateral stimulation are also reported as safe and effective.
-- Bilateral cardiac effects were unknown until a study cited as "Hatik 2023" found no bradycardia or
-  hypotension. **That citation could not be found by search and needs checking.**
+**Reviews read in full**
+- Matsuoka, Yamaguchi, Fujiwara 2025, *Front Physiol* 16:1693907, narrative review of 154 papers
+  (139 healthy participants, 9 stroke, 6 Parkinson's). Left-ear stimulation is used "partly owing to
+  theoretical concerns regarding cardiac parasympathetic innervation of the right vagus"; "right-sided
+  and bilateral approaches were also reported as safe and effective." **Only 2 studies used right-sided
+  taVNS** (Gauthey 2020, Sinkovec 2021). All six Parkinson's studies used the left ear. Adverse events
+  were mainly transient ear pain, redness and itching, and no severe adverse effects were observed.
+  The review itself warns of a "high rate of non-reporting" and underreporting bias, so "it was unclear
+  whether any adverse events had occurred." It cites Kraus 2007 as concluding that bilateral taVNS
+  effects were unknown because the heart's parasympathetic supply is from the right vagus, and Hatik
+  2023 as reporting no bradycardia or hypotension with bilateral stimulation. It reports Sinkovec 2021
+  as finding reduced heart rate, left ventricular contractility and output with right taVNS. It says
+  effects "may differ between healthy individuals and patient populations."
+- Dalgleish et al. cited in the same review: bradycardia and arrhythmia are concerns of implanted VNS,
+  and cardiac side effects of taVNS are rare.
+- Safety of taVNS: systematic review and meta-analysis (2022, PMC9772204): 177 studies, 6,322
+  subjects. Overall adverse-event incidence 12.84 per 100,000 person-minutes-days, mostly ear pain,
+  headache and tingling, with no difference from controls. **71.3% of studies stimulated the left
+  side.** The authors say that although few studies used the right or bilateral side, "they carry no
+  additional risk," that "bilateral taVNS did not significantly increase the likelihood of
+  cardiovascular events," and that no severe cardiac adverse events were associated with taVNS,
+  "except for very few patients with underlying heart diseases and recurrent symptoms." They note
+  that right-side stimulation more often caused bradycardia in animal studies, and that *cervical*
+  bilateral stimulation shows cardiovascular side effects. Limitations they state: most studies did
+  not distinguish adverse effect from adverse event, so causality is hard to judge; 55.37% of studies
+  did not report adverse events.
+- Cardiovascular effects of auricular stimulation, systematic review and meta-analysis of RCTs
+  (Front Neurosci 2023, 76 trials, quality "moderate to low"): auricular stimulation reduced heart rate
+  against control, MD -1.23, 95% CI -1.74 to -0.72, and "no drop of HR in any of the trials" was
+  regarded as an adverse event. Blood pressure, oxygen saturation and baroreflex sensitivity were
+  not significantly changed; no serious side effect occurred in any study. The authors say the
+  right-versus-left concern comes from direct cervical vagal stimulation in dogs (Ardell and Randall
+  1986), and that transferring it to auricular stimulation "is not justified" because the
+  neurocircuitry differs.
 
-Found by search (abstract level only):
-- A 2022 systematic review and meta-analysis of 177 taVNS studies reports a low adverse-event rate,
-  mostly ear pain, headache and tingling, with no difference from controls. The abstract does not
-  split results by side or report bradycardia separately.
-- Percin et al. 2024 (J Clin Med): bilateral stimulation, 20 minutes at 25 Hz, 76 healthy adults.
-  Heart rate fell in the in-ear group only; blood pressure and RMSSD improved in both active groups.
-- One study reports a rise in a single HRV measure (SDNN) after right-ear stimulation against sham.
-- A trial registered as NCT05370027 compares left, right and bilateral taVNS on heart rate, blood
-  pressure and HRV in healthy people. No results were seen.
-- A 2025 review says comparative left-versus-right studies are still needed.
+**Where it is thin, for this device**
+- The reassurance on right and bilateral stimulation comes from few studies (2 right-sided in the
+  taVNS review), mostly healthy volunteers, at the low currents and short sessions typical of those
+  studies. The meta-analyses pool acupressure and other auricular methods with electrical stimulation
+  (the cardiovascular review) or rely on poor adverse-event reporting (the safety review).
+- Neither meta-analysis reports a controlled comparison of right against left for cardiac outcomes.
+- Our ceiling is now 40 mA (`UC-079`). The stroke studies' doses (2.5 to 9 mA, per the repository
+  row) are authorable, and no cited source tests right or bilateral stimulation at those doses in
+  people with cardiac disease.
+- The auricular clip has no cardiac interlock. In the literature above, the safety evidence is
+  observational and relies on the absence of reports.
 
-What the search did **not** establish:
-- Any trial of right-ear taVNS in people with heart disease, or any report of bradycardia, asystole or
-  syncope from right-ear taVNS.
-- Whether any trial combined right or bilateral stimulation with the high currents the stroke
-  protocols use. Our ceiling is now 40 mA, so 2.5–9 mA doses are authorable.
-
-The concern is mechanistic, from invasive cervical VNS, where the stimulus is at the nerve trunk. Whether
-it carries over to the auricular branch is not shown by the evidence we have.
+**Not checked**
+- The row records "the eight stroke studies that state a side used left, one bilateral, none right".
+  The counts are ambiguous as written, and the Matsuoka laterality table was not located in the text
+  read. Re-check against the paper.
+- The registered trial NCT05370027 (left, right and bilateral in healthy adults) has no results in
+  anything read.
 
 ## 5. Options and what each costs
 
