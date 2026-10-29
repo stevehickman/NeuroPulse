@@ -41,6 +41,12 @@ class S3ObjectStore(
     private val timeoutSeconds: Int,
     private val pathStyle: Boolean = false,
     endpointHost: String? = null,
+    /**
+     * The header and value that make a PutObject "only if the key is absent". Amazon S3 takes `If-None-Match: *`. **Google Cloud Storage does not**: its
+     * reference lists `If-None-Match` for GET and HEAD only, and takes `x-goog-if-generation-match: 0` for "only if the object does not exist" (answering
+     * 412 otherwise), so a store at `storage.googleapis.com` is given [GOOGLE_CREATE_CONDITION] and would otherwise overwrite and answer "created".
+     */
+    private val createCondition: Pair<String, String> = S3_CREATE_CONDITION,
 ) : ObjectStore {
     private val host: String = endpointHost ?: if (pathStyle) "s3.$region.amazonaws.com" else "$bucket.s3.$region.amazonaws.com"
     private val usePathStyle = pathStyle || endpointHost != null
@@ -85,7 +91,7 @@ class S3ObjectStore(
     }
 
     override suspend fun createIfAbsent(name: String, bytes: ByteArray): Boolean {
-        val r = send("PUT", name, body = bytes, signedExtra = mapOf("content-type" to OCTET_STREAM, "if-none-match" to "*"))
+        val r = send("PUT", name, body = bytes, signedExtra = mapOf("content-type" to OCTET_STREAM, createCondition.first to createCondition.second))
         return when (r.status) {
             200 -> true
             412 -> false
@@ -124,12 +130,21 @@ class S3ObjectStore(
     /** A bucket has no quota the credentials can read through this API, so the route cannot say. */
     override suspend fun freeSpace(): Long? = null
 
-    private companion object {
-        const val UNSIGNED = "UNSIGNED-PAYLOAD"
-        const val OCTET_STREAM = "application/octet-stream"
-        val CONTENTS = Regex("<Contents>([\\s\\S]*?)</Contents>")
-        val KEY = Regex("<Key>([\\s\\S]*?)</Key>")
-        val TRUNCATED = Regex("<IsTruncated>(true|false)</IsTruncated>")
-        val NEXT = Regex("<NextContinuationToken>([\\s\\S]*?)</NextContinuationToken>")
+    companion object {
+        /** Amazon S3 (S3 conditional writes): create only if absent. */
+        val S3_CREATE_CONDITION: Pair<String, String> = "if-none-match" to "*"
+
+        /** Google Cloud Storage XML API (request headers reference, read 2026-10-29): create only if no live object of that name exists. */
+        val GOOGLE_CREATE_CONDITION: Pair<String, String> = "x-goog-if-generation-match" to "0"
+
+        /** The host Google documents for reaching Cloud Storage with an S3 client and HMAC keys. */
+        const val GOOGLE_HOST = "storage.googleapis.com"
+
+        private const val UNSIGNED = "UNSIGNED-PAYLOAD"
+        private const val OCTET_STREAM = "application/octet-stream"
+        private val CONTENTS = Regex("<Contents>([\\s\\S]*?)</Contents>")
+        private val KEY = Regex("<Key>([\\s\\S]*?)</Key>")
+        private val TRUNCATED = Regex("<IsTruncated>(true|false)</IsTruncated>")
+        private val NEXT = Regex("<NextContinuationToken>([\\s\\S]*?)</NextContinuationToken>")
     }
 }

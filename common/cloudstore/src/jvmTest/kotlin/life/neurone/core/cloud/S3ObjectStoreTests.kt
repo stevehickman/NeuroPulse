@@ -24,6 +24,8 @@ internal class FakeS3(
     private val pageSize: Int = 2,
     private val bucket: String = "bkt",
     private val pathStyle: Boolean = false,
+    /** Behave as Google Cloud Storage's XML API: `x-goog-if-generation-match: 0` is the create condition and `If-None-Match` on a PUT is **ignored** (its reference lists it for GET and HEAD only). */
+    private val google: Boolean = false,
 ) : HttpTransport {
     val objects = LinkedHashMap<String, ByteArray>()
     val seen = mutableListOf<HttpRequest>()
@@ -40,7 +42,7 @@ internal class FakeS3(
         val auth = request.headers["authorization"] ?: return err(403, "AccessDenied")
         val signedHeaders = Regex("SignedHeaders=([^,]*)").find(auth)?.groupValues?.get(1)?.split(';') ?: return err(403, "AccessDenied")
         // Every header the request carries that S3 requires to be signed (x-amz-*) or that sets a condition must be signed.
-        val mustSign = request.headers.keys.map { it.lowercase() }.filter { it.startsWith("x-amz-") || it == "if-none-match" }
+        val mustSign = request.headers.keys.map { it.lowercase() }.filter { it.startsWith("x-amz-") || it.startsWith("x-goog-") || it == "if-none-match" }
         if (!signedHeaders.containsAll(mustSign) || "host" !in signedHeaders) return err(403, "SignatureDoesNotMatch")
         failStatus?.let { return err(it, "InternalError") }
         val uri = URI.create(request.url)
@@ -66,7 +68,8 @@ internal class FakeS3(
         when (request.method) {
             "PUT" -> {
                 if (request.headers["x-amz-content-sha256"] != "UNSIGNED-PAYLOAD") return err(400, "XAmzContentSHA256Mismatch")
-                if (request.headers["if-none-match"] == "*" && objects.containsKey(key)) return err(412, "PreconditionFailed")
+                val onlyIfAbsent = if (google) request.headers["x-goog-if-generation-match"] == "0" else request.headers["if-none-match"] == "*"
+                if (onlyIfAbsent && objects.containsKey(key)) return err(412, "PreconditionFailed")
                 objects[key] = request.body.copyOf()
                 r(200)
             }
@@ -100,8 +103,10 @@ internal class RecordingSigner : AwsSigV4 {
 private val KEYS = AwsCredentialsProvider { AwsCredentials("AKIDEXAMPLE", "secret") }
 private fun now() = "20130524T000000Z"
 
-private fun s3(fake: FakeS3, signer: AwsSigV4 = RecordingSigner(), pathStyle: Boolean = false, endpointHost: String? = null, credentials: AwsCredentialsProvider = KEYS) =
-    S3ObjectStore(fake, "bkt", "us-east-1", credentials, signer, ::now, timeoutSeconds = 30, pathStyle = pathStyle, endpointHost = endpointHost)
+private fun s3(
+    fake: FakeS3, signer: AwsSigV4 = RecordingSigner(), pathStyle: Boolean = false, endpointHost: String? = null, credentials: AwsCredentialsProvider = KEYS,
+    createCondition: Pair<String, String> = S3ObjectStore.S3_CREATE_CONDITION,
+) = S3ObjectStore(fake, "bkt", "us-east-1", credentials, signer, ::now, timeoutSeconds = 30, pathStyle = pathStyle, endpointHost = endpointHost, createCondition = createCondition)
 
 class S3ObjectStoreContractTests : ObjectStoreContract() {
     override fun newStore(): ObjectStore = s3(FakeS3())
@@ -109,6 +114,12 @@ class S3ObjectStoreContractTests : ObjectStoreContract() {
 
 class S3PathStyleContractTests : ObjectStoreContract() {
     override fun newStore(): ObjectStore = s3(FakeS3(pathStyle = true), pathStyle = true)
+}
+
+/** Google Cloud Storage reached as an S3 store: the same suite, with Google's create condition against a server that honours only that one. */
+class GoogleStorageContractTests : ObjectStoreContract() {
+    override fun newStore(): ObjectStore =
+        s3(FakeS3(pathStyle = true, google = true), pathStyle = true, endpointHost = S3ObjectStore.GOOGLE_HOST, createCondition = S3ObjectStore.GOOGLE_CREATE_CONDITION)
 }
 
 /** What the adapter describes to the signer, sends, and refuses to guess about. */
@@ -226,5 +237,22 @@ class S3ObjectStoreTests {
     @Test
     fun freeSpaceIsUnknownBecauseABucketHasNoQuotaTheCredentialsCanRead() = runBlocking {
         assertNull(s3(FakeS3()).freeSpace())
+    }
+
+    // @verifies SWR-MG-27#a
+    @Test
+    fun googleCloudStorageIsGivenItsOwnCreateConditionAndAnS3OneWouldOverwriteThere() = runBlocking {
+        val fake = FakeS3(pathStyle = true, google = true); val signer = RecordingSigner()
+        val google = s3(fake, signer, pathStyle = true, endpointHost = S3ObjectStore.GOOGLE_HOST, createCondition = S3ObjectStore.GOOGLE_CREATE_CONDITION)
+        assertTrue(google.createIfAbsent("claim", byteArrayOf(1)))
+        assertEquals("0", signer.asked.single().headers["x-goog-if-generation-match"], "the condition is part of what is signed")
+        assertNull(signer.asked.single().headers["if-none-match"])
+        assertEquals(false, google.createIfAbsent("claim", byteArrayOf(2)))
+        assertEquals(1, fake.objects["claim"]!![0].toInt(), "the second create changed nothing")
+        // The default (Amazon's) condition against the same server: ignored, so the second create overwrites and says it created.
+        val fake2 = FakeS3(pathStyle = true, google = true)
+        val amazon = s3(fake2, pathStyle = true, endpointHost = S3ObjectStore.GOOGLE_HOST)
+        assertTrue(amazon.createIfAbsent("claim", byteArrayOf(1))); assertTrue(amazon.createIfAbsent("claim", byteArrayOf(2)))
+        assertEquals(2, fake2.objects["claim"]!![0].toInt())
     }
 }

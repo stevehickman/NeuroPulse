@@ -102,6 +102,7 @@ object CloudStores {
                     { NppsAwsSigV4.amzDate(Instant.fromEpochSeconds(epochSeconds())) }, CALL_TIMEOUT_SECONDS,
                     pathStyle = '.' in bucket, // a dotted bucket name does not match the virtual-hosted TLS name
                     endpointHost = endpoint, // an S3-compatible store: addressed by path, at the host the person named
+                    createCondition = if (endpoint == S3ObjectStore.GOOGLE_HOST) S3ObjectStore.GOOGLE_CREATE_CONDITION else S3ObjectStore.S3_CREATE_CONDITION,
                 )
             }
         }
