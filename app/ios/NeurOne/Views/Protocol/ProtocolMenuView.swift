@@ -47,12 +47,10 @@ struct ProtocolMenuView: View {
     @State private var gateEntry: NPProtocolEntry? = nil
     @State private var unavailableAlert: NPProtocolEntry? = nil
     @State private var uploadConfirm: NPProtocolEntry? = nil
-    @State private var uploadError: String? = nil
     /// Per-user cardiac scope: another person on this device has an outstanding cardiac cutoff,
     /// and this cervical protocol needs the "different person" confirmation first.
-    @State private var askDifferentPerson = false
+    @StateObject private var screen = ProtocolUploadScreen()
     @State private var lastSelectedEntry: NPProtocolEntry? = nil
-    @State private var showUploadSuccess = false
     @State private var uploadTask: Task<Void, Never>? = nil
     @State private var showLimitsSettings = false
     @State private var validationDetailEntry: NPProtocolEntry? = nil
@@ -70,7 +68,7 @@ struct ProtocolMenuView: View {
                 }
             }
             .navigationTitle(String(localized: "TAB_PROTOCOLS"))
-            .confirmationDialog("CVNS_DIFFERENT_PERSON_TITLE", isPresented: $askDifferentPerson,
+            .confirmationDialog("CVNS_DIFFERENT_PERSON_TITLE", isPresented: $screen.askDifferentPerson,
                                 titleVisibility: .visible) {
                 Button("CVNS_DIFFERENT_PERSON_CONFIRM", role: .destructive) {
                     uploader.confirmDifferentPerson()
@@ -180,7 +178,7 @@ struct ProtocolMenuView: View {
                     }
                 })
             .safeAreaInset(edge: .top, spacing: 0) {
-                if let errorMsg = uploadError {
+                if let errorMsg = screen.uploadError {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.white)
@@ -193,7 +191,7 @@ struct ProtocolMenuView: View {
                         Spacer()
                         Button {
                             let retry = lastSelectedEntry
-                            uploadError = nil
+                            screen.uploadError = nil
                             if let entry = retry { handleSelect(entry) }
                         } label: {
                             Text(String(localized: "SETUP_RETRY_BUTTON"))
@@ -212,7 +210,7 @@ struct ProtocolMenuView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if showUploadSuccess {
+                if screen.showUploadSuccess {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.white)
@@ -228,8 +226,8 @@ struct ProtocolMenuView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: uploadError != nil)
-            .animation(.easeInOut(duration: 0.3), value: showUploadSuccess)
+            .animation(.easeInOut(duration: 0.3), value: screen.uploadError != nil)
+            .animation(.easeInOut(duration: 0.3), value: screen.showUploadSuccess)
         }
     }
 
@@ -548,7 +546,7 @@ struct ProtocolMenuView: View {
         }
 
         lastSelectedEntry = entry
-        withAnimation { uploadError = nil }
+        screen.uploadError = nil
 
         // The library's refusals come before any byte is sent (SWR-PL-06, SWR-HV-04): nothing is marked used.
         let gate = library.uploadGate(entry, helmetHardwareVersion: uploader.helmetHardwareVersion)
@@ -573,48 +571,16 @@ struct ProtocolMenuView: View {
     // the screen open to show it.
     private var uploadFlow: ProtocolUploadFlow { ProtocolUploadFlow(uploader: uploader, library: library) }
 
-    private func showRefusal(_ message: String) {
-        withAnimation {
-            showUploadSuccess = false
-            uploadError = message
-        }
-    }
-
     private func send(_ proto: NPProtocolDefinition, entry: NPProtocolEntry, acknowledgedCautions: [String]) {
         lastSelectedEntry = entry
         uploadTask?.cancel()
+        let uploader = self.uploader
+        let send: () async throws -> String = programMode
+            ? { try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions) }
+            : { try await uploader.upload(proto, acknowledgedCautions: acknowledgedCautions) }
         uploadTask = Task { @MainActor in
-            do {
-                if programMode {
-                    // Mode 3 closes this screen and tells the person "Protocol stored. Hub will run session without phone."
-                    // That is true only if the hub holds the protocol, so wait for its report (SWR-UP-02). A refusal, for
-                    // whatever reason, has put its message up by then: leave it on screen, and do not call `onProgrammed`.
-                    // No answer at all is the unknown outcome, treated as sent, as for Mode 2.
-                    let uploader = self.uploader
-                    let stored = try await uploadFlow.program(
-                        entry: entry,
-                        send: { try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions) },
-                        say: showRefusal)
-                    if !stored { return }
-                    dismiss()
-                    onProgrammed?()
-                } else {
-                    let sentHash = try await uploader.upload(proto, acknowledgedCautions: acknowledgedCautions)
-                    let flow = uploadFlow
-                    Task { @MainActor in await flow.record(of: entry, sentHash: sentHash, say: showRefusal) }
-                    withAnimation { showUploadSuccess = true }
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                    withAnimation { showUploadSuccess = false }
-                    // A refusal from the hub (SWR-HV-08) has put its message up by now: leave it on screen.
-                    if uploadError == nil { dismiss() }
-                }
-            } catch UploadError.differentPersonConfirmationRequired {
-                guard !Task.isCancelled else { return }
-                askDifferentPerson = true
-            } catch {
-                guard !Task.isCancelled else { return }
-                withAnimation { uploadError = error.localizedDescription }
-            }
+            await screen.run(flow: uploadFlow, entry: entry, programMode: programMode, send: send,
+                             close: { dismiss() }, programmed: onProgrammed)
         }
     }
 }
