@@ -171,7 +171,9 @@ class AppServices(
         val transport = platform.httpTransport
         val launcher = platform.authorizationLauncher
         if (transport == null || launcher == null) null
-        else life.neurone.core.cloudauth.CloudAuth(transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher)
+        else life.neurone.core.cloudauth.CloudAuth(
+            transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher, redirectPlatform = platform.redirectPlatform,
+        )
     }
 
     /** The cloud accounts screen's state and actions, or null where there is no [cloudAuth] (SWR-MG-20). */

@@ -54,6 +54,8 @@ class CloudAuth(
     /** An access token this close to expiry is refreshed first, so it does not expire in flight. No figure is derived (`UC-112`). */
     // PROVISIONAL (UC-112): no measurement of clock error or of how long a request holds a token.
     private val expirySkewSeconds: Long = 60,
+    /** Where this runs, so a redirect the platform cannot receive is [isConfigured] false and fails with NOT_CONFIGURED before a browser opens (`SWR-MG-25`). Null checks nothing. */
+    private val redirectPlatform: RedirectPlatform? = null,
 ) {
     private val lock = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
@@ -64,13 +66,16 @@ class CloudAuth(
      * before anything is sent, so a screen can say so up front. AWS has no registration to hold: the person brings their own keys.
      */
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
-        AccountFamily.GOOGLE -> config.google != null
-        AccountFamily.MICROSOFT -> config.microsoft != null
+        AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
+        AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
         AccountFamily.APPLE -> config.cloudKit != null
         AccountFamily.AWS -> true
-        AccountFamily.DROPBOX -> config.dropbox != null
+        AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
     }
+
+    private fun redirectWorks(family: AccountFamily, redirectUri: String): Boolean =
+        redirectPlatform == null || RedirectRules.problem(redirectPlatform, family, redirectUri) == null
 
     /** The CloudKit container this build is registered with, or null; an adapter needs its name, environment and address. */
     val cloudKitConfig: CloudKitConfig? get() = config.cloudKit
@@ -111,6 +116,7 @@ class CloudAuth(
     private fun endpoints(service: CloudService): OAuthEndpoints = when (service.family) {
         AccountFamily.GOOGLE -> {
             val c = config.google ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Google OAuth client is configured")
+            checkRedirect(family = AccountFamily.GOOGLE, c.redirectUri)
             OAuthEndpoints(
                 "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token",
                 "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.clientSecret,
@@ -118,6 +124,7 @@ class CloudAuth(
         }
         AccountFamily.MICROSOFT -> {
             val c = config.microsoft ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Microsoft app registration is configured")
+            checkRedirect(family = AccountFamily.MICROSOFT, c.redirectUri)
             val tenant = if (service == CloudService.ONEDRIVE) c.oneDriveTenant else c.azureTenant
             OAuthEndpoints(
                 "https://login.microsoftonline.com/${percentEncode(tenant)}/oauth2/v2.0/authorize",
@@ -127,10 +134,19 @@ class CloudAuth(
         }
         AccountFamily.DROPBOX -> {
             val c = config.dropbox ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Dropbox app is configured")
+            checkRedirect(family = AccountFamily.DROPBOX, c.redirectUri)
             // As Dropbox's Python SDK builds them (read 2026-10-28, UC-116): the authorize page is on www.dropbox.com, the token call on api.dropboxapi.com, and a PKCE client sends the verifier and no secret.
             OAuthEndpoints("https://www.dropbox.com/oauth2/authorize", "https://api.dropboxapi.com/oauth2/token", DROPBOX_REVOKE, c.appKey, c.redirectUri, null)
         }
         else -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${service.name} does not use OAuth")
+    }
+
+    /** A redirect this platform cannot receive is not a configuration: the message names the problem and never the address. */
+    private fun checkRedirect(family: AccountFamily, redirectUri: String) {
+        val platform = redirectPlatform ?: return
+        RedirectRules.problem(platform, family, redirectUri)?.let {
+            throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "the registered redirect cannot work on $platform: $it")
+        }
     }
 
     private suspend fun oauthSignIn(service: CloudService, replacing: String?): CloudAccount {

@@ -53,6 +53,7 @@ class CloudAuthWiringTest {
         http: HttpTransport? = null,
         launcher: AuthorizationLauncher? = null,
         config: CloudAuthConfig = CloudAuthConfig(),
+        redirectPlatform: life.neurone.core.cloudauth.RedirectPlatform? = null,
     ) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
@@ -62,6 +63,7 @@ class CloudAuthWiringTest {
             override val secretKeyStore = secrets
             override val httpTransport = http
             override val authorizationLauncher = launcher
+            override val redirectPlatform = redirectPlatform
             @Composable
             override fun rememberBleConnectAction(): () -> Unit = {}
         },
@@ -98,5 +100,17 @@ class CloudAuthWiringTest {
         val onDisk = raw.getString("np.cloud.accounts")
         assertNotNull(onDisk, "the credentials were stored")
         assertFalse("refresh-secret-token" in onDisk || "access-secret-token" in onDisk, "no token is readable in the host's raw store")
+    }
+
+    // @verifies SWR-MG-25#c
+    @Test fun the_hosts_platform_reaches_the_sign_in_so_an_unreceivable_redirect_reads_not_set_up() {
+        val fakes = Fakes()
+        val config = CloudAuthConfig(google = OAuthClientConfig("g", redirect)) // a loopback address: right for a computer, wrong for a phone
+        val desktop = services(http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.DESKTOP)
+        assertTrue(desktop.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE))
+        val android = services(http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.ANDROID)
+        assertTrue(!android.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE))
+        val unchecked = services(http = fakes.transport, launcher = fakes.launcher, config = config)
+        assertTrue(unchecked.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE), "a host that names no platform checks nothing")
     }
 }
