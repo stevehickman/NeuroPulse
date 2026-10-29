@@ -407,6 +407,23 @@ class GattParserTests {
         assertNull(UploadVerdict.of(null).refusalCause)
     }
 
+    // @verifies SWR-UP-02
+    @Test
+    fun aFinalAnswerForOtherBytesIsSaidAsSuchWhateverItSaid() {
+        fun verdict(status: UploadCheckStatus, reason: Int, hash: String) =
+            UploadVerdict.of(UploadCheck(status, reason, hash))
+        val sent = "a".repeat(64)
+        val other = "b".repeat(64)
+        assertEquals(HelmetRefusalCause.UNMATCHED, verdict(UploadCheckStatus.ACCEPTED, 0, other).causeFor(sent))
+        assertEquals(HelmetRefusalCause.UNMATCHED, verdict(UploadCheckStatus.REFUSED, 6, other).causeFor(sent))
+        // For this upload the reason decides, and an accepted one has nothing to say.
+        assertEquals(HelmetRefusalCause.TIER, verdict(UploadCheckStatus.REFUSED, 19, sent).causeFor(sent))
+        assertNull(verdict(UploadCheckStatus.ACCEPTED, 0, sent).causeFor(sent))
+        // No answer, and a verdict still pending, are the unknown outcome.
+        assertNull(UploadVerdict.of(null).causeFor(sent))
+        assertNull(verdict(UploadCheckStatus.PENDING, 0, other).causeFor(sent))
+    }
+
     // @verifies SWR-SS-05
     @Test
     fun theOwnersPauseLimitIsALittleEndianUint32OfSecondsAndZeroIsNoLimit() {

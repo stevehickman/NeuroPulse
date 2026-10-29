@@ -1035,6 +1035,7 @@
   "PROTOCOL_MENU_TIER_REFUSED": "This protocol requires clinical supervision, and this helmet cannot run it. Nothing will run.",
   "PROTOCOL_MENU_TRY_DIFFERENT_SEARCH": "Try a different search term.",
   "PROTOCOL_MENU_UNLOCK_PROTOCOL": "Unlock Protocol",
+  "PROTOCOL_MENU_UPLOAD_UNMATCHED": "The helmet's answer was for a different protocol, so this one may not have reached it. Send it again.",
   "PROTOCOL_MENU_VALIDATION_TITLE": "Validation: {0}",
   "PROTOCOL_MENU_WARNINGS_COUNT": "Warnings ({0})",
   "PROTOCOL_MODALITIES": "Modalities",
