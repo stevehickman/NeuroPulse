@@ -31,6 +31,7 @@ Sorted by open item.
 |------|----------|------|--------|
 | `OI-CVNS-13` | `oi-cvns-13-nuisance-cutoff-rate.md` | Clinical: acceptable false-cutoff rate. Engineering: measure missed and split R-peak rates on A13. Drives 25-c and 25-e. | DRAFT, not sent |
 | `OI-I18N-04` | `oi-i18n-04-audit-string-translations.md` | Native-speaker verification of machine-drafted translations of 15 privacy-review strings in 9 locales (en-GB read-through). Drafts in `translation-drafts/`; nothing in `locales/`. | DRAFT, not sent |
+| `OI-NPPS-LIMITS-01` | `oi-npps-limits-01-stroke-protocol-30hz.md` | Clinical: the shipped taVNS stroke protocol authors 30 Hz against a 25 Hz ceiling. Re-cite to ≤25 Hz evidence, withdraw, or rule 25 Hz adequate? Waits on `OI-VNSCLIP-08`. | DRAFT, ready to send |
 | `OI-NPPS-VNS-01` | `oi-npps-vns-01-right-and-bilateral-side.md` | Risk: allow right-ear and bilateral auricular VNS (refuse, allow with acknowledgement, or allow)? Literature summary from three full-text reviews and Hatik 2023; Kraus 2007 and Sinkovec 2021 abstract only; Hatik 2023 and Gauthey 2020 read in full. | DRAFT, ready to send; recommends option B |
 | `OI-PRES-06` | `oi-pres-06-android-device-run.md` | Run the Android presence gate on devices at API 29, 30 and 36 and report pass or fail per step. | DRAFT, not sent |
 | `OI-PRES-07` | `oi-pres-07-ios-device-run.md` | Run the iOS presence gate on an iPhone, with the first device run of the shared iOS host (`OI-UI-KMP-06`), and report pass or fail per step. | DRAFT, not sent |
@@ -42,3 +43,4 @@ Sorted by open item.
 | `OI-RISK2-06` | `oi-risk2-06-clinical-question.md` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `OI-RISK2-07` | `oi-risk2-07-update-path-test.md` | Confirm the owed NV-pages-survive-update test, where it binds, and who carries it. Waits on the first safety-MCU update path. | DRAFT, not sent |
 | `OI-RISK2-09` | `oi-risk2-09-cvns-detection-adequacy.md` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
+| `OI-VNSCLIP-08` | `oi-vnsclip-08-frequency-ceiling.md` | Clinical + Risk: is the 25 Hz auricular VNS ceiling a hazard control or an equivalence bound? No source found states a safety reason for it. | DRAFT, ready to send |
