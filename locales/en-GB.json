@@ -1415,7 +1415,7 @@
   "VALIDATE_MSG_VNS_HRV_BREATHINGRATE": "Resonance breathing rate {0} breaths/min is outside the valid range of {1}–{2} breaths/min.",
   "VALIDATE_MSG_VNS_HRV_BURST_NEEDS_TRIGGER": "A burst duration applies only to a movement-triggered block. Set trigger: movement_cue, or remove the burst.",
   "VALIDATE_MSG_VNS_HRV_ENUM": "{0} is '{1}'. It must be one of: {2}.",
-  "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ": "VNS frequency {0} Hz is outside hardware range {1}–{2} Hz.",
+  "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ": "VNS frequency {0} Hz is below the hardware minimum of {1} Hz.",
   "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ_2": "VNS frequency {0} Hz exceeds limit of {1} Hz.",
   "VALIDATE_MSG_VNS_HRV_HRVPROTOCOL": "HRV protocol '{0}' is not in the allowed list: {1}.",
   "VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS": "VNS intensity {0} mA exceeds hardware maximum of {1} mA.",

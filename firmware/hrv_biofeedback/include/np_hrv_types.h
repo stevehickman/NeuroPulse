@@ -152,7 +152,7 @@ typedef struct {
     uint8_t          protocol;        /* np_hrv_protocol_t                        */
     uint16_t         duration_s;      /* 300–1200                                 */
     float            pacer_rate_bpm;  /* 0.0 = use personalized/default           */
-    uint16_t         tavns_freq_hz;   /* 1–25; ignored for non-taVNS protocols   */
+    uint16_t         tavns_freq_hz;   /* ≥ 1; 0 = default; ignored for non-taVNS  */
     uint16_t         tavns_current_ua;/* 100–40000; charge-limited by safety MCU */
     bool             use_bone_conduction_cue;
     bool             pbm_enabled;     /* protocol 3: PBM on during session       */

@@ -52,7 +52,7 @@
 
 /* ── taVNS synchronization ──────────────────────────────────────────────────── */
 /* Stim is gated ON during the inspiration phase detected from PPG RSA.          */
-#define NP_TAVNS_DEFAULT_FREQ_HZ    25U     /* carrier frequency (within 1–25 Hz)*/
+#define NP_TAVNS_DEFAULT_FREQ_HZ    25U     /* DEFAULT carrier frequency; not a ceiling (OI-VNSCLIP-08) */
 #define NP_TAVNS_DEFAULT_CURRENT_UA 500U    /* 0.5 mA (units: microamperes)      */
 #define NP_TAVNS_PULSE_WIDTH_US     250U    /* biphasic pulse half-period        */
 #define NP_TAVNS_INSP_SLOPE_WIN     6U      /* RR intervals for slope estimate   */

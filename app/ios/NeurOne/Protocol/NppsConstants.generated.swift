@@ -81,8 +81,16 @@ enum NPHardwareLimits {
     /// ceiling is needed, what hazard it is for, and whether the safety MCU should enforce a pulse-width
     /// and frequency dependent cap instead are open: GitHub #554 and #559 (OI-VNSCLIP-09, UC-079).
     static let VNS_MAX_MILLIAMPS: Double = 40.0
+    /// Auricular VNS frequency floor. The 25 Hz ceiling that stood beside it was an equivalence bound
+    /// carried over from the cervical predicate, with no derivation, and is removed (OI-VNSCLIP-08, the
+    /// principal, 2026-10-29, CLAUDE.md Rev 76). The floor was not part of that ruling and has no recorded
+    /// derivation either: UC-118.
     static let VNS_MIN_HZ: Double = 1.0
-    static let VNS_MAX_HZ: Double = 25.0
+    /// Cervical VNS (T2) frequency range, 1-25 Hz, from the gammaCore predicate (K163334, fixed 25 Hz;
+    /// NP-REG-CVNS-001 section 3). This one stays: it is the equivalence claim the regulatory argument
+    /// rests on. It was the same constant as the auricular range until OI-VNSCLIP-08.
+    static let CERVICAL_VNS_MIN_HZ: Double = 1.0
+    static let CERVICAL_VNS_MAX_HZ: Double = 25.0
     /// Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span
     /// (Matsuoka 2025 Table 3b, 50–500 µs), not a derived or standard limit. The charge ceiling (40 µC/cm²
     /// per phase) is what bounds the dose; this bounds the encoding to what has been studied. 0 on the wire
