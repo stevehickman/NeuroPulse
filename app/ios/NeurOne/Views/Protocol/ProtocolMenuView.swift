@@ -570,11 +570,12 @@ struct ProtocolMenuView: View {
     // SWR-UP-01/-02: the upload is not over when the last chunk is written. The hub's report decides whether it holds the
     // protocol, and the library marks the family used for a confirmed or an unknown outcome and never for a refusal before
     // sending (SWR-UP-02). It runs on its own task, so leaving this screen does not cancel it: a protocol the hub holds
-    // must still be marked used.
-    private func recordUpload(of entry: NPProtocolEntry, sentHash: String) {
+    // must still be marked used. The task returns the verdict for a caller that has to wait for it (Mode 3 programming).
+    @discardableResult
+    private func recordUpload(of entry: NPProtocolEntry, sentHash: String) -> Task<UploadVerdict, Never> {
         let uploader = self.uploader
         let library = self.library
-        Task { @MainActor in
+        return Task { @MainActor in
             let verdict = await uploader.verify(sentHash: sentHash)
             library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
                                        helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
@@ -595,6 +596,7 @@ struct ProtocolMenuView: View {
                     uploadError = message
                 }
             }
+            return verdict
         }
     }
 
@@ -605,7 +607,12 @@ struct ProtocolMenuView: View {
             do {
                 if programMode {
                     let sentHash = try await uploader.programAutonomous(proto, acknowledgedCautions: acknowledgedCautions)
-                    recordUpload(of: entry, sentHash: sentHash)
+                    // Mode 3 closes this screen and tells the person "Protocol stored. Hub will run session without phone."
+                    // That is true only if the hub holds the protocol, so wait for its report (SWR-HV-08, REQ-UPG-01). A
+                    // refusal for its tier or hardware version has put its message up by then: leave it on screen, and do
+                    // not call `onProgrammed`. No answer at all is the unknown outcome, treated as sent, as for Mode 2.
+                    let verdict = await recordUpload(of: entry, sentHash: sentHash).value
+                    if verdict.refusedForTier || verdict.refusedForHardwareVersion { return }
                     dismiss()
                     onProgrammed?()
                 } else {
