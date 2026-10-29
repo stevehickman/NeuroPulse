@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.models.SessionStatus
+import life.neurone.core.models.UploadCheck
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
 import life.neurone.shared.session.ProtocolUploader
@@ -68,6 +69,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val requestConnect = services.platform.rememberBleConnectAction()
 
     val sentToHub = stringResource(Res.string.protocol_menu_protocol_sent_to_hub)
+    val hardwareVersionRefused = stringResource(Res.string.protocol_menu_hardware_version_refused)
+    val hardwareVersionNotReady = stringResource(Res.string.protocol_menu_hardware_version_not_ready)
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
     val compositeUnsupported = stringResource(Res.string.and_ui_composite_protocol_upload_is_not_yet_support)
@@ -107,6 +110,14 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 services.protocolLibrary.recordUploadResult(
                     entry, result.sentHash, verdict.helmetStatus, verdict.helmetHash, verdict.helmetRefusal,
                 )
+                // SWR-HV-08: the helmet checks the layout the protocol was made for and refuses a different one. The
+                // "sent" message above was true when it was shown; this says what the helmet then decided.
+                if (verdict.helmetRefusal == "hardware_version") {
+                    snackbar.showSnackbar(
+                        if (verdict.helmetReason == UploadCheck.REASON_HW_VERSION_UNVERIFIED) hardwareVersionNotReady
+                        else hardwareVersionRefused,
+                    )
+                }
             }
         }
         scope.launch { snackbar.showSnackbar(message) }

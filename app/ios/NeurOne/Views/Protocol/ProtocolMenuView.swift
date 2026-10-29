@@ -578,6 +578,20 @@ struct ProtocolMenuView: View {
             let verdict = await uploader.verify(sentHash: sentHash)
             library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
                                        helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
+            // SWR-HV-08: the hub checks the layout the protocol was made for and refuses a different one. The "sent"
+            // banner was true when it was shown; this says what the hub then decided, and keeps the screen open to show it.
+            if verdict.helmetRefusal == "hardware_version" {
+                let message: String
+                if verdict.helmetReason == UploadCheck.reasonHardwareVersionUnverified {
+                    message = String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_NOT_READY")
+                } else {
+                    message = String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED")
+                }
+                withAnimation {
+                    showUploadSuccess = false
+                    uploadError = message
+                }
+            }
         }
     }
 
@@ -597,7 +611,8 @@ struct ProtocolMenuView: View {
                     withAnimation { showUploadSuccess = true }
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     withAnimation { showUploadSuccess = false }
-                    dismiss()
+                    // A refusal from the hub (SWR-HV-08) has put its message up by now: leave it on screen.
+                    if uploadError == nil { dismiss() }
                 }
             } catch UploadError.differentPersonConfirmationRequired {
                 guard !Task.isCancelled else { return }

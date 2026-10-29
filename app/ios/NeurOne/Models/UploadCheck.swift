@@ -24,6 +24,10 @@ struct UploadCheck: Equatable {
 
     static let length = 34
 
+    /// `NP_HUB_ERR_HW_VERSION_UNVERIFIED`: the helmet had not yet heard its own hardware version from the safety MCU, so it
+    /// checked nothing (SWR-HV-08). Unlike the mismatch (27), sending the same protocol again can succeed.
+    static let reasonHardwareVersionUnverified = 28
+
     /// Nil for a frame of the wrong length or an unknown status: no part of it is believed.
     init?(wire data: Data) {
         guard data.count == Self.length, let status = UploadCheckStatus(rawValue: data[data.startIndex]) else { return nil }
@@ -50,4 +54,8 @@ struct UploadVerdict: Equatable {
     var helmetStatus: String?
     var helmetHash: String?
     var helmetRefusal: String?
+    /// The helmet's refusal reason (`np_hub_status_t` as a positive number) when it refused, else nil. The library needs only the
+    /// kind (`helmetRefusal`); a screen needs the reason to say whether to try again
+    /// (`UploadCheck.reasonHardwareVersionUnverified`) or not.
+    var helmetReason: Int?
 }
