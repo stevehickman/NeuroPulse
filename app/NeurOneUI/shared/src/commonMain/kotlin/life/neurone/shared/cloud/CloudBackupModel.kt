@@ -144,5 +144,6 @@ class CloudBackupModel(
         CloudService.GOOGLE_CLOUD_STORAGE -> "Google Cloud Storage"
         CloudService.AZURE_BLOB -> "Azure Blob Storage"
         CloudService.AWS_S3 -> "Amazon S3"
+        CloudService.DROPBOX -> "Dropbox"
     }
 }

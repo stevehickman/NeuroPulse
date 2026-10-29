@@ -72,8 +72,8 @@ class CloudAccountsScreenTest {
             CloudAccountsScreen(app(CloudAuthConfig(google = OAuthClientConfig("g", "http://127.0.0.1:53682"))), onDone = {})
         }
         waitForIdle()
-        // Microsoft's two services and iCloud are not registered; Google's two are.
-        assertEquals(3, onAllNodesWithText(notConfigured).fetchSemanticsNodes().size)
+        // Microsoft's two services, iCloud and Dropbox are not registered; Google's two are.
+        assertEquals(4, onAllNodesWithText(notConfigured).fetchSemanticsNodes().size)
         assertEquals(2, onAllNodesWithText(signIn).fetchSemanticsNodes().size)
     }
 
@@ -113,16 +113,16 @@ class CloudAccountsScreenTest {
             CloudAccountsScreen(app(CloudAuthConfig()), onDone = {})
         }
         waitForIdle()
-        onNodeWithText(addKeys).performClick()
+        onNodeWithText(addKeys).performScrollTo().performClick() // the AWS card is below the test window
         val fields = onAllNodes(hasSetTextAction())
         assertEquals(3, fields.fetchSemanticsNodes().size, "access key id, secret key, session token")
         val masked = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password))
         assertEquals(2, masked.fetchSemanticsNodes().size, "the secret and the session token are masked; the key id is not")
 
         onNodeWithText(save).assertIsNotEnabled()
-        fields[0].performTextInput("AKIAEXAMPLE")
+        fields[0].performScrollTo().performTextInput("AKIAEXAMPLE")
         onNodeWithText(save).assertIsNotEnabled()
-        fields[1].performTextInput("wJalrXUtnFEMI")
+        fields[1].performScrollTo().performTextInput("wJalrXUtnFEMI")
         onNodeWithText(save).assertIsEnabled()
 
         // The AWS card is the last on the screen, so its buttons are below the test window until scrolled to; a click there hits nothing.
@@ -142,10 +142,10 @@ class CloudAccountsScreenTest {
             CloudAccountsScreen(app(CloudAuthConfig()), onDone = {})
         }
         waitForIdle()
-        onNodeWithText(addKeys).performClick()
+        onNodeWithText(addKeys).performScrollTo().performClick() // the AWS card is below the test window
         val fields = onAllNodes(hasSetTextAction())
-        fields[0].performTextInput("AKIAEXAMPLE")
-        fields[1].performTextInput("wJalrXUtnFEMI")
+        fields[0].performScrollTo().performTextInput("AKIAEXAMPLE")
+        fields[1].performScrollTo().performTextInput("wJalrXUtnFEMI")
         onNodeWithText(save).performScrollTo().performClick()
         waitUntil(timeoutMillis = 10_000) { onAllNodesWithText(saved).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the fields are gone, and with them what was typed")
