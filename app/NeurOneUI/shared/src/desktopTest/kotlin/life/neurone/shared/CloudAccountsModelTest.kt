@@ -59,7 +59,7 @@ class CloudAccountsModelTest {
         m.refresh()
         assertEquals(CloudService.values().toList(), m.rows.value.map { it.service })
         val configured = m.rows.value.filter { it.configured }.map { it.service }.toSet()
-        assertEquals(setOf(CloudService.GOOGLE_DRIVE, CloudService.GOOGLE_CLOUD_STORAGE, CloudService.ONEDRIVE, CloudService.AZURE_BLOB, CloudService.AWS_S3), configured)
+        assertEquals(setOf(CloudService.GOOGLE_DRIVE, CloudService.GOOGLE_CLOUD_STORAGE, CloudService.ONEDRIVE, CloudService.AZURE_BLOB, CloudService.AWS_S3, CloudService.WEBDAV), configured)
         assertTrue(m.rows.value.none { it.account != null })
     }
 
@@ -170,6 +170,31 @@ class CloudAccountsModelTest {
         m.signOut(CloudService.AWS_S3)
         assertNull(m.rows.value.first { it.service == CloudService.AWS_S3 }.account)
         assertTrue(f.posts.isEmpty(), "AWS keys are never sent anywhere by this screen")
+    }
+
+    // @verifies SWR-MG-24#d
+    @Test fun a_webdav_login_is_checked_kept_once_and_signing_out_removes_it_without_sending_anything() = runTest {
+        val f = Fakes()
+        val m = model(f)
+        m.refresh()
+        m.addWebDavLogin("http://nas.example/dav", "alice", "pw")
+        assertEquals(CloudNoticeKind.LOGIN_INVALID, m.notice.value?.kind, "http is refused")
+        m.addWebDavLogin("https://nas.example/dav", "al:ice", "pw")
+        assertEquals(CloudNoticeKind.LOGIN_INVALID, m.notice.value?.kind, "a colon in the name is refused")
+        assertNull(m.rows.value.first { it.service == CloudService.WEBDAV }.account)
+
+        m.addWebDavLogin(" https://nas.example/dav ", " alice ", "p w")
+        assertEquals(CloudNoticeKind.LOGIN_SAVED, m.notice.value?.kind)
+        assertTrue(m.rows.value.first { it.service == CloudService.WEBDAV }.signedIn)
+        m.addWebDavLogin("https://nas.example/dav", "alice", "other")
+        assertEquals(1, m.rows.value.count { it.account != null }, "replacing, not adding a second")
+
+        m.signIn(CloudService.WEBDAV) // there is no browser sign-in
+        assertEquals(0, f.shown)
+        m.signOut(CloudService.WEBDAV)
+        assertNull(m.rows.value.first { it.service == CloudService.WEBDAV }.account)
+        assertEquals(CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, m.notice.value?.kind)
+        assertTrue(f.posts.isEmpty(), "a WebDAV login is never sent anywhere by this screen")
     }
 
     // @verifies SWR-MG-20#e

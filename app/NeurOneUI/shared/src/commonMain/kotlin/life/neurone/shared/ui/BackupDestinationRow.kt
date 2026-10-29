@@ -41,6 +41,7 @@ private fun serviceName(service: CloudService): StringResource = when (service) 
     CloudService.AZURE_BLOB -> Res.string.cloud_service_azure_blob
     CloudService.AWS_S3 -> Res.string.cloud_service_aws_s3
     CloudService.DROPBOX -> Res.string.cloud_service_dropbox
+    CloudService.WEBDAV -> Res.string.cloud_service_webdav
 }
 
 private fun fieldLabel(field: TargetField): StringResource = when (field) {
