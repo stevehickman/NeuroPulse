@@ -119,6 +119,30 @@ class CloudStoresTests {
         }
     }
 
+    // @verifies SWR-MG-27#b
+    @Test
+    fun anS3AccountAtGooglesHostCreatesWithGooglesConditionAndAnyOtherHostWithAmazons() = runBlocking {
+        val rig = Rig()
+        val aws = rig.auth.addAwsKeys("GOOGEXAMPLE", "secret")
+        suspend fun create(endpoint: String?): HttpRequest {
+            val api = RecordingApi()
+            val values = mapOf(TargetField.BUCKET to "my-backups", TargetField.REGION to "auto") + (endpoint?.let { mapOf(TargetField.ENDPOINT to it) } ?: emptyMap())
+            runCatching { CloudStores.storeFor(rig.auth, api, aws, CloudStores.target(CloudService.AWS_S3, values)).createIfAbsent("claim", byteArrayOf(1)) }
+            return api.seen.last()
+        }
+        fun H(r: HttpRequest, n: String) = r.headers.entries.firstOrNull { it.key.equals(n, true) }?.value
+        val google = create("storage.googleapis.com")
+        assertTrue(google.url.startsWith("https://storage.googleapis.com/my-backups/"), google.url)
+        assertEquals("0", H(google, "x-goog-if-generation-match"))
+        assertNull(H(google, "if-none-match"), "Google ignores If-None-Match on a PUT, so it is not what guards the create")
+        assertTrue("x-goog-if-generation-match" in H(google, "authorization")!!, "the condition is among the signed headers")
+        for (other in listOf(null, "acct.r2.example.com")) {
+            val r = create(other)
+            assertEquals("*", H(r, "if-none-match"))
+            assertNull(H(r, "x-goog-if-generation-match"))
+        }
+    }
+
     // @verifies SWR-MG-21#b
     // @verifies SWR-MG-23#b
     @Test
