@@ -202,6 +202,51 @@ public class NppsCoreTests
         Assert.Equal("not_a_failed_upload", (string)Library($"{{\"op\":\"uploadResult\",\"sentHash\":\"{h}\",\"helmetStatus\":\"refused\",\"helmetRefusal\":\"tier\"}}")["outcome"]!);
     }
 
+    // @verifies SWR-UP-02
+    [Fact]
+    public void HelmetCauseGroupsEveryRefusalReasonAsEveryOtherAppDoes()
+    {
+        foreach (var (reason, cause) in new (int, string)[]
+        {
+            (19, "tier"), (27, "hardware_version"), (20, "not_ready"), (28, "not_ready"), (6, "signature"), (7, "wrong_device"),
+            (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
+            (25, "boot_refused"), (255, "other"), (99, "other"),
+        })
+        {
+            Assert.Equal(cause, HelmetCause.Of("refused", reason).Cause);
+        }
+        // An accepted upload and no answer are not refusals.
+        Assert.Null(HelmetCause.Of("accepted", 19).Cause);
+        Assert.Null(HelmetCause.Of(null, null).Cause);
+    }
+
+    // @verifies SWR-UP-02
+    // @verifies SWR-HV-08
+    // @verifies REQ-UPG-01
+    [Fact]
+    public void HelmetCauseNamesATierOrHardwareVersionRefusalAndTellsNotReadyFromRefused()
+    {
+        Assert.Equal(("tier", false), (HelmetCause.Of("refused", 19).RefusalKind, HelmetCause.Of("refused", 19).NotReady));
+        Assert.Equal(("tier", true), (HelmetCause.Of("refused", 20).RefusalKind, HelmetCause.Of("refused", 20).NotReady));
+        Assert.Equal(("hardware_version", false), (HelmetCause.Of("refused", 27).RefusalKind, HelmetCause.Of("refused", 27).NotReady));
+        Assert.Equal(("hardware_version", true), (HelmetCause.Of("refused", 28).RefusalKind, HelmetCause.Of("refused", 28).NotReady));
+        Assert.Null(HelmetCause.Of("refused", 6).RefusalKind);
+        Assert.Null(HelmetCause.Of("accepted", 19).RefusalKind);
+    }
+
+    // @verifies SWR-UP-02
+    [Fact]
+    public void HelmetCauseSaysAFinalAnswerForOtherBytesIsUnmatched()
+    {
+        var sent = new string('a', 64);
+        var other = new string('b', 64);
+        Assert.Equal("unmatched", HelmetCause.Of("accepted", 0, other, sent).Cause);
+        Assert.Equal("unmatched", HelmetCause.Of("refused", 6, other, sent).Cause);
+        Assert.Equal("tier", HelmetCause.Of("refused", 19, sent, sent).Cause);
+        Assert.Null(HelmetCause.Of("accepted", 0, sent, sent).Cause);
+        Assert.Null(HelmetCause.Of(null, null, null, sent).Cause);
+    }
+
     // @verifies SWR-PL-02
     [Fact]
     public void LibrarySaveCheckRefusesAUsedFamily()

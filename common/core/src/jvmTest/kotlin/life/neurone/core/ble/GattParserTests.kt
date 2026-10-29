@@ -362,7 +362,7 @@ class GattParserTests {
         assertEquals(27, mismatch.helmetReason)
         val notReady = UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(2, 28, ByteArray(32))))
         assertEquals("hardware_version", notReady.helmetRefusal)
-        assertEquals(UploadCheck.REASON_HW_VERSION_UNVERIFIED, notReady.helmetReason)
+        assertEquals(28, notReady.helmetReason, "NP_HUB_ERR_HW_VERSION_UNVERIFIED")
         // Only a refusal has a reason; an accepted upload and no answer have none.
         assertNull(UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(1, 0, ByteArray(32)))).helmetReason)
         assertNull(UploadVerdict.of(null).helmetReason)

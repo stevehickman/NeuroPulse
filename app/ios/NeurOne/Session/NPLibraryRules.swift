@@ -157,6 +157,52 @@ enum NPLibraryRules {
     }
 }
 
+/// The core's reading of a helmet upload report (`NPLibraryRules.helmetCause`): the library's `helmetRefusal`, whether it was
+/// only "not ready yet", and the cause to say.
+struct HelmetCauseAnswer: Equatable {
+    var refusalKind: String?
+    var notReady: Bool
+    var cause: HelmetRefusalCause?
+}
+
+extension NPLibraryRules {
+    /// What a helmet's upload report means to a person (SWR-UP-02, SWR-HV-08, REQ-UPG-01), decided by the shared core
+    /// (`helmetCause` in `common/npps-core/src/library.rs`). `status` is `accepted`, `refused` or nil; `reason` is the refusal's
+    /// `np_hub_status_t` as a positive number; `sentHash` is given when the screen is about the upload whose bytes hash to it.
+    static func helmetCause(status: String?, reason: Int?, helmetHash: String?, sentHash: String?) -> HelmetCauseAnswer {
+        var request: [String: Any] = [:]
+        if let status { request["status"] = status }
+        if let reason { request["reason"] = reason }
+        if let helmetHash { request["helmetHash"] = helmetHash }
+        if let sentHash { request["sentHash"] = sentHash }
+        let answer = ask("helmetCause", request)
+        return HelmetCauseAnswer(refusalKind: answer["refusalKind"] as? String,
+                                 notReady: (answer["notReady"] as? Bool) == true,
+                                 cause: HelmetRefusalCause(rule: answer["cause"] as? String))
+    }
+}
+
+extension HelmetRefusalCause {
+    /// The cause the core named, or nil for none or a name this app does not know.
+    init?(rule: String?) {
+        switch rule {
+        case "tier": self = .tier
+        case "hardware_version": self = .hardwareVersion
+        case "not_ready": self = .notReady
+        case "signature": self = .signature
+        case "wrong_device": self = .wrongDevice
+        case "format_version": self = .formatVersion
+        case "damaged": self = .damaged
+        case "malformed": self = .malformed
+        case "session_active": self = .sessionActive
+        case "boot_refused": self = .bootRefused
+        case "other": self = .other
+        case "unmatched": self = .unmatched
+        default: return nil
+        }
+    }
+}
+
 // What the helmet's upload report means to the library's upload rule (`SWR-UP-02`). The words here are the rule's codes
 // ("accepted", "tier"), not text for a person, so they live beside the other core calls and not in the covered UI tree.
 extension UploadCheck {
@@ -164,21 +210,19 @@ extension UploadCheck {
     static let refusalTier = "tier"
     static let refusalHardwareVersion = "hardware_version"
 
-    /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier.
-    private static let tierRefusalCodes: Set<Int> = [19, 20]
-
-    /// `NP_HUB_ERR_HW_VERSION_MISMATCH` (27) and `NP_HUB_ERR_HW_VERSION_UNVERIFIED` (28): the helmet refused a protocol
-    /// compiled for another hardware version, or has not yet heard its own version from the safety MCU (SWR-HV-08).
-    /// Neither is a failed upload and neither marks the protocol used, as for a tier refusal. An unmodified clone is not
-    /// made by the hub, so no code names it.
-    private static let hardwareVersionRefusalCodes: Set<Int> = [27, 28]
-
     /// The `helmetRefusal` the library's upload rule takes for this refusal, or nil when it is none of the three it names.
+    /// The shared core decides (`helmetCause`).
     var refusalKind: String? {
-        guard status == .refused else { return nil }
-        if Self.tierRefusalCodes.contains(reason) { return Self.refusalTier }
-        if Self.hardwareVersionRefusalCodes.contains(reason) { return Self.refusalHardwareVersion }
-        return nil
+        NPLibraryRules.helmetCause(status: statusRule, reason: reason, helmetHash: nil, sentHash: nil).refusalKind
+    }
+
+    /// The report's status as the core takes it: `accepted`, `refused`, or nil while there is no final answer.
+    var statusRule: String? {
+        switch status {
+        case .accepted: return "accepted"
+        case .refused: return "refused"
+        default: return nil
+        }
     }
 }
 

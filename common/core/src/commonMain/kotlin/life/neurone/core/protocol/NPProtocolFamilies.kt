@@ -104,6 +104,9 @@ private val NPProtocolEntry.versionText: String
 
 // ── The core's questions ───────────────────────────────────────────────────────────────────────────────────────
 
+/** The core's reading of a helmet upload report: the library's `helmetRefusal`, whether it was only "not ready yet", and the cause to say. */
+internal data class HelmetCauseAnswer(val refusalKind: String?, val notReady: Boolean, val cause: String?)
+
 internal object NPLibraryRules {
 
     private fun ask(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {}): JsonObject =
@@ -182,6 +185,25 @@ internal object NPLibraryRules {
         helmetHash?.let { put("helmetHash", it) }
         helmetRefusal?.let { put("helmetRefusal", it) }
         put("refusedBeforeSend", refusedBeforeSend)
+    }
+
+    /**
+     * What a helmet's upload report means to a person (SWR-UP-02, SWR-HV-08, REQ-UPG-01), decided by the shared core. `status` is
+     * `"accepted"`, `"refused"` or null; `reason` is the refusal's `np_hub_status_t` as a positive number; `sentHash` is given when the
+     * screen is about the upload whose bytes hash to it.
+     */
+    fun helmetCause(status: String?, reason: Int?, helmetHash: String?, sentHash: String?): HelmetCauseAnswer {
+        val answer = ask("helmetCause") {
+            status?.let { put("status", it) }
+            reason?.let { put("reason", it) }
+            helmetHash?.let { put("helmetHash", it) }
+            sentHash?.let { put("sentHash", it) }
+        }
+        return HelmetCauseAnswer(
+            refusalKind = answer["refusalKind"]?.jsonPrimitive?.contentOrNull,
+            notReady = answer["notReady"]?.jsonPrimitive?.boolean == true,
+            cause = answer["cause"]?.jsonPrimitive?.contentOrNull,
+        )
     }
 
     fun mergeImport(usedHashes: Collection<String>, incoming: List<Triple<String, String?, Boolean>>): Map<String, Boolean> =

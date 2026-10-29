@@ -1,5 +1,7 @@
 package life.neurone.core.models
 
+import life.neurone.core.protocol.NPLibraryRules
+
 // UPLOAD_CHECK (SWR-UP-01, OI-UI-KMP-10 U1): what the helmet says it received. After every protocol upload the helmet
 // hashes the buffer it received, before parsing, and reports that hash with an accept or refuse status. The app compares
 // the hash with the SHA-256 of the exact bytes it sent. Wire layout: firmware/hub_control/include/np_upload_check.h,
@@ -26,12 +28,15 @@ data class UploadCheck(
     /** SHA-256 of the received bytes, 64 lowercase hex digits; all zeros while [status] is [UploadCheckStatus.NONE]. */
     val receivedHash: String,
 ) {
-    /** The `helmetRefusal` the library's upload rule takes for this refusal, or null when it is none of the three it names. */
+    /** The `helmetRefusal` the library's upload rule takes for this refusal, or null when it is none of the three it names. The core decides. */
     val refusalKind: String?
-        get() = when {
-            status != UploadCheckStatus.REFUSED -> null
-            reason in TIER_REFUSAL_CODES -> REFUSAL_TIER
-            reason in HARDWARE_VERSION_REFUSAL_CODES -> REFUSAL_HARDWARE_VERSION
+        get() = NPLibraryRules.helmetCause(statusRule, reason, null, null).refusalKind
+
+    /** The report's status as the core takes it: `accepted`, `refused`, or null while there is no final answer. */
+    internal val statusRule: String?
+        get() = when (status) {
+            UploadCheckStatus.ACCEPTED -> "accepted"
+            UploadCheckStatus.REFUSED -> "refused"
             else -> null
         }
 
@@ -41,26 +46,6 @@ data class UploadCheck(
         /** The library's `helmetRefusal` codes (`SWR-UP-02`) for a refusal the helmet gives for its tier or hardware version. */
         const val REFUSAL_TIER = "tier"
         const val REFUSAL_HARDWARE_VERSION = "hardware_version"
-
-        /**
-         * `NP_HUB_ERR_HW_VERSION_UNVERIFIED`: the helmet had not yet heard its own hardware version from the safety MCU, so it
-         * checked nothing (`SWR-HV-08`). Unlike the mismatch (27), sending the same protocol again can succeed.
-         */
-        const val REASON_HW_VERSION_UNVERIFIED = 28
-
-        /** `NP_HUB_ERR_TIER_UNVERIFIED`: the helmet had not yet heard its tier from the safety MCU, so it checked nothing. */
-        const val REASON_TIER_UNVERIFIED = 20
-
-        /** `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. */
-        private val TIER_REFUSAL_CODES = setOf(19, 20)
-
-        /**
-         * `NP_HUB_ERR_HW_VERSION_MISMATCH` (27) and `NP_HUB_ERR_HW_VERSION_UNVERIFIED` (28): the helmet refused a protocol
-         * compiled for another hardware version, or has not yet heard its own version from the safety MCU (`SWR-HV-08`).
-         * Neither is a failed upload and neither marks the protocol used, as for a tier refusal. An unmodified clone is
-         * not made by the hub, so no code names it.
-         */
-        private val HARDWARE_VERSION_REFUSAL_CODES = setOf(27, 28)
 
         /** Null for a frame of the wrong length or an unknown status: no part of it is believed. */
         fun fromWire(data: ByteArray): UploadCheck? {
@@ -106,42 +91,26 @@ data class UploadVerdict(
     /**
      * True when the helmet refused only because it had not yet heard its own tier or hardware version from the safety MCU
      * (`NP_HUB_ERR_TIER_UNVERIFIED`, `NP_HUB_ERR_HW_VERSION_UNVERIFIED`): it checked nothing, and sending the same protocol
-     * again can succeed. The other refusals will not change on a second try.
+     * again can succeed. The other refusals will not change on a second try. The core decides (`helmetCause`).
      */
     val helmetNotReady: Boolean
-        get() = helmetReason == UploadCheck.REASON_TIER_UNVERIFIED || helmetReason == UploadCheck.REASON_HW_VERSION_UNVERIFIED
+        get() = NPLibraryRules.helmetCause(helmetStatus, helmetReason, null, null).notReady
 
     /**
      * Why the helmet refused, for a screen to say so in words; null when it did not refuse. The reasons are the
-     * `np_hub_status_t` values `np_runner_load()` can return (`np_protocol.c`, `np_session_runner.c`), grouped by what the
-     * person can do about them.
+     * `np_hub_status_t` values `np_runner_load()` can return, grouped by what the person can do about them. The core decides
+     * (`helmetCause` in `common/npps-core/src/library.rs`), so every app groups them the same way.
      */
     val refusalCause: HelmetRefusalCause?
-        get() = when (helmetReason) {
-            null -> null
-            19 -> HelmetRefusalCause.TIER                      // NP_HUB_ERR_TIER_F4
-            27 -> HelmetRefusalCause.HARDWARE_VERSION          // NP_HUB_ERR_HW_VERSION_MISMATCH
-            20, 28 -> HelmetRefusalCause.NOT_READY             // the tier or version is not yet known (UNVERIFIED)
-            6 -> HelmetRefusalCause.SIGNATURE                  // NP_HUB_ERR_BAD_SIGNATURE
-            7 -> HelmetRefusalCause.WRONG_DEVICE               // NP_HUB_ERR_WRONG_DEVICE
-            5 -> HelmetRefusalCause.FORMAT_VERSION             // NP_HUB_ERR_BAD_VERSION
-            4 -> HelmetRefusalCause.DAMAGED                    // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
-            2, 8, 9 -> HelmetRefusalCause.MALFORMED            // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
-            13 -> HelmetRefusalCause.SESSION_ACTIVE            // NP_HUB_ERR_SESSION_ACTIVE
-            25 -> HelmetRefusalCause.BOOT_REFUSED              // NP_HUB_ERR_BOOT_REFUSED
-            else -> HelmetRefusalCause.OTHER
-        }
+        get() = HelmetRefusalCause.fromRule(NPLibraryRules.helmetCause(helmetStatus, helmetReason, null, null).cause)
 
     /**
      * What a screen should say about the upload whose bytes hash to [sentHash]: why the helmet refused it, or
      * [HelmetRefusalCause.UNMATCHED] when the helmet's final answer is for other bytes (it holds something else, or answered an
      * earlier upload), so nothing is known about this one. Null for an accepted upload and for no answer at all.
      */
-    fun causeFor(sentHash: String): HelmetRefusalCause? = when {
-        helmetStatus == null || helmetHash == null -> null
-        helmetHash != sentHash -> HelmetRefusalCause.UNMATCHED
-        else -> refusalCause
-    }
+    fun causeFor(sentHash: String): HelmetRefusalCause? =
+        HelmetRefusalCause.fromRule(NPLibraryRules.helmetCause(helmetStatus, helmetReason, helmetHash, sentHash).cause)
 
     /** The helmet refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`). */
     val refusedForTier: Boolean
@@ -176,19 +145,25 @@ data class UploadVerdict(
  * to do next: try again, send the protocol again from a reconnected app, update, wait for the session to end, restart the
  * helmet, or nothing the person can do. A tier refusal (F4) never names a purchase (`NP-PWRSRC-001` §6.3).
  */
-enum class HelmetRefusalCause {
-    TIER,
-    HARDWARE_VERSION,
-    NOT_READY,
-    SIGNATURE,
-    WRONG_DEVICE,
-    FORMAT_VERSION,
-    DAMAGED,
-    MALFORMED,
-    SESSION_ACTIVE,
-    BOOT_REFUSED,
-    OTHER,
+enum class HelmetRefusalCause(val rule: String) {
+    TIER("tier"),
+    HARDWARE_VERSION("hardware_version"),
+    NOT_READY("not_ready"),
+    SIGNATURE("signature"),
+    WRONG_DEVICE("wrong_device"),
+    FORMAT_VERSION("format_version"),
+    DAMAGED("damaged"),
+    MALFORMED("malformed"),
+    SESSION_ACTIVE("session_active"),
+    BOOT_REFUSED("boot_refused"),
+    OTHER("other"),
 
     /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */
-    UNMATCHED,
+    UNMATCHED("unmatched"),
+    ;
+
+    companion object {
+        /** The cause the core named (`helmetCause`), or null for none. */
+        fun fromRule(rule: String?): HelmetRefusalCause? = rule?.let { r -> entries.first { it.rule == r } }
+    }
 }

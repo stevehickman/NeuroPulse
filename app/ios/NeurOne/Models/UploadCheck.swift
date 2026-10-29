@@ -24,13 +24,6 @@ struct UploadCheck: Equatable {
 
     static let length = 34
 
-    /// `NP_HUB_ERR_HW_VERSION_UNVERIFIED`: the helmet had not yet heard its own hardware version from the safety MCU, so it
-    /// checked nothing (SWR-HV-08). Unlike the mismatch (27), sending the same protocol again can succeed.
-    static let reasonHardwareVersionUnverified = 28
-
-    /// `NP_HUB_ERR_TIER_UNVERIFIED`: the hub had not yet heard its tier from the safety MCU, so it checked nothing.
-    static let reasonTierUnverified = 20
-
     /// Nil for a frame of the wrong length or an unknown status: no part of it is believed.
     init?(wire data: Data) {
         guard data.count == Self.length, let status = UploadCheckStatus(rawValue: data[data.startIndex]) else { return nil }
@@ -63,36 +56,23 @@ struct UploadVerdict: Equatable {
 
     /// True when the hub refused only because it had not yet heard its own tier or hardware version from the safety MCU
     /// (`NP_HUB_ERR_TIER_UNVERIFIED`, `NP_HUB_ERR_HW_VERSION_UNVERIFIED`): it checked nothing, and sending the same protocol
-    /// again can succeed. The other refusals will not change on a second try.
+    /// again can succeed. The other refusals will not change on a second try. The core decides (`helmetCause`).
     var helmetNotReady: Bool {
-        helmetReason == UploadCheck.reasonTierUnverified || helmetReason == UploadCheck.reasonHardwareVersionUnverified
+        NPLibraryRules.helmetCause(status: helmetStatus, reason: helmetReason, helmetHash: nil, sentHash: nil).notReady
     }
 
     /// Why the hub refused, for a screen to say so in words; nil when it did not refuse. The reasons are the `np_hub_status_t`
-    /// values `np_runner_load()` can return (`np_protocol.c`, `np_session_runner.c`), grouped by what the person can do about them.
+    /// values `np_runner_load()` can return, grouped by what the person can do about them. The core decides (`helmetCause` in
+    /// `common/npps-core/src/library.rs`), so every app groups them the same way.
     var refusalCause: HelmetRefusalCause? {
-        guard let reason = helmetReason else { return nil }
-        switch reason {
-        case 19: return .tier                        // NP_HUB_ERR_TIER_F4
-        case 27: return .hardwareVersion             // NP_HUB_ERR_HW_VERSION_MISMATCH
-        case 20, 28: return .notReady                // the tier or version is not yet known (UNVERIFIED)
-        case 6: return .signature                    // NP_HUB_ERR_BAD_SIGNATURE
-        case 7: return .wrongDevice                  // NP_HUB_ERR_WRONG_DEVICE
-        case 5: return .formatVersion                // NP_HUB_ERR_BAD_VERSION
-        case 4: return .damaged                      // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
-        case 2, 8, 9: return .malformed              // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
-        case 13: return .sessionActive               // NP_HUB_ERR_SESSION_ACTIVE
-        case 25: return .bootRefused                 // NP_HUB_ERR_BOOT_REFUSED
-        default: return .other
-        }
+        NPLibraryRules.helmetCause(status: helmetStatus, reason: helmetReason, helmetHash: nil, sentHash: nil).cause
     }
 
     /// What a screen should say about the upload whose bytes hash to `sentHash`: why the hub refused it, or `.unmatched` when the
     /// hub's final answer is for other bytes (it holds something else, or answered an earlier upload), so nothing is known about
     /// this one. Nil for an accepted upload and for no answer at all.
     func cause(forSentHash sentHash: String) -> HelmetRefusalCause? {
-        guard helmetStatus != nil, let hash = helmetHash else { return nil }
-        return hash == sentHash ? refusalCause : .unmatched
+        NPLibraryRules.helmetCause(status: helmetStatus, reason: helmetReason, helmetHash: helmetHash, sentHash: sentHash).cause
     }
 
     /// The hub refused for its tier (`NP_HUB_ERR_TIER_F4` or `_UNVERIFIED`).

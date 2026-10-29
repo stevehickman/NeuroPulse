@@ -210,6 +210,71 @@ fn a_refusal_before_sending_or_for_hardware_clone_or_tier_marks_nothing() {
     }
 }
 
+// @verifies SWR-UP-02
+#[test]
+fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
+    let cause = |reason: u64| {
+        let r = call(json!({ "op": "helmetCause", "status": "refused", "reason": reason }));
+        r["cause"].as_str().map(str::to_owned)
+    };
+    for (reason, want) in [
+        (19, "tier"), (27, "hardware_version"), (20, "not_ready"), (28, "not_ready"), (6, "signature"), (7, "wrong_device"),
+        (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
+        (25, "boot_refused"),
+        // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
+        (255, "other"), (99, "other"),
+    ] {
+        assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");
+    }
+    // An accepted upload and no answer are not refusals.
+    assert_eq!(call(json!({ "op": "helmetCause", "status": "accepted", "reason": 19 }))["cause"], Value::Null);
+    assert_eq!(call(json!({ "op": "helmetCause" }))["cause"], Value::Null);
+}
+
+// @verifies SWR-UP-02
+// @verifies SWR-HV-08
+// @verifies REQ-UPG-01
+#[test]
+fn only_a_tier_or_hardware_version_refusal_has_a_refusal_kind_and_only_unverified_is_not_ready() {
+    let ask = |status: &str, reason: u64| call(json!({ "op": "helmetCause", "status": status, "reason": reason }));
+    for (reason, kind, not_ready) in [
+        (19, "tier", false), (20, "tier", true), (27, "hardware_version", false), (28, "hardware_version", true),
+    ] {
+        let r = ask("refused", reason);
+        assert_eq!(r["refusalKind"], kind, "reason {reason}");
+        assert_eq!(r["notReady"], not_ready, "reason {reason}");
+    }
+    for reason in [6, 13, 25, 99] {
+        let r = ask("refused", reason);
+        assert_eq!(r["refusalKind"], Value::Null, "a bad signature is a failure, not a tier (reason {reason})");
+        assert_eq!(r["notReady"], false);
+    }
+    // Only a refusal has a kind: an accepted report that happens to carry a tier reason has none.
+    let accepted = ask("accepted", 19);
+    assert_eq!((accepted["refusalKind"].clone(), accepted["notReady"].clone()), (Value::Null, json!(false)));
+}
+
+// @verifies SWR-UP-02
+#[test]
+fn a_final_answer_for_other_bytes_is_unmatched_whatever_it_said() {
+    let ask = |extra: Value| {
+        let mut r = json!({ "op": "helmetCause", "sentHash": "sent" });
+        for (k, v) in extra.as_object().unwrap() {
+            r[k] = v.clone();
+        }
+        call(r)["cause"].clone()
+    };
+    assert_eq!(ask(json!({ "status": "accepted", "helmetHash": "other" })), "unmatched", "the helmet holds other bytes");
+    assert_eq!(ask(json!({ "status": "refused", "reason": 6, "helmetHash": "other" })), "unmatched", "an earlier upload's refusal");
+    // For this upload the reason decides, and an accepted one has nothing to say.
+    assert_eq!(ask(json!({ "status": "refused", "reason": 19, "helmetHash": "sent" })), "tier");
+    assert_eq!(ask(json!({ "status": "accepted", "helmetHash": "sent" })), Value::Null);
+    // No answer, and a verdict still pending, are the unknown outcome.
+    assert_eq!(ask(json!({})), Value::Null);
+    assert_eq!(ask(json!({ "status": "pending", "helmetHash": "other" })), Value::Null);
+    assert_eq!(ask(json!({ "status": "refused", "reason": 19 })), Value::Null, "a report with no hash is no answer");
+}
+
 // @verifies SWR-WO-03
 #[test]
 fn an_import_merges_the_used_flag_by_or_and_never_clears_it() {
