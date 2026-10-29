@@ -160,6 +160,10 @@ enum NPLibraryRules {
 // What the helmet's upload report means to the library's upload rule (`SWR-UP-02`). The words here are the rule's codes
 // ("accepted", "tier"), not text for a person, so they live beside the other core calls and not in the covered UI tree.
 extension UploadCheck {
+    /// The library's `helmetRefusal` codes (SWR-UP-02) for a refusal the hub gives for its tier or hardware version.
+    static let refusalTier = "tier"
+    static let refusalHardwareVersion = "hardware_version"
+
     /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier.
     private static let tierRefusalCodes: Set<Int> = [19, 20]
 
@@ -172,8 +176,8 @@ extension UploadCheck {
     /// The `helmetRefusal` the library's upload rule takes for this refusal, or nil when it is none of the three it names.
     var refusalKind: String? {
         guard status == .refused else { return nil }
-        if Self.tierRefusalCodes.contains(reason) { return "tier" }
-        if Self.hardwareVersionRefusalCodes.contains(reason) { return "hardware_version" }
+        if Self.tierRefusalCodes.contains(reason) { return Self.refusalTier }
+        if Self.hardwareVersionRefusalCodes.contains(reason) { return Self.refusalHardwareVersion }
         return nil
     }
 }

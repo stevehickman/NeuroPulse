@@ -101,6 +101,23 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertNil(UploadVerdict.of(nil).helmetReason)
     }
 
+    // @verifies REQ-UPG-01 SWR-HV-08
+    func testOnlyARefusalBecauseTheHubHasNotHeardItsTierOrVersionYetIsOneToTryAgain() {
+        func verdict(_ status: UploadCheckStatus, _ reason: Int) -> UploadVerdict {
+            UploadVerdict.of(report(status, reason: reason, hash: sent))
+        }
+        // The tier refusals keep their reason; 19 (F4) will not change on a second try, 20 (unverified) may.
+        XCTAssertEqual(verdict(.refused, 19).helmetReason, 19)
+        XCTAssertFalse(verdict(.refused, 19).helmetNotReady)
+        XCTAssertTrue(verdict(.refused, 20).helmetNotReady)
+        XCTAssertFalse(verdict(.refused, 27).helmetNotReady)
+        XCTAssertTrue(verdict(.refused, 28).helmetNotReady)
+        // A bad signature is no one to try again, and neither is an accepted upload or no answer.
+        XCTAssertFalse(verdict(.refused, 6).helmetNotReady)
+        XCTAssertFalse(verdict(.accepted, 0).helmetNotReady)
+        XCTAssertFalse(UploadVerdict.of(nil).helmetNotReady)
+    }
+
     // @verifies SWR-UP-01
     @MainActor
     func testAReportWithTheSentHashAndAcceptedIsPassedOn() async {

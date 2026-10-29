@@ -367,6 +367,22 @@ class GattParserTests {
         assertNull(UploadVerdict.of(null).helmetReason)
     }
 
+    // @verifies REQ-UPG-01 SWR-HV-08
+    @Test
+    fun onlyARefusalBecauseTheHelmetHasNotHeardItsTierOrVersionYetIsOneToTryAgain() {
+        fun verdict(status: Int, reason: Int) = UploadVerdict.of(GattParser.parseUploadCheck(uploadFrame(status, reason, ByteArray(32))))
+        // The tier refusals keep their reason; 19 (F4) will not change on a second try, 20 (unverified) may.
+        assertEquals(19, verdict(2, 19).helmetReason)
+        assertEquals(false, verdict(2, 19).helmetNotReady)
+        assertEquals(true, verdict(2, 20).helmetNotReady)
+        assertEquals(false, verdict(2, 27).helmetNotReady)
+        assertEquals(true, verdict(2, 28).helmetNotReady)
+        // A bad signature is no one to try again, and neither is an accepted upload or no answer.
+        assertEquals(false, verdict(2, 6).helmetNotReady)
+        assertEquals(false, verdict(1, 0).helmetNotReady)
+        assertEquals(false, UploadVerdict.of(null).helmetNotReady)
+    }
+
     // @verifies SWR-SS-05
     @Test
     fun theOwnersPauseLimitIsALittleEndianUint32OfSecondsAndZeroIsNoLimit() {

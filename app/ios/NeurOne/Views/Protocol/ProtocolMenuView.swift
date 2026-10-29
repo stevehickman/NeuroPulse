@@ -578,12 +578,15 @@ struct ProtocolMenuView: View {
             let verdict = await uploader.verify(sentHash: sentHash)
             library.recordUploadResult(entry, sentHash: sentHash, helmetStatus: verdict.helmetStatus,
                                        helmetHash: verdict.helmetHash, helmetRefusal: verdict.helmetRefusal)
-            // SWR-HV-08: the hub checks the layout the protocol was made for and refuses a different one. The "sent"
-            // banner was true when it was shown; this says what the hub then decided, and keeps the screen open to show it.
-            if verdict.helmetRefusal == "hardware_version" {
+            // SWR-HV-08, REQ-UPG-01: the hub checks the layout the protocol was made for and the tier it needs, and refuses
+            // a different one. The "sent" banner was true when it was shown; this says what the hub then decided, and keeps
+            // the screen open to show it. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
+            if verdict.refusedForTier || verdict.refusedForHardwareVersion {
                 let message: String
-                if verdict.helmetReason == UploadCheck.reasonHardwareVersionUnverified {
-                    message = String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_NOT_READY")
+                if verdict.helmetNotReady {
+                    message = String(localized: "PROTOCOL_MENU_HELMET_NOT_READY")
+                } else if verdict.refusedForTier {
+                    message = String(localized: "PROTOCOL_MENU_TIER_REFUSED")
                 } else {
                     message = String(localized: "PROTOCOL_MENU_HARDWARE_VERSION_REFUSED")
                 }
