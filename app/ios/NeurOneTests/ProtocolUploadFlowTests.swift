@@ -58,7 +58,7 @@ final class ProtocolUploadFlowTests: XCTestCase {
     func testEveryCauseHasItsOwnMessageThatIsNotTheKey() {
         let causes: [HelmetRefusalCause] = [
             .tier, .hardwareVersion, .notReady, .signature, .wrongDevice, .formatVersion, .damaged, .malformed,
-            .sessionActive, .bootRefused, .other,
+            .sessionActive, .bootRefused, .other, .unmatched,
         ]
         let messages = causes.map { ProtocolUploadFlow.refusalMessage(for: $0) }
         XCTAssertEqual(Set(messages).count, causes.count, "two causes share one message")
@@ -78,11 +78,14 @@ final class ProtocolUploadFlowTests: XCTestCase {
     }
 
     // @verifies SWR-UP-02
-    func testARefusalReportForAnEarlierUploadIsNotThisOnesAndSaysNothing() async throws {
-        let rig = try rig(check(.refused, reason: 6, hash: other))
-        let result = await recorded(rig)
-        XCTAssertNil(result.cause)
-        XCTAssertTrue(result.said.isEmpty, "an old refusal must not be shown for the current attempt")
+    func testAnswerForOtherBytesIsSaidAndMarksNothingUsed() async throws {
+        for report in [check(.refused, reason: 6, hash: other), check(.accepted, hash: other)] {
+            let rig = try rig(report)
+            let result = await recorded(rig)
+            XCTAssertEqual(result.cause, .unmatched)
+            XCTAssertEqual(result.said, [ProtocolUploadFlow.refusalMessage(for: .unmatched)])
+            XCTAssertFalse(rig.library.isUsed(rig.entry), "the helmet's answer says nothing about this upload")
+        }
     }
 
     // @verifies SWR-UP-02
@@ -104,6 +107,15 @@ final class ProtocolUploadFlowTests: XCTestCase {
             XCTAssertFalse(stored, "reason \(reason): Mode 3 must not report the protocol stored")
             XCTAssertEqual(said.count, 1, "reason \(reason): the person is told why")
         }
+    }
+
+    // @verifies SWR-UP-02
+    func testModeThreeIsNotStoredWhenTheHubAnsweredForOtherBytes() async throws {
+        let rig = try rig(check(.accepted, hash: other))
+        var said: [String] = []
+        let stored = try await rig.flow.program(entry: rig.entry, send: { self.sent }) { said.append($0) }
+        XCTAssertFalse(stored, "an accepted answer for other bytes does not say this protocol is on the helmet")
+        XCTAssertEqual(said, [ProtocolUploadFlow.refusalMessage(for: .unmatched)])
     }
 
     // @verifies SWR-UP-02

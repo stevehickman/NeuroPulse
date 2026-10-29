@@ -218,6 +218,7 @@
     "legal_review_required": true
   },
   "OTA_UPDATES_UNAVAILABLE": "Firmware updates cannot be checked right now.",
+  "PROTOCOL_MENU_UPLOAD_UNMATCHED": "The helmet's answer was for a different protocol, so this one may not have reached it. Send it again.",
   "REGULATORY_FOOTER": {
     "legal_review_required": true
   },

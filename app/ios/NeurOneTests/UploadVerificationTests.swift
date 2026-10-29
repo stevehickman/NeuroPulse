@@ -140,6 +140,20 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertNil(UploadVerdict.of(nil).refusalCause)
     }
 
+    // @verifies SWR-UP-02
+    func testAFinalAnswerForOtherBytesIsSaidAsSuchWhateverItSaid() {
+        func cause(_ status: UploadCheckStatus, _ reason: Int, hash: String) -> HelmetRefusalCause? {
+            UploadVerdict.of(report(status, reason: reason, hash: hash)).cause(forSentHash: sent)
+        }
+        XCTAssertEqual(cause(.accepted, 0, hash: other), .unmatched, "the helmet holds other bytes")
+        XCTAssertEqual(cause(.refused, 6, hash: other), .unmatched, "an earlier upload's refusal says nothing about this one")
+        // For this upload the reason decides, and an accepted one has nothing to say.
+        XCTAssertEqual(cause(.refused, 19, hash: sent), .tier)
+        XCTAssertNil(cause(.accepted, 0, hash: sent))
+        XCTAssertNil(UploadVerdict.of(nil).cause(forSentHash: sent), "no answer is the unknown outcome")
+        XCTAssertNil(UploadVerdict.of(report(.pending, hash: other)).cause(forSentHash: sent), "a pending verdict is no answer")
+    }
+
     // @verifies SWR-UP-01
     @MainActor
     func testAReportWithTheSentHashAndAcceptedIsPassedOn() async {
