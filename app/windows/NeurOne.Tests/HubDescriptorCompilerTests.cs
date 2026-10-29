@@ -249,6 +249,28 @@ public class HubDescriptorCompilerTests
             "Intranasal PBM cannot be delivered on led_1064: 1064nm maps to a channel it does not carry.", e.Message);
     }
 
+    // @verifies SWR-HV-08
+    [Fact]
+    public void TheDescriptorStatesTheHelmetsHardwareVersion()
+    {
+        var d = Def(600, Pbm("808nm", 100));
+        // None given: the default, 1 (SWR-HV-07). Given: stamped as is, in the byte after the session length.
+        Assert.Equal(new byte[] { 1, 0, 0, 0 }, Build(d).Blob[64..68]);
+        var three = HubDescriptorCompiler.Build(d, null, [7, 3], false, NOW, UUID, hardwareVersion: 3).Blob;
+        Assert.Equal(new byte[] { 3, 0, 0, 0 }, three[64..68]);
+        // The stamp is inside the signed region the signature covers.
+        byte[]? seen = null;
+        HubDescriptorCompiler.Compile(d, hardwareVersion: 5, sign: region =>
+        {
+            seen = region;
+            return (new byte[HubDescriptorWire.SIG_LEN], "fp");
+        });
+        Assert.Equal(5, seen![64]);
+        // A version a helmet cannot have is refused, not clamped.
+        Assert.Throws<HubCompileException>(() => HubDescriptorCompiler.Build(d, null, [7, 3], false, NOW, UUID, hardwareVersion: 0));
+        Assert.Throws<HubCompileException>(() => HubDescriptorCompiler.Build(d, null, [7, 3], false, NOW, UUID, hardwareVersion: 16));
+    }
+
     // @verifies REQ-FWHUB-31
     [Fact]
     public void TheTargetBlockCarriesTheResolvedMask()

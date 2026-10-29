@@ -69,9 +69,12 @@ final class UploadVerificationTests: XCTestCase {
     }
 
     // @verifies SWR-UP-02
-    func testATierRefusalIsNamedAndOtherRefusalsAreNot() {
+    func testATierOrHardwareVersionRefusalIsNamedAndOtherRefusalsAreNot() {
         XCTAssertEqual(report(.refused, reason: 19, hash: sent).refusalKind, "tier")
         XCTAssertEqual(report(.refused, reason: 20, hash: sent).refusalKind, "tier")
+        XCTAssertEqual(report(.refused, reason: 27, hash: sent).refusalKind, "hardware_version", "SWR-HV-08 mismatch")
+        XCTAssertEqual(report(.refused, reason: 28, hash: sent).refusalKind, "hardware_version", "SWR-HV-08 not yet verified")
+        XCTAssertNil(report(.accepted, reason: 27, hash: sent).refusalKind, "only a refusal has a refusal kind")
         XCTAssertNil(report(.refused, reason: 6, hash: sent).refusalKind, "a bad signature is a failure, not a tier")
         XCTAssertNil(report(.accepted, reason: 19, hash: sent).refusalKind, "only a refusal has a refusal kind")
     }

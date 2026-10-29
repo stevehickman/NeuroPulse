@@ -46,15 +46,18 @@ static class HubDescriptorCompiler
     /// (`HubSerial.Parse` is the seam a transport fills), where a hub with a provisioned serial refuses
     /// the descriptor (OI-AND-WIRE-02).
     /// `clinicianSockets` are operator-chosen 1-based socket ids for `clinician_selected` targets.
+    /// `hardwareVersion` is the helmet's hardware version (1 to 15), stamped in the signed header so the helmet can refuse
+    /// a protocol compiled for another layout (SWR-HV-08); null stamps the default, 1 (SWR-HV-07).
     public static HubDescriptor Compile(
         NPProtocolDefinition definition,
         byte[]? deviceSerial = null,
         IReadOnlyList<int>? clinicianSockets = null,
         bool autonomous = false,
         Func<byte[], (byte[] Signature, string Fingerprint)>? sign = null,
-        IReadOnlyList<string>? acknowledgedCautions = null)
+        IReadOnlyList<string>? acknowledgedCautions = null,
+        int? hardwareVersion = null)
         => Signed(Build(definition, deviceSerial, clinicianSockets, autonomous,
-                        acknowledgedCautions: acknowledgedCautions), sign);
+                        acknowledgedCautions: acknowledgedCautions, hardwareVersion: hardwareVersion), sign);
 
     /// Fill the trailing signature of an unsigned descriptor. Split from Compile so a caller can
     /// tell a compile refusal from a signing failure.
@@ -83,7 +86,8 @@ static class HubDescriptorCompiler
         bool autonomous = false,
         DateTimeOffset? now = null,
         byte[]? sessionUuid = null,
-        IReadOnlyList<string>? acknowledgedCautions = null)
+        IReadOnlyList<string>? acknowledgedCautions = null,
+        int? hardwareVersion = null)
     {
         var uuid = sessionUuid ?? RandomNumberGenerator.GetBytes(HubDescriptorWire.UUID_LEN);
         if (uuid.Length != HubDescriptorWire.UUID_LEN) throw new ArgumentException($"sessionUuid must be {HubDescriptorWire.UUID_LEN} bytes.", nameof(sessionUuid));
@@ -102,6 +106,7 @@ static class HubDescriptorCompiler
             NowUnix = (now ?? DateTimeOffset.UtcNow).ToUnixTimeSeconds(), SessionUuid = uuid,
             Autonomous = autonomous,
             AcknowledgedCautions = acknowledgedCautions ?? Array.Empty<string>(),
+            HardwareVersion = hardwareVersion,
         };
 
         byte[] blob;

@@ -220,6 +220,25 @@ final class HubDescriptorCompilerTests: XCTestCase {
         XCTAssertEqual(auto[6], 0b10)
     }
 
+    // @verifies SWR-HV-08
+    func testTheDescriptorStatesTheHelmetsHardwareVersion() throws {
+        let d = def(600, pbm("808nm", 100))
+        // None given: the default, 1 (SWR-HV-07). Given: stamped as is, in the byte after the session length.
+        XCTAssertEqual(Array(try build(d).blob[64..<68]), [1, 0, 0, 0])
+        let three = try HubDescriptorCompiler.build(d, hardwareVersion: 3).blob
+        XCTAssertEqual(Array(three[64..<68]), [3, 0, 0, 0])
+        // The stamp is inside the signed region the signature covers.
+        var seen: Data?
+        _ = try HubDescriptorCompiler.compile(d, hardwareVersion: 5, sign: { region in
+            seen = region
+            return (Data(repeating: 0, count: HubDescriptorWire.SIG_LEN), "fp")
+        })
+        XCTAssertEqual(seen?[64], 5)
+        // A version a helmet cannot have is refused, not clamped.
+        XCTAssertThrowsError(try HubDescriptorCompiler.build(d, hardwareVersion: 0))
+        XCTAssertThrowsError(try HubDescriptorCompiler.build(d, hardwareVersion: 16))
+    }
+
     // MARK: - Refusals
 
     // @verifies REQ-NPPS-03#c REQ-NPPS-04 REQ-NPPS-08#c REQ-NPPS-09

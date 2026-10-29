@@ -48,16 +48,20 @@ enum HubDescriptorCompiler {
     ///   - deviceSerial: the 32-byte replay guard the hub checks (§4.2). Omitted only on the
     ///     bench: a hub with a provisioned serial refuses the descriptor (OI-AND-WIRE-02).
     ///   - clinicianSockets: operator-chosen 1-based socket ids for `clinician_selected` targets.
+    ///   - hardwareVersion: the helmet's hardware version (1 to 15), stamped in the signed header so the helmet can refuse
+    ///     a protocol compiled for another layout (SWR-HV-08); nil stamps the default, 1 (SWR-HV-07).
     static func compile(
         _ definition: NPProtocolDefinition,
         deviceSerial: Data? = nil,
         clinicianSockets: [Int]? = nil,
         autonomous: Bool = false,
         acknowledgedCautions: [String] = [],
+        hardwareVersion: Int? = nil,
         sign: (Data) throws -> (signature: Data, fingerprint: String) = SessionProtocolSigner.sign
     ) throws -> HubDescriptor {
         try signed(try build(definition, deviceSerial: deviceSerial, clinicianSockets: clinicianSockets,
-                             autonomous: autonomous, acknowledgedCautions: acknowledgedCautions), using: sign)
+                             autonomous: autonomous, acknowledgedCautions: acknowledgedCautions,
+                             hardwareVersion: hardwareVersion), using: sign)
     }
 
     /// Fill the trailing signature of an unsigned descriptor. Split from `compile` so the caller can
@@ -84,6 +88,7 @@ enum HubDescriptorCompiler {
         clinicianSockets: [Int]? = nil,
         autonomous: Bool = false,
         acknowledgedCautions: [String] = [],
+        hardwareVersion: Int? = nil,
         now: Date = Date(),
         sessionUUID: [UInt8]? = nil
     ) throws -> HubDescriptor {
@@ -98,7 +103,7 @@ enum HubDescriptorCompiler {
         let options = NppsCore.CompileOptions(
             zones: zones, clinicianSockets: clinicianSockets, deviceSerial: deviceSerial,
             nowUnix: Int(now.timeIntervalSince1970), sessionUUID: Data(uuid), wavelengthRules: nil,
-            autonomous: autonomous, acknowledgedCautions: acknowledgedCautions)
+            autonomous: autonomous, acknowledgedCautions: acknowledgedCautions, hardwareVersion: hardwareVersion)
         let blob: Data
         do {
             blob = try NppsCore.compile(protocolJSON: try definition.nppsCoreJSON(), options: options)
