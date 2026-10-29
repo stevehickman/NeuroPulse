@@ -188,6 +188,7 @@ extension UploadVerdict {
             return UploadVerdict(helmetStatus: nil, helmetHash: nil, helmetRefusal: nil)
         }
         return UploadVerdict(helmetStatus: check.status == .accepted ? "accepted" : "refused",
-                             helmetHash: check.receivedHash, helmetRefusal: check.refusalKind)
+                             helmetHash: check.receivedHash, helmetRefusal: check.refusalKind,
+                             helmetReason: check.status == .refused ? check.reason : nil)
     }
 }
