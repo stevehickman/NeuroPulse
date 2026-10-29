@@ -20,7 +20,7 @@ the only thing that keeps these from being forgotten.
 | **MT-05** | Cardiac interlock detection and cutoff latency (`FAI-CV02`) | T2 hub, cVNS accessory, R-peak generator, oscilloscope | **No.** Hardware | `docs/np_fw_cvns_001.md` §9; `OI-FMEA-02` | Hardware bench |
 | **MT-06** | Watchdog cutoff latency to all enable nets | Safety-MCU hardware, oscilloscope | **No.** Hardware | `docs/np_fmea_001.md` `OI-FMEA-01` | Hardware bench |
 
-MT-05 to MT-22 are hardware or bench tests. None can run today: the project is pre-tooling and no hardware
+MT-05 to MT-24 are hardware or bench tests. None can run today: the project is pre-tooling and no hardware
 exists (`CLAUDE.md` header; `NP-SW-CI-001`). Their procedures, criteria and figures stay in the owner docs
 and are **not** repeated here. Where a row says "gated", the owner doc names the open item that must close first.
 
@@ -42,6 +42,8 @@ and are **not** repeated here. Where a row says "gated", the owner doc names the
 | **MT-20** | 3.3 V logic budget per populated tile in each state (`HT-DRC-12`, `REQ-FWTILE-08`) | Populated hextile module, 25–62 °C chamber, current measurement | `NP-HW-HEXTILE-001` (`HT-DRC-12`); `NP-FW-HEXTILE-001` §10 | Open; depends on standby firmware (`OI-HEXTILE-07`) |
 | **MT-21** | U3 holds `I_cap` and U4 trips while U1 commands 100 % duty and full `CUR` (`OI-HEXTILE-24(g)`) | Hextile with U3/U4 fitted, the selected emitter | `NP-HW-HEXTILE-001` `OI-HEXTILE-24` | Gated: no emitter selected (`OI-HEXTILE-02`), U3/U4 not chosen. Until it closes, the thermal cut is the only non-firmware bound |
 | **MT-22** | Shell (`NP-DRV-SHELL-002` §11) bench design-review items: `SH2-DRC-08`, `10`, `10a`, `10b`, `12`, `14`, `16`, `17`, `24`, `26`, `27`, `28` | Per row: socket force rig, current probes, oscilloscope, magnetometer, PD readback | `NP-DRV-SHELL-002` §11; the record is `NP-REV-SHELL-001` | None signed. `SH2-DRC-17` is BLOCKED on `OI-SHELL2-07` (budget unset) |
+| **MT-23** | Safety-MCU IWDG on silicon: worst-case main-loop iteration, and a deliberately stalled loop resets with every enable disabled (`OI-SWCI-49`) | Safety-MCU board, scope or logic analyser | `NP-SW-CI-001` `OI-SWCI-49`; feeds `NP-FMEA-001` `OI-FMEA-01` | Not run. The 1,000 ms timeout is provisional; no WCET has been measured. Run with MT-06 |
+| **MT-24** | On-skin 1 kHz impedance distribution for the tES electrode set, to set a minimum-impedance floor (`OI-FMEA-14`) | Calibrated impedance front end (MT-18), human volunteers | `NP-FMEA-001` `OI-FMEA-14` | Blocked on MT-18. Current floors (500 Ω VNS-HRV / cervical VNS, 1 Ω tDCS and BES/tACS) are interim and change only on evidence |
 
 ## 2. Common step lists
 
@@ -143,7 +145,7 @@ recorded separately, and a cutoff time is never quoted without its detection tim
 **Not runnable (hardware).** Follow `NP-FMEA-001` `OI-FMEA-01`. Use CS-E and CS-D. The item names two
 nodes to be read, and the pass criterion is the item's.
 
-### MT-07 to MT-22. Hardware and bench tests
+### MT-07 to MT-24. Hardware and bench tests
 For each: CS-E, then the owner doc's procedure, then CS-F, then CS-D. Notes the owner docs make that change
 how you run them:
 
@@ -165,6 +167,11 @@ how you run them:
 - **MT-20 / MT-21:** the 80-tile ~1 W figure holds only if standby is the default. `HT-DRC-12` closes on
   a bench measurement, not on the owner doc's table. MT-21 cannot be started until `OI-HEXTILE-02` and
   `OI-HEXTILE-24` close. A 660/808 nm emitter has not been chosen.
+- **MT-23:** run with MT-06, because `OI-FMEA-01` asks for the same reset-to-disabled latency. The 1,000 ms
+  IWDG timeout and the 1.5 s heartbeat timeout are different mechanisms; record which one each trace shows.
+- **MT-24:** involves human volunteers, so it needs the same ethics route as MT-08 before anyone is recruited
+  (the source names Clinical as an owner). Calibrate the front end first (MT-18); a distribution through an
+  uncalibrated front end derives nothing. Record the distribution only. Do not set a floor from this index.
 - **MT-22:** one row for twelve shell items. Log each `SH2-DRC-nn` separately in `NP-REV-SHELL-001`, which
   is the instrument that records them. The items' methods and pass criteria are in `NP-DRV-SHELL-002` §11.
   `SH2-DRC-14` is the same <50 ms cutoff class as MT-06 but at the cluster rails, so it is not a duplicate.
@@ -175,20 +182,34 @@ how you run them:
 
 - **Not found:** any manual test in `app/android/ISA.md` (it has no `manual` rows), and any manual
   procedure for the Windows or web apps.
-- **Hardware rows are an index only.** MT-05 to MT-22 were taken from the owner docs' test tables and
+- **Hardware rows are an index only.** MT-05 to MT-24 were taken from the owner docs' test tables and
   headings, not from reading each procedure end to end. I read `FAI-CV01`, `CV02`, `CV03`, the `FAI-SM`,
   `FAI-T2` and `FAI-HD` tables, the `EMF-1` plan and the head of `NP-EMC-EMIRR-001`. I did not read the
   `NP-FAI-001` and `NP-FAI-HUB-001` rows in full.
 - **Not included, deliberately:** `FAI-SM-01`/`02`/`03`/`05`/`09`/`10`/`11`, `FAI-T2-01`–`04` (marked
   Software PASS in their docs), and `FAI-ANON-01`–`09` (firmware tests whose execution mode I did not
   confirm). If any of these turns out to be run by hand, it belongs here.
-- **Added at MT-18 to MT-22:** `OI-SWCI-34`, `OI-SWCI-39` (with `-42`), `HT-DRC-12`, `OI-HEXTILE-24(g)` and
+- **Added at MT-18 to MT-22 (and MT-23, MT-24):** `OI-SWCI-34`, `OI-SWCI-39` (with `-42`), `HT-DRC-12`, `OI-HEXTILE-24(g)` and
   the shell bench items. `OI-SWCI-42` is closed, but its `.bss` move still waits on MT-19. I read the
   `NP-SW-CI-001` §4.10 and OI rows, the `HT-DRC-12` rows in both hextile docs, the `OI-HEXTILE-24` row and the
   `NP-DRV-SHELL-002` §11 table. I did not read `NP-REV-SHELL-001` past its status rows.
-- **Still not included:** `OI-FMEA` items beyond `01` and `02`, and `SH2-DRC` rows whose method is CAD, schematic,
-  netlist or code review (not tests a person runs on a bench). Items I could only infer are bench-style from a
-  one-line mention are not here either; each should get a row once its owner confirms it is a distinct test.
+- **`OI-FMEA` triage (every row in `NP-FMEA-001`'s open-item table; `07` and `09` have no row there):** only `01` and `02` are bench tests (MT-06, MT-05),
+  and `14` is a measurement (MT-24). The rest are not tests a person runs, so they have no row:
+
+  | Item | Why no row |
+  |------|-----------|
+  | `03` | Closed (built, CRC-checked in code and host tests) |
+  | `04` | Closed not applicable (no current-sense ADC exists) |
+  | `05` | Spec to author in `NP-SW-001` |
+  | `06` | Re-analysis against the hex-lattice architecture |
+  | `08` | A decision on a ramp-down margin in the charge monitor |
+  | `10` | An FMEA section to author for SW01-M09 |
+  | `11` | Closed (built, `np_gpio_mgr_tests`) |
+  | `12` | (a), (b), (d) closed by building; (c) is an ALARP justification pending `OI-CVNS-11` |
+  | `13` | (i) a SYSCLK-vs-LSI control to build or re-score; (ii) closed. If (i) is built, its check on silicon belongs in a row |
+- **Still not included:** `SH2-DRC` rows whose method is CAD, schematic, netlist or code review (not tests a
+  person runs on a bench), and bench items I could only infer from a one-line mention. Each should get a row once
+  its owner confirms it is a distinct test.
 - **Same measurement, two places:** `FAI-CV02` is `OI-FMEA-02`'s test, and `FAI-HD01/03/04` and `FAI-SM-04`
   also appear in `NP-QMS-DC-001`'s design-verification list. This index lists each test once.
 - **Not read:** `simulator/HOWTO.md` is a user manual and has no test script that I found.
