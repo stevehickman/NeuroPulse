@@ -157,20 +157,28 @@ enum NPLibraryRules {
     }
 }
 
+/// The core's reading of a helmet upload report (`NPLibraryRules.helmetCause`): the library's `helmetRefusal`, whether it was
+/// only "not ready yet", and the cause to say.
+struct HelmetCauseAnswer: Equatable {
+    var refusalKind: String?
+    var notReady: Bool
+    var cause: HelmetRefusalCause?
+}
+
 extension NPLibraryRules {
     /// What a helmet's upload report means to a person (SWR-UP-02, SWR-HV-08, REQ-UPG-01), decided by the shared core
     /// (`helmetCause` in `common/npps-core/src/library.rs`). `status` is `accepted`, `refused` or nil; `reason` is the refusal's
     /// `np_hub_status_t` as a positive number; `sentHash` is given when the screen is about the upload whose bytes hash to it.
-    static func helmetCause(status: String?, reason: Int?, helmetHash: String?, sentHash: String?)
-        -> (refusalKind: String?, notReady: Bool, cause: HelmetRefusalCause?) {
+    static func helmetCause(status: String?, reason: Int?, helmetHash: String?, sentHash: String?) -> HelmetCauseAnswer {
         var request: [String: Any] = [:]
         if let status { request["status"] = status }
         if let reason { request["reason"] = reason }
         if let helmetHash { request["helmetHash"] = helmetHash }
         if let sentHash { request["sentHash"] = sentHash }
         let answer = ask("helmetCause", request)
-        return (answer["refusalKind"] as? String, (answer["notReady"] as? Bool) == true,
-                HelmetRefusalCause(rule: answer["cause"] as? String))
+        return HelmetCauseAnswer(refusalKind: answer["refusalKind"] as? String,
+                                 notReady: (answer["notReady"] as? Bool) == true,
+                                 cause: HelmetRefusalCause(rule: answer["cause"] as? String))
     }
 }
 
