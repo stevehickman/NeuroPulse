@@ -71,6 +71,7 @@ val generateValidationStrings by tasks.registering {
 //              cloudAuth.google.clientSecret CLOUDAUTH_GOOGLE_CLIENT_SECRET  (optional: a desktop-type client only)
 //   Microsoft: cloudAuth.microsoft.clientId / .redirectUri (required), .oneDriveTenant / .azureTenant (optional)
 //              CLOUDAUTH_MICROSOFT_CLIENT_ID / _REDIRECT_URI / _ONEDRIVE_TENANT / _AZURE_TENANT
+//   Dropbox:   cloudAuth.dropbox.appKey / .redirectUri (required)   CLOUDAUTH_DROPBOX_APP_KEY / _REDIRECT_URI
 //   CloudKit:  cloudAuth.cloudKit.container / .apiToken / .signInCallbackUri (required), .environment / .baseUrl (optional)
 //              CLOUDAUTH_CLOUDKIT_CONTAINER / _API_TOKEN / _SIGN_IN_CALLBACK_URI / _ENVIRONMENT / _BASE_URL
 fun cloudAuthInput(property: String, env: String): String? =
@@ -86,6 +87,8 @@ val cloudAuthConfigSource: String = run {
     val mRedirect = cloudAuthInput("cloudAuth.microsoft.redirectUri", "CLOUDAUTH_MICROSOFT_REDIRECT_URI")
     val mOneDrive = cloudAuthInput("cloudAuth.microsoft.oneDriveTenant", "CLOUDAUTH_MICROSOFT_ONEDRIVE_TENANT")
     val mAzure = cloudAuthInput("cloudAuth.microsoft.azureTenant", "CLOUDAUTH_MICROSOFT_AZURE_TENANT")
+    val dbKey = cloudAuthInput("cloudAuth.dropbox.appKey", "CLOUDAUTH_DROPBOX_APP_KEY")
+    val dbRedirect = cloudAuthInput("cloudAuth.dropbox.redirectUri", "CLOUDAUTH_DROPBOX_REDIRECT_URI")
     val ckContainer = cloudAuthInput("cloudAuth.cloudKit.container", "CLOUDAUTH_CLOUDKIT_CONTAINER")
     val ckToken = cloudAuthInput("cloudAuth.cloudKit.apiToken", "CLOUDAUTH_CLOUDKIT_API_TOKEN")
     val ckCallback = cloudAuthInput("cloudAuth.cloudKit.signInCallbackUri", "CLOUDAUTH_CLOUDKIT_SIGN_IN_CALLBACK_URI")
@@ -98,6 +101,9 @@ val cloudAuthConfigSource: String = run {
     val microsoft = if (mId != null && mRedirect != null) {
         "MicrosoftClientConfig(" + listOfNotNull(arg("clientId", mId), arg("redirectUri", mRedirect), arg("oneDriveTenant", mOneDrive), arg("azureTenant", mAzure)).joinToString(", ") + ")"
     } else "null"
+    val dropbox = if (dbKey != null && dbRedirect != null) {
+        "DropboxClientConfig(" + listOfNotNull(arg("appKey", dbKey), arg("redirectUri", dbRedirect)).joinToString(", ") + ")"
+    } else "null"
     val cloudKit = if (ckContainer != null && ckToken != null && ckCallback != null) {
         "CloudKitConfig(" + listOfNotNull(arg("container", ckContainer), arg("apiToken", ckToken), arg("signInCallbackUri", ckCallback), arg("environment", ckEnvironment), arg("baseUrl", ckBase)).joinToString(", ") + ")"
     } else "null"
@@ -107,12 +113,13 @@ val cloudAuthConfigSource: String = run {
         appendLine()
         appendLine("import life.neurone.core.cloudauth.CloudAuthConfig")
         appendLine("import life.neurone.core.cloudauth.CloudKitConfig")
+        appendLine("import life.neurone.core.cloudauth.DropboxClientConfig")
         appendLine("import life.neurone.core.cloudauth.MicrosoftClientConfig")
         appendLine("import life.neurone.core.cloudauth.OAuthClientConfig")
         appendLine()
         appendLine("/** The cloud providers this build was registered with; a provider left out here is null and its sign-in fails with NOT_CONFIGURED. */")
         appendLine("object CloudAuthBuildConfig {")
-        appendLine("    val config: CloudAuthConfig = CloudAuthConfig(google = $google, microsoft = $microsoft, cloudKit = $cloudKit)")
+        appendLine("    val config: CloudAuthConfig = CloudAuthConfig(google = $google, microsoft = $microsoft, cloudKit = $cloudKit, dropbox = $dropbox)")
         appendLine("}")
     }
 }

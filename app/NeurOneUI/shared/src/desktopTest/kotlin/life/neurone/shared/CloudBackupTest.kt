@@ -11,6 +11,7 @@ import life.neurone.core.cloudauth.CloudAuth
 import life.neurone.core.cloudauth.CloudAuthConfig
 import life.neurone.core.cloudauth.CloudService
 import life.neurone.core.cloudauth.CredentialStore
+import life.neurone.core.cloudauth.DropboxClientConfig
 import life.neurone.core.cloudauth.MicrosoftClientConfig
 import life.neurone.core.cloudauth.OAuthClientConfig
 import life.neurone.core.cloudauth.TargetField
@@ -72,7 +73,7 @@ class CloudBackupTest {
     }
 
     private fun auth(f: Fakes, kv: InMemoryKeyValueStore) =
-        CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
+        CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
 
     // @verifies SWR-MG-21#a
     @Test fun every_signed_in_account_is_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
@@ -140,6 +141,23 @@ class CloudBackupTest {
         assertEquals("acct.r2.example.com", m.place.value?.label)
         assertFalse(m.place.value!!.route.atomicClaim, "no cloud route carries a migration")
         assertFalse(m.place.value!!.carriesRecordings)
+    }
+
+    // @verifies SWR-MG-23#c
+    @Test fun a_dropbox_account_is_chosen_like_drive_with_no_name_to_type_and_keeps_a_backup_only() = runTest {
+        val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
+        val dropbox = a.signIn(CloudService.DROPBOX)
+        val m = CloudBackupModel(a, f.transport, kv)
+        m.refresh()
+        assertEquals(emptyList(), m.destinations.value.single().fields, "nothing to type")
+        assertTrue(m.choose(dropbox.id))
+        val place = assertNotNull(m.place.value)
+        assertEquals("Dropbox", place.label)
+        assertFalse(place.route.atomicClaim); assertFalse(place.carriesRecordings)
+        assertNull(kv.getString(BACKUP_CLOUD_TARGET_KEY))
+        place.store.list("")
+        assertTrue("dropboxapi.com" in f.api.last().url, f.api.last().url)
+        assertEquals("Bearer access-token-1", f.api.last().headers["Authorization"])
     }
 
     // @verifies SWR-MG-21#c

@@ -19,6 +19,7 @@ private class RecordingApi : HttpTransport {
         val body = when {
             "googleapis.com" in request.url -> """{"files":[]}"""
             "graph.microsoft.com" in request.url -> """{"value":[]}"""
+            "dropboxapi.com" in request.url -> """{"entries":[],"has_more":false}"""
             else -> """{"records":[]}"""
         }
         return HttpResponse(200, emptyMap(), body.encodeToByteArray())
@@ -119,9 +120,10 @@ class CloudStoresTests {
     }
 
     // @verifies SWR-MG-21#b
+    // @verifies SWR-MG-23#b
     @Test
     fun aGoogleDriveAndAOneDriveStoreSendTheAccountsOwnTokenToTheServiceAndGetAFreshOneWhenItHasExpired() = runBlocking {
-        for ((service, host) in listOf(CloudService.GOOGLE_DRIVE to "googleapis.com", CloudService.ONEDRIVE to "graph.microsoft.com")) {
+        for ((service, host) in listOf(CloudService.GOOGLE_DRIVE to "googleapis.com", CloudService.ONEDRIVE to "graph.microsoft.com", CloudService.DROPBOX to "dropboxapi.com")) {
             val rig = Rig()
             val account = rig.auth.signIn(service)
             val api = RecordingApi()

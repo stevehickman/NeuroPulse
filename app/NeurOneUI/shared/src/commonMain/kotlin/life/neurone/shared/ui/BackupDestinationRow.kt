@@ -40,6 +40,7 @@ private fun serviceName(service: CloudService): StringResource = when (service) 
     CloudService.GOOGLE_CLOUD_STORAGE -> Res.string.cloud_service_google_cloud_storage
     CloudService.AZURE_BLOB -> Res.string.cloud_service_azure_blob
     CloudService.AWS_S3 -> Res.string.cloud_service_aws_s3
+    CloudService.DROPBOX -> Res.string.cloud_service_dropbox
 }
 
 private fun fieldLabel(field: TargetField): StringResource = when (field) {
