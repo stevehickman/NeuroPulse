@@ -146,5 +146,6 @@ class CloudBackupModel(
         CloudService.AWS_S3 -> "Amazon S3"
         CloudService.DROPBOX -> "Dropbox"
         CloudService.WEBDAV -> "WebDAV"
+        CloudService.AZURE_BLOB_SAS -> "Azure Blob (SAS)"
     }
 }

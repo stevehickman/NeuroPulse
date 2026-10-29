@@ -38,6 +38,8 @@ enum class CloudNoticeKind {
     KEYS_INVALID,
     LOGIN_SAVED,
     LOGIN_INVALID,
+    SAS_SAVED,
+    SAS_INVALID,
 }
 
 class CloudNotice(val kind: CloudNoticeKind, val service: CloudService?)
@@ -84,7 +86,7 @@ class CloudAccountsModel(
     }
 
     suspend fun signIn(service: CloudService) {
-        if (service.family == AccountFamily.AWS || service.family == AccountFamily.WEBDAV || !begin(service)) return
+        if (service.family == AccountFamily.AWS || service.family == AccountFamily.WEBDAV || service.family == AccountFamily.AZURE_SAS || !begin(service)) return
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
             if (existing != null && !existing.needsSignIn) return
@@ -143,6 +145,21 @@ class CloudAccountsModel(
         }
     }
 
+    /** Keep an Azure shared access signature the person pasted (SWR-MG-26). The caller empties its field afterwards; nothing here keeps it. */
+    suspend fun addAzureSas(sas: String) {
+        val service = CloudService.AZURE_BLOB_SAS
+        if (!begin(service)) return
+        try {
+            val existing = _rows.value.firstOrNull { it.service == service }?.account
+            auth.addAzureSas(sas, replacing = existing?.id)
+            _notice.value = CloudNotice(CloudNoticeKind.SAS_SAVED, service)
+        } catch (e: CloudAuthException) {
+            report(e, service)
+        } finally {
+            end()
+        }
+    }
+
     private fun begin(service: CloudService): Boolean {
         if (_busy.value != null) return false
         _busy.value = service
@@ -166,6 +183,7 @@ class CloudAccountsModel(
             CloudAuthProblem.INVALID_INPUT -> when (service.family) {
                 AccountFamily.AWS -> CloudNoticeKind.KEYS_INVALID
                 AccountFamily.WEBDAV -> CloudNoticeKind.LOGIN_INVALID
+                AccountFamily.AZURE_SAS -> CloudNoticeKind.SAS_INVALID
                 else -> CloudNoticeKind.FAILED
             }
             CloudAuthProblem.STATE_MISMATCH, CloudAuthProblem.SIGN_IN_REQUIRED, CloudAuthProblem.PROVIDER, CloudAuthProblem.UNKNOWN_ACCOUNT -> CloudNoticeKind.FAILED

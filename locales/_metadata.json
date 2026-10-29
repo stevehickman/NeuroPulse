@@ -113,6 +113,9 @@
   "CLOUD_SERVICE_AZURE_BLOB": {
     "translate": false
   },
+  "CLOUD_SERVICE_AZURE_BLOB_SAS": {
+    "translate": false
+  },
   "CLOUD_SERVICE_DROPBOX": {
     "translate": false
   },

@@ -55,6 +55,7 @@ private fun serviceName(service: CloudService): StringResource = when (service) 
     CloudService.AWS_S3 -> Res.string.cloud_service_aws_s3
     CloudService.DROPBOX -> Res.string.cloud_service_dropbox
     CloudService.WEBDAV -> Res.string.cloud_service_webdav
+    CloudService.AZURE_BLOB_SAS -> Res.string.cloud_service_azure_blob_sas
 }
 
 @Composable
@@ -94,6 +95,7 @@ fun CloudAccountsScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
                 onSignOut = { scope.launch { model.signOut(row.service) } },
                 onSaveKeys = { id, secret, token -> scope.launch { model.addAwsKeys(id, secret, token) } },
                 onSaveLogin = { url, user, password -> scope.launch { model.addWebDavLogin(url, user, password) } },
+                onSaveSas = { sas -> scope.launch { model.addAzureSas(sas) } },
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -108,9 +110,11 @@ private fun ServiceCard(
     onSignOut: () -> Unit,
     onSaveKeys: (String, String, String?) -> Unit,
     onSaveLogin: (String, String, String) -> Unit,
+    onSaveSas: (String) -> Unit,
 ) {
     val isAws = row.service.family == AccountFamily.AWS
     val isWebDav = row.service.family == AccountFamily.WEBDAV
+    val isSas = row.service.family == AccountFamily.AZURE_SAS
     var enteringKeys by remember { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -130,9 +134,9 @@ private fun ServiceCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (row.configured) {
                     if (!row.signedIn) {
-                        if (isAws || isWebDav) {
+                        if (isAws || isWebDav || isSas) {
                             Button(enabled = enabled, onClick = { enteringKeys = true }) {
-                                Text(stringResource(if (isAws) Res.string.cloud_button_add_keys else Res.string.cloud_button_add_login))
+                                Text(stringResource(if (isAws) Res.string.cloud_button_add_keys else if (isSas) Res.string.cloud_button_add_sas else Res.string.cloud_button_add_login))
                             }
                         } else {
                             Button(enabled = enabled, onClick = onSignIn) {
@@ -144,6 +148,16 @@ private fun ServiceCard(
                         OutlinedButton(enabled = enabled, onClick = onSignOut) { Text(stringResource(Res.string.cloud_button_sign_out)) }
                     }
                 }
+            }
+            if (isSas && enteringKeys && !row.signedIn) {
+                AzureSasForm(
+                    enabled = enabled,
+                    onSave = { sas ->
+                        onSaveSas(sas)
+                        enteringKeys = false
+                    },
+                    onCancel = { enteringKeys = false },
+                )
             }
             if (isWebDav && enteringKeys && !row.signedIn) {
                 WebDavLoginForm(
@@ -203,6 +217,25 @@ private fun AwsKeysForm(enabled: Boolean, onSave: (String, String, String?) -> U
     }
 }
 
+/** The field is emptied when the form goes away: nothing here keeps what was pasted once it has been handed on. */
+@Composable
+private fun AzureSasForm(enabled: Boolean, onSave: (String) -> Unit, onCancel: () -> Unit) {
+    var sas by remember { mutableStateOf("") }
+    Spacer(Modifier.height(8.dp))
+    Text(stringResource(Res.string.cloud_azure_sas_note), style = MaterialTheme.typography.bodySmall)
+    OutlinedTextField(
+        value = sas, onValueChange = { sas = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(Res.string.cloud_azure_sas_field)) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    )
+    Spacer(Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(enabled = enabled && sas.isNotBlank(), onClick = { onSave(sas) }) { Text(stringResource(Res.string.cloud_button_save_sas)) }
+        OutlinedButton(onClick = onCancel) { Text(stringResource(Res.string.common_cancel)) }
+    }
+}
+
 /** The fields are emptied when the form goes away: nothing here keeps what was typed once it has been handed on. */
 @Composable
 private fun WebDavLoginForm(enabled: Boolean, onSave: (String, String, String) -> Unit, onCancel: () -> Unit) {
@@ -236,7 +269,7 @@ private fun WebDavLoginForm(enabled: Boolean, onSave: (String, String, String) -
 }
 
 private fun CloudNotice.isProblem(): Boolean = when (kind) {
-    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED, CloudNoticeKind.LOGIN_SAVED -> false
+    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED, CloudNoticeKind.LOGIN_SAVED, CloudNoticeKind.SAS_SAVED -> false
     else -> true
 }
 
@@ -256,5 +289,7 @@ private fun noticeText(notice: CloudNotice): String {
         CloudNoticeKind.KEYS_INVALID -> stringResource(Res.string.cloud_notice_keys_invalid)
         CloudNoticeKind.LOGIN_SAVED -> stringResource(Res.string.cloud_notice_login_saved, name)
         CloudNoticeKind.LOGIN_INVALID -> stringResource(Res.string.cloud_notice_login_invalid)
+        CloudNoticeKind.SAS_SAVED -> stringResource(Res.string.cloud_notice_sas_saved, name)
+        CloudNoticeKind.SAS_INVALID -> stringResource(Res.string.cloud_notice_sas_invalid)
     }
 }

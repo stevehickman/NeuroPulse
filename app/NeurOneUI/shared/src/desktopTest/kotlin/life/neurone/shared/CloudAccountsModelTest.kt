@@ -59,7 +59,7 @@ class CloudAccountsModelTest {
         m.refresh()
         assertEquals(CloudService.values().toList(), m.rows.value.map { it.service })
         val configured = m.rows.value.filter { it.configured }.map { it.service }.toSet()
-        assertEquals(setOf(CloudService.GOOGLE_DRIVE, CloudService.GOOGLE_CLOUD_STORAGE, CloudService.ONEDRIVE, CloudService.AZURE_BLOB, CloudService.AWS_S3, CloudService.WEBDAV), configured)
+        assertEquals(setOf(CloudService.GOOGLE_DRIVE, CloudService.GOOGLE_CLOUD_STORAGE, CloudService.ONEDRIVE, CloudService.AZURE_BLOB, CloudService.AWS_S3, CloudService.WEBDAV, CloudService.AZURE_BLOB_SAS), configured)
         assertTrue(m.rows.value.none { it.account != null })
     }
 
@@ -195,6 +195,31 @@ class CloudAccountsModelTest {
         assertNull(m.rows.value.first { it.service == CloudService.WEBDAV }.account)
         assertEquals(CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, m.notice.value?.kind)
         assertTrue(f.posts.isEmpty(), "a WebDAV login is never sent anywhere by this screen")
+    }
+
+    // @verifies SWR-MG-26#e
+    @Test fun an_azure_signature_is_checked_kept_once_and_signing_out_removes_it_without_sending_anything() = runTest {
+        val f = Fakes()
+        val m = model(f)
+        m.refresh()
+        m.addAzureSas("sp=r&sig=x")
+        assertEquals(CloudNoticeKind.SAS_INVALID, m.notice.value?.kind, "read only cannot keep a backup")
+        m.addAzureSas("sp=rcwdl&se=1970-01-01&sig=x")
+        assertEquals(CloudNoticeKind.SAS_INVALID, m.notice.value?.kind, "expired")
+        assertNull(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.account)
+
+        m.addAzureSas(" ?sv=2024-11-04&sr=c&sp=rcwdl&sig=abc%2B ")
+        assertEquals(CloudNoticeKind.SAS_SAVED, m.notice.value?.kind)
+        assertTrue(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.signedIn)
+        m.addAzureSas("sv=2024-11-04&sr=c&sp=rcwdl&sig=other")
+        assertEquals(1, m.rows.value.count { it.account != null }, "replacing, not adding a second")
+
+        m.signIn(CloudService.AZURE_BLOB_SAS) // there is no sign-in
+        assertEquals(0, f.shown)
+        m.signOut(CloudService.AZURE_BLOB_SAS)
+        assertNull(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.account)
+        assertEquals(CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, m.notice.value?.kind)
+        assertTrue(f.posts.isEmpty(), "a signature is never sent anywhere by this screen")
     }
 
     // @verifies SWR-MG-20#e

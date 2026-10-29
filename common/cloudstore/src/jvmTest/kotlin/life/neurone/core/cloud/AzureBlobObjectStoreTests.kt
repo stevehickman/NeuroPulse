@@ -25,6 +25,8 @@ internal class FakeAzureBlob(
     private val pageSize: Int = 2,
     private val refusal: Int = 409,
     private val container: String = "ctr",
+    /** When set, the stand-in authorizes by `sig` in the query (and refuses a bearer token), and checks `sp` for the permission each call needs. */
+    private val sasSig: String? = null,
 ) : HttpTransport {
     val blobs = LinkedHashMap<String, ByteArray>()
     val seen = mutableListOf<HttpRequest>()
@@ -40,13 +42,30 @@ internal class FakeAzureBlob(
         val uri = URI.create(request.url)
         fun r(code: Int, body: ByteArray = ByteArray(0), headers: Map<String, String> = emptyMap()) = HttpResponse(code, headers, body)
         fun err(code: Int, name: String) = r(code, "<Error><Code>$name</Code></Error>".encodeToByteArray(), mapOf("x-ms-error-code" to name))
-        if (request.headers["Authorization"] != "Bearer $token") return err(401, "AuthenticationFailed")
-        if ((request.headers["x-ms-version"] ?: "") < "2017-11-09") return err(400, "InvalidHeaderValue")
-        failStatus?.let { return err(it, failCode ?: "ServerBusy") }
         val query = (uri.rawQuery ?: "").split('&').filter { it.isNotEmpty() }.associate {
             val kv = it.split('=', limit = 2)
             URLDecoder.decode(kv[0], "UTF-8") to URLDecoder.decode(kv.getOrElse(1) { "" }.replace("+", "%2B"), "UTF-8")
         }
+        if (sasSig == null) {
+            if (request.headers["Authorization"] != "Bearer $token") return err(401, "AuthenticationFailed")
+        } else {
+            if (request.headers.keys.any { it.equals("Authorization", true) }) return err(400, "MultipleAuthenticationSchemes")
+            if (query["sig"] != sasSig) return err(403, "AuthenticationFailed")
+            // Azure's permission for each call (Put Blob: Create or Write, Write to overwrite; List: l; Get: r; Delete: d).
+            val sp = query["sp"] ?: ""
+            val isList = query["comp"] == "list"
+            val needed = when {
+                isList -> "l"
+                request.method == "GET" -> "r"
+                request.method == "DELETE" -> "d"
+                request.method == "PUT" && request.headers["If-None-Match"] == "*" -> "cw"
+                request.method == "PUT" -> "w"
+                else -> ""
+            }
+            if (needed.isNotEmpty() && needed.none { it in sp }) return err(403, "AuthorizationPermissionMismatch")
+        }
+        if ((request.headers["x-ms-version"] ?: "") < "2017-11-09") return err(400, "InvalidHeaderValue")
+        failStatus?.let { return err(it, failCode ?: "ServerBusy") }
         val path = uri.rawPath
         if (path == "/$container" && request.method == "GET" && query["comp"] == "list" && query["restype"] == "container") {
             val prefix = query["prefix"] ?: ""
@@ -180,5 +199,79 @@ class AzureBlobObjectStoreTests {
         for (t in listOf("a b+c/d", "naïve ☃ 𝄞", "100%", "%zz", "")) assertEquals(t, percentDecode(percentEncode(t)))
         assertEquals("50%", percentDecode("50%"))
         assertContentEquals("é".encodeToByteArray(), percentDecode("%C3%A9").encodeToByteArray())
+    }
+}
+
+private const val SAS = "sv=2024-11-04&spr=https&se=2030-01-01T00%3A00%3A00Z&sr=c&sp=rcwdl&sig=abc%2Bdef%3D"
+
+private fun azureSas(fake: FakeAzureBlob, sas: AzureSasProvider = AzureSasProvider { SAS }) =
+    AzureBlobObjectStore(fake, "acct", "ctr", token = null, timeoutSeconds = 30, baseUrl = "https://acct.blob.core.windows.net", sas = sas)
+
+class AzureBlobSasContractTests : ObjectStoreContract() {
+    override fun newStore(): ObjectStore = azureSas(FakeAzureBlob(refusal = 409, sasSig = "abc+def="))
+}
+
+/** A shared access signature in place of a token (SWR-MG-26). */
+class AzureBlobSasTests {
+    // @verifies SWR-MG-26#b
+    @Test
+    fun theSignatureIsAppendedToEveryUrlWithTheRightSeparatorAndNoAuthorizationHeaderIsSent() = runBlocking {
+        val fake = FakeAzureBlob(sasSig = "abc+def=")
+        val s = azureSas(fake)
+        s.put("np-a", byteArrayOf(1))
+        s.list("np-")
+        s.get("np-a")
+        s.delete("np-a")
+        val urls = fake.seen.map { it.url }
+        assertEquals("https://acct.blob.core.windows.net/ctr/np-a?$SAS", urls[0], "a blob URL has no query yet: '?'")
+        assertTrue(urls[1].startsWith("https://acct.blob.core.windows.net/ctr?restype=container&comp=list&prefix=np-&") && urls[1].endsWith(SAS), "a list URL has one: '&': ${urls[1]}")
+        assertTrue(fake.seen.all { r -> r.headers.keys.none { it.equals("Authorization", true) } }, "no header carries the signature or a token")
+        assertTrue(fake.seen.all { it.headers["x-ms-version"] == "2025-11-05" })
+    }
+
+    // @verifies SWR-MG-26#b
+    @Test
+    fun aCreateStillCarriesTheConditionAndTheBlobTypeAndAnExistingBlobIsRefused() = runBlocking {
+        val fake = FakeAzureBlob(sasSig = "abc+def=")
+        val s = azureSas(fake)
+        assertEquals(true, s.createIfAbsent("np-claim", byteArrayOf(1)))
+        assertEquals(false, s.createIfAbsent("np-claim", byteArrayOf(2)))
+        val put = fake.seen.first()
+        assertEquals("*", put.headers["If-None-Match"])
+        assertEquals("BlockBlob", put.headers["x-ms-blob-type"])
+    }
+
+    // @verifies SWR-MG-26#b
+    @Test
+    fun aSignatureWithoutAPermissionAnOperationNeedsIsRefusedAndNothingIsReadAsAbsent() = runBlocking {
+        val fake = FakeAzureBlob(sasSig = "abc+def=")
+        val readOnly = azureSas(fake) { "sv=2024-11-04&sp=r&sig=abc%2Bdef%3D" }
+        assertEquals(403, assertFailsWith<CloudStoreException> { readOnly.put("x", byteArrayOf(1)) }.status)
+        assertEquals(403, assertFailsWith<CloudStoreException> { readOnly.list("") }.status)
+        assertEquals(403, assertFailsWith<CloudStoreException> { readOnly.delete("x") }.status)
+        val wrong = azureSas(fake) { "sv=2024-11-04&sp=rcwdl&sig=nope" }
+        assertEquals(403, assertFailsWith<CloudStoreException> { wrong.get("x") }.status, "a wrong signature is a refusal, not an absent blob")
+    }
+
+    // @verifies SWR-MG-26#b
+    @Test
+    fun aSignatureReplacedInTheAccountIsUsedByAStoreMadeBefore() = runBlocking {
+        val fake = FakeAzureBlob(sasSig = "second")
+        var current = "sv=2024-11-04&sp=rcwdl&sig=first"
+        val s = azureSas(fake) { current }
+        assertEquals(403, assertFailsWith<CloudStoreException> { s.put("x", byteArrayOf(1)) }.status)
+        current = "sv=2024-11-04&sp=rcwdl&sig=second"
+        s.put("x", byteArrayOf(1))
+        assertContentEquals(byteArrayOf(1), s.get("x"))
+    }
+
+    // @verifies SWR-MG-26#b
+    @Test
+    fun exactlyOneOfATokenAndASignatureAuthorizes() {
+        val fake = FakeAzureBlob()
+        assertFailsWith<IllegalArgumentException> {
+            AzureBlobObjectStore(fake, "acct", "ctr", AccessToken { "tok" }, 30, sas = AzureSasProvider { SAS })
+        }
+        assertFailsWith<IllegalArgumentException> { AzureBlobObjectStore(fake, "acct", "ctr", token = null, timeoutSeconds = 30) }
     }
 }
