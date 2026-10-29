@@ -160,14 +160,21 @@ enum NPLibraryRules {
 // What the helmet's upload report means to the library's upload rule (`SWR-UP-02`). The words here are the rule's codes
 // ("accepted", "tier"), not text for a person, so they live beside the other core calls and not in the covered UI tree.
 extension UploadCheck {
-    /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier. A refusal
-    /// for the hardware version is the hub's too (`NP_HUB_ERR_HW_VERSION_MISMATCH` 27 and `..._UNVERIFIED` 28, `SWR-HV-08`), but no
-    /// app maps those yet; an unmodified clone is not made by the hub, so no code names it.
+    /// `NP_HUB_ERR_TIER_F4` (19) and `NP_HUB_ERR_TIER_UNVERIFIED` (20): the helmet refused a protocol for its tier.
     private static let tierRefusalCodes: Set<Int> = [19, 20]
+
+    /// `NP_HUB_ERR_HW_VERSION_MISMATCH` (27) and `NP_HUB_ERR_HW_VERSION_UNVERIFIED` (28): the helmet refused a protocol
+    /// compiled for another hardware version, or has not yet heard its own version from the safety MCU (SWR-HV-08).
+    /// Neither is a failed upload and neither marks the protocol used, as for a tier refusal. An unmodified clone is not
+    /// made by the hub, so no code names it.
+    private static let hardwareVersionRefusalCodes: Set<Int> = [27, 28]
 
     /// The `helmetRefusal` the library's upload rule takes for this refusal, or nil when it is none of the three it names.
     var refusalKind: String? {
-        status == .refused && Self.tierRefusalCodes.contains(reason) ? "tier" : nil
+        guard status == .refused else { return nil }
+        if Self.tierRefusalCodes.contains(reason) { return "tier" }
+        if Self.hardwareVersionRefusalCodes.contains(reason) { return "hardware_version" }
+        return nil
     }
 }
 

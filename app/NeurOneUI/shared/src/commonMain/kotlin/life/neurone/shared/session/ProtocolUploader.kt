@@ -63,7 +63,11 @@ class ProtocolUploader(
         }
         checkCervicalGate(definition)?.let { return it }
         return try {
-            val blob = compiler.compile(definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets, acknowledgedCautions)
+            val blob = compiler.compile(
+                definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets, acknowledgedCautions,
+                // The layout the helmet reported at link (SWR-HV-08): the helmet refuses a protocol stamped for another.
+                hardwareVersion = gatt.hardwareVersion.value,
+            )
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {

@@ -259,7 +259,10 @@ final class SessionProtocolUploader: ObservableObject {
             unsigned = try HubDescriptorCompiler.build(definition, deviceSerial: deviceSerial ?? gatt.deviceSerial,
                                                        clinicianSockets: clinicianSockets,
                                                        autonomous: autonomous,
-                                                       acknowledgedCautions: acknowledgedCautions)
+                                                       acknowledgedCautions: acknowledgedCautions,
+                                                       // The layout the helmet reported at link (SWR-HV-08): the helmet
+                                                       // refuses a protocol stamped for another.
+                                                       hardwareVersion: gatt.hardwareVersion)
         } catch {
             let err = UploadError.targetUnresolvable(error)
             lastError = err

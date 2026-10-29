@@ -136,6 +136,11 @@ object NppsCore {
          * (docs/reference/safety-zones.md).
          */
         val acknowledgedCautions: List<String> = emptyList(),
+        /**
+         * The hardware version of the helmet the descriptor is compiled for (1 to 15), stamped in the signed header; the
+         * helmet refuses a different one (`SWR-HV-08`). Null leaves the core's default of 1 (`SWR-HV-07`).
+         */
+        val hardwareVersion: Int? = null,
     )
 
     /**
@@ -158,6 +163,7 @@ object NppsCore {
             put("sessionUuidHex", hex(options.sessionUuid))
             put("wavelengthRules", options.wavelengthRules ?: JsonNull)
             putJsonArray("acknowledgedCautions") { options.acknowledgedCautions.forEach { add(JsonPrimitive(it)) } }
+            options.hardwareVersion?.let { put("hardwareVersion", it) }
         }
         return nativeCompile(request.toString())
     }
