@@ -229,7 +229,8 @@ packages:
     url: https://github.com/nalexn/ViewInspector
     # Exact, like PostHog: a test-only library, so a version changes only by a deliberate edit that also updates
     # NP-SOUP-NATIVE-001. It is a dependency of NeurOneTests alone and is not linked into the app.
-    exactVersion: "0.10.5"
+    # Not newer: 0.10.4 and 0.10.5 name iOS 26 types (GlassEffectTransition) that the Xcode 16.4 SDK of CI does not have.
+    exactVersion: "0.10.2"
 
 schemes:
   NeurOne:
