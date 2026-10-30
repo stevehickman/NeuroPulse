@@ -37,6 +37,7 @@ typedef struct {
     np_slot_track_t    slots;              /* which command is driving each slot (pause/resume) */
     uint32_t           elapsed_ms;         /* running session time */
     np_abort_reason_t  abort_reason;
+    volatile np_abort_reason_t abort_request;  /* the reason np_runner_abort() was given; NONE if it was not called */
 
     /* Per-slot stop tracking: stop_at_ms[slot] = when to call control(NULL,0). */
     uint32_t  stop_at_ms[NP_HUB_SLOT_MAX];
