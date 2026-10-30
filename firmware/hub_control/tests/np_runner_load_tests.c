@@ -244,10 +244,10 @@ np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t *wave_class, 
  * The same construction np_protocol_tests.c uses, at explicit byte offsets (not through the packed structs), so a change
  * to the layout is caught here and not mirrored. */
 
-#define BLOB_CAP 512
+#define RUNNER_LOAD_BLOB_CAP 512
 
 typedef struct {
-    uint8_t buf[BLOB_CAP];
+    uint8_t buf[RUNNER_LOAD_BLOB_CAP];
     size_t  len;
 } blob_t;
 
@@ -283,18 +283,18 @@ static void blob_make(blob_t *b, uint8_t hw_version, uint32_t duration_ms, uint8
     b->len += NP_HUB_PROTO_SIG_LEN;
 }
 
-static const uint8_t k_eeg_params[5] = { 0xFF, 6, 2, 0, 3 };
+static const uint8_t EEG_PARAMS[5] = { 0xFF, 6, 2, 0, 3 };
 
 /* A T1 protocol (EEG) for `hw_version`, `duration_ms` long. */
 static void blob_t1(blob_t *b, uint8_t hw_version, uint32_t duration_ms)
 {
-    blob_make(b, hw_version, duration_ms, NP_MOD_EEG, NP_HUB_SLOT_EEG, k_eeg_params, sizeof k_eeg_params);
+    blob_make(b, hw_version, duration_ms, NP_MOD_EEG, NP_HUB_SLOT_EEG, EEG_PARAMS, sizeof EEG_PARAMS);
 }
 
 /* A protocol that uses a T2 modality (cervical VNS). */
 static void blob_t2(blob_t *b, uint8_t hw_version, uint32_t duration_ms)
 {
-    blob_make(b, hw_version, duration_ms, NP_MOD_CVNS, NP_HUB_SLOT_CVNS, k_eeg_params, sizeof k_eeg_params);
+    blob_make(b, hw_version, duration_ms, NP_MOD_CVNS, NP_HUB_SLOT_CVNS, EEG_PARAMS, sizeof EEG_PARAMS);
 }
 
 /* ── Harness ──────────────────────────────────────────────────────────────────── */
