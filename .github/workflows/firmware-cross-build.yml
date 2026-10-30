@@ -232,7 +232,8 @@ env:
   # 46 → 50: np_session_fitting_tests, np_session_pause_tests, np_pause_limit_tests, np_ramp_plan_tests
   #          (GitHub #569 package 3, SWR-HV-02 / SWR-SS-05).
   # 50 → 51: np_runner_load_tests (GitHub #569, REQ-FWHUB-62: np_runner_load() has a host test).
-  NP_CLASS_B_TEST_COUNT: '51'
+  # 51 → 52: np_runner_run_tests (GitHub #569, REQ-FWHUB-63: np_runner_run() has a host test).
+  NP_CLASS_B_TEST_COUNT: '52'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.
