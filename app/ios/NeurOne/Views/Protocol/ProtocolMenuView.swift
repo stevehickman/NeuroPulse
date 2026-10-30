@@ -179,51 +179,16 @@ struct ProtocolMenuView: View {
                 })
             .safeAreaInset(edge: .top, spacing: 0) {
                 if let errorMsg = screen.uploadError {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                        Text(errorMsg)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer()
-                        Button {
-                            let retry = lastSelectedEntry
-                            screen.uploadError = nil
-                            if let entry = retry { handleSelect(entry) }
-                        } label: {
-                            Text(String(localized: "SETUP_RETRY_BUTTON"))
-                                .font(.caption.bold())
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.25))
-                                .clipShape(Capsule())
-                        }
+                    UploadErrorBanner(message: errorMsg) {
+                        let retry = lastSelectedEntry
+                        screen.uploadError = nil
+                        if let entry = retry { handleSelect(entry) }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.red)
-                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .overlay(alignment: .bottom) {
                 if screen.showUploadSuccess {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.white)
-                        Text("PROTOCOL_MENU_PROTOCOL_SENT_TO_HUB")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.green)
-                    .clipShape(Capsule())
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    UploadSentBanner()
                 }
             }
             .animation(.easeInOut(duration: 0.3), value: screen.uploadError != nil)

@@ -107,9 +107,10 @@ env:
   # GitHub #436 (OI-PBMCH-03) then added np_mod_pbm_chlatch_tests: 11 + 42 = 53.
   # NP-FW-HUB-001 Rev 15 (OI-FWHUB-10) then added np_pbm_socket_telem_tests: 11 + 43 = 54.
   # NP-FW-HUB-001 Rev 18 (OI-FWHUB-26) then added np_mod_visual_tests: 11 + 44 = 55.
-  NP_TOTAL_TEST_COUNT: '61'
+  # 61 → 62: np_runner_load_tests (GitHub #569, REQ-FWHUB-62).
+  NP_TOTAL_TEST_COUNT: '62'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '50'
+  NP_CLASS_B_TEST_COUNT: '51'
 
 jobs:
   host-tests-all:
