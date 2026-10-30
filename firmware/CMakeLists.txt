@@ -111,6 +111,7 @@
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
+#                             → np_runner_load_tests      (np_runner_load admission order, REQ-FWHUB-62)
 #                             → np_pbm_socket_telem_tests (OI-FWHUB-10 socket dose metering + tile health)
 #                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
 #                             → np_chan_decl_tests        (OI-MMSOCK-02 electrode-geometry declarations)
@@ -385,6 +386,12 @@ if(NP_BUILD_TESTS)
     # OI-FWHUB-17: module detection kept off a session by exclusion.
     add_test(NAME np_session_lease_tests
         COMMAND np_session_lease_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # np_runner_load(): admission order, and that a refusal leaves nothing behind
+    # (REQ-FWHUB-03, REQ-FWHUB-62, REQ-UPG-01).
+    add_test(NAME np_runner_load_tests
+        COMMAND np_runner_load_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
