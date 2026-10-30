@@ -34,20 +34,38 @@ neither, because nobody has decided.
 | T2 qEEG wet-gel cap | Scalp, wet gel | `NP-HW-TCAP-001` is silent on cleaning and on reuse | None | Not stated |
 | Hub | None, except the dock that touches the probe tips | n/a | n/a | The dock is part of `OI-NASAL-08` |
 
-**What the standards and guidance would ask** (outside sources; read as search summaries, so each needs the text
-checked before it is relied on)
-- FDA's guidance on reprocessing reusable devices (March 2015) asks manufacturers to validate cleaning and
-  disinfection or sterilisation instructions for a reusable device used on more than one patient, and cites
-  21 CFR 801.109 ([FDA guidance page](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/reprocessing-medical-devices-health-care-settings-validation-methods-and-labeling)).
-- ISO 17664-1:2021 sets what processing information a manufacturer must supply
-  ([AFNOR listing](https://www.boutique.afnor.org/en-gb/standard/iso-1766412021/processing-of-health-care-products-information-to-be-provided-by-the-medica/xs139592/264264)).
-- IEC 62366-1 is the usual frame for validating that people can follow reprocessing instructions.
-- IEC 60601-1 has a clause on cleaning, disinfection and compatibility with the agents used; a secondary source
-  places it at clause 11.6, **unverified until the standard's text is read**.
+**What the FDA guidance says** (read from the guidance itself, "Reprocessing Medical Devices in Health Care Settings:
+Validation Methods and Labeling", final, March 2015, docket FDA-2011-D-0293; the full PDF was fetched on 2026-10-30
+and its text extracted locally. The document marks itself as **nonbinding recommendations**.)
+- **Its scope is not limited to devices shared between people.** It covers four situations, including "reusable
+  medical devices intended to be reused only by a single patient and intended to be reprocessed between each use"
+  (§III, item 3). So a single-person headset does not by itself take a device outside the idea of reprocessing
+  instructions; what matters is whether the device is *intended to be reprocessed between uses*.
+- **Reprocessing instructions are part of the labelling.** The guidance interprets adequate reprocessing instructions
+  as part of "adequate directions for use" under 21 CFR 801.5 and a condition of the exemption under 21 CFR 801.109.
+- **Lay use has its own item (§VI, Criterion 5, item N):** instructions for a device kept by a patient or lay carer "should be
+  understandable to a lay person and can be performed at home", with the equipment readily available where it is
+  used.
+- **Contact decides the level (Spaulding, as FDA modifies it, §VI, Criterion 3).** *Critical* devices enter sterile tissue.
+  *Semi-critical* devices contact **intact mucous membranes or non-intact skin**: "thoroughly clean these devices and
+  then reprocess them by sterilization", or **high-level disinfection** if the design cannot be sterilised.
+  *Non-critical* devices contact **only intact skin**: "thorough cleaning, then intermediate or low level
+  disinfection", and the guidance names **skin electrodes** among its examples.
+- **Applied here (reviewer to confirm):** every part that touches only intact skin is non-critical. The **nasal
+  probe touches mucosa and is semi-critical**, so the expected reprocessing between uses is heavier than a sleeve
+  and a wipe. A cervical pad used on broken skin would also be semi-critical, which is a reason the "do not use over
+  broken or irritated skin" warning (`NP-REG-CVNS-001` §7.3) matters.
+- **Which NeurOne products it reaches is the reviewer's call.** The guidance addresses submissions for devices
+  under 510(k), PMA, HDE, de novo and IDE. T2 is a 510(k) target. T1 is positioned as FDA-exempt wellness
+  (`CLAUDE.md` §1), and whether a wellness product is inside this guidance at all depends on that status.
 
-**What is assumed, not known.** That a device used on intact skin needs a lower level of disinfection than one
-used on mucosa (the usual grading of devices by contact). That is the reviewer's to confirm. The nasal probe
-is the only part that touches mucosa.
+**What is still unverified** (outside sources read only as search summaries; the pages were on hosts this session
+could not reach): ISO 17664-1:2021's exact scope, IEC 62366-1's role in validating reprocessing instructions, and the
+IEC 60601-1 clause numbers (a secondary source places cleaning and disinfection at clause 11.6). Read the standards
+before relying on any of them.
+
+**What is assumed, not known.** Whether the guidance's "intended to be reprocessed between each use" describes a
+NeurOne headset. That follows from the intended-use statement, which is the reviewer's and the principal's.
 
 ## 3. Why the answer is not ours to give
 
@@ -58,8 +76,8 @@ reusable between people), and either one can add testing that costs time and mon
 
 ## 4. The four questions
 
-**Q1 (principal, with Regulatory). Is each headset a single-person device?**
-- **A. Yes, for T1 and for every accessory.** The IFU says so and makes no shared-use claim. Cheapest. It sits
+**Q1 (principal, with Regulatory). Is each headset a single-person device, and is it intended to be reprocessed between uses?** Note that the FDA guidance reaches single-patient reusable devices too, so answering *single-person* does not on its own remove the need for validated cleaning instructions for a 510(k) device (T2). It may remove the need for *disinfection between people*.
+- **A. Yes, for T1 and for every accessory.** The IFU says so and makes no shared-use claim. Cheapest, but cleaning instructions are still owed for what one person reuses. It sits
   badly with `CLAUDE.md` §6.0, which allows a clinic to own a device that many patients use, so a clinic that
   buys T1 would be outside its labelling.
 - **B. Yes for T1; T2 is allowed to be shared with a validated regime.** One regime to build, for the clinic
@@ -73,8 +91,8 @@ skin-contact surfaces, the goggle rim, and the cap are the candidates. Which age
 come from a compatibility test on the real materials (PDMS windows, the Ag/AgCl pods, silicone, the hard-gold
 contacts), which does not exist yet.
 
-**Q3 (Risk). The nasal probe.** It is the one mucosal contact, with a single-use sleeve that cannot be enforced
-as specified (`OI-NASAL-04`). Pick one: A. the probe is for one person only on every tier, with a sleeve per
+**Q3 (Risk). The nasal probe.** It is the one mucosal contact, so semi-critical in FDA's scheme (sterilisation, or high-level disinfection if the design cannot be sterilised, between uses), with a single-use sleeve that cannot be enforced
+as specified (`OI-NASAL-04`). Does the sleeve count as the barrier that changes the class? Pick one: A. the probe is for one person only on every tier, with a sleeve per
 session; B. the probe is allowed to be shared, with a validated regime for the probe and the dock; C. the
 probe leaves T2.
 
