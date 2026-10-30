@@ -86,9 +86,7 @@
         { "key": "side", "json": "side", "kind": "optional_string" },
         { "key": "pulse_width_us", "json": "pulseWidthUs", "kind": "optional_number" },
         { "key": "trigger", "json": "trigger", "kind": "optional_string" },
-        { "key": "burst_seconds", "json": "burstSeconds", "kind": "optional_number" },
-        { "key": "intensity_basis", "json": "intensityBasis", "kind": "optional_string" },
-        { "key": "intensity_percent_of_threshold", "json": "intensityPercentOfThreshold", "kind": "optional_number" }
+        { "key": "burst_seconds", "json": "burstSeconds", "kind": "optional_number" }
       ]
     },
     "audio_entrainment": {
