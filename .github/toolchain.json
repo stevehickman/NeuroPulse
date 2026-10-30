@@ -1,0 +1,19 @@
+{
+  "_comment": "The one place CI names a toolchain version or a runner image. Workflows never write these themselves: the setup-toolchain action (.github/actions/setup-toolchain) reads this file, and the jobs that run on macOS read `macos` through their Relevance job's output, because `runs-on` cannot read a file. scripts/check-toolchain-pins.ts fails a workflow that hardcodes one. Bump a value here and every build moves together.",
+  "macos": "macos-26",
+  "macosNote": "arm64 standard image (macos-26-intel is the Intel one). macos-14 was retired 2026-11-02. When this image is announced for retirement, change this one value.",
+  "java": "17",
+  "javaDistribution": "temurin",
+  "javaNote": "AGP 8.9.3 requires JDK 17.",
+  "gradle": "8.11.1",
+  "gradleNote": "AGP 8.9.3 requires Gradle 8.11.1 or later. Gradle is provisioned by gradle/actions/setup-gradle, not the checked-in wrapper, so the CI toolchain stays explicit.",
+  "bun": "1.4.4",
+  "bunNote": "Exact, not latest: a new Bun release cannot change what CI builds until this line changes.",
+  "rust": "1.97.0",
+  "rustNote": "Exact, not stable: the toolchain is installed with rustup, which ships on every runner image, so a stale image cannot change what is built.",
+  "python": "3.11",
+  "dotnet": "8.0.x",
+  "dotnetNote": "NeurOne.csproj targets net8.0-windows10.0.19041.0.",
+  "armGcc": "13.2.Rel1",
+  "armGccNote": "Pinned so a toolchain change is a reviewable commit. Must satisfy the NP_ARM_GCC_MIN_VERSION 12.3 gate in firmware/cmake/arm-none-eabi.cmake."
+}

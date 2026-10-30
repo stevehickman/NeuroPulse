@@ -61,6 +61,8 @@ jobs:
         common/Cargo.toml
         common/Cargo.lock
         .github/workflows/windows-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -125,10 +127,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+      - name: Set up .NET
+        uses: ./.github/actions/setup-toolchain
         with:
-          dotnet-version: '8.0.x'   # NeurOne.csproj targets net8.0-windows10.0.19041.0
+          dotnet: 'true'
 
       # `sync-socket-map.ts --check` (generated lattice freshness, SocketLattice.generated.cs
       # included) runs in web-ci.yml on Linux. It is NOT run here: a Windows checkout converts

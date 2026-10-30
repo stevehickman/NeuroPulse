@@ -195,9 +195,9 @@ jobs:
       # for what no PR changes: a runner-image gcc that counts lines differently
       # moves every floor at once, and shows here first.
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Assert every target still executes at least its floor
         run: |
@@ -229,9 +229,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        uses: ./.github/actions/setup-toolchain
         with:
-          release: '13.2.Rel1'
+          arm-gcc: 'true'
       - name: Record toolchain version
         run: arm-none-eabi-gcc --version
       - name: Configure
@@ -273,9 +273,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        uses: ./.github/actions/setup-toolchain
         with:
-          release: '13.2.Rel1'
+          arm-gcc: 'true'
       - name: Record toolchain version
         run: arm-none-eabi-gcc --version
       - name: Configure
@@ -309,9 +309,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        uses: ./.github/actions/setup-toolchain
         with:
-          release: '13.2.Rel1'
+          arm-gcc: 'true'
       - name: Record toolchain version
         run: arm-none-eabi-gcc --version
       - name: Configure

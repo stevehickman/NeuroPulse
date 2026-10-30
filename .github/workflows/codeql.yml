@@ -73,6 +73,7 @@ jobs:
       js: ${{ steps.scope.outputs.js }}
       python: ${{ steps.scope.outputs.python }}
       swift: ${{ steps.scope.outputs.swift }}
+      macos: ${{ steps.pins.outputs.macos }}
       include: ${{ steps.matrix.outputs.include }}
     env:
       # What each language's extractor would read. The matcher supports only
@@ -88,10 +89,14 @@ jobs:
       NP_SCOPE_CPP: |
         firmware/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
       NP_SCOPE_CSHARP: |
         app/windows/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
       NP_SCOPE_JAVA: |
         # locales/** and scripts/sync-locales.ts are deliberately absent. The
@@ -104,6 +109,8 @@ jobs:
         common/cloudstore/**
         common/cloudauth/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
       NP_SCOPE_JS: |
         app/web/**
@@ -112,23 +119,33 @@ jobs:
         scripts/**
         simulator/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_PYTHON: |
         ci/**
         editscripts/**
         generate_privacy_report.py
         scripts/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_SWIFT: |
         # Same reasoning as the java list for locales/**.
         app/ios/**
         app/NeurOneShared/**
         .github/workflows/codeql.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Read the macOS image
+        id: pins
+        run: echo "macos=$(jq -er .macos .github/toolchain.json)" >> "$GITHUB_OUTPUT"
 
       # A broken matcher would skip every leg while every check went green.
       - name: Matcher self-test
@@ -295,7 +312,7 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ${{ (matrix.language == 'swift' && needs.changes.outputs.macos) || 'ubuntu-latest' }}
     permissions:
       # required for all workflows
       security-events: write
@@ -326,12 +343,11 @@ jobs:
     # The versions mirror .github/workflows/android-ci.yml, which builds this same
     # Gradle project successfully on ubuntu-latest. Keep the two in sync.
 
-    - name: Set up JDK 17
+    - name: Set up the JDK
       if: matrix.language == 'java-kotlin'
-      uses: actions/setup-java@v4
+      uses: ./.github/actions/setup-toolchain
       with:
-        distribution: temurin
-        java-version: '17'   # AGP 8.9.3 requires JDK 17
+        java: 'true'
 
     - name: Set up Android SDK
       if: matrix.language == 'java-kotlin'
@@ -361,15 +377,15 @@ jobs:
     # Mirrors the same step in android-ci.yml and ios-ci.yml.
     - name: Set up Bun
       if: matrix.language == 'java-kotlin' || matrix.language == 'swift'
-      uses: oven-sh/setup-bun@v2
+      uses: ./.github/actions/setup-toolchain
       with:
-        bun-version: latest
+        bun: 'true'
 
-    - name: Set up Gradle 8.11.1
+    - name: Set up Gradle
       if: matrix.language == 'java-kotlin'
-      uses: gradle/actions/setup-gradle@v4
+      uses: ./.github/actions/setup-toolchain
       with:
-        gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
+        gradle: 'true'
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

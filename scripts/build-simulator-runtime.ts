@@ -373,7 +373,7 @@ const fingerprint = fingerprintSources([...sourceGraph(ENTRY), ...rustSources()]
 // ── Check mode ────────────────────────────────────────────────────────────────
 //
 // Deliberately does NOT rebuild and diff. Bundler output is not byte-stable
-// across Bun versions — CI resolves `bun-version: latest` while a contributor
+// across Bun versions — CI installs the Bun pinned in .github/toolchain.json while a contributor
 // has whatever they installed — so a byte comparison fails on a version bump
 // with a message blaming the committed file, which is not the thing that
 // changed. What this check actually needs to catch is "someone edited the

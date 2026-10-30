@@ -296,6 +296,8 @@ jobs:
         # still does not rebuild Class B (OI-SWCI-14's glob note).
         firmware/cmake/np_platform_census.cmake
         .github/workflows/firmware-cross-build.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
         # The executed-line floors and their checker (OI-SWCI-14): raising a floor
         # or changing the checker must re-run the job that enforces it.
@@ -471,9 +473,9 @@ jobs:
       # ci/host-test-floors.txt.  A deleted case drops below it; see the header of
       # scripts/check-host-test-floors.ts for what it cannot see.
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Floor checker self-test
         run: bun scripts/check-host-test-floors.ts --self-test
@@ -649,9 +651,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install ARM GNU toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        uses: ./.github/actions/setup-toolchain
         with:
-          release: '13.2.Rel1'
+          arm-gcc: 'true'
 
       # Pinned rather than `latest` so a toolchain change is a reviewable commit
       # and not an unexplained red build.  Must satisfy the
@@ -814,9 +816,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install ARM GNU toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        uses: ./.github/actions/setup-toolchain
         with:
-          release: '13.2.Rel1'
+          arm-gcc: 'true'
 
       - name: Record toolchain version
         run: arm-none-eabi-gcc --version

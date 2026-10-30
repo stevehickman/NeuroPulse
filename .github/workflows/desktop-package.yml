@@ -37,6 +37,7 @@ jobs:
       actions: read
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
+      macos: ${{ steps.pins.outputs.macos }}
     env:
       NP_SCOPE_PATHS: |
         app/NeurOneUI/**
@@ -51,12 +52,18 @@ jobs:
         common/btle-jni/**
         locales/**
         .github/workflows/desktop-package.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Read the macOS image
+        id: pins
+        run: echo "macos=$(jq -er .macos .github/toolchain.json)" >> "$GITHUB_OUTPUT"
 
       - name: Write the relevance list
         run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
@@ -114,23 +121,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: macOS arm64, os: macos-14,       task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
+          # The macOS image is .github/toolchain.json's `macos`, read by the Relevance job above.
+          - { name: macOS arm64, os: '${{ needs.changes.outputs.macos }}', task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
           - { name: Windows x64, os: windows-latest, task: packageMsi, dir: windows-x64,  lib: neurone_npps_jni.dll }
     defaults:
       run:
         working-directory: app/android
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: latest }
-      - name: Set up Rust (stable)
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-      - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: '8.11.1' }
+      - name: Set up the JDK
+        uses: ./.github/actions/setup-toolchain
+        with:
+          java: 'true'
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+      - name: Set up Rust
+        uses: ./.github/actions/setup-toolchain
+        with:
+          rust: 'true'
+      - name: Set up Gradle
+        uses: ./.github/actions/setup-toolchain
+        with:
+          gradle: 'true'
       - name: Stage the native libraries and package
         run: gradle :desktop:${{ matrix.task }} --stacktrace
       - name: Check both libraries are staged for ${{ matrix.dir }}
