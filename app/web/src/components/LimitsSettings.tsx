@@ -1133,8 +1133,8 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.vnsHrv.maxFrequencyHz}
               unit="Hz"
-              min={hw.VNS_MIN_HZ} step={1}
-              hint={`Hardware minimum: ${hw.VNS_MIN_HZ} Hz; no hardware maximum`}
+              min={0} step={0.1}
+              hint={`Any frequency above 0 Hz; no hardware minimum or maximum`}
               onChange={v => patchModality('vnsHrv', { maxFrequencyHz: v })}
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
             />

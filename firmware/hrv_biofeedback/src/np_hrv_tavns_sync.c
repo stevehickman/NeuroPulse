@@ -16,11 +16,11 @@
 
 static np_tavns_enable_cb_t  s_enable_cb;
 static np_tavns_disable_cb_t s_disable_cb;
-static uint16_t s_stim_freq_hz;
+static uint32_t s_stim_freq_mhz;
 static uint16_t s_stim_current_ua;
 
 np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
-                                   uint16_t           stim_freq_hz,
+                                   uint32_t           stim_freq_mhz,
                                    uint16_t           stim_current_ua,
                                    np_tavns_enable_cb_t  enable_cb,
                                    np_tavns_disable_cb_t disable_cb)
@@ -29,13 +29,14 @@ np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
      * callbacks and stimulus parameters are module statics, so returning early
      * without clearing them kept the PREVIOUS session's enable callback, rate
      * and current live — and np_hrv_tavns_process_rr() would fire them. */
-    /* No frequency ceiling: the 25 Hz bound was an equivalence bound with no derivation and is removed
-     * (OI-VNSCLIP-08, the principal, 2026-10-29). The 1 Hz floor stays; 0 would divide by zero downstream. */
-    if (stim_freq_hz < 1U ||
+    /* No frequency ceiling and no floor above zero: both were equivalence bounds with no derivation and are
+     * removed (OI-VNSCLIP-08 and the floor, the principal, 2026-10-30). Zero is refused because it is DC, not a
+     * charge-balanced train, and would divide by zero downstream. */
+    if (stim_freq_mhz == 0U ||
         stim_current_ua < 100U || stim_current_ua > NP_VNS_MAX_CURRENT_UA) {
         s_enable_cb       = NULL;
         s_disable_cb      = NULL;
-        s_stim_freq_hz    = 0U;
+        s_stim_freq_mhz   = 0U;
         s_stim_current_ua = 0U;
         return NP_HRV_ERR_INVALID_ARG;
     }
@@ -44,7 +45,7 @@ np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
     tavns->phase              = NP_TAVNS_IDLE;
     tavns->safety_mcu_granted = false;
 
-    s_stim_freq_hz    = stim_freq_hz;
+    s_stim_freq_mhz   = stim_freq_mhz;
     s_stim_current_ua = stim_current_ua;
     s_enable_cb       = enable_cb;
     s_disable_cb      = disable_cb;
@@ -100,7 +101,7 @@ void np_hrv_tavns_process_rr(np_tavns_state_t *tavns,
             tavns->stim_start_ms  = now_ms;
             tavns->safety_mcu_granted = false;
             if (s_enable_cb) {
-                s_enable_cb(s_stim_freq_hz, s_stim_current_ua);
+                s_enable_cb(s_stim_freq_mhz, s_stim_current_ua);
             }
             tavns->stim_count++;
         }
@@ -124,7 +125,7 @@ void np_hrv_tavns_process_rr(np_tavns_state_t *tavns,
             tavns->stim_start_ms = now_ms;
             tavns->safety_mcu_granted = false;
             if (s_enable_cb) {
-                s_enable_cb(s_stim_freq_hz, s_stim_current_ua);
+                s_enable_cb(s_stim_freq_mhz, s_stim_current_ua);
             }
             tavns->stim_count++;
         }

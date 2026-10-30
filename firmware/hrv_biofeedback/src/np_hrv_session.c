@@ -49,15 +49,15 @@ static struct np_hrv_session s_session_pool;  /* single-instance pool */
 
 /* ── taVNS callbacks (forwarded to safety MCU SPI driver) ───────────────────── */
 
-static void tavns_enable(uint16_t freq_hz, uint16_t current_ua)
+static void tavns_enable(uint32_t freq_mhz, uint16_t current_ua)
 {
     /* Platform HAL call: programs VNS pulse generator and requests         */
     /* safety MCU SPI enable.  The response comes back asynchronously via     */
     /* np_hrv_tavns_safety_mcu_response().                                    */
     /* Stub — implemented by the platform HAL layer. */
-    (void)freq_hz;
+    (void)freq_mhz;
     (void)current_ua;
-    /* np_platform_tavns_enable(freq_hz, current_ua); */
+    /* np_platform_tavns_enable(freq_mhz, current_ua); */
 }
 
 static void tavns_disable(void)
@@ -119,8 +119,8 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
     if (sess->config.protocol == NP_HRV_PROTO_TAVNS_SYNC) {
         np_hrv_status_t st = np_hrv_tavns_init(
             &sess->tavns,
-            sess->config.tavns_freq_hz    ? sess->config.tavns_freq_hz
-                                          : NP_TAVNS_DEFAULT_FREQ_HZ,
+            sess->config.tavns_freq_mhz   ? sess->config.tavns_freq_mhz
+                                          : NP_TAVNS_DEFAULT_FREQ_MHZ,
             sess->config.tavns_current_ua ? sess->config.tavns_current_ua
                                           : NP_TAVNS_DEFAULT_CURRENT_UA,
             tavns_enable, tavns_disable);

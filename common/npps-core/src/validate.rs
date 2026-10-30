@@ -380,11 +380,12 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     s(format!("{} mA", num_string(hw::VNS_MAX_MILLIAMPS))), "hardware",
                     msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw::VNS_MAX_MILLIAMPS)]));
             }
-            // No ceiling: the 25 Hz bound was an equivalence bound and is removed (OI-VNSCLIP-08, 2026-10-29).
-            if freq < hw::VNS_MIN_HZ {
+            // No ceiling and no floor above zero: the 25 Hz and 1 Hz bounds were equivalence bounds and are removed
+            // (OI-VNSCLIP-08, 2026-10-29 and 2026-10-30). Zero is DC, not a charge-balanced train, so it is refused.
+            if freq <= 0.0 {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-                    s(format!("≥ {} Hz", num_string(hw::VNS_MIN_HZ))), "hardware",
-                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw::VNS_MIN_HZ)]));
+                    s("> 0 Hz".to_string()), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(0.0)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),
