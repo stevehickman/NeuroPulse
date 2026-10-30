@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-IFU-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-10-30
 **Status:** DRAFT — working text for the user-facing instructions; **not released, and nothing here may be shown to a user until the release gate on its row is met**
 **Effective Date:** —
@@ -173,6 +173,31 @@ These carry the methods for the cleaning prompts of `IFU-23`. **Two of the four 
 
 **One design claim this check puts in doubt, not settled here.** `durability-maintenance.md` §7.2 says plasma-activated PDMS is hydrophilic and so *repels sebum* ("anti-fouling without additional parts"). Outside studies find that plasma-treated PDMS recovers its water-repelling surface within hours to days, and sometimes weeks, depending on thickness, curing and storage ([Mount Holyoke abstract](https://ida.mtholyoke.edu/items/063cad3e-6b1b-4faf-8a62-b114ae0723ae); [PMC review](https://pmc.ncbi.nlm.nih.gov/articles/PMC3370401)). If so, the anti-fouling effect of the activation may be gone before the first use, and fouling prompts (`IFU-28`) may be more frequent than the design assumes. This is raised as `OI-IFU-10`, not decided.
 
+### 2.13 Parts that touch the person, and using the headset on more than one person
+
+`OI-IFU-09`. **No cleaning or disinfection instruction for a part that touches a person is written, because no
+controlled document says whether a headset may pass from one person to another, and a hygiene claim for a
+body-contact device is a risk-management and regulatory decision.** What is written is the inventory of what
+touches whom, the one sentence the repository already supports, and the questions a reviewer has to answer
+(`docs/human-input/oi-ifu-09-body-contact-cleaning.md`). **The data layer already assumes shared devices**
+(`CLAUDE.md` §6.0: a clinic may own a device, and each patient on it has their own `ConsentStore`), while the
+hardware documents say nothing about hygiene between wearers. That mismatch is the finding.
+
+| Part | Touches | What the documents say | Gap |
+|---|---|---|---|
+| EEG pods and hydrogel tips | Scalp, through hair | Skin-contact elements are to meet ISO 10993-5/-10 (`NP-HELMET-GEOM-001` §0), a requirement and not evidence; "no shared electrode tips" (`NP-RM-001`) | No regime for the pod under the tip |
+| Light windows and bezels | Hair, scalp at 1.0 mm | PDMS windows listed for ISO 10993 assessment (`NP-QMS-DC-001`); `IFU-28` | The proposed wipe is not a disinfection step |
+| Forehead bridge, dial, wings, headband; goggle rim, rim guards, shades | Skin of head, forehead and around the eyes | Not stated | Material and contact not stated |
+| Audio ear pads, foam, bone-conduction pad | Skin around and behind the ear | No material of record (`OI-AUDIOHW-06`) | Hygiene replacement is the user's choice by design |
+| Auricular ear clip and its pads | Ear skin | No biocompatibility basis (`OI-VNSCLIP-07`) | As above |
+| Intranasal probe | **Mucosa** | No material of record; `NP-RM-001` rates infection from a shared probe | No regime for probe or dock (`OI-NASAL-08`); sleeve single use unenforceable (`OI-NASAL-04`) |
+| Cervical gel pads (T2) | Neck skin | Biocompatibility must cover reuse (`OI-CVNSHW-07`); "do not share pads" (`NP-REG-CVNS-001` §7.4) | Contamination is outside the contact check |
+| T2 qEEG wet-gel cap | Scalp, wet gel | `NP-HW-TCAP-001` silent | Not stated |
+
+| ID | Statement | Source | Release gate | Status |
+|---|---|---|---|---|
+| **IFU-32** | **Do not share the parts that touch you.** *Do not share your intranasal sleeves, electrode tips, ear-clip pads or gel pads with another person. Use a new intranasal sleeve for every session. [Letting another person use your headset: to be written, after the ruling on shared use.]* | `NP-REG-CVNS-001` §7.4 (do not share gel pads); `NP-RM-001` (no shared electrode tips; single-use hygiene sleeves); `commercial-model.md` §2.3 (sleeve single use) | **Open.** (1) The ruling on shared use (`OI-IFU-09`, question 1) fixes the bracketed sentence and whether this one is enough. (2) "Do not share electrode tips or ear-clip pads" extends a risk-register control and a cervical-pad sentence to two more consumables: Regulatory confirms the extension. (3) The sleeve sentence is `IFU-13`'s and waits on `OI-NASAL-04` | Held |
+
 ## 3. Instructions required but not yet drafted
 
 One row is left. It is left on purpose: it is a clinical-review item, and a contraindication list for a
@@ -194,16 +219,16 @@ put the instruction in front of users.
 
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
-| **OI-IFU-01** | **Build this document out into the instructions for use.** It holds thirty-one statements (`IFU-01…31`), all held. The device, its intended use, its warnings and its operating instructions are not written, and `NP-QMS-DC-001` lists labelling and IFU as *TBD (Year 1)*. | Regulatory + Systems Engineering | First release of any user-facing instruction |
+| **OI-IFU-01** | **Build this document out into the instructions for use.** It holds thirty-two statements (`IFU-01…32`), all held. The device, its intended use, its warnings and its operating instructions are not written, and `NP-QMS-DC-001` lists labelling and IFU as *TBD (Year 1)*. | Regulatory + Systems Engineering | First release of any user-facing instruction |
 | **OI-IFU-02** | **Meet the release gate of `IFU-01`.** The hold-up measurement (`OI-PWRSRC-11`), the behaviour on re-plugging, and the app's Pause and End controls (§2.1). | Safety + EE + FW + App | `IFU-01` |
-| **OI-IFU-02a** | **Meet the release gates of `IFU-02…31`** (§2.2 to §2.12), each as stated in its row. | FW + App + Regulatory | `IFU-02…06` |
+| **OI-IFU-02a** | **Meet the release gates of `IFU-02…32`** (§2.2 to §2.13), each as stated in its row. | FW + App + Regulatory | `IFU-02…06` |
 | **OI-IFU-03** | ~~Carry `NP-FW-HUB-001` §6.6 here (`OI-FWHUB-13`).~~ **DISCHARGED Rev 2:** carried as `IFU-02`. `OI-FWHUB-13` stays open until `IFU-02` is issued. | FW + Regulatory | — |
 | **OI-IFU-04** | ~~Draft the above-41 °C disclosure.~~ **DISCHARGED Rev 3:** drafted as `IFU-11`, with the figure [X] withheld. Measuring the scalp-contact temperature is part of `IFU-11`'s gate. | Regulatory + Optics | — |
 | **OI-IFU-05** | ~~Draft the consumable replacement instructions.~~ **DISCHARGED Rev 3:** drafted as `IFU-12…15`, with no threshold number stated. | Regulatory + App | — |
 | **OI-IFU-06** | ~~Draft the operating, fitting, per-modality, cleaning, service and data instructions.~~ **DISCHARGED Rev 4:** drafted as `IFU-17…27`. Two gaps are kept as gate items: the cleaning method for each part (`IFU-23`) and the cleaning regime for the intranasal probe and dock (`OI-NASAL-08`). | Regulatory + Systems Engineering | — |
 | **OI-IFU-07** | **Establish the T1 contraindications and warnings** for the electrical and light modalities, including a safe listening level. No controlled document states them; the cervical set (`IFU-03`, `IFU-04`) is the only one. This is a clinical-review item, and it is raised, not drafted, because the contraindications of a stimulation device are not to be written from general knowledge. **`IFU-19…22` are not issued before it closes.** | Clinical + Regulatory | T1 labelling |
 | **OI-IFU-08** | **Verify the cleaning methods of `IFU-28…31`.** Two are sourced (`IFU-30` mesh frames; `IFU-31` fan) and two are proposed (`IFU-28` light windows; `IFU-29` lens contacts). **Rev 6: the desk check of `IFU-28` and `IFU-29` is done** (§2.12 *Verification*; it corrected `IFU-29`'s wording). **Still open: the bench test of each, the hub filter's method (`IFU-31`) and the mesh rinse (`IFU-30`).** The cleaning agent for any part is still not specified in a controlled document. | Systems Engineering + Regulatory | `IFU-23`, `IFU-28…31` |
-| **OI-IFU-09** | **Specify cleaning and disinfection of the parts that touch the person**: electrode pods, ear clip, the headset's scalp-facing surfaces, the goggles, and all of them on a device shared between people (a clinic). No document gives a regime, and none is drafted here: a hygiene claim for a body-contact device is a risk-management and regulatory decision. The probe and dock are `OI-NASAL-08`. | Regulatory + Systems Engineering | Shared-use labelling |
+| **OI-IFU-09** | **Specify cleaning and disinfection of the parts that touch the person**, and rule whether a headset may be used by more than one person. **Rev 7: the inventory of what touches whom is written (§2.13), the one supported sentence is drafted as `IFU-32` (held), and four questions are drafted for Regulatory, risk and the principal (`docs/human-input/oi-ifu-09-body-contact-cleaning.md`, DRAFT, not sent).** Still open: the ruling, and any cleaning or disinfection text for a body-contact part, which is not written until it is made. The probe and dock regime is `OI-NASAL-08`. | Regulatory + Systems Engineering | Shared-use labelling |
 | **OI-IFU-10** | **Does the plasma activation of the PDMS windows last?** The anti-fouling claim in `durability-maintenance.md` §7.2 rests on a hydrophilic surface, and outside studies find plasma-treated PDMS recovers within hours to days. Measure the window's contact angle against time, from the tile's build date to a typical first use, before the fouling-prompt rate (`NP-FW-PBM1064-001` §6.3) or the anti-fouling claim is relied on. | Optics + Systems Engineering | `IFU-28`; the anti-fouling claim |
 
 ## 6. Revision history
@@ -216,3 +241,4 @@ put the instruction in front of users.
 | 4 | 2026-10-29 | NeurOne Systems Engineering | **Drafts the remaining instructions of §3.** Adds `IFU-17…18` (fitting, signal check), `IFU-19…22` (visual goggles, ear clip and electrical modalities, audio cups, intranasal probe, all held until `OI-IFU-07` closes), `IFU-23…25` (cleaning prompts, storage and handling, replaceable parts and service) and `IFU-26…27` (your data; presence and research), each held behind a release gate. §3 keeps one row, the T1 contraindications, as a clinical-review item (`OI-IFU-07`). Discharges `OI-IFU-06`; raises `OI-IFU-08`. Records two gaps found while drafting: no controlled document gives a cleaning method for any part, and the app's setup text says five electrode pods against eight EEG channels. No statement is issued. |
 | 5 | 2026-10-30 | NeurOne Systems Engineering | **Drafts the cleaning method for each part `IFU-23` names.** Adds `IFU-28…31` (light windows, tinting-lens contacts, audio mesh frames, hub fan and filter). Two methods are sourced (mesh frames from `modality-stack.md`; fan from `NP-TOOL-HUB-001` F-04) and two are proposed, the most conservative the materials allow, held until a compatibility check. The hub foam filter's method is left blank because no document gives one. `OI-IFU-08` narrowed to verifying these; raises `OI-IFU-09` (cleaning of body-contact parts and shared-use devices), which is not drafted. No statement is issued. |
 | 6 | 2026-10-30 | NeurOne Systems Engineering | **Desk verification of the two proposed cleaning methods (`IFU-28`, `IFU-29`).** Checked each against the specifications and outside literature. **`IFU-29` corrected:** the lens-rim pads are recessed (Ø 4.0 mm in a Ø 5.0 mm pocket, 0.15 mm deep) and the arm side is a spring pin, so a cloth wipe was the wrong method; the text is now a lint-free swab with light pressure. `IFU-28` unchanged except "lint-free". Records the outside evidence (alcohol swelling of PDMS; gold-contact cleaning) as grey literature, and the bench test each method still needs, with pass criteria taken from `NP-FW-PBM1064-001` §6.3 and `NP-TOOL-LENS-001` §3.3. Raises `OI-IFU-10` (does the PDMS plasma activation last?). Both statements stay held: nothing could be tested without hardware. |
+| 7 | 2026-10-30 | NeurOne Systems Engineering | **Addresses `OI-IFU-09` as far as it can be addressed without a ruling.** Adds §2.13, the inventory of the parts that touch the person, and `IFU-32` (do not share consumables; held). Finds that the data layer already assumes a shared clinic device (`CLAUDE.md` §6.0) while no hardware document addresses hygiene between wearers. Drafts four questions for Regulatory, risk and the principal (`docs/human-input/oi-ifu-09-body-contact-cleaning.md`). **No cleaning or disinfection text for a body-contact part is written;** that waits on the ruling. `OI-IFU-09` stays open, narrowed. No statement is issued. |
