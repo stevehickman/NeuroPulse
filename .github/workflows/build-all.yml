@@ -108,9 +108,10 @@ env:
   # NP-FW-HUB-001 Rev 15 (OI-FWHUB-10) then added np_pbm_socket_telem_tests: 11 + 43 = 54.
   # NP-FW-HUB-001 Rev 18 (OI-FWHUB-26) then added np_mod_visual_tests: 11 + 44 = 55.
   # 61 → 62: np_runner_load_tests (GitHub #569, REQ-FWHUB-62).
-  NP_TOTAL_TEST_COUNT: '62'
+  # 62 → 63: np_runner_run_tests (GitHub #569, REQ-FWHUB-63).
+  NP_TOTAL_TEST_COUNT: '63'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '51'
+  NP_CLASS_B_TEST_COUNT: '52'
 
 jobs:
   host-tests-all:
