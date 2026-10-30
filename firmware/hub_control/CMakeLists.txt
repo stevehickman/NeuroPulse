@@ -218,6 +218,36 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_session_lease_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # np_runner_load(): the order in which a protocol is admitted or refused, and that a refusal leaves
+    # nothing behind (REQ-FWHUB-03, REQ-FWHUB-62, REQ-UPG-01). The REAL runner, lease, protocol parser,
+    # session clock, ramp plan and channel declaration are linked; the Ed25519 verifier, the safety MCU,
+    # the boot flag, the event group, the kernel calls and every seam the run loop (not the load) uses are
+    # doubles. The POSIX port's headers are enough: no kernel function is linked.
+    add_executable(np_runner_load_tests
+        tests/np_runner_load_tests.c
+        src/np_session_runner.c
+        src/np_session_lease.c
+        src/np_protocol.c
+        src/np_session_pause.c
+        src/np_ramp_plan.c
+        src/np_chan_decl.c
+    )
+    target_include_directories(np_runner_load_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/kernel/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/portable/ThirdParty/GCC/Posix
+        ${CMAKE_CURRENT_SOURCE_DIR}/../pbm/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+        ${NP_BOOTLOADER_INCLUDE_DIR}
+    )
+    target_compile_definitions(np_runner_load_tests PRIVATE
+        NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
+    target_compile_options(np_runner_load_tests PRIVATE
+        -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
     # per-session counts and the idle tile health pass. The logger, its backend
     # host model and the PBM dose model are linked real, so the tests read the
@@ -277,7 +307,7 @@ if(NP_BUILD_TESTS)
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
     # OI-FMEA-09 / FMEA-M03-02: the commanded-versus-delivered stimulation
-    # cross-check. Pure C; the runner that calls it compiles in no host test.
+    # cross-check. Pure C; the runner that calls it compiles in np_runner_load_tests, which reaches only the load.
     add_executable(np_stim_xcheck_tests
         tests/np_stim_xcheck_tests.c
         src/np_stim_xcheck.c
