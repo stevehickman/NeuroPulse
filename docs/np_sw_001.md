@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 139
-**Date:** 2026-10-29  
+**Revision:** 140
+**Date:** 2026-10-30
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -788,3 +788,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 137 | 2026-10-29 | NeurOne Software Engineering | **§6.3: correction to what earlier rows say about Windows (issue #569).** Rows 31, 34, 128 and 136, and the status cells of `SWR-HV-08`, `SWR-SS-05` and `SWR-SS-06`, said "the Windows app has no hub link" or that Windows reads no `UPLOAD_CHECK`. That is true only of the C# project `app/windows`, which is a library with no UI or Bluetooth and which `OI-UI-KMP-05` retires. The Windows app people run is the shared Compose desktop host (`app/NeurOneUI/desktop`): its hub link is `DesktopBleCentral` over btleplug (`common/btle-jni`, chosen by the principal, `OI-UI-KMP-03`), feeding the same `NeurOneGattManager` and `SessionTab` as Android, so it reads the hardware version and `UPLOAD_CHECK` and shows the refusals of the seventh to tenth pull requests. **Not run on a Windows machine, and pairing of the encrypted link on Windows is unverified (`OI-UI-KMP-03`).** The earlier rows are history and are left as written. The status cells now say so. No requirement text changed. |
 | 138 | 2026-10-30 | NeurOne Software Engineering | **§6.3: `SWR-HV-08` status updated for issue #569, eleventh pull request (view rendering).** The protocol menu's two banners are separate views and are tested through their rendered view tree with ViewInspector 0.10.2, a test-only SwiftPM dependency added with `NP-SOUP-NATIVE-001` Rev 4 (exact pin, MIT, no dependencies, not linked into the app). Behaviour is unchanged. No requirement text changed. |
 | 139 | 2026-10-30 | NeurOne Software Engineering | **§6.3: `SWR-HV-08` status updated for issue #569, twelfth pull request (a host test for `np_runner_load()`).** The hub's load step is host-tested: the real runner, lease and protocol parser are linked with doubles for the verifier, the safety MCU, the boot flag and the run loop's seams (`np_runner_load_tests`, `NP-FW-HUB-001` Rev 28). The refusal order and the "a refusal leaves nothing behind" property, which the row's verification names and which were by inspection only, are asserted, and the tests were shown to fail when the lease release, the descriptor clear or the boot check is broken. No requirement text changed; the run loop is still in no host test. |
+| 140 | 2026-10-30 | NeurOne Software Engineering | **§6.3: the cloud adapters run against server software (#566; no requirement changed).** The contract suite ran, opt in and outside CI, against wsgidav, Azurite (with a SAS) and moto. It found and fixed one `WebDavObjectStore` defect (a first write into a new folder failed when the server answered a racing `MKCOL` with 500). See `NP-SW-CLOUDSTORE-001` Rev 29 §4c.16. |

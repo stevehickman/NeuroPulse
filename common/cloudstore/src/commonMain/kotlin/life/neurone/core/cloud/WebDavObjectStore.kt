@@ -69,11 +69,12 @@ class WebDavObjectStore(
 
     private fun fail(what: String, r: HttpResponse): Nothing = throw CloudStoreException("$what answered ${r.status}", r.status)
 
-    /** Make the folder. 201 made it, 405 says it is there already (RFC 4918 §9.3.1); anything else, including a missing parent (409), throws. */
-    private suspend fun makeFolder() {
-        val r = send("MKCOL", { folderUrl(it) })
-        if (r.status != 201 && r.status != 405) fail("make folder", r)
-    }
+    /**
+     * Make the folder and say what the server answered. 201 made it, 405 says it is there already (RFC 4918 §9.3.1). **Any other answer is not yet a failure:**
+     * several first writes can reach a new folder together, and a real server (wsgidav, in the live run) answers the losers of that race with a 500, so the
+     * caller writes again and fails only if the folder is still missing.
+     */
+    private suspend fun makeFolder(): HttpResponse = send("MKCOL", { folderUrl(it) })
 
     private suspend fun upload(name: String, bytes: ByteArray, onlyIfAbsent: Boolean): Outcome {
         val headers = buildMap {
@@ -82,8 +83,10 @@ class WebDavObjectStore(
         }
         var r = send("PUT", { objectUrl(it, name) }, headers, bytes)
         if (r.status == 409) { // the folder is missing: make it once and write again
-            makeFolder()
+            val made = makeFolder()
+            if (made.status == 409) fail("make folder", made) // a missing parent: writing again cannot help
             r = send("PUT", { objectUrl(it, name) }, headers, bytes)
+            if (r.status == 409 && made.status != 201 && made.status != 405) fail("make folder", made) // still missing, and why
         }
         return when {
             onlyIfAbsent && r.status == 201 -> Outcome.CREATED
