@@ -214,6 +214,8 @@ targets:
 
     dependencies:
       - target: NeurOne
+      # Test-only: renders a SwiftUI view in a test and reads what it drew (UploadBannersTests). Not linked into the app.
+      - package: ViewInspector
 
 packages:
   NeurOneShared:
@@ -223,6 +225,12 @@ packages:
     # Exact, not a range: this SDK sits behind the research-consent gate and vendors libwebp and PLCrashReporter, so a
     # version changes only by a deliberate edit that also updates NP-SOUP-NATIVE-001 (OI-SOUPKT-01).
     exactVersion: "3.60.0"
+  ViewInspector:
+    url: https://github.com/nalexn/ViewInspector
+    # Exact, like PostHog: a test-only library, so a version changes only by a deliberate edit that also updates
+    # NP-SOUP-NATIVE-001. It is a dependency of NeurOneTests alone and is not linked into the app.
+    # Not newer: 0.10.4 and 0.10.5 name iOS 26 types (GlassEffectTransition) that the Xcode 16.4 SDK of CI does not have.
+    exactVersion: "0.10.2"
 
 schemes:
   NeurOne:
