@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 218
+**Revision:** 219
 **Date:** 2026-10-30
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 218 | 2026-10-30 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 219 | 2026-10-30 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 138 | 2026-10-29 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 139 | 2026-10-29 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 8 | 2026-10-21 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -142,7 +142,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 5 | 2026-09-27 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 27 | 2026-10-29 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 28 | 2026-10-29 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 3 | 2026-09-27 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |

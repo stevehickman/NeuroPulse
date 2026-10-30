@@ -231,7 +231,8 @@ env:
   # 43 → 44: np_mod_visual_tests (NP-FW-HUB-001 Rev 18, OI-FWHUB-26).
   # 46 → 50: np_session_fitting_tests, np_session_pause_tests, np_pause_limit_tests, np_ramp_plan_tests
   #          (GitHub #569 package 3, SWR-HV-02 / SWR-SS-05).
-  NP_CLASS_B_TEST_COUNT: '50'
+  # 50 → 51: np_runner_load_tests (GitHub #569, REQ-FWHUB-62: np_runner_load() has a host test).
+  NP_CLASS_B_TEST_COUNT: '51'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.
