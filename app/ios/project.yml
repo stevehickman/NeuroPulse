@@ -214,6 +214,8 @@ targets:
 
     dependencies:
       - target: NeurOne
+      # Test-only: renders a SwiftUI view in a test and reads what it drew (UploadBannersTests). Not linked into the app.
+      - package: ViewInspector
 
 packages:
   NeurOneShared:
@@ -223,6 +225,11 @@ packages:
     # Exact, not a range: this SDK sits behind the research-consent gate and vendors libwebp and PLCrashReporter, so a
     # version changes only by a deliberate edit that also updates NP-SOUP-NATIVE-001 (OI-SOUPKT-01).
     exactVersion: "3.60.0"
+  ViewInspector:
+    url: https://github.com/nalexn/ViewInspector
+    # Exact, like PostHog: a test-only library, so a version changes only by a deliberate edit that also updates
+    # NP-SOUP-NATIVE-001. It is a dependency of NeurOneTests alone and is not linked into the app.
+    exactVersion: "0.10.5"
 
 schemes:
   NeurOne:
