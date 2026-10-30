@@ -112,6 +112,7 @@
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
 #                             → np_runner_load_tests      (np_runner_load admission order, REQ-FWHUB-62)
+#                             → np_runner_run_tests       (np_runner_run loop: stops, shutdown order, pause, REQ-FWHUB-63)
 #                             → np_pbm_socket_telem_tests (OI-FWHUB-10 socket dose metering + tile health)
 #                             → np_socket_dispatch_tests  (OI-FWHUB-01 socket dispatch)
 #                             → np_chan_decl_tests        (OI-MMSOCK-02 electrode-geometry declarations)
@@ -392,6 +393,11 @@ if(NP_BUILD_TESTS)
     # (REQ-FWHUB-03, REQ-FWHUB-62, REQ-UPG-01).
     add_test(NAME np_runner_load_tests
         COMMAND np_runner_load_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # np_runner_run(): the run loop on a virtual clock (REQ-FWHUB-39, REQ-FWHUB-12, REQ-FWHUB-63).
+    add_test(NAME np_runner_run_tests
+        COMMAND np_runner_run_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
