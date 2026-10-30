@@ -133,3 +133,34 @@ fn a_titrated_basis_is_a_band_with_a_cap_and_is_refused_until_it_can_be_calibrat
     assert!(!err("3.0"), "3 mA is inside the 40 mA ceiling");
     assert!(err("41.0"), "41 mA is over it");
 }
+
+// @verifies REQ-NPPS-24
+#[test]
+fn a_field_the_block_does_not_have_is_an_error_naming_it() {
+    // A misspelt study parameter used to be accepted and run as the default.
+    let text = protocol_text("        frequency: 25Hz\n        intensity: 0.8mA\n        pulse_widht_us: 300", "");
+    let e = parse_json(&text).expect_err("an unknown key is refused");
+    assert!(e.contains("'pulse_widht_us' is not a field of this modality"), "{e}");
+    assert!(e.contains("pulse_width_us"), "the message lists the real fields: {e}");
+    assert!(e.contains("not run with that field ignored"), "{e}");
+}
+
+// @verifies REQ-NPPS-24
+#[test]
+fn a_field_that_belongs_to_another_modality_is_also_refused() {
+    // `trigger` is a vns_hrv field; a tdcs block does not have it.
+    let text = "protocol \"x\" {\n    duration: 10m\n    tdcs {\n        intensity: 1mA\n        electrode_area_cm2: 35\n        trigger: movement_cue\n    }\n}\n";
+    let e = parse_json(text).expect_err("refused");
+    assert!(e.contains("tdcs: 'trigger' is not a field of this modality"), "{e}");
+}
+
+// @verifies REQ-NPPS-24
+#[test]
+fn aliases_and_block_keys_are_still_accepted() {
+    // `frequency`, `pulse_width` and `burst` are aliases; `interval_on`, `interval_off`, `start` and `enabled` are block keys.
+    let text = protocol_text(
+        "        frequency: 25Hz\n        intensity: 0.8mA\n        pulse_width: 300\n        interval_on: 30s\n        interval_off: 30s\n        enabled: true",
+        "",
+    );
+    assert!(parse_json(&text).is_ok(), "aliases and block keys must still parse");
+}

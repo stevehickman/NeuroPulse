@@ -536,6 +536,9 @@ impl Parser {
         let mut repeat: Option<f64> = None;
         let mut start: Option<f64> = None;
         let mut raw: Map<String, Value> = Map::new();
+        // Every field the block authors: the name it resolved to, the spelling written, and its line. A key the
+        // modality's field table does not carry is refused below, never dropped (OI-NPPS-VNS-01 (d)).
+        let mut authored: Vec<(String, String, u32)> = Vec::new();
         let tbl = table();
         // `__intensity` is held outside `raw` so it cannot collide with a real key.
         let mut intensity: Option<Value> = None;
@@ -600,12 +603,14 @@ impl Parser {
             }
 
             if let Some((canonical, value)) = self.read_absolute_quantity(type_name, &key, key_tok.line)? {
+                authored.push((canonical.clone(), key.clone(), key_tok.line));
                 raw.insert(canonical, number(value));
                 self.skip_newlines();
                 continue;
             }
 
             if key == "intensity" {
+                // Resolved to the modality's own intensity field after the loop, which refuses it where there is none.
                 intensity = Some(self.read_any_value()?);
                 self.skip_newlines();
                 continue;
@@ -613,6 +618,7 @@ impl Parser {
 
             let canonical = tbl.alias(&key).unwrap_or(&key).to_string();
             let val = self.read_any_value()?;
+            authored.push((canonical.clone(), key.clone(), key_tok.line));
 
             if canonical == "noise_type" && value_string(&val) == "none" {
                 self.skip_newlines();
@@ -640,6 +646,29 @@ impl Parser {
 
         if tbl.modality(type_name).is_none() {
             return Err(ParseError::at(format!("Unknown modality block type: '{type_name}'"), self.cur().line));
+        }
+
+        // A key the field table does not carry for this modality is an error. `build_params` reads only the table, so a
+        // misspelt study parameter (`pulse_widht_us: 300`) would otherwise be accepted, ignored and run as the default:
+        // a different stimulus from the one authored. The protocol is refused, not run with the key dropped.
+        let spec = tbl.modality(type_name).expect("checked above");
+        let known: Vec<&str> = spec["fields"]
+            .as_array()
+            .expect("fields is an array")
+            .iter()
+            .filter_map(|f| f["key"].as_str())
+            .collect();
+        if let Some((_, written, line)) = authored.iter().find(|(canonical, _, _)| !known.contains(&canonical.as_str())) {
+            let mut names: Vec<&str> = known.clone();
+            names.sort_unstable();
+            names.dedup();
+            return Err(ParseError::at(
+                format!(
+                    "{type_name}: '{written}' is not a field of this modality. Its fields are {}. The protocol is refused, not run with that field ignored.",
+                    names.join(", ")
+                ),
+                *line,
+            ));
         }
 
         let params = build_params(type_name, &raw, self.cur().line)?;
