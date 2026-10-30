@@ -47,13 +47,29 @@ session, a minimum spacing between bursts, or what a stuck or lost cue should do
 | | Where the cue comes from | Works in Mode 3 | What it costs |
 |---|---|---|---|
 | **A** | The app, over Bluetooth or USB: a button, or an app-side integration with the task | No (needs the app) | The cheapest. Latency is the app link's, which is variable. The cue stops if the link drops |
+| **A2** | A wearable motion sensor, such as an Apple Watch worn on the affected arm, detecting movement onset and sending the cue to the app (or to the hub) | No (needs the app, or a hub that accepts a second Bluetooth device) | See the note below. It adds a detection algorithm, a second link and a platform dependency |
 | **B** | A task controller or robot, over the hub's USB-C data connection | Only if the hub can accept a second device | Whether the hub's USB-C port can act as anything but a device to the app is not established in any document read |
 | **C** | A dedicated wired input on the hub or the accessory port | Yes, if the robot is wired to it | New hardware and a new specification. A wired signal from outside equipment raises patient-isolation questions. It would sit on both tiers (`REQ-UPG-03`) |
 | **D** | None: `movement_cue` stays refused | n/a | Paired-stimulation protocols cannot be authored. No work |
 
+**Note on A2 (a wearable such as an Apple Watch).** The sender has not verified these points against Apple's
+documentation or tested them; they are for the Firmware and App reviewers to confirm or correct.
+- A watch has motion sensors and could, in principle, signal that an arm has started to move. Nothing in this
+  repository uses one.
+- The cue would pass over two links (watch to phone, then phone to hub, or watch to hub), so its delay is the
+  sum of both and is not guaranteed by the platform. The watch app would also have to keep running and
+  sending while the arm moves.
+- The hard part is the **detection**, not the link. A stroke patient's attempted movement may be small or
+  slow, and tremor, spasticity or a caregiver moving the limb could look like movement onset. A false cue
+  delivers a burst nobody intended; a missed one delivers none (Q3).
+- It would serve only one phone ecosystem unless equivalents are built for the others, which cuts against
+  the platform's one-shared-UI rule (`CLAUDE.md` §20). It would also put a consumer device in a path that ends in
+  stimulation, which bears on the app's software safety class (`OI-SW03-01`).
+- Movement data from the person is UHDR (`CLAUDE.md` §5) and must stay on the device.
+
 ## 4. Questions
 
-**Q1. Which source, if any?** A, B, C or D, or a staged answer (for example D now, A later).
+**Q1. Which source, if any?** A, A2, B, C or D, or a staged answer (for example D now, A later).
 
 **Q2. What does the signed descriptor bound?** The cue chooses the instant of a burst; it should not choose
 the dose. The sender's reading is that the platform's rule (a protocol is refused, never reshaped) points to
@@ -73,9 +89,9 @@ declaring an envelope in the signed protocol, so the worst case is known and che
 - **The cue source is lost mid-session** (link drop, cable out): stop, hold, or carry on with no bursts?
 - **A cue during a pause, a ramp or an interlock hold:** always ignored?
 
-**Q4. What latency does the therapy need?** The clinical adviser should say how long after the movement onset
-a burst may begin without losing the pairing. That figure decides whether source A is viable at all, since the
-app link's delay is variable.
+**Q4. What latency does the therapy need, and how reliable must the detection be?** The clinical adviser should say how long after the movement onset
+a burst may begin without losing the pairing. That figure decides whether source A or A2 is viable at all, since the
+app link's delay is variable. For A2, the clinician should also say how many false and missed cues are tolerable.
 
 ## 5. What we need back
 
