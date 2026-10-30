@@ -20,7 +20,7 @@ the only thing that keeps these from being forgotten.
 | **MT-05** | Cardiac interlock detection and cutoff latency (`FAI-CV02`) | T2 hub, cVNS accessory, R-peak generator, oscilloscope | **No.** Hardware | `docs/np_fw_cvns_001.md` §9; `OI-FMEA-02` | Hardware bench |
 | **MT-06** | Watchdog cutoff latency to all enable nets | Safety-MCU hardware, oscilloscope | **No.** Hardware | `docs/np_fmea_001.md` `OI-FMEA-01` | Hardware bench |
 
-MT-05 to MT-24 are hardware or bench tests. None can run today: the project is pre-tooling and no hardware
+MT-05 to MT-29 are hardware or bench tests. None can run today: the project is pre-tooling and no hardware
 exists (`CLAUDE.md` header; `NP-SW-CI-001`). Their procedures, criteria and figures stay in the owner docs
 and are **not** repeated here. Where a row says "gated", the owner doc names the open item that must close first.
 
@@ -36,7 +36,7 @@ and are **not** repeated here. Where a row says "gated", the owner doc names the
 | **MT-14** | PDMS–polyimide thermal-cycling qualification (`FAI-TC01`–`TC06`) | Bonded coupons, thermal chamber, peel tester, spectrophotometer | `NP-FAI-001` §4 | `FAI-TC02` is BLOCKING and QUAL |
 | **MT-15** | Ingress: IPX4 as-built, post-service, gasket ageing (`FAI-IPX-01`–`IPX-05`) | IEC 60529 spray rig, 40 °C/75 % RH chamber (90 days for `IPX-04`) | `NP-FAI-001` §5 | `FAI-IPX-02` BLOCKING; `IPX-05` gated on `NP-TOOL-HEXTILE-001` `OI-THEX-03` |
 | **MT-16** | Hub enclosure first article (`FAI-HUB-01`–`26`) | Physical hub parts, gauges, force gauge, IEC 60601-1 test finger | `NP-FAI-HUB-001` | Several rows gated (`OI-HTOOL-02`, `-03`, `-08`; `OI-NASAL-09`); `HUB-23` and `HUB-24` BLOCKING |
-| **MT-17** | PDMS–PI bond line visual and peel (`FAI-M01`–`M03`) | 10× magnifier, peel tester | `NP-FAI-001` §4 | Not checked |
+| **MT-17** | PDMS–PI bond line visual and peel (`FAI-M01`–`M03`) | 10× magnifier, peel tester | `NP-FAI-001` §4 | `FAI-M02` and `M03` are per production batch (witness coupon). `FAI-M03` alone does not evidence long-term reliability: `FAI-TC02` must be on file |
 | **MT-18** | Impedance front-end calibration: do the ohms `np_hal_impedance_read_ohm()` returns match a known load? (`OI-SWCI-34`) | Safety-MCU board with the real analog front end, reference resistors | `NP-SW-CI-001` `OI-SWCI-34`; `np_safety_config.h` (`NP_IMP_SENSE_R_OHM`) | Front end undesigned; values are an uncalibrated placeholder. The fail-safe direction holds regardless |
 | **MT-19** | FlexRAM partition took effect on silicon (`OI-SWCI-39`, gating `OI-SWCI-42`'s `.bss` move and `§4.13.3`'s weight-matrix placement) | i.MX RT1062 board running the bootloader | `NP-SW-CI-001` §4.10, §4.10.6, §4.12.3, §4.13.3 | Three register writes never run on silicon. `ucHeap` does not depend on them |
 | **MT-20** | 3.3 V logic budget per populated tile in each state (`HT-DRC-12`, `REQ-FWTILE-08`) | Populated hextile module, 25–62 °C chamber, current measurement | `NP-HW-HEXTILE-001` (`HT-DRC-12`); `NP-FW-HEXTILE-001` §10 | Open; depends on standby firmware (`OI-HEXTILE-07`) |
@@ -44,6 +44,11 @@ and are **not** repeated here. Where a row says "gated", the owner doc names the
 | **MT-22** | Shell (`NP-DRV-SHELL-002` §11) bench design-review items: `SH2-DRC-08`, `10`, `10a`, `10b`, `12`, `14`, `16`, `17`, `24`, `26`, `27`, `28` | Per row: socket force rig, current probes, oscilloscope, magnetometer, PD readback | `NP-DRV-SHELL-002` §11; the record is `NP-REV-SHELL-001` | None signed. `SH2-DRC-17` is BLOCKED on `OI-SHELL2-07` (budget unset) |
 | **MT-23** | Safety-MCU IWDG on silicon: worst-case main-loop iteration, and a deliberately stalled loop resets with every enable disabled (`OI-SWCI-49`) | Safety-MCU board, scope or logic analyser | `NP-SW-CI-001` `OI-SWCI-49`; feeds `NP-FMEA-001` `OI-FMEA-01` | Not run. The 1,000 ms timeout is provisional; no WCET has been measured. Run with MT-06 |
 | **MT-24** | On-skin 1 kHz impedance distribution for the tES electrode set, to set a minimum-impedance floor (`OI-FMEA-14`) | Calibrated impedance front end (MT-18), human volunteers | `NP-FMEA-001` `OI-FMEA-14` | Blocked on MT-18. Current floors (500 Ω VNS-HRV / cervical VNS, 1 Ω tDCS and BES/tACS) are interim and change only on evidence |
+| **MT-25** | Zone-module eject lever, force gauge on the mechanism alone, and lifecycle (`FAI-A09`–`A15`) | Production-representative module and lever, force gauge, cycling rig | `NP-HFE-001` §7.2, `OI-HFE-04`; `DI-USE-02`, `DI-PERF-24` in `NP-DT-001` | Criteria for `A09`–`A15` are in the retired `NP-FAI-ZM-001` (`docs/superseded/np_fai_zm_001.docx`), and `NP-FAI-001` did not carry them forward. I did not open that file |
+| **MT-26** | Formative usability study of the eject lever with 5 people with Parkinson's disease or post-stroke hemiparesis (`FAI-A15`, `NP-HFE-001` §7.2) | Working lever hardware, IRB protocol, clinical recruitment partner | `NP-HFE-001` §7.2; `OI-HFE-02` (recruitment), `OI-HFE-04` | Gated on `FAI-A09` bench pass (MT-25) and an active IRB protocol |
+| **MT-27** | eMMC SANITIZE timing on the target part (`FAI-RESET-01`, `OI-EMMC2-03`) | Target eMMC with a 6.9 GiB UHDR partition, timer | `NP-FW-EMMC-002` | Not run; no hardware |
+| **MT-28** | Temporal-wing anchor boss: clip insert/remove cycling and entry surface (`FAI-TW-01`, `FAI-TW-02`) | Reference pad clip, force gauge, surface-roughness measurement | `NP-TOOL-SHELL-002` (`S2-F01`) | PROVISIONAL. Run only if HOPE Phase 3 is positive |
+| **MT-29** | Clinician consent revocation, end to end (`FAI-REVOKE-01`) | T2 clinical API, test patient and clinician accounts, UI screenshot review | `NP-PRIV-REM-001` STEP-23 | T2 pre-launch; waits on the API. Parts (a)–(d) are automatable; **part (e) is the manual part** |
 
 ## 2. Common step lists
 
@@ -145,7 +150,7 @@ recorded separately, and a cutoff time is never quoted without its detection tim
 **Not runnable (hardware).** Follow `NP-FMEA-001` `OI-FMEA-01`. Use CS-E and CS-D. The item names two
 nodes to be read, and the pass criterion is the item's.
 
-### MT-07 to MT-24. Hardware and bench tests
+### MT-07 to MT-29. Hardware and bench tests
 For each: CS-E, then the owner doc's procedure, then CS-F, then CS-D. Notes the owner docs make that change
 how you run them:
 
@@ -172,6 +177,14 @@ how you run them:
 - **MT-24:** involves human volunteers, so it needs the same ethics route as MT-08 before anyone is recruited
   (the source names Clinical as an owner). Calibrate the front end first (MT-18); a distribution through an
   uncalibrated front end derives nothing. Record the distribution only. Do not set a floor from this index.
+- **MT-25:** a bench check on the mechanism alone. It must pass before MT-26 is scheduled (`OI-HFE-04`).
+- **MT-26:** human participants with motor impairment. It needs an active IRB protocol (`NP-IRB-001`) before
+  anyone is recruited. Do not start it from this index.
+- **MT-27:** SANITIZE destroys the partition's contents. Run it only on a bench part that holds no one's UHDR
+  (CLAUDE.md §5).
+- **MT-28:** the owner doc says run it only if HOPE Phase 3 is positive. Check that first.
+- **MT-29:** run (a)–(d) as integration tests if they exist and record (e) by hand: the screenshot of the
+  disclosure message the app shows the patient. The UI string comes from the locale files (CLAUDE.md §17).
 - **MT-22:** one row for twelve shell items. Log each `SH2-DRC-nn` separately in `NP-REV-SHELL-001`, which
   is the instrument that records them. The items' methods and pass criteria are in `NP-DRV-SHELL-002` §11.
   `SH2-DRC-14` is the same <50 ms cutoff class as MT-06 but at the cluster rails, so it is not a duplicate.
@@ -182,13 +195,27 @@ how you run them:
 
 - **Not found:** any manual test in `app/android/ISA.md` (it has no `manual` rows), and any manual
   procedure for the Windows or web apps.
-- **Hardware rows are an index only.** MT-05 to MT-24 were taken from the owner docs' test tables and
+- **Hardware rows are an index only.** MT-05 to MT-29 were taken from the owner docs' test tables and
   headings, not from reading each procedure end to end. I read `FAI-CV01`, `CV02`, `CV03`, the `FAI-SM`,
-  `FAI-T2` and `FAI-HD` tables, the `EMF-1` plan and the head of `NP-EMC-EMIRR-001`. I did not read the
-  `NP-FAI-001` and `NP-FAI-HUB-001` rows in full.
-- **Not included, deliberately:** `FAI-SM-01`/`02`/`03`/`05`/`09`/`10`/`11`, `FAI-T2-01`–`04` (marked
-  Software PASS in their docs), and `FAI-ANON-01`–`09` (firmware tests whose execution mode I did not
-  confirm). If any of these turns out to be run by hand, it belongs here.
+  `FAI-T2` and `FAI-HD` tables, the `EMF-1` plan and the head of `NP-EMC-EMIRR-001`. I have since read `NP-FAI-001` §2.1 and §4–§5 in full and
+  the `NP-FAI-HUB-001` item names and methods, but not every accept criterion.
+- **FAI items not given a row, and why:**
+
+  | Items | Why |
+  |-------|-----|
+  | `FAI-SM-01`/`02`/`03`/`05`/`09`/`10`/`11`, `FAI-T2-01`–`04`, `FAI-HD02` | Marked Software PASS in their documents; host tests |
+  | `FAI-HD01` (plumbing), `HD03`, `HD04` | Software passes; the bench half is MT-09 |
+  | `FAI-ANON-01`–`09` | Software verification, outside the FAI programme (`NP-FAI-001` §2.1.1); executed by `firmware/anon/tests/` and an external DP review. Not confirmed to be run by hand |
+  | `FAI-ACCEL-01` | `NP-PRIV-REM-001` says fully automatable as an integration test |
+  | `FAI-HUB-01`–`04` | Document checks and a BOM review. A person reviews them, but they are not a bench test. Sign them off on `NP-FAI-HUB-001` |
+  | `FAI-TC01`, `TC06` | Document checks (process control plan; qualification report). Sign-off on `NP-FAI-001` |
+  | `FAI-IPX-05` | A calculation plus IPX4, gated on `NP-TOOL-HEXTILE-001` `OI-THEX-03`; no budget set |
+  | `FAI-01`–`08` as bare numbers | These are `OI-FAI-nn` open items in `NP-FAI-001`, not test items |
+
+- **Checklists that do not exist.** `NP-FAI-001` §2 names `NP-FAI-CVNS-001`, `NP-FAI-TACSDRV-001` and
+  `NP-FAI-L1-001` as absent: each fails its F1 (no specification stable enough to inspect). The serials
+  `NP-FAI-SM-001`, `NP-FAI-HD-001`, `NP-FAI-CV-001` and `NP-FAI-ANON-001` are retired; their items live in the
+  firmware specifications that MT-05, MT-07 to MT-11 point at. Nothing to run until a checklist is written.
 - **Added at MT-18 to MT-22 (and MT-23, MT-24):** `OI-SWCI-34`, `OI-SWCI-39` (with `-42`), `HT-DRC-12`, `OI-HEXTILE-24(g)` and
   the shell bench items. `OI-SWCI-42` is closed, but its `.bss` move still waits on MT-19. I read the
   `NP-SW-CI-001` §4.10 and OI rows, the `HT-DRC-12` rows in both hextile docs, the `OI-HEXTILE-24` row and the
