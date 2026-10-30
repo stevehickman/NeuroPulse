@@ -114,11 +114,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macos-26 is the newest generally available arm64 image (macos-26-intel is the Intel one). macos-14 is
-          # retired on 2026-11-02, with brownouts before then that fail the job at once. When the macOS image
-          # under this label is announced for retirement, move to the next label here; nothing in this job
-          # depends on the image: Java, Rust and Gradle are all installed by the steps below.
-          - { name: macOS arm64, os: macos-26,       task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
+          - { name: macOS arm64, os: macos-14,       task: packageDmg, dir: macos-arm64,  lib: libneurone_npps_jni.dylib }
           - { name: Windows x64, os: windows-latest, task: packageMsi, dir: windows-x64,  lib: neurone_npps_jni.dll }
     defaults:
       run:
