@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 76 (current)  
+**Revision:** 77 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -155,7 +155,7 @@ cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 | PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
 | BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic · **40 µC/cm² per phase** |
 | tDCS | 0.1–2 mA DC · **150 mC/cm² per session** hardware limit · 30 s ramp · ≤3 electrode pairs |
-| VNS (auricular) | biphasic charge-balanced · **40 µC/cm² per phase** · **≤40 mA**, a stop-gap derived from that charge limit (pad area provisional), not a sensory, heating or cardiac limit (`OI-VNSCLIP-09`; derivation in `modality-stack.md`) · **no frequency ceiling:** the former 25 Hz was an equivalence bound with no derivation and is removed (`OI-VNSCLIP-08`, Rev 76) |
+| VNS (auricular) | biphasic charge-balanced · **40 µC/cm² per phase** · **≤40 mA**, a stop-gap derived from that charge limit (pad area provisional), not a sensory, heating or cardiac limit (`OI-VNSCLIP-09`; derivation in `modality-stack.md`) · **no frequency ceiling and no floor above zero:** the former 25 Hz ceiling and 1 Hz floor were equivalence bounds with no derivation and are removed (`OI-VNSCLIP-08`, Rev 76 and 77); 0 Hz is DC, a different waveform class, and is refused |
 | Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
 
 **A PBM ceiling refuses a protocol. It never reshapes one**. Duty, mode and

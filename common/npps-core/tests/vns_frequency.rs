@@ -55,9 +55,13 @@ fn the_frequency_travels_in_a_32_bit_field() {
 
 // @verifies REQ-VNSC-03
 #[test]
-fn the_one_hertz_floor_is_still_checked() {
-    assert!(keys(&auricular("0.5Hz")).iter().any(|k| k == "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ"));
-    assert!(!keys(&auricular("1Hz")).iter().any(|k| k == "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ"));
+fn any_positive_frequency_is_accepted_and_zero_is_refused() {
+    for f in ["0.001Hz", "0.1Hz", "0.5Hz", "1Hz"] {
+        assert!(!keys(&auricular(f)).iter().any(|k| k == "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ"), "{f} must not be refused");
+    }
+    assert!(keys(&auricular("0Hz")).iter().any(|k| k == "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ"));
+    // Sub-hertz travels in the 32-bit millihertz field: 0.5 Hz = 500 mHz.
+    assert_eq!(compile(&auricular("0.5Hz")).unwrap()[83..87], 500u32.to_le_bytes());
 }
 
 // @verifies REQ-VNSC-03

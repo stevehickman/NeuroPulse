@@ -56,7 +56,7 @@
 
 **6. VNS + HRV + HRV Biofeedback**
 - Auricular clip · auricular branch CN X
-- biphasic charge-balanced · **no frequency ceiling** (the 25 Hz was an equivalence bound carried over from the cervical predicate and is removed, Rev 76, `OI-VNSCLIP-08`; the 1 Hz floor has no derivation, `UC-118`) · **≤ 40 mA** (Rev 68 stop-gap, `VNS_MAX_MILLIAMPS`). It is the strictest current the 40 µC/cm² per-phase charge limit permits at any allowed pulse width (40 µC/cm² × 0.5 cm² ÷ 500 µs); the pad area is provisional (`UC-006`), and it is not a sensory, heating or cardiac limit. Replaced the 2 mA (removed in Rev 67). Whether any ceiling is needed, and whether it should depend on pulse width and frequency: GitHub #554 and #559, `OI-VNSCLIP-09`, `UC-079`
+- biphasic charge-balanced · **no frequency ceiling** (the 25 Hz was an equivalence bound carried over from the cervical predicate and is removed, Rev 76, `OI-VNSCLIP-08`; the 1 Hz floor was removed too, Rev 77, `UC-118`; any positive frequency is accepted, and 0 Hz is DC and is refused) · **≤ 40 mA** (Rev 68 stop-gap, `VNS_MAX_MILLIAMPS`). It is the strictest current the 40 µC/cm² per-phase charge limit permits at any allowed pulse width (40 µC/cm² × 0.5 cm² ÷ 500 µs); the pad area is provisional (`UC-006`), and it is not a sensory, heating or cardiac limit. Replaced the 2 mA (removed in Rev 67). Whether any ceiling is needed, and whether it should depend on pulse width and frequency: GitHub #554 and #559, `OI-VNSCLIP-09`, `UC-079`
 - PPG HRV (808–830nm) in same clip
 - **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
 - PDMS hydrogel pads: 20–40 sessions, $8/2-pack

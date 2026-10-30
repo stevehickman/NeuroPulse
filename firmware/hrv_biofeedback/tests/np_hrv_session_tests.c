@@ -31,10 +31,10 @@ static int g_fail = 0;
 
 /* ── Recording callbacks ──────────────────────────────────────────────────── */
 static int      g_enables;
-static uint16_t g_last_freq;
+static uint32_t g_last_freq;
 static uint16_t g_last_ua;
 
-static void rec_enable(uint16_t f, uint16_t ua) { g_enables++; g_last_freq = f; g_last_ua = ua; }
+static void rec_enable(uint32_t f, uint16_t ua) { g_enables++; g_last_freq = f; g_last_ua = ua; }
 static void rec_disable(void) { }
 
 /* Feed R-R intervals that shorten by 20 ms/beat: a clear inspiration onset,
@@ -56,13 +56,13 @@ static void test_rejected_init_disarms_previous(void)
 
     /* Control: a valid configuration does fire on inspiration. */
     g_enables = 0;
-    CHECK(np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable) == NP_HRV_OK,
+    CHECK(np_hrv_tavns_init(&t, 10000U, 800U, rec_enable, rec_disable) == NP_HRV_OK,
           "valid 10 Hz / 800 uA configuration accepted");
     drive_inspiration(&t);
-    CHECK(g_enables >= 1 && g_last_freq == 10U && g_last_ua == 800U,
+    CHECK(g_enables >= 1 && g_last_freq == 10000U && g_last_ua == 800U,
           "control: inspiration onset fires the enable at the configured rate");
 
-    /* The defect: a refused configuration (0 Hz; there is no frequency ceiling any more, OI-VNSCLIP-08) must not
+    /* The defect: a refused configuration (0 mHz, which is DC; there is no frequency ceiling or floor above zero any more, OI-VNSCLIP-08) must not
      * leave 10 Hz armed. */
     CHECK(np_hrv_tavns_init(&t, 0U, 800U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
           "0 Hz refused");
@@ -75,15 +75,15 @@ static void test_rejected_init_disarms_previous(void)
     /* The removed ceiling (OI-VNSCLIP-08): 30 Hz, GitHub #386's value, is accepted and is what fires. */
     g_enables = 0;
     memset(&t, 0, sizeof(t));
-    CHECK(np_hrv_tavns_init(&t, 30U, 800U, rec_enable, rec_disable) == NP_HRV_OK,
+    CHECK(np_hrv_tavns_init(&t, 30000U, 800U, rec_enable, rec_disable) == NP_HRV_OK,
           "30 Hz / 800 uA accepted now that there is no frequency ceiling");
     drive_inspiration(&t);
-    CHECK(g_enables >= 1 && g_last_freq == 30U && g_last_ua == 800U,
+    CHECK(g_enables >= 1 && g_last_freq == 30000U && g_last_ua == 800U,
           "inspiration onset fires the enable at 30 Hz, the configured rate");
 
     /* Same for an out-of-range current (below the 100 uA floor). */
-    (void)np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable);
-    CHECK(np_hrv_tavns_init(&t, 10U, 99U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
+    (void)np_hrv_tavns_init(&t, 10000U, 800U, rec_enable, rec_disable);
+    CHECK(np_hrv_tavns_init(&t, 10000U, 99U, rec_enable, rec_disable) == NP_HRV_ERR_INVALID_ARG,
           "99 uA refused");
     g_enables = 0;
     memset(&t, 0, sizeof(t));
@@ -99,14 +99,14 @@ static void test_gate_direction(void)
     np_tavns_state_t t;
     uint16_t rr;
 
-    (void)np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable);
+    (void)np_hrv_tavns_init(&t, 10000U, 800U, rec_enable, rec_disable);
     g_enables = 0;
     for (uint32_t i = 0U; i < 4U * NP_TAVNS_INSP_SLOPE_WIN; i++) {
         np_hrv_tavns_process_rr(&t, 900U, 1000U * i);
     }
     CHECK(g_enables == 0, "steady R-R never opens the gate");
 
-    (void)np_hrv_tavns_init(&t, 10U, 800U, rec_enable, rec_disable);
+    (void)np_hrv_tavns_init(&t, 10000U, 800U, rec_enable, rec_disable);
     g_enables = 0;
     rr = 800U;
     for (uint32_t i = 0U; i < 2U * NP_TAVNS_INSP_SLOPE_WIN; i++) {
@@ -119,7 +119,7 @@ static void test_gate_direction(void)
 /* ── Session level ────────────────────────────────────────────────────────── */
 static void end_cb(const np_hrv_session_record_t *r, np_hrv_status_t s) { (void)r; (void)s; }
 
-static np_hrv_status_t start_with(uint16_t freq_hz, uint16_t ua, bool *running)
+static np_hrv_status_t start_with(uint32_t freq_mhz, uint16_t ua, bool *running)
 {
     np_hrv_session_config_t cfg;
     np_hrv_coherence_result_t coh;
@@ -127,7 +127,7 @@ static np_hrv_status_t start_with(uint16_t freq_hz, uint16_t ua, bool *running)
     memset(&cfg, 0, sizeof(cfg));
     cfg.protocol         = NP_HRV_PROTO_TAVNS_SYNC;
     cfg.duration_s       = 600U;
-    cfg.tavns_freq_hz    = freq_hz;
+    cfg.tavns_freq_mhz   = freq_mhz;
     cfg.tavns_current_ua = ua;
 
     np_hrv_session_t *s = np_hrv_session_create(&cfg, NULL, end_cb, 0U);
@@ -160,12 +160,14 @@ static void test_session_accepts_window(void)
     CHECK(start_with(0U, 0U, &running) == NP_HRV_OK && running,
           "0 / 0 selects the defaults and runs");
     CHECK(start_with(1U, 100U, &running) == NP_HRV_OK && running,
-          "1 Hz / 100 uA, the lower edges, run");
-    CHECK(start_with(NP_TAVNS_DEFAULT_FREQ_HZ, NP_VNS_MAX_CURRENT_UA, &running) == NP_HRV_OK && running,
+          "1 mHz / 100 uA, the lowest frequency and the current floor, run");
+    CHECK(start_with(500U, 0U, &running) == NP_HRV_OK && running,
+          "0.5 Hz runs: there is no floor above zero (OI-VNSCLIP-08)");
+    CHECK(start_with(NP_TAVNS_DEFAULT_FREQ_MHZ, NP_VNS_MAX_CURRENT_UA, &running) == NP_HRV_OK && running,
           "25 Hz / 40000 uA, the default frequency and the current ceiling, run");
-    CHECK(start_with(30U, 0U, &running) == NP_HRV_OK && running,
+    CHECK(start_with(30000U, 0U, &running) == NP_HRV_OK && running,
           "30 Hz runs: the 25 Hz ceiling is removed (OI-VNSCLIP-08; GitHub #386's value)");
-    CHECK(start_with(100U, 0U, &running) == NP_HRV_OK && running,
+    CHECK(start_with(100000U, 0U, &running) == NP_HRV_OK && running,
           "100 Hz runs: nothing above the old ceiling is refused here");
 }
 

@@ -175,12 +175,12 @@ fn modality_fields(kind: &str, params: &Value) -> R<Vec<String>> {
                 format!("breathing_rate: {}", p.n("resonanceBreathingRate")?),
             ];
             // The optional study parameters are written only when authored, so a block without them round-trips unchanged.
-            for key in ["side", "trigger", "intensityBasis"] {
+            for key in ["side", "trigger"] {
                 if let Some(v) = params[key].as_str() {
                     lines.push(format!("{}: {v}", snake(key)));
                 }
             }
-            for key in ["pulseWidthUs", "burstSeconds", "intensityPercentOfThreshold"] {
+            for key in ["pulseWidthUs", "burstSeconds"] {
                 if let Some(n) = p.opt_num(key) {
                     lines.push(format!("{}: {}", snake(key), num_string(n)));
                 }

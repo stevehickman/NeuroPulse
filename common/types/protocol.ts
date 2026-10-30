@@ -232,17 +232,13 @@ export interface VNSHRVParams {
   resonanceBreathingRate: number;
   // The parameters the taVNS studies state, all optional and absent from a block that does not author them
   // (NP-NPPS-REF-001 §4.6). `side` defaults to the left ear. `pulseWidthUs` absent means the firmware's 250 µs.
-  // `trigger: 'movement_cue'` (with `burstSeconds`) and a threshold-relative `intensityBasis` parse and validate,
-  // but the compiler refuses them until the hub has a trigger input and the app a calibration step (OI-NPPS-VNS-01).
-  // For any basis but 'absolute', `intensityMilliamps` is the CAP: the level found from the thresholds is never above it,
-  // and it is itself held to the 2 mA hardware ceiling. 'titrated' is the band the studies state: above the detection
-  // threshold and below the pain threshold, set per patient.
+  // `trigger: 'movement_cue'` (with `burstSeconds`) parses and validates, but the compiler refuses it until the hub has
+  // a trigger input (OI-NPPS-VNS-01). Intensity is absolute only: a threshold-relative basis was retired on 2026-10-30
+  // because the system cannot know in advance how a person will perceive an intensity (NP-NPPS-REF-001 Rev 33).
   side?: 'left' | 'right' | 'bilateral';
   pulseWidthUs?: number;
   trigger?: 'continuous' | 'movement_cue';
   burstSeconds?: number;
-  intensityBasis?: 'absolute' | 'perceptual_threshold' | 'pain_threshold' | 'titrated';
-  intensityPercentOfThreshold?: number;
 }
 
 export interface AudioEntrainmentParams {
