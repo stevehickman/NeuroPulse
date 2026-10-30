@@ -26,6 +26,8 @@ on:
     paths:
       - 'scripts/watch-crate-release.ts'
       - '.github/workflows/crate-release-watch.yml'
+      - '.github/toolchain.json'
+      - '.github/actions/setup-toolchain/**'
 
 permissions:
   contents: read
@@ -36,9 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
       - run: bun scripts/watch-crate-release.ts --self-test
 
   watch:
@@ -56,9 +59,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Ask crates.io
         id: ask

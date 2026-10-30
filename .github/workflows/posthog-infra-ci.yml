@@ -42,6 +42,8 @@ jobs:
         ci/test_posthog_project_settings.py
         ci/test_posthog_erase_relay.py
         .github/workflows/posthog-infra-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -103,9 +105,10 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: ./.github/actions/setup-toolchain
         with:
-          python-version: '3.11'
+          python: 'true'
       # The checks are negative, so a green tick is worth nothing until each has been shown to go red on a broken copy.
       - name: Gate self-test (prove each check can fail)
         run: python3 ci/test_posthog_infra.py --self-test --require-docker

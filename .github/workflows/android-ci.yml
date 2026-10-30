@@ -77,6 +77,8 @@ jobs:
         locales/**
         scripts/sync-locales.ts
         .github/workflows/android-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -144,11 +146,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up the JDK
+        uses: ./.github/actions/setup-toolchain
         with:
-          distribution: temurin
-          java-version: '17'   # AGP 8.9.3 requires JDK 17
+          java: 'true'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -171,9 +172,9 @@ jobs:
       # The :app build generates res/values*/strings.xml from locales/*.json via
       # the syncLocales Gradle task, which shells out to bun.
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # :desktop:test builds common/btle-jni, whose btleplug links libdbus on Linux (BlueZ).
       - name: Install libdbus (btleplug on Linux)
@@ -181,12 +182,12 @@ jobs:
 
       # :core's test task runs `cargo build` for common/npps-jni (OI-NPPS-CORE-01). The runner image
       # ships rustup; this pins the channel so a stale image cannot change what is built.
-      - name: Set up Rust (stable)
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-          rustup target add wasm32-unknown-unknown   # :core:wasmJsNodeTest and :web build the core as WebAssembly
-          cargo --version
+      # :core:wasmJsNodeTest and :web build the core as WebAssembly
+      - name: Set up Rust
+        uses: ./.github/actions/setup-toolchain
+        with:
+          rust: 'true'
+          rust-targets: 'wasm32-unknown-unknown'
 
       # The APK carries the Rust NPPS core for four ABIs (:app's buildNppsCoreNative, via cargo-ndk).
       - name: Install NDK, the Rust Android targets and cargo-ndk
@@ -196,10 +197,10 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
           cargo install cargo-ndk --locked
 
-      - name: Set up Gradle 8.11.1
-        uses: gradle/actions/setup-gradle@v4
+      - name: Set up Gradle
+        uses: ./.github/actions/setup-toolchain
         with:
-          gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
+          gradle: 'true'
 
       - name: Build :core, :shared, :desktop and :web, and run unit tests
         run: gradle :core:jvmTest :cloudstore:jvmTest :cloudauth:jvmTest :core:wasmJsNodeTest :shared:desktopTest :desktop:test :web:compileKotlinWasmJs :app:testDebugUnitTest --stacktrace
