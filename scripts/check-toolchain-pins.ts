@@ -63,6 +63,9 @@ const MACOS_RUNNER = /\b(runs-on|os)\s*:[^,}\n]*\bmacos-[a-z0-9.]+/;
 
 export type Finding = { file: string; line: number; rule: number; text: string };
 
+/** A string as a literal inside a RegExp: every metacharacter, backslash included, is escaped. */
+export const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+
 /** A line without its trailing comment. A `#` inside a YAML flow value is not used in these files. */
 function code(line: string): string {
   const m = line.match(/(^|\s)#/);
@@ -90,7 +93,7 @@ export function checkWorkflow(file: string, text: string): Finding[] {
     if (!l.trim()) return;
     if (MACOS_RUNNER.test(l)) add(i, 1, `names a macOS image: ${l.trim()}. Use needs.changes.outputs.macos`);
     for (const a of SETUP_ACTIONS) {
-      if (new RegExp(`uses:\\s*${a.replace(/[/.]/g, "\\$&")}@`).test(l)) add(i, 2, `uses ${a} directly. Use ${ACTION_REF}`);
+      if (new RegExp(`uses:\\s*${escapeRe(a)}@`).test(l)) add(i, 2, `uses ${a} directly. Use ${ACTION_REF}`);
     }
     if (VERSION_KEY.test(l)) add(i, 3, `carries a toolchain version: ${l.trim()}. The version is in ${PINS_FILE}`);
     if (RUSTUP.test(l)) add(i, 3, `installs Rust itself: ${l.trim()}. Use ${ACTION_REF} with rust: 'true'`);
@@ -174,6 +177,12 @@ function selfTest(): void {
     }
   };
   const wfPath = ".github/workflows/a.yml";
+  // The helper that builds the setup-action patterns escapes a backslash as well as the other metacharacters.
+  const esc = escapeRe("a\\b.c/d");
+  if (esc !== "a\\\\b\\.c\\/d" || !new RegExp(`^${esc}$`).test("a\\b.c/d") || new RegExp(`^${esc}$`).test("a\\b-c/d")) {
+    console.error(`self-test FAILED: escapeRe(${JSON.stringify("a\\b.c/d")}) gave ${JSON.stringify(esc)}`);
+    process.exit(1);
+  }
   expect("clean tree passes", base, 0);
   expect("a macOS runner fails", with_(wfPath, wf.replace("${{ needs.changes.outputs.macos }}", "macos-26")), 1, 1);
   expect("macos-latest fails", with_(wfPath, wf.replace("${{ needs.changes.outputs.macos }}", "macos-latest")), 1, 1);
