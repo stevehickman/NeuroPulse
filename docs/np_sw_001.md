@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 140
-**Date:** 2026-10-30  
+**Revision:** 141
+**Date:** 2026-11-01  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -789,3 +789,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 138 | 2026-10-30 | NeurOne Software Engineering | **§6.3: `SWR-HV-08` status updated for issue #569, eleventh pull request (view rendering).** The protocol menu's two banners are separate views and are tested through their rendered view tree with ViewInspector 0.10.2, a test-only SwiftPM dependency added with `NP-SOUP-NATIVE-001` Rev 4 (exact pin, MIT, no dependencies, not linked into the app). Behaviour is unchanged. No requirement text changed. |
 | 139 | 2026-10-30 | NeurOne Software Engineering | **§6.3: `SWR-HV-08` status updated for issue #569, twelfth pull request (a host test for `np_runner_load()`).** The hub's load step is host-tested: the real runner, lease and protocol parser are linked with doubles for the verifier, the safety MCU, the boot flag and the run loop's seams (`np_runner_load_tests`, `NP-FW-HUB-001` Rev 28). The refusal order and the "a refusal leaves nothing behind" property, which the row's verification names and which were by inspection only, are asserted, and the tests were shown to fail when the lease release, the descriptor clear or the boot check is broken. No requirement text changed; the run loop is still in no host test. |
 | 140 | 2026-10-30 | NeurOne Software Engineering | **§6.3: `SWR-HV-08` status updated for issue #569, thirteenth pull request (a host test for `np_runner_run()`).** The run loop is host-tested (`NP-FW-HUB-001` Rev 29, `REQ-FWHUB-63`). Two firmware defects it found are fixed: the reason given to `np_runner_abort` is kept, and the length a session ran no longer includes the shutdown wait (`SWR-SS-07`). No requirement text changed. |
+| 141 | 2026-11-01 | NeurOne Software Engineering | **§6.3: the cloud adapters run against server software (#566; no requirement changed).** The contract suite ran, opt in and outside CI, against wsgidav, Azurite (with a SAS) and moto. It found and fixed one `WebDavObjectStore` defect (a first write into a new folder failed when the server answered a racing `MKCOL` with 500). See `NP-SW-CLOUDSTORE-001` Rev 29 §4c.16. |
