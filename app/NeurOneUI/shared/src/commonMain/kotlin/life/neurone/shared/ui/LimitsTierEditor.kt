@@ -56,6 +56,7 @@ import org.jetbrains.compose.resources.stringResource
 // each section switched on to create its block, each field optional. A blank field is "no configured cap".
 // The sections are a table (below), so a modality's fields are declared once. The ranges are the iOS editor's
 // input bounds; they are not the hardware ceilings, which the validator enforces whatever is typed here.
+// The auricular VNS frequency has no upper bound (OI-VNSCLIP-08), so its range is open at the top.
 
 /** One input in a section: how to read it from, and write it into, the working set. */
 private sealed interface LimitField {
@@ -163,8 +164,8 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_vns_hrv,
         { it.vnsHrv != null }, { l, on -> l.copy(vnsHrv = if (on) NPVNSHRVLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..2.0, { it.vnsHrv?.maxIntensityMilliamps }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxIntensityMilliamps = v)) },
-            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 1.0..25.0, { it.vnsHrv?.maxFrequencyHz }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..40.0, { it.vnsHrv?.maxIntensityMilliamps }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 0.0..Double.POSITIVE_INFINITY, { it.vnsHrv?.maxFrequencyHz }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxFrequencyHz = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.vnsHrv?.maxSessionDurationSeconds }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxSessionDurationSeconds = v)) },
             LimitField.Allowed(Res.string.ui_lim_allowed_hrv, hrvProtocols, { it.vnsHrv?.allowedProtocols }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(allowedProtocols = v)) },
         ),
@@ -389,7 +390,7 @@ private fun OptionalNumber(
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         if (current == null) {
-            TextButton(onClick = { val mid = (min + max) / 2; text = formatNumber(mid); onChange(mid) }) {
+            TextButton(onClick = { val mid = if (max.isFinite()) (min + max) / 2 else maxOf(min, 1.0); text = formatNumber(mid); onChange(mid) }) {
                 Text(stringResource(Res.string.limits_set_limit))
             }
         } else {
