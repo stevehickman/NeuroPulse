@@ -1188,7 +1188,7 @@
   "SETUP_IMPEDANCE_FAIL_A11Y": "{0}: check contact",
   "SETUP_IMPEDANCE_PASS_A11Y": "{0}: signal good",
   "SETUP_INSTR_BLE": "Power on the hub and connect via Bluetooth or USB-C. The green power LED should be breathing steadily. Tap Confirm once connected.",
-  "SETUP_INSTR_BOA_DIAL": "Turn the Boa dial clockwise until the headset sits firmly on your head. The bridge should rest comfortably above your ears. All five electrode pods should touch your scalp.",
+  "SETUP_INSTR_BOA_DIAL": "Turn the Boa dial clockwise until the headset sits firmly on your head. The bridge should rest comfortably above your ears. All the electrode pods should touch your scalp.",
   "SETUP_INSTR_CALIBRATION": "The EEG amplifier is calibrating its internal reference. This takes about 2 seconds and eliminates drift across all 8 channels. Stay still.",
   "SETUP_INSTR_COMPLETE": "Your NeurOne is set up and calibrated. You're ready for your first session.",
   "SETUP_INSTR_ELECTRODE_PODS": "Press each electrode pod lightly against your scalp. Each pod travels ±12mm independently, so you don't need to dial tighter to reach every contact point. Remove any hydration caps from the electrode tips now.",
