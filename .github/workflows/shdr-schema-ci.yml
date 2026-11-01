@@ -56,6 +56,8 @@ jobs:
         # without touching a single file above.
         firmware/shdr/include/np_accel_shdr.h
         .github/workflows/shdr-schema-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -141,9 +143,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-toolchain
         with:
-          python-version: '3.11'
+          python: 'true'
 
       - name: Run OI-EMMC2-07 schema CI test
         run: python3 ci/test_shdr_schema.py --verbose --schema ci/shdr/shdr_fleet_schema.sql

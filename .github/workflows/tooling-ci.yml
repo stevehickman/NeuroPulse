@@ -149,6 +149,7 @@ jobs:
       pbmmodel: ${{ steps.scope.outputs.pbmmodel }}
       sharedplace: ${{ steps.scope.outputs.sharedplace }}
       migrationkeys: ${{ steps.scope.outputs.migrationkeys }}
+      toolchainpins: ${{ steps.scope.outputs.toolchainpins }}
       releasepins: ${{ steps.scope.outputs.releasepins }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
       reqtrace: ${{ steps.scope.outputs.reqtrace }}
@@ -162,6 +163,8 @@ jobs:
         package.json
         bun.lock
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The gate-coverage meta-gate reads three surfaces and must be triggerable
       # from all three. `ci/**` carries four of the ten gates; every workflow is
       # read to answer "does anything actually RUN this gate, and its self-test?"
@@ -198,12 +201,16 @@ jobs:
         scripts/check-dhf-index.ts
         scripts/check-md-tables.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_SIMULATOR: |
         simulator/**
         # The checker itself lives under scripts/**, which is already listed,
         # but naming it here keeps the dependency legible rather than incidental.
         scripts/check-js-syntax.sh
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_PYTHON: |
         editscripts/**
         generate_privacy_report.py
@@ -212,6 +219,8 @@ jobs:
         # glob — so the directory is listed and the job compiles what it finds.
         scripts/**
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The consent surface is app code, not tooling, so it needs its own list:
       # scope.scripts.paths cannot see app/**, and the regression this guards
       # against is the DELETION of a caller in a view file. A guard that cannot
@@ -223,12 +232,16 @@ jobs:
         app/NeurOneUI/**
         scripts/check-consent-reachability.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # Firmware, for the same reason: the edit that breaks this guard is a new
       # conditional inside a .c reporting path, or a new status bit in a header.
       NP_SCOPE_REDACTION: |
         firmware/**
         scripts/check-redaction-shape.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The T2 cap map gate reads BOTH sides of the correspondence it checks —
       # NP-HW-TCAP-001 §3 under docs/, and three firmware tables — so both
       # directories are in scope. Listing only firmware/** would be the exact
@@ -240,6 +253,8 @@ jobs:
         firmware/**
         scripts/check-tcap-map.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The hub wire-format gate (OI-FWHUB-03) reads three corners: NP-FW-HUB-001
       # §4 under docs/, the hub's wire headers, and the web compiler — which it
       # RUNS, so the compiler's runtime imports beside it are in scope too.
@@ -257,6 +272,8 @@ jobs:
         scripts/build-npps-wasm.sh
         scripts/check-hub-wire-format.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The hub bring-up gate (OI-FWHUB-07/-08). np_hub_control_app_main() is
       # ARM-cross-only — firmware/hub_control/src/ compiles in no host test — so
       # this gate is the only thing that reads its call order at all. The list is
@@ -267,6 +284,8 @@ jobs:
         firmware/hub_control/**
         scripts/check-hub-bringup-order.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The locale-string gate (CLAUDE.md §17). Three different edits break it,
       # so all three trees are listed: a literal added to a covered app file,
       # a key added to or removed from locales/, and a locale reference
@@ -279,6 +298,8 @@ jobs:
         scripts/check-locale-strings.ts
         scripts/sync-locales.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The platform-seam declaration gate (OI-SWCI-40, and OI-SWCI-18 before
       # it). The edit that breaks it is an `extern` line added to a .c under
       # any scanned firmware tree, or a seam added to / removed from either
@@ -296,6 +317,8 @@ jobs:
         firmware/platform/**
         scripts/check-platform-seam-decls.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The consumable-trigger gate (CLAUDE.md §2.3, OI-ACC-06). It compares the
       # §2.3 table to the app code, so both sides are listed, plus firmware: the
       # edit that must flip a FIRMWARE_PENDING declaration is a hub GATT server
@@ -310,6 +333,8 @@ jobs:
         firmware/**
         scripts/check-consumable-triggers.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The littlefs caller-rules gate (NP-SOUP-LFS-001 Rev 4 §13: OI-LFS-03's
       # REQ-LFS-01 check and OI-LFS-06's one-handle check). The edit that breaks
       # it is a littlefs call added anywhere in firmware/, a Config file added
@@ -320,6 +345,8 @@ jobs:
         firmware/**
         scripts/check-lfs-caller-rules.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The bench-boundary gate (NP-FW-BENCH-001 OI-BENCH-04, RISK-BENCH-02).
       # Two edits break it: a bench identifier appearing in the SW-01 build
       # (firmware/safety_mcu, firmware/common, firmware/cmake/stm32g071.cmake)
@@ -330,6 +357,8 @@ jobs:
         firmware/**
         scripts/check-bench-boundary.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The Map 2 / SHDR boundary gate (NP-FW-NVRAM-001 OI-NVRAM-09,
       # RISK-NVRAM-02). Clause A reads every source file under app/ and
       # firmware/, because a Map 2 reader could be written on any platform;
@@ -342,6 +371,8 @@ jobs:
         ci/shdr/shdr_fleet_schema.sql
         scripts/check-map2-shdr-boundary.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The PBM model single-source gate (NP-PWRSRC-001 OI-PWRSRC-13, #440).
       # Three edits break it: a value changed in the JSON without regenerating
       # the header, a hand edit to the generated header, and a literal
@@ -360,6 +391,8 @@ jobs:
         scripts/check-shared-placement.ts
         scripts/check-firmware-constants.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The migration key gate (SWR-MG-01). It reads every app's sources for a stored-key literal against the one
       # list the shared core also reads: the edit that breaks it is a key added in any app (iOS, Android, Windows,
       # macOS, web) or removed from the list, so app/** and common/**, not one platform.
@@ -371,6 +404,15 @@ jobs:
         common/npps/migration-keys.json
         scripts/check-migration-keys.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
+      # The toolchain-pin gate. It reads every workflow, the setup-toolchain action and the pins file, so the edit that
+      # breaks it is any of those: a workflow that hardcodes a macOS image or a version, or a floating pin.
+      NP_SCOPE_TOOLCHAINPINS: |
+        .github/workflows/**
+        .github/actions/**
+        .github/toolchain.json
+        scripts/check-toolchain-pins.ts
       # The release-pin gate (privacy review Finding 9). It reads the two SHDR uploaders that hold the SPKI pin
       # lists, and the two build files that call it with --release: the edit that breaks it is a pin list, the gate
       # or the build wiring.
@@ -381,11 +423,15 @@ jobs:
         app/android/app/build.gradle.kts
         scripts/check-release-pins.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
         firmware/hub_control/include/np_pbm_model.generated.h
         scripts/**
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # The unjustified-choices register gate (CLAUDE.md §19). It compares the
       # register to every PROVISIONAL / PLACEHOLDER marker in firmware/,
       # hardware/ and the comments of app/, protocols/, simulator/ and ci/, and
@@ -402,6 +448,8 @@ jobs:
         ci/**
         scripts/check-unjustified-register.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       # Requirements <-> tests traceability (scripts/req-trace.ts). It reads the
       # requirement definitions in docs/*.md and every test file in the tree, so a
       # requirement edit, a new test and the baseline are all edits it must see.
@@ -413,6 +461,8 @@ jobs:
         ci/**
         scripts/req-trace.ts
         .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -450,6 +500,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_PBMMODEL" > scope.pbmmodel.paths
           printf '%s\n' "$NP_SCOPE_SHAREDPLACE" > scope.sharedplace.paths
           printf '%s\n' "$NP_SCOPE_MIGRATIONKEYS" > scope.migrationkeys.paths
+          printf '%s\n' "$NP_SCOPE_TOOLCHAINPINS" > scope.toolchainpins.paths
           printf '%s\n' "$NP_SCOPE_RELEASEPINS" > scope.releasepins.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
           printf '%s\n' "$NP_SCOPE_REQTRACE" > scope.reqtrace.paths
@@ -460,7 +511,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.releasepins.paths scope.unjustified.paths scope.reqtrace.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.releasepins.paths scope.unjustified.paths scope.reqtrace.paths scope.toolchainpins.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -618,6 +669,14 @@ jobs:
           assert scope.migrationkeys.paths false docs/np_art_001.md
           assert scope.migrationkeys.paths false firmware/hub_control/src/np_session_log.c
 
+          # The toolchain-pin gate. Any workflow, the action and the pins file are in; a document is not.
+          assert scope.toolchainpins.paths true  .github/workflows/android-ci.yml
+          assert scope.toolchainpins.paths true  .github/actions/setup-toolchain/action.yml
+          assert scope.toolchainpins.paths true  .github/toolchain.json
+          assert scope.toolchainpins.paths true  scripts/check-toolchain-pins.ts
+          assert scope.toolchainpins.paths false docs/np_art_001.md
+          assert scope.toolchainpins.paths false firmware/hub_control/src/np_session_log.c
+
           # The release-pin gate. The two uploaders that hold the pins and the two build files that call it are in.
           assert scope.releasepins.paths true  app/ios/NeurOne/Data/SHDRUploader.swift
           assert scope.releasepins.paths true  common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt
@@ -718,9 +777,34 @@ jobs:
           emit pbmmodel  scope.pbmmodel.paths
           emit sharedplace scope.sharedplace.paths
           emit migrationkeys scope.migrationkeys.paths
+          emit toolchainpins scope.toolchainpins.paths
           emit releasepins scope.releasepins.paths
           emit unjustified scope.unjustified.paths
           emit reqtrace  scope.reqtrace.paths
+
+  toolchain-pins:
+    name: CI names a toolchain version and a runner image in one file (.github/toolchain.json)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.toolchainpins != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove a macOS image, a direct setup action, a floating pin and a literal version can fail)
+        run: bun scripts/check-toolchain-pins.ts --self-test
+
+      # macOS 14 was retired under one workflow while the iOS ones sat on macOS 15, and `bun-version: latest` stood in
+      # 33 places. One file names the versions and the image; this fails the next workflow that writes its own.
+      - name: No workflow names a macOS image or a toolchain version itself
+        run: bun scripts/check-toolchain-pins.ts
 
   scripts-check:
     name: scripts/ type-check
@@ -734,9 +818,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -763,9 +847,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`. The meta-gate imports node builtins only, and its
       # population probe RUNS each gate — measured: every probed gate is clean
@@ -776,10 +860,12 @@ jobs:
       # The population probe runs every gate on a clean tree, and check-hub-wire-format.ts runs the
       # compiler, which is the Rust NPPS core as WebAssembly (OI-NPPS-CORE-01): without the module
       # that one gate exits 1 here. Built the same way the gate's own job builds it.
+      - name: Set up Rust
+        uses: ./.github/actions/setup-toolchain
+        with:
+          rust: 'true'
       - name: Build the NPPS core as WebAssembly (a probed gate runs it)
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
           scripts/build-npps-wasm.sh
 
       # The meta-gate binds itself, so its falsification runs before it does.
@@ -803,9 +889,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: node builtins only, and it spawns nothing. It does not
       # configure cmake either — it READS the CMakeLists files, which is why this
@@ -835,9 +921,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker imports node builtins only and spawns
       # nothing but itself. Same reasoning as consent-reachability below.
@@ -910,9 +996,9 @@ jobs:
 
       # No `bun install`: the checker walks the tree with node builtins.
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # #249 falsified this checker on three injected regressions before wiring
       # it in, by hand, and kept none of it. This is that falsification made
@@ -962,9 +1048,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-toolchain
         with:
-          python-version: '3.11'
+          python: 'true'
 
       # Syntax only, and deliberately so. editscripts/ is 46 one-off document
       # patch and scan scripts that have already been run; whether they should be
@@ -992,9 +1078,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # This job needs no dependencies — the checker reads source text and
       # spawns nothing — so there is deliberately no `bun install` step.
@@ -1018,9 +1104,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Guard self-test (prove the rule and the extractor can fail)
         run: bun scripts/check-redaction-shape.ts --self-test
@@ -1040,9 +1126,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Guard self-test (prove both clauses fail, and prose in SW-01 does not)
         run: bun scripts/check-bench-boundary.ts --self-test
@@ -1062,9 +1148,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Guard self-test (prove both clauses fail, and legitimate shapes do not)
         run: bun scripts/check-map2-shdr-boundary.ts --self-test
@@ -1086,9 +1172,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       - name: Guard self-test (prove the model, header and fork rules can fail)
         run: bun scripts/check-pbm-model.ts --self-test
@@ -1108,9 +1194,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1132,9 +1218,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the script uses node builtins and `git ls-files`.
 
@@ -1170,9 +1256,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1198,17 +1284,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the compiler's runtime imports are local files, and its type-only imports
       # are erased by Bun's transpiler. The compiler is the Rust NPPS core, which the gate runs as
       # WebAssembly through the web wrapper (OI-NPPS-CORE-01), so it is built first.
+      - name: Set up Rust
+        uses: ./.github/actions/setup-toolchain
+        with:
+          rust: 'true'
       - name: Build the NPPS core as WebAssembly
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
           scripts/build-npps-wasm.sh
 
       - name: Guard self-test (prove every corner can fail)
@@ -1231,9 +1319,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1260,9 +1348,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # The checker reads source text and shells out only to `git ls-files`,
       # so there is deliberately no `bun install` step.
@@ -1316,9 +1404,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: node builtins only, like the three guards above.
 
@@ -1346,9 +1434,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1372,9 +1460,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1399,9 +1487,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1423,9 +1511,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 
@@ -1447,9 +1535,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # No `bun install`: the checker reads source text with node builtins.
 

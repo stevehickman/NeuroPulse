@@ -1,0 +1,100 @@
+name: Set up the NeurOne toolchain
+description: >
+  Installs the toolchains a job asks for, at the versions in .github/toolchain.json and no others.
+  Each input is 'true' to install that toolchain. The repository must already be checked out,
+  because the versions are read from the checked-out file.
+
+inputs:
+  java:
+    description: JDK (version and distribution from toolchain.json)
+    default: 'false'
+  gradle:
+    description: Gradle (version from toolchain.json)
+    default: 'false'
+  bun:
+    description: Bun (version from toolchain.json)
+    default: 'false'
+  rust:
+    description: Rust, through rustup (version from toolchain.json)
+    default: 'false'
+  rust-targets:
+    description: Extra rustup targets to add, separated by spaces (only with rust)
+    default: ''
+  python:
+    description: Python (version from toolchain.json)
+    default: 'false'
+  dotnet:
+    description: .NET SDK (version from toolchain.json)
+    default: 'false'
+  arm-gcc:
+    description: Arm GNU toolchain (release from toolchain.json)
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Read the toolchain pins
+      id: pins
+      shell: bash
+      run: |
+        set -euo pipefail
+        f="$GITHUB_WORKSPACE/.github/toolchain.json"
+        test -f "$f" || { echo "::error::$f not found: check out the repository before this step"; exit 1; }
+        for k in java javaDistribution gradle bun rust python dotnet armGcc; do
+          v=$(jq -er --arg k "$k" '.[$k]' "$f")
+          echo "$k=$v" >> "$GITHUB_OUTPUT"
+        done
+
+    - name: Set up the JDK
+      if: inputs.java == 'true'
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ steps.pins.outputs.javaDistribution }}
+        java-version: ${{ steps.pins.outputs.java }}
+
+    - name: Set up Gradle
+      if: inputs.gradle == 'true'
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: ${{ steps.pins.outputs.gradle }}
+
+    - name: Set up Bun
+      if: inputs.bun == 'true'
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ steps.pins.outputs.bun }}
+
+    - name: Set up Rust
+      if: inputs.rust == 'true'
+      shell: bash
+      env:
+        NP_RUST: ${{ steps.pins.outputs.rust }}
+        NP_RUST_TARGETS: ${{ inputs.rust-targets }}
+      run: |
+        set -euo pipefail
+        rustup toolchain install "$NP_RUST" --profile minimal
+        rustup default "$NP_RUST"
+        if [ -n "$NP_RUST_TARGETS" ]; then
+          # shellcheck disable=SC2086  # the targets are a space-separated list
+          rustup target add $NP_RUST_TARGETS
+        fi
+        rustc --version
+        cargo --version
+
+    - name: Set up Python
+      if: inputs.python == 'true'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ steps.pins.outputs.python }}
+
+    - name: Set up .NET
+      if: inputs.dotnet == 'true'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ steps.pins.outputs.dotnet }}
+
+    - name: Install the Arm GNU toolchain
+      if: inputs.arm-gcc == 'true'
+      uses: carlosperate/arm-none-eabi-gcc-action@v1
+      with:
+        release: ${{ steps.pins.outputs.armGcc }}

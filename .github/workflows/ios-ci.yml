@@ -43,6 +43,7 @@ jobs:
       actions: read
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
+      macos: ${{ steps.pins.outputs.macos }}
     env:
       NP_SCOPE_PATHS: |
         app/ios/**
@@ -67,12 +68,18 @@ jobs:
         app/NeurOneShared/TestData/npps-validate-golden.json
         app/NeurOneShared/TestData/nfkc-corpus.json
         .github/workflows/ios-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Read the macOS image
+        id: pins
+        run: echo "macos=$(jq -er .macos .github/toolchain.json)" >> "$GITHUB_OUTPUT"
 
       - name: Write the relevance list
         run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
@@ -123,7 +130,7 @@ jobs:
 
   swiftlint:
     name: SwiftLint — strict
-    runs-on: macos-15
+    runs-on: ${{ needs.changes.outputs.macos }}
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     steps:
@@ -139,7 +146,7 @@ jobs:
 
   ios-build-test:
     name: xcodebuild test — NeurOne
-    runs-on: macos-15   # Xcode 16+ with iOS 18 simulator
+    runs-on: ${{ needs.changes.outputs.macos }}   # the image is .github/toolchain.json's `macos`
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
 
@@ -162,9 +169,9 @@ jobs:
       # The NeurOne target's first build phase generates Localizable.xcstrings
       # from locales/*.json; it fails the build if bun is not on PATH.
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: ./.github/actions/setup-toolchain
         with:
-          bun-version: latest
+          bun: 'true'
 
       # MUST run before any xcodebuild invocation, not merely before the build
       # phase that also generates it. Localizable.xcstrings is git-ignored
@@ -181,11 +188,10 @@ jobs:
 
       # app/ios/project.yml's preGenCommand builds NeurOneNppsCore.xcframework from common/npps-ffi
       # (scripts/build-npps-xcframework.sh): three Apple targets, then xcodebuild -create-xcframework.
-      - name: Set up Rust (stable)
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-          cargo --version
+      - name: Set up Rust
+        uses: ./.github/actions/setup-toolchain
+        with:
+          rust: 'true'
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -221,7 +227,7 @@ jobs:
 
           # `xcodebuild -downloadPlatform iOS` intermittently dies with
           # "Unable to connect to simulator" (exit 70) — it is the single biggest
-          # source of flaky red on this job. The macos-15 image ships an iOS runtime
+          # source of flaky red on this job. The macOS image ships an iOS runtime
           # preinstalled, so we only download when none is present, and retry with a
           # CoreSimulator service bounce between attempts when we genuinely must.
           RUNTIME=$(runtime_id || true)

@@ -80,6 +80,7 @@ B np_pbm_session_desc_tests
 B np_protocol_tests
 B np_session_lease_tests
 B np_runner_load_tests
+B np_runner_run_tests
 B np_pbm_socket_telem_tests
 B np_socket_dispatch_tests
 B np_safety_spi_tests

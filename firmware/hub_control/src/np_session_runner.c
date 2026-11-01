@@ -782,7 +782,7 @@ np_hub_status_t np_runner_run(void)
             else if (ev & NP_EV_THERMAL_FAULT) s_ctx.abort_reason = NP_ABORT_THERMAL;
             else if (ev & NP_EV_EEG_PPX)   s_ctx.abort_reason = NP_ABORT_EEG_SEIZURE;
             else if (ev & NP_EV_POWER_FAULT) s_ctx.abort_reason = NP_ABORT_POWER;
-            else                             s_ctx.abort_reason = NP_ABORT_USER;
+            else s_ctx.abort_reason = (s_ctx.abort_request != NP_ABORT_NONE) ? s_ctx.abort_request : NP_ABORT_USER;
             break;
         }
 
@@ -925,6 +925,8 @@ np_hub_status_t np_runner_run(void)
     s_gate.open = false;
     np_session_clock_close(&s_ctx.clock, clock_now_ms());
     s_ctx.state = NP_SESSION_STOPPING;
+    /* The length the session ran is fixed here, with the clock closed: the shutdown wait below is not session time. */
+    const uint32_t total_ms = elapsed_ms_now();
     np_safety_spi_disable_all();
 
     /* Send stop to all active modules (they handle ramp-down internally). */
@@ -943,7 +945,6 @@ np_hub_status_t np_runner_run(void)
     process_stops(UINT32_MAX);
 
     /* Finalise records */
-    uint32_t total_ms = elapsed_ms_now();
     s_ctx.uhdr.duration_s   = total_ms / 1000U;
     s_ctx.uhdr.abort_reason = (uint8_t)s_ctx.abort_reason;
     s_ctx.shdr.duration_s   = total_ms / 1000U;
@@ -984,7 +985,7 @@ np_hub_status_t np_runner_run(void)
 
 void np_runner_abort(np_abort_reason_t reason)
 {
-    s_ctx.abort_reason = reason;
+    s_ctx.abort_request = reason;
     xEventGroupSetBits(s_events, NP_EV_SESSION_ABORT);
 }
 
