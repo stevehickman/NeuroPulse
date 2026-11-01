@@ -29,6 +29,7 @@ Sorted by open item.
 
 | Item | Document | Asks | Status |
 |------|----------|------|--------|
+| `NP-ACC-PRIORITY-001` | `np-acc-priority-001-signoff.md` | Principal + product: sign off the ranking criterion (§3), the one flagged placement (rank 16=) and the mastoid-boss provision (§7). No open-item ID. | DRAFT, ready to send |
 | `OI-CHARGE-06` | `oi-charge-06-dc-charge-ceiling.md` | Regulatory: is the 150 mC/cm² DC ceiling acceptable for T1 wellness tDCS, does it hold for T2 HD-tDCS (it does not fit the 3.5 mm electrode as declared), and should a current-density criterion sit beside it? | DRAFT, ready to send |
 | `OI-CONSENT-08` | `oi-consent-08-clinician-tiers.md` | Principal with a clinical adviser: which UHDR elements each clinician tier reaches, whether the tier sets stay derived, and whether the prices are decided. | DRAFT, ready to send |
 | `OI-CVNS-13` | `oi-cvns-13-nuisance-cutoff-rate.md` | Clinical: acceptable false-cutoff rate. Engineering: measure missed and split R-peak rates on A13. Drives 25-c and 25-e. | DRAFT, not sent |
@@ -40,6 +41,7 @@ Sorted by open item.
 | `OI-PRES-06` | `oi-pres-06-android-device-run.md` | Run the Android presence gate on devices at API 29, 30 and 36 and report pass or fail per step. | DRAFT, not sent |
 | `OI-PRES-07` | `oi-pres-07-ios-device-run.md` | Run the iOS presence gate on an iPhone, with the first device run of the shared iOS host (`OI-UI-KMP-06`), and report pass or fail per step. | DRAFT, not sent |
 | `OI-PWRSRC-11` | `oi-pwrsrc-11-hub-hold-up.md` | Safety + EE: what the outputs do when the last power source goes (the headset has no battery), the acceptance criterion, the bench measurement, and what `IFU-01` may say. Gates the cable-pull instruction. | DRAFT, ready to send |
+| `OI-PWRSRC-15` | `oi-pwrsrc-15-charger-key.md` | Principal: should the locked charger policy (§2.2) change from a configuration key to a configuration floor plus a protocol-set choice (D-12)? Also asks whether D-6 and D-9 were decided. | DRAFT, ready to send |
 | `OI-RISK2-01` | `oi-risk2-01-rescore-carried-risks.md` | Commission the S × P re-score of the carried risks: scope, order, scorer and approver, provisional inputs, record form. | DRAFT, not sent |
 | `OI-RISK2-02` | `oi-risk2-02-hazard-analysis-commission.md` | Commission the hazard analysis for A11, A12, A13 and A15: owners, register location, scope, order, DRAFT-spec handling. | DRAFT, not sent |
 | `OI-RISK2-03` | `oi-risk2-03-second-reader.md` | Second reader: confirm or challenge the five RETIRED risk dispositions (five, per the table). | DRAFT, not sent |
@@ -48,6 +50,7 @@ Sorted by open item.
 | `OI-RISK2-06` | `oi-risk2-06-clinical-question.md` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `OI-RISK2-07` | `oi-risk2-07-update-path-test.md` | Confirm the owed NV-pages-survive-update test, where it binds, and who carries it. Waits on the first safety-MCU update path. | DRAFT, not sent |
 | `OI-RISK2-09` | `oi-risk2-09-cvns-detection-adequacy.md` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
+| `OI-SINK-10` | `oi-sink-10-reloft-thermal.md` | Principal with Thermal + ME: accept the slightly worse scalp-side thermal figure from the 3 mm re-loft, take the re-loft on the inner face only, or wait for `THERM-1b`? Does not reopen `REQ-CAV-04`. | DRAFT, ready to send |
 | `OI-SW03-01` | `oi-sw03-01-app-safety-class.md` | Quality + Safety: is Class B still right for the companion app and the shared core it runs on? A per-function table of what else enforces each limit the app refuses. | DRAFT, ready to send |
 | `OI-VNSCLIP-08` | `oi-vnsclip-08-frequency-ceiling.md` | Clinical + Risk: is the 25 Hz auricular VNS ceiling a hazard control or an equivalence bound? No source found states a safety reason for it. | ANSWERED 2026-10-29 (principal): option A; follow-up done |
 | `OI-VNSCLIP-09` | `oi-vnsclip-09-current-ceiling.md` | Clinical + Risk: does the auricular VNS clip need a current ceiling, in what quantity, enforced where? The 40 mA figure is a stop-gap with no hazard named. | DRAFT, ready to send |
