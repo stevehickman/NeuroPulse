@@ -45,6 +45,8 @@ jobs:
         ci/test_warranty_nojoin.py
         scripts/ci-changed-scope.sh
         .github/workflows/warranty-nojoin-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,9 +107,10 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: ./.github/actions/setup-toolchain
         with:
-          python-version: '3.11'
+          python: 'true'
       # Runs BEFORE the gate, for the reason scripts/check-js-syntax.sh and
       # scripts/ci-changed-scope.sh do the same: every check in this gate is
       # negative, and a negative gate's green tick is worth nothing until it has
