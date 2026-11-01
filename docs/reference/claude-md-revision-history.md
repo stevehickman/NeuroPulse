@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 77 (2026-10-30) — §3: the 1 Hz auricular VNS frequency floor is removed; any positive frequency is accepted. A limit changed; the charge ceilings, the 40 mA stop-gap and every interlock are unchanged.**
+
+**What changed.** The `VNS (auricular)` row of the §3 table says there is no floor above zero. `VNS_MIN_HZ` is deleted from `common/npps/constants.json` and its generated outputs. The validator refuses a frequency of 0 or less and nothing else (`VALIDATE_MSG_VNS_HRV_FREQUENCYHZ`, text now "must be greater than 0 Hz"). The HRV taVNS gate (`np_hrv_tavns_init`, `np_hrv_session_config_t`) carried an integer-hertz `uint16_t`, which could not hold a sub-hertz value; it is now `uint32_t` millihertz (`tavns_freq_mhz`), the unit the hub wire field already used. The cervical device keeps its 1–25 Hz.
+
+**Why.** The principal ruled on 2026-10-30 ("drop VNS_MIN_HZ to any positive frequency and retire UC-118 as an equivalence bound"), on the same ground as Rev 76: a safety bound must rest on evidence, and no source gave one for 1 Hz. Zero stays refused for a real reason, not an arbitrary one: 0 Hz is DC, which is the 150 mC/cm² per-session class and not the charge-balanced class this channel is declared in; the HRV gate also divides by the frequency. `UC-118` moves to the register's "Justified or retired" table.
+
+**What it leaves.** The geometry check (two phases must fit in one period) and the zone model's mean-current-density boundaries (`UC-075`, `UC-076`, placeholders), through which frequency still enters. A lower frequency lowers mean current density, so removing the floor can only move a protocol toward the safe zone.
+
 **Rev 76 (2026-10-29) — §3: the 25 Hz auricular VNS frequency ceiling is removed. A limit changed; the 40 µC/cm² per-phase charge ceiling, the 40 mA stop-gap and every interlock are unchanged.**
 
 **What changed.** The `VNS (auricular)` row of the §3 hard-limits table loses "1–25 Hz" and says there is no frequency ceiling. `VNS_MAX_HZ` is deleted from `common/npps/constants.json` and its generated outputs; `VNS_MIN_HZ` (1 Hz) stays. The cervical device keeps its 1–25 Hz as `CERVICAL_VNS_MIN_HZ` and `CERVICAL_VNS_MAX_HZ`, because the gammaCore equivalence claim (`NP-REG-CVNS-001` §3) rests on it. The validator checks a floor only; the compiler no longer clamps to 25 Hz and writes the frequency in a **32-bit** field (`np_mod_vns_hrv_params_t.freq_mhz`, so the VNS block is 12 bytes, not 10, and a 16-bit field would have topped out at 65.535 Hz); the hub's HAL signature, the HRV taVNS gate (`np_hrv_tavns_init`) and the web editor's maximum follow. `REQ-VNSC-03`'s frequency clause is retired in place (§18). `NP_HUB_PROTO_VERSION` is not bumped (no descriptor has shipped; `REQ-FWHUB-10`).
