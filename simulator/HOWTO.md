@@ -26,6 +26,7 @@
 14. [Stopping and Resetting](#14-stopping-and-resetting)
 15. [Browser Compatibility and Performance](#15-browser-compatibility-and-performance)
 16. [Known Limitations (v0.1.0)](#16-known-limitations-v010)
+18. [Firmware in the Loop (spike)](#18-firmware-in-the-loop-spike)
 
 ---
 
@@ -1012,3 +1013,26 @@ and each zone's own frequency dropdown (including CW) now genuinely drives that 
 sockets instead of being ignored in favour of a single protocol-wide frequency; documented
 and implemented the overlapping-zone resolution rule (§5.1 "Overlapping Zones"); shell
 exterior is now white.*
+
+---
+
+## 18. Firmware in the Loop (spike)
+
+**Opt-in and experimental.** The simulator can run the device's own hub firmware, with each PBM tile a
+simulated module you can fail on demand. Design and findings: `docs/np_sim_fw_001.md` (NP-SIM-FW-001). The
+standalone mode (§3) is unchanged, and nothing here runs unless you start the server with the firmware
+binary.
+
+- **Scope today:** PBM base tiles only, the hub's socket dispatch only, no safety MCU. The page says so
+  while any module is attached, and a tile is shown driven when the hub commanded it, **not** when a
+  safety MCU would have allowed it. Timing is indicative. Nothing here is verification evidence.
+- **Build and run:** the commands are in NP-SIM-FW-001 §12. Start the server with
+  `NP_SIM_FW_BIN=<path to np_sim_pbm_spike>`; it then listens on `127.0.0.1` only.
+- **Drive it** with WebSocket messages (a `controller` client): `MODULE_SET` (`{socket, patch: {add: <ntc °C>}}`
+  to put a tile in a socket, `{present: false}` to remove it, `{reading: {op, value}}` to pin its
+  temperature), `MODULE_FAIL` (`{socket, op, code, times}`), `MODULE_CLEAR`, and `FW_COMMAND` (`drive`,
+  `stop`, `status` with `sockets`). Sockets are the lattice's 1 to 80 on the page and 0 to 79 in these
+  messages.
+- **Colours:** red is driven, magenta (for 1.5 s) is a tile the firmware could not write, dark is absent.
+- **A command that drives more than 32 tiles is refused** by the firmware; that is its own limit, not the
+  simulator's.

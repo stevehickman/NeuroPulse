@@ -180,6 +180,7 @@ project(neurone_firmware C ASM)
 
 # ── Global options ─────────────────────────────────────────────────────────────
 option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)
+option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); not part of any CI job yet" OFF)
 option(NP_BUILD_BOOTLOADER "Include the bootloader in the build"               ON)
 
 # ── Toolchain guard (cross-compiled modules) ──────────────────────────────────
@@ -244,6 +245,9 @@ if(NP_BUILD_TESTS)
                                   # Class C cardiac interlock -- that is
                                   # safety_mcu/tests/np_cardiac_interlock_tests.c.
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
+    if(NP_BUILD_SIM)
+        add_subdirectory(platform_sim) # NP-SIM-FW-001 §8 step 1 (REQ-SIMFW-01: host only)
+    endif()
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
     add_subdirectory(application) # NP-SW-CI-001 §4.8: the two linker scripts
                                   # must agree about the staging reservation.
