@@ -96,24 +96,47 @@ static void script_at(uint32_t session_ms, script_fn fn)
 }
 
 /* The sleep: time passes, and whatever was scripted to happen inside it happens at its own moment, so the loop sees it
- * when it wakes and not before — which is what an event posted from another task is. */
-void vTaskDelay(const TickType_t ticks)
+ * when it wakes and not before — which is what an event posted from another task is.  A wait on the event group (`wake`
+ * non-zero) ends at the moment a scripted callback leaves one of its bits set, as the kernel's does; a plain delay never
+ * ends early. */
+static void sleep_for(const uint32_t ms, const EventBits_t wake)
 {
-    const uint32_t target = g_now_ms + (uint32_t)ticks * portTICK_PERIOD_MS;
-    for (unsigned i = 0U; i < g_script_n; i++) {
+    const uint32_t target = g_now_ms + ms;
+    bool woken = false;
+    for (unsigned i = 0U; i < g_script_n && !woken; i++) {
         if (!g_script[i].fired && g_script[i].at_ms + RUN_T0_MS <= target) {
             g_script[i].fired = true;
             if (g_script[i].at_ms + RUN_T0_MS > g_now_ms) {
                 g_now_ms = g_script[i].at_ms + RUN_T0_MS;
             }
             g_script[i].fn();
+            woken = (g_event_bits & wake) != 0U;
         }
     }
-    g_now_ms = target;
+    if (!woken) { g_now_ms = target; }
     if (g_now_ms > RUN_T0_MS + RUN_RUNAWAY_MS && !g_runaway) {
         g_runaway = true;
         g_event_bits |= NP_EV_SESSION_ABORT;      /* end it, so the test fails instead of hanging */
     }
+}
+
+void vTaskDelay(const TickType_t ticks) { sleep_for((uint32_t)ticks * portTICK_PERIOD_MS, 0U); }
+
+static unsigned g_waits;           /* waits entered, and those that returned with no time passing */
+static unsigned g_waits_instant;
+
+EventBits_t xEventGroupWaitBits(EventGroupHandle_t g, const EventBits_t bits, const BaseType_t clear,
+                                const BaseType_t all, const TickType_t ticks)
+{
+    (void)g; (void)clear; (void)all;           /* the runner passes pdFALSE for both */
+    const uint32_t before = g_now_ms;
+    g_waits++;
+    if ((g_event_bits & bits) == 0U) { sleep_for((uint32_t)ticks * portTICK_PERIOD_MS, bits); }
+    if (g_now_ms == before) {
+        g_waits_instant++;
+        if (g_waits_instant > 1000U) { g_event_bits |= NP_EV_SESSION_ABORT; }   /* a spin: end it so the test fails, not hangs */
+    }
+    return g_event_bits;
 }
 
 TickType_t xTaskGetTickCount(void) { return (TickType_t)g_now_ms; }
@@ -522,6 +545,7 @@ static unsigned       g_mid_n;
 
 static void fresh(void)
 {
+    g_waits = g_waits_instant = 0U;
     g_mid_n = 0U;
     g_mid_lease = false;
     g_mid_state = NP_SESSION_IDLE;
@@ -743,21 +767,53 @@ static void test_an_abort_keeps_the_reason_it_was_given(void)
           "abort: np_runner_abort(USER) is recorded as a user stop");
 }
 
-/* @verifies SWR-SS-06 */
-static void test_a_stop_is_acted_on_at_the_loops_next_wake_and_never_later_than_one_telemetry_interval(void)
+/* @verifies SWR-SS-06 SWR-SS-05 */
+static void test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended(void)
 {
-    /* No requirement states a latency.  This pins what the loop does today so that a change which lengthens it is seen:
-     * the loop sleeps in vTaskDelay (it does not wait on the event group), so a stop is noticed when the sleep ends, and
-     * a sleep is never longer than NP_RUNNER_TELEM_INTERVAL_MS. */
+    /* The loop waits on the event group, so a stop bit ends its sleep.  No requirement states a latency: this pins that
+     * the sleep, up to NP_RUNNER_TELEM_INTERVAL_MS long, is not what a stop waits for. */
+    const uint32_t bits[] = { NP_EV_SESSION_ABORT, NP_EV_SAFETY_FAULT, NP_EV_THERMAL_FAULT, NP_EV_EEG_PPX, NP_EV_POWER_FAULT };
+    for (unsigned i = 0U; i < sizeof bits / sizeof bits[0]; i++) {
+        fresh();
+        blob_t b;
+        long_session(&b, 60000U);
+        g_post_bits = bits[i];
+        script_at(300U, post_bits);
+        (void)load_and_run(&b);
+        const int dis = first_of(RUN_EV_DISABLE_ALL);
+        check(dis >= 0 && g_log[dis].at_ms == 300U, "stop: every stop bit is acted on at the moment it is posted");
+        check(np_runner_get_state() == NP_SESSION_FAULT, "stop: and the session has ended");
+    }
+
     fresh();
     blob_t b;
     long_session(&b, 60000U);
     script_at(300U, post_abort_user);
     (void)load_and_run(&b);
-    const uint32_t acted = g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms;
-    check(acted >= 300U, "stop: nothing happens before the stop is posted");
-    check(acted <= 300U + NP_RUNNER_TELEM_INTERVAL_MS, "stop: it is acted on within one telemetry interval of being posted");
-    check(np_runner_get_state() == NP_SESSION_FAULT, "stop: the session has ended");
+    check(g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms == 300U, "stop: np_runner_abort is acted on at the moment it is called");
+
+    fresh();
+    long_session(&b, 60000U);
+    script_at(2300U, do_pause_now);
+    script_at(2800U, do_resume_now);
+    (void)load_and_run(&b);
+    const int pause_at = find_a(RUN_EV_LOG_PAUSE, 1U, 0);
+    check(pause_at >= 0 && g_log[pause_at].at_ms == 2300U, "pause: a pause request is acted on at the moment it is made");
+}
+
+/* @verifies SWR-SS-06 */
+static void test_waiting_on_the_event_group_does_not_spin(void)
+{
+    /* A wait that returns with no time passing, again and again, is a loop that burns the CPU: it happens if a bit the
+     * loop does not consume is named in the wait.  A session that runs to its end, with a pause in the middle, has none. */
+    fresh();
+    blob_t b;
+    long_session(&b, 8000U);
+    script_at(1000U, do_pause_now);
+    script_at(3000U, do_resume_now);
+    (void)load_and_run(&b);
+    check(g_waits > 0U, "spin: the loop waits on the event group");
+    check(g_waits_instant == 0U, "spin: and no wait of a whole session returned with no time passing");
 }
 
 /* @verifies REQ-FWHUB-63 */
@@ -1033,7 +1089,8 @@ int main(void)
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();
     test_an_abort_keeps_the_reason_it_was_given();
-    test_a_stop_is_acted_on_at_the_loops_next_wake_and_never_later_than_one_telemetry_interval();
+    test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended();
+    test_waiting_on_the_event_group_does_not_spin();
     test_shutdown_drops_the_enables_first_then_stops_the_modules_then_waits_then_records();
     test_the_lease_is_held_for_the_whole_run_and_released_after_the_final_state();
     test_the_length_a_session_ran_is_the_running_time_in_the_records_and_to_the_app();

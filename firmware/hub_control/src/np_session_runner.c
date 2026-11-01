@@ -14,7 +14,9 @@
  *    per-socket stop times; it never falls back to the slot path.
  *  - Telemetry is requested every NP_RUNNER_TELEM_INTERVAL_MS via a callback
  *    posted to the telemetry task queue.
- *  - NP_EV_SESSION_ABORT or NP_EV_SAFETY_FAULT unblocks the loop immediately.
+ *  - Any stop bit (NP_EV_SESSION_ABORT, NP_EV_SAFETY_FAULT, NP_EV_THERMAL_FAULT, NP_EV_EEG_PPX, NP_EV_POWER_FAULT) and, in
+ *    the running loop, NP_EV_SESSION_PAUSE end the loop's sleep immediately.  A paused loop keeps its NP_RUNNER_TICK_MS
+ *    poll, which is already short and which its pause-limit count assumes.
  */
 
 #include "np_session_runner.h"
@@ -384,6 +386,16 @@ static void gate_start(uint16_t idx, bool is_tdcs)
     }
     np_log_command(cmd, now_ms, accepted);
     if (!accepted) { np_ramp_plan_refused(&s_gate.plan, is_tdcs, !is_tdcs); }
+}
+
+/* The loop's sleep.  It ends when the time is up or when a stop bit (and, for the running loop, a pause request) is set,
+ * so a stop or a pause is acted on when it is posted, not when the sleep would have ended.  The bits are not cleared
+ * here (the loop reads them at its top), so only a bit the loop consumes may be named in `extra`, else it would spin. */
+#define NP_RUNNER_STOP_BITS (NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT | NP_EV_THERMAL_FAULT | NP_EV_EEG_PPX | NP_EV_POWER_FAULT)
+
+static void loop_wait(uint32_t ms, EventBits_t extra)
+{
+    (void)xEventGroupWaitBits(s_events, NP_RUNNER_STOP_BITS | extra, pdFALSE, pdFALSE, pdMS_TO_TICKS(ms));
 }
 
 /* A gate loop wakes at the cervical VNS tick while that module is up, else at the runner tick. */
@@ -795,7 +807,7 @@ np_hub_status_t np_runner_run(void)
                  * a stop is not (the abort check above). */
                 xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
                 gate_step();
-                vTaskDelay(pdMS_TO_TICKS(gate_sleep_ms()));
+                loop_wait(gate_sleep_ms(), 0U);
             } else if (ev & NP_EV_SESSION_RESUME) {
                 xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
                 do_resume();
@@ -825,7 +837,7 @@ np_hub_status_t np_runner_run(void)
         if (s_gate.open) {
             xEventGroupClearBits(s_events, NP_EV_SESSION_PAUSE | NP_EV_SESSION_RESUME);
             gate_step();
-            vTaskDelay(pdMS_TO_TICKS(gate_sleep_ms()));
+            loop_wait(gate_sleep_ms(), 0U);
             continue;
         }
         if (ev & NP_EV_SESSION_PAUSE) {
@@ -916,7 +928,7 @@ np_hub_status_t np_runner_run(void)
         if (np_mod_cvns_active() && sleep_ms > NP_CVNS_STIM_TICK_MS) {
             sleep_ms = NP_CVNS_STIM_TICK_MS;
         }
-        vTaskDelay(pdMS_TO_TICKS(sleep_ms));
+        loop_wait(sleep_ms, NP_EV_SESSION_PAUSE);
     }
 
     /* ── Graceful shutdown ─────────────────────────────────────────────────────── */
