@@ -890,7 +890,10 @@ struct OptionalDoubleField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("LIMITS_SET_LIMIT") { value = range.upperBound.isFinite ? (range.lowerBound + range.upperBound) / 2 : max(range.lowerBound, 1); syncText() }
+                Button("LIMITS_SET_LIMIT") {
+                    value = range.upperBound.isFinite ? (range.lowerBound + range.upperBound) / 2 : max(range.lowerBound, 1)
+                    syncText()
+                }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
