@@ -643,11 +643,11 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.vnsHrv?.maxIntensityMilliamps },
                     set: { workingLimits.vnsHrv?.maxIntensityMilliamps = $0 }
-                ), range: 0...2.0)
+                ), range: 0...40.0)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.vnsHrv?.maxFrequencyHz },
                     set: { workingLimits.vnsHrv?.maxFrequencyHz = $0 }
-                ), range: 1...25)
+                ), range: 0...Double.infinity)  // no upper bound (OI-VNSCLIP-08)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.vnsHrv?.maxSessionDurationSeconds },
                     set: { workingLimits.vnsHrv?.maxSessionDurationSeconds = $0 }
@@ -890,7 +890,10 @@ struct OptionalDoubleField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("LIMITS_SET_LIMIT") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
+                Button("LIMITS_SET_LIMIT") {
+                    value = range.upperBound.isFinite ? (range.lowerBound + range.upperBound) / 2 : max(range.lowerBound, 1)
+                    syncText()
+                }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
