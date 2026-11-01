@@ -309,7 +309,7 @@ struct NPVNSHRVParams: Codable, Equatable {
         }
     }
 
-    var frequencyHz: Double = 25              // 1–25 Hz
+    var frequencyHz: Double = 25              // default; any positive frequency (OI-VNSCLIP-08)
     var intensityMilliamps: Double = 1.5      // ≤2 mA
     var hrvProtocol: HRVProtocol = .standalone
     var resonanceBreathingRate: Double = 6.0  // breaths/min (4–7)
