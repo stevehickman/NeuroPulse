@@ -502,6 +502,7 @@ class NPProtocolLibrary(
      */
     fun uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: Int): UploadGate {
         val hash = contentHash(entry) ?: return UploadGate.Allow
+        val stored = allProtocols.any { it.id == entry.id }
         val sourceId = cloneSources[entry.id.toString()]
         val source = sourceId?.let { sid -> allProtocols.firstOrNull { it.id.toString() == sid } }
         val answer = NPLibraryRules.uploadGate(
@@ -509,8 +510,10 @@ class NPProtocolLibrary(
             NPLibraryRules.supportedVersions(entry),
             hash,
             source?.let { contentHash(it) },
+            stored,
         )
         return when (NPLibraryRules.string(answer, "reason")) {
+            "not_in_library" -> UploadGate.NotInLibrary
             "hardware_mismatch" -> {
                 val diff = answer["layoutDiffs"]!!.jsonArray.firstOrNull()?.jsonObject?.get("diff") as? JsonObject
                 UploadGate.HardwareMismatch(

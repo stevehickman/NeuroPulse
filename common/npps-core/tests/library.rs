@@ -169,6 +169,17 @@ fn an_unmodified_clone_is_refused_with_three_outcomes() {
     assert_eq!(not_a_clone["decision"], "allow");
 }
 
+// @verifies SWR-PL-01
+#[test]
+fn an_upload_of_a_protocol_not_in_the_library_is_refused_first() {
+    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "inLibrary": false }));
+    assert_eq!(r["decision"], "refuse");
+    assert_eq!(r["reason"], "not_in_library");
+    assert_eq!(r["markUsed"], false);
+    let stored = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "inLibrary": true }));
+    assert_eq!(stored["decision"], "allow");
+}
+
 // @verifies SWR-PL-06
 // @verifies SWR-HV-04
 #[test]

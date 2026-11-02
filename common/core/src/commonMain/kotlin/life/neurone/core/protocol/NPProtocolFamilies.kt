@@ -68,6 +68,9 @@ sealed class UploadGate {
 
     /** The clone's content is its source's (SWR-PL-06). The three outcomes are upload the source, edit the clone, cancel. */
     data class UnmodifiedClone(val sourceId: life.neurone.core.common.UUID) : UploadGate()
+
+    /** The protocol is not stored in the library, so nothing is sent (SWR-PL-01). */
+    object NotInLibrary : UploadGate()
 }
 
 /** The three outcomes of an upload that was sent, and the two refusals that are not failed uploads (SWR-UP-02). */
@@ -165,11 +168,12 @@ internal object NPLibraryRules {
             putJsonArray("archivedFamilies") { archivedFamilies.forEach { add(JsonPrimitive(it)) } }
         }["offered"]!!.jsonArray.map { it.jsonPrimitive.content }
 
-    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?): JsonObject =
+    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?, inLibrary: Boolean = true): JsonObject =
         ask("uploadGate") {
             put("helmetVersion", helmetVersion)
             putJsonArray("protocolVersions") { protocolVersions.forEach { add(JsonPrimitive(it)) } }
             put("contentHash", contentHash)
+            put("inLibrary", inLibrary)
             if (sourceHash == null) put("sourceHash", JsonNull) else put("sourceHash", sourceHash)
         }
 
