@@ -116,6 +116,15 @@ describe('upload gate and outcomes (SWR-PL-06, SWR-HV-04, SWR-UP-02)', () => {
     expect(lib.uploadGate(lib.userProtocols.find(e => entryId(e) === id)!, 1).kind).toBe('allow');
   });
 
+  // @verifies SWR-PL-01
+  it('refuses an entry that has no content hash, and a protocol the library does not hold', () => {
+    const lib = libraryWith(entry('a'));
+    const composite = { kind: 'composite', composite: { id: 'c', name: 'c', layers: [] } } as unknown as NPProtocolEntry;
+    expect(lib.contentHash(composite)).toBeNull();
+    expect(lib.uploadGate(composite, 1).kind).toBe('not_in_library');
+    expect(lib.uploadGate(entry('unsaved', 7), 1).kind).toBe('not_in_library');
+  });
+
   // @verifies SWR-HV-04
   it('refuses a helmet layout the protocol has no version for', () => {
     const a = entry('a');

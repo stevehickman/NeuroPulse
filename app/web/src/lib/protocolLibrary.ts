@@ -349,7 +349,8 @@ export class ProtocolLibrary {
    */
   uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: number): UploadGate {
     const hash = contentHash(entry);
-    if (hash === null) return { kind: 'allow' };
+    // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
+    if (hash === null) return { kind: 'not_in_library' };
     const sourceId = this._cloneSources.get(entryId(entry));
     const source = sourceId ? this.allProtocols.find(e => entryId(e) === sourceId) : undefined;
     const answer = rules.uploadGate(helmetHardwareVersion, supportedVersions(entry), hash, source ? contentHash(source) : null,

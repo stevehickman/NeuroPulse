@@ -501,7 +501,8 @@ class NPProtocolLibrary(
      * [recordUploadResult].
      */
     fun uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: Int): UploadGate {
-        val hash = contentHash(entry) ?: return UploadGate.Allow
+        // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
+        val hash = contentHash(entry) ?: return UploadGate.NotInLibrary
         val libraryHashes = allProtocols.mapNotNull { contentHash(it) }
         val sourceId = cloneSources[entry.id.toString()]
         val source = sourceId?.let { sid -> allProtocols.firstOrNull { it.id.toString() == sid } }

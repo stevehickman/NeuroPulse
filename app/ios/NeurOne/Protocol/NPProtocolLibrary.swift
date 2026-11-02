@@ -406,7 +406,8 @@ final class NPProtocolLibrary: ObservableObject {
     /// refusal comes first, then the unmodified clone; an allowed upload is then sent and its result passed to
     /// `recordUploadResult`.
     func uploadGate(_ entry: NPProtocolEntry, helmetHardwareVersion: Int) -> UploadGate {
-        guard let hash = contentHash(entry) else { return .allow }
+        // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
+        guard let hash = contentHash(entry) else { return .notInLibrary }
         let source = cloneSources[entry.id.uuidString].flatMap { sid in allProtocols.first { $0.id.uuidString == sid } }
         let answer = NPLibraryRules.uploadGate(helmetVersion: helmetHardwareVersion,
                                                protocolVersions: NPLibraryRules.supportedVersions(entry),
