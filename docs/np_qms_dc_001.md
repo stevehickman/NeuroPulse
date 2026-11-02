@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-QMS-DC-001
-**Revision:** 2
-**Date:** 2026-10-04
+**Revision:** 3
+**Date:** 2026-11-02
 **Status:** ACTIVE
 **Effective Date:** 2026-05-13
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
@@ -239,6 +239,8 @@ A change is minor if it:
 
 **Where the revision history record lives.** It is either (a) a revision history block inside the document, or (b) a linked history file under `docs/reference/`, named by a pointer in the document's own revision-history section. Under (b) the section stays in place under its original number, so existing `§N` citations resolve; the history file carries the table verbatim; and the pointer names the file. Moving the record between (a) and (b) moves no requirement and is a minor change: it takes a revision bump and a row in the record, in its new location. Neither form changes the audit trail of record, which remains GitHub commit history (`NP-QMS-001` §6.1).
 
+**Where the revision number comes from.** `docs/revisions/policy.json` names the mode in force. In mode `hand` the author writes the number. In mode `assign-at-merge` (the principal, 2026-11-02, `docs/human-input/np-qms-dc-001-revision-assignment.md`) a change does not carry a revision number: it carries a fragment under `docs/revisions/pending/` naming the controlled documents it changes and the history text for each, and when the change merges a script run by the `assign-revisions` workflow writes each document's revision (its current revision plus one), its date, its row in the `NP-DHF-001` index and its history row, and bumps the DHF once. The number is therefore assigned after the change is accepted, in merge order, by a script whose output `check-dhf-index.ts` checks before it is committed, and two changes made in parallel cannot receive the same number. A change to a controlled document with no fragment naming it, and a change that writes one of these numbers by hand, fails `check-revision-fragments.ts`. The commit that records the assignment is authored by the author of the change and committed by the workflow's GitHub App. The procedure is `docs/revisions/README.md`. No approval step changes: the number is assigned to a change that has already been reviewed and merged.
+
 ### 8.3 Version control
 
 All documents are version-controlled in the GitHub repository. Each commit that changes a controlled document shall include:
@@ -333,3 +335,4 @@ Design transfer is the process of moving the device from design into production.
 |---|---|---|---|
 | 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. Design controls procedure established at QMS formation. Applies retroactively to all in-progress design activities. |
 | 2 | 2026-10-04 | Interim Quality (CEO) | §8.2: the revision history record may be an inline block or a linked history file under `docs/reference/`, with a pointer left in the original section. Previously §8.2 named only an inline "document revision history block". No change to the change-order process, approvals or §8.3. |
+| 3 | 2026-11-02 | Interim Quality (CEO) | §8.2: revision numbers may be assigned when a change merges, by a script, instead of by the author (mode `assign-at-merge`, `docs/revisions/policy.json`; the principal, 2026-11-02). Ships in mode `hand`: nothing changes until the mode is switched. No change to the change-order process, approvals or §8.3. |
