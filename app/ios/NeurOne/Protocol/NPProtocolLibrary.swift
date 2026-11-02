@@ -410,8 +410,11 @@ final class NPProtocolLibrary: ObservableObject {
         let source = cloneSources[entry.id.uuidString].flatMap { sid in allProtocols.first { $0.id.uuidString == sid } }
         let answer = NPLibraryRules.uploadGate(helmetVersion: helmetHardwareVersion,
                                                protocolVersions: NPLibraryRules.supportedVersions(entry),
-                                               contentHash: hash, sourceHash: source.flatMap { contentHash($0) })
+                                               contentHash: hash, sourceHash: source.flatMap { contentHash($0) },
+                                               inLibrary: allProtocols.contains { $0.id == entry.id })
         switch answer["reason"] as? String {
+        case "not_in_library":
+            return .notInLibrary
         case "hardware_mismatch":
             let diff = NPLibraryRules.overlap(answer)
             return .hardwareMismatch(

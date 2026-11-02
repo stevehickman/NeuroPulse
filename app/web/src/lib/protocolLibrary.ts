@@ -352,7 +352,9 @@ export class ProtocolLibrary {
     if (hash === null) return { kind: 'allow' };
     const sourceId = this._cloneSources.get(entryId(entry));
     const source = sourceId ? this.allProtocols.find(e => entryId(e) === sourceId) : undefined;
-    const answer = rules.uploadGate(helmetHardwareVersion, supportedVersions(entry), hash, source ? contentHash(source) : null);
+    const answer = rules.uploadGate(helmetHardwareVersion, supportedVersions(entry), hash, source ? contentHash(source) : null,
+      this.allProtocols.some(e => entryId(e) === entryId(entry)));
+    if (answer.reason === 'not_in_library') return { kind: 'not_in_library' };
     if (answer.reason === 'hardware_mismatch') {
       const diff = answer.layoutDiffs?.[0]?.diff ?? null;
       return {

@@ -37,6 +37,8 @@ enum UploadGate: Equatable {
                           onlyProtocolSockets: Int?, onlyHelmetSockets: Int?)
     /// The clone's content is its source's (SWR-PL-06): upload the source, edit the clone, or cancel.
     case unmodifiedClone(sourceId: UUID)
+    /// The protocol is not stored in the library, so nothing is sent (SWR-PL-01).
+    case notInLibrary
 }
 
 /// The outcomes of an upload that was sent, and the two refusals that are not failed uploads (SWR-UP-02).

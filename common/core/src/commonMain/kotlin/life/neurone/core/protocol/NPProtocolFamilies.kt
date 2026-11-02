@@ -168,7 +168,7 @@ internal object NPLibraryRules {
             putJsonArray("archivedFamilies") { archivedFamilies.forEach { add(JsonPrimitive(it)) } }
         }["offered"]!!.jsonArray.map { it.jsonPrimitive.content }
 
-    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?, inLibrary: Boolean = true): JsonObject =
+    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?, inLibrary: Boolean): JsonObject =
         ask("uploadGate") {
             put("helmetVersion", helmetVersion)
             putJsonArray("protocolVersions") { protocolVersions.forEach { add(JsonPrimitive(it)) } }

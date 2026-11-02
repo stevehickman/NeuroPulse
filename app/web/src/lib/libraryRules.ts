@@ -34,6 +34,8 @@ export type DeleteResult =
 /** What an upload meets before any byte is sent. A refusal is a local decision: nothing is sent and nothing is marked used. */
 export type UploadGate =
   | { kind: 'allow' }
+  /** The protocol is not stored in the library, so nothing is sent (SWR-PL-01). */
+  | { kind: 'not_in_library' }
   /**
    * The protocol has no layout for the helmet's hardware version (SWR-HV-04). The counts say how the first of its layouts
    * overlaps the helmet's; they are null while the helmet's layout is not in the table, so no overlap is claimed.
@@ -107,8 +109,8 @@ export const rules = {
     nppsLibrary({ op: 'variantFor', entries, familyId, helmetVersion }).variants,
   offered: (entries: object[], archivedFamilies: readonly string[]): string[] =>
     nppsLibrary({ op: 'offered', entries, archivedFamilies: [...archivedFamilies] }).offered,
-  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null) =>
-    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash }),
+  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null, inLibrary: boolean) =>
+    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash, inLibrary }),
   uploadResult: (req: {
     sentHash: string;
     helmetStatus?: string;

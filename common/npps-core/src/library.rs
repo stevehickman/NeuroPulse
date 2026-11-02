@@ -229,9 +229,11 @@ fn layouts(_: &Value) -> R<Value> {
 /// then the unmodified clone (`SWR-PL-06`). Each refusal is a local decision: nothing is sent and nothing is marked used.
 /// `protocolVersions` is `supported_versions`' answer; `sourceHash` is the clone's source's, null when the protocol is not a clone.
 fn upload_gate(req: &Value) -> R<Value> {
-    // `SWR-PL-01`: only a stored protocol is uploaded. `inLibrary` is the caller's answer to "is this content hash in the
-    // library"; `false` is refused first, since there is nothing stored to check against a helmet. Absent is not asked.
-    if req["inLibrary"] == false {
+    // `SWR-PL-01`: only a stored protocol is uploaded. `inLibrary` is the caller's answer to "is this protocol in the
+    // library" and is required (fail-closed: a caller that does not say is an error, never an allow). `false` is refused
+    // first, since there is nothing stored to check against a helmet.
+    let in_library = req["inLibrary"].as_bool().ok_or("inLibrary is required")?;
+    if !in_library {
         return Ok(json!({ "decision": "refuse", "reason": "not_in_library", "markUsed": false }));
     }
     let helmet = req["helmetVersion"].as_u64().ok_or("helmetVersion is required")?;
