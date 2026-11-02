@@ -124,6 +124,27 @@ class GattConnectionTest {
         assertTrue(UUID.fromString(GattUuidStrings.SESSION_STATUS_ID) in allRequired, "SESSION_STATUS is discovered so it can be read on reconnect")
     }
 
+    // @verifies REQ-SHDR-02
+    @Test fun the_warranty_token_is_absent_at_first_kept_whole_at_32_bytes_and_a_short_one_is_ignored() = runTest {
+        val manager = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        val id = UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID)
+        assertNull(manager.warrantyToken.value)
+
+        manager.onCharacteristicRead(id, ByteArray(16) { 0x7F })
+        assertNull(manager.warrantyToken.value, "a corrupt, short read must not become the token")
+
+        val token = ByteArray(32) { 0xAB.toByte() }
+        manager.onCharacteristicRead(id, token)
+        assertEquals(token.toList(), manager.warrantyToken.value!!.toList())
+    }
+
+    // @verifies REQ-SHDR-02
+    @Test fun a_longer_warranty_token_payload_is_cut_to_its_first_32_bytes() = runTest {
+        val manager = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        manager.onCharacteristicRead(UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID), ByteArray(40) { it.toByte() })
+        assertEquals((0 until 32).map { it.toByte() }, manager.warrantyToken.value!!.toList())
+    }
+
     // @verifies REQ-SW03-16
     @Test fun a_disconnect_clears_what_the_last_hub_reported() = runTest {
         val manager = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))

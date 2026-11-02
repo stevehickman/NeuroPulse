@@ -105,6 +105,57 @@ class AnalyticsGateTests {
         assertTrue(backend.trackedEvents.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun theGateIsClosedWhenTheConsentKeyIsAbsentOrFalseAndOpenOnceGranted() {
+        val store = InMemoryKeyValueStore()
+        val gate = ResearchAnalyticsGate(store, SpyAnalyticsBackend())
+        assertFalse(gate.isOpen)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, false)
+        assertFalse(gate.isOpen)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        assertTrue(gate.isOpen)
+    }
+
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun onlyTheResearchConsentKeyOpensTheGateNotTheOnboardingKeys() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean("np.onboarding.consent-shown", true)
+        store.putBoolean("np.onboarding.consent-accepted", true)
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(store, backend)
+        assertFalse(gate.isOpen, "seeing or skipping the screen, or the retired key, is not research consent")
+        gate.configure()
+        assertTrue(backend.calls.isEmpty())
+        assertEquals("np.research.consent-granted", PersistedKeys.RESEARCH_ANALYTICS_KEY)
+    }
+
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun aClosedGateLeavesItsStateAndTheBackendUntouchedOnConfigure() {
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(InMemoryKeyValueStore(), backend)
+        gate.configure()
+        assertFalse(gate.isOpen)
+        assertTrue(backend.calls.isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-03
+    @Test
+    fun resetAllowsTheBackendToBeConfiguredAgainAfterwards() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(store, backend)
+        gate.reset()
+        assertTrue(backend.calls.isEmpty(), "a reset before any configure does nothing")
+        gate.configure()
+        gate.reset()
+        gate.configure()
+        assertEquals(listOf("configure", "reset", "configure"), backend.calls)
+    }
+
     // @verifies REQ-SW03-07
     @Test
     fun resetTearsDownBackendBeforeClearingConfiguredState() {
