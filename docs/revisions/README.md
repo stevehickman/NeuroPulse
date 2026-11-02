@@ -53,10 +53,10 @@ hand (`> **Rev 30 (…)**`) it does not touch: replace the number with `{NP-X to
 
 ## Mode `hand`
 
-The mode the repository ships in. Authors write the numbers, and after a `git merge origin/main` that collides,
+The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers, and after a `git merge origin/main` that collides,
 `bun scripts/renumber-revisions.ts` moves this branch's numbers past main's.
 
-## Turning it on (once)
+## Turning it on (once) — done 2026-11-02
 
 1. The GitHub App `RevNumberFixer` is installed on this repository with Contents and Pull requests read and write, and is on
    the `main` ruleset's bypass list.
