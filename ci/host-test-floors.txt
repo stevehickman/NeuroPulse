@@ -75,12 +75,12 @@ np_module_map_tests 1070
 np_module_registry_tests 244
 np_ota_tests 92
 np_pbm_cal_bridge_tests 460
-np_pbm_session_desc_tests 1015
+np_pbm_session_desc_tests 1025
 np_protocol_tests 511
 np_session_lease_tests 115
 np_runner_load_tests 507
 np_runner_run_tests 1122
-np_pbm_socket_telem_tests 835
+np_pbm_socket_telem_tests 840
 np_socket_dispatch_tests 561
 np_socket_layouts_tests 188
 np_safety_spi_tests 234

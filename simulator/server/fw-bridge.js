@@ -23,7 +23,7 @@ const { EventEmitter } = require('events');
 
 const OPS = new Set(['socket_pwm_set', 'socket_ntc_read']);   // np_sim_op_name()
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
-const MAX_SOCKETS_PER_COMMAND = 80;
+const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
 
 class BridgeError extends Error {}
 

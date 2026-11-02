@@ -214,17 +214,23 @@
 #define NP_PBM_SESSION_MAX_PRESET_GROUPS  4U
 
 /*
- * Runtime bound on individual sockets actuated by ONE session, after
- * expanding every group's bitmap. A session realistically only touches a
- * handful of sockets even on the largest (~80-128) lattice (a T1 build with
- * full EEG/tES coverage runs ~8-9 sites plus a few 1064nm depth zones — see
- * NP-HEX-ZM-001 §4a), so per-target working arrays (drive state, dose state,
- * calibration) are sized to this capacity, not to NP_HEXMAP_MAX_SOCKETS.
- * A session whose combined groups address more than this many distinct
- * sockets is rejected at preflight (fail closed) rather than silently
- * truncated — see np_pbm_session_desc_expand().
+ * Capacity of the per-session working arrays (drive state, dose state, calibration, UID, NTC, EEG hysteresis)
+ * and of the in-RAM session records: ONE ENTRY FOR EVERY ADDRESS THE DESCRIPTOR CAN NAME, which is the whole
+ * socket-mask domain (NP_PBM_SOCKET_DOMAIN, 128).  It is the width of the addressing scheme, not an estimate of
+ * how many sockets a session usually lights, so no descriptor can address more distinct sockets than there is
+ * room for, and a session is never refused for want of capacity (REQ-FWHUB-64: only the helmet's addressable
+ * sockets, how many are filled, and power and heat limits determined at runtime may limit how many modules are
+ * driven at once).  Until Rev 35 of NP-FW-HUB-001 this was 32, on the assumption that "a session realistically only
+ * touches a handful of sockets"; that assumption refused a drive of 40 of the 80 sockets of the shipped lattice
+ * (OI-FWHUB-27, register row UC-119).
+ *
+ * Cost, measured 2026-11-02 for the structures sized by it: np_pbm_session_ctx_t 5.3 KB at 32 entries and 20.3 KB
+ * at 128; np_pbm_session_record_t 0.5 KB and 2.1 KB.  Neither record is serialized as a fixed array (the SHDR
+ * summary is "built and never written", np_pbm_types.h; the UHDR socket records are written one per socket), so no
+ * stored format depends on it.  np_pbm_session_desc_expand() still takes its capacity as an argument and still
+ * refuses a descriptor that exceeds it, fail closed, rather than truncating.
  */
-#define NP_PBM_SESSION_MAX_ACTIVE_SOCKETS  32U
+#define NP_PBM_SESSION_MAX_ACTIVE_SOCKETS  NP_PBM_SOCKET_DOMAIN
 
 /* ── TIA gain switch (Vishay DG2788A, Hub PCB Rev B — OI-PBM-HW-01) ────────── */
 

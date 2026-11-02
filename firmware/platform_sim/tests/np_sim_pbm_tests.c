@@ -199,6 +199,33 @@ static void test_an_address_past_the_lattice_is_refused(void)
     check(np_sim_find(80) == NULL, "layout: no module exists at an address the helmet version does not have");
 }
 
+/* @verifies-none Scenario: every valid socket of the version 1 lattice driven by one command, which the 32-socket bound refused until NP-FW-HUB-001 Rev 35 (REQ-FWHUB-64). The firmware's own tests are np_pbm_socket_telem_tests and np_pbm_session_desc_tests. Simulator evidence only (REQ-SIMFW-06). */
+static void test_the_whole_lattice_can_be_driven_at_once(void)
+{
+    setup();
+    char add[32], drive[512];
+    int n = 0;
+    for (int s = 3; s < 80; s++) {                    /* sockets 0..2 were added by setup() */
+        (void)snprintf(add, sizeof add, "add %d 34.0", s);
+        run(add);
+    }
+    n += snprintf(drive, sizeof drive, "drive 0");
+    for (int s = 1; s < 80; s++) { n += snprintf(drive + n, sizeof drive - (size_t)n, ",%d", s); }
+    run(drive);
+    check(strstr(last_result(), "\"code\":0") != NULL, "lattice: a command naming all 80 sockets is accepted");
+    check(strstr(last_result(), "\"active\":80") != NULL, "lattice: the hub reports all 80 sockets active");
+    bool all = true;
+    for (unsigned s = 0; s < 80; s++) { if (!driven(s)) { all = false; } }
+    check(all, "lattice: every one of the 80 sim modules holds a commanded drive");
+    check(cranial_requested(), "lattice: the cranial enable is requested");
+
+    /* The address domain is 128; the lattice has 80, and an address past it is refused as not present. */
+    run("stop 0");
+    (void)snprintf(drive, sizeof drive, "drive 80");
+    run(drive);
+    check(strstr(last_result(), "\"code\":-3") != NULL, "lattice: an address of the domain that the lattice lacks is refused as not present");
+}
+
 int main(void)
 {
     test_baseline_drive();
@@ -209,6 +236,7 @@ int main(void)
     test_absent_module_fails_placement_before_any_write();
     test_lost_stop_releases_the_lattice_but_not_the_emitter();
     test_an_address_past_the_lattice_is_refused();
+    test_the_whole_lattice_can_be_driven_at_once();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures,
            g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;

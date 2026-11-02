@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-11-01
 **Status:** DRAFT
 **Effective Date:** —
@@ -359,7 +359,7 @@ view, and any behaviour with the kernel's tasks running.
 | Finding | Meaning |
 |---|---|
 | **The page numbers sockets 1 to 80 and the firmware 0 to 79.** The first run drove nothing visible. | `OI-SIMFW-06` was not hypothetical. The mapping is now one named function and a test. |
-| **A command driving more than 32 tiles is refused and rolled back.** 8, 16, 24 and 32 tiles drive; 40 and 80 return `NP_HUB_ERR_MOD_FAULT` with nothing left driven. The limit is `NP_PBM_SESSION_MAX_ACTIVE_SOCKETS`, which `NP_PST_MAX_TRACKED` is asserted equal to. | **A requirements gap, ruled so on 2026-11-01:** only the helmet's addressable sockets (valid addresses, not a count of mask bits), how many are filled, and power and heat limits determined at runtime may limit how many modules are driven at once. The 32 is an assumption about typical sessions with no derivation. Raised as `REQ-FWHUB-64` and `OI-FWHUB-27` in `NP-FW-HUB-001` Rev 30, and as register row `UC-119`. A unit test of the dispatcher does not see it; a whole-lattice run does. |
+| **A command driving more than 32 tiles was refused and rolled back (fixed).** 8, 16, 24 and 32 tiles drove; 40 and 80 returned `NP_HUB_ERR_MOD_FAULT` with nothing left driven. The limit was `NP_PBM_SESSION_MAX_ACTIVE_SOCKETS`, with `NP_PST_MAX_TRACKED` asserted equal to it. | **A requirements gap, ruled so on 2026-11-01, and closed at `NP-FW-HUB-001` Rev 35** (`REQ-FWHUB-64`, `OI-FWHUB-27`, register row `UC-119` retired): both constants are now the 7-bit address domain, 128. The simulator now drives all 80 sockets of the version 1 lattice in one command and refuses an address past it as not present. A unit test of the dispatcher did not see this; a whole-lattice run did. |
 | **The production governor refuses every load.** | Against the shipped firmware no tile can be driven at all. `OI-SIMFW-11`. |
 | **A failed stop leaves the emitter driven.** With a stop failing on one tile, the hub reports no active socket and drops the cranial enable, and the module still holds its drive. | The designed backstop (`np_socket_dispatch.h`: the whole-lattice cut) and exactly what the safety MCU's enable is for. With no safety MCU in the loop the simulator can show the hub's side of it and not the cut. |
 
@@ -375,6 +375,7 @@ only: the generated name table of `REQ-SIMFW-05` is not built.
 
 | Rev | Date | Author | Change |
 |---|---|---|---|
+| 5 | 2026-11-02 | NeurOne Software Engineering | §12's 32-tile finding is closed: the firmware bound is gone (`NP-FW-HUB-001` Rev 35) and the simulator drives the whole lattice. No other change. |
 | 4 | 2026-11-01 | NeurOne Software Engineering | §12's 32-tile finding is a requirements gap, not a question: raised as `REQ-FWHUB-64` and `OI-FWHUB-27` (`NP-FW-HUB-001` Rev 30) and `UC-119`. No other change. |
 | 3 | 2026-11-01 | NeurOne Software Engineering | The PBM spike is built (§12). Adds `REQ-SIMFW-11` and `-12`, `OI-SIMFW-11` to `-14`; `OI-SIMFW-06` met once. Records what the spike found: the 1-based and 0-based socket numbering, the 32-tile ceiling, the governor that refuses every load. |
 | 2 | 2026-11-01 | NeurOne Software Engineering | Closes `OI-SIMFW-01`: the safety MCU builds and runs on the host (§2, §3.4). Raises `OI-SIMFW-09` and `-10`. Adds §11, reuse as a bench test apparatus (three layers; what carries over and what does not), with `REQ-SIMFW-09` and `-10`. |
