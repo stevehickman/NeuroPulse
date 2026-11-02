@@ -1,6 +1,6 @@
 # Revision numbers assigned at merge, not by hand — decision request
 
-**Status:** PARTLY ANSWERED 2026-11-02 (§7); option not yet chosen, question 1 open. **From:** a Claude Code session working for the principal. **To:** the principal
+**Status:** ANSWERED 2026-11-02 (§7): option A chosen; built in mode `hand`, switched on when the App's secrets exist. **From:** a Claude Code session working for the principal. **To:** the principal
 (owner of `NP-QMS-DC-001`; the Quality Lead role is interim the CEO). No open-item ID exists for this; it is a
 process question, and one is raised if the answer is "build it".
 
@@ -117,3 +117,9 @@ named (§1) and question 1 is open, so nothing in the repo acts on them.
 | 3 | The bot's commit and the history row carry the same author as the rest of the change (the PR's author), not a separate bot identity. |
 | 4 | **Yes.** A PR that changes a controlled document without naming it in `bumps` fails. |
 | 5 | In-flight PRs are brought across by running the tool on them and updating their numbers, not finished by hand. |
+
+**Option and question 1, 2026-11-02.** The principal picked option A, created the GitHub App `RevNumberFixer`, and put it on
+the `main` ruleset's bypass list (the built-in Actions identity cannot be added). Built as `scripts/assign-revisions.ts`,
+`scripts/check-revision-fragments.ts`, `.github/workflows/assign-revisions.yml` and `docs/revisions/`; recorded in
+`docs/status/completed-decisions.md` and `NP-QMS-DC-001` Rev 3. Still to do by the principal: the secrets
+`REVBOT_APP_ID` and `REVBOT_PRIVATE_KEY`, and the switch in `docs/revisions/policy.json`.

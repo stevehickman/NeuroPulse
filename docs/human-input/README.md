@@ -30,7 +30,7 @@ Sorted by open item.
 | Item | Document | Asks | Status |
 |------|----------|------|--------|
 | `NP-ACC-PRIORITY-001` | `np-acc-priority-001-signoff.md` | Principal + product: sign off the ranking criterion (§3), the one flagged placement (rank 16=) and the mastoid-boss provision (§7). No open-item ID. | DRAFT, ready to send |
-| `NP-QMS-DC-001` | `np-qms-dc-001-revision-assignment.md` | Principal: assign revision numbers at merge by a script (A), from a counter (B), or keep hand numbering plus the renumber tool (C)? Needs to know whether a workflow may push to `main`. No open-item ID. | PARTLY ANSWERED 2026-11-02 |
+| `NP-QMS-DC-001` | `np-qms-dc-001-revision-assignment.md` | Principal: assign revision numbers at merge by a script (A), from a counter (B), or keep hand numbering plus the renumber tool (C)? Needs to know whether a workflow may push to `main`. No open-item ID. | ANSWERED 2026-11-02 (option A built; switch pending) |
 | `OI-CHARGE-06` | `oi-charge-06-dc-charge-ceiling.md` | Regulatory: is the 150 mC/cm² DC ceiling acceptable for T1 wellness tDCS, does it hold for T2 HD-tDCS (it does not fit the 3.5 mm electrode as declared), and should a current-density criterion sit beside it? | DRAFT, ready to send |
 | `OI-CONSENT-08` | `oi-consent-08-clinician-tiers.md` | Principal with a clinical adviser: which UHDR elements each clinician tier reaches, whether the tier sets stay derived, and whether the prices are decided. | DRAFT, ready to send |
 | `OI-CVNS-13` | `oi-cvns-13-nuisance-cutoff-rate.md` | Clinical: acceptable false-cutoff rate. Engineering: measure missed and split R-peak rates on A13. Drives 25-c and 25-e. | DRAFT, not sent |
