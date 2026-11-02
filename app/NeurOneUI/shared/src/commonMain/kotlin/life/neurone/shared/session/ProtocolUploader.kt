@@ -125,3 +125,18 @@ class ProtocolUploader(
         return null
     }
 }
+
+/**
+ * What to tell the person after a protocol was programmed for Mode 3 (the iOS `ProtocolUploadFlow.program`). "Stored" is true only
+ * when the helmet holds the protocol, so it waits for the helmet's report: the answer to this upload accepted, or no answer
+ * (`UploadVerdict.causeFor` is null for both) is [Stored]; every refusal, and an answer for other bytes, is [Refused] with its
+ * cause, and the protocol is not reported stored (SWR-UP-02, SWR-HV-08).
+ */
+sealed interface ProgrammingOutcome {
+    data object Stored : ProgrammingOutcome
+    data class Refused(val cause: life.neurone.core.models.HelmetRefusalCause) : ProgrammingOutcome
+
+    companion object {
+        fun of(cause: life.neurone.core.models.HelmetRefusalCause?): ProgrammingOutcome = if (cause == null) Stored else Refused(cause)
+    }
+}

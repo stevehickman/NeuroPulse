@@ -128,6 +128,64 @@ class ConsumableTrackerTests {
 
     // @verifies REQ-SW03-04
     @Test
+    fun noCountsMeansNoRemindersAndNoBlock() {
+        val tracker = ConsumableTracker(FakeCountsProvider(listOf(0, 0, 0, 0)), InMemoryKeyValueStore())
+        assertTrue(tracker.activeReminders.isEmpty())
+        assertTrue(tracker.blockingReminders.isEmpty())
+        assertFalse(tracker.sessionIsBlocked)
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun anExceededSleeveIsABlockingReminderAndTheHydrogelAloneNeverBlocks() {
+        val exceeded = ConsumableTracker(FakeCountsProvider(listOf(1, 0, 0, 0)), InMemoryKeyValueStore())
+        assertEquals(listOf(ConsumableKind.INTRANASAL_SLEEVES), exceeded.blockingReminders.map { it.state.kind })
+        assertTrue(exceeded.sessionIsBlocked)
+
+        val lowHydrogel = ConsumableTracker(FakeCountsProvider(listOf(0, 44, 0, 0)), InMemoryKeyValueStore())
+        assertTrue(lowHydrogel.activeReminders.isNotEmpty())
+        assertFalse(lowHydrogel.sessionIsBlocked, "performance-critical is not blocking")
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun comfortLongevityAllowsFiveSnoozesAndTheSixthIsRefused() {
+        val tracker = ConsumableTracker(FakeCountsProvider(listOf(0, 0, 0, 149)), InMemoryKeyValueStore())
+        val foam = ConsumableKind.AUDIO_CUP_FOAM.rawValue
+        assertTrue(tracker.states[foam].isLow)
+        repeat(10) { tracker.snooze(foam) }
+        assertEquals(5, tracker.states[foam].snoozeCount, "comfort/longevity allows at most 5 snoozes")
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun eachSnoozeAddsOneAndAnIndexOutOfRangeIsIgnored() {
+        val tracker = ConsumableTracker(FakeCountsProvider(listOf(0, 44, 0, 0)), InMemoryKeyValueStore())
+        val hydrogel = ConsumableKind.ELECTRODE_HYDROGEL.rawValue
+        tracker.snooze(hydrogel)
+        assertEquals(1, tracker.states[hydrogel].snoozeCount)
+
+        val before = tracker.states
+        tracker.snooze(-1)
+        tracker.snooze(99)
+        tracker.markReplaced(-1)
+        assertEquals(before, tracker.states, "an out-of-range index changes nothing")
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun theInventoryFollowsTheCountsTheHubPushesIncludingAClearedSleeve() {
+        val provider = FakeCountsProvider(listOf(1, 0, 0, 0))
+        val tracker = ConsumableTracker(provider, InMemoryKeyValueStore())
+        assertTrue(tracker.sessionIsBlocked)
+
+        provider.emit(listOf(0, 40, 0, 0)) // sleeve replaced at the hub; hydrogel now low
+        assertFalse(tracker.sessionIsBlocked, "the session unblocks when the hub pushes a cleared sleeve count")
+        assertEquals(40, tracker.states[ConsumableKind.ELECTRODE_HYDROGEL.rawValue].sessionCount)
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
     fun duplicateCountUpdatesAreIgnored() {
         val provider = FakeCountsProvider(listOf(0, 37, 0, 0))
         var notifications = 0

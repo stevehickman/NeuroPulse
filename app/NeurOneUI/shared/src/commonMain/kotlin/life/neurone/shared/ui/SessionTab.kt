@@ -21,6 +21,7 @@ import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.SessionStatus
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
+import life.neurone.shared.session.ProgrammingOutcome
 import life.neurone.shared.session.ProtocolUploader
 import life.neurone.shared.session.shouldShowSessionDownload
 import org.jetbrains.compose.resources.stringResource
@@ -74,20 +75,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val sentToHub = stringResource(Res.string.protocol_menu_protocol_sent_to_hub)
     val storedOnHub = stringResource(Res.string.setup_protocol_stored_message)
     // What to say for each reason the helmet can refuse a protocol (SWR-HV-08, REQ-UPG-01, SWR-UP-02).
-    val refusalText: Map<HelmetRefusalCause, String> = mapOf(
-        HelmetRefusalCause.TIER to stringResource(Res.string.protocol_menu_tier_refused),
-        HelmetRefusalCause.HARDWARE_VERSION to stringResource(Res.string.protocol_menu_hardware_version_refused),
-        HelmetRefusalCause.NOT_READY to stringResource(Res.string.protocol_menu_helmet_not_ready),
-        HelmetRefusalCause.SIGNATURE to stringResource(Res.string.protocol_menu_refused_signature),
-        HelmetRefusalCause.WRONG_DEVICE to stringResource(Res.string.protocol_menu_refused_wrong_device),
-        HelmetRefusalCause.FORMAT_VERSION to stringResource(Res.string.protocol_menu_refused_format_version),
-        HelmetRefusalCause.DAMAGED to stringResource(Res.string.protocol_menu_refused_damaged),
-        HelmetRefusalCause.MALFORMED to stringResource(Res.string.protocol_menu_refused_malformed),
-        HelmetRefusalCause.SESSION_ACTIVE to stringResource(Res.string.protocol_menu_refused_session_active),
-        HelmetRefusalCause.BOOT_REFUSED to stringResource(Res.string.protocol_menu_refused_boot),
-        HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_generic),
-        HelmetRefusalCause.UNMATCHED to stringResource(Res.string.protocol_menu_upload_unmatched),
-    )
+    val refusalText: Map<HelmetRefusalCause, String> = helmetRefusalMessages()
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
     val compositeUnsupported = stringResource(Res.string.and_ui_composite_protocol_upload_is_not_yet_support)
@@ -133,11 +121,14 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
                 // A final answer for other bytes says nothing about this upload: the helmet may hold something else.
                 val cause = verdict.causeFor(result.sentHash)
-                // Mode 3 does not say "stored" before the helmet has answered (SWR-HV-08, as the iOS setup flow): a tier or a
-                // hardware-version refusal is shown, and any other outcome reports the protocol stored, as iOS does.
+                // Mode 3 says "stored" only when the helmet holds the protocol (SWR-UP-02, SWR-HV-08, as the iOS flow): every
+                // refusal, and an answer for other bytes, is shown instead and nothing is reported stored.
                 if (programming) {
                     snackbar.showSnackbar(
-                        if (cause == HelmetRefusalCause.TIER || cause == HelmetRefusalCause.HARDWARE_VERSION) refusalText.getValue(cause) else storedOnHub,
+                        when (val outcome = ProgrammingOutcome.of(cause)) {
+                            is ProgrammingOutcome.Refused -> refusalText.getValue(outcome.cause)
+                            ProgrammingOutcome.Stored -> storedOnHub
+                        },
                     )
                 } else {
                     cause?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
