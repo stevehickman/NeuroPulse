@@ -231,7 +231,7 @@ internal object NPLibraryRules {
     fun isValidUsedRecord(record: JsonElement): Boolean =
         ask("usedRecord") { put("check", record) }["valid"]!!.jsonPrimitive.boolean
 
-    /** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none or a protocol that cannot be hashed yet. */
+    /** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none (a composite is hashed by [compositeContentHash]) or a protocol that cannot be hashed yet. */
     fun contentHash(entry: NPProtocolEntry): String? {
         val protocol = (entry as? NPProtocolEntry.Single)?.protocol ?: return null
         return try {
@@ -243,6 +243,23 @@ internal object NPLibraryRules {
             })
         } catch (e: IllegalArgumentException) {
             null // for example a clinician-selected target the operator has not chosen yet
+        }
+    }
+
+    /**
+     * A composite's identity (SWR-PL-01): the hash of how its layers combine and of the protocol each layer names.
+     * [memberHashes] maps a layer's protocol name to that protocol's content hash. Null when a layer's protocol has none.
+     */
+    fun compositeContentHash(entry: NPProtocolEntry.Composite, memberHashes: Map<String, String>): String? {
+        val composite = entry.toNppsCoreItem()["composite"] ?: return null
+        return try {
+            NppsCore.contentHash(buildJsonObject {
+                put("composite", composite)
+                put("hardwareVersion", 1)
+                put("memberHashes", buildJsonObject { memberHashes.forEach { (k, v) -> put(k, v) } })
+            })
+        } catch (e: IllegalArgumentException) {
+            null // a layer names a protocol the library does not hold or cannot hash
         }
     }
 

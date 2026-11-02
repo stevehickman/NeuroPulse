@@ -5,7 +5,7 @@
  * summaries the core is given and the calls. protocolLibrary.ts keeps the state and the screens read it.
  */
 
-import type { NPProtocolEntry } from '../../../../common/types/protocol';
+import type { NPProtocolEntry, NPCompositeProtocol } from '../../../../common/types/protocol';
 import { entryId } from '../../../../common/types/protocol';
 import { nppsContentHash, nppsLibrary } from '../../../../common/lib/nppsCore';
 import { protocolCoreDef } from './hubCompiler';
@@ -125,8 +125,36 @@ export const rules = {
   isValidUsedRecord: (record: unknown): boolean => nppsLibrary({ op: 'usedRecord', check: record }).valid,
 };
 
-/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a composite or a protocol that cannot be hashed yet. */
-export function contentHash(entry: NPProtocolEntry): string | null {
+/** The part of a composite the core reads for its identity: how the layers combine, and each layer's timing and scale. */
+function compositeCoreDef(c: NPCompositeProtocol): object {
+  return {
+    conflictResolution: c.conflictResolution,
+    layers: c.layers.map(l => ({
+      protocolName: l.protocolName,
+      startOffsetSeconds: l.startOffsetSeconds,
+      intensityScale: l.intensityScale,
+      ...(l.durationSeconds != null ? { durationSeconds: l.durationSeconds } : {}),
+    })),
+  };
+}
+
+/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none, a protocol that cannot be hashed yet, or a composite one of whose layers names a protocol that is not in `library` or has no hash. */
+export function contentHash(entry: NPProtocolEntry, library: readonly NPProtocolEntry[] = []): string | null {
+  if (entry.kind === 'composite') {
+    // A composite is identified by how its layers combine and by the hash of each protocol a layer names (SWR-PL-01).
+    const memberHashes: Record<string, string> = {};
+    for (const layer of entry.composite.layers) {
+      const member = library.find(e => e.kind === 'single' && e.protocol.name === layer.protocolName);
+      const h = member ? contentHash(member) : null;
+      if (h === null) return null;
+      memberHashes[layer.protocolName] = h;
+    }
+    try {
+      return nppsContentHash({ composite: compositeCoreDef(entry.composite), hardwareVersion: 1, memberHashes });
+    } catch {
+      return null;
+    }
+  }
   if (entry.kind !== 'single') return null;
   try {
     return nppsContentHash({

@@ -492,8 +492,17 @@ class NPProtocolLibrary(
 
     // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
 
-    /** [entry]'s identity as the core defines it, or null for a kind that has none. */
-    fun contentHash(entry: NPProtocolEntry): String? = NPLibraryRules.contentHash(entry)
+    /** [entry]'s identity as the core defines it, or null for a kind that has none or whose protocol (or a composite's member) cannot be hashed. */
+    fun contentHash(entry: NPProtocolEntry): String? {
+        if (entry !is NPProtocolEntry.Composite) return NPLibraryRules.contentHash(entry)
+        // A composite is identified by how its layers combine and by the hash of each protocol a layer names (SWR-PL-01).
+        val members = HashMap<String, String>()
+        for (layer in entry.composite.layers) {
+            val member = allProtocols.firstOrNull { it is NPProtocolEntry.Single && it.protocol.name == layer.protocolName } ?: return null
+            members[layer.protocolName] = NPLibraryRules.contentHash(member) ?: return null
+        }
+        return NPLibraryRules.compositeContentHash(entry, members)
+    }
 
     /**
      * What an upload of [entry] to a helmet of [helmetHardwareVersion] meets before any byte is sent. The hardware

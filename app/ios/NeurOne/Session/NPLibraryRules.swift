@@ -148,6 +148,16 @@ enum NPLibraryRules {
         ])
     }
 
+    /// A composite's identity (SWR-PL-01): the hash of how its layers combine and of the protocol each layer names.
+    /// `memberHashes` maps a layer's protocol name to that protocol's content hash. Nil when the core refuses it.
+    static func compositeContentHash(_ composite: NPCompositeProtocol, memberHashes: [String: String]) -> String? {
+        try? NppsCore.contentHash(request: [
+            "composite": composite.nppsCoreJSON(),
+            "hardwareVersion": 1,
+            "memberHashes": memberHashes,
+        ])
+    }
+
     /// How the first of the protocol's layouts overlaps the helmet's, from an `uploadGate` refusal: sockets in both, only
     /// in the protocol's, only in the helmet's. Nil while the helmet's layout is not in the table.
     static func overlap(_ gate: [String: Any]) -> NPLayoutOverlap? {

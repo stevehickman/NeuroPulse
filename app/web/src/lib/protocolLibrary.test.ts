@@ -117,12 +117,20 @@ describe('upload gate and outcomes (SWR-PL-06, SWR-HV-04, SWR-UP-02)', () => {
   });
 
   // @verifies SWR-PL-01
-  it('refuses an entry that has no content hash, and a protocol the library does not hold', () => {
-    const lib = libraryWith(entry('a'));
-    const composite = { kind: 'composite', composite: { id: 'c', name: 'c', layers: [] } } as unknown as NPProtocolEntry;
-    expect(lib.contentHash(composite)).toBeNull();
-    expect(lib.uploadGate(composite, 1).kind).toBe('not_in_library');
+  it('refuses a protocol the library does not hold and a composite naming a protocol it cannot hash', () => {
+    const a = entry('a');
+    const lib = libraryWith(a);
+    const layer = (protocolName: string) => ({ id: 'l', protocolName, startOffsetSeconds: 0, intensityScale: 1 });
+    const composite = (name: string) =>
+      ({ kind: 'composite', composite: { id: 'c', name: 'c', conflictResolution: 'merge', layers: [layer(name)] } }) as unknown as NPProtocolEntry;
     expect(lib.uploadGate(entry('unsaved', 7), 1).kind).toBe('not_in_library');
+    expect(lib.contentHash(composite('nothing by this name'))).toBeNull();
+    expect(lib.uploadGate(composite('nothing by this name'), 1).kind).toBe('not_in_library');
+    // A composite of a protocol the library holds has a hash, and the hash follows the member's content.
+    const name = entryName(a);
+    const hash = lib.contentHash(composite(name));
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(hash).not.toBe(lib.contentHash(a));
   });
 
   // @verifies SWR-HV-04

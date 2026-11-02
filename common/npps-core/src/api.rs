@@ -300,6 +300,11 @@ pub fn resolve_limits_json(request: &str) -> Result<String, String> {
 /// lowercase hex digits.
 pub fn content_hash_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("content hash request is not JSON: {e}"))?;
+    // A composite: `{"composite":…, "hardwareVersion":…, "memberHashes":{<protocol name>:<hash>}}` (see `identity`).
+    if req["composite"].is_object() {
+        let members = req["memberHashes"].as_object().ok_or("a composite content hash request needs memberHashes")?;
+        return identity::composite_content_hash(&req["composite"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), members);
+    }
     let zones = request_zones(&req)?.unwrap_or_default();
     let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
     identity::content_hash(&req["def"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), &zones, clinician.as_deref())

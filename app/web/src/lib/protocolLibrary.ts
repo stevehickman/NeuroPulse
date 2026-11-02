@@ -339,7 +339,7 @@ export class ProtocolLibrary {
 
   /** `entry`'s identity as the core defines it, or null for a kind that has none. */
   contentHash(entry: NPProtocolEntry): string | null {
-    return contentHash(entry);
+    return contentHash(entry, this.allProtocols);
   }
 
   /**
@@ -348,13 +348,13 @@ export class ProtocolLibrary {
    * `recordUploadResult`.
    */
   uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: number): UploadGate {
-    const hash = contentHash(entry);
+    const hash = contentHash(entry, this.allProtocols);
     // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
     if (hash === null) return { kind: 'not_in_library' };
     const sourceId = this._cloneSources.get(entryId(entry));
     const source = sourceId ? this.allProtocols.find(e => entryId(e) === sourceId) : undefined;
-    const answer = rules.uploadGate(helmetHardwareVersion, supportedVersions(entry), hash, source ? contentHash(source) : null,
-      this.allProtocols.map(e => contentHash(e)).filter((h): h is string => h !== null));
+    const answer = rules.uploadGate(helmetHardwareVersion, supportedVersions(entry), hash, source ? contentHash(source, this.allProtocols) : null,
+      this.allProtocols.map(e => contentHash(e, this.allProtocols)).filter((h): h is string => h !== null));
     if (answer.reason === 'not_in_library') return { kind: 'not_in_library' };
     if (answer.reason === 'hardware_mismatch') {
       const diff = answer.layoutDiffs?.[0]?.diff ?? null;
@@ -454,10 +454,10 @@ export class ProtocolLibrary {
    */
   importScript(text: string): NPProtocolEntry[] {
     const entries = parseNPPS(text);
-    const usedHashes = this.allProtocols.filter(e => this.isUsed(e)).map(e => contentHash(e)).filter((h): h is string => h !== null);
+    const usedHashes = this.allProtocols.filter(e => this.isUsed(e)).map(e => contentHash(e, this.allProtocols)).filter((h): h is string => h !== null);
     const incoming = entries.map(e => ({
       id: entryId(e),
-      hash: contentHash(e) ?? undefined,
+      hash: contentHash(e, this.allProtocols) ?? undefined,
       used: (e.kind === 'single' ? e.protocol.isUsed : e.composite.isUsed) === true,
     }));
     const merged = rules.mergeImport(usedHashes, incoming);
