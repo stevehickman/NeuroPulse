@@ -68,6 +68,8 @@ static bool    g_admits_sessions;   /* np_log_backend_admits_sessions(): the boo
 static uint8_t g_tier;              /* the unit's tier as the safety MCU established it */
 static uint8_t g_hw_version;        /* the helmet hardware version from the MCU's verified record */
 static bool    g_report_received;   /* the MCU has sent a valid tier/version report */
+static np_hub_status_t g_layout_rc; /* np_layout_admit(): is a layout bound for this helmet's version (REQ-FWHUB-64) */
+static uint8_t g_layout_arg;        /* the version np_runner_load() asked it about */
 
 /* Everything np_runner_load() could ASK of the safety MCU or the rest of the hub.  A refusal must leave all of these
  * at zero: "before anything is requested of the safety MCU" is what the code comments promise. */
@@ -83,6 +85,8 @@ static void reset_doubles(void)
     g_tier            = NP_TIER_T1;
     g_hw_version      = 1U;
     g_report_received = true;
+    g_layout_rc       = NP_HUB_OK;
+    g_layout_arg      = 0U;
     g_spi_asks = g_event_sets = g_sock_resets = g_pst_resets = 0U;
     g_event_bits = 0U;
 }
@@ -132,6 +136,7 @@ void np_safety_spi_set_geom_required_bes(bool v)                  { (void)v; g_s
 /* ── The boot admission flag ─────────────────────────────────────────────────── */
 
 bool np_log_backend_admits_sessions(void) { return g_admits_sessions; }
+np_hub_status_t np_layout_admit(uint8_t device_hw_version) { g_layout_arg = device_hw_version; return g_layout_rc; }
 
 /* ── The kernel ──────────────────────────────────────────────────────────────── */
 
@@ -522,6 +527,35 @@ static void test_before_the_first_report_the_helmet_version_is_unverified_and_no
     check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "hwver: once the report arrives the same blob loads (a second send can succeed)");
 }
 
+/* @verifies REQ-FWHUB-64#a */
+static void test_a_helmet_whose_version_has_no_bound_layout_loads_nothing(void)
+{
+    fresh();
+    g_hw_version = 2U;
+    g_layout_rc = NP_HUB_ERR_HW_VERSION_MISMATCH;   /* the hub holds no layout for version 2 */
+    blob_t b;
+    blob_t1(&b, 2U, 60000U);                        /* the stamp matches the helmet: only the layout is missing */
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_HW_VERSION_MISMATCH,
+          "layout: a protocol that matches the helmet is refused when no layout is bound for the helmet's version");
+    check(g_layout_arg == 2U, "layout: the admission asked about the version the safety MCU reports");
+    expect_nothing_left_behind("layout refused");
+    check(held_duration_ms(NULL) == 0U, "layout refused: the descriptor is cleared, not left installed");
+    g_layout_rc = NP_HUB_OK;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "layout: once a layout is bound the same blob loads");
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_the_unverified_version_refusal_comes_before_the_layout_one(void)
+{
+    fresh();
+    g_report_received = false;
+    g_layout_rc = NP_HUB_ERR_HW_VERSION_MISMATCH;
+    blob_t b;
+    blob_t1(&b, 1U, 60000U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_HW_VERSION_UNVERIFIED,
+          "order: with no report the refusal is UNVERIFIED (retry), not the layout's");
+}
+
 /* @verifies REQ-UPG-01#c,d */
 static void test_the_tier_refusal_comes_before_the_hardware_version_one(void)
 {
@@ -563,6 +597,8 @@ int main(void)
     test_a_protocol_for_another_hardware_version_is_refused_and_leaves_nothing();
     test_a_matching_hardware_version_loads();
     test_before_the_first_report_the_helmet_version_is_unverified_and_nothing_loads();
+    test_a_helmet_whose_version_has_no_bound_layout_loads_nothing();
+    test_the_unverified_version_refusal_comes_before_the_layout_one();
     test_the_tier_refusal_comes_before_the_hardware_version_one();
     test_a_refusal_after_a_good_load_does_not_disturb_it();
 

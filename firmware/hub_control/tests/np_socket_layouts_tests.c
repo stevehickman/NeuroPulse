@@ -18,6 +18,7 @@
 #include "../include/np_hub_types.h"
 #include "../include/np_module_map.h"
 #include "../include/np_socket_layouts.h"
+#include "../include/np_layout_bind.h"
 
 static int g_failures = 0;
 
@@ -113,12 +114,46 @@ static void test_the_module_map_accepts_a_row_as_it_stands(void)
     check(past_end_refused, "a poll of the first index past a row's table is refused");
 }
 
+/* @verifies REQ-FWHUB-64#a */
+static void test_binding_a_known_version_binds_its_row_to_the_module_map(void)
+{
+    const np_socket_layout_t *row = np_socket_layout_find(1U);
+    check(np_layout_bind(1U) == NP_HUB_OK, "bind: version 1 binds");
+    check(np_layout_bound() == row, "bind: the bound row is the table's row for the version");
+    check(np_module_map_socket_count() == row->table_len, "bind: the module map was bound to that row's table length");
+    check(np_layout_admit(1U) == NP_HUB_OK, "admit: a helmet reporting the bound version is admitted");
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_a_version_with_no_layout_is_refused_and_binds_nothing(void)
+{
+    check(np_layout_bind(1U) == NP_HUB_OK, "refuse: set-up, version 1 bound");
+    check(np_layout_bind(0U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 0 has no layout");
+    check(np_layout_bound() == NULL, "refuse: a failed bind forgets the earlier binding, so nothing is admitted on a stale one");
+    check(np_layout_admit(1U) == NP_HUB_ERR_HW_VERSION_MISMATCH, "refuse: with nothing bound even version 1 is refused");
+    check(np_layout_bind(255U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 255 has no layout");
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_a_helmet_reporting_another_version_than_the_bound_one_is_refused(void)
+{
+    check(np_layout_bind(1U) == NP_HUB_OK, "mismatch: set-up, version 1 bound");
+    bool refused_all = true;
+    for (unsigned v = 0; v < 256; v++) {
+        if (v != 1U && np_layout_admit((uint8_t)v) != NP_HUB_ERR_HW_VERSION_MISMATCH) { refused_all = false; }
+    }
+    check(refused_all, "mismatch: a helmet that reports any version but the bound one is refused (a default-bound hub fails closed)");
+}
+
 int main(void)
 {
     test_a_version_is_found_or_it_is_not();
     test_rows_are_well_formed();
     test_count_is_the_number_of_valid_addresses();
     test_the_module_map_accepts_a_row_as_it_stands();
+    test_binding_a_known_version_binds_its_row_to_the_module_map();
+    test_a_version_with_no_layout_is_refused_and_binds_nothing();
+    test_a_helmet_reporting_another_version_than_the_bound_one_is_refused();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

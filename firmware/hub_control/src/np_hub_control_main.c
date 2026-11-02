@@ -57,6 +57,7 @@
 #include "np_upload_check.h"     /* SWR-UP-01 */
 #include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
+#include "np_layout_bind.h"   /* REQ-FWHUB-64 */
 #include "np_log_backend.h"
 #include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
 #include "np_transport.h"
@@ -539,6 +540,14 @@ void np_hub_control_app_main(void)
      * scripts/check-hub-bringup-order.ts gates all three against this function.
      */
     np_safety_spi_init();
+
+    /* REQ-FWHUB-64 (OI-FWHUB-27): bind the socket layout of this helmet's hardware version, so the hub works to
+     * the sockets the helmet has and no others.  After np_safety_spi_init() (it owns the version) and before
+     * anything polls a socket.  The version is the SWR-HV-07 DEFAULT here, because no report can have arrived
+     * before the scheduler runs; np_layout_admit() refuses a session whose helmet reports another version.
+     * A version with no layout binds nothing and refuses every session. */
+    (void)np_layout_bind(np_safety_spi_get_hardware_version());
+
     np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
     np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
 

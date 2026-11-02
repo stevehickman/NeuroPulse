@@ -307,6 +307,7 @@ np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t *wave_class, 
 }
 
 bool np_log_backend_admits_sessions(void) { return g_admits_sessions; }
+np_hub_status_t np_layout_admit(uint8_t device_hw_version) { (void)device_hw_version; return NP_HUB_OK; }   /* REQ-FWHUB-64: the run tests are not about layouts */
 
 /* ── The modules ─────────────────────────────────────────────────────────────── */
 

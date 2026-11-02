@@ -14,13 +14,14 @@
 #include "np_socket_dispatch.h"
 #include "np_sw02_platform_hal.h"
 #include "np_socket_layouts.h"
+#include "np_layout_bind.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* The helmet's layout, from the generated table (REQ-FWHUB-64): the simulator no longer holds a socket count
- * of its own.  Hardware version 1, the default, until a scenario says otherwise. */
+/* The helmet's layout, bound by np_layout_bind() from the generated table (REQ-FWHUB-64): the simulator holds no
+ * socket count of its own.  Hardware version 1, the default, until a scenario says otherwise. */
 static const np_socket_layout_t *g_layout;
 
 /* The module map learns what is in a socket by asking it.  Here the sim module
@@ -114,9 +115,10 @@ static void status(void)
 
 void np_simh_init(void)
 {
-    g_layout = np_socket_layout_find(1U);
     np_sim_reset();
-    (void)np_module_map_init(g_layout->geom, g_layout->table_len);
+    /* The firmware's own binding, as bring-up does it (REQ-FWHUB-64): the layout of hardware version 1. */
+    (void)np_layout_bind(1U);
+    g_layout = np_layout_bound();
     np_sock_disp_reset();
 }
 
