@@ -492,15 +492,18 @@ class NPProtocolLibrary(
 
     // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
 
+    /** The protocols [entry]'s layers name, from the library; null when a layer names one that is not there. */
+    fun compositeMembers(entry: NPProtocolEntry.Composite): List<NPProtocolDefinition>? =
+        entry.composite.layers.map { layer ->
+            (allProtocols.firstOrNull { it is NPProtocolEntry.Single && it.protocol.name == layer.protocolName } as? NPProtocolEntry.Single)?.protocol
+                ?: return null
+        }.distinctBy { it.name }
+
     /** [entry]'s identity as the core defines it, or null for a kind that has none or whose protocol (or a composite's member) cannot be hashed. */
     fun contentHash(entry: NPProtocolEntry): String? {
         if (entry !is NPProtocolEntry.Composite) return NPLibraryRules.contentHash(entry)
-        // A composite is identified by how its layers combine and by the hash of each protocol a layer names (SWR-PL-01).
-        val members = HashMap<String, String>()
-        for (layer in entry.composite.layers) {
-            val member = allProtocols.firstOrNull { it is NPProtocolEntry.Single && it.protocol.name == layer.protocolName } ?: return null
-            members[layer.protocolName] = NPLibraryRules.contentHash(member) ?: return null
-        }
+        // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01).
+        val members = compositeMembers(entry) ?: return null
         return NPLibraryRules.compositeContentHash(entry, members)
     }
 

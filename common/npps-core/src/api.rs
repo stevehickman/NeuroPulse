@@ -147,6 +147,11 @@ pub fn compile_json(request: &str) -> Result<Vec<u8>, String> {
         hardware_version,
         acknowledged_cautions: &acknowledged,
     };
+    // A composite: `{"composite":…, "members":{<protocol name>:<definition>}}` instead of `def` (`OI-NPPS-COMP-01`).
+    if req["composite"].is_object() {
+        let members = req["members"].as_object().ok_or("a composite compile request needs members")?;
+        return crate::compiler::compile_composite(&req["composite"], members, &opts).map(|c| c.blob);
+    }
     compile_protocol(&req["def"], &opts).map(|c| c.blob)
 }
 
@@ -300,14 +305,17 @@ pub fn resolve_limits_json(request: &str) -> Result<String, String> {
 /// lowercase hex digits.
 pub fn content_hash_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("content hash request is not JSON: {e}"))?;
-    // A composite: `{"composite":…, "hardwareVersion":…, "memberHashes":{<protocol name>:<hash>}}` (see `identity`).
-    if req["composite"].is_object() {
-        let members = req["memberHashes"].as_object().ok_or("a composite content hash request needs memberHashes")?;
-        return identity::composite_content_hash(&req["composite"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), members);
-    }
+    // A composite (`OI-NPPS-COMP-01`): `{"composite":…, "members":{<protocol name>:<definition>}, + the zone inputs}`. Its identity
+    // is the identity of the plan it compiles to, so the same inputs that compile it hash it.
+    let composite_plan = if req["composite"].is_object() {
+        let members = req["members"].as_object().ok_or("a composite content hash request needs members")?;
+        Some(crate::composite::plan(&req["composite"], members)?)
+    } else {
+        None
+    };
     let zones = request_zones(&req)?.unwrap_or_default();
     let clinician = if req["clinicianSockets"].is_null() { None } else { Some(sockets(&req["clinicianSockets"])?) };
-    identity::content_hash(&req["def"], req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), &zones, clinician.as_deref())
+    identity::content_hash(composite_plan.as_ref().unwrap_or(&req["def"]), req["hardwareVersion"].as_u64().and_then(|v| u32::try_from(v).ok()), &zones, clinician.as_deref())
 }
 
 /// The protocol library's rules (`SWR-PL-02/03/06`, `SWR-UP-02`, `SWR-WO-01/02/03`, `SWR-FM-03…07`, `SWR-HV-04`): one entry

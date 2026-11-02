@@ -363,6 +363,11 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         return Err("Session length is zero: the commands end at the moment they start. Give the protocol a duration, or give a block an interval_on greater than zero.".into());
     }
 
+    finish(cmds, session_len_ms, is_t2, opts)
+}
+
+/// The descriptor of `cmds`: header, commands and a zeroed signature slot. Shared by a protocol and a composite.
+fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOptions) -> R<Compiled> {
     let targets: Vec<SerializedTarget> = cmds.iter().map(|c| serialize_target(&c.target)).collect::<R<_>>()?;
     let payload: usize =
         cmds.iter().zip(&targets).map(|(c, t)| CMD_HDR_LEN + t.block.len() + c.params.len()).sum();
@@ -405,6 +410,76 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
         off += c.params.len();
     }
     Ok(Compiled { blob, is_t2, cmd_count: cmds.len() })
+}
+
+/// Compile a composite (`OI-NPPS-COMP-01`): its layers are laid on one timeline by `composite::plan`, and the descriptor
+/// is built from that plan exactly as it is for a protocol (zone gate, PBM tile rule, command limit, signature slot).
+/// `members` maps a protocol name to its definition. Two blocks of one modality type that overlap in time and come from
+/// different layers are refused, except transcranial PBM on sockets that share none; nothing is summed, taken as a
+/// maximum or reduced to fit (`CLAUDE.md` §3).
+pub fn compile_composite(composite: &Value, members: &serde_json::Map<String, Value>, opts: &CompileOptions) -> R<Compiled> {
+    if !(1..=15).contains(&opts.hardware_version) {
+        return Err(format!(
+            "The hardware version {} is not one a helmet can have (1 to 15). Give the version of the helmet the protocol is compiled for.",
+            opts.hardware_version
+        ));
+    }
+    let def = crate::composite::plan(composite, members)?;
+    let session_ms = js_round(f(&def["timingMode"], "seconds") * 1000.0);
+    let mods = def["modalities"].as_array().cloned().unwrap_or_default();
+    let mut cmds: Vec<Cmd> = Vec::new();
+    let mut is_t2 = false;
+    let mut spans: Vec<(usize, &str, f64, f64, Option<Vec<u32>>)> = Vec::new();
+    for (block, m) in mods.iter().enumerate() {
+        let ty = s(m, "type");
+        if matches!(ty, "qeeg_21ch" | "tms" | "pbm_deep_1170nm" | "clinical_tacs" | "hd_tdcs" | "cervical_vns") {
+            is_t2 = true;
+        }
+        let generated = build_commands(ty, &m["params"], &m["interval"], session_ms, None, opts)?;
+        let sockets = generated.iter().find(|c| !c.params.is_empty()).and_then(|c| match &c.target {
+            Target::Sockets(v) => Some(v.clone()),
+            Target::Slot(_) => None,
+        });
+        spans.push((
+            m["layer"].as_u64().unwrap_or(0) as usize,
+            ty,
+            f(&m["interval"], "startOffsetSeconds"),
+            f(&m["interval"], "endOffsetSeconds"),
+            sockets,
+        ));
+        for mut c in generated {
+            c.block = block;
+            cmds.push(c);
+            if cmds.len() > CMD_MAX {
+                return Err(format!(
+                    "Composite exceeds maximum command count ({CMD_MAX}). Shorten the layers or reduce interval repeats."
+                ));
+            }
+        }
+    }
+    for i in 0..spans.len() {
+        for j in (i + 1)..spans.len() {
+            let (a, b) = (&spans[i], &spans[j]);
+            if a.0 == b.0 || a.1 != b.1 || !(a.2 < b.3 && b.2 < a.3) {
+                continue;
+            }
+            let disjoint_pbm = a.1 == "pbm_transcranial"
+                && matches!((&a.4, &b.4), (Some(x), Some(y)) if !x.iter().any(|k| y.contains(k)));
+            if !disjoint_pbm {
+                return Err(format!(
+                    "Layers {} and {} both drive {} from {}s to {}s. Two layers may overlap only on transcranial PBM sockets they do not share; the composite is refused rather than summed or reduced.",
+                    a.0 + 1, b.0 + 1, a.1, num_string(a.2.max(b.2)), num_string(a.3.min(b.3))
+                ));
+            }
+        }
+    }
+    zone_gate(&def, opts)?;
+    merge_overlapping_pbm(&mut cmds, session_ms)?;
+    if cmds.is_empty() {
+        return Err("Composite produces no commands — no enabled modalities".into());
+    }
+    cmds.sort_by(|a, b| a.start_ms.partial_cmp(&b.start_ms).unwrap_or(std::cmp::Ordering::Equal));
+    finish(cmds, session_ms, is_t2, opts)
 }
 
 // ── parallel PBM blocks on one tile ──────────────────────────────────────────
@@ -508,6 +583,27 @@ fn merge_overlapping_pbm(cmds: &mut Vec<Cmd>, session_ms: f64) -> R<()> {
 // ── command generation ───────────────────────────────────────────────────────
 
 fn build_commands(ty: &str, p: &Value, interval: &Value, session_ms: f64, default_repeats: Option<f64>, opts: &CompileOptions) -> R<Vec<Cmd>> {
+    // A composite layer's block states where it ends (`endOffsetSeconds`, `composite::plan`). The block is generated as if
+    // the session ended there, then anything still running at that moment is cut short and stopped.
+    let Some(end_s) = interval["endOffsetSeconds"].as_f64() else {
+        return build_commands_to(ty, p, interval, session_ms, default_repeats, opts);
+    };
+    let end_ms = js_round(end_s * 1000.0);
+    let mut out = build_commands_to(ty, p, interval, end_ms, default_repeats, opts)?;
+    let mut tail_stops = Vec::new();
+    for c in out.iter_mut().filter(|c| !c.params.is_empty()) {
+        if c.duration_ms == 0.0 || c.start_ms + c.duration_ms > end_ms {
+            c.duration_ms = end_ms - c.start_ms;
+            if end_ms < session_ms {
+                tail_stops.push(Cmd { block: 0, mod_type: c.mod_type, target: c.target.clone(), start_ms: end_ms, duration_ms: 0.0, params: vec![] });
+            }
+        }
+    }
+    out.extend(tail_stops);
+    Ok(out)
+}
+
+fn build_commands_to(ty: &str, p: &Value, interval: &Value, session_ms: f64, default_repeats: Option<f64>, opts: &CompileOptions) -> R<Vec<Cmd>> {
     let enc = encode(ty, p, opts)?;
     let offset_ms = js_round(interval["startOffsetSeconds"].as_f64().unwrap_or(0.0) * 1000.0);
     if session_ms > 0.0 && offset_ms >= session_ms {

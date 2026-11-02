@@ -400,16 +400,22 @@ final class NPProtocolLibrary: ObservableObject {
     // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
 
     /// `entry`'s identity as the core defines it, or nil for a kind that has none.
+    /// The protocols a composite's layers name, from the library; nil when a layer names one that is not there.
+    func compositeMembers(_ composite: NPCompositeProtocol) -> [NPProtocolDefinition]? {
+        var out: [NPProtocolDefinition] = []
+        for layer in composite.layers {
+            guard let found = allProtocols.first(where: { if case .single(let p) = $0 { return p.name == layer.protocolName }; return false }),
+                  case .single(let p) = found else { return nil }
+            if !out.contains(where: { $0.name == p.name }) { out.append(p) }
+        }
+        return out
+    }
+
     func contentHash(_ entry: NPProtocolEntry) -> String? {
         guard case .composite(let composite) = entry else { return NPLibraryRules.contentHash(entry) }
-        // A composite is identified by how its layers combine and by the hash of each protocol a layer names (SWR-PL-01).
-        var members: [String: String] = [:]
-        for layer in composite.layers {
-            guard let member = allProtocols.first(where: { if case .single(let p) = $0 { return p.name == layer.protocolName }; return false }),
-                  let hash = NPLibraryRules.contentHash(member) else { return nil }
-            members[layer.protocolName] = hash
-        }
-        return NPLibraryRules.compositeContentHash(composite, memberHashes: members)
+        // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01).
+        guard let members = compositeMembers(composite) else { return nil }
+        return NPLibraryRules.compositeContentHash(composite, members: members)
     }
 
     /// What an upload of `entry` to a helmet of `helmetHardwareVersion` meets before any byte is sent. The hardware

@@ -1,0 +1,166 @@
+//! `OI-NPPS-COMP-01`, `SWR-PL-01`: a composite compiles to one descriptor, and its identity is the identity of what it
+//! delivers. The rules refuse and never reshape.
+
+use neurone_npps_core::api::{compile_json, content_hash_json};
+use neurone_npps_core::{parse_file, Entry};
+use serde_json::{json, Map, Value};
+
+struct Library {
+    members: Map<String, Value>,
+    composites: Vec<Value>,
+    zones: Value,
+}
+
+fn library() -> Library {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../protocols/predefined");
+    let mut lib = Library { members: Map::new(), composites: Vec::new(), zones: json!({}) };
+    for e in std::fs::read_dir(dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().and_then(|x| x.to_str()) != Some("npps") {
+            continue;
+        }
+        let f = parse_file(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for z in &f.zones {
+            let sockets = z["socketsByVersion"]["1"].clone();
+            lib.zones[z["name"].as_str().unwrap()] = sockets;
+        }
+        for entry in f.entries {
+            match entry {
+                Entry::Single(p) => {
+                    lib.members.insert(p["name"].as_str().unwrap().to_string(), p);
+                }
+                Entry::Composite(c) => lib.composites.push(c),
+            }
+        }
+    }
+    lib
+}
+
+fn compile_req(lib: &Library, composite: &Value) -> String {
+    json!({
+        "composite": composite, "members": lib.members, "zones": lib.zones, "clinicianSockets": null,
+        "deviceSerialHex": "aabbccdd", "nowUnix": 1000, "sessionUuidHex": "00112233445566778899aabbccddeeff",
+        "wavelengthRules": null, "autonomous": false, "acknowledgedCautions": [], "hardwareVersion": 1
+    })
+    .to_string()
+}
+
+fn hash_req(lib: &Library, composite: &Value) -> String {
+    json!({ "composite": composite, "members": lib.members, "zones": lib.zones, "hardwareVersion": 1, "clinicianSockets": null }).to_string()
+}
+
+fn layer(name: &str, start: f64, duration: Option<f64>, scale: f64) -> Value {
+    let mut l = json!({ "protocolName": name, "startOffsetSeconds": start, "intensityScale": scale });
+    if let Some(d) = duration {
+        l["durationSeconds"] = json!(d);
+    }
+    l
+}
+
+fn named(lib: &Library, name: &str) -> Value {
+    lib.composites.iter().find(|c| c["name"] == name).unwrap().clone()
+}
+
+fn two_layer(lib: &Library, mode: &str, a: Value, b: Value) -> Value {
+    let _ = lib;
+    json!({ "name": "T", "conflictResolution": mode, "layers": [a, b] })
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn a_composite_with_no_overlapping_modality_compiles_and_has_a_hash() {
+    let lib = library();
+    let c = named(&lib, "Sleep Wind-Down");
+    let blob = compile_json(&compile_req(&lib, &c)).unwrap();
+    assert_eq!(&blob[0..4], &compile_json(&compile_req(&lib, &named(&lib, "Sleep Optimisation Stack"))).unwrap()[0..4], "same descriptor magic");
+    let h = content_hash_json(&hash_req(&lib, &c)).unwrap();
+    assert_eq!(h.len(), 64);
+    assert_eq!(h, content_hash_json(&hash_req(&lib, &c)).unwrap());
+    // The name and other metadata are not identity.
+    let mut renamed = c.clone();
+    renamed["name"] = json!("Renamed");
+    renamed["description"] = json!("other");
+    assert_eq!(h, content_hash_json(&hash_req(&lib, &renamed)).unwrap());
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn two_layers_driving_one_modality_at_once_are_refused_not_summed() {
+    let lib = library();
+    for name in ["Full Multi-Modal RCT", "Calm to Focus"] {
+        let err = compile_json(&compile_req(&lib, &named(&lib, name))).unwrap_err();
+        assert!(err.contains("refused rather than summed or reduced"), "{name}: {err}");
+    }
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn a_change_to_what_is_delivered_changes_the_hash() {
+    let lib = library();
+    let mut c = named(&lib, "Sleep Wind-Down");
+    c["conflictResolution"] = json!("merge"); // a sequential composite does not read its authored starts
+    let h = content_hash_json(&hash_req(&lib, &c)).unwrap();
+    let mut later = c.clone();
+    later["layers"][1]["startOffsetSeconds"] = json!(later["layers"][1]["startOffsetSeconds"].as_f64().unwrap() + 10.0);
+    assert_ne!(h, content_hash_json(&hash_req(&lib, &later)).unwrap());
+    let mut scaled = c.clone();
+    scaled["layers"][0]["intensityScale"] = json!(0.5);
+    assert_ne!(h, content_hash_json(&hash_req(&lib, &scaled)).unwrap());
+    let mut shorter = c.clone();
+    shorter["layers"][0]["durationSeconds"] = json!(60);
+    assert_ne!(h, content_hash_json(&hash_req(&lib, &shorter)).unwrap());
+    // An edit to a member's content changes the composite's identity.
+    let mut lib2 = library();
+    let first = c["layers"][0]["protocolName"].as_str().unwrap().to_string();
+    let m = lib2.members.get_mut(&first).unwrap();
+    m["modalities"][0]["params"]["frequencyHz"] = json!(m["modalities"][0]["params"]["frequencyHz"].as_f64().unwrap_or(10.0) + 1.0);
+    assert_ne!(h, content_hash_json(&hash_req(&lib2, &c)).unwrap());
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn sequential_layers_run_end_to_end_and_the_authored_start_is_not_read() {
+    let lib = library();
+    let c = named(&lib, "Sleep Wind-Down");
+    let mut seq = c.clone();
+    seq["conflictResolution"] = json!("sequential");
+    let mut moved = seq.clone();
+    for l in moved["layers"].as_array_mut().unwrap() {
+        l["startOffsetSeconds"] = json!(9999);
+    }
+    assert_eq!(
+        content_hash_json(&hash_req(&lib, &seq)).unwrap(),
+        content_hash_json(&hash_req(&lib, &moved)).unwrap()
+    );
+    assert!(compile_json(&compile_req(&lib, &seq)).is_ok());
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn a_layer_is_refused_when_it_cannot_be_laid_out() {
+    let lib = library();
+    let name = lib.members.keys().next().unwrap().clone();
+    let one = |l: Value| json!({ "name": "T", "conflictResolution": "merge", "layers": [l] });
+    for (l, what) in [
+        (layer(&name, 0.0, Some(60.0), 0.0), "above 0"),
+        (layer(&name, 0.0, Some(60.0), 1.5), "at most 1"),
+        (layer("No Such Protocol", 0.0, Some(60.0), 1.0), "not in the library"),
+        (layer(&name, 0.0, Some(1.0e9), 1.0), "longer than its protocol"),
+    ] {
+        let e = compile_json(&compile_req(&lib, &one(l))).unwrap_err();
+        assert!(e.contains(what), "{what}: {e}");
+    }
+    let _ = two_layer(&lib, "merge", json!(null), json!(null));
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn override_cuts_the_earlier_layer_where_the_later_one_takes_over() {
+    let lib = library();
+    let mut c = named(&lib, "Calm to Focus");
+    c["conflictResolution"] = json!("override");
+    assert!(compile_json(&compile_req(&lib, &c)).is_ok(), "the overlap is resolved by the later layer, not refused");
+    let mut merged = c.clone();
+    merged["conflictResolution"] = json!("merge");
+    assert_ne!(content_hash_json(&hash_req(&lib, &c)).unwrap(), content_hash_json(&hash_req(&lib, &merged)).unwrap());
+}

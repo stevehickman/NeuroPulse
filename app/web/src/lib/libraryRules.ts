@@ -138,21 +138,23 @@ function compositeCoreDef(c: NPCompositeProtocol): object {
   };
 }
 
-/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none, a protocol that cannot be hashed yet, or a composite one of whose layers names a protocol that is not in `library` or has no hash. */
+/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none, a protocol that cannot be hashed yet, or a composite whose layers cannot be laid out (a protocol that is not in `library`, a layer longer than its protocol, an intensity scale outside 0 to 1). */
 export function contentHash(entry: NPProtocolEntry, library: readonly NPProtocolEntry[] = []): string | null {
   if (entry.kind === 'composite') {
-    // A composite is identified by how its layers combine and by the hash of each protocol a layer names (SWR-PL-01).
-    const memberHashes: Record<string, string> = {};
+    // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01), so the core is given the
+    // protocols the layers name and hashes what they make.
+    const members: Record<string, object> = {};
     for (const layer of entry.composite.layers) {
       const member = library.find(e => e.kind === 'single' && e.protocol.name === layer.protocolName);
-      const h = member ? contentHash(member) : null;
-      if (h === null) return null;
-      memberHashes[layer.protocolName] = h;
+      if (!member || member.kind !== 'single') return null;
+      members[layer.protocolName] = protocolCoreDef(member.protocol);
     }
     try {
-      return nppsContentHash({ composite: compositeCoreDef(entry.composite), hardwareVersion: 1, memberHashes });
+      return nppsContentHash({
+        composite: compositeCoreDef(entry.composite), members, hardwareVersion: 1, zonesByVersion: zonesByVersion(), clinicianSockets: null,
+      });
     } catch {
-      return null;
+      return null; // a layer is refused (too long, overlapping scale, or a clinician-selected target not chosen yet)
     }
   }
   if (entry.kind !== 'single') return null;

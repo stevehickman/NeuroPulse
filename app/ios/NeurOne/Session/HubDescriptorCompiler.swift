@@ -115,6 +115,43 @@ enum HubDescriptorCompiler {
     }
 }
 
+extension HubDescriptorCompiler {
+    /// The unsigned descriptor of a composite (`OI-NPPS-COMP-01`): its layers are laid on one timeline by the core and
+    /// compiled as one protocol. `members` are the protocols the layers name.
+    static func buildComposite(
+        _ composite: NPCompositeProtocol,
+        members: [NPProtocolDefinition],
+        deviceSerial: Data? = nil,
+        acknowledgedCautions: [String] = [],
+        hardwareVersion: Int? = nil,
+        now: Date = Date(),
+        sessionUUID: [UInt8]? = nil
+    ) throws -> HubDescriptor {
+        let uuid = sessionUUID ?? (0..<HubDescriptorWire.UUID_LEN).map { _ in UInt8.random(in: 0...255) }
+        precondition(uuid.count == HubDescriptorWire.UUID_LEN)
+        var zones: [String: [Int]] = [:]
+        var defs: [String: Any] = [:]
+        for member in members {
+            for name in member.nppsNamedZoneRefs {
+                if let sockets = NPZoneRegistry.sockets(forZone: name) { zones[name] = sockets }
+            }
+            defs[member.name] = try JSONSerialization.jsonObject(with: try member.nppsCoreJSON())
+        }
+        let options = NppsCore.CompileOptions(
+            zones: zones, clinicianSockets: nil, deviceSerial: deviceSerial,
+            nowUnix: Int(now.timeIntervalSince1970), sessionUUID: Data(uuid), wavelengthRules: nil,
+            autonomous: false, acknowledgedCautions: acknowledgedCautions, hardwareVersion: hardwareVersion)
+        let blob: Data
+        do {
+            blob = try NppsCore.compileComposite(compositeJSON: composite.nppsCoreJSON(), members: defs, options: options)
+        } catch let refusal as NppsCore.Refusal {
+            throw NPHubCompileError(message: refusal.message)
+        }
+        return HubDescriptor(blob: blob, sessionUUID: Data(uuid), isT2: blob[blob.startIndex + 6] & HubDescriptorWire.FLAG_T2_TIER != 0,
+                             cmdCount: Int(blob[blob.startIndex + 7]), publicKeyFingerprint: "")
+    }
+}
+
 // MARK: - Refusals (NP-NPPS-REF-001 §4.1a)
 //
 // Compiler diagnostics, English like hubCompiler.ts's on the web.

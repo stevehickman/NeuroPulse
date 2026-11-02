@@ -148,13 +148,20 @@ enum NPLibraryRules {
         ])
     }
 
-    /// A composite's identity (SWR-PL-01): the hash of how its layers combine and of the protocol each layer names.
-    /// `memberHashes` maps a layer's protocol name to that protocol's content hash. Nil when the core refuses it.
-    static func compositeContentHash(_ composite: NPCompositeProtocol, memberHashes: [String: String]) -> String? {
-        try? NppsCore.contentHash(request: [
+    /// A composite's identity (SWR-PL-01, `OI-NPPS-COMP-01`): the hash of the plan its layers compile to. `members` are the
+    /// protocols the layers name. Nil when the core refuses the plan.
+    static func compositeContentHash(_ composite: NPCompositeProtocol, members: [NPProtocolDefinition]) -> String? {
+        var defs: [String: Any] = [:]
+        for m in members {
+            guard let data = try? m.nppsCoreJSON(), let def = try? JSONSerialization.jsonObject(with: data) else { return nil }
+            defs[m.name] = def
+        }
+        return try? NppsCore.contentHash(request: [
             "composite": composite.nppsCoreJSON(),
+            "members": defs,
             "hardwareVersion": 1,
-            "memberHashes": memberHashes,
+            "zonesByVersion": zonesByVersion(),
+            "clinicianSockets": NSNull(),
         ])
     }
 

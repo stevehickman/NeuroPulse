@@ -247,19 +247,23 @@ internal object NPLibraryRules {
     }
 
     /**
-     * A composite's identity (SWR-PL-01): the hash of how its layers combine and of the protocol each layer names.
-     * [memberHashes] maps a layer's protocol name to that protocol's content hash. Null when a layer's protocol has none.
+     * A composite's identity (SWR-PL-01, `OI-NPPS-COMP-01`): the hash of the plan its layers compile to, so it is the
+     * identity of what the helmet is given and not of how the composite was written. [members] are the protocols its layers
+     * name. Null when the plan cannot be made (a layer names a protocol that is not there, or is refused) or a PBM target is
+     * not chosen yet.
      */
-    fun compositeContentHash(entry: NPProtocolEntry.Composite, memberHashes: Map<String, String>): String? {
+    fun compositeContentHash(entry: NPProtocolEntry.Composite, members: List<NPProtocolDefinition>): String? {
         val composite = entry.toNppsCoreItem()["composite"] ?: return null
         return try {
             NppsCore.contentHash(buildJsonObject {
                 put("composite", composite)
+                put("members", buildJsonObject { members.forEach { put(it.name, it.toNppsCoreJson()) } })
                 put("hardwareVersion", 1)
-                put("memberHashes", buildJsonObject { memberHashes.forEach { (k, v) -> put(k, v) } })
+                put("zonesByVersion", zonesByVersion())
+                put("clinicianSockets", JsonNull)
             })
         } catch (e: IllegalArgumentException) {
-            null // a layer names a protocol the library does not hold or cannot hash
+            null
         }
     }
 

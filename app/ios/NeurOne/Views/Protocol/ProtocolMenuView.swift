@@ -501,10 +501,7 @@ struct ProtocolMenuView: View {
 
     private func handleSelect(_ entry: NPProtocolEntry) {
         guard case .single(let proto) = entry else {
-            // No composite compiler exists (`OI-NPPS-COMP-01`), so a composite is refused and nothing is sent. It used to
-            // upload its first layer's protocol, which put a different protocol on the helmet than the one chosen and
-            // recorded that one as the session's protocol (SWR-PL-01).
-            screen.say(String(localized: "AND_UI_COMPOSITE_PROTOCOL_UPLOAD_IS_NOT_YET_SUPPORT"))
+            if case .composite(let composite) = entry { handleSelectComposite(composite, entry: entry) }
             return
         }
 
@@ -526,6 +523,32 @@ struct ProtocolMenuView: View {
             return
         }
         send(proto, entry: entry, acknowledgedCautions: [])
+    }
+
+    /// A composite is compiled whole by the core (`OI-NPPS-COMP-01`); it used to upload its first layer's protocol, which put a
+    /// different protocol on the helmet than the one chosen. The autonomous (Mode 3) program path does not take a composite.
+    private func handleSelectComposite(_ composite: NPCompositeProtocol, entry: NPProtocolEntry) {
+        lastSelectedEntry = entry
+        screen.uploadError = nil
+        let gate = library.uploadGate(entry, helmetHardwareVersion: uploader.helmetHardwareVersion)
+        if gate != .allow {
+            gateEntry = entry
+            uploadGateRefusal = gate
+            return
+        }
+        guard !programMode else {
+            screen.say(String(localized: "AND_UI_COMPOSITE_PROTOCOL_UPLOAD_IS_NOT_YET_SUPPORT"))
+            return
+        }
+        // A layer naming a protocol the library lacks leaves it out, and the compiler says which.
+        let members = library.compositeMembers(composite) ?? []
+        uploadTask?.cancel()
+        let uploader = self.uploader
+        uploadTask = Task { @MainActor in
+            await screen.run(flow: uploadFlow, entry: entry, programMode: false,
+                             send: { try await uploader.uploadComposite(composite, members: members) },
+                             close: { dismiss() }, programmed: onProgrammed)
+        }
     }
 
     // SWR-UP-01/-02: the upload is not over when the last chunk is written. The hub's report decides whether it holds the
