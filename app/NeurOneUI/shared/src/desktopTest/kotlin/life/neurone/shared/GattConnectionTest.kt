@@ -246,6 +246,81 @@ class GattConnectionTest {
         assertFalse(GattUuidStrings.CVNS_PAD_STATUS_ID in GattUuidStrings.REQUIRED_IDS)
     }
 
+    /** [version, state, 1, 0] + one record [counter 7, kind, 0 sides, 0, 0] (the Swift test's frame). */
+    private fun oneFault(kind: Int, state: Int = 0) =
+        byteArrayOf(0x01, state.toByte(), 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, kind.toByte(), 0x00, 0x00, 0x00)
+
+    // @verifies REQ-SW03-03
+    @Test fun an_unread_cardiac_cutoff_blocks_a_cervical_restart_until_it_is_acknowledged_and_is_explained_once() = runTest {
+        val m = manager(this)
+        m.applyCervicalFaultStatus(oneFault(kind = 1))
+        assertEquals(listOf(life.neurone.core.models.CervicalFaultRecord.Kind.from(1)), m.unacknowledgedCervicalFaults.value.map { it.kind })
+        assertTrue(m.cervicalRestartBlocked)
+
+        m.acknowledgeCervicalFaults()
+        assertTrue(m.unacknowledgedCervicalFaults.value.isEmpty())
+        assertFalse(m.cervicalRestartBlocked)
+
+        // Reading the same summary again (the next connect) does not show it again.
+        m.applyCervicalFaultStatus(oneFault(kind = 1))
+        assertTrue(m.unacknowledgedCervicalFaults.value.isEmpty(), "explained once, not on every connect")
+        assertFalse(m.cervicalRestartBlocked)
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun a_malformed_fault_status_is_ignored_and_a_disconnect_clears_a_good_one() = runTest {
+        val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        m.onDeviceFound("hub")
+        m.onConnected("hub")
+        m.applyCervicalFaultStatus(byteArrayOf(0x01, 0x00, 0x01, 0x00))   // says one record, carries none
+        assertNull(m.cervicalFaultStatus.value)
+
+        m.applyCervicalFaultStatus(oneFault(kind = 2, state = 2))
+        assertNotNull(m.cervicalFaultStatus.value)
+        m.onDisconnected("hub")
+        assertNull(m.cervicalFaultStatus.value)
+        assertTrue(m.unacknowledgedCervicalFaults.value.isEmpty())
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun the_fault_ledger_is_kept_per_user_so_one_users_read_never_clears_anothers() = runTest {
+        val m = manager(this)
+        m.activeUserTag = 11
+        m.applyCervicalFaultStatus(oneFault(kind = 1))
+        m.acknowledgeCervicalFaults()
+        assertFalse(m.cervicalRestartBlocked)
+
+        m.activeUserTag = 22
+        m.applyCervicalFaultStatus(oneFault(kind = 1))
+        assertTrue(m.cervicalRestartBlocked, "one user's read does not clear another's")
+
+        m.activeUserTag = 11
+        m.applyCervicalFaultStatus(oneFault(kind = 1))
+        assertFalse(m.cervicalRestartBlocked, "the first user's acknowledgement persisted")
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun the_blanket_warning_is_acknowledged_per_connection_and_needs_no_connection_to_stay_clear() = runTest {
+        val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        m.onDeviceFound("hub")
+        m.onConnected("hub")
+        m.applyCervicalFaultStatus(byteArrayOf(0x01, 0x00, 0x00, 0x02))
+        assertTrue(m.cervicalOutstandingForAnotherUser)
+        assertFalse(m.cardiacWarningAcknowledged.value)
+        m.acknowledgeCardiacWarning()
+        assertTrue(m.cardiacWarningAcknowledged.value)
+
+        m.onDisconnected("hub")
+        assertFalse(m.cardiacWarningAcknowledged.value, "shown again at the next connect")
+        assertFalse(m.cervicalOutstandingForAnotherUser, "no status without a connection")
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun the_fault_the_reenable_and_the_active_user_characteristics_are_not_required() = runTest {
+        listOf(GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID, GattUuidStrings.ACTIVE_USER_ID)
+            .forEach { assertFalse(it in GattUuidStrings.REQUIRED_IDS, it) }
+    }
+
     // @verifies REQ-SW03-16
     @Test fun a_disconnect_clears_what_the_last_hub_reported() = runTest {
         val manager = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
