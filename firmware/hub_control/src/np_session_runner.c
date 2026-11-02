@@ -669,6 +669,17 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
+    /* REQ-FWHUB-64: every socket address the protocol names must be one this helmet has.  Checked against the
+     * bound layout, so after the admission above, and a protocol that names one that is not is refused whole
+     * as an invalid address, not trimmed and not counted. */
+    rc = np_layout_check_protocol_addresses(&s_ctx.desc);
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
     /* Initialize stop-tracking to "no stop pending". */
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
         s_ctx.stop_at_ms[i] = 0U;

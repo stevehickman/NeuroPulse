@@ -263,12 +263,38 @@ static void test_bridge_swap_does_not_inherit(void)
     np_hub_pbm_cal_bridge_remove();
 }
 
+/* @verifies REQ-FWHUB-64#a */
+static void test_the_bridge_gives_the_pbm_library_the_helmets_valid_addresses(void)
+{
+    geom_init();                                        /* N_SOCKETS wired sockets */
+    np_pbm_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    desc.groups[0].mask[0] = 0x01U;                     /* socket 0 */
+    desc.groups[0].mask[(N_SOCKETS + 3U) / 8U] |= (uint8_t)(1U << ((N_SOCKETS + 3U) % 8U));   /* an index the helmet does not have */
+    uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    uint8_t count = 0U;
+
+    np_hub_pbm_cal_bridge_remove();
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK,
+          "bridge: with the bridge not installed no address is checked");
+    np_hub_pbm_cal_bridge_install();
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_ERR_INVALID_ADDRESS,
+          "bridge: once installed an index the module map's geometry does not have refuses the descriptor");
+    desc.groups[0].mask[(N_SOCKETS + 3U) / 8U] = 0U;
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK && count == 1U,
+          "bridge: the descriptor with only a wired socket expands");
+    np_hub_pbm_cal_bridge_remove();
+}
+
 int main(void)
 {
     test_bridge_not_installed_is_defaults_only();
     test_bridge_delivers_factory_cal_for_the_right_module();
     test_bridge_calibration_follows_the_module();
     test_bridge_swap_does_not_inherit();
+    test_the_bridge_gives_the_pbm_library_the_helmets_valid_addresses();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

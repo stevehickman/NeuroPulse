@@ -222,7 +222,8 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
         (25, "boot_refused"),
         // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
-        (255, "other"), (99, "other"),
+        // 29 is NP_HUB_ERR_NO_LAYOUT: the hub does not know this helmet's sockets. Its own number on the wire, a failed upload to the person.
+        (29, "other"), (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");
     }
@@ -244,7 +245,7 @@ fn only_a_tier_or_hardware_version_refusal_has_a_refusal_kind_and_only_unverifie
         assert_eq!(r["refusalKind"], kind, "reason {reason}");
         assert_eq!(r["notReady"], not_ready, "reason {reason}");
     }
-    for reason in [6, 13, 25, 99] {
+    for reason in [6, 13, 25, 29, 99] {
         let r = ask("refused", reason);
         assert_eq!(r["refusalKind"], Value::Null, "a bad signature is a failure, not a tier (reason {reason})");
         assert_eq!(r["notReady"], false);

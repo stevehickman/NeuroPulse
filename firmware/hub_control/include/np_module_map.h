@@ -391,6 +391,17 @@ np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *ui
  */
 uint16_t np_module_map_socket_count(void);
 
+/*
+ * np_module_map_address_valid — is `socket_id` (0-based index) a valid address on this helmet?
+ *
+ * True only once np_module_map_init() has bound a geometry AND the index is inside it AND its entry is
+ * present_in_helmet.  False before init, past the table, and for an unwired entry.  This is the one definition
+ * of a valid address the hub uses: the dispatcher's placement check, the protocol load check
+ * (np_layout_check_protocol_addresses) and the PBM library's address validator all answer from the geometry
+ * bound here (REQ-FWHUB-64).  Counting set bits in a mask is not this.
+ */
+bool np_module_map_address_valid(uint16_t socket_id);
+
 
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 

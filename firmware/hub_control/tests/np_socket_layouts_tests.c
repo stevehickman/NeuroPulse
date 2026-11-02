@@ -19,6 +19,7 @@
 #include "../include/np_module_map.h"
 #include "../include/np_socket_layouts.h"
 #include "../include/np_layout_bind.h"
+#include <string.h>
 
 static int g_failures = 0;
 
@@ -130,7 +131,7 @@ static void test_a_version_with_no_layout_is_refused_and_binds_nothing(void)
     check(np_layout_bind(1U) == NP_HUB_OK, "refuse: set-up, version 1 bound");
     check(np_layout_bind(0U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 0 has no layout");
     check(np_layout_bound() == NULL, "refuse: a failed bind forgets the earlier binding, so nothing is admitted on a stale one");
-    check(np_layout_admit(1U) == NP_HUB_ERR_HW_VERSION_MISMATCH, "refuse: with nothing bound even version 1 is refused");
+    check(np_layout_admit(1U) == NP_HUB_ERR_NO_LAYOUT, "refuse: with nothing bound even version 1 is refused, with the status for exactly that");
     check(np_layout_bind(255U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 255 has no layout");
 }
 
@@ -140,9 +141,64 @@ static void test_a_helmet_reporting_another_version_than_the_bound_one_is_refuse
     check(np_layout_bind(1U) == NP_HUB_OK, "mismatch: set-up, version 1 bound");
     bool refused_all = true;
     for (unsigned v = 0; v < 256; v++) {
-        if (v != 1U && np_layout_admit((uint8_t)v) != NP_HUB_ERR_HW_VERSION_MISMATCH) { refused_all = false; }
+        if (v != 1U && np_layout_admit((uint8_t)v) != NP_HUB_ERR_NO_LAYOUT) { refused_all = false; }
     }
     check(refused_all, "mismatch: a helmet that reports any version but the bound one is refused (a default-bound hub fails closed)");
+}
+
+static void set_bit(np_session_cmd_t *c, unsigned s)
+{
+    c->socket_mask[s / 8U] |= (uint8_t)(1U << (s % 8U));
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_a_protocol_may_name_only_addresses_the_helmet_has(void)
+{
+    const np_socket_layout_t *row = np_socket_layout_find(1U);
+    check(np_layout_bind(1U) == NP_HUB_OK, "addresses: set-up, version 1 bound");
+    np_session_desc_t d;
+    memset(&d, 0, sizeof d);
+    d.cmd_count = 2U;
+    d.cmds[0].target_kind = (uint8_t)NP_PROTO_TARGET_SOCKET_MASK;
+    d.cmds[1].target_kind = (uint8_t)NP_PROTO_TARGET_SOCKET_MASK;
+    set_bit(&d.cmds[0], 0U);
+    set_bit(&d.cmds[0], row->table_len - 1U);          /* the highest valid index */
+    set_bit(&d.cmds[1], 1U);
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_OK, "addresses: valid addresses in every command pass, the highest one included");
+
+    set_bit(&d.cmds[1], row->table_len);               /* the first index past the lattice */
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG,
+          "addresses: one address past the lattice, in the second command, refuses the whole protocol");
+    memset(&d.cmds[1].socket_mask, 0, sizeof d.cmds[1].socket_mask);
+    set_bit(&d.cmds[1], 127U);                         /* the last index of the 7-bit domain */
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG, "addresses: index 127 is refused on a helmet whose lattice is shorter");
+
+    /* A slot-addressed command names no sockets, and a stray mask on it is not read. */
+    memset(&d, 0, sizeof d);
+    d.cmd_count = 1U;
+    d.cmds[0].target_kind = 0U;
+    set_bit(&d.cmds[0], 127U);
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_OK, "addresses: a command that is not socket-addressed is not checked");
+
+    /* An empty mask names nothing. */
+    memset(&d, 0, sizeof d);
+    d.cmd_count = 1U;
+    d.cmds[0].target_kind = (uint8_t)NP_PROTO_TARGET_SOCKET_MASK;
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_OK, "addresses: an empty mask names no address");
+    check(np_layout_check_protocol_addresses(NULL) == NP_HUB_ERR_INVALID_ARG, "addresses: no descriptor is invalid");
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_with_no_layout_bound_no_address_is_valid(void)
+{
+    (void)np_layout_bind(0U);                          /* no layout: nothing bound */
+    np_session_desc_t d;
+    memset(&d, 0, sizeof d);
+    d.cmd_count = 1U;
+    d.cmds[0].target_kind = (uint8_t)NP_PROTO_TARGET_SOCKET_MASK;
+    set_bit(&d.cmds[0], 0U);
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG || np_module_map_address_valid(0U),
+          "addresses: the check answers from the module map's bound geometry");
 }
 
 int main(void)
@@ -154,6 +210,8 @@ int main(void)
     test_binding_a_known_version_binds_its_row_to_the_module_map();
     test_a_version_with_no_layout_is_refused_and_binds_nothing();
     test_a_helmet_reporting_another_version_than_the_bound_one_is_refused();
+    test_a_protocol_may_name_only_addresses_the_helmet_has();
+    test_with_no_layout_bound_no_address_is_valid();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

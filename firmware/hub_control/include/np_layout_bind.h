@@ -44,11 +44,22 @@ const np_socket_layout_t *np_layout_bound(void);
  * Session admission: may a session run on this helmet?  `device_hw_version` is the version the safety MCU
  * reports (np_safety_spi_get_hardware_version()).
  *   NP_HUB_OK                       a layout is bound and it is this helmet's version's.
- *   NP_HUB_ERR_HW_VERSION_MISMATCH  none is bound, or the bound one is another version's: the hub does not know
+ *   NP_HUB_ERR_NO_LAYOUT            none is bound, or the bound one is another version's: the hub does not know
  *                                   which addresses this helmet has.
- * The status is the nearest existing one and not an exact one: the app shows it as a hardware-version refusal.
- * A status of its own would change the wire contract on every platform (OI-FWHUB-27).
+ * The status is NP_HUB_ERR_NO_LAYOUT (-29), added for this refusal (the Principal, 2026-11-02): it is not the
+ * protocol-mismatch status, which would tell the person their protocol is for another helmet.
  */
 np_hub_status_t np_layout_admit(uint8_t device_hw_version);
+
+/*
+ * Protocol address check (REQ-FWHUB-64): does every socket address a descriptor names exist on this helmet?
+ * Every socket-mask command's set bits are checked against the bound geometry (np_module_map_address_valid());
+ * slot-addressed commands name no sockets and are not looked at.  An address that is not valid refuses the whole
+ * descriptor, and it is not counted as anything: this is a check of validity, not of how many bits are set.
+ *   NP_HUB_OK                the descriptor names only valid addresses (or none).
+ *   NP_HUB_ERR_INVALID_ARG   it names at least one that is not, or the helmet has no bound layout.
+ * The status is the existing "malformed descriptor" one; a status of its own changes the wire contract.
+ */
+np_hub_status_t np_layout_check_protocol_addresses(const np_session_desc_t *desc);
 
 #endif /* NP_LAYOUT_BIND_H */
