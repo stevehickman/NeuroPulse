@@ -145,6 +145,107 @@ class GattConnectionTest {
         assertEquals((0 until 32).map { it.toByte() }, manager.warrantyToken.value!!.toList())
     }
 
+    private fun zoneFrame(snapshot: Boolean, last: Boolean, fragment: Int = 0, vararg records: Triple<Int, Int, Int>): ByteArray {
+        val flags = (if (snapshot) 0x01 else 0) or (if (last) 0x02 else 0)
+        val out = mutableListOf(0x02, flags, fragment, records.size)
+        records.forEach { out += listOf(it.first, it.second, it.third) }
+        return ByteArray(out.size) { out[it].toByte() }
+    }
+
+    private fun manager(testScope: TestScope) = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScope.testScheduler))
+
+    // @verifies REQ-SW03-02
+    @Test fun a_snapshot_populates_the_inventory_with_sockets_far_beyond_five() = runTest {
+        val m = manager(this)
+        m.applyZoneModuleStatus(zoneFrame(true, true, 0, Triple(12, 2, 0x01), Triple(47, 1, 0x01), Triple(128, 1, 0x00)))
+        assertEquals(listOf(12, 47, 128), m.zoneModules.value.orderedSockets.map { it.socketId })
+        assertEquals(2, m.zoneModules.value.presentSockets.size)
+        assertTrue(m.zoneModules.value.isPresent(47))
+        assertFalse(m.zoneModules.value.isPresent(128))
+    }
+
+    // @verifies REQ-SW03-02
+    @Test fun a_delta_changes_only_the_socket_it_names_and_a_snapshot_replaces_rather_than_merges() = runTest {
+        val m = manager(this)
+        m.applyZoneModuleStatus(zoneFrame(true, true, 0, Triple(12, 2, 0x01), Triple(47, 1, 0x01)))
+        m.applyZoneModuleStatus(zoneFrame(false, true, 0, Triple(12, 0, 0x00)))
+        assertFalse(m.zoneModules.value.isPresent(12))
+        assertTrue(m.zoneModules.value.isPresent(47), "a delta must not disturb sockets it does not name")
+
+        m.applyZoneModuleStatus(zoneFrame(true, true, 0, Triple(5, 1, 0x01)))
+        assertEquals(listOf(5), m.zoneModules.value.orderedSockets.map { it.socketId }, "a snapshot is a whole inventory claim")
+    }
+
+    // @verifies REQ-SW03-02
+    @Test fun a_malformed_zone_frame_is_dropped_whole_and_leaves_the_inventory_untouched() = runTest {
+        val m = manager(this)
+        m.applyZoneModuleStatus(zoneFrame(true, true, 0, Triple(12, 2, 0x01)))
+        m.applyZoneModuleStatus(byteArrayOf(0x03, 0x03, 0x00, 0x01, 0x05, 0x01, 0x01))   // wrong version
+        m.applyZoneModuleStatus(byteArrayOf(0x02, 0x03, 0x00, 0x04, 0x05))               // truncated body
+        assertEquals(listOf(12), m.zoneModules.value.orderedSockets.map { it.socketId })
+    }
+
+    // @verifies REQ-SW03-02
+    @Test fun a_part_received_snapshot_is_not_applied_until_its_last_fragment_arrives() = runTest {
+        val m = manager(this)
+        m.applyZoneModuleStatus(zoneFrame(true, false, 0, Triple(1, 1, 0x01)))
+        assertTrue(m.zoneModules.value.isEmpty, "a part-received snapshot must not be applied")
+        m.applyZoneModuleStatus(zoneFrame(true, true, 1, Triple(2, 1, 0x01)))
+        assertEquals(listOf(1, 2), m.zoneModules.value.orderedSockets.map { it.socketId })
+    }
+
+    // @verifies REQ-SW03-02
+    @Test fun the_zone_inventory_is_cleared_on_disconnect_so_a_pulled_module_cannot_still_read_present() = runTest {
+        val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        m.onDeviceFound("hub")
+        m.onConnected("hub")
+        m.applyZoneModuleStatus(zoneFrame(true, true, 0, Triple(12, 2, 0x01)))
+        assertFalse(m.zoneModules.value.isEmpty)
+        m.onDisconnected("hub")
+        assertTrue(m.zoneModules.value.isEmpty)
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun a_pad_failure_raises_the_alert_a_clean_check_clears_it_and_a_malformed_frame_changes_nothing() = runTest {
+        val m = manager(this)
+        val pad = UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)
+        assertNull(m.cervicalPadAlert.value)
+
+        m.onCharacteristicChanged(pad, byteArrayOf(0x01, 0x00, 0x01, 0x02))
+        val raised = m.cervicalPadAlert.value
+        assertNotNull(raised)
+        assertTrue(raised.hasFailure)
+
+        m.onCharacteristicChanged(pad, byteArrayOf(0x80.toByte(), 0x00, 0x01, 0x02))   // reserved bit set: discarded
+        assertEquals(raised, m.cervicalPadAlert.value)
+
+        m.onCharacteristicChanged(pad, byteArrayOf(0x00, 0x00, 0x01, 0x02))
+        assertNull(m.cervicalPadAlert.value, "both pads passing clears the alert")
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun an_acknowledged_pad_alert_is_raised_again_by_the_next_failure() = runTest {
+        val m = manager(this)
+        val pad = UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID)
+        m.onCharacteristicChanged(pad, byteArrayOf(0x03, 0x01, 0x01, 0x02))
+        m.acknowledgeCervicalPadAlert()
+        assertNull(m.cervicalPadAlert.value)
+        m.onCharacteristicChanged(pad, byteArrayOf(0x03, 0x01, 0x01, 0x02))
+        assertNotNull(m.cervicalPadAlert.value, "a new failure after acknowledgement must alert again")
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun the_pad_alert_does_not_survive_a_disconnect_and_the_pad_characteristic_is_not_required() = runTest {
+        val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
+        m.onDeviceFound("hub")
+        m.onConnected("hub")
+        m.onCharacteristicChanged(UUID.fromString(GattUuidStrings.CVNS_PAD_STATUS_ID), byteArrayOf(0x02, 0x00, 0x01, 0x02))
+        assertNotNull(m.cervicalPadAlert.value)
+        m.onDisconnected("hub")
+        assertNull(m.cervicalPadAlert.value)
+        assertFalse(GattUuidStrings.CVNS_PAD_STATUS_ID in GattUuidStrings.REQUIRED_IDS)
+    }
+
     // @verifies REQ-SW03-16
     @Test fun a_disconnect_clears_what_the_last_hub_reported() = runTest {
         val manager = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))

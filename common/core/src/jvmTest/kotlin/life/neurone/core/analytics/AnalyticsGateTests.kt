@@ -215,6 +215,44 @@ class AnalyticsGateTests {
 
     // @verifies REQ-SW03-07
     @Test
+    fun theTierLabelsAreTheExactStringsTheTelemetrySpecNames() {
+        assertEquals("new", EngagementTier.NEW.label)
+        assertEquals("active", EngagementTier.ACTIVE.label)
+        assertEquals("established", EngagementTier.ESTABLISHED.label)
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun aVeryLargeLaunchCountIsStillEstablished() {
+        val store = InMemoryKeyValueStore()
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 1_000_000)
+        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store))
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun theLaunchThatCrossesABoundaryMovesTheTier() {
+        val store = InMemoryKeyValueStore()
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 5)
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(EngagementTier.ACTIVE, EngagementTier.current(store), "the 6th launch")
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 50)
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store), "the 51st launch")
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun incrementingFromAbsentYieldsOneAndTenIncrementsAccumulate() {
+        val store = InMemoryKeyValueStore()
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(1, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
+        repeat(10) { EngagementTier.incrementLaunchCount(store) }
+        assertEquals(11, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
     fun incrementLaunchCountIncrements() {
         val store = InMemoryKeyValueStore()
         EngagementTier.incrementLaunchCount(store)
