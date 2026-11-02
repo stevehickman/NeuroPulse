@@ -1,4 +1,4 @@
-//! `SWR-HV-01`, `SWR-HV-05`, `SWR-WO-03`: a protocol's identity is the hash of its compiled content, and the
+//! `SWR-FM-02`, `SWR-HV-01`, `SWR-HV-05`, `SWR-WO-03`: a protocol's identity is the hash of its compiled content, and the
 //! inputs the requirement excludes cannot move it.
 
 use neurone_npps_core::api::{compile_json, content_hash_json};
@@ -123,6 +123,24 @@ fn a_zone_named_by_name_and_the_same_sockets_chosen_by_the_clinician_are_one_pro
     let mut r = req(d);
     r["clinicianSockets"] = json!([2, 1, 3]);
     assert_eq!(hash(&r), hash(&req(def())), "the hash is over the resolved socket list");
+}
+
+// @verifies SWR-FM-02
+#[test]
+fn a_variant_for_another_hardware_version_keeps_the_family_id_and_has_its_own_hash() {
+    let d = def();
+    let family = d["familyId"].clone();
+    let mut r1 = req(d.clone());
+    r1["hardwareVersion"] = json!(1);
+    let mut r2 = req(d.clone());
+    r2["hardwareVersion"] = json!(2);
+    let (h1, h2) = (hash(&r1), hash(&r2));
+    assert_ne!(h1, h2, "the variant for another hardware version is its own content");
+    assert_eq!(r1["def"]["familyId"], family);
+    assert_eq!(r2["def"]["familyId"], family, "retargeting adds a variant to the same family");
+    let zones = |v: u32| identity::zones_for_version(&serde_json::from_value(zones_by_version()).unwrap(), v);
+    let c = identity::canonical_content(&d, Some(2), &zones(2), None).unwrap();
+    assert!(!c.to_string().contains(family.as_str().unwrap()), "the family id is not part of the hash");
 }
 
 // @verifies SWR-HV-05
