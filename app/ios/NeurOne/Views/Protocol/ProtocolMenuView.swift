@@ -501,12 +501,10 @@ struct ProtocolMenuView: View {
 
     private func handleSelect(_ entry: NPProtocolEntry) {
         guard case .single(let proto) = entry else {
-            // Composite protocols: select the first layer's source protocol.
-            if case .composite(let comp) = entry, let firstLayer = comp.layers.first {
-                let found = library.allProtocols.first { $0.name == firstLayer.protocolName }
-                if let found = found { handleSelect(found) }
-            }
-            dismiss()
+            // No composite compiler exists (`OI-NPPS-COMP-01`), so a composite is refused and nothing is sent. It used to
+            // upload its first layer's protocol, which put a different protocol on the helmet than the one chosen and
+            // recorded that one as the session's protocol (SWR-PL-01).
+            screen.say(String(localized: "AND_UI_COMPOSITE_PROTOCOL_UPLOAD_IS_NOT_YET_SUPPORT"))
             return
         }
 
