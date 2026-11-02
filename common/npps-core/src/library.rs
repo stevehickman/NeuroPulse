@@ -23,9 +23,9 @@ use std::sync::OnceLock;
 
 type R<T> = Result<T, String>;
 
-/// `hardware/np_socket_map.json` is the layout of hardware version 1. A later version adds its own file and a line here;
+/// `hardware/np_socket_map_v1.json` is the layout of hardware version 1, and version N is `hardware/np_socket_map_v<N>.json`. A later version adds its own file and a line here;
 /// the core is the only reader, and every app asks it (`layouts`), so there is one copy.
-const LAYOUT_FILES: [(u32, &str); 1] = [(1, include_str!("../../../hardware/np_socket_map.json"))];
+const LAYOUT_FILES: [(u32, &str); 1] = [(1, include_str!("../../../hardware/np_socket_map_v1.json"))];
 
 fn layouts_table() -> &'static BTreeMap<u32, Vec<Value>> {
     static T: OnceLock<BTreeMap<u32, Vec<Value>>> = OnceLock::new();

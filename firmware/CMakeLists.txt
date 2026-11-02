@@ -105,6 +105,7 @@
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
 #                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
+#                             → np_socket_layouts_tests   (REQ-FWHUB-64: socket table by hardware version)
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
@@ -344,6 +345,11 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_module_map_tests
         COMMAND np_module_map_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # REQ-FWHUB-64 (a): the socket table by hardware version.
+    add_test(NAME np_socket_layouts_tests
+        COMMAND np_socket_layouts_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # SWR-SS-05: the paused session clock and the slot tracker.

@@ -9,7 +9,7 @@ use crate::js::{num_string, number, value_string};
 use crate::lexer::Kind;
 use serde_json::{json, Map, Value};
 
-// The helmet's socket ids come from hardware/np_socket_map.json (build.rs). The lattice is contiguous (the generated map
+// The helmet's socket ids come from hardware/np_socket_map_v1.json (build.rs). The lattice is contiguous (the generated map
 // has no holes), so a valid id is one in that range.
 pub(crate) use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN, NP_SOCKET_NUMBERING_BASE};
 const PBM_CHANNEL_ELEMENTS: [&str; 3] = ["led_660", "led_808", "led_1064"];

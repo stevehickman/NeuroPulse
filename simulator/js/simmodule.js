@@ -16,7 +16,7 @@
 export const FAULT_FLASH_S = 1.5;
 
 /**
- * The page numbers sockets by the socket map's id (1..80, hardware/np_socket_map.json); the
+ * The page numbers sockets by the socket map's id (1..80, hardware/np_socket_map_v1.json); the
  * firmware's socket_id is a 0-based INDEX (np_socket_dispatch.h, np_hex_addr_t.socket_id).
  * This is the one place the two meet (NP-SIM-FW-001 OI-SIMFW-06): a registry is keyed by
  * firmware index, and the helmet asks for a socket by its lattice id through here.

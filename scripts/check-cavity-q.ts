@@ -347,7 +347,7 @@ const gapFloorStacked = (plateMm: number) =>
 // conclusion does not survive it: the mismatch is taken up RADIALLY at L0, not
 // in-plane as gap width. Rev 13 withdrew it.
 const HEX = {
-  nominalWmm: 40, // hardware/np_socket_map.json geometry.moduleWidthMm
+  nominalWmm: 40, // hardware/np_socket_map_v1.json geometry.moduleWidthMm
   moduleRadiusMm: 87, // R_m, the compromise curvature (NP-HELMET-GEOM-001 §1)
   domeDepthMm: 3.1, // at W = 40 (NP-HEX-ZM-001 §3.1)
   mismatchWorstMm: 1.04, // §3.1, absorbed by standoff + <=0.8 mm gasket

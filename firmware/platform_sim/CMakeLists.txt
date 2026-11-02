@@ -47,6 +47,8 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_protocol.c
     ../hub_control/src/np_pbm_power_gov.c
     ../hub_control/src/np_safety_spi.c
+    ../hub_control/src/np_socket_layouts.c
+    ../hub_control/src/np_socket_layouts.generated.c
     ../hub_control/src/np_pbm_socket_telem.c
     ../hub_control/modules/np_mod_pbm.c
     ../pbm/src/np_pbm_detect.c

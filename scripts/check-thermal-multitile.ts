@@ -205,7 +205,7 @@ function validate(): boolean {
 // ---------------------------------------------------------------------------
 // Two different jobs, two different sources, deliberately:
 //
-//   TOPOLOGY + CLUSTERING come from hardware/np_socket_map.json's measured
+//   TOPOLOGY + CLUSTERING come from hardware/np_socket_map_v1.json's measured
 //   xMm/yMm/zMm — who neighbours whom, and how tight a montage is.
 //
 //   CONDUCTANCE MAGNITUDES come from the nominal 40 mm f2f hex, NOT from those
@@ -218,7 +218,7 @@ function validate(): boolean {
 export type Socket = { id: number; xMm: number; yMm: number; zMm: number };
 
 function loadLattice(): { sockets: Socket[]; neighbours: number[][] } {
-  const map = JSON.parse(readFileSync("hardware/np_socket_map.json", "utf8"));
+  const map = JSON.parse(readFileSync("hardware/np_socket_map_v1.json", "utf8"));
   const sockets: Socket[] = map.sockets;
   const d = (a: Socket, b: Socket) =>
     Math.hypot(a.xMm - b.xMm, a.yMm - b.yMm, a.zMm - b.zMm);

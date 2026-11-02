@@ -653,7 +653,7 @@ jobs:
           assert scope.pbmmodel.paths true  firmware/hub_control/include/np_pbm_model.generated.h
           assert scope.pbmmodel.paths true  scripts/pbm-model.ts
           assert scope.pbmmodel.paths false firmware/hub_control/include/np_hub_config.h
-          assert scope.pbmmodel.paths false hardware/np_socket_map.json
+          assert scope.pbmmodel.paths false hardware/np_socket_map_v1.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
           assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
           assert scope.sharedplace.paths true  app/NeurOneShared/TestData/hub-descriptor-golden.json

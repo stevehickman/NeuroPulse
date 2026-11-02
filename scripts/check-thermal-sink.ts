@@ -102,7 +102,7 @@ export const H_FILM_R1 = 1 / R_FILM_R1;
 // §2  The same coefficient, recovered independently from the helmet's outside
 // ---------------------------------------------------------------------------
 
-const MAP = JSON.parse(readFileSync("hardware/np_socket_map.json", "utf8"));
+const MAP = JSON.parse(readFileSync("hardware/np_socket_map_v1.json", "utf8"));
 const AX = MAP.ellipsoidSemiAxesMm as { foreAft: number; lateral: number; vertical: number };
 /** Module-face plane to exterior skin: gap + L2 + L3 per NP-HELMET-GEOM-001 §2.
  *  CURRENT: 9 mm, since the 3 mm re-loft moved the whole outer bowl inward

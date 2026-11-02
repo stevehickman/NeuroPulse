@@ -13,12 +13,15 @@
 #include "np_safety_spi.h"
 #include "np_socket_dispatch.h"
 #include "np_sw02_platform_hal.h"
+#include "np_socket_layouts.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static np_socket_geom_t g_geom[NP_SIMH_SOCKETS];
+/* The helmet's layout, from the generated table (REQ-FWHUB-64): the simulator no longer holds a socket count
+ * of its own.  Hardware version 1, the default, until a scenario says otherwise. */
+static const np_socket_layout_t *g_layout;
 
 /* The module map learns what is in a socket by asking it.  Here the sim module
  * is asked, so the placement check the dispatcher runs sees the sim's inventory
@@ -74,7 +77,7 @@ static unsigned parse_list(const char *s, uint16_t *out, unsigned max)
     while (*s != '\0' && n < max) {
         char *end;
         long v = strtol(s, &end, 10);
-        if (end == s || v < 0 || v >= (long)NP_SIMH_SOCKETS) { break; }
+        if (end == s || v < 0 || v >= (long)NP_HEXMAP_MAX_SOCKETS) { break; }
         out[n++] = (uint16_t)v;
         s = (*end == ',') ? end + 1 : end;
     }
@@ -98,7 +101,7 @@ static void result(const char *cmd, int code)
 
 static void status(void)
 {
-    for (unsigned s = 0; s < NP_SIMH_SOCKETS; s++) {
+    for (unsigned s = 0; s < NP_HEXMAP_MAX_SOCKETS; s++) {
         np_sim_module_t *m = np_sim_find((uint16_t)s);
         if (m == NULL) { continue; }
         np_sim_emit("{\"ev\":\"module_state\",\"id\":\"%s:%u\",\"present\":%s,\"driven\":%s,"
@@ -111,13 +114,9 @@ static void status(void)
 
 void np_simh_init(void)
 {
-    for (unsigned i = 0; i < NP_SIMH_SOCKETS; i++) {
-        g_geom[i].present_in_helmet = true;
-        g_geom[i].x_mm = (int16_t)i;
-        g_geom[i].y_mm = 0;
-    }
+    g_layout = np_socket_layout_find(1U);
     np_sim_reset();
-    (void)np_module_map_init(g_geom, (uint16_t)NP_SIMH_SOCKETS);
+    (void)np_module_map_init(g_layout->geom, g_layout->table_len);
     np_sock_disp_reset();
 }
 
@@ -131,14 +130,17 @@ void np_simh_line(char *line)
     char *c = strtok_r(NULL, " \t\r\n", &save);
     char *d = strtok_r(NULL, " \t\r\n", &save);
 
-    uint16_t socks[NP_SIMH_SOCKETS];
+    uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;
 
     if (strcmp(cmd, "add") == 0 && a && b) {
         uint16_t s = (uint16_t)atoi(a);
-        if (np_sim_add(NP_SIM_KIND_PBM_BASE, s, (float)atof(b)) != NULL) { poll_socket(s); }
+        if (!np_socket_layout_valid_address(g_layout, s)) {
+            np_sim_emit("{\"ev\":\"error\",\"what\":\"not a valid address for hardware version %u\",\"socket\":%u}",
+                        (unsigned)g_layout->hardware_version, (unsigned)s);
+        } else if (np_sim_add(NP_SIM_KIND_PBM_BASE, s, (float)atof(b)) != NULL) { poll_socket(s); }
     } else if ((strcmp(cmd, "drive") == 0 || strcmp(cmd, "stop") == 0) && a) {
-        n = parse_list(a, socks, NP_SIMH_SOCKETS);
+        n = parse_list(a, socks, NP_HEXMAP_MAX_SOCKETS);
         np_session_cmd_t cm = base_cmd(socks, n, cmd[0] == 's');
         result(cmd, (int)np_sock_disp_command(&cm));
     } else if (strcmp(cmd, "fail") == 0 && a && b && c && d) {

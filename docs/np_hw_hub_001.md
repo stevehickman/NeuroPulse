@@ -602,7 +602,7 @@ Three findings, each verifiable by grep:
    typedef, the `np_module_map_init()` parameter, and dereferences. The `lobe`/`side` fields are
    populated exclusively by test fixtures.
 3. **No generator.** `scripts/sync-socket-map.ts` emits `socketMap.generated.ts` and
-   `hardware/np_socket_map.json`. It emits no firmware C, so nothing could keep a firmware lobe table
+   `hardware/np_socket_map_v1.json`. It emits no firmware C, so nothing could keep a firmware lobe table
    in sync with `00-zones.npps` even if one were written.
 
 Meanwhile the live path carries zone membership end to end without touching any of it: the app reads

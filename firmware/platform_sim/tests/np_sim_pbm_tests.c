@@ -188,6 +188,17 @@ static void test_lost_stop_releases_the_lattice_but_not_the_emitter(void)
     check(driven(0), "lost stop: the tile whose stop failed is still driven, which is what the backstop is for");
 }
 
+/* @verifies-none Scenario: the simulator takes its socket table from the generated layout, so a socket past the helmet's lattice cannot be added. Simulator evidence only (REQ-SIMFW-06). */
+static void test_an_address_past_the_lattice_is_refused(void)
+{
+    setup();
+    run("add 79 34.0");
+    check(count("\"ev\":\"error\"") == 0, "layout: the last socket of the version 1 lattice can be added");
+    run("add 80 34.0");
+    check(count("\"ev\":\"error\"") == 1, "layout: the first index past the lattice is refused as not a valid address");
+    check(np_sim_find(80) == NULL, "layout: no module exists at an address the helmet version does not have");
+}
+
 int main(void)
 {
     test_baseline_drive();
@@ -197,6 +208,7 @@ int main(void)
     test_hot_tile_refused();
     test_absent_module_fails_placement_before_any_write();
     test_lost_stop_releases_the_lattice_but_not_the_emitter();
+    test_an_address_past_the_lattice_is_refused();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures,
            g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
