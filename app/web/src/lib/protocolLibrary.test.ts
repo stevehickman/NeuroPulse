@@ -88,6 +88,19 @@ describe('editing and deleting (SWR-PL-02, SWR-PL-03, SWR-FM-05)', () => {
   });
 });
 
+describe('predefined protocols (SWR-PL-04)', () => {
+  // @verifies SWR-PL-04
+  it('refuses a save of a read-only protocol and writes nothing', () => {
+    const lib = libraryWith();
+    const shipped = entry('shipped');
+    if (shipped.kind === 'single') shipped.protocol.isReadOnly = true;
+    expect(lib.canEdit(shipped)).toBe(false);
+    expect(lib.canDelete(shipped)).toBe(false);
+    expect(lib.saveUserProtocol(shipped).kind).toBe('read_only');
+    expect(lib.userProtocols).toHaveLength(0);
+  });
+});
+
 describe('cloning (SWR-PL-02, SWR-FM-03)', () => {
   // @verifies SWR-FM-03
   it('makes a clone a new, unused, editable family', () => {
