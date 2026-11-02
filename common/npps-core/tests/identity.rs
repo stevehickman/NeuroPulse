@@ -125,22 +125,27 @@ fn a_zone_named_by_name_and_the_same_sockets_chosen_by_the_clinician_are_one_pro
     assert_eq!(hash(&r), hash(&req(def())), "the hash is over the resolved socket list");
 }
 
-// @verifies SWR-FM-02
+// @verifies SWR-FM-02#c
 #[test]
-fn a_variant_for_another_hardware_version_keeps_the_family_id_and_has_its_own_hash() {
-    let d = def();
-    let family = d["familyId"].clone();
-    let mut r1 = req(d.clone());
+fn a_variant_for_another_hardware_version_has_its_own_hash() {
+    let mut r1 = req(def());
     r1["hardwareVersion"] = json!(1);
-    let mut r2 = req(d.clone());
+    let mut r2 = req(def());
     r2["hardwareVersion"] = json!(2);
-    let (h1, h2) = (hash(&r1), hash(&r2));
-    assert_ne!(h1, h2, "the variant for another hardware version is its own content");
-    assert_eq!(r1["def"]["familyId"], family);
-    assert_eq!(r2["def"]["familyId"], family, "retargeting adds a variant to the same family");
+    assert_ne!(hash(&r1), hash(&r2), "the variant for another hardware version is its own content");
+}
+
+// @verifies SWR-FM-02#d
+#[test]
+fn retargeting_keeps_the_family_id_and_the_id_is_not_in_the_hash() {
+    let d = def();
+    let family = d["familyId"].as_str().unwrap().to_string();
     let zones = |v: u32| identity::zones_for_version(&serde_json::from_value(zones_by_version()).unwrap(), v);
-    let c = identity::canonical_content(&d, Some(2), &zones(2), None).unwrap();
-    assert!(!c.to_string().contains(family.as_str().unwrap()), "the family id is not part of the hash");
+    let c1 = identity::canonical_content(&d, Some(1), &zones(1), None).unwrap();
+    let c2 = identity::canonical_content(&d, Some(2), &zones(2), None).unwrap();
+    assert_ne!(c1, c2, "the retargeted variant is new content");
+    assert_eq!(d["familyId"], family.as_str(), "the definition still names the same family");
+    assert!(!c2.to_string().contains(&family), "the family id is not part of the hash, so it cannot start a new family");
 }
 
 // @verifies SWR-HV-05
