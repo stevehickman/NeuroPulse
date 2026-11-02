@@ -257,6 +257,28 @@ public class NppsCoreTests
         Assert.True((bool)unused["allowed"]!);
     }
 
+    // @verifies SWR-PL-04
+    [Fact]
+    public void APredefinedProtocolIsChangedOnlyThroughAClone()
+    {
+        var shipped = new NPProtocolDefinition { Name = "Shipped", IsPredefined = true, IsReadOnly = true };
+        var lib = new NPProtocolLibrary([shipped]);
+        Assert.Equal(SaveResult.ReadOnly, lib.Save(shipped));
+        Assert.Equal(DeleteResult.ReadOnly, lib.Delete(shipped.Id));
+        Assert.False(lib.CanEdit(shipped));
+        Assert.False(lib.CanDelete(shipped));
+
+        var copy = Assert.Single(lib.CloneFamily(shipped.Id));
+        Assert.NotEqual(shipped.Id, copy.Id);
+        Assert.False(copy.IsPredefined);
+        Assert.False(copy.IsReadOnly);
+        Assert.False(lib.IsUsed(copy.Id));
+        Assert.True(lib.CanEdit(copy));
+        Assert.Equal(SaveResult.Saved, lib.Save(copy));
+        Assert.Equal(DeleteResult.Deleted, lib.Delete(copy.Id));
+        Assert.Contains(lib.All, p => p.Id == shipped.Id);
+    }
+
     private static JsonNode Migration(string json) => NppsCore.Migration(JsonNode.Parse(json)!);
 
     // @verifies SWR-MG-05
