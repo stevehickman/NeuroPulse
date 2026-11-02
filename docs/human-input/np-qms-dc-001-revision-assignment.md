@@ -1,6 +1,6 @@
 # Revision numbers assigned at merge, not by hand — decision request
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** the principal
+**Status:** PARTLY ANSWERED 2026-11-02 (§7); option not yet chosen, question 1 open. **From:** a Claude Code session working for the principal. **To:** the principal
 (owner of `NP-QMS-DC-001`; the Quality Lead role is interim the CEO). No open-item ID exists for this; it is a
 process question, and one is raised if the answer is "build it".
 
@@ -104,3 +104,16 @@ the change to `NP-QMS-DC-001` §8.2 is made in the same PR as the tool and logge
 Revisions stay integers, one per document per PR. The history tables, the DHF index and `check-dhf-index.ts`
 rules A to H keep their meaning. Nothing in this file is a decision: until an answer is recorded, authors keep
 numbering by hand and use `scripts/renumber-revisions.ts` after a collision.
+
+## 7. Answers received
+
+Recorded 2026-11-02 from the principal, in a session message. They are not yet a decision: the option is not
+named (§1) and question 1 is open, so nothing in the repo acts on them.
+
+| # | Answer |
+|---|---|
+| 1 | Not known. The principal asked how to check; the steps given were GitHub Settings → Branches / Rules (is `main` protected or under a ruleset, does it restrict who can push, is there a bypass list for the GitHub Actions app) and Settings → Actions → General → Workflow permissions (read and write). |
+| 2 | **Yes.** A revision number assigned by a script at merge is acceptable as document control. (Given by the principal; a Quality Lead countersign is not recorded.) |
+| 3 | The bot's commit and the history row carry the same author as the rest of the change (the PR's author), not a separate bot identity. |
+| 4 | **Yes.** A PR that changes a controlled document without naming it in `bumps` fails. |
+| 5 | In-flight PRs are brought across by running the tool on them and updating their numbers, not finished by hand. |
