@@ -51,12 +51,15 @@ class ProtocolUploader(
      * @param clinicianSockets operator-chosen 1-based sockets for `clinician_selected` PBM targets.
      * @param acknowledgedCautions the ids from [cautions] the author acknowledged; without them a protocol in the
      *   caution zone is refused by the compiler.
+     * @param autonomous Mode 3: program the protocol for use without a phone (the iOS `programAutonomous`). It goes through
+     *   the same cervical gate and the same compile, so a cutoff blocks it exactly as it blocks a Mode 2 upload.
      */
     fun upload(
         definition: NPProtocolDefinition,
         deviceSerial: ByteArray? = null,
         clinicianSockets: List<Int>? = null,
         acknowledgedCautions: List<String> = emptyList(),
+        autonomous: Boolean = false,
     ): Result {
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
@@ -67,6 +70,7 @@ class ProtocolUploader(
                 definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets, acknowledgedCautions,
                 // The layout the helmet reported at link (SWR-HV-08): the helmet refuses a protocol stamped for another.
                 hardwareVersion = gatt.hardwareVersion.value,
+                autonomous = autonomous,
             )
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))

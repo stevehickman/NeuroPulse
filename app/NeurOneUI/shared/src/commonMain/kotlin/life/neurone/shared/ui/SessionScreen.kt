@@ -87,6 +87,8 @@ fun SessionScreen(
     /** The phone's own HRV (SDNN, ms) for this session, read-only and for display only; null where the host has none. */
     /** Shown under a finished session: the offer to download its recording (Mode 4), or nothing where the host keeps none. */
     finishedContent: (@Composable () -> Unit)? = null,
+    /** Opens the protocol menu to program a protocol for Mode 3 (no phone needed); null hides the offer (first-run setup not finished). */
+    onProgramAutonomous: (() -> Unit)? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     // The controls follow the helmet's state (SWR-SS-05): a paused session is still a session in progress.
@@ -141,6 +143,10 @@ fun SessionScreen(
                 }
                 Button(onClick = onChooseProtocol, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(Res.string.session_choose_protocol_button))
+                }
+                if (onProgramAutonomous != null) {
+                    Spacer(Modifier.height(16.dp))
+                    AutonomousModeCard(onProgramAutonomous)
                 }
             }
         } else {
@@ -558,6 +564,22 @@ internal fun PairingRequiredCard() {
             Text(stringResource(Res.string.ble_pairing_required_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.ble_pairing_required_body), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** Mode 3 (`CLAUDE.md` §4.6): the offer to store a protocol on the hub so it runs from any USB-C power bank with no phone. */
+@Composable
+private fun AutonomousModeCard(onChoose: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(Res.string.setup_autonomous_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(Res.string.setup_autonomous_body), style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onChoose, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(Res.string.setup_autonomous_choose_button))
+            }
         }
     }
 }
