@@ -1,0 +1,4 @@
+{
+  "mode": "hand",
+  "_comment": "hand: authors write revision numbers (use scripts/renumber-revisions.ts after a merge collides). assign-at-merge: a PR adds one fragment and the assign-revisions workflow writes the numbers. Switch to assign-at-merge only when the workflow's GitHub App secrets exist (docs/revisions/README.md). The decision: docs/human-input/np-qms-dc-001-revision-assignment.md."
+}
