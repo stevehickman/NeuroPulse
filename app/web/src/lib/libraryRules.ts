@@ -109,8 +109,8 @@ export const rules = {
     nppsLibrary({ op: 'variantFor', entries, familyId, helmetVersion }).variants,
   offered: (entries: object[], archivedFamilies: readonly string[]): string[] =>
     nppsLibrary({ op: 'offered', entries, archivedFamilies: [...archivedFamilies] }).offered,
-  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null, inLibrary: boolean) =>
-    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash, inLibrary }),
+  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null, libraryHashes: string[]) =>
+    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash, libraryHashes }),
   uploadResult: (req: {
     sentHash: string;
     helmetStatus?: string;

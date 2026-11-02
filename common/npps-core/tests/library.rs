@@ -146,7 +146,7 @@ fn the_layout_table_has_version_one_and_a_layout_compares_with_itself() {
 // @verifies SWR-HV-04
 #[test]
 fn an_upload_for_another_hardware_version_is_refused_with_both_layouts() {
-    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "inLibrary": true }));
+    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "libraryHashes": ["h"] }));
     assert_eq!(r["decision"], "refuse");
     assert_eq!(r["reason"], "hardware_mismatch");
     assert_eq!(r["markUsed"], false);
@@ -158,27 +158,27 @@ fn an_upload_for_another_hardware_version_is_refused_with_both_layouts() {
 // @verifies SWR-PL-06
 #[test]
 fn an_unmodified_clone_is_refused_with_three_outcomes() {
-    let r = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "same", "sourceHash": "same", "inLibrary": true }));
+    let r = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "same", "sourceHash": "same", "libraryHashes": ["same"] }));
     assert_eq!(r["decision"], "refuse");
     assert_eq!(r["reason"], "unmodified_clone");
     assert_eq!(r["outcomes"], json!(["upload_source", "edit_clone", "cancel"]));
     assert_eq!(r["markUsed"], false);
-    let changed = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "new", "sourceHash": "same", "inLibrary": true }));
+    let changed = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "new", "sourceHash": "same", "libraryHashes": ["new"] }));
     assert_eq!(changed["decision"], "allow");
-    let not_a_clone = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "x", "sourceHash": null, "inLibrary": true }));
+    let not_a_clone = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "x", "sourceHash": null, "libraryHashes": ["x"] }));
     assert_eq!(not_a_clone["decision"], "allow");
 }
 
 // @verifies SWR-PL-01
 #[test]
 fn an_upload_of_a_protocol_not_in_the_library_is_refused_first() {
-    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "inLibrary": false }));
+    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "libraryHashes": ["other"] }));
     assert_eq!(r["decision"], "refuse");
     assert_eq!(r["reason"], "not_in_library");
     assert_eq!(r["markUsed"], false);
     let silent = library_json(&json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "h", "sourceHash": null }).to_string());
-    assert!(silent.is_err(), "a caller that omits inLibrary is an error, not an allow");
-    let stored = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "inLibrary": true }));
+    assert!(silent.is_err(), "a caller that omits libraryHashes is an error, not an allow");
+    let stored = call(json!({ "op": "uploadGate", "helmetVersion": 1, "protocolVersions": [1], "contentHash": "h", "sourceHash": null, "libraryHashes": ["h"] }));
     assert_eq!(stored["decision"], "allow");
 }
 
@@ -186,7 +186,7 @@ fn an_upload_of_a_protocol_not_in_the_library_is_refused_first() {
 // @verifies SWR-HV-04
 #[test]
 fn the_hardware_refusal_comes_before_the_clone_refusal() {
-    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "same", "sourceHash": "same", "inLibrary": true }));
+    let r = call(json!({ "op": "uploadGate", "helmetVersion": 2, "protocolVersions": [1], "contentHash": "same", "sourceHash": "same", "libraryHashes": ["same"] }));
     assert_eq!(r["reason"], "hardware_mismatch");
 }
 

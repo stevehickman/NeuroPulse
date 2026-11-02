@@ -411,7 +411,7 @@ final class NPProtocolLibrary: ObservableObject {
         let answer = NPLibraryRules.uploadGate(helmetVersion: helmetHardwareVersion,
                                                protocolVersions: NPLibraryRules.supportedVersions(entry),
                                                contentHash: hash, sourceHash: source.flatMap { contentHash($0) },
-                                               inLibrary: allProtocols.contains { $0.id == entry.id })
+                                               libraryHashes: allProtocols.compactMap { contentHash($0) })
         switch answer["reason"] as? String {
         case "not_in_library":
             return .notInLibrary

@@ -229,11 +229,13 @@ fn layouts(_: &Value) -> R<Value> {
 /// then the unmodified clone (`SWR-PL-06`). Each refusal is a local decision: nothing is sent and nothing is marked used.
 /// `protocolVersions` is `supported_versions`' answer; `sourceHash` is the clone's source's, null when the protocol is not a clone.
 fn upload_gate(req: &Value) -> R<Value> {
-    // `SWR-PL-01`: only a stored protocol is uploaded. `inLibrary` is the caller's answer to "is this protocol in the
-    // library" and is required (fail-closed: a caller that does not say is an error, never an allow). `false` is refused
-    // first, since there is nothing stored to check against a helmet.
-    let in_library = req["inLibrary"].as_bool().ok_or("inLibrary is required")?;
-    if !in_library {
+    // `SWR-PL-01`: only a stored protocol is uploaded, and it is identified by its content hash. `libraryHashes` is the
+    // content hash of every protocol the library holds and is required (fail-closed: a caller that does not say is an
+    // error, never an allow). A hash the library does not hold is refused first, since nothing stored can be checked
+    // against a helmet.
+    let hash = req["contentHash"].as_str().ok_or("contentHash is required")?;
+    let stored = req["libraryHashes"].as_array().ok_or("libraryHashes is required")?;
+    if !stored.iter().any(|h| h.as_str() == Some(hash)) {
         return Ok(json!({ "decision": "refuse", "reason": "not_in_library", "markUsed": false }));
     }
     let helmet = req["helmetVersion"].as_u64().ok_or("helmetVersion is required")?;
@@ -249,7 +251,6 @@ fn upload_gate(req: &Value) -> R<Value> {
         return Ok(json!({ "decision": "refuse", "reason": "hardware_mismatch", "helmetVersion": helmet,
                           "protocolVersions": versions, "layoutDiffs": diffs, "markUsed": false }));
     }
-    let hash = req["contentHash"].as_str().ok_or("contentHash is required")?;
     if req["sourceHash"].as_str() == Some(hash) {
         return Ok(json!({ "decision": "refuse", "reason": "unmodified_clone",
                           "outcomes": ["upload_source", "edit_clone", "cancel"], "markUsed": false }));
