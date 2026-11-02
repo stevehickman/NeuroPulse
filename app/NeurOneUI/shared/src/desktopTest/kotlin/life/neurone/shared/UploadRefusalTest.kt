@@ -31,6 +31,7 @@ class UploadRefusalTest {
     private class RecordingCentral : BleCentral {
         override val adapterState = AdapterState.ON
         val writes = mutableListOf<UUID>()
+        val chunks = mutableListOf<ByteArray>()
         override fun setListener(listener: BleCentralListener) {}
         override fun startScan(serviceUuid: UUID) {}
         override fun stopScan() {}
@@ -39,7 +40,7 @@ class UploadRefusalTest {
         override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
         override fun enableNotifications(uuid: UUID) {}
         override fun read(uuid: UUID) {}
-        override fun write(uuid: UUID, value: ByteArray) { writes += uuid }
+        override fun write(uuid: UUID, value: ByteArray) { writes += uuid; chunks += value }
     }
 
     private fun tdcs(milliamps: Double) = NPProtocolDefinition(
@@ -130,5 +131,42 @@ class UploadRefusalTest {
 
         // The confirmation is one-shot: the next upload asks again.
         assertEquals(ProtocolUploader.Result.DifferentPersonConfirmationRequired, uploader.upload(cervical(), deviceSerial = ByteArray(32)))
+    }
+
+    /** The descriptor's flags byte (offset 6), read back out of the first chunk written to the hub. */
+    private fun flagsWritten(central: RecordingCentral): Int {
+        val first = central.chunks.first()
+        val payloadStart = if (first[0] == life.neurone.core.session.ProtocolChunker.FRAME_START) 3 else 1
+        return first[payloadStart + 6].toInt() and 0xFF
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun mode_3_programming_goes_through_the_same_cervical_gate_and_writes_nothing_while_a_cutoff_is_unread() = runTest {
+        val central = RecordingCentral()
+        val (manager, uploader) = connectedManager(central, TestScope(testScheduler))
+        manager.applyCervicalFaultStatus(unreadCutoff)
+        assertEquals(ProtocolUploader.Result.CervicalRestartBlocked, uploader.upload(cervical(), deviceSerial = ByteArray(32), autonomous = true))
+        assertEquals(emptyList(), central.writes, "Mode 3 must not get round an unread cardiac cutoff")
+
+        // Another person's cutoff: the same one-shot confirmation question in Mode 3.
+        val other = RecordingCentral()
+        val (manager2, uploader2) = connectedManager(other, TestScope(testScheduler))
+        manager2.applyCervicalFaultStatus(anotherPersonsCutoff)
+        assertEquals(ProtocolUploader.Result.DifferentPersonConfirmationRequired, uploader2.upload(cervical(), deviceSerial = ByteArray(32), autonomous = true))
+        assertEquals(emptyList(), other.writes)
+        uploader2.confirmDifferentPerson()
+        val confirmed = uploader2.upload(cervical(), deviceSerial = ByteArray(32), autonomous = true)
+        assertTrue(confirmed !is ProtocolUploader.Result.DifferentPersonConfirmationRequired && confirmed !is ProtocolUploader.Result.CervicalRestartBlocked)
+    }
+
+    // @verifies REQ-SW03-03
+    @Test fun a_mode_3_upload_sets_the_autonomous_flag_in_what_reaches_the_hub_and_a_mode_2_upload_does_not() = runTest {
+        val mode2 = RecordingCentral()
+        assertIs<ProtocolUploader.Result.Success>(connected(mode2, TestScope(testScheduler)).upload(tdcs(1.0), deviceSerial = ByteArray(32)))
+        assertEquals(0, flagsWritten(mode2) and 0b10, "Mode 2 leaves the autonomous bit clear")
+
+        val mode3 = RecordingCentral()
+        assertIs<ProtocolUploader.Result.Success>(connected(mode3, TestScope(testScheduler)).upload(tdcs(1.0), deviceSerial = ByteArray(32), autonomous = true))
+        assertEquals(0b10, flagsWritten(mode3) and 0b10, "Mode 3 sets the autonomous bit")
     }
 }

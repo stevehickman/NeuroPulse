@@ -49,6 +49,18 @@ class HubDescriptorCompilerTests {
         check("pbm1064", def(1200, pbm("1064nm", 28.0)))
     }
 
+    // @verifies REQ-FWHUB-08
+    @Test fun mode3SetsOnlyTheAutonomousBitInTheHeaderAndNothingElseDiffers() {
+        val d = def(1200, pbm("660nm", 200.0))
+        val plain = compiler.build(d, null, listOf(7, 3)).blob
+        val autonomous = compiler.build(d, null, listOf(7, 3), autonomous = true).blob
+        assertEquals(0, plain[6].toInt() and 0b10, "Mode 2 leaves the autonomous bit clear")
+        assertEquals(0b10, autonomous[6].toInt() and 0b10, "Mode 3 sets bit 1 of the flags byte")
+        assertEquals(plain[6].toInt() or 0b10, autonomous[6].toInt() and 0xFF)
+        assertContentEquals(plain.copyOfRange(0, 6), autonomous.copyOfRange(0, 6))
+        assertContentEquals(plain.copyOfRange(7, plain.size), autonomous.copyOfRange(7, autonomous.size))
+    }
+
     // @verifies REQ-NPPS-02
     @Test fun refusesCwWithADutyOtherThan100() {
         fun cw(kind: Int, duty: Int): NPProtocolDefinition = def(600, mod(when (kind) {

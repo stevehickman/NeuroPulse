@@ -65,10 +65,14 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // A protocol held back until its author acknowledges each zone-model caution (docs/reference/safety-zones.md).
     var awaitingCautions by remember { mutableStateOf<Pair<NPProtocolEntry.Single, List<NPZoneCaution>>?>(null) }
 
+    // Mode 3: the next protocol chosen is programmed for use without a phone (the iOS `programAutonomous`).
+    var programMode by remember { mutableStateOf(false) }
+
     // On Android 12+ this asks for BLUETOOTH_SCAN/CONNECT and, on grant, starts scanning; elsewhere it refreshes.
     val requestConnect = services.platform.rememberBleConnectAction()
 
     val sentToHub = stringResource(Res.string.protocol_menu_protocol_sent_to_hub)
+    val storedOnHub = stringResource(Res.string.setup_protocol_stored_message)
     // What to say for each reason the helmet can refuse a protocol (SWR-HV-08, REQ-UPG-01, SWR-UP-02).
     val refusalText: Map<HelmetRefusalCause, String> = mapOf(
         HelmetRefusalCause.TIER to stringResource(Res.string.protocol_menu_tier_refused),
@@ -100,13 +104,15 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
         }
         // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
         val result = when (entry) {
-            is NPProtocolEntry.Single -> uploader.upload(entry.protocol, acknowledgedCautions = acknowledgedCautions)
+            is NPProtocolEntry.Single ->
+                uploader.upload(entry.protocol, acknowledgedCautions = acknowledgedCautions, autonomous = programMode)
             else -> ProtocolUploader.Result.Failure(compositeUnsupported)
         }
         if (result is ProtocolUploader.Result.DifferentPersonConfirmationRequired && entry is NPProtocolEntry.Single) {
             awaitingDifferentPerson = entry
             return
         }
+        val programming = programMode
         val message = when (result) {
             is ProtocolUploader.Result.Success -> sentToHub
             is ProtocolUploader.Result.Failure -> result.message
@@ -126,11 +132,21 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 // The "sent" message above was true when it was shown; this says what the helmet then decided, whatever its
                 // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
                 // A final answer for other bytes says nothing about this upload: the helmet may hold something else.
-                verdict.causeFor(result.sentHash)?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
+                val cause = verdict.causeFor(result.sentHash)
+                // Mode 3 does not say "stored" before the helmet has answered (SWR-HV-08, as the iOS setup flow): a tier or a
+                // hardware-version refusal is shown, and any other outcome reports the protocol stored, as iOS does.
+                if (programming) {
+                    snackbar.showSnackbar(
+                        if (cause == HelmetRefusalCause.TIER || cause == HelmetRefusalCause.HARDWARE_VERSION) refusalText.getValue(cause) else storedOnHub,
+                    )
+                } else {
+                    cause?.let { snackbar.showSnackbar(refusalText.getValue(it)) }
+                }
             }
         }
-        scope.launch { snackbar.showSnackbar(message) }
+        if (!(programming && result is ProtocolUploader.Result.Success)) scope.launch { snackbar.showSnackbar(message) }
         showMenu = false
+        programMode = false
     }
 
     awaitingCautions?.let { (held, cautions) ->
@@ -172,7 +188,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             eegUnavailableMessage = eegMessage,
             limits = services.limitsStore.resolvedLimits,
             onSelect = { entry -> uploadAndReport(entry) },
-            onBack = { showMenu = false },
+            onBack = { showMenu = false; programMode = false },
             helmetHardwareVersion = hardwareVersion,
             fileTransfer = fileTransfer,
             modifier = modifier,
@@ -188,6 +204,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             } else null,
             onConnect = requestConnect,
             onChooseProtocol = { showMenu = true },
+            // The Session tab opens only once first-run setup has finished (the first-setup gate), as the iOS card appears on its complete step.
+            onProgramAutonomous = { programMode = true; showMenu = true },
             onStop = { gatt.requestSessionStop() },
             progress = progress,
             onPause = { gatt.requestSessionPause() },
