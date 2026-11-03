@@ -68,7 +68,7 @@ class UploadRefusalTest {
         assertEquals(emptyList(), central.writes, "no write reached the helmet")
     }
 
-    // @verifies SWR-SS-03
+    // @verifies SWR-SS-03 DI-SAFE-06
     @Test fun the_same_protocol_inside_the_limit_is_written() = runTest {
         val central = RecordingCentral()
         val result = connected(central, TestScope(testScheduler)).upload(tdcs(1.0), deviceSerial = ByteArray(32))
@@ -96,7 +96,7 @@ class UploadRefusalTest {
         return manager to ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
     }
 
-    // @verifies REQ-SW03-03
+    // @verifies REQ-SW03-03 DI-SAFE-09 REQ-CVNS-09#f
     @Test fun a_cervical_protocol_is_refused_while_a_cardiac_cutoff_is_unread_and_nothing_reaches_the_hub() = runTest {
         val central = RecordingCentral()
         val (manager, uploader) = connectedManager(central, TestScope(testScheduler))
@@ -116,7 +116,7 @@ class UploadRefusalTest {
         assertTrue(central.writes.isNotEmpty())
     }
 
-    // @verifies REQ-SW03-03
+    // @verifies REQ-SW03-03 DI-SAFE-09 REQ-CVNS-09#f
     @Test fun another_persons_cutoff_needs_one_confirmation_per_upload() = runTest {
         val central = RecordingCentral()
         val (manager, uploader) = connectedManager(central, TestScope(testScheduler))
@@ -140,7 +140,7 @@ class UploadRefusalTest {
         return first[payloadStart + 6].toInt() and 0xFF
     }
 
-    // @verifies REQ-SW03-03
+    // @verifies REQ-SW03-03 DI-SAFE-09 REQ-CVNS-09#f
     @Test fun mode_3_programming_goes_through_the_same_cervical_gate_and_writes_nothing_while_a_cutoff_is_unread() = runTest {
         val central = RecordingCentral()
         val (manager, uploader) = connectedManager(central, TestScope(testScheduler))

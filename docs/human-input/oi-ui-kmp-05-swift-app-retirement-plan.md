@@ -11,7 +11,7 @@
 | # | Gate | State |
 |---|------|-------|
 | 1 | Every Swift test is ported, ruled out or retired | **Done** (#681, #759, #766, #772) |
-| 2 | Every requirement the Swift tests verify is verified elsewhere, or retired in place (§3) | **Open**: ten parts, three fixed by a retag |
+| 2 | Every requirement the Swift tests verify is verified elsewhere, or retired in place (§3) | **Seven parts left, all rulings to retire in place** (the other three were retagged 2026-11-03) |
 | 3 | The shared iOS host has run on a device: `OI-UI-KMP-06`, `OI-PRES-07` (`docs/human-input/oi-pres-07-ios-device-run.md`) | **Open**: it has only compiled and run on the simulator in CI |
 | 4 | Your five rulings (§6) | **Open** |
 
@@ -39,8 +39,8 @@ Found by comparing every `@verifies` tag in `app/ios/NeurOneTests` with the tags
 
 | Requirement part | Swift test | Proposed |
 |------------------|------------|----------|
-| `DI-SAFE-09`, `REQ-CVNS-09#f` | cervical gate in `SessionProtocolUploaderTests`, `ProtocolUploadScreenTests` | **Retag now.** The Kotlin tests in `UploadRefusalTest` (cervical refused while a cutoff is unread, another person's cutoff needs one confirmation, Mode 3 too) verify them; they are tagged `REQ-SW03-03` only |
-| `DI-SAFE-06` | `testSignAndUpload` | **Retag now.** `UploadRefusalTest` signs with Ed25519 and writes the chunks |
+| `DI-SAFE-09`, `REQ-CVNS-09#f` | cervical gate in `SessionProtocolUploaderTests`, `ProtocolUploadScreenTests` | **Retagged 2026-11-03.** The Kotlin tests in `UploadRefusalTest` (cervical refused while a cutoff is unread, another person's cutoff needs one confirmation, Mode 3 too) verify them; they are tagged `REQ-SW03-03` only |
+| `DI-SAFE-06` | `testSignAndUpload` | **Retagged 2026-11-03** (`UploadRefusalTest` and the signature case of `HubDescriptorCompilerTests`). `UploadRefusalTest` signs with Ed25519 and writes the chunks |
 | `REQ-SW03-08` | `UHDRKeyManagerTests` (7) | **Retire in place with the app** (your ruling, `OI-PRES-05`): the Swift key manager's `authenticate()` has no caller, so the requirement describes code that never ran; the presence gate (`REQ-PRES-01` to `-09`) replaces it |
 | `REQ-SW03-18#a` | `ProtectedDefaultsTests` | **Retire in place with the app** (your ruling, 2026-10-21) |
 | `REQ-UHDRBK-01#a` to `#e` | `UHDRBackupFormatTests` | **Retire the row with the app** (your ruling, 2026-10-21): (a) to (c) are met by `REQ-SW03-29`, (d) is `REQ-SW03-29` (f), (e) is moot |
@@ -65,7 +65,7 @@ All of this goes through the assign-at-merge revision fragments (`docs/revisions
 
 ## 5. Order
 
-1. **Now, small, no decision needed:** retag the Kotlin tests for `DI-SAFE-06`, `DI-SAFE-09`, `REQ-CVNS-09#f` (§3).
+1. ~~Retag the Kotlin tests for `DI-SAFE-06`, `DI-SAFE-09`, `REQ-CVNS-09#f` (§3).~~ **Done 2026-11-03.**
 2. **Device runs** of the shared iOS host and the presence gate (gate 3).
 3. **Your rulings** (§6).
 4. **PR A, plumbing, `app/ios` still present:** stop the sync scripts writing Swift; remove the Swift entries from the relevance globs and re-point the `assert scope…` self-checks; drop the SwiftLint and xcodebuild jobs from the required checks. CI stays green because nothing reads the Swift outputs any more.
