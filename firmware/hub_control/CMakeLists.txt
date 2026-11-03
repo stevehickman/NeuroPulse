@@ -123,6 +123,9 @@ if(NP_BUILD_TESTS)
     add_executable(np_pbm_cal_bridge_tests
         tests/np_pbm_cal_bridge_tests.c
         src/np_pbm_cal_bridge.c
+        src/np_layout_bind.c
+        src/np_socket_layouts.c
+        src/np_socket_layouts.generated.c
         src/np_module_map.c
         ../pbm/src/np_pbm_session.c
         ../pbm/src/np_pbm_dose.c

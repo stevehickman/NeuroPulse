@@ -74,7 +74,7 @@ np_mod_visual_tests 174
 np_module_map_tests 1070
 np_module_registry_tests 244
 np_ota_tests 92
-np_pbm_cal_bridge_tests 460
+np_pbm_cal_bridge_tests 507
 np_pbm_session_desc_tests 1025
 np_protocol_tests 511
 np_session_lease_tests 115

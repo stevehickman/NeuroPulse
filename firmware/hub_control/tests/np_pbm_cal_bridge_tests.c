@@ -21,6 +21,8 @@
 #include <string.h>
 
 #include "np_module_map.h"
+#include "np_layout_bind.h"
+#include "np_socket_layouts.h"
 #include "np_pbm_cal_bridge.h"
 #include "np_pbm_session.h"
 #include "np_pbm_dose.h"
@@ -288,6 +290,42 @@ static void test_the_bridge_gives_the_pbm_library_the_helmets_valid_addresses(vo
     np_hub_pbm_cal_bridge_remove();
 }
 
+/* @verifies REQ-FWHUB-64#a */
+static void test_the_bring_up_binding_feeds_the_pbm_validator_and_follows_a_rebind(void)
+{
+    /* What np_hub_control_app_main() does: bind the helmet's layout, then install the bridge. */
+    const np_socket_layout_t *row = np_socket_layout_find(1U);
+    check(np_layout_bind(1U) == NP_HUB_OK, "bring-up: the version 1 layout is bound");
+    np_hub_pbm_cal_bridge_install();
+
+    np_pbm_session_desc_t desc;
+    uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    uint8_t count = 0U;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    desc.groups[0].mask[0] = 0x01U;                                           /* socket 0 */
+    desc.groups[0].mask[(row->table_len - 1U) / 8U] |= (uint8_t)(1U << ((row->table_len - 1U) % 8U));   /* the highest valid */
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK && count == 2U,
+          "bring-up: the library accepts the first and the last address of the bound layout");
+
+    desc.groups[0].mask[row->table_len / 8U] |= (uint8_t)(1U << (row->table_len % 8U));   /* the first index past the layout */
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_ERR_INVALID_ADDRESS,
+          "bring-up: and refuses one past it as an invalid address, before counting it");
+
+    /* A report naming a version with no layout unbinds the map: the same bridge now refuses every address. */
+    desc.groups[0].mask[row->table_len / 8U] &= (uint8_t)~(1U << (row->table_len % 8U));
+    bool rebound = false;
+    check(np_layout_follow_report(0U, true, &rebound) == NP_HUB_ERR_NOT_PRESENT && rebound,
+          "rebind: a report naming a version with no layout rebinds to nothing");
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_ERR_INVALID_ADDRESS,
+          "rebind: the bridge, installed once, now refuses every address (fail closed, no second install)");
+    check(np_layout_follow_report(1U, true, &rebound) == NP_HUB_OK && rebound &&
+          np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK,
+          "rebind: a later report that names version 1 and the same bridge accepts the same descriptor again");
+    np_hub_pbm_cal_bridge_remove();
+}
+
 int main(void)
 {
     test_bridge_not_installed_is_defaults_only();
@@ -295,6 +333,7 @@ int main(void)
     test_bridge_calibration_follows_the_module();
     test_bridge_swap_does_not_inherit();
     test_the_bridge_gives_the_pbm_library_the_helmets_valid_addresses();
+    test_the_bring_up_binding_feeds_the_pbm_validator_and_follows_a_rebind();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");
