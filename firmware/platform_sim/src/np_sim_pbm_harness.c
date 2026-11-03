@@ -105,6 +105,7 @@ static void status(void)
     np_simh_stim_status();
     np_simh_eeg_status();
     np_simh_vns_status();
+    np_simh_audio_status();
     result("status", 0);
 }
 
@@ -118,6 +119,7 @@ void np_simh_init(void)
     np_simh_stim_init();
     np_simh_eeg_init();
     np_simh_vns_init();
+    np_simh_audio_init();
 }
 
 void np_simh_line(char *line)
@@ -135,6 +137,7 @@ void np_simh_line(char *line)
     if (np_simh_stim_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_eeg_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_vns_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_audio_line(cmd, a, b, c, d, e)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;

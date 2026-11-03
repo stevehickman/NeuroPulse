@@ -226,6 +226,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-16`** | **An EEG stop that is lost cannot be retried** (§14). `np_mod_eeg_hal_stop_continuous` returns nothing and `np_mod_eeg_control` clears `s_recording` regardless, so a stop that did not land is neither reported nor repeated. Found by the simulator; the firmware is unchanged. | Decided: either the seam reports success and the driver keeps the flag on failure, or the lost stop is accepted and recorded as such. |
 | **`OI-SIMFW-17`** | **A non-finite contact impedance enables VNS** (§15). The range check `imp < min \|\| imp > max` is false for NaN. | Decided: the check is written to refuse a non-finite reading, or the seam is documented to never return one. |
 | **`OI-SIMFW-18`** | **A refused VNS command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is not retried** (§15). | Decided with the runner in the loop: either the driver undoes what it started, or the runner is shown to stop the module after a refusal. |
+| **`OI-SIMFW-19`** | **Two behaviours of `np_mod_audio.c`** (§16): an EEG band update re-applies binaural whatever the running mode, and `volume_pct` is not clamped to 100 before it reaches the planar drivers and the bone transducer. | Decided: the driver gates the update on the running mode and clamps, or the limits are shown to be enforced downstream and cited. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -244,7 +245,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS and §16 audio are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -491,6 +492,35 @@ The ear clip, `REQ-SIMFW-13`. One clip, so one module (`NP_SIM_KIND_VNS`, index 
 |---|---|
 | **A NaN contact impedance passes the driver's range check and enables stimulation** (`OI-SIMFW-17`). `np_mod_vns_control` refuses when `imp < min || imp > max`; both are false for NaN. | Reachable only if the HAL can return NaN, which a bare ADC read cannot, so it is a hardening gap and not a hazard today. The test records the behaviour. |
 | **A refused command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is neither reported nor retried** (`OI-SIMFW-18`). The driver starts both before the stimulator write that can fail, and its stop path always reports success. | The runner is expected to stop the module after a refusal; that is the runner's behaviour, not in the loop yet. |
+
+---
+
+## 16. Audio, as built (§8 step 3, fourth module type)
+
+The codec, the planar drivers and the bone transducer, `REQ-SIMFW-13`. One path, so one module (`NP_SIM_KIND_AUDIO`, index 0).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_audio.c` | The eight `np_mod_audio_hal_*` seams. The model records what the driver told the output stage: planar mode (off, binaural, isochronic, pink or brown noise), carrier, beat and volume, and the bone transducer's frequency and volume. Mesh impedance is what the scenario gave the part, no default. Five seams return nothing, so an armed response makes the call not happen (as for the EEG front end); `codec_init` returns its armed status. |
+| Firmware it runs | the device's own file | `np_mod_audio.c`. No firmware file changed. |
+| Harness | `platform_sim/src/np_sim_audio_harness.c` | `audio_detect`, `audio_init`, `audio`, `audio_stop`, `audio_shutdown`, `audio_eeg_band` (the call the EEG telemetry path makes), `audio_sample`, `audio_raw`. |
+| Bridge | `fw-bridge.js` | `kind: "audio"` in `MODULE_SET` (`add`, `present`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `audio`, `audio_eeg_band`, `audio_init`, `audio_detect`, `audio_stop`, `audio_shutdown`, `audio_sample`. |
+| Tests | `platform_sim/tests/np_sim_audio_tests.c` | Eleven scenarios, 36 checks: bring-up, every mode, bone conduction, stop and the two lost stops, EEG-adaptive beat selection, the two findings below, a malformed command, telemetry, and the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_audio.c` 100 % of 60.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| Any sound | No sample path and no sound pressure level. Volume is a percentage the driver passed on. Nothing about loudness, which is the audio modality's safety question, can be seen here. |
+| The mesh-fouling decision | The driver reads the impedance and discards it ("threshold comparison and SHDR log handled by session_log"); the comparison is not in `np_mod_audio.c`, so no scenario here reaches it. |
+| The EEG-to-audio loop | `audio_eeg_band` is the call; who makes it, from which EEG record, is the runner's, which is not in the loop. |
+
+**What it found.** `OI-SIMFW-19`, two things in `np_mod_audio.c`, both recorded by tests that say so:
+a band update from an EEG-adaptive session re-applies **binaural** whatever the running mode was, so an isochronic or noise
+session becomes binaural; and `volume_pct` is passed to both outputs without a clamp, so 200 reaches the transducers
+(the field is documented 0 to 100).
 
 ---
 

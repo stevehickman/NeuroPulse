@@ -44,6 +44,7 @@ typedef enum {
     NP_SIM_KIND_STIM_PAIR,          /* one electrode pair of the stimulation DAC (BES/tACS or tDCS) */
     NP_SIM_KIND_EEG,                /* the ADS1299 front end; there is one, index 0 */
     NP_SIM_KIND_VNS,                /* the auricular clip: stimulator, PPG and the HRV readouts; one, index 0 */
+    NP_SIM_KIND_AUDIO,              /* the codec, the planar drivers and the bone transducer; one, index 0 */
     NP_SIM_KIND_COUNT
 } np_sim_kind_t;
 
@@ -74,6 +75,14 @@ typedef enum {
     NP_SIM_OP_VNS_RMSSD,            /* np_mod_vns_hal_get_rmssd (ms)          */
     NP_SIM_OP_VNS_COHERENCE,        /* np_mod_vns_hal_get_coherence           */
     NP_SIM_OP_VNS_HR,               /* np_mod_vns_hal_get_hr_bpm              */
+    NP_SIM_OP_AUDIO_CODEC_INIT,     /* np_mod_audio_hal_codec_init            */
+    NP_SIM_OP_AUDIO_BINAURAL,       /* np_mod_audio_hal_set_binaural          */
+    NP_SIM_OP_AUDIO_ISOCHRONIC,     /* np_mod_audio_hal_set_isochronic        */
+    NP_SIM_OP_AUDIO_NOISE,          /* np_mod_audio_hal_set_noise             */
+    NP_SIM_OP_AUDIO_STOP_PLANAR,    /* np_mod_audio_hal_stop_planar           */
+    NP_SIM_OP_AUDIO_BONE_SET,       /* np_mod_audio_hal_bone_set              */
+    NP_SIM_OP_AUDIO_BONE_STOP,      /* np_mod_audio_hal_bone_stop             */
+    NP_SIM_OP_AUDIO_MESH_IMPEDANCE, /* np_mod_audio_hal_mesh_impedance (ohm)  */
     NP_SIM_OP_COUNT
 } np_sim_op_t;
 
@@ -117,6 +126,15 @@ typedef struct {
     uint32_t          vns_freq_mhz;
     uint16_t          vns_amp_ua, vns_pw_us;
     bool              vns_ppg_on, vns_eeg_ref;
+    /* the audio path (NP_SIM_KIND_AUDIO) */
+    bool              audio_inited;
+    uint8_t           audio_mode;                      /* 0 off, 1 binaural, 2 isochronic, 3 pink noise, 4 brown noise */
+    uint16_t          audio_carrier_hz, audio_beat_mhz;
+    uint8_t           audio_vol_pct;
+    bool              audio_bone_on;
+    uint16_t          audio_bone_hz;
+    uint8_t           audio_bone_vol_pct;
+    float             audio_mesh_ohm;                  /* caller-set                                             */
     np_sim_override_t ov[NP_SIM_OP_COUNT];
     bool              answered_default[NP_SIM_OP_COUNT];
 } np_sim_module_t;

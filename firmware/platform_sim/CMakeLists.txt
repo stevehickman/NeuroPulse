@@ -58,6 +58,7 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/modules/np_mod_eeg.c
     # auricular VNS, and the HRV session library it drives (pure C: no kernel, no platform seam)
     ../hub_control/modules/np_mod_vns.c
+    ../hub_control/modules/np_mod_audio.c
     ../hrv_biofeedback/src/np_hrv_session.c
     ../hrv_biofeedback/src/np_hrv_ppg.c
     ../hrv_biofeedback/src/np_hrv_coherence.c
@@ -84,6 +85,8 @@ add_library(np_sim_pbm STATIC
     src/np_sim_eeg_harness.c
     src/np_sim_vns.c
     src/np_sim_vns_harness.c
+    src/np_sim_audio.c
+    src/np_sim_audio_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -115,10 +118,14 @@ target_compile_options(np_sim_eeg_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_vns_tests tests/np_sim_vns_tests.c)
 target_link_libraries(np_sim_vns_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_vns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_audio_tests tests/np_sim_audio_tests.c)
+target_link_libraries(np_sim_audio_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_audio_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
     COMMAND np_sim_eeg_tests
     COMMAND np_sim_vns_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests
+    COMMAND np_sim_audio_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests
     COMMENT "Running the simulator scenario tests")
