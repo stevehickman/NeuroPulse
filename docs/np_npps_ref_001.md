@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 34
+**Revision:** 35
 **Date:** 2026-11-03  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 35 (2026-11-03) — two layers may share PBM sockets when their timing matches (principal direction; `OI-NPPS-COMP-01`).** Rev 34 refused every overlap of two layers on transcranial PBM unless their sockets shared none. The rule is now the one that already governs blocks inside a protocol: sockets that share none pass, and sockets that are shared pass only when the two blocks have the same window, frequency and duty and drive different wavelengths, in which case their channels are merged onto the tile. Anything else on shared sockets is still refused. No other overlap rule changes. **What the relaxation does not do:** it does not unrefuse either shipped composite ("Calm to Focus" also overlaps on EEG neurofeedback and audio; Rev 34's note named only its PBM overlap), and the pre-signing check of the PBM weighted sum (`CLAUDE.md` §3; `OI-HEXTILE-30`, `OI-HEXTILE-31`) is still not built, so two layers whose channels each respect the ceiling alone are merged onto one tile without that sum being checked, exactly as two blocks of one protocol are today.
+>
 > **Rev 34 (2026-11-03) — §6 states what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`; `SWR-PL-01`).** Until now §6 said only that `merge` runs layers "simultaneously", `sequential` runs them end to end, and `override` replaces "shared modality types", and no compiler turned a composite into helmet bytes. The core now does (`common/npps-core/src/composite.rs`, `compiler::compile_composite`), and §6 records the rules it applies. **Every rule refuses; none reshapes** (`CLAUDE.md` §3). **What changes for an author:** (i) two layers that drive one modality at the same time are refused, except transcranial PBM on sockets they do not share, so a `merge` of two audio layers, or of two PBM layers on one zone, no longer compiles; (ii) `intensity_scale` is above 0 and at most 1, not 0.0 to 2.0 as this section said (the validator already enforced 0 to 1); (iii) a layer may not run longer than its protocol; (iv) a `sequential` composite ignores `start`. **Two shipped composites are refused by (i)** and stay refused until a decision (`OI-NPPS-COMP-01`): "Full Multi-Modal RCT" (two audio layers at once) and "Calm to Focus" (two PBM layers on the same zone for two minutes). The rules not derived from anything are `UC-119`. No grammar, no field and no shipped file changes.
 >
 > **Rev 33 (2026-10-30) — the threshold-relative intensity fields are retired: intensity is absolute only (principal decision; `OI-NPPS-VNS-01` (b) and (b2)).** `intensity_basis` (`perceptual_threshold`, `pain_threshold`, `titrated`) and `intensity_percent_of_threshold` are removed from the grammar, the validator, the compiler and the serializer, and are now unknown fields. The system has no a-priori mapping from a perceived intensity to a hardware setting, and one person perceives the same absolute intensity differently on different occasions, so a stored threshold would drift. Perceived-intensity programming is out of scope: it cannot run in Mode 3, needs the person's input at every cycle, and breaks the coordinated ramps of parallel modalities. No shipped protocol used the fields. `REQ-NPPS-07` is narrowed to `movement_cue`.
@@ -1169,11 +1171,11 @@ A composite is refused, with the reason, when:
 * a layer names a protocol that is not in the namespace;
 * a layer's `intensity_scale` is not above 0 and at most 1;
 * a layer's `duration` is longer than its protocol, or a protocol timed by `interval_count` is given no `duration`;
-* two blocks of the **same modality type** from **different layers** overlap in time, unless both are `pbm_transcranial` on sockets that share none. Nothing is summed, taken as a maximum or reduced to fit. An author resolves the overlap by changing a layer's timing, its protocol, or `conflict_resolution`;
+* two blocks of the **same modality type** from **different layers** overlap in time, unless both are `pbm_transcranial` and the one-tile rule passes them (below). Nothing is summed, taken as a maximum or reduced to fit. An author resolves the overlap by changing a layer's timing, its protocol, or `conflict_resolution`;
 * a layer scales a modality that has no scaling rule;
 * every block is cut before it starts, or the composite exceeds the descriptor's command limit.
 
-Two layers that overlap on PBM sockets they *do* share are refused even when their timing, frequency and duty match: the one-tile rule for blocks inside one protocol (one frequency, one duty and one schedule for a tile) is stricter for blocks from different layers, because a layer is a separately authored stimulus whose dose was judged on its own.
+**Transcranial PBM from two layers** follows the rule for blocks inside one protocol, because a tile takes one frequency, one duty and one schedule for all its channels. Blocks on sockets that share none pass. Blocks on shared sockets pass only when they have the **same window, the same frequency and the same duty, drive different wavelengths, and cover the same sockets**; the channels are then merged onto the tile. Any other overlap on a shared socket is refused. The weighted-sum ceiling over the merged channels is not checked yet (see below).
 
 **Not yet defined.** Nothing here expresses a ramp or crossfade between layers (no field or descriptor command carries one), so a composite meant to blend two protocols over an overlap cannot be written. The pre-signing check of the PBM weighted sum (`CLAUDE.md` §3) is not built (`OI-HEXTILE-30`, `OI-HEXTILE-31`); until it is, a composite's merged dose rests on the overlap refusal and the per-tile rule above. See `OI-NPPS-COMP-01`.
 

@@ -164,3 +164,49 @@ fn override_cuts_the_earlier_layer_where_the_later_one_takes_over() {
     merged["conflictResolution"] = json!("merge");
     assert_ne!(content_hash_json(&hash_req(&lib, &c)).unwrap(), content_hash_json(&hash_req(&lib, &merged)).unwrap());
 }
+
+fn pbm_member(name: &str, wavelength: &str, hz: f64, zone: &str) -> Value {
+    json!({
+        "name": name, "timingMode": { "type": "duration", "seconds": 600 },
+        "modalities": [{
+            "type": "pbm_transcranial", "enabled": true,
+            "params": { "zones": "named", "zoneRefs": [zone], "wavelength": wavelength,
+                        "irradianceMWcm2": 100, "frequencyHz": hz, "dutyCyclePercent": 25 },
+            "interval": { "intervalOnSeconds": 0, "intervalOffSeconds": 0 }
+        }]
+    })
+}
+
+fn two_pbm(lib: &mut Library, a: Value, b: Value) -> Value {
+    for m in [&a, &b] {
+        lib.members.insert(m["name"].as_str().unwrap().to_string(), m.clone());
+    }
+    json!({ "name": "T", "conflictResolution": "merge", "layers": [
+        layer(a["name"].as_str().unwrap(), 0.0, None, 1.0), layer(b["name"].as_str().unwrap(), 0.0, None, 1.0) ] })
+}
+
+// @verifies SWR-PL-01
+#[test]
+fn pbm_layers_may_share_sockets_when_window_frequency_and_duty_match_and_wavelengths_differ() {
+    let mut lib = library();
+    let ok = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 40.0, "All"));
+    assert!(compile_json(&compile_req(&lib, &ok)).is_ok(), "same sockets, window, frequency and duty, different wavelengths");
+
+    let mut lib = library();
+    let other_hz = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 20.0, "All"));
+    let e = compile_json(&compile_req(&lib, &other_hz)).unwrap_err();
+    assert!(e.contains("refused rather than reshaped"), "a tile takes one frequency: {e}");
+
+    let mut lib = library();
+    let same_wl = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM Red 2", "660nm", 40.0, "All"));
+    assert!(compile_json(&compile_req(&lib, &same_wl)).is_err(), "the same wavelength twice on one tile is not a different channel");
+
+    let mut lib = library();
+    let shifted = {
+        let mut c = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 40.0, "All"));
+        c["layers"][1]["startOffsetSeconds"] = json!(30);
+        c["layers"][1]["durationSeconds"] = json!(300);
+        c
+    };
+    assert!(compile_json(&compile_req(&lib, &shifted)).is_err(), "a different window on a shared tile is refused");
+}
