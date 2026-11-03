@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 77 (current)  
+**Revision:** 78 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -44,6 +44,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Any BOM / COGS / GM% / price figure** | `docs/np_cost_001.md` |
 | **Whether a PBM protocol fits the power envelope; any `.npps` or zone edit** | `docs/np_ses_pwr_001.md` |
 | **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
+| **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number) | `docs/revisions/README.md` |
 | **UHDR presence gate** (who may read UHDR on a phone, a computer or a browser, and what runs locked) | `docs/np_app_presence_001.md` |
 | **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |
 | PBM optical resolution floor ("targets region X" claims) | `docs/np_opt_psf_001.md` |
