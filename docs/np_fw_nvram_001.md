@@ -669,7 +669,9 @@ least harmful.
     `np_log_backend_refuse()` also clears `np_log_backend_admits_sessions()`, which is false from
     reset until `np_log_backend_init()` sets it. `np_runner_load()` checks it first and returns
     `NP_HUB_ERR_BOOT_REFUSED` before the lease, the descriptor or the safety MCU is touched.
-    `check-hub-bringup-order.ts` rule 3 gates that order, because the runner compiles for ARM only.
+    `check-hub-bringup-order.ts` rule 3 gates that order statically, and `np_runner_load_tests`
+    (`NP-FW-HUB-001` Rev 28) asserts it on the host: a refused boot returns `NP_HUB_ERR_BOOT_REFUSED`
+    before the lease is claimed, even with the lease already held.
     A later log fault is a different condition and keeps its existing behaviour: the session runs,
     and its log fails closed. Until #340 this refuses every protocol on every boot. That is accepted,
     because no target image can run a session before the platform layer exists either.

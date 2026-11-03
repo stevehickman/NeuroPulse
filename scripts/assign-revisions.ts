@@ -285,6 +285,8 @@ function selfTest(): void {
     const conv = read(cv, out);
     check(/## DHF\nauthor: Eng A\ntext: \*\*NP-SW-001 Rev \{NP-SW-001 from → to\}: the change/.test(conv), "converting turns the numbers in the text into tokens");
     check(/^\*\*Revision:\*\* 2$/m.test(read(cv, DHF_FILE)) && !/\| 3 \|/.test(read(cv, "docs/np_sw_001.md")), "and puts back the base's revisions and removes the hand-added rows");
+    // The fixture's hand-numbered files carry 2026-11-02; a fragment with no date takes today's, so pin it.
+    writeFileSync(join(cv, out), `date: 2026-11-02\n${conv}`);
     const res = assignNext(cv, false);
     const again = [DHF_FILE, "docs/np_sw_001.md", "docs/reference/np-dhf-001-revision-history.md"].map((f) => read(cv, f));
     check(res.status === "done" && again.every((t, i) => t === hand[i]), "assigning the converted fragment reproduces the hand-numbered files exactly");
