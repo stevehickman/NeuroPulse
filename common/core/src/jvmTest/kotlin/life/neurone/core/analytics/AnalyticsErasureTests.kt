@@ -109,6 +109,35 @@ class AnalyticsErasureTests {
         assertEquals(listOf(id), q.pending)
     }
 
+    // @verifies REQ-SW03-25#d
+    @Test fun nothingIsQueuedWhenTheBackendHeldNoIdOrTheGateWasNeverConfigured() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val q = queue(store, null)
+
+        val noId = ResearchAnalyticsGate(store, Backend(null), q)
+        noId.configure()
+        noId.reset()
+        assertEquals(emptyList(), q.pending, "the SDK held no id, so there is nothing to erase")
+
+        val never = ResearchAnalyticsGate(store, Backend(id), q)
+        never.reset() // reset before configure: the gate was not configured
+        assertEquals(emptyList(), q.pending)
+    }
+
+    // @verifies REQ-SW03-25#d
+    @Test fun aWithdrawalAsksTheRelayStraightAwayAndDropsTheIdOnceItAnswers() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val relay = Fake(200)
+        val q = queue(store, relay)
+        val gate = ResearchAnalyticsGate(store, Backend(id), q, CoroutineScope(Job() + Dispatchers.Unconfined))
+        gate.configure()
+        gate.reset()
+        assertEquals(1, relay.seen.size, "the withdrawal does not wait for the next launch")
+        assertEquals(emptyList(), q.pending)
+    }
+
     // ── The common PostHog backend ───────────────────────────────────────────────────────────────────────────────────
 
     private val config = AnalyticsConfig("analytics.example.org", "phc_testtoken")
