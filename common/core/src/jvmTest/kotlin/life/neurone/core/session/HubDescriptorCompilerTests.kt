@@ -61,6 +61,37 @@ class HubDescriptorCompilerTests {
         assertContentEquals(plain.copyOfRange(7, plain.size), autonomous.copyOfRange(7, autonomous.size))
     }
 
+    // @verifies REQ-FWHUB-08
+    @Test fun aWrongLengthSignatureIsRefused() {
+        val short = HubDescriptorCompiler(ProtocolSigner { SignatureResult(ByteArray(63), "fp") }, clockSeconds = { 1_700_000_000L }, randomBytes = { ByteArray(it) { 0xAB.toByte() } })
+        assertFailsWith<IllegalArgumentException> { short.compile(def(600, pbm("808nm", 100.0)), null, listOf(7, 3)) }
+    }
+
+    // @verifies REQ-FWHUB-08
+    @Test fun theHeaderCarriesTheMagicAndTheTargetBlockCarriesTheResolvedMask() {
+        val plain = compiler.build(def(600, pbm("808nm", 100.0)), null, listOf(7, 3)).blob
+        assertEquals(listOf<Byte>(0x50, 0x48, 0x50, 0x4E), plain.take(4), "NPHP, little-endian")
+
+        val occipital = mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
+            target = NPPBMTarget.Named(listOf("Occipital Left")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
+            irradianceMWcm2 = 100.0, frequencyHz = 40.0, dutyCyclePercent = 25)))
+        val blob = compiler.build(def(600, occipital), null, null).blob
+        // header(68) + cmd_hdr(14) -> target[16]
+        assertEquals(1, blob[68 + 12].toInt(), "target_kind = socket mask")
+        assertEquals(16, blob[68 + 13].toInt(), "target_len")
+        val ids = mutableListOf<Int>()
+        for (i in 0 until 16) for (bit in 0 until 8) if ((blob[82 + i].toInt() and (1 shl bit)) != 0) ids += i * 8 + bit + 1
+        assertEquals(listOf(72, 73, 74, 77, 78), ids)
+    }
+
+    // @verifies REQ-NPPS-04
+    @Test fun anIntranasalProbeOnA1064ChannelItDoesNotCarryReadsLikeUnmapped() {
+        val nasal = mod(NPModalityParams.PbmIntranasal(NPPBMIntranasalParams(
+            wavelength = NPPBMTranscranialParams.Wavelength.NM_1064, irradianceMWcm2 = 30.0, frequencyHz = 0.0, dutyCyclePercent = 100)))
+        val e = assertFailsWith<Exception> { compiler.build(def(600, nasal), null, null) }
+        assertTrue("Intranasal PBM cannot be delivered on led_1064" in (e.message ?: ""), e.message)
+    }
+
     // @verifies REQ-NPPS-02
     @Test fun refusesCwWithADutyOtherThan100() {
         fun cw(kind: Int, duty: Int): NPProtocolDefinition = def(600, mod(when (kind) {
