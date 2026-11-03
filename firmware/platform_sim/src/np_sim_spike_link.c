@@ -61,6 +61,13 @@ void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reas
                 (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
 }
 
+/* The SHDR accessory-authentication record the intranasal driver writes at init: reported as it is logged. */
+void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_zone_auth\",\"slot\":%u,\"mod_type\":%d,\"pass\":%s}",
+                (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
+}
+
 /* The runner is not in the loop.  np_mod_visual_ppx_halt() asks it to abort the session; the simulator reports the
  * request and does nothing else, so a photoparoxysmal halt shows as what the driver did (LEDs off, enable dropped,
  * further commands refused) plus the abort it asked for.  A double of first-party code, listed as a gap. */

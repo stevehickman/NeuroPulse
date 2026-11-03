@@ -107,6 +107,7 @@ static void status(void)
     np_simh_vns_status();
     np_simh_audio_status();
     np_simh_visual_status();
+    np_simh_ins_status();
     result("status", 0);
 }
 
@@ -122,6 +123,7 @@ void np_simh_init(void)
     np_simh_vns_init();
     np_simh_audio_init();
     np_simh_visual_init();
+    np_simh_ins_init();
 }
 
 void np_simh_line(char *line)
@@ -141,6 +143,8 @@ void np_simh_line(char *line)
     if (np_simh_vns_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_audio_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_visual_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_ins_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_stubs_line(cmd, a, b)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;
@@ -158,7 +162,9 @@ void np_simh_line(char *line)
         result(cmd, (int)np_sock_disp_command(&cm));
     } else if (strcmp(cmd, "fail") == 0 && a && b && c && d) {
         int op = np_sim_op_from_name(b);
-        if (op >= 0) { np_sim_set_response(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, atoi(c), atoi(d)); }
+        if (op >= 0) {   /* an optional 5th word: answer that many calls normally first */
+            np_sim_set_response_after(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, atoi(c), atoi(d), e != NULL ? atoi(e) : 0);
+        }
     } else if (strcmp(cmd, "reading") == 0 && a && b && c) {
         int op = np_sim_op_from_name(b);
         if (op >= 0) { np_sim_set_reading(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, (float)atof(c)); }

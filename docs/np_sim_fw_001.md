@@ -228,6 +228,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-18`** | **A refused VNS command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is not retried** (§15). | Decided with the runner in the loop: either the driver undoes what it started, or the runner is shown to stop the module after a refusal. |
 | **`OI-SIMFW-19`** | **Two behaviours of `np_mod_audio.c`** (§16): an EEG band update re-applies binaural whatever the running mode, and `volume_pct` is not clamped to 100 before it reaches the planar drivers and the bone transducer. | Decided: the driver gates the update on the running mode and clamps, or the limits are shown to be enforced downstream and cited. |
 | **`OI-SIMFW-20`** | **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`** (§17), so a failed LED command reports success and requests the enable with nothing lit. | Decided: the status is checked and returned, or the ignored status is justified. |
+| **`OI-SIMFW-21`** | **Two behaviours of `np_mod_intranasal.c`** (§18): authentication is read once at init and never again, and a bilateral command that fails on its second side leaves the first side emitting with no flag set for the stop path to act on. | Decided: the driver re-checks, or the cached answer is justified; and a partly applied command is undone or stopped. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -246,7 +247,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS, §16 audio and §17 visual are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS, §16 audio, §17 visual, §18 intranasal and §19 the T2 and accessory stubs are built; cervical VNS is next).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -553,6 +554,44 @@ The goggles, `REQ-SIMFW-13`: the module with the IEC 62471 interlocks, so the on
 | The safety MCU's visual interlocks | Not in the loop (`OI-SIMFW-09`). |
 
 **What it found.** `OI-SIMFW-20`: **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`.** A failed LED command reports success and requests the safety enable with nothing lit. The direction is the safe one (dark LEDs), but the session and the hub's enable request both say the goggles are running.
+
+---
+
+## 18. Intranasal Y-probe, as built (§8 step 3, sixth module type)
+
+The probe, `REQ-SIMFW-13`. One probe, so one module (`NP_SIM_KIND_INTRANASAL`, index 0), with two sides.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_intranasal.c` | The five `np_mod_ins_hal_*` seams. Sleeve authentication and photodiode contact are what the scenario sets, and **answer false for an injected failure or an absent probe**. The emitters record what each side was told. The dose ADC is the counts the scenario gave each side and wavelength; the model does not derive a photodiode reading from an emitter setting. |
+| Injection with a start offset | `fail <index> <op> <code> <times> [after]` | New with this module and for every kind: **answer `after` calls normally, then fail**. It is what "fail the second side" needs, and it exists on the bridge as `MODULE_FAIL.after`. |
+| Firmware it runs | the device's own file | `np_mod_intranasal.c`. No firmware file changed. `np_log_shdr_zone_auth` is a logging sink in `np_sim_spike_link.c` that reports the authentication record as it is written. |
+| Harness | `platform_sim/src/np_sim_intranasal_harness.c` | `ins_detect`, `ins_init`, `ins`, `ins_stop`, `ins_shutdown`, `ins_sample`, `ins_raw`, and scenario state `ins_sensor`, `ins_pd`. |
+| Bridge | `fw-bridge.js` | `kind: "intranasal"` in `MODULE_SET` (`add`, `present`, `sensor`, `pd`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `ins`, `ins_init`, `ins_detect`, `ins_stop`, `ins_shutdown`, `ins_sample`. |
+| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 25 checks. |
+
+**Line coverage:** `hub_control/modules/np_mod_intranasal.c` 100 % of 47.
+
+**Gaps.** Optical power and the dose a photodiode would integrate (the dose telemetry is a placeholder constant in the driver, so the figure here is that constant applied to scenario counts); the dock; the sleeve's optical code itself (authentication is a boolean); the safety MCU's intranasal enable (not in the loop, `OI-SIMFW-09`); the hygiene-sleeve consumable accounting, which is not in the driver.
+
+**What it found.** `OI-SIMFW-21`, two things in `np_mod_intranasal.c`, both recorded by tests that say so:
+**authentication is read once, at init**, so a probe whose sleeve or contact has since gone is still driven; and **a bilateral command that
+fails on the second side leaves the first side emitting**: the driver returns the fault, never sets its active flag, requests
+no enable, and its stop path only acts when the flag is set, so the left side cannot be stopped by the driver at all.
+
+---
+
+## 19. T2 and accessory stubs, as built (§8 step 3, last module type)
+
+`np_mod_t2_stubs.c`, `REQ-SIMFW-13`: the 21-channel qEEG cap, the TMS coil, the 1170 nm laser, clinical tACS, HD-tDCS and the
+vibrotactile pad. The module has **no seam**: every function is a placeholder that answers `NP_HUB_ERR_NOT_PRESENT`
+(shutdown answers success). The simulator equivalent of a module that refuses is to call it and say what it answered and what it
+asked of the safety MCU. `stub <name> detect|init|control|telemetry|shutdown` (`np_sim_stubs_harness.c`), bridge `FW_COMMAND` `stub`.
+Three scenarios, 6 checks, `np_mod_t2_stubs.c` 100 % of 30: all six refuse on every operation, none requests a safety enable (so no T2 line
+is asked for), and all six shut down successfully, which is what lets the runner stop a module it never started.
+
+**Gap.** There is nothing to simulate until a driver exists; each stub becomes a module of its own, with its own section, when it does.
+**This closes the list of nine drivers except cervical VNS, which is next (§8).**
 
 ---
 

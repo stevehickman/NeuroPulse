@@ -46,6 +46,7 @@ typedef enum {
     NP_SIM_KIND_VNS,                /* the auricular clip: stimulator, PPG and the HRV readouts; one, index 0 */
     NP_SIM_KIND_AUDIO,              /* the codec, the planar drivers and the bone transducer; one, index 0 */
     NP_SIM_KIND_VISUAL,             /* the goggles: LEDs, Hall and IR sensors, MPE check; one, index 0 */
+    NP_SIM_KIND_INTRANASAL,         /* the Y-probe: sleeve authentication, contact, two sides; one, index 0 */
     NP_SIM_KIND_COUNT
 } np_sim_kind_t;
 
@@ -91,6 +92,11 @@ typedef enum {
     NP_SIM_OP_VIS_EMDR,             /* np_mod_visual_hal_emdr_set             */
     NP_SIM_OP_VIS_MPE,              /* np_mod_visual_hal_mpe_check            */
     NP_SIM_OP_VIS_HALL_REGISTER,    /* np_mod_visual_hal_hall_irq_register    */
+    NP_SIM_OP_INS_AUTH,             /* np_mod_ins_hal_auth_check              */
+    NP_SIM_OP_INS_CONTACT,          /* np_mod_ins_hal_pd_contact              */
+    NP_SIM_OP_INS_PWM_SET,          /* np_mod_ins_hal_pwm_set                 */
+    NP_SIM_OP_INS_PWM_STOP,         /* np_mod_ins_hal_pwm_stop                */
+    NP_SIM_OP_INS_PD_READ,          /* np_mod_ins_hal_pd_read                 */
     NP_SIM_OP_COUNT
 } np_sim_op_t;
 
@@ -98,6 +104,7 @@ typedef struct {
     bool            active;         /* an injected response is armed          */
     int             code;           /* np_hub_status_t to return              */
     int             times;          /* calls left; < 0 = until cleared        */
+    int             skip;           /* calls to answer normally before the response starts (0 = the next call) */
     bool            has_reading;    /* a pinned reading replaces the model    */
     float           reading;
 } np_sim_override_t;
@@ -152,6 +159,11 @@ typedef struct {
     void            (*vis_isr)(void);                  /* the not-seated edge handler the firmware registered    */
     bool              vis_lift_during_command;         /* fire the lift edge between the seated read and the enable */
     uint16_t          vis_edges_delivered;
+    /* the intranasal Y-probe (NP_SIM_KIND_INTRANASAL) */
+    bool              ins_auth, ins_contact;           /* sleeve code matches; photodiode contact; caller-set     */
+    bool              ins_side_on[2];                  /* left, right                                            */
+    uint8_t           ins_cur660[2], ins_cur808[2], ins_freq[2], ins_duty[2];
+    uint16_t          ins_pd[2][2];                    /* [side][wavelength: 0 = 660, 1 = 808]; caller-set        */
     np_sim_override_t ov[NP_SIM_OP_COUNT];
     bool              answered_default[NP_SIM_OP_COUNT];
 } np_sim_module_t;
@@ -182,6 +194,8 @@ int              np_sim_op_from_name(const char *name);
 
 /* Injection.  Each affects exactly the module named. */
 bool np_sim_set_response(np_sim_kind_t kind, uint16_t index, np_sim_op_t op, int code, int times);
+/* The same, starting after `skip` calls have been answered normally: "fail the second write". */
+bool np_sim_set_response_after(np_sim_kind_t kind, uint16_t index, np_sim_op_t op, int code, int times, int skip);
 bool np_sim_set_reading(np_sim_kind_t kind, uint16_t index, np_sim_op_t op, float value);
 bool np_sim_set_present(np_sim_kind_t kind, uint16_t index, bool present);
 bool np_sim_clear(np_sim_kind_t kind, uint16_t index);

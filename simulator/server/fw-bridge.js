@@ -32,11 +32,20 @@ const AUDIO_OPS = new Set(['audio_codec_init', 'audio_binaural', 'audio_isochron
   'audio_bone_set', 'audio_bone_stop', 'audio_mesh_impedance']);     // np_sim_op_name(), the audio path
 const VIS_OPS = new Set(['vis_led_set', 'vis_led_stop', 'vis_eye_open', 'vis_seated', 'vis_emdr', 'vis_mpe', 'vis_hall_register']);   // the goggles
 const VIS_SENSORS = new Set(['seated', 'eye', 'mpe']);
+const INS_OPS = new Set(['ins_auth', 'ins_contact', 'ins_pwm_set', 'ins_pwm_stop', 'ins_pd_read']);   // the intranasal Y-probe
+const INS_SENSORS = new Set(['auth', 'contact']);
+const STUB_NAMES = new Set(['qeeg', 'tms', 'pbm_1170nm', 'clin_tacs', 'hd_tdcs', 'vibrotactile']);   // np_mod_t2_stubs.c
+const STUB_OPS = new Set(['detect', 'init', 'control', 'telemetry', 'shutdown']);
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
 
 class BridgeError extends Error {}
+
+/** An optional `after`: answer that many calls normally before the injected response starts ("fail the second write"). */
+function afterTail(msg) {
+  return msg.after === undefined ? '' : ` ${Number.isInteger(msg.after) && msg.after >= 0 && msg.after <= 1000000 ? msg.after : (() => { throw new BridgeError('after must be an integer in [0, 1000000]'); })()}`;
+}
 
 function int(v, lo, hi, what) {
   if (!Number.isInteger(v) || v < lo || v > hi) {
@@ -105,7 +114,7 @@ function eegModuleLines(msg) {
       return lines;
     }
     case 'MODULE_FAIL':
-      return [`fail 0 ${eegOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail 0 ${eegOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     case 'MODULE_CLEAR':
       return ['eeg_clear'];
     default:
@@ -157,7 +166,7 @@ function vnsModuleLines(msg) {
       return lines;
     }
     case 'MODULE_FAIL':
-      return [`fail 0 ${vnsOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail 0 ${vnsOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     case 'MODULE_CLEAR':
       return ['vns_clear'];
     default:
@@ -206,7 +215,7 @@ function audioModuleLines(msg) {
       return lines;
     }
     case 'MODULE_FAIL':
-      return [`fail 0 ${audioOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail 0 ${audioOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     case 'MODULE_CLEAR':
       return ['audio_clear'];
     default:
@@ -270,7 +279,7 @@ function visModuleLines(msg) {
       return lines;
     }
     case 'MODULE_FAIL':
-      return [`fail 0 ${visOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail 0 ${visOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     case 'MODULE_CLEAR':
       return ['vis_clear'];
     default:
@@ -288,6 +297,71 @@ function visCommandLines(msg) {
     case 'vis_init': case 'vis_detect': case 'vis_stop': case 'vis_shutdown': case 'vis_sample': case 'vis_lift':
     case 'vis_lift_silent': case 'vis_lift_during_command': case 'vis_lower': case 'vis_ppx':
       return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
+}
+
+function insOp(v) {
+  if (typeof v !== 'string' || !INS_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...INS_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+/** The intranasal Y-probe's messages: one probe, no address. */
+function insModuleLines(msg) {
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) {
+        const a = msg.patch.add;
+        lines.push(`ins_add ${bit(a?.auth, 'add.auth')} ${bit(a?.contact, 'add.contact')}`);
+      }
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(msg.patch.present ? 'ins_present' : 'ins_absent');
+      }
+      if ('sensor' in msg.patch) {
+        const t = msg.patch.sensor;
+        if (typeof t?.name !== 'string' || !INS_SENSORS.has(t.name)) throw new BridgeError(`sensor.name must be one of ${[...INS_SENSORS].join(', ')}`);
+        lines.push(`ins_sensor ${t.name} ${bit(t.value, 'sensor.value')}`);
+      }
+      if ('pd' in msg.patch) {
+        const d = msg.patch.pd;
+        lines.push(`ins_pd ${int(d?.side, 0, 1, 'pd.side')} ${int(d?.wl, 0, 1, 'pd.wl')} ${int(d?.counts, 0, 65535, 'pd.counts')}`);
+      }
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading 0 ${insOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail 0 ${insOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
+    case 'MODULE_CLEAR':
+      return ['ins_clear'];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the intranasal driver, and for the T2 and accessory stubs. */
+function insCommandLines(msg) {
+  const u8 = (v, what) => int(v, 0, 255, what);
+  switch (msg.cmd) {
+    case 'ins':
+      return [`ins ${u8(msg.side, 'side')} ${u8(msg.freq_code, 'freq_code')} ${u8(msg.duty, 'duty')} ${u8(msg.cur_660, 'cur_660')} ${u8(msg.cur_808, 'cur_808')}`];
+    case 'ins_init': case 'ins_detect': case 'ins_stop': case 'ins_shutdown': case 'ins_sample':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    case 'stub':
+      if (typeof msg.name !== 'string' || !STUB_NAMES.has(msg.name)) throw new BridgeError(`name must be one of ${[...STUB_NAMES].join(', ')}`);
+      if (typeof msg.op !== 'string' || !STUB_OPS.has(msg.op)) throw new BridgeError(`op must be one of ${[...STUB_OPS].join(', ')}`);
+      return [`stub ${msg.name} ${msg.op}`];
     default:
       return null;
   }
@@ -322,7 +396,7 @@ function stimModuleLines(msg) {
       return lines;
     }
     case 'MODULE_FAIL':
-      return [`fail ${p} ${stimOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail ${p} ${stimOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     case 'MODULE_CLEAR':
       return [`stim_clear ${p}`];
     default:
@@ -373,8 +447,9 @@ function messageToLines(msg) {
   if (msg.kind === 'vns') return vnsModuleLines(msg);
   if (msg.kind === 'audio') return audioModuleLines(msg);
   if (msg.kind === 'visual') return visModuleLines(msg);
+  if (msg.kind === 'intranasal') return insModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
@@ -401,7 +476,7 @@ function messageToLines(msg) {
     case 'MODULE_FAIL': {
       const s = int(msg.socket, 0, MAX_SOCKET, 'socket');
       // codes are np_hub_status_t (-28..0); times < 0 means until cleared
-      return [`fail ${s} ${op(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+      return [`fail ${s} ${op(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
     }
     case 'MODULE_CLEAR':
       return [`clear ${int(msg.socket, 0, MAX_SOCKET, 'socket')}`];

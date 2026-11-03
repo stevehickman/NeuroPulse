@@ -32,4 +32,12 @@ void np_simh_visual_init(void);
 void np_simh_visual_status(void);
 bool np_simh_visual_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The intranasal Y-probe commands (np_sim_intranasal_harness.c). */
+void np_simh_ins_init(void);
+void np_simh_ins_status(void);
+bool np_simh_ins_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
+/* The T2 and accessory stubs (np_sim_stubs_harness.c). */
+bool np_simh_stubs_line(const char *cmd, char *a, char *b);
+
 #endif

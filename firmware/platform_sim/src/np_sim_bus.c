@@ -12,7 +12,7 @@
 static np_sim_module_t g_mod[NP_SIM_KIND_COUNT][NP_SIM_MAX_MODULES];
 static np_sim_sink_fn  g_sink;
 
-static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg", "vns", "audio", "visual" };
+static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg", "vns", "audio", "visual", "intranasal" };
 static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "socket_pwm_set", "socket_ntc_read",
     "stim_dac_set", "stim_dac_stop", "stim_dc_set", "stim_dc_ramp",
@@ -23,7 +23,8 @@ static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "vns_rmssd", "vns_coherence", "vns_hr",
     "audio_codec_init", "audio_binaural", "audio_isochronic", "audio_noise", "audio_stop_planar",
     "audio_bone_set", "audio_bone_stop", "audio_mesh_impedance",
-    "vis_led_set", "vis_led_stop", "vis_eye_open", "vis_seated", "vis_emdr", "vis_mpe", "vis_hall_register"
+    "vis_led_set", "vis_led_stop", "vis_eye_open", "vis_seated", "vis_emdr", "vis_mpe", "vis_hall_register",
+    "ins_auth", "ins_contact", "ins_pwm_set", "ins_pwm_stop", "ins_pd_read"
 };
 
 const char *np_sim_kind_name(np_sim_kind_t k)
@@ -48,6 +49,7 @@ static uint32_t real_now_ms(void)
 
 np_sim_kind_t np_sim_op_kind(np_sim_op_t op)
 {
+    if (op >= NP_SIM_OP_INS_AUTH)       { return NP_SIM_KIND_INTRANASAL; }
     if (op >= NP_SIM_OP_VIS_LED_SET)    { return NP_SIM_KIND_VISUAL; }
     if (op >= NP_SIM_OP_AUDIO_CODEC_INIT) { return NP_SIM_KIND_AUDIO; }
     if (op >= NP_SIM_OP_VNS_IMPEDANCE)  { return NP_SIM_KIND_VNS; }
@@ -112,7 +114,7 @@ np_sim_module_t *np_sim_add(np_sim_kind_t kind, uint16_t index, float value)
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,"
                     "\"impedance_kohm\":%.1f}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index, (double)value);
-    } else if (kind == NP_SIM_KIND_VISUAL) {
+    } else if (kind == NP_SIM_KIND_INTRANASAL || kind == NP_SIM_KIND_VISUAL) {
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index);
     } else if (kind == NP_SIM_KIND_AUDIO) {
@@ -150,11 +152,17 @@ static void report_inject(const np_sim_module_t *m, const char *what)
 
 bool np_sim_set_response(np_sim_kind_t kind, uint16_t index, np_sim_op_t op, int code, int times)
 {
+    return np_sim_set_response_after(kind, index, op, code, times, 0);
+}
+
+bool np_sim_set_response_after(np_sim_kind_t kind, uint16_t index, np_sim_op_t op, int code, int times, int skip)
+{
     np_sim_module_t *m = np_sim_find(kind, index);
     if (m == NULL || (unsigned)op >= NP_SIM_OP_COUNT) { return false; }
     m->ov[op].active = true;
     m->ov[op].code   = code;
     m->ov[op].times  = times;
+    m->ov[op].skip   = skip > 0 ? skip : 0;
     report_inject(m, np_sim_op_name(op));
     return true;
 }
@@ -192,6 +200,7 @@ bool np_sim_take_response(np_sim_module_t *m, np_sim_op_t op, int *code)
 {
     np_sim_override_t *o = &m->ov[op];
     if (!o->active) { return false; }
+    if (o->skip > 0) { o->skip--; return false; }       /* this call is answered normally */
     *code = o->code;
     if (o->times > 0 && --o->times == 0) { o->active = false; }
     return true;
