@@ -14,6 +14,7 @@
  */
 #include "np_sim_bus.h"
 #include "np_sim_pbm_harness.h"
+#include "np_sim_test_util.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -29,53 +30,7 @@ static void check(int cond, const char *name)
     else      { printf("FAIL: %s\n", name); g_failures++; }
 }
 
-/* ── event capture ─────────────────────────────────────────────────────────── */
 
-#define CAP_MAX   256
-#define CAP_LINE  512
-static char g_cap[CAP_MAX][CAP_LINE];
-static int  g_cap_n;
-
-static void capture(const char *line)
-{
-    if (g_cap_n < CAP_MAX) {
-        strncpy(g_cap[g_cap_n], line, CAP_LINE - 1);
-        g_cap[g_cap_n][CAP_LINE - 1] = '\0';
-        g_cap_n++;
-    }
-}
-
-static int count(const char *needle)
-{
-    int n = 0;
-    for (int i = 0; i < g_cap_n; i++) { if (strstr(g_cap[i], needle) != NULL) { n++; } }
-    return n;
-}
-
-static int count2(const char *a, const char *b)
-{
-    int n = 0;
-    for (int i = 0; i < g_cap_n; i++) {
-        if (strstr(g_cap[i], a) != NULL && strstr(g_cap[i], b) != NULL) { n++; }
-    }
-    return n;
-}
-
-static const char *last_result(void)
-{
-    for (int i = g_cap_n - 1; i >= 0; i--) {
-        if (strstr(g_cap[i], "\"ev\":\"result\"") != NULL) { return g_cap[i]; }
-    }
-    return "";
-}
-
-static void run(const char *line)
-{
-    char buf[256];
-    strncpy(buf, line, sizeof buf - 1);
-    buf[sizeof buf - 1] = '\0';
-    np_simh_line(buf);
-}
 
 /* Three base tiles at sockets 0..2, all reading the same temperature the test
  * supplies.  The temperature is a test input, not a model default. */

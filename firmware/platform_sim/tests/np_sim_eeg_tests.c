@@ -11,6 +11,7 @@
  */
 #include "np_sim_bus.h"
 #include "np_sim_pbm_harness.h"
+#include "np_sim_test_util.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -26,69 +27,6 @@ static void check(int cond, const char *name)
     else      { printf("FAIL: %s\n", name); g_failures++; }
 }
 
-#define CAP_MAX   512
-#define CAP_LINE  512
-static char g_cap[CAP_MAX][CAP_LINE];
-static int  g_cap_n;
-
-static void capture(const char *line)
-{
-    if (g_cap_n < CAP_MAX) {
-        strncpy(g_cap[g_cap_n], line, CAP_LINE - 1);
-        g_cap[g_cap_n][CAP_LINE - 1] = '\0';
-        g_cap_n++;
-    }
-}
-
-static int count(const char *needle)
-{
-    int n = 0;
-    for (int i = 0; i < g_cap_n; i++) { if (strstr(g_cap[i], needle) != NULL) { n++; } }
-    return n;
-}
-
-static int count2(const char *a, const char *b)
-{
-    int n = 0;
-    for (int i = 0; i < g_cap_n; i++) {
-        if (strstr(g_cap[i], a) != NULL && strstr(g_cap[i], b) != NULL) { n++; }
-    }
-    return n;
-}
-
-static const char *last_with(const char *needle)
-{
-    for (int i = g_cap_n - 1; i >= 0; i--) { if (strstr(g_cap[i], needle) != NULL) { return g_cap[i]; } }
-    return "";
-}
-
-static const char *last_result(void) { return last_with("\"ev\":\"result\""); }
-
-static bool result_code_is(int code)
-{
-    char want[24];
-    (void)snprintf(want, sizeof want, "\"code\":%d,", code);
-    return strstr(last_result(), want) != NULL;
-}
-
-/* The numeric value after `key` in the last event that contains `needle`; -1e9 if none. */
-static double field(const char *needle, const char *key)
-{
-    const char *line = last_with(needle);
-    const char *at = strstr(line, key);
-    if (*line == '\0' || at == NULL) { return -1e9; }
-    double v = 0.0;
-    (void)sscanf(at + strlen(key), "%lf", &v);
-    return v;
-}
-
-static void run(const char *text)
-{
-    char buf[256];
-    strncpy(buf, text, sizeof buf - 1);
-    buf[sizeof buf - 1] = '\0';
-    np_simh_line(buf);
-}
 
 /* The sim ADS1299 with the datasheet's ID.  Impedances and band powers are test inputs, not model defaults. */
 static void setup(void)
