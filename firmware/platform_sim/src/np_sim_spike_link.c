@@ -23,6 +23,7 @@
 #include "np_sw02_platform_hal.h"
 #include "np_socket_dispatch.h"
 #include "np_pbm_session.h"
+#include "np_log_hrv.h"
 
 #include "FreeRTOS.h"
 
@@ -50,6 +51,13 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type, uint8_t fault_code,
     np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_fault\",\"slot\":%u,"
                 "\"mod_type\":%d,\"fault_code\":%u}",
                 (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, (unsigned)fault_code);
+}
+
+/* The HRV session's finalised record, which the real library hands to the driver's end-of-session callback. */
+void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reason)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":%s,\"reason\":%d}",
+                (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
 }
 
 /* ── no session lease, no persistence ─────────────────────────────────────────── */

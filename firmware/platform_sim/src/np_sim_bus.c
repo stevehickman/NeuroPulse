@@ -12,13 +12,15 @@
 static np_sim_module_t g_mod[NP_SIM_KIND_COUNT][NP_SIM_MAX_MODULES];
 static np_sim_sink_fn  g_sink;
 
-static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg" };
+static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg", "vns" };
 static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "socket_pwm_set", "socket_ntc_read",
     "stim_dac_set", "stim_dac_stop", "stim_dc_set", "stim_dc_ramp",
     "stim_read_impedance", "stim_read_current", "stim_read_charge",
     "eeg_spi_write", "eeg_spi_read", "eeg_start", "eeg_stop", "eeg_read_impedance",
-    "eeg_band_power", "eeg_dominant_band", "eeg_self_calibrate"
+    "eeg_band_power", "eeg_dominant_band", "eeg_self_calibrate",
+    "vns_impedance", "vns_stim_set", "vns_stim_stop", "vns_ppg_start", "vns_ppg_stop", "vns_eeg_ref",
+    "vns_rmssd", "vns_coherence", "vns_hr"
 };
 
 const char *np_sim_kind_name(np_sim_kind_t k)
@@ -43,6 +45,7 @@ static uint32_t real_now_ms(void)
 
 np_sim_kind_t np_sim_op_kind(np_sim_op_t op)
 {
+    if (op >= NP_SIM_OP_VNS_IMPEDANCE)  { return NP_SIM_KIND_VNS; }
     if (op >= NP_SIM_OP_EEG_SPI_WRITE)  { return NP_SIM_KIND_EEG; }
     if (op >= NP_SIM_OP_STIM_DAC_SET)   { return NP_SIM_KIND_STIM_PAIR; }
     return NP_SIM_KIND_PBM_BASE;
@@ -103,6 +106,11 @@ np_sim_module_t *np_sim_add(np_sim_kind_t kind, uint16_t index, float value)
         m->impedance_kohm = value;
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,"
                     "\"impedance_kohm\":%.1f}",
+                    np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index, (double)value);
+    } else if (kind == NP_SIM_KIND_VNS) {
+        m->vns_impedance_ohm = value;
+        np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,"
+                    "\"impedance_ohm\":%.0f}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index, (double)value);
     } else if (kind == NP_SIM_KIND_EEG) {
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true}",

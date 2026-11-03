@@ -104,6 +104,7 @@ static void status(void)
     }
     np_simh_stim_status();
     np_simh_eeg_status();
+    np_simh_vns_status();
     result("status", 0);
 }
 
@@ -116,6 +117,7 @@ void np_simh_init(void)
     np_sock_disp_reset();
     np_simh_stim_init();
     np_simh_eeg_init();
+    np_simh_vns_init();
 }
 
 void np_simh_line(char *line)
@@ -127,11 +129,12 @@ void np_simh_line(char *line)
     char *b = strtok_r(NULL, " \t\r\n", &save);
     char *c = strtok_r(NULL, " \t\r\n", &save);
     char *d = strtok_r(NULL, " \t\r\n", &save);
-    char *e = strtok_r(NULL, " \t\r\n", &save);
+    char *e = strtok_r(NULL, "\r\n", &save);   /* the rest of the line: one token for most commands, three for vns */
 
     /* The other modules' commands first.  "fail" and "reading" are shared: an op name implies its module kind. */
     if (np_simh_stim_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_eeg_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_vns_line(cmd, a, b, c, d, e)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;

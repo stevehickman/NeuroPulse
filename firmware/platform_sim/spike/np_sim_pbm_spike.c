@@ -21,6 +21,8 @@
  *   stim_add <pair> <kohm>          an electrode pair
  *   bes <pair> <waveform> <freq_mhz> <amp_ua> | tdcs <pair> <current_ua> <polarity> <ramp_s> <area_mcm2>
  *   stim_stop bes|tdcs | tdcs_pause | advance <ms> | sample bes|tdcs
+ * Auricular VNS (np_sim_vns_harness.c lists them all):
+ *   vns_add <ohm> | vns <side> <freq_mhz> <amp_ua> <pw_us> <ppg> <eeg_ref> <hrv_proto> | vns_stop | vns_sample
  * EEG front end (np_sim_eeg_harness.c lists them all):
  *   eeg_add [id] | eeg_init | eeg <chmask> <gain> <notch> <ref_mode> <adaptive> | eeg_stop | eeg_sample | eeg_regs
  *   status                          every module, the dispatch table, requested enables
@@ -46,7 +48,7 @@ int main(void)
     np_simh_init();
     np_sim_emit("{\"ev\":\"ready\",\"spike\":\"pbm\",\"firmware\":\"np_socket_dispatch,np_module_map,"
                 "np_protocol,np_mod_pbm,np_pbm_socket_telem,np_safety_spi,"
-                "np_mod_stim,np_stim_xcheck,np_ramp_plan,np_mod_eeg\"}");
+                "np_mod_stim,np_stim_xcheck,np_ramp_plan,np_mod_eeg,np_mod_vns,np_hrv_session\"}");
     while (fgets(line, sizeof line, stdin) != NULL) { np_simh_line(line); }
     return 0;
 }

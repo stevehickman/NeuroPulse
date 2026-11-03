@@ -17,4 +17,9 @@ void np_simh_eeg_init(void);
 void np_simh_eeg_status(void);
 bool np_simh_eeg_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The auricular VNS commands (np_sim_vns_harness.c). */
+void np_simh_vns_init(void);
+void np_simh_vns_status(void);
+bool np_simh_vns_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 #endif

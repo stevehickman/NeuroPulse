@@ -26,6 +26,7 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../shdr/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../pbm/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     # headers only: np_safety_spi.c and np_session_runner.h name FreeRTOS types.  The kernel is not
@@ -55,12 +56,24 @@ set(NP_SIM_PBM_FIRMWARE
     # stimulation (BES/tACS and tDCS): the driver, the commanded-versus-delivered cross-check and the ramp model
     ../hub_control/modules/np_mod_stim.c
     ../hub_control/modules/np_mod_eeg.c
+    # auricular VNS, and the HRV session library it drives (pure C: no kernel, no platform seam)
+    ../hub_control/modules/np_mod_vns.c
+    ../hrv_biofeedback/src/np_hrv_session.c
+    ../hrv_biofeedback/src/np_hrv_ppg.c
+    ../hrv_biofeedback/src/np_hrv_coherence.c
+    ../hrv_biofeedback/src/np_hrv_pacer.c
+    ../hrv_biofeedback/src/np_hrv_tavns_sync.c
+    ../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c
     ../hub_control/src/np_stim_xcheck.c
     ../hub_control/src/np_ramp_plan.c
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
 )
+
+# The HRV library's own -Wextra finding (an unused parameter in np_hrv_eeg_biofeedback.c) is not this layer's to fix
+# and does not belong in this layer's build output.
+set_source_files_properties(../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
 
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
@@ -69,6 +82,8 @@ add_library(np_sim_pbm STATIC
     src/np_sim_stim_harness.c
     src/np_sim_eeg.c
     src/np_sim_eeg_harness.c
+    src/np_sim_vns.c
+    src/np_sim_vns_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -97,9 +112,13 @@ target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g
 add_executable(np_sim_eeg_tests tests/np_sim_eeg_tests.c)
 target_link_libraries(np_sim_eeg_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_eeg_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_vns_tests tests/np_sim_vns_tests.c)
+target_link_libraries(np_sim_vns_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_vns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
     COMMAND np_sim_eeg_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests
+    COMMAND np_sim_vns_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests
     COMMENT "Running the simulator scenario tests")

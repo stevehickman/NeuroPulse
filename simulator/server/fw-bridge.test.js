@@ -108,6 +108,29 @@ test('a valid EEG message becomes exactly one well-formed line', () => {
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in a VNS command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'vns', op: 'vns_stim_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'vns', op: 'eeg_start', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'vns', patch: { add: '1500\nquit' } },
+    { type: 'MODULE_SET', kind: 'vns', patch: { readouts: { rmssd_ms: 40, coherence: 101, hr_bpm: 60 } } },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 1 },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: '2000\nquit', pw_us: 250, ppg: 1, eeg_ref: 1, hrv_proto: 0 },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 4294967296, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 1, hrv_proto: 0 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'vns', patch: { add: 1500 } }), ['vns_add 1500']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'vns', patch: { readouts: { rmssd_ms: 42.5, coherence: 6.5, hr_bpm: 64 } } }),
+    ['vns_readouts 42.5 6.5 64']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'vns', op: 'vns_stim_stop', code: -17, times: 1 }), ['fail 0 vns_stim_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vns', side: 2, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 0, hrv_proto: 1 }),
+    ['vns 2 25000 2000 250 1 0 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vns_stop' }), ['vns_stop']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -204,4 +227,26 @@ test('end to end: the real EEG driver configures the sim front end and a lost st
   assert.strictEqual(stop.event.eeg_running, true, 'while the converter still runs');
   const state = seen.filter((m) => m.type === 'MODULE_STATE' && m.event.id === 'eeg:0').pop();
   assert.strictEqual(state.event.driven, true, 'and the module state says so');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real VNS driver and HRV library run, and a clip out of contact is refused', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'vns', patch: { add: 1500 } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 0, hrv_proto: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns_stop' });
+  bridge.handle({ type: 'MODULE_SET', kind: 'vns', patch: { reading: { op: 'vns_impedance', value: 100 } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 0, eeg_ref: 0, hrv_proto: 0 });
+  await wait(500);
+  bridge.stop();
+  const results = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'vns').map((m) => m.event);
+  assert.strictEqual(results[0].code, 0);
+  assert.strictEqual(results[0].stimulating, true, 'in contact the clip stimulates');
+  assert.notStrictEqual(results[1].code, 0, 'out of contact the command is refused');
+  assert.strictEqual(results[1].stimulating, false);
+  const hrv = seen.filter((m) => m.type === 'FW_LOG' && m.event.fn === 'np_log_hrv_session');
+  assert.strictEqual(hrv.length, 1, 'the real HRV session ended once, with the stop');
 });

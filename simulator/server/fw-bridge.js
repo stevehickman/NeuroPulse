@@ -26,6 +26,8 @@ const STIM_OPS = new Set(['stim_dac_set', 'stim_dac_stop', 'stim_dc_set', 'stim_
   'stim_read_impedance', 'stim_read_current', 'stim_read_charge']);   // np_sim_op_name(), the stimulation DAC
 const EEG_OPS = new Set(['eeg_spi_write', 'eeg_spi_read', 'eeg_start', 'eeg_stop', 'eeg_read_impedance',
   'eeg_band_power', 'eeg_dominant_band', 'eeg_self_calibrate']);     // np_sim_op_name(), the ADS1299 front end
+const VNS_OPS = new Set(['vns_impedance', 'vns_stim_set', 'vns_stim_stop', 'vns_ppg_start', 'vns_ppg_stop', 'vns_eeg_ref',
+  'vns_rmssd', 'vns_coherence', 'vns_hr']);                          // np_sim_op_name(), the auricular clip
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -119,6 +121,59 @@ function eegCommandLines(msg) {
   }
 }
 
+function vnsOp(v) {
+  if (typeof v !== 'string' || !VNS_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...VNS_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+/** The auricular clip's messages: one clip, no address. */
+function vnsModuleLines(msg) {
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) lines.push(`vns_add ${num(msg.patch.add, 0, 1000000, 'add (impedance_ohm)')}`);
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(msg.patch.present ? 'vns_present' : 'vns_absent');
+      }
+      if ('readouts' in msg.patch) {
+        const r = msg.patch.readouts;
+        lines.push(`vns_readouts ${num(r?.rmssd_ms, 0, 10000, 'rmssd_ms')} ${num(r?.coherence, 0, 100, 'coherence')} ${num(r?.hr_bpm, 0, 400, 'hr_bpm')}`);
+      }
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading 0 ${vnsOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail 0 ${vnsOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+    case 'MODULE_CLEAR':
+      return ['vns_clear'];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the auricular VNS driver. */
+function vnsCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'vns':
+      return [`vns ${int(msg.side, 0, 255, 'side')} ${int(msg.freq_mhz, 0, 4294967295, 'freq_mhz')} ${int(msg.amp_ua, 0, 65535, 'amp_ua')} ` +
+              `${int(msg.pw_us, 0, 65535, 'pw_us')} ${int(msg.ppg, 0, 255, 'ppg')} ${int(msg.eeg_ref, 0, 255, 'eeg_ref')} ${int(msg.hrv_proto, 0, 255, 'hrv_proto')}`];
+    case 'vns_init': case 'vns_detect': case 'vns_stop': case 'vns_shutdown': case 'vns_sample':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
+}
+
 function stimChannel(v) {
   if (typeof v !== 'string' || !STIM_CHANNELS.has(v)) {
     throw new BridgeError(`channel must be one of ${[...STIM_CHANNELS].join(', ')}`);
@@ -196,8 +251,9 @@ function sockets(v) {
 function messageToLines(msg) {
   if (msg.kind === 'stim_pair') return stimModuleLines(msg);
   if (msg.kind === 'eeg') return eegModuleLines(msg);
+  if (msg.kind === 'vns') return vnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
