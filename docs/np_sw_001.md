@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 146
+**Revision:** 147
 **Date:** 2026-11-03  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -795,3 +795,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 144 | 2026-11-02 | NeurOne Software Engineering | **§6.3: `SWR-PL-04` status updated.** The Windows app gains `NPProtocolLibrary` (read-only guard on save and delete, clone through the shared core) and a test; the Windows screen is still not built. |
 | 145 | 2026-11-03 | NeurOne Software Engineering | **§6.3: `SWR-PL-04` status corrected.** The "Windows screen not built" item is removed: the UI is written once in `app/NeurOneUI` (`CLAUDE.md` §20) and its "Copy to edit" already offers the clone; the C# `NPProtocolLibrary` has no caller until `OI-UI-KMP-05` closes. |
 | 146 | 2026-11-03 | NeurOne Software Engineering | **§5.3.1: correction to Rev 143 — in Mode 3 the shared app reports a protocol stored only when the helmet holds it (`SWR-UP-02`, `SWR-HV-08`).** Rev 143 copied the Rev 132 rule ("a tier or hardware-version refusal is shown, any other outcome reports stored"), which Revs 133 to 135 had replaced in the iOS app: `ProtocolUploadFlow.program` reports stored only for an accepted answer to this upload, or no answer, and says the reason after every refusal and after an answer for other bytes. The Swift test port found it (`testModeThreeIsNotStoredAfterAnyRefusal`). `ProgrammingOutcome` now holds the rule, the Session tab uses it, and the per-cause messages are one function (`helmetRefusalMessages`) with a test that each cause has its own text. Also ported: the zone-resolution cases of the iOS socket-mask tests (`REQ-NPPS-17`), the `zones:` parsing refusals (`REQ-NPPS-08`), the consumable tracker, plural and tier-price, erasure, session history, descriptor compiler, parser and bundled-library cases. |
+| 147 | 2026-11-03 | NeurOne Software Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

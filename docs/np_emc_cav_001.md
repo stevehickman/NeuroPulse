@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 23
-**Date:** 2026-10-04
+**Revision:** 24
+**Date:** 2026-11-03
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement. **`REQ-CAV-04` TAKEN 2026-09-23 — Layer 4 deleted**
 **Effective Date:** 2026-09-20
 **Author:** NeurOne EMC / Systems Engineering
