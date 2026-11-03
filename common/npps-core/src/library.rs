@@ -283,8 +283,8 @@ const REASON_TIER_UNVERIFIED: u64 = 20;
 const REASON_HW_VERSION_MISMATCH: u64 = 27;
 const REASON_HW_VERSION_UNVERIFIED: u64 = 28;
 /// `NP_HUB_ERR_NO_LAYOUT` (REQ-FWHUB-64): the hub holds no socket layout for this helmet's hardware version. Not a tier or
-/// hardware-version refusal of the protocol and not "retry": it has no refusal kind and is not `notReady`, and until a screen
-/// has a message of its own for it (needs the eleven locales) the person is told the upload failed.
+/// hardware-version refusal of the protocol and not "retry": it has no refusal kind and is not `notReady`, and it has a cause
+/// of its own, `no_layout`, so a screen can say so (`PROTOCOL_MENU_REFUSED_NO_LAYOUT`).
 const REASON_NO_LAYOUT: u64 = 29;
 
 /// `SWR-UP-02`, `SWR-HV-08`, `REQ-UPG-01`: what an upload report means to a person, decided once for every app. The request is
@@ -318,7 +318,7 @@ fn helmet_cause(req: &Value) -> R<Value> {
         2 | 8 | 9 => "malformed", // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
-        REASON_NO_LAYOUT => "other", // NP_HUB_ERR_NO_LAYOUT: a failed upload to the person, until a message of its own exists
+        REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets
         _ => "other",
     });
     let final_report = matches!(req["status"].as_str(), Some("accepted" | "refused"));

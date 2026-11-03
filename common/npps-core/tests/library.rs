@@ -222,8 +222,8 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
         (25, "boot_refused"),
         // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
-        // 29 is NP_HUB_ERR_NO_LAYOUT: the hub does not know this helmet's sockets. Its own number on the wire, a failed upload to the person.
-        (29, "other"), (255, "other"), (99, "other"),
+        // 29 is NP_HUB_ERR_NO_LAYOUT: the hub does not know this helmet's sockets. Its own number on the wire and its own cause.
+        (29, "no_layout"), (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");
     }
