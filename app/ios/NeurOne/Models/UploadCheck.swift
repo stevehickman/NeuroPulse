@@ -87,7 +87,7 @@ struct UploadVerdict: Equatable {
 /// helmet, or nothing the person can do. A tier refusal (F4) never names a purchase (`NP-PWRSRC-001` §6.3).
 enum HelmetRefusalCause: Equatable {
     case tier, hardwareVersion, notReady, signature, wrongDevice, formatVersion, damaged, malformed, sessionActive
-    case bootRefused, other
+    case bootRefused, noLayout, other
     /// Not a refusal: the hub's final answer is for other bytes than the ones just sent (`UploadVerdict.cause(forSentHash:)`).
     case unmatched
 }

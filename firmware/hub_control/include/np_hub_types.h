@@ -81,6 +81,12 @@ typedef enum {
      * hub's own value is only the SWR-HV-07 default, which would state a layout the helmet may not have).  Not a
      * mismatch: retry after the first heartbeat.  Refused meanwhile: fail closed. */
     NP_HUB_ERR_HW_VERSION_UNVERIFIED = -28,
+    /* REQ-FWHUB-64 (OI-FWHUB-27; the Principal, 2026-11-02): the hub holds no socket layout for this helmet's
+     * hardware version, or the one it bound at bring-up is another version's, so it does not know which socket
+     * addresses this helmet has and runs no session.  Not a protocol mismatch (SWR-HV-08 says the protocol is for
+     * another version) and not "retry" (UNVERIFIED): nothing the person sends changes it, and a later heartbeat
+     * does not either.  It reaches the app as reason 29 in the upload-check frame (|status|). */
+    NP_HUB_ERR_NO_LAYOUT            = -29,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

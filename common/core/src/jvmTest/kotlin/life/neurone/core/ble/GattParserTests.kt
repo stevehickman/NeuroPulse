@@ -416,6 +416,7 @@ class GattParserTests {
         for (reason in listOf(2, 8, 9)) assertEquals(HelmetRefusalCause.MALFORMED, cause(reason))
         assertEquals(HelmetRefusalCause.SESSION_ACTIVE, cause(13))
         assertEquals(HelmetRefusalCause.BOOT_REFUSED, cause(25))
+        assertEquals(HelmetRefusalCause.NO_LAYOUT, cause(29))   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload
         // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
         assertEquals(HelmetRefusalCause.OTHER, cause(0xFF))
         assertEquals(HelmetRefusalCause.OTHER, cause(99))

@@ -13,6 +13,7 @@ import { SessionEngine } from './session.js';
 import { UIManager }    from './ui.js';
 import { PROTOCOLS, loadLibrary } from './vendor/npps-runtime.js';
 import { DeviceAPI }    from './api.js';
+import { SimModuleRegistry } from './simmodule.js';
 import { SIM_VERSION }  from './version.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,7 +138,16 @@ class NeurOneSimulator {
   }
 
   _initAPI() {
+    // NP-SIM-FW-001: simulated modules fed by the firmware bridge (stay empty, and so change
+    // nothing, unless the server was started with NP_SIM_FW_BIN).
+    this._simModules = new SimModuleRegistry();
+    this._helmet.attachSimModules(this._simModules);
     this._api = new DeviceAPI({
+      onFirmwareMessage: (msg) => {
+        this._simModules.onMessage(msg, this._wallNow ?? 0);
+        const el = document.getElementById('fw-banner');
+        if (el) el.textContent = this._simModules.banner();
+      },
       onSessionStart: (descriptor) => {
         const id = descriptor.protocolId;
         if (id && PROTOCOLS[id]) {
@@ -245,6 +255,7 @@ class NeurOneSimulator {
   }
 
   _tick(wallTime, dt) {
+    this._wallNow = wallTime;   // the frame clock SimModule.render also receives
     // Advance session
     this._session.tick();
     const snap = this._session.snapshot(wallTime);

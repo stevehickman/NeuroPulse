@@ -98,7 +98,7 @@ struct SocketPosition: Equatable {
 struct SocketDescriptor: Identifiable, Equatable {
 
     /// 1-based socket id, matching NPPS zone `sockets:` lists,
-    /// `hardware/np_socket_map.json` and the generated map. Firmware ids are
+    /// `hardware/np_socket_map_v1.json` and the generated map. Firmware ids are
     /// 0-based; the conversion happens at the firmware encoder boundary.
     let socketID: UInt8
 

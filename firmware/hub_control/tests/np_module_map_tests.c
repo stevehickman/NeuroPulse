@@ -1403,8 +1403,28 @@ static void test_cal_length_matches_pbm_library(void)
     check(NP_PBM_SOCKET_DOMAIN == NP_HEXMAP_MAX_SOCKETS,
           "pbm NP_PBM_SOCKET_DOMAIN == hub NP_HEXMAP_MAX_SOCKETS");
 }
+/* @verifies REQ-FWHUB-64#a */
+static void test_address_valid_is_the_bound_geometry_and_nothing_else(void)
+{
+    /* Before any geometry is bound there are no valid addresses, whatever the index. */
+    np_hub_status_t rc = np_module_map_init(GEOM, 1u);
+    (void)rc;
+    check(np_module_map_init(NULL, 0u) != NP_HUB_OK, "valid: an empty geometry is refused, so nothing can be bound by mistake");
+    check(np_module_map_init(GEOM, N_SOCK) == NP_HUB_OK, "valid: set-up, nine entries bound, the last unwired");
+    bool wired_ok = true;
+    for (unsigned i = 0; i < N_SOCK; i++) {
+        if (np_module_map_address_valid((uint16_t)i) != GEOM[i].present_in_helmet) { wired_ok = false; }
+    }
+    check(wired_ok, "valid: an index is a valid address exactly when its entry is wired");
+    check(!np_module_map_address_valid(SOCK_UNWIRED), "valid: the unwired entry is not a valid address though it is inside the table");
+    check(!np_module_map_address_valid(N_SOCK), "valid: the first index past the table is not valid");
+    check(!np_module_map_address_valid(127u), "valid: the last index of the 7-bit domain is not valid on a nine-entry table");
+    check(!np_module_map_address_valid(65535u), "valid: a huge index is not valid");
+}
+
 int main(void)
 {
+    test_address_valid_is_the_bound_geometry_and_nothing_else();
     test_addr_pack();
     test_init();
     test_resolve_empty();

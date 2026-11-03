@@ -60,7 +60,9 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t   *buf,
 /* True iff socket_id is selected by this command. Out-of-domain ids are false. */
 bool np_protocol_socket_is_set(const np_session_cmd_t *cmd, uint8_t socket_id);
 
-/* Number of sockets this command selects. */
+/* Number of SET BITS in this command's mask.  This is NOT a count of valid addresses or of capacity used: a bit
+ * names a socket only if the helmet has one at that index (np_module_map_address_valid(), REQ-FWHUB-64), and
+ * nothing here asks.  No production code counts capacity with it. */
 uint16_t np_protocol_socket_count(const np_session_cmd_t *cmd);
 
 /*

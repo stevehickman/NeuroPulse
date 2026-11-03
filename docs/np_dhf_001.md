@@ -170,6 +170,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-NPPS-REF-001 | NPPS Language Reference | 33 | 2026-10-30 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 1 | 2026-11-03 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 

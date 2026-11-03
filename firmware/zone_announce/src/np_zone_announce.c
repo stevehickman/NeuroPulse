@@ -114,7 +114,7 @@ static const np_zn_socket_desc_t LEGACY_SOCKET_MAP[NP_ZONE_COUNT] = {
      * ladder's fixed positions, approximated on the scan-grounded surface — the
      * ladder itself only reports WHICH of five, so anything finer would be
      * invented. Real per-socket coordinates arrive with np_module_map's geometry
-     * table (OI-HEXMAP-03); hardware/np_socket_map.json is where they are
+     * table (OI-HEXMAP-03); hardware/np_socket_map_v1.json is where they are
      * derived today. */
     /* slot 0 — ZM-01 Frontal Left  */ { 0u,  119, -44, -38, true },
     /* slot 1 — ZM-02 Frontal Right */ { 1u,  119,  44, -38, true },

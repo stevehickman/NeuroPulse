@@ -34,6 +34,7 @@
 #include "np_stim_xcheck.h"
 #include "np_session_log.h"
 #include "np_log_backend.h"   /* OI-NVRAM-19: np_log_backend_admits_sessions() */
+#include "np_layout_bind.h"   /* REQ-FWHUB-64: np_layout_admit() */
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
@@ -663,6 +664,27 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
      * version is the safety MCU's, from its verified record, and a flag in the protocol or the app changes nothing. */
     rc = np_protocol_hw_version_admit(&s_ctx.desc, np_safety_spi_get_hardware_version(),
                                       np_safety_spi_get_tier_report(NULL, NULL));
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
+    /* REQ-FWHUB-64 (OI-FWHUB-27): the hub must know which addresses this helmet has.  A helmet whose version has
+     * no layout bound refuses the session, so a socket address is never read against another version's lattice. */
+    rc = np_layout_admit(np_safety_spi_get_hardware_version());
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
+    /* REQ-FWHUB-64: every socket address the protocol names must be one this helmet has.  Checked against the
+     * bound layout, so after the admission above, and a protocol that names one that is not is refused whole
+     * as an invalid address, not trimmed and not counted. */
+    rc = np_layout_check_protocol_addresses(&s_ctx.desc);
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
         s_ctx.state = NP_SESSION_IDLE;

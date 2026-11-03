@@ -140,6 +140,13 @@ export class DeviceAPI {
         }
         break;
 
+      // NP-SIM-FW-001: firmware-in-the-loop events relayed by the bridge (opt-in server mode)
+      case 'MODULE_LIST':
+      case 'MODULE_STATE':
+      case 'FW_LOG':
+        this._cb.onFirmwareMessage?.(msg);
+        break;
+
       case 'ERROR':
         console.warn(`[NP-API] Server error ${msg.code}: ${msg.message}`);
         break;

@@ -305,9 +305,11 @@ static void test_session_start_beyond_old_domain(void)
     check(ctx.stage == NP_PBM_STAGE_RAMP_UP, "session reaches RAMP_UP");
 }
 
-/* @verifies REQ-SW02-09 */
-static void test_session_start_rejects_over_capacity(void)
+/* @verifies REQ-FWHUB-64#d */
+static void test_session_start_accepts_every_address_of_the_domain(void)
 {
+    /* Capacity is one entry per address the descriptor can name (the 7-bit domain), so a descriptor that names
+     * every socket there is cannot exceed it.  Until NP-FW-HUB-001 capacity was 32 and this was refused. */
     np_pbm_session_desc_t desc;
     memset(&desc, 0, sizeof(desc));
     desc.hdr.version = NP_SES1064_VERSION;
@@ -320,12 +322,28 @@ static void test_session_start_rejects_over_capacity(void)
     np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
 
     np_pbm_status_t rc = np_pbm_session_start(&ctx, &desc);
-    check(rc == NP_PBM_ERR_INVALID_ARG,
-          "session_start fails closed (before any HAL call) when a descriptor "
-          "addresses more sockets than NP_PBM_SESSION_MAX_ACTIVE_SOCKETS");
-    check(ctx.stage == NP_PBM_STAGE_IDLE,
-          "a rejected start leaves the session in IDLE, not PREFLIGHT/FAULT with "
-          "partial hardware state touched");
+    check(rc == NP_PBM_OK, "session_start accepts a descriptor that names every one of the 128 addresses");
+    check(ctx.active_socket_count == 128U, "all 128 sockets are active: nothing was truncated");
+    check(NP_PBM_SESSION_MAX_ACTIVE_SOCKETS == NP_PBM_SOCKET_DOMAIN,
+          "capacity is the whole socket-mask domain, not an estimate of typical use");
+}
+
+/* @verifies REQ-SW02-09 */
+static void test_session_start_fails_closed_when_capacity_is_exceeded(void)
+{
+    /* A descriptor can no longer exceed the session's capacity, because capacity is the whole domain; the
+     * fail-closed refusal still holds for any capacity the caller gives expand(), and that is what is tested. */
+    np_pbm_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    memset(desc.groups[0].mask, 0xFF, sizeof(desc.groups[0].mask));
+    desc.groups[0].preset = make_preset(100U, 10U, 0x10U);
+    uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    uint8_t count = 9U;
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, 127U) == NP_PBM_ERR_INVALID_ARG,
+          "expand: 128 addresses over a capacity of 127 is refused, fail closed");
+    check(count == 0U, "expand: and reports nothing expanded, rather than a truncated list");
 }
 
 /* ── T2 combined descriptor wire + start ──────────────────────────────────────── */
@@ -677,8 +695,63 @@ static void test_hal_stub_socket_domain(void)
     (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
 }
 
+/* The validator the tests install: indexes 0..79 are sockets, as on a helmet with an 80-socket lattice. */
+static bool valid_below_80(uint8_t socket_id, void *ctx)
+{
+    (void)ctx;
+    return socket_id < 80U;
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_count_it(void)
+{
+    np_pbm_session_set_address_validator(valid_below_80, NULL);
+
+    np_pbm_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    mask_set(desc.groups[0].mask, 3U);
+    mask_set(desc.groups[0].mask, 79U);
+    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
+    uint8_t count = 7U;
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK && count == 2U,
+          "address: two valid addresses expand as before, the highest valid index included");
+
+    mask_set(desc.groups[0].mask, 80U);
+    count = 7U;
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_ERR_INVALID_ADDRESS,
+          "address: one address past the lattice refuses the descriptor as an invalid address");
+    check(count == 0U, "address: and nothing is reported as expanded");
+
+    /* Invalid addresses are not capacity: three valid ones with capacity 4 and forty invalid ones is an invalid
+     * address, not an over-capacity descriptor. */
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    for (uint8_t s = 0U; s < 3U; s++) { mask_set(desc.groups[0].mask, s); }
+    for (uint8_t s = 80U; s < 120U; s++) { mask_set(desc.groups[0].mask, s); }
+    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, 4U) == NP_PBM_ERR_INVALID_ADDRESS,
+          "address: invalid addresses are reported as invalid, not as a capacity refusal");
+
+    /* And five valid addresses over a capacity of 4 is still the capacity refusal. */
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.group_count = 1U;
+    for (uint8_t s = 0U; s < 5U; s++) { mask_set(desc.groups[0].mask, s); }
+    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, 4U) == NP_PBM_ERR_INVALID_ARG,
+          "address: five valid addresses over a capacity of four is still the capacity refusal");
+
+    np_pbm_session_set_address_validator(NULL, NULL);
+    mask_set(desc.groups[0].mask, 100U);
+    check(np_pbm_session_desc_expand(&desc, ids, presets, &count, NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) == NP_PBM_OK,
+          "address: with no validator installed nothing is checked (the library's behaviour before the hub supplied one)");
+}
+
 int main(void)
 {
+    test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_count_it();
     test_struct_sizes();
     test_wire_len();
     test_serialize_parse_roundtrip();
@@ -687,7 +760,8 @@ int main(void)
     test_expand_dedup_first_group_wins();
     test_expand_overflow_fails_closed();
     test_session_start_beyond_old_domain();
-    test_session_start_rejects_over_capacity();
+    test_session_start_accepts_every_address_of_the_domain();
+    test_session_start_fails_closed_when_capacity_is_exceeded();
     test_t2_combined_wire_and_start();
     test_fai_regressions();
     test_hal_stub_socket_domain();       /* OI-FWHUB-12 */

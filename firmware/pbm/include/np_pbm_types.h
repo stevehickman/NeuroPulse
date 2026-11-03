@@ -31,6 +31,7 @@ typedef enum {
     NP_PBM_ERR_SIG_INVALID      = -14, /* Ed25519 session descriptor failed   */
     NP_PBM_ERR_ADC_TIMEOUT      = -15,
     NP_PBM_ERR_SAFETY_REJECTED  = -16, /* safety MCU denied enable            */
+    NP_PBM_ERR_INVALID_ADDRESS  = -17, /* a descriptor names a socket the helmet does not have (REQ-FWHUB-64) */
 } np_pbm_status_t;
 
 /* ── Slot type (result of ZONE_ID ADC classification) ───────────────────────── */
