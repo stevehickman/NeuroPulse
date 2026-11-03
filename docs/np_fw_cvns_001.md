@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 14
-**Date:** 2026-10-04
+**Revision:** 15
+**Date:** 2026-11-03
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -1211,3 +1211,11 @@ No requirement figure is set here, because step 2 has not set a rate for one to 
 **Evidence.** Host tests only. `np_cardiac_interlock_tests` (OI-CVNS-14 group: the false rhythm cut, the 5.0 / 5.1 BPM boundary on both sides, a late first report, a quiet hub, report age and validity, re-enable needing fresh agreement, a saturated mean) with three mutations checked (tolerance widened, silence-after-agreement not cut, agreement never remembered: each fails the group). `np_cvns_fai_tests` `fai_hr_report`, `np_mod_cvns_tests`, `np_hal_platform_tests` (frame classification). **Nothing is run on silicon, and no latency, SPI timing or bench injection is measured.** FAI-CV02 and FAI-CV03 need a hub report source on the bench from now on, because the MCU never grants CVNS without one.
 
 **Not changed:** the 15 BPM threshold, the 8-interval window, the 18 s history, the 3 s R-peak staleness, the 30 s lockout, `NP_CARDIAC_BLOCK_MASK`.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 15 | 2026-11-03 | NeurOne Firmware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

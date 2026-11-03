@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 26
-**Date:** 2026-09-29
+**Revision:** 27
+**Date:** 2026-11-03
 **Status:** DRAFT — design study; not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -1534,3 +1534,11 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 - **Competitive:** `docs/reference/competitive-position.md` — the comparative form of the irradiance and dose-metering arguments at §6.4 and §9.3
 - **Thermal:** NP-THERM-CFD-R1-001 (Path B1, scalp-facing NTC), NP-THERM-BEZEL-001 (bezel **height** 1.0 mm; the lateral width is OI-HEXTILE-01)
 - **Tooling:** the universal hex-tile mould gains a standard rigidizer cavity (§6.3); NP-TOOL-ZM-SM-001 (SUPERSEDED) needs no successor
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 27 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

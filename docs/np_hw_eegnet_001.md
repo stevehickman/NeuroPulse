@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 8
-**Date:** 2026-08-31
+**Revision:** 9
+**Date:** 2026-11-03
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1756,3 +1756,11 @@ is not a net decision — it is `OI-EEGNET-14`, the seating-concentricity measur
 one number decides whether §1.4's zero-tooling in-tile offset is sufficient and therefore whether
 §§2–6 are needed at all for T1. `OI-EEGNET-15` decides the same question for T2 independently. The
 document is written to be decidable, not to be adopted.*
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 9 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |
