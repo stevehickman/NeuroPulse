@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 235
+**Revision:** 236
 **Date:** 2026-11-03
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 235 | 2026-11-03 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 236 | 2026-11-03 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 147 | 2026-11-03 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -111,8 +111,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 |---|---|---|---|---|---|---|
 | NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | 4 (written as Rev D) | 2026-05-09 | [np_hw_fpc_001.docx](./superseded/np_hw_fpc_001.docx) | SUPERSEDED 2026-07-28 by NP-HEX-ZM-001 | SPEC-HW |
 | NP-HW-FPC-001 (variant) | 1064nm Smart Zone Module FPC Layout Variant | 5 | 2026-05-13 | [np_hw_fpc_001.md](./superseded/np_hw_fpc_001.md) | SUPERSEDED 2026-07-28 — see in-doc note | SPEC-HW |
-| NP-HW-HUB-001 | Hub PCB — Cranial Socket Interface, I2C Fan-Out and PD Analog Front End | 8 | 2026-09-25 | [np_hw_hub_001.md](./np_hw_hub_001.md) | DRAFT | SPEC-HW |
-| NP-HW-HEXTILE-001 | Hex-Tile Module — Electrical / FPC Specification (T1-A, T1-C) | 26 | 2026-09-29 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DRAFT | SPEC-HW |
+| NP-HW-HUB-001 | Hub PCB — Cranial Socket Interface, I2C Fan-Out and PD Analog Front End | 9 | 2026-11-03 | [np_hw_hub_001.md](./np_hw_hub_001.md) | DRAFT | SPEC-HW |
+| NP-HW-HEXTILE-001 | Hex-Tile Module — Electrical / FPC Specification (T1-A, T1-C) | 27 | 2026-11-03 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TCAP-001 | T2 Clinical Electrode Cap — Wiring and Driver Channel Assignment | 2 | 2026-09-20 | [np_hw_tcap_001.md](./np_hw_tcap_001.md) | DRAFT | SPEC-HW |
 | NP-HW-AUDIO-001 | Audio Cup Assembly — Hardware Specification | 4 | 2026-09-24 | [np_hw_audio_001.md](./np_hw_audio_001.md) | DRAFT | SPEC-HW |
 | NP-HW-NASAL-001 | Intranasal Bilateral Y-Probe and Hygiene Sleeve — Hardware Specification | 2 | 2026-09-23 | [np_hw_nasal_001.md](./np_hw_nasal_001.md) | DRAFT | SPEC-HW |
@@ -142,13 +142,13 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 5 | 2026-09-27 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 31 | 2026-11-03 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 32 | 2026-11-03 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 4 | 2026-10-30 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
-| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 14 | 2026-10-04 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
-| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 5 | 2026-09-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
+| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 15 | 2026-11-03 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
+| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 6 | 2026-11-03 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 12 | 2026-11-03 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 3 | 2026-09-29 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
@@ -162,7 +162,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 3 | 2026-08-18 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
+| NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 4 | 2026-11-03 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 10 | 2026-10-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 4 | 2026-10-18 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
@@ -309,7 +309,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 1 | 2026-07-18 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
-| NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 8 | 2026-08-31 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
+| NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 9 | 2026-11-03 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
 | NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 6 | 2026-10-20 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
 | NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 1 | 2026-08-11 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |

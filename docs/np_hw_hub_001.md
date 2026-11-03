@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** 8
-**Date:** 2026-09-25
+**Revision:** 9
+**Date:** 2026-11-03
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -602,7 +602,7 @@ Three findings, each verifiable by grep:
    typedef, the `np_module_map_init()` parameter, and dereferences. The `lobe`/`side` fields are
    populated exclusively by test fixtures.
 3. **No generator.** `scripts/sync-socket-map.ts` emits `socketMap.generated.ts` and
-   `hardware/np_socket_map.json`. It emits no firmware C, so nothing could keep a firmware lobe table
+   `hardware/np_socket_map_v1.json`. It emits no firmware C, so nothing could keep a firmware lobe table
    in sync with `00-zones.npps` even if one were written.
 
 Meanwhile the live path carries zone membership end to end without touching any of it: the app reads
@@ -2206,3 +2206,11 @@ See `firmware/pbm/` for implementation. FAI-SM-04 (three-channel bench verificat
 | HUB-DRC-08 | Boot init function configures GAIN_SEL[0..4] LOW before zone detect task | ✓ (§A.5.3; np_pbm_hal_tia_gain_boot_init) |
 | HUB-DRC-09 | Feedback trace length ≤ 5 mm from DG2788A to TIA op-amp | Open — layout DRC (OI-HUB-02) |
 | HUB-DRC-10 | PCA9546A channel enable/disable firmware tested with 5-module simultaneous scenario | Open — FAI-SM-04 bench |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 9 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

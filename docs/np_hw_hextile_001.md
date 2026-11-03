@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 26
-**Date:** 2026-09-29
+**Revision:** 27
+**Date:** 2026-11-03
 **Status:** DRAFT — design study; not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -1525,7 +1525,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 - **Must co-revise:** NP-HW-HUB-001 (`docs/np_hw_hub_001.md`) — Rev 3 per OI-HEXTILE-10; §6.3 DG2788A count and §7.2 enable architecture per OI-HEXTILE-13/14
 - **Must co-revise:** NP-DRV-SHELL-002 (`docs/np_drv_shell_002.md`) — §3.4 branch tree, §6 `SAFE_EN[n]`, §7.1 cluster-tail connector count (12/16 provisioned vs 18) per OI-HEXTILE-13/14
 - **Cluster partition diagram:** `docs/diagrams/np_hextile_cluster_map.svg` — the 18-cluster midline-symmetric partition of the 80-socket lattice, socket ids and cluster boundaries (§8.2.1)
-- **Lattice source of truth:** `scripts/sync-socket-map.ts` (`ROW_WIDTHS`) → `hardware/np_socket_map.json`, `common/lib/socketMap.generated.ts`
+- **Lattice source of truth:** `scripts/sync-socket-map.ts` (`ROW_WIDTHS`) → `hardware/np_socket_map_v1.json`, `common/lib/socketMap.generated.ts`
 - **Firmware:** **NP-FW-HEXTILE-001 (`docs/np_fw_hextile_001.md`) — the on-module U1 firmware, SW-04 (Rev 24)**; NP-FW-PBM1064-001 Rev 2 (register map, §6.6 factory calibration); `firmware/hub_control/np_module_map.{h,c}` (UID inventory, `check_placement`)
 - **Optics:** NP-OPT-PSF-001 (`docs/np_opt_psf_001.md`) — ~26 mm resolution floor at cortical depth; the basis for §4.2's acceptance of sub-millimetre wavelength interleave irregularity
 - **Power:** NP-PWR-BUDGET-001 Rev 2 (`docs/np_pwr_budget_001.md`) — §3.4 the efficacy floor this document's R-4/R-5 ceilings sit above, §3.5 the full-population bound (~2.0 kW) and the *populated ≠ driven* distinction, §3.6 the ~30 W whole-vault mode behind §9.3 consequence 4, §3.7 why an emitter count is not a capability claim. **The analysis lives there; only the routing lives here**
@@ -1534,3 +1534,11 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 - **Competitive:** `docs/reference/competitive-position.md` — the comparative form of the irradiance and dose-metering arguments at §6.4 and §9.3
 - **Thermal:** NP-THERM-CFD-R1-001 (Path B1, scalp-facing NTC), NP-THERM-BEZEL-001 (bezel **height** 1.0 mm; the lateral width is OI-HEXTILE-01)
 - **Tooling:** the universal hex-tile mould gains a standard rigidizer cavity (§6.3); NP-TOOL-ZM-SM-001 (SUPERSEDED) needs no successor
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 27 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

@@ -8,7 +8,7 @@
  * merges, the assign-revisions workflow runs this script on `main`, once per fragment, oldest first. For each
  * document named it sets `**Revision:**` (current + 1) and `**Date:**`, the document's row in the NP-DHF-001 index,
  * and appends the history row (in the linked docs/reference/*-revision-history.md if there is one, else in the
- * document). The DHF is bumped once per fragment. The fragment is deleted. Numbers are never chosen by an author,
+ * document; a document with no history table at all gets one, started at its end). The DHF is bumped once per fragment. The fragment is deleted. Numbers are never chosen by an author,
  * so two PRs cannot take the same one.
  *
  * Fragment:
@@ -64,15 +64,25 @@ export function pendingFragments(root: string): string[] {
     .sort((a, b) => added(a) - added(b) || a.localeCompare(b));
 }
 
-/** Insert a history row after the last row of the run that holds the highest number. */
-function insertRow(text: string, row: string, n: number, where: string): string {
+/** The heading and table a document gets when it has no history table to append to (its first row is the one assigned). */
+const NEW_TABLE_HEAD = "## Revision history\n\nRevisions before the first row below were not recorded in a table in this document.\n\n| Rev | Date | Author | Description |\n|---|---|---|---|";
+
+/**
+ * Insert a history row after the last row of the run that holds the highest number. A document with no history table
+ * at all (`startTable`: it has no linked history file either) gets one, at its end, holding this row.
+ */
+function insertRow(text: string, row: string, n: number, where: string, startTable = false): string {
   const lines = text.split("\n");
   let max = -1, at = -1;
   lines.forEach((l, i) => {
     const m = HISTORY_ROW.exec(l);
     if (m && Number(m[1]) >= max) { max = Number(m[1]); at = i; }
   });
-  if (at < 0) throw new Error(`${where}: no history row to append after`);
+  if (at < 0) {
+    if (!startTable) throw new Error(`${where}: no history row to append after`);
+    if (/^#+ +Revision history\s*$/im.test(text)) throw new Error(`${where}: has a "Revision history" heading but no history row to append after; fix the table by hand`);
+    return `${text.replace(/\s+$/, "")}\n\n${NEW_TABLE_HEAD}\n${row}\n`;
+  }
   if (max >= n) throw new Error(`${where}: its history already reaches ${max}, so revision ${n} would not be the newest`);
   let end = at;
   while (end + 1 < lines.length && HISTORY_ROW.test(lines[end + 1])) end++;
@@ -139,7 +149,7 @@ export function assignNext(root: string, validate = true): Assigned {
     const serial = serialFor(s.target), file = fileOf.get(serial) as string, r = revs.get(s.target) as { from: number; to: number };
     texts.set(file, resolveTokens(setRevision(get(file), r.to, date), revs));
     const hf = historyFile(root, serial, file);
-    texts.set(hf, insertRow(get(hf), `| ${r.to} | ${date} | ${s.author} | ${resolveTokens(s.text, revs)} |`, r.to, hf));
+    texts.set(hf, insertRow(get(hf), `| ${r.to} | ${date} | ${s.author} | ${resolveTokens(s.text, revs)} |`, r.to, hf, hf === file));
   }
   for (const s of frag.sections) {
     const r = revs.get(s.target) as { from: number; to: number };
@@ -294,6 +304,28 @@ function selfTest(): void {
     check(res.status === "done" && /^\*\*Revision:\*\* 4$/m.test(sw) && /\| 4 \| 2026-11-02 \| A \| \*\*next\*\* \|/.test(sw), "a Revision line behind its history takes the next number after the history's newest row (3 -> 4, not 2 -> 3)");
     check(/\*\*3 → 4: healed\./.test(dh) && /\| NP-SW-001 \| SW \| 4 \|/.test(read(heal, DHF_FILE)), "and the text and the DHF index follow it");
   } finally { rmSync(heal, { recursive: true, force: true }); }
+
+  // A document with no history table anywhere: the assigner starts one.
+  const nt = mk();
+  try {
+    unlinkSync(join(nt, "docs/reference/np-fw-hub-001-revision-history.md"));
+    commit(nt, "base");
+    frag(nt, "n.md", "date: 2026-11-02\n## DHF\nauthor: A\ntext: **{NP-FW-HUB-001 from → to}: started.**\n## NP-FW-HUB-001\nauthor: A\ntext: **first recorded row**\n");
+    commit(nt, "fragment");
+    const res = assignNext(nt, false);
+    const fw = read(nt, "docs/np_fw_hub_001.md");
+    check(res.status === "done" && /^\*\*Revision:\*\* 2$/m.test(fw), "a document with no history table is bumped from its Revision line (1 -> 2)");
+    check(/\n## Revision history\n\nRevisions before the first row below were not recorded[^\n]*\n\n\| Rev \| Date \| Author \| Description \|\n\|---\|---\|---\|---\|\n\| 2 \| 2026-11-02 \| A \| \*\*first recorded row\*\* \|\n$/.test(fw), "and gets a history table at its end holding the row");
+    check(/> \*\*Rev 2 \(2026-11-02\) — the callout\.\*\*/.test(fw), "with its own tokens resolved as before");
+    const nt2 = read(nt, DHF_FILE);
+    check(/\| NP-FW-HUB-001 \| HUB \| 2 \| 2026-11-02 \|/.test(nt2), "and its DHF index row follows");
+    // The next change appends to the table the first one started.
+    frag(nt, "m.md", "date: 2026-11-03\n## DHF\nauthor: B\ntext: **{NP-FW-HUB-001 from → to}: again.**\n## NP-FW-HUB-001\nauthor: B\ntext: **second row**\n");
+    commit(nt, "fragment 2");
+    assignNext(nt, false);
+    const fw2 = read(nt, "docs/np_fw_hub_001.md");
+    check((fw2.match(/## Revision history/g) ?? []).length === 1 && /\| 2 \|[^\n]*\n\| 3 \| 2026-11-03 \| B \| \*\*second row\*\* \|\n$/.test(fw2), "the next change appends to that table, and no second table is started");
+  } finally { rmSync(nt, { recursive: true, force: true }); }
 
   // Converting a hand-numbered branch gives back the same numbers when assigned.
   const cv = mk();

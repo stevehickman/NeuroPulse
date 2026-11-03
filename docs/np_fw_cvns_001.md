@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 14
-**Date:** 2026-10-04
+**Revision:** 15
+**Date:** 2026-11-03
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -341,7 +341,7 @@ This section specifies the STM32G071 safety MCU bare-metal behavior. The C imple
 
 ### 5.1 Hardware interfaces
 
-> **⚠ UNVERIFIED — do not build to this table.** Every row below disagrees with `firmware/safety_mcu/include/np_safety_config.h`, and there is no schematic in this repository to settle which is intended (`hardware/` holds only `np_socket_map.json` and `np_helmet_surface.json`). The table is retained verbatim as Rev 1's claim, not as the requirement. **Tracked as OI-CVNS-08 (pin map) and OI-CVNS-09 (enable-line count); both are BLOCKING on PCB layout (gate G1).** `np_safety_config.h` itself carries the caveat "GPIO bank assignments are provisional pending PCB layout (G1 gate)", so neither side is currently authoritative.
+> **⚠ UNVERIFIED — do not build to this table.** Every row below disagrees with `firmware/safety_mcu/include/np_safety_config.h`, and there is no schematic in this repository to settle which is intended (`hardware/` holds only `np_socket_map_v1.json` and `np_helmet_surface.json`). The table is retained verbatim as Rev 1's claim, not as the requirement. **Tracked as OI-CVNS-08 (pin map) and OI-CVNS-09 (enable-line count); both are BLOCKING on PCB layout (gate G1).** `np_safety_config.h` itself carries the caveat "GPIO bank assignments are provisional pending PCB layout (G1 gate)", so neither side is currently authoritative.
 
 | Signal | Direction | STM32G071 pin (Rev A claim) | In-tree firmware | Description |
 |--------|-----------|------------------------------|------------------|-------------|
@@ -907,7 +907,7 @@ So the earlier framing — "one of the two documents a board that cannot exist" 
 | **A — the code is right; §5.1 is stale.** Correct §5.1 to PA8 / PB5 / in-band SPI heartbeat. | The code is self-consistent for the cardiac path, is internally consistent on the PA bank since §7.2 resolved the PA4 double-assignment, and is what the Class C unit and its new host tests actually exercise. `np_safety_config.h` is the file an implementer reads. | The header states of itself that "GPIO bank assignments are provisional pending PCB layout (G1 gate)" — it does not claim to be authoritative, so "the code is right" is an assumption, not a finding. |
 | **B — §5.1 is the intended board; the code's provisional map is stale.** Re-map the firmware at G1. | `np_safety_config.h` states in its own header comment: "GPIO bank assignments are provisional pending PCB layout (G1 gate)" — the code does not claim authority. | §5.1's `RPEAK_IN`-on-a-stimulation-output row means Rev 1's map cannot be adopted wholesale regardless. |
 
-**Why the zone enables were never good evidence.** `NP_EN_PBM_ZONE0..4` was stale before it was retired: zones are not a fixed set of five hardware slots — a zone is a named set of sockets on the hex lattice, and `protocols/predefined/00-zones.npps` states in its own header that it "is the only definition of a zone" (see also CLAUDE.md §3 and `hardware/np_socket_map.json`). Anyone re-opening this item should not resurrect "SPI1 collides with the PBM zone enables" as an argument; that collision is gone.
+**Why the zone enables were never good evidence.** `NP_EN_PBM_ZONE0..4` was stale before it was retired: zones are not a fixed set of five hardware slots — a zone is a named set of sockets on the hex lattice, and `protocols/predefined/00-zones.npps` states in its own header that it "is the only definition of a zone" (see also CLAUDE.md §3 and `hardware/np_socket_map_v1.json`). Anyone re-opening this item should not resurrect "SPI1 collides with the PBM zone enables" as an argument; that collision is gone.
 
 **What would settle it:** the STM32G071 schematic / PCB netlist from the G1 layout package — the single artefact that makes one of these maps a fact. Until it exists, neither is a requirement. The former sequencing dependency on `NP_SAFETY_EN_PBM_CRANIAL` (OI-HUB-C07) is **discharged** — that landed in NP-HW-HUB-001 §7.2 — so this item is now blocked on G1 alone.
 
@@ -1211,3 +1211,11 @@ No requirement figure is set here, because step 2 has not set a rate for one to 
 **Evidence.** Host tests only. `np_cardiac_interlock_tests` (OI-CVNS-14 group: the false rhythm cut, the 5.0 / 5.1 BPM boundary on both sides, a late first report, a quiet hub, report age and validity, re-enable needing fresh agreement, a saturated mean) with three mutations checked (tolerance widened, silence-after-agreement not cut, agreement never remembered: each fails the group). `np_cvns_fai_tests` `fai_hr_report`, `np_mod_cvns_tests`, `np_hal_platform_tests` (frame classification). **Nothing is run on silicon, and no latency, SPI timing or bench injection is measured.** FAI-CV02 and FAI-CV03 need a hub report source on the bench from now on, because the MCU never grants CVNS without one.
 
 **Not changed:** the 15 BPM threshold, the 8-interval window, the 18 s history, the 3 s R-peak staleness, the 30 s lockout, `NP_CARDIAC_BLOCK_MASK`.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 15 | 2026-11-03 | NeurOne Firmware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |

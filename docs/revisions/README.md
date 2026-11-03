@@ -39,6 +39,11 @@ document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, and
 `docs/reference/*-revision-history.md` if there is one); it deletes the fragment and commits, authored by the PR's author
 and committed by the App `RevNumberFixer`.
 
+A document with **no history table** (no `docs/reference/<serial>-revision-history.md` and no table in the document) is
+numbered from its `**Revision:**` line, and the assigner starts a `## Revision history` section at the end of the
+document, with a line saying earlier revisions were not recorded in a table, and the row. Later changes append to it. A
+document that has the heading but no row is refused (the run stops with nothing changed): fix the table by hand.
+
 ## Bringing a hand-numbered branch across
 
 ```
