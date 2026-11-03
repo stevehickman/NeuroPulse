@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 78 (2026-11-03) — Document Map: revision numbers are no longer written by authors. No locked decision changed; one row added.**
+
+**What changed.** The Document Map's subject-documents table gains one row, pointing at `docs/revisions/README.md`: a PR that changes a controlled document writes a fragment under `docs/revisions/pending/`, never a revision number, a history row or a `Rev` cell in the `NP-DHF-001` index. Nothing else in this file changed.
+
+**Why.** Sessions working in parallel took the same next integer and the second to merge had to renumber (the DHF index was touched by 125 commits in two weeks). The principal chose to have a script assign the number when the change merges (`docs/human-input/np-qms-dc-001-revision-assignment.md`, logged in `docs/status/completed-decisions.md` on 2026-11-02, `NP-QMS-DC-001` Rev 3 §8.2, in force since `docs/revisions/policy.json` was set to `assign-at-merge`). A session that reads this file first now learns the rule before it hand-numbers a change, which `check-revision-fragments.ts` would reject.
+
+**What it leaves.** CLAUDE.md's own `**Revision:**` is still written by hand, because the file has no `**Document:**` serial and the assigner does not cover it. §1 to §6 and §16 to §22 and every subsection number are unchanged.
+
 **Rev 77 (2026-10-30) — §3: the 1 Hz auricular VNS frequency floor is removed; any positive frequency is accepted. A limit changed; the charge ceilings, the 40 mA stop-gap and every interlock are unchanged.**
 
 **What changed.** The `VNS (auricular)` row of the §3 table says there is no floor above zero. `VNS_MIN_HZ` is deleted from `common/npps/constants.json` and its generated outputs. The validator refuses a frequency of 0 or less and nothing else (`VALIDATE_MSG_VNS_HRV_FREQUENCYHZ`, text now "must be greater than 0 Hz"). The HRV taVNS gate (`np_hrv_tavns_init`, `np_hrv_session_config_t`) carried an integer-hertz `uint16_t`, which could not hold a sub-hertz value; it is now `uint32_t` millihertz (`tavns_freq_mhz`), the unit the hub wire field already used. The cervical device keeps its 1–25 Hz.
