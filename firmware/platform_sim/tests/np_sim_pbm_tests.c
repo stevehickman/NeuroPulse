@@ -204,13 +204,21 @@ static void test_the_whole_lattice_can_be_driven_at_once(void)
 {
     setup();
     char add[32], drive[512];
-    int n = 0;
     for (int s = 3; s < 80; s++) {                    /* sockets 0..2 were added by setup() */
         (void)snprintf(add, sizeof add, "add %d 34.0", s);
         run(add);
     }
-    n += snprintf(drive, sizeof drive, "drive 0");
-    for (int s = 1; s < 80; s++) { n += snprintf(drive + n, sizeof drive - (size_t)n, ",%d", s); }
+    /* Build "drive 0,1,...,79" with every append bounded: a truncated command would test something else, so it
+     * fails the test instead of being sent. */
+    size_t len = 0U;
+    bool built = true;
+    int w = snprintf(drive, sizeof drive, "drive 0");
+    if (w < 0 || (size_t)w >= sizeof drive) { built = false; } else { len = (size_t)w; }
+    for (int s = 1; s < 80 && built; s++) {
+        w = snprintf(drive + len, sizeof drive - len, ",%d", s);
+        if (w < 0 || (size_t)w >= sizeof drive - len) { built = false; } else { len += (size_t)w; }
+    }
+    check(built, "lattice: the 80-socket command fits its buffer, untruncated");
     run(drive);
     check(strstr(last_result(), "\"code\":0") != NULL, "lattice: a command naming all 80 sockets is accepted");
     check(strstr(last_result(), "\"active\":80") != NULL, "lattice: the hub reports all 80 sockets active");
