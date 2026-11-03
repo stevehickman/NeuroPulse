@@ -60,7 +60,7 @@
 /* Sockets metered at once: one pool entry for every address the domain has (NP_HEXMAP_MAX_SOCKETS, 128), so any
  * valid address can be tracked and no socket is refused for want of a pool entry (REQ-FWHUB-64).  A drive is still
  * refused before the tile is lit if it cannot be tracked, so no socket is ever driven unmetered.  Equal to the PBM
- * library's own capacity (np_pbm_config.h), asserted.  Was 32 until NP-FW-HUB-001 Rev 35. */
+ * library's own capacity (np_pbm_config.h), asserted.  Was 32 until NP-FW-HUB-001. */
 #define NP_PST_MAX_TRACKED   NP_HEXMAP_MAX_SOCKETS
 
 /* SHDR fault code for a socket drive the driver could not complete (F11).

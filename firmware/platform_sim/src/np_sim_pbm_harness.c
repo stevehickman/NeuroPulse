@@ -1,5 +1,5 @@
 /*
- * NeurOne Firmware-in-the-Loop Simulator — PBM harness (NP-SIM-FW-001 Rev 2 §8 step 1)
+ * NeurOne Firmware-in-the-Loop Simulator — PBM harness (NP-SIM-FW-001 §8 step 1)
  * HOST ONLY.  The command interpreter the spike process and the tests share:
  * one text line in, events out through the sim sink.  The command list is in
  * spike/np_sim_pbm_spike.c.

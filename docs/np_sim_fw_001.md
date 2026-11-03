@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 5
-**Date:** 2026-11-01
+**Revision:** 1
+**Date:** 2026-11-03
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -22,8 +22,8 @@
 > real hub firmware**, with each physical module an object that holds its own state, draws itself, and
 > can be told what to answer. The purpose is **whole-system effects**: a developer changes one module's
 > behaviour and sees what the rest of the system does about it, where a unit test calls one function in
-> isolation and cannot. **A second aim, added at Rev 2:** to the degree possible the same code is the basis
-> of a bench test apparatus (§11). **Rev 3 records the first build, the PBM spike (§12).** §8 is the
+> isolation and cannot. **A second aim:** to the degree possible the same code is the basis
+> of a bench test apparatus (§11). **§12 records the first build, the PBM spike.** §8 is the
 > build order and §9 the decisions needed first.
 
 ---
@@ -55,7 +55,7 @@ build outside the tree (`cmake -DNP_BUILD_TESTS=ON`, gcc 13 / clang 18, Linux x8
 | Does the hub compile on the host? | **Yes.** Every source in `hub_control/`, `pbm/`, `zone_announce/`, `cervical_vns/`, `shdr/`, `hrv_biofeedback/` and `sloreta_hdtdcs/` compiled with the POSIX port and zero failures, including `np_hub_control_main.c` (five tasks and `vTaskStartScheduler`) and every module under `hub_control/modules/`. `np_pbm_hal.c` was excluded, because the simulator's platform layer replaces it. |
 | How much is unresolved at link? | **116 symbols**, of which about **94 are platform seams** and the rest are libraries already in the tree: `lfs_*` (vendored littlefs), `np_ed25519_verify` and `np_sha256` (`firmware/crypto`), `np_factory_reset_boot_check`, `np_za_platform_*`. This is a scan of undefined symbols, not a link. |
 | Can the firmware run in the browser as WebAssembly? | **Not without new work, and not recommended.** The POSIX port is built on `pthread_create`, `pthread_kill`, `sigwait`, `sigaction` and `pthread_cancel`. Those need SharedArrayBuffer plus special HTTP headers in a browser, and signals do not exist there. No FreeRTOS WebAssembly port exists, so it would be a custom port (Emscripten fibers or Asyncify), which is a new kernel to qualify. Emscripten (`emcc`) is not installed here, and clang has no C sysroot for `wasm32`. |
-| Does the safety MCU run on the host? (added at Rev 2) | **Yes.** All 12 sources in `firmware/safety_mcu/src/` compile with gcc and no warnings; 11 as they are and `np_gpio_mgr.c` with the force-included `tests/np_gpio_mgr_test_ports.h` its own host test already uses. Linked against a scratch HAL that defines the 41 `np_hal_*` functions of `np_safety_hal.h` plus `firmware/crypto`, the real `main()` ran its init sequence and its `for(;;)` loop with no source change. At boot all ten enable lines went to 1 (disabled). With no heartbeat it granted nothing. Valid heartbeats requesting the cranial enable were answered. What was **not** exercised: the signature path, the thermal, charge and cardiac interlocks, the tier gate, and the watchdog cutoff after a running grant. The loop is a busy-poll, so the host HAL needs a pacing point. |
+| Does the safety MCU run on the host? | **Yes.** All 12 sources in `firmware/safety_mcu/src/` compile with gcc and no warnings; 11 as they are and `np_gpio_mgr.c` with the force-included `tests/np_gpio_mgr_test_ports.h` its own host test already uses. Linked against a scratch HAL that defines the 41 `np_hal_*` functions of `np_safety_hal.h` plus `firmware/crypto`, the real `main()` ran its init sequence and its `for(;;)` loop with no source change. At boot all ten enable lines went to 1 (disabled). With no heartbeat it granted nothing. Valid heartbeats requesting the cranial enable were answered. What was **not** exercised: the signature path, the thermal, charge and cardiac interlocks, the tier gate, and the watchdog cutoff after a running grant. The loop is a busy-poll, so the host HAL needs a pacing point. |
 | Two small defects the host build exposed | `xPortIsInsideInterrupt` is missing from the POSIX port (`np_hub_control_main.c:125` calls it). `portMAX_DELAY` is 64-bit in the POSIX port and the tick type is 32-bit, so the constant truncates; it still works as a very long wait. Both are `OI-SIMFW-03`. |
 
 **Conclusion.** The firmware, hub and safety MCU, can run natively on the host with its real tasks. It
@@ -135,7 +135,7 @@ mechanism that generates `sockets.generated.js` today, so there is one list (`RE
 asserted** (`REQ-SIMFW-07`). Without that, the simulator would show a tile lit that the real helmet
 would have cut, and the one property CLAUDE.md §4.2 rests on (the safety MCU owns every enable) would be
 invisible. This requires the safety MCU firmware (`firmware/safety_mcu`, STM32G071, bare-metal) to run
-in the loop. **It can** (§2, `OI-SIMFW-01` closed at Rev 2): the safety MCU is a separate host process or
+in the loop. **It can** (§2, `OI-SIMFW-01` closed): the safety MCU is a separate host process or
 thread with its own seam, the 41 `np_hal_*` functions of `np_safety_hal.h`, of which the SPI functions
 face the hub's `np_safety_hal_spi_transfer`. It gets its own `SimModule` (`kind` = `safety_mcu`), which is
 where a developer forces a thermal reading, a bad signature or a missing heartbeat. Until it is wired in,
@@ -191,6 +191,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`REQ-SIMFW-08`** | The simulator's storage is synthetic. It never mounts, opens or accepts an image of a real UHDR or SHDR partition, and it holds test signing keys only. | A developer loads a person's data image into a browser tool, or a production key is placed where a development tool reads it. | CLAUDE.md §5.1 (NeurOne never has access to UHDR); `simulator/server/keys/README.md` |
 | **`REQ-SIMFW-11`** | A sim module answers only for itself. An injected response, pinned reading or absence on one module changes no other module's answers, and a module that was not addressed reports no answer. | A scenario's effect is attributed to a module that did not cause it, or a cross-module effect appears that the firmware does not have. The simulator exists to show the firmware's whole-system effects, not its own. | This document's purpose (the opening scope paragraph) |
 | **`REQ-SIMFW-12`** | The bridge builds every command it sends to the firmware process from validated integers and whitelisted names. No string a client sent is placed in a command line. | A WebSocket client adds a command, with an embedded newline, to the line protocol of a process that runs the hub's stimulation logic. | CWE-77 (command injection); `OI-SIMFW-07` |
+| **`REQ-SIMFW-13`** | **Every module type the firmware drives has a simulator equivalent of all of that module's functionality, running the module's real firmware source** (its driver under `firmware/hub_control/modules/` and the libraries it calls), not a re-implementation. The module types are the nine drivers (`np_mod_pbm`, `np_mod_eeg`, `np_mod_audio`, `np_mod_visual`, `np_mod_vns`, `np_mod_stim` for BES/tACS and tDCS, `np_mod_intranasal`, `np_mod_cvns`, `np_mod_t2_stubs`) and the 1064 nm smart tile's register path. A function of a module the simulator does not model is **listed as a gap** with the reason, never silently absent, and the line coverage of each module's source under its scenarios is reported, so how much of the code a modality's scenarios reach is a measured number. | The simulator shows only the modalities it models, so a whole-system effect that involves the others (power, heat, an interlock between modalities, the order of stops) is not seen, and a developer reads the absence of an effect as the absence of a defect. | The Principal's direction of 2026-11-03; this document's purpose (the opening scope paragraph) |
 
 ---
 
@@ -215,7 +216,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 
 | ID | Item | Closes when |
 |---|---|---|
-| ~~`OI-SIMFW-01`~~ | **CLOSED at Rev 2.** The safety MCU builds and runs on the host (§2). *The item read:* can the safety MCU firmware run host-side? | — (closed) |
+| ~~`OI-SIMFW-01`~~ | **CLOSED.** The safety MCU builds and runs on the host (§2). *The item read:* can the safety MCU firmware run host-side? | — (closed) |
 | **`OI-SIMFW-09`** | **The safety MCU's host HAL.** 41 functions, including the SPI frame path, flash, OTP and the independent watchdog. The busy-poll main loop needs a pacing point that is not in the firmware source (`REQ-SIMFW-03`), so it must live in the HAL (for example a short sleep in `np_hal_get_tick_ms`). Whether the signature, thermal, charge and cardiac paths behave on the host as they do in the existing host tests is untested. | The host HAL exists and a scenario drives each interlock to its cutoff. |
 | **`OI-SIMFW-11`** | **Should the simulator admit what the device refuses?** The production power governor refuses every load (`np_socket_dispatch.h`, `OI-FWHUB-09`), so against it no tile can be driven. The spike admits every load and says so in its event stream (`sim_policy`). Whether that is right, or whether the governor should be scriptable like a module, is a decision. | A decision is recorded, and the event stream and the on-screen notice agree with it. |
 | **`OI-SIMFW-12`** | **`scripts/req-trace.ts` scans `docs/ firmware/ app/ common/ ci/` and not `simulator/`.** The JavaScript tests carry `@verifies` tags (`REQ-SIMFW-04`, `-11`, `-12`) that the report does not count, so those requirements show as tested only by the C tests, and `REQ-SIMFW-12` as untested. | `simulator/` is added to the scan, or the tests move. |
@@ -226,20 +227,20 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
 | **`OI-SIMFW-04`** | **Time model.** Real time makes the run representative of task interaction but not of timing. A virtual clock gives repeatable runs but changes how the POSIX port schedules. | A choice is recorded, with whether the heartbeat and watchdog run on the same clock. |
 | **`OI-SIMFW-05`** | **Storage.** littlefs needs a block device. A file-backed one is the obvious choice; whether the existing power-loss test device (`np_lfs_powerbd`) can be reused was not checked. | The block device is chosen and `REQ-SIMFW-08` is checked against it. |
-| **`OI-SIMFW-06`** | **Index space and id space.** The socket dispatch is in 0-based index space and other parts of the firmware use ids. The route table must not confuse them. **Met once at Rev 3, and it was hit on the first run:** the page numbers sockets 1 to 80 and the firmware 0 to 79 (§12). The mapping is now one named function with a test. | The route table states the space for each seam. |
+| **`OI-SIMFW-06`** | **Index space and id space.** The socket dispatch is in 0-based index space and other parts of the firmware use ids. The route table must not confuse them. **Met once, and it was hit on the first run:** the page numbers sockets 1 to 80 and the firmware 0 to 79 (§12). The mapping is now one named function with a test. | The route table states the space for each seam. |
 | **`OI-SIMFW-07`** | **Bridge security.** The bridge accepts commands that inject faults into a process that runs the stimulation logic. It must bind to localhost only. | Binding and origin checks are specified and tested. |
-| **`OI-SIMFW-08`** | **Which modules are in the first release.** §8 starts with PBM. The accessories each have their own seams and their own hardware documents (`np_hw_*_001.md`), several of them DRAFT. | A list is agreed, with each accessory's seam owner. |
+| ~~`OI-SIMFW-08`~~ | **Decided by the Principal, 2026-11-03: every module type, not only PBM** (`REQ-SIMFW-13`). *The item read:* which modules are in the first release. What remains is the order (§8) and, per module type, each seam's route and the gap list. | — (decided) |
 
 ---
 
 ## 8. Build order
 
-1. **Spike (PBM only). Built at Rev 3; §12.** Host-build the hub core with a sim platform layer for the PBM seams
+1. **Spike (PBM only). Built; §12.** Host-build the hub core with a sim platform layer for the PBM seams
    (`np_mod_pbm_hal_socket_*`, `np_pbm_hal_*`) and one `SimModule` per socket. Prove one injected
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **All modalities,** through the same route table, in the order `OI-SIMFW-08` fixes.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -261,11 +262,11 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 - It does not change any file under `firmware/`. The sim platform layer is a new directory.
 - It does not claim the safety MCU's interlocks behave on the host as on the device (`OI-SIMFW-09`).
 - It does not make the simulator a verification tool (`REQ-SIMFW-06`).
-- It does not decide the first release's module list (`OI-SIMFW-08`).
+- It does not fix the order in which module types are built (§8 proposes one).
 
 ---
 
-## 11. Reuse as a bench test apparatus (added at Rev 2)
+## 11. Reuse as a bench test apparatus
 
 **What is on file.** No document specifies a bench test apparatus. `NP-FW-BENCH-001` designs the
 head-presence gate and what bench activity needs from it. Its §8.3 states the one requirement on a rig
@@ -314,7 +315,7 @@ steps (`REQ-SIMFW-10`)?
 
 ---
 
-## 12. The PBM spike, as built (added at Rev 3)
+## 12. The PBM spike, as built
 
 Built to §8 step 1. **It is a spike, not the simulator**: one modality, a single-threaded hub, no safety
 MCU. What exists:
@@ -359,7 +360,7 @@ view, and any behaviour with the kernel's tasks running.
 | Finding | Meaning |
 |---|---|
 | **The page numbers sockets 1 to 80 and the firmware 0 to 79.** The first run drove nothing visible. | `OI-SIMFW-06` was not hypothetical. The mapping is now one named function and a test. |
-| **A command driving more than 32 tiles was refused and rolled back (fixed).** 8, 16, 24 and 32 tiles drove; 40 and 80 returned `NP_HUB_ERR_MOD_FAULT` with nothing left driven. The limit was `NP_PBM_SESSION_MAX_ACTIVE_SOCKETS`, with `NP_PST_MAX_TRACKED` asserted equal to it. | **A requirements gap, ruled so on 2026-11-01, and closed at `NP-FW-HUB-001` Rev 35** (`REQ-FWHUB-64`, `OI-FWHUB-27`, register row `UC-119` retired): both constants are now the 7-bit address domain, 128. The simulator now drives all 80 sockets of the version 1 lattice in one command and refuses an address past it as not present. A unit test of the dispatcher did not see this; a whole-lattice run did. |
+| **A command driving more than 32 tiles was refused and rolled back (fixed).** 8, 16, 24 and 32 tiles drove; 40 and 80 returned `NP_HUB_ERR_MOD_FAULT` with nothing left driven. The limit was `NP_PBM_SESSION_MAX_ACTIVE_SOCKETS`, with `NP_PST_MAX_TRACKED` asserted equal to it. | **A requirements gap, ruled so on 2026-11-01, and closed at `NP-FW-HUB-001`** (`REQ-FWHUB-64`, `OI-FWHUB-27`, register row `UC-119` retired): both constants are now the 7-bit address domain, 128. The simulator now drives all 80 sockets of the version 1 lattice in one command and refuses an address past it as not present. A unit test of the dispatcher did not see this; a whole-lattice run did. |
 | **The production governor refuses every load.** | Against the shipped firmware no tile can be driven at all. `OI-SIMFW-11`. |
 | **A failed stop leaves the emitter driven.** With a stop failing on one tile, the hub reports no active socket and drops the cranial enable, and the module still holds its drive. | The designed backstop (`np_socket_dispatch.h`: the whole-lattice cut) and exactly what the safety MCU's enable is for. With no safety MCU in the loop the simulator can show the hub's side of it and not the cut. |
 
@@ -375,8 +376,4 @@ only: the generated name table of `REQ-SIMFW-05` is not built.
 
 | Rev | Date | Author | Change |
 |---|---|---|---|
-| 5 | 2026-11-02 | NeurOne Software Engineering | §12's 32-tile finding is closed: the firmware bound is gone (`NP-FW-HUB-001` Rev 35) and the simulator drives the whole lattice. No other change. |
-| 4 | 2026-11-01 | NeurOne Software Engineering | §12's 32-tile finding is a requirements gap, not a question: raised as `REQ-FWHUB-64` and `OI-FWHUB-27` (`NP-FW-HUB-001` Rev 30) and `UC-119`. No other change. |
-| 3 | 2026-11-01 | NeurOne Software Engineering | The PBM spike is built (§12). Adds `REQ-SIMFW-11` and `-12`, `OI-SIMFW-11` to `-14`; `OI-SIMFW-06` met once. Records what the spike found: the 1-based and 0-based socket numbering, the 32-tile ceiling, the governor that refuses every load. |
-| 2 | 2026-11-01 | NeurOne Software Engineering | Closes `OI-SIMFW-01`: the safety MCU builds and runs on the host (§2, §3.4). Raises `OI-SIMFW-09` and `-10`. Adds §11, reuse as a bench test apparatus (three layers; what carries over and what does not), with `REQ-SIMFW-09` and `-10`. |
-| 1 | 2026-11-01 | NeurOne Software Engineering | First issue. Measures the two facts the design depends on (§2), then designs the firmware-in-the-loop simulator: architecture (§3), requirements `REQ-SIMFW-01`…`-08` (§5), open items `OI-SIMFW-01`…`-08` (§7), build order (§8) and three decisions for the principal (§9). Builds nothing. |
+| 1 | 2026-11-03 | NeurOne Software Engineering | First issue. Measures the two facts the design depends on (§2: FreeRTOS and the hub, and the safety MCU, run on the host; WebAssembly would need a custom kernel port), then designs the firmware-in-the-loop simulator: architecture (§3), requirements `REQ-SIMFW-01` to `-13` (§5, §11), open items (§7), build order (§8), decisions (§9), reuse as a bench apparatus (§11) and the PBM spike as built and what it found (§12). **Scope direction (the Principal, 2026-11-03): the simulator runs the drivers for every module type, not only PBM, and each module type's full functionality has a simulator equivalent that uses as much of the real code as possible** (`REQ-SIMFW-13`, §8). |

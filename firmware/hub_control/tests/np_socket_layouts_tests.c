@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Socket Layouts by Hardware Version, host tests
- * Document: NP-FW-HUB-001 Rev 33, REQ-FWHUB-64 (part a), OI-FWHUB-27
+ * Document: NP-FW-HUB-001, REQ-FWHUB-64 (part a), OI-FWHUB-27
  *
  * The table is generated from hardware/np_socket_map*.json (scripts/sync-socket-map.ts), and that script's
  * --check is what ties the rows to the JSON. These tests assert what the firmware may rely on whatever the

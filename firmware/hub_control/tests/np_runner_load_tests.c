@@ -179,6 +179,12 @@ EventBits_t xEventGroupClearBits(EventGroupHandle_t g, const EventBits_t bits)
 void       vPortEnterCritical(void) {}
 void       vPortExitCritical(void)  {}
 void       vTaskDelay(const TickType_t t) { (void)t; }
+EventBits_t xEventGroupWaitBits(EventGroupHandle_t g, const EventBits_t bits, const BaseType_t clear,
+                                const BaseType_t all, const TickType_t t)
+{
+    (void)g; (void)bits; (void)clear; (void)all; (void)t;   /* the run loop's sleep: the load never reaches it */
+    return 0U;
+}
 TickType_t xTaskGetTickCount(void)  { return 0U; }
 
 /* ── What np_runner_load() resets, counted ───────────────────────────────────── */

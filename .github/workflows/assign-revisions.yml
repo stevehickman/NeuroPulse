@@ -1,0 +1,98 @@
+name: Assign revisions (docs/revisions/README.md)
+
+# Revision numbers are assigned here, when a change merges, not by its author: a PR adds one fragment under
+# docs/revisions/pending/ and this workflow writes the numbers, one commit per fragment, oldest first. Two PRs can no
+# longer take the same number. The decision: docs/human-input/np-qms-dc-001-revision-assignment.md (option A).
+#
+# It does nothing until docs/revisions/policy.json says "assign-at-merge", which is set only once the GitHub App below
+# exists. It pushes to `main` as the App, which is on the branch ruleset's bypass list: the built-in GITHUB_TOKEN cannot
+# be, and a commit it pushes would not start CI either. Secrets needed (repository secrets):
+#   REVBOT_APP_ID        the App's numeric ID
+#   REVBOT_PRIVATE_KEY   the App's private key (the whole .pem)
+#
+# `paths:` here is not the §6.7 case: this workflow is no required check, only a push-to-main job, so a run that never
+# starts blocks nothing. It starts when a fragment lands, and when the policy changes (to catch up a backlog).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/revisions/pending/**'
+      - 'docs/revisions/policy.json'
+      # A change to this file or to the scripts runs it too, so a fix to either also assigns what a failed run left pending.
+      - '.github/workflows/assign-revisions.yml'
+      - 'scripts/assign-revisions.ts'
+      - 'scripts/revision-lib.ts'
+  # By hand (Actions tab -> Run workflow), to assign what is pending after a failure has been fixed.
+  workflow_dispatch:
+
+# One at a time and never cancelled: the numbers are a counter, and two runs would race.
+concurrency:
+  group: assign-revisions
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  assign:
+    name: Assign revision numbers to merged changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Checkout otherwise leaves the default token in git's config as an Authorization header, which wins over
+          # the App token put in the remote URL below, and the push is refused as github-actions[bot] (seen on the
+          # first real run, #767). With nothing stored, the URL's token is the credential.
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      - name: Read the policy
+        id: policy
+        run: echo "mode=$(bun scripts/assign-revisions.ts --mode)" >> "$GITHUB_OUTPUT"
+
+      - name: Mint a token for the App
+        if: ${{ steps.policy.outputs.mode == 'assign-at-merge' }}
+        id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVBOT_APP_ID }}
+          private-key: ${{ secrets.REVBOT_PRIVATE_KEY }}
+
+      - name: Assign, one commit per fragment
+        if: ${{ steps.policy.outputs.mode == 'assign-at-merge' }}
+        env:
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          git remote set-url origin "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          export GIT_COMMITTER_NAME="RevNumberFixer[bot]"
+          export GIT_COMMITTER_EMAIL="revnumberfixer[bot]@users.noreply.github.com"
+          assigned=0
+          for _ in $(seq 1 50); do
+            set +e; frag=$(bun scripts/assign-revisions.ts --peek); rc=$?; set -e
+            if [ "$rc" -eq 3 ]; then break; fi
+            if [ "$rc" -ne 0 ]; then exit "$rc"; fi
+            # The commit is authored by whoever added the fragment (the PR's author), committed by the App.
+            IFS=$'\t' read -r an ae subj < <(git log -1 --diff-filter=A --format='%an%x09%ae%x09%s' -- "$frag")
+            bun scripts/assign-revisions.ts --next
+            git add -A docs
+            GIT_AUTHOR_NAME="$an" GIT_AUTHOR_EMAIL="$ae" git commit -q \
+              -m "Assign revisions for: ${subj}" \
+              -m "Assigned by the assign-revisions workflow from ${frag}."
+            assigned=$((assigned + 1))
+          done
+          if [ "$assigned" -eq 0 ]; then echo "nothing pending"; exit 0; fi
+          # main may have moved while this ran; the assignments touch only numbers, so a rebase is safe.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          echo "::error::could not push the assignments after three attempts"
+          exit 1

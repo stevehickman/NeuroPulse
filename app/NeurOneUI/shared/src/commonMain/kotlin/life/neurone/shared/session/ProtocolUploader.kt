@@ -51,12 +51,15 @@ class ProtocolUploader(
      * @param clinicianSockets operator-chosen 1-based sockets for `clinician_selected` PBM targets.
      * @param acknowledgedCautions the ids from [cautions] the author acknowledged; without them a protocol in the
      *   caution zone is refused by the compiler.
+     * @param autonomous Mode 3: program the protocol for use without a phone (the iOS `programAutonomous`). It goes through
+     *   the same cervical gate and the same compile, so a cutoff blocks it exactly as it blocks a Mode 2 upload.
      */
     fun upload(
         definition: NPProtocolDefinition,
         deviceSerial: ByteArray? = null,
         clinicianSockets: List<Int>? = null,
         acknowledgedCautions: List<String> = emptyList(),
+        autonomous: Boolean = false,
     ): Result {
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
@@ -67,6 +70,7 @@ class ProtocolUploader(
                 definition, deviceSerial ?: gatt.deviceSerial, clinicianSockets, acknowledgedCautions,
                 // The layout the helmet reported at link (SWR-HV-08): the helmet refuses a protocol stamped for another.
                 hardwareVersion = gatt.hardwareVersion.value,
+                autonomous = autonomous,
             )
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
@@ -119,5 +123,20 @@ class ProtocolUploader(
             differentPersonConfirmed = false
         }
         return null
+    }
+}
+
+/**
+ * What to tell the person after a protocol was programmed for Mode 3 (the iOS `ProtocolUploadFlow.program`). "Stored" is true only
+ * when the helmet holds the protocol, so it waits for the helmet's report: the answer to this upload accepted, or no answer
+ * (`UploadVerdict.causeFor` is null for both) is [Stored]; every refusal, and an answer for other bytes, is [Refused] with its
+ * cause, and the protocol is not reported stored (SWR-UP-02, SWR-HV-08).
+ */
+sealed interface ProgrammingOutcome {
+    data object Stored : ProgrammingOutcome
+    data class Refused(val cause: life.neurone.core.models.HelmetRefusalCause) : ProgrammingOutcome
+
+    companion object {
+        fun of(cause: life.neurone.core.models.HelmetRefusalCause?): ProgrammingOutcome = if (cause == null) Stored else Refused(cause)
     }
 }

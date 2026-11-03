@@ -198,4 +198,48 @@ class SetupCoordinatorTest {
         assertEquals(SetupStep.COMPLETE, c.step.value)
         assertTrue(c.isFirstSetupComplete)
     }
+
+    // @verifies REQ-SW03-05
+    @Test fun a_connected_hub_confirms_pairing_and_advances() = runTest {
+        val c = coordinator(Link(), SetupStep.BLE_CONFIRMATION)
+        c.confirmBlePairing()
+        assertEquals(SetupStep.BOA_DIAL, c.step.value)
+        assertNull(c.error.value)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test fun a_disconnected_hub_does_not_confirm_pairing() = runTest {
+        val c = coordinator(Link(connected = false), SetupStep.BLE_CONFIRMATION)
+        c.confirmBlePairing()
+        assertEquals(SetupStep.BLE_CONFIRMATION, c.step.value)
+        assertEquals(SetupError.NotConnected, c.error.value)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test fun trying_again_clears_the_last_error() = runTest {
+        val c = coordinator(Link(connected = false), SetupStep.BLE_CONFIRMATION)
+        c.confirmBlePairing()
+        assertEquals(SetupError.NotConnected, c.error.value)
+        c.clearError()
+        assertNull(c.error.value)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test fun a_zone_module_check_with_more_than_five_sockets_passes() = runTest {
+        val link = Link()
+        link.zoneModules.value = ZoneModuleConfiguration((1..9).associateWith { socket(it) })
+        val c = coordinator(link, SetupStep.ZONE_MODULES)
+        c.confirmZoneModules()
+        assertEquals(SetupStep.IMPEDANCE_CHECK, c.step.value)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test fun the_impedance_flags_are_cleared_once_the_check_is_passed_and_left() = runTest {
+        val link = Link()
+        link.hub = { op, l -> if (op == CalibrationOpcode.IMPEDANCE_CHECK) l.result(0xFF) }
+        val c = coordinator(link, SetupStep.IMPEDANCE_CHECK)
+        c.confirmImpedanceCheck()
+        assertEquals(SetupStep.ADS1299_CALIBRATION, c.step.value)
+        assertEquals(0, c.impedanceFlags.value, "the next screen must not show last check's electrodes")
+    }
 }

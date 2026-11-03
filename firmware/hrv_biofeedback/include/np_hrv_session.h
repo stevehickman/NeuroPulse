@@ -70,7 +70,7 @@ np_hrv_session_t *np_hrv_session_create(const np_hrv_session_config_t *config,
  * Start a previously created session.
  * Returns NP_HRV_ERR_SESSION_ACTIVE if already running.
  * Returns NP_HRV_ERR_INVALID_ARG, and does NOT start, for a taVNS session whose
- * tavns_freq_hz is below 1 Hz (0 selects the default) or whose current is out
+ * tavns_freq_mhz is a value the stimulus cannot take (0 selects the default) or whose current is out
  * of range (0 selects the default).  There is no frequency ceiling (OI-VNSCLIP-08).  OI-HRV-05.
  */
 np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms);

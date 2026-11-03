@@ -79,7 +79,7 @@ np_pbm_session_desc_tests 1025
 np_protocol_tests 511
 np_session_lease_tests 115
 np_runner_load_tests 507
-np_runner_run_tests 1122
+np_runner_run_tests 1160
 np_pbm_socket_telem_tests 840
 np_socket_dispatch_tests 561
 np_socket_layouts_tests 266

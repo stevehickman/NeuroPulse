@@ -35,6 +35,10 @@ internal class FakeWebDav(
     var expectedAuth = "Basic dXNlcjpwYXNz"
     var hrefAsFullUri = false
 
+    /** What a MKCOL of a missing folder answers instead of 201, and whether it makes the folder: a racing writer made it first (wsgidav answered 500) or nothing did. */
+    var mkcolAnswer: Int? = null
+    var mkcolMakesFolder = true
+
     private fun r(code: Int, body: String = "", headers: Map<String, String> = emptyMap()) = HttpResponse(code, headers, body.encodeToByteArray())
     private fun dec(s: String) = URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
     private fun parent(path: String) = path.trimEnd('/').substringBeforeLast('/', "")
@@ -73,7 +77,7 @@ internal class FakeWebDav(
             "MKCOL" -> when {
                 key in collections || files.containsKey(key) -> r(405)
                 parent(key) !in collections -> r(409)
-                else -> { collections += key; r(201) }
+                else -> { if (mkcolMakesFolder) collections += key; r(mkcolAnswer ?: 201) }
             }
             "DELETE" -> if (files.remove(key) != null) r(204) else r(404)
             "PROPFIND" -> {
@@ -121,6 +125,21 @@ class WebDavObjectStoreTests {
         val s = WebDavObjectStore(fake, { WebDavLogin("https://dav.test/dav/missing/", "Basic dXNlcjpwYXNz") }, 30)
         assertFailsWith<CloudStoreException> { s.put("x", byteArrayOf(1)) }
         assertEquals(listOf("PUT", "MKCOL"), fake.seen.map { it.method }, "one retry at most, and the MKCOL's 409 ends it")
+    }
+
+    // @verifies SWR-MG-11#calls
+    @Test
+    fun aFolderAnotherWriterMadeFirstIsNotAFailureWhateverTheMkcolAnswered() = runBlocking {
+        // The live run against wsgidav: 24 first writes, the losers of the MKCOL race were answered 500 although the folder then existed.
+        val fake = FakeWebDav().apply { mkcolAnswer = 500 }
+        wd(fake).put("np-a", byteArrayOf(1))
+        assertEquals(listOf("PUT", "MKCOL", "PUT"), fake.seen.map { it.method }, "write again after the MKCOL, once")
+        assertContentEquals(byteArrayOf(1), wd(fake).get("np-a"))
+        // When nobody made the folder, the failure is the MKCOL's answer and it is not retried again.
+        val none = FakeWebDav().apply { mkcolAnswer = 500; mkcolMakesFolder = false }
+        val e = assertFailsWith<CloudStoreException> { wd(none).put("np-a", byteArrayOf(1)) }
+        assertEquals(500, e.status)
+        assertEquals(listOf("PUT", "MKCOL", "PUT"), none.seen.map { it.method })
     }
 
     // @verifies SWR-MG-11#calls

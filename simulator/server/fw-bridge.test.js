@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Tests for the firmware bridge (NP-SIM-FW-001 Rev 2).  Run: node --test server/
+ * Tests for the firmware bridge (NP-SIM-FW-001).  Run: node --test server/
  * The end-to-end test runs the real np_sim_pbm_spike when NP_SIM_FW_BIN names it,
  * and is skipped otherwise.
  */

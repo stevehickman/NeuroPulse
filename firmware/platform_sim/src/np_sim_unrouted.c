@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware-in-the-Loop Simulator — seams with no route yet
- * NP-SIM-FW-001 Rev 2 §3.2, REQ-SIMFW-02.  HOST ONLY.
+ * NP-SIM-FW-001 §3.2, REQ-SIMFW-02.  HOST ONLY.
  *
  * Every platform symbol the spike's link needs that the PBM socket path does
  * not use.  Each reports itself as "unrouted" and returns a failure, so a

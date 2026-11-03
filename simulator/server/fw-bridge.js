@@ -1,5 +1,5 @@
 /**
- * NeurOne Helmet Simulator — firmware bridge (NP-SIM-FW-001 Rev 2 §3.5, §8 step 1)
+ * NeurOne Helmet Simulator — firmware bridge (NP-SIM-FW-001 §3.5, §8 step 1)
  *
  * Starts the host firmware process (firmware/platform_sim, np_sim_pbm_spike) and
  * relays between it and the WebSocket clients:

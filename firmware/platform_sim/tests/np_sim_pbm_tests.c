@@ -1,5 +1,5 @@
 /*
- * NeurOne Firmware-in-the-Loop Simulator — PBM spike tests (NP-SIM-FW-001 Rev 2 §8 step 1)
+ * NeurOne Firmware-in-the-Loop Simulator — PBM spike tests (NP-SIM-FW-001 §8 step 1)
  *
  * HOST TEST CODE ONLY.  Runs the device's own np_socket_dispatch, np_module_map,
  * np_protocol, np_mod_pbm, np_pbm_socket_telem and np_safety_spi sources against
@@ -199,7 +199,7 @@ static void test_an_address_past_the_lattice_is_refused(void)
     check(np_sim_find(80) == NULL, "layout: no module exists at an address the helmet version does not have");
 }
 
-/* @verifies-none Scenario: every valid socket of the version 1 lattice driven by one command, which the 32-socket bound refused until NP-FW-HUB-001 Rev 35 (REQ-FWHUB-64). The firmware's own tests are np_pbm_socket_telem_tests and np_pbm_session_desc_tests. Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none Scenario: every valid socket of the version 1 lattice driven by one command, which the 32-socket bound refused until NP-FW-HUB-001 (REQ-FWHUB-64). The firmware's own tests are np_pbm_socket_telem_tests and np_pbm_session_desc_tests. Simulator evidence only (REQ-SIMFW-06). */
 static void test_the_whole_lattice_can_be_driven_at_once(void)
 {
     setup();

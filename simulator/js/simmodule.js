@@ -1,5 +1,5 @@
 /**
- * SimModule — one simulated physical module (NP-SIM-FW-001 Rev 2 §3.3, §8 step 1).
+ * SimModule — one simulated physical module (NP-SIM-FW-001 §3.3, §8 step 1).
  *
  * The firmware process owns what a module IS (its state, what it answers); this
  * object mirrors that state in the browser and owns how the module LOOKS.  It

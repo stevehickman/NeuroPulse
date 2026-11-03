@@ -1,4 +1,4 @@
-/* NP-SIM-FW-001 Rev 2 §8 step 1.  HOST ONLY. */
+/* NP-SIM-FW-001 §8 step 1.  HOST ONLY. */
 #ifndef NP_SIM_PBM_HARNESS_H
 #define NP_SIM_PBM_HARNESS_H
 

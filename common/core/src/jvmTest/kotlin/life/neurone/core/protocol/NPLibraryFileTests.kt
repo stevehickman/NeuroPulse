@@ -47,6 +47,25 @@ class NPLibraryFileTests {
         assertEquals(listOf(4, 6), b.userZones.single().sockets)
     }
 
+    // @verifies SWR-UP-02
+    @Test
+    fun anAcceptedUploadMarksTheFamilyUsedAndARefusalOrAnAnswerForOtherBytesMarksNothing() {
+        val lib = library()
+        val refused = protocol("Refused one")
+        val other = protocol("Other bytes")
+        val accepted = protocol("Accepted one")
+        listOf(refused, other, accepted).forEach { lib.save(it) }
+
+        lib.recordUploadResult(refused, sentHash = "h", helmetStatus = "refused", helmetHash = "h", helmetRefusal = "tier")
+        assertFalse(lib.isUsed(refused), "a tier refusal is not a use")
+
+        lib.recordUploadResult(other, sentHash = "h", helmetStatus = "accepted", helmetHash = "something-earlier")
+        assertFalse(lib.isUsed(other), "the helmet's answer says nothing about this upload")
+
+        lib.recordUploadResult(accepted, sentHash = "h", helmetStatus = "accepted", helmetHash = "h")
+        assertTrue(lib.isUsed(accepted))
+    }
+
     // @verifies REQ-NPPS-18
     @Test
     fun aUsedFamilyStaysUsed_whenTheFileIsOpenedElsewhere() {

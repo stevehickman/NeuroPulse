@@ -1,5 +1,5 @@
 /*
- * NeurOne Firmware-in-the-Loop Simulator — module bus (NP-SIM-FW-001 Rev 2 §3.2)
+ * NeurOne Firmware-in-the-Loop Simulator — module bus (NP-SIM-FW-001 §3.2)
  * HOST ONLY; see np_sim_bus.h.
  */
 #include "np_sim_bus.h"

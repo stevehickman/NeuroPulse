@@ -1,5 +1,5 @@
 # NeurOne Firmware-in-the-Loop Simulator — sim platform layer (HOST ONLY)
-# Document: NP-SIM-FW-001 Rev 2 §3.2; this is the PBM spike (§8 step 1)
+# Document: NP-SIM-FW-001 §3.2; this is the PBM spike (§8 step 1)
 #
 # REQ-SIMFW-01: this directory is never built for the device.  firmware/platform/
 # is the layer a device image links, and it is cross-compile only; this is the

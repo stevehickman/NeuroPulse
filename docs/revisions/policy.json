@@ -1,0 +1,4 @@
+{
+  "mode": "assign-at-merge",
+  "_comment": "hand: authors write revision numbers (use scripts/renumber-revisions.ts after a merge collides). assign-at-merge: a PR adds one fragment and the assign-revisions workflow writes the numbers. Switched to assign-at-merge on 2026-11-02, after the GitHub App RevNumberFixer and the secrets REVBOT_APP_ID and REVBOT_PRIVATE_KEY existed and no PR was open. Procedure: docs/revisions/README.md. The decision: docs/human-input/np-qms-dc-001-revision-assignment.md."
+}

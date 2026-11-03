@@ -1,5 +1,5 @@
 /**
- * Tests for SimModule and SimModuleRegistry (NP-SIM-FW-001 Rev 2).  Run: node --test js/simmodule.test.mjs
+ * Tests for SimModule and SimModuleRegistry (NP-SIM-FW-001).  Run: node --test js/simmodule.test.mjs
  * The end-to-end test runs the real np_sim_pbm_spike when NP_SIM_FW_BIN names it.
  */
 import test from 'node:test';

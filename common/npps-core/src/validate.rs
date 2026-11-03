@@ -195,18 +195,6 @@ fn vns_study_parameters(p: &Value, out: &mut Issues) {
     if let (Some(b), "continuous") = (burst, trigger) {
         out.push(Error, k, "burstSeconds", "VALIDATE_PARAM_BURST", s(format!("{}s", num_string(b))), s("—"), "hardware", msg("VALIDATE_MSG_VNS_HRV_BURST_NEEDS_TRIGGER", vec![]));
     }
-    let basis = p["intensityBasis"].as_str().unwrap_or("absolute");
-    if !matches!(basis, "absolute" | "perceptual_threshold" | "pain_threshold" | "titrated") {
-        enum_error(out, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", basis, &["absolute", "perceptual_threshold", "pain_threshold", "titrated"]);
-    } else if basis != "absolute" {
-        out.push(Error, k, "intensityBasis", "VALIDATE_PARAM_INTENSITY_BASIS", s(basis), s("absolute"), "hardware",
-            msg("VALIDATE_MSG_VNS_HRV_NOT_DELIVERABLE", vec![msg("VALIDATE_PARAM_INTENSITY_BASIS", vec![]), s(basis)]));
-        // `titrated` takes no percentage: its band is the thresholds themselves. The other two state one.
-        if basis != "titrated" && !p["intensityPercentOfThreshold"].as_f64().map_or(false, |x| x > 0.0) {
-            out.push(Error, k, "intensityPercentOfThreshold", "VALIDATE_PARAM_INTENSITY", s("—"), s("> 0 %"), "hardware",
-                msg("VALIDATE_MSG_VNS_HRV_BASIS_NEEDS_PERCENT", vec![s(basis)]));
-        }
-    }
 }
 
 // ─── Per-modality ──────────────────────────────────────────────────────────────
@@ -392,11 +380,12 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     s(format!("{} mA", num_string(hw::VNS_MAX_MILLIAMPS))), "hardware",
                     msg("VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS", vec![n(ma), n(hw::VNS_MAX_MILLIAMPS)]));
             }
-            // No ceiling: the 25 Hz bound was an equivalence bound and is removed (OI-VNSCLIP-08, 2026-10-29).
-            if freq < hw::VNS_MIN_HZ {
+            // No ceiling and no floor above zero: the 25 Hz and 1 Hz bounds were equivalence bounds and are removed
+            // (OI-VNSCLIP-08, 2026-10-29 and 2026-10-30). Zero is DC, not a charge-balanced train, so it is refused.
+            if freq <= 0.0 {
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-                    s(format!("≥ {} Hz", num_string(hw::VNS_MIN_HZ))), "hardware",
-                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(hw::VNS_MIN_HZ)]));
+                    s("> 0 Hz".to_string()), "hardware",
+                    msg("VALIDATE_MSG_VNS_HRV_FREQUENCYHZ", vec![n(freq), n(0.0)]));
             }
             if let Some(m) = lim(l, "maxIntensityMilliamps").filter(|m| ma > *m) {
                 out.push(Error, k, "intensityMilliamps", "VALIDATE_PARAM_INTENSITY", s(format!("{} mA", num_string(ma))),

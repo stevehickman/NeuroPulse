@@ -309,7 +309,7 @@ static void test_session_start_beyond_old_domain(void)
 static void test_session_start_accepts_every_address_of_the_domain(void)
 {
     /* Capacity is one entry per address the descriptor can name (the 7-bit domain), so a descriptor that names
-     * every socket there is cannot exceed it.  Until NP-FW-HUB-001 Rev 35 capacity was 32 and this was refused. */
+     * every socket there is cannot exceed it.  Until NP-FW-HUB-001 capacity was 32 and this was refused. */
     np_pbm_session_desc_t desc;
     memset(&desc, 0, sizeof(desc));
     desc.hdr.version = NP_SES1064_VERSION;

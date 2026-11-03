@@ -1,5 +1,5 @@
 /*
- * NeurOne Firmware-in-the-Loop Simulator — PBM spike driver (NP-SIM-FW-001 Rev 2 §8 step 1)
+ * NeurOne Firmware-in-the-Loop Simulator — PBM spike driver (NP-SIM-FW-001 §8 step 1)
  * HOST ONLY.
  *
  * Runs the REAL np_socket_dispatch, np_module_map, np_protocol, np_mod_pbm,

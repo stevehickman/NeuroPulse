@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware-in-the-Loop Simulator — module bus
- * Document: NP-SIM-FW-001 Rev 2 §3.2, §3.3 (design); this file is the PBM spike (§8 step 1)
+ * Document: NP-SIM-FW-001 §3.2, §3.3 (design); this file is the PBM spike (§8 step 1)
  *
  * HOST ONLY.  This directory is never built for the device: CMakeLists.txt
  * returns under a cross toolchain, which is REQ-SIMFW-01.  firmware/platform/

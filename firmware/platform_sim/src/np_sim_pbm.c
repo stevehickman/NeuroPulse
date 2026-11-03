@@ -1,5 +1,5 @@
 /*
- * NeurOne Firmware-in-the-Loop Simulator — PBM socket seams (NP-SIM-FW-001 Rev 2 §3.2)
+ * NeurOne Firmware-in-the-Loop Simulator — PBM socket seams (NP-SIM-FW-001 §3.2)
  * HOST ONLY; see np_sim_bus.h.
  *
  * Defines the socket-indexed PBM seams of np_sw02_platform_hal.h for T1-A

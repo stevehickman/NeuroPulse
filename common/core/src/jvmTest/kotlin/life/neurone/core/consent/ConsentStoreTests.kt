@@ -551,6 +551,37 @@ class ConsentStoreTests {
         assertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
     }
 
+    // @verifies REQ-CONSENT-04
+    @Test
+    fun withdrawingBlanketConsentSurvivesAReloadAsNotGranted() {
+        val (store, kv) = ingestingStore()
+        store.updateResearchConsent(blanketConsent())
+        store.withdrawBlanketResearchConsent()
+
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertFalse(reloaded.researchConsent.blanketConsentGranted, "a withdrawal must survive a restart")
+    }
+
+    /** The invitation badge counts open invitations, so declining what was never there, or twice, must not underflow it. */
+    // @verifies REQ-CONSENT-11
+    @Test
+    fun theOpenInvitationCountNeverGoesBelowZero() {
+        val (store, _) = ingestingStore()
+        assertEquals(0, store.pendingInvitations.count { it.isOpen })
+
+        store.declineInvitation("no-such-study-id")
+        assertEquals(0, store.pendingInvitations.count { it.isOpen })
+
+        store.ingestStudyDescriptor(descriptor())
+        assertEquals(1, store.pendingInvitations.count { it.isOpen })
+
+        store.declineInvitation(STUDY_ID)
+        assertEquals(0, store.pendingInvitations.count { it.isOpen })
+
+        store.declineInvitation(STUDY_ID)
+        assertEquals(0, store.pendingInvitations.count { it.isOpen })
+    }
+
     // ── Withdrawal is permanent for every data period (REQ-CONSENT-13) ───
     //
     // The device has the admission gate and nothing past it: no extract is generated or sent yet

@@ -79,6 +79,23 @@ class GattParserTests {
         assertEquals(0xFF, GattParser.parseImpedanceResult(byteArrayOf(0xFF.toByte(), 0x00)))
     }
 
+    // @verifies REQ-SW03-01
+    @Test
+    fun anUnknownPacerPhaseByteIsRejected() {
+        assertNull(GattParser.parsePacerPhase(byteArrayOf(0x09, 0x40)), "0x09 is not a pacer phase")
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun theConsumableStatusCharacteristicIsNotAnyUhdrCharacteristicSoUhdrCanNeverReachTheCounts() {
+        val consumable = UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID)
+        listOf(
+            GattUuidStrings.SESSION_STATE_ID, GattUuidStrings.SESSION_STATUS_ID, GattUuidStrings.HRV_COHERENCE_ID,
+            GattUuidStrings.PACER_PHASE_ID, GattUuidStrings.IMPEDANCE_RESULT_ID,
+        ).forEach { assertTrue(consumable != UUID.fromString(it), "consumable status must differ from $it") }
+        assertEquals(listOf(1, 30, 10, 100), GattParser.parseConsumableStatus(byteArrayOf(1, 0, 0x1E, 0, 0x0A, 0, 0x64, 0)))
+    }
+
     // @verifies REQ-SW03-04
     @Test
     fun parseConsumableStatusDecodesFourCounts() {

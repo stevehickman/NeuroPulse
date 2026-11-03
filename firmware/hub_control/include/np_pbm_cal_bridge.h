@@ -41,7 +41,7 @@ extern "C" {
  * predates OI-HUB-C06 — so an un-bridged build is degraded, never wrong.
  *
  * np_hub_control_app_main() calls it at bring-up, right after np_layout_bind() has bound the helmet's socket
- * layout to the module map (NP-FW-HUB-001 Rev 41; scripts/check-hub-bringup-order.ts holds the order).  It was not
+ * layout to the module map (NP-FW-HUB-001; scripts/check-hub-bringup-order.ts holds the order).  It was not
  * called before that because the module map had no production call site (OI-HEXMAP-03).  The inventory poll that
  * would fill the UID and calibration records still has none (np_hexmap_inventory.c), so until it does, the UID
  * resolver and calibration provider answer "none" and the library keeps its firmware defaults; the address validator

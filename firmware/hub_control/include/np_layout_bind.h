@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Binding the Helmet's Socket Layout
- * Document: NP-FW-HUB-001 Rev 34, REQ-FWHUB-64 (part a), OI-FWHUB-27
+ * Document: NP-FW-HUB-001, REQ-FWHUB-64 (part a), OI-FWHUB-27
  *
  * ── What this does ───────────────────────────────────────────────────────────
  * Looks the helmet's hardware version up in the generated layout table (np_socket_layouts.h) and binds that

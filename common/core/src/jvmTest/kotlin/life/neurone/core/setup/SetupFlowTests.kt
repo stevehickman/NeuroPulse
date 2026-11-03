@@ -1,6 +1,7 @@
 package life.neurone.core.setup
 
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.common.KeyValueStore
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleStatus
 import life.neurone.core.models.ZoneModuleType
@@ -133,5 +134,89 @@ class SetupFlowTests {
             SetupFlow.ZoneModuleResult.NoneDetected,
             flow().evaluateZoneModules(config(socket(1, false), socket(2, false))),
         )
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun theSafetyAcknowledgementIsNeverWrittenToTheStore() {
+        val written = mutableSetOf<String>()
+        val inner = InMemoryKeyValueStore()
+        val recording = object : KeyValueStore by inner {
+            override fun putBoolean(key: String, value: Boolean) { written += key; inner.putBoolean(key, value) }
+            override fun putString(key: String, value: String) { written += key; inner.putString(key, value) }
+            override fun putInt(key: String, value: Int) { written += key; inner.putInt(key, value) }
+        }
+        val f = SetupFlow(recording)
+        repeat(SetupStep.COMPLETE.index) {
+            if (f.currentStep == SetupStep.SAFETY_ACKNOWLEDGEMENT) f.acknowledgeSafety()
+            f.advance()
+        }
+        assertEquals(setOf(PersistedKeys.FIRST_SETUP_KEY), written, "an acknowledgement of contraindications is inferred health status")
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun firstSetupIsFalseAtFirstAndNotSetBeforeTheFinalStep() {
+        val store = InMemoryKeyValueStore()
+        val f = SetupFlow(store)
+        assertFalse(f.isFirstSetupComplete)
+        repeat(SetupStep.PROTOCOL_SELECTION.index) {
+            if (f.currentStep == SetupStep.SAFETY_ACKNOWLEDGEMENT) f.acknowledgeSafety()
+            f.advance()
+        }
+        assertEquals(SetupStep.PROTOCOL_SELECTION, f.currentStep)
+        assertFalse(f.isFirstSetupComplete, "the last step before COMPLETE does not finish setup")
+        f.advance()
+        assertTrue(f.isFirstSetupComplete)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun firstSetupSurvivesANewInstanceOverTheSameStore() {
+        val store = InMemoryKeyValueStore()
+        val first = SetupFlow(store)
+        repeat(SetupStep.COMPLETE.index) {
+            if (first.currentStep == SetupStep.SAFETY_ACKNOWLEDGEMENT) first.acknowledgeSafety()
+            first.advance()
+        }
+        val second = SetupFlow(store)
+        assertTrue(second.isFirstSetupComplete)
+        assertEquals(SetupStep.WELCOME, second.currentStep)
+        assertFalse(second.safetyAcknowledged)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun onlyTheSafetyStepRequiresTheSafetyAcknowledgement() {
+        SetupStep.entries.filter { it != SetupStep.SAFETY_ACKNOWLEDGEMENT }
+            .forEach { assertFalse(it.requiresSafetyAcknowledgement, it.name) }
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun theStepOrderPutsPairingBeforeImpedanceAndTheFirstProtocolAfterIt() {
+        assertTrue(SetupStep.BLE_CONFIRMATION.index < SetupStep.IMPEDANCE_CHECK.index)
+        assertTrue(SetupStep.IMPEDANCE_CHECK.index < SetupStep.PROTOCOL_SELECTION.index)
+        assertTrue(SetupStep.SAFETY_ACKNOWLEDGEMENT.index < SetupStep.PROTOCOL_SELECTION.index)
+        assertEquals(6, SetupFlow.MINIMUM_IMPEDANCE_PASS_COUNT)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun impedancePassesWithAllEightAndFailsWithNoneAndFailsWithFive() {
+        val f = flow()
+        assertTrue(f.evaluateImpedance(0xFF).passed)
+        assertEquals(emptyList(), f.evaluateImpedance(0xFF).failedElectrodes)
+        val none = f.evaluateImpedance(0)
+        assertFalse(none.passed)
+        assertEquals(0, none.passCount)
+        assertEquals((0..7).toList(), none.failedElectrodes)
+    }
+
+    // @verifies REQ-SW03-05
+    @Test
+    fun zoneModulesPassWithMoreThanFiveSocketsPopulated() {
+        val r = flow().evaluateZoneModules(config(*(1..9).map { socket(it, true) }.toTypedArray()))
+        assertEquals(SetupFlow.ZoneModuleResult.Passed, r)
     }
 }

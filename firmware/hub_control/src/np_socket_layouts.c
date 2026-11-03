@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Socket Layouts by Hardware Version
- * Document: NP-FW-HUB-001 Rev 33, REQ-FWHUB-64, OI-FWHUB-27.  See np_socket_layouts.h.
+ * Document: NP-FW-HUB-001, REQ-FWHUB-64, OI-FWHUB-27.  See np_socket_layouts.h.
  * The table is in np_socket_layouts.generated.c; this file only looks things up in it.
  */
 #include "np_socket_layouts.h"

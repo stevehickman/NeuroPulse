@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware-in-the-Loop Simulator — spike-local link fillers
- * NP-SIM-FW-001 Rev 2 §8 step 1.  HOST ONLY.
+ * NP-SIM-FW-001 §8 step 1.  HOST ONLY.
  *
  * What the PBM socket path pulls in beyond the platform seams: the log sinks,
  * the lease probe, the hex-map NVRAM, the protocol identity seams and the

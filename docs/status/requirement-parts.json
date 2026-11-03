@@ -59,6 +59,13 @@
       "a": "The cVNS PPG sample rate is pinned and compile-time asserted",
       "b": "The cardiac baseline is not waivable by a descriptor"
     },
+    "SWR-FM-02": {
+      "a": "A family has releases, and a release has one variant for each hardware version",
+      "b": "A release is a major.minor version of a predefined protocol",
+      "c": "A variant is the compiled content for one hardware version, with its own hash",
+      "d": "Retargeting a protocol to another hardware version adds a variant to the same family and does not start a new family",
+      "e": "Variants are independent after creation and linked only for lookup"
+    },
     "SWR-SS-02": {
       "a": "A session beyond a defined health-safety limit does not run without the user's explicit acknowledgement",
       "b": "The acknowledgement is made in the path that signs the protocol, so the app's screen alone cannot skip it",

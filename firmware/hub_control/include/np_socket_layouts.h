@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Socket Layouts by Hardware Version
- * Document: NP-FW-HUB-001 Rev 33 §3, REQ-FWHUB-64, OI-FWHUB-27
+ * Document: NP-FW-HUB-001 §3, REQ-FWHUB-64, OI-FWHUB-27
  *
  * ── What this is ─────────────────────────────────────────────────────────────
  * The number of sockets a helmet has, and which addresses name one, are properties of its HARDWARE

@@ -220,7 +220,7 @@
  * how many sockets a session usually lights, so no descriptor can address more distinct sockets than there is
  * room for, and a session is never refused for want of capacity (REQ-FWHUB-64: only the helmet's addressable
  * sockets, how many are filled, and power and heat limits determined at runtime may limit how many modules are
- * driven at once).  Until Rev 35 of NP-FW-HUB-001 this was 32, on the assumption that "a session realistically only
+ * driven at once).  Until `REQ-FWHUB-64` (NP-FW-HUB-001) this was 32, on the assumption that "a session realistically only
  * touches a handful of sockets"; that assumption refused a drive of 40 of the 80 sockets of the shipped lattice
  * (OI-FWHUB-27, register row UC-119).
  *
