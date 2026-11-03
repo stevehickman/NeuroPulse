@@ -93,7 +93,9 @@ enum NPLibraryRules {
         return Set((answer["offered"] as? [String]) ?? [])
     }
 
-    static func uploadGate(helmetVersion: Int, protocolVersions: [Int], contentHash: String, sourceHash: String?, libraryHashes: [String]) -> [String: Any] {
+    static func uploadGate(
+        helmetVersion: Int, protocolVersions: [Int], contentHash: String, sourceHash: String?, libraryHashes: [String]
+    ) -> [String: Any] {
         ask("uploadGate", [
             "libraryHashes": libraryHashes,
             "helmetVersion": helmetVersion,

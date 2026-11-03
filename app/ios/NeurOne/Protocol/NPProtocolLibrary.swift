@@ -413,8 +413,11 @@ final class NPProtocolLibrary: ObservableObject {
     func compositeMembers(_ composite: NPCompositeProtocol) -> [NPProtocolDefinition]? {
         var out: [NPProtocolDefinition] = []
         for layer in composite.layers {
-            guard let found = allProtocols.first(where: { if case .single(let p) = $0 { return p.name == layer.protocolName }; return false }),
-                  case .single(let p) = found else { return nil }
+            let named = allProtocols.first { entry in
+                if case .single(let p) = entry { return p.name == layer.protocolName }
+                return false
+            }
+            guard let found = named, case .single(let p) = found else { return nil }
             if !out.contains(where: { $0.name == p.name }) { out.append(p) }
         }
         return out

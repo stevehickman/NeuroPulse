@@ -1058,7 +1058,6 @@ extension NeurOneGATTManager: SetupGATTProviding {
     }
 }
 
-
 /// The unit's tier as the hub reports it (DEVICE_TIER). `unknown` is the hub saying the safety MCU has sent no valid tier report
 /// yet. The app uses it to say what the helmet can run and decides nothing (REQ-UPG-01).
 enum HubTier: Equatable { case unknown, t1, t2 }
