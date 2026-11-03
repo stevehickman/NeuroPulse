@@ -153,6 +153,30 @@ test('a client string is never placed in an audio command line, and a valid one 
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in a goggle command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'visual', op: 'vis_led_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'visual', op: 'audio_binaural', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: 1, eye_open: true, mpe_ok: true } } },
+    { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'seated\nquit', value: true } } },
+    { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: 'true' } } },
+    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0 },
+    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 256, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 },
+    { type: 'FW_COMMAND', cmd: 'vis_lift\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } }), ['vis_add 1 1 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: false } } }), ['vis_sensor mpe 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'visual', op: 'vis_led_stop', code: -17, times: 1 }), ['fail 0 vis_led_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 }),
+    ['vis 0 10 50 0 63 0 0 0 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_lift' }), ['vis_lift']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_ppx' }), ['vis_ppx']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -291,4 +315,24 @@ test('end to end: the real audio driver plays, adapts to an EEG band, and a lost
   const stop = results.find((r) => r.cmd === 'audio_stop');
   assert.strictEqual(stop.code, 0, 'the driver reports the stop done');
   assert.strictEqual(stop.mode, 1, 'while the planar drivers still play');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real goggle driver emits, and the Hall edge cuts it through the driver\'s own handler', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_lift' });
+  await wait(500);
+  bridge.stop();
+  const results = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result').map((m) => m.event);
+  assert.strictEqual(results.find((r) => r.cmd === 'vis').emitting, true, 'the goggles emit');
+  const lift = results.find((r) => r.cmd === 'vis_lift');
+  assert.strictEqual(lift.emitting, false, 'and the lift edge turned them off');
+  assert.strictEqual(lift.edges_delivered, 1);
+  assert.ok(seen.some((m) => m.type === 'FW_LOG' && m.event.ev === 'hall_edge' && m.event.handler_registered === true), 'through a handler the driver registered');
 });

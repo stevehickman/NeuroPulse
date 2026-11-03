@@ -30,6 +30,8 @@ const VNS_OPS = new Set(['vns_impedance', 'vns_stim_set', 'vns_stim_stop', 'vns_
   'vns_rmssd', 'vns_coherence', 'vns_hr']);                          // np_sim_op_name(), the auricular clip
 const AUDIO_OPS = new Set(['audio_codec_init', 'audio_binaural', 'audio_isochronic', 'audio_noise', 'audio_stop_planar',
   'audio_bone_set', 'audio_bone_stop', 'audio_mesh_impedance']);     // np_sim_op_name(), the audio path
+const VIS_OPS = new Set(['vis_led_set', 'vis_led_stop', 'vis_eye_open', 'vis_seated', 'vis_emdr', 'vis_mpe', 'vis_hall_register']);   // the goggles
+const VIS_SENSORS = new Set(['seated', 'eye', 'mpe']);
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -227,6 +229,70 @@ function audioCommandLines(msg) {
   }
 }
 
+function visOp(v) {
+  if (typeof v !== 'string' || !VIS_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...VIS_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+const bit = (v, what) => {
+  if (typeof v !== 'boolean') throw new BridgeError(`${what} must be a boolean`);
+  return v ? 1 : 0;
+};
+
+/** The goggles' messages: one pair, no address. */
+function visModuleLines(msg) {
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) {
+        const a = msg.patch.add;
+        lines.push(`vis_add ${bit(a?.seated, 'add.seated')} ${bit(a?.eye_open, 'add.eye_open')} ${bit(a?.mpe_ok, 'add.mpe_ok')}`);
+      }
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(msg.patch.present ? 'vis_present' : 'vis_absent');
+      }
+      if ('sensor' in msg.patch) {
+        const t = msg.patch.sensor;
+        if (typeof t?.name !== 'string' || !VIS_SENSORS.has(t.name)) throw new BridgeError(`sensor.name must be one of ${[...VIS_SENSORS].join(', ')}`);
+        lines.push(`vis_sensor ${t.name} ${bit(t.value, 'sensor.value')}`);
+      }
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading 0 ${visOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail 0 ${visOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+    case 'MODULE_CLEAR':
+      return ['vis_clear'];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the visual driver. */
+function visCommandLines(msg) {
+  const u8 = (v, what) => int(v, 0, 255, what);
+  switch (msg.cmd) {
+    case 'vis':
+      return [`vis ${u8(msg.mode, 'mode')} ${u8(msg.freq_hz, 'freq_hz')} ${u8(msg.duty_pct, 'duty_pct')} ${u8(msg.wl, 'wl')} ` +
+              `${u8(msg.zone_lo, 'zone_lo')} ${u8(msg.zone_hi, 'zone_hi')} ${u8(msg.emdr_mhz, 'emdr_mhz')} ${u8(msg.mode_f, 'mode_f')} ${u8(msg.shade, 'shade')}`];
+    case 'vis_init': case 'vis_detect': case 'vis_stop': case 'vis_shutdown': case 'vis_sample': case 'vis_lift':
+    case 'vis_lift_silent': case 'vis_lift_during_command': case 'vis_lower': case 'vis_ppx':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
+}
+
 function stimChannel(v) {
   if (typeof v !== 'string' || !STIM_CHANNELS.has(v)) {
     throw new BridgeError(`channel must be one of ${[...STIM_CHANNELS].join(', ')}`);
@@ -306,8 +372,9 @@ function messageToLines(msg) {
   if (msg.kind === 'eeg') return eegModuleLines(msg);
   if (msg.kind === 'vns') return vnsModuleLines(msg);
   if (msg.kind === 'audio') return audioModuleLines(msg);
+  if (msg.kind === 'visual') return visModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {

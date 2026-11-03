@@ -27,4 +27,9 @@ void np_simh_audio_init(void);
 void np_simh_audio_status(void);
 bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The visual-goggle commands (np_sim_visual_harness.c). */
+void np_simh_visual_init(void);
+void np_simh_visual_status(void);
+bool np_simh_visual_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 #endif

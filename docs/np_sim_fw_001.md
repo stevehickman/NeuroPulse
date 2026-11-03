@@ -227,6 +227,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-17`** | **A non-finite contact impedance enables VNS** (§15). The range check `imp < min \|\| imp > max` is false for NaN. | Decided: the check is written to refuse a non-finite reading, or the seam is documented to never return one. |
 | **`OI-SIMFW-18`** | **A refused VNS command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is not retried** (§15). | Decided with the runner in the loop: either the driver undoes what it started, or the runner is shown to stop the module after a refusal. |
 | **`OI-SIMFW-19`** | **Two behaviours of `np_mod_audio.c`** (§16): an EEG band update re-applies binaural whatever the running mode, and `volume_pct` is not clamped to 100 before it reaches the planar drivers and the bone transducer. | Decided: the driver gates the update on the running mode and clamps, or the limits are shown to be enforced downstream and cited. |
+| **`OI-SIMFW-20`** | **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`** (§17), so a failed LED command reports success and requests the enable with nothing lit. | Decided: the status is checked and returned, or the ignored status is justified. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -245,7 +246,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS and §16 audio are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS, §16 audio and §17 visual are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -521,6 +522,37 @@ The codec, the planar drivers and the bone transducer, `REQ-SIMFW-13`. One path,
 a band update from an EEG-adaptive session re-applies **binaural** whatever the running mode was, so an isochronic or noise
 session becomes binaural; and `volume_pct` is passed to both outputs without a clamp, so 200 reaches the transducers
 (the field is documented 0 to 100).
+
+---
+
+## 17. Visual goggles, as built (§8 step 3, fifth module type)
+
+The goggles, `REQ-SIMFW-13`: the module with the IEC 62471 interlocks, so the one where real code matters most. One pair, one module (`NP_SIM_KIND_VISUAL`, index 0).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_visual.c` | The seven `np_mod_visual_hal_*` seams. Seated, eye-open and MPE-ok are what the scenario sets. **The three boolean seams answer false for an injected failure or an absent goggle**, the refusing answer, so a fault cannot read as permission. The LEDs record what the driver commanded. No optical power, irradiance or MPE: the hardware ceiling is not modelled, so `mpe_ok` is a switch. |
+| **The Hall edge runs the driver's own handler** | `np_sim_visual_lift()` | A lift clears the seated reading and **calls the handler `np_mod_visual.c` registered** (`hall_unseated_isr`, with `np_mod_visual_hal_led_stop`, `np_safety_spi_request_disable_from_isr` and the `s_hall_cut` latch), the way the platform interrupt would. A registration the scenario failed leaves no handler: "a return other than `NP_HUB_OK` means no edge will be delivered". `vis_lift_during_command` delivers the lift between the seated read and the enable, the window the latch exists for. `vis_lift_silent` lifts with no edge, so only the telemetry poll sees it. |
+| Firmware it runs | the device's own file | `np_mod_visual.c`. No firmware file changed. `np_runner_abort`, which `np_mod_visual_ppx_halt` calls, is a **sim double** in `np_sim_spike_link.c` that reports the request (first-party code, listed below). |
+| Harness | `platform_sim/src/np_sim_visual_harness.c` | `vis_detect`, `vis_init`, `vis`, `vis_stop`, `vis_shutdown`, `vis_lift`, `vis_lift_silent`, `vis_lift_during_command`, `vis_lower`, `vis_ppx`, `vis_sample`, `vis_raw`, `vis_sensor`. |
+| Bridge | `fw-bridge.js` | `kind: "visual"` in `MODULE_SET` (`add`, `present`, `sensor`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and the `FW_COMMAND`s above. |
+| Tests | `platform_sim/tests/np_sim_visual_tests.c` | Fourteen scenarios, 45 checks: arming, no emission without an armed handler, every mode, each interlock, faulted sensors, the edge cut, a missed edge caught by the poll, the lift between read and enable, a failed LED command, a lost LED stop, the photoparoxysmal halt, a malformed command, and the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_visual.c` 96.6 % of 87.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| **Mode F (NIR retinal walk)** | Compiled out: `NP_MODE_F_REGULATORY_CLEARED` is 0 (`np_hub_config.h`), so `mode_f_enable` is ignored and the test says so. Running it means building with the flag set, which is a regulatory decision, not a simulator one. This is most of the uncovered lines. |
+| Optical output and the hardware MPE ceiling | Not modelled; `mpe_ok` is a switch. |
+| The runner | `np_runner_abort` is a double that reports the request. What the runner does with it is not seen. |
+| The EEG path that detects a photoparoxysmal pattern | `vis_ppx` is the call that path makes; the detector is not in the loop (and the EEG model produces no signal, §14). |
+| The edge-to-dark time | The sim delivers the edge synchronously, so it measures nothing (`OI-FWHUB-26` owns the measurement). |
+| Shade control | `shade_req` is carried in the command and never read by the driver. |
+| The safety MCU's visual interlocks | Not in the loop (`OI-SIMFW-09`). |
+
+**What it found.** `OI-SIMFW-20`: **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`.** A failed LED command reports success and requests the safety enable with nothing lit. The direction is the safe one (dark LEDs), but the session and the hub's enable request both say the goggles are running.
 
 ---
 

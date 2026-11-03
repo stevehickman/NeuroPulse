@@ -45,6 +45,7 @@ typedef enum {
     NP_SIM_KIND_EEG,                /* the ADS1299 front end; there is one, index 0 */
     NP_SIM_KIND_VNS,                /* the auricular clip: stimulator, PPG and the HRV readouts; one, index 0 */
     NP_SIM_KIND_AUDIO,              /* the codec, the planar drivers and the bone transducer; one, index 0 */
+    NP_SIM_KIND_VISUAL,             /* the goggles: LEDs, Hall and IR sensors, MPE check; one, index 0 */
     NP_SIM_KIND_COUNT
 } np_sim_kind_t;
 
@@ -83,6 +84,13 @@ typedef enum {
     NP_SIM_OP_AUDIO_BONE_SET,       /* np_mod_audio_hal_bone_set              */
     NP_SIM_OP_AUDIO_BONE_STOP,      /* np_mod_audio_hal_bone_stop             */
     NP_SIM_OP_AUDIO_MESH_IMPEDANCE, /* np_mod_audio_hal_mesh_impedance (ohm)  */
+    NP_SIM_OP_VIS_LED_SET,          /* np_mod_visual_hal_led_set              */
+    NP_SIM_OP_VIS_LED_STOP,         /* np_mod_visual_hal_led_stop             */
+    NP_SIM_OP_VIS_EYE_OPEN,         /* np_mod_visual_hal_ir_eye_open          */
+    NP_SIM_OP_VIS_SEATED,           /* np_mod_visual_hal_goggle_seated        */
+    NP_SIM_OP_VIS_EMDR,             /* np_mod_visual_hal_emdr_set             */
+    NP_SIM_OP_VIS_MPE,              /* np_mod_visual_hal_mpe_check            */
+    NP_SIM_OP_VIS_HALL_REGISTER,    /* np_mod_visual_hal_hall_irq_register    */
     NP_SIM_OP_COUNT
 } np_sim_op_t;
 
@@ -135,6 +143,15 @@ typedef struct {
     uint16_t          audio_bone_hz;
     uint8_t           audio_bone_vol_pct;
     float             audio_mesh_ohm;                  /* caller-set                                             */
+    /* the goggles (NP_SIM_KIND_VISUAL) */
+    bool              vis_seated, vis_eye_open, vis_mpe_ok;       /* what the sensors read; caller-set           */
+    uint16_t          vis_zone_mask;
+    uint8_t           vis_wl, vis_freq_hz, vis_duty_pct, vis_emdr_rate_mhz;
+    bool              vis_emitting;                    /* the LEDs are lit                                       */
+    bool              vis_emdr_on;
+    void            (*vis_isr)(void);                  /* the not-seated edge handler the firmware registered    */
+    bool              vis_lift_during_command;         /* fire the lift edge between the seated read and the enable */
+    uint16_t          vis_edges_delivered;
     np_sim_override_t ov[NP_SIM_OP_COUNT];
     bool              answered_default[NP_SIM_OP_COUNT];
 } np_sim_module_t;
@@ -174,6 +191,9 @@ bool np_sim_clear(np_sim_kind_t kind, uint16_t index);
 void np_sim_report_hal(const np_sim_module_t *m, np_sim_op_t op, const char *args, int code, const char *source);
 /* The firmware addressed a module the scenario never added (or removed): the answer is NOT_PRESENT-shaped, reported. */
 void np_sim_report_absent(np_sim_kind_t kind, uint16_t index, const char *op_name);
+
+/* The goggle is lifted: the seated reading clears and the edge is delivered to the handler the firmware registered. */
+void np_sim_visual_lift(void);
 
 /* How a module answers an op.  Returns true and sets *code if an injected
  * response is armed (consuming one call); otherwise false, and the caller

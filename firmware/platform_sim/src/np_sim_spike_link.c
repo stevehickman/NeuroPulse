@@ -24,6 +24,7 @@
 #include "np_socket_dispatch.h"
 #include "np_pbm_session.h"
 #include "np_log_hrv.h"
+#include "np_session_runner.h"
 
 #include "FreeRTOS.h"
 
@@ -58,6 +59,15 @@ void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reas
 {
     np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":%s,\"reason\":%d}",
                 (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
+}
+
+/* The runner is not in the loop.  np_mod_visual_ppx_halt() asks it to abort the session; the simulator reports the
+ * request and does nothing else, so a photoparoxysmal halt shows as what the driver did (LEDs off, enable dropped,
+ * further commands refused) plus the abort it asked for.  A double of first-party code, listed as a gap. */
+void np_runner_abort(np_abort_reason_t reason)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_abort\",\"reason\":%d}",
+                (unsigned)np_sim_now_ms(), (int)reason);
 }
 
 /* ── no session lease, no persistence ─────────────────────────────────────────── */
