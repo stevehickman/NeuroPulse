@@ -85,14 +85,6 @@ static unsigned parse_list(const char *s, uint16_t *out, unsigned max)
     return n;
 }
 
-static int op_from_name(const char *name)
-{
-    for (int i = 0; i < (int)NP_SIM_OP_STIM_DAC_SET; i++) {   /* the tile ops; the stimulation ops are np_sim_stim_harness.c's */
-        if (strcmp(name, np_sim_op_name((np_sim_op_t)i)) == 0) { return i; }
-    }
-    return -1;
-}
-
 static void result(const char *cmd, int code)
 {
     np_sim_emit("{\"ev\":\"result\",\"cmd\":\"%s\",\"code\":%d,\"active\":%u,\"requested_enables\":%u}",
@@ -111,6 +103,7 @@ static void status(void)
                     m->driven ? "true" : "false", m->cur_a, m->cur_b, (double)m->ntc_c);
     }
     np_simh_stim_status();
+    np_simh_eeg_status();
     result("status", 0);
 }
 
@@ -122,6 +115,7 @@ void np_simh_init(void)
     g_layout = np_layout_bound();
     np_sock_disp_reset();
     np_simh_stim_init();
+    np_simh_eeg_init();
 }
 
 void np_simh_line(char *line)
@@ -135,9 +129,9 @@ void np_simh_line(char *line)
     char *d = strtok_r(NULL, " \t\r\n", &save);
     char *e = strtok_r(NULL, " \t\r\n", &save);
 
-    /* The stimulation commands first: "fail" and "reading" are shared, and an op name only the stimulation
-     * module knows is the stimulation harness's. */
+    /* The other modules' commands first.  "fail" and "reading" are shared: an op name implies its module kind. */
     if (np_simh_stim_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_eeg_line(cmd, a, b, c, d, e)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;
@@ -154,11 +148,11 @@ void np_simh_line(char *line)
         np_session_cmd_t cm = base_cmd(socks, n, cmd[0] == 's');
         result(cmd, (int)np_sock_disp_command(&cm));
     } else if (strcmp(cmd, "fail") == 0 && a && b && c && d) {
-        int op = op_from_name(b);
-        if (op >= 0) { np_sim_set_response(NP_SIM_KIND_PBM_BASE, (uint16_t)atoi(a), (np_sim_op_t)op, atoi(c), atoi(d)); }
+        int op = np_sim_op_from_name(b);
+        if (op >= 0) { np_sim_set_response(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, atoi(c), atoi(d)); }
     } else if (strcmp(cmd, "reading") == 0 && a && b && c) {
-        int op = op_from_name(b);
-        if (op >= 0) { np_sim_set_reading(NP_SIM_KIND_PBM_BASE, (uint16_t)atoi(a), (np_sim_op_t)op, (float)atof(c)); }
+        int op = np_sim_op_from_name(b);
+        if (op >= 0) { np_sim_set_reading(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, (float)atof(c)); }
     } else if ((strcmp(cmd, "absent") == 0 || strcmp(cmd, "present") == 0) && a) {
         uint16_t s = (uint16_t)atoi(a);
         np_sim_set_present(NP_SIM_KIND_PBM_BASE, s, cmd[0] == 'p');

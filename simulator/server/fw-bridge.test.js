@@ -76,6 +76,38 @@ test('a valid stimulation message becomes exactly one well-formed line', () => {
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in an EEG command line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_start\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'eeg', op: 'stim_dac_set', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { add: { id: '62\nquit' } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 8, kohm: 5 } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 1, kohm: '5\nquit' } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { band: { band: 5, db: 1 } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { reading: { op: 'eeg_read_impedance\nquit', value: 5 } } },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 256, gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: '255\nquit', gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 255, gain: 6 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+});
+
+// @verifies REQ-SIMFW-12
+test('a valid EEG message becomes exactly one well-formed line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { add: {} } }), ['eeg_add']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { add: { id: 62 } } }), ['eeg_add 62']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 2, kohm: 12.5 } } }), ['eeg_impedance 2 12.5']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { band: { band: 2, db: 4 } } }), ['eeg_band 2 4']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_stop', code: -17, times: 1 }), ['fail 0 eeg_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', kind: 'eeg' }), ['eeg_clear']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 15, gain: 6, notch: 1, ref_mode: 0, adaptive_out: 0 }),
+    ['eeg 15 6 1 0 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'eeg_sample' }), ['eeg_sample']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -151,4 +183,25 @@ test('end to end: a tDCS ramp runs the real driver and an over-delivery on one p
   assert.strictEqual(result.event.code, 0);
   assert.strictEqual(result.event.safety_mcu, 'not_in_loop', 'and the result says the safety MCU is not in the loop');
   assert.strictEqual(bridge.list().modules.length, 2, 'MODULE_LIST holds the two pairs');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real EEG driver configures the sim front end and a lost stop is visible', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'eeg', patch: { add: {} } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 15, gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 });
+  bridge.handle({ type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_stop', code: -17, times: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_stop' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'status' });
+  await wait(500);
+  bridge.stop();
+  const stop = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'eeg_stop');
+  assert.strictEqual(stop.event.code, 0, 'the driver reports the stop done');
+  assert.strictEqual(stop.event.eeg_running, true, 'while the converter still runs');
+  const state = seen.filter((m) => m.type === 'MODULE_STATE' && m.event.id === 'eeg:0').pop();
+  assert.strictEqual(state.event.driven, true, 'and the module state says so');
 });

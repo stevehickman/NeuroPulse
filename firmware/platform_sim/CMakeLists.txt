@@ -54,6 +54,7 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/modules/np_mod_pbm.c
     # stimulation (BES/tACS and tDCS): the driver, the commanded-versus-delivered cross-check and the ramp model
     ../hub_control/modules/np_mod_stim.c
+    ../hub_control/modules/np_mod_eeg.c
     ../hub_control/src/np_stim_xcheck.c
     ../hub_control/src/np_ramp_plan.c
     ../pbm/src/np_pbm_detect.c
@@ -66,6 +67,8 @@ add_library(np_sim_pbm STATIC
     src/np_sim_pbm.c
     src/np_sim_stim.c
     src/np_sim_stim_harness.c
+    src/np_sim_eeg.c
+    src/np_sim_eeg_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -91,8 +94,12 @@ target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
 target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_eeg_tests tests/np_sim_eeg_tests.c)
+target_link_libraries(np_sim_eeg_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_eeg_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests
+    COMMAND np_sim_eeg_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests
     COMMENT "Running the simulator scenario tests")

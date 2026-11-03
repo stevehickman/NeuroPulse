@@ -12,11 +12,13 @@
 static np_sim_module_t g_mod[NP_SIM_KIND_COUNT][NP_SIM_MAX_MODULES];
 static np_sim_sink_fn  g_sink;
 
-static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair" };
+static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg" };
 static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "socket_pwm_set", "socket_ntc_read",
     "stim_dac_set", "stim_dac_stop", "stim_dc_set", "stim_dc_ramp",
-    "stim_read_impedance", "stim_read_current", "stim_read_charge"
+    "stim_read_impedance", "stim_read_current", "stim_read_charge",
+    "eeg_spi_write", "eeg_spi_read", "eeg_start", "eeg_stop", "eeg_read_impedance",
+    "eeg_band_power", "eeg_dominant_band", "eeg_self_calibrate"
 };
 
 const char *np_sim_kind_name(np_sim_kind_t k)
@@ -37,6 +39,21 @@ static uint32_t real_now_ms(void)
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return (uint32_t)((uint64_t)t.tv_sec * 1000U + (uint64_t)t.tv_nsec / 1000000U);
+}
+
+np_sim_kind_t np_sim_op_kind(np_sim_op_t op)
+{
+    if (op >= NP_SIM_OP_EEG_SPI_WRITE)  { return NP_SIM_KIND_EEG; }
+    if (op >= NP_SIM_OP_STIM_DAC_SET)   { return NP_SIM_KIND_STIM_PAIR; }
+    return NP_SIM_KIND_PBM_BASE;
+}
+
+int np_sim_op_from_name(const char *name)
+{
+    for (int i = 0; i < (int)NP_SIM_OP_COUNT; i++) {
+        if (strcmp(name, K_OP_NAME[i]) == 0) { return i; }
+    }
+    return -1;
 }
 
 uint32_t np_sim_now_ms(void) { return g_virtual ? g_vnow_ms : real_now_ms(); }
@@ -87,6 +104,9 @@ np_sim_module_t *np_sim_add(np_sim_kind_t kind, uint16_t index, float value)
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,"
                     "\"impedance_kohm\":%.1f}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index, (double)value);
+    } else if (kind == NP_SIM_KIND_EEG) {
+        np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true}",
+                    np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index);
     } else {
         m->ntc_c = value;
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,\"ntc_c\":%.1f}",

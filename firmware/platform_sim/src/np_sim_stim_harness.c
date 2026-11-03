@@ -23,7 +23,6 @@
  *   stim_session_start                           np_stim_xcheck_reset, the runner's session-start call
  *   stim_ramp_up_ms <pair> <current_ua> <polarity> <ramp_s>   how long the runner would wait for this tDCS command
  *   stim_raw <slot> <len>                        a command of the wrong size, or for a slot that is not this driver's
- *   fail <pair> <op> <code> <n> | reading <pair> <op> <value>   (op names: np_sim_op_name)
  */
 #include "np_sim_bus.h"
 #include "np_sim_pbm_harness.h"
@@ -81,14 +80,6 @@ static bool slot_from(const char *name, uint8_t *slot)
     if (strcmp(name, "bes") == 0)  { *slot = NP_HUB_SLOT_BES_TACS; return true; }
     if (strcmp(name, "tdcs") == 0) { *slot = NP_HUB_SLOT_TDCS;     return true; }
     return false;
-}
-
-static int stim_op_from_name(const char *name)
-{
-    for (int i = (int)NP_SIM_OP_STIM_DAC_SET; i < (int)NP_SIM_OP_COUNT; i++) {
-        if (strcmp(name, np_sim_op_name((np_sim_op_t)i)) == 0) { return i; }
-    }
-    return -1;
 }
 
 void np_simh_stim_status(void)
@@ -185,10 +176,6 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
         const unsigned len = (unsigned)atoi(b);
         tick_driver();
         stim_result(cmd, (int)np_mod_stim_control((uint8_t)atoi(a), zeros, (uint16_t)(len > sizeof zeros ? sizeof zeros : len)));
-    } else if (strcmp(cmd, "fail") == 0 && a && b && c && d && stim_op_from_name(b) >= 0) {
-        (void)np_sim_set_response(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a), (np_sim_op_t)stim_op_from_name(b), atoi(c), atoi(d));
-    } else if (strcmp(cmd, "reading") == 0 && a && b && c && stim_op_from_name(b) >= 0) {
-        (void)np_sim_set_reading(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a), (np_sim_op_t)stim_op_from_name(b), (float)atof(c));
     } else {
         return false;
     }

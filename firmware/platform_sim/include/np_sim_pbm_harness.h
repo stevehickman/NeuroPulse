@@ -12,4 +12,9 @@ void np_simh_stim_init(void);
 void np_simh_stim_status(void);
 bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The EEG front-end commands (np_sim_eeg_harness.c). */
+void np_simh_eeg_init(void);
+void np_simh_eeg_status(void);
+bool np_simh_eeg_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 #endif

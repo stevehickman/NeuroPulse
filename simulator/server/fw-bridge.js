@@ -24,6 +24,8 @@ const { EventEmitter } = require('events');
 const OPS = new Set(['socket_pwm_set', 'socket_ntc_read']);   // np_sim_op_name()
 const STIM_OPS = new Set(['stim_dac_set', 'stim_dac_stop', 'stim_dc_set', 'stim_dc_ramp',
   'stim_read_impedance', 'stim_read_current', 'stim_read_charge']);   // np_sim_op_name(), the stimulation DAC
+const EEG_OPS = new Set(['eeg_spi_write', 'eeg_spi_read', 'eeg_start', 'eeg_stop', 'eeg_read_impedance',
+  'eeg_band_power', 'eeg_dominant_band', 'eeg_self_calibrate']);     // np_sim_op_name(), the ADS1299 front end
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -56,6 +58,65 @@ function stimOp(v) {
     throw new BridgeError(`op must be one of ${[...STIM_OPS].join(', ')}`);
   }
   return v;
+}
+
+function eegOp(v) {
+  if (typeof v !== 'string' || !EEG_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...EEG_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+/** The EEG front end's messages: one part, no address. */
+function eegModuleLines(msg) {
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) {
+        const id = msg.patch.add?.id;
+        lines.push(id === undefined ? 'eeg_add' : `eeg_add ${int(id, 0, 255, 'add.id')}`);
+      }
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(msg.patch.present ? 'eeg_present' : 'eeg_absent');
+      }
+      if ('impedance' in msg.patch) {
+        const i = msg.patch.impedance;
+        lines.push(`eeg_impedance ${int(i?.channel, 0, 7, 'impedance.channel')} ${num(i?.kohm, 0, 100000, 'impedance.kohm')}`);
+      }
+      if ('band' in msg.patch) {
+        const b = msg.patch.band;
+        lines.push(`eeg_band ${int(b?.band, 0, 4, 'band.band')} ${num(b?.db, -200, 200, 'band.db')}`);
+      }
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading 0 ${eegOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail 0 ${eegOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+    case 'MODULE_CLEAR':
+      return ['eeg_clear'];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the EEG driver. */
+function eegCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'eeg':
+      return [`eeg ${int(msg.channel_mask, 0, 255, 'channel_mask')} ${int(msg.gain, 0, 255, 'gain')} ${int(msg.notch, 0, 255, 'notch')} ${int(msg.ref_mode, 0, 255, 'ref_mode')} ${int(msg.adaptive_out, 0, 255, 'adaptive_out')}`];
+    case 'eeg_init': case 'eeg_detect': case 'eeg_stop': case 'eeg_shutdown': case 'eeg_sample': case 'eeg_regs':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
 }
 
 function stimChannel(v) {
@@ -134,8 +195,9 @@ function sockets(v) {
  */
 function messageToLines(msg) {
   if (msg.kind === 'stim_pair') return stimModuleLines(msg);
+  if (msg.kind === 'eeg') return eegModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {

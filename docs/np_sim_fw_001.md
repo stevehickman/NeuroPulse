@@ -223,6 +223,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-13`** | **CI.** The simulator is opt-in (`-DNP_BUILD_SIM=ON`) and in no CI job, because a CMake test target must be in `ci/host-test-partition.txt`, in three workflow counts and in `ci/host-test-floors.txt`, and the gates need their path-relevance lists widened. The JavaScript tests run by hand (`node --test`). | The tests run in a PR job, with the partition, counts and floors updated together. |
 | **`OI-SIMFW-14`** | **`REQ-SIMFW-01` and `-02` have no CI check yet.** The guard is the CMake `return()` under a cross toolchain and the opt-in option. Nothing fails a device target that links `firmware/platform_sim/`, and nothing counts the seams the sim layer routes against the 119. | §8 step 2 builds both. |
 | **`OI-SIMFW-15`** | **The stimulation seam contract leaves two things undefined** (§13): what `np_mod_stim_hal_read_charge` totals for a charge-balanced waveform, and what polarity 0 and 1 mean at the DAC and in the sign of `np_mod_stim_hal_read_current`. The simulator reports 0 charge for AC and a magnitude for current, and says so. | `np_sw02_platform_hal.h` defines both, and the model follows the definition. |
+| **`OI-SIMFW-16`** | **An EEG stop that is lost cannot be retried** (§14). `np_mod_eeg_hal_stop_continuous` returns nothing and `np_mod_eeg_control` clears `s_recording` regardless, so a stop that did not land is neither reported nor repeated. Found by the simulator; the firmware is unchanged. | Decided: either the seam reports success and the driver keeps the flag on failure, or the lost stop is accepted and recorded as such. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -241,7 +242,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 is stim, built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim and §14 EEG are built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -414,6 +415,39 @@ socket may share an index without meeting (`NP_SIM_KIND_STIM_PAIR`; the isolatio
 
 **What it found.** Nothing in the firmware. Two things in the seam contract: the charge and the polarity are
 defined nowhere (above), so any hardware or simulator answers them by guesswork. `OI-SIMFW-15`.
+
+---
+
+## 14. EEG, as built (§8 step 3, second module type)
+
+The ADS1299 front end, `REQ-SIMFW-13`. One part, so one module (`NP_SIM_KIND_EEG`, index 0). Same bus, same injection, same marking.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_eeg.c` | The eight `np_mod_eeg_hal_*` seams. **The model is a register file**: a write lands in it, a read returns it, the ID register is read-only and reads the value the scenario gave the part (the datasheet's `0x3E` by default). The driver's configuration is therefore visible as what it wrote, not as a flag the simulator computed. |
+| Scenario state | `eeg_impedance`, `eeg_band` | Impedance per channel and power per band, set by the scenario; no default (`CLAUDE.md` §19). The dominant band is the first of the five with the highest power, unless a reading is pinned. |
+| Injection | `fail`, `reading` | Four of the eight seams return a byte or nothing, so a code cannot come back. **An armed response makes the call not happen**: a write is dropped, a start or stop ignored, a calibration does not run, a read returns 0. Each is reported as injected, with the code. |
+| Harness | `platform_sim/src/np_sim_eeg_harness.c` | `eeg_detect`, `eeg_init`, `eeg`, `eeg_stop`, `eeg_shutdown`, `eeg_sample`, `eeg_regs`, `eeg_raw`. |
+| Firmware it runs | the device's own file | `np_mod_eeg.c`. No firmware file changed. |
+| Bridge | `fw-bridge.js` | `kind: "eeg"` in `MODULE_SET` (`add`, `present`, `impedance`, `band`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `eeg`, `eeg_init`, `eeg_detect`, `eeg_stop`, `eeg_shutdown`, `eeg_sample`, `eeg_regs`. |
+| Tests | `platform_sim/tests/np_sim_eeg_tests.c` | Ten scenarios, 32 checks: probe by ID, the power-on register sequence, enabled and powered-down channels, stop, a lost stop, a lost start, telemetry, a malformed command, a failed calibration, an absent front end, the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_eeg.c` 100 % of 56.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| The sample stream | The DMA ring and the 500 Hz waveform are not behind these seams. The simulator produces no EEG signal, so nothing downstream that reads one (the adaptive outputs, the recording to EDF+, the photoparoxysmal detector) can be exercised by it. |
+| How the dominant band is chosen | The seam says "dominant" and no more. The first-highest reading is this model's. |
+| The adaptive output | `adaptive_out` is stored by the driver and acted on by the runner, which is not in the loop. |
+| Reference mode, notch and the lead-off registers | The driver stores them and never writes the ADS1299 for them (`ref_mode`, `notch` are not in the register sequence). Not modelled because the driver does not drive them. |
+
+**What it found.** A lost stop cannot be retried (`OI-SIMFW-16`): `np_mod_eeg_control` clears its recording flag
+whether or not the stop took, and the seam returns nothing, so the driver reports success while the converter runs,
+and a second stop does nothing because the flag is already clear. The test `lost stop` shows both. Whether it
+matters depends on what runs behind the converter on a real board; it is stated here so it is decided and not
+discovered.
 
 ---
 
