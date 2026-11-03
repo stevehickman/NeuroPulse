@@ -104,6 +104,22 @@ class NPProtocolValidatorTests {
     /** The enforcer trips AT the ceiling, so the pre-flight must too (OI-CHARGE-05). */
     // @verifies REQ-NPPS-14#a
     @Test
+    fun aDoseWellOverTheCeilingIsRejected() {
+        // 2.0 mA x 3600 s / 35 cm^2 = 205.7 mC/cm^2: over 150, must be rejected.
+        val tdcs = NPTDCSParams(
+            intensityMilliamps = 2.0,
+            electrodePairs = listOf(listOf("Fp1", "P3")),
+            electrodeAreaCm2 = 35.0,
+        )
+        assertTrue(
+            hardwareOnlyValidator().validate(protocolWith(NPModalityParams.Tdcs(tdcs), durationSeconds = 3600))
+                .errors.any { it.parameterKey == "chargeDensityMCcm2" },
+            "Charge density over the 150 mC/cm2 ceiling must be rejected.",
+        )
+    }
+
+    // @verifies REQ-NPPS-14#a
+    @Test
     fun chargeDensityAtCeilingRejected() {
         // 1.4 mA × 3750s / 35 cm² = exactly 150.0 mC/cm².
         val tdcs = NPTDCSParams(
