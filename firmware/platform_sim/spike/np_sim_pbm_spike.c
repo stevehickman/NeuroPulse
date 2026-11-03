@@ -15,6 +15,7 @@
  *   fail <socket> <op> <code> <n>   next n calls of op return code (n<0: until cleared)
  *   reading <socket> <op> <value>   pin op's reading (ntc_read)
  *   absent <socket> | present <socket> | clear <socket>
+ *   report <version>                the safety MCU reports the helmet's hardware version; the layout follows it
  *   status                          every module, the dispatch table, requested enables
  *   quit
  */

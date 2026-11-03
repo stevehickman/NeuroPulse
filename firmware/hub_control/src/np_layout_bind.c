@@ -15,10 +15,12 @@ np_hub_status_t np_layout_bind(uint8_t hardware_version)
     const np_socket_layout_t *row = np_socket_layout_find(hardware_version);
     s_bound = NULL;
     if (row == NULL) {
+        np_module_map_unbind();         /* no stale geometry of another version may go on answering */
         return NP_HUB_ERR_NOT_PRESENT;
     }
     np_hub_status_t rc = np_module_map_init(row->geom, row->table_len);
     if (rc != NP_HUB_OK) {
+        np_module_map_unbind();
         return rc;
     }
     s_bound = row;
@@ -28,6 +30,23 @@ np_hub_status_t np_layout_bind(uint8_t hardware_version)
 const np_socket_layout_t *np_layout_bound(void)
 {
     return s_bound;
+}
+
+np_hub_status_t np_layout_follow_report(uint8_t reported_version, bool report_received, bool *rebound_out)
+{
+    if (rebound_out != NULL) {
+        *rebound_out = false;
+    }
+    if (!report_received) {
+        return NP_HUB_OK;                       /* the default binding stands until a report says otherwise */
+    }
+    if (s_bound != NULL && s_bound->hardware_version == reported_version) {
+        return NP_HUB_OK;                       /* already the helmet's layout: leave the module map alone */
+    }
+    if (rebound_out != NULL) {
+        *rebound_out = true;
+    }
+    return np_layout_bind(reported_version);
 }
 
 np_hub_status_t np_layout_check_protocol_addresses(const np_session_desc_t *desc)

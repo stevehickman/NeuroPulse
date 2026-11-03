@@ -453,6 +453,17 @@ static void task_module_detect(void *arg)
          * The return value is informational — NOT_PRESENT and MOD_INIT are the
          * slot's state, not an error of the poll — but it must never again be
          * INVALID_ARG, which is what every call returned before OI-FWHUB-16. */
+        /* REQ-FWHUB-64 (OI-FWHUB-27): bring-up bound the SWR-HV-07 default version, because no report can
+         * arrive before the scheduler runs.  The first valid report from the safety MCU names the helmet's real
+         * version, and the layout follows it here: outside any session, under the lease, so the module map's
+         * re-initialisation cannot race a load.  Until this pass runs a session is refused (np_layout_admit()),
+         * which fails closed; the window is at most one poll period. */
+        if (np_lease_probe_begin()) {
+            (void)np_layout_follow_report(np_safety_spi_get_hardware_version(),
+                                          np_safety_spi_get_tier_report(NULL, NULL), NULL);
+            np_lease_probe_end();
+        }
+
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
             if (!np_lease_probe_begin()) {
                 break;

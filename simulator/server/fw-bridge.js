@@ -91,8 +91,12 @@ function messageToLines(msg) {
       return [`clear ${int(msg.socket, 0, MAX_SOCKET, 'socket')}`];
     case 'FW_COMMAND': {
       // spike only: drive the dispatcher so a scenario can run without the session runner
-      if (msg.cmd !== 'drive' && msg.cmd !== 'stop' && msg.cmd !== 'status') {
-        throw new BridgeError('cmd must be drive, stop or status');
+      if (msg.cmd !== 'drive' && msg.cmd !== 'stop' && msg.cmd !== 'status' && msg.cmd !== 'report') {
+        throw new BridgeError('cmd must be drive, stop, status or report');
+      }
+      if (msg.cmd === 'report') {
+        // the safety MCU's report of the helmet's hardware version (1..15 on a real helmet; 0 and above are tried as given)
+        return [`report ${int(msg.version, 0, 255, 'version')}`];
       }
       return msg.cmd === 'status' ? ['status'] : [`${msg.cmd} ${sockets(msg.sockets)}`];
     }

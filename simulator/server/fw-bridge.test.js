@@ -20,6 +20,10 @@ test('a client string is never placed in a command line', () => {
     { type: 'FW_COMMAND', cmd: 'drive', sockets: ['1\nquit'] },
     { type: 'FW_COMMAND', cmd: 'drive', sockets: [1.5] },
     { type: 'FW_COMMAND', cmd: 'drive', sockets: [] },
+    { type: 'FW_COMMAND', cmd: 'report', version: '1\nquit' },
+    { type: 'FW_COMMAND', cmd: 'report', version: 256 },
+    { type: 'FW_COMMAND', cmd: 'report', version: 1.5 },
+    { type: 'FW_COMMAND', cmd: 'report' },
     { type: 'MODULE_CLEAR', socket: 128 },
     { type: 'MODULE_CLEAR', socket: -1 },
   ];
@@ -41,6 +45,7 @@ test('a valid message becomes exactly one well-formed line per command', () => {
   for (const l of messageToLines({ type: 'MODULE_SET', socket: 3, patch: { add: 34, present: true } })) {
     assert.ok(!/[\r\n]/.test(l), 'no embedded newline');
   }
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'report', version: 2 }), ['report 2']);
   assert.deepStrictEqual(messageToLines({ type: 'SESSION_START' }), [], 'not the bridge\'s message');
 });
 

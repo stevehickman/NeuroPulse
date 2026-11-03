@@ -131,6 +131,8 @@ static void test_a_version_with_no_layout_is_refused_and_binds_nothing(void)
     check(np_layout_bind(1U) == NP_HUB_OK, "refuse: set-up, version 1 bound");
     check(np_layout_bind(0U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 0 has no layout");
     check(np_layout_bound() == NULL, "refuse: a failed bind forgets the earlier binding, so nothing is admitted on a stale one");
+    check(!np_module_map_address_valid(0U) && np_module_map_socket_count() == 0U,
+          "refuse: and the module map is unbound, so the old geometry answers for no address");
     check(np_layout_admit(1U) == NP_HUB_ERR_NO_LAYOUT, "refuse: with nothing bound even version 1 is refused, with the status for exactly that");
     check(np_layout_bind(255U) == NP_HUB_ERR_NOT_PRESENT, "refuse: version 255 has no layout");
 }
@@ -201,6 +203,64 @@ static void test_with_no_layout_bound_no_address_is_valid(void)
           "addresses: the check answers from the module map's bound geometry");
 }
 
+static np_hub_status_t inv_cb(uint16_t socket_id, void *ctx, uint8_t *types_out, uint8_t max, uint8_t *count_out)
+{
+    (void)socket_id; (void)ctx; (void)max;
+    types_out[0] = NP_ELEM_LED_660;
+    *count_out = 1U;
+    return NP_HUB_OK;
+}
+
+static bool socket_holds_a_module(uint16_t s)
+{
+    np_module_uid_t u;
+    return np_module_map_socket_uid(s, &u) == NP_HUB_OK;
+}
+
+/* @verifies REQ-FWHUB-64#a */
+static void test_the_binding_follows_the_first_report(void)
+{
+    bool rebound = true;
+    check(np_layout_bind(1U) == NP_HUB_OK, "follow: set-up, the default version 1 bound at bring-up");
+    check(np_layout_follow_report(2U, false, &rebound) == NP_HUB_OK && !rebound && np_layout_bound() != NULL,
+          "follow: with no report the bring-up binding stands, whatever version is passed");
+
+    np_module_uid_t uid = { { 9, 9, 9, 9, 9, 9, 9, 9 } };
+    bool changed = false;
+    check(np_module_map_apply_poll(0U, &uid, 0x00, inv_cb, NULL, &changed) == NP_HUB_OK && socket_holds_a_module(0U),
+          "follow: set-up, a module polled into socket 0");
+    check(np_layout_follow_report(1U, true, &rebound) == NP_HUB_OK && !rebound,
+          "follow: a report that names the bound version changes nothing");
+    check(socket_holds_a_module(0U), "follow: and the module map's inventory survives (it was not re-initialised)");
+
+    /* A report naming a version the hub holds no layout for: nothing is bound, and sessions are refused. */
+    check(np_layout_follow_report(0U, true, &rebound) == NP_HUB_ERR_NOT_PRESENT && rebound,
+          "follow: a report naming a version with no layout rebinds to nothing and says so");
+    check(np_layout_bound() == NULL && np_layout_admit(0U) == NP_HUB_ERR_NO_LAYOUT,
+          "follow: and the helmet is refused with the no-layout status");
+    /* ...and recovers when the report names a version that has one. */
+    check(np_layout_follow_report(1U, true, &rebound) == NP_HUB_OK && rebound && np_layout_bound() != NULL,
+          "follow: a later report that names a version with a layout binds it");
+    check(np_layout_admit(1U) == NP_HUB_OK, "follow: and the helmet is admitted");
+    check(!socket_holds_a_module(0U), "follow: a rebind re-initialised the module map, so its inventory was discarded");
+
+    /* Between every pair of layouts the table holds (none while only version 1 exists): follow moves the binding. */
+    bool pairs_ok = true;
+    for (unsigned a = 0; a < NP_SOCKET_LAYOUT_COUNT; a++) {
+        for (unsigned b = 0; b < NP_SOCKET_LAYOUT_COUNT; b++) {
+            if (a == b) { continue; }
+            const np_socket_layout_t *la = &NP_SOCKET_LAYOUTS[a];
+            const np_socket_layout_t *lb = &NP_SOCKET_LAYOUTS[b];
+            if (np_layout_bind(la->hardware_version) != NP_HUB_OK) { pairs_ok = false; continue; }
+            if (np_layout_admit(lb->hardware_version) != NP_HUB_ERR_NO_LAYOUT) { pairs_ok = false; }
+            if (np_layout_follow_report(lb->hardware_version, true, &rebound) != NP_HUB_OK || !rebound) { pairs_ok = false; }
+            if (np_layout_bound() != lb || np_module_map_socket_count() != lb->table_len) { pairs_ok = false; }
+            if (np_layout_admit(lb->hardware_version) != NP_HUB_OK) { pairs_ok = false; }
+        }
+    }
+    check(pairs_ok, "follow: for every pair of layouts, a helmet bound to one that reports the other is refused until the binding follows, then admitted");
+}
+
 int main(void)
 {
     test_a_version_is_found_or_it_is_not();
@@ -211,6 +271,7 @@ int main(void)
     test_a_version_with_no_layout_is_refused_and_binds_nothing();
     test_a_helmet_reporting_another_version_than_the_bound_one_is_refused();
     test_a_protocol_may_name_only_addresses_the_helmet_has();
+    test_the_binding_follows_the_first_report();
     test_with_no_layout_bound_no_address_is_valid();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;

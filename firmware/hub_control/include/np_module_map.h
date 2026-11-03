@@ -500,6 +500,14 @@ typedef np_hub_status_t (*np_hexmap_inventory_fn)(uint16_t  socket_id,
 np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sockets);
 
 /*
+ * np_module_map_unbind — forget the bound geometry and the whole inventory, returning the map to its state before
+ * np_module_map_init().  Afterwards no address is valid, np_module_map_socket_count() is 0, and every placement
+ * check and poll fails closed.  Used when the helmet's hardware version has no layout (np_layout_bind(), REQ-FWHUB-64),
+ * so a stale geometry of another version cannot go on answering.
+ */
+void np_module_map_unbind(void);
+
+/*
  * np_module_map_apply_poll — apply one socket's power-on / hot-plug poll result.
  *
  *   reported_uid : UID the socket's module returned (zero = socket empty).

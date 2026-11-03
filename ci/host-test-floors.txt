@@ -82,7 +82,7 @@ np_runner_load_tests 507
 np_runner_run_tests 1122
 np_pbm_socket_telem_tests 840
 np_socket_dispatch_tests 561
-np_socket_layouts_tests 188
+np_socket_layouts_tests 266
 np_safety_spi_tests 234
 np_stim_xcheck_tests 199
 np_transport_tests 209

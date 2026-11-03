@@ -226,6 +226,33 @@ static void test_the_whole_lattice_can_be_driven_at_once(void)
     check(strstr(last_result(), "\"code\":-3") != NULL, "lattice: an address of the domain that the lattice lacks is refused as not present");
 }
 
+/* @verifies-none Scenario: the first report names a version the hub holds no layout for; the layout follows it and refuses, and a later report recovers. np_socket_layouts_tests is the firmware's own test. Simulator evidence only (REQ-SIMFW-06). */
+static void test_the_layout_follows_the_safety_mcu_report(void)
+{
+    setup();
+    run("drive 0");
+    check(strstr(last_result(), "\"code\":0") != NULL, "report: set-up, a tile drives on the bring-up binding");
+    run("stop 0");
+
+    run("report 1");
+    check(count("\"ev\":\"layout\"") == 1 && count("\"rebound\":false") == 1, "report: a report that names the bound version rebinds nothing");
+
+    g_cap_n = 0;
+    run("report 0");
+    check(count("\"rebound\":true") == 1 && count("\"bound_version\":-1") == 1,
+          "report: a report that names a version with no layout rebinds to nothing");
+    run("add 1 34.0");
+    check(count("\"ev\":\"error\"") == 1, "report: with no layout no address is valid, so nothing can be added");
+    run("drive 0");
+    check(strstr(last_result(), "\"code\":0") == NULL && !driven(0), "report: and the unbound module map refuses a drive, so no stale geometry answers");
+
+    g_cap_n = 0;
+    run("report 1");
+    check(count("\"rebound\":true") == 1 && count("\"bound_version\":1") == 1, "report: a later report that names version 1 binds it again");
+    run("drive 0");
+    check(strstr(last_result(), "\"code\":0") != NULL && driven(0), "report: and the tile that is still there drives again, polled back in");
+}
+
 int main(void)
 {
     test_baseline_drive();
@@ -237,6 +264,7 @@ int main(void)
     test_lost_stop_releases_the_lattice_but_not_the_emitter();
     test_an_address_past_the_lattice_is_refused();
     test_the_whole_lattice_can_be_driven_at_once();
+    test_the_layout_follows_the_safety_mcu_report();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures,
            g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;

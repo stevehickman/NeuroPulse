@@ -138,8 +138,9 @@ void np_simh_line(char *line)
     if (strcmp(cmd, "add") == 0 && a && b) {
         uint16_t s = (uint16_t)atoi(a);
         if (!np_socket_layout_valid_address(g_layout, s)) {
-            np_sim_emit("{\"ev\":\"error\",\"what\":\"not a valid address for hardware version %u\",\"socket\":%u}",
-                        (unsigned)g_layout->hardware_version, (unsigned)s);
+            np_sim_emit("{\"ev\":\"error\",\"what\":\"not a valid address: %s\",\"hardware_version\":%d,\"socket\":%u}",
+                        g_layout != NULL ? "past this helmet's lattice" : "no layout is bound",
+                        g_layout != NULL ? (int)g_layout->hardware_version : -1, (unsigned)s);
         } else if (np_sim_add(NP_SIM_KIND_PBM_BASE, s, (float)atof(b)) != NULL) { poll_socket(s); }
     } else if ((strcmp(cmd, "drive") == 0 || strcmp(cmd, "stop") == 0) && a) {
         n = parse_list(a, socks, NP_HEXMAP_MAX_SOCKETS);
@@ -155,6 +156,18 @@ void np_simh_line(char *line)
         uint16_t s = (uint16_t)atoi(a);
         np_sim_set_present(s, cmd[0] == 'p');
         poll_socket(s);
+    } else if (strcmp(cmd, "report") == 0 && a) {
+        /* The safety MCU's report names the helmet's hardware version: the firmware's own follow-the-report path. */
+        bool rebound = false;
+        np_hub_status_t rc = np_layout_follow_report((uint8_t)atoi(a), true, &rebound);
+        g_layout = np_layout_bound();
+        np_sim_emit("{\"ev\":\"layout\",\"reported\":%d,\"rebound\":%s,\"code\":%d,\"bound_version\":%d}",
+                    atoi(a), rebound ? "true" : "false", (int)rc, g_layout != NULL ? (int)g_layout->hardware_version : -1);
+        if (rebound) {                        /* the module map was re-initialised: poll what is there again */
+            for (unsigned s = 0; s < NP_HEXMAP_MAX_SOCKETS; s++) {
+                if (np_sim_find((uint16_t)s) != NULL) { poll_socket((uint16_t)s); }
+            }
+        }
     } else if (strcmp(cmd, "clear") == 0 && a) {
         np_sim_clear((uint16_t)atoi(a));
     } else if (strcmp(cmd, "status") == 0) {
