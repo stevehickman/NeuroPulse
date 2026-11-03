@@ -415,7 +415,7 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
 /// Compile a composite (`OI-NPPS-COMP-01`): its layers are laid on one timeline by `composite::plan`, and the descriptor
 /// is built from that plan exactly as it is for a protocol (zone gate, PBM tile rule, command limit, signature slot).
 /// `members` maps a protocol name to its definition. Two blocks of one modality type that overlap in time and come from
-/// different layers are refused, except transcranial PBM, which the tile rule below judges (`merge_overlapping_pbm`: sockets that share none pass; sockets that are shared pass only when window, frequency and duty match and the wavelengths differ); nothing is summed, taken as a
+/// different layers are refused, except transcranial PBM on sockets that share none; nothing is summed, taken as a
 /// maximum or reduced to fit (`CLAUDE.md` §3).
 pub fn compile_composite(composite: &Value, members: &serde_json::Map<String, Value>, opts: &CompileOptions) -> R<Compiled> {
     if !(1..=15).contains(&opts.hardware_version) {
@@ -429,18 +429,23 @@ pub fn compile_composite(composite: &Value, members: &serde_json::Map<String, Va
     let mods = def["modalities"].as_array().cloned().unwrap_or_default();
     let mut cmds: Vec<Cmd> = Vec::new();
     let mut is_t2 = false;
-    let mut spans: Vec<(usize, &str, f64, f64)> = Vec::new();
+    let mut spans: Vec<(usize, &str, f64, f64, Option<Vec<u32>>)> = Vec::new();
     for (block, m) in mods.iter().enumerate() {
         let ty = s(m, "type");
         if matches!(ty, "qeeg_21ch" | "tms" | "pbm_deep_1170nm" | "clinical_tacs" | "hd_tdcs" | "cervical_vns") {
             is_t2 = true;
         }
         let generated = build_commands(ty, &m["params"], &m["interval"], session_ms, None, opts)?;
+        let sockets = generated.iter().find(|c| !c.params.is_empty()).and_then(|c| match &c.target {
+            Target::Sockets(v) => Some(v.clone()),
+            Target::Slot(_) => None,
+        });
         spans.push((
             m["layer"].as_u64().unwrap_or(0) as usize,
             ty,
             f(&m["interval"], "startOffsetSeconds"),
             f(&m["interval"], "endOffsetSeconds"),
+            sockets,
         ));
         for mut c in generated {
             c.block = block;
@@ -458,15 +463,14 @@ pub fn compile_composite(composite: &Value, members: &serde_json::Map<String, Va
             if a.0 == b.0 || a.1 != b.1 || !(a.2 < b.3 && b.2 < a.3) {
                 continue;
             }
-            // Transcranial PBM from two layers is the one overlap that can be right: the tile rule decides it below, so a pair
-            // that shares sockets passes only when their window, frequency and duty match and their wavelengths differ.
-            if a.1 == "pbm_transcranial" {
-                continue;
+            let disjoint_pbm = a.1 == "pbm_transcranial"
+                && matches!((&a.4, &b.4), (Some(x), Some(y)) if !x.iter().any(|k| y.contains(k)));
+            if !disjoint_pbm {
+                return Err(format!(
+                    "Layers {} and {} both drive {} from {}s to {}s. Two layers may overlap only on transcranial PBM sockets they do not share; the composite is refused rather than summed or reduced.",
+                    a.0 + 1, b.0 + 1, a.1, num_string(a.2.max(b.2)), num_string(a.3.min(b.3))
+                ));
             }
-            return Err(format!(
-                "Layers {} and {} both drive {} from {}s to {}s. Two layers may overlap only on transcranial PBM; the composite is refused rather than summed or reduced.",
-                a.0 + 1, b.0 + 1, a.1, num_string(a.2.max(b.2)), num_string(a.3.min(b.3))
-            ));
         }
     }
     zone_gate(&def, opts)?;

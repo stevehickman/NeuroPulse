@@ -185,28 +185,33 @@ fn two_pbm(lib: &mut Library, a: Value, b: Value) -> Value {
         layer(a["name"].as_str().unwrap(), 0.0, None, 1.0), layer(b["name"].as_str().unwrap(), 0.0, None, 1.0) ] })
 }
 
+fn disjoint_zones(lib: &Library) -> (String, String) {
+    let z = lib.zones.as_object().unwrap();
+    let ids = |v: &Value| -> Vec<u64> { v.as_array().unwrap().iter().map(|n| n.as_u64().unwrap()).collect() };
+    for (a, av) in z {
+        for (b, bv) in z {
+            let (x, y) = (ids(av), ids(bv));
+            if a < b && !x.is_empty() && !y.is_empty() && !x.iter().any(|k| y.contains(k)) {
+                return (a.clone(), b.clone());
+            }
+        }
+    }
+    panic!("the shipped zones have no disjoint pair");
+}
+
 // @verifies SWR-PL-01
 #[test]
-fn pbm_layers_may_share_sockets_when_window_frequency_and_duty_match_and_wavelengths_differ() {
+fn pbm_layers_overlap_only_on_sockets_they_do_not_share() {
+    // Two layers whose channels would be merged onto one tile are refused, even when window, frequency and duty match and
+    // the wavelengths differ: the weighted sum over the merged channels is not checked yet (OI-NPPS-COMP-01).
     let mut lib = library();
-    let ok = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 40.0, "All"));
-    assert!(compile_json(&compile_req(&lib, &ok)).is_ok(), "same sockets, window, frequency and duty, different wavelengths");
+    let shared = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 40.0, "All"));
+    let e = compile_json(&compile_req(&lib, &shared)).unwrap_err();
+    assert!(e.contains("refused rather than summed or reduced") && e.contains("do not share"), "{e}");
 
+    // Sockets that share none pass.
     let mut lib = library();
-    let other_hz = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 20.0, "All"));
-    let e = compile_json(&compile_req(&lib, &other_hz)).unwrap_err();
-    assert!(e.contains("refused rather than reshaped"), "a tile takes one frequency: {e}");
-
-    let mut lib = library();
-    let same_wl = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM Red 2", "660nm", 40.0, "All"));
-    assert!(compile_json(&compile_req(&lib, &same_wl)).is_err(), "the same wavelength twice on one tile is not a different channel");
-
-    let mut lib = library();
-    let shifted = {
-        let mut c = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, "All"), pbm_member("PBM NIR", "808nm", 40.0, "All"));
-        c["layers"][1]["startOffsetSeconds"] = json!(30);
-        c["layers"][1]["durationSeconds"] = json!(300);
-        c
-    };
-    assert!(compile_json(&compile_req(&lib, &shifted)).is_err(), "a different window on a shared tile is refused");
+    let (za, zb) = disjoint_zones(&lib);
+    let apart = two_pbm(&mut lib, pbm_member("PBM Red", "660nm", 40.0, &za), pbm_member("PBM NIR", "808nm", 40.0, &zb));
+    assert!(compile_json(&compile_req(&lib, &apart)).is_ok(), "{za} and {zb} share no socket");
 }

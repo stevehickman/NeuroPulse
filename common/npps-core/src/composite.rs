@@ -17,8 +17,7 @@
 //!   pressure (a dB figure moves by 20 log10 of the scale). A block with no dose to scale (acquisition) is left alone.
 //!   A modality with a dose the compiler cannot scale refuses any scale other than 1.
 //! * Two blocks of one modality type that overlap in time and come from different layers are refused, except
-//!   transcranial PBM, which the one-tile rule judges (sockets that share none pass; shared sockets pass only when the
-//!   window, frequency and duty match and the wavelengths differ). That check needs the zone namespace, so it is the compiler's
+//!   transcranial PBM on sockets that share none. That check needs the zone namespace, so it is the compiler's
 //!   (`compiler::compile_composite`), not the plan's: an identity is not a validity check.
 
 use serde_json::{json, Map, Value};
