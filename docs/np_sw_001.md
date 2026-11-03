@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 143
-**Date:** 2026-11-02  
+**Revision:** 145
+**Date:** 2026-11-03  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -793,3 +793,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 142 | 2026-11-01 | NeurOne Software Engineering | **§6.3: `SWR-SS-05` and `SWR-SS-06` status updated (the run loop wakes on a stop or a pause).** The runner's loop waits on the event group instead of sleeping, so an app stop and a pause request are acted on when they are posted and not up to 1 s later (`NP-FW-HUB-001` Rev 30). No requirement text changed; no latency bound is stated. |
 | 143 | 2026-11-02 | NeurOne Software Engineering | **§5.3.1: the shared app can program a protocol for Mode 3 (autonomous) use (the principal, 2026-11-02: "port the Mode 3 programming path"; found by the Swift test port, `OI-UI-KMP-05`; `REQ-SW03-03`, `REQ-FWHUB-08`).** The Swift app programs a protocol onto the hub to run from a power bank with no phone (`programAutonomous`); the shared app had only the Mode 2 upload. The core's compile options carry `autonomous` (the Rust core already set the header bit), `HubDescriptorCompiler.compile` and `ProtocolUploader.upload` take it, and the Session tab, when the helmet is connected and idle, shows the Mode 3 card with the same wording as the iOS setup card; choosing a protocol opens the usual menu, and the upload goes through the same cervical gate, the same cautions and the same verify step. **It does not say "stored" before the helmet has answered** (as the iOS flow since Rev 132): a tier or hardware-version refusal is shown, and any other outcome reports the protocol stored, as iOS does. **Placement differs from iOS:** the card is on the Session tab, not the setup completion step, because the shared setup wizard ends in the Session tab and the upload orchestration is there; the Session tab opens only once first-run setup has finished. **Cervical VNS in Mode 3:** the app gate is unchanged from iOS (an unread cutoff blocks it, another person's needs a confirmation); the hardware lockout that survives a power cycle is `OI-FAULTMSG-01` P1, implemented and open until verified on silicon, and keeping cervical VNS out of autonomous protocols (P1b) was not decided. The header bit has no firmware reader yet, so the hub runs both modes the same way. |
 | 144 | 2026-11-02 | NeurOne Software Engineering | **§6.3: `SWR-PL-04` status updated.** The Windows app gains `NPProtocolLibrary` (read-only guard on save and delete, clone through the shared core) and a test; the Windows screen is still not built. |
+| 145 | 2026-11-03 | NeurOne Software Engineering | **§6.3: `SWR-PL-04` status corrected.** The "Windows screen not built" item is removed: the UI is written once in `app/NeurOneUI` (`CLAUDE.md` §20) and its "Copy to edit" already offers the clone; the C# `NPProtocolLibrary` has no caller until `OI-UI-KMP-05` closes. |
