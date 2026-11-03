@@ -502,6 +502,13 @@
           "hub": true
         },
         {
+          "name": "DEVICE_TIER_ID",
+          "value": 29,
+          "int": true,
+          "note": "READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0 unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the safety MCU gate a T2 protocol whatever the app believes.",
+          "hub": true
+        },
+        {
           "name": "SESSION_PROGRESS_ID",
           "value": 25,
           "int": true,
@@ -547,6 +554,30 @@
           "value": 1,
           "int": true,
           "note": "HARDWARE_VERSION: one byte, 1 to 15."
+        },
+        {
+          "name": "DEVICE_TIER_LEN",
+          "value": 1,
+          "int": true,
+          "note": "DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2."
+        },
+        {
+          "name": "DEVICE_TIER_UNKNOWN",
+          "value": 0,
+          "int": true,
+          "note": "DEVICE_TIER: the safety MCU has sent no valid tier report yet. The app treats it as not T2."
+        },
+        {
+          "name": "DEVICE_TIER_T1",
+          "value": 1,
+          "int": true,
+          "note": "DEVICE_TIER: NeurOne Home. Equals the firmware's NP_TIER_T1."
+        },
+        {
+          "name": "DEVICE_TIER_T2",
+          "value": 2,
+          "int": true,
+          "note": "DEVICE_TIER: NeurOne Pro. Equals the firmware's NP_TIER_T2."
         },
         {
           "name": "SESSION_PROGRESS_LEN",

@@ -10,6 +10,7 @@ import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionStatus
 import life.neurone.core.models.UploadCheck
+import life.neurone.core.protocol.GattSizes
 import life.neurone.core.models.SocketMapFrame
 import life.neurone.core.models.ZoneModuleFrame
 
@@ -52,6 +53,20 @@ object GattParser {
         if (data.size != 1) return null
         val v = data[0].toInt() and 0xFF
         return if (v in 1..15) v else null
+    }
+
+    /**
+     * DEVICE_TIER: exactly one byte, the safety MCU's verdict as the hub relays it (OI-HWFIT-01, REQ-UPG-01). Null for any
+     * other length or a value the wire does not define, so no tier is believed that the hub did not state.
+     */
+    fun parseDeviceTier(data: ByteArray): HubTier? {
+        if (data.size != 1) return null
+        return when (data[0].toInt() and 0xFF) {
+            GattSizes.DEVICE_TIER_UNKNOWN -> HubTier.UNKNOWN
+            GattSizes.DEVICE_TIER_T1 -> HubTier.T1
+            GattSizes.DEVICE_TIER_T2 -> HubTier.T2
+            else -> null
+        }
     }
 
     /** UPLOAD_CHECK: 34 bytes (SWR-UP-01). Null if malformed. */
@@ -117,3 +132,10 @@ object GattParser {
         )
     }
 }
+
+/**
+ * The unit's tier as the hub reports it (DEVICE_TIER). [UNKNOWN] is the hub saying the safety MCU has sent no valid tier
+ * report yet. The app uses it to say what the helmet can run and decides nothing: the hub and the safety MCU gate a T2
+ * protocol whatever the app believes (REQ-UPG-01).
+ */
+enum class HubTier { UNKNOWN, T1, T2 }

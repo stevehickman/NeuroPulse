@@ -47,6 +47,11 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// whose firmware does not publish it, it is `defaultHardwareVersion`.
     @Published private(set) var hardwareVersion: Int = NeurOneGATTManager.defaultHardwareVersion
 
+    /// The unit's tier as the hub reports it (DEVICE_TIER, OI-HWFIT-01): the safety MCU's verdict from its signed tier identity,
+    /// relayed and never decided here. Nil until read, and on a helmet whose firmware does not publish it. It only says what the
+    /// helmet can run; the hub and the safety MCU gate a T2 protocol whatever the app believes (REQ-UPG-01).
+    @Published private(set) var hubTier: HubTier?
+
     /// The hardware version of a helmet that states none (SWR-HV-07): version 1 is the only layout that exists. This
     /// default is removed in the same change that adds hardware version 2 (a checked item on the increment record,
     /// `np_spi_wire_types.h`).
@@ -195,6 +200,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private var sessionPauseChar:   CBCharacteristic?
     private var sessionProgressChar: CBCharacteristic?
     private var hardwareVersionChar: CBCharacteristic?
+    private var deviceTierChar: CBCharacteristic?
     private var uploadCheckChar:    CBCharacteristic?
     private var pauseLimitChar:     CBCharacteristic?
 
@@ -286,6 +292,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         session = .empty
         progress = nil
         hardwareVersion = Self.defaultHardwareVersion // the next link may be another helmet
+        hubTier = nil                                 // and another tier
         uploadCheck = nil
         pauseLimitSeconds = nil
         pauseLimitPublished = false
@@ -475,6 +482,18 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         hardwareVersion = Int(data[data.startIndex])
     }
 
+    /// Decodes DEVICE_TIER: exactly one byte, 0 unknown, 1 T1, 2 T2 (OI-HWFIT-01). Anything else is not believed and the tier
+    /// stays as it was. `internal`: driven directly by tests.
+    func applyDeviceTier(_ data: Data) {
+        guard data.count == 1 else { return }
+        switch Int(data[data.startIndex]) {
+        case GattSizes.DEVICE_TIER_UNKNOWN: hubTier = .unknown
+        case GattSizes.DEVICE_TIER_T1: hubTier = .t1
+        case GattSizes.DEVICE_TIER_T2: hubTier = .t2
+        default: return
+        }
+    }
+
     /// Ask the hub for its current upload report (a READ, so a missed notification does not leave the outcome unknown).
     func requestUploadCheck() {
         guard let char = uploadCheckChar, let p = peripheral else { return }
@@ -630,7 +649,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
-        sessionPauseChar = nil; sessionProgressChar = nil; hardwareVersionChar = nil; uploadCheckChar = nil
+        sessionPauseChar = nil; sessionProgressChar = nil; hardwareVersionChar = nil; deviceTierChar = nil; uploadCheckChar = nil
         pauseLimitChar = nil
         deviceSerialChar = nil
         socketMapChar = nil
@@ -698,6 +717,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             GattUuidStrings.CVNS_FAULT_STATUS_ID, GattUuidStrings.CVNS_REENABLE_CONFIRM_ID,
             GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.DEVICE_SERIAL_ID,
             GattUuidStrings.SESSION_PROGRESS_ID, GattUuidStrings.SESSION_PAUSE_ID, GattUuidStrings.HARDWARE_VERSION_ID,
+            GattUuidStrings.DEVICE_TIER_ID,
             GattUuidStrings.UPLOAD_CHECK_ID, GattUuidStrings.PAUSE_LIMIT_ID,
         ]
         peripheral.discoverCharacteristics(
@@ -778,6 +798,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             case CBUUID(string: GattUuidStrings.HARDWARE_VERSION_ID):
                 // SWR-HV-06: optional (hub firmware); read once at link. It never changes in the field.
                 hardwareVersionChar = char
+                peripheral.readValue(for: char)
+
+            case CBUUID(string: GattUuidStrings.DEVICE_TIER_ID):
+                // OI-HWFIT-01: optional (hub firmware); read once at link. The tier never changes in the field.
+                deviceTierChar = char
                 peripheral.readValue(for: char)
 
             case CBUUID(string: GattUuidStrings.UPLOAD_CHECK_ID):
@@ -907,6 +932,11 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
+        if characteristic.uuid == CBUUID(string: GattUuidStrings.DEVICE_TIER_ID) {
+            applyDeviceTier(data)
+            return
+        }
+
         if characteristic.uuid == CBUUID(string: GattUuidStrings.UPLOAD_CHECK_ID) {
             // Published on its own: not part of the accumulated session record.
             applyUploadCheck(data)
@@ -1027,3 +1057,8 @@ extension NeurOneGATTManager: SetupGATTProviding {
         impedanceResultSubject.eraseToAnyPublisher()
     }
 }
+
+
+/// The unit's tier as the hub reports it (DEVICE_TIER). `unknown` is the hub saying the safety MCU has sent no valid tier report
+/// yet. The app uses it to say what the helmet can run and decides nothing (REQ-UPG-01).
+enum HubTier: Equatable { case unknown, t1, t2 }

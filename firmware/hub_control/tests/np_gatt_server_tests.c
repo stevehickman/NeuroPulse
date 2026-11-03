@@ -133,6 +133,8 @@ np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
 
 static uint8_t g_hw_version = 1U;
 uint8_t np_safety_spi_get_hardware_version(void) { return g_hw_version; }
+static uint8_t g_tier = 0U;   /* what the safety MCU reports: NP_TIER_UNKNOWN until a valid report */
+uint8_t np_safety_spi_get_tier(void) { return g_tier; }
 
 static uint32_t g_session_count;
 uint32_t np_log_session_count(void) { return g_session_count; }
@@ -231,6 +233,43 @@ static bool all_zero(const uint8_t *p, size_t n)
 
 /* ── UUIDs and the table ──────────────────────────────────────────────────── */
 
+/* @verifies REQ-UPG-01 */
+static void test_device_tier_is_the_safety_mcus_verdict_and_cannot_be_written(void)
+{
+    uint8_t buf[8];
+    size_t  len = 0U;
+    reset_world();
+
+    const struct { uint8_t mcu; uint8_t wire; const char *what; } k[] = {
+        { NP_TIER_UNKNOWN, NP_GATT_DEVICE_TIER_UNKNOWN, "no valid report yet reads unknown" },
+        { NP_TIER_T1,      NP_GATT_DEVICE_TIER_T1,      "T1 reads 1" },
+        { NP_TIER_T2,      NP_GATT_DEVICE_TIER_T2,      "T2 reads 2" },
+        { 0x7FU,           NP_GATT_DEVICE_TIER_UNKNOWN, "a value the wire does not define reads unknown, never a guessed tier" },
+    };
+    for (size_t i = 0U; i < sizeof k / sizeof k[0]; i++) {
+        g_tier = k[i].mcu;
+        len = 0U;
+        check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof buf, &len) == NP_ATT_OK &&
+              len == NP_GATT_DEVICE_TIER_LEN && buf[0] == k[i].wire,
+              k[i].what);
+    }
+    g_tier = NP_TIER_UNKNOWN;
+
+    check(np_gatt_on_write(NP_GATT_DEVICE_TIER_ID, buf, 1U) == NP_ATT_WRITE_NOT_PERMITTED,
+          "device tier: nothing in the field writes it");
+
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    bool read_only = false;
+    for (size_t i = 0U; i < n; i++) {
+        if (t[i].id == NP_GATT_DEVICE_TIER_ID) {
+            read_only = (t[i].props & NP_GATT_PROP_READ) != 0U &&
+                        (t[i].props & (NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY)) == 0U;
+        }
+    }
+    check(read_only, "device tier: read-only in the table");
+}
+
 /* @verifies REQ-FWHUB-56 */
 static void test_uuids_match_the_contract(void)
 {
@@ -245,6 +284,7 @@ static void test_uuids_match_the_contract(void)
         { NP_GATT_ACTIVE_USER_ID,           "4E455550-0016-1000-8000-00805F9B34FB" },
         { NP_GATT_DEVICE_SERIAL_ID,         "4E455550-0017-1000-8000-00805F9B34FB" },
         { NP_GATT_HARDWARE_VERSION_ID,      "4E455550-001C-1000-8000-00805F9B34FB" },
+        { NP_GATT_DEVICE_TIER_ID,           "4E455550-001D-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -265,7 +305,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 12U, "table: twelve characteristics, each with a producer");
+    check(n == 13U, "table: thirteen characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -970,6 +1010,7 @@ int main(void)
     test_warranty_provisioning_failures_leave_nothing();
     test_device_serial();
     test_hardware_version_is_read_from_the_safety_mcu_and_cannot_be_written();
+    test_device_tier_is_the_safety_mcus_verdict_and_cannot_be_written();
     test_active_user_write();
     test_reenable_confirm_write();
     test_fault_status_read_and_notify_agree();

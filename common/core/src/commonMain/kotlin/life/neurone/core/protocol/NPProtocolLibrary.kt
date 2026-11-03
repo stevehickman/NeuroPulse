@@ -98,6 +98,18 @@ fun NPProtocolDefinition.requires1064SmartModule(): Boolean =
 
 enum class DeviceTier { NONE, T1, T2 }
 
+/**
+ * The tier the protocol menu offers protocols for (OI-HWFIT-01). No helmet connected is [DeviceTier.NONE]. A connected
+ * helmet is T2 only when the hub says T2 (its safety MCU's verified tier identity), and T1 in every other case: the hub
+ * says T1, says unknown because no valid report has arrived, or is firmware that has no DEVICE_TIER characteristic (null).
+ * Never T2 on any doubt (REQ-UPG-01: fail-closed to T1). The hub gates a T2 protocol whatever this says.
+ */
+fun deviceTierFor(connected: Boolean, hub: life.neurone.core.ble.HubTier?): DeviceTier = when {
+    !connected -> DeviceTier.NONE
+    hub == life.neurone.core.ble.HubTier.T2 -> DeviceTier.T2
+    else -> DeviceTier.T1
+}
+
 /** Port of iOS ProtocolAvailability, incl. the ISC-90 `.eegConsentRequired` case. */
 sealed class ProtocolAvailability {
     object Available : ProtocolAvailability()

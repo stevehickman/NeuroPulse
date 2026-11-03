@@ -1,5 +1,6 @@
 package life.neurone.core.protocol
 
+import life.neurone.core.ble.HubTier
 import life.neurone.core.common.InMemoryKeyValueStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,6 +18,16 @@ class NPProtocolLibraryTests {
         val kv = InMemoryKeyValueStore()
         kv.putBoolean(NPProtocolLibrary.BIPA_ACCEPTED_KEY, consent)
         return NPProtocolLibrary(kv)
+    }
+
+    // @verifies REQ-UPG-01
+    @Test
+    fun theMenuTierIsT2OnlyWhenTheHubSaysT2() {
+        assertEquals(DeviceTier.NONE, deviceTierFor(false, HubTier.T2), "no helmet connected")
+        assertEquals(DeviceTier.T2, deviceTierFor(true, HubTier.T2))
+        assertEquals(DeviceTier.T1, deviceTierFor(true, HubTier.T1))
+        assertEquals(DeviceTier.T1, deviceTierFor(true, HubTier.UNKNOWN), "no valid report yet is not T2")
+        assertEquals(DeviceTier.T1, deviceTierFor(true, null), "firmware with no DEVICE_TIER characteristic is not T2")
     }
 
     // @verifies REQ-NPPS-18

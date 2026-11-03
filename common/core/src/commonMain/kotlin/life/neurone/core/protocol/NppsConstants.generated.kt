@@ -226,6 +226,11 @@ object GattIds {
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
     const val HARDWARE_VERSION_ID: Int = 0x001C
+    // READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0
+    // unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the
+    // field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the
+    // safety MCU gate a T2 protocol whatever the app believes.
+    const val DEVICE_TIER_ID: Int = 0x001D
     // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     // (SWR-SS-07).
     const val SESSION_PROGRESS_ID: Int = 0x0019
@@ -293,6 +298,11 @@ object GattUuidStrings {
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
     const val HARDWARE_VERSION_ID: String = "4E455550-001C-1000-8000-00805F9B34FB"
+    // READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0
+    // unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the
+    // field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the
+    // safety MCU gate a T2 protocol whatever the app believes.
+    const val DEVICE_TIER_ID: String = "4E455550-001D-1000-8000-00805F9B34FB"
     // READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     // (SWR-SS-07).
     const val SESSION_PROGRESS_ID: String = "4E455550-0019-1000-8000-00805F9B34FB"
@@ -325,6 +335,14 @@ object GattSizes {
     const val PAUSE_LIMIT_LEN: Int = 4
     // HARDWARE_VERSION: one byte, 1 to 15.
     const val HARDWARE_VERSION_LEN: Int = 1
+    // DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.
+    const val DEVICE_TIER_LEN: Int = 1
+    // DEVICE_TIER: the safety MCU has sent no valid tier report yet. The app treats it as not T2.
+    const val DEVICE_TIER_UNKNOWN: Int = 0
+    // DEVICE_TIER: NeurOne Home. Equals the firmware's NP_TIER_T1.
+    const val DEVICE_TIER_T1: Int = 1
+    // DEVICE_TIER: NeurOne Pro. Equals the firmware's NP_TIER_T2.
+    const val DEVICE_TIER_T2: Int = 2
     // SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
     // remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
     // B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).
