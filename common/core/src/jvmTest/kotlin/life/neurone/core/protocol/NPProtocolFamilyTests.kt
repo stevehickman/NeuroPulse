@@ -67,6 +67,24 @@ class NPProtocolFamilyTests {
         assertEquals(DeleteResult.ReadOnly, lib.delete(gamma(lib).id))
     }
 
+    // @verifies SWR-PL-04
+    @Test
+    fun aPredefinedProtocolIsChangedOnlyThroughAClone() {
+        val lib = library()
+        val source = gamma(lib)
+        assertFalse(lib.canEdit(source))
+        assertFalse(lib.canDelete(source))
+        val hashBefore = lib.contentHash(source)
+
+        val copy = lib.cloneFamily(source.id).first()
+        assertFalse(copy.isReadOnly, "the clone is the user's, so it is editable")
+        assertTrue(lib.canEdit(copy))
+        assertEquals(SaveResult.Saved, lib.save(longer(copy)))
+
+        assertTrue(gamma(lib).isReadOnly, "the predefined protocol is still read-only")
+        assertEquals(hashBefore, lib.contentHash(gamma(lib)), "and byte-identical after the clone was edited")
+    }
+
     // @verifies SWR-UP-02
     @Test
     fun aConfirmedUploadMarksTheFamilyUsed() {

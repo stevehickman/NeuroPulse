@@ -356,7 +356,7 @@ bench.
   `TILEABLE_VAULT_CM2` and `derivedSocketCount()`, asserts its hex row structure
   sums to the derived count, and emits `NP_SOCKET_COUNT` /
   `NP_SOCKET_NUMBERING_BASE` / `NP_SOCKET_ID_MIN` / `NP_SOCKET_ID_MAX` /
-  `NP_TILE_GEOMETRY` to the app and `hardware/np_socket_map.json`.
+  `NP_TILE_GEOMETRY` to the app and `hardware/np_socket_map_v1.json`.
   **Direction of authority inverted:** skull anatomy is now upstream of
   `00-zones.npps`, which was previously treated as the locked artefact with the
   geometry fitted to it - precisely the inversion that let an impossible lattice

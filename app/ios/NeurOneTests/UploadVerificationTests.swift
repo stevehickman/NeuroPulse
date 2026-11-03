@@ -132,6 +132,7 @@ final class UploadVerificationTests: XCTestCase {
         for reason in [2, 8, 9] { XCTAssertEqual(cause(reason), .malformed) }
         XCTAssertEqual(cause(13), .sessionActive)
         XCTAssertEqual(cause(25), .bootRefused)
+        XCTAssertEqual(cause(29), .noLayout)   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload
         // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
         XCTAssertEqual(cause(0xFF), .other)
         XCTAssertEqual(cause(99), .other)

@@ -200,6 +200,9 @@ jobs:
         scripts/check-doc-filenames.ts
         scripts/check-dhf-index.ts
         scripts/check-md-tables.ts
+        scripts/check-revision-fragments.ts
+        scripts/assign-revisions.ts
+        scripts/revision-lib.ts
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
@@ -653,7 +656,7 @@ jobs:
           assert scope.pbmmodel.paths true  firmware/hub_control/include/np_pbm_model.generated.h
           assert scope.pbmmodel.paths true  scripts/pbm-model.ts
           assert scope.pbmmodel.paths false firmware/hub_control/include/np_hub_config.h
-          assert scope.pbmmodel.paths false hardware/np_socket_map.json
+          assert scope.pbmmodel.paths false hardware/np_socket_map_v1.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
           assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
           assert scope.sharedplace.paths true  app/NeurOneShared/TestData/hub-descriptor-golden.json
@@ -919,14 +922,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Two commits: on a pull_request run HEAD is the merge of the PR into its base, and the revision-scheme guard
+          # below compares HEAD with HEAD^1 (the base tip), which is exactly the PR's own change.
+          fetch-depth: 2
 
       - name: Set up Bun
         uses: ./.github/actions/setup-toolchain
         with:
           bun: 'true'
 
-      # No `bun install`: the checker imports node builtins only and spawns
-      # nothing but itself. Same reasoning as consent-reachability below.
+      # No `bun install`: the checkers import node builtins only and spawn
+      # nothing but git and themselves. Same reasoning as consent-reachability below.
 
       # A real guard that nothing was running, and then a guard that ran only
       # when scripts/ changed — which is never, on the one kind of PR that can
@@ -963,6 +970,21 @@ jobs:
 
       - name: Every Markdown table row in docs/ has its header's cell count
         run: bun scripts/check-md-tables.ts
+
+      # Revision numbers are assigned when a change merges, not by its author
+      # (docs/revisions/README.md; the decision: docs/human-input/np-qms-dc-001-revision-assignment.md).
+      # In mode `hand`, the mode the repository ships in, the guard reads fragments only. In mode `assign-at-merge` it holds
+      # a PR to the scheme. Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly
+      # what the guard forbids a PR to change.
+      - name: Guard self-test (prove the revision-scheme rules can fail)
+        run: bun scripts/check-revision-fragments.ts --self-test
+
+      - name: The assigner and its converter reproduce the numbers they should
+        run: bun scripts/assign-revisions.ts --self-test
+
+      - name: A pull request follows the revision scheme in force
+        if: ${{ github.event_name == 'pull_request' }}
+        run: bun scripts/check-revision-fragments.ts
 
   section-refs:
     name: CLAUDE.md section citations resolve (repo-wide)

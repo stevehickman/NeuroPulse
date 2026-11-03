@@ -14,7 +14,7 @@ namespace NeurOne.Protocol;
 /// The core's reading of a helmet upload report. `RefusalKind` is the library's `helmetRefusal` (`tier`, `hardware_version`
 /// or null), `NotReady` is a refusal only because the helmet had not yet heard its tier or hardware version (sending the same
 /// protocol again can succeed), and `Cause` is what to say: `tier`, `hardware_version`, `not_ready`, `signature`,
-/// `wrong_device`, `format_version`, `damaged`, `malformed`, `session_active`, `boot_refused`, `other`, `unmatched`, or null
+/// `wrong_device`, `format_version`, `damaged`, `malformed`, `session_active`, `boot_refused`, `no_layout`, `other`, `unmatched`, or null
 /// for an accepted upload and for no answer.
 sealed record HelmetCauseAnswer(string? RefusalKind, bool NotReady, string? Cause);
 

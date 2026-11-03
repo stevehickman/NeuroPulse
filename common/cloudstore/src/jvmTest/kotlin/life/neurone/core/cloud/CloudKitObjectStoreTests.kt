@@ -156,6 +156,12 @@ class CloudKitObjectStoreTests {
 
     // @verifies SWR-MG-11#calls
     @Test
+    fun theFreeSpaceIsUnknownBecauseWebServicesHasNoQuotaCall() = runBlocking {
+        assertNull(ck(FakeCloudKit()).freeSpace())
+    }
+
+    // @verifies SWR-MG-11#calls
+    @Test
     fun aPutIsAForceReplaceAndADeleteAForceDelete() = runBlocking {
         val fake = FakeCloudKit()
         val s = ck(fake)

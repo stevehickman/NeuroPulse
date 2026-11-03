@@ -237,6 +237,18 @@ np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sock
     return NP_HUB_OK;
 }
 
+void np_module_map_unbind(void)
+{
+    memset(&s_map, 0, sizeof(s_map));
+}
+
+bool np_module_map_address_valid(uint16_t socket_id)
+{
+    return s_map.initialized &&
+           socket_id < s_map.n_sockets &&
+           s_map.geom[socket_id].present_in_helmet;
+}
+
 /* ── Poll application ─────────────────────────────────────────────────────────── */
 
 static void clear_record(np_socket_record_t *r)

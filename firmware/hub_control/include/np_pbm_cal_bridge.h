@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 /*
- * Install the module-map-backed calibration provider and socket→UID resolver
- * into firmware/pbm.
+ * Install the module-map-backed calibration provider, socket→UID resolver and
+ * socket address validator (REQ-FWHUB-64) into firmware/pbm.
  *
  * Call once, AFTER np_module_map_init() (and after np_module_map_restore(), if
  * the inventory is being restored from NVRAM) and BEFORE the first
@@ -40,10 +40,12 @@ extern "C" {
  * every socket to the zero UID and loads firmware defaults — the behaviour that
  * predates OI-HUB-C06 — so an un-bridged build is degraded, never wrong.
  *
- * np_module_map itself has no production call site yet (OI-HEXMAP-03; the
- * inventory_fn it needed, OI-HEXMAP-02, is np_hexmap_inventory.c), which is why this bridge is not invoked from
- * np_hub_control_app_main() in this revision. It is exercised by
- * np_pbm_cal_bridge_tests.
+ * np_hub_control_app_main() calls it at bring-up, right after np_layout_bind() has bound the helmet's socket
+ * layout to the module map (NP-FW-HUB-001; scripts/check-hub-bringup-order.ts holds the order).  It was not
+ * called before that because the module map had no production call site (OI-HEXMAP-03).  The inventory poll that
+ * would fill the UID and calibration records still has none (np_hexmap_inventory.c), so until it does, the UID
+ * resolver and calibration provider answer "none" and the library keeps its firmware defaults; the address validator
+ * answers from the bound geometry.  It is exercised by np_pbm_cal_bridge_tests.
  */
 void np_hub_pbm_cal_bridge_install(void);
 

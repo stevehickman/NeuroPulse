@@ -91,6 +91,20 @@ typedef bool (*np_pbm_socket_uid_fn)(uint8_t                  socket_id,
                                          void                    *ctx);
 
 /*
+ * Socket address validity (REQ-FWHUB-64).  A descriptor's masks name sockets by index; whether an index names a
+ * socket THIS helmet has is a fact of its hardware version and belongs to the hub.  On the hub this is
+ * np_module_map_address_valid(), installed by np_hub_pbm_cal_bridge_install().
+ */
+typedef bool (*np_pbm_socket_valid_fn)(uint8_t socket_id, void *ctx);
+
+/*
+ * Install (or, with fn == NULL, remove) the address validator np_pbm_session_desc_expand() applies.  With none
+ * installed no address is checked, which is the library's behaviour before the hub supplied one and is NOT a
+ * claim that every address is valid.
+ */
+void np_pbm_session_set_address_validator(np_pbm_socket_valid_fn fn, void *ctx);
+
+/*
  * Install (or, with fn == NULL, remove) the socket→UID resolver used at
  * session start. With no resolver installed every socket resolves to the zero
  * UID and therefore to firmware defaults — today's behaviour, unchanged.
@@ -216,6 +230,11 @@ np_pbm_status_t np_pbm_session_desc_parse(const uint8_t *in, size_t in_len,
  * name the i-th distinct socket addressed by any group and the preset that
  * applies to it. If a socket's bit is set in more than one group's mask, the
  * FIRST group (lowest index) wins — matching the array's signed order.
+ *
+ * ADDRESS VALIDITY (REQ-FWHUB-64): when a validator is installed, a set bit that is not a valid address makes
+ * the whole descriptor NP_PBM_ERR_INVALID_ADDRESS (fail closed, writing nothing).  It is checked BEFORE the
+ * bit is counted, so an address that is not a socket never uses capacity and is never mistaken for a capacity
+ * refusal: the count is of valid addresses, not of set bits.
  *
  * `capacity` bounds both output arrays. Returns NP_PBM_ERR_INVALID_ARG
  * (fail closed, writing nothing) if the combined groups address more than

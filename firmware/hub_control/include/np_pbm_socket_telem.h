@@ -55,11 +55,13 @@
 #define NP_PBM_SOCKET_TELEM_H
 
 #include "np_hub_types.h"
+#include "np_module_map.h"   /* NP_HEXMAP_MAX_SOCKETS */
 
-/* Sockets metered at once.  The PBM library's own session bound
- * (np_pbm_config.h); a drive past it is refused before the tile is lit, so no
- * socket is ever driven unmetered. */
-#define NP_PST_MAX_TRACKED   32U   /* == NP_PBM_SESSION_MAX_ACTIVE_SOCKETS, asserted */
+/* Sockets metered at once: one pool entry for every address the domain has (NP_HEXMAP_MAX_SOCKETS, 128), so any
+ * valid address can be tracked and no socket is refused for want of a pool entry (REQ-FWHUB-64).  A drive is still
+ * refused before the tile is lit if it cannot be tracked, so no socket is ever driven unmetered.  Equal to the PBM
+ * library's own capacity (np_pbm_config.h), asserted.  Was 32 until NP-FW-HUB-001. */
+#define NP_PST_MAX_TRACKED   NP_HEXMAP_MAX_SOCKETS
 
 /* SHDR fault code for a socket drive the driver could not complete (F11).
  * Written with NP_HUB_SLOT_NONE: which socket is UHDR. */
@@ -135,7 +137,7 @@ void np_pst_session_reset(void);
 /* Called by np_mod_pbm_socket_drive() BEFORE the tile is lit.  Tracks the
  * socket for this session (idempotent across re-drives; dose is cumulative
  * for the session) and loads its module's calibration on first use.
- * NP_HUB_ERR_GENERIC when NP_PST_MAX_TRACKED sockets are already tracked:
+ * NP_HUB_ERR_GENERIC if the socket cannot be tracked (an address outside the domain, or no pool entry):
  * the caller must not drive it. */
 np_hub_status_t np_pst_track(uint16_t socket_id, np_hub_mod_type_t mod_type);
 

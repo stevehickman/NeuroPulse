@@ -210,7 +210,7 @@ public class NppsCoreTests
         {
             (19, "tier"), (27, "hardware_version"), (20, "not_ready"), (28, "not_ready"), (6, "signature"), (7, "wrong_device"),
             (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
-            (25, "boot_refused"), (255, "other"), (99, "other"),
+            (25, "boot_refused"), (29, "no_layout"), (255, "other"), (99, "other"),
         })
         {
             Assert.Equal(cause, HelmetCause.Of("refused", reason).Cause);
@@ -255,6 +255,28 @@ public class NppsCoreTests
         Assert.False((bool)used["allowed"]!);
         var unused = Library("{\"op\":\"saveCheck\",\"id\":\"a\",\"entries\":[{\"id\":\"a\",\"used\":false,\"version\":\"1\",\"scope\":\"owner\"}]}");
         Assert.True((bool)unused["allowed"]!);
+    }
+
+    // @verifies SWR-PL-04
+    [Fact]
+    public void APredefinedProtocolIsChangedOnlyThroughAClone()
+    {
+        var shipped = new NPProtocolDefinition { Name = "Shipped", IsPredefined = true, IsReadOnly = true };
+        var lib = new NPProtocolLibrary([shipped]);
+        Assert.Equal(SaveResult.ReadOnly, lib.Save(shipped));
+        Assert.Equal(DeleteResult.ReadOnly, lib.Delete(shipped.Id));
+        Assert.False(lib.CanEdit(shipped));
+        Assert.False(lib.CanDelete(shipped));
+
+        var copy = Assert.Single(lib.CloneFamily(shipped.Id));
+        Assert.NotEqual(shipped.Id, copy.Id);
+        Assert.False(copy.IsPredefined);
+        Assert.False(copy.IsReadOnly);
+        Assert.False(lib.IsUsed(copy.Id));
+        Assert.True(lib.CanEdit(copy));
+        Assert.Equal(SaveResult.Saved, lib.Save(copy));
+        Assert.Equal(DeleteResult.Deleted, lib.Delete(copy.Id));
+        Assert.Contains(lib.All, p => p.Id == shipped.Id);
     }
 
     private static JsonNode Migration(string json) => NppsCore.Migration(JsonNode.Parse(json)!);

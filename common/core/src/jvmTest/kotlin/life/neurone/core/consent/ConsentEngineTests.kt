@@ -95,4 +95,12 @@ class ConsentEngineTests {
             }
         }
     }
+
+    // @verifies REQ-SW03-09
+    @Test
+    fun aTierRendersItsDisplayNameAndPriceAndTheStoredFormIsNotTheDisplayedOne() {
+        assertEquals("Full Clinical", ClinicianUseCaseTier.FULL_CLINICAL.displayName)
+        assertEquals("$299/month/patient", ClinicianUseCaseTier.FULL_CLINICAL.monthlyPrice)
+        assertEquals("$599/month/study", ClinicianUseCaseTier.RESEARCH.monthlyPrice)
+    }
 }

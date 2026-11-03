@@ -22,7 +22,7 @@ final class UploadBannersTests: XCTestCase {
     func testTheErrorBannerShowsEveryRefusalMessageWordForWord() throws {
         let causes: [HelmetRefusalCause] = [
             .tier, .hardwareVersion, .notReady, .signature, .wrongDevice, .formatVersion, .damaged, .malformed,
-            .sessionActive, .bootRefused, .other, .unmatched,
+            .sessionActive, .bootRefused, .noLayout, .other, .unmatched,
         ]
         for cause in causes {
             let message = ProtocolUploadFlow.refusalMessage(for: cause)

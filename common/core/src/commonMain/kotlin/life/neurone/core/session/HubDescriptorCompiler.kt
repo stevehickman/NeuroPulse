@@ -64,6 +64,7 @@ class HubDescriptorCompiler(
      *   in the caution zone is refused without them.
      * @param hardwareVersion the helmet's hardware version (1 to 15), stamped in the signed header so the helmet can
      *   refuse a protocol compiled for another layout (`SWR-HV-08`); null stamps the default, 1 (`SWR-HV-07`).
+     * @param autonomous Mode 3: sets the autonomous flag in the signed header, so the hub is meant to run it without a phone.
      */
     fun compile(
         definition: NPProtocolDefinition,
@@ -71,8 +72,9 @@ class HubDescriptorCompiler(
         clinicianSockets: List<Int>? = null,
         acknowledgedCautions: List<String> = emptyList(),
         hardwareVersion: Int? = null,
+        autonomous: Boolean = false,
     ): HubDescriptor {
-        val unsigned = build(definition, deviceSerial, clinicianSockets, acknowledgedCautions, hardwareVersion)
+        val unsigned = build(definition, deviceSerial, clinicianSockets, acknowledgedCautions, hardwareVersion, autonomous)
         val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - HubDescriptorWire.SIG_LEN))
         require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
         sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
@@ -132,6 +134,7 @@ class HubDescriptorCompiler(
         clinicianSockets: List<Int>?,
         acknowledgedCautions: List<String> = emptyList(),
         hardwareVersion: Int? = null,
+        autonomous: Boolean = false,
     ): Unsigned {
         val uuid = randomBytes(HubDescriptorWire.UUID_LEN)
         require(uuid.size == HubDescriptorWire.UUID_LEN)
@@ -149,6 +152,7 @@ class HubDescriptorCompiler(
                 sessionUuid = uuid,
                 acknowledgedCautions = acknowledgedCautions,
                 hardwareVersion = hardwareVersion,
+                autonomous = autonomous,
                 wavelengthRules = wavelengthRules()?.let(::toCoreJson),
             ),
         )

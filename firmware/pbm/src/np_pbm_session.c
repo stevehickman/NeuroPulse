@@ -22,6 +22,15 @@
 static np_pbm_socket_uid_fn s_uid_resolver     = NULL;
 static void                    *s_uid_resolver_ctx = NULL;
 
+static np_pbm_socket_valid_fn s_valid_fn  = NULL;
+static void                  *s_valid_ctx = NULL;
+
+void np_pbm_session_set_address_validator(np_pbm_socket_valid_fn fn, void *ctx)
+{
+    s_valid_fn  = fn;
+    s_valid_ctx = ctx;
+}
+
 void np_pbm_session_set_uid_resolver(np_pbm_socket_uid_fn fn, void *ctx)
 {
     s_uid_resolver     = fn;
@@ -127,6 +136,13 @@ np_pbm_status_t np_pbm_session_desc_expand(
         /* First group whose mask includes this socket wins (signed order). */
         for (uint8_t g = 0U; g < desc->hdr.group_count; g++) {
             if (!mask_test(desc->groups[g].mask, (uint8_t)socket_id)) { continue; }
+
+            /* REQ-FWHUB-64: an address that names no socket of this helmet is refused as that, before it is
+             * counted, so it neither uses capacity nor shows up as a capacity refusal. */
+            if (s_valid_fn != NULL && !s_valid_fn((uint8_t)socket_id, s_valid_ctx)) {
+                *active_socket_count_out = 0U;
+                return NP_PBM_ERR_INVALID_ADDRESS;
+            }
 
             if (count >= capacity) {
                 /* Fail closed: do not silently drive a subset of what the

@@ -155,4 +155,54 @@ class NPProtocolLibraryTests {
         val (errors, _) = lib.issueCount(gamma)
         assertEquals(0, errors)
     }
+
+    // @verifies REQ-NPPS-18
+    @Test
+    fun everyBundledProtocolHasAUniqueNameAndAUniqueId() {
+        val bundled = library().bundledProtocols
+        assertTrue(bundled.isNotEmpty())
+        val names = bundled.map { it.name }
+        assertEquals(names.size, names.toSet().size, "a duplicate name is a copy-paste error in the bundled files")
+        val ids = bundled.map { it.id }
+        assertEquals(ids.size, ids.toSet().size, "a duplicate id would break lookup and persistence")
+    }
+
+    // @verifies REQ-NPPS-18
+    @Test
+    fun savingABundledProtocolIsRefusedAndChangesNothing() {
+        val lib = library()
+        val first = lib.bundledProtocols.first()
+        val before = lib.bundledProtocols.size
+        assertEquals(SaveResult.ReadOnly, lib.save(first))
+        assertEquals(before, lib.bundledProtocols.size)
+        assertEquals(first.name, lib.bundledProtocols.first().name)
+    }
+
+    // @verifies REQ-NPPS-10#a
+    @Test
+    fun theRetiredCombinedWavelengthsAreRefusedWhetherQuotedOrNot() {
+        fun script(wavelength: String) = """
+            protocol "Wavelength Test" {
+                id: "AABB0200-0000-0000-0000-000000000000"
+                description: "x"
+                author: "Test"
+                version: "1.0"
+                readonly: false
+                duration: 10m
+                pbm_transcranial {
+                    irradiance: 100mW_cm2
+                    frequency: 40Hz
+                    duty_cycle: 25%
+                    zones: ["Frontal"]
+                    wavelength: $wavelength
+                }
+            }
+        """.trimIndent()
+        for (wl in listOf("660_808nm", "660_808_1064nm")) {
+            val quoted = kotlin.test.assertFails { NPPSParser.parse(script("\"$wl\"")) }
+            val text = quoted.message ?: ""
+            assertTrue("retired" in text && "one block per wavelength" in text, text)
+            kotlin.test.assertFails { NPPSParser.parse(script(wl)) }
+        }
+    }
 }

@@ -105,6 +105,57 @@ class AnalyticsGateTests {
         assertTrue(backend.trackedEvents.isEmpty())
     }
 
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun theGateIsClosedWhenTheConsentKeyIsAbsentOrFalseAndOpenOnceGranted() {
+        val store = InMemoryKeyValueStore()
+        val gate = ResearchAnalyticsGate(store, SpyAnalyticsBackend())
+        assertFalse(gate.isOpen)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, false)
+        assertFalse(gate.isOpen)
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        assertTrue(gate.isOpen)
+    }
+
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun onlyTheResearchConsentKeyOpensTheGateNotTheOnboardingKeys() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean("np.onboarding.consent-shown", true)
+        store.putBoolean("np.onboarding.consent-accepted", true)
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(store, backend)
+        assertFalse(gate.isOpen, "seeing or skipping the screen, or the retired key, is not research consent")
+        gate.configure()
+        assertTrue(backend.calls.isEmpty())
+        assertEquals("np.research.consent-granted", PersistedKeys.RESEARCH_ANALYTICS_KEY)
+    }
+
+    // @verifies REQ-CONSENT-14
+    @Test
+    fun aClosedGateLeavesItsStateAndTheBackendUntouchedOnConfigure() {
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(InMemoryKeyValueStore(), backend)
+        gate.configure()
+        assertFalse(gate.isOpen)
+        assertTrue(backend.calls.isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-03
+    @Test
+    fun resetAllowsTheBackendToBeConfiguredAgainAfterwards() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val backend = SpyAnalyticsBackend()
+        val gate = ResearchAnalyticsGate(store, backend)
+        gate.reset()
+        assertTrue(backend.calls.isEmpty(), "a reset before any configure does nothing")
+        gate.configure()
+        gate.reset()
+        gate.configure()
+        assertEquals(listOf("configure", "reset", "configure"), backend.calls)
+    }
+
     // @verifies REQ-SW03-07
     @Test
     fun resetTearsDownBackendBeforeClearingConfiguredState() {
@@ -160,6 +211,44 @@ class AnalyticsGateTests {
         assertEquals(EngagementTier.ACTIVE, tierAt(6))
         assertEquals(EngagementTier.ACTIVE, tierAt(50))
         assertEquals(EngagementTier.ESTABLISHED, tierAt(51))
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun theTierLabelsAreTheExactStringsTheTelemetrySpecNames() {
+        assertEquals("new", EngagementTier.NEW.label)
+        assertEquals("active", EngagementTier.ACTIVE.label)
+        assertEquals("established", EngagementTier.ESTABLISHED.label)
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun aVeryLargeLaunchCountIsStillEstablished() {
+        val store = InMemoryKeyValueStore()
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 1_000_000)
+        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store))
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun theLaunchThatCrossesABoundaryMovesTheTier() {
+        val store = InMemoryKeyValueStore()
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 5)
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(EngagementTier.ACTIVE, EngagementTier.current(store), "the 6th launch")
+        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 50)
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store), "the 51st launch")
+    }
+
+    // @verifies REQ-SW03-07
+    @Test
+    fun incrementingFromAbsentYieldsOneAndTenIncrementsAccumulate() {
+        val store = InMemoryKeyValueStore()
+        EngagementTier.incrementLaunchCount(store)
+        assertEquals(1, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
+        repeat(10) { EngagementTier.incrementLaunchCount(store) }
+        assertEquals(11, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
     }
 
     // @verifies REQ-SW03-07

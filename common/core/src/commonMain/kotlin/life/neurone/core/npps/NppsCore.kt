@@ -141,6 +141,11 @@ object NppsCore {
          * helmet refuses a different one (`SWR-HV-08`). Null leaves the core's default of 1 (`SWR-HV-07`).
          */
         val hardwareVersion: Int? = null,
+        /**
+         * Mode 3: the descriptor's header carries the autonomous flag (`NP_PROTO_FLAG_AUTONOMOUS`, NP-FW-HUB-001 §4.1) so
+         * the hub is meant to run it without a phone (`CLAUDE.md` §4.6). No firmware reader exists for it yet.
+         */
+        val autonomous: Boolean = false,
     )
 
     /**
@@ -173,6 +178,7 @@ object NppsCore {
             put("wavelengthRules", options.wavelengthRules ?: JsonNull)
             putJsonArray("acknowledgedCautions") { options.acknowledgedCautions.forEach { add(JsonPrimitive(it)) } }
             options.hardwareVersion?.let { put("hardwareVersion", it) }
+            if (options.autonomous) put("autonomous", true)
         }
         return nativeCompile(request.toString())
     }

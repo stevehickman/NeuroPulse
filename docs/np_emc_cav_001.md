@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-EMC-CAV-001
-**Revision:** 23
-**Date:** 2026-10-04
+**Revision:** 24
+**Date:** 2026-11-03
 **Status:** ACTIVE — EMC analysis discharging `OI-BIBEMF-08` step 1; asserts no measurement. **`REQ-CAV-04` TAKEN 2026-09-23 — Layer 4 deleted**
 **Effective Date:** 2026-09-20
 **Author:** NeurOne EMC / Systems Engineering
@@ -1209,7 +1209,7 @@ perimeter. On a regular hexagon circumradius = edge length = `W/√3`, so:
 | **Clear separation** | **one hex edge = 23.09 mm** |
 
 `NP-HEX-ZM-001` §5.4a independently calls **23.09 mm** *"one hex edge, W/√3"*, and
-`hardware/np_socket_map.json` carries `moduleWidthMm: 40` with `rowPitchMm: 34.64` = 40·cos 30° —
+`hardware/np_socket_map_v1.json` carries `moduleWidthMm: 40` with `rowPitchMm: 34.64` = 40·cos 30° —
 a consistent 40 mm hex lattice.
 
 **Three things fall out, and the third was got WRONG at Rev 11:**

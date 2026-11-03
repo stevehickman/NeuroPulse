@@ -59,6 +59,13 @@
       "a": "The cVNS PPG sample rate is pinned and compile-time asserted",
       "b": "The cardiac baseline is not waivable by a descriptor"
     },
+    "SWR-FM-02": {
+      "a": "A family has releases, and a release has one variant for each hardware version",
+      "b": "A release is a major.minor version of a predefined protocol",
+      "c": "A variant is the compiled content for one hardware version, with its own hash",
+      "d": "Retargeting a protocol to another hardware version adds a variant to the same family and does not start a new family",
+      "e": "Variants are independent after creation and linked only for lookup"
+    },
     "SWR-SS-02": {
       "a": "A session beyond a defined health-safety limit does not run without the user's explicit acknowledgement",
       "b": "The acknowledgement is made in the path that signs the protocol, so the app's screen alone cannot skip it",
@@ -73,6 +80,12 @@
       "calls": "The common cloud storage API covers only what backup and restore need: put and get the encrypted bundle, find it, write a claim marker with create-if-absent, read the claim, write and read the confirmation, and release a claim",
       "verified": "For each provider the conditional-write behaviour of the storage the app actually uses is verified against the provider's current documentation and recorded with the date",
       "contract": "A contract test suite is run against each provider, including two simultaneous claim writes"
+    },
+    "REQ-FWHUB-64": {
+      "a": "the sockets the helmet version has, each of which a protocol must address validly, the count and the set of addresses defined per hardware version and read at runtime",
+      "b": "how many of those sockets are filled, which is known at runtime",
+      "c": "the power and heat limits in force at that moment, determined at runtime from the power sources and how they are being used",
+      "d": "no count fixed at build time, and no array sized for a typical session, is a limit: capacity is the 7-bit address domain"
     }
   },
   "nonTest": {
