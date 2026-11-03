@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 232
+**Revision:** 233
 **Date:** 2026-11-02
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 232 | 2026-11-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 233 | 2026-11-01 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 2 | 2026-10-04 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 1 | 2026-05-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 140 | 2026-10-30 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -148,7 +148,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
 | NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 14 | 2026-10-04 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
-| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 5 | 2026-09-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
+| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 6 | 2026-11-02 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 11 | 2026-09-28 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 3 | 2026-09-29 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
@@ -162,7 +162,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 3 | 2026-08-18 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
+| NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 4 | 2026-11-02 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 10 | 2026-10-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 4 | 2026-10-18 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
