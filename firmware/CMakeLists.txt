@@ -105,6 +105,7 @@
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
 #                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
+#                             → np_socket_layouts_tests   (REQ-FWHUB-64: socket table by hardware version)
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
@@ -180,6 +181,7 @@ project(neurone_firmware C ASM)
 
 # ── Global options ─────────────────────────────────────────────────────────────
 option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)
+option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); not part of any CI job yet" OFF)
 option(NP_BUILD_BOOTLOADER "Include the bootloader in the build"               ON)
 
 # ── Toolchain guard (cross-compiled modules) ──────────────────────────────────
@@ -244,6 +246,9 @@ if(NP_BUILD_TESTS)
                                   # Class C cardiac interlock -- that is
                                   # safety_mcu/tests/np_cardiac_interlock_tests.c.
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
+    if(NP_BUILD_SIM)
+        add_subdirectory(platform_sim) # NP-SIM-FW-001 §8 step 1 (REQ-SIMFW-01: host only)
+    endif()
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
     add_subdirectory(application) # NP-SW-CI-001 §4.8: the two linker scripts
                                   # must agree about the staging reservation.
@@ -340,6 +345,11 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_module_map_tests
         COMMAND np_module_map_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # REQ-FWHUB-64 (a): the socket table by hardware version.
+    add_test(NAME np_socket_layouts_tests
+        COMMAND np_socket_layouts_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # SWR-SS-05: the paused session clock and the slot tracker.

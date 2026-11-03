@@ -21,6 +21,12 @@ const fs                  = require('fs');
 const path                = require('path');
 
 const PORT           = 9000;
+
+// NP-SIM-FW-001: the firmware-in-the-loop bridge is opt-in.  Set NP_SIM_FW_BIN to the
+// np_sim_pbm_spike binary; the server then also binds to 127.0.0.1 only, because a
+// client that can reach it can inject faults into a process running the hub's logic.
+const { FwBridge, BridgeError } = require('./fw-bridge');
+const FW_BIN = process.env.NP_SIM_FW_BIN || null;
 const SERVER_VERSION = require('../version.json').version;
 
 const TEST_PUBLIC_KEY = fs.readFileSync(
@@ -29,10 +35,17 @@ const TEST_PUBLIC_KEY = fs.readFileSync(
 
 // ─── server setup ─────────────────────────────────────────────────────────────
 
-const wss = new WebSocketServer({ port: PORT });
+const wss = new WebSocketServer(FW_BIN ? { port: PORT, host: '127.0.0.1' } : { port: PORT });
 const clients = new Set();
 
 console.log(`[NP-SIM] WebSocket server listening on ws://localhost:${PORT}`);
+let fw = null;
+if (FW_BIN) {
+  fw = new FwBridge({ bin: FW_BIN }).start();
+  fw.on('message', (m) => broadcast(m));
+  fw.on('exit', (code) => console.log(`[NP-SIM] firmware process exited (${code})`));
+  console.log(`[NP-SIM] Firmware bridge started: ${FW_BIN}  (bound to 127.0.0.1)`);
+}
 console.log(`[NP-SIM] Serve the repo root and open /simulator/ — badge should turn green.`);
 
 wss.on('connection', (ws, req) => {
@@ -52,6 +65,7 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('pong', () => { ws.isAlive = true; });
+  if (fw) send(ws, fw.list());
 
   ws.on('message', (raw) => {
     let msg;
@@ -129,6 +143,24 @@ function handleMessage(ws, msg) {
     case 'ACCESSORY_CONFIG': {
       console.log(`[NP-SIM] ACCESSORY_CONFIG  name=${msg.name}  visible=${msg.visible}`);
       broadcast(msg, { exclude: ws, toRole: 'display' });
+      break;
+    }
+
+    // Firmware bridge (opt-in): fault injection and spike commands
+    case 'MODULE_SET':
+    case 'MODULE_FAIL':
+    case 'MODULE_CLEAR':
+    case 'FW_COMMAND': {
+      if (!fw) {
+        send(ws, { type: 'ERROR', code: 'NO_FIRMWARE', message: 'Start the server with NP_SIM_FW_BIN to use the firmware bridge' });
+        return;
+      }
+      try {
+        fw.handle(msg);
+      } catch (e) {
+        if (!(e instanceof BridgeError)) throw e;
+        send(ws, { type: 'ERROR', code: 'BAD_FW_MESSAGE', message: e.message });
+      }
       break;
     }
 

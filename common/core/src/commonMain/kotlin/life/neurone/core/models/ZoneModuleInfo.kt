@@ -56,7 +56,7 @@ data class SocketPosition(val forwardMm: Int, val rightMm: Int, val downMm: Int)
  * time; never carried in a change notification.
  */
 data class SocketDescriptor(
-    /** 1-based socket id, matching NPPS zone `sockets:` lists and hardware/np_socket_map.json. */
+    /** 1-based socket id, matching NPPS zone `sockets:` lists and hardware/np_socket_map_v1.json. */
     val socketId: Int,
     /** Provisional until the lattice is registered against shell CAD (NP-HEX-ZM-001 REG-1). */
     val position: SocketPosition,

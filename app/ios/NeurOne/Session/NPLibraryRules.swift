@@ -196,6 +196,7 @@ extension HelmetRefusalCause {
         case "malformed": self = .malformed
         case "session_active": self = .sessionActive
         case "boot_refused": self = .bootRefused
+        case "no_layout": self = .noLayout
         case "other": self = .other
         case "unmatched": self = .unmatched
         default: return nil

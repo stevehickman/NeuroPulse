@@ -13,7 +13,7 @@
  * lattice — i.e. assuming you may place the electrode tile at whichever socket suits best.
  * That needs no 10-20 coordinates, so unlike a montage-specific fit it does not wait on REG-1.
  *
- * Geometry: hardware/np_socket_map.json (80 sockets, mm, INTERIM ellipsoid — PROVISIONAL
+ * Geometry: hardware/np_socket_map_v1.json (80 sockets, mm, INTERIM ellipsoid — PROVISIONAL
  * pending REG-1/ACT-1, so absolute residuals inherit that status; the RANKING of patterns
  * is far more robust than the absolute numbers).
  *
@@ -45,7 +45,7 @@ const cross = (a: V, b: V): V => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]
 const norm = (a: V) => Math.sqrt(dot(a, a));
 const unit = (a: V): V => mul(a, 1 / norm(a));
 
-const raw = JSON.parse(await Bun.file("hardware/np_socket_map.json").text());
+const raw = JSON.parse(await Bun.file("hardware/np_socket_map_v1.json").text());
 const P: V[] = raw.sockets.map((s: any) => [s.xMm, s.yMm, s.zMm] as V);
 const n = P.length;
 

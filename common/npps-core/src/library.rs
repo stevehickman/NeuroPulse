@@ -23,9 +23,9 @@ use std::sync::OnceLock;
 
 type R<T> = Result<T, String>;
 
-/// `hardware/np_socket_map.json` is the layout of hardware version 1. A later version adds its own file and a line here;
+/// `hardware/np_socket_map_v1.json` is the layout of hardware version 1, and version N is `hardware/np_socket_map_v<N>.json`. A later version adds its own file and a line here;
 /// the core is the only reader, and every app asks it (`layouts`), so there is one copy.
-const LAYOUT_FILES: [(u32, &str); 1] = [(1, include_str!("../../../hardware/np_socket_map.json"))];
+const LAYOUT_FILES: [(u32, &str); 1] = [(1, include_str!("../../../hardware/np_socket_map_v1.json"))];
 
 fn layouts_table() -> &'static BTreeMap<u32, Vec<Value>> {
     static T: OnceLock<BTreeMap<u32, Vec<Value>>> = OnceLock::new();
@@ -282,6 +282,10 @@ const REASON_TIER_F4: u64 = 19;
 const REASON_TIER_UNVERIFIED: u64 = 20;
 const REASON_HW_VERSION_MISMATCH: u64 = 27;
 const REASON_HW_VERSION_UNVERIFIED: u64 = 28;
+/// `NP_HUB_ERR_NO_LAYOUT` (REQ-FWHUB-64): the hub holds no socket layout for this helmet's hardware version. Not a tier or
+/// hardware-version refusal of the protocol and not "retry": it has no refusal kind and is not `notReady`, and it has a cause
+/// of its own, `no_layout`, so a screen can say so (`PROTOCOL_MENU_REFUSED_NO_LAYOUT`).
+const REASON_NO_LAYOUT: u64 = 29;
 
 /// `SWR-UP-02`, `SWR-HV-08`, `REQ-UPG-01`: what an upload report means to a person, decided once for every app. The request is
 /// the helmet's last `UPLOAD_CHECK` report as the apps hold it, `{"status": "accepted"|"refused"|absent, "reason": n|absent,
@@ -314,6 +318,7 @@ fn helmet_cause(req: &Value) -> R<Value> {
         2 | 8 | 9 => "malformed", // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
+        REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets
         _ => "other",
     });
     let final_report = matches!(req["status"].as_str(), Some("accepted" | "refused"));

@@ -158,7 +158,7 @@
  *
  * Firmware socket_id is 0-based: 0 .. NP_HEXMAP_MAX_SOCKETS-1, indexing the
  * geometry table directly. The NPPS zone files under protocols/predefined/,
- * hardware/np_socket_map.json ("numberingBase": 1), and the generated app-side
+ * hardware/np_socket_map_v1.json ("numberingBase": 1), and the generated app-side
  * map (common/lib/socketMap.generated.ts) are all 1-based, 1..80 (the shipped scan-grounded lattice; was 78 in the retired one).
  *
  * The 80th (highest) 1-based socket maps to firmware socket_id 79 — comfortably
@@ -391,6 +391,17 @@ np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *ui
  */
 uint16_t np_module_map_socket_count(void);
 
+/*
+ * np_module_map_address_valid — is `socket_id` (0-based index) a valid address on this helmet?
+ *
+ * True only once np_module_map_init() has bound a geometry AND the index is inside it AND its entry is
+ * present_in_helmet.  False before init, past the table, and for an unwired entry.  This is the one definition
+ * of a valid address the hub uses: the dispatcher's placement check, the protocol load check
+ * (np_layout_check_protocol_addresses) and the PBM library's address validator all answer from the geometry
+ * bound here (REQ-FWHUB-64).  Counting set bits in a mask is not this.
+ */
+bool np_module_map_address_valid(uint16_t socket_id);
+
 
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 
@@ -487,6 +498,14 @@ typedef np_hub_status_t (*np_hexmap_inventory_fn)(uint16_t  socket_id,
  * map (const flash table on target). n_sockets ≤ NP_HEXMAP_MAX_SOCKETS.
  */
 np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sockets);
+
+/*
+ * np_module_map_unbind — forget the bound geometry and the whole inventory, returning the map to its state before
+ * np_module_map_init().  Afterwards no address is valid, np_module_map_socket_count() is 0, and every placement
+ * check and poll fails closed.  Used when the helmet's hardware version has no layout (np_layout_bind(), REQ-FWHUB-64),
+ * so a stale geometry of another version cannot go on answering.
+ */
+void np_module_map_unbind(void);
 
 /*
  * np_module_map_apply_poll — apply one socket's power-on / hot-plug poll result.

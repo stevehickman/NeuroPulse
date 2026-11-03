@@ -20,6 +20,10 @@
 
 typedef char _np_pst_pool_matches_pbm_bound[
     (NP_PST_MAX_TRACKED == NP_PBM_SESSION_MAX_ACTIVE_SOCKETS) ? 1 : -1];
+/* REQ-FWHUB-64: the pool holds one entry for every address the domain has, so a valid address is never refused
+ * for want of one. */
+typedef char _np_pst_pool_covers_every_address[
+    (NP_PST_MAX_TRACKED >= NP_HEXMAP_MAX_SOCKETS) ? 1 : -1];
 typedef char _np_pst_three_wavelengths[(NP_PBM_WL_COUNT == 3U) ? 1 : -1];
 
 /* Wavelength index → the channel np_mod_pbm_socket_disable_channel() latches. */

@@ -89,7 +89,7 @@ cervical-VNS frequency range and interlock note, the vibrotactile frequency warn
 zone-resolution check (when the caller gives the namespace); the mobile ones lacked the layer intensity scale and the
 TMS-with-electrical-stimulation note. A configured limit is attributed to the level of the resolved set, or to the tier
 a per-field `limitSources` map names (iOS's `NPLimitSourceMap`); the web said `global` for all of them.
-`../npps/constants.json` holds every constant more than one runtime needs, once, in UPPER_SNAKE_CASE with the same spelling in every language: this crate takes them at build time (`build.rs`, so it has no copy to go stale) and `scripts/sync-constants.ts` writes the web, Android, iOS, Windows and C copies, so an editor's slider range cannot differ from the validator's ceiling and a status code means the same in every binding. The helmet's socket numbering is taken the same way from `hardware/np_socket_map.json`.
+`../npps/constants.json` holds every constant more than one runtime needs, once, in UPPER_SNAKE_CASE with the same spelling in every language: this crate takes them at build time (`build.rs`, so it has no copy to go stale) and `scripts/sync-constants.ts` writes the web, Android, iOS, Windows and C copies, so an editor's slider range cannot differ from the validator's ceiling and a status code means the same in every binding. The helmet's socket numbering is taken the same way from `hardware/np_socket_map_v1.json`.
 
 ## Not yet in v0
 

@@ -363,10 +363,11 @@ static void test_no_socket_driven_unmetered(void)
     for (uint16_t s = 0U; s < NP_PST_MAX_TRACKED; s++) {
         all = all && (np_pst_track(s, NP_MOD_PBM_BASE) == NP_HUB_OK);
     }
-    check(all && np_pst_track(100U, NP_MOD_PBM_BASE) != NP_HUB_OK,
-          "pool: past NP_PST_MAX_TRACKED a socket cannot be tracked, so it is not driven");
+    check(all, "pool: every address of the 7-bit domain can be tracked at once (REQ-FWHUB-64)");
+    check(np_pst_track((uint16_t)NP_PST_MAX_TRACKED, NP_MOD_PBM_BASE) == NP_HUB_ERR_INVALID_ARG,
+          "pool: an index past the domain cannot be tracked, so it is not driven");
     check(np_pst_track(3U, NP_MOD_PBM_SMART) == NP_HUB_OK,
-          "pool: a socket already tracked can be re-driven when the pool is full");
+          "pool: a socket already tracked can be re-driven when every entry is in use");
     np_pst_session_reset();
     check(np_pst_track(100U, NP_MOD_PBM_BASE) == NP_HUB_OK &&
           !np_pst_get_record(3U, &(np_pst_socket_record_t){0}),

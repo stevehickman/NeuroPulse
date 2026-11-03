@@ -5,7 +5,7 @@
  * Source of truth: the SCAN-MEASURED ROW STRUCTURE below, validated against
  * protocols/predefined/00-zones.npps on every run.
  * Targets:
- *   - Shared:  hardware/np_socket_map.json   (all platforms read or embed this)
+ *   - Shared:  hardware/np_socket_map_v1.json   (all platforms read or embed this)
  *   - Common:  common/lib/socketMap.generated.ts  (web app + simulator bundle)
  *
  * ── The lattice is MEASURED FROM A 3D SCAN, not idealized (2026-07-20) ────────
@@ -115,6 +115,16 @@
  * replaced from the shell CAD before any physical claim is made. Nothing in the
  * eligibility logic depends on x/y; they only place hexes in the picker.
  *
+ * ── The firmware table (NP-FW-HUB-001 REQ-FWHUB-64, OI-FWHUB-27) ──────────────
+ *
+ * firmware/hub_control/src/np_socket_layouts.generated.c carries ONE ROW PER HELMET HARDWARE VERSION: the
+ * count of sockets, the valid addresses and their coordinates. It is generated from every
+ * hardware/np_socket_map_v<N>.json, where N is the hardware version: `np_socket_map_v1.json` is version 1
+ * (this script writes it) and a later version adds its own file (the Principal, 2026-11-02: a version's map
+ * lives in hardware/, and every version, the first included, is named np_socket_map_v<N>.json).
+ * The app side's table is LAYOUT_FILES in common/npps-core/src/library.rs; this script fails if the two name
+ * different files, so there is one set of versions and not two.
+ *
  * Run:  bun scripts/sync-socket-map.ts   (--check to verify freshness in CI)
  */
 
@@ -123,7 +133,7 @@ import { join, dirname } from "path";
 
 const ROOT = join(import.meta.dir, "..");
 const ZONE_FILE = join(ROOT, "protocols", "predefined", "00-zones.npps");
-const JSON_OUT = join(ROOT, "hardware", "np_socket_map.json");
+const JSON_OUT = join(ROOT, "hardware", "np_socket_map_v1.json");
 const TS_OUT = join(ROOT, "common", "lib", "socketMap.generated.ts");
 const SWIFT_OUT = join(
   ROOT, "app", "ios", "NeurOne", "Models", "SocketLattice.generated.swift",
@@ -143,6 +153,11 @@ const KOTLIN_OUT = join(
 const CSHARP_OUT = join(
   ROOT, "app", "windows", "NeurOne", "Protocol", "SocketLattice.generated.cs",
 );
+
+// The firmware's per-hardware-version socket table, and the app-side table it must agree with.
+const FW_LAYOUTS_OUT = join(ROOT, "firmware", "hub_control", "src", "np_socket_layouts.generated.c");
+const LAYOUT_LIBRARY_RS = join(ROOT, "common", "npps-core", "src", "library.rs");
+const HARDWARE_DIR = join(ROOT, "hardware");
 
 // ─── Scan-measured geometry constants (NP-HEX-ZM-001 §3.4) ────────────────────
 //
@@ -597,7 +612,7 @@ const NUMBERING_BASE = 1;
  *
  * This generator is upstream of every app-side socket map, so a base changed
  * here would propagate silently into the web app, the iOS app and
- * np_socket_map.json at once — and a 0 reaching a `sockets:` list would be
+ * np_socket_map_v1.json at once — and a 0 reaching a `sockets:` list would be
  * indistinguishable from an authored id until something aimed light at the wrong
  * tile. Cheaper to refuse than to detect downstream.
  */
@@ -607,7 +622,7 @@ function assertNumberingBase(sockets: SocketGeometry[]): void {
       `NUMBERING_BASE is ${NUMBERING_BASE}, but NUMBER-1 (np_hex_zm_001.md §3.3) fixes ` +
       `socket numbering at 1 project-wide. Changing it is a decision for the principal, ` +
       `not an edit here: it would silently re-point every zone file, both app maps and ` +
-      `np_socket_map.json at different tiles.`,
+      `np_socket_map_v1.json at different tiles.`,
     );
   }
   const first = sockets[0]?.id;
@@ -1427,6 +1442,111 @@ enum SocketLattice {
 `;
 }
 
+// ── Per-hardware-version layouts (firmware table) ────────────────────────────
+
+interface VersionLayout {
+  version: number;
+  file: string; // base name under hardware/
+  base: number; // numberingBase
+  sockets: Array<{ id: number; xMm: number; yMm: number }>;
+}
+
+/** `np_socket_map_v<N>.json` is hardware version N, version 1 included (the Principal, 2026-11-02). */
+function layoutVersionOf(file: string): number | null {
+  const m = /^np_socket_map_v([0-9]+)\.json$/.exec(file);
+  if (m === null) return null;
+  const n = Number(m[1]);
+  return n >= 1 ? n : null;
+}
+
+function loadVersionLayouts(v1Json: string): { layouts: VersionLayout[]; problems: string[] } {
+  const problems: string[] = [];
+  const layouts: VersionLayout[] = [];
+  const names = readdirSync(HARDWARE_DIR).filter((f) => /^np_socket_map.*\.json$/.test(f)).sort();
+  for (const file of names) {
+    const version = layoutVersionOf(file);
+    if (version === null) {
+      problems.push(`hardware/${file} is not a hardware-version socket map: expected np_socket_map_v<N>.json`);
+      continue;
+    }
+    if (version > 15) {
+      problems.push(`hardware/${file}: hardware version ${version} does not fit the version nibble (1 to 15, NP-REG-UPG-001 §7.8)`);
+      continue;
+    }
+    // Version 1 is taken from the freshly emitted text, so a stale file on disk cannot make the table stale too.
+    const doc = JSON.parse(file === "np_socket_map_v1.json" ? v1Json : readFileSync(join(HARDWARE_DIR, file), "utf-8"));
+    const list: unknown = doc.sockets;
+    if (!Array.isArray(list) || typeof doc.numberingBase !== "number") {
+      problems.push(`hardware/${file} has no sockets array or no numberingBase`);
+      continue;
+    }
+    layouts.push({
+      version,
+      file,
+      base: doc.numberingBase,
+      sockets: (list as Array<{ id: number; xMm: number; yMm: number }>).map((x) => ({ id: x.id, xMm: x.xMm, yMm: x.yMm })),
+    });
+  }
+  layouts.sort((a, b) => a.version - b.version);
+  if (!layouts.some((l) => l.version === 1)) problems.push("hardware/np_socket_map_v1.json (hardware version 1) is missing");
+
+  // One set of versions, not two: the app side's table must name the same files.
+  const rs = readFileSync(LAYOUT_LIBRARY_RS, "utf-8");
+  const re = /\(\s*([0-9]+)\s*,\s*include_str!\("\.\.\/\.\.\/\.\.\/hardware\/([^"]+)"\)\s*\)/g;
+  const app = new Set<string>();
+  for (let m = re.exec(rs); m !== null; m = re.exec(rs)) app.add(`${m[1]}:${m[2]}`);
+  const fw = new Set(layouts.map((l) => `${l.version}:${l.file}`));
+  for (const a of app) if (!fw.has(a)) problems.push(`common/npps-core/src/library.rs LAYOUT_FILES names ${a} and hardware/ has no such file`);
+  for (const f of fw) if (!app.has(f)) problems.push(`hardware/ has ${f} and common/npps-core/src/library.rs LAYOUT_FILES does not name it: add its line there`);
+  return { layouts, problems };
+}
+
+function emitFirmwareLayouts(layouts: VersionLayout[]): string {
+  const out: string[] = [
+    "/*",
+    " * Generated by scripts/sync-socket-map.ts — DO NOT EDIT BY HAND.",
+    " * Regenerate with: bun scripts/sync-socket-map.ts",
+    " *",
+    " * The helmet's socket table, one row per hardware version (NP-FW-HUB-001 REQ-FWHUB-64, OI-FWHUB-27).",
+    " * Sources: " + layouts.map((l) => `hardware/${l.file} (version ${l.version})`).join("; ") + ".",
+    " *",
+    " * A firmware socket_id is a 0-based INDEX: the map's socket number minus its numberingBase. An index with",
+    " * present_in_helmet false names no socket of that version, so it is not a valid address.",
+    " * x_mm / y_mm are the map's xMm / yMm, rounded: aircraft body axes, mm, +x forward, +y right.",
+    " * They are PROVISIONAL, from an interim ellipsoid, and carry no physical claim until shell CAD replaces them.",
+    " * The map's zMm is not carried: np_socket_geom_t has no z.",
+    " */",
+    '#include "np_socket_layouts.h"',
+    "",
+  ];
+  for (const l of layouts) {
+    const byIndex = new Map<number, { x: number; y: number }>();
+    for (const sk of l.sockets) {
+      const idx = sk.id - l.base;
+      if (!Number.isInteger(idx) || idx < 0 || idx > 127) throw new Error(`hardware/${l.file}: socket ${sk.id} is outside the 7-bit address domain`);
+      if (byIndex.has(idx)) throw new Error(`hardware/${l.file}: socket ${sk.id} appears twice`);
+      const x = Math.round(sk.xMm), y = Math.round(sk.yMm);
+      if (Math.abs(x) > 32767 || Math.abs(y) > 32767) throw new Error(`hardware/${l.file}: socket ${sk.id} coordinate does not fit int16`);
+      byIndex.set(idx, { x, y });
+    }
+    const tableLen = Math.max(...byIndex.keys()) + 1;
+    out.push(`static const np_socket_geom_t NP_LAYOUT_V${l.version}_GEOM[${tableLen}] = {`);
+    for (let i = 0; i < tableLen; i++) {
+      const g = byIndex.get(i);
+      out.push(g === undefined ? `    { false, 0, 0 },   /* index ${i}: no socket */` : `    { true, ${g.x}, ${g.y} },   /* index ${i} = socket ${i + l.base} */`);
+    }
+    out.push("};", "");
+  }
+  out.push("const np_socket_layout_t NP_SOCKET_LAYOUTS[] = {");
+  for (const l of layouts) {
+    const n = l.sockets.length;
+    const tableLen = Math.max(...l.sockets.map((x) => x.id - l.base)) + 1;
+    out.push(`    { ${l.version}U, ${n}U, ${tableLen}U, NP_LAYOUT_V${l.version}_GEOM },`);
+  }
+  out.push("};", "", `const uint8_t NP_SOCKET_LAYOUT_COUNT = ${layouts.length}U;`, "");
+  return out.join("\n");
+}
+
 function emitJson(sockets: SocketGeometry[]): string {
   return JSON.stringify(
     {
@@ -1609,8 +1729,16 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
+const v1Json = emitJson(sockets);
+const versionLayouts = loadVersionLayouts(v1Json);
+if (versionLayouts.problems.length > 0) {
+  console.error("socket layout versions are inconsistent:\n  " + versionLayouts.problems.join("\n  "));
+  process.exit(1);
+}
+
 const outputs: Array<[string, string]> = [
-  [JSON_OUT, emitJson(sockets)],
+  [JSON_OUT, v1Json],
+  [FW_LAYOUTS_OUT, emitFirmwareLayouts(versionLayouts.layouts)],
   [TS_OUT, emitTypeScript(sockets)],
   [SWIFT_OUT, emitSwiftLattice(sockets)],
   [KOTLIN_OUT, emitKotlinLattice(sockets)],

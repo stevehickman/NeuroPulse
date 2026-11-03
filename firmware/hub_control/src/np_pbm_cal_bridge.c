@@ -79,14 +79,23 @@ static bool bridge_socket_uid(uint8_t socket_id,
     return true;
 }
 
+/* REQ-FWHUB-64: the PBM library asks the hub whether an index names a socket of this helmet. */
+static bool bridge_address_valid(uint8_t socket_id, void *ctx)
+{
+    (void)ctx;
+    return np_module_map_address_valid((uint16_t)socket_id);
+}
+
 void np_hub_pbm_cal_bridge_install(void)
 {
+    np_pbm_session_set_address_validator(bridge_address_valid, NULL);
     np_pbm_dose_set_cal_provider(bridge_cal_provider, NULL);
     np_pbm_session_set_uid_resolver(bridge_socket_uid, NULL);
 }
 
 void np_hub_pbm_cal_bridge_remove(void)
 {
+    np_pbm_session_set_address_validator(NULL, NULL);
     np_pbm_dose_set_cal_provider(NULL, NULL);
     np_pbm_session_set_uid_resolver(NULL, NULL);
 }

@@ -57,6 +57,8 @@
 #include "np_upload_check.h"     /* SWR-UP-01 */
 #include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
+#include "np_layout_bind.h"   /* REQ-FWHUB-64 */
+#include "np_pbm_cal_bridge.h" /* REQ-FWHUB-64: the PBM library asks the hub for valid addresses and module calibration */
 #include "np_log_backend.h"
 #include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
 #include "np_transport.h"
@@ -452,6 +454,17 @@ static void task_module_detect(void *arg)
          * The return value is informational — NOT_PRESENT and MOD_INIT are the
          * slot's state, not an error of the poll — but it must never again be
          * INVALID_ARG, which is what every call returned before OI-FWHUB-16. */
+        /* REQ-FWHUB-64 (OI-FWHUB-27): bring-up bound the SWR-HV-07 default version, because no report can
+         * arrive before the scheduler runs.  The first valid report from the safety MCU names the helmet's real
+         * version, and the layout follows it here: outside any session, under the lease, so the module map's
+         * re-initialisation cannot race a load.  Until this pass runs a session is refused (np_layout_admit()),
+         * which fails closed; the window is at most one poll period. */
+        if (np_lease_probe_begin()) {
+            (void)np_layout_follow_report(np_safety_spi_get_hardware_version(),
+                                          np_safety_spi_get_tier_report(NULL, NULL), NULL);
+            np_lease_probe_end();
+        }
+
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
             if (!np_lease_probe_begin()) {
                 break;
@@ -539,6 +552,24 @@ void np_hub_control_app_main(void)
      * scripts/check-hub-bringup-order.ts gates all three against this function.
      */
     np_safety_spi_init();
+
+    /* REQ-FWHUB-64 (OI-FWHUB-27): bind the socket layout of this helmet's hardware version, so the hub works to
+     * the sockets the helmet has and no others.  After np_safety_spi_init() (it owns the version) and before
+     * anything polls a socket.  The version is the SWR-HV-07 DEFAULT here, because no report can have arrived
+     * before the scheduler runs; np_layout_admit() refuses a session whose helmet reports another version.
+     * A version with no layout binds nothing and refuses every session. */
+    (void)np_layout_bind(np_safety_spi_get_hardware_version());
+
+    /* REQ-FWHUB-64 (OI-FWHUB-27): give the PBM library its three questions about the hub: which socket addresses
+     * this helmet has (the validator that makes np_pbm_session_desc_expand() refuse an address that is not a
+     * socket, before counting it), which module sits in a socket, and what that module's calibration is.  The
+     * header's rule is AFTER the module map is bound (np_layout_bind above) and BEFORE any session starts.  It
+     * reads the module map each time it is asked, so a rebind to the reported version (np_layout_follow_report)
+     * needs no second install, and an unbound map makes it refuse every address.  With no inventory and no
+     * calibration record yet, the UID and calibration answers are "none" and the library keeps its firmware
+     * defaults, as it did before: the one change today is the address check. */
+    np_hub_pbm_cal_bridge_install();
+
     np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
     np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
 

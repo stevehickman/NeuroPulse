@@ -156,6 +156,9 @@ enum class HelmetRefusalCause(val rule: String) {
     MALFORMED("malformed"),
     SESSION_ACTIVE("session_active"),
     BOOT_REFUSED("boot_refused"),
+
+    /** The helmet's software holds no socket layout for this helmet's hardware version (`NP_HUB_ERR_NO_LAYOUT`, reason 29). */
+    NO_LAYOUT("no_layout"),
     OTHER("other"),
 
     /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */

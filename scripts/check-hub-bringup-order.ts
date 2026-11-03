@@ -104,6 +104,10 @@ const ORDER: ReadonlyArray<readonly [string, string, string]> = [
   ["np_log_backend_init", "np_log_init", "the partition log files must be open before the logger is initialised"],
   ["np_log_init", "np_mod_reg_scan", "SHDR auth records written during the scan must carry the true session count and survive np_log_init()'s buffer reset (OI-FWHUB-07)"],
   ["np_mod_reg_init", "np_mod_reg_scan", "the registry must be zeroed before it is populated"],
+  ["np_safety_spi_init", "np_layout_bind", "the version the layout is looked up by is np_safety_spi's (SWR-HV-07 default until a report arrives), so that module comes up first (REQ-FWHUB-64)"],
+  ["np_layout_bind", "np_mod_reg_scan", "the helmet's socket geometry must be bound before any module is placed or polled, so no socket is addressed against an unbound or another version's lattice (REQ-FWHUB-64)"],
+  ["np_layout_bind", "np_hub_pbm_cal_bridge_install", "the bridge answers the PBM library from the module map, which must be bound first (np_pbm_cal_bridge.h: AFTER the module map is bound), or its first answer is an unbound map's (REQ-FWHUB-64)"],
+  ["np_hub_pbm_cal_bridge_install", "np_mod_reg_scan", "the PBM library must have its address validator, UID resolver and calibration provider before any module is registered and any session can start (REQ-FWHUB-64)"],
   ["np_factory_reset_boot_check", "np_log_backend_init", "an interrupted factory reset must be completed before SHDR is opened (OI-NVRAM-17)"],
   ["np_factory_reset_boot_check", "np_log_backend_refuse", "the refusal is the boot check's answer, so it cannot precede it (OI-NVRAM-17)"],
   ["np_factory_reset_boot_check", "np_cvfs_init", "an interrupted factory reset must be completed before UHDR is read (OI-NVRAM-17)"],
@@ -289,6 +293,8 @@ if (process.argv.includes("--self-test")) {
 
   const CORRECT = [
     "np_safety_spi_init",
+    "np_layout_bind",
+    "np_hub_pbm_cal_bridge_install",
     "np_transport_init",
     "np_factory_reset_boot_check",
     "np_factory_reset_boot_permits_data",
@@ -369,7 +375,7 @@ if (process.argv.includes("--self-test")) {
     "rule 1 rejects the OI-FWHUB-07 shape",
     build(mainC({
       order: [
-        "np_safety_spi_init", "np_factory_reset_boot_check", "np_factory_reset_boot_permits_data",
+        "np_safety_spi_init", "np_layout_bind", "np_hub_pbm_cal_bridge_install", "np_factory_reset_boot_check", "np_factory_reset_boot_permits_data",
         "np_session_count_load", "np_cvfs_init", "np_cons_init", "np_mod_reg_init", "np_mod_reg_scan",
         "np_log_backend_init", "np_log_backend_refuse", "np_log_init",
       ],
