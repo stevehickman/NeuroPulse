@@ -92,7 +92,7 @@ static void setup(void)
 
 static bool driven(unsigned s)
 {
-    np_sim_module_t *m = np_sim_find((uint16_t)s);
+    np_sim_module_t *m = np_sim_find(NP_SIM_KIND_PBM_BASE, (uint16_t)s);
     return m != NULL && m->driven;
 }
 
@@ -196,7 +196,7 @@ static void test_an_address_past_the_lattice_is_refused(void)
     check(count("\"ev\":\"error\"") == 0, "layout: the last socket of the version 1 lattice can be added");
     run("add 80 34.0");
     check(count("\"ev\":\"error\"") == 1, "layout: the first index past the lattice is refused as not a valid address");
-    check(np_sim_find(80) == NULL, "layout: no module exists at an address the helmet version does not have");
+    check(np_sim_find(NP_SIM_KIND_PBM_BASE, 80) == NULL, "layout: no module exists at an address the helmet version does not have");
 }
 
 /* @verifies-none Scenario: every valid socket of the version 1 lattice driven by one command, which the 32-socket bound refused until NP-FW-HUB-001 (REQ-FWHUB-64). The firmware's own tests are np_pbm_socket_telem_tests and np_pbm_session_desc_tests. Simulator evidence only (REQ-SIMFW-06). */

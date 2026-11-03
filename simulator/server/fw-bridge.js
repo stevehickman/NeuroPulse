@@ -22,6 +22,9 @@ const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 
 const OPS = new Set(['socket_pwm_set', 'socket_ntc_read']);   // np_sim_op_name()
+const STIM_OPS = new Set(['stim_dac_set', 'stim_dac_stop', 'stim_dc_set', 'stim_dc_ramp',
+  'stim_read_impedance', 'stim_read_current', 'stim_read_charge']);   // np_sim_op_name(), the stimulation DAC
+const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
 
@@ -48,6 +51,75 @@ function op(v) {
   return v;   // a member of the whitelist, never the client's string
 }
 
+function stimOp(v) {
+  if (typeof v !== 'string' || !STIM_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...STIM_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+function stimChannel(v) {
+  if (typeof v !== 'string' || !STIM_CHANNELS.has(v)) {
+    throw new BridgeError(`channel must be one of ${[...STIM_CHANNELS].join(', ')}`);
+  }
+  return v;
+}
+
+/** The stimulation DAC's messages: an electrode pair in place of a socket (NP-SIM-FW-001 REQ-SIMFW-13). */
+function stimModuleLines(msg) {
+  const p = int(msg.pair, 0, MAX_SOCKET, 'pair');
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) lines.push(`stim_add ${p} ${num(msg.patch.add, 0, 100000, 'add (impedance_kohm)')}`);
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(`${msg.patch.present ? 'stim_present' : 'stim_absent'} ${p}`);
+      }
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading ${p} ${stimOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail ${p} ${stimOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}`];
+    case 'MODULE_CLEAR':
+      return [`stim_clear ${p}`];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the stimulation driver. */
+function stimCommandLines(msg) {
+  const u16 = (v, what) => int(v, 0, 65535, what);
+  switch (msg.cmd) {
+    case 'bes':
+      return [`bes ${int(msg.pair, 0, 255, 'pair')} ${int(msg.waveform, 0, 255, 'waveform')} ${u16(msg.freq_mhz, 'freq_mhz')} ${u16(msg.amp_ua, 'amp_ua')}`];
+    case 'tdcs':
+      return [`tdcs ${int(msg.pair, 0, 255, 'pair')} ${u16(msg.current_ua, 'current_ua')} ${int(msg.polarity, 0, 255, 'polarity')} ${u16(msg.ramp_s, 'ramp_s')} ${u16(msg.area_mcm2, 'area_mcm2')}`];
+    case 'stim_stop':
+      return [`stim_stop ${stimChannel(msg.channel)}`];
+    case 'stim_shutdown':
+      return [`stim_shutdown ${stimChannel(msg.channel)}`];
+    case 'sample':
+      return [`sample ${stimChannel(msg.channel)}`];
+    case 'tdcs_pause':
+      return ['tdcs_pause'];
+    case 'stim_session_start':
+      return ['stim_session_start'];
+    case 'advance':
+      return [`advance ${int(msg.ms, 0, 3600000, 'ms')}`];
+    default:
+      return null;
+  }
+}
+
 function sockets(v) {
   if (!Array.isArray(v) || v.length < 1 || v.length > MAX_SOCKETS_PER_COMMAND) {
     throw new BridgeError(`sockets must be a list of 1..${MAX_SOCKETS_PER_COMMAND} integers`);
@@ -61,6 +133,11 @@ function sockets(v) {
  * that is not the bridge's.
  */
 function messageToLines(msg) {
+  if (msg.kind === 'stim_pair') return stimModuleLines(msg);
+  if (msg.type === 'FW_COMMAND') {
+    const stim = stimCommandLines(msg);
+    if (stim !== null) return stim;
+  }
   switch (msg.type) {
     case 'MODULE_SET': {
       const s = int(msg.socket, 0, MAX_SOCKET, 'socket');

@@ -5,4 +5,11 @@
 void np_simh_init(void);          /* reset the bus, bind the hardware version 1 layout, clear dispatch */
 void np_simh_line(char *line);    /* run one command line (modified in place) */
 
+#include <stdbool.h>
+
+/* The stimulation commands (np_sim_stim_harness.c).  np_simh_stim_line returns false if it does not own the command. */
+void np_simh_stim_init(void);
+void np_simh_stim_status(void);
+bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 #endif

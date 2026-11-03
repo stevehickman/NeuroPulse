@@ -16,6 +16,11 @@
  *   reading <socket> <op> <value>   pin op's reading (ntc_read)
  *   absent <socket> | present <socket> | clear <socket>
  *   report <version>                the safety MCU reports the helmet's hardware version; the layout follows it
+ *
+ * Stimulation (BES/tACS and tDCS; np_sim_stim_harness.c lists them all):
+ *   stim_add <pair> <kohm>          an electrode pair
+ *   bes <pair> <waveform> <freq_mhz> <amp_ua> | tdcs <pair> <current_ua> <polarity> <ramp_s> <area_mcm2>
+ *   stim_stop bes|tdcs | tdcs_pause | advance <ms> | sample bes|tdcs
  *   status                          every module, the dispatch table, requested enables
  *   quit
  */
@@ -38,7 +43,8 @@ int main(void)
     char line[256];
     np_simh_init();
     np_sim_emit("{\"ev\":\"ready\",\"spike\":\"pbm\",\"firmware\":\"np_socket_dispatch,np_module_map,"
-                "np_protocol,np_mod_pbm,np_pbm_socket_telem,np_safety_spi\"}");
+                "np_protocol,np_mod_pbm,np_pbm_socket_telem,np_safety_spi,"
+                "np_mod_stim,np_stim_xcheck,np_ramp_plan\"}");
     while (fgets(line, sizeof line, stdin) != NULL) { np_simh_line(line); }
     return 0;
 }

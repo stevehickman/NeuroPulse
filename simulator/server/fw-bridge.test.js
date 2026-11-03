@@ -33,6 +33,49 @@ test('a client string is never placed in a command line', () => {
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in a stimulation command line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: 0, op: 'stim_dac_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: 0, op: 'socket_pwm_set', code: -17, times: 1 },   // another kind's op
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: '0\nquit', op: 'stim_dac_set', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: '5\nquit' } },
+    { type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { reading: { op: 'stim_read_current\nquit', value: 5 } } },
+    { type: 'MODULE_CLEAR', kind: 'stim_pair', pair: 128 },
+    { type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: '500\nquit' },
+    { type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 70000, amp_ua: 500 },
+    { type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30 },          // area missing
+    { type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1.5, polarity: 0, ramp_s: 30, area_mcm2: 1 },
+    { type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'bes\nquit' },
+    { type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'vns' },
+    { type: 'FW_COMMAND', cmd: 'advance', ms: -1 },
+    { type: 'FW_COMMAND', cmd: 'advance', ms: '10\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+});
+
+// @verifies REQ-SIMFW-12
+test('a valid stimulation message becomes exactly one well-formed line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'stim_pair', pair: 1, patch: { add: 5 } }), ['stim_add 1 5']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'stim_pair', pair: 1, op: 'stim_dc_ramp', code: -17, times: 2 }),
+    ['fail 1 stim_dc_ramp -17 2']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'stim_pair', pair: 1, patch: { reading: { op: 'stim_read_current', value: 900 } } }),
+    ['reading 1 stim_read_current 900']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', kind: 'stim_pair', pair: 1 }), ['stim_clear 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: 500 }),
+    ['bes 0 0 10000 500']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30, area_mcm2: 25000 }),
+    ['tdcs 0 1000 0 30 25000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'tdcs' }), ['stim_stop tdcs']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'advance', ms: 15000 }), ['advance 15000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'sample', channel: 'bes' }), ['sample bes']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'tdcs_pause' }), ['tdcs_pause']);
+  // the tile messages are unchanged: no kind means a tile
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', socket: 3 }), ['clear 3']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -84,4 +127,28 @@ test('end to end: a fault injected over the bridge reaches one tile and the roll
   assert.strictEqual(states.length, 3);
   assert.ok(states.every((m) => m.event.driven === false), 'every tile is dark after the rollback');
   assert.strictEqual(bridge.list().modules.length, 3, 'MODULE_LIST holds the three tiles');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: a tDCS ramp runs the real driver and an over-delivery on one pair is flagged', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const p of [0, 1]) bridge.handle({ type: 'MODULE_SET', kind: 'stim_pair', pair: p, patch: { add: 5 } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30, area_mcm2: 25000 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'advance', ms: 15000 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'sample', channel: 'tdcs' });
+  bridge.handle({ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { reading: { op: 'stim_read_current', value: 1900 } } });
+  for (let i = 0; i < 4; i++) bridge.handle({ type: 'FW_COMMAND', cmd: 'sample', channel: 'tdcs' });
+  await wait(500);
+  bridge.stop();
+
+  const samples = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'stim_sample').map((m) => m.event);
+  assert.strictEqual(samples[0].current_ua, 500, 'halfway up the 30 s ramp the DAC delivers half the target');
+  assert.strictEqual(samples.filter((s) => s.divergence_flagged).length, 1, 'the pinned over-delivery is flagged exactly once');
+  const result = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'tdcs');
+  assert.strictEqual(result.event.code, 0);
+  assert.strictEqual(result.event.safety_mcu, 'not_in_loop', 'and the result says the safety MCU is not in the loop');
+  assert.strictEqual(bridge.list().modules.length, 2, 'MODULE_LIST holds the two pairs');
 });

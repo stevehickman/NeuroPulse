@@ -18,26 +18,14 @@
 
 #include <stdio.h>
 
-static void report(const np_sim_module_t *m, np_sim_op_t op, const char *args,
-                   int code, const char *source)
-{
-    np_sim_emit("{\"ev\":\"hal\",\"t\":%u,\"id\":\"%s:%u\",\"op\":\"%s\",\"args\":%s,"
-                "\"code\":%d,\"source\":\"%s\"}",
-                (unsigned)np_sim_now_ms(), np_sim_kind_name(m->kind), (unsigned)m->index,
-                np_sim_op_name(op), args, code, source);
-}
-
 /* Resolve a socket to a present module, reporting a miss.  A module the
  * firmware addressed but the scenario never added is the firmware talking to
  * an empty socket: NOT_PRESENT, reported. */
 static np_sim_module_t *resolve(uint16_t socket_id, const char *op_name)
 {
-    np_sim_module_t *m = np_sim_find(socket_id);
+    np_sim_module_t *m = np_sim_find(NP_SIM_KIND_PBM_BASE, socket_id);
     if (m == NULL || !m->present) {
-        np_sim_emit("{\"ev\":\"hal\",\"t\":%u,\"id\":\"socket:%u\",\"op\":\"%s\","
-                    "\"code\":%d,\"source\":\"absent\"}",
-                    (unsigned)np_sim_now_ms(), (unsigned)socket_id, op_name,
-                    (int)NP_HUB_ERR_NOT_PRESENT);
+        np_sim_report_absent(NP_SIM_KIND_PBM_BASE, socket_id, op_name);
         return NULL;
     }
     return m;
@@ -57,12 +45,12 @@ np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
     if (np_sim_take_response(m, NP_SIM_OP_SOCKET_PWM_SET, &code)) {
         /* A failed write leaves the emitter as it was: the module's commanded
          * state is not updated. */
-        report(m, NP_SIM_OP_SOCKET_PWM_SET, args, code, "injected");
+        np_sim_report_hal(m, NP_SIM_OP_SOCKET_PWM_SET, args, code, "injected");
         return (np_hub_status_t)code;
     }
     m->cur_a = cur_a; m->cur_b = cur_b; m->freq_code = freq_code; m->duty = duty;
     m->driven = (cur_a != 0U || cur_b != 0U);
-    report(m, NP_SIM_OP_SOCKET_PWM_SET, args, (int)NP_HUB_OK, "default");
+    np_sim_report_hal(m, NP_SIM_OP_SOCKET_PWM_SET, args, (int)NP_HUB_OK, "default");
     return NP_HUB_OK;
 }
 
@@ -73,7 +61,7 @@ np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id, float *temp_c
 
     int code;
     if (np_sim_take_response(m, NP_SIM_OP_SOCKET_NTC_READ, &code)) {
-        report(m, NP_SIM_OP_SOCKET_NTC_READ, "[]", code, "injected");
+        np_sim_report_hal(m, NP_SIM_OP_SOCKET_NTC_READ, "[]", code, "injected");
         return (np_hub_status_t)code;
     }
     const np_sim_override_t *o = &m->ov[NP_SIM_OP_SOCKET_NTC_READ];
@@ -82,6 +70,6 @@ np_hub_status_t np_mod_pbm_hal_socket_ntc_read(uint16_t socket_id, float *temp_c
 
     char args[48];
     (void)snprintf(args, sizeof args, "[%.1f]", (double)*temp_c_out);
-    report(m, NP_SIM_OP_SOCKET_NTC_READ, args, (int)NP_HUB_OK, pinned ? "injected" : "default");
+    np_sim_report_hal(m, NP_SIM_OP_SOCKET_NTC_READ, args, (int)NP_HUB_OK, pinned ? "injected" : "default");
     return NP_HUB_OK;
 }

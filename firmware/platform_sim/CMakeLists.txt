@@ -52,6 +52,10 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_socket_layouts.generated.c
     ../hub_control/src/np_pbm_socket_telem.c
     ../hub_control/modules/np_mod_pbm.c
+    # stimulation (BES/tACS and tDCS): the driver, the commanded-versus-delivered cross-check and the ramp model
+    ../hub_control/modules/np_mod_stim.c
+    ../hub_control/src/np_stim_xcheck.c
+    ../hub_control/src/np_ramp_plan.c
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
@@ -60,6 +64,8 @@ set(NP_SIM_PBM_FIRMWARE
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
     src/np_sim_pbm.c
+    src/np_sim_stim.c
+    src/np_sim_stim_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -75,12 +81,18 @@ add_executable(np_sim_pbm_spike spike/np_sim_pbm_spike.c)
 target_link_libraries(np_sim_pbm_spike PRIVATE np_sim_pbm)
 target_compile_options(np_sim_pbm_spike PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 
-# The spike's tests drive the same library directly.
+# The tests drive the same library directly.
 add_executable(np_sim_pbm_tests tests/np_sim_pbm_tests.c)
 target_link_libraries(np_sim_pbm_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 # Not add_test(): CI's host-test partition, counts and coverage floors (NP-SW-CI-001 §6.10, §6.14)
 # do not know this target, and it is opt-in (NP_BUILD_SIM).  Run it as:  ctest -R np_sim  via the
 # custom target below.  NP-SIM-FW-001 OI-SIMFW-13 owns putting it in the partition.
-add_custom_target(np_sim_run_tests COMMAND np_sim_pbm_tests DEPENDS np_sim_pbm_tests
-    COMMENT "Running np_sim_pbm_tests")
+add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
+target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_custom_target(np_sim_run_tests
+    COMMAND np_sim_pbm_tests
+    COMMAND np_sim_stim_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests
+    COMMENT "Running the simulator scenario tests")

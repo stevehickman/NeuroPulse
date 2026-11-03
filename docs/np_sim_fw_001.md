@@ -222,6 +222,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-12`** | **`scripts/req-trace.ts` scans `docs/ firmware/ app/ common/ ci/` and not `simulator/`.** The JavaScript tests carry `@verifies` tags (`REQ-SIMFW-04`, `-11`, `-12`) that the report does not count, so those requirements show as tested only by the C tests, and `REQ-SIMFW-12` as untested. | `simulator/` is added to the scan, or the tests move. |
 | **`OI-SIMFW-13`** | **CI.** The simulator is opt-in (`-DNP_BUILD_SIM=ON`) and in no CI job, because a CMake test target must be in `ci/host-test-partition.txt`, in three workflow counts and in `ci/host-test-floors.txt`, and the gates need their path-relevance lists widened. The JavaScript tests run by hand (`node --test`). | The tests run in a PR job, with the partition, counts and floors updated together. |
 | **`OI-SIMFW-14`** | **`REQ-SIMFW-01` and `-02` have no CI check yet.** The guard is the CMake `return()` under a cross toolchain and the opt-in option. Nothing fails a device target that links `firmware/platform_sim/`, and nothing counts the seams the sim layer routes against the 119. | §8 step 2 builds both. |
+| **`OI-SIMFW-15`** | **The stimulation seam contract leaves two things undefined** (§13): what `np_mod_stim_hal_read_charge` totals for a charge-balanced waveform, and what polarity 0 and 1 mean at the DAC and in the sign of `np_mod_stim_hal_read_current`. The simulator reports 0 charge for AC and a magnitude for current, and says so. | `np_sw02_platform_hal.h` defines both, and the model follows the definition. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -240,7 +241,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 is stim, built).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -369,6 +370,50 @@ themselves as `unrouted` and fail. No other modality. No safety MCU (`OI-SIMFW-0
 no session runner (the spike calls the dispatcher directly). No persistence: the hex-map store and
 the protocol identity seams are spike-local stand-ins, named in `np_sim_spike_link.c`. Numeric status codes
 only: the generated name table of `REQ-SIMFW-05` is not built.
+
+---
+
+## 13. Stimulation, as built (§8 step 3, first module type)
+
+BES/tACS and tDCS, `REQ-SIMFW-13`. Built on the same bus; the bus is now keyed by **(kind, index)**, so an electrode pair and a
+socket may share an index without meeting (`NP_SIM_KIND_STIM_PAIR`; the isolation test covers it).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_stim.c` | The seven `np_mod_stim_hal_*` seams of `np_sw02_platform_hal.h`, each answered from an injected response, a pinned reading, or the default model. |
+| Default model | same | Delivered current: the commanded peak for AC (the quantity `np_stim_xcheck` compares, `OI-STIM-06`); for DC a straight line from the present level to the target over the commanded seconds. Charge: the exact integral of the DC magnitude, saturating at the seam's 16 bits. Impedance: whatever the scenario gave the pair, no default. |
+| Clock | `np_sim_advance_ms` | Virtual after the first advance, so a 30 s ramp is deterministic and a scenario runs at once. Real until then. |
+| Harness | `platform_sim/src/np_sim_stim_harness.c` | Text commands that call the driver's every entry point (`control`, `telemetry`, `tick`, `tdcs_pause`, `tdcs_ramp`, `tdcs_ramp_up_ms`, `detect`, `shutdown`) and the runner's two call sites around the cross-check. |
+| Firmware it runs | the device's own files | `np_mod_stim.c`, `np_stim_xcheck.c`, `np_ramp_plan.c` and the stimulation half of `np_safety_spi.c` (`request_enable`, `request_disable`, `set_channel_current`). No firmware file changed. |
+| Bridge | `fw-bridge.js` | `kind: "stim_pair"` in `MODULE_SET`, `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `bes`, `tdcs`, `stim_stop`, `stim_shutdown`, `sample`, `tdcs_pause`, `stim_session_start`, `advance`. Built from validated integers and whitelisted names (`REQ-SIMFW-12`); the hostile-input test covers them. |
+| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 66 checks: drive and stop, the 1 mA cap reaching the DAC, a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), the 30 s floor and the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
+
+**Line coverage** (`firmware/platform_sim/tools/sim-coverage.sh`, gcov, the scenario tests only):
+
+| Source | Lines reached |
+|---|---|
+| `hub_control/modules/np_mod_stim.c` | 99.4 % of 158 (the one line missed is an unreachable `default:` of `td_level`) |
+| `hub_control/src/np_stim_xcheck.c` | 93.7 % of 63 |
+| `hub_control/modules/np_mod_pbm.c` (the spike, for comparison) | 24.5 % of 184 |
+| `hub_control/src/np_socket_dispatch.c` | 51.1 % of 180 |
+| `hub_control/src/np_module_map.c` | 21.4 % of 364 |
+
+**Gaps, listed as `REQ-SIMFW-13` requires.**
+
+| Not modelled or not run | Why |
+|---|---|
+| The session runner's use of the driver | The runner is not in the loop. The harness copies its two call sites (tick before a command, telemetry then `np_stim_xcheck_observe`), so a defect in the runner's own call is not seen. |
+| The registry and its probe table | The driver is called directly. `np_mod_stim_detect` and the entry points are run, but the table that routes slot 17 and 18 to them is `np_module_registry.c`. |
+| The SHDR fault the cross-check raises | The flag is returned to the runner, which writes it. The harness reports the flag; the log call is the runner's. |
+| What a charge-balanced waveform's "session total" charge is | The seam says only "session total". The model reports 0 for AC and the scenario test says so. An open question, not a number. |
+| What polarity 0 and 1 mean at the DAC | The seam does not say. Delivered current is reported as a magnitude. The cross-check takes the magnitude too. |
+| Waveform shape, frequency accuracy and phase | The model carries the commanded peak only. `np_mod_bes_tacs_params_t.phase_deg` is never passed to the DAC by the driver. |
+| The safety MCU's own charge ceiling | Not in the loop (`OI-SIMFW-09`). Every `result` says `safety_mcu: not_in_loop`, and the granted enables are therefore 0. |
+| Non-stimulation records and a null record in `np_stim_xcheck_observe` | The harness cannot construct them; the firmware's own `np_stim_xcheck_tests` does. |
+| Browser drawing of an electrode pair | Not built. The page draws tiles; a stimulation pair has no place on the lattice. Needs a decision on where a pair is drawn (§3.3). |
+
+**What it found.** Nothing in the firmware. Two things in the seam contract: the charge and the polarity are
+defined nowhere (above), so any hardware or simulator answers them by guesswork. `OI-SIMFW-15`.
 
 ---
 
