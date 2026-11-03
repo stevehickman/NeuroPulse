@@ -19,8 +19,10 @@ on:
     paths:
       - 'docs/revisions/pending/**'
       - 'docs/revisions/policy.json'
-      # A change to this file runs it too, so a fix to the workflow also assigns what a failed run left pending.
+      # A change to this file or to the scripts runs it too, so a fix to either also assigns what a failed run left pending.
       - '.github/workflows/assign-revisions.yml'
+      - 'scripts/assign-revisions.ts'
+      - 'scripts/revision-lib.ts'
   # By hand (Actions tab -> Run workflow), to assign what is pending after a failure has been fixed.
   workflow_dispatch:
 
