@@ -160,7 +160,7 @@ class HubDescriptorCompilerTests {
         mod(NPModalityParams.Tdcs(NPTDCSParams(intensityMilliamps = 1.0, electrodePairs = listOf(listOf("F3", "F4")),
             rampSeconds = 45, electrodeAreaCm2 = 10.0)), NPIntervalConfig(0, 0, null, startOffsetSeconds = 30))))
 
-    // @verifies REQ-FWHUB-08
+    // @verifies REQ-FWHUB-08 DI-SAFE-06
     @Test fun signatureCoversTheRawRegionAndLandsInTheLast64Bytes() {
         var seen: ByteArray? = null
         val c = HubDescriptorCompiler({ m -> seen = m; SignatureResult(ByteArray(64) { 7 }, "fp") }, { 1L }, { ByteArray(it) })
