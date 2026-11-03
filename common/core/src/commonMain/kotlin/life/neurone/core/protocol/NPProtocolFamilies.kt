@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.toNppsCoreItem
 import life.neurone.core.npps.toNppsCoreJson
 
 // The protocol library's rules as the app asks them (SWR-PL-02/03/06, SWR-UP-02, SWR-WO-01/02/03, SWR-FM-03…07,

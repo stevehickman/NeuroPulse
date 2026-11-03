@@ -329,20 +329,6 @@ class AppServices(
     /** The user's PBM wavelength rules; the descriptor compiler reads the resolved set at each upload (NP-NPPS-REF-001 §7a). */
     val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore)
 
-    /**
-     * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm
-     * smart tile is fitted. Until this existed nothing set the library's tier, so it stayed NONE and every protocol read as
-     * unavailable. The tier is the hub's verdict and only decides what the menu offers; the hub gates a T2 protocol itself.
-     */
-    init {
-        scope.launch {
-            kotlinx.coroutines.flow.combine(gattManager.connectionState, gattManager.deviceTier, gattManager.zoneModules) { state, tier, modules ->
-                life.neurone.core.protocol.deviceTierFor(state == life.neurone.shared.ble.ConnectionState.CONNECTED, tier) to
-                    modules.presentSockets.any { it.moduleType == life.neurone.core.models.ZoneModuleType.PBM_1064 }
-            }.collect { (tier, smart) -> protocolLibrary.updateAvailability(tier, smart) }
-        }
-    }
-
     val protocolUploader = ProtocolUploader(gattManager, { wavelengthRulesStore.resolved }, platform.protocolSigner)
 
     /** Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class). */
@@ -367,6 +353,20 @@ class AppServices(
      * protocols never pay for it, or fail on it.
      */
     val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
+
+    /**
+     * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm
+     * smart tile is fitted. Until this existed nothing set the library's tier, so it stayed NONE and every protocol read as
+     * unavailable. The tier is the hub's verdict and only decides what the menu offers; the hub gates a T2 protocol itself.
+     */
+    init {
+        scope.launch {
+            kotlinx.coroutines.flow.combine(gattManager.connectionState, gattManager.deviceTier, gattManager.zoneModules) { state, tier, modules ->
+                life.neurone.core.protocol.deviceTierFor(state == life.neurone.shared.ble.ConnectionState.CONNECTED, tier) to
+                    modules.presentSockets.any { it.moduleType == life.neurone.core.models.ZoneModuleType.PBM_1064 }
+            }.collect { (tier, smart) -> protocolLibrary.updateAvailability(tier, smart) }
+        }
+    }
 
     init {
         syncLoginItem()
