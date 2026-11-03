@@ -70,7 +70,13 @@ Turning it off is the reverse edit; fragments already on `main` are still assign
 ## What can go wrong
 
 - **The workflow fails** (the App token, a push refused): the fragment stays on `main` and the workflow is red. Fix the
-  cause and re-run it; nothing is lost. `main` shows new content under the old revision until then.
+  cause and run it again (Actions → Assign revisions → Run workflow, or any change to the workflow file or the policy);
+  nothing is lost. A "Re-run" of the failed run uses the workflow file as it was then, so it cannot pick up a fix. `main` shows new content under the old revision until then.
 - **`check-dhf-index` or `check-md-tables` fails after an assignment:** the script stops before committing, so nothing is
   pushed, the fragment stays, and the log shows the failure.
 - **A fragment names a document that does not exist:** the run stops with nothing changed.
+- **A document's `**Revision:**` is behind its own history** (two hand-numbered changes once set the same line and each added a
+  row): the assigner takes the newest history row as the current revision, so the next number is never one the history
+  already has, and the `**Revision:**` line jumps to it. Without that the run would stop ("its history already reaches …").
+- **One fragment that cannot be assigned stops the ones behind it** (the numbers are a counter and the order matters): fix
+  the cause and run it again.

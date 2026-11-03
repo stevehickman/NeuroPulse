@@ -19,6 +19,12 @@ on:
     paths:
       - 'docs/revisions/pending/**'
       - 'docs/revisions/policy.json'
+      # A change to this file or to the scripts runs it too, so a fix to either also assigns what a failed run left pending.
+      - '.github/workflows/assign-revisions.yml'
+      - 'scripts/assign-revisions.ts'
+      - 'scripts/revision-lib.ts'
+  # By hand (Actions tab -> Run workflow), to assign what is pending after a failure has been fixed.
+  workflow_dispatch:
 
 # One at a time and never cancelled: the numbers are a counter, and two runs would race.
 concurrency:
@@ -37,6 +43,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Checkout otherwise leaves the default token in git's config as an Authorization header, which wins over
+          # the App token put in the remote URL below, and the push is refused as github-actions[bot] (seen on the
+          # first real run, #767). With nothing stored, the URL's token is the credential.
+          persist-credentials: false
 
       - name: Set up Bun
         uses: ./.github/actions/setup-toolchain

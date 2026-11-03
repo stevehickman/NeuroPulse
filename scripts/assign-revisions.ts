@@ -80,6 +80,13 @@ function insertRow(text: string, row: string, n: number, where: string): string 
   return lines.join("\n");
 }
 
+/** The highest revision a history table holds (0 if it has no rows). */
+function newestHistoryRow(text: string): number {
+  let max = 0;
+  for (const l of text.split("\n")) { const m = HISTORY_ROW.exec(l); if (m) max = Math.max(max, Number(m[1])); }
+  return max;
+}
+
 function setRevision(text: string, rev: number, date: string): string {
   return text.split("\n").map((l) => (REV_LINE.test(l) ? `**Revision:** ${rev}` : DATE_LINE.test(l) ? l.replace(new RegExp(DATE), date) : l)).join("\n");
 }
@@ -120,8 +127,12 @@ export function assignNext(root: string, validate = true): Assigned {
   for (const s of frag.sections) {
     const file = fileOf.get(serialFor(s.target));
     if (file === undefined) throw new Error(`${path}: ${s.target} is not a controlled document under docs/`);
-    const cur = revOf(get(file));
-    if (cur === null) throw new Error(`${file}: no revision`);
+    const line = revOf(get(file));
+    if (line === null) throw new Error(`${file}: no revision`);
+    // The newest history row is what happened; the Revision line can be behind it when two hand-numbered changes
+    // set the same line (git merges an identical edit without a conflict) and each added its own row. Never reuse a
+    // number the history already has: the revision is the higher of the two, and this change takes the next.
+    const cur = Math.max(line, newestHistoryRow(get(historyFile(root, serialFor(s.target), file))));
     revs.set(s.target, { from: cur, to: cur + 1 });
   }
   for (const s of frag.sections) {
@@ -270,6 +281,20 @@ function selfTest(): void {
     check(/not a controlled document/.test(msg) && read(bad, DHF_FILE) === before && existsSync(join(bad, PENDING_DIR, "x.md")), "an unknown document stops it with nothing changed and the fragment kept");
   } finally { rmSync(bad, { recursive: true, force: true }); }
 
+  // A Revision line behind its own history (two hand-numbered changes set the same line): the history is the truth.
+  const heal = mk();
+  try {
+    const w = (f: string, t: string): void => writeFileSync(join(heal, f), t);
+    w("docs/np_sw_001.md", doc("NP-SW-001", 2, [row(1, "a"), row(2, "b"), row(3, "an earlier change whose Revision edit was lost")]));
+    commit(heal, "base");
+    frag(heal, "h.md", "date: 2026-11-02\n## DHF\nauthor: A\ntext: **{NP-SW-001 from → to}: healed.**\n## NP-SW-001\nauthor: A\ntext: **next**\n");
+    commit(heal, "fragment");
+    const res = assignNext(heal, false);
+    const sw = read(heal, "docs/np_sw_001.md"), dh = read(heal, "docs/reference/np-dhf-001-revision-history.md");
+    check(res.status === "done" && /^\*\*Revision:\*\* 4$/m.test(sw) && /\| 4 \| 2026-11-02 \| A \| \*\*next\*\* \|/.test(sw), "a Revision line behind its history takes the next number after the history's newest row (3 -> 4, not 2 -> 3)");
+    check(/\*\*3 → 4: healed\./.test(dh) && /\| NP-SW-001 \| SW \| 4 \|/.test(read(heal, DHF_FILE)), "and the text and the DHF index follow it");
+  } finally { rmSync(heal, { recursive: true, force: true }); }
+
   // Converting a hand-numbered branch gives back the same numbers when assigned.
   const cv = mk();
   try {
@@ -285,6 +310,8 @@ function selfTest(): void {
     const conv = read(cv, out);
     check(/## DHF\nauthor: Eng A\ntext: \*\*NP-SW-001 Rev \{NP-SW-001 from → to\}: the change/.test(conv), "converting turns the numbers in the text into tokens");
     check(/^\*\*Revision:\*\* 2$/m.test(read(cv, DHF_FILE)) && !/\| 3 \|/.test(read(cv, "docs/np_sw_001.md")), "and puts back the base's revisions and removes the hand-added rows");
+    // The fixture's hand-numbered files carry 2026-11-02; a fragment with no date takes today's, so pin it.
+    writeFileSync(join(cv, out), `date: 2026-11-02\n${conv}`);
     const res = assignNext(cv, false);
     const again = [DHF_FILE, "docs/np_sw_001.md", "docs/reference/np-dhf-001-revision-history.md"].map((f) => read(cv, f));
     check(res.status === "done" && again.every((t, i) => t === hand[i]), "assigning the converted fragment reproduces the hand-numbered files exactly");
