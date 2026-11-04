@@ -40,4 +40,9 @@ bool np_simh_ins_line(const char *cmd, char *a, char *b, char *c, char *d, char 
 /* The T2 and accessory stubs (np_sim_stubs_harness.c). */
 bool np_simh_stubs_line(const char *cmd, char *a, char *b);
 
+/* The cervical VNS commands (np_sim_cvns_harness.c). */
+void np_simh_cvns_init(void);
+void np_simh_cvns_status(void);
+bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 #endif

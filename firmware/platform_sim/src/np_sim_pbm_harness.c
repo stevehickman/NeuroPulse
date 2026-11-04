@@ -108,6 +108,7 @@ static void status(void)
     np_simh_audio_status();
     np_simh_visual_status();
     np_simh_ins_status();
+    np_simh_cvns_status();
     result("status", 0);
 }
 
@@ -124,6 +125,7 @@ void np_simh_init(void)
     np_simh_audio_init();
     np_simh_visual_init();
     np_simh_ins_init();
+    np_simh_cvns_init();
 }
 
 void np_simh_line(char *line)
@@ -145,6 +147,7 @@ void np_simh_line(char *line)
     if (np_simh_visual_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_ins_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_stubs_line(cmd, a, b)) { return; }
+    if (np_simh_cvns_line(cmd, a, b, c, d, e)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;

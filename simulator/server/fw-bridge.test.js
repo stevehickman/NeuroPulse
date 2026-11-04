@@ -199,6 +199,31 @@ test('a client string is never placed in an intranasal or stub command line, and
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in a cervical VNS command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'cvns', op: 'cvns_accessory\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'cvns', op: 'ins_auth', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: '2.5\nquit', unix_base_s: 1 } } },
+    { type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5 } } },
+    { type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: '70\nquit' },
+    { type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: 301 },
+    { type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 65536, status: 0 },
+    { type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10 },
+    { type: 'FW_COMMAND', cmd: 'cvns_stop\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5, unix_base_s: 1700000000 } } }),
+    ['cvns_add 2.5 2.5 1700000000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 }),
+    ['cvns 2 10000 1000 250 10 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 1024, status: 0 }), ['cvns_mcu 1024 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 7600, bpm: 70 }), ['cvns_run 7600 70']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: -1 }), ['cvns_run 1000 -1']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -379,4 +404,25 @@ test('end to end: a bilateral intranasal command that fails on its second side l
   const stub = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'stub').event;
   assert.ok(stub.code < 0, 'the TMS stub refuses');
   assert.strictEqual(stub.requested_enables & 0x800, 0, 'and requests no TMS enable');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real cervical VNS flow reaches the baseline and then faults before delivery (OI-SIMFW-22)', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5, unix_base_s: 1700000000 } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 1024, status: 0 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 9000, bpm: 70 });
+  await wait(800);
+  bridge.stop();
+  const st = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'cvns_state').map((m) => m.event).pop();
+  assert.strictEqual(st.baseline_valid, true, 'the real detector found the 70 BPM baseline');
+  assert.strictEqual(st.stage, 7, 'and the session is in FAULT');
+  assert.strictEqual(st.abort_reason, 6, 'with abort reason 6 (already active)');
+  assert.strictEqual(st.enable_requested, false);
+  assert.strictEqual(st.safety_mcu, 'scenario', 'the state says the safety MCU is the scenario');
 });

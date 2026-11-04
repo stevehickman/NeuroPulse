@@ -47,6 +47,7 @@ typedef enum {
     NP_SIM_KIND_AUDIO,              /* the codec, the planar drivers and the bone transducer; one, index 0 */
     NP_SIM_KIND_VISUAL,             /* the goggles: LEDs, Hall and IR sensors, MPE check; one, index 0 */
     NP_SIM_KIND_INTRANASAL,         /* the Y-probe: sleeve authentication, contact, two sides; one, index 0 */
+    NP_SIM_KIND_CVNS,               /* the cervical VNS accessory: presence, two electrodes, the clocks; one, index 0 */
     NP_SIM_KIND_COUNT
 } np_sim_kind_t;
 
@@ -97,6 +98,11 @@ typedef enum {
     NP_SIM_OP_INS_PWM_SET,          /* np_mod_ins_hal_pwm_set                 */
     NP_SIM_OP_INS_PWM_STOP,         /* np_mod_ins_hal_pwm_stop                */
     NP_SIM_OP_INS_PD_READ,          /* np_mod_ins_hal_pd_read                 */
+    NP_SIM_OP_CVNS_ACCESSORY,       /* np_cvns_hal_accessory_present          */
+    NP_SIM_OP_CVNS_IMP_MEASURE_START, /* np_cvns_hal_impedance_measure_start  */
+    NP_SIM_OP_CVNS_IMP_MEASURE_POLL,  /* np_cvns_hal_impedance_measure_poll   */
+    NP_SIM_OP_CVNS_REENABLE_IMP_START, /* np_cvns_hal_impedance_start (re-enable gate 3) */
+    NP_SIM_OP_CVNS_REENABLE_IMP_POLL,  /* np_cvns_hal_impedance_poll            */
     NP_SIM_OP_COUNT
 } np_sim_op_t;
 
@@ -164,6 +170,10 @@ typedef struct {
     bool              ins_side_on[2];                  /* left, right                                            */
     uint8_t           ins_cur660[2], ins_cur808[2], ins_freq[2], ins_duty[2];
     uint16_t          ins_pd[2][2];                    /* [side][wavelength: 0 = 660, 1 = 808]; caller-set        */
+    /* the cervical VNS accessory (NP_SIM_KIND_CVNS) */
+    float             cvns_kohm[2];                    /* hub-side per-electrode impedance: [0] left, [1] right; caller-set */
+    bool              cvns_reenable_pass;              /* the re-enable gate's fresh impedance verdict; caller-set */
+    uint32_t          cvns_unix_base_s;                /* wall clock at simulated t = 0; caller-set               */
     np_sim_override_t ov[NP_SIM_OP_COUNT];
     bool              answered_default[NP_SIM_OP_COUNT];
 } np_sim_module_t;

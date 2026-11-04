@@ -12,7 +12,7 @@
 static np_sim_module_t g_mod[NP_SIM_KIND_COUNT][NP_SIM_MAX_MODULES];
 static np_sim_sink_fn  g_sink;
 
-static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg", "vns", "audio", "visual", "intranasal" };
+static const char *const K_KIND_NAME[NP_SIM_KIND_COUNT] = { "pbm_base", "stim_pair", "eeg", "vns", "audio", "visual", "intranasal", "cvns" };
 static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "socket_pwm_set", "socket_ntc_read",
     "stim_dac_set", "stim_dac_stop", "stim_dc_set", "stim_dc_ramp",
@@ -24,7 +24,8 @@ static const char *const K_OP_NAME[NP_SIM_OP_COUNT]     = {
     "audio_codec_init", "audio_binaural", "audio_isochronic", "audio_noise", "audio_stop_planar",
     "audio_bone_set", "audio_bone_stop", "audio_mesh_impedance",
     "vis_led_set", "vis_led_stop", "vis_eye_open", "vis_seated", "vis_emdr", "vis_mpe", "vis_hall_register",
-    "ins_auth", "ins_contact", "ins_pwm_set", "ins_pwm_stop", "ins_pd_read"
+    "ins_auth", "ins_contact", "ins_pwm_set", "ins_pwm_stop", "ins_pd_read",
+    "cvns_accessory", "cvns_imp_measure_start", "cvns_imp_measure_poll", "cvns_reenable_imp_start", "cvns_reenable_imp_poll"
 };
 
 const char *np_sim_kind_name(np_sim_kind_t k)
@@ -49,6 +50,7 @@ static uint32_t real_now_ms(void)
 
 np_sim_kind_t np_sim_op_kind(np_sim_op_t op)
 {
+    if (op >= NP_SIM_OP_CVNS_ACCESSORY) { return NP_SIM_KIND_CVNS; }
     if (op >= NP_SIM_OP_INS_AUTH)       { return NP_SIM_KIND_INTRANASAL; }
     if (op >= NP_SIM_OP_VIS_LED_SET)    { return NP_SIM_KIND_VISUAL; }
     if (op >= NP_SIM_OP_AUDIO_CODEC_INIT) { return NP_SIM_KIND_AUDIO; }
@@ -114,7 +116,7 @@ np_sim_module_t *np_sim_add(np_sim_kind_t kind, uint16_t index, float value)
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true,"
                     "\"impedance_kohm\":%.1f}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index, (double)value);
-    } else if (kind == NP_SIM_KIND_INTRANASAL || kind == NP_SIM_KIND_VISUAL) {
+    } else if (kind == NP_SIM_KIND_INTRANASAL || kind == NP_SIM_KIND_VISUAL || kind == NP_SIM_KIND_CVNS) {
         np_sim_emit("{\"ev\":\"module\",\"id\":\"%s:%u\",\"kind\":\"%s\",\"index\":%u,\"present\":true}",
                     np_sim_kind_name(kind), (unsigned)index, np_sim_kind_name(kind), (unsigned)index);
     } else if (kind == NP_SIM_KIND_AUDIO) {

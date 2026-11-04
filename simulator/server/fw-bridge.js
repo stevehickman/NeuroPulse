@@ -36,6 +36,7 @@ const INS_OPS = new Set(['ins_auth', 'ins_contact', 'ins_pwm_set', 'ins_pwm_stop
 const INS_SENSORS = new Set(['auth', 'contact']);
 const STUB_NAMES = new Set(['qeeg', 'tms', 'pbm_1170nm', 'clin_tacs', 'hd_tdcs', 'vibrotactile']);   // np_mod_t2_stubs.c
 const STUB_OPS = new Set(['detect', 'init', 'control', 'telemetry', 'shutdown']);
+const CVNS_OPS = new Set(['cvns_accessory', 'cvns_imp_measure_start', 'cvns_imp_measure_poll', 'cvns_reenable_imp_start', 'cvns_reenable_imp_poll']);   // the cervical VNS accessory
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -367,6 +368,66 @@ function insCommandLines(msg) {
   }
 }
 
+function cvnsOp(v) {
+  if (typeof v !== 'string' || !CVNS_OPS.has(v)) {
+    throw new BridgeError(`op must be one of ${[...CVNS_OPS].join(', ')}`);
+  }
+  return v;
+}
+
+/** The cervical VNS accessory's messages: one accessory, no address. */
+function cvnsModuleLines(msg) {
+  switch (msg.type) {
+    case 'MODULE_SET': {
+      if (msg.patch === undefined || typeof msg.patch !== 'object') {
+        throw new BridgeError('MODULE_SET needs a patch object');
+      }
+      const lines = [];
+      if ('add' in msg.patch) {
+        const a = msg.patch.add;
+        lines.push(`cvns_add ${num(a?.left_kohm, 0, 100000, 'add.left_kohm')} ${num(a?.right_kohm, 0, 100000, 'add.right_kohm')} ${int(a?.unix_base_s, 0, 4294967295, 'add.unix_base_s')}`);
+      }
+      if ('present' in msg.patch) {
+        if (typeof msg.patch.present !== 'boolean') throw new BridgeError('present must be a boolean');
+        lines.push(msg.patch.present ? 'cvns_present' : 'cvns_absent');
+      }
+      if ('reenable_pass' in msg.patch) lines.push(`cvns_reenable_pass ${bit(msg.patch.reenable_pass, 'reenable_pass')}`);
+      if ('reading' in msg.patch) {
+        const r = msg.patch.reading;
+        lines.push(`reading 0 ${cvnsOp(r?.op)} ${num(r?.value, -1000000, 1000000, 'reading value')}`);
+      }
+      if (lines.length === 0) throw new BridgeError('MODULE_SET patch has no recognised field');
+      return lines;
+    }
+    case 'MODULE_FAIL':
+      return [`fail 0 ${cvnsOp(msg.op)} ${int(msg.code, -128, 127, 'code')} ${int(msg.times, -1, 1000000, 'times')}${afterTail(msg)}`];
+    case 'MODULE_CLEAR':
+      return ['cvns_clear'];
+    default:
+      return [];
+  }
+}
+
+/** FW_COMMANDs for the cervical VNS driver; the scenario plays the safety MCU (`cvns_mcu`) and the PPG ISR (`cvns_run`). */
+function cvnsCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'cvns':
+      return [`cvns ${int(msg.side, 0, 255, 'side')} ${int(msg.freq_mhz, 0, 65535, 'freq_mhz')} ${int(msg.amp_ua, 0, 65535, 'amp_ua')} ` +
+              `${int(msg.pw_us, 0, 65535, 'pw_us')} ${int(msg.ramp_s, 0, 65535, 'ramp_s')} ${int(msg.baseline_req, 0, 255, 'baseline_req')}`];
+    case 'cvns_mcu':
+      return [`cvns_mcu ${int(msg.granted_mask, 0, 65535, 'granted_mask')} ${int(msg.status, 0, 255, 'status')}`];
+    case 'cvns_mcu_imp':
+      return [`cvns_mcu_imp ${num(msg.left_kohm, 0, 100000, 'left_kohm')} ${num(msg.right_kohm, 0, 100000, 'right_kohm')}`];
+    case 'cvns_run':
+      return [`cvns_run ${int(msg.ms, 0, 600000, 'ms')} ${int(msg.bpm, -1, 300, 'bpm')}`];
+    case 'cvns_init': case 'cvns_detect': case 'cvns_stop': case 'cvns_suspend': case 'cvns_shutdown': case 'cvns_reenable':
+    case 'cvns_sample': case 'cvns_state':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
+}
+
 function stimChannel(v) {
   if (typeof v !== 'string' || !STIM_CHANNELS.has(v)) {
     throw new BridgeError(`channel must be one of ${[...STIM_CHANNELS].join(', ')}`);
@@ -448,8 +509,9 @@ function messageToLines(msg) {
   if (msg.kind === 'audio') return audioModuleLines(msg);
   if (msg.kind === 'visual') return visModuleLines(msg);
   if (msg.kind === 'intranasal') return insModuleLines(msg);
+  if (msg.kind === 'cvns') return cvnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {

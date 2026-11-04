@@ -27,6 +27,7 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../pbm/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     # headers only: np_safety_spi.c and np_session_runner.h name FreeRTOS types.  The kernel is not
@@ -62,6 +63,13 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/modules/np_mod_visual.c
     ../hub_control/modules/np_mod_intranasal.c
     ../hub_control/modules/np_mod_t2_stubs.c
+    # cervical VNS: the driver, the safety library it integrates and the re-enable manager
+    ../hub_control/modules/np_mod_cvns.c
+    ../cervical_vns/src/np_cvns_interlock.c
+    ../cervical_vns/src/np_cvns_session.c
+    ../cervical_vns/src/np_cvns_stim.c
+    ../hub_control/src/np_cvns_reenable.c
+    ../hub_control/src/np_cvns_fault_summary.c
     ../hrv_biofeedback/src/np_hrv_session.c
     ../hrv_biofeedback/src/np_hrv_ppg.c
     ../hrv_biofeedback/src/np_hrv_coherence.c
@@ -95,6 +103,8 @@ add_library(np_sim_pbm STATIC
     src/np_sim_intranasal.c
     src/np_sim_intranasal_harness.c
     src/np_sim_stubs_harness.c
+    src/np_sim_cvns.c
+    src/np_sim_cvns_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -138,6 +148,9 @@ target_compile_options(np_sim_intranasal_tests PRIVATE -std=gnu11 -Wall -Wextra 
 add_executable(np_sim_stubs_tests tests/np_sim_stubs_tests.c)
 target_link_libraries(np_sim_stubs_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_stubs_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_cvns_tests tests/np_sim_cvns_tests.c)
+target_link_libraries(np_sim_cvns_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_cvns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
@@ -147,5 +160,6 @@ add_custom_target(np_sim_run_tests
     COMMAND np_sim_visual_tests
     COMMAND np_sim_intranasal_tests
     COMMAND np_sim_stubs_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests
+    COMMAND np_sim_cvns_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests
     COMMENT "Running the simulator scenario tests")
