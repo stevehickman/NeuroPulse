@@ -74,6 +74,14 @@ class NeurOneGattManager(
     val hardwareVersion: StateFlow<Int> = _hardwareVersion
 
     /**
+     * The unit's tier as the hub reports it (DEVICE_TIER, OI-HWFIT-01): the safety MCU's verdict from its signed tier identity,
+     * relayed and never decided here. Null until read, and for a hub whose firmware does not publish it. It only says what
+     * the helmet can run; the hub and the safety MCU gate a T2 protocol whatever the app believes (REQ-UPG-01).
+     */
+    private val _deviceTier = MutableStateFlow<life.neurone.core.ble.HubTier?>(null)
+    val deviceTier: StateFlow<life.neurone.core.ble.HubTier?> = _deviceTier
+
+    /**
      * What the helmet says it received at the last protocol upload: its hash of the bytes and an accept or refuse verdict
      * (SWR-UP-01). Null before the first report and after a dropped link. The hash is of protocol bytes the person authored
      * and carries no user biology.
@@ -339,6 +347,10 @@ class NeurOneGattManager(
         if (UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) in characteristics) {
             central.read(UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID))
         }
+        // OI-HWFIT-01: optional (hub firmware); read once at link. The tier never changes in the field.
+        if (UUID.fromString(GattUuidStrings.DEVICE_TIER_ID) in characteristics) {
+            central.read(UUID.fromString(GattUuidStrings.DEVICE_TIER_ID))
+        }
         // SWR-UP-01: optional (hub firmware); read at link and notified, and read again after each upload.
         uploadCheckCharPresent = UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) in characteristics
         if (uploadCheckCharPresent) {
@@ -406,6 +418,7 @@ class NeurOneGattManager(
             }
             UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID) ->
                 GattParser.parseHardwareVersion(value)?.let { _hardwareVersion.value = it }
+            UUID.fromString(GattUuidStrings.DEVICE_TIER_ID) -> _deviceTier.value = GattParser.parseDeviceTier(value)
             UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
@@ -603,6 +616,7 @@ class NeurOneGattManager(
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
         _progress.value = null
         _hardwareVersion.value = DEFAULT_HARDWARE_VERSION // the next link may be another helmet
+        _deviceTier.value = null                          // and another tier
         _uploadCheck.value = null
         uploadCheckCharPresent = false
         _pauseLimitSeconds.value = null

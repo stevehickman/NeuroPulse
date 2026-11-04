@@ -93,8 +93,11 @@ enum NPLibraryRules {
         return Set((answer["offered"] as? [String]) ?? [])
     }
 
-    static func uploadGate(helmetVersion: Int, protocolVersions: [Int], contentHash: String, sourceHash: String?) -> [String: Any] {
+    static func uploadGate(
+        helmetVersion: Int, protocolVersions: [Int], contentHash: String, sourceHash: String?, libraryHashes: [String]
+    ) -> [String: Any] {
         ask("uploadGate", [
+            "libraryHashes": libraryHashes,
             "helmetVersion": helmetVersion,
             "protocolVersions": protocolVersions,
             "contentHash": contentHash,
@@ -141,6 +144,23 @@ enum NPLibraryRules {
               let def = try? JSONSerialization.jsonObject(with: p.nppsCoreJSON()) else { return nil }
         return try? NppsCore.contentHash(request: [
             "def": def,
+            "hardwareVersion": 1,
+            "zonesByVersion": zonesByVersion(),
+            "clinicianSockets": NSNull(),
+        ])
+    }
+
+    /// A composite's identity (SWR-PL-01, `OI-NPPS-COMP-01`): the hash of the plan its layers compile to. `members` are the
+    /// protocols the layers name. Nil when the core refuses the plan.
+    static func compositeContentHash(_ composite: NPCompositeProtocol, members: [NPProtocolDefinition]) -> String? {
+        var defs: [String: Any] = [:]
+        for m in members {
+            guard let data = try? m.nppsCoreJSON(), let def = try? JSONSerialization.jsonObject(with: data) else { return nil }
+            defs[m.name] = def
+        }
+        return try? NppsCore.contentHash(request: [
+            "composite": composite.nppsCoreJSON(),
+            "members": defs,
             "hardwareVersion": 1,
             "zonesByVersion": zonesByVersion(),
             "clinicianSockets": NSNull(),

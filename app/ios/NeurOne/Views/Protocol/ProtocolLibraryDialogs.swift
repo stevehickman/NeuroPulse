@@ -53,6 +53,8 @@ extension View {
             case .hardwareMismatch:
                 if variantAvailable { Button("PROTOCOL_LIBRARY_MISMATCH_USE_VARIANT", action: onUseVariant) }
                 Button("COMMON_CANCEL", role: .cancel) {}
+            case .notInLibrary:
+                Button("COMMON_CANCEL", role: .cancel) {}
             default:
                 Button("OK", role: .cancel) {}
             }
@@ -66,6 +68,7 @@ private func uploadGateTitle(_ gate: UploadGate?) -> LocalizedStringKey {
     switch gate {
     case .unmodifiedClone: return "PROTOCOL_LIBRARY_UNMODIFIED_TITLE"
     case .hardwareMismatch: return "PROTOCOL_LIBRARY_MISMATCH_TITLE"
+    case .notInLibrary: return "PROTOCOL_LIBRARY_NOT_IN_LIBRARY_TITLE"
     default: return ""
     }
 }
@@ -74,6 +77,8 @@ private func uploadGateMessage(_ gate: UploadGate?, variantAvailable: Bool) -> S
     switch gate {
     case .unmodifiedClone:
         return String(localized: "PROTOCOL_LIBRARY_UNMODIFIED_BODY")
+    case .notInLibrary:
+        return String(localized: "PROTOCOL_LIBRARY_NOT_IN_LIBRARY_BODY")
     case .hardwareMismatch(let helmetVersion, let protocolVersions, let shared, let onlyProtocol, let onlyHelmet):
         var text = String(format: String(localized: "PROTOCOL_LIBRARY_MISMATCH_BODY"),
                           protocolVersions.map(String.init).joined(separator: ", "), String(helmetVersion))

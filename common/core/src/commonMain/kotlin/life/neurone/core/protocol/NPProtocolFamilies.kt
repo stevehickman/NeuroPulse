@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import life.neurone.core.npps.NppsCore
+import life.neurone.core.npps.toNppsCoreItem
 import life.neurone.core.npps.toNppsCoreJson
 
 // The protocol library's rules as the app asks them (SWR-PL-02/03/06, SWR-UP-02, SWR-WO-01/02/03, SWR-FM-03…07,
@@ -68,6 +69,9 @@ sealed class UploadGate {
 
     /** The clone's content is its source's (SWR-PL-06). The three outcomes are upload the source, edit the clone, cancel. */
     data class UnmodifiedClone(val sourceId: life.neurone.core.common.UUID) : UploadGate()
+
+    /** The protocol is not stored in the library, so nothing is sent (SWR-PL-01). */
+    object NotInLibrary : UploadGate()
 }
 
 /** The three outcomes of an upload that was sent, and the two refusals that are not failed uploads (SWR-UP-02). */
@@ -165,11 +169,12 @@ internal object NPLibraryRules {
             putJsonArray("archivedFamilies") { archivedFamilies.forEach { add(JsonPrimitive(it)) } }
         }["offered"]!!.jsonArray.map { it.jsonPrimitive.content }
 
-    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?): JsonObject =
+    fun uploadGate(helmetVersion: Int, protocolVersions: List<Int>, contentHash: String, sourceHash: String?, libraryHashes: List<String>): JsonObject =
         ask("uploadGate") {
             put("helmetVersion", helmetVersion)
             putJsonArray("protocolVersions") { protocolVersions.forEach { add(JsonPrimitive(it)) } }
             put("contentHash", contentHash)
+            putJsonArray("libraryHashes") { libraryHashes.forEach { add(JsonPrimitive(it)) } }
             if (sourceHash == null) put("sourceHash", JsonNull) else put("sourceHash", sourceHash)
         }
 
@@ -227,7 +232,7 @@ internal object NPLibraryRules {
     fun isValidUsedRecord(record: JsonElement): Boolean =
         ask("usedRecord") { put("check", record) }["valid"]!!.jsonPrimitive.boolean
 
-    /** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none or a protocol that cannot be hashed yet. */
+    /** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none (a composite is hashed by [compositeContentHash]) or a protocol that cannot be hashed yet. */
     fun contentHash(entry: NPProtocolEntry): String? {
         val protocol = (entry as? NPProtocolEntry.Single)?.protocol ?: return null
         return try {
@@ -239,6 +244,27 @@ internal object NPLibraryRules {
             })
         } catch (e: IllegalArgumentException) {
             null // for example a clinician-selected target the operator has not chosen yet
+        }
+    }
+
+    /**
+     * A composite's identity (SWR-PL-01, `OI-NPPS-COMP-01`): the hash of the plan its layers compile to, so it is the
+     * identity of what the helmet is given and not of how the composite was written. [members] are the protocols its layers
+     * name. Null when the plan cannot be made (a layer names a protocol that is not there, or is refused) or a PBM target is
+     * not chosen yet.
+     */
+    fun compositeContentHash(entry: NPProtocolEntry.Composite, members: List<NPProtocolDefinition>): String? {
+        val composite = entry.toNppsCoreItem()["composite"] ?: return null
+        return try {
+            NppsCore.contentHash(buildJsonObject {
+                put("composite", composite)
+                put("members", buildJsonObject { members.forEach { put(it.name, it.toNppsCoreJson()) } })
+                put("hardwareVersion", 1)
+                put("zonesByVersion", zonesByVersion())
+                put("clinicianSockets", JsonNull)
+            })
+        } catch (e: IllegalArgumentException) {
+            null
         }
     }
 

@@ -13,6 +13,7 @@ pub mod api;
 pub mod at_rest;
 pub mod bundle_key;
 pub mod compiler;
+pub mod composite;
 /// Constants shared with every runtime, taken at build time from common/npps/constants.json (see build.rs).
 pub mod constants {
     include!(concat!(env!("OUT_DIR"), "/constants.rs"));

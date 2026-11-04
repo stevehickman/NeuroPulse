@@ -98,6 +98,18 @@ fun NPProtocolDefinition.requires1064SmartModule(): Boolean =
 
 enum class DeviceTier { NONE, T1, T2 }
 
+/**
+ * The tier the protocol menu offers protocols for (OI-HWFIT-01). No helmet connected is [DeviceTier.NONE]. A connected
+ * helmet is T2 only when the hub says T2 (its safety MCU's verified tier identity), and T1 in every other case: the hub
+ * says T1, says unknown because no valid report has arrived, or is firmware that has no DEVICE_TIER characteristic (null).
+ * Never T2 on any doubt (REQ-UPG-01: fail-closed to T1). The hub gates a T2 protocol whatever this says.
+ */
+fun deviceTierFor(connected: Boolean, hub: life.neurone.core.ble.HubTier?): DeviceTier = when {
+    !connected -> DeviceTier.NONE
+    hub == life.neurone.core.ble.HubTier.T2 -> DeviceTier.T2
+    else -> DeviceTier.T1
+}
+
 /** Port of iOS ProtocolAvailability, incl. the ISC-90 `.eegConsentRequired` case. */
 sealed class ProtocolAvailability {
     object Available : ProtocolAvailability()
@@ -492,8 +504,20 @@ class NPProtocolLibrary(
 
     // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
 
-    /** [entry]'s identity as the core defines it, or null for a kind that has none. */
-    fun contentHash(entry: NPProtocolEntry): String? = NPLibraryRules.contentHash(entry)
+    /** The protocols [entry]'s layers name, from the library; null when a layer names one that is not there. */
+    fun compositeMembers(entry: NPProtocolEntry.Composite): List<NPProtocolDefinition>? =
+        entry.composite.layers.map { layer ->
+            (allProtocols.firstOrNull { it is NPProtocolEntry.Single && it.protocol.name == layer.protocolName } as? NPProtocolEntry.Single)?.protocol
+                ?: return null
+        }.distinctBy { it.name }
+
+    /** [entry]'s identity as the core defines it, or null for a kind that has none or whose protocol (or a composite's member) cannot be hashed. */
+    fun contentHash(entry: NPProtocolEntry): String? {
+        if (entry !is NPProtocolEntry.Composite) return NPLibraryRules.contentHash(entry)
+        // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01).
+        val members = compositeMembers(entry) ?: return null
+        return NPLibraryRules.compositeContentHash(entry, members)
+    }
 
     /**
      * What an upload of [entry] to a helmet of [helmetHardwareVersion] meets before any byte is sent. The hardware
@@ -501,7 +525,9 @@ class NPProtocolLibrary(
      * [recordUploadResult].
      */
     fun uploadGate(entry: NPProtocolEntry, helmetHardwareVersion: Int): UploadGate {
-        val hash = contentHash(entry) ?: return UploadGate.Allow
+        // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
+        val hash = contentHash(entry) ?: return UploadGate.NotInLibrary
+        val libraryHashes = allProtocols.mapNotNull { contentHash(it) }
         val sourceId = cloneSources[entry.id.toString()]
         val source = sourceId?.let { sid -> allProtocols.firstOrNull { it.id.toString() == sid } }
         val answer = NPLibraryRules.uploadGate(
@@ -509,8 +535,10 @@ class NPProtocolLibrary(
             NPLibraryRules.supportedVersions(entry),
             hash,
             source?.let { contentHash(it) },
+            libraryHashes,
         )
         return when (NPLibraryRules.string(answer, "reason")) {
+            "not_in_library" -> UploadGate.NotInLibrary
             "hardware_mismatch" -> {
                 val diff = answer["layoutDiffs"]!!.jsonArray.firstOrNull()?.jsonObject?.get("diff") as? JsonObject
                 UploadGate.HardwareMismatch(

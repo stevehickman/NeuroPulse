@@ -250,6 +250,7 @@ fun ProtocolMenuScreen(
                             onUseVariant = { refusedUpload = null; tryUpload(it) },
                             onDismiss = { refusedUpload = null },
                         )
+                        UploadGate.NotInLibrary -> NotInLibraryDialog(onDismiss = { refusedUpload = null })
                         else -> Unit
                     }
                 }

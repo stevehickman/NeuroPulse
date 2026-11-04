@@ -64,6 +64,13 @@
  */
 #define NP_GATT_HARDWARE_VERSION_ID 0x001Cu
 /*
+ * READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0
+ * unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the
+ * field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the
+ * safety MCU gate a T2 protocol whatever the app believes.
+ */
+#define NP_GATT_DEVICE_TIER_ID 0x001Du
+/*
  * READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
  * (SWR-SS-07).
  */
@@ -86,6 +93,22 @@
  * HARDWARE_VERSION: one byte, 1 to 15.
  */
 #define NP_GATT_HARDWARE_VERSION_LEN 1U
+/*
+ * DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.
+ */
+#define NP_GATT_DEVICE_TIER_LEN 1U
+/*
+ * DEVICE_TIER: the safety MCU has sent no valid tier report yet. The app treats it as not T2.
+ */
+#define NP_GATT_DEVICE_TIER_UNKNOWN 0U
+/*
+ * DEVICE_TIER: NeurOne Home. Equals the firmware's NP_TIER_T1.
+ */
+#define NP_GATT_DEVICE_TIER_T1 1U
+/*
+ * DEVICE_TIER: NeurOne Pro. Equals the firmware's NP_TIER_T2.
+ */
+#define NP_GATT_DEVICE_TIER_T2 2U
 /*
  * SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
  * remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1

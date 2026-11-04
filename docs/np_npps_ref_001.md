@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev {NP-NPPS-REF-001 to} (2026-11-03) — §6 states what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`; `SWR-PL-01`).** Until now §6 said only that `merge` runs layers "simultaneously", `sequential` runs them end to end, and `override` replaces "shared modality types", and no compiler turned a composite into helmet bytes. The core now does (`common/npps-core/src/composite.rs`, `compiler::compile_composite`), and §6 records the rules it applies. **Every rule refuses; none reshapes** (`CLAUDE.md` §3). **What changes for an author:** (i) two layers that drive one modality at the same time are refused, except transcranial PBM on sockets they do not share, so a `merge` of two audio layers, or of two PBM layers on one zone, no longer compiles (a relaxation that let shared sockets pass when window, frequency and duty matched was tried and withdrawn the same day, because the weighted-sum ceiling over the merged channels is not checked yet, `OI-HEXTILE-30`, `OI-HEXTILE-31`; the question is with Safety in `OI-NPPS-COMP-01`); (ii) `intensity_scale` is above 0 and at most 1, not 0.0 to 2.0 as this section said (the validator already enforced 0 to 1); (iii) a layer may not run longer than its protocol; (iv) a `sequential` composite ignores `start`. **Two shipped composites are refused by (i)** and stay refused until a decision (`OI-NPPS-COMP-01`): "Full Multi-Modal RCT" (two audio layers at once) and "Calm to Focus" (two layers overlap for two minutes on EEG neurofeedback, audio and PBM). The rules not derived from anything are `UC-120`. No grammar, no field and no shipped file changes.
+>
 > **Rev 33 (2026-10-30) — the threshold-relative intensity fields are retired: intensity is absolute only (principal decision; `OI-NPPS-VNS-01` (b) and (b2)).** `intensity_basis` (`perceptual_threshold`, `pain_threshold`, `titrated`) and `intensity_percent_of_threshold` are removed from the grammar, the validator, the compiler and the serializer, and are now unknown fields. The system has no a-priori mapping from a perceived intensity to a hardware setting, and one person perceives the same absolute intensity differently on different occasions, so a stored threshold would drift. Perceived-intensity programming is out of scope: it cannot run in Mode 3, needs the person's input at every cycle, and breaks the coordinated ramps of parallel modalities. No shipped protocol used the fields. `REQ-NPPS-07` is narrowed to `movement_cue`.
 >
 > **Rev 32 (2026-10-30) — an unknown key in a modality block is a parse error (principal decision; `REQ-NPPS-24`, `OI-NPPS-VNS-01` (d)).** Until now a key a modality's field table did not carry was accepted and dropped, so a misspelt parameter (`pulse_widht_us: 300`) ran as the default. The block now fails to parse at that line, naming the key and listing the modality's fields. Aliases (`frequency`, `pulse_width`, `burst` and the rest) and the block keys are unaffected, and no shipped protocol carried an unknown key. Nothing else in the grammar changes.
@@ -1111,13 +1113,13 @@ Same as protocol metadata (`id`, `name`, `description`, `author`, `version`, `re
 |-------|------|--------|
 | `conflict_resolution` | string | `merge` `sequential` `override` |
 
-**Conflict resolution modes:**
+**Conflict resolution modes.** Each mode decides where a layer sits on the composite's clock and what happens where layers overlap.
 
-| Value | Behaviour |
-|-------|-----------|
-| `merge` | Modalities from all active layers run simultaneously. |
-| `sequential` | Layers run end-to-end; layer N starts when layer N-1 finishes. |
-| `override` | Later (higher-`start`) layers replace earlier ones for shared modality types. |
+| Value | Where a layer starts | Where layers overlap |
+|-------|----------------------|----------------------|
+| `merge` | At its `start`. | Modalities of all active layers run at once. Two layers driving **one modality type** at the same time are refused (see *What is refused*). |
+| `sequential` | When the previous layer ends. The layer's own `start` is **not read**. | Layers never overlap. |
+| `override` | At its `start`. | Layers are taken in order of `start`, then as authored. Where a later layer overlaps an earlier one, the earlier layer's blocks of **every modality type the later layer has** stop at the later layer's start; the earlier layer's other modalities run on. A tie at one `start` goes to the layer written later. |
 
 ### Layer block
 
@@ -1127,16 +1129,53 @@ The referenced protocol name is declared inline in the block header:
 layer "Protocol Name" {
     start: 300s          # offset into composite timeline
     duration: 20m        # how long this layer runs (omit = full protocol duration)
-    intensity_scale: 1.0 # multiplier applied to all modality intensities (0.0–2.0)
+    intensity_scale: 1.0 # multiplier of the dose of each of the protocol's modalities (above 0, at most 1)
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `start` | duration | Start offset in the composite timeline. Default `0`. |
-| `duration` | duration | Clip length. Omit to run the referenced protocol to its natural end. |
+| `start` | duration | Start offset in the composite timeline. Default `0`. Not read by a `sequential` composite. |
+| `duration` | duration | Clip length. Omit to run the referenced protocol to its natural end. A layer cannot run longer than its protocol. A protocol timed by `interval_count` has no natural end, so its layer must state a `duration`. |
 | `end` | duration | Alternative to `duration`; computed as `end - start`. |
-| `intensity_scale` | number | Intensity multiplier (default `1.0`). |
+| `intensity_scale` | number | Dose multiplier (default `1.0`), above 0 and at most 1. See *What `intensity_scale` multiplies*. |
+
+### What a composite compiles to
+
+A composite compiles to **one descriptor**, the same kind a single protocol compiles to. The compiler lays every enabled modality block of every layer on the composite's clock (its own `interval` offset added to the layer's start) and cuts it at the end of its layer, or earlier where `override` stops it. A pulse that would still be running at that moment is shortened to it and stopped. The composite's length is the end of its last block. Everything that applies to a protocol then applies to the composite as a whole: the zone model's danger and caution gates, the one-tile PBM rule, the command limit and the hardware version stamp. A composite in the caution zone compiles only with each caution acknowledged, as a protocol does.
+
+**Identity.** A composite's identity (`SWR-HV-01`) is the hash of that plan, in the same canonical form as a protocol's, so it is the identity of what the helmet is given and not of how the composite was written. Its name, id, family id, used flag and other metadata are not in it, and a protocol's name is not either: a layer carries its protocol's modalities, so editing the protocol changes the composite's identity and renaming it does not.
+
+### What `intensity_scale` multiplies
+
+The scale multiplies the **dose field** of each block, and the result is held to the same limits as an authored value (a result the hardware cannot deliver is refused, never clamped).
+
+| Modality | Scaled field |
+|----------|--------------|
+| `pbm_transcranial`, `pbm_intranasal` | `irradiance` |
+| `pbm_deep_1170nm` | `intensity_mw_cm2` |
+| `bes_tacs`, `tdcs`, `vns_hrv` | `intensity` (`intensity_milliamps`) |
+| `vibrotactile_40hz` | `intensity` (gravitational units, G) |
+| `audio_entrainment` | `volume`, as sound pressure: the level in dB moves by 20 log₁₀(scale) |
+| `eeg_neurofeedback`, `qeeg_21ch` | none (acquisition); left as authored |
+| any other | no scaling rule: a scale other than `1.0` is refused |
+
+Frequency, duty, timing and electrode choice are never scaled.
+
+### What is refused
+
+A composite is refused, with the reason, when:
+
+* a layer names a protocol that is not in the namespace;
+* a layer's `intensity_scale` is not above 0 and at most 1;
+* a layer's `duration` is longer than its protocol, or a protocol timed by `interval_count` is given no `duration`;
+* two blocks of the **same modality type** from **different layers** overlap in time, unless both are `pbm_transcranial` on sockets that share none. Nothing is summed, taken as a maximum or reduced to fit. An author resolves the overlap by changing a layer's timing, its protocol, or `conflict_resolution`;
+* a layer scales a modality that has no scaling rule;
+* every block is cut before it starts, or the composite exceeds the descriptor's command limit.
+
+**Transcranial PBM from two layers** overlaps only on sockets the two blocks do not share. Any overlap on a shared socket is refused, even when the window, frequency and duty match and the wavelengths differ: that would merge channels from two separately authored layers onto one tile, and the weighted-sum ceiling over the merged channels is not checked yet (see below; a relaxation to the one-tile rule, Rev 35, is withdrawn by Rev 36 until Safety has reviewed it). Blocks inside one protocol are not affected.
+
+**Not yet defined.** Nothing here expresses a ramp or crossfade between layers (no field or descriptor command carries one), so a composite meant to blend two protocols over an overlap cannot be written. The pre-signing check of the PBM weighted sum (`CLAUDE.md` §3) is not built (`OI-HEXTILE-30`, `OI-HEXTILE-31`); until it is, a composite's merged dose rests on the overlap refusal and the per-tile rule above. See `OI-NPPS-COMP-01`.
 
 ---
 

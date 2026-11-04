@@ -4,6 +4,7 @@ import life.neurone.shared.ble.ConnectionState
 import life.neurone.shared.ble.NeurOneGattManager
 import life.neurone.core.protocol.NPModalityType
 import life.neurone.core.protocol.NPLimitsSet
+import life.neurone.core.protocol.NPCompositeProtocol
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolValidator
 import life.neurone.core.protocol.NPZoneCaution
@@ -71,6 +72,33 @@ class ProtocolUploader(
                 // The layout the helmet reported at link (SWR-HV-08): the helmet refuses a protocol stamped for another.
                 hardwareVersion = gatt.hardwareVersion.value,
                 autonomous = autonomous,
+            )
+            ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
+            Result.Success(UploadCheck.hashOf(blob.blob))
+        } catch (e: Exception) {
+            Result.Failure(e.message ?: "Protocol upload failed.")
+        }
+    }
+
+    /**
+     * Upload a composite (`OI-NPPS-COMP-01`): its layers are compiled to one descriptor and sent as a protocol is. [members]
+     * are the protocols its layers name. A composite whose layers cannot be laid out, or overlap on one modality, is refused
+     * by the compiler with its reason, and a cervical protocol among the members is held by the same gate as on its own.
+     */
+    fun uploadComposite(
+        composite: NPCompositeProtocol,
+        members: List<NPProtocolDefinition>,
+        deviceSerial: ByteArray? = null,
+        acknowledgedCautions: List<String> = emptyList(),
+    ): Result {
+        if (gatt.connectionState.value != ConnectionState.CONNECTED) {
+            return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
+        }
+        members.firstNotNullOfOrNull { checkCervicalGate(it) }?.let { return it }
+        return try {
+            val blob = compiler.compileComposite(
+                composite, members, deviceSerial ?: gatt.deviceSerial, acknowledgedCautions,
+                hardwareVersion = gatt.hardwareVersion.value,
             )
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))

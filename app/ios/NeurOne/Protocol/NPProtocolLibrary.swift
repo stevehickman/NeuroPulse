@@ -75,6 +75,15 @@ final class NPProtocolLibrary: ObservableObject {
         case none
         case t1
         case t2
+
+        /// The tier the protocol menu offers protocols for (OI-HWFIT-01). No helmet connected is `.none`. A connected helmet is
+        /// `.t2` only when the hub says T2 (its safety MCU's verified tier identity), and `.t1` in every other case: the hub says
+        /// T1, says unknown because no valid report has arrived, or is firmware with no DEVICE_TIER characteristic (nil). Never
+        /// T2 on any doubt (REQ-UPG-01: fail-closed to T1). The hub gates a T2 protocol whatever this says.
+        static func forHelmet(connected: Bool, hub: HubTier?) -> DeviceTier {
+            guard connected else { return .none }
+            return hub == .t2 ? .t2 : .t1
+        }
     }
 
     // MARK: Persistence URL
@@ -400,18 +409,41 @@ final class NPProtocolLibrary: ObservableObject {
     // MARK: Upload (SWR-PL-06, SWR-HV-04, SWR-UP-02)
 
     /// `entry`'s identity as the core defines it, or nil for a kind that has none.
-    func contentHash(_ entry: NPProtocolEntry) -> String? { NPLibraryRules.contentHash(entry) }
+    /// The protocols a composite's layers name, from the library; nil when a layer names one that is not there.
+    func compositeMembers(_ composite: NPCompositeProtocol) -> [NPProtocolDefinition]? {
+        var out: [NPProtocolDefinition] = []
+        for layer in composite.layers {
+            let named = allProtocols.first { entry in
+                if case .single(let p) = entry { return p.name == layer.protocolName }
+                return false
+            }
+            guard let found = named, case .single(let p) = found else { return nil }
+            if !out.contains(where: { $0.name == p.name }) { out.append(p) }
+        }
+        return out
+    }
+
+    func contentHash(_ entry: NPProtocolEntry) -> String? {
+        guard case .composite(let composite) = entry else { return NPLibraryRules.contentHash(entry) }
+        // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01).
+        guard let members = compositeMembers(composite) else { return nil }
+        return NPLibraryRules.compositeContentHash(composite, members: members)
+    }
 
     /// What an upload of `entry` to a helmet of `helmetHardwareVersion` meets before any byte is sent. The hardware
     /// refusal comes first, then the unmodified clone; an allowed upload is then sent and its result passed to
     /// `recordUploadResult`.
     func uploadGate(_ entry: NPProtocolEntry, helmetHardwareVersion: Int) -> UploadGate {
-        guard let hash = contentHash(entry) else { return .allow }
+        // An entry with no content hash cannot be identified, so it is not a stored protocol (SWR-PL-01).
+        guard let hash = contentHash(entry) else { return .notInLibrary }
         let source = cloneSources[entry.id.uuidString].flatMap { sid in allProtocols.first { $0.id.uuidString == sid } }
         let answer = NPLibraryRules.uploadGate(helmetVersion: helmetHardwareVersion,
                                                protocolVersions: NPLibraryRules.supportedVersions(entry),
-                                               contentHash: hash, sourceHash: source.flatMap { contentHash($0) })
+                                               contentHash: hash, sourceHash: source.flatMap { contentHash($0) },
+                                               libraryHashes: allProtocols.compactMap { contentHash($0) })
         switch answer["reason"] as? String {
+        case "not_in_library":
+            return .notInLibrary
         case "hardware_mismatch":
             let diff = NPLibraryRules.overlap(answer)
             return .hardwareMismatch(

@@ -153,10 +153,19 @@ object NppsCore {
      * `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is
      * zeroed: sign the region before it and write the signature in.
      */
-    fun compile(protocol: JsonObject, options: CompileOptions): ByteArray {
+    fun compile(protocol: JsonObject, options: CompileOptions): ByteArray = compileRequest(options) { put("def", protocol) }
+
+    /**
+     * Compile a composite (`OI-NPPS-COMP-01`): [composite] is the shape [parse] returns under `composite`, and [members] maps
+     * each protocol name a layer uses to that protocol's definition. One descriptor comes back, signed like a protocol's.
+     */
+    fun compileComposite(composite: JsonObject, members: JsonObject, options: CompileOptions): ByteArray =
+        compileRequest(options) { put("composite", composite); put("members", members) }
+
+    private fun compileRequest(options: CompileOptions, what: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): ByteArray {
         require(options.sessionUuid.size == 16) { "sessionUuid must be 16 bytes" }
         val request = buildJsonObject {
-            put("def", protocol)
+            what()
             if (options.zones == null) put("zones", JsonNull) else putJsonObject("zones") {
                 for ((name, ids) in options.zones) putJsonArray(name) { ids.forEach { add(JsonPrimitive(it)) } }
             }

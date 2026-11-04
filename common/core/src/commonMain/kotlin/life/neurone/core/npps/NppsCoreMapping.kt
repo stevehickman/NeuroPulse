@@ -214,7 +214,7 @@ private fun kotlinx.serialization.json.JsonObjectBuilder.header(
     familyId?.let { put("familyId", it) }
 }
 
-private fun NPCompositeProtocol.toNppsCoreJson(): JsonObject = buildJsonObject {
+internal fun NPCompositeProtocol.toNppsCoreJson(): JsonObject = buildJsonObject {
     header(id, name, description, author, version, tags, isReadOnly, conditions, references, familyId)
     put("conflictResolution", conflictResolution.rawValue)
     put("layers", JsonArray(layers.map { l ->

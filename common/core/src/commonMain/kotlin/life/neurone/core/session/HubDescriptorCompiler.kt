@@ -4,6 +4,7 @@ import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.namedZoneRefs
 import life.neurone.core.npps.toNppsCoreJson
 import life.neurone.core.protocol.HubDescriptorWire
+import life.neurone.core.protocol.NPCompositeProtocol
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPWavelengthRules
 import life.neurone.core.protocol.toCoreJson
@@ -78,6 +79,50 @@ class HubDescriptorCompiler(
         require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
         sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
         return HubDescriptor(unsigned.blob, unsigned.sessionUuid, unsigned.isT2, unsigned.cmdCount, sig.publicKeyFingerprint)
+    }
+
+    /**
+     * Compile a composite whose layers use [members] (`OI-NPPS-COMP-01`). The same checks as [compile] apply to the plan the
+     * layers make, and a composite that overlaps one modality in two layers, or runs a layer past its protocol, is refused.
+     */
+    fun compileComposite(
+        composite: NPCompositeProtocol,
+        members: List<NPProtocolDefinition>,
+        deviceSerial: ByteArray? = null,
+        acknowledgedCautions: List<String> = emptyList(),
+        hardwareVersion: Int? = null,
+    ): HubDescriptor {
+        val unsigned = buildComposite(composite, members, deviceSerial, acknowledgedCautions, hardwareVersion)
+        val sig = signer.sign(unsigned.blob.copyOfRange(0, unsigned.blob.size - HubDescriptorWire.SIG_LEN))
+        require(sig.signature.size == HubDescriptorWire.SIG_LEN) { "Ed25519 signature must be ${HubDescriptorWire.SIG_LEN} bytes, got ${sig.signature.size}." }
+        sig.signature.copyInto(unsigned.blob, unsigned.blob.size - HubDescriptorWire.SIG_LEN)
+        return HubDescriptor(unsigned.blob, unsigned.sessionUuid, unsigned.isT2, unsigned.cmdCount, sig.publicKeyFingerprint)
+    }
+
+    internal fun buildComposite(
+        composite: NPCompositeProtocol,
+        members: List<NPProtocolDefinition>,
+        deviceSerial: ByteArray?,
+        acknowledgedCautions: List<String>,
+        hardwareVersion: Int?,
+    ): Unsigned {
+        val uuid = randomBytes(HubDescriptorWire.UUID_LEN)
+        val zones = members.flatMap { it.namedZoneRefs() }.distinct()
+            .mapNotNull { name -> NPZoneRegistry.sockets(name)?.let { name to it } }.toMap()
+        val blob = NppsCore.compileComposite(
+            composite.toNppsCoreJson(),
+            kotlinx.serialization.json.buildJsonObject { members.forEach { put(it.name, it.toNppsCoreJson()) } },
+            NppsCore.CompileOptions(
+                zones = zones,
+                deviceSerial = deviceSerial,
+                nowUnix = clockSeconds(),
+                sessionUuid = uuid,
+                acknowledgedCautions = acknowledgedCautions,
+                hardwareVersion = hardwareVersion,
+                wavelengthRules = wavelengthRules()?.let(::toCoreJson),
+            ),
+        )
+        return Unsigned(blob, uuid, (blob[6].toInt() and HubDescriptorWire.FLAG_T2_TIER) != 0, blob[7].toInt() and 0xFF)
     }
 
     internal class Unsigned(val blob: ByteArray, val sessionUuid: ByteArray, val isT2: Boolean, val cmdCount: Int)
