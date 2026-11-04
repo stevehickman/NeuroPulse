@@ -22,6 +22,9 @@
 #define NP_EV_SESSION_START     (1U << 0)  /* protocol loaded and verified */
 #define NP_EV_SESSION_ABORT     (1U << 1)  /* user abort or safety fault */
 #define NP_EV_SAFETY_FAULT      (1U << 2)  /* safety MCU reported fault */
+/* Producers (OI-FWHUB-29): NP_EV_SAFETY_FAULT is posted by the heartbeat task.  The next three have none yet: the Oz detector is
+ * not built, over-temperature is handled by the safety MCU and the PBM socket latch, and no PD contract is readable.  The runner
+ * still acts on all of them (np_runner_run_tests), so a producer is a one-line addition. */
 #define NP_EV_THERMAL_FAULT     (1U << 3)  /* any module over-temperature */
 #define NP_EV_EEG_PPX           (1U << 4)  /* photoparoxysmal detection */
 #define NP_EV_POWER_FAULT       (1U << 5)  /* USB-C PD negotiation failure */

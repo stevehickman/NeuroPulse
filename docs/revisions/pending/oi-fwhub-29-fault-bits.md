@@ -1,0 +1,6 @@
+## DHF
+author: NeurOne Firmware Engineering
+text: **NP-FW-HUB-001 Rev {NP-FW-HUB-001 from → to}: `OI-FWHUB-29` raised, the Oz photoparoxysmal detector is not built.** The runner's `NP_EV_THERMAL_FAULT`, `NP_EV_EEG_PPX` and `NP_EV_POWER_FAULT` have no producer; of the three only the missing detector is a gap (an ocular interlock that `CLAUDE.md` §4.2 and `NP-RM-001` list), and the section that said "as the code has it" is corrected. A decision request is drafted for Risk. No requirement changed; `CLAUDE.md` and `NP-RM-001` are untouched.
+## NP-FW-HUB-001
+author: NeurOne Firmware Engineering
+text: **`OI-FWHUB-29` raised (§13), and §8.2 and §8.6 corrected: the Oz photoparoxysmal detector is specified and not built.** `np_mod_visual_ppx_halt()` has no caller and no code analyses the Oz channel for it; three of the runner's five stop bits have no producer, of which only the detector is a gap (over-temperature is covered by the safety MCU and the PBM socket latch; no PD contract is readable and the power governor refuses every load). Decision request to Risk: `docs/human-input/oi-fwhub-29-photoparoxysmal-detector-not-built.md`. No requirement changed and no behaviour changed (a comment in `np_session_runner.h` records the producers).
