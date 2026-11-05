@@ -159,6 +159,15 @@ enum class HelmetRefusalCause(val rule: String) {
 
     /** The helmet's software holds no socket layout for this helmet's hardware version (`NP_HUB_ERR_NO_LAYOUT`, reason 29). */
     NO_LAYOUT("no_layout"),
+
+    /** The protocol drives the goggles photically at 3 to 30 Hz, which the helmet refuses until its Oz detector exists (`NP_HUB_ERR_PHOTIC_ZONE`, reason 30). */
+    PHOTIC_ZONE("photic_zone"),
+
+    /** The protocol names a socket this helmet does not have (`NP_HUB_ERR_BAD_ADDRESS`, reason 31). */
+    BAD_ADDRESS("bad_address"),
+
+    /** The protocol has more commands than the helmet can hold (`NP_HUB_ERR_CMD_TOO_MANY`, reason 8). */
+    TOO_MANY_COMMANDS("too_many_commands"),
     OTHER("other"),
 
     /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */

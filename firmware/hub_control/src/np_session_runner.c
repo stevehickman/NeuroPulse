@@ -692,6 +692,17 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
+    /* REQ-FWHUB-66 (OI-FWHUB-29, option A): photic driving of the goggles in the photoparoxysmal zone is refused at load,
+     * with a status of its own, so the person learns it when they send the protocol and not when the session runs.  The
+     * goggles refuse the same drive at dispatch (REQ-FWHUB-65); this is the earlier of the two. */
+    rc = np_protocol_photic_admit(&s_ctx.desc);
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
     /* Initialize stop-tracking to "no stop pending". */
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
         s_ctx.stop_at_ms[i] = 0U;

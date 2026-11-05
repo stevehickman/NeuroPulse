@@ -147,6 +147,16 @@ np_hub_status_t np_protocol_hw_version_admit(const np_session_desc_t *desc,
                                               bool                     report_received);
 
 /*
+ * np_protocol_photic_admit — REQ-FWHUB-66 (OI-FWHUB-29), the load-time half of REQ-FWHUB-65.
+ *
+ * Refuses a descriptor that has a visual-goggles command (NP_MOD_VISUAL) whose parameter block drives photically
+ * (mode 0 or 3) at a whole-hertz frequency from NP_VISUAL_PPX_RISK_MIN_HZ to NP_VISUAL_PPX_RISK_MAX_HZ, with
+ * NP_HUB_ERR_PHOTIC_ZONE.  A command with a short parameter block (a stop) names no frequency and is not checked here;
+ * the goggles refuse it at dispatch if it is not a stop.  The rule is NP_VISUAL_PPX_ZONE, the one the goggles use.
+ */
+np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc);
+
+/*
  * np_protocol_sort_cmds
  *
  * Sorts desc->cmds[0..cmd_count-1] by start_ms ascending.

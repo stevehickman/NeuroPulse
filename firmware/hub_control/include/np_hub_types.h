@@ -87,6 +87,15 @@ typedef enum {
      * another version) and not "retry" (UNVERIFIED): nothing the person sends changes it, and a later heartbeat
      * does not either.  It reaches the app as reason 29 in the upload-check frame (|status|). */
     NP_HUB_ERR_NO_LAYOUT            = -29,
+    /* REQ-FWHUB-66 (OI-FWHUB-29; the principal, option A): the protocol drives the goggles photically (visual modes 0 or 3)
+     * at a frequency in the photoparoxysmal risk zone, 3 to 30 Hz, which the hub refuses outright until the Oz detector
+     * exists.  Refused at load so the person learns it when they send the protocol, not when the session runs.  Nothing
+     * the helmet does changes it: the author must change the frequency.  Reason 30 in the upload-check frame. */
+    NP_HUB_ERR_PHOTIC_ZONE          = -30,
+    /* REQ-FWHUB-64: the protocol names a socket address this helmet does not have.  Was NP_HUB_ERR_INVALID_ARG, which
+     * the apps could only call malformed; it is something the author can fix (make the protocol again for this helmet),
+     * so it has its own status.  Reason 31 in the upload-check frame. */
+    NP_HUB_ERR_BAD_ADDRESS          = -31,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
