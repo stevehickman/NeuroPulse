@@ -265,7 +265,7 @@ Currently documented software safety requirements:
 - SPI heartbeat loss → all-stimulation cutoff within 50ms (NP-FW-CVNS-001, NP-FW-EMMC-001)
 - Safety MCU watchdog 1.5s → all-stimulation cutoff within 50ms
 - HR change >15 BPM → cervical VNS GPIO cutoff within <5.1ms worst-case (NP-FW-CVNS-001)
-- Photoparoxysmal EEG detection → goggle LED cutoff within <200ms
+- Photoparoxysmal EEG detection → goggle LED cutoff within <200ms — **specified, not built** (`OI-FWHUB-29`). In its place the goggles refuse photic driving at 3–30 Hz outright (`REQ-FWHUB-65`); the risk acceptance that rested on the detector is the principal's and Risk's to restate
 - 25% duty cycle ceiling enforced unconditionally for all PBM channels (NP-FW-PBM1064-001)
 - OTA firmware requires Ed25519 signature; unsigned firmware rejected at bootloader (NP-FW-EMMC-001)
 

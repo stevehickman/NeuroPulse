@@ -161,7 +161,7 @@ static np_mod_visual_params_t photic(void)
     np_mod_visual_params_t p;
     memset(&p, 0, sizeof(p));
     p.mode = 0U;
-    p.freq_hz = 10U;
+    p.freq_hz = 40U;      /* outside the photoparoxysmal zone (OI-FWHUB-29): 3-30 Hz is refused */
     p.duty_pct = 50U;
     p.zone_mask_lo = 0xFFU;
     p.zone_mask_hi = 0x0FU;
@@ -299,6 +299,45 @@ static void test_mode_f_is_compiled_out(void)
           "mode F: retinal mode 2 is still refused with the eye closed");
 }
 
+static np_hub_status_t start_with(uint8_t mode, uint8_t freq_hz)
+{
+    np_mod_visual_params_t p = photic();
+    p.mode = mode;
+    p.freq_hz = freq_hz;
+    return np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p));
+}
+
+/* A fresh, armed, seated goggle. */
+static void armed(void)
+{
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+}
+
+/* @verifies REQ-FWHUB-65 */
+static void test_the_photoparoxysmal_zone_is_never_driven(void)
+{
+    /* Both ends of the zone are inside it, and nothing is driven or enabled when the answer is a refusal. */
+    for (uint8_t f = 3U; f <= 30U; f++) {
+        armed();
+        check(start_with(0U, f) == NP_HUB_ERR_SAFETY_REJECTED && !emitting() && g_led_sets == 0,
+              "zone: photic driving at every whole hertz from 3 to 30 is refused, with no LED and no enable");
+    }
+    armed();
+    check(start_with(3U, 10U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(),
+          "zone: the combined mode drives at freq_hz too, so it is refused as well");
+    armed();
+    check(start_with(0U, 2U) == NP_HUB_OK && emitting(), "zone: 2 Hz is outside it, and drives");
+    armed();
+    check(start_with(0U, 31U) == NP_HUB_OK && emitting(), "zone: 31 Hz is outside it, and drives");
+    armed();
+    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "zone: 40 Hz, the gamma protocols' frequency, drives");
+    armed();
+    check(start_with(1U, 10U) == NP_HUB_OK, "zone: EMDR does not drive at freq_hz, so a stray value there is not a photic drive");
+    armed();
+    check(start_with(2U, 10U) == NP_HUB_OK && emitting(), "zone: retinal PBM is not a photic drive either");
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -308,6 +347,7 @@ int main(void)
     test_reseat_does_not_resume();
     test_telemetry_backstop();
     test_mode_f_is_compiled_out();
+    test_the_photoparoxysmal_zone_is_never_driven();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);

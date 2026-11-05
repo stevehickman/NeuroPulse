@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 78 (current)  
+**Revision:** 79 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -204,7 +204,7 @@ Versions, clocks, memory sizes, CPU headroom, BOM delta and cycle counts: `docs/
 **Modality-specific interlocks:**
 | Modality | Interlock | Implementation |
 |----------|-----------|----------------|
-| EEG + Visual | Photoparoxysmal detection → goggle halt | Oz electrode, <200ms, clinician-unlock for 3–30Hz |
+| EEG + Visual | Photoparoxysmal detection → goggle halt | **Detector not built** (`OI-FWHUB-29`): Oz electrode, <200ms, once built. **Until then the goggles refuse photic driving at 3–30 Hz outright** (`REQ-FWHUB-65`); no clinician unlock exists yet |
 | BES / tDCS / VNS / cVNS | Waveform-aware commanded-charge ceiling: **150 mC/cm² per session** (DC) · **40 µC/cm² per phase** (charge-balanced) | Safety MCU hardware — app cannot override. Fail-closed: an electrical channel whose waveform class was not declared is never granted |
 | Visual / retinal | IEC 62471 MPE ceiling | IR proximity + Hall sensor + hardware current limit (3 independent layers) |
 | PBM scalp | IEC 60601 42°C limit | NTC per zone → hardware current throttle at 62°C junction |
