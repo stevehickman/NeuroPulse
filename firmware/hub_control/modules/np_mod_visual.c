@@ -146,8 +146,7 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
      * Oz detector that would halt a seizure-provoking drive is not built, so the zone is not driven at all; the protocol
      * validator's check is a warning the author can dismiss, and the hub is the control.  Modes 0 (photic) and 3 (combined)
      * drive at freq_hz; EMDR and retinal PBM do not.  Nothing is driven and no enable is requested. */
-    if ((p->mode == 0U || p->mode == 3U) &&
-        p->freq_hz >= NP_VISUAL_PPX_RISK_MIN_HZ && p->freq_hz <= NP_VISUAL_PPX_RISK_MAX_HZ) {
+    if (NP_VISUAL_PPX_ZONE(p->mode, p->freq_hz)) {
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
 

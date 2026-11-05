@@ -129,7 +129,10 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertEqual(cause(7), .wrongDevice)
         XCTAssertEqual(cause(5), .formatVersion)
         XCTAssertEqual(cause(4), .damaged)
-        for reason in [2, 8, 9] { XCTAssertEqual(cause(reason), .malformed) }
+        for reason in [2, 9] { XCTAssertEqual(cause(reason), .malformed) }
+        XCTAssertEqual(cause(8), .tooManyCommands)   // NP_HUB_ERR_CMD_TOO_MANY: the author can shorten it
+        XCTAssertEqual(cause(30), .photicZone)       // NP_HUB_ERR_PHOTIC_ZONE: the author can change the frequency
+        XCTAssertEqual(cause(31), .badAddress)       // NP_HUB_ERR_BAD_ADDRESS: make it again for this helmet
         XCTAssertEqual(cause(13), .sessionActive)
         XCTAssertEqual(cause(25), .bootRefused)
         XCTAssertEqual(cause(29), .noLayout)   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload

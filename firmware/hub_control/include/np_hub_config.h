@@ -308,6 +308,13 @@
 #define NP_VISUAL_PPX_RISK_MIN_HZ   3U
 #define NP_VISUAL_PPX_RISK_MAX_HZ   30U
 
+/* The rule itself, used by the load check (np_protocol_photic_admit, REQ-FWHUB-66) and by the goggles at dispatch
+ * (np_mod_visual_control, REQ-FWHUB-65): visual modes 0 (photic) and 3 (combined) drive at freq_hz; EMDR (1) and retinal
+ * PBM (2) do not.  Evaluates its arguments more than once. */
+#define NP_VISUAL_PPX_ZONE(mode, hz)                                                  \
+    ((((mode) == 0U) || ((mode) == 3U)) &&                                            \
+     ((hz) >= NP_VISUAL_PPX_RISK_MIN_HZ) && ((hz) <= NP_VISUAL_PPX_RISK_MAX_HZ))
+
 /* ── Mode F regulatory gate ───────────────────────────────────────────────────── */
 
 /* Mode F (NIR retinal walk, 808-830nm daily retinal PBM) must be gated by this

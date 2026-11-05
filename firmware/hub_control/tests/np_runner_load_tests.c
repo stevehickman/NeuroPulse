@@ -561,11 +561,11 @@ static void test_a_helmet_whose_version_has_no_bound_layout_loads_nothing(void)
 static void test_a_protocol_that_names_an_address_the_helmet_lacks_is_refused_whole(void)
 {
     fresh();
-    g_addr_rc = NP_HUB_ERR_INVALID_ARG;
+    g_addr_rc = NP_HUB_ERR_BAD_ADDRESS;
     blob_t b;
     blob_t1(&b, 1U, 60000U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG,
-          "address: a protocol naming an address the helmet does not have is refused as invalid");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_BAD_ADDRESS,
+          "address: a protocol naming an address the helmet does not have is refused with a status of its own");
     check(g_addr_calls == 1, "address: the check ran once");
     expect_nothing_left_behind("invalid address");
     check(held_duration_ms(NULL) == 0U, "invalid address: the descriptor is cleared, not left installed");
@@ -623,6 +623,65 @@ static void test_a_refusal_after_a_good_load_does_not_disturb_it(void)
     check(held_duration_ms(NULL) == 60000U && np_lease_held(), "keep: the loaded session is untouched");
 }
 
+/* The goggles' parameter block for a photic drive at `mode`, `freq_hz`. */
+static void blob_visual(blob_t *b, uint8_t hw_version, uint8_t mode, uint8_t freq_hz)
+{
+    np_mod_visual_params_t p;
+    memset(&p, 0, sizeof p);
+    p.mode = mode;
+    p.freq_hz = freq_hz;
+    p.duty_pct = 50U;
+    blob_make(b, hw_version, 60000U, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, (const uint8_t *)&p, sizeof p);
+}
+
+/* @verifies REQ-FWHUB-66 */
+static void test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves_nothing(void)
+{
+    fresh();
+    blob_t b;
+    blob_visual(&b, 1U, 0U, 20U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE,
+          "photic: a goggles command at 20 Hz is refused at load, with a status of its own");
+    expect_nothing_left_behind("photic");
+    blob_visual(&b, 1U, 3U, 3U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode at the lower bound is refused");
+    expect_nothing_left_behind("photic combined");
+    blob_visual(&b, 1U, 0U, 30U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the upper bound is refused");
+    expect_nothing_left_behind("photic upper");
+    blob_visual(&b, 1U, 0U, 40U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: 40 Hz loads");
+    fresh();
+    blob_visual(&b, 1U, 1U, 20U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz, so it loads");
+}
+
+/* @verifies REQ-FWHUB-66 */
+static void test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_name(void)
+{
+    /* The reasons the apps group into a cause of their own (common/npps-core/src/library.rs, helmet_cause).  A status that
+     * np_runner_load() can return and that is not here would reach a person as "some other reason". */
+    static const int NAMED_REASONS[] = { 2, 4, 5, 6, 7, 8, 9, 13, 19, 20, 25, 27, 28, 29, 30, 31 };
+    fresh();
+    blob_t b;
+    int seen[8]; unsigned n = 0U;
+    blob_visual(&b, 1U, 0U, 20U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    fresh(); g_addr_rc = NP_HUB_ERR_BAD_ADDRESS; blob_t1(&b, 1U, 60000U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    fresh(); g_admits_sessions = false; blob_t1(&b, 1U, 60000U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    fresh(); blob_t2(&b, 1U, 60000U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    bool all_named = true;
+    for (unsigned i = 0U; i < n; i++) {
+        bool found = false;
+        for (unsigned k = 0U; k < sizeof NAMED_REASONS / sizeof NAMED_REASONS[0]; k++) { if (NAMED_REASONS[k] == seen[i]) { found = true; } }
+        if (!found) { all_named = false; }
+    }
+    check(all_named, "reasons: the refusals np_runner_load gives here are all ones the apps name");
+}
+
 int main(void)
 {
     test_a_good_protocol_loads_and_holds_the_lease();
@@ -645,6 +704,8 @@ int main(void)
     test_the_unverified_version_refusal_comes_before_the_layout_one();
     test_the_tier_refusal_comes_before_the_hardware_version_one();
     test_a_refusal_after_a_good_load_does_not_disturb_it();
+    test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves_nothing();
+    test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_name();
 
     if (g_unexpected != 0U) {
         printf("FAIL: np_runner_load() reached %u run-loop seam call(s)\n", g_unexpected);

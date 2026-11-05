@@ -232,11 +232,15 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
     };
     for (reason, want) in [
         (19, "tier"), (27, "hardware_version"), (20, "not_ready"), (28, "not_ready"), (6, "signature"), (7, "wrong_device"),
-        (5, "format_version"), (4, "damaged"), (2, "malformed"), (8, "malformed"), (9, "malformed"), (13, "session_active"),
+        (5, "format_version"), (4, "damaged"), (2, "malformed"), (9, "malformed"), (13, "session_active"),
         (25, "boot_refused"),
         // A reason the table does not know is still a refusal the person is told about, and 0xFF is the hub's "no reason".
         // 29 is NP_HUB_ERR_NO_LAYOUT: the hub does not know this helmet's sockets. Its own number on the wire and its own cause.
-        (29, "no_layout"), (255, "other"), (99, "other"),
+        (29, "no_layout"),
+        // 30 is NP_HUB_ERR_PHOTIC_ZONE and 31 NP_HUB_ERR_BAD_ADDRESS: what the author must change, each with a cause of its own. 8 is
+        // NP_HUB_ERR_CMD_TOO_MANY, which was `malformed` and is now `too_many_commands`.
+        (30, "photic_zone"), (31, "bad_address"), (8, "too_many_commands"),
+        (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");
     }

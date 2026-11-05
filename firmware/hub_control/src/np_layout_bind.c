@@ -62,7 +62,7 @@ np_hub_status_t np_layout_check_protocol_addresses(const np_session_desc_t *desc
         for (unsigned s = 0U; s < (unsigned)NP_HUB_SOCKET_MASK_BYTES * 8U; s++) {
             if (((c->socket_mask[s / 8U] >> (s % 8U)) & 1U) != 0U &&
                 !np_module_map_address_valid((uint16_t)s)) {
-                return NP_HUB_ERR_INVALID_ARG;
+                return NP_HUB_ERR_BAD_ADDRESS;
             }
         }
     }
