@@ -207,11 +207,10 @@ export class UIManager {
     if (!container) return;
 
     // An accessory is drawn only while it is in use (NP-SIM-FW-001 §21): by the session when it is a modality of the protocol, by the
-    // firmware when it is a module there.  These two are driven by no protocol, so a switch is the only way to see them without the
-    // firmware: it says "in use", for the demonstration.
+    // firmware when it is a module there.  This one is driven by no shipped protocol, so a switch is the only way to see it without the
+    // firmware: it says "in use", for the demonstration.  (The intranasal probe and the cervical pads come from protocols now.)
     const ACCESSORIES = [
       { key: 'hapticPad',   label: 'Mastoid Haptic Pad',   sub: 'Show in use · 40 Hz LRA · on the helmet' },
-      { key: 'intranasal',  label: 'Intranasal Probe',     sub: 'Show in use · own window · 660 + 808 nm' },
     ];
 
 

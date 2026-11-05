@@ -174,6 +174,23 @@ export class SessionEngine {
       pattern: m.tms?.pattern ?? 'rTMS',
     };
 
+    // ── Intranasal Y-probe, cervical VNS pads, mastoid haptic pad ─────────────────────────────────────────────────
+    // Accessories of their own (NP-SIM-FW-001 §21): `active` is what puts one in use, and so on screen, while the session runs.
+    const intranasalState = {
+      active: live && (m.intranasal?.active ?? false),
+      wavelengths: m.intranasal?.wavelengths ?? [],
+      frequency: m.intranasal?.frequency ?? 0,
+    };
+    const cvnsState = {
+      active: live && (m.cvns?.active ?? false),
+      frequency: m.cvns?.frequency ?? 0,
+      intensity_ma: m.cvns?.intensity_ma ?? 0,
+    };
+    const hapticState = {
+      active: live && (m.haptic?.active ?? false),
+      intensity_g: m.haptic?.intensity_g ?? 0,
+    };
+
     // ── HD-tDCS ───────────────────────────────────────────────────────────────
     const hdtdcsState = {
       active: live && (m.hd_tdcs?.active ?? false),
@@ -196,6 +213,9 @@ export class SessionEngine {
       audio:  audioState,
       visual: visualState,
       tms:    tmsState,
+      intranasal: intranasalState,
+      cvns:   cvnsState,
+      haptic: hapticState,
       hdtdcs: hdtdcsState,
     };
   }
@@ -214,6 +234,9 @@ export class SessionEngine {
       audio: { active: false, binaural_hz: 0, type: 'binaural', breathing_pacer: false, breathing_bpm: 6 },
       visual: { active: false, frequency: 0, mode: '' },
       tms: { active: false, frequency: 0, target: '', pattern: '' },
+      intranasal: { active: false, wavelengths: [], frequency: 0 },
+      cvns: { active: false, frequency: 0, intensity_ma: 0 },
+      haptic: { active: false, intensity_g: 0 },
       hdtdcs: { active: false, target: '', intensity_ma: '0.00' },
     };
   }

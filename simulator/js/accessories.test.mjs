@@ -11,7 +11,7 @@ const registryWith = (events) => {
   for (const ev of events) r.onMessage({ type: ev.ev === 'module' || ev.ev === 'module_state' ? 'MODULE_STATE' : 'FW_LOG', event: ev }, 0);
   return r;
 };
-const snap = (over = {}) => ({ visual: {}, audio: {}, bes: {}, tdcs: {}, tms: {}, vns: {}, ...over });
+const snap = (over = {}) => ({ visual: {}, audio: {}, bes: {}, tdcs: {}, tms: {}, vns: {}, intranasal: {}, cvns: {}, haptic: {}, ...over });
 
 test('each accessory is attached to the helmet or has its own window, as the hardware documents say', () => {
   const mount = Object.fromEntries(ACCESSORIES.map((a) => [a.id, a.mount]));
@@ -32,14 +32,20 @@ test('standalone: an accessory is in use exactly when its modality is live in th
   assert.strictEqual(st.get('stimElectrodes').inUse, true);
   assert.strictEqual(st.get('earcups').inUse, false);
   assert.strictEqual(st.get('tmsCoil').inUse, false);
-  assert.strictEqual(st.get('cvns').inUse, false, 'no session modality drives the cervical pads');
+  assert.strictEqual(st.get('cvns').inUse, false);
 });
 
-test('standalone: an accessory no protocol drives is in use only when the user shows it', () => {
-  assert.strictEqual(accessoryStates({ snap: snap() }).get('intranasal').inUse, false);
-  const st = accessoryStates({ snap: snap(), demo: { intranasal: true } });
+test('standalone: the intranasal probe and the cervical pads are in use when the protocol uses them', () => {
+  const st = accessoryStates({ snap: snap({ intranasal: { active: true, wavelengths: ['660nm', '808nm'] }, cvns: { active: true } }) });
   assert.strictEqual(st.get('intranasal').inUse, true);
-  assert.strictEqual(st.get('hapticPad').inUse, false);
+  assert.strictEqual(st.get('cvns').inUse, true);
+  assert.strictEqual(st.get('vnsClip').inUse, false);
+});
+
+test('standalone: the haptic pad, which no shipped protocol drives, is in use from its modality or from the demo switch', () => {
+  assert.strictEqual(accessoryStates({ snap: snap() }).get('hapticPad').inUse, false);
+  assert.strictEqual(accessoryStates({ snap: snap({ haptic: { active: true } }) }).get('hapticPad').inUse, true);
+  assert.strictEqual(accessoryStates({ snap: snap(), demo: { hapticPad: true } }).get('hapticPad').inUse, true);
 });
 
 test('firmware: an accessory is in use exactly when its module is driven, and the session is not consulted', () => {

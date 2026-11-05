@@ -10,34 +10,100 @@ import { WINDOW_ACCESSORIES, windowRects, CVNS_STAGE_NAMES } from './accessories
 
 const NS = 'http://www.w3.org/2000/svg';
 
-/** The drawings.  Each has a viewBox of 160 x 96 and marks the parts that light up with `data-part`. */
+/**
+ * The schematics.  Each is a diagram of the accessory's parts as its hardware specification names them (NP-HW-VNSCLIP-001 A13.x,
+ * NP-HW-NASAL-001 A12.x, NP-HW-CVNS-001 A14.x), with numbered markers on the drawing and a legend beneath it, so that no label
+ * sits on a part.  They are not to scale and not a picture of a finished part: the specifications fix few dimensions.  Every one ends
+ * at the hub's accessory port.  The parts that carry current or light carry `data-part` and light up from the module's record.
+ * viewBox 200 x 176.
+ */
+const mark = (x, y, n) => `<g class="art-mark"><circle cx="${x}" cy="${y}" r="4.2" /><text x="${x}" y="${y + 2.4}">${n}</text></g>`;
+const legend = (rows, y0) => rows.map(([n, text], i) => {
+  const y = y0 + i * 9.4;
+  return n === null
+    ? `<text x="18" y="${y + 2.4}" class="art-legend-t">${text}</text>`
+    : `${mark(10, y, n)}<text x="18" y="${y + 2.4}" class="art-legend-t">${text}</text>`;
+}).join('');
+const port = (x, y, label) => `
+    <g class="art-port"><rect x="${x - 36}" y="${y}" width="72" height="14" rx="2" /><text x="${x}" y="${y + 9.4}" class="art-port-label">${label}</text></g>`;
+
 const ART = {
+  // Auricular VNS / HRV clip.
   vnsClip: `
     <g class="art-line">
-      <path d="M40 14 C16 14 12 44 22 62 C28 74 38 76 40 86" /><path d="M40 14 C52 14 56 28 50 40 C46 48 40 50 42 60" />
-      <path d="M120 14 C144 14 148 44 138 62 C132 74 122 76 120 86" /><path d="M120 14 C108 14 104 28 110 40 C114 48 120 50 118 60" />
+      <path d="M44 4 C22 4 16 30 24 48 C29 58 36 60 38 68" /><path d="M44 4 C55 4 58 16 53 27 C50 34 44 36 46 44" />
+      <path d="M156 4 C178 4 184 30 176 48 C171 58 164 60 162 68" /><path d="M156 4 C145 4 142 16 147 27 C150 34 156 36 154 44" />
     </g>
-    <g class="art-part" data-part="left"><rect x="30" y="52" width="22" height="9" rx="3" /><circle class="led" cx="41" cy="56.5" r="2.6" /></g>
-    <g class="art-part" data-part="right"><rect x="108" y="52" width="22" height="9" rx="3" /><circle class="led" cx="119" cy="56.5" r="2.6" /></g>
-    <text x="40" y="94" class="art-label">L</text><text x="120" y="94" class="art-label">R</text>
-    <path class="art-line" d="M80 4 L80 26" /><circle class="art-dot" cx="80" cy="30" r="3" />`,
+    <g class="art-part" data-part="left">
+      <rect class="body" x="26" y="38" width="34" height="17" rx="5" />
+      <rect class="pad" x="29" y="42" width="9" height="9" rx="1.5" />
+      <circle class="led" cx="47" cy="46.5" r="2.5" /><circle class="pd" cx="54" cy="46.5" r="2.5" />
+    </g>
+    <g class="art-part" data-part="right">
+      <rect class="body" x="140" y="38" width="34" height="17" rx="5" />
+      <rect class="pad" x="162" y="42" width="9" height="9" rx="1.5" />
+      <circle class="led" cx="153" cy="46.5" r="2.5" /><circle class="pd" cx="146" cy="46.5" r="2.5" />
+    </g>
+    <g class="art-line"><path d="M43 55 L43 74 L84 74 L84 86" /><path d="M157 55 L157 74 L116 74 L116 86" /></g>
+    ${mark(20, 36, 1)}${mark(33, 62, 2)}${mark(50, 62, 3)}${mark(180, 36, 1)}${mark(167, 62, 2)}${mark(150, 62, 3)}
+    <text x="100" y="14" class="art-label">L · R</text>
+    ${port(100, 86, 'HUB ACCESSORY PORT')}
+    ${legend([
+      [1, 'spring clip, one per ear (A13.1)'],
+      [2, 'contacts + hydrogel pad (A13.2, A13.5);'],
+      [null, 'the contacts are also the A1/A2 reference (A13.4)'],
+      [3, 'PPG emitter ● and detector ○, 808–830 nm (A13.3)'],
+      [null, '6-pin cable to the hub port (A13.6)'],
+    ], 118)}`,
+
+  // Intranasal bilateral Y-probe.
   intranasal: `
     <g class="art-line">
-      <ellipse cx="62" cy="22" rx="11" ry="7" /><ellipse cx="98" cy="22" rx="11" ry="7" />
-      <path d="M80 92 L80 66 C80 58 62 52 62 40 L62 28" /><path d="M80 66 C80 58 98 52 98 40 L98 28" />
+      <ellipse cx="62" cy="10" rx="11" ry="6" /><ellipse cx="138" cy="10" rx="11" ry="6" />
+      <path d="M62 18 L62 42 C62 56 100 58 100 68" /><path d="M138 18 L138 42 C138 56 100 58 100 68" />
+      <path d="M100 68 L100 86" />
     </g>
-    <g class="art-part" data-part="left"><circle class="led" cx="62" cy="32" r="3.4" /></g>
-    <g class="art-part" data-part="right"><circle class="led" cx="98" cy="32" r="3.4" /></g>
-    <text x="40" y="26" class="art-label">L</text><text x="112" y="26" class="art-label">R</text>`,
+    <g class="art-sleeve"><rect x="54" y="18" width="16" height="28" rx="6" /><rect x="130" y="18" width="16" height="28" rx="6" /></g>
+    <g class="art-line"><path d="M55 34 L69 34" /><path d="M55 39 L69 39" /><path d="M131 34 L145 34" /><path d="M131 39 L145 39" /></g>
+    <g class="art-part" data-part="left"><circle class="led" cx="59" cy="25" r="2.7" /><circle class="led led2" cx="65" cy="25" r="2.7" /></g>
+    <g class="art-part" data-part="right"><circle class="led" cx="135" cy="25" r="2.7" /><circle class="led led2" cx="141" cy="25" r="2.7" /></g>
+    <rect class="art-fill" x="58" y="42" width="8" height="4" rx="1" /><rect class="art-fill" x="134" y="42" width="8" height="4" rx="1" />
+    <circle class="art-fill" cx="100" cy="62" r="5.5" />
+    <circle class="art-dot" cx="94" cy="78" r="1.7" /><circle class="art-dot" cx="100" cy="78" r="1.7" /><circle class="art-dot" cx="106" cy="78" r="1.7" />
+    ${mark(40, 25, 1)}${mark(40, 37, 2)}${mark(76, 44, 3)}${mark(40, 50, 4)}${mark(116, 62, 5)}${mark(116, 78, 6)}
+    <text x="14" y="12" class="art-label">L</text><text x="186" y="12" class="art-label">R</text>
+    ${port(100, 88, 'HUB ACCESSORY PORT')}
+    ${legend([
+      [1, 'tip: 660 nm + 808 nm per probe (A12.1)'],
+      [2, 'depth-stop rings, 15 / 20 / 25 mm (A12.3)'],
+      [3, 'photodiode: contact and dose, per probe (A12.4)'],
+      [4, 'hygiene sleeve, single use (A12.6)'],
+      [5, 'Y-junction, silicone over-mould (A12.2)'],
+      [6, 'optical code + pogo-pin sleeve ID (A12.5)'],
+    ], 114)}`,
+
+  // Cervical VNS accessory.
   cvns: `
     <g class="art-line">
-      <path d="M52 6 L52 70 C52 84 62 90 80 90 C98 90 108 84 108 70 L108 6" />
+      <path d="M26 4 C26 24 42 34 58 34" /><path d="M174 4 C174 24 158 34 142 34" />
+      <path d="M58 34 L58 70 C58 78 78 82 100 82 C122 82 142 78 142 70 L142 34" />
     </g>
+    <g class="art-line art-dim"><path d="M100 4 L100 34" /><path d="M95 5 L105 5" /><path d="M95 33 L105 33" /></g>
     <g class="art-part" data-part="pads">
-      <ellipse class="pad" cx="52" cy="44" rx="9" ry="14" /><ellipse class="pad" cx="108" cy="44" rx="9" ry="14" />
+      <ellipse class="pad" cx="58" cy="52" rx="8.5" ry="13" /><ellipse class="pad" cx="142" cy="52" rx="8.5" ry="13" />
     </g>
-    <path class="art-line" d="M52 58 C52 72 66 76 80 76 C94 76 108 72 108 58" />
-    <rect class="art-line" x="72" y="92" width="16" height="4" rx="1" />`,
+    <path class="art-line art-housing" d="M58 64 C58 74 78 76 100 76 C122 76 142 74 142 64" />
+    <path class="art-line" d="M100 82 L100 90" />
+    ${mark(40, 52, 1)}${mark(160, 52, 1)}${mark(100, 62, 2)}${mark(112, 90, 3)}
+    <text x="112" y="21" class="art-note-t" text-anchor="start">2 cm</text>
+    ${port(100, 90, 'HUB ACCESSORY PORT')}
+    ${legend([
+      [1, 'gel electrodes ×2, over the carotid sheath,'],
+      [null, '2 cm below the angle of the jaw (A14.2, A14.3)'],
+      [2, 'neck module, silicone over-moulded (A14.1)'],
+      [3, '4-conductor shielded cable (A14.4)'],
+      [null, 'current source and sense are in the hub (A14.6)'],
+    ], 118)}`,
 };
 
 const el = (tag, cls, text) => {
@@ -64,9 +130,10 @@ export function describe(id, st, snap) {
         const side = m.left && m.right ? 'both nostrils' : m.left ? 'left nostril' : m.right ? 'right nostril' : 'no side';
         return `${side} · 660 + 808 nm`;
       }
-      return '660 + 808 nm · bilateral (demo)';
+      return [(snap?.intranasal?.wavelengths ?? []).join(' + '), snap?.intranasal?.frequency ? `${snap.intranasal.frequency} Hz` : null].filter(Boolean).join(' · ') || 'bilateral';
     }
     case 'cvns': {
+      if (st.source !== 'firmware') return [snap?.cvns?.frequency ? `${snap.cvns.frequency} Hz` : null, snap?.cvns?.intensity_ma ? `${snap.cvns.intensity_ma} mA` : null].filter(Boolean).join(' · ') || 'session active';
       const stage = typeof m.stage === 'number' ? CVNS_STAGE_NAMES[m.stage] ?? `stage ${m.stage}` : null;
       const ma = typeof m.commanded_ua === 'number' && m.commanded_ua > 0 ? mA(m.commanded_ua) : null;
       return [stage, ma].filter(Boolean).join(' · ') || 'session active';
@@ -101,7 +168,7 @@ export class AccessoryWindows {
       const head = el('header', 'accwin-head');
       head.append(el('span', 'accwin-title', a.label), el('span', 'accwin-tag', 'tethered to the hub'));
       const svg = document.createElementNS(NS, 'svg');
-      svg.setAttribute('viewBox', '0 0 160 100');
+      svg.setAttribute('viewBox', '0 0 200 176');
       svg.setAttribute('class', 'accwin-art');
       svg.setAttribute('role', 'img');
       svg.setAttribute('aria-hidden', 'true');
