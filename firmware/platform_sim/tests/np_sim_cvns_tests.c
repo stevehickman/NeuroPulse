@@ -182,24 +182,140 @@ static void test_the_real_detector_finds_a_baseline_in_a_pulse_train(void)
           "baseline: and the baseline heart rate is the 70 beats per minute of the pulse train");
 }
 
-/* @verifies-none Characterisation of a session that cannot leave the baseline stage; the finding is OI-SIMFW-22. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_session_cannot_get_from_baseline_to_delivery(void)
+#define STAGE_RAMP_UP   3
+#define STAGE_ACTIVE    4
+#define STAGE_COMPLETE  6
+#define MCU_GRANT       0x400          /* NP_SAFETY_EN_CVNS */
+
+static unsigned published_ua(void)
+{
+    uint16_t c[NP_SAFETY_MAX_CHANNELS];
+    np_safety_spi_get_channel_currents(c);
+    return (unsigned)c[NP_SAFETY_CH_CVNS];
+}
+
+/* A session in steady delivery: the safety MCU granting from the start, 70 BPM, 20 s of simulated time. */
+static void reach_active(void)
+{
+    setup();
+    run("cvns 2 10000 1000 250 10 1");
+    run("cvns_mcu 0x400 0");
+    run("cvns_run 20000 70");
+}
+
+/* A session that gets from the baseline to delivery (OI-SIMFW-22, fixed).  It used to fault one tick after the baseline completed. */
+/* @verifies-none Baseline to delivery is np_cvns_session.c's and np_mod_cvns.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_session_gets_from_baseline_to_delivery(void)
 {
     setup();
     run("cvns 2 10000 1000 250 10 1");
     run("cvns_mcu 0x400 0");                         /* the safety MCU grants the enable from the start */
     run("cvns_run 7600 70");
     bool saw_request = false;
-    for (int i = 0; i < 12 && stage() != STAGE_FAULT; i++) {
+    for (int i = 0; i < 12 && stage() != STAGE_RAMP_UP; i++) {
         run("cvns_run 100 70");
         if (interlock() == 1 && enable_bit()) { saw_request = true; }
     }
     check(saw_request, "baseline to delivery: the baseline completed, the interlock went to PRE_SESSION and the driver requested the enable");
-    check(stage() == STAGE_FAULT && abort_code() == 6 && !enable_bit(),
-          "baseline to delivery: one tick later the session is in FAULT with abort reason 6 (already active) and the enable dropped, with the grant present (OI-SIMFW-22)");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS];
-    np_safety_spi_get_channel_currents(c);
-    check(c[NP_SAFETY_CH_CVNS] == 0U, "baseline to delivery: and nothing was delivered: the published current is back to 0");
+    check(stage() == STAGE_RAMP_UP && interlock() == 2 && abort_code() == 0 && enable_bit(),
+          "baseline to delivery: the grant moved it to ENABLED and the session is in the ramp with no abort (OI-SIMFW-22, fixed)");
+    check(published_ua() == 1000U, "baseline to delivery: and the commanded current is published to the safety channel");
+    run("cvns_run 12000 70");
+    check(stage() == STAGE_ACTIVE && enable_bit(), "baseline to delivery: after the 10 s ramp the session is ACTIVE with the enable held");
+    run("cvns_sample");
+    check(strstr(last_with("\"ev\":\"cvns_sample\""), "\"ramp_active\":true") != NULL,
+          "baseline to delivery: telemetry reports the delivering state");
+}
+
+/* Waiting for the grant is not a fault. */
+/* @verifies-none The grant wait is np_cvns_session.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_session_waits_for_the_grant_without_faulting(void)
+{
+    setup();
+    run("cvns 2 10000 1000 250 10 1");
+    run("cvns_mcu 0 0");                             /* alive, not granting */
+    run("cvns_run 22000 70");
+    check(stage() == STAGE_BASELINE && interlock() == 1 && enable_bit() && abort_code() == 0,
+          "grant wait: 22 s in, with no grant, the session holds in BASELINE with the interlock PRE_SESSION, the enable requested and no fault");
+    run("cvns_mcu 0x400 0");
+    run("cvns_run 500 70");
+    check(stage() == STAGE_RAMP_UP, "grant wait: the grant, when it comes, starts the ramp");
+}
+
+/* The safety MCU refusing the enable ends the session. */
+/* @verifies-none Enable refusal is np_mod_cvns.c's; np_mod_cvns_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_the_safety_mcu_refusing_the_enable_faults_the_session(void)
+{
+    setup();
+    run("cvns 2 10000 1000 250 10 1");
+    run("cvns_mcu 0 0");
+    run("cvns_run 10000 70");
+    check(stage() == STAGE_BASELINE && interlock() == 1 && enable_bit(), "refusal: precondition, the enable is requested and awaiting the grant");
+    run("cvns_mcu 0 8");                             /* NP_SAFETY_STATUS_IMPEDANCE, no grant */
+    run("cvns_run 300 70");
+    check(stage() == STAGE_FAULT && !enable_bit() && published_ua() == 0U,
+          "refusal: an adverse status with no grant faults the session, drops the enable and clears the published current");
+}
+
+/* Data loss in delivery. */
+/* @verifies-none The data-loss cutoff is the library's; np_cvns_fai_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_losing_the_r_peaks_in_delivery_cuts_the_session(void)
+{
+    reach_active();
+    check(stage() == STAGE_ACTIVE && enable_bit() && published_ua() == 1000U, "data loss: precondition, in steady delivery");
+    g_cap_n = 0;
+    run("cvns_run 12000 -1");                        /* no PPG samples at all */
+    check(stage() == STAGE_FAULT && !enable_bit() && published_ua() == 0U,
+          "data loss: 12 s with no R-peaks faults the session, drops the enable and clears the published current");
+    check(count("\"fn\":\"np_log_shdr_fault\"") == 1, "data loss: and the fault is logged to SHDR once");
+}
+
+/* A heart-rate step is not this side's cutoff. */
+/* @verifies-none Characterisation: the main-processor side has no heart-rate excursion cutoff (NP-FW-CVNS-001 section 6); that cutoff is the safety MCU's, which is not in the loop (OI-SIMFW-09). Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_heart_rate_step_is_not_a_cutoff_on_the_main_side(void)
+{
+    reach_active();
+    run("cvns_run 10000 100");                       /* 70 -> 100 BPM, a 30 BPM step */
+    check(stage() == STAGE_ACTIVE && enable_bit(),
+          "rate step: a 30 BPM step leaves the session in delivery; on this side only data loss cuts it, the excursion cutoff is the safety MCU's");
+}
+
+/* Stop in delivery. */
+/* @verifies-none Stop is np_mod_cvns.c's; np_mod_cvns_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_stop_in_delivery_ends_the_session_and_drops_the_enable(void)
+{
+    reach_active();
+    run("cvns_stop");
+    check(result_code_is(0) && !enable_bit() && published_ua() == 0U && field("\"ev\":\"result\"", "\"active\":") == 0.0,
+          "stop: ends the session at once, drops the enable and clears the published current");
+    run("cvns_state");
+    check(stage() == 0, "stop: the session is back at IDLE");
+}
+
+/* The session ends at its length. */
+/* @verifies-none The session length bound is the library's; np_cvns_fai_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_the_session_completes_at_its_length(void)
+{
+    reach_active();
+    run("cvns_run 90000 70");
+    check(stage() == STAGE_ACTIVE, "complete: 110 s in, the session is still in delivery");
+    run("cvns_run 30000 70");
+    check(stage() == STAGE_COMPLETE && !enable_bit() && published_ua() == 0U && field("\"ev\":\"cvns_state\"", "\"active\":") == 0.0,
+          "complete: at its 120 s length it completes, the driver is released and the enable is dropped");
+}
+
+/* Characterisation of a re-enable that cannot succeed (OI-SIMFW-23). */
+/* @verifies-none Characterisation of the re-enable path after a session fault; the finding is OI-SIMFW-23. Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_faulted_session_cannot_be_re_enabled(void)
+{
+    reach_active();
+    run("cvns_run 12000 -1");
+    check(stage() == STAGE_FAULT && interlock() == 0,
+          "re-enable: after the fault the interlock is IDLE, not FAULT: the session's fault path disabled it");
+    run("cvns_run 40000 70");                        /* past the 30 s lockout, the pulse train back */
+    run("cvns_reenable");
+    check(!result_code_is(0) && stage() == STAGE_FAULT && !enable_bit(),
+          "re-enable: refused even after the lockout, because the interlock only re-enables from FAULT (OI-SIMFW-23)");
 }
 
 /* @verifies-none Stop, suspend and shutdown; np_mod_cvns_tests verifies them. Simulator evidence only (REQ-SIMFW-06). */
@@ -286,7 +402,14 @@ int main(void)
     test_the_two_impedance_reports_must_agree();
     test_no_measurement_path_falls_back_to_a_nominal_value();
     test_the_real_detector_finds_a_baseline_in_a_pulse_train();
-    test_a_session_cannot_get_from_baseline_to_delivery();
+    test_a_session_gets_from_baseline_to_delivery();
+    test_a_session_waits_for_the_grant_without_faulting();
+    test_the_safety_mcu_refusing_the_enable_faults_the_session();
+    test_losing_the_r_peaks_in_delivery_cuts_the_session();
+    test_a_heart_rate_step_is_not_a_cutoff_on_the_main_side();
+    test_stop_in_delivery_ends_the_session_and_drops_the_enable();
+    test_the_session_completes_at_its_length();
+    test_a_faulted_session_cannot_be_re_enabled();
     test_stop_suspend_and_shutdown_end_the_session_cleanly();
     test_reenable_is_refused_without_a_fault_or_inside_the_lockout();
     test_malformed_command();

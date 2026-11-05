@@ -304,8 +304,13 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
 
     case NP_CVNS_STAGE_BASELINE:
         /* Wait for cardiac baseline to be established. */
-        if (np_cvns_interlock_baseline_valid(ctx->interlock)) {
-            /* Attempt to enable stimulation via the interlock. */
+        if (np_cvns_interlock_baseline_valid(ctx->interlock) &&
+            np_cvns_interlock_state(ctx->interlock) == NP_CVNS_INTERLOCK_IDLE) {
+            /* Request the enable ONCE, when the baseline first becomes valid and the interlock has not yet been asked.
+             * The stage stays BASELINE while the safety MCU's ENABLE_GRANTED is awaited (interlock PRE_SESSION), and
+             * this case runs again on every tick: asking again returns NP_CVNS_ERR_SESSION_ACTIVE, which is not a
+             * failure of the request, and treating it as one faulted every session one tick after the baseline
+             * completed, grant or no grant (NP-SIM-FW-001 OI-SIMFW-22). */
             np_cvns_status_t ret = np_cvns_interlock_request_enable(ctx->interlock, now_s);
             if (ret == NP_CVNS_OK) {
                 /* Transition pending safety MCU ENABLE_GRANTED response. */

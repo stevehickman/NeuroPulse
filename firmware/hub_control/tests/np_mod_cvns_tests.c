@@ -24,6 +24,7 @@
  * Build with -DNP_BUILD_TESTS=ON (see firmware/hub_control/CMakeLists.txt).
  */
 
+#include <math.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -1065,6 +1066,83 @@ static void test_a_pause_leaves_one_cervical_session_not_several(void)
           "cervical stop while paused: closes the one session with all the stimulation time, 25 s");
 }
 
+/* ── The real flow: start → impedance → baseline → enable request → grant → ramp (OI-SIMFW-22) ─────────────────────
+ * Every test above that wants a delivery stage places the session there white-box.  None drove the baseline to
+ * delivery, so a session that faulted one tick after its baseline completed was not seen (NP-SIM-FW-001 §20).  These
+ * drive the real driver and the real library with a deterministic pulse train at 200 Hz and a tick every 100 ms. */
+
+static double g_ppg_ms_since_beat;
+
+static uint32_t ppg_sample_70bpm(void)
+{
+    const double period_ms = 60000.0 / 70.0;
+    g_ppg_ms_since_beat += 5.0;                              /* 200 Hz */
+    if (g_ppg_ms_since_beat >= period_ms) { g_ppg_ms_since_beat -= period_ms; }
+    const double d = (g_ppg_ms_since_beat - 40.0) / 25.0;
+    return (uint32_t)(2000.0 + 1500.0 * exp(-d * d));
+}
+
+/* Run the driver for `ms` milliseconds of a 70 BPM pulse train, ticking every 100 ms. */
+static void run_flow_ms(uint32_t ms)
+{
+    for (uint32_t t = 0U; t < ms; t += 5U) {
+        g_now_ms += 5U;
+        if ((g_now_ms % 1000U) == 0U) { g_now_unix++; }
+        np_mod_cvns_push_ppg(ppg_sample_70bpm(), g_now_ms);
+        if ((g_now_ms % 100U) == 0U) { np_mod_cvns_tick(g_now_ms, g_now_unix); }
+    }
+}
+
+/* A started session, the safety MCU alive (a heartbeat has arrived) and granting or not as the caller says. */
+static void start_flow(uint16_t granted_mask)
+{
+    reset_mocks();
+    g_hr_report_calls = 0;
+    g_ppg_ms_since_beat = 0.0;
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK, "flow: the command is accepted");
+    np_mod_cvns_set_heartbeat_status(granted_mask, NP_SAFETY_STATUS_OK);
+}
+
+/* A session whose baseline is valid and whose enable the safety MCU has granted reaches ramp-up, then steady
+ * stimulation.  It used to fault (abort reason NP_CVNS_ERR_SESSION_ACTIVE) one tick after the baseline completed,
+ * because the BASELINE stage asked the interlock for the enable again on every tick while it waited for the grant. */
+/* @verifies REQ-FWHUB-65 */
+static void test_the_real_flow_reaches_ramp_up_and_steady_stimulation(void)
+{
+    start_flow(NP_SAFETY_EN_CVNS);
+    run_flow_ms(20000U);                                        /* impedance, then 5+ beats, then the grant */
+    const np_cvns_stage_t st = np_cvns_session_stage(np_mod_cvns_test_session());
+    check(st == NP_CVNS_STAGE_RAMP_UP || st == NP_CVNS_STAGE_ACTIVE,
+          "flow: with the grant present the session reaches the ramp");
+    check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_ENABLED,
+          "flow: and the interlock is ENABLED");
+    check(g_fault_log_calls == 0 && np_mod_cvns_test_session()->uhdr_record.abort_reason == 0U,
+          "flow: no fault was logged and the session record carries no abort reason");
+    check(np_mod_cvns_test_enable_requested(), "flow: the unified enable is requested");
+    run_flow_ms(12000U);
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_ACTIVE, "flow: after the 10 s ramp the session is ACTIVE");
+}
+
+/* Waiting for the grant is not a fault: the enable is requested once, so the MCU can see it, and the session holds in
+ * BASELINE (interlock PRE_SESSION) for as long as the grant takes; when it comes the session goes on. */
+/* @verifies REQ-FWHUB-65 */
+static void test_a_session_waiting_for_the_grant_is_not_faulted_by_waiting(void)
+{
+    start_flow(0U);                                             /* alive, not granting */
+    run_flow_ms(20000U);
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE &&
+          np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_PRE_SESSION,
+          "grant wait: with no grant the session holds in BASELINE with the interlock PRE_SESSION");
+    check(np_mod_cvns_test_enable_requested() && g_fault_log_calls == 0,
+          "grant wait: the enable is requested so the MCU can see it, and nothing is faulted");
+    check(g_hr_report_calls > 0, "grant wait: and the hub keeps reporting its heart rate meanwhile");
+    np_mod_cvns_set_heartbeat_status(NP_SAFETY_EN_CVNS, NP_SAFETY_STATUS_OK);
+    run_flow_ms(1000U);
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_RAMP_UP, "grant wait: the grant, when it comes, starts the ramp");
+}
+
 int main(void)
 {
     test_detect();
@@ -1100,6 +1178,8 @@ int main(void)
     test_control_before_init();
     test_uhdr_record_distinguishes_fault_kind();
     test_fault_reaches_offline_summary();
+    test_the_real_flow_reaches_ramp_up_and_steady_stimulation();
+    test_a_session_waiting_for_the_grant_is_not_faulted_by_waiting();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

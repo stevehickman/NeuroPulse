@@ -623,7 +623,9 @@ STAGE_IMPEDANCE  ── safety MCU measures both electrode impedances
 STAGE_BASELINE   ── accumulate ≥ 5 valid R-R intervals
     │                cross-validate main processor vs safety MCU baseline
     │ agree within 5 BPM?
-    │ yes → safety MCU confirms enable request
+    │ yes → the enable is requested ONCE (interlock IDLE → PRE_SESSION); the stage
+    │       holds while the safety MCU's grant is awaited (it is not asked again)
+    │       and the safety MCU confirms the enable request
     ▼
 STAGE_RAMP_UP    ── 10-second current ramp
     ▼
