@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-RM-001  
-**Revision:** 1
-**Date:** 2026-05-13  
+**Revision:** 2
+**Date:** 2026-11-05  
 **Status:** ACTIVE  
 **Effective Date:** 2026-05-13  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -340,5 +340,6 @@ A Risk Management Report (per ISO 14971:2019 §9) shall be authored and approved
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. Risk Management Plan established at QMS formation. RISK-01 through RISK-25 formally entered under QMS change control. |
+| 2 | 2026-11-05 | NeurOne Risk | **§ software safety requirements: the photoparoxysmal EEG detection control is annotated as specified and not built (`OI-FWHUB-29`).** The goggles refuse photic driving at 3–30 Hz outright in its place (`REQ-FWHUB-65`). The control is not removed from the list; the risk acceptance that rested on it is for the principal and Risk to restate. No risk score changed. |
 | A (in-doc note) | 2026-07-31 | Interim Quality (CEO) | §7 usability hazard row and §8.1 updated for **NP-HFE-002 Rev 1**: RISK-15's accessible position-identification gap is closed by the layered design (tactile landmark grid, module-type tactile marking, companion-app guided placement) with `np_module_map_check_placement()` as the primary control. Severity re-rating to S2 is **recommended and flagged, not applied** — it requires a change order per §8.2 / NP-QMS-DC-001 §8.1. No rating in the risk file has been changed by this note. |
 | B (in-doc note) | 2026-09-20 | Interim Quality (CEO) | §8's *"Gap surfaced by the re-baseline"* note is updated: `OI-RISK2-02` is **unblocked** — A11, A12 and A13 gained owning hardware specifications on 2026-09-20 (GitHub #332), so the stated blocker (*"those artifacts have no specification to analyse"*) no longer holds, and the item is extended to A15. **The gap itself is unchanged: no hazard analysis has been performed for any of them**, and no risk is added, removed, re-scored or re-classified by this note. File of record for the change is `NP-RISK-002` Rev 3 §4.1. |
