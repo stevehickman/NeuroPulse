@@ -59,5 +59,6 @@ The principal ruled: **pick option A and then C.** Recorded in `docs/status/comp
   descriptor, and a rule for who may set it) does not exist and is not invented here; the refusal is therefore absolute until the detector
   is built.
 - **One protocol is affected:** `protocols/predefined/13-focus-prime.npps` drives its visual block at 20 Hz and is now refused at the
-  hub. It is a clinical protocol and is not edited here (`OI-NPPS-LIMITS-01`).
+  hub. It is a clinical protocol and is not edited here (`OI-NPPS-LIMITS-01`). **Update 2026-11-05:** the hub now also refuses it when it is sent
+  (`NP_HUB_ERR_PHOTIC_ZONE`, `REQ-FWHUB-66`), so the person is told at upload and not when the session runs.
 - **C is owed:** the detector. Its first need is the criterion only Clinical can define: `docs/human-input/oi-fwhub-29-c-detection-criterion.md`.

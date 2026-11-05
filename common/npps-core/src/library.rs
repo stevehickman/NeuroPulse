@@ -294,6 +294,15 @@ const REASON_HW_VERSION_UNVERIFIED: u64 = 28;
 /// hardware-version refusal of the protocol and not "retry": it has no refusal kind and is not `notReady`, and it has a cause
 /// of its own, `no_layout`, so a screen can say so (`PROTOCOL_MENU_REFUSED_NO_LAYOUT`).
 const REASON_NO_LAYOUT: u64 = 29;
+/// `NP_HUB_ERR_PHOTIC_ZONE` (REQ-FWHUB-66, `OI-FWHUB-29`): the protocol drives the goggles photically at 3 to 30 Hz, which the helmet
+/// refuses until its Oz detector exists. The author can change the frequency, so it has a cause of its own, `photic_zone`.
+const REASON_PHOTIC_ZONE: u64 = 30;
+/// `NP_HUB_ERR_BAD_ADDRESS` (REQ-FWHUB-64): the protocol names a socket this helmet does not have. It was reason 2 (`malformed`); the
+/// author can make the protocol again for this helmet, so it has a cause of its own, `bad_address`.
+const REASON_BAD_ADDRESS: u64 = 31;
+/// `NP_HUB_ERR_CMD_TOO_MANY`: more commands than the helmet can hold. The author can shorten the protocol or split it, so it has a
+/// cause of its own, `too_many_commands`, and no longer shares `malformed` with a descriptor the app built wrongly.
+const REASON_CMD_TOO_MANY: u64 = 8;
 
 /// `SWR-UP-02`, `SWR-HV-08`, `REQ-UPG-01`: what an upload report means to a person, decided once for every app. The request is
 /// the helmet's last `UPLOAD_CHECK` report as the apps hold it, `{"status": "accepted"|"refused"|absent, "reason": n|absent,
@@ -323,7 +332,10 @@ fn helmet_cause(req: &Value) -> R<Value> {
         7 => "wrong_device",    // NP_HUB_ERR_WRONG_DEVICE
         5 => "format_version",  // NP_HUB_ERR_BAD_VERSION
         4 => "damaged",         // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
-        2 | 8 | 9 => "malformed", // INVALID_ARG, CMD_TOO_MANY, PARAMS_TOO_LONG
+        2 | 9 => "malformed",   // INVALID_ARG, PARAMS_TOO_LONG: a descriptor the app built wrongly
+        REASON_CMD_TOO_MANY => "too_many_commands", // NP_HUB_ERR_CMD_TOO_MANY: more steps than the helmet holds
+        REASON_PHOTIC_ZONE => "photic_zone",   // NP_HUB_ERR_PHOTIC_ZONE
+        REASON_BAD_ADDRESS => "bad_address",   // NP_HUB_ERR_BAD_ADDRESS
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
         REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets

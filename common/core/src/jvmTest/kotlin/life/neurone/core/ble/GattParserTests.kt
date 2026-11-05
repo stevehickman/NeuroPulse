@@ -425,7 +425,10 @@ class GattParserTests {
         assertEquals(HelmetRefusalCause.WRONG_DEVICE, cause(7))
         assertEquals(HelmetRefusalCause.FORMAT_VERSION, cause(5))
         assertEquals(HelmetRefusalCause.DAMAGED, cause(4))
-        for (reason in listOf(2, 8, 9)) assertEquals(HelmetRefusalCause.MALFORMED, cause(reason))
+        for (reason in listOf(2, 9)) assertEquals(HelmetRefusalCause.MALFORMED, cause(reason))
+        assertEquals(HelmetRefusalCause.TOO_MANY_COMMANDS, cause(8))   // NP_HUB_ERR_CMD_TOO_MANY: the author can shorten it
+        assertEquals(HelmetRefusalCause.PHOTIC_ZONE, cause(30))        // NP_HUB_ERR_PHOTIC_ZONE: the author can change the frequency
+        assertEquals(HelmetRefusalCause.BAD_ADDRESS, cause(31))        // NP_HUB_ERR_BAD_ADDRESS: make it again for this helmet
         assertEquals(HelmetRefusalCause.SESSION_ACTIVE, cause(13))
         assertEquals(HelmetRefusalCause.BOOT_REFUSED, cause(25))
         assertEquals(HelmetRefusalCause.NO_LAYOUT, cause(29))   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload

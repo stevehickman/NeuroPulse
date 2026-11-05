@@ -284,6 +284,25 @@ uint16_t np_protocol_socket_count(const np_session_cmd_t *cmd)
     return n;
 }
 
+np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc)
+{
+    if (desc == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
+        const np_session_cmd_t *c = &desc->cmds[i];
+        if (c->mod_type != NP_MOD_VISUAL || c->params_len < sizeof(np_mod_visual_params_t)) {
+            continue;
+        }
+        np_mod_visual_params_t p;
+        memcpy(&p, c->params, sizeof p);          /* the block is packed and the buffer is byte-aligned */
+        if (NP_VISUAL_PPX_ZONE(p.mode, p.freq_hz)) {
+            return NP_HUB_ERR_PHOTIC_ZONE;
+        }
+    }
+    return NP_HUB_OK;
+}
+
 np_hub_status_t np_protocol_socket_expand(const np_session_cmd_t *cmd,
                                            uint16_t               *out,
                                            uint16_t                max,

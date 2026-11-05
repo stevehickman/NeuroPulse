@@ -217,6 +217,9 @@ extension HelmetRefusalCause {
         case "session_active": self = .sessionActive
         case "boot_refused": self = .bootRefused
         case "no_layout": self = .noLayout
+        case "photic_zone": self = .photicZone
+        case "bad_address": self = .badAddress
+        case "too_many_commands": self = .tooManyCommands
         case "other": self = .other
         case "unmatched": self = .unmatched
         default: return nil

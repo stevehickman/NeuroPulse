@@ -169,11 +169,11 @@ static void test_a_protocol_may_name_only_addresses_the_helmet_has(void)
     check(np_layout_check_protocol_addresses(&d) == NP_HUB_OK, "addresses: valid addresses in every command pass, the highest one included");
 
     set_bit(&d.cmds[1], row->table_len);               /* the first index past the lattice */
-    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG,
-          "addresses: one address past the lattice, in the second command, refuses the whole protocol");
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_BAD_ADDRESS,
+          "addresses: one address past the lattice, in the second command, refuses the whole protocol, with a status of its own");
     memset(&d.cmds[1].socket_mask, 0, sizeof d.cmds[1].socket_mask);
     set_bit(&d.cmds[1], 127U);                         /* the last index of the 7-bit domain */
-    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG, "addresses: index 127 is refused on a helmet whose lattice is shorter");
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_BAD_ADDRESS, "addresses: index 127 is refused on a helmet whose lattice is shorter");
 
     /* A slot-addressed command names no sockets, and a stray mask on it is not read. */
     memset(&d, 0, sizeof d);
@@ -199,7 +199,7 @@ static void test_with_no_layout_bound_no_address_is_valid(void)
     d.cmd_count = 1U;
     d.cmds[0].target_kind = (uint8_t)NP_PROTO_TARGET_SOCKET_MASK;
     set_bit(&d.cmds[0], 0U);
-    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_INVALID_ARG || np_module_map_address_valid(0U),
+    check(np_layout_check_protocol_addresses(&d) == NP_HUB_ERR_BAD_ADDRESS || np_module_map_address_valid(0U),
           "addresses: the check answers from the module map's bound geometry");
 }
 

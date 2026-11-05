@@ -45,6 +45,9 @@ struct ProtocolUploadFlow {
         case .sessionActive: return String(localized: "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE")
         case .bootRefused: return String(localized: "PROTOCOL_MENU_REFUSED_BOOT")
         case .noLayout: return String(localized: "PROTOCOL_MENU_REFUSED_NO_LAYOUT")
+        case .photicZone: return String(localized: "PROTOCOL_MENU_REFUSED_PHOTIC_ZONE")
+        case .badAddress: return String(localized: "PROTOCOL_MENU_REFUSED_BAD_ADDRESS")
+        case .tooManyCommands: return String(localized: "PROTOCOL_MENU_REFUSED_TOO_MANY_COMMANDS")
         case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
         case .unmatched: return String(localized: "PROTOCOL_MENU_UPLOAD_UNMATCHED")
         }
