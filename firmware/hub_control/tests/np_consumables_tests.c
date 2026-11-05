@@ -48,6 +48,7 @@ np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 
 /* HARDWARE_VERSION (SWR-HV-06) is in the table this test links; nothing here reads it. */
 uint8_t np_safety_spi_get_hardware_version(void) { return 1U; }
+uint8_t np_safety_spi_get_tier(void) { return 1U; }   /* the GATT table serves DEVICE_TIER (OI-HWFIT-01); T1 */
 
 np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 {

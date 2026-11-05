@@ -33,6 +33,197 @@ test('a client string is never placed in a command line', () => {
 });
 
 // @verifies REQ-SIMFW-12
+test('a client string is never placed in a stimulation command line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: 0, op: 'stim_dac_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: 0, op: 'socket_pwm_set', code: -17, times: 1 },   // another kind's op
+    { type: 'MODULE_FAIL', kind: 'stim_pair', pair: '0\nquit', op: 'stim_dac_set', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: '5\nquit' } },
+    { type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { reading: { op: 'stim_read_current\nquit', value: 5 } } },
+    { type: 'MODULE_CLEAR', kind: 'stim_pair', pair: 128 },
+    { type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: '500\nquit' },
+    { type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 70000, amp_ua: 500 },
+    { type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30 },          // area missing
+    { type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1.5, polarity: 0, ramp_s: 30, area_mcm2: 1 },
+    { type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'bes\nquit' },
+    { type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'vns' },
+    { type: 'FW_COMMAND', cmd: 'advance', ms: -1 },
+    { type: 'FW_COMMAND', cmd: 'advance', ms: '10\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+});
+
+// @verifies REQ-SIMFW-12
+test('a valid stimulation message becomes exactly one well-formed line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'stim_pair', pair: 1, patch: { add: 5 } }), ['stim_add 1 5']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'stim_pair', pair: 1, op: 'stim_dc_ramp', code: -17, times: 2 }),
+    ['fail 1 stim_dc_ramp -17 2']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'stim_pair', pair: 1, patch: { reading: { op: 'stim_read_current', value: 900 } } }),
+    ['reading 1 stim_read_current 900']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', kind: 'stim_pair', pair: 1 }), ['stim_clear 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: 500 }),
+    ['bes 0 0 10000 500']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30, area_mcm2: 25000 }),
+    ['tdcs 0 1000 0 30 25000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'stim_stop', channel: 'tdcs' }), ['stim_stop tdcs']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'advance', ms: 15000 }), ['advance 15000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'sample', channel: 'bes' }), ['sample bes']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'tdcs_pause' }), ['tdcs_pause']);
+  // the tile messages are unchanged: no kind means a tile
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', socket: 3 }), ['clear 3']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in an EEG command line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_start\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'eeg', op: 'stim_dac_set', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { add: { id: '62\nquit' } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 8, kohm: 5 } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 1, kohm: '5\nquit' } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { band: { band: 5, db: 1 } } },
+    { type: 'MODULE_SET', kind: 'eeg', patch: { reading: { op: 'eeg_read_impedance\nquit', value: 5 } } },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 256, gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: '255\nquit', gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 },
+    { type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 255, gain: 6 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+});
+
+// @verifies REQ-SIMFW-12
+test('a valid EEG message becomes exactly one well-formed line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { add: {} } }), ['eeg_add']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { add: { id: 62 } } }), ['eeg_add 62']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { impedance: { channel: 2, kohm: 12.5 } } }), ['eeg_impedance 2 12.5']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'eeg', patch: { band: { band: 2, db: 4 } } }), ['eeg_band 2 4']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_stop', code: -17, times: 1 }), ['fail 0 eeg_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_CLEAR', kind: 'eeg' }), ['eeg_clear']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 15, gain: 6, notch: 1, ref_mode: 0, adaptive_out: 0 }),
+    ['eeg 15 6 1 0 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'eeg_sample' }), ['eeg_sample']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in a VNS command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'vns', op: 'vns_stim_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'vns', op: 'eeg_start', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'vns', patch: { add: '1500\nquit' } },
+    { type: 'MODULE_SET', kind: 'vns', patch: { readouts: { rmssd_ms: 40, coherence: 101, hr_bpm: 60 } } },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 1 },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: '2000\nquit', pw_us: 250, ppg: 1, eeg_ref: 1, hrv_proto: 0 },
+    { type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 4294967296, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 1, hrv_proto: 0 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'vns', patch: { add: 1500 } }), ['vns_add 1500']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'vns', patch: { readouts: { rmssd_ms: 42.5, coherence: 6.5, hr_bpm: 64 } } }),
+    ['vns_readouts 42.5 6.5 64']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'vns', op: 'vns_stim_stop', code: -17, times: 1 }), ['fail 0 vns_stim_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vns', side: 2, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 0, hrv_proto: 1 }),
+    ['vns 2 25000 2000 250 1 0 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vns_stop' }), ['vns_stop']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in an audio command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'audio', op: 'audio_binaural\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'audio', op: 'vns_stim_set', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'audio', patch: { add: '8\nquit' } },
+    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 70000, beat_mhz: 1, volume_pct: 1, bone: 0, adaptive: 0 },
+    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 1, volume_pct: '40\nquit', bone: 0, adaptive: 0 },
+    { type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: -1 },
+    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'audio', patch: { add: 8 } }), ['audio_add 8']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'audio', op: 'audio_bone_stop', code: -17, times: 1 }), ['fail 0 audio_bone_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 10000, volume_pct: 40, bone: 1, adaptive: 0 }),
+    ['audio 0 200 10000 40 1 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: 2 }), ['audio_eeg_band 2']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio_stop' }), ['audio_stop']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in a goggle command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'visual', op: 'vis_led_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'visual', op: 'audio_binaural', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: 1, eye_open: true, mpe_ok: true } } },
+    { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'seated\nquit', value: true } } },
+    { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: 'true' } } },
+    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0 },
+    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 256, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 },
+    { type: 'FW_COMMAND', cmd: 'vis_lift\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } }), ['vis_add 1 1 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: false } } }), ['vis_sensor mpe 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'visual', op: 'vis_led_stop', code: -17, times: 1 }), ['fail 0 vis_led_stop -17 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 }),
+    ['vis 0 10 50 0 63 0 0 0 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_lift' }), ['vis_lift']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_ppx' }), ['vis_ppx']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in an intranasal or stub command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'intranasal', op: 'ins_pwm_set\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'intranasal', op: 'vis_led_set', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'intranasal', op: 'ins_pwm_set', code: -17, times: 1, after: '1\nquit' },
+    { type: 'MODULE_SET', kind: 'intranasal', patch: { sensor: { name: 'auth\nquit', value: true } } },
+    { type: 'MODULE_SET', kind: 'intranasal', patch: { pd: { side: 2, wl: 0, counts: 5 } } },
+    { type: 'FW_COMMAND', cmd: 'ins', side: 0, freq_code: 40, duty: 300, cur_660: 1, cur_808: 1 },
+    { type: 'FW_COMMAND', cmd: 'stub', name: 'tms\nquit', op: 'detect' },
+    { type: 'FW_COMMAND', cmd: 'stub', name: 'tms', op: 'detect\nquit' },
+    { type: 'FW_COMMAND', cmd: 'stub', name: 'vns', op: 'detect' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'intranasal', patch: { add: { auth: true, contact: true } } }), ['ins_add 1 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'intranasal', op: 'ins_pwm_set', code: -17, times: 1, after: 1 }), ['fail 0 ins_pwm_set -17 1 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'ins', side: 0, freq_code: 40, duty: 20, cur_660: 60, cur_808: 70 }), ['ins 0 40 20 60 70']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'stub', name: 'tms', op: 'control' }), ['stub tms control']);
+});
+
+// @verifies REQ-SIMFW-12
+test('a client string is never placed in a cervical VNS command line, and a valid one is one well-formed line', () => {
+  const hostile = [
+    { type: 'MODULE_FAIL', kind: 'cvns', op: 'cvns_accessory\nquit', code: -17, times: 1 },
+    { type: 'MODULE_FAIL', kind: 'cvns', op: 'ins_auth', code: -17, times: 1 },
+    { type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: '2.5\nquit', unix_base_s: 1 } } },
+    { type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5 } } },
+    { type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: '70\nquit' },
+    { type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: 301 },
+    { type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 65536, status: 0 },
+    { type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10 },
+    { type: 'FW_COMMAND', cmd: 'cvns_stop\nquit' },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5, unix_base_s: 1700000000 } } }),
+    ['cvns_add 2.5 2.5 1700000000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 }),
+    ['cvns 2 10000 1000 250 10 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 1024, status: 0 }), ['cvns_mcu 1024 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 7600, bpm: 70 }), ['cvns_run 7600 70']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 1000, bpm: -1 }), ['cvns_run 1000 -1']);
+});
+
+// @verifies REQ-SIMFW-12
 test('a valid message becomes exactly one well-formed line per command', () => {
   assert.deepStrictEqual(
     messageToLines({ type: 'MODULE_FAIL', socket: 1, op: 'socket_pwm_set', code: -17, times: 1 }),
@@ -84,4 +275,154 @@ test('end to end: a fault injected over the bridge reaches one tile and the roll
   assert.strictEqual(states.length, 3);
   assert.ok(states.every((m) => m.event.driven === false), 'every tile is dark after the rollback');
   assert.strictEqual(bridge.list().modules.length, 3, 'MODULE_LIST holds the three tiles');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: a tDCS ramp runs the real driver and an over-delivery on one pair is flagged', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const p of [0, 1]) bridge.handle({ type: 'MODULE_SET', kind: 'stim_pair', pair: p, patch: { add: 5 } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'tdcs', pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30, area_mcm2: 25000 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'advance', ms: 15000 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'sample', channel: 'tdcs' });
+  bridge.handle({ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { reading: { op: 'stim_read_current', value: 1900 } } });
+  for (let i = 0; i < 4; i++) bridge.handle({ type: 'FW_COMMAND', cmd: 'sample', channel: 'tdcs' });
+  await wait(500);
+  bridge.stop();
+
+  const samples = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'stim_sample').map((m) => m.event);
+  assert.strictEqual(samples[0].current_ua, 500, 'halfway up the 30 s ramp the DAC delivers half the target');
+  assert.strictEqual(samples.filter((s) => s.divergence_flagged).length, 1, 'the pinned over-delivery is flagged exactly once');
+  const result = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'tdcs');
+  assert.strictEqual(result.event.code, 0);
+  assert.strictEqual(result.event.safety_mcu, 'not_in_loop', 'and the result says the safety MCU is not in the loop');
+  assert.strictEqual(bridge.list().modules.length, 2, 'MODULE_LIST holds the two pairs');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real EEG driver configures the sim front end and a lost stop is visible', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'eeg', patch: { add: {} } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg', channel_mask: 15, gain: 6, notch: 0, ref_mode: 0, adaptive_out: 0 });
+  bridge.handle({ type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_stop', code: -17, times: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_stop' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'status' });
+  await wait(500);
+  bridge.stop();
+  const stop = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'eeg_stop');
+  assert.strictEqual(stop.event.code, 0, 'the driver reports the stop done');
+  assert.strictEqual(stop.event.eeg_running, true, 'while the converter still runs');
+  const state = seen.filter((m) => m.type === 'MODULE_STATE' && m.event.id === 'eeg:0').pop();
+  assert.strictEqual(state.event.driven, true, 'and the module state says so');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real VNS driver and HRV library run, and a clip out of contact is refused', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'vns', patch: { add: 1500 } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 0, hrv_proto: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns_stop' });
+  bridge.handle({ type: 'MODULE_SET', kind: 'vns', patch: { reading: { op: 'vns_impedance', value: 100 } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vns', side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 0, eeg_ref: 0, hrv_proto: 0 });
+  await wait(500);
+  bridge.stop();
+  const results = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'vns').map((m) => m.event);
+  assert.strictEqual(results[0].code, 0);
+  assert.strictEqual(results[0].stimulating, true, 'in contact the clip stimulates');
+  assert.notStrictEqual(results[1].code, 0, 'out of contact the command is refused');
+  assert.strictEqual(results[1].stimulating, false);
+  const hrv = seen.filter((m) => m.type === 'FW_LOG' && m.event.fn === 'np_log_hrv_session');
+  assert.strictEqual(hrv.length, 1, 'the real HRV session ended once, with the stop');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real audio driver plays, adapts to an EEG band, and a lost stop is visible', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'audio', patch: { add: 8 } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 6000, volume_pct: 40, bone: 0, adaptive: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: 2 });
+  bridge.handle({ type: 'MODULE_FAIL', kind: 'audio', op: 'audio_stop_planar', code: -17, times: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'audio_stop' });
+  await wait(500);
+  bridge.stop();
+  const results = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result').map((m) => m.event);
+  assert.strictEqual(results.find((r) => r.cmd === 'audio_eeg_band').beat_mhz, 10000, 'the beat follows the alpha band');
+  const stop = results.find((r) => r.cmd === 'audio_stop');
+  assert.strictEqual(stop.code, 0, 'the driver reports the stop done');
+  assert.strictEqual(stop.mode, 1, 'while the planar drivers still play');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real goggle driver emits, and the Hall edge cuts it through the driver\'s own handler', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_lift' });
+  await wait(500);
+  bridge.stop();
+  const results = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result').map((m) => m.event);
+  assert.strictEqual(results.find((r) => r.cmd === 'vis').emitting, true, 'the goggles emit');
+  const lift = results.find((r) => r.cmd === 'vis_lift');
+  assert.strictEqual(lift.emitting, false, 'and the lift edge turned them off');
+  assert.strictEqual(lift.edges_delivered, 1);
+  assert.ok(seen.some((m) => m.type === 'FW_LOG' && m.event.ev === 'hall_edge' && m.event.handler_registered === true), 'through a handler the driver registered');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: a bilateral intranasal command that fails on its second side leaves the first driven, and a T2 stub refuses', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'intranasal', patch: { add: { auth: true, contact: true } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'ins_init' });
+  bridge.handle({ type: 'MODULE_FAIL', kind: 'intranasal', op: 'ins_pwm_set', code: -17, times: 1, after: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'ins', side: 0, freq_code: 40, duty: 20, cur_660: 60, cur_808: 70 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'stub', name: 'tms', op: 'control' });
+  await wait(500);
+  bridge.stop();
+  const r = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'ins').map((m) => m.event)[0];
+  assert.notStrictEqual(r.code, 0, 'the command fails');
+  assert.strictEqual(r.left_on, true, 'with the left side still driven');
+  assert.strictEqual(r.right_on, false);
+  const stub = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'stub').event;
+  assert.ok(stub.code < 0, 'the TMS stub refuses');
+  assert.strictEqual(stub.requested_enables & 0x800, 0, 'and requests no TMS enable');
+});
+
+// @verifies REQ-SIMFW-11
+test('end to end: the real cervical VNS flow reaches the baseline and then faults before delivery (OI-SIMFW-22)', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2.5, right_kohm: 2.5, unix_base_s: 1700000000 } } });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_init' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 1024, status: 0 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 9000, bpm: 70 });
+  await wait(800);
+  bridge.stop();
+  const st = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'cvns_state').map((m) => m.event).pop();
+  assert.strictEqual(st.baseline_valid, true, 'the real detector found the 70 BPM baseline');
+  assert.strictEqual(st.stage, 7, 'and the session is in FAULT');
+  assert.strictEqual(st.abort_reason, 6, 'with abort reason 6 (already active)');
+  assert.strictEqual(st.enable_requested, false);
+  assert.strictEqual(st.safety_mcu, 'scenario', 'the state says the safety MCU is the scenario');
 });

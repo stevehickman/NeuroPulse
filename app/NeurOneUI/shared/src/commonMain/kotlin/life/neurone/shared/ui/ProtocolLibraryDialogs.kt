@@ -94,6 +94,17 @@ fun UnmodifiedCloneDialog(onUploadSource: () -> Unit, onEditClone: () -> Unit, o
     )
 }
 
+/** An upload of a protocol that is not stored in the library (SWR-PL-01). Nothing was sent and nothing is marked used. */
+@Composable
+fun NotInLibraryDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.protocol_library_not_in_library_title)) },
+        text = { Text(stringResource(Res.string.protocol_library_not_in_library_body)) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
 /**
  * An upload to a helmet whose hardware version the protocol has no layout for (SWR-HV-04). Nothing was sent. Both layouts
  * are summarised by how many sockets they share and how many only one has; [variant], when the family has one for the

@@ -1,6 +1,6 @@
 # OI-UI-KMP-05 — retire the SwiftUI iOS app: the plan, and the decisions it needs
 
-**Status:** DRAFT, not sent. **From:** Software (Claude Code session, 2026-11-03). **To:** the principal.
+**Status:** PARTLY ANSWERED 2026-11-04 (questions 1 to 4; question 5 open). **From:** Software (Claude Code session, 2026-11-03). **To:** the principal.
 
 **What is asked.** Whether to delete `app/ios` (the SwiftUI app), when, and the five rulings in §6. Nothing here is a decision, and nothing in the repo may act as if the app is retired: `OI-UI-KMP-05` stays open and every Swift file stays until you answer. The inventory below was taken from the tree on 2026-11-03 (`main` at `0e9c0141`); counts are what a search found, not a guarantee.
 
@@ -83,3 +83,11 @@ All of this goes through the assign-at-merge revision fragments (`docs/revisions
 ## 7. Not in scope, same pattern
 
 `app/windows` (build-only, seals nothing, `SWR-MG-06`) and the React `app/web` (memory-only) are retired the same way when the shared desktop and browser apps cover them (`OI-UI-KMP-05`). Each needs its own pass of §3 and §4; neither is touched here. Do not include health data from any device when answering (`CLAUDE.md` §5).
+
+## 8. Answers (the principal, 2026-11-04)
+
+1. **Delete `app/ios`:** yes, in the order of §5 (so after the device runs).
+2. **The plumbing PR may land before the deletion:** yes.
+3. **`NP-APP-ISA-001`:** move it to `docs/superseded/`.
+4. **Required checks on `main`** (all firmware; none is an iOS job): Class B scope; CMake host tests (Class B); Bootloader (i.MX RT1062); Main firmware (i.MX RT1062, Class B); Class C scope; Safety MCU host tests (Class C); CMake host tests (Class B, ASan + UBSan); Cross-build and link (STM32G071, Cortex-M0+, Class C). So removing `ios-ci.yml` cannot block a PR.
+5. **Signing and the App ID:** open. The repo holds neither: `app/ios/project.yml` has `DEVELOPMENT_TEAM: ""`, the shared host sets no team, and CI builds with code signing off. They are in the Apple Developer account (Certificates, Identifiers & Profiles: Identifiers for the App ID, Profiles for the provisioning profile), or in App Store Connect under the app record. It only blocks a signed device build and any TestFlight upload, not the deletion.

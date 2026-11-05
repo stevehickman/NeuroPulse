@@ -242,6 +242,11 @@ static class GattIds
     /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     /// writes it.
     public const int HARDWARE_VERSION_ID = 0x001C;
+    /// READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0
+    /// unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the
+    /// field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the
+    /// safety MCU gate a T2 protocol whatever the app believes.
+    public const int DEVICE_TIER_ID = 0x001D;
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     public const int SESSION_PROGRESS_ID = 0x0019;
@@ -310,6 +315,11 @@ static class GattUuidStrings
     /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     /// writes it.
     public const string HARDWARE_VERSION_ID = "4E455550-001C-1000-8000-00805F9B34FB";
+    /// READ 1 B: the unit's tier as the safety MCU established it from its signed OTP tier identity, 0
+    /// unknown, 1 T1, 2 T2 (REQ-UPG-01, OI-HWFIT-01). The hub only relays the MCU's verdict; nothing in the
+    /// field writes it. The app uses it to say what the helmet can run and decides nothing: the hub and the
+    /// safety MCU gate a T2 protocol whatever the app believes.
+    public const string DEVICE_TIER_ID = "4E455550-001D-1000-8000-00805F9B34FB";
     /// READ/NOTIFY 16 B: state, active-part index, elapsed ms, remaining ms, active-modality mask
     /// (SWR-SS-07).
     public const string SESSION_PROGRESS_ID = "4E455550-0019-1000-8000-00805F9B34FB";
@@ -327,6 +337,14 @@ static class GattSizes
     public const int PAUSE_LIMIT_LEN = 4;
     /// HARDWARE_VERSION: one byte, 1 to 15.
     public const int HARDWARE_VERSION_LEN = 1;
+    /// DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.
+    public const int DEVICE_TIER_LEN = 1;
+    /// DEVICE_TIER: the safety MCU has sent no valid tier report yet. The app treats it as not T2.
+    public const int DEVICE_TIER_UNKNOWN = 0;
+    /// DEVICE_TIER: NeurOne Home. Equals the firmware's NP_TIER_T1.
+    public const int DEVICE_TIER_T1 = 1;
+    /// DEVICE_TIER: NeurOne Pro. Equals the firmware's NP_TIER_T2.
+    public const int DEVICE_TIER_T2 = 2;
     /// SESSION_PROGRESS: 1 B state, 1 B active part, 2 B active modality mask, 4 B elapsed ms, 4 B
     /// remaining ms, 4 B total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1
     /// B ramp percent, 4 B ramp remaining ms (0xFFFFFFFF unknown) (all little-endian).

@@ -5,7 +5,7 @@
  * summaries the core is given and the calls. protocolLibrary.ts keeps the state and the screens read it.
  */
 
-import type { NPProtocolEntry } from '../../../../common/types/protocol';
+import type { NPProtocolEntry, NPCompositeProtocol } from '../../../../common/types/protocol';
 import { entryId } from '../../../../common/types/protocol';
 import { nppsContentHash, nppsLibrary } from '../../../../common/lib/nppsCore';
 import { protocolCoreDef } from './hubCompiler';
@@ -34,6 +34,8 @@ export type DeleteResult =
 /** What an upload meets before any byte is sent. A refusal is a local decision: nothing is sent and nothing is marked used. */
 export type UploadGate =
   | { kind: 'allow' }
+  /** The protocol is not stored in the library, so nothing is sent (SWR-PL-01). */
+  | { kind: 'not_in_library' }
   /**
    * The protocol has no layout for the helmet's hardware version (SWR-HV-04). The counts say how the first of its layouts
    * overlaps the helmet's; they are null while the helmet's layout is not in the table, so no overlap is claimed.
@@ -107,8 +109,8 @@ export const rules = {
     nppsLibrary({ op: 'variantFor', entries, familyId, helmetVersion }).variants,
   offered: (entries: object[], archivedFamilies: readonly string[]): string[] =>
     nppsLibrary({ op: 'offered', entries, archivedFamilies: [...archivedFamilies] }).offered,
-  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null) =>
-    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash }),
+  uploadGate: (helmetVersion: number, protocolVersions: number[], contentHash: string, sourceHash: string | null, libraryHashes: string[]) =>
+    nppsLibrary({ op: 'uploadGate', helmetVersion, protocolVersions, contentHash, sourceHash, libraryHashes }),
   uploadResult: (req: {
     sentHash: string;
     helmetStatus?: string;
@@ -123,8 +125,38 @@ export const rules = {
   isValidUsedRecord: (record: unknown): boolean => nppsLibrary({ op: 'usedRecord', check: record }).valid,
 };
 
-/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a composite or a protocol that cannot be hashed yet. */
-export function contentHash(entry: NPProtocolEntry): string | null {
+/** The part of a composite the core reads for its identity: how the layers combine, and each layer's timing and scale. */
+function compositeCoreDef(c: NPCompositeProtocol): object {
+  return {
+    conflictResolution: c.conflictResolution,
+    layers: c.layers.map(l => ({
+      protocolName: l.protocolName,
+      startOffsetSeconds: l.startOffsetSeconds,
+      intensityScale: l.intensityScale,
+      ...(l.durationSeconds != null ? { durationSeconds: l.durationSeconds } : {}),
+    })),
+  };
+}
+
+/** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none, a protocol that cannot be hashed yet, or a composite whose layers cannot be laid out (a protocol that is not in `library`, a layer longer than its protocol, an intensity scale outside 0 to 1). */
+export function contentHash(entry: NPProtocolEntry, library: readonly NPProtocolEntry[] = []): string | null {
+  if (entry.kind === 'composite') {
+    // A composite is identified by the plan its layers compile to (SWR-PL-01, OI-NPPS-COMP-01), so the core is given the
+    // protocols the layers name and hashes what they make.
+    const members: Record<string, object> = {};
+    for (const layer of entry.composite.layers) {
+      const member = library.find(e => e.kind === 'single' && e.protocol.name === layer.protocolName);
+      if (!member || member.kind !== 'single') return null;
+      members[layer.protocolName] = protocolCoreDef(member.protocol);
+    }
+    try {
+      return nppsContentHash({
+        composite: compositeCoreDef(entry.composite), members, hardwareVersion: 1, zonesByVersion: zonesByVersion(), clinicianSockets: null,
+      });
+    } catch {
+      return null; // a layer is refused (too long, overlapping scale, or a clinician-selected target not chosen yet)
+    }
+  }
   if (entry.kind !== 'single') return null;
   try {
     return nppsContentHash({

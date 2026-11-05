@@ -152,12 +152,21 @@ enum NppsCore {
     /// `protocol`) into the NP-FW-HUB-001 §4 descriptor. The 64-byte signature slot at the end is zeroed:
     /// sign the region before it and write the signature in.
     static func compile(protocolJSON: Data, options: CompileOptions) throws -> Data {
+        let def = try JSONSerialization.jsonObject(with: protocolJSON)
+        return try compileRequest(["def": def], options: options)
+    }
+
+    /// Compile a composite (`OI-NPPS-COMP-01`): `compositeJSON` is the composite and `members` maps each protocol name a layer
+    /// uses to that protocol's definition. One descriptor comes back, with a zeroed signature slot like a protocol's.
+    static func compileComposite(compositeJSON: [String: Any], members: [String: Any], options: CompileOptions) throws -> Data {
+        try compileRequest(["composite": compositeJSON, "members": members], options: options)
+    }
+
+    private static func compileRequest(_ what: [String: Any], options: CompileOptions) throws -> Data {
         guard options.sessionUUID.count == 16 else {
             throw Refusal(message: "sessionUUID must be 16 bytes")
         }
-        let def = try JSONSerialization.jsonObject(with: protocolJSON)
         var request: [String: Any] = [
-            "def": def,
             "zones": options.zones.map { $0 as Any } ?? NSNull(),
             "clinicianSockets": options.clinicianSockets.map { $0 as Any } ?? NSNull(),
             "deviceSerialHex": options.deviceSerial.map { hex($0) as Any } ?? NSNull(),
@@ -167,6 +176,7 @@ enum NppsCore {
             "autonomous": options.autonomous,
             "acknowledgedCautions": options.acknowledgedCautions
         ]
+        request.merge(what) { _, new in new }
         if let version = options.hardwareVersion { request["hardwareVersion"] = version }
         return try call(npps_compile_json, JSONSerialization.data(withJSONObject: request))
     }

@@ -26,6 +26,8 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../shdr/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../pbm/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     # headers only: np_safety_spi.c and np_session_runner.h name FreeRTOS types.  The kernel is not
@@ -52,14 +54,57 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_socket_layouts.generated.c
     ../hub_control/src/np_pbm_socket_telem.c
     ../hub_control/modules/np_mod_pbm.c
+    # stimulation (BES/tACS and tDCS): the driver, the commanded-versus-delivered cross-check and the ramp model
+    ../hub_control/modules/np_mod_stim.c
+    ../hub_control/modules/np_mod_eeg.c
+    # auricular VNS, and the HRV session library it drives (pure C: no kernel, no platform seam)
+    ../hub_control/modules/np_mod_vns.c
+    ../hub_control/modules/np_mod_audio.c
+    ../hub_control/modules/np_mod_visual.c
+    ../hub_control/modules/np_mod_intranasal.c
+    ../hub_control/modules/np_mod_t2_stubs.c
+    # cervical VNS: the driver, the safety library it integrates and the re-enable manager
+    ../hub_control/modules/np_mod_cvns.c
+    ../cervical_vns/src/np_cvns_interlock.c
+    ../cervical_vns/src/np_cvns_session.c
+    ../cervical_vns/src/np_cvns_stim.c
+    ../hub_control/src/np_cvns_reenable.c
+    ../hub_control/src/np_cvns_fault_summary.c
+    ../hrv_biofeedback/src/np_hrv_session.c
+    ../hrv_biofeedback/src/np_hrv_ppg.c
+    ../hrv_biofeedback/src/np_hrv_coherence.c
+    ../hrv_biofeedback/src/np_hrv_pacer.c
+    ../hrv_biofeedback/src/np_hrv_tavns_sync.c
+    ../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c
+    ../hub_control/src/np_stim_xcheck.c
+    ../hub_control/src/np_ramp_plan.c
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
 )
 
+# The HRV library's own -Wextra finding (an unused parameter in np_hrv_eeg_biofeedback.c) is not this layer's to fix
+# and does not belong in this layer's build output.
+set_source_files_properties(../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
+
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
     src/np_sim_pbm.c
+    src/np_sim_stim.c
+    src/np_sim_stim_harness.c
+    src/np_sim_eeg.c
+    src/np_sim_eeg_harness.c
+    src/np_sim_vns.c
+    src/np_sim_vns_harness.c
+    src/np_sim_audio.c
+    src/np_sim_audio_harness.c
+    src/np_sim_visual.c
+    src/np_sim_visual_harness.c
+    src/np_sim_intranasal.c
+    src/np_sim_intranasal_harness.c
+    src/np_sim_stubs_harness.c
+    src/np_sim_cvns.c
+    src/np_sim_cvns_harness.c
     src/np_sim_unrouted.c
     src/np_sim_pbm_harness.c
     src/np_sim_spike_link.c
@@ -75,12 +120,46 @@ add_executable(np_sim_pbm_spike spike/np_sim_pbm_spike.c)
 target_link_libraries(np_sim_pbm_spike PRIVATE np_sim_pbm)
 target_compile_options(np_sim_pbm_spike PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 
-# The spike's tests drive the same library directly.
+# The tests drive the same library directly.
 add_executable(np_sim_pbm_tests tests/np_sim_pbm_tests.c)
 target_link_libraries(np_sim_pbm_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 # Not add_test(): CI's host-test partition, counts and coverage floors (NP-SW-CI-001 §6.10, §6.14)
 # do not know this target, and it is opt-in (NP_BUILD_SIM).  Run it as:  ctest -R np_sim  via the
 # custom target below.  NP-SIM-FW-001 OI-SIMFW-13 owns putting it in the partition.
-add_custom_target(np_sim_run_tests COMMAND np_sim_pbm_tests DEPENDS np_sim_pbm_tests
-    COMMENT "Running np_sim_pbm_tests")
+add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
+target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_eeg_tests tests/np_sim_eeg_tests.c)
+target_link_libraries(np_sim_eeg_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_eeg_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_vns_tests tests/np_sim_vns_tests.c)
+target_link_libraries(np_sim_vns_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_vns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_audio_tests tests/np_sim_audio_tests.c)
+target_link_libraries(np_sim_audio_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_audio_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_visual_tests tests/np_sim_visual_tests.c)
+target_link_libraries(np_sim_visual_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_visual_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_intranasal_tests tests/np_sim_intranasal_tests.c)
+target_link_libraries(np_sim_intranasal_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_intranasal_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_stubs_tests tests/np_sim_stubs_tests.c)
+target_link_libraries(np_sim_stubs_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_stubs_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_cvns_tests tests/np_sim_cvns_tests.c)
+target_link_libraries(np_sim_cvns_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_cvns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_custom_target(np_sim_run_tests
+    COMMAND np_sim_pbm_tests
+    COMMAND np_sim_stim_tests
+    COMMAND np_sim_eeg_tests
+    COMMAND np_sim_vns_tests
+    COMMAND np_sim_audio_tests
+    COMMAND np_sim_visual_tests
+    COMMAND np_sim_intranasal_tests
+    COMMAND np_sim_stubs_tests
+    COMMAND np_sim_cvns_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests
+    COMMENT "Running the simulator scenario tests")

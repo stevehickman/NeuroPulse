@@ -80,6 +80,42 @@ final class SessionProtocolUploader: ObservableObject {
                                            acknowledgedCautions: acknowledgedCautions))
     }
 
+    /// Upload a composite (`OI-NPPS-COMP-01`): its layers are compiled to one descriptor and sent as a protocol is. `members` are
+    /// the protocols its layers name. A composite whose layers cannot be laid out, or overlap on one modality, is refused by the
+    /// compiler with its reason; a cervical member is held by the same gate as on its own.
+    @discardableResult
+    func uploadComposite(_ composite: NPCompositeProtocol,
+                         members: [NPProtocolDefinition],
+                         deviceSerial: Data? = nil,
+                         acknowledgedCautions: [String] = []) async throws -> String {
+        guard gatt.isHubConnected else {
+            let err = UploadError.bleNotReady
+            lastError = err
+            throw err
+        }
+        for member in members { try checkCervicalGate(member) }
+        let unsigned: HubDescriptor
+        do {
+            unsigned = try HubDescriptorCompiler.buildComposite(composite, members: members,
+                                                                deviceSerial: deviceSerial ?? gatt.deviceSerial,
+                                                                acknowledgedCautions: acknowledgedCautions,
+                                                                hardwareVersion: gatt.hardwareVersion)
+        } catch {
+            let err = UploadError.targetUnresolvable(error)
+            lastError = err
+            throw err
+        }
+        let signed: HubDescriptor
+        do {
+            signed = try HubDescriptorCompiler.signed(unsigned)
+        } catch {
+            let err = UploadError.signingFailed(error)
+            lastError = err
+            throw err
+        }
+        return try await send(signed)
+    }
+
     /// The helmet's hardware version, which the library's upload gate compares with the protocol's layouts (SWR-HV-04).
     var helmetHardwareVersion: Int { gatt.hardwareVersion }
 

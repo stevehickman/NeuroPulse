@@ -67,6 +67,24 @@ static np_hub_status_t read_hardware_version(uint8_t *buf, size_t cap, size_t *l
     return NP_HUB_OK;
 }
 
+/* OI-HWFIT-01 (REQ-UPG-01): the unit's tier as the safety MCU established it from its signed OTP tier identity.  The hub
+ * only relays the verdict.  One byte on the wire: 0 until the first valid report, 1 for T1, 2 for T2; any other value the
+ * safety MCU path might one day hold reads as 0, so the app never believes a tier the wire does not define.  The app uses
+ * it to say what the helmet can run and decides nothing: np_protocol_tier_admit and the safety MCU gate a T2 protocol
+ * whatever the app believes.  Never written in the field. */
+static np_hub_status_t read_device_tier(uint8_t *buf, size_t cap, size_t *len_out)
+{
+    if (cap < NP_GATT_DEVICE_TIER_LEN) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    const uint8_t tier = np_safety_spi_get_tier();
+    buf[0] = (tier == NP_TIER_T1) ? (uint8_t)NP_GATT_DEVICE_TIER_T1
+           : (tier == NP_TIER_T2) ? (uint8_t)NP_GATT_DEVICE_TIER_T2
+                                  : (uint8_t)NP_GATT_DEVICE_TIER_UNKNOWN;
+    *len_out = NP_GATT_DEVICE_TIER_LEN;
+    return NP_HUB_OK;
+}
+
 /* ── The table ───────────────────────────────────────────────────────────────
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
@@ -110,6 +128,10 @@ static const np_gatt_char_t TABLE[] = {
     /* SWR-HV-06: the helmet hardware version, 1..15. */
     { NP_GATT_HARDWARE_VERSION_ID, NP_GATT_PROP_READ,
       (uint8_t)NP_GATT_HARDWARE_VERSION_LEN, 0u, read_hardware_version, NULL },
+
+    /* OI-HWFIT-01: the unit's tier, 0 unknown, 1 T1, 2 T2. */
+    { NP_GATT_DEVICE_TIER_ID, NP_GATT_PROP_READ,
+      (uint8_t)NP_GATT_DEVICE_TIER_LEN, 0u, read_device_tier, NULL },
 
     /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
     { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,

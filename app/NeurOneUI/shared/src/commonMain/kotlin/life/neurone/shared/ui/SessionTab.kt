@@ -90,10 +90,19 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 return
             }
         }
-        // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
+        // Compile → sign → chunk → upload (Mode 2). A composite compiles its layers to one descriptor (OI-NPPS-COMP-01).
         val result = when (entry) {
             is NPProtocolEntry.Single ->
                 uploader.upload(entry.protocol, acknowledgedCautions = acknowledgedCautions, autonomous = programMode)
+            // The Mode 3 (autonomous) program path does not take a composite (OI-NPPS-COMP-01); Mode 2 compiles its layers to one descriptor.
+            is NPProtocolEntry.Composite ->
+                if (programMode) {
+                    ProtocolUploader.Result.Failure(compositeUnsupported)
+                } else {
+                    // A layer naming a protocol the library lacks leaves it out, and the compiler says which.
+                    val members = services.protocolLibrary.compositeMembers(entry) ?: emptyList()
+                    uploader.uploadComposite(entry.composite, members, acknowledgedCautions = acknowledgedCautions)
+                }
             else -> ProtocolUploader.Result.Failure(compositeUnsupported)
         }
         if (result is ProtocolUploader.Result.DifferentPersonConfirmationRequired && entry is NPProtocolEntry.Single) {

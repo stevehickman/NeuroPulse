@@ -321,6 +321,18 @@ class GattParserTests {
         assertNull(GattParser.parseHardwareVersion(byteArrayOf(1, 1)), "exactly one byte")
     }
 
+    // @verifies REQ-UPG-01
+    @Test
+    fun parseDeviceTierReadsTheHubsVerdictAndNothingElse() {
+        assertEquals(HubTier.UNKNOWN, GattParser.parseDeviceTier(byteArrayOf(0)))
+        assertEquals(HubTier.T1, GattParser.parseDeviceTier(byteArrayOf(1)))
+        assertEquals(HubTier.T2, GattParser.parseDeviceTier(byteArrayOf(2)))
+        assertNull(GattParser.parseDeviceTier(byteArrayOf(3)), "a value the wire does not define is not a tier")
+        assertNull(GattParser.parseDeviceTier(byteArrayOf(-1)))
+        assertNull(GattParser.parseDeviceTier(byteArrayOf()))
+        assertNull(GattParser.parseDeviceTier(byteArrayOf(2, 2)), "exactly one byte")
+    }
+
     private fun uploadFrame(status: Int, reason: Int, hash: ByteArray): ByteArray = byteArrayOf(status.toByte(), reason.toByte()) + hash
 
     // @verifies SWR-UP-01

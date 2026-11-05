@@ -127,6 +127,35 @@ final class SessionProgressTests: XCTestCase {
         XCTAssertEqual(manager.hardwareVersion, 15)
     }
 
+    // @verifies REQ-UPG-01
+    @MainActor
+    func testTheTierTheHubReportsIsUsedAndABadByteIsNotBelieved() {
+        let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
+        XCTAssertNil(manager.hubTier, "nothing is believed before the hub has said")
+        manager.applyDeviceTier(Data([1]))
+        XCTAssertEqual(manager.hubTier, .t1)
+        manager.applyDeviceTier(Data([2]))
+        XCTAssertEqual(manager.hubTier, .t2)
+        manager.applyDeviceTier(Data([3]))
+        XCTAssertEqual(manager.hubTier, .t2, "a byte the wire does not define changes nothing")
+        manager.applyDeviceTier(Data([1, 1]))
+        XCTAssertEqual(manager.hubTier, .t2, "a frame of the wrong length changes nothing")
+        manager.applyDeviceTier(Data([0]))
+        XCTAssertEqual(manager.hubTier, .unknown)
+        manager.applyDisconnection()
+        XCTAssertNil(manager.hubTier, "the next link may be another helmet")
+    }
+
+    // @verifies REQ-UPG-01
+    func testTheMenuTierIsT2OnlyWhenTheHubSaysT2() {
+        typealias Tier = NPProtocolLibrary.DeviceTier
+        XCTAssertEqual(Tier.forHelmet(connected: false, hub: .t2), .none, "no helmet connected")
+        XCTAssertEqual(Tier.forHelmet(connected: true, hub: .t2), .t2)
+        XCTAssertEqual(Tier.forHelmet(connected: true, hub: .t1), .t1)
+        XCTAssertEqual(Tier.forHelmet(connected: true, hub: .unknown), .t1, "no valid report yet is not T2")
+        XCTAssertEqual(Tier.forHelmet(connected: true, hub: nil), .t1, "firmware with no DEVICE_TIER characteristic is not T2")
+    }
+
     // @verifies SWR-HV-06
     @MainActor
     func testTheNextLinkMayBeAnotherHelmetSoADroppedLinkForgetsTheVersion() {

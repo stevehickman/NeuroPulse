@@ -990,6 +990,8 @@
   "PROTOCOL_LIBRARY_MISMATCH_NO_VARIANT": "There is no variant of this protocol for this helmet.",
   "PROTOCOL_LIBRARY_MISMATCH_TITLE": "This protocol is for a different helmet layout",
   "PROTOCOL_LIBRARY_MISMATCH_USE_VARIANT": "Use the variant for this helmet",
+  "PROTOCOL_LIBRARY_NOT_IN_LIBRARY_BODY": "Only a protocol saved in your library can be sent to a helmet. Save it to the library first. Nothing was sent.",
+  "PROTOCOL_LIBRARY_NOT_IN_LIBRARY_TITLE": "This protocol is not in your library",
   "PROTOCOL_LIBRARY_UNARCHIVE_ACTION": "Restore",
   "PROTOCOL_LIBRARY_UNMODIFIED_BODY": "This copy is identical to the protocol it was made from, so sending it would send the original. You may have forgotten to save your changes. Nothing was sent.",
   "PROTOCOL_LIBRARY_UNMODIFIED_EDIT": "Go back and edit the copy",
