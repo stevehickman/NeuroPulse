@@ -23,6 +23,10 @@
 #include "np_sw02_platform_hal.h"
 #include "np_socket_dispatch.h"
 #include "np_pbm_session.h"
+#include "np_log_hrv.h"
+#include "np_session_runner.h"
+#include "np_cvns_reenable.h"
+#include "np_cvns_fault_summary.h"
 
 #include "FreeRTOS.h"
 
@@ -50,6 +54,67 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type, uint8_t fault_code,
     np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_fault\",\"slot\":%u,"
                 "\"mod_type\":%d,\"fault_code\":%u}",
                 (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, (unsigned)fault_code);
+}
+
+/* The HRV session's finalised record, which the real library hands to the driver's end-of-session callback. */
+void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reason)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":%s,\"reason\":%d}",
+                (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
+}
+
+/* ── cervical VNS fillers ────────────────────────────────────────────────────────
+ * The fault summary's persisted blob is RAM (a real device writes the UHDR partition); notifying a central is reported.
+ * np_hub_cvns_reenable_confirm and np_hub_set_active_user are np_hub_control_main.c's, which cannot be linked: the first calls
+ * the real re-enable manager as the hub's does, the second records the tag.  np_log_session_count is the session counter the
+ * fault record is ordered by; the simulator runs one session, so it is 1. */
+static uint8_t g_cvfs_blob[256];
+static size_t  g_cvfs_len;
+
+np_hub_status_t np_cvfs_hal_load(uint8_t *buf, size_t cap, size_t *len_out)
+{
+    const size_t n = (g_cvfs_len < cap) ? g_cvfs_len : cap;
+    memcpy(buf, g_cvfs_blob, n);
+    *len_out = n;
+    return NP_HUB_OK;
+}
+np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
+{
+    if (len > sizeof g_cvfs_blob) { return NP_HUB_ERR_GENERIC; }
+    memcpy(g_cvfs_blob, buf, len);
+    g_cvfs_len = len;
+    return NP_HUB_OK;
+}
+void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
+{
+    (void)frame;
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_cvfs_hal_notify\",\"len\":%u}", (unsigned)np_sim_now_ms(), (unsigned)len);
+}
+np_hub_status_t np_hub_cvns_reenable_confirm(void) { return np_cvns_reenable_confirm(); }
+np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_hub_set_active_user\"}", (unsigned)np_sim_now_ms());
+    (void)user_tag;
+    return NP_HUB_OK;
+}
+uint32_t np_log_session_count(void) { return 1U; }
+void np_transport_hal_enter_critical(void) { }
+void np_transport_hal_exit_critical(void)  { }
+
+/* The SHDR accessory-authentication record the intranasal driver writes at init: reported as it is logged. */
+void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_zone_auth\",\"slot\":%u,\"mod_type\":%d,\"pass\":%s}",
+                (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
+}
+
+/* The runner is not in the loop.  np_mod_visual_ppx_halt() asks it to abort the session; the simulator reports the
+ * request and does nothing else, so a photoparoxysmal halt shows as what the driver did (LEDs off, enable dropped,
+ * further commands refused) plus the abort it asked for.  A double of first-party code, listed as a gap. */
+void np_runner_abort(np_abort_reason_t reason)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_abort\",\"reason\":%d}",
+                (unsigned)np_sim_now_ms(), (int)reason);
 }
 
 /* ── no session lease, no persistence ─────────────────────────────────────────── */

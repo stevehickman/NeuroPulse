@@ -222,6 +222,14 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`OI-SIMFW-12`** | **`scripts/req-trace.ts` scans `docs/ firmware/ app/ common/ ci/` and not `simulator/`.** The JavaScript tests carry `@verifies` tags (`REQ-SIMFW-04`, `-11`, `-12`) that the report does not count, so those requirements show as tested only by the C tests, and `REQ-SIMFW-12` as untested. | `simulator/` is added to the scan, or the tests move. |
 | **`OI-SIMFW-13`** | **CI.** The simulator is opt-in (`-DNP_BUILD_SIM=ON`) and in no CI job, because a CMake test target must be in `ci/host-test-partition.txt`, in three workflow counts and in `ci/host-test-floors.txt`, and the gates need their path-relevance lists widened. The JavaScript tests run by hand (`node --test`). | The tests run in a PR job, with the partition, counts and floors updated together. |
 | **`OI-SIMFW-14`** | **`REQ-SIMFW-01` and `-02` have no CI check yet.** The guard is the CMake `return()` under a cross toolchain and the opt-in option. Nothing fails a device target that links `firmware/platform_sim/`, and nothing counts the seams the sim layer routes against the 119. | §8 step 2 builds both. |
+| **`OI-SIMFW-15`** | **The stimulation seam contract leaves two things undefined** (§13): what `np_mod_stim_hal_read_charge` totals for a charge-balanced waveform, and what polarity 0 and 1 mean at the DAC and in the sign of `np_mod_stim_hal_read_current`. The simulator reports 0 charge for AC and a magnitude for current, and says so. | `np_sw02_platform_hal.h` defines both, and the model follows the definition. |
+| **`OI-SIMFW-16`** | **An EEG stop that is lost cannot be retried** (§14). `np_mod_eeg_hal_stop_continuous` returns nothing and `np_mod_eeg_control` clears `s_recording` regardless, so a stop that did not land is neither reported nor repeated. Found by the simulator; the firmware is unchanged. | Decided: either the seam reports success and the driver keeps the flag on failure, or the lost stop is accepted and recorded as such. |
+| **`OI-SIMFW-17`** | **A non-finite contact impedance enables VNS** (§15). The range check `imp < min \|\| imp > max` is false for NaN. | Decided: the check is written to refuse a non-finite reading, or the seam is documented to never return one. |
+| **`OI-SIMFW-18`** | **A refused VNS command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is not retried** (§15). | Decided with the runner in the loop: either the driver undoes what it started, or the runner is shown to stop the module after a refusal. |
+| **`OI-SIMFW-19`** | **Two behaviours of `np_mod_audio.c`** (§16): an EEG band update re-applies binaural whatever the running mode, and `volume_pct` is not clamped to 100 before it reaches the planar drivers and the bone transducer. | Decided: the driver gates the update on the running mode and clamps, or the limits are shown to be enforced downstream and cited. |
+| **`OI-SIMFW-20`** | **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`** (§17), so a failed LED command reports success and requests the enable with nothing lit. | Decided: the status is checked and returned, or the ignored status is justified. |
+| **`OI-SIMFW-21`** | **Two behaviours of `np_mod_intranasal.c`** (§18): authentication is read once at init and never again, and a bilateral command that fails on its second side leaves the first side emitting with no flag set for the stop path to act on. | Decided: the driver re-checks, or the cached answer is justified; and a partly applied command is undone or stopped. |
+| **`OI-SIMFW-22`** | **A cervical VNS session cannot get from the baseline to delivery** (§20). `np_cvns_session_tick`, in the BASELINE stage, calls `np_cvns_interlock_request_enable` on every tick while the baseline is valid; the first call moves the interlock to PRE_SESSION, the second returns `NP_CVNS_ERR_SESSION_ACTIVE`, and the stage treats that as a failure and faults the session, with the safety MCU's grant present or not. Found by the simulator; no unit test drives baseline to delivery (they set the stage white-box). | Decided and fixed in `np_cvns_session.c` (a firmware change): the request is made once, or `SESSION_ACTIVE` is not a fault there; and a host test drives the real driver from start to ramp-up. |
 | **`OI-SIMFW-10`** | **The bench apparatus (§11).** No document specifies one. | §11's questions are answered by whoever owns bench and first-article test. |
 | **`OI-SIMFW-02`** | **Reconcile the seam counts.** The census says 119; the scan of undefined symbols in §2 found about 94 seam-shaped names. The scan excluded `np_pbm_hal.c` and counted only what the compiled sources reference. The difference is unexplained. | The sim layer's route table accounts for every one of the 119, or the census is corrected. |
 | **`OI-SIMFW-03`** | **POSIX port gaps.** `xPortIsInsideInterrupt` is undefined; `portMAX_DELAY` truncates against the 32-bit tick type. | A shim exists in `platform_sim/` (no change to the vendored kernel, which is SOUP) and the truncation is shown to be harmless or is avoided. |
@@ -240,7 +248,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
    `MOD_FAULT` on one tile, visible in `FW_LOG` and in the 3D view. This also settles `OI-SIMFW-03`
    and `OI-SIMFW-05`.
 2. **Census.** `REQ-SIMFW-01` and `REQ-SIMFW-02` as CI checks, before more seams are added.
-3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
+3. **Every module type** (`REQ-SIMFW-13`), through the same route table, one module type at a time, each with its scenarios, its gap list and its line coverage (measured with `--coverage`, as the CI floors are). **Order, set by the Principal 2026-11-03: stim first, then the rest in the order proposed here (§13 stim, §14 EEG and §15 auricular VNS, §16 audio, §17 visual, §18 intranasal and §19 the T2 and accessory stubs, and §20 cervical VNS are built: all nine drivers).** **Proposed order**, which the Principal may change: **stim** (BES/tACS and tDCS: the charge and waveform paths, the most safety-relevant and the most sensitive to a failed answer), **EEG** (the input every closed-loop path reads), **VNS**, **audio**, **visual**, **intranasal**, **cervical VNS**, then the T2 stubs; the 1064 nm smart tile's register path (`np_pbm_hal_i2c_*`, the `unrouted` seams of the spike) alongside PBM.
 4. **Safety MCU in the loop** (`OI-SIMFW-09`), and `REQ-SIMFW-07` with it.
 5. **Retire the fake engine.** `SessionEngine`'s invented numbers are replaced by what the firmware
    reports. The standalone mode stays unless `D-2` says otherwise.
@@ -369,6 +377,270 @@ themselves as `unrouted` and fail. No other modality. No safety MCU (`OI-SIMFW-0
 no session runner (the spike calls the dispatcher directly). No persistence: the hex-map store and
 the protocol identity seams are spike-local stand-ins, named in `np_sim_spike_link.c`. Numeric status codes
 only: the generated name table of `REQ-SIMFW-05` is not built.
+
+---
+
+## 13. Stimulation, as built (§8 step 3, first module type)
+
+BES/tACS and tDCS, `REQ-SIMFW-13`. Built on the same bus; the bus is now keyed by **(kind, index)**, so an electrode pair and a
+socket may share an index without meeting (`NP_SIM_KIND_STIM_PAIR`; the isolation test covers it).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_stim.c` | The seven `np_mod_stim_hal_*` seams of `np_sw02_platform_hal.h`, each answered from an injected response, a pinned reading, or the default model. |
+| Default model | same | Delivered current: the commanded peak for AC (the quantity `np_stim_xcheck` compares, `OI-STIM-06`); for DC a straight line from the present level to the target over the commanded seconds. Charge: the exact integral of the DC magnitude, saturating at the seam's 16 bits. Impedance: whatever the scenario gave the pair, no default. |
+| Clock | `np_sim_advance_ms` | Virtual after the first advance, so a 30 s ramp is deterministic and a scenario runs at once. Real until then. |
+| Harness | `platform_sim/src/np_sim_stim_harness.c` | Text commands that call the driver's every entry point (`control`, `telemetry`, `tick`, `tdcs_pause`, `tdcs_ramp`, `tdcs_ramp_up_ms`, `detect`, `shutdown`) and the runner's two call sites around the cross-check. |
+| Firmware it runs | the device's own files | `np_mod_stim.c`, `np_stim_xcheck.c`, `np_ramp_plan.c` and the stimulation half of `np_safety_spi.c` (`request_enable`, `request_disable`, `set_channel_current`). No firmware file changed. |
+| Bridge | `fw-bridge.js` | `kind: "stim_pair"` in `MODULE_SET`, `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `bes`, `tdcs`, `stim_stop`, `stim_shutdown`, `sample`, `tdcs_pause`, `stim_session_start`, `advance`. Built from validated integers and whitelisted names (`REQ-SIMFW-12`); the hostile-input test covers them. |
+| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 66 checks: drive and stop, the 1 mA cap reaching the DAC, a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), the 30 s floor and the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
+
+**Line coverage** (`firmware/platform_sim/tools/sim-coverage.sh`, gcov, the scenario tests only):
+
+| Source | Lines reached |
+|---|---|
+| `hub_control/modules/np_mod_stim.c` | 99.4 % of 158 (the one line missed is an unreachable `default:` of `td_level`) |
+| `hub_control/src/np_stim_xcheck.c` | 93.7 % of 63 |
+| `hub_control/modules/np_mod_pbm.c` (the spike, for comparison) | 24.5 % of 184 |
+| `hub_control/src/np_socket_dispatch.c` | 51.1 % of 180 |
+| `hub_control/src/np_module_map.c` | 21.4 % of 364 |
+
+**Gaps, listed as `REQ-SIMFW-13` requires.**
+
+| Not modelled or not run | Why |
+|---|---|
+| The session runner's use of the driver | The runner is not in the loop. The harness copies its two call sites (tick before a command, telemetry then `np_stim_xcheck_observe`), so a defect in the runner's own call is not seen. |
+| The registry and its probe table | The driver is called directly. `np_mod_stim_detect` and the entry points are run, but the table that routes slot 17 and 18 to them is `np_module_registry.c`. |
+| The SHDR fault the cross-check raises | The flag is returned to the runner, which writes it. The harness reports the flag; the log call is the runner's. |
+| What a charge-balanced waveform's "session total" charge is | The seam says only "session total". The model reports 0 for AC and the scenario test says so. An open question, not a number. |
+| What polarity 0 and 1 mean at the DAC | The seam does not say. Delivered current is reported as a magnitude. The cross-check takes the magnitude too. |
+| Waveform shape, frequency accuracy and phase | The model carries the commanded peak only. `np_mod_bes_tacs_params_t.phase_deg` is never passed to the DAC by the driver. |
+| The safety MCU's own charge ceiling | Not in the loop (`OI-SIMFW-09`). Every `result` says `safety_mcu: not_in_loop`, and the granted enables are therefore 0. |
+| Non-stimulation records and a null record in `np_stim_xcheck_observe` | The harness cannot construct them; the firmware's own `np_stim_xcheck_tests` does. |
+| Browser drawing of an electrode pair | Not built. The page draws tiles; a stimulation pair has no place on the lattice. Needs a decision on where a pair is drawn (§3.3). |
+
+**What it found.** Nothing in the firmware. Two things in the seam contract: the charge and the polarity are
+defined nowhere (above), so any hardware or simulator answers them by guesswork. `OI-SIMFW-15`.
+
+---
+
+## 14. EEG, as built (§8 step 3, second module type)
+
+The ADS1299 front end, `REQ-SIMFW-13`. One part, so one module (`NP_SIM_KIND_EEG`, index 0). Same bus, same injection, same marking.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_eeg.c` | The eight `np_mod_eeg_hal_*` seams. **The model is a register file**: a write lands in it, a read returns it, the ID register is read-only and reads the value the scenario gave the part (the datasheet's `0x3E` by default). The driver's configuration is therefore visible as what it wrote, not as a flag the simulator computed. |
+| Scenario state | `eeg_impedance`, `eeg_band` | Impedance per channel and power per band, set by the scenario; no default (`CLAUDE.md` §19). The dominant band is the first of the five with the highest power, unless a reading is pinned. |
+| Injection | `fail`, `reading` | Four of the eight seams return a byte or nothing, so a code cannot come back. **An armed response makes the call not happen**: a write is dropped, a start or stop ignored, a calibration does not run, a read returns 0. Each is reported as injected, with the code. |
+| Harness | `platform_sim/src/np_sim_eeg_harness.c` | `eeg_detect`, `eeg_init`, `eeg`, `eeg_stop`, `eeg_shutdown`, `eeg_sample`, `eeg_regs`, `eeg_raw`. |
+| Firmware it runs | the device's own file | `np_mod_eeg.c`. No firmware file changed. |
+| Bridge | `fw-bridge.js` | `kind: "eeg"` in `MODULE_SET` (`add`, `present`, `impedance`, `band`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `eeg`, `eeg_init`, `eeg_detect`, `eeg_stop`, `eeg_shutdown`, `eeg_sample`, `eeg_regs`. |
+| Tests | `platform_sim/tests/np_sim_eeg_tests.c` | Ten scenarios, 32 checks: probe by ID, the power-on register sequence, enabled and powered-down channels, stop, a lost stop, a lost start, telemetry, a malformed command, a failed calibration, an absent front end, the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_eeg.c` 100 % of 56.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| The sample stream | The DMA ring and the 500 Hz waveform are not behind these seams. The simulator produces no EEG signal, so nothing downstream that reads one (the adaptive outputs, the recording to EDF+, the photoparoxysmal detector) can be exercised by it. |
+| How the dominant band is chosen | The seam says "dominant" and no more. The first-highest reading is this model's. |
+| The adaptive output | `adaptive_out` is stored by the driver and acted on by the runner, which is not in the loop. |
+| Reference mode, notch and the lead-off registers | The driver stores them and never writes the ADS1299 for them (`ref_mode`, `notch` are not in the register sequence). Not modelled because the driver does not drive them. |
+
+**What it found.** A lost stop cannot be retried (`OI-SIMFW-16`): `np_mod_eeg_control` clears its recording flag
+whether or not the stop took, and the seam returns nothing, so the driver reports success while the converter runs,
+and a second stop does nothing because the flag is already clear. The test `lost stop` shows both. Whether it
+matters depends on what runs behind the converter on a real board; it is stated here so it is decided and not
+discovered.
+
+---
+
+## 15. Auricular VNS, as built (§8 step 3, third module type)
+
+The ear clip, `REQ-SIMFW-13`. One clip, so one module (`NP_SIM_KIND_VNS`, index 0); its two sides are state inside it.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_vns.c` | The nine `np_mod_vns_hal_*` seams (the tenth, `np_mod_vns_hal_now_ms`, is the simulator's clock). The stimulator records what it was told, per side (0 left, 1 right, 2 both). Contact impedance and the three HRV readouts are what the scenario gave the clip; no default. **A removed clip, or a read that fails, answers 0 ohm**, below the driver's lower contact bound, because the seam returns a bare float and an answer inside the bounds would say contact exists. |
+| Firmware it runs | the device's own files | `np_mod_vns.c` **and the real HRV session library** (`hrv_biofeedback/`: session, PPG, coherence, pacer, taVNS sync, EEG biofeedback). The library is pure C with no kernel and no seam, so it runs as it is: the driver creates and starts a real session on `hrv_proto > 0`, and stopping the module ends it and hands the library's finished record to the logger once. No firmware file changed. |
+| Harness | `platform_sim/src/np_sim_vns_harness.c` | `vns_detect`, `vns_init`, `vns`, `vns_stop`, `vns_shutdown`, `vns_sample`, `vns_raw`, and scenario state `vns_readouts`. |
+| Bridge | `fw-bridge.js` | `kind: "vns"` in `MODULE_SET` (`add`, `present`, `readouts`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `vns`, `vns_init`, `vns_detect`, `vns_stop`, `vns_shutdown`, `vns_sample`. |
+| Tests | `platform_sim/tests/np_sim_vns_tests.c` | Twelve scenarios, 34 checks: the contact-range probe, drive and stop on either or both ears, the 40 mA cap reaching the stimulator and the safety channel, no contact meaning no stimulation, a non-finite impedance, a failed stimulator write, a lost stop, the real HRV session's lifecycle, telemetry, a malformed command, shutdown, and the marking and isolation properties. |
+
+**Line coverage.**
+
+| Source | Lines reached |
+|---|---|
+| `hub_control/modules/np_mod_vns.c` | 98.7 % of 78 |
+| `hrv_biofeedback/src/np_hrv_session.c` | 40.6 % of 128 |
+| `np_hrv_ppg.c`, `np_hrv_coherence.c`, `np_hrv_pacer.c`, `np_hrv_tavns_sync.c` | 13.2 %, 12.4 %, 22.7 %, 21.1 % |
+| `np_hrv_eeg_biofeedback.c` | 0 % |
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| The HRV session after it starts | The driver owns the only handle to the session and nothing in the loop calls `np_hrv_session_tick`, `push_ppg` or `push_eeg`. The library runs its create, start, stop and finish, and nothing between. The low figures above are this gap, measured. It closes when the runner, or a PPG source, is in the loop. |
+| A PPG waveform | The HRV readouts are scenario state, not derived from a signal, so a readout is not consistent with any pulse train. |
+| taVNS gated to the breathing phase | That path is the HRV library's, behind a session that never ticks. |
+| The safety MCU's contact check and cardiac interlock | Not in the loop (`OI-SIMFW-09`); every result says `safety_mcu: not_in_loop`. |
+| What a lost stimulator stop leaves | Modelled as the stimulator still driving; whether the real part would is not known. |
+| Browser drawing of the clip | Not built (as for the electrode pairs, §13). |
+
+**What it found.**
+
+| Finding | Meaning |
+|---|---|
+| **A NaN contact impedance passes the driver's range check and enables stimulation** (`OI-SIMFW-17`). `np_mod_vns_control` refuses when `imp < min || imp > max`; both are false for NaN. | Reachable only if the HAL can return NaN, which a bare ADC read cannot, so it is a hardening gap and not a hazard today. The test records the behaviour. |
+| **A refused command leaves the PPG and the EEG reference routing on, and a lost stimulator stop is neither reported nor retried** (`OI-SIMFW-18`). The driver starts both before the stimulator write that can fail, and its stop path always reports success. | The runner is expected to stop the module after a refusal; that is the runner's behaviour, not in the loop yet. |
+
+---
+
+## 16. Audio, as built (§8 step 3, fourth module type)
+
+The codec, the planar drivers and the bone transducer, `REQ-SIMFW-13`. One path, so one module (`NP_SIM_KIND_AUDIO`, index 0).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_audio.c` | The eight `np_mod_audio_hal_*` seams. The model records what the driver told the output stage: planar mode (off, binaural, isochronic, pink or brown noise), carrier, beat and volume, and the bone transducer's frequency and volume. Mesh impedance is what the scenario gave the part, no default. Five seams return nothing, so an armed response makes the call not happen (as for the EEG front end); `codec_init` returns its armed status. |
+| Firmware it runs | the device's own file | `np_mod_audio.c`. No firmware file changed. |
+| Harness | `platform_sim/src/np_sim_audio_harness.c` | `audio_detect`, `audio_init`, `audio`, `audio_stop`, `audio_shutdown`, `audio_eeg_band` (the call the EEG telemetry path makes), `audio_sample`, `audio_raw`. |
+| Bridge | `fw-bridge.js` | `kind: "audio"` in `MODULE_SET` (`add`, `present`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `audio`, `audio_eeg_band`, `audio_init`, `audio_detect`, `audio_stop`, `audio_shutdown`, `audio_sample`. |
+| Tests | `platform_sim/tests/np_sim_audio_tests.c` | Eleven scenarios, 36 checks: bring-up, every mode, bone conduction, stop and the two lost stops, EEG-adaptive beat selection, the two findings below, a malformed command, telemetry, and the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_audio.c` 100 % of 60.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| Any sound | No sample path and no sound pressure level. Volume is a percentage the driver passed on. Nothing about loudness, which is the audio modality's safety question, can be seen here. |
+| The mesh-fouling decision | The driver reads the impedance and discards it ("threshold comparison and SHDR log handled by session_log"); the comparison is not in `np_mod_audio.c`, so no scenario here reaches it. |
+| The EEG-to-audio loop | `audio_eeg_band` is the call; who makes it, from which EEG record, is the runner's, which is not in the loop. |
+
+**What it found.** `OI-SIMFW-19`, two things in `np_mod_audio.c`, both recorded by tests that say so:
+a band update from an EEG-adaptive session re-applies **binaural** whatever the running mode was, so an isochronic or noise
+session becomes binaural; and `volume_pct` is passed to both outputs without a clamp, so 200 reaches the transducers
+(the field is documented 0 to 100).
+
+---
+
+## 17. Visual goggles, as built (§8 step 3, fifth module type)
+
+The goggles, `REQ-SIMFW-13`: the module with the IEC 62471 interlocks, so the one where real code matters most. One pair, one module (`NP_SIM_KIND_VISUAL`, index 0).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_visual.c` | The seven `np_mod_visual_hal_*` seams. Seated, eye-open and MPE-ok are what the scenario sets. **The three boolean seams answer false for an injected failure or an absent goggle**, the refusing answer, so a fault cannot read as permission. The LEDs record what the driver commanded. No optical power, irradiance or MPE: the hardware ceiling is not modelled, so `mpe_ok` is a switch. |
+| **The Hall edge runs the driver's own handler** | `np_sim_visual_lift()` | A lift clears the seated reading and **calls the handler `np_mod_visual.c` registered** (`hall_unseated_isr`, with `np_mod_visual_hal_led_stop`, `np_safety_spi_request_disable_from_isr` and the `s_hall_cut` latch), the way the platform interrupt would. A registration the scenario failed leaves no handler: "a return other than `NP_HUB_OK` means no edge will be delivered". `vis_lift_during_command` delivers the lift between the seated read and the enable, the window the latch exists for. `vis_lift_silent` lifts with no edge, so only the telemetry poll sees it. |
+| Firmware it runs | the device's own file | `np_mod_visual.c`. No firmware file changed. `np_runner_abort`, which `np_mod_visual_ppx_halt` calls, is a **sim double** in `np_sim_spike_link.c` that reports the request (first-party code, listed below). |
+| Harness | `platform_sim/src/np_sim_visual_harness.c` | `vis_detect`, `vis_init`, `vis`, `vis_stop`, `vis_shutdown`, `vis_lift`, `vis_lift_silent`, `vis_lift_during_command`, `vis_lower`, `vis_ppx`, `vis_sample`, `vis_raw`, `vis_sensor`. |
+| Bridge | `fw-bridge.js` | `kind: "visual"` in `MODULE_SET` (`add`, `present`, `sensor`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and the `FW_COMMAND`s above. |
+| Tests | `platform_sim/tests/np_sim_visual_tests.c` | Fourteen scenarios, 45 checks: arming, no emission without an armed handler, every mode, each interlock, faulted sensors, the edge cut, a missed edge caught by the poll, the lift between read and enable, a failed LED command, a lost LED stop, the photoparoxysmal halt, a malformed command, and the marking and isolation properties. |
+
+**Line coverage:** `hub_control/modules/np_mod_visual.c` 96.6 % of 87.
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| **Mode F (NIR retinal walk)** | Compiled out: `NP_MODE_F_REGULATORY_CLEARED` is 0 (`np_hub_config.h`), so `mode_f_enable` is ignored and the test says so. Running it means building with the flag set, which is a regulatory decision, not a simulator one. This is most of the uncovered lines. |
+| Optical output and the hardware MPE ceiling | Not modelled; `mpe_ok` is a switch. |
+| The runner | `np_runner_abort` is a double that reports the request. What the runner does with it is not seen. |
+| The EEG path that detects a photoparoxysmal pattern | `vis_ppx` is the call that path makes; the detector is not in the loop (and the EEG model produces no signal, §14). |
+| The edge-to-dark time | The sim delivers the edge synchronously, so it measures nothing (`OI-FWHUB-26` owns the measurement). |
+| Shade control | `shade_req` is carried in the command and never read by the driver. |
+| The safety MCU's visual interlocks | Not in the loop (`OI-SIMFW-09`). |
+
+**What it found.** `OI-SIMFW-20`: **`np_mod_visual_control` ignores the status of `np_mod_visual_hal_led_set`.** A failed LED command reports success and requests the safety enable with nothing lit. The direction is the safe one (dark LEDs), but the session and the hub's enable request both say the goggles are running.
+
+---
+
+## 18. Intranasal Y-probe, as built (§8 step 3, sixth module type)
+
+The probe, `REQ-SIMFW-13`. One probe, so one module (`NP_SIM_KIND_INTRANASAL`, index 0), with two sides.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_intranasal.c` | The five `np_mod_ins_hal_*` seams. Sleeve authentication and photodiode contact are what the scenario sets, and **answer false for an injected failure or an absent probe**. The emitters record what each side was told. The dose ADC is the counts the scenario gave each side and wavelength; the model does not derive a photodiode reading from an emitter setting. |
+| Injection with a start offset | `fail <index> <op> <code> <times> [after]` | New with this module and for every kind: **answer `after` calls normally, then fail**. It is what "fail the second side" needs, and it exists on the bridge as `MODULE_FAIL.after`. |
+| Firmware it runs | the device's own file | `np_mod_intranasal.c`. No firmware file changed. `np_log_shdr_zone_auth` is a logging sink in `np_sim_spike_link.c` that reports the authentication record as it is written. |
+| Harness | `platform_sim/src/np_sim_intranasal_harness.c` | `ins_detect`, `ins_init`, `ins`, `ins_stop`, `ins_shutdown`, `ins_sample`, `ins_raw`, and scenario state `ins_sensor`, `ins_pd`. |
+| Bridge | `fw-bridge.js` | `kind: "intranasal"` in `MODULE_SET` (`add`, `present`, `sensor`, `pd`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `ins`, `ins_init`, `ins_detect`, `ins_stop`, `ins_shutdown`, `ins_sample`. |
+| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 25 checks. |
+
+**Line coverage:** `hub_control/modules/np_mod_intranasal.c` 100 % of 47.
+
+**Gaps.** Optical power and the dose a photodiode would integrate (the dose telemetry is a placeholder constant in the driver, so the figure here is that constant applied to scenario counts); the dock; the sleeve's optical code itself (authentication is a boolean); the safety MCU's intranasal enable (not in the loop, `OI-SIMFW-09`); the hygiene-sleeve consumable accounting, which is not in the driver.
+
+**What it found.** `OI-SIMFW-21`, two things in `np_mod_intranasal.c`, both recorded by tests that say so:
+**authentication is read once, at init**, so a probe whose sleeve or contact has since gone is still driven; and **a bilateral command that
+fails on the second side leaves the first side emitting**: the driver returns the fault, never sets its active flag, requests
+no enable, and its stop path only acts when the flag is set, so the left side cannot be stopped by the driver at all.
+
+---
+
+## 19. T2 and accessory stubs, as built (§8 step 3, last module type)
+
+`np_mod_t2_stubs.c`, `REQ-SIMFW-13`: the 21-channel qEEG cap, the TMS coil, the 1170 nm laser, clinical tACS, HD-tDCS and the
+vibrotactile pad. The module has **no seam**: every function is a placeholder that answers `NP_HUB_ERR_NOT_PRESENT`
+(shutdown answers success). The simulator equivalent of a module that refuses is to call it and say what it answered and what it
+asked of the safety MCU. `stub <name> detect|init|control|telemetry|shutdown` (`np_sim_stubs_harness.c`), bridge `FW_COMMAND` `stub`.
+Three scenarios, 6 checks, `np_mod_t2_stubs.c` 100 % of 30: all six refuse on every operation, none requests a safety enable (so no T2 line
+is asked for), and all six shut down successfully, which is what lets the runner stop a module it never started.
+
+**Gap.** There is nothing to simulate until a driver exists; each stub becomes a module of its own, with its own section, when it does.
+**This closes the list of nine drivers except cervical VNS, which is next (§8).**
+
+---
+
+## 20. Cervical VNS, as built (§8 step 3, last module type)
+
+The T2 cervical VNS accessory, `REQ-SIMFW-13`: the most complicated driver, a state machine of impedance check, cardiac baseline,
+enable grant, ramp and delivery, around a safety library. One accessory, one module (`NP_SIM_KIND_CVNS`, index 0).
+
+| Piece | Where | What it is |
+|---|---|---|
+| Seams | `platform_sim/src/np_sim_cvns.c` | The six seams the driver and the re-enable manager call: accessory presence, the two clocks, the hub-side per-electrode impedance measurement, and the re-enable gate's fresh impedance verdict. Impedance and the wall-clock base are what the scenario gives the accessory. |
+| Firmware it runs | the device's own files | `np_mod_cvns.c`, **the whole cervical VNS library** (`cervical_vns/`: session, cardiac interlock with its Pan-Tompkins detector, stimulation ramp), `np_cvns_reenable.c` and `np_cvns_fault_summary.c`. No firmware file changed. `np_hub_cvns_reenable_confirm` (a one-line call into the real re-enable manager), `np_hub_set_active_user`, `np_log_session_count` and the fault summary's RAM-backed persistence are fillers in `np_sim_spike_link.c`. |
+| **The scenario plays two parts** | `np_sim_cvns_harness.c` | **The safety MCU:** `cvns_mcu` and `cvns_mcu_imp` publish a heartbeat status and an impedance report through the driver's own entry points (`np_mod_cvns_set_heartbeat_status`, `np_mod_cvns_set_mcu_impedance`), the way the safety-heartbeat task does. **The PPG ISR:** `cvns_run <ms> <bpm>` pushes a deterministic pulse train through `np_mod_cvns_push_ppg` at 200 Hz and ticks the driver every 100 ms, the way the runner does. Every state event says `safety_mcu: "scenario"`. |
+| Bridge | `fw-bridge.js` | `kind: "cvns"` in `MODULE_SET`, `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `cvns`, `cvns_mcu`, `cvns_mcu_imp`, `cvns_run`, `cvns_init`, `cvns_detect`, `cvns_stop`, `cvns_suspend`, `cvns_shutdown`, `cvns_reenable`, `cvns_sample`, `cvns_state`. |
+| Tests | `platform_sim/tests/np_sim_cvns_tests.c` | Fifteen scenarios, 34 checks: a command before init, probe and init, six out-of-range descriptors, a start that enables nothing, the hub impedance step and its need for a heartbeat, a high-impedance electrode, impedance cross-validation, the nominal fallback, the real detector finding a 70 BPM baseline, **the baseline-to-delivery fault below**, stop, suspend and shutdown, the re-enable lockout, a malformed command, and the marking and isolation properties. |
+
+**Line coverage.**
+
+| Source | Lines reached |
+|---|---|
+| `hub_control/modules/np_mod_cvns.c` | 83.6 % of 280 |
+| `cervical_vns/src/np_cvns_interlock.c` | 66.0 % of 188 |
+| `cervical_vns/src/np_cvns_session.c` | 62.9 % of 197 |
+| `cervical_vns/src/np_cvns_stim.c` | 36.8 % of 133 |
+| `hub_control/src/np_cvns_fault_summary.c` | 7.5 % of 186 |
+| `hub_control/src/np_cvns_reenable.c` | 0 % of 84 |
+
+**Gaps.**
+
+| Not modelled or not run | Why |
+|---|---|
+| **Everything after the enable is granted: ramp-up, delivery, the cardiac excursion cutoff, R-peak data loss, ramp-down** | **Unreachable through the real flow** (`OI-SIMFW-22`): the session faults one tick after the baseline completes. The unit tests reach these stages by placing the session there white-box; the simulator does not, because that would show the library's logic and not the system's. The low figures for `np_cvns_stim.c` and the interlock's cutoff paths are this gap, measured. |
+| What the library asks of the stimulator and the safety MCU | The library reaches both through `static` no-op functions inside its own sources (`platform_set_current`, `platform_safety_mcu_request_enable`, `platform_rpeak_gpio_pulse`, ...), not link-time seams, and `REQ-SIMFW-03` forbids changing a firmware file. The simulator sees the library's state and the driver's enable and published current, not the current the library requests or the R-peak pulses it makes. |
+| The re-enable manager's three gates | `np_cvns_reenable.c` is driven by the heartbeat task in `np_hub_control_main.c`, which is not in the loop. 0 % is that. |
+| The fault summary | Recorded only when a fault reaches the driver's callback, which the finding above prevents from being a cardiac one. |
+| A real photoplethysmogram | The pulse train is a smooth pulse per beat on a flat baseline: a signal the detector can find, not a model of blood flow. |
+| The safety MCU | The scenario stands in for it (`OI-SIMFW-09`). |
+
+**What it found.** `OI-SIMFW-22`, the most important finding of the simulator so far, reproduced in a trace and by the bridge:
+
+| t | stage | interlock | enable requested | what happened |
+|---|---|---|---|---|
+| tick N | BASELINE | IDLE | no | the baseline reaches five beats between ticks |
+| tick N+1 | BASELINE | PRE_SESSION | **yes** | `np_cvns_session_tick` calls `np_cvns_interlock_request_enable`: it succeeds and sends the baseline and the enable request |
+| tick N+2 | **FAULT** | IDLE | no | the BASELINE case calls `np_cvns_interlock_request_enable` **again**, because the baseline is still valid and the stage has not changed; it returns `NP_CVNS_ERR_SESSION_ACTIVE`, which the case treats as any failure and faults the session (`abort_reason` 6) |
+
+It happens with the safety MCU's grant present from the start of the session. **A cervical VNS session started through the real driver cannot reach ramp-up.** The unit tests do not see it because they place the session at `RAMP_UP` or `ACTIVE`
+directly. It is a defect in `np_cvns_session.c` (the repeated request, and the status it is judged by), a firmware change, and so not made here. The simulator's tests assert the behaviour as it is, tagged with this item, so the fix will turn that test red on purpose.
 
 ---
 
