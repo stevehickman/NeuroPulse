@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 79 (2026-11-05) — §4.2: the Oz photoparoxysmal detector is stated as not built, and the goggles refuse photic driving at 3–30 Hz until it is. A limit's enforcement changed; no limit figure changed.**
+
+**What changed.** The EEG + Visual row of the §4.2 interlock table said the interlock was "Oz electrode, <200ms, clinician-unlock for 3–30Hz". It now says the detector is not built and gives the interim control: the hub refuses photic driving (modes 0 and 3) from 3 to 30 Hz, inclusive, with no unlock path (`REQ-FWHUB-65`). Nothing else in this file changed.
+
+**Why.** Looking for who produces the runner's `NP_EV_EEG_PPX` found that nothing detects a photoparoxysmal pattern and that the halt function, `np_mod_visual_ppx_halt()`, has no caller. The only live control was the protocol validator's check, an error only when the clinician limit `blockHighRiskRange` is set and a warning otherwise, and the hub enforced nothing. The principal ruled on `OI-FWHUB-29` (2026-11-05): option A (say so, and make the refusal hub-side), then option C (build the detector). Request and options: `docs/human-input/oi-fwhub-29-photoparoxysmal-detector-not-built.md`; logged in `docs/status/completed-decisions.md`.
+
+**What it leaves.** The detector (option C) is owed and waits on a clinically defined detection criterion (`docs/human-input/oi-fwhub-29-c-detection-criterion.md`). The clinician unlock does not exist until it does. One shipped protocol is affected: `protocols/predefined/13-focus-prime.npps` drives its visual block at 20 Hz, so the hub refuses that block. §1 to §6 and §16 to §22 and every subsection number are unchanged.
+
 **Rev 78 (2026-11-03) — Document Map: revision numbers are no longer written by authors. No locked decision changed; one row added.**
 
 **What changed.** The Document Map's subject-documents table gains one row, pointing at `docs/revisions/README.md`: a PR that changes a controlled document writes a fragment under `docs/revisions/pending/`, never a revision number, a history row or a `Rev` cell in the `NP-DHF-001` index. Nothing else in this file changed.

@@ -1,6 +1,6 @@
 # OI-FWHUB-29: the Oz photoparoxysmal detector is listed as an ocular interlock and is not built
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** Risk, with Clinical (the detection
+**Status:** ANSWERED 2026-11-05 (the principal): option A, then option C. **From:** a Claude Code session working for the principal. **To:** Risk, with Clinical (the detection
 criterion) and FW Hub / Safety. No addressee is named.
 
 ## 1. The question
@@ -49,3 +49,15 @@ enough? Pick one:
 
 The option (A, B or C); if A or C, who owns the interim wording and the detection criterion; a short reason; and your name, role and date.
 Nothing in this file is a decision. Until an answer is recorded, `NP-FW-HUB-001` states the detector is not built and `CLAUDE.md` §4.2 and `NP-RM-001` are unchanged.
+
+## 5. Answer received, 2026-11-05
+
+The principal ruled: **pick option A and then C.** Recorded in `docs/status/completed-decisions.md`.
+
+- **A is done:** `CLAUDE.md` Rev 79 §4.2 and `NP-RM-001` say the detector is not built, and the hub refuses photic driving at 3 to 30 Hz
+  outright (`REQ-FWHUB-65`). There is no clinician unlock, because the mechanism a clinician unlock needs (a signed field in the
+  descriptor, and a rule for who may set it) does not exist and is not invented here; the refusal is therefore absolute until the detector
+  is built.
+- **One protocol is affected:** `protocols/predefined/13-focus-prime.npps` drives its visual block at 20 Hz and is now refused at the
+  hub. It is a clinical protocol and is not edited here (`OI-NPPS-LIMITS-01`).
+- **C is owed:** the detector. Its first need is the criterion only Clinical can define: `docs/human-input/oi-fwhub-29-c-detection-criterion.md`.

@@ -142,6 +142,15 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 
     const np_mod_visual_params_t *p = (const np_mod_visual_params_t *)params;
 
+    /* Safety check 0 (OI-FWHUB-29, REQ-FWHUB-65): photic driving inside the photoparoxysmal zone is refused outright.  The
+     * Oz detector that would halt a seizure-provoking drive is not built, so the zone is not driven at all; the protocol
+     * validator's check is a warning the author can dismiss, and the hub is the control.  Modes 0 (photic) and 3 (combined)
+     * drive at freq_hz; EMDR and retinal PBM do not.  Nothing is driven and no enable is requested. */
+    if ((p->mode == 0U || p->mode == 3U) &&
+        p->freq_hz >= NP_VISUAL_PPX_RISK_MIN_HZ && p->freq_hz <= NP_VISUAL_PPX_RISK_MAX_HZ) {
+        return NP_HUB_ERR_SAFETY_REJECTED;
+    }
+
     /* Safety check 1: Hall sensor — goggles must be seated in the wear
      * position, and the lift interrupt must be armed to take that back.  This
      * says nothing about a head being present; eye presence is check 2, and

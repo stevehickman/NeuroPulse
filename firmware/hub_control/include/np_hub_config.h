@@ -302,6 +302,12 @@
 #define NP_DETECT_ACCESSORY_POLL_MS 500U  /* VNS, intranasal, CVNS */
 #define NP_DETECT_VISUAL_POLL_MS    200U  /* Hall sensor poll */
 
+/* The photoparoxysmal risk zone for photic driving, in whole hertz, inclusive (OI-FWHUB-29, REQ-FWHUB-65).  The same two
+ * numbers as VISUAL_HIGH_RISK_MIN_HZ / VISUAL_HIGH_RISK_MAX_HZ in common/npps/constants.json, which the protocol validator
+ * uses; nothing checks the two agree.  The goggles refuse photic driving inside the zone until the Oz detector exists. */
+#define NP_VISUAL_PPX_RISK_MIN_HZ   3U
+#define NP_VISUAL_PPX_RISK_MAX_HZ   30U
+
 /* ── Mode F regulatory gate ───────────────────────────────────────────────────── */
 
 /* Mode F (NIR retinal walk, 808-830nm daily retinal PBM) must be gated by this
