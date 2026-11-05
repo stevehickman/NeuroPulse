@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 1
-**Date:** 2026-11-03
+**Revision:** 2
+**Date:** 2026-11-04
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -649,3 +649,4 @@ directly. It is a defect in `np_cvns_session.c` (the repeated request, and the s
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 1 | 2026-11-03 | NeurOne Software Engineering | First issue. Measures the two facts the design depends on (§2: FreeRTOS and the hub, and the safety MCU, run on the host; WebAssembly would need a custom kernel port), then designs the firmware-in-the-loop simulator: architecture (§3), requirements `REQ-SIMFW-01` to `-13` (§5, §11), open items (§7), build order (§8), decisions (§9), reuse as a bench apparatus (§11) and the PBM spike as built and what it found (§12). **Scope direction (the Principal, 2026-11-03): the simulator runs the drivers for every module type, not only PBM, and each module type's full functionality has a simulator equivalent that uses as much of the real code as possible** (`REQ-SIMFW-13`, §8). |
+| 2 | 2026-11-04 | NeurOne Software Engineering | **New §13 to §20 as built (stimulation, EEG, auricular VNS, audio, visual goggles, intranasal Y-probe, T2 and accessory stubs, cervical VNS), and the §8 step 3 order set by the Principal (stim first, then the rest in the proposed order).** The bus is keyed by module kind and index and gains a start offset for injected faults; the device's own drivers, the cross-check, the HRV session library, the cervical VNS library with its Pan-Tompkins detector and the goggle Hall-edge handler run under 92 new scenarios; the gaps are listed with the measured line coverage of each source; `OI-SIMFW-15` to `OI-SIMFW-22` are raised, `OI-SIMFW-22` being a defect in `np_cvns_session.c` (a session cannot leave its baseline stage). |
