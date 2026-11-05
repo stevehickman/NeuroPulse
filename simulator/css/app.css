@@ -584,8 +584,20 @@ html, body {
 .accwin-art { flex: 1 1 auto; min-height: 0; width: 100%; }
 .accwin-art .art-line { fill: none; stroke: var(--text-dim); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .accwin-art .art-dot  { fill: var(--text-dim); }
+.accwin-art .art-fill { fill: var(--border-bright); stroke: var(--text-dim); stroke-width: 1.2; }
+.accwin-art .art-dim  { stroke-dasharray: 2 2; stroke-width: 1; }
+.accwin-art .art-housing { stroke: var(--accent2); stroke-width: 2.4; }
+.accwin-art .art-sleeve rect { fill: none; stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 3 2; }
+.accwin-art .art-port rect { fill: var(--bg-card); stroke: var(--border-bright); stroke-width: 1.2; }
+.accwin-art .art-port-label { fill: var(--text-dim); font-size: 5.6px; letter-spacing: .06em; text-anchor: middle; font-family: var(--font); }
+.accwin-art .art-note-t { fill: var(--text-dim); font-size: 6.4px; text-anchor: middle; font-family: var(--font); }
+.accwin-art .art-mark circle { fill: var(--bg-card); stroke: var(--accent); stroke-width: .9; }
+.accwin-art .art-mark text { fill: var(--accent); font-size: 5.6px; font-weight: 700; text-anchor: middle; font-family: var(--font); }
+.accwin-art .art-legend-t { fill: var(--text-dim); font-size: 6.6px; font-family: var(--font); }
 .accwin-art .art-label { fill: var(--text-faint); font-size: 8px; text-anchor: middle; font-family: var(--font); }
 .accwin-art .art-part rect, .accwin-art .art-part .pad { fill: var(--bg-card); stroke: var(--text-dim); stroke-width: 1.2; }
+.accwin-art .art-part .pd { fill: none; stroke: var(--text-dim); stroke-width: 1.2; }
+.accwin-art .art-part .led2 { opacity: .8; }
 .accwin-art .art-part .led { fill: var(--text-faint); }
 .accwin-art .art-part.on .led, .accwin-art .art-part.on .pad   { fill: var(--accent); stroke: var(--accent); animation: acc-pulse 1s ease-in-out infinite; }
 .accwin-art .art-part.wait .pad  { fill: var(--warn);   stroke: var(--warn); }

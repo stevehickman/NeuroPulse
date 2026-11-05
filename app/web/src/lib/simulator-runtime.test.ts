@@ -106,4 +106,20 @@ describe('simulator runtime library', () => {
     }
     expect(checked).toBeGreaterThan(0);
   });
+
+  // The intranasal Y-probe and the cervical VNS pads are accessories with a window of their own on the simulator page (NP-SIM-FW-001 §21):
+  // a protocol that uses one must say so, or the standalone page cannot show it in use.
+  // @verifies-none Simulator display derivation, not a stored requirement; the simulator's own page test checks what is drawn from it.
+  it('reads the intranasal probe and the cervical VNS pads from the protocols that use them', () => {
+    const t1 = protocols['15-full-t1-immersive'];
+    expect(t1.modalities.intranasal?.active).toBe(true);
+    expect(t1.modalities.intranasal.wavelengths.sort()).toEqual(['660nm', '808nm']);
+    expect(t1.modalities.intranasal.frequency).toBeGreaterThan(0);
+    const cvns = protocols['clinical-26-tcvns-migraine'];
+    expect(cvns.modalities.cvns?.active).toBe(true);
+    expect(cvns.modalities.cvns.intensity_ma).toBeGreaterThan(0);
+    // and a protocol that uses neither does not say it does
+    expect(protocols['01-gamma-focus'].modalities.intranasal).toBeUndefined();
+    expect(protocols['01-gamma-focus'].modalities.cvns).toBeUndefined();
+  });
 });
