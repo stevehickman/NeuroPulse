@@ -41,7 +41,7 @@ const clients = new Set();
 console.log(`[NP-SIM] WebSocket server listening on ws://localhost:${PORT}`);
 let fw = null;
 if (FW_BIN) {
-  fw = new FwBridge({ bin: FW_BIN }).start();
+  fw = new FwBridge({ bin: FW_BIN, autoStatus: 40 }).start();
   fw.on('message', (m) => broadcast(m));
   fw.on('exit', (code) => console.log(`[NP-SIM] firmware process exited (${code})`));
   console.log(`[NP-SIM] Firmware bridge started: ${FW_BIN}  (bound to 127.0.0.1)`);

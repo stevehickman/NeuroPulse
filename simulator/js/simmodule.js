@@ -36,19 +36,32 @@ export class SimModule {
     this.lastFaultAtS = -Infinity;   // wall time of the last injected non-zero answer
     this.lastFault = null;           // { op, code }
     this.unscripted = new Set();     // ops that have only ever been answered by the default model
+    this.detail = {};                // the module's own latest fields (amp_ua, left, right, stage, ...), as the firmware reported them
   }
 
   /** Folds one firmware event in.  `nowS` is the page's wall time in seconds. */
   apply(ev, nowS) {
     switch (ev.ev) {
+      case 'result':
+        if (stateEventKind(ev) === null) break;
+        // falls through: a cervical VNS command's result carries the stage, like cvns_state
+      case 'cvns_state': {
+        // The cervical VNS harness reports its stage in its own event (no id): fold it into the module's detail.
+        const { ev: _e, cmd: _c, code: _k, ...rest } = ev;
+        this.detail = { ...this.detail, ...rest };
+        break;
+      }
       case 'module':
-      case 'module_state':
+      case 'module_state': {
+        const { ev: _e, id: _i, kind: _kd, index: _ix, ...rest } = ev;
+        this.detail = { ...this.detail, ...rest };
         this.present = !!ev.present;
         if ('driven' in ev) this.driven = !!ev.driven;
         if ('cur_a' in ev) this.curA = ev.cur_a;
         if ('cur_b' in ev) this.curB = ev.cur_b;
         if ('ntc_c' in ev) this.ntcC = ev.ntc_c;
         break;
+      }
       case 'hal':
         if (ev.source === 'injected' && ev.code !== 0) {
           this.lastFaultAtS = nowS;
@@ -95,16 +108,35 @@ export class SimModule {
   }
 }
 
+/** Tiles are the module kind the page's 3D socket meshes draw; every other kind is an accessory or a fixed part. */
+export const TILE_KIND = 'pbm_base';
+
+/**
+ * Events that carry a module's state without naming it: they belong to the one module of that kind.  The cervical VNS harness reports
+ * its stage in a `cvns_state` event after a run and in the `result` of each command it takes (a stop, a fault), both with a `stage`.
+ */
+export function stateEventKind(ev) {
+  if (ev.ev === 'cvns_state') return 'cvns';
+  if (ev.ev === 'result' && typeof ev.cmd === 'string' && ev.cmd.startsWith('cvns') && 'stage' in ev) return 'cvns';
+  return null;
+}
+
 export class SimModuleRegistry {
   constructor() {
-    this._byIndex = new Map();
+    // Keyed by `${kind}:${index}`: the firmware bus is keyed by (kind, index), so a stimulation pair, the EEG front end and a
+    // tile in socket 0 are three modules, not one.
+    this._byKey = new Map();
     this.log = [];                    // recent FW_LOG events, newest last
     this.sawSafetyMcu = false;        // no safety MCU is in the spike's loop
   }
 
-  bySocket(index) { return this._byIndex.get(index); }
-  byLatticeId(id) { return this._byIndex.get(latticeIdToFirmwareIndex(id)); }
-  get size() { return this._byIndex.size; }
+  bySocket(index) { return this._byKey.get(`${TILE_KIND}:${index}`); }
+  byLatticeId(id) { return this.bySocket(latticeIdToFirmwareIndex(id)); }
+  /** Every module of a kind, in index order. */
+  byKind(kind) {
+    return [...this._byKey.values()].filter((m) => m.kind === kind).sort((a, b) => a.index - b.index);
+  }
+  get size() { return this._byKey.size; }
 
   /** One bridge message: MODULE_LIST, MODULE_STATE or FW_LOG. */
   onMessage(msg, nowS) {
@@ -120,19 +152,24 @@ export class SimModuleRegistry {
   }
 
   _applyTo(ev, nowS) {
-    const index = typeof ev.index === 'number' ? ev.index : this._indexFromId(ev.id);
-    if (index === null) return;
-    let mod = this._byIndex.get(index);
+    const stateKind = stateEventKind(ev);
+    const parsed = stateKind !== null ? { kind: stateKind, index: 0 } : this._identify(ev);
+    if (parsed === null) return;
+    const key = `${parsed.kind}:${parsed.index}`;
+    let mod = this._byKey.get(key);
     if (!mod && (ev.ev === 'module' || ev.ev === 'module_state')) {
-      mod = new SimModule(ev.id, ev.kind ?? String(ev.id).split(':')[0], index);
-      this._byIndex.set(index, mod);
+      mod = new SimModule(ev.id, parsed.kind, parsed.index);
+      this._byKey.set(key, mod);
     }
     if (mod) mod.apply(ev, nowS);
   }
 
-  _indexFromId(id) {
-    const m = /^[a-z_0-9]+:(\d+)$/.exec(String(id ?? ''));
-    return m ? Number(m[1]) : null;
+  /** The (kind, index) an event names: from its id ("stim_pair:0"), with the index and kind fields taking precedence. */
+  _identify(ev) {
+    const m = /^([a-z_0-9]+):(\d+)$/.exec(String(ev.id ?? ''));
+    const kind = typeof ev.kind === 'string' ? ev.kind : (m ? m[1] : null);
+    const index = typeof ev.index === 'number' ? ev.index : (m ? Number(m[2]) : null);
+    return kind === null || index === null ? null : { kind, index };
   }
 
   /** What the page must say while the safety MCU is not in the loop (REQ-SIMFW-07). */

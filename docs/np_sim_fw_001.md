@@ -648,6 +648,29 @@ It happened with the safety MCU's grant present from the start. The unit tests d
 
 ---
 
+## 21. Accessories in the browser, as built (the Principal, 2026-11-05)
+
+The rule: **an accessory is drawn only while it is in use; one that attaches directly to the helmet is drawn on the helmet, as attached;
+every other accessory gets its own window, along the perimeter of the helmet window.** This closes the "browser drawing" gap of §13 to §20.
+
+| Piece | Where | What it is |
+|---|---|---|
+| The classification and the rules | `simulator/js/accessories.js` | Pure functions, tested in node. **Attached to the helmet:** visual goggles (snap-on lens mounts), audio cups ("mounts to the headset arms", `NP-HW-AUDIO-001` §3), the TMS coil, the mastoid haptic pad, and the tDCS / tACS electrodes at their 10-20 sites. **Tethered to the hub's accessory port, so a window each:** the auricular VNS clip (`NP-HW-VNSCLIP-001`), the intranasal Y-probe (`NP-HW-NASAL-001` A12.7), the cervical VNS pads (`NP-HW-CVNS-001` A14.4). `accessoryStates()` says what is in use; `windowSlots()` says where each window goes. |
+| "In use" has one source at a time | same | **With firmware modules attached, only the firmware's own record says**: a module is in use while it is driven (the cervical VNS while its session is active, which is earlier than its enable). Without them, the standalone session says. An accessory the firmware has no driver for (the TMS coil, the haptic pad) is never in use in firmware mode. The two sources are never mixed, the rule `SimModule` already follows for tiles. |
+| The registry is keyed by (kind, index) | `simulator/js/simmodule.js` | Until now by index alone, which was correct while tiles were the only module; with the firmware bus keyed by kind and index, a stimulation pair 0, the EEG front end and a tile in socket 0 would have been one module. `byKind()` added; `bySocket` and `byLatticeId` are the tile lookups, unchanged. |
+| The windows | `simulator/js/acc-windows.js`, `css/app.css` | One window per tethered accessory, hidden unless in use, with a schematic drawing whose parts light from the module's record (which ear, which nostril, the pads by stage: yellow while checking, cyan while delivering, red on a fault) and one line of what it is doing. Slots: top-right, bottom-right, bottom-left, then top-left and the middle of each edge when the window is tall enough; an accessory keeps its slot; windows never cover the centre, where the helmet is, and shrink (to 55 %) on a small window. |
+| On the helmet | `simulator/js/helmet.js` | `setAccessoriesInUse()` and `_drawAttachedAccessories()`. The goggles, audio cups, haptic pad and TMS coil are shown only while in use; **the stimulation electrodes are new**: discs at the 10-20 sites of each driven pair (pair 0 = F3-F4, 1 = P3-P4, 2 = Fz-Pz), tDCS steady with the anode amber and the cathode blue, BES / tACS pulsing cyan. The 3D VNS clip and Y-probe (and its insertion animation) are **removed from the scene**: they are windows now. |
+| The server | `simulator/server/fw-bridge.js` | Module state reaches the page only as `module_state` events, which the firmware emits on a `status` command. A command changes state without the firmware volunteering it, so the real server asks for `status` 40 ms after a command (`autoStatus`, off in the tests that count events). |
+| The panel | `simulator/index.html`, `js/ui.js` | The accessory switches are now two: the haptic pad and the intranasal probe, the accessories no protocol drives, saying "in use" so they can be seen without the firmware. |
+| Tests | `simulator/js/accessories.test.mjs` (11), `simmodule.test.mjs`, and a headless-Chromium run of the real page against the real server and firmware | The rules (what is in use from each source, the slots around the perimeter, that none overlaps another or the centre, that a window keeps its slot), the kind-keyed registry, and the page: nothing drawn when idle or when modules are present and not driven; the three windows appear when the VNS clip, the Y-probe and the cervical VNS are driven, none covers the centre, none of them is drawn on the helmet; the goggles, the audio cups and the stimulation electrodes appear on the helmet when driven; after a stop nothing is drawn. |
+
+**Gaps.** The drawings are schematic, not the hardware's geometry. The windows are not draggable or resizable. The standalone session has
+no intranasal or cervical VNS modality, so in standalone mode those two are in use only through the demo switch (intranasal) or never
+(cervical). The EEG front end, a PBM tile and the hub itself are not accessories and keep their own drawing. The haptic pad and the TMS
+coil have no firmware driver (stubs, §19), so in firmware mode they are never drawn. Colour is not the only signal: each window names its state in words.
+
+---
+
 ## Revision history
 
 | Rev | Date | Author | Change |

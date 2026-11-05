@@ -1037,3 +1037,37 @@ binary.
 - **A command may drive every socket of the lattice at once** (80 on hardware version 1). The firmware no longer
   bounds how many it will drive at 32 (NP-FW-HUB-001, `REQ-FWHUB-64`); the limits are the lattice, the sockets
   filled, and power and heat, and the simulator's power governor admits every load (`OI-SIMFW-11`).
+
+---
+
+## 19. Accessories: drawn only while in use
+
+An accessory is drawn **only while it is in use**. Where it is drawn depends on how it connects (the Principal, 2026-11-05;
+`NP-SIM-FW-001` §21):
+
+| Accessory | Connects by | Drawn |
+|---|---|---|
+| Visual goggles | snap-on lens mounts on the helmet | **on the helmet**, with the lenses lit |
+| Audio cups | mount to the headset arms (`NP-HW-AUDIO-001`) | **on the helmet** |
+| TMS coil | the helmet's coil site | **on the helmet** |
+| Mastoid haptic pad | on the headset | **on the helmet** |
+| tDCS / tACS electrodes | the 10-20 sites (pair 0 = F3-F4, 1 = P3-P4, 2 = Fz-Pz) | **on the helmet**, at the sites of the pairs in use: tDCS steady (anode amber, cathode blue), BES / tACS pulsing cyan |
+| Auricular VNS clip | worn on the ear, cable to the hub accessory port | **its own window** |
+| Intranasal Y-probe | cable to the hub accessory port | **its own window** |
+| Cervical VNS pads | neck-worn, 4-conductor cable to the hub accessory port | **its own window** |
+
+The windows sit **along the perimeter of the helmet window** (top-right, bottom-right, bottom-left, then top-left and the middle of
+each edge on a tall enough window), never over the helmet in the middle. An accessory keeps its slot, so its window appears where it
+was before. A window names what the module is doing: which ear or nostril, the current, the cervical VNS's stage.
+
+**What "in use" means** has one source at a time. With firmware modules attached, it is the firmware's own record: a module is in use
+while it is driven (the cervical VNS while its session is active, which is earlier than its enable). Without them, it is the standalone
+session: the modality of the loaded protocol that uses the accessory, while the session runs and is not paused. An accessory the
+firmware has no driver for (the TMS coil and the haptic pad are stubs there) is never in use in firmware mode.
+
+**Demo accessories.** Two accessories are driven by no protocol: the haptic pad and the intranasal probe. Their two switches in the
+left panel say "in use", so they can be seen without the firmware.
+
+**Driving them from the firmware** (`NP_SIM_FW_BIN`): the bridge takes `kind` in `MODULE_SET`, `MODULE_FAIL` and `MODULE_CLEAR`
+(`stim_pair`, `eeg`, `vns`, `audio`, `visual`, `intranasal`, `cvns`) and the module commands in `FW_COMMAND`; the list is in
+`NP-SIM-FW-001` §13 to §20. The real server asks the firmware for every module's state 40 ms after a command, so the page follows.

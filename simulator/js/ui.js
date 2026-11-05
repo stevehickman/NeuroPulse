@@ -206,13 +206,14 @@ export class UIManager {
     const container = document.getElementById('accessory-config');
     if (!container) return;
 
+    // An accessory is drawn only while it is in use (NP-SIM-FW-001 §21): by the session when it is a modality of the protocol, by the
+    // firmware when it is a module there.  These two are driven by no protocol, so a switch is the only way to see them without the
+    // firmware: it says "in use", for the demonstration.
     const ACCESSORIES = [
-      { key: 'goggles',     label: 'Visual Goggles',      sub: '108 micro-LEDs/lens · EMDR · Mode F' },
-      { key: 'vnsClip',     label: 'VNS + HRV Clip',      sub: 'Auricular · PPG · 1–25 Hz' },
-      { key: 'hapticPad',   label: 'Mastoid Haptic Pad',   sub: '40 Hz LRA · Provisional' },
-      { key: 'intranasal',  label: 'Intranasal Probe',     sub: 'Y-probe · 660 + 808 nm · bilateral' },
-      { key: 'tmsCoil',     label: 'TMS Figure-8 Coil',   sub: 'T2 · 0.1–0.5 T · rTMS + TBS · DLPFC_L' },
+      { key: 'hapticPad',   label: 'Mastoid Haptic Pad',   sub: 'Show in use · 40 Hz LRA · on the helmet' },
+      { key: 'intranasal',  label: 'Intranasal Probe',     sub: 'Show in use · own window · 660 + 808 nm' },
     ];
+
 
     ACCESSORIES.forEach(({ key, label, sub }) => {
       const row = document.createElement('div');
