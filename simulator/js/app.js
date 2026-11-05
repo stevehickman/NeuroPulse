@@ -14,12 +14,15 @@ import { UIManager }    from './ui.js';
 import { PROTOCOLS, loadLibrary } from './vendor/npps-runtime.js';
 import { DeviceAPI }    from './api.js';
 import { SimModuleRegistry } from './simmodule.js';
+import { accessoryStates } from './accessories.js';
+import { AccessoryWindows } from './acc-windows.js';
 import { SIM_VERSION }  from './version.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NeurOneSimulator {
   constructor() {
+    this._demo = {};
     this._canvas = document.getElementById('main-canvas');
     this._wrap   = document.getElementById('viewport-wrap');
 
@@ -29,6 +32,7 @@ class NeurOneSimulator {
     this._initSession();
     this._initUI();
     this._initAPI();
+    this._initAccessories();
     this._setVersionBadge();
 
     window.addEventListener('resize', () => this._onResize());
@@ -37,6 +41,18 @@ class NeurOneSimulator {
     this._lastRaf = 0;
     this._prevRunning = false;
     this._raf();
+  }
+
+  // ─── accessories (NP-SIM-FW-001 §21) ───────────────────────────────────────
+
+  /**
+   * An accessory is drawn only while in use.  Those attached to the helmet are drawn on it; the rest have a window each, around the
+   * perimeter of the helmet window.  `_demo` holds the two switches for accessories no protocol drives (the panel).
+   */
+  _initAccessories() {
+    this._demo = this._demo ?? {};
+    this._accWindows = new AccessoryWindows(document.getElementById('acc-layer'));
+    this._accWindows.layout(this._wrap.clientWidth, this._wrap.clientHeight);
   }
 
   // ─── Three.js setup ────────────────────────────────────────────────────────
@@ -171,9 +187,7 @@ class NeurOneSimulator {
       onZoneConfig: (zoneId, config) => {
         this._helmet.configureZone(zoneId, config);
       },
-      onAccessoryChange: (name, visible) => {
-        this._helmet.setAccessory(name, visible);
-      },
+      onAccessoryChange: (name, on) => { this._demo[name] = on; },
     });
   }
 
@@ -182,9 +196,7 @@ class NeurOneSimulator {
       onZoneChange: (id, cfg) => {
         this._helmet.configureZone(id, cfg);
       },
-      onAccessoryChange: (name, visible) => {
-        this._helmet.setAccessory(name, visible);
-      },
+      onAccessoryChange: (name, on) => { this._demo[name] = on; },
       onProtocolSelect: (id) => {
         this._session.load(id);
         const p = PROTOCOLS[id];
@@ -290,6 +302,12 @@ class NeurOneSimulator {
       this._bouncePlane.material.color.setHex(col);
     }
 
+    // Accessories: in use from the firmware's modules when there are any, else from the session (accessories.js)
+    const acc = accessoryStates({ registry: this._simModules, snap, demo: this._demo });
+    this._helmet.setAccessoriesInUse(acc);
+    this._accWindows.update(acc, snap);
+    window.__accessoriesInUse = { windows: this._accWindows.visibleIds(), onHelmet: this._helmet.visibleAttached() };   // for the page's own check, not an API
+
     // Update 3D helmet
     this._helmet.update(wallTime, snap);
 
@@ -333,6 +351,7 @@ class NeurOneSimulator {
     this._camera.aspect = w / h;
     this._camera.updateProjectionMatrix();
     this._renderer.setSize(w, h, false);
+    this._accWindows?.layout(w, h);
   }
 }
 

@@ -4,7 +4,8 @@
  * Physical starting point: Neuronic 1070 Light (dome-style, full-scalp coverage).
  * NeurOne additions: ~80 snap-in hex-tile PBM sockets (NP-HEX-ZM-001), integrated
  * goggles, over-ear audio cups, occipital hub + Boa dial, spring-decoupled EEG
- * pods, VNS auricular clip.
+ * pods.  The auricular VNS clip, the intranasal probe and the cervical pads are not on the helmet: they are tethered to the hub's
+ * accessory port and have their own windows (js/acc-windows.js).  What is attached to the helmet is drawn only while in use.
  *
  * Coordinate frame:  +Y up,  +Z toward viewer (front of helmet),  +X right.
  * Head center at origin; crown at Y ≈ +1.0.
@@ -39,6 +40,14 @@ const EEG_POSITIONS = [
   { name: 'C4',  phi: -0.52 * Math.PI, theta: 0.38 * Math.PI },
   { name: 'P3',  phi:  0.68 * Math.PI, theta: 0.46 * Math.PI },
   { name: 'P4',  phi: -0.68 * Math.PI, theta: 0.46 * Math.PI },
+];
+
+// The tDCS / tACS electrode pairs, by the electrode_pair number the firmware commands carry (np_hub_types.h: 0 = F3-F4, 1 = P3-P4,
+// 2 = Fz-Pz).  The sites are the 10-20 sites; Fz and Pz are not EEG pods here, so they carry their own positions.
+const STIM_PAIR_SITES = [
+  [{ name: 'F3', phi:  0.38 * Math.PI, theta: 0.28 * Math.PI }, { name: 'F4', phi: -0.38 * Math.PI, theta: 0.28 * Math.PI }],
+  [{ name: 'P3', phi:  0.68 * Math.PI, theta: 0.46 * Math.PI }, { name: 'P4', phi: -0.68 * Math.PI, theta: 0.46 * Math.PI }],
+  [{ name: 'Fz', phi: 0,               theta: 0.28 * Math.PI }, { name: 'Pz', phi: Math.PI,         theta: 0.46 * Math.PI }],
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,29 +189,6 @@ export class HelmetModel {
     return a.every(id => bSet.has(id));
   }
 
-  /** Configure which accessories are present. */
-  setAccessory(name, visible) {
-    if (name === 'intranasal') {
-      if (!this._probeAnim) return;
-      if (visible) {
-        // Allow reversal mid-animation: carry over partial progress
-        if (this._probeAnim.mode === 'docked' || this._probeAnim.mode === 'removing') {
-          const carry = this._probeAnim.mode === 'removing' ? 1 - this._probeAnim.progress : 0;
-          this._probeAnim.mode = 'inserting';
-          this._probeAnim.progress = carry;
-        }
-      } else {
-        if (this._probeAnim.mode === 'inserted' || this._probeAnim.mode === 'inserting') {
-          const carry = this._probeAnim.mode === 'inserting' ? 1 - this._probeAnim.progress : 0;
-          this._probeAnim.mode = 'removing';
-          this._probeAnim.progress = carry;
-        }
-      }
-      return;
-    }
-    if (this.parts[name]) this.parts[name].visible = visible;
-  }
-
   /**
    * NP-SIM-FW-001: hand socket drawing to simulated modules.  A socket with a
    * SimModule is drawn by that module (SimModule.render) and by nothing else, so
@@ -212,6 +198,25 @@ export class HelmetModel {
    */
   attachSimModules(registry) {
     this._sim = registry;
+  }
+
+  /**
+   * NP-SIM-FW-001 §21: which accessories are in use (accessories.js accessoryStates()).  The helmet draws an accessory that is
+   * attached to it only while it is in use; it keeps nothing of its own about whether one is fitted or running.
+   * @param {Map<string, { inUse:boolean, source:string, modules:object[] }>} states
+   */
+  setAccessoriesInUse(states) {
+    this._acc = states;
+  }
+
+  _inUse(id) { return this._acc?.get(id)?.inUse === true; }
+
+  /** The ids of the helmet-attached accessories drawn now (for the page's own check). */
+  visibleAttached() {
+    const p = this.parts;
+    return [
+      ['goggles', p.goggles], ['earcups', p.ear_left], ['hapticPad', p.hapticPad], ['tmsCoil', p.tmsCoil], ['stimElectrodes', p.stimElectrodes],
+    ].filter(([, g]) => g && g.visible).map(([id]) => id);
   }
 
   /** Called every animation frame with the current session snapshot. */
@@ -275,19 +280,8 @@ export class HelmetModel {
       e.material.emissiveIntensity = snap.eeg.active ? 0.8 : 0;
     });
 
-    // ── Visual goggles ─────────────────────────────────────────────────────
-    if (this.parts.goggle_left_lens && this.parts.goggle_right_lens) {
-      const vis = snap.visual;
-      let vPulse = 0;
-      if (vis.active) {
-        const vPhase = (t * vis.frequency) % 1;
-        vPulse = vPhase < 0.5 ? 1 : 0;
-      }
-      [this.parts.goggle_left_lens, this.parts.goggle_right_lens].forEach(mat => {
-        mat.emissive.setHex(vPulse ? 0xFF2200 : 0x000000);
-        mat.emissiveIntensity = vPulse * 0.9;
-      });
-    }
+    // ── Accessories attached to the helmet: drawn only while in use (NP-SIM-FW-001 §21) ──────────────────────────────────────────
+    this._drawAttachedAccessories(t, snap);
 
     // ── Hub status LEDs ────────────────────────────────────────────────────
     // CLAUDE.md §4.7: the session LED's pulse is what lets a caregiver confirm
@@ -308,31 +302,8 @@ export class HelmetModel {
         : (snap.running ? 0.3 : 0); // paused: dim steady, not pulsing; stopped: off
     }
 
-    // ── VNS clip (auricular) ───────────────────────────────────────────────
-    if (this.parts.vnsClip) {
-      this.parts.vnsClip.visible = snap.vns.active;
-      if (snap.vns.active && this.parts.vnsClipMat) {
-        const vnsPhase = (t * snap.vns.frequency) % 1;
-        const vnsPulse = vnsPhase < 0.5 ? 0.8 : 0.1;
-        this.parts.vnsClipMat.emissiveIntensity = vnsPulse;
-      }
-    }
-
-    // ── Mastoid haptic pad ─────────────────────────────────────────────────
-    if (this.parts.hapticPad) {
-      if (snap.pbm?.active && this.parts.hapticPadMat) {
-        // Vibrate at 40 Hz visually
-        const hPhase = (t * 40) % 1;
-        const hPulse = hPhase < 0.5 ? 1 : 0;
-        this.parts.hapticPadMat.emissiveIntensity = 0.05 + hPulse * 0.4;
-      }
-    }
-
     // ── TMS coil ───────────────────────────────────────────────────────────
     this._updateTMSCoil(wallTimeSec, snap);
-
-    // ── Intranasal Y-probe insertion / removal animation ───────────────────
-    this._updateProbeAnimation(dt, snap);
   }
 
   // ─── build helpers ─────────────────────────────────────────────────────────
@@ -346,10 +317,9 @@ export class HelmetModel {
     this._buildEarCups();
     this._buildHub();
     this._buildOccipitalArch();
-    this._buildVNSClip();
     this._buildMastoidPad();
-    this._buildIntranasal();
     this._buildTMSCoil();
+    this._buildStimElectrodes();
   }
 
   _buildHead() {
@@ -768,43 +738,6 @@ export class HelmetModel {
     }
   }
 
-  _buildVNSClip() {
-    // Auricular VNS clip — attaches to right ear
-    const clipGroup = new THREE.Group();
-    clipGroup.position.set(SHELL_R * SHELL_SX + 0.05, 0.10, 0.08);
-    clipGroup.visible = false; // hidden until configured
-
-    // Clip body
-    const clipG = new THREE.CapsuleGeometry(0.018, 0.06, 4, 12);
-    const clipM = new THREE.MeshStandardMaterial({
-      color: 0x1a2a3a, roughness: 0.5, metalness: 0.4,
-      emissive: 0x44ffaa, emissiveIntensity: 0,
-    });
-    const clip = new THREE.Mesh(clipG, clipM);
-    clipGroup.add(clip);
-
-    // PPG LED indicators
-    const ppgG = new THREE.SphereGeometry(0.007, 8, 8);
-    const ppgM = new THREE.MeshStandardMaterial({ color: 0xFF7200, emissive: 0xFF7200, emissiveIntensity: 0.4 });
-    const ppg  = new THREE.Mesh(ppgG, ppgM);
-    ppg.position.y = 0.03;
-    clipGroup.add(ppg);
-
-    // Cable to hub
-    const cablePath = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(-0.15, -0.05, -0.10),
-      new THREE.Vector3(-0.30, -0.08, -0.20),
-    ]);
-    const cableG = new THREE.TubeGeometry(cablePath, 12, 0.005, 5, false);
-    const cableM = new THREE.MeshStandardMaterial({ color: 0x2a3a4a });
-    clipGroup.add(new THREE.Mesh(cableG, cableM));
-
-    this.group.add(clipGroup);
-    this.parts.vnsClip    = clipGroup;
-    this.parts.vnsClipMat = clipM;
-  }
-
   _buildMastoidPad() {
     // 40 Hz vibrotactile mastoid pad (provisional)
     const padGroup = new THREE.Group();
@@ -935,11 +868,93 @@ export class HelmetModel {
     this._tmsPulseT          = 0;   // tracks time since last simulated pulse
   }
 
+  /** Goggles, audio cups, haptic pad, TMS coil and the stimulation electrodes: on the helmet, and only while in use. */
+  _drawAttachedAccessories(t, snap) {
+    const gog = this._inUse('goggles');
+    if (this.parts.goggles) this.parts.goggles.visible = gog;
+    if (this.parts.goggle_left_lens && this.parts.goggle_right_lens) {
+      // A session says how fast; a firmware module in use without one is drawn lit and steady-blinking at a visible rate.
+      const freq = snap.visual?.active ? snap.visual.frequency : 6;
+      const on = gog && ((t * freq) % 1) < 0.5;
+      [this.parts.goggle_left_lens, this.parts.goggle_right_lens].forEach(mat => {
+        mat.emissive.setHex(on ? 0xFF2200 : 0x000000);
+        mat.emissiveIntensity = on ? 0.9 : 0;
+      });
+    }
+
+    const cups = this._inUse('earcups');
+    if (this.parts.ear_left)  this.parts.ear_left.visible  = cups;
+    if (this.parts.ear_right) this.parts.ear_right.visible = cups;
+
+    const pad = this._inUse('hapticPad');
+    if (this.parts.hapticPad) {
+      this.parts.hapticPad.visible = pad;
+      if (pad && this.parts.hapticPadMat) {
+        this.parts.hapticPadMat.emissiveIntensity = 0.05 + (((t * 40) % 1) < 0.5 ? 0.4 : 0);   // a 40 Hz pad, shown slowed to be visible
+      }
+    }
+
+    this._drawStimElectrodes(t, snap);
+  }
+
+  /**
+   * The electrode pairs the firmware says are driven (or the session's BES / tDCS), at their 10-20 sites.  BES / tACS pulses in
+   * cyan; tDCS is steady, anode amber and cathode blue.  An undriven pair is not drawn.
+   */
+  _drawStimElectrodes(t, snap) {
+    const grp = this.parts.stimElectrodes;
+    if (!grp) return;
+    const st = this._acc?.get('stimElectrodes');
+    const on = st?.inUse === true;
+    grp.visible = on;
+    if (!on) return;
+    let pairs;
+    if (st.source === 'firmware') {
+      pairs = st.modules.filter((m) => m.driven).map((m) => ({ index: m.index, dc: m.detail?.dc === true }));
+    } else {
+      pairs = [{ index: 0, dc: !!snap.tdcs?.active && !snap.bes?.active }];
+    }
+    this._stimPairs.forEach((pair, i) => {
+      const p = pairs.find((q) => q.index === i);
+      pair.group.visible = !!p;
+      if (!p) return;
+      const pulse = p.dc ? 1 : (((t * (snap.bes?.frequency ?? 6)) % 1) < 0.5 ? 1 : 0.25);
+      pair.discs.forEach((d, k) => {
+        const col = p.dc ? (k === 0 ? 0xFFAA00 : 0x3388FF) : 0x00D4FF;
+        d.material.color.setHex(col);
+        d.material.emissive.setHex(col);
+        d.material.emissiveIntensity = 0.9 * pulse;
+      });
+    });
+  }
+
+  _buildStimElectrodes() {
+    const grp = new THREE.Group();
+    this._stimPairs = STIM_PAIR_SITES.map((sites) => {
+      const g = new THREE.Group();
+      const discs = sites.map((site) => {
+        const { x, y, z } = this._sph(SHELL_R * 1.03, site.phi, site.theta);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x00D4FF, emissive: 0x00D4FF, emissiveIntensity: 0, roughness: 0.3, metalness: 0.2 });
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.012, 24), mat);
+        disc.position.set(x, y, z);
+        disc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(x, y, z).normalize());
+        g.add(disc);
+        return disc;
+      });
+      g.visible = false;
+      grp.add(g);
+      return { group: g, discs };
+    });
+    grp.visible = false;
+    this.group.add(grp);
+    this.parts.stimElectrodes = grp;
+  }
+
   _updateTMSCoil(wallTimeSec, snap) {
     const coil = this.parts.tmsCoil;
     if (!coil) return;
 
-    const tmsActive = snap.tms?.active ?? false;
+    const tmsActive = this._inUse('tmsCoil');
     coil.visible = tmsActive;
     if (!tmsActive) return;
 
@@ -968,190 +983,6 @@ export class HelmetModel {
     // Point light flash at pulse peak
     if (this.parts.tmsPulseLight) {
       this.parts.tmsPulseLight.intensity = intensity * 2.5;
-    }
-  }
-
-  _buildIntranasal() {
-    const probeGroup = new THREE.Group();
-
-    // Animation state — probe starts docked at hub right-face slot
-    const dockedEuler   = new THREE.Euler(Math.PI + 0.18, 0.10, 0.18);
-    const insertedEuler = new THREE.Euler(0.44, 0, 0);
-
-    this._probeAnim = {
-      mode:         'docked',   // 'docked' | 'inserting' | 'inserted' | 'removing'
-      progress:     1,
-      dockedPos:    new THREE.Vector3(0.14, -0.14, -0.84),
-      dockedQuat:   new THREE.Quaternion().setFromEuler(dockedEuler),
-      // Mid-point of Bézier arc — probe swings out to the right then forward
-      midPos:       new THREE.Vector3(0.40, 0.04, -0.08),
-      insertedPos:  new THREE.Vector3(0, -0.32, 0.68),
-      insertedQuat: new THREE.Quaternion().setFromEuler(insertedEuler),
-    };
-
-    // Apply initial docked transform
-    probeGroup.position.copy(this._probeAnim.dockedPos);
-    probeGroup.quaternion.copy(this._probeAnim.dockedQuat);
-
-    // ── Y-junction silicone over-mold ──────────────────────────────────────
-    const overmG = new THREE.SphereGeometry(0.022, 10, 8);
-    const overmM = new THREE.MeshStandardMaterial({
-      color: 0x2b3f58, roughness: 0.78, metalness: 0.04,
-    });
-    probeGroup.add(new THREE.Mesh(overmG, overmM));
-
-    // Pogo-pin connector ring at base (resistive sleeve authentication)
-    const pogoG = new THREE.TorusGeometry(0.012, 0.003, 6, 18);
-    const pogoM = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.3, metalness: 0.75 });
-    const pogo  = new THREE.Mesh(pogoG, pogoM);
-    pogo.rotation.x = Math.PI / 2;
-    pogo.position.y = -0.016;
-    probeGroup.add(pogo);
-
-    // Reference LED at probe base — optical code indicator, always-on orange
-    const refG = new THREE.SphereGeometry(0.0042, 7, 5);
-    const refM = new THREE.MeshStandardMaterial({
-      color: 0xFF7000, emissive: 0xFF7000, emissiveIntensity: 0.5,
-    });
-    probeGroup.add(new THREE.Mesh(refG, refM));
-    this.parts.intranasalRefLed = refM;
-
-    // ── Connection cable (to hub dock pogo) ─────────────────────────────────
-    const cablePts = [
-      new THREE.Vector3(0, -0.022, 0),
-      new THREE.Vector3(0.008, -0.050, -0.008),
-      new THREE.Vector3(0.018, -0.085, -0.018),
-    ];
-    probeGroup.add(new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cablePts), 10, 0.0042, 5, false),
-      new THREE.MeshStandardMaterial({ color: 0x1a2535, roughness: 0.8 })
-    ));
-
-    // ── Bilateral probe arms ─────────────────────────────────────────────────
-    const armLedMats = [];
-
-    [[-1, 'left'], [1, 'right']].forEach(([sign]) => {
-      // Arm curve — spreads upward and slightly outward from junction
-      const pts = [
-        new THREE.Vector3(sign * 0.006, 0.012, 0),
-        new THREE.Vector3(sign * 0.015, 0.034, 0.003),
-        new THREE.Vector3(sign * 0.021, 0.062, 0.003),
-        new THREE.Vector3(sign * 0.022, 0.094, 0.001),
-      ];
-      const curve = new THREE.CatmullRomCurve3(pts);
-
-      // Silicone probe tube
-      probeGroup.add(new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 20, 0.0058, 7, false),
-        new THREE.MeshStandardMaterial({
-          color: 0x5588aa, roughness: 0.55, metalness: 0.06,
-          transparent: true, opacity: 0.92,
-        })
-      ));
-
-      // Depth-stop rings: 15 / 20 / 25 mm markers (3 per arm)
-      // center ring colored blue as the clinical target depth (20 mm)
-      [[0.33, 0x88aacc], [0.55, 0x44aaee], [0.75, 0x88aacc]].forEach(([tRing, col]) => {
-        const rPos = curve.getPoint(tRing);
-        const tan  = curve.getTangent(tRing);
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.0078, 0.0016, 5, 14),
-          new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 })
-        );
-        ring.position.copy(rPos);
-        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
-        probeGroup.add(ring);
-      });
-
-      // Hygiene sleeve — consumable translucent tip covering the distal 26%
-      const t0  = curve.getPoint(0.74);
-      const t1  = curve.getPoint(1.00);
-      const dir = t1.clone().sub(t0);
-      const len = dir.length();
-      const mid = t0.clone().add(t1).multiplyScalar(0.5);
-      const slv = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0070, 0.0065, len, 8),
-        new THREE.MeshStandardMaterial({
-          color: 0xc4ddf0, roughness: 0.88, metalness: 0,
-          transparent: true, opacity: 0.78,
-        })
-      );
-      slv.position.copy(mid);
-      slv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-      probeGroup.add(slv);
-
-      // LED tip — 660 nm primary (shown as red dot, glows when inserted + PBM active)
-      const tipPos = curve.getPoint(1.0);
-      const ledM = new THREE.MeshStandardMaterial({
-        color: 0xFF2200, emissive: 0xFF2200, emissiveIntensity: 0, roughness: 0.12,
-      });
-      const ledMesh = new THREE.Mesh(new THREE.SphereGeometry(0.0052, 8, 6), ledM);
-      ledMesh.position.copy(tipPos).addScaledVector(curve.getTangent(1.0), 0.005);
-      probeGroup.add(ledMesh);
-      armLedMats.push(ledM);
-    });
-
-    this.group.add(probeGroup);
-    this.parts.intranasal     = probeGroup;
-    this.parts.intranasalLeds = armLedMats;
-  }
-
-  // ─── probe animation ─────────────────────────────────────────────────────
-
-  _updateProbeAnimation(dt, snap) {
-    if (!this._probeAnim || !this.parts.intranasal) return;
-    const anim  = this._probeAnim;
-    const probe = this.parts.intranasal;
-    const SPEED = 1.0; // full dock-to-face travel in ~1 s
-
-    // Advance progress
-    if (anim.mode === 'inserting' || anim.mode === 'removing') {
-      anim.progress = Math.min(1, anim.progress + dt * SPEED);
-      if (anim.progress >= 1) {
-        anim.mode = anim.mode === 'inserting' ? 'inserted' : 'docked';
-      }
-    }
-
-    // Scalar lerp factor: 0 = docked, 1 = inserted
-    const rawT = anim.mode === 'docked'    ? 0
-               : anim.mode === 'inserted'  ? 1
-               : anim.mode === 'inserting' ? anim.progress
-               :                            1 - anim.progress; // removing
-
-    // Cubic ease-in-out
-    const eased = rawT < 0.5
-      ? 4 * rawT * rawT * rawT
-      : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
-
-    // Quadratic Bézier arc (p0 = docked, p1 = mid swing-out, p2 = inserted)
-    // The arc curves the probe around the right side of the head rather than
-    // passing straight through the shell.
-    const { dockedPos: p0, midPos: p1, insertedPos: p2 } = anim;
-    const u = 1 - eased;
-    probe.position.set(
-      u*u*p0.x + 2*u*eased*p1.x + eased*eased*p2.x,
-      u*u*p0.y + 2*u*eased*p1.y + eased*eased*p2.y,
-      u*u*p0.z + 2*u*eased*p1.z + eased*eased*p2.z,
-    );
-
-    // Quaternion slerp — avoids gimbal lock / long-way-round euler interpolation
-    probe.quaternion.slerpQuaternions(anim.dockedQuat, anim.insertedQuat, eased);
-
-    // Reference LED (always on when probe is not fully docked)
-    if (this.parts.intranasalRefLed) {
-      this.parts.intranasalRefLed.emissiveIntensity = eased > 0.1
-        ? 0.5
-        : 0.5 * (eased / 0.1);
-    }
-
-    // Arm LED tips: ramp up in the final quarter of insertion; brightness
-    // doubles when a PBM session is actively running.
-    const pbmOn = snap?.pbm?.active ?? false;
-    const glow  = eased > 0.75
-      ? ((eased - 0.75) / 0.25) * (pbmOn ? 1.0 : 0.30)
-      : 0;
-    if (this.parts.intranasalLeds) {
-      this.parts.intranasalLeds.forEach(m => { m.emissiveIntensity = glow; });
     }
   }
 

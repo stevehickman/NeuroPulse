@@ -407,7 +407,7 @@ test('end to end: a bilateral intranasal command that fails on its second side l
 });
 
 // @verifies REQ-SIMFW-11
-test('end to end: the real cervical VNS flow reaches the baseline and then faults before delivery (OI-SIMFW-22)', { skip: !BIN }, async () => {
+test('end to end: the real cervical VNS flow gets from the baseline through the grant to steady delivery (OI-SIMFW-22, fixed)', { skip: !BIN }, async () => {
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];
   bridge.on('message', (m) => seen.push(m));
@@ -416,13 +416,13 @@ test('end to end: the real cervical VNS flow reaches the baseline and then fault
   bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_init' });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns', side: 2, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_mcu', granted_mask: 1024, status: 0 });
-  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 9000, bpm: 70 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'cvns_run', ms: 22000, bpm: 70 });
   await wait(800);
   bridge.stop();
   const st = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'cvns_state').map((m) => m.event).pop();
   assert.strictEqual(st.baseline_valid, true, 'the real detector found the 70 BPM baseline');
-  assert.strictEqual(st.stage, 7, 'and the session is in FAULT');
-  assert.strictEqual(st.abort_reason, 6, 'with abort reason 6 (already active)');
-  assert.strictEqual(st.enable_requested, false);
+  assert.strictEqual(st.stage, 4, 'and the session is in steady delivery (ACTIVE)');
+  assert.strictEqual(st.abort_reason, 0, 'with no abort reason');
+  assert.strictEqual(st.enable_requested, true);
   assert.strictEqual(st.safety_mcu, 'scenario', 'the state says the safety MCU is the scenario');
 });

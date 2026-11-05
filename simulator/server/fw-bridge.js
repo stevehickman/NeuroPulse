@@ -575,8 +575,15 @@ function eventToMessage(ev) {
 }
 
 class FwBridge extends EventEmitter {
-  constructor({ bin, spawnFn = spawn } = {}) {
+  /**
+   * `autoStatus`: milliseconds after a command to ask the firmware for the state of every module (0 = never).  The page learns what a
+   * module is doing from `module_state` events, and a command changes state without the firmware volunteering it, so the real server
+   * asks.  Tests that count events leave it off.
+   */
+  constructor({ bin, spawnFn = spawn, autoStatus = 0 } = {}) {
     super();
+    this._autoStatus = autoStatus;
+    this._statusTimer = null;
     if (typeof bin !== 'string' || bin === '') throw new BridgeError('bin is required');
     this._bin = bin;
     this._spawn = spawnFn;
@@ -594,6 +601,7 @@ class FwBridge extends EventEmitter {
   }
 
   stop() {
+    if (this._statusTimer !== null) { clearTimeout(this._statusTimer); this._statusTimer = null; }
     if (this._proc) {
       try { this._proc.stdin.write('quit\n'); } catch { /* already gone */ }
       this._proc.kill();
@@ -605,7 +613,16 @@ class FwBridge extends EventEmitter {
   handle(msg) {
     const lines = messageToLines(msg);
     for (const l of lines) this._proc.stdin.write(l + '\n');
+    if (this._autoStatus > 0 && lines.some((l) => l !== 'status')) this._scheduleStatus();
     return lines.length > 0;
+  }
+
+  _scheduleStatus() {
+    if (this._statusTimer !== null) return;
+    this._statusTimer = setTimeout(() => {
+      this._statusTimer = null;
+      try { this._proc?.stdin.write('status\n'); } catch { /* the process is gone */ }
+    }, this._autoStatus);
   }
 
   list() {

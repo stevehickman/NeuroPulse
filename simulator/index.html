@@ -50,7 +50,8 @@
       </div>
 
       <div class="panel-section">
-        <h3 class="section-title">Accessories</h3>
+        <h3 class="section-title">Demo accessories</h3>
+        <p class="accessory-sub" style="margin-bottom:6px">Accessories appear only while in use, driven by the protocol or by the firmware. These two have no protocol; switch one on to see it in use.</p>
         <div id="accessory-config"></div>
       </div>
 
@@ -67,6 +68,9 @@
     <!-- center: Three.js viewport ─────────────────────────────────────────── -->
     <div class="viewport-wrap" id="viewport-wrap">
       <canvas id="main-canvas"></canvas>
+
+      <!-- accessories that are not attached to the helmet: one window each, shown only while in use (NP-SIM-FW-001 §21) -->
+      <div class="acc-layer" id="acc-layer" aria-label="Accessories in use"></div>
 
       <div class="overlay-top">
         <div class="view-controls">
