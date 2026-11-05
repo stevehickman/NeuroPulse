@@ -135,13 +135,9 @@ const ROOT = join(import.meta.dir, "..");
 const ZONE_FILE = join(ROOT, "protocols", "predefined", "00-zones.npps");
 const JSON_OUT = join(ROOT, "hardware", "np_socket_map_v1.json");
 const TS_OUT = join(ROOT, "common", "lib", "socketMap.generated.ts");
-const SWIFT_OUT = join(
-  ROOT, "app", "ios", "NeurOne", "Models", "SocketLattice.generated.swift",
-);
-// Android's counterpart to SocketLattice.generated.swift. Both carry the
-// physical lattice ONLY — socket count and numbering. Neither carries zone
-// membership: "which sockets is 'Frontal Left'?" is answered from the loaded
-// .npps namespace via NPZoneRegistry on both platforms, because a zone is
+// The Kotlin, C# and TypeScript outputs carry the physical lattice ONLY — socket count
+// and numbering. None carries zone membership: "which sockets is 'Frontal Left'?" is
+// answered from the loaded .npps namespace via NPZoneRegistry, because a zone is
 // defined by a `zone` block in a .npps file and nowhere else
 // (NP-NPPS-REF-001 §8).
 const KOTLIN_OUT = join(
@@ -1204,93 +1200,6 @@ function geometryFields() {
   };
 }
 
-/**
- * Swift zone table for the iOS app.
- *
- * The app names a socket by the ZONE it is in — zones are what replaced lobe and
- * side, and they are authored in 00-zones.npps, not derived from geometry. The
- * helmet cannot supply this: zones are protocol data, users may define their own
- * in any .npps file, and a socket belongs to several at once. So the app needs
- * its own copy, and it is generated from the same file the web app and the
- * structural checks read, rather than hand-kept.
- *
- * Coordinates deliberately are NOT emitted here. Those come from the helmet over
- * the socket-map characteristic, because the LATTICE can be re-cut by a firmware
- * update and an app-side copy would then be wrong with no way to notice. Zone
- * membership is the opposite: authored, versioned with the app, and meaningless
- * to the device.
- */
-/**
- * SwiftLint's line_length warning threshold for app/ios (see .swiftlint.yml).
- * CI runs `swiftlint --strict`, so a warning fails the build — generated Swift
- * has to clear this exactly like hand-written source does.
- */
-const SWIFT_MAX_LINE = 140;
-
-/**
- * Fail the generator if anything it emits would fail the linter.
- *
- * The alternative — excluding generated files in .swiftlint.yml — would also
- * switch off the custom ISC-8 (no print) and ISC-9 (no hardcoded URLs/keys)
- * rules for this file, and those are worth keeping pointed at generated output.
- * Checking here means a future emitter change surfaces in the generator run
- * rather than three steps later in CI.
- */
-function assertSwiftLintClean(source: string, path: string): void {
-  // A length-only check let an emitter bug through once: the array items were
-  // joined with spaces and no commas, which is short, lint-clean and not Swift.
-  const items = source.match(/"[^"\n]*"\s+"/g);
-  if (items !== null) {
-    throw new Error(
-      `${path} has ${items.length} adjacent string literal(s) with no comma ` +
-      `between them — the array wrapper dropped its separators. First: ${items[0]}`,
-    );
-  }
-
-  const overlong = source.split("\n")
-    .map((line, i) => ({ n: i + 1, len: line.length, line }))
-    .filter(l => l.len > SWIFT_MAX_LINE);
-  if (overlong.length > 0) {
-    const shown = overlong.slice(0, 5)
-      .map(l => `    line ${l.n}: ${l.len} chars — ${l.line.slice(0, 60)}...`)
-      .join("\n");
-    throw new Error(
-      `${path} has ${overlong.length} line(s) over SwiftLint's ${SWIFT_MAX_LINE}-char ` +
-      `limit, and CI runs \`swiftlint --strict\` so a warning fails the build:\n${shown}\n` +
-      `Fix the emitter's wrapping — do not exclude the file from linting.`,
-    );
-  }
-}
-
-/**
- * Greedily pack already-rendered array items onto lines within the SwiftLint
- * budget, at a fixed indent.
- *
- * Shared by both emitted tables. Each of them has an array that cannot fit on
- * one line — a socket in six zones, and the 80-socket "All" zone — and one-item-
- * per-line for either would be unreadable. Duplicating this once produced the
- * bug the comment below guards against, so it lives in one place.
- */
-function wrapSwiftArrayItems(items: string[], indent: string): string[] {
-  const wrapped: string[] = [];
-  let line = "";
-  for (const item of items) {
-    // Comma travels WITH the item — building the line without it and adding
-    // separators later is how the first cut of this emitted a Swift array of
-    // space-separated strings with no commas at all.
-    const piece = `${item},`;
-    const next = line === "" ? piece : `${line} ${piece}`;
-    if (`${indent}${next}`.length > SWIFT_MAX_LINE) {
-      wrapped.push(`${indent}${line}`);
-      line = piece;
-    } else {
-      line = next;
-    }
-  }
-  if (line !== "") { wrapped.push(`${indent}${line}`); }
-  return wrapped;
-}
-
 // ─── Lattice emitters (NO zone content) ───────────────────────────────────────
 //
 // These emit the PHYSICAL LATTICE only — how many sockets exist and how they are
@@ -1405,41 +1314,6 @@ function emitCSharpLattice(sockets: SocketGeometry[]): string {
     "}",
     "",
   ].join("\n");
-}
-
-function emitSwiftLattice(sockets: SocketGeometry[]): string {
-  const min = sockets.length === 0 ? 0 : Math.min(...sockets.map(s => s.id));
-  const max = sockets.length === 0 ? 0 : Math.max(...sockets.map(s => s.id));
-  return `${BANNER.replace(/^\/\*/, "/*").replace(/\/\/ /g, "// ")}
-import Foundation
-
-/// The socket lattice: a hardware fact, changing only on an inner-bowl re-tool.
-///
-/// Not a zone table. Which sockets a zone contains is authored in a \`.npps\`
-/// file and answered by \`NPZoneRegistry\` — a zone is defined by a \`zone\` block
-/// and nowhere else (NP-NPPS-REF-001 §8).
-enum SocketLattice {
-
-    /// Number of sockets on this lattice.
-    static let NP_SOCKET_COUNT = ${sockets.length}
-
-    /// Socket ids are 1-based — the numbering base every consumer honours.
-    static let NP_SOCKET_NUMBERING_BASE = 1
-
-    /// Inclusive lowest valid socket id.
-    static let NP_SOCKET_ID_MIN = ${min}
-
-    /// Inclusive highest valid socket id.
-    static let NP_SOCKET_ID_MAX = ${max}
-
-    /// Inclusive id range, for error messages and UI hints.
-    static var rangeLabel: String { "\\(NP_SOCKET_ID_MIN)\\u{2013}\\(NP_SOCKET_ID_MAX)" }
-
-    static func isValid(_ socketID: Int) -> Bool {
-        socketID >= NP_SOCKET_ID_MIN && socketID <= NP_SOCKET_ID_MAX
-    }
-}
-`;
 }
 
 // ── Per-hardware-version layouts (firmware table) ────────────────────────────
@@ -1740,14 +1614,9 @@ const outputs: Array<[string, string]> = [
   [JSON_OUT, v1Json],
   [FW_LAYOUTS_OUT, emitFirmwareLayouts(versionLayouts.layouts)],
   [TS_OUT, emitTypeScript(sockets)],
-  [SWIFT_OUT, emitSwiftLattice(sockets)],
   [KOTLIN_OUT, emitKotlinLattice(sockets)],
   [CSHARP_OUT, emitCSharpLattice(sockets)],
 ];
-
-// Generated Swift is linted like any other source, so check it here rather than
-// discovering it in CI.
-assertSwiftLintClean(outputs.find(([p]) => p === SWIFT_OUT)![1], SWIFT_OUT);
 
 let stale = 0;
 for (const [path, content] of outputs) {
