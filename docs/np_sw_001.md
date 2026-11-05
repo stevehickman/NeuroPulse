@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 148
-**Date:** 2026-11-03  
+**Revision:** 149
+**Date:** 2026-11-05  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -797,3 +797,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 146 | 2026-11-03 | NeurOne Software Engineering | **§5.3.1: correction to Rev 143 — in Mode 3 the shared app reports a protocol stored only when the helmet holds it (`SWR-UP-02`, `SWR-HV-08`).** Rev 143 copied the Rev 132 rule ("a tier or hardware-version refusal is shown, any other outcome reports stored"), which Revs 133 to 135 had replaced in the iOS app: `ProtocolUploadFlow.program` reports stored only for an accepted answer to this upload, or no answer, and says the reason after every refusal and after an answer for other bytes. The Swift test port found it (`testModeThreeIsNotStoredAfterAnyRefusal`). `ProgrammingOutcome` now holds the rule, the Session tab uses it, and the per-cause messages are one function (`helmetRefusalMessages`) with a test that each cause has its own text. Also ported: the zone-resolution cases of the iOS socket-mask tests (`REQ-NPPS-17`), the `zones:` parsing refusals (`REQ-NPPS-08`), the consumable tracker, plural and tier-price, erasure, session history, descriptor compiler, parser and bundled-library cases. |
 | 147 | 2026-11-03 | NeurOne Software Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |
 | 148 | 2026-11-03 | NeurOne Software Engineering | **§6.3: `SWR-PL-01` moves to partly built.** The upload gate identifies an upload by its content hash and refuses one the library does not hold (`not_in_library`), in the shared core and the Kotlin, Swift and web libraries, with refusal dialogs in the shared Compose UI and iOS; a composite is compiled and identified by the hash of its plan. No requirement text changed. |
+| 149 | 2026-11-05 | NeurOne Software Engineering | **§6.3: `SWR-UP-02` status updated (the upload report's causes).** The helmet's refusals for a photic goggles frequency of 3 to 30 Hz (30), a socket address it lacks (31) and too many commands (8) have causes of their own in the shared core (`photic_zone`, `bad_address`, `too_many_commands`) and a string in the Compose and iOS apps; reasons 2 and 9 stay `malformed`. No requirement text changed. The Kotlin, Swift and C# changes were not run here. |
