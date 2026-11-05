@@ -1,0 +1,3 @@
+// Build settings that are yours, not the repository's. Committed; it only reads the local file below if there is one.
+// Copy Signing.local.xcconfig.example to Signing.local.xcconfig (git-ignored) and fill it in.
+#include? "Signing.local.xcconfig"
