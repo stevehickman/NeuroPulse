@@ -48,7 +48,8 @@
  */
 #define NP_GATT_UPLOAD_CHECK_ID 0x0018u
 /*
- * WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05). Refused in any
+ * WRITE 1 B: 0x01 pause the running session, 0x02 resume the paused one (SWR-SS-05), 0x03 panic: cut
+ * everything at once and hold it paused, accepted during a ramp-up too (SWR-SS-09). Refused in any
  * other state.
  */
 #define NP_GATT_SESSION_PAUSE_ID 0x001Au
