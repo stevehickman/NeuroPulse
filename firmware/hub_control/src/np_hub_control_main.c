@@ -51,6 +51,8 @@
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_protocol.h"
+#include "np_mod_visual.h"
+#include "np_ppx_detect.h"
 #include "np_session_runner.h"
 #include "np_session_lease.h"   /* OI-FWHUB-17: detect/session exclusion */
 #include "np_session_stop.h"     /* SWR-SS-06 */
@@ -656,6 +658,7 @@ void np_hub_control_app_main(void)
     np_session_stop_init(np_runner_get_state, np_runner_abort);   /* SWR-SS-06 */
     np_session_pause_init(np_runner_pause, np_runner_resume);   /* SWR-SS-05 */
     np_session_panic_init(np_runner_panic);                     /* SWR-SS-09 */
+    np_ppx_set_halt_fn(np_mod_visual_ppx_notify);               /* REQ-FWHUB-67: the detector's halt; it is not armed (evidence NONE) */
     np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
 
     np_hal_status_led_set(NP_LED_IDLE);

@@ -45,6 +45,9 @@
 #include "np_hub_config.h"
 #include "np_hub_types.h"
 #include "np_module_registry.h"
+#include "np_mod_visual.h"
+#include "np_ppx_detect.h"
+#include "np_ppx_policy.h"
 #include "np_safety_spi.h"
 #include "np_session_runner.h"
 #include <string.h>
@@ -55,7 +58,8 @@
 
 typedef struct {
     bool    active;
-    bool    ppx_halt;    /* photoparoxysmal halt — set by EEG interrupt */
+    bool    ppx_halt;    /* photoparoxysmal halt — set by the detector (np_ppx_detect.c) */
+    uint8_t last_freq;   /* freq_hz of the drive in progress, with last_mode: the zone test (NP_VISUAL_PPX_ZONE) */
     bool    hall_irq_armed;
     uint8_t last_mode;
 } np_mod_visual_state_t;
@@ -80,13 +84,33 @@ static void hall_unseated_isr(void)
     s_hall_cut = true;
 }
 
-/* Called from EEG ISR / task when photoparoxysmal pattern detected at Oz. */
+/* Called from the detector's task (np_ppx_feed) when a photoparoxysmal discharge is found.  The LEDs are cut here, at once, and
+ * the enable is withdrawn; the session is then held PAUSED with the panic's second step (REQ-FWHUB-67, REQ-FWHUB-72) and not
+ * aborted, so the person chooses whether to stop or to resume.  The latch stays until the module is initialised again: after a
+ * detection the goggles refuse every later drive in the session, so a resume restarts everything but them. */
 void np_mod_visual_ppx_halt(void)
 {
     s_state.ppx_halt = true;
+    s_state.active = false;
     np_mod_visual_hal_led_stop();
     np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
-    np_runner_abort(NP_ABORT_EEG_SEIZURE);
+    (void)np_runner_panic();
+}
+
+/* Is the goggles' photic drive in the risk zone running now? The detector's halt means nothing otherwise. */
+bool np_mod_visual_photic_zone_active(void)
+{
+    return s_state.active && NP_VISUAL_PPX_ZONE(s_state.last_mode, s_state.last_freq);
+}
+
+/* The detector's hook (np_ppx_set_halt_fn).  A discharge, or a detector that can no longer see, matters only while the zone is
+ * being driven; the detector also watches while nothing photic runs, and that is not a reason to stop anything. */
+void np_mod_visual_ppx_notify(np_ppx_verdict_t why)
+{
+    (void)why;
+    if (np_mod_visual_photic_zone_active()) {
+        np_mod_visual_ppx_halt();
+    }
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
@@ -147,7 +171,11 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
      * validator's check is a warning the author can dismiss, and the hub is the control.  Modes 0 (photic) and 3 (combined)
      * drive at freq_hz; EMDR and retinal PBM do not.  Nothing is driven and no enable is requested. */
     if (NP_VISUAL_PPX_ZONE(p->mode, p->freq_hz)) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        /* REQ-FWHUB-70: the refusal stands unless the detector has the evidence to stand in for it.  REQ-FWHUB-69: and even
+         * then the drive does not start unless the detector can see. */
+        if (!np_ppx_zone_permitted() || !np_ppx_seeing()) {
+            return NP_HUB_ERR_SAFETY_REJECTED;
+        }
     }
 
     /* Safety check 1: Hall sensor — goggles must be seated in the wear
@@ -211,6 +239,7 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 
     s_state.active    = true;
     s_state.last_mode = p->mode;
+    s_state.last_freq = p->freq_hz;
     np_safety_spi_request_enable(NP_SAFETY_EN_VISUAL);
 
     /* The ISR may have fired between the seated read and here.  If so, it

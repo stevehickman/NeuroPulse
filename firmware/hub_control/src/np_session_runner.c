@@ -22,6 +22,7 @@
 #include "np_session_runner.h"
 #include "np_session_progress.h"
 #include "np_session_fitting.h"
+#include "np_ppx_policy.h"
 #include "np_pause_limit.h"
 #include "np_ramp_plan.h"
 #include "np_session_lease.h"
@@ -776,7 +777,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     /* REQ-FWHUB-66 (OI-FWHUB-29, option A): photic driving of the goggles in the photoparoxysmal zone is refused at load,
      * with a status of its own, so the person learns it when they send the protocol and not when the session runs.  The
      * goggles refuse the same drive at dispatch (REQ-FWHUB-65); this is the earlier of the two. */
-    rc = np_protocol_photic_admit(&s_ctx.desc);
+    rc = np_protocol_photic_admit(&s_ctx.desc, np_ppx_zone_permitted());
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
         s_ctx.state = NP_SESSION_IDLE;

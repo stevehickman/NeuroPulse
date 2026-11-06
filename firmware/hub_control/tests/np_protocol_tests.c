@@ -966,8 +966,8 @@ static void test_photic_admit(void)
 {
     np_session_desc_t d;
     memset(&d, 0, sizeof d);
-    check(np_protocol_photic_admit(NULL) == NP_HUB_ERR_INVALID_ARG, "photic: no descriptor is invalid");
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: a descriptor with no command is admitted");
+    check(np_protocol_photic_admit(NULL, false) == NP_HUB_ERR_INVALID_ARG, "photic: no descriptor is invalid");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: a descriptor with no command is admitted");
 
     d.cmd_count = 1U;
     d.cmds[0].mod_type = NP_MOD_VISUAL;
@@ -979,35 +979,35 @@ static void test_photic_admit(void)
     for (uint8_t f = 3U; f <= 30U; f++) {
         p.mode = 0U; p.freq_hz = f;
         memcpy(d.cmds[0].params, &p, sizeof p);
-        if (np_protocol_photic_admit(&d) != NP_HUB_ERR_PHOTIC_ZONE) { zone_refused = false; }
+        if (np_protocol_photic_admit(&d, false) != NP_HUB_ERR_PHOTIC_ZONE) { zone_refused = false; }
     }
     check(zone_refused, "photic: a photic command at every whole hertz from 3 to 30 is refused with its own status");
     p.mode = 3U; p.freq_hz = 10U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode is refused too");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode is refused too");
     p.mode = 0U; p.freq_hz = 2U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: 2 Hz is outside the zone");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 2 Hz is outside the zone");
     p.freq_hz = 31U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: 31 Hz is outside the zone");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 31 Hz is outside the zone");
     p.freq_hz = 40U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: 40 Hz, the gamma protocols' frequency, is admitted");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 40 Hz, the gamma protocols' frequency, is admitted");
     p.mode = 1U; p.freq_hz = 10U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz");
     p.mode = 2U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: retinal PBM does not drive at freq_hz");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: retinal PBM does not drive at freq_hz");
 
     p.mode = 0U; p.freq_hz = 10U;
     memcpy(d.cmds[0].params, &p, sizeof p);
     d.cmds[0].params_len = 0U;
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: a stop (an empty parameter block) names no frequency");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: a stop (an empty parameter block) names no frequency");
     d.cmds[0].params_len = (uint16_t)sizeof(np_mod_visual_params_t);
     d.cmds[0].mod_type = NP_MOD_EEG;
-    check(np_protocol_photic_admit(&d) == NP_HUB_OK, "photic: another modality's bytes are not read as the goggles' frequency");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: another modality's bytes are not read as the goggles' frequency");
 
     /* A zone command later in the list is found, whatever precedes it. */
     d.cmd_count = 3U;
@@ -1020,7 +1020,7 @@ static void test_photic_admit(void)
     d.cmds[2].params_len = (uint16_t)sizeof(np_mod_visual_params_t);
     p.freq_hz = 12U;
     memcpy(d.cmds[2].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d) == NP_HUB_ERR_PHOTIC_ZONE, "photic: a zone command in the third place refuses the whole protocol");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_ERR_PHOTIC_ZONE, "photic: a zone command in the third place refuses the whole protocol");
 }
 
 int main(void)
