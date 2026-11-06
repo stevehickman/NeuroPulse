@@ -201,6 +201,7 @@ static void reset_world(void)
     np_upload_check_init();
     np_session_stop_init(NULL, NULL);
     np_session_pause_init(NULL, NULL);
+    np_session_panic_init(NULL);
     np_progress_set_source(NULL);
 }
 
@@ -935,9 +936,12 @@ static int              g_pause_calls;
 static int              g_resume_calls;
 static np_hub_status_t  g_pause_rc;
 static np_hub_status_t  g_resume_rc;
+static int              g_panic_calls;
+static np_hub_status_t  g_panic_rc;
 
 static np_hub_status_t pause_fn(void)  { g_pause_calls++;  return g_pause_rc; }
 static np_hub_status_t resume_fn(void) { g_resume_calls++; return g_resume_rc; }
+static np_hub_status_t panic_fn(void)  { g_panic_calls++;  return g_panic_rc; }
 
 /* @verifies SWR-SS-05 */
 static void test_pause_write_forwards_pause_and_resume_to_the_runner(void)
@@ -962,7 +966,7 @@ static void test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_
 {
     const uint8_t pause = NP_SESSION_PAUSE_VALUE;
     const uint8_t resume = NP_SESSION_RESUME_VALUE;
-    const uint8_t other = 0x03U;
+    const uint8_t other = 0x04U;
     reset_world();
     g_pause_calls = g_resume_calls = 0;
     g_pause_rc = g_resume_rc = NP_HUB_ERR_NO_SESSION;   /* the runner is not in the state the request needs */
@@ -975,9 +979,10 @@ static void test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_
     g_pause_calls = g_resume_calls = 0;
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &other, 1U) == NP_ATT_APP_REFUSED &&
           g_pause_calls == 0 && g_resume_calls == 0,
-          "pause: any value but 0x01 and 0x02 is refused without reaching the runner");
+          "pause: any value but 0x01, 0x02 and 0x03 is refused without reaching the runner");
 
     np_session_pause_init(NULL, NULL);
+    np_session_panic_init(NULL);
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_APP_REFUSED,
           "pause: with no runner bound the write is refused, never ignored");
     check(np_gatt_on_read(NP_GATT_SESSION_PAUSE_ID, 0U, (uint8_t[4]){0}, 4U, &(size_t){0}) == NP_ATT_READ_NOT_PERMITTED,
@@ -997,6 +1002,27 @@ static void test_pause_refused_while_ramping_says_so(void)
           "pause: refused because the protocol is ramping up is a distinct error (0x82), so the app can say why");
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_APP_RAMPING,
           "pause: so is a resume while one is already ramping up");
+}
+
+/* @verifies SWR-SS-09 */
+static void test_panic_write_reaches_the_runner_and_is_never_a_pause(void)
+{
+    const uint8_t panic = NP_SESSION_PANIC_VALUE;
+    reset_world();
+    g_pause_calls = g_resume_calls = g_panic_calls = 0;
+    g_pause_rc = g_resume_rc = NP_HUB_ERR_RAMPING;      /* a pause or a resume is refused in this state: the panic is not */
+    g_panic_rc = NP_HUB_OK;
+    np_session_pause_init(pause_fn, resume_fn);
+    np_session_panic_init(panic_fn);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_OK &&
+          g_panic_calls == 1 && g_pause_calls == 0 && g_resume_calls == 0,
+          "panic: 0x03 reaches the runner's panic and neither of the other two");
+    g_panic_rc = NP_HUB_ERR_NO_SESSION;
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_APP_REFUSED,
+          "panic: with no session the app is told it did not take effect");
+    np_session_panic_init(NULL);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_APP_REFUSED,
+          "panic: with no runner bound the write is refused, never ignored");
 }
 
 int main(void)
@@ -1026,6 +1052,7 @@ int main(void)
     test_pause_write_forwards_pause_and_resume_to_the_runner();
     test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong();
     test_pause_refused_while_ramping_says_so();
+    test_panic_write_reaches_the_runner_and_is_never_a_pause();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);
