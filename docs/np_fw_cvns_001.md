@@ -402,6 +402,8 @@ Before stimulation is enabled:
 
 Host-test coverage: `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` (`np_cardiac_interlock_tests`).
 
+> **Re-arm after a session fault (principal, 2026-11-06; `OI-SIMFW-23`).** A session fault keeps the interlock in FAULT, whatever the fault kind. The DISABLE is still sent. The baseline is invalidated and re-forms from fresh PPG, which the driver keeps feeding while the session is FAULT. The 30 s lockout runs from the tick that saw the fault. `np_cvns_session_request_reenable` needs the lockout, the app confirmation and the fresh baseline. A deliberate stop clears the latch. A successful re-enable re-arms the interlock only: the session stage stays FAULT and delivery does not restart. How a re-armed interlock resumes or replaces the session is not decided.
+
 ### 5.4 Cardiac interlock monitoring loop
 
 While cervical VNS is requested, the safety MCU runs this check on **every main-loop iteration** (`np_cardiac_interlock_tick()`). *Rev 8 correction: Rev 1 described a 200 Hz TIM6 ISR, and there is none. The cutoff lands within one main-loop iteration, and bench latency against the 100 ms specification is FAI-CV02.*
