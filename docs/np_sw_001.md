@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 150
+**Revision:** 151
 **Date:** 2026-11-06  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -800,3 +800,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 148 | 2026-11-03 | NeurOne Software Engineering | **§6.3: `SWR-PL-01` moves to partly built.** The upload gate identifies an upload by its content hash and refuses one the library does not hold (`not_in_library`), in the shared core and the Kotlin, Swift and web libraries, with refusal dialogs in the shared Compose UI and iOS; a composite is compiled and identified by the hash of its plan. No requirement text changed. |
 | 149 | 2026-11-05 | NeurOne Software Engineering | **§6.3: `SWR-UP-02` status updated (the upload report's causes).** The helmet's refusals for a photic goggles frequency of 3 to 30 Hz (30), a socket address it lacks (31) and too many commands (8) have causes of their own in the shared core (`photic_zone`, `bad_address`, `too_many_commands`) and a string in the Compose and iOS apps; reasons 2 and 9 stay `malformed`. No requirement text changed. The Kotlin, Swift and C# changes were not run here. |
 | 150 | 2026-11-06 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` added (not built): a modality-independent panic control, fixed in the lower left corner of every screen, that pauses at once and asks for a second step in a centred modal dialog.** No existing requirement text changed. |
+| 151 | 2026-11-06 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` status updated: built (hub and Compose app).** No requirement text changed. The Kotlin was not run where it was written. |
