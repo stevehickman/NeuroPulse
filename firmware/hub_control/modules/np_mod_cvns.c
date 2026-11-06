@@ -922,7 +922,8 @@ void np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms)
  * Complements the hub-global re-enable manager (np_cvns_reenable): that manager
  * decides when the UNIFIED enable bit may re-assert (3-gate: lockout + confirm +
  * fresh impedance); this call re-arms the LIBRARY's interlock (baseline + its
- * own lockout).  Both must agree before stimulation resumes.
+ * own lockout).  Both must agree before stimulation resumes.  A success ends the
+ * faulted session and enables nothing: a new session must be started (OI-SIMFW-23).
  */
 np_hub_status_t np_mod_cvns_request_reenable(uint32_t now_s)
 {

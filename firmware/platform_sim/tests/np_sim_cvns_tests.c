@@ -318,8 +318,15 @@ static void test_a_faulted_session_can_be_re_enabled_after_the_lockout(void)
           "re-enable: refused inside the lockout");
     run("cvns_run 40000 70");                        /* past the lockout; the baseline re-forms from the pulse train */
     run("cvns_reenable");
-    check(result_code_is(0),
-          "re-enable: accepted after the lockout, with the baseline re-established from fresh PPG");
+    const bool accepted = result_code_is(0);
+    run("cvns_state");
+    check(accepted && stage() == 0 && interlock() == 0 && !enable_bit(),
+          "re-enable: accepted after the lockout with the baseline re-formed; the faulted session ends and nothing is enabled");
+    run("cvns 2 10000 1000 250 10 1");
+    const bool started = result_code_is(0);
+    run("cvns_state");
+    check(started && stage() == STAGE_IMPEDANCE,
+          "re-enable: permission to start a new session, which begins at the impedance check (option 2)");
 }
 
 /* @verifies-none Stop, suspend and shutdown; np_mod_cvns_tests verifies them. Simulator evidence only (REQ-SIMFW-06). */

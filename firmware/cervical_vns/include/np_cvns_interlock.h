@@ -119,6 +119,16 @@ np_cvns_status_t np_cvns_interlock_request_reenable(np_cvns_interlock_ctx_t *ctx
                                                       bool                     app_confirmed,
                                                       uint32_t                 now_s);
 
+/*
+ * Re-arm after a latched fault (OI-SIMFW-23, option 2): the same three gates as
+ * np_cvns_interlock_request_reenable (app confirmation, lockout, fresh baseline),
+ * but on success the interlock only returns to IDLE.  No baseline or ENABLE is
+ * sent to the safety MCU; the next session's own start requests the enable.
+ */
+np_cvns_status_t np_cvns_interlock_rearm(np_cvns_interlock_ctx_t *ctx,
+                                           bool                     app_confirmed,
+                                           uint32_t                 now_s);
+
 /* ── Safety MCU SPI response handler ────────────────────────────────────────── */
 /*
  * Called from the SPI ISR when the safety MCU transmits a response byte.

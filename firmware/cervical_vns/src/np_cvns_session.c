@@ -424,5 +424,12 @@ np_cvns_status_t np_cvns_session_request_reenable(np_cvns_session_ctx_t *ctx,
     if (ctx->stage != NP_CVNS_STAGE_FAULT) {
         return NP_CVNS_ERR_NO_SESSION;
     }
-    return np_cvns_interlock_request_reenable(ctx->interlock, true, now_s);
+    /* OI-SIMFW-23 (option 2): a re-enable is permission to start a NEW session.  The
+     * faulted session ends and nothing is enabled until the next start. */
+    np_cvns_status_t rc = np_cvns_interlock_rearm(ctx->interlock, true, now_s);
+    if (rc == NP_CVNS_OK) {
+        ctx->stage     = NP_CVNS_STAGE_IDLE;
+        ctx->suspended = false;
+    }
+    return rc;
 }

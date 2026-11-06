@@ -284,13 +284,11 @@ void np_cvns_interlock_mark_fault_time(np_cvns_interlock_ctx_t *ctx, uint32_t no
     }
 }
 
-np_cvns_status_t np_cvns_interlock_request_reenable(np_cvns_interlock_ctx_t *ctx,
-                                                      bool                     app_confirmed,
-                                                      uint32_t                 now_s)
+/* The three gates of a re-arm: app confirmation, the lockout, a fresh baseline. */
+static np_cvns_status_t reenable_gates(const np_cvns_interlock_ctx_t *ctx,
+                                       bool                           app_confirmed,
+                                       uint32_t                       now_s)
 {
-    if (!ctx) {
-        return NP_CVNS_ERR_INVALID_ARG;
-    }
     if (ctx->state != NP_CVNS_INTERLOCK_FAULT) {
         return NP_CVNS_ERR_NO_SESSION;
     }
@@ -308,9 +306,38 @@ np_cvns_status_t np_cvns_interlock_request_reenable(np_cvns_interlock_ctx_t *ctx
         ctx->baseline_beats_accumulated < NP_CVNS_BASELINE_BEATS_MIN) {
         return NP_CVNS_ERR_BASELINE_INVALID;
     }
+    return NP_CVNS_OK;
+}
+
+np_cvns_status_t np_cvns_interlock_request_reenable(np_cvns_interlock_ctx_t *ctx,
+                                                      bool                     app_confirmed,
+                                                      uint32_t                 now_s)
+{
+    if (!ctx) {
+        return NP_CVNS_ERR_INVALID_ARG;
+    }
+    np_cvns_status_t rc = reenable_gates(ctx, app_confirmed, now_s);
+    if (rc != NP_CVNS_OK) {
+        return rc;
+    }
 
     ctx->state = NP_CVNS_INTERLOCK_IDLE;
     return np_cvns_interlock_request_enable(ctx, now_s);
+}
+
+np_cvns_status_t np_cvns_interlock_rearm(np_cvns_interlock_ctx_t *ctx,
+                                           bool                     app_confirmed,
+                                           uint32_t                 now_s)
+{
+    if (!ctx) {
+        return NP_CVNS_ERR_INVALID_ARG;
+    }
+    np_cvns_status_t rc = reenable_gates(ctx, app_confirmed, now_s);
+    if (rc != NP_CVNS_OK) {
+        return rc;
+    }
+    ctx->state = NP_CVNS_INTERLOCK_IDLE;   /* permission only: nothing is sent to the safety MCU */
+    return NP_CVNS_OK;
 }
 
 /* ── Safety MCU SPI response handler ────────────────────────────────────────── */

@@ -7,4 +7,4 @@ author: NeurOne Firmware Engineering
 text: **§20 and §7: `OI-SIMFW-23` closed (fixed in `np_cvns_session.c`, `np_cvns_interlock.c` and `np_mod_cvns.c`); the re-enable scenario now shows a refusal inside the lockout and an acceptance after it.**
 ## NP-FW-CVNS-001
 author: NeurOne Firmware Engineering
-text: **§5.3: re-arm after a session fault recorded (principal, 2026-11-06, `OI-SIMFW-23`): the interlock FAULT stays latched, the baseline re-forms from fresh PPG, the lockout runs from the tick that saw the fault; a re-enable re-arms the interlock only and delivery does not restart (undecided).**
+text: **§5.3: re-arm after a session fault recorded (principal, 2026-11-06, `OI-SIMFW-23`): the interlock FAULT stays latched, the baseline re-forms from fresh PPG, the lockout runs from the tick that saw the fault; a re-enable is permission to start a new session (option 2); resuming the same session (option 1) is recorded as a possibility for later.**
