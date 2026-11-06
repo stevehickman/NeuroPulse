@@ -1021,6 +1021,7 @@ static void test_photic_admit(void)
     p.freq_hz = 12U;
     memcpy(d.cmds[2].params, &p, sizeof p);
     check(np_protocol_photic_admit(&d, false) == NP_HUB_ERR_PHOTIC_ZONE, "photic: a zone command in the third place refuses the whole protocol");
+    check(np_protocol_photic_admit(&d, true) == NP_HUB_OK, "photic: where the policy permits the zone (the detector is the guard, REQ-FWHUB-70) the same protocol loads");
 }
 
 int main(void)
