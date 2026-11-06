@@ -45,13 +45,19 @@ np_hub_status_t np_session_stop_on_write(const uint8_t *data, size_t len);
  */
 #define NP_SESSION_PAUSE_VALUE    0x01U
 #define NP_SESSION_RESUME_VALUE   0x02U
+/* 0x03 is the panic (SWR-SS-09): the same characteristic, so no new UUID.  The runner accepts it while running, while
+ * ramping up and while paused, and refuses it only with no session (ATT 0x80). */
+#define NP_SESSION_PANIC_VALUE    0x03U
 
 typedef np_hub_status_t (*np_session_request_fn)(void);
 
 /* Bring-up: where a pause and a resume are requested. */
 void np_session_pause_init(np_session_request_fn pause_fn, np_session_request_fn resume_fn);
 
-/* The GATT write handler (exactly one byte, 0x01 or 0x02). */
+/* Bring-up: where a panic is requested (np_runner_panic).  Without it a 0x03 write is refused (ATT 0x80). */
+void np_session_panic_init(np_session_request_fn panic_fn);
+
+/* The GATT write handler (exactly one byte, 0x01, 0x02 or 0x03). */
 np_hub_status_t np_session_pause_on_write(const uint8_t *data, size_t len);
 
 #endif /* NP_SESSION_STOP_H */

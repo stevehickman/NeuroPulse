@@ -1,5 +1,6 @@
 package life.neurone.shared.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -180,7 +181,9 @@ private fun MainScaffold(services: AppServices) {
                 }
             },
         ) { padding ->
-            Row(Modifier.padding(padding).fillMaxSize()) {
+            // The panic control is laid over the content (not beside it), so it takes no width from the screens.
+            Box(Modifier.padding(padding).fillMaxSize()) {
+            Row(Modifier.fillMaxSize()) {
                 if (wide) {
                     NavigationRail {
                         AppTab.entries.forEach { tab ->
@@ -212,6 +215,9 @@ private fun MainScaffold(services: AppServices) {
                         }
                     }
                 }
+            }
+            // SWR-SS-09: the panic control, over every screen, in the lower left corner.
+            PanicControlLayer(services)
             }
         }
     }
