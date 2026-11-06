@@ -6,4 +6,4 @@ author: NeurOne Firmware Engineering
 text: **`REQ-FWHUB-67` to `-71` added (not built) and `OI-FWHUB-31`, `OI-FWHUB-32` raised.** The detection criterion (first generalised discharge; occipital-only spikes a clinician switch), fail-closed when the detector cannot see, validation tiers and the manual override, the sensitivity setting, and the audit of the pause control against a panic button (pause refused during ramp-up; tDCS ramps down on pause).
 ## NP-SW-001
 author: NeurOne Software Engineering
-text: **§6.3.6: `SWR-SS-09` added (not built): a modality-independent panic control that pauses at once and asks for a second step.** No existing requirement text changed.
+text: **§6.3.6: `SWR-SS-09` added (not built): a modality-independent panic control, fixed in the lower left corner of every screen, that pauses at once and asks for a second step in a centred modal dialog.** No existing requirement text changed.
