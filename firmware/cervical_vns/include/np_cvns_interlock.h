@@ -98,6 +98,18 @@ np_cvns_status_t np_cvns_interlock_request_enable(np_cvns_interlock_ctx_t *ctx,
 void np_cvns_interlock_disable(np_cvns_interlock_ctx_t *ctx);
 
 /*
+ * Withdraw the enable because the session faulted (OI-SIMFW-23).  Sends the
+ * same DISABLE as np_cvns_interlock_disable(), but a FAULT state is KEPT, so
+ * np_cvns_interlock_request_reenable() can still run.  A latched fault also
+ * invalidates the baseline, which must be re-established from fresh PPG during
+ * the lockout.  In any other state it is the same as disable (to IDLE).
+ */
+void np_cvns_interlock_disable_keep_fault(np_cvns_interlock_ctx_t *ctx);
+
+/* Stamp the time a fault was latched, for the re-enable lockout. */
+void np_cvns_interlock_mark_fault_time(np_cvns_interlock_ctx_t *ctx, uint32_t now_s);
+
+/*
  * Re-enable after fault.  Fails if lockout has not elapsed, or if baseline
  * is not re-established, or if no explicit app confirmation has been received.
  * app_confirmed: must be true (set by session manager after app sends

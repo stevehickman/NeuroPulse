@@ -113,7 +113,8 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
     ctx->stage = NP_CVNS_STAGE_FAULT;
     ctx->suspended = false;
     np_cvns_stim_stop(ctx->stim);
-    np_cvns_interlock_disable(ctx->interlock);
+    /* OI-SIMFW-23: keep a latched interlock FAULT so the re-enable path can run. */
+    np_cvns_interlock_disable_keep_fault(ctx->interlock);
 
     /* Finalise UHDR record. */
     ctx->uhdr_record.session_duration_s = stim_elapsed_ms(ctx, now_ms) / 1000U;
@@ -241,7 +242,11 @@ void np_cvns_session_stop(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
     if (!ctx || (ctx->stage == NP_CVNS_STAGE_IDLE && !ctx->suspended)) {
         return;
     }
-    session_advance_to_fault(ctx, NP_CVNS_ERR_NO_SESSION, now_ms);
+    if (ctx->stage != NP_CVNS_STAGE_FAULT) {   /* a faulted session already wrote its one record */
+        session_advance_to_fault(ctx, NP_CVNS_ERR_NO_SESSION, now_ms);
+    }
+    /* A deliberate stop abandons any re-arm: clear a latched fault (OI-SIMFW-23). */
+    np_cvns_interlock_disable(ctx->interlock);
     ctx->stage = NP_CVNS_STAGE_IDLE;
 }
 
@@ -279,6 +284,8 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
     /* Check for cardiac interlock fault at every tick. */
     if (np_cvns_interlock_state(ctx->interlock) == NP_CVNS_INTERLOCK_FAULT &&
         ctx->stage != NP_CVNS_STAGE_FAULT) {
+        /* The lockout runs from the tick that saw the fault (OI-SIMFW-23). */
+        np_cvns_interlock_mark_fault_time(ctx->interlock, now_s);
         session_advance_to_fault(ctx, NP_CVNS_ERR_CARDIAC_CUTOFF, now_ms);
         return;
     }

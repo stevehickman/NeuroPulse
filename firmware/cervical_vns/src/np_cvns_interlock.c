@@ -262,6 +262,28 @@ void np_cvns_interlock_disable(np_cvns_interlock_ctx_t *ctx)
     ctx->state = NP_CVNS_INTERLOCK_IDLE;
 }
 
+void np_cvns_interlock_disable_keep_fault(np_cvns_interlock_ctx_t *ctx)
+{
+    if (!ctx) {
+        return;
+    }
+    platform_spi_send(NP_CVNS_SPI_CMD_DISABLE, NULL, 0U);
+    if (ctx->state == NP_CVNS_INTERLOCK_FAULT) {
+        /* Latched: the baseline must be re-established before a re-enable. */
+        ctx->baseline_valid             = false;
+        ctx->baseline_beats_accumulated = 0U;
+    } else {
+        ctx->state = NP_CVNS_INTERLOCK_IDLE;
+    }
+}
+
+void np_cvns_interlock_mark_fault_time(np_cvns_interlock_ctx_t *ctx, uint32_t now_s)
+{
+    if (ctx) {
+        ctx->fault_time_s = now_s;
+    }
+}
+
 np_cvns_status_t np_cvns_interlock_request_reenable(np_cvns_interlock_ctx_t *ctx,
                                                       bool                     app_confirmed,
                                                       uint32_t                 now_s)
