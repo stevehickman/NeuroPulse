@@ -27,7 +27,7 @@ export const CVNS_STAGE_NAMES = Object.freeze(['Idle', 'Impedance check', 'Cardi
 
 /**
  * `kind` is the firmware module kind that drives it (null: no firmware driver). `fromSession` reads the standalone session
- * snapshot; `demo` is the user's manual switch for an accessory no protocol drives (see the panel).
+ * snapshot; `demo` is the user's manual switch for the one accessory no shipped protocol drives (the haptic pad; see the panel).
  */
 export const ACCESSORIES = Object.freeze([
   { id: 'goggles',        label: 'Visual goggles',          mount: MOUNT.HELMET, kind: 'visual',
@@ -39,13 +39,13 @@ export const ACCESSORIES = Object.freeze([
   { id: 'tmsCoil',        label: 'TMS coil',                mount: MOUNT.HELMET, kind: null,
     fromSession: (s) => !!s.tms?.active },
   { id: 'hapticPad',      label: 'Mastoid haptic pad',      mount: MOUNT.HELMET, kind: null,
-    fromSession: (_s, demo) => !!demo?.hapticPad },
+    fromSession: (s, demo) => !!(s.haptic?.active || demo?.hapticPad) },
   { id: 'vnsClip',        label: 'Auricular VNS clip',      mount: MOUNT.WINDOW, kind: 'vns',
     fromSession: (s) => !!s.vns?.active },
   { id: 'intranasal',     label: 'Intranasal Y-probe',      mount: MOUNT.WINDOW, kind: 'intranasal',
-    fromSession: (_s, demo) => !!demo?.intranasal },
+    fromSession: (s) => !!s.intranasal?.active },
   { id: 'cvns',           label: 'Cervical VNS pads',       mount: MOUNT.WINDOW, kind: 'cvns',
-    fromSession: () => false },
+    fromSession: (s) => !!s.cvns?.active },
 ]);
 
 export const HELMET_ACCESSORIES = Object.freeze(ACCESSORIES.filter((a) => a.mount === MOUNT.HELMET));
@@ -77,7 +77,7 @@ export function accessoryStates({ registry, snap, demo } = {}) {
 
 // ── where the windows go ──────────────────────────────────────────────────────
 
-export const WINDOW_BASE = Object.freeze({ w: 204, h: 172 });
+export const WINDOW_BASE = Object.freeze({ w: 244, h: 272 });
 const MARGIN = 12;
 const TOP_INSET = 44;      // below the view buttons
 const BOTTOM_INSET = 30;   // above the hint line

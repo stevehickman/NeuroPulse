@@ -188,6 +188,31 @@ export function buildModalities(def: NPProtocolDefinition, durationSeconds: numb
     out.tms = { active: true, frequency: tms.frequencyHz, target: tms.target, pattern: tms.tmsProtocol };
   }
 
+  // The intranasal Y-probe carries one wavelength per block (660 and 808 nm channels): the display is the union of the blocks, as for
+  // the transcranial PBM above.  A protocol with an intranasal block uses the probe, an accessory with a window of its own on the page
+  // (NP-SIM-FW-001 §21).
+  const insBlocks = def.modalities
+    .filter(m => m.modalityParams.type === 'pbm_intranasal')
+    .map(m => m.modalityParams.params as Extract<NPModalityParams, { type: 'pbm_intranasal' }>['params']);
+  if (insBlocks.length > 0) {
+    out.intranasal = {
+      active: true,
+      wavelengths: [...new Set(insBlocks.map(b => channelLabel(b.wavelength)).filter((x): x is string => x !== null))],
+      frequency: insBlocks[0].frequencyHz,
+      dutyCycle: insBlocks[0].dutyCyclePercent / 100,
+    };
+  }
+
+  const cvns = findParam(def.modalities, 'cervical_vns');
+  if (cvns) {
+    out.cvns = { active: true, frequency: cvns.frequencyHz, intensity_ma: cvns.intensityMilliamps };
+  }
+
+  const haptic = findParam(def.modalities, 'vibrotactile_40hz');
+  if (haptic) {
+    out.haptic = { active: true, intensity_g: haptic.intensityG, sync_audio: haptic.syncToAudio, sync_visual: haptic.syncToVisual };
+  }
+
   const hdTdcs = findParam(def.modalities, 'hd_tdcs');
   if (hdTdcs) {
     out.hd_tdcs = { active: true, target: hdTdcs.target, intensity_ma: hdTdcs.intensityMilliamps };

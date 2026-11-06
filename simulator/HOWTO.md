@@ -1065,8 +1065,14 @@ while it is driven (the cervical VNS while its session is active, which is earli
 session: the modality of the loaded protocol that uses the accessory, while the session runs and is not paused. An accessory the
 firmware has no driver for (the TMS coil and the haptic pad are stubs there) is never in use in firmware mode.
 
-**Demo accessories.** Two accessories are driven by no protocol: the haptic pad and the intranasal probe. Their two switches in the
-left panel say "in use", so they can be seen without the firmware.
+**Schematic drawings.** Each window draws its accessory as a labelled schematic: numbered markers on the drawing and a legend that
+names each part and the document row (A12.x, A13.x, A14.x) that specifies it. The parts that matter light from the module's record.
+
+**Standalone mode.** The standalone session derives the intranasal probe, the cervical VNS pads and the haptic pad from the loaded
+protocol (`pbm_intranasal`, `cervical_vns`, `vibrotactile_40hz`), so they appear while that protocol runs.
+
+**Demo accessory.** One accessory is driven by no shipped protocol: the haptic pad. Its switch in the left panel says "in use", so it
+can be seen without the firmware.
 
 **Driving them from the firmware** (`NP_SIM_FW_BIN`): the bridge takes `kind` in `MODULE_SET`, `MODULE_FAIL` and `MODULE_CLEAR`
 (`stim_pair`, `eeg`, `vns`, `audio`, `visual`, `intranasal`, `cvns`) and the module commands in `FW_COMMAND`; the list is in

@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: df732ad5f87be1b4cde587ca83d3e17cf9a15ff099620c61e21f40fbc0450711
+// sources-sha256: 935857131a7c6fa8c6567c82aad9b04db496e83fe73d61ab49f7783ee9dd6369
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -347,6 +347,23 @@ function buildModalities(def, durationSeconds) {
   const tms = findParam(def.modalities, "tms");
   if (tms) {
     out.tms = { active: true, frequency: tms.frequencyHz, target: tms.target, pattern: tms.tmsProtocol };
+  }
+  const insBlocks = def.modalities.filter((m) => m.modalityParams.type === "pbm_intranasal").map((m) => m.modalityParams.params);
+  if (insBlocks.length > 0) {
+    out.intranasal = {
+      active: true,
+      wavelengths: [...new Set(insBlocks.map((b) => channelLabel(b.wavelength)).filter((x) => x !== null))],
+      frequency: insBlocks[0].frequencyHz,
+      dutyCycle: insBlocks[0].dutyCyclePercent / 100
+    };
+  }
+  const cvns = findParam(def.modalities, "cervical_vns");
+  if (cvns) {
+    out.cvns = { active: true, frequency: cvns.frequencyHz, intensity_ma: cvns.intensityMilliamps };
+  }
+  const haptic = findParam(def.modalities, "vibrotactile_40hz");
+  if (haptic) {
+    out.haptic = { active: true, intensity_g: haptic.intensityG, sync_audio: haptic.syncToAudio, sync_visual: haptic.syncToVisual };
   }
   const hdTdcs = findParam(def.modalities, "hd_tdcs");
   if (hdTdcs) {

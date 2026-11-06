@@ -30,9 +30,13 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # The analytics host (a bare host name) and the vendor's project token come from the build, not from source (REQ-SW03-20).
-        # Set ANALYTICS_HOST and POSTHOG_PROJECT_TOKEN in a local .xcconfig or CI secret; unset or unexpanded means analytics is off.
+        # Set ANALYTICS_HOST and POSTHOG_PROJECT_TOKEN in Signing.local.xcconfig or CI secret; unset or unexpanded means analytics is off.
         AnalyticsHost: $(ANALYTICS_HOST)
         PostHogProjectToken: $(POSTHOG_PROJECT_TOKEN)
+    # Your Team ID and analytics settings: Signing.local.xcconfig (git-ignored; copy Signing.local.xcconfig.example).
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
     # No HealthKit: the app neither reads nor writes it (the HRV is the auricular clip's, read through the hub; REQ-HEALTH-01 is retired).
     settings:
       base:

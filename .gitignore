@@ -109,3 +109,6 @@ simulator/js/generated/
 # Kotlin Gradle plugin session data.
 .kotlin/
 infra/fleet/gateway/target/
+
+# Your Apple Team ID and analytics settings for the shared iOS host (copy the .example next to it).
+app/NeurOneUI/iosApp/Signing.local.xcconfig
