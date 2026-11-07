@@ -478,6 +478,13 @@ class NeurOneGattManager(
      */
     fun requestSessionPause() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x01))
 
+    /**
+     * The panic control (SWR-SS-09, `REQ-FWHUB-72`): cut every modality at once and hold the session paused, in any
+     * state of a running session, ramp-up included. It is the pause characteristic's third code, so a helmet that
+     * predates it refuses the write. The second step is [requestSessionStop] or [requestSessionResume].
+     */
+    fun requestSessionPanic() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x03))
+
     /** Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it. */
     fun requestSessionResume() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x02))
 

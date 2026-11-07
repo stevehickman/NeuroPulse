@@ -309,6 +309,8 @@ typedef struct {
 
 static gate_t s_gate;
 
+static bool s_panic_from_start;   /* a start gate was closed by a panic: its resume must mark the ramped modalities as used */
+
 static bool is_ramped_start(const np_session_cmd_t *c, uint8_t *which)
 {
     if (c->target_kind != NP_PROTO_TARGET_SLOT || c->params_len == 0U) { return false; }
@@ -355,6 +357,7 @@ static void gate_release(void)
     if (s_gate.resuming) { s_ctx.state = NP_SESSION_RUNNING; }
     taskEXIT_CRITICAL();
     s_gate.open = false;
+    s_panic_from_start = false;
 
     if (s_gate.resuming) {
         const uint32_t now_ms = elapsed_ms_now();
@@ -382,7 +385,7 @@ static void gate_start(uint16_t idx, bool is_tdcs)
     const np_session_cmd_t *cmd = &s_ctx.desc.cmds[idx];
     bool accepted;
     const bool marks = dispatch_tracked(idx, now_ms, &accepted);
-    if (!s_gate.resuming) {
+    if (!s_gate.resuming || s_panic_from_start) {
         if (marks) { s_ctx.uhdr.mods_active_mask |= (1U << (uint8_t)cmd->mod_type); }
     }
     np_log_command(cmd, now_ms, accepted);
@@ -392,7 +395,8 @@ static void gate_start(uint16_t idx, bool is_tdcs)
 /* The loop's sleep.  It ends when the time is up or when a stop bit (and, for the running loop, a pause request) is set,
  * so a stop or a pause is acted on when it is posted, not when the sleep would have ended.  The bits are not cleared
  * here (the loop reads them at its top), so only a bit the loop consumes may be named in `extra`, else it would spin. */
-#define NP_RUNNER_STOP_BITS (NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT | NP_EV_THERMAL_FAULT | NP_EV_EEG_PPX | NP_EV_POWER_FAULT)
+#define NP_RUNNER_STOP_BITS (NP_EV_SESSION_ABORT | NP_EV_SAFETY_FAULT | NP_EV_THERMAL_FAULT | NP_EV_EEG_PPX | NP_EV_POWER_FAULT | \
+                             NP_EV_SESSION_PANIC)
 
 static void loop_wait(uint32_t ms, EventBits_t extra)
 {
@@ -492,6 +496,83 @@ static void do_pause(uint32_t now_ms)
     taskEXIT_CRITICAL();
 
     np_log_session_pause(now_ms, true, 0U);
+    np_progress_notify();
+}
+
+/*
+ * do_panic — SWR-SS-09 (REQ-FWHUB-72).  Cut everything now and hold the session paused, whatever the runner was doing.
+ *
+ * Unlike do_pause it (1) is taken while a ramp gate is open, closing it, (2) cuts tDCS at once, with the enable withdrawn
+ * as a stop does and no ramp-down, and (3) from PAUSED cuts what an ordinary pause left ramping down.  What a resume must
+ * start again is held in the slot tracker: what was running, and what a gate had not yet started (the ramped commands and,
+ * for a resume gate, the commands waiting for its release).  A resume is then the ordinary do_resume, a full start-up.
+ */
+static void hold_for_resume(uint16_t idx)
+{
+    if (idx == NO_CMD) { return; }
+    const np_session_cmd_t *c = &s_ctx.desc.cmds[idx];
+    if (c->target_kind == NP_PROTO_TARGET_SLOT) {
+        np_slot_track_started(&s_ctx.slots, c->slot_id, idx);
+    }
+}
+
+static void do_panic(uint32_t now_ms)
+{
+    const bool was_paused = (s_ctx.state == NP_SESSION_PAUSED);
+    const bool gate_was_open = s_gate.open;
+
+    if (gate_was_open) {
+        hold_for_resume(s_gate.tdcs_cmd);
+        hold_for_resume(s_gate.cvns_cmd);
+        for (uint8_t i = 0U; i < s_gate.held_n; i++) { hold_for_resume(s_gate.held[i]); }
+        s_gate.held_n = 0U;
+        s_panic_from_start = !s_gate.resuming;
+        s_gate.open = false;
+    }
+
+    uint8_t slots[NP_HUB_SLOT_MAX];
+    const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
+    bool tdcs_cut = false;
+    for (uint8_t i = 0U; i < n; i++) {
+        const uint8_t slot = slots[i];
+        if (slot == NP_HUB_SLOT_TDCS) { tdcs_cut = true; }
+        if (slot == NP_HUB_SLOT_CVNS) {
+            np_mod_cvns_suspend();
+        } else {
+            np_mod_entry_t *mod = np_mod_reg_get(slot);
+            if (mod != NULL && mod->control != NULL) {
+                (void)mod->control(slot, NULL, 0U);   /* a stop: tDCS included, the enable goes at once */
+            }
+        }
+        const uint16_t bit = slot_to_safety_bit(slot);
+        if (bit != 0U) {
+            np_safety_spi_request_disable(bit);
+        }
+        s_ctx.stop_at_ms[slot] = 0U;
+    }
+    /* A pause left tDCS ramping down with its enable held, and it is in no tracker slot: cut it too. */
+    if (!tdcs_cut) {
+        np_mod_entry_t *tdcs = np_mod_reg_get(NP_HUB_SLOT_TDCS);
+        if (tdcs != NULL && tdcs->control != NULL) {
+            (void)tdcs->control(NP_HUB_SLOT_TDCS, NULL, 0U);
+        }
+        np_safety_spi_request_disable(NP_SAFETY_EN_TDCS);
+    }
+
+    if (!was_paused || gate_was_open) {
+        /* A new pause, or a resume that a panic put back: the owner's limit counts again from now. */
+        const uint32_t lim_s = np_pause_limit_seconds();
+        s_pause_limit_ms = (lim_s > UINT32_MAX / 1000U) ? UINT32_MAX : lim_s * 1000U;
+        s_pause_wall_ms  = 0U;
+    }
+    if (!was_paused) {
+        np_sock_disp_pause();   /* the lattice, and the cranial enable (a resume gate leaves it paused already) */
+        taskENTER_CRITICAL();
+        (void)np_session_clock_pause(&s_ctx.clock, clock_now_ms());
+        s_ctx.state = NP_SESSION_PAUSED;
+        taskEXIT_CRITICAL();
+        np_log_session_pause(now_ms, true, 0U);
+    }
     np_progress_notify();
 }
 
@@ -729,6 +810,7 @@ np_hub_status_t np_runner_run(void)
     np_slot_track_reset(&s_ctx.slots);
     memset(&s_gate, 0, sizeof s_gate);
     s_gate.tdcs_cmd = s_gate.cvns_cmd = s_gate.skip_a = s_gate.skip_b = NO_CMD;
+    s_panic_from_start = false;
 
     /* Populate UHDR session-start record. */
     memcpy(s_ctx.uhdr.session_uuid, s_ctx.desc.session_uuid,
@@ -831,6 +913,14 @@ np_hub_status_t np_runner_run(void)
             break;
         }
 
+        /* SWR-SS-09: panic.  After the abort check (a stop wins), before everything else: it is taken while a ramp gate is
+         * open, which a pause is not, and from PAUSED.  A resume or pause posted with it is dropped. */
+        if (ev & NP_EV_SESSION_PANIC) {
+            xEventGroupClearBits(s_events, NP_EV_SESSION_PANIC | NP_EV_SESSION_PAUSE | NP_EV_SESSION_RESUME);
+            do_panic(now_ms);
+            continue;
+        }
+
         /* SWR-SS-05: pause and resume.  After the abort check, so a stop wins over either.  While paused nothing is
          * dispatched, no stop is due (the session clock stands still), no dose is polled and no module telemetry is
          * taken; the loop only waits for a resume or an abort. */
@@ -857,7 +947,7 @@ np_hub_status_t np_runner_run(void)
                     s_ctx.abort_reason = NP_ABORT_PAUSE_TIMEOUT;
                     break;
                 }
-                vTaskDelay(pdMS_TO_TICKS(NP_RUNNER_TICK_MS));
+                loop_wait(NP_RUNNER_TICK_MS, 0U);   /* a tick; a panic or a stop ends it at once */
             }
             continue;
         }
@@ -1043,6 +1133,17 @@ np_hub_status_t np_runner_pause(void)
         return NP_HUB_ERR_RAMPING;   /* the protocol is ramping up: a stop is accepted, a pause is not */
     }
     xEventGroupSetBits(s_events, NP_EV_SESSION_PAUSE);
+    return NP_HUB_OK;
+}
+
+np_hub_status_t np_runner_panic(void)
+{
+    const np_session_state_t st = np_runner_get_state();
+    if (st != NP_SESSION_RUNNING && st != NP_SESSION_PAUSED) {
+        return NP_HUB_ERR_NO_SESSION;
+    }
+    /* Never refused for a ramp: the gate is closed by the loop (do_panic). */
+    xEventGroupSetBits(s_events, NP_EV_SESSION_PANIC);
     return NP_HUB_OK;
 }
 

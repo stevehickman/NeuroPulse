@@ -39,13 +39,22 @@ void np_session_pause_init(np_session_request_fn pause_fn, np_session_request_fn
     s_resume = resume_fn;
 }
 
+static np_session_request_fn s_panic;
+
+void np_session_panic_init(np_session_request_fn panic_fn)
+{
+    s_panic = panic_fn;
+}
+
 np_hub_status_t np_session_pause_on_write(const uint8_t *data, size_t len)
 {
     if (data == NULL || len != 1U ||
-        (data[0] != NP_SESSION_PAUSE_VALUE && data[0] != NP_SESSION_RESUME_VALUE)) {
+        (data[0] != NP_SESSION_PAUSE_VALUE && data[0] != NP_SESSION_RESUME_VALUE && data[0] != NP_SESSION_PANIC_VALUE)) {
         return NP_HUB_ERR_INVALID_ARG;
     }
-    const np_session_request_fn fn = (data[0] == NP_SESSION_PAUSE_VALUE) ? s_pause : s_resume;
+    const np_session_request_fn fn = (data[0] == NP_SESSION_PAUSE_VALUE)  ? s_pause
+                                   : (data[0] == NP_SESSION_PANIC_VALUE)  ? s_panic
+                                   :                                        s_resume;
     if (fn == NULL) {
         return NP_HUB_ERR_NO_SESSION;
     }

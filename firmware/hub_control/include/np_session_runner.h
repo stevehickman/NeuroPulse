@@ -30,6 +30,7 @@
 #define NP_EV_POWER_FAULT       (1U << 5)  /* USB-C PD negotiation failure */
 #define NP_EV_SESSION_PAUSE     (1U << 6)  /* pause the running session (SWR-SS-05) */
 #define NP_EV_SESSION_RESUME    (1U << 7)  /* resume the paused session (SWR-SS-05) */
+#define NP_EV_SESSION_PANIC     (1U << 8)  /* panic: cut everything at once and hold the session paused (SWR-SS-09) */
 
 /* ── Runner context (static allocation, single global instance) ──────────────── */
 
@@ -104,6 +105,19 @@ np_session_state_t np_runner_get_state(void);
  */
 np_hub_status_t np_runner_pause(void);
 np_hub_status_t np_runner_resume(void);
+
+/*
+ * np_runner_panic — SWR-SS-09 (REQ-FWHUB-72).  The panic control: independent of every modality, never refused for a
+ * ramp, and never softer than a stop.  At the loop's next wake it withdraws every enable request, cuts every driven
+ * module and every lit socket AT ONCE (tDCS included: no ramp-down, the enable is withdrawn as a stop does), stops the
+ * session clock and holds the session PAUSED.  It is accepted while the protocol is ramping up (a start or a resume
+ * gate is open), which np_runner_pause refuses: the gate is closed and whatever it had not yet started is held for a
+ * resume.  From PAUSED it is accepted too and cuts any tDCS ramp-down an ordinary pause left running.  The second step
+ * is the app's: np_runner_abort (Stop) or np_runner_resume (Resume), and a resume is a full start-up (every ramp from
+ * zero, the cervical VNS checks again, every safety MCU grant as for a fresh command).  NP_HUB_ERR_NO_SESSION when no
+ * session is running or paused.
+ */
+np_hub_status_t np_runner_panic(void);
 
 /*
  * np_runner_progress — the SESSION_PROGRESS frame for the session as it is now (SWR-SS-07).

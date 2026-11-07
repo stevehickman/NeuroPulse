@@ -335,10 +335,19 @@ np_hub_status_t np_layout_check_protocol_addresses(const np_session_desc_t *desc
 
 /* ── The modules ─────────────────────────────────────────────────────────────── */
 
+/* The tDCS ramp model's state (see the stubs below). */
+static uint32_t g_tdcs_ramp_ms;
+static uint32_t g_tdcs_t0;
+static bool     g_tdcs_on;
+
 static np_hub_status_t mod_control(uint8_t slot, const void *params, uint16_t params_len)
 {
     (void)params;
     note(RUN_EV_CONTROL, slot, params_len);
+    if (slot == NP_HUB_SLOT_TDCS) {
+        g_tdcs_on = (params_len > 0U);
+        if (g_tdcs_on) { g_tdcs_t0 = g_now_ms; }
+    }
     return g_control_rc[slot];
 }
 
@@ -467,9 +476,21 @@ uint32_t np_mod_cvns_ramp_up_ms(void)                             { return 0U; }
 uint32_t np_mod_cvns_hal_now_ms(void)                             { return 0U; }
 uint32_t np_mod_cvns_hal_now_unix(void)                           { return 0U; }
 void     np_mod_stim_tick(uint32_t wall_ms)                       { (void)wall_ms; }
+/* The tDCS ramp model: idle unless a test sets g_tdcs_ramp_ms, then a command dispatched to the tDCS slot ramps up for that
+ * long (SWR-SS-09: the panic is taken while it ramps, which a pause is not). */
+
 bool     np_mod_stim_tdcs_pause(void)                             { return false; }
-void     np_mod_stim_tdcs_ramp(np_ramp_report_t *out)             { memset(out, 0, sizeof *out); }
-uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *p, uint16_t len) { (void)p; (void)len; return 0U; }
+void     np_mod_stim_tdcs_ramp(np_ramp_report_t *out)
+{
+    memset(out, 0, sizeof *out);
+    if (g_tdcs_on && g_tdcs_ramp_ms != 0U && g_now_ms - g_tdcs_t0 < g_tdcs_ramp_ms) {
+        const uint32_t dt = g_now_ms - g_tdcs_t0;
+        out->phase = NP_RAMP_UP;
+        out->remaining_ms = g_tdcs_ramp_ms - dt;
+        out->pct = (uint8_t)(((uint64_t)dt * 100ULL) / g_tdcs_ramp_ms);
+    }
+}
+uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *p, uint16_t len) { (void)p; (void)len; return g_tdcs_ramp_ms; }
 
 /* ── Blob builder ─────────────────────────────────────────────────────────────
  * Explicit byte offsets, as np_protocol_tests.c does, so a layout change is caught here and not mirrored. */
@@ -539,7 +560,7 @@ static const uint8_t RUN_GATED_PARAMS[RUN_GATED_PARAMS_LEN] = { 0, 0x90, 0x01, 0
 static int g_events_token;
 
 static uint32_t       g_post_bits;
-static np_hub_status_t g_pause_rc, g_resume_rc;
+static np_hub_status_t g_pause_rc, g_resume_rc, g_panic_rc;
 static bool           g_mid_lease;
 static np_session_state_t g_mid_state;
 static uint32_t       g_mid_elapsed[4];
@@ -569,6 +590,9 @@ static void fresh(void)
     g_diverge_on_call = 0U;
     g_observe_calls = 0U;
     g_pause_limit_s = 0U;
+    g_tdcs_ramp_ms = 0U;
+    g_tdcs_on = false;
+    g_panic_rc = NP_HUB_OK;
     memset(&g_end_uhdr, 0, sizeof g_end_uhdr);
     memset(&g_end_shdr, 0, sizeof g_end_shdr);
     g_lease_held_at_end = g_lease_held_at_flush = g_lease_held_at_cons = false;
@@ -694,6 +718,7 @@ static void post_abort_seizure(void)  { np_runner_abort(NP_ABORT_EEG_SEIZURE); }
 static void do_pause_now(void)        { g_pause_rc = np_runner_pause(); }
 static void do_resume_now(void)       { g_resume_rc = np_runner_resume(); }
 static void try_resume_now(void)      { g_resume_rc = np_runner_resume(); }
+static void do_panic_now(void)        { g_panic_rc = np_runner_panic(); }
 
 static void look_midrun(void)
 {
@@ -1084,6 +1109,140 @@ static void test_a_refused_socket_command_is_logged_against_no_slot_and_is_not_d
 
 /* ── main ─────────────────────────────────────────────────────────────────────── */
 
+/* The tDCS parameter block: 1 mA, 30 s ramp, a declared pad area (the geometry gate fails closed on 0). */
+static void tdcs_params(uint8_t *out)
+{
+    np_mod_tdcs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.current_ua = 1000U; p.ramp_s = 30U; p.electrode_area_mcm2 = 25000U;
+    memcpy(out, &p, sizeof p);
+}
+
+/* @verifies SWR-SS-09 */
+static void test_panic_is_taken_while_the_protocol_ramps_up_which_a_pause_is_not(void)
+{
+    fresh();
+    g_tdcs_ramp_ms = 5000U;
+    blob_t b;
+    blob_begin(&b, 12000U);
+    uint8_t tp[sizeof(np_mod_tdcs_params_t)];
+    tdcs_params(tp);
+    blob_slot(&b, NP_MOD_TDCS, NP_HUB_SLOT_TDCS, 0U, 12000U, tp, sizeof tp);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 12000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_TDCS);
+    module_present(NP_HUB_SLOT_EEG);
+    script_at(1000U, do_pause_now);      /* ramping up: refused, as SWR-SS-05 has it */
+    script_at(2000U, do_panic_now);      /* the panic is not */
+    script_at(2500U, look_midrun);
+    script_at(3500U, look_midrun);
+    script_at(4000U, do_resume_now);
+    (void)load_and_run(&b);
+
+    check(g_pause_rc == NP_HUB_ERR_RAMPING, "panic: an ordinary pause is refused while the protocol ramps up");
+    check(g_panic_rc == NP_HUB_OK, "panic: the panic is accepted in the same window");
+    check(g_mid_n == 2U && g_mid_state == NP_SESSION_PAUSED, "panic: the session is held PAUSED");
+    check(g_mid_elapsed[0] == g_mid_elapsed[1], "panic: and the session clock stands still while it is held");
+    const int cut = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_TDCS, 1);
+    check(cut >= 0 && g_log[cut].b == 0U, "panic: tDCS is stopped (a control with no parameters), not ramped down");
+    check(cut >= 0 && g_log[cut].at_ms >= 2000U && g_log[cut].at_ms <= 2000U + RUN_SLACK_MS, "panic: and at once, when it is posted");
+    check(find_a(RUN_EV_DISABLE, NP_SAFETY_EN_TDCS, 0) >= 0, "panic: and its enable is withdrawn");
+    /* The resume is a full start-up: tDCS ramps from zero again and the rest waits for it. */
+    const int again = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_TDCS, 2);
+    check(again >= 0 && g_log[again].b > 0U && g_log[again].at_ms >= 4000U, "panic: a resume starts tDCS again");
+    check(when_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 0) >= 4000U + 5000U - RUN_SLACK_MS * 2U,
+          "panic: and the others wait for its whole ramp again, from zero");
+    check(g_end_uhdr.mods_active_mask == ((1U << NP_MOD_TDCS) | (1U << NP_MOD_EEG)),
+          "panic: both modalities are in the delivered mask after a panic in the start gate and a resume");
+}
+
+/* @verifies SWR-SS-09 */
+static void test_panic_while_running_cuts_every_module_at_once_and_stop_ends_the_session(void)
+{
+    fresh();
+    blob_t b;
+    blob_begin(&b, 20000U);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    blob_slot(&b, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, 0U, 20000U, RUN_GATED_PARAMS, RUN_GATED_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_EEG);
+    module_present(NP_HUB_SLOT_VISUAL);
+    script_at(3000U, do_panic_now);
+    script_at(3500U, look_midrun);
+    script_at(6000U, post_abort_user);   /* the second step: Stop */
+    (void)load_and_run(&b);
+
+    check(g_panic_rc == NP_HUB_OK && g_mid_state == NP_SESSION_PAUSED, "panic: a running session is held PAUSED");
+    const int eeg_cut = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 1);
+    const int vis_cut = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_VISUAL, 1);
+    check(eeg_cut >= 0 && vis_cut >= 0 && g_log[vis_cut].at_ms <= 3000U + RUN_SLACK_MS && g_log[eeg_cut].at_ms <= 3000U + RUN_SLACK_MS,
+          "panic: every driven module is stopped at once");
+    check(find_a(RUN_EV_DISABLE, NP_SAFETY_EN_VISUAL, 0) >= 0, "panic: and the goggles' enable is withdrawn");
+    check(count_of(RUN_EV_SOCK_PAUSE) == 1U, "panic: the lattice is paused too");
+    check(count_of(RUN_EV_LOG_END) == 1U, "panic: Stop, the second step, ends the session and the end is recorded");
+}
+
+/* @verifies SWR-SS-09 */
+static void test_panic_from_paused_cuts_what_a_pause_left_ramping_and_a_resume_starts_clean(void)
+{
+    fresh();
+    blob_t b;
+    blob_begin(&b, 30000U);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 30000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_EEG);
+    module_present(NP_HUB_SLOT_TDCS);    /* its ramp-down after a pause is the driver's; the panic must cut it */
+    script_at(2000U, do_pause_now);
+    script_at(3000U, do_panic_now);
+    script_at(5000U, do_resume_now);
+    (void)load_and_run(&b);
+    check(g_panic_rc == NP_HUB_OK, "panic: accepted while paused");
+    const int tdcs_cut = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_TDCS, 0);
+    check(tdcs_cut >= 0 && g_log[tdcs_cut].b == 0U && g_log[tdcs_cut].at_ms >= 3000U && g_log[tdcs_cut].at_ms <= 3000U + RUN_SLACK_MS,
+          "panic: a stop is sent to tDCS, cutting any ramp-down a pause left");
+    check(count_of(RUN_EV_SOCK_PAUSE) == 1U, "panic: the lattice is not paused twice");
+    check(find_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 2) >= 0, "panic: a resume after it starts the held command again");
+}
+
+/* The times here are short on purpose: the event log has a fixed capacity and every gate tick adds a progress frame. */
+/* @verifies SWR-SS-09 */
+static void test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_for_the_next_resume(void)
+{
+    fresh();
+    g_tdcs_ramp_ms = 1000U;
+    blob_t b;
+    blob_begin(&b, 20000U);
+    uint8_t tp[sizeof(np_mod_tdcs_params_t)];
+    tdcs_params(tp);
+    blob_slot(&b, NP_MOD_TDCS, NP_HUB_SLOT_TDCS, 0U, 20000U, tp, sizeof tp);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_TDCS);
+    module_present(NP_HUB_SLOT_EEG);
+    script_at(1500U, do_pause_now);      /* the start ramp is over; an ordinary pause */
+    script_at(2000U, do_resume_now);     /* a resume gate: tDCS ramps, EEG waits for it */
+    script_at(2400U, do_panic_now);     /* panic inside it */
+    script_at(2600U, look_midrun);
+    script_at(2800U, look_midrun);
+    script_at(3000U, do_resume_now);    /* the second step: Resume */
+    (void)load_and_run(&b);
+
+    check(g_panic_rc == NP_HUB_OK && g_mid_n == 2U && g_mid_state == NP_SESSION_PAUSED,
+          "panic in a resume ramp: accepted, and the session is held PAUSED");
+    check(g_mid_elapsed[0] == g_mid_elapsed[1], "panic in a resume ramp: the clock stands still while it is held");
+    /* EEG was waiting for the gate; after the second resume it starts once the whole ramp has run again. */
+    int eeg_restart = -1;
+    for (unsigned n = 0U; n < 8U; n++) {
+        const int i = find_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, n);
+        if (i >= 0 && g_log[i].b > 0U && g_log[i].at_ms >= 3000U) { eeg_restart = i; break; }
+    }
+    check(eeg_restart >= 0 && g_log[eeg_restart].at_ms >= 3000U + 1000U - RUN_SLACK_MS * 2U,
+          "panic in a resume ramp: what the gate had not started is held, and starts after the next resume's whole ramp");
+}
+
+/* @verifies SWR-SS-09 */
+static void test_panic_is_refused_only_with_no_session(void)
+{
+    fresh();
+    check(np_runner_panic() == NP_HUB_ERR_NO_SESSION, "panic: refused with no session");
+}
+
 int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
@@ -1099,6 +1258,11 @@ int main(void)
     test_pause_withdraws_the_enables_stops_the_clock_and_resume_redispatches();
     test_a_pause_that_outlasts_the_owners_limit_ends_the_session();
     test_pause_and_resume_are_refused_in_the_wrong_state();
+    test_panic_is_taken_while_the_protocol_ramps_up_which_a_pause_is_not();
+    test_panic_while_running_cuts_every_module_at_once_and_stop_ends_the_session();
+    test_panic_from_paused_cuts_what_a_pause_left_ramping_and_a_resume_starts_clean();
+    test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_for_the_next_resume();
+    test_panic_is_refused_only_with_no_session();
     test_a_session_stopped_while_paused_reports_the_time_it_was_running();
     test_a_delivery_divergence_is_flagged_once_to_shdr_with_its_own_code();
     test_electrode_geometry_reaches_the_safety_mcu_before_any_enable();

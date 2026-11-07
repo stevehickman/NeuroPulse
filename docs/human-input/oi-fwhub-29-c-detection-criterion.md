@@ -3,6 +3,10 @@
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** Clinical (an epileptologist or a
 clinical neurophysiologist is the right reader), with Risk and FW Hub / Safety. No addressee is named.
 
+## 0. Answered by the principal (2026-11-05)
+
+Items 1, 4, 5 and 6 below are ruled; `NP-FW-HUB-001` `REQ-FWHUB-67` to `-71` and `OI-FWHUB-32` hold the rulings. **1:** the clinical definition, a generalised spike-wave or polyspike-wave discharge, stop at first appearance; occipital-only spikes are a clinician's switch, on by default. **4:** with no valid signal it refuses to start and halts a running drive. **5:** a clinician's manual override in configuration, only where validation is less than a clinical study. **6:** recorded photoparoxysmal EEG, synthetic signals, or both; a clinical study may replace the refusal. **Still for Clinical:** item 2 (the rates), item 3 (why 3 to 30 Hz; the literature suggests the range is wider, see `UC-121`) and a check of the criterion against the 2001 paper.
+
 ## 1. The question
 
 The principal ruled (2026-11-05) that the Oz photoparoxysmal detector be built (`OI-FWHUB-29`, option C). **Engineering cannot define what the

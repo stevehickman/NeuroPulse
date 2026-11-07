@@ -14,7 +14,12 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import life.neurone.core.models.SessionStatus
+import life.neurone.shared.ui.panicControlOffered
+import life.neurone.shared.ui.panicHeld
 
 /** The app's pause, resume and stop requests, and the helmet's progress figures it shows (SWR-SS-05, -06, -07). */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,6 +56,34 @@ class SessionControlsTest {
         val central = RecordingCentral()
         NeurOneGattManager(central, TestScope(testScheduler)).requestSessionStop()
         assertEquals(listOf(stopId to listOf<Byte>(0x01)), central.writes)
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun panic_writes_the_third_code_of_the_pause_characteristic_and_is_neither_a_pause_nor_a_stop() = runTest {
+        val central = RecordingCentral()
+        NeurOneGattManager(central, TestScope(testScheduler)).requestSessionPanic()
+        assertEquals(listOf(pauseId to listOf<Byte>(0x03)), central.writes)
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun the_panic_control_is_offered_while_a_session_runs_or_is_paused_and_only_then() {
+        assertTrue(panicControlOffered(SessionStatus.RUNNING))
+        assertTrue(panicControlOffered(SessionStatus.PAUSED))
+        assertFalse(panicControlOffered(SessionStatus.IDLE))
+        assertFalse(panicControlOffered(SessionStatus.COMPLETED))
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun resume_after_a_panic_waits_for_the_helmet_to_say_the_session_is_held() = runTest {
+        val manager = NeurOneGattManager(RecordingCentral(), TestScope(testScheduler))
+        assertFalse(panicHeld(manager.progress.value), "no progress frame: nothing is believed held")
+        val frame = ByteArray(22)
+        frame[0] = 3                      // running
+        manager.onCharacteristicChanged(progressId, frame)
+        assertFalse(panicHeld(manager.progress.value), "still running: not held")
+        frame[0] = 4                      // paused
+        manager.onCharacteristicChanged(progressId, frame)
+        assertTrue(panicHeld(manager.progress.value))
     }
 
     // @verifies SWR-SS-07
