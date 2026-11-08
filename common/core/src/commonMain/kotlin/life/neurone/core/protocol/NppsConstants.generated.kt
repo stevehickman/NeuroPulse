@@ -223,6 +223,12 @@ object GattIds {
     // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     const val PAUSE_LIMIT_ID: Int = 0x001B
+    // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
+    // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
+    // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
+    // bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+    // evidence level is 1). Any other bit set is refused. Set by the hardware owner.
+    const val PPX_CONFIG_ID: Int = 0x001E
     // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
@@ -296,6 +302,12 @@ object GattUuidStrings {
     // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     const val PAUSE_LIMIT_ID: String = "4E455550-001B-1000-8000-00805F9B34FB"
+    // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
+    // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
+    // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
+    // bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+    // evidence level is 1). Any other bit set is refused. Set by the hardware owner.
+    const val PPX_CONFIG_ID: String = "4E455550-001E-1000-8000-00805F9B34FB"
     // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
@@ -335,6 +347,10 @@ object GattSizes {
     const val UPLOAD_CHECK_LEN: Int = 34
     // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
     const val PAUSE_LIMIT_LEN: Int = 4
+    // PPX_CONFIG read: one byte of flags, one byte of evidence level.
+    const val PPX_CONFIG_LEN: Int = 2
+    // PPX_CONFIG write: one byte of flags.
+    const val PPX_CONFIG_WRITE_LEN: Int = 1
     // HARDWARE_VERSION: one byte, 1 to 15.
     const val HARDWARE_VERSION_LEN: Int = 1
     // DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.

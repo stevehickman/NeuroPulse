@@ -71,6 +71,7 @@ np_mod_cvns_tests 896
 np_mod_pbm_chlatch_tests 277
 np_mod_stim_tests 256
 np_mod_visual_tests 174
+np_ppx_config_tests 333
 np_ppx_tests 274
 np_module_map_tests 1070
 np_module_registry_tests 244

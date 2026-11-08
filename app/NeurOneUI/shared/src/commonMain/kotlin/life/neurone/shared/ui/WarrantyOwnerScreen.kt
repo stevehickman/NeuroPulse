@@ -33,6 +33,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import life.neurone.core.models.PauseLimit
+import life.neurone.core.models.PpxConfig
+import life.neurone.core.models.PpxEvidence
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.familyKey
 import life.neurone.core.protocol.isRunnable
@@ -61,6 +63,8 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     val published by gatt.pauseLimitPublished.collectAsState()
     val pauseLimit by gatt.pauseLimitSeconds.collectAsState()
     val pairingRequired by gatt.pairingRequired.collectAsState()
+    val ppxPublished by gatt.ppxConfigPublished.collectAsState()
+    val ppxConfig by gatt.ppxConfig.collectAsState()
 
     var fleetOn by remember { mutableStateOf(app.warrantyAnalyticsGate.isOpen) }
 
@@ -119,6 +123,16 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
             currentSeconds = pauseLimit,
             onRead = { gatt.requestPauseLimit() },
             onSave = { seconds -> gatt.writePauseLimit(seconds) },
+        )
+
+        Spacer(Modifier.height(24.dp))
+        PpxConfigSection(
+            published = ppxPublished,
+            connected = connection == ConnectionState.CONNECTED,
+            pairingRequired = pairingRequired,
+            config = ppxConfig,
+            onRead = { gatt.requestPpxConfig() },
+            onSave = { stop, override -> gatt.writePpxConfig(stop, override) },
         )
 
         Spacer(Modifier.height(24.dp))
@@ -251,6 +265,112 @@ private fun PauseLimitSection(
                     confirming = null
                     onSave(seconds)
                 }) { Text(stringResource(Res.string.pause_limit_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = null }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+}
+
+/**
+ * The seizure-response detector's two switches (REQ-FWHUB-71). What is shown is what the helmet holds, read back after every
+ * write; a change is confirmed first because it is for everyone who uses the helmet (the screen cannot tell the owner from
+ * anyone else holding the phone). The override cannot be turned on while the detector has no validation, and the helmet
+ * refuses it too, so it is never set ahead of the evidence.
+ */
+@Composable
+private fun PpxConfigSection(
+    published: Boolean,
+    connected: Boolean,
+    pairingRequired: Boolean,
+    config: PpxConfig?,
+    onRead: () -> Unit,
+    onSave: (stopOnOccipitalOnly: Boolean, manualOverride: Boolean) -> Boolean,
+) {
+    var confirming by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
+    val stopLabel = stringResource(Res.string.ppx_stop_occipital_label)
+    val overrideLabel = stringResource(Res.string.ppx_override_label)
+
+    Text(stringResource(Res.string.ppx_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.ppx_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+
+    when {
+        !connected -> Text(stringResource(Res.string.ppx_not_connected))
+        !published -> Text(stringResource(Res.string.ppx_not_published))
+        config == null -> {
+            if (pairingRequired) Text(stringResource(Res.string.ppx_not_paired))
+            OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+        }
+        else -> {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(
+                            when (config.evidence) {
+                                PpxEvidence.NONE -> Res.string.ppx_evidence_none
+                                PpxEvidence.BENCH -> Res.string.ppx_evidence_bench
+                                PpxEvidence.CLINICAL -> Res.string.ppx_evidence_clinical
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stopLabel, style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(Res.string.ppx_stop_occipital_hint), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            modifier = Modifier.semantics { contentDescription = stopLabel },
+                            checked = config.stopOnOccipitalOnly,
+                            onCheckedChange = { confirming = it to config.manualOverride },
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(overrideLabel, style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(Res.string.ppx_override_hint), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            modifier = Modifier.semantics { contentDescription = overrideLabel },
+                            checked = config.manualOverride,
+                            // It may always be turned off; it may be turned on only once the detector has some validation.
+                            enabled = config.manualOverride || config.evidence != PpxEvidence.NONE,
+                            onCheckedChange = { confirming = config.stopOnOccipitalOnly to it },
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+                }
+            }
+        }
+    }
+
+    confirming?.let { (stop, override) ->
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text(stringResource(Res.string.ppx_confirm_title)) },
+            text = {
+                Column {
+                    Text(stringResource(Res.string.ppx_confirm_body))
+                    if (config != null && config.stopOnOccipitalOnly && !stop) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(Res.string.ppx_confirm_stop_off_body))
+                    }
+                    if (config != null && !config.manualOverride && override) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(Res.string.ppx_confirm_override_body))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = null
+                    onSave(stop, override)
+                }) { Text(stringResource(Res.string.ppx_save)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirming = null }) { Text(stringResource(Res.string.common_cancel)) }

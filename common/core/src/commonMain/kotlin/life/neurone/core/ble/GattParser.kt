@@ -7,6 +7,7 @@ import life.neurone.core.models.HRVData
 import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.PauseLimit
+import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionStatus
 import life.neurone.core.models.UploadCheck
@@ -74,6 +75,9 @@ object GattParser {
 
     /** PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit (SWR-SS-05). Null if malformed. */
     fun parsePauseLimit(data: ByteArray): Long? = PauseLimit.fromWire(data)
+
+    /** PPX_CONFIG: the detector's two clinician switches and its evidence level (REQ-FWHUB-71). Null if malformed. */
+    fun parsePpxConfig(data: ByteArray): PpxConfig? = PpxConfig.fromWire(data)
 
     /** HRV_COHERENCE: uint16 coherence×100 + uint16 RMSSD ms */
     fun parseHrvCoherence(data: ByteArray): HRVData? {

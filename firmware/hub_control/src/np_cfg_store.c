@@ -77,6 +77,13 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_PAUSE_LIMIT] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/pauselim.rec",
                              NP_CFG_REPLICA_DIR_B "/pauselim.rec" } },
+    /* REQ-FWHUB-71: the photoparoxysmal detector's two clinician switches.  One
+     * 2-byte record, rewritten only when they change, so REPLICATED costs
+     * nothing and one lost entry does not silently turn a switch back to its
+     * default.  It bounds no emission (REQ-LFS-01). */
+    [NP_CFG_FILE_PPX_CONFIG] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/ppxcfg.rec",
+                             NP_CFG_REPLICA_DIR_B "/ppxcfg.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */

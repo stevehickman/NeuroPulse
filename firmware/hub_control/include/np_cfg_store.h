@@ -82,6 +82,7 @@ typedef enum {
     NP_CFG_FILE_CONSUMABLES,   /* consumable session counts — OI-ACC-08 */
     NP_CFG_FILE_RESET_MARKER,  /* factory reset in progress — OI-NVRAM-05  */
     NP_CFG_FILE_PAUSE_LIMIT,   /* the hardware owner's pause time limit — SWR-SS-05 */
+    NP_CFG_FILE_PPX_CONFIG,    /* the detector's clinician settings — REQ-FWHUB-71 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 

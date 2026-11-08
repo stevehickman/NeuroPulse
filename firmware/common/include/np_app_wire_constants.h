@@ -59,6 +59,14 @@
  */
 #define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
 /*
+ * READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
+ * (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
+ * REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
+ * bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+ * evidence level is 1). Any other bit set is refused. Set by the hardware owner.
+ */
+#define NP_GATT_PPX_CONFIG_ID 0x001Eu
+/*
  * READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
  * 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
  * writes it.
@@ -90,6 +98,14 @@
  * PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
  */
 #define NP_GATT_PAUSE_LIMIT_LEN 4U
+/*
+ * PPX_CONFIG read: one byte of flags, one byte of evidence level.
+ */
+#define NP_GATT_PPX_CONFIG_LEN 2U
+/*
+ * PPX_CONFIG write: one byte of flags.
+ */
+#define NP_GATT_PPX_CONFIG_WRITE_LEN 1U
 /*
  * HARDWARE_VERSION: one byte, 1 to 15.
  */

@@ -14,6 +14,7 @@
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
 #include "np_pause_limit.h"
+#include "np_ppx_config.h"
 #include "np_safety_spi.h"
 #include "np_session_progress.h"
 #include "np_session_stop.h"
@@ -136,6 +137,10 @@ static const np_gatt_char_t TABLE[] = {
     /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
     { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_PAUSE_LIMIT_LEN, 4u, np_pause_limit_read, np_pause_limit_write },
+
+    /* REQ-FWHUB-71: the detector's two clinician switches (read: flags and evidence level; write: flags). */
+    { NP_GATT_PPX_CONFIG_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_PPX_CONFIG_LEN, (uint8_t)NP_GATT_PPX_CONFIG_WRITE_LEN, np_ppx_config_read, np_ppx_config_write },
 };
 
 #define K_TABLE_LEN (sizeof(TABLE) / sizeof(TABLE[0]))

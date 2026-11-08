@@ -286,6 +286,7 @@ static void test_uuids_match_the_contract(void)
         { NP_GATT_DEVICE_SERIAL_ID,         "4E455550-0017-1000-8000-00805F9B34FB" },
         { NP_GATT_HARDWARE_VERSION_ID,      "4E455550-001C-1000-8000-00805F9B34FB" },
         { NP_GATT_DEVICE_TIER_ID,           "4E455550-001D-1000-8000-00805F9B34FB" },
+        { NP_GATT_PPX_CONFIG_ID,            "4E455550-001E-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -306,7 +307,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 13U, "table: thirteen characteristics, each with a producer");
+    check(n == 14U, "table: fourteen characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -1025,6 +1026,25 @@ static void test_panic_write_reaches_the_runner_and_is_never_a_pause(void)
           "panic: with no runner bound the write is refused, never ignored");
 }
 
+/* ── The detector's clinician switches (REQ-FWHUB-71) ──────────────────────── */
+
+/* @verifies REQ-FWHUB-71 */
+static void test_ppx_config_is_an_encrypted_two_byte_read_and_one_byte_write(void)
+{
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    bool found = false, shape = false;
+    for (size_t i = 0U; i < n; i++) {
+        if (t[i].id == NP_GATT_PPX_CONFIG_ID) {
+            found = true;
+            shape = (t[i].props & NP_GATT_PROP_ENC) != 0U && (t[i].props & NP_GATT_PROP_READ) != 0U &&
+                    (t[i].props & NP_GATT_PROP_WRITE) != 0U && (t[i].props & NP_GATT_PROP_NOTIFY) == 0U &&
+                    t[i].max_len == 2U && t[i].write_len == 1U;
+        }
+    }
+    check(found && shape, "ppx config: published, encrypted-link only, read two bytes, write one");
+}
+
 int main(void)
 {
     test_uuids_match_the_contract();
@@ -1053,6 +1073,7 @@ int main(void)
     test_pause_write_is_refused_when_the_runner_refuses_or_the_value_is_wrong();
     test_pause_refused_while_ramping_says_so();
     test_panic_write_reaches_the_runner_and_is_never_a_pause();
+    test_ppx_config_is_an_encrypted_two_byte_read_and_one_byte_write();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);
