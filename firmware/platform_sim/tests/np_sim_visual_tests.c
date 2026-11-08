@@ -54,7 +54,7 @@ static void test_detect_and_arming(void)
     run("vis_detect");
     check(field("\"ev\":\"vis_detect\"", "\"code\":") != 0.0, "detect: lifted goggles are not");
     run("vis_sensor seated 1");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(result_code_is(0) && enabled(), "arming: with the handler armed a command is accepted");
 }
 
@@ -65,7 +65,7 @@ static void test_no_armed_handler_means_no_emission(void)
     run("fail 0 vis_hall_register -17 1");
     run("vis_init");
     check(vis()->vis_isr == NULL, "unarmed: the registration was refused, so no handler is registered");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "unarmed: and the goggles are never driven");
 }
 
@@ -73,11 +73,11 @@ static void test_no_armed_handler_means_no_emission(void)
 static void test_each_mode_reaches_the_leds(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
-    check(vis()->vis_emitting && vis()->vis_zone_mask == 63U && vis()->vis_freq_hz == 10U && vis()->vis_duty_pct == 50U && vis()->vis_wl == 0U,
+    run("vis 0 2 50 0 63 0 0 0 0");
+    check(vis()->vis_emitting && vis()->vis_zone_mask == 63U && vis()->vis_freq_hz == 2U && vis()->vis_duty_pct == 50U && vis()->vis_wl == 0U,
           "photic: zones, frequency, duty and wavelength reach the LEDs");
     run("vis_stop");
-    run("vis 0 10 50 0 255 15 0 0 0");
+    run("vis 0 2 50 0 255 15 0 0 0");
     check(vis()->vis_zone_mask == 0x0FFFU, "photic: the 12-bit zone mask is the low byte plus the high nibble");
     run("vis_stop");
     run("vis 1 0 0 0 0 0 20 0 0");
@@ -86,10 +86,22 @@ static void test_each_mode_reaches_the_leds(void)
     run("vis 2 0 40 0 7 0 0 0 0");
     check(vis()->vis_emitting && vis()->vis_wl == 1U && vis()->vis_freq_hz == 0U, "retinal: 808 nm continuous");
     run("vis_stop");
-    run("vis 3 10 50 0 63 0 20 0 0");
+    run("vis 3 2 50 0 63 0 20 0 0");
     check(vis()->vis_emitting && vis()->vis_emdr_on, "combined: both");
     run("vis_stop");
     check(!vis()->driven && !enabled(), "stop: the LEDs go dark and the enable drops");
+}
+
+/* @verifies-none The 3 to 30 Hz refusal (REQ-FWHUB-65) is np_mod_visual.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). The other photic tests drive at 2 Hz, outside it, so the goggles are the shipped ones. */
+static void test_photic_driving_in_the_ppx_zone_is_refused(void)
+{
+    setup();
+    run("vis 0 10 50 0 63 0 0 0 0");
+    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: photic at 10 Hz is refused and nothing is driven, as on the device");
+    run("vis 3 30 50 0 63 0 20 0 0");
+    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: combined at 30 Hz is refused too");
+    run("vis 0 31 50 0 63 0 0 0 0");
+    check(result_code_is(0) && vis()->vis_emitting, "zone: 31 Hz is outside it and drives");
 }
 
 /* @verifies-none The interlocks are np_mod_visual.c's; the hub suite verifies them. Simulator evidence only (REQ-SIMFW-06). */
@@ -97,20 +109,20 @@ static void test_the_interlocks_refuse(void)
 {
     setup();
     run("vis_sensor seated 0");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "interlock: goggles not seated refuses emission");
     run("vis_sensor seated 1");
     run("vis_sensor mpe 0");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "interlock: an MPE check that fails refuses emission");
     run("vis_sensor mpe 1");
     run("vis_sensor eye 0");
     run("vis 2 0 40 0 7 0 0 0 0");
     check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "interlock: a retinal mode needs the eye open");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(result_code_is(0) && vis()->vis_emitting, "interlock: a photic mode does not");
     run("vis_stop");
-    run("vis 0 10 50 0 63 0 0 1 0");
+    run("vis 0 2 50 0 63 0 0 1 0");
     check(result_code_is(0), "interlock: the Mode F flag is ignored while NP_MODE_F_REGULATORY_CLEARED is 0, so it adds no eye check and no emission");
 }
 
@@ -119,13 +131,13 @@ static void test_a_faulted_sensor_reads_as_refusal(void)
 {
     setup();
     run("fail 0 vis_seated -17 1");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled(), "fault: a failed Hall read refuses emission");
     run("fail 0 vis_mpe -17 1");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled(), "fault: a failed MPE read refuses emission");
     run("vis_absent");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled(), "fault: absent goggles refuse emission");
 }
 
@@ -133,7 +145,7 @@ static void test_a_faulted_sensor_reads_as_refusal(void)
 static void test_the_hall_edge_cuts_emission_at_once(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(vis()->vis_emitting && enabled(), "edge: emitting");
     run("vis_lift");
     check(!vis()->vis_emitting && !enabled() && vis()->vis_edges_delivered == 1U,
@@ -142,7 +154,7 @@ static void test_the_hall_edge_cuts_emission_at_once(void)
     check(!vis()->vis_emitting && !enabled(), "edge: lowering the goggle again does not resume emission");
     run("vis_sample");
     check(strstr(last_with("\"ev\":\"vis_sample\""), "\"goggle_seated\":true") != NULL, "edge: and telemetry reports it seated again");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(result_code_is(0) && vis()->vis_emitting, "edge: only a new command resumes it");
 }
 
@@ -150,7 +162,7 @@ static void test_the_hall_edge_cuts_emission_at_once(void)
 static void test_a_missed_edge_is_caught_only_by_the_poll(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     run("vis_lift_silent");
     check(vis()->vis_emitting && enabled(), "missed edge: with no edge delivered the goggles keep emitting while lifted");
     run("vis_sample");
@@ -162,7 +174,7 @@ static void test_a_lift_between_the_read_and_the_enable_is_caught_by_the_latch(v
 {
     setup();
     run("vis_lift_during_command");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0), "race: a lift between the seated read and the enable makes the command fail");
     check(!vis()->vis_emitting && !enabled(), "race: the LEDs are dark and the enable is down although led_set and the enable ran after the edge");
     check(count("\"ev\":\"hall_edge\"") == 1 && vis()->vis_edges_delivered == 1U, "race: through exactly one delivered edge");
@@ -173,7 +185,7 @@ static void test_a_failed_led_command_is_reported_as_success(void)
 {
     setup();
     run("fail 0 vis_led_set -17 1");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(result_code_is(0) && enabled() && !vis()->vis_emitting,
           "led fault: the LED command fails, the driver ignores its status, reports success and requests the enable with nothing lit (OI-SIMFW-20)");
 }
@@ -182,7 +194,7 @@ static void test_a_failed_led_command_is_reported_as_success(void)
 static void test_a_lost_led_stop_leaves_the_leds_lit(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     run("fail 0 vis_led_stop -17 1");
     run("vis_stop");
     check(result_code_is(0) && !enabled() && vis()->vis_emitting,
@@ -193,16 +205,16 @@ static void test_a_lost_led_stop_leaves_the_leds_lit(void)
 static void test_the_photoparoxysmal_halt(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     run("vis_ppx");
     check(!vis()->vis_emitting && !enabled(), "ppx: the LEDs go dark and the enable drops");
-    check(count("\"fn\":\"np_runner_abort\"") == 1, "ppx: and the driver asks the runner to abort, once (the runner is a sim double)");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    check(count("\"fn\":\"np_runner_panic\"") == 1, "ppx: and the driver asks the runner to panic-pause the session, once (the runner is a sim double)");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !vis()->vis_emitting, "ppx: a later command is refused");
     run("vis_sample");
     check(strstr(last_with("\"ev\":\"vis_sample\""), "\"ppx_halt\":true") != NULL, "ppx: telemetry reports the halt");
     run("vis_init");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(result_code_is(0), "ppx: only a new init clears it");
 }
 
@@ -212,7 +224,7 @@ static void test_malformed_command_and_shutdown(void)
     setup();
     run("vis_raw 3");
     check(!result_code_is(0) && !vis()->vis_emitting, "malformed: a command of the wrong size is refused");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     run("vis_shutdown");
     check(result_code_is(0) && !vis()->vis_emitting && !enabled(), "shutdown: stops everything");
 }
@@ -221,7 +233,7 @@ static void test_malformed_command_and_shutdown(void)
 static void test_default_and_injected_answers_are_marked(void)
 {
     setup();
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(count2("\"op\":\"vis_seated\"", "\"source\":\"default\"") >= 1 && count2("\"op\":\"vis_mpe\"", "\"source\":\"default\"") == 1 &&
           count2("\"op\":\"vis_led_set\"", "\"source\":\"default\"") == 1,
           "marked: every answer from the default model says default");
@@ -242,7 +254,7 @@ static void test_a_module_answers_only_for_itself(void)
     run("eeg 0xFF 6 0 0 0");
     check(np_sim_find(NP_SIM_KIND_AUDIO, 0)->driven && np_sim_find(NP_SIM_KIND_EEG, 0)->eeg_running,
           "isolation: a fault armed on the goggles does not touch the audio path or the EEG front end");
-    run("vis 0 10 50 0 63 0 0 0 0");
+    run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0), "isolation: and the goggles see their own armed fault");
 }
 
@@ -251,6 +263,7 @@ int main(void)
     test_detect_and_arming();
     test_no_armed_handler_means_no_emission();
     test_each_mode_reaches_the_leds();
+    test_photic_driving_in_the_ppx_zone_is_refused();
     test_the_interlocks_refuse();
     test_a_faulted_sensor_reads_as_refusal();
     test_the_hall_edge_cuts_emission_at_once();

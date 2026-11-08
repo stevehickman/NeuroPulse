@@ -160,7 +160,7 @@ test('a client string is never placed in a goggle command line, and a valid one 
     { type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: 1, eye_open: true, mpe_ok: true } } },
     { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'seated\nquit', value: true } } },
     { type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: 'true' } } },
-    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0 },
+    { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 2, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0 },
     { type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 256, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 },
     { type: 'FW_COMMAND', cmd: 'vis_lift\nquit' },
   ];
@@ -170,7 +170,7 @@ test('a client string is never placed in a goggle command line, and a valid one 
   assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } }), ['vis_add 1 1 1']);
   assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'visual', patch: { sensor: { name: 'mpe', value: false } } }), ['vis_sensor mpe 0']);
   assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'visual', op: 'vis_led_stop', code: -17, times: 1 }), ['fail 0 vis_led_stop -17 1']);
-  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 }),
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 2, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 }),
     ['vis 0 10 50 0 63 0 0 0 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_lift' }), ['vis_lift']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'vis_ppx' }), ['vis_ppx']);
@@ -373,7 +373,7 @@ test('end to end: the real goggle driver emits, and the Hall edge cuts it throug
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   bridge.handle({ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_init' });
-  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 10, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'vis', mode: 0, freq_hz: 2, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 0, mode_f: 0, shade: 0 });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'vis_lift' });
   await wait(500);
   bridge.stop();
