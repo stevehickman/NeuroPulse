@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import life.neurone.core.common.UUID
+import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.PpxEvidence
 import life.neurone.core.protocol.GattUuidStrings
@@ -125,20 +126,20 @@ class HoldCauseTest {
 
     // @verifies SWR-SS-09
     @Test fun the_wire_frame_is_one_byte_and_a_byte_it_does_not_know_is_not_believed() {
-        assertEquals(life.neurone.core.models.HoldCause.NONE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(0)))
-        assertEquals(life.neurone.core.models.HoldCause.USER_PAUSE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(1)))
-        assertEquals(life.neurone.core.models.HoldCause.USER_PANIC, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(2)))
-        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(3)))
-        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_BLIND, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(4)))
-        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf(5)), "a cause it does not know")
-        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf()), "empty")
-        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf(1, 0)), "too long")
+        assertEquals(HoldCause.NONE, HoldCause.fromWire(byteArrayOf(0)))
+        assertEquals(HoldCause.USER_PAUSE, HoldCause.fromWire(byteArrayOf(1)))
+        assertEquals(HoldCause.USER_PANIC, HoldCause.fromWire(byteArrayOf(2)))
+        assertEquals(HoldCause.DETECTOR_DISCHARGE, HoldCause.fromWire(byteArrayOf(3)))
+        assertEquals(HoldCause.DETECTOR_BLIND, HoldCause.fromWire(byteArrayOf(4)))
+        assertNull(HoldCause.fromWire(byteArrayOf(5)), "a cause it does not know")
+        assertNull(HoldCause.fromWire(byteArrayOf()), "empty")
+        assertNull(HoldCause.fromWire(byteArrayOf(1, 0)), "too long")
     }
 
     // @verifies SWR-SS-09
     @Test fun only_the_helmets_own_halts_are_automated() {
-        val c = life.neurone.core.models.HoldCause.entries
-        assertEquals(setOf(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, life.neurone.core.models.HoldCause.DETECTOR_BLIND), c.filter { it.isAutomated }.toSet())
+        val c = HoldCause.entries
+        assertEquals(setOf(HoldCause.DETECTOR_DISCHARGE, HoldCause.DETECTOR_BLIND), c.filter { it.isAutomated }.toSet())
     }
 
     // @verifies SWR-SS-09
@@ -149,7 +150,7 @@ class HoldCauseTest {
         manager.onCharacteristicsDiscovered(setOf(holdId))
         assertTrue("notify:$holdId" in central.log && "read:$holdId" in central.log)
         manager.onCharacteristicChanged(holdId, byteArrayOf(3))
-        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, manager.holdCause.value)
+        assertEquals(HoldCause.DETECTOR_DISCHARGE, manager.holdCause.value)
         manager.onCharacteristicChanged(holdId, byteArrayOf(9))
         assertNull(manager.holdCause.value, "a byte it does not know is not believed")
         manager.onCharacteristicChanged(holdId, byteArrayOf(4))
@@ -159,14 +160,13 @@ class HoldCauseTest {
 
     // @verifies SWR-SS-09
     @Test fun the_dialog_is_put_for_the_helmets_own_halt_once_and_never_for_a_pause_the_person_made() {
-        val c = life.neurone.core.models.HoldCause
-        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.USER_PAUSE, true, false), "a pause the person made")
-        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.USER_PANIC, true, false), "a panic they pressed: the dialog is the press's")
-        assertTrue(life.neurone.shared.ui.holdDialogShown(true, c.USER_PANIC, true, false), "the press asks")
-        assertTrue(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, true, false), "the helmet's discharge halt is put")
-        assertTrue(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_BLIND, true, false), "and its blindness halt")
-        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, true, true), "not again once answered")
-        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, false, false), "not until the helmet says the session is held")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.USER_PAUSE, true, false), "a pause the person made")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.USER_PANIC, true, false), "a panic they pressed: the dialog is the press's")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(true, HoldCause.USER_PANIC, true, false), "the press asks")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, true, false), "the helmet's discharge halt is put")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_BLIND, true, false), "and its blindness halt")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, true, true), "not again once answered")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, false, false), "not until the helmet says the session is held")
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, null, true, false), "a cause not known is not a reason")
     }
 }
