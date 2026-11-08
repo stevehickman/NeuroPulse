@@ -1216,6 +1216,32 @@ No requirement figure is set here, because step 2 has not set a rate for one to 
 
 **Not changed:** the 15 BPM threshold, the 8-interval window, the 18 s history, the 3 s R-peak staleness, the 30 s lockout, `NP_CARDIAC_BLOCK_MASK`.
 
+### 14.8 Cardiac cutoff sensitivity (`REQ-CVNS-14`; `OI-FWHUB-33`)
+
+**The rule.** The principal asked (2026-11-08) for the sensitivity setting of `REQ-FWHUB-68` to be built for the cardiac cutoff as well. The same floor rule applies: **level 0 is the validated 15 BPM of `REQ-CVNS-09` and nothing is less sensitive**; levels above it only lower the step that cuts (level 1: 14 BPM, level 2: 13 BPM; `NP_CARDIAC_HR_DELTA_L1_BPM`, `_L2_BPM`, PROVISIONAL, `UC-126`). Nothing else moves: the 8-interval mean, the 18 s history, the strict `>`, the 40 BPM end condition, the 30 s lockout and `NP_CARDIAC_BLOCK_MASK` are as at level 0. At level 0 the interlock behaves exactly as before.
+
+**Where it lives.** The owner's level is a hub setting (`np_cardiac_sens.c`, `CARDIAC_SENSITIVITY` 0x0021, encrypted link only; see `NP-FW-HUB-001` `REQ-FWHUB-74`). The hub sends it to the safety MCU in the 12-byte HR report that it already sends every second during CVNS: the formerly reserved 16-bit word (`cardiac_sens`) carries the level. No new frame, no new length. The MCU keeps two values: the level the hub last asked for and the level in force. **A higher level takes effect at once, even in a running session. A lower level is held and adopted only at `np_cardiac_interlock_arm_reset()`**, which is the start of a CVNS request, so no setting can make a running session less protected. A level above `NP_SAFETY_CARDIAC_SENS_MAX` (2) is ignored. The unit resets to level 0 at init, so power-on is the validated setting until the hub says otherwise.
+
+**Compatibility.** A safety MCU built before this change rejects an HR report whose reserved word is not zero. The hub only writes a non-zero word when the owner has chosen a level above 0, and an old MCU then drops the reports, so CVNS is never granted (fail closed). The hub and the MCU are therefore updated together.
+
+**What it costs: synthetic, not a validation.** `firmware/safety_mcu/tests/analysis/run_cvns_sensitivity_sim.sh` builds the unit with each level's threshold and runs `oi_cvns_13_false_trip_sim.c` (pipeline 1, fixed seed, 120 s sessions). Detection: on the step grid (`OI-CVNS-12`) all 120 of 120 cells are cut at every level; the longest latency is 15.9 s at level 0, 13.8 s at level 1 and 12.8 s at level 2 (the 18 s bound of `REQ-CVNS-09` holds at all three). False trips on a clean rhythm without artefacts:
+
+| Rhythm | Level 0 (15) | Level 1 (14) | Level 2 (13) |
+|---|---|---|---|
+| 50 to 70 BPM, white jitter 20 or 50 ms, and 100 BPM at 20 ms | 0.0% | 0.0% | 0.0% |
+| 100 BPM, jitter 50 ms | 10.7% | 23.3% | 40.7% |
+| RSA at 0.25 Hz, any rate, up to ±15% | 0.0% | 0.0% | 0.0% |
+| RSA at 0.10 Hz, 100 BPM, ±10% | 26.7% | 95.3% | 100% |
+| RSA at 0.10 Hz, 100 BPM, ±15% | 100% | 100% | 100% |
+| 1% missed beats, 70 BPM, jitter 20 ms | 4.0% | 7.7% | 10.0% |
+| 1% missed beats, 70 BPM, jitter 50 ms | 8.7% | 11.0% | 16.3% |
+| 1% missed beats, 100 BPM, jitter 20 ms | 21.7% | 50.3% | 68.3% |
+| 1% missed beats, 100 BPM, jitter 50 ms | 87.7% | 89.0% | 91.0% |
+
+The cost concentrates at high heart rates and with missed beats, which already trip at level 0: a level above 0 makes a nuisance cutoff more frequent for the person who chooses it (hazard 25-e, `OI-CVNS-13`), and the setting is the owner's to make. Real R-R data is not white jitter, so the rates on a person are unknown.
+
+**Owed, not done here.** (1) The Quality Lead and Risk re-score hazard 25-e (`NP-RM-001`) for a setting that raises the nuisance-cutoff rate; (2) FAI-CV02 and FAI-CV03 need a bench step at each level; (3) the ARM build of the safety MCU (Class C change, `np_safety_main.c`, `np_cardiac_interlock.c`) and the silicon timing were not run where this was written; (4) the 14 and 13 BPM figures come from the cardiac validation when it exists. Tested in `np_cardiac_interlock_tests` (level boundaries, raise at once, lower held until `arm_reset`, an invalid level ignored; seven mutants caught), `np_cardiac_sens_tests`, `np_safety_spi_tests`, `np_mod_cvns_tests` and `np_gatt_server_tests`.
+
 ## Revision history
 
 Revisions before the first row below were not recorded in a table in this document.

@@ -596,6 +596,22 @@ typedef char _np_spi_user_cmd_size_check[
 #define NP_SAFETY_HR_REPORT_FRAME_LEN 12U
 #define NP_SAFETY_HR_FLAG_VALID       (1U << 0)
 
+/*
+ * CARDIAC CUTOFF SENSITIVITY (REQ-CVNS-14, REQ-FWHUB-74; the principal, 2026-11-08).  The word that was reserved in this frame
+ * carries the level the hardware owner has set, so the report the hub already sends every second while cervical VNS is in use
+ * also tells the MCU how sensitive to make the cutoff.  No new frame, no new length, nothing in the demux changes.
+ *
+ * Level 0 is the cutoff as validated (REQ-CVNS-09: a change of more than 15 BPM) and there is no level below it: the owner can
+ * make the cutoff fire on a smaller change, never a larger one.  The MCU RAISES its level the moment a report asks for it and
+ * LOWERS it only when a new cervical VNS request re-arms it (np_cardiac_interlock_arm_reset), so a session already running is
+ * never made less protected.  A level above the maximum is ignored (the level in force is kept).  A hub that sends 0 (or an old
+ * hub, which sent the word as 0) gets the validated cutoff.
+ *
+ * A frame whose word is non-zero is NOT accepted by an MCU of the earlier version, which required the word to be 0 and then
+ * drops the whole report; the cross-check then fails closed and cuts cervical VNS.  Hub and MCU therefore update together.
+ */
+#define NP_SAFETY_CARDIAC_SENS_MAX    2U
+
 /* Averaging span of hr_x10 on the hub side: the number of most recent R-R
  * intervals.  Shared so the hub's span and the MCU's own mean (NP_RR_BUF_SIZE,
  * np_cardiac_interlock.c, which static-asserts equality) cannot drift apart. */
@@ -607,7 +623,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  flags;            /* NP_SAFETY_HR_FLAG_*        */
     uint16_t hr_x10;           /* hub HR, 0.1 BPM, little-endian */
     uint16_t age_ms;           /* age of the newest beat behind hr_x10 */
-    uint16_t reserved;         /* 0 */
+    uint16_t cardiac_sens;     /* the cardiac cutoff sensitivity level, 0..NP_SAFETY_CARDIAC_SENS_MAX; 0 on a hub that has none */
     uint16_t checksum;         /* sum of bytes [0..9], wrapping uint16 */
 } np_safety_hr_report_cmd_t;   /* 2+1+1+2+2+2+2 = 12 bytes */
 
@@ -618,6 +634,7 @@ typedef char _np_spi_hr_report_size_check[
 typedef char _np_spi_hr_report_layout_check[
     (__builtin_offsetof(np_safety_hr_report_cmd_t, hr_x10)   == 4U &&
      __builtin_offsetof(np_safety_hr_report_cmd_t, age_ms)   == 6U &&
+     __builtin_offsetof(np_safety_hr_report_cmd_t, cardiac_sens) == 8U &&
      __builtin_offsetof(np_safety_hr_report_cmd_t, checksum) == NP_SAFETY_HR_REPORT_FRAME_LEN - 2U)
         ? 1 : -1
 ];

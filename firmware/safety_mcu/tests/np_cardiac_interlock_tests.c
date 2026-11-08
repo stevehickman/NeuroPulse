@@ -44,6 +44,8 @@ extern void             np_cardiac_interlock_restore(bool cutoff_pending);
 extern bool             np_cardiac_interlock_nv_request(bool *pending_out);
 extern void             np_cardiac_interlock_nv_done(bool written);
 extern void             np_cardiac_interlock_arm_reset(void);
+extern void             np_cardiac_interlock_set_sensitivity(uint16_t level);
+extern uint8_t          np_cardiac_interlock_sensitivity(void);
 extern void             np_cardiac_interlock_hr_report(bool valid, uint16_t hr_x10,
                                                        uint16_t age_ms);
 extern void             np_cardiac_interlock_user_changed(np_safety_state_t *state,
@@ -97,6 +99,8 @@ static void check(int cond, const char *name)
 
 /* R-R intervals in µs for round BPM values (60,000,000 / BPM). */
 #define RR_60_BPM    1000000U   /* 60 000 000 / 1 000 000 =  60 */
+#define RR_74_BPM     810810U   /* 60 000 000 /   810 810 =  74 (delta exactly 14) */
+#define RR_73_BPM     821917U   /* 60 000 000 /   821 917 =  73 (delta exactly 13) */
 #define RR_75_BPM     800000U   /* 60 000 000 /   800 000 =  75 (delta exactly 15) */
 #define RR_120_BPM    500000U   /* 60 000 000 /   500 000 = 120 */
 #define RR_55_BPM    1090000U   /* 60 000 000 / 1 090 000 =  55 (delta 5, a fall) */
@@ -1180,6 +1184,75 @@ static void test_xchk_inactive_does_nothing(void)
           "xchk: no cutoff while CVNS is not requested");
 }
 
+/* ── REQ-CVNS-14: the cutoff's sensitivity ─────────────────────────────────────── */
+
+/* A session at 60 BPM (baseline) that then settles at `rr_us`: did the cutoff fire at `level`? */
+static bool fires_at(uint16_t level, uint32_t rr_us)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    np_cardiac_interlock_set_sensitivity(level);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, rr_us); }
+    return cutoff_fired(&st);
+}
+
+/* Level 0 is the cutoff as validated: nothing about it changes (REQ-CVNS-09), and a smaller change fires at a higher level only. */
+/* @verifies REQ-CVNS-14 */
+static void test_level_zero_is_the_validated_cutoff_and_higher_levels_fire_on_smaller_changes(void)
+{
+    check(!fires_at(0U, RR_73_BPM) && !fires_at(0U, RR_74_BPM) && !fires_at(0U, RR_75_BPM), "sens: level 0 holds at deltas of 13, 14 and exactly 15 BPM (REQ-CVNS-09 unchanged)");
+    check(!fires_at(1U, RR_73_BPM) && !fires_at(1U, RR_74_BPM) && fires_at(1U, RR_75_BPM), "sens: level 1 fires at 15 but not at 14 or 13");
+    check(!fires_at(2U, RR_73_BPM) && fires_at(2U, RR_74_BPM) && fires_at(2U, RR_75_BPM), "sens: level 2 fires at 14 and 15 but not at 13");
+    check(NP_CARDIAC_HR_DELTA_BPM == 15U && NP_CARDIAC_HR_DELTA_L1_BPM < NP_CARDIAC_HR_DELTA_BPM && NP_CARDIAC_HR_DELTA_L2_BPM < NP_CARDIAC_HR_DELTA_L1_BPM,
+          "sens: the thresholds only ever fall as the level rises, from the validated 15");
+    check(fires_at(2U, RR_120_BPM) && fires_at(0U, RR_120_BPM), "sens: a large change fires at every level");
+}
+
+/* @verifies REQ-CVNS-14 */
+static void test_a_higher_level_takes_effect_at_once_in_a_session_already_running(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < 4U; i++) { beat(&st, RR_74_BPM); }           /* part-way: the mean has not turned over yet */
+    np_cardiac_interlock_set_sensitivity(2U);                              /* the owner raises it mid-session */
+    check(np_cardiac_interlock_sensitivity() == 2U, "sens: raising reaches the level in force at once");
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, RR_74_BPM); }
+    check(cutoff_fired(&st), "sens: and a change of 14 now fires in the session that was already running");
+}
+
+/* @verifies REQ-CVNS-14 */
+static void test_a_lower_level_waits_for_the_next_request_and_never_reaches_a_running_session(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    np_cardiac_interlock_set_sensitivity(2U);
+    np_cardiac_interlock_set_sensitivity(0U);                              /* the owner lowers it mid-session */
+    check(np_cardiac_interlock_sensitivity() == 2U, "sens: lowering does not change the level in force");
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, RR_74_BPM); }
+    check(cutoff_fired(&st), "sens: a change of 14 still fires: the session keeps the level it started with");
+    np_cardiac_interlock_arm_reset();                                      /* a new cervical VNS request */
+    check(np_cardiac_interlock_sensitivity() == 0U, "sens: the new request adopts the lowered level");
+}
+
+/* @verifies REQ-CVNS-14 */
+static void test_a_level_the_mcu_does_not_offer_is_ignored_and_a_reset_returns_to_the_validated_cutoff(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    np_cardiac_interlock_set_sensitivity(1U);
+    np_cardiac_interlock_set_sensitivity(3U);
+    np_cardiac_interlock_set_sensitivity(0xFFFFU);
+    np_cardiac_interlock_set_sensitivity(0x0100U);                         /* a high byte set: not a level */
+    check(np_cardiac_interlock_sensitivity() == 1U, "sens: a level above the maximum is ignored and the level in force is kept");
+    np_cardiac_interlock_arm_reset();
+    check(np_cardiac_interlock_sensitivity() == 1U, "sens: and the hub's level the MCU remembers is still the last valid one");
+    np_cardiac_interlock_init();
+    check(np_cardiac_interlock_sensitivity() == 0U, "sens: after a reset (init) the MCU is at level 0 until the hub says otherwise");
+}
+
 int main(void)
 {
     test_prearm_hold_withholds_then_grants();
@@ -1196,6 +1269,10 @@ int main(void)
     test_fall_below_threshold_cuts_off();
     test_small_fall_does_not_cut_off();
     test_delta_exactly_at_threshold_holds();
+    test_level_zero_is_the_validated_cutoff_and_higher_levels_fire_on_smaller_changes();
+    test_a_higher_level_takes_effect_at_once_in_a_session_already_running();
+    test_a_lower_level_waits_for_the_next_request_and_never_reaches_a_running_session();
+    test_a_level_the_mcu_does_not_offer_is_ignored_and_a_reset_returns_to_the_validated_cutoff();
     test_no_cutoff_when_cvns_inactive();
     test_impossible_rr_saturates_rather_than_wrapping();
     test_reenable_refused_during_lockout();

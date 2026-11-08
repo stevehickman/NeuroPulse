@@ -239,6 +239,13 @@ object GattIds {
     // the validated setting and there is no level below it: a clinician can make the detector more
     // sensitive, never less. A level above the highest is refused. Set by the hardware owner.
     const val PPX_SENSITIVITY_ID: Int = 0x0020
+    // READ 2 B / WRITE 1 B, encrypted link only: how sensitive the cervical VNS cardiac cutoff is
+    // (REQ-FWHUB-74, REQ-CVNS-14). Read: the level, then the highest level the helmet offers. Write: the
+    // level. 0 is the validated cutoff (REQ-CVNS-09, a change of more than 15 BPM) and there is no level
+    // below it: the owner can make the cutoff fire on a smaller change, never a larger one. A level above
+    // the highest is refused. The safety MCU raises its level at once and lowers it only when a new
+    // cervical VNS request starts. Set by the hardware owner.
+    const val CARDIAC_SENSITIVITY_ID: Int = 0x0021
     // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
@@ -328,6 +335,13 @@ object GattUuidStrings {
     // the validated setting and there is no level below it: a clinician can make the detector more
     // sensitive, never less. A level above the highest is refused. Set by the hardware owner.
     const val PPX_SENSITIVITY_ID: String = "4E455550-0020-1000-8000-00805F9B34FB"
+    // READ 2 B / WRITE 1 B, encrypted link only: how sensitive the cervical VNS cardiac cutoff is
+    // (REQ-FWHUB-74, REQ-CVNS-14). Read: the level, then the highest level the helmet offers. Write: the
+    // level. 0 is the validated cutoff (REQ-CVNS-09, a change of more than 15 BPM) and there is no level
+    // below it: the owner can make the cutoff fire on a smaller change, never a larger one. A level above
+    // the highest is refused. The safety MCU raises its level at once and lowers it only when a new
+    // cervical VNS request starts. Set by the hardware owner.
+    const val CARDIAC_SENSITIVITY_ID: String = "4E455550-0021-1000-8000-00805F9B34FB"
     // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     // writes it.
@@ -377,6 +391,10 @@ object GattSizes {
     const val PPX_SENSITIVITY_LEN: Int = 2
     // PPX_SENSITIVITY write: one byte of level.
     const val PPX_SENSITIVITY_WRITE_LEN: Int = 1
+    // CARDIAC_SENSITIVITY read: one byte of level, one byte of the highest level.
+    const val CARDIAC_SENSITIVITY_LEN: Int = 2
+    // CARDIAC_SENSITIVITY write: one byte of level.
+    const val CARDIAC_SENSITIVITY_WRITE_LEN: Int = 1
     // HARDWARE_VERSION: one byte, 1 to 15.
     const val HARDWARE_VERSION_LEN: Int = 1
     // DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.

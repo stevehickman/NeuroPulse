@@ -81,6 +81,15 @@
  */
 #define NP_GATT_PPX_SENSITIVITY_ID 0x0020u
 /*
+ * READ 2 B / WRITE 1 B, encrypted link only: how sensitive the cervical VNS cardiac cutoff is
+ * (REQ-FWHUB-74, REQ-CVNS-14). Read: the level, then the highest level the helmet offers. Write: the
+ * level. 0 is the validated cutoff (REQ-CVNS-09, a change of more than 15 BPM) and there is no level
+ * below it: the owner can make the cutoff fire on a smaller change, never a larger one. A level above
+ * the highest is refused. The safety MCU raises its level at once and lowers it only when a new
+ * cervical VNS request starts. Set by the hardware owner.
+ */
+#define NP_GATT_CARDIAC_SENSITIVITY_ID 0x0021u
+/*
  * READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
  * 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
  * writes it.
@@ -132,6 +141,14 @@
  * PPX_SENSITIVITY write: one byte of level.
  */
 #define NP_GATT_PPX_SENSITIVITY_WRITE_LEN 1U
+/*
+ * CARDIAC_SENSITIVITY read: one byte of level, one byte of the highest level.
+ */
+#define NP_GATT_CARDIAC_SENSITIVITY_LEN 2U
+/*
+ * CARDIAC_SENSITIVITY write: one byte of level.
+ */
+#define NP_GATT_CARDIAC_SENSITIVITY_WRITE_LEN 1U
 /*
  * HARDWARE_VERSION: one byte, 1 to 15.
  */

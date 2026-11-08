@@ -91,13 +91,17 @@ void np_safety_spi_request_disable(uint16_t mask)
 /* OI-CVNS-14: the heart-rate report to the safety MCU's ±5 BPM cross-check. */
 static int      g_hr_report_calls;
 static bool     g_hr_report_valid;
-np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10, uint16_t age_ms)
+static uint8_t  g_hr_report_sens;     /* REQ-CVNS-14: the level the report carried */
+static uint8_t  g_cardiac_sens;      /* the hub setting the stub returns */
+np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10, uint16_t age_ms, uint8_t sens_level)
 {
     (void)hr_x10; (void)age_ms;
     g_hr_report_calls++;
     g_hr_report_valid = valid;
+    g_hr_report_sens  = sens_level;
     return NP_HUB_OK;
 }
+uint8_t np_cardiac_sens_level(void) { return g_cardiac_sens; }
 
 /* OI-CHARGE-05 (c): the commanded-current publish that rides beside the enable. */
 static uint16_t g_last_chan_ua;
@@ -535,6 +539,23 @@ static void test_hr_report_paced_and_invalid_without_beats(void)
     check(g_hr_report_calls == 1, "hr report: not re-sent inside the period");
     np_mod_cvns_tick(NP_CVNS_HR_REPORT_PERIOD_MS, g_now_unix);
     check(g_hr_report_calls == 2, "hr report: re-sent when the period has elapsed");
+}
+
+/* @verifies REQ-FWHUB-74 */
+static void test_the_report_carries_the_owners_cardiac_sensitivity_level(void)
+{
+    reset_mocks();
+    g_hr_report_calls = 0;
+    g_cardiac_sens = 2U;
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    np_mod_cvns_tick(0U, g_now_unix);
+    check(g_hr_report_calls == 1 && g_hr_report_sens == 2U && !g_hr_report_valid,
+          "sens: the first report carries the owner's level even with no heart rate yet");
+    g_cardiac_sens = 0U;
+    np_mod_cvns_tick(NP_CVNS_HR_REPORT_PERIOD_MS, g_now_unix);
+    check(g_hr_report_calls == 2 && g_hr_report_sens == 0U, "sens: and the next carries the level as it is then");
 }
 
 /* @verifies REQ-FWHUB-59 */
@@ -1157,6 +1178,7 @@ int main(void)
     test_tick_pre_delivery_no_enable();
     test_enable_asserted_when_delivering();
     test_hr_report_paced_and_invalid_without_beats();
+    test_the_report_carries_the_owners_cardiac_sensitivity_level();
     test_terminal_stage_drops_enable();
     test_stop_drops_enable();
     test_ramp_report_checks_then_ramp_then_steady();

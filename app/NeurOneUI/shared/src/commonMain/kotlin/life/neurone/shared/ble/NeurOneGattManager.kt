@@ -9,6 +9,7 @@ import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
+import life.neurone.core.models.CardiacSensitivity
 import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
@@ -197,6 +198,35 @@ class NeurOneGattManager(
         if (!ppxSensitivityCharPresent) return false
         central.write(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID), bytes)
         central.read(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID))
+        return true
+    }
+
+    /** The cervical VNS cardiac cutoff's sensitivity level and the highest the helmet offers (REQ-FWHUB-74), null when not known. */
+    private val _cardiacSensitivity = MutableStateFlow<CardiacSensitivity?>(null)
+    val cardiacSensitivity: StateFlow<CardiacSensitivity?> = _cardiacSensitivity
+
+    private var cardiacSensitivityCharPresent = false
+
+    private val _cardiacSensitivityPublished = MutableStateFlow(false)
+
+    /** True when this helmet publishes the cutoff's sensitivity, so the owner screen can offer it. */
+    val cardiacSensitivityPublished: StateFlow<Boolean> = _cardiacSensitivityPublished
+
+    /** Ask the helmet for the cutoff's sensitivity (an encrypted READ, refused until the helmet is paired). */
+    fun requestCardiacSensitivity() {
+        if (cardiacSensitivityCharPresent) central.read(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID))
+    }
+
+    /**
+     * Set the cardiac cutoff's sensitivity level. Raising it reaches a cervical VNS session already running; lowering it applies
+     * from the next one. Level 0 is the validated cutoff and the helmet has none below it. The write is followed by a read, so the
+     * screen shows what the helmet holds. Returns false when the helmet publishes none or the level is negative.
+     */
+    fun writeCardiacSensitivity(level: Int): Boolean {
+        val bytes = CardiacSensitivity.toWire(level) ?: return false
+        if (!cardiacSensitivityCharPresent) return false
+        central.write(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID), bytes)
+        central.read(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID))
         return true
     }
 
@@ -433,6 +463,10 @@ class NeurOneGattManager(
         pauseLimitCharPresent = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) in characteristics
         _pauseLimitPublished.value = pauseLimitCharPresent
         if (pauseLimitCharPresent) central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        // REQ-FWHUB-74: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
+        cardiacSensitivityCharPresent = UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID) in characteristics
+        _cardiacSensitivityPublished.value = cardiacSensitivityCharPresent
+        if (cardiacSensitivityCharPresent) central.read(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID))
         // REQ-FWHUB-68: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
         ppxSensitivityCharPresent = UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID) in characteristics
         _ppxSensitivityPublished.value = ppxSensitivityCharPresent
@@ -508,6 +542,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) -> _ppxConfig.value = GattParser.parsePpxConfig(value)
             UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID) -> _ppxSensitivity.value = GattParser.parsePpxSensitivity(value)
+            UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID) -> _cardiacSensitivity.value = GattParser.parseCardiacSensitivity(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) -> _holdCause.value = GattParser.parseHoldCause(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
@@ -718,6 +753,9 @@ class NeurOneGattManager(
         pauseLimitCharPresent = false
         _pauseLimitPublished.value = false
         _holdCause.value = null
+        _cardiacSensitivity.value = null
+        cardiacSensitivityCharPresent = false
+        _cardiacSensitivityPublished.value = false
         _ppxSensitivity.value = null
         ppxSensitivityCharPresent = false
         _ppxSensitivityPublished.value = false

@@ -71,6 +71,7 @@
 #include "np_consumables.h"     /* OI-ACC-08: CONSUMABLE_STATUS producer */
 #include "np_pause_limit.h"     /* SWR-SS-05: the owner's pause time limit */
 #include "np_ppx_config.h"      /* REQ-FWHUB-71: the detector's clinician switches */
+#include "np_cardiac_sens.h"    /* REQ-FWHUB-74: the cardiac cutoff's sensitivity */
 #include "np_factory_reset.h"   /* OI-NVRAM-17: interrupted-reset boot check */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -245,6 +246,7 @@ static void task_safety_heartbeat(void *arg)
         np_cons_poll();
         np_pause_limit_poll();
         np_ppx_config_poll();
+        np_cardiac_sens_poll();
 
         /* Transmit the REQUESTED mask (accumulated by the session runner via
          * request_enable/request_disable) — echoing the granted mask back
@@ -633,6 +635,7 @@ void np_hub_control_app_main(void)
     np_cons_init();
     np_pause_limit_init();
     np_ppx_config_init();      /* REQ-FWHUB-71: after the Config store is bound, before the GATT service can be read */
+    np_cardiac_sens_init();    /* REQ-FWHUB-74: likewise; it is sent to the safety MCU with the heart-rate report */
 
     /* OI-WA-03 (#381): publish the GATT service.  After np_cvfs_init(), so the
      * first CVNS_FAULT_STATUS read serves the persisted summary rather than an

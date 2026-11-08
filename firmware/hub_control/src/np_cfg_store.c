@@ -84,6 +84,12 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_PPX_CONFIG] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/ppxcfg.rec",
                              NP_CFG_REPLICA_DIR_B "/ppxcfg.rec" } },
+    /* REQ-FWHUB-74: the cervical VNS cardiac cutoff's sensitivity level.  One 2-byte record, rewritten only when the owner
+     * changes it, so REPLICATED costs nothing and one lost entry does not silently turn a setting back to its default.  It
+     * bounds no emission (REQ-LFS-01): the cutoff is the safety MCU's. */
+    [NP_CFG_FILE_CARDIAC_SENS] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/cardsens.rec",
+                             NP_CFG_REPLICA_DIR_B "/cardsens.rec" } },
 };
 
 /* ── RAM state — all of it lost at a reboot, and np_cfg_store_bind() is one ── */

@@ -66,6 +66,7 @@ extern void np_cardiac_interlock_hr_report(bool valid, uint16_t hr_x10, uint16_t
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_cardiac_interlock_restore(bool cutoff_pending);
 extern void np_cardiac_interlock_arm_reset(void);
+extern void np_cardiac_interlock_set_sensitivity(uint16_t level);
 extern bool np_cardiac_interlock_nv_request(bool *pending_out);
 extern void np_cardiac_interlock_nv_done(bool written);
 extern void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_blocked);
@@ -196,7 +197,7 @@ static bool hr_report_checksum_ok(const np_safety_hr_report_cmd_t *c)
     for (i = 0U; i < (uint8_t)(NP_SAFETY_HR_REPORT_FRAME_LEN - 2U); i++) {
         sum = (uint16_t)(sum + b[i]);
     }
-    return (sum == c->checksum) && (c->reserved == 0U);
+    return (sum == c->checksum);   /* the word at [8..9] is the cardiac sensitivity level, range-checked by the interlock */
 }
 
 static bool chan_wave_checksum_ok(const np_safety_chan_wave_cmd_t *c)
@@ -675,6 +676,8 @@ int main(void)
                 np_cardiac_interlock_hr_report(
                     (hcmd.flags & NP_SAFETY_HR_FLAG_VALID) != 0U,
                     hcmd.hr_x10, hcmd.age_ms);
+                /* REQ-CVNS-14: the owner's sensitivity level rides in the same frame, valid heart rate or not. */
+                np_cardiac_interlock_set_sensitivity(hcmd.cardiac_sens);
             }
         }
 

@@ -289,6 +289,7 @@ static void test_uuids_match_the_contract(void)
         { NP_GATT_PPX_CONFIG_ID,            "4E455550-001E-1000-8000-00805F9B34FB" },
         { NP_GATT_SESSION_HOLD_ID,          "4E455550-001F-1000-8000-00805F9B34FB" },
         { NP_GATT_PPX_SENSITIVITY_ID,       "4E455550-0020-1000-8000-00805F9B34FB" },
+        { NP_GATT_CARDIAC_SENSITIVITY_ID,   "4E455550-0021-1000-8000-00805F9B34FB" },
     };
     bool ok = true;
     for (size_t i = 0U; i < sizeof(k) / sizeof(k[0]); i++) {
@@ -309,7 +310,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 16U, "table: sixteen characteristics, each with a producer");
+    check(n == 17U, "table: seventeen characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;

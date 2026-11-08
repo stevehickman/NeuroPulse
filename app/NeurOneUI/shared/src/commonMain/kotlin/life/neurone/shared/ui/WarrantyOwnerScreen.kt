@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import life.neurone.core.models.CardiacSensitivity
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.PpxEvidence
@@ -67,6 +68,8 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     val pairingRequired by gatt.pairingRequired.collectAsState()
     val ppxPublished by gatt.ppxConfigPublished.collectAsState()
     val ppxConfig by gatt.ppxConfig.collectAsState()
+    val cardiacPublished by gatt.cardiacSensitivityPublished.collectAsState()
+    val cardiacSensitivity by gatt.cardiacSensitivity.collectAsState()
     val sensitivityPublished by gatt.ppxSensitivityPublished.collectAsState()
     val sensitivity by gatt.ppxSensitivity.collectAsState()
 
@@ -147,6 +150,16 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
             sensitivity = sensitivity,
             onRead = { gatt.requestPpxSensitivity() },
             onSave = { level -> gatt.writePpxSensitivity(level) },
+        )
+
+        Spacer(Modifier.height(24.dp))
+        CardiacSensitivitySection(
+            published = cardiacPublished,
+            connected = connection == ConnectionState.CONNECTED,
+            pairingRequired = pairingRequired,
+            sensitivity = cardiacSensitivity,
+            onRead = { gatt.requestCardiacSensitivity() },
+            onSave = { level -> gatt.writeCardiacSensitivity(level) },
         )
 
         Spacer(Modifier.height(24.dp))
@@ -465,6 +478,94 @@ private fun PpxSensitivitySection(
                     Spacer(Modifier.height(8.dp))
                     val more = sensitivity != null && level > sensitivity.level
                     Text(stringResource(if (more) Res.string.ppx_sens_confirm_more else Res.string.ppx_sens_confirm_less))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = null
+                    onSave(level)
+                }) { Text(stringResource(Res.string.ppx_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = null }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+}
+
+/**
+ * The cervical VNS cardiac cutoff's sensitivity (REQ-FWHUB-74, REQ-CVNS-12): a slider from the standard (validated) cutoff up to the
+ * most sensitive the helmet offers, the range read from the helmet. There is nothing below standard to choose, by design: a less
+ * sensitive cutoff would weaken a hazard control. A change is confirmed, because it is for everyone who uses the helmet and because
+ * more sensitive also stops sessions for harmless changes.
+ */
+@Composable
+private fun CardiacSensitivitySection(
+    published: Boolean,
+    connected: Boolean,
+    pairingRequired: Boolean,
+    sensitivity: CardiacSensitivity?,
+    onRead: () -> Unit,
+    onSave: (Int) -> Boolean,
+) {
+    var confirming by remember { mutableStateOf<Int?>(null) }
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val description = stringResource(Res.string.cardiac_sens_slider_description)
+
+    Text(stringResource(Res.string.cardiac_sens_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.cardiac_sens_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+
+    when {
+        !connected -> Text(stringResource(Res.string.ppx_not_connected))
+        !published -> Text(stringResource(Res.string.ppx_not_published))
+        sensitivity == null -> {
+            if (pairingRequired) Text(stringResource(Res.string.ppx_not_paired))
+            OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+        }
+        else -> {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    val shown = dragging?.toInt() ?: sensitivity.level
+                    Text(
+                        if (shown == 0) {
+                            stringResource(Res.string.cardiac_sens_standard)
+                        } else {
+                            stringResource(Res.string.cardiac_sens_level, shown.toString(), sensitivity.maxLevel.toString())
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (sensitivity.maxLevel > 0) {
+                        Slider(
+                            value = dragging ?: sensitivity.level.toFloat(),
+                            onValueChange = { dragging = it },
+                            valueRange = 0f..sensitivity.maxLevel.toFloat(),
+                            steps = (sensitivity.maxLevel - 1).coerceAtLeast(0),
+                            onValueChangeFinished = {
+                                val picked = dragging?.toInt()
+                                dragging = null
+                                if (picked != null && picked != sensitivity.level) confirming = picked
+                            },
+                            modifier = Modifier.semantics { contentDescription = description },
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+                }
+            }
+        }
+    }
+
+    confirming?.let { level ->
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text(stringResource(Res.string.ppx_confirm_title)) },
+            text = {
+                Column {
+                    Text(stringResource(Res.string.ppx_confirm_body))
+                    Spacer(Modifier.height(8.dp))
+                    val more = sensitivity != null && level > sensitivity.level
+                    Text(stringResource(if (more) Res.string.cardiac_sens_confirm_more else Res.string.cardiac_sens_confirm_less))
                 }
             },
             confirmButton = {
