@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 16
-**Date:** 2026-11-05
+**Revision:** 17
+**Date:** 2026-11-06
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -1224,3 +1224,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 15 | 2026-11-03 | NeurOne Firmware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |
 | 16 | 2026-11-05 | NeurOne Firmware Engineering | **§8.1: the BASELINE stage requests the enable once and holds, rather than asking again every tick (`np_cvns_session.c`).** Before this, a session faulted one tick after its baseline completed with `NP_CVNS_ERR_SESSION_ACTIVE`, grant or no grant (`NP-SIM-FW-001` `OI-SIMFW-22`). No constant, limit, criterion or interlock threshold changed. IEC 62304 SW-01 Class C / SW-02 Class B: the Class B session logic changes; no Class C code is affected. |
+| 17 | 2026-11-06 | NeurOne Firmware Engineering | **§5.3: re-arm after a session fault recorded (principal, 2026-11-06, `OI-SIMFW-23`): the interlock FAULT stays latched, the baseline re-forms from fresh PPG, the lockout runs from the tick that saw the fault; a re-enable is permission to start a new session (option 2); resuming the same session (option 1) is recorded as a possibility for later; keeping the latch through a stop (closing the stop-then-start lockout bypass) is also recorded as a possible future change and not made.** |

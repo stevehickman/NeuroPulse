@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 4
-**Date:** 2026-11-05
+**Revision:** 5
+**Date:** 2026-11-06
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -677,3 +677,4 @@ coil have no firmware driver (stubs, §19), so in firmware mode they are never d
 | 2 | 2026-11-04 | NeurOne Software Engineering | **New §13 to §20 as built (stimulation, EEG, auricular VNS, audio, visual goggles, intranasal Y-probe, T2 and accessory stubs, cervical VNS), and the §8 step 3 order set by the Principal (stim first, then the rest in the proposed order).** The bus is keyed by module kind and index and gains a start offset for injected faults; the device's own drivers, the cross-check, the HRV session library, the cervical VNS library with its Pan-Tompkins detector and the goggle Hall-edge handler run under 92 new scenarios; the gaps are listed with the measured line coverage of each source; `OI-SIMFW-15` to `OI-SIMFW-22` are raised, `OI-SIMFW-22` being a defect in `np_cvns_session.c` (a session cannot leave its baseline stage). |
 | 3 | 2026-11-05 | NeurOne Software Engineering | **§20 and §7: `OI-SIMFW-22` closed (fixed) and `OI-SIMFW-23` raised (a faulted cervical VNS session cannot be re-enabled).** The cervical VNS scenarios grow from 15 to 22 and reach ramp-up, steady delivery, the safety MCU's refusal, R-peak data loss, stop in delivery and completion at the session length; the measured line coverage rises (`np_mod_cvns.c` 91.8 %, the interlock 77.1 %, the session 83.8 %, the stimulation ramp 75.9 %). **New §21: accessories in the browser** (the Principal, 2026-11-05): drawn only while in use, those attached to the helmet on the helmet, the others in a window each around the perimeter of the helmet window; the page's module registry is keyed by (kind, index). |
 | 4 | 2026-11-05 | NeurOne Software Engineering | **§21: each accessory window draws a labelled schematic (numbered markers, a legend naming each part and its A12.x, A13.x or A14.x row); the standalone session gains intranasal, cervical VNS and haptic modalities derived from `pbm_intranasal`, `cervical_vns` and `vibrotactile_40hz`; the demo panel keeps one switch, the haptic pad.** |
+| 5 | 2026-11-06 | NeurOne Firmware Engineering | **§20 and §7: `OI-SIMFW-23` closed (fixed in `np_cvns_session.c`, `np_cvns_interlock.c` and `np_mod_cvns.c`); the re-enable scenario now shows a refusal inside the lockout and an acceptance after it.** |
