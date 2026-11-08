@@ -9,6 +9,7 @@ import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
+import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.SessionProgress
@@ -160,6 +161,14 @@ class NeurOneGattManager(
         central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
         return true
     }
+
+    /**
+     * Why the helmet is holding the session paused (SWR-SS-09), null when not known: not read yet, a helmet that does not publish
+     * it, or a byte this app does not know. The app puts the Stop / Resume question to the person when the helmet halted on
+     * its own ([HoldCause.isAutomated]); a pause or a panic the person made they already know about.
+     */
+    private val _holdCause = MutableStateFlow<HoldCause?>(null)
+    val holdCause: StateFlow<HoldCause?> = _holdCause
 
     private val _bluetoothUnavailable = MutableStateFlow(false)
     val bluetoothUnavailable: StateFlow<Boolean> = _bluetoothUnavailable
@@ -398,6 +407,11 @@ class NeurOneGattManager(
         ppxConfigCharPresent = UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) in characteristics
         _ppxConfigPublished.value = ppxConfigCharPresent
         if (ppxConfigCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
+        // SWR-SS-09: optional (hub firmware): why a session is held, so a halt the helmet made on its own is put to the person.
+        if (UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) in characteristics) {
+            central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_HOLD_ID))
+            central.read(UUID.fromString(GattUuidStrings.SESSION_HOLD_ID))
+        }
         // SWR-SS-07: read once at link so a session already running shows its figures, then notified on the telemetry tick.
         if (UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) in characteristics) {
             central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
@@ -460,6 +474,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) -> _ppxConfig.value = GattParser.parsePpxConfig(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
+            UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) -> _holdCause.value = GattParser.parseHoldCause(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
             }
@@ -667,6 +682,7 @@ class NeurOneGattManager(
         _pauseLimitSeconds.value = null
         pauseLimitCharPresent = false
         _pauseLimitPublished.value = false
+        _holdCause.value = null
         _ppxConfig.value = null
         ppxConfigCharPresent = false
         _ppxConfigPublished.value = false

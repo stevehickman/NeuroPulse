@@ -157,7 +157,9 @@ void np_safety_spi_request_disable_from_isr(uint16_t bits)
 
 void np_runner_abort(np_abort_reason_t reason) { (void)reason; }
 static int g_panics;
-np_hub_status_t np_runner_panic(void) { g_panics++; return NP_HUB_OK; }
+static np_hold_cause_t g_last_cause;
+np_hub_status_t np_runner_halt(np_hold_cause_t cause) { g_panics++; g_last_cause = cause; return NP_HUB_OK; }
+np_hub_status_t np_runner_panic(void) { return np_runner_halt(NP_HOLD_USER_PANIC); }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────────── */
 
@@ -423,7 +425,7 @@ static void test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_se
     check(start_with(0U, 20U) == NP_HUB_OK && emitting() && np_mod_visual_photic_zone_active(), "halt: the zone is being driven");
     feed_quiet(2.0f, 300);
     check(!emitting() && !np_mod_visual_photic_zone_active(), "halt: the LEDs are off and the enable is withdrawn");
-    check(g_panics == 1, "halt: and the session is held paused by the panic, not aborted");
+    check(g_panics == 1 && g_last_cause == NP_HOLD_DETECTOR_DISCHARGE, "halt: and the session is held paused, not aborted, with the detector's discharge as the cause");
     check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && start_with(0U, 40U) == NP_HUB_ERR_SAFETY_REJECTED,
           "halt: after a detection the goggles refuse every later drive in the session");
     unguard();
@@ -449,7 +451,7 @@ static void test_losing_sight_during_a_zone_drive_halts_it(void)
         for (int s = 0; s < 20; s++) { for (int c = 0; c < 8; c++) { blk[s * 8 + c] = 5.0f; } }
         np_ppx_feed(blk, 20U, 8U);
     }
-    check(!emitting() && g_panics == 1, "blind: the detector lost sight: the LEDs are off and the session is held paused");
+    check(!emitting() && g_panics == 1 && g_last_cause == NP_HOLD_DETECTOR_BLIND, "blind: the detector lost sight: the LEDs are off and the session is held paused, with blindness as the cause");
     unguard();
 }
 

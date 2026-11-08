@@ -354,6 +354,14 @@ if(NP_BUILD_TESTS)
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_visual_tests PRIVATE m)
 
+    # SWR-SS-09: SESSION_HOLD, why a session is held (the characteristic; the cause is the runner's). Pure C.
+    add_executable(np_session_hold_tests
+        tests/np_session_hold_tests.c
+        src/np_session_hold.c
+    )
+    target_include_directories(np_session_hold_tests PRIVATE include ../common/include)
+    target_compile_options(np_session_hold_tests PRIVATE -Wall -Wextra -std=c11 -DNPTEST_HOST)
+
     # REQ-FWHUB-71: the detector's two clinician switches (a Config record, the GATT read/write, the asymmetry).
     add_executable(np_ppx_config_tests
         tests/np_ppx_config_tests.c
@@ -545,6 +553,7 @@ if(NP_BUILD_TESTS)
         src/np_upload_check.c         # SWR-UP-01
         src/np_session_stop.c         # SWR-SS-06
         src/np_session_progress.c     # SWR-SS-07
+        src/np_session_hold.c         # SWR-SS-09
         src/np_warranty_token.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05
@@ -580,6 +589,7 @@ if(NP_BUILD_TESTS)
         src/np_upload_check.c
         src/np_session_stop.c
         src/np_session_progress.c
+        src/np_session_hold.c
         src/np_warranty_token.c
         src/np_cvns_fault_summary.c
         src/np_transport.c
@@ -661,6 +671,7 @@ set(HUB_SOURCES
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
+    src/np_session_hold.c         # SWR-SS-09: why a session is held
     src/np_ramp_plan.c            # SWR-SS-05: coordinated ramp-up
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_socket_layouts.c       # REQ-FWHUB-64: socket table by hardware version (lookup)

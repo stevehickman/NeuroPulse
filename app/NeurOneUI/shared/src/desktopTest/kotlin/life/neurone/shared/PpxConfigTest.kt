@@ -103,3 +103,70 @@ class PpxConfigTest {
         assertFalse(manager.ppxConfigPublished.value)
     }
 }
+
+/** Why the helmet holds a session paused, and the Stop / Resume question for a halt it made on its own (SWR-SS-09). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class HoldCauseTest {
+    private class Central : BleCentral {
+        override val adapterState = AdapterState.ON
+        val log = mutableListOf<String>()
+        override fun setListener(listener: BleCentralListener) {}
+        override fun startScan(serviceUuid: UUID) {}
+        override fun stopScan() {}
+        override fun connect(deviceId: String) {}
+        override fun disconnect() {}
+        override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+        override fun enableNotifications(uuid: UUID) { log += "notify:$uuid" }
+        override fun read(uuid: UUID) { log += "read:$uuid" }
+        override fun write(uuid: UUID, value: ByteArray) {}
+    }
+
+    private val holdId = UUID.fromString(GattUuidStrings.SESSION_HOLD_ID)
+
+    // @verifies SWR-SS-09
+    @Test fun the_wire_frame_is_one_byte_and_a_byte_it_does_not_know_is_not_believed() {
+        assertEquals(life.neurone.core.models.HoldCause.NONE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(0)))
+        assertEquals(life.neurone.core.models.HoldCause.USER_PAUSE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(1)))
+        assertEquals(life.neurone.core.models.HoldCause.USER_PANIC, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(2)))
+        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(3)))
+        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_BLIND, life.neurone.core.models.HoldCause.fromWire(byteArrayOf(4)))
+        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf(5)), "a cause it does not know")
+        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf()), "empty")
+        assertNull(life.neurone.core.models.HoldCause.fromWire(byteArrayOf(1, 0)), "too long")
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun only_the_helmets_own_halts_are_automated() {
+        val c = life.neurone.core.models.HoldCause.entries
+        assertEquals(setOf(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, life.neurone.core.models.HoldCause.DETECTOR_BLIND), c.filter { it.isAutomated }.toSet())
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun the_cause_is_read_and_subscribed_at_link_followed_on_notification_and_forgotten_with_the_link() = runTest {
+        val central = Central()
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        assertNull(manager.holdCause.value)
+        manager.onCharacteristicsDiscovered(setOf(holdId))
+        assertTrue("notify:$holdId" in central.log && "read:$holdId" in central.log)
+        manager.onCharacteristicChanged(holdId, byteArrayOf(3))
+        assertEquals(life.neurone.core.models.HoldCause.DETECTOR_DISCHARGE, manager.holdCause.value)
+        manager.onCharacteristicChanged(holdId, byteArrayOf(9))
+        assertNull(manager.holdCause.value, "a byte it does not know is not believed")
+        manager.onCharacteristicChanged(holdId, byteArrayOf(4))
+        manager.onDisconnected("hub")
+        assertNull(manager.holdCause.value)
+    }
+
+    // @verifies SWR-SS-09
+    @Test fun the_dialog_is_put_for_the_helmets_own_halt_once_and_never_for_a_pause_the_person_made() {
+        val c = life.neurone.core.models.HoldCause
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.USER_PAUSE, true, false), "a pause the person made")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.USER_PANIC, true, false), "a panic they pressed: the dialog is the press's")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(true, c.USER_PANIC, true, false), "the press asks")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, true, false), "the helmet's discharge halt is put")
+        assertTrue(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_BLIND, true, false), "and its blindness halt")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, true, true), "not again once answered")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, c.DETECTOR_DISCHARGE, false, false), "not until the helmet says the session is held")
+        assertFalse(life.neurone.shared.ui.holdDialogShown(false, null, true, false), "a cause not known is not a reason")
+    }
+}

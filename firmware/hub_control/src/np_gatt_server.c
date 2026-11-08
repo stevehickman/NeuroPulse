@@ -14,6 +14,7 @@
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
 #include "np_pause_limit.h"
+#include "np_session_hold.h"
 #include "np_ppx_config.h"
 #include "np_safety_spi.h"
 #include "np_session_progress.h"
@@ -125,6 +126,10 @@ static const np_gatt_char_t TABLE[] = {
     /* SWR-SS-07: where the session is. */
     { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
+
+    /* SWR-SS-09: why a session is held paused (a person's pause or panic, or the detector's halt). */
+    { NP_GATT_SESSION_HOLD_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+      (uint8_t)NP_HOLD_LEN, 0u, np_hold_read, NULL },
 
     /* SWR-HV-06: the helmet hardware version, 1..15. */
     { NP_GATT_HARDWARE_VERSION_ID, NP_GATT_PROP_READ,

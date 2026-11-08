@@ -67,6 +67,13 @@
  */
 #define NP_GATT_PPX_CONFIG_ID 0x001Eu
 /*
+ * READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person
+ * paused it, 2 the person pressed the panic control, 3 the photoparoxysmal detector found a discharge,
+ * 4 the detector could no longer see the EEG signal. A separate characteristic so a hub and an app of
+ * different ages still agree on SESSION_PROGRESS.
+ */
+#define NP_GATT_SESSION_HOLD_ID 0x001Fu
+/*
  * READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
  * 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
  * writes it.
@@ -106,6 +113,10 @@
  * PPX_CONFIG write: one byte of flags.
  */
 #define NP_GATT_PPX_CONFIG_WRITE_LEN 1U
+/*
+ * SESSION_HOLD: one byte, the hold cause.
+ */
+#define NP_GATT_SESSION_HOLD_LEN 1U
 /*
  * HARDWARE_VERSION: one byte, 1 to 15.
  */

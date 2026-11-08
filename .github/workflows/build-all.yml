@@ -109,9 +109,9 @@ env:
   # NP-FW-HUB-001 Rev 18 (OI-FWHUB-26) then added np_mod_visual_tests: 11 + 44 = 55.
   # 61 → 62: np_runner_load_tests (GitHub #569, REQ-FWHUB-62).
   # 62 → 63: np_runner_run_tests (GitHub #569, REQ-FWHUB-63).
-  NP_TOTAL_TEST_COUNT: '66'
+  NP_TOTAL_TEST_COUNT: '67'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '55'
+  NP_CLASS_B_TEST_COUNT: '56'
 
 jobs:
   host-tests-all:

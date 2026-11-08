@@ -502,6 +502,13 @@
           "hub": true
         },
         {
+          "name": "SESSION_HOLD_ID",
+          "value": 31,
+          "int": true,
+          "note": "READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person paused it, 2 the person pressed the panic control, 3 the photoparoxysmal detector found a discharge, 4 the detector could no longer see the EEG signal. A separate characteristic so a hub and an app of different ages still agree on SESSION_PROGRESS.",
+          "hub": true
+        },
+        {
           "name": "HARDWARE_VERSION_ID",
           "value": 28,
           "int": true,
@@ -567,6 +574,12 @@
           "value": 1,
           "int": true,
           "note": "PPX_CONFIG write: one byte of flags."
+        },
+        {
+          "name": "SESSION_HOLD_LEN",
+          "value": 1,
+          "int": true,
+          "note": "SESSION_HOLD: one byte, the hold cause."
         },
         {
           "name": "HARDWARE_VERSION_LEN",
