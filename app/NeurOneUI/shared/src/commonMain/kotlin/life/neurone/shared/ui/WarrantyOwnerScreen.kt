@@ -17,6 +17,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.PpxEvidence
+import life.neurone.core.models.PpxSensitivity
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.familyKey
 import life.neurone.core.protocol.isRunnable
@@ -65,6 +67,8 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     val pairingRequired by gatt.pairingRequired.collectAsState()
     val ppxPublished by gatt.ppxConfigPublished.collectAsState()
     val ppxConfig by gatt.ppxConfig.collectAsState()
+    val sensitivityPublished by gatt.ppxSensitivityPublished.collectAsState()
+    val sensitivity by gatt.ppxSensitivity.collectAsState()
 
     var fleetOn by remember { mutableStateOf(app.warrantyAnalyticsGate.isOpen) }
 
@@ -133,6 +137,16 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
             config = ppxConfig,
             onRead = { gatt.requestPpxConfig() },
             onSave = { stop, override -> gatt.writePpxConfig(stop, override) },
+        )
+
+        Spacer(Modifier.height(24.dp))
+        PpxSensitivitySection(
+            published = sensitivityPublished,
+            connected = connection == ConnectionState.CONNECTED,
+            pairingRequired = pairingRequired,
+            sensitivity = sensitivity,
+            onRead = { gatt.requestPpxSensitivity() },
+            onSave = { level -> gatt.writePpxSensitivity(level) },
         )
 
         Spacer(Modifier.height(24.dp))
@@ -370,6 +384,93 @@ private fun PpxConfigSection(
                 TextButton(onClick = {
                     confirming = null
                     onSave(stop, override)
+                }) { Text(stringResource(Res.string.ppx_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = null }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+}
+
+/**
+ * The detector's sensitivity (REQ-FWHUB-68): a slider from the standard (validated) setting up to the most sensitive the helmet
+ * offers, the range read from the helmet. There is nothing below standard to choose, by design. A change is confirmed, because it
+ * is for everyone who uses the helmet and because more sensitive stops harmless sessions too.
+ */
+@Composable
+private fun PpxSensitivitySection(
+    published: Boolean,
+    connected: Boolean,
+    pairingRequired: Boolean,
+    sensitivity: PpxSensitivity?,
+    onRead: () -> Unit,
+    onSave: (Int) -> Boolean,
+) {
+    var confirming by remember { mutableStateOf<Int?>(null) }
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val description = stringResource(Res.string.ppx_sens_slider_description)
+
+    Text(stringResource(Res.string.ppx_sens_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.ppx_sens_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+
+    when {
+        !connected -> Text(stringResource(Res.string.ppx_not_connected))
+        !published -> Text(stringResource(Res.string.ppx_not_published))
+        sensitivity == null -> {
+            if (pairingRequired) Text(stringResource(Res.string.ppx_not_paired))
+            OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+        }
+        else -> {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    val shown = dragging?.toInt() ?: sensitivity.level
+                    Text(
+                        if (shown == 0) {
+                            stringResource(Res.string.ppx_sens_standard)
+                        } else {
+                            stringResource(Res.string.ppx_sens_level, shown.toString(), sensitivity.maxLevel.toString())
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (sensitivity.maxLevel > 0) {
+                        Slider(
+                            value = dragging ?: sensitivity.level.toFloat(),
+                            onValueChange = { dragging = it },
+                            valueRange = 0f..sensitivity.maxLevel.toFloat(),
+                            steps = (sensitivity.maxLevel - 1).coerceAtLeast(0),
+                            onValueChangeFinished = {
+                                val picked = dragging?.toInt()
+                                dragging = null
+                                if (picked != null && picked != sensitivity.level) confirming = picked
+                            },
+                            modifier = Modifier.semantics { contentDescription = description },
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onRead) { Text(stringResource(Res.string.ppx_read_again)) }
+                }
+            }
+        }
+    }
+
+    confirming?.let { level ->
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text(stringResource(Res.string.ppx_confirm_title)) },
+            text = {
+                Column {
+                    Text(stringResource(Res.string.ppx_confirm_body))
+                    Spacer(Modifier.height(8.dp))
+                    val more = sensitivity != null && level > sensitivity.level
+                    Text(stringResource(if (more) Res.string.ppx_sens_confirm_more else Res.string.ppx_sens_confirm_less))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = null
+                    onSave(level)
                 }) { Text(stringResource(Res.string.ppx_save)) }
             },
             dismissButton = {

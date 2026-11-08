@@ -212,6 +212,57 @@ static void test_one_halt_per_session_and_init_clears_it(void)
     check(np_ppx_verdict() == NP_PPX_BLIND, "latch: init clears the latch (it must warm up again)");
 }
 
+/* The false-halt count over `runs` minutes of synthetic background at a sensitivity level; one halt latches a run. */
+static int false_halt_runs(uint8_t level, int runs)
+{
+    int n = 0;
+    scn_t s = quiet();
+    for (int seed = 1; seed <= runs; seed++) {
+        start(true);
+        np_ppx_set_sensitivity(level);
+        g_rng = (uint32_t)seed * 7919U;
+        if (run(&s, 60.0f) != UINT32_MAX) { n++; }
+    }
+    return n;
+}
+
+/* @verifies REQ-FWHUB-68 */
+static void test_sensitivity_lowers_the_threshold_and_costs_false_halts_and_never_goes_below_the_validated_setting(void)
+{
+    /* The same 70 uV step on one occipital and two other channels, in 30 differently noisy minutes: how often each level halts.
+     * At the margin the outcome depends on the noise, so it is a rate; the rate must not fall as the level rises. */
+    int hits[NP_PPX_SENS_MAX + 1U];
+    for (uint8_t lvl = 0U; lvl <= NP_PPX_SENS_MAX; lvl++) {
+        hits[lvl] = 0;
+        for (int seed = 1; seed <= 30; seed++) {
+            scn_t e = quiet();
+            e.spike_at = 4U * FS; e.spike_mask = 0x0DU; e.spike_uv = 70.0f;
+            start(true);
+            np_ppx_set_sensitivity(lvl);
+            g_rng = (uint32_t)seed * 7919U;
+            if (run(&e, 5.0f) != UINT32_MAX) { hits[lvl]++; }
+        }
+    }
+    printf("  70 uV generalised step, events halted of 30 on synthetic noise: level 0: %d, 1: %d, 2: %d, 3: %d\n", hits[0], hits[1], hits[2], hits[3]);
+    check(hits[0] <= hits[1] && hits[1] <= hits[2] && hits[2] <= hits[3], "sensitivity: a higher level never halts on fewer of the same events");
+    check(hits[3] >= hits[0] + 15, "sensitivity: and the most sensitive level halts on many events the validated setting does not");
+
+    start(true);
+    np_ppx_set_sensitivity(2U);
+    np_ppx_set_sensitivity(1U);
+    check(np_ppx_sensitivity() == 2U, "sensitivity: a detector already watching is never told to look less (set only raises)");
+    np_ppx_set_sensitivity(200U);
+    check(np_ppx_sensitivity() == NP_PPX_SENS_MAX, "sensitivity: and a level beyond the highest is clamped to it");
+    start(true);
+    check(np_ppx_sensitivity() == 0U, "sensitivity: every session starts at level 0, the floor");
+
+    /* The price, on synthetic white noise (10 uV): recorded here so nobody takes a level for free. It is not a validation. */
+    const int l0 = false_halt_runs(0U, 30), l1 = false_halt_runs(1U, 30), l2 = false_halt_runs(2U, 30), l3 = false_halt_runs(3U, 30);
+    printf("  false-halt minutes of 30 on synthetic white noise: level 0: %d, level 1: %d, level 2: %d, level 3: %d\n", l0, l1, l2, l3);
+    check(l0 == 0 && l1 == 0 && l2 == 0, "sensitivity: levels 0 to 2 raise no false halt in 30 minutes of synthetic background");
+    check(l3 > l2, "sensitivity: the most sensitive level does (that is what it costs)");
+}
+
 /* @verifies REQ-FWHUB-70 */
 static void test_the_policy_lifts_the_refusal_only_with_the_evidence_for_it(void)
 {
@@ -244,6 +295,7 @@ int main(void)
     test_a_detector_that_could_see_and_cannot_now_halts();
     test_a_detector_that_never_saw_does_not_halt_by_itself();
     test_one_halt_per_session_and_init_clears_it();
+    test_sensitivity_lowers_the_threshold_and_costs_false_halts_and_never_goes_below_the_validated_setting();
     test_the_policy_lifts_the_refusal_only_with_the_evidence_for_it();
     if (g_failures == 0) { printf("ALL PASS (0 failures)\n"); return 0; }
     printf("FAILED (%d failure%s)\n", g_failures, g_failures == 1 ? "" : "s");

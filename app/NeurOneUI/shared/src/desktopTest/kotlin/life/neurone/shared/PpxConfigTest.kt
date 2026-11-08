@@ -7,6 +7,7 @@ import life.neurone.core.common.UUID
 import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.PpxEvidence
+import life.neurone.core.models.PpxSensitivity
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
@@ -168,5 +169,76 @@ class HoldCauseTest {
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, true, true), "not again once answered")
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, false, false), "not until the helmet says the session is held")
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, null, true, false), "a cause not known is not a reason")
+    }
+}
+
+/** The detector's sensitivity, read from and written to the helmet (REQ-FWHUB-68). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class PpxSensitivityTest {
+    private class Central : BleCentral {
+        override val adapterState = AdapterState.ON
+        val log = mutableListOf<String>()
+        val writes = mutableListOf<Pair<UUID, List<Byte>>>()
+        override fun setListener(listener: BleCentralListener) {}
+        override fun startScan(serviceUuid: UUID) {}
+        override fun stopScan() {}
+        override fun connect(deviceId: String) {}
+        override fun disconnect() {}
+        override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+        override fun enableNotifications(uuid: UUID) {}
+        override fun read(uuid: UUID) { log += "read" }
+        override fun write(uuid: UUID, value: ByteArray) { log += "write"; writes += uuid to value.toList() }
+    }
+
+    private val sensId = UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID)
+
+    // @verifies REQ-FWHUB-68
+    @Test fun the_frame_is_the_level_and_the_highest_level_and_a_level_above_the_highest_is_not_believed() {
+        assertEquals(PpxSensitivity(0, 3), PpxSensitivity.fromWire(byteArrayOf(0, 3)))
+        assertEquals(PpxSensitivity(3, 3), PpxSensitivity.fromWire(byteArrayOf(3, 3)))
+        assertTrue(assertNotNull(PpxSensitivity.fromWire(byteArrayOf(0, 3))).isStandard)
+        assertNull(PpxSensitivity.fromWire(byteArrayOf(4, 3)), "a level above the highest the helmet offers")
+        assertNull(PpxSensitivity.fromWire(byteArrayOf(1)), "too short")
+        assertNull(PpxSensitivity.fromWire(byteArrayOf(1, 3, 0)), "too long")
+    }
+
+    // @verifies REQ-FWHUB-68
+    @Test fun the_write_is_one_byte_and_there_is_no_level_below_zero() {
+        assertContentEquals(byteArrayOf(2), PpxSensitivity.toWire(2))
+        assertNull(PpxSensitivity.toWire(-1), "nothing is less sensitive than the validated setting")
+    }
+
+    // @verifies REQ-FWHUB-68
+    @Test fun a_helmet_that_does_not_publish_it_takes_no_write_and_one_that_does_is_read_at_link() = runTest {
+        val central = Central()
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        assertNull(manager.ppxSensitivity.value)
+        assertFalse(manager.ppxSensitivityPublished.value)
+        assertFalse(manager.writePpxSensitivity(1))
+        assertTrue(central.writes.isEmpty())
+        manager.onCharacteristicsDiscovered(setOf(sensId))
+        assertTrue(manager.ppxSensitivityPublished.value)
+        assertTrue("read" in central.log)
+        manager.onCharacteristicRead(sensId, byteArrayOf(2, 3))
+        assertEquals(PpxSensitivity(2, 3), manager.ppxSensitivity.value)
+        manager.onCharacteristicRead(sensId, byteArrayOf(9, 3))
+        assertNull(manager.ppxSensitivity.value, "a malformed frame is not believed")
+    }
+
+    // @verifies REQ-FWHUB-68
+    @Test fun a_write_sends_the_level_and_is_followed_by_a_read_and_a_dropped_link_forgets_it() = runTest {
+        val central = Central()
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        manager.onCharacteristicsDiscovered(setOf(sensId))
+        central.log.clear()
+        assertTrue(manager.writePpxSensitivity(3))
+        assertEquals(listOf(sensId to listOf<Byte>(3)), central.writes)
+        assertEquals(listOf("write", "read"), central.log, "the screen then shows what the helmet holds")
+        assertFalse(manager.writePpxSensitivity(-1), "a level below 0 is never sent")
+        assertEquals(1, central.writes.size)
+        manager.onCharacteristicRead(sensId, byteArrayOf(3, 3))
+        manager.onDisconnected("hub")
+        assertNull(manager.ppxSensitivity.value)
+        assertFalse(manager.ppxSensitivityPublished.value)
     }
 }

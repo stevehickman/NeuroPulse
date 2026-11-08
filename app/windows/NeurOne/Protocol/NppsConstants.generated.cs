@@ -250,6 +250,11 @@ static class GattIds
     /// 4 the detector could no longer see the EEG signal. A separate characteristic so a hub and an app of
     /// different ages still agree on SESSION_PROGRESS.
     public const int SESSION_HOLD_ID = 0x001F;
+    /// READ 2 B / WRITE 1 B, encrypted link only: how sensitive the photoparoxysmal detector is
+    /// (REQ-FWHUB-68). Read: the level, then the highest level the helmet offers. Write: the level. 0 is
+    /// the validated setting and there is no level below it: a clinician can make the detector more
+    /// sensitive, never less. A level above the highest is refused. Set by the hardware owner.
+    public const int PPX_SENSITIVITY_ID = 0x0020;
     /// READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     /// writes it.
@@ -335,6 +340,11 @@ static class GattUuidStrings
     /// 4 the detector could no longer see the EEG signal. A separate characteristic so a hub and an app of
     /// different ages still agree on SESSION_PROGRESS.
     public const string SESSION_HOLD_ID = "4E455550-001F-1000-8000-00805F9B34FB";
+    /// READ 2 B / WRITE 1 B, encrypted link only: how sensitive the photoparoxysmal detector is
+    /// (REQ-FWHUB-68). Read: the level, then the highest level the helmet offers. Write: the level. 0 is
+    /// the validated setting and there is no level below it: a clinician can make the detector more
+    /// sensitive, never less. A level above the highest is refused. Set by the hardware owner.
+    public const string PPX_SENSITIVITY_ID = "4E455550-0020-1000-8000-00805F9B34FB";
     /// READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
     /// 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
     /// writes it.
@@ -365,6 +375,10 @@ static class GattSizes
     public const int PPX_CONFIG_WRITE_LEN = 1;
     /// SESSION_HOLD: one byte, the hold cause.
     public const int SESSION_HOLD_LEN = 1;
+    /// PPX_SENSITIVITY read: one byte of level, one byte of the highest level.
+    public const int PPX_SENSITIVITY_LEN = 2;
+    /// PPX_SENSITIVITY write: one byte of level.
+    public const int PPX_SENSITIVITY_WRITE_LEN = 1;
     /// HARDWARE_VERSION: one byte, 1 to 15.
     public const int HARDWARE_VERSION_LEN = 1;
     /// DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.

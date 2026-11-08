@@ -24,6 +24,16 @@ static uint32_t        s_n;                 /* samples fed since init, per chann
 static bool            s_was_seeing;
 static np_ppx_verdict_t s_latched;          /* a discharge, once found, until the next init */
 static np_ppx_halt_fn  s_halt;
+static uint8_t         s_sens;              /* the sensitivity level in force (0 is the validated setting) */
+
+/* The factor each level above 0 applies to spike_k: more sensitive is a lower threshold. PROVISIONAL (UC-123): not derived,
+ * measured or cited. The synthetic tests show the effect and the false-halt cost; they do not choose the numbers. */
+static const float SENS_FACTOR[NP_PPX_SENS_MAX + 1U] = {
+    1.0f,    /* level 0: the parameter set as validated */
+    0.9f,    /* PROVISIONAL */
+    0.8f,    /* PROVISIONAL */
+    0.7f,    /* PROVISIONAL: on synthetic white noise this level already halts about one minute in five (np_ppx_tests) */
+};
 
 static uint32_t ms_to_samples(uint16_t ms) { return (uint32_t)((s_p.fs_hz * (float)ms) / 1000.0f + 0.5f); }
 
@@ -54,10 +64,19 @@ void np_ppx_init(const np_ppx_params_t *params, np_ppx_roles_t roles, bool stop_
     s_n = 0U;
     s_was_seeing = false;
     s_latched = NP_PPX_CLEAR;
+    s_sens = 0U;     /* every session starts at the validated setting; its start sets the configured level */
 }
 
 void np_ppx_set_halt_fn(np_ppx_halt_fn fn) { s_halt = fn; }
 void np_ppx_set_stop_on_occipital_only(bool on) { s_stop_occ = on; }
+
+void np_ppx_set_sensitivity(uint8_t level)
+{
+    if (level > NP_PPX_SENS_MAX) { level = (uint8_t)NP_PPX_SENS_MAX; }
+    if (level > s_sens) { s_sens = level; }      /* raises only: a detector already watching is never told to look less */
+}
+
+uint8_t np_ppx_sensitivity(void) { return s_sens; }
 
 static bool trusted(const chan_t *c)
 {
@@ -148,7 +167,7 @@ void np_ppx_feed(const float *uv, uint16_t n_samples, uint8_t n_ch)
                 c->bg += (d - c->bg) / (float)c->warm;       /* warm-up: a plain mean of the steps, no spike judged */
                 continue;
             }
-            if (c->bg > 0.0f && d > s_p.spike_k * c->bg) {
+            if (c->bg > 0.0f && d > s_p.spike_k * SENS_FACTOR[s_sens] * c->bg) {
                 if (c->since_spike >= refr) { note_spike(c); }
             } else {
                 c->bg += (d - c->bg) * a_bg;                  /* a spike is never folded into the background */

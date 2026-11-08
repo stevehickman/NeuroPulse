@@ -62,6 +62,17 @@ typedef enum {
  * is found that the clinician's switch says to stop on. The receiver decides whether anything photic is being driven. */
 typedef void (*np_ppx_halt_fn)(np_ppx_verdict_t why);
 
+/*
+ * SENSITIVITY (REQ-FWHUB-68). Level 0 is the parameter set as validated, and there is NO level below it: a clinician can make
+ * the detector more sensitive and never less, because the floor of what the validation supports is the validated setting
+ * itself. Each level above 0 lowers the spike threshold (spike_k) by a fixed factor, so it halts on smaller steps: more sessions
+ * stopped for harmless signals, never fewer for real ones. The factors are PROVISIONAL (UC-123).
+ *
+ * np_ppx_set_sensitivity() only ever RAISES the level. A detector already watching is not made to look less: lowering takes
+ * effect at the next session, when np_ppx_init() starts again from level 0 and the session's start sets the configured level.
+ */
+#define NP_PPX_SENS_MAX   3U
+
 /* The parameter set the hub ships: PROVISIONAL, evidence NONE. */
 void np_ppx_params_provisional(np_ppx_params_t *out);
 
@@ -69,6 +80,8 @@ void np_ppx_params_provisional(np_ppx_params_t *out);
 void np_ppx_init(const np_ppx_params_t *params, np_ppx_roles_t roles, bool stop_on_occipital_only);
 void np_ppx_set_halt_fn(np_ppx_halt_fn fn);
 void np_ppx_set_stop_on_occipital_only(bool on);
+void    np_ppx_set_sensitivity(uint8_t level);   /* raises at once; never lowers (see above); clamped to NP_PPX_SENS_MAX */
+uint8_t np_ppx_sensitivity(void);
 
 /* Samples in microvolts, interleaved: sample s of channel c is uv[s * n_ch + c]. n_ch is at most NP_PPX_MAX_CH. */
 void np_ppx_feed(const float *uv, uint16_t n_samples, uint8_t n_ch);

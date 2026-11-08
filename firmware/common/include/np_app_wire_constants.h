@@ -74,6 +74,13 @@
  */
 #define NP_GATT_SESSION_HOLD_ID 0x001Fu
 /*
+ * READ 2 B / WRITE 1 B, encrypted link only: how sensitive the photoparoxysmal detector is
+ * (REQ-FWHUB-68). Read: the level, then the highest level the helmet offers. Write: the level. 0 is
+ * the validated setting and there is no level below it: a clinician can make the detector more
+ * sensitive, never less. A level above the highest is refused. Set by the hardware owner.
+ */
+#define NP_GATT_PPX_SENSITIVITY_ID 0x0020u
+/*
  * READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
  * 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
  * writes it.
@@ -117,6 +124,14 @@
  * SESSION_HOLD: one byte, the hold cause.
  */
 #define NP_GATT_SESSION_HOLD_LEN 1U
+/*
+ * PPX_SENSITIVITY read: one byte of level, one byte of the highest level.
+ */
+#define NP_GATT_PPX_SENSITIVITY_LEN 2U
+/*
+ * PPX_SENSITIVITY write: one byte of level.
+ */
+#define NP_GATT_PPX_SENSITIVITY_WRITE_LEN 1U
 /*
  * HARDWARE_VERSION: one byte, 1 to 15.
  */
