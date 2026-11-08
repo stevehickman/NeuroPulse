@@ -38,6 +38,7 @@ static void setup(void)
 {
     np_sim_set_sink(capture);
     np_simh_init();
+    np_sim_governor_open_for_test(true);   /* the driver paths behind the governor; see the refusal test */
     g_cap_n = 0;
     run("add 0 34.0");
     run("add 1 34.0");
@@ -57,6 +58,19 @@ static bool cranial_requested(void)
 }
 
 /* ── tests ─────────────────────────────────────────────────────────────────── */
+
+/* @verifies-none The governor the device ships, refusing every load; np_socket_dispatch_tests verifies it. Simulator evidence only (REQ-SIMFW-06; OI-SIMFW-11). */
+static void test_the_simulator_refuses_what_the_device_refuses(void)
+{
+    setup();
+    np_sim_governor_open_for_test(false);   /* what the helmet ships */
+    run("drive 0,1,2");
+    check(strstr(last_result(), "\"code\":-18") != NULL, "governor: a drive is refused with NP_HUB_ERR_POWER_BUDGET, as on the device");
+    check(!driven(0) && !driven(1) && !driven(2), "governor: no tile holds a drive");
+    check(!cranial_requested(), "governor: and the cranial enable was never requested");
+    run("stop 0,1,2");
+    check(strstr(last_result(), "\"code\":0") != NULL, "governor: a stop is never refused");
+}
 
 /* @verifies-none A baseline of the firmware path; np_socket_dispatch_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
 static void test_baseline_drive(void)
@@ -218,6 +232,7 @@ static void test_the_layout_follows_the_safety_mcu_report(void)
 
 int main(void)
 {
+    test_the_simulator_refuses_what_the_device_refuses();
     test_baseline_drive();
     test_default_answers_are_marked();
     test_injected_write_fault_rolls_back();

@@ -252,7 +252,10 @@ test('events are routed: identity and state to MODULE_STATE, the rest to FW_LOG'
 const BIN = process.env.NP_SIM_FW_BIN;
 
 // @verifies REQ-SIMFW-11
-test('end to end: a fault injected over the bridge reaches one tile and the rollback shows', { skip: !BIN }, async () => {
+test('end to end: the simulator refuses a PBM drive as the device does, so an armed fault is never reached', { skip: !BIN }, async () => {
+  // OI-SIMFW-11: the production power governor refuses every load (OI-FWHUB-09) and the simulator keeps it.
+  // The driver, rollback and injection paths behind it are covered by np_sim_pbm_tests, which open the governor
+  // from C; the bridge has no way to.
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];
   bridge.on('message', (m) => seen.push(m));
@@ -264,16 +267,14 @@ test('end to end: a fault injected over the bridge reaches one tile and the roll
   await wait(400);
   bridge.stop();
 
-  const hal = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'hal');
-  const injected = hal.filter((m) => m.event.source === 'injected' && m.event.code === -17);
-  assert.strictEqual(injected.length, 1, 'exactly one injected answer');
-  assert.strictEqual(injected[0].event.id, 'pbm_base:1', 'and it is on the tile that was armed');
   const result = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'drive');
-  assert.strictEqual(result.event.code, -17, 'the firmware reports the driver fault');
-  assert.strictEqual(result.event.active, 0, 'and no socket is left active');
+  assert.strictEqual(result.event.code, -18, 'the firmware refuses with NP_HUB_ERR_POWER_BUDGET');
+  assert.strictEqual(result.event.active, 0, 'and no socket is active');
+  const hal = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'hal');
+  assert.strictEqual(hal.filter((m) => m.event.source === 'injected').length, 0, 'no write reached a tile, so the armed fault never fired');
   const states = seen.filter((m) => m.type === 'MODULE_STATE' && m.event.ev === 'module_state');
-  assert.strictEqual(states.length, 3);
-  assert.ok(states.every((m) => m.event.driven === false), 'every tile is dark after the rollback');
+  assert.ok(states.every((m) => m.event.driven === false), 'every tile is dark');
+  assert.ok(!seen.some((m) => m.type === 'FW_LOG' && m.event.ev === 'sim_policy'), 'and no policy override is announced');
   assert.strictEqual(bridge.list().modules.length, 3, 'MODULE_LIST holds the three tiles');
 });
 

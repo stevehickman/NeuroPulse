@@ -1036,7 +1036,7 @@ binary.
 - **Colours:** red is driven, magenta (for 1.5 s) is a tile the firmware could not write, dark is absent.
 - **A command may drive every socket of the lattice at once** (80 on hardware version 1). The firmware no longer
   bounds how many it will drive at 32 (NP-FW-HUB-001, `REQ-FWHUB-64`); the limits are the lattice, the sockets
-  filled, and power and heat, and the simulator's power governor admits every load (`OI-SIMFW-11`).
+  filled, and power and heat. The simulator keeps the production power governor, which refuses every load until `OI-FWHUB-09`, so a drive is refused with `NP_HUB_ERR_POWER_BUDGET` (−18) and no tile lights, as on the helmet (`OI-SIMFW-11`).
 
 ---
 
