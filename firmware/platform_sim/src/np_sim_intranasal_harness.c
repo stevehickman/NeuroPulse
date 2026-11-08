@@ -12,6 +12,7 @@
  * (fail and reading are the shared commands of np_sim_pbm_harness.c; an ins_* op name addresses the probe.)
  */
 #include "np_sim_bus.h"
+#include "np_sim_safety.h"
 #include "np_sim_pbm_harness.h"
 
 #include "np_hub_types.h"
@@ -35,9 +36,9 @@ static void ins_result(const char *cmd, int code)
 {
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_INTRANASAL, 0U);
     np_sim_emit("{\"ev\":\"result\",\"cmd\":\"%s\",\"code\":%d,\"requested_enables\":%u,\"granted_enables\":%u,"
-                "\"left_on\":%s,\"right_on\":%s,\"safety_mcu\":\"not_in_loop\"}",
+                "\"left_on\":%s,\"right_on\":%s,\"safety_mcu\":\"%s\"}",
                 cmd, code, (unsigned)np_safety_spi_get_requested_mask(), (unsigned)np_safety_spi_get_granted_mask(),
-                (m && m->ins_side_on[0]) ? "true" : "false", (m && m->ins_side_on[1]) ? "true" : "false");
+                (m && m->ins_side_on[0]) ? "true" : "false", (m && m->ins_side_on[1]) ? "true" : "false", np_sim_safety_label());
 }
 
 void np_simh_ins_status(void)

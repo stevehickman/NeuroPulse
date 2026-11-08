@@ -12,7 +12,6 @@
 
 #include "np_sw02_platform_hal.h"
 #include "np_pbm_hal.h"
-#include "np_safety_spi.h"
 
 static void unrouted(const char *symbol)
 {
@@ -50,6 +49,4 @@ void np_pbm_hal_shdr_log_fault(const np_pbm_shdr_fault_entry_t *e)
 void np_pbm_hal_zone_announce(uint8_t slot) { (void)slot; unrouted(__func__); }
 uint32_t np_pbm_hal_now_ms(void) { return np_sim_now_ms(); }
 
-/* SPI to the safety MCU: no safety MCU is in the loop in the spike. */
-np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx, uint8_t *rx, uint8_t len)
-{ (void)tx; (void)rx; (void)len; unrouted(__func__); return NP_HUB_ERR_TIMEOUT; }
+/* SPI to the safety MCU: np_sim_safety_link.c (OI-SIMFW-09).  With none attached it reports itself unrouted, as it did here. */

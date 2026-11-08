@@ -108,8 +108,8 @@ static void test_a_non_finite_impedance_is_not_read_as_no_contact(void)
     setup();
     run("reading 0 vns_impedance nan");
     run("vns 0 25000 2000 250 0 0 0");
-    check(result_code_is(0) && enabled(),
-          "non-finite contact: a NaN impedance passes the driver's range check (both comparisons are false), so it enables (OI-SIMFW-17)");
+    check(!result_code_is(0) && !vns()->driven && !enabled(),
+          "non-finite contact: a NaN impedance is refused and enables nothing (OI-SIMFW-17, closed)");
 }
 
 /* @verifies-none A failed stimulator write; the driver's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */

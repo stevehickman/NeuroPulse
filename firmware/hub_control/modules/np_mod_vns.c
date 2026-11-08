@@ -29,6 +29,7 @@
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
 #include "np_log_hrv.h"
+#include <stdint.h>
 #include <string.h>
 
 /* From firmware/hrv_biofeedback/ */
@@ -49,6 +50,19 @@
  * 300–1200 s range (np_hrv_session_config_t.duration_s).
  */
 #define VNS_HRV_DEFAULT_DURATION_S   1200U
+
+/*
+ * True for a finite float.  Tested on the bits, not with isfinite(): the hub is
+ * built with -ffast-math (CMakeLists.txt), which makes the compiler assume no
+ * NaN or infinity and may fold isfinite() and a NaN comparison to a constant.
+ * An all-ones exponent field is NaN or infinity.
+ */
+static bool vns_float_is_finite(float v)
+{
+    uint32_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return (bits & 0x7F800000UL) != 0x7F800000UL;
+}
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -171,8 +185,15 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     /* Contact confirmation before enable */
     float imp = np_mod_vns_hal_impedance_check();
-    s_state.last_impedance_ohm = imp;
-    if (imp < VNS_CONTACT_MIN_OHM || imp > VNS_CONTACT_MAX_OHM) {
+    /* OI-SIMFW-17 / REQ-VNSC-07: a non-finite reading (NaN, +/-inf) is not a
+     * confirmed contact.  Both range comparisons are false for NaN, so a
+     * "below min or above max" refusal lets it through; the test is written
+     * as "finite and inside the range" so anything else refuses.  The telemetry
+     * copy is 0 for a non-finite reading: casting NaN or inf to uint16_t is
+     * undefined, and 0 ohm is what an absent clip reads. */
+    const bool imp_finite = vns_float_is_finite(imp);
+    s_state.last_impedance_ohm = imp_finite ? imp : 0.0f;
+    if (!(imp_finite && imp >= VNS_CONTACT_MIN_OHM && imp <= VNS_CONTACT_MAX_OHM)) {
         return NP_HUB_ERR_SAFETY_REJECTED; /* safety MCU will also reject */
     }
 

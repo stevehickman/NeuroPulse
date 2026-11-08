@@ -190,6 +190,12 @@ uint32_t np_sim_now_ms(void);
 /* The clock.  Real (CLOCK_MONOTONIC) until a scenario advances it; after the first np_sim_advance_ms() it is virtual
  * and moves only when advanced, so a ramp or a hold that the firmware times is deterministic. */
 void     np_sim_advance_ms(uint32_t ms);
+
+/* A per-millisecond hook.  While one is set, np_sim_advance_ms() moves the virtual clock one millisecond at a time and calls it
+ * after each, so a part that runs on its own clock in the device (the safety MCU's polling loop, np_sim_safety.c) sees every
+ * millisecond that passes.  With no hook the clock moves in one step, as before. */
+typedef void (*np_sim_tick_fn)(void);
+void     np_sim_set_tick_hook(np_sim_tick_fn fn);
 void     np_sim_use_real_clock(void);
 
 /* `value` is the model's temperature for a tile and the electrode impedance in kohm for a stimulation pair: the

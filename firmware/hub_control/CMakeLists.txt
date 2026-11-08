@@ -331,6 +331,22 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_stim_tests PRIVATE m)
 
+    # OI-SIMFW-17 / REQ-VNSC-07: the auricular VNS driver's contact confirmation
+    # (NP-FW-HUB-001 §8.4). np_mod_vns.c is linked real; the HRV session library,
+    # the UHDR logger, the safety SPI and the HAL are doubles.
+    add_executable(np_mod_vns_tests
+        tests/np_mod_vns_tests.c
+        modules/np_mod_vns.c
+    )
+    target_include_directories(np_mod_vns_tests PRIVATE
+        include
+        ../hrv_biofeedback/include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_mod_vns_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_mod_vns_tests PRIVATE m)
+
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt, the enable
     # window it can land in, and the telemetry backstop (NP-FW-HUB-001 §8.6).
     add_executable(np_mod_visual_tests
