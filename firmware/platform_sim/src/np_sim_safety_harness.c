@@ -7,6 +7,7 @@
  *   - the app: `safety_sig` signs a session hash with a TEST root key the scenario programmed into the OTP.
  *
  *   safety_root <seed> [nocrc]           program the OTP root key from a test seed (before safety_attach)
+ *   safety_root_corrupt                  flip one bit of the programmed key, so it no longer matches its CRC
  *   safety_tier <1|2> <hw_version>       program the signed tier record (before safety_attach); safety_uid <byte> sets the UID
  *   safety_attach                        start the MCU
  *   safety_adc <ch> <counts>             an NTC sense count (0..5; 4095 is cold)
@@ -93,6 +94,8 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         uint8_t seed[32];
         if (!parse_seed(a, seed)) { return true; }
         np_sim_safety_otp_program_root(seed, !(b && strcmp(b, "nocrc") == 0));
+    } else if (strcmp(cmd, "safety_root_corrupt") == 0) {
+        np_sim_safety_otp_corrupt_root_bit();
     } else if (strcmp(cmd, "safety_uid") == 0 && a) {
         uint8_t uid[12];
         memset(uid, (int)strtoul(a, NULL, 0), sizeof uid);

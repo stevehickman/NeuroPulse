@@ -43,7 +43,7 @@ static void in_child(void (*scenario)(void))
     if (pid == 0) {
         scenario();
         fflush(stdout);
-        _exit(g_failures == 0 ? 0 : 1);
+        exit(g_failures == 0 ? 0 : 1);       /* exit, not _exit: the coverage counters are written by the exit handlers */
     }
     int st = 0;
     (void)waitpid(pid, &st, 0);
@@ -115,7 +115,7 @@ static unsigned status(void)  { return np_safety_spi_get_status(); }
 /* ── scenarios ────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /* @verifies REQ-SIMFW-14#a */
-static void scn_the_link_reports_absence_until_the_mcu_is_attached(void)
+static void test_the_link_reports_absence_until_the_mcu_is_attached(void)
 {
     np_sim_set_sink(capture);
     np_simh_init();
@@ -130,7 +130,7 @@ static void scn_the_link_reports_absence_until_the_mcu_is_attached(void)
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_the_mcu_boots_with_every_enable_disabled(void)
+static void test_the_mcu_boots_with_every_enable_disabled(void)
 {
     boot(true, 0U);
     bool any = false;
@@ -145,7 +145,7 @@ static void scn_the_mcu_boots_with_every_enable_disabled(void)
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_a_signed_session_is_granted_and_an_unsigned_one_is_not(void)
+static void test_a_signed_session_is_granted_and_an_unsigned_one_is_not(void)
 {
     boot(true, 0U);
     run("safety_run 1000 3");
@@ -160,7 +160,7 @@ static void scn_a_signed_session_is_granted_and_an_unsigned_one_is_not(void)
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_a_bad_signature_is_a_cutoff(void)
+static void test_a_bad_signature_is_a_cutoff(void)
 {
     boot(true, 0U);
     run("safety_run 1000 3");
@@ -175,7 +175,7 @@ static void scn_a_bad_signature_is_a_cutoff(void)
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_an_unprovisioned_otp_refuses_every_session(void)
+static void test_an_unprovisioned_otp_refuses_every_session(void)
 {
     boot(false, 0U);
     run("safety_run 1000 3");
@@ -188,8 +188,27 @@ static void scn_an_unprovisioned_otp_refuses_every_session(void)
     check(granted() == 0U, "and nothing is granted");
 }
 
+/* @verifies REQ-SIMFW-14#b */
+static void test_a_root_key_that_fails_its_crc_refuses_every_session(void)
+{
+    np_sim_set_sink(capture);
+    np_sim_use_real_clock();
+    np_simh_init();
+    run("safety_root 7");
+    run("safety_root_corrupt");
+    run("safety_attach");
+    run("safety_run 1000 3");
+    run("safety_sig good");
+    np_safety_spi_request_enable(EN_PBM);
+    run("safety_run 600 3");
+    np_sim_safety_info_t i;
+    np_sim_safety_info(&i);
+    check(i.last_reply_fault_slot == 0xF8U, "a programmed key that no longer matches its CRC: the fault slot says so (0xF8), not unprovisioned");
+    check(granted() == 0U, "and nothing is granted");
+}
+
 /* @verifies REQ-SIMFW-14#c */
-static void scn_losing_the_heartbeat_cuts_every_line_at_the_watchdog_timeout(void)
+static void test_losing_the_heartbeat_cuts_every_line_at_the_watchdog_timeout(void)
 {
     boot(true, 0U);
     start_session();
@@ -210,7 +229,7 @@ static void scn_losing_the_heartbeat_cuts_every_line_at_the_watchdog_timeout(voi
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_a_hung_loop_leaves_the_enables_until_the_independent_watchdog_expires(void)
+static void test_a_hung_loop_leaves_the_enables_until_the_independent_watchdog_expires(void)
 {
     boot(true, 0U);
     start_session();
@@ -229,7 +248,7 @@ static void scn_a_hung_loop_leaves_the_enables_until_the_independent_watchdog_ex
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_the_dc_charge_ceiling_cuts_the_channel(void)
+static void test_the_dc_charge_ceiling_cuts_the_channel(void)
 {
     boot(true, 0U);
     np_sim_safety_set_impedance_ohm(1U, 5000U);                 /* tDCS contact: inside the window */
@@ -255,7 +274,7 @@ static void scn_the_dc_charge_ceiling_cuts_the_channel(void)
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it(void)
+static void test_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it(void)
 {
     boot(true, 0U);
     np_sim_safety_set_impedance_ohm(2U, 5000U);                 /* BES/tACS contact */
@@ -274,7 +293,7 @@ static void scn_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_insid
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_an_undeclared_electrical_channel_is_held_off(void)
+static void test_an_undeclared_electrical_channel_is_held_off(void)
 {
     boot(true, 0U);
     np_sim_safety_set_impedance_ohm(1U, 5000U);
@@ -290,7 +309,7 @@ static void scn_an_undeclared_electrical_channel_is_held_off(void)
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_the_impedance_gate_withholds_a_channel_until_the_contact_passes(void)
+static void test_the_impedance_gate_withholds_a_channel_until_the_contact_passes(void)
 {
     boot(true, 0U);
     run("safety_run 1000 3");
@@ -306,7 +325,7 @@ static void scn_the_impedance_gate_withholds_a_channel_until_the_contact_passes(
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_the_thermal_interlock_cuts_at_its_cutoff_and_holds(void)
+static void test_the_thermal_interlock_cuts_at_its_cutoff_and_holds(void)
 {
     boot(true, 0U);
     start_session();
@@ -322,7 +341,7 @@ static void scn_the_thermal_interlock_cuts_at_its_cutoff_and_holds(void)
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_a_t1_unit_withholds_the_cervical_vns_line(void)
+static void test_a_t1_unit_withholds_the_cervical_vns_line(void)
 {
     boot(true, 1U);
     np_sim_safety_set_impedance_ohm(3U, 2000U);
@@ -349,7 +368,7 @@ static void cvns_up(void)
 }
 
 /* @verifies REQ-SIMFW-14#c */
-static void scn_a_heart_rate_step_cuts_the_cervical_vns_line_and_latches(void)
+static void test_a_heart_rate_step_cuts_the_cervical_vns_line_and_latches(void)
 {
     cvns_up();
     for (int i = 0; i < 30; i++) { run("safety_hr 1 700 0"); run("safety_run 1000 3 70"); }
@@ -369,7 +388,7 @@ static void scn_a_heart_rate_step_cuts_the_cervical_vns_line_and_latches(void)
 }
 
 /* A cutoff, written to flash, and a second power-on that finds it. */
-static void scn_cutoff_phase_one(void)
+static void phase_one_the_cutoff(void)
 {
     cvns_up();
     for (int i = 0; i < 30; i++) { run("safety_hr 1 700 0"); run("safety_run 1000 3 70"); }
@@ -378,7 +397,7 @@ static void scn_cutoff_phase_one(void)
     check((status() & STATUS_CARDIAC) != 0U, "power-on 1: the cutoff happened");
 }
 
-static void scn_cutoff_phase_two(void)
+static void phase_two_the_power_on(void)
 {
     cvns_up();                                                  /* same silicon, a new process: a power-on reset */
     for (int i = 0; i < 12; i++) { run("safety_hr 1 700 0"); run("safety_run 1000 3 70"); }
@@ -388,15 +407,16 @@ static void scn_cutoff_phase_two(void)
     check(!np_sim_safety_line_enabled(LINE_CVNS), "and the line stays disabled although the heart is steady");
 }
 
-static void scn_a_power_cycled_mcu_remembers_a_cardiac_cutoff(void)
+/* @verifies REQ-SIMFW-14#c */
+static void test_a_power_cycled_mcu_remembers_a_cardiac_cutoff(void)
 {
     np_sim_safety_silicon();                                    /* the parent owns the flash and OTP the two children share */
-    in_child(scn_cutoff_phase_one);
-    in_child(scn_cutoff_phase_two);
+    in_child(phase_one_the_cutoff);
+    in_child(phase_two_the_power_on);
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_the_mcu_rejects_a_corrupt_heartbeat_and_then_cuts_at_the_watchdog(void)
+static void test_the_mcu_rejects_a_corrupt_heartbeat_and_then_cuts_at_the_watchdog(void)
 {
     boot(true, 0U);
     start_session();
@@ -409,7 +429,7 @@ static void scn_the_mcu_rejects_a_corrupt_heartbeat_and_then_cuts_at_the_watchdo
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_a_frozen_systick_is_caught_against_tim2(void)
+static void test_a_frozen_systick_is_caught_against_tim2(void)
 {
     boot(true, 0U);
     start_session();
@@ -423,7 +443,7 @@ static void scn_a_frozen_systick_is_caught_against_tim2(void)
 }
 
 /* @verifies REQ-SIMFW-14#b */
-static void scn_a_flash_that_cannot_record_a_cutoff_raises_its_own_fault(void)
+static void test_a_flash_that_cannot_record_a_cutoff_raises_its_own_fault(void)
 {
     cvns_up();
     run("safety_fault nv_erase 100");
@@ -438,24 +458,25 @@ static void scn_a_flash_that_cannot_record_a_cutoff_raises_its_own_fault(void)
 
 int main(void)
 {
-    in_child(scn_the_link_reports_absence_until_the_mcu_is_attached);
-    in_child(scn_the_mcu_boots_with_every_enable_disabled);
-    in_child(scn_a_signed_session_is_granted_and_an_unsigned_one_is_not);
-    in_child(scn_a_bad_signature_is_a_cutoff);
-    in_child(scn_an_unprovisioned_otp_refuses_every_session);
-    in_child(scn_losing_the_heartbeat_cuts_every_line_at_the_watchdog_timeout);
-    in_child(scn_a_hung_loop_leaves_the_enables_until_the_independent_watchdog_expires);
-    in_child(scn_the_dc_charge_ceiling_cuts_the_channel);
-    in_child(scn_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it);
-    in_child(scn_an_undeclared_electrical_channel_is_held_off);
-    in_child(scn_the_impedance_gate_withholds_a_channel_until_the_contact_passes);
-    in_child(scn_the_thermal_interlock_cuts_at_its_cutoff_and_holds);
-    in_child(scn_a_t1_unit_withholds_the_cervical_vns_line);
-    in_child(scn_a_heart_rate_step_cuts_the_cervical_vns_line_and_latches);
-    in_child(scn_the_mcu_rejects_a_corrupt_heartbeat_and_then_cuts_at_the_watchdog);
-    in_child(scn_a_frozen_systick_is_caught_against_tim2);
-    scn_a_power_cycled_mcu_remembers_a_cardiac_cutoff();
-    in_child(scn_a_flash_that_cannot_record_a_cutoff_raises_its_own_fault);
+    in_child(test_the_link_reports_absence_until_the_mcu_is_attached);
+    in_child(test_the_mcu_boots_with_every_enable_disabled);
+    in_child(test_a_signed_session_is_granted_and_an_unsigned_one_is_not);
+    in_child(test_a_bad_signature_is_a_cutoff);
+    in_child(test_an_unprovisioned_otp_refuses_every_session);
+    in_child(test_a_root_key_that_fails_its_crc_refuses_every_session);
+    in_child(test_losing_the_heartbeat_cuts_every_line_at_the_watchdog_timeout);
+    in_child(test_a_hung_loop_leaves_the_enables_until_the_independent_watchdog_expires);
+    in_child(test_the_dc_charge_ceiling_cuts_the_channel);
+    in_child(test_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it);
+    in_child(test_an_undeclared_electrical_channel_is_held_off);
+    in_child(test_the_impedance_gate_withholds_a_channel_until_the_contact_passes);
+    in_child(test_the_thermal_interlock_cuts_at_its_cutoff_and_holds);
+    in_child(test_a_t1_unit_withholds_the_cervical_vns_line);
+    in_child(test_a_heart_rate_step_cuts_the_cervical_vns_line_and_latches);
+    in_child(test_the_mcu_rejects_a_corrupt_heartbeat_and_then_cuts_at_the_watchdog);
+    in_child(test_a_frozen_systick_is_caught_against_tim2);
+    test_a_power_cycled_mcu_remembers_a_cardiac_cutoff();
+    in_child(test_a_flash_that_cannot_record_a_cutoff_raises_its_own_fault);
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }
