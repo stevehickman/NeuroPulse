@@ -76,6 +76,7 @@ B np_cardiac_sens_tests
 B np_mod_vns_tests
 B np_ppx_config_tests
 B np_session_hold_tests
+B np_ppx_roles_tests
 B np_ppx_tests
 B np_module_map_tests
 B np_module_registry_tests

@@ -438,6 +438,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_ppx_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_ppx_roles_tests
+        COMMAND np_ppx_roles_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).
     # OI-SIMFW-17 / REQ-VNSC-07: the auricular VNS driver refuses a non-finite impedance.
     add_test(NAME np_mod_vns_tests
