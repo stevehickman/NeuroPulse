@@ -7,7 +7,7 @@
 
 #include "np_cfg_store.h"
 #include "np_gatt_server.h"
-#include "np_spi_wire_types.h"
+#include "np_hub_config.h"       /* NP_SAFETY_CARDIAC_SENS_MAX, via np_spi_wire_types.h */
 #include "np_transport.h"   /* np_transport_hal_enter/exit_critical */
 
 #define CS_RECORD_VERSION  0x01U
