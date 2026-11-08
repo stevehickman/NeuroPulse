@@ -1759,7 +1759,7 @@ the start/stop interface.
 
 **Contact confirmation precedes the enable request**: impedance must fall in
 `[VNS_CONTACT_MIN_OHM, VNS_CONTACT_MAX_OHM]` = [500 Ω, 5000 Ω] before `np_mod_vns_control()` requests
-`NP_SAFETY_EN_VNS_HRV`. The safety MCU independently holds the enable if contacts are not confirmed
+`NP_SAFETY_EN_VNS_HRV`. **A non-finite reading (NaN, infinity) is refused with the same status as an out-of-range one** (`OI-SIMFW-17`, `REQ-VNSC-07`); the driver tests the float's exponent bits, because the hub is built with `-ffast-math`, under which `isfinite()` and a NaN comparison may be folded away. The safety MCU independently holds the enable if contacts are not confirmed
 (CLAUDE.md §4.2) — the hub check exists to avoid asking, not to substitute for the MCU's refusal.
 
 The HRV session uses `np_mod_vns_hal_now_ms()`, the same free-running millisecond clock the session
