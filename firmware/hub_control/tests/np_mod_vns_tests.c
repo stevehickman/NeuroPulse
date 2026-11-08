@@ -171,16 +171,16 @@ static void test_a_non_finite_impedance_is_refused_and_starts_nothing(void)
         make_float(0x7F800000UL),   /* +infinity                */
         make_float(0xFF800000UL),   /* -infinity                */
     };
-    static const char *const case_names[] = {
+    static const char *const CASE_NAMES[] = {
         "quiet NaN", "negative quiet NaN", "signalling NaN", "+infinity", "-infinity",
     };
     for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         char msg[96];
         reset(cases[i]);
         np_hub_status_t rc = drive();
-        snprintf(msg, sizeof(msg), "%s: refused with the out-of-range status", case_names[i]);
+        snprintf(msg, sizeof(msg), "%s: refused with the out-of-range status", CASE_NAMES[i]);
         check(rc == NP_HUB_ERR_SAFETY_REJECTED, msg);
-        snprintf(msg, sizeof(msg), "%s: no stimulator write, enable, current, PPG, EEG routing or HRV session", case_names[i]);
+        snprintf(msg, sizeof(msg), "%s: no stimulator write, enable, current, PPG, EEG routing or HRV session", CASE_NAMES[i]);
         check(nothing_started(), msg);
     }
 }
