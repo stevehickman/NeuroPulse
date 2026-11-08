@@ -232,6 +232,11 @@ export const GattIds = {
   // to 30 Hz refusal (off by default; it lifts the refusal only where the evidence level is 1). Any other bit set
   // is refused. Set by the hardware owner.
   PPX_CONFIG_ID: 0x001E,
+  // READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person paused it, 2
+  // the person pressed the panic control, 3 the photoparoxysmal detector found a discharge, 4 the detector could
+  // no longer see the EEG signal. A separate characteristic so a hub and an app of different ages still agree on
+  // SESSION_PROGRESS.
+  SESSION_HOLD_ID: 0x001F,
   // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record; 1 when it
   // holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field writes it.
   HARDWARE_VERSION_ID: 0x001C,
@@ -309,6 +314,11 @@ export const GattUuidStrings = {
   // bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
   // evidence level is 1). Any other bit set is refused. Set by the hardware owner.
   PPX_CONFIG_ID: "4e455550-001e-1000-8000-00805f9b34fb",
+  // READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person
+  // paused it, 2 the person pressed the panic control, 3 the photoparoxysmal detector found a discharge,
+  // 4 the detector could no longer see the EEG signal. A separate characteristic so a hub and an app of
+  // different ages still agree on SESSION_PROGRESS.
+  SESSION_HOLD_ID: "4e455550-001f-1000-8000-00805f9b34fb",
   // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
   // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
   // writes it.
@@ -336,6 +346,8 @@ export const GattSizes = {
   PPX_CONFIG_LEN: 2,
   // PPX_CONFIG write: one byte of flags.
   PPX_CONFIG_WRITE_LEN: 1,
+  // SESSION_HOLD: one byte, the hold cause.
+  SESSION_HOLD_LEN: 1,
   // HARDWARE_VERSION: one byte, 1 to 15.
   HARDWARE_VERSION_LEN: 1,
   // DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.

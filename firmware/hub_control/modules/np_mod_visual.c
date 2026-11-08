@@ -88,13 +88,18 @@ static void hall_unseated_isr(void)
  * the enable is withdrawn; the session is then held PAUSED with the panic's second step (REQ-FWHUB-67, REQ-FWHUB-72) and not
  * aborted, so the person chooses whether to stop or to resume.  The latch stays until the module is initialised again: after a
  * detection the goggles refuse every later drive in the session, so a resume restarts everything but them. */
-void np_mod_visual_ppx_halt(void)
+static void halt_for(np_hold_cause_t cause)
 {
     s_state.ppx_halt = true;
     s_state.active = false;
     np_mod_visual_hal_led_stop();
     np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
-    (void)np_runner_panic();
+    (void)np_runner_halt(cause);   /* held paused with the detector's cause, so the app asks the person Stop or Resume */
+}
+
+void np_mod_visual_ppx_halt(void)
+{
+    halt_for(NP_HOLD_DETECTOR_DISCHARGE);
 }
 
 /* Is the goggles' photic drive in the risk zone running now? The detector's halt means nothing otherwise. */
@@ -107,9 +112,8 @@ bool np_mod_visual_photic_zone_active(void)
  * being driven; the detector also watches while nothing photic runs, and that is not a reason to stop anything. */
 void np_mod_visual_ppx_notify(np_ppx_verdict_t why)
 {
-    (void)why;
     if (np_mod_visual_photic_zone_active()) {
-        np_mod_visual_ppx_halt();
+        halt_for(why == NP_PPX_BLIND ? NP_HOLD_DETECTOR_BLIND : NP_HOLD_DETECTOR_DISCHARGE);
     }
 }
 

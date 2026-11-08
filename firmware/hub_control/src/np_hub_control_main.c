@@ -663,6 +663,7 @@ void np_hub_control_app_main(void)
     np_session_panic_init(np_runner_panic);                     /* SWR-SS-09 */
     np_ppx_set_halt_fn(np_mod_visual_ppx_notify);               /* REQ-FWHUB-67: the detector's halt; it is not armed (evidence NONE) */
     np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
+    np_hold_set_source(np_runner_hold_cause);                      /* SWR-SS-09: why a session is held */
 
     np_hal_status_led_set(NP_LED_IDLE);
 

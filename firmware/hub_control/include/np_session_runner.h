@@ -14,6 +14,7 @@
 #include "np_hub_types.h"
 #include "np_session_pause.h"
 #include "np_session_progress.h"
+#include "np_session_hold.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
 
@@ -118,6 +119,17 @@ np_hub_status_t np_runner_resume(void);
  * session is running or paused.
  */
 np_hub_status_t np_runner_panic(void);
+
+/*
+ * np_runner_halt — the detector's halt (REQ-FWHUB-67, REQ-FWHUB-69): the panic, with the cause the helmet gives for it
+ * (NP_HOLD_DETECTOR_DISCHARGE or NP_HOLD_DETECTOR_BLIND), so the app can put the Stop / Resume question to the person without
+ * their having pressed anything. A detector cause outranks a person's, and never lowers a detector cause already held.
+ * np_runner_panic() is np_runner_halt(NP_HOLD_USER_PANIC).
+ */
+np_hub_status_t np_runner_halt(np_hold_cause_t cause);
+
+/* Why the session is held now (NP_HOLD_NONE when it is not): the source of SESSION_HOLD. */
+np_hold_cause_t np_runner_hold_cause(void);
 
 /*
  * np_runner_progress — the SESSION_PROGRESS frame for the session as it is now (SWR-SS-07).

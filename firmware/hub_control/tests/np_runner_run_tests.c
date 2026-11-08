@@ -201,7 +201,8 @@ typedef enum {
     RUN_EV_GEOM_TDCS,
     RUN_EV_GEOM_CLIN,
     RUN_EV_SEND_LIMITS,
-    RUN_EV_SEND_WAVE
+    RUN_EV_SEND_WAVE,
+    RUN_EV_HOLD,            /* a = cause (SESSION_HOLD notified) */
 } run_ev_kind_t;
 
 typedef struct {
@@ -422,6 +423,7 @@ void np_cons_on_session_end(uint32_t mods_active_mask)
 }
 
 void np_progress_notify(void) { note(RUN_EV_PROGRESS, 0U, 0U); }
+void np_hold_notify(void)     { note(RUN_EV_HOLD, (uint32_t)np_runner_hold_cause(), 0U); }
 
 static np_progress_in_t g_progress;
 
@@ -719,6 +721,8 @@ static void do_pause_now(void)        { g_pause_rc = np_runner_pause(); }
 static void do_resume_now(void)       { g_resume_rc = np_runner_resume(); }
 static void try_resume_now(void)      { g_resume_rc = np_runner_resume(); }
 static void do_panic_now(void)        { g_panic_rc = np_runner_panic(); }
+static void do_halt_discharge_now(void) { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_DISCHARGE); }
+static void do_halt_blind_now(void)     { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_BLIND); }
 
 static void look_midrun(void)
 {
@@ -1236,6 +1240,62 @@ static void test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_
           "panic in a resume ramp: what the gate had not started is held, and starts after the next resume's whole ramp");
 }
 
+/* The sequence of causes SESSION_HOLD was notified with, in order. */
+static unsigned hold_seq(uint32_t *out, unsigned cap)
+{
+    unsigned n = 0U;
+    for (unsigned i = 0U; i < g_log_n && n < cap; i++) { if (g_log[i].kind == RUN_EV_HOLD) { out[n++] = g_log[i].a; } }
+    return n;
+}
+
+/* @verifies SWR-SS-09 */
+static void test_the_hold_cause_says_who_held_the_session_and_clears_when_it_runs_again(void)
+{
+    uint32_t seq[8];
+    fresh();
+    blob_t b;
+    blob_begin(&b, 20000U);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_EEG);
+    script_at(2000U, do_pause_now);
+    script_at(3000U, do_resume_now);
+    script_at(5000U, do_panic_now);
+    script_at(6000U, do_resume_now);
+    script_at(8000U, do_halt_discharge_now);
+    script_at(9000U, do_resume_now);
+    script_at(11000U, do_halt_blind_now);
+    script_at(12000U, post_abort_user);
+    (void)load_and_run(&b);
+    const unsigned n = hold_seq(seq, 8U);
+    check(n == 8U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_NONE &&
+          seq[2] == NP_HOLD_USER_PANIC && seq[3] == NP_HOLD_NONE &&
+          seq[4] == NP_HOLD_DETECTOR_DISCHARGE && seq[5] == NP_HOLD_NONE &&
+          seq[6] == NP_HOLD_DETECTOR_BLIND && seq[7] == NP_HOLD_NONE,
+          "hold: a pause, a panic, a detector discharge and a detector blindness each say so, and each clears when the session runs again or ends");
+}
+
+/* @verifies SWR-SS-09 */
+static void test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it(void)
+{
+    uint32_t seq[8];
+    fresh();
+    blob_t b;
+    blob_begin(&b, 20000U);
+    blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_EEG);
+    script_at(2000U, do_pause_now);              /* the person's pause */
+    script_at(3000U, do_halt_discharge_now);     /* the helmet halts on its own while it is held */
+    script_at(4000U, do_panic_now);              /* the person then presses panic */
+    script_at(6000U, post_abort_user);
+    (void)load_and_run(&b);
+    const unsigned n = hold_seq(seq, 8U);
+    check(n >= 2U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_DETECTOR_DISCHARGE,
+          "hold: a detector halt raises a person's pause to the detector's cause");
+    bool lowered = false;
+    for (unsigned i = 2U; i + 1U < n; i++) { if (seq[i] == NP_HOLD_USER_PANIC) { lowered = true; } }
+    check(!lowered, "hold: and a person's panic afterwards does not lower it");
+}
+
 /* @verifies SWR-SS-09 */
 static void test_panic_is_refused_only_with_no_session(void)
 {
@@ -1262,6 +1322,8 @@ int main(void)
     test_panic_while_running_cuts_every_module_at_once_and_stop_ends_the_session();
     test_panic_from_paused_cuts_what_a_pause_left_ramping_and_a_resume_starts_clean();
     test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_for_the_next_resume();
+    test_the_hold_cause_says_who_held_the_session_and_clears_when_it_runs_again();
+    test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it();
     test_panic_is_refused_only_with_no_session();
     test_a_session_stopped_while_paused_reports_the_time_it_was_running();
     test_a_delivery_divergence_is_flagged_once_to_shdr_with_its_own_code();

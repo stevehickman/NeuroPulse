@@ -226,6 +226,7 @@ void   np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type, uint8_t fault_cod
 void   np_log_shdr_pbm_session_counts(const np_pst_counts_t *counts) { (void)counts; UNEXPECTED(); }
 void   np_log_telemetry(const np_telem_record_t *rec)               { (void)rec; UNEXPECTED(); }
 void   np_progress_notify(void)                                     { UNEXPECTED(); }
+void   np_hold_notify(void)                                         { UNEXPECTED(); }
 void   np_cvns_reenable_session_reset(void)                         { UNEXPECTED(); }
 void   np_stim_xcheck_reset(void)                                   { UNEXPECTED(); }
 bool   np_stim_xcheck_observe(const np_telem_record_t *rec, uint32_t now_ms) { (void)rec; (void)now_ms; UNEXPECTED(); return false; }

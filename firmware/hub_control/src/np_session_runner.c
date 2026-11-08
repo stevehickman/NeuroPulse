@@ -310,6 +310,23 @@ typedef struct {
 
 static gate_t s_gate;
 
+/* Why the session is held now (SESSION_HOLD, np_session_hold.h), and the cause of a halt that is posted and not yet taken. */
+static volatile np_hold_cause_t s_hold_cause;
+static volatile np_hold_cause_t s_pending_cause;
+
+static void set_hold(np_hold_cause_t c)
+{
+    if (s_hold_cause != c) {
+        s_hold_cause = c;
+        np_hold_notify();
+    }
+}
+
+np_hold_cause_t np_runner_hold_cause(void)
+{
+    return s_hold_cause;
+}
+
 static bool s_panic_from_start;   /* a start gate was closed by a panic: its resume must mark the ramped modalities as used */
 
 static bool is_ramped_start(const np_session_cmd_t *c, uint8_t *which)
@@ -375,6 +392,7 @@ static void gate_release(void)
             }
         }
         np_log_session_pause(now_ms, false, unrestored);
+        set_hold(NP_HOLD_NONE);   /* running again: nothing is held */
     }
     np_progress_notify();
 }
@@ -497,6 +515,7 @@ static void do_pause(uint32_t now_ms)
     taskEXIT_CRITICAL();
 
     np_log_session_pause(now_ms, true, 0U);
+    set_hold(NP_HOLD_USER_PAUSE);
     np_progress_notify();
 }
 
@@ -521,6 +540,13 @@ static void do_panic(uint32_t now_ms)
 {
     const bool was_paused = (s_ctx.state == NP_SESSION_PAUSED);
     const bool gate_was_open = s_gate.open;
+
+    /* Why: the cause the halt carried (the person's panic unless the detector posted it), and a held detector cause is never
+     * lowered by a person's. */
+    np_hold_cause_t why = s_pending_cause;
+    s_pending_cause = NP_HOLD_NONE;
+    if (why == NP_HOLD_NONE) { why = NP_HOLD_USER_PANIC; }
+    if (!np_hold_outranks(why, s_hold_cause)) { why = s_hold_cause; }
 
     if (gate_was_open) {
         hold_for_resume(s_gate.tdcs_cmd);
@@ -574,6 +600,7 @@ static void do_panic(uint32_t now_ms)
         taskEXIT_CRITICAL();
         np_log_session_pause(now_ms, true, 0U);
     }
+    set_hold(why);
     np_progress_notify();
 }
 
@@ -812,6 +839,8 @@ np_hub_status_t np_runner_run(void)
     memset(&s_gate, 0, sizeof s_gate);
     s_gate.tdcs_cmd = s_gate.cvns_cmd = s_gate.skip_a = s_gate.skip_b = NO_CMD;
     s_panic_from_start = false;
+    s_hold_cause = NP_HOLD_NONE;
+    s_pending_cause = NP_HOLD_NONE;
 
     /* Populate UHDR session-start record. */
     memcpy(s_ctx.uhdr.session_uuid, s_ctx.desc.session_uuid,
@@ -1111,6 +1140,8 @@ np_hub_status_t np_runner_run(void)
                   ? NP_SESSION_COMPLETE
                   : NP_SESSION_FAULT;
     np_progress_notify();   /* SWR-SS-07: the app sees the end state and the length it ran */
+    s_pending_cause = NP_HOLD_NONE;
+    set_hold(NP_HOLD_NONE); /* SWR-SS-09: a session that is over is held by nothing */
 
     /* Every output is stopped and the records are closed: module detection may
      * probe again (OI-FWHUB-17). */
@@ -1137,15 +1168,23 @@ np_hub_status_t np_runner_pause(void)
     return NP_HUB_OK;
 }
 
-np_hub_status_t np_runner_panic(void)
+np_hub_status_t np_runner_halt(np_hold_cause_t cause)
 {
     const np_session_state_t st = np_runner_get_state();
     if (st != NP_SESSION_RUNNING && st != NP_SESSION_PAUSED) {
         return NP_HUB_ERR_NO_SESSION;
     }
+    if (np_hold_outranks(cause, s_pending_cause)) {
+        s_pending_cause = cause;       /* a detector cause is not lowered by a person's panic posted in the same tick */
+    }
     /* Never refused for a ramp: the gate is closed by the loop (do_panic). */
     xEventGroupSetBits(s_events, NP_EV_SESSION_PANIC);
     return NP_HUB_OK;
+}
+
+np_hub_status_t np_runner_panic(void)
+{
+    return np_runner_halt(NP_HOLD_USER_PANIC);
 }
 
 np_hub_status_t np_runner_resume(void)
