@@ -139,7 +139,7 @@
 #define NP_CARDIAC_TIM_HZ       1000000UL   /* 1µs resolution */
 #define NP_CARDIAC_HR_DELTA_BPM 15U         /* cutoff threshold: sensitivity level 0, the validated cutoff (REQ-CVNS-09) */
 /* Sensitivity levels above 0 (REQ-CVNS-14): the cutoff fires on a smaller change.  There is no level below 0.  The thresholds
- * are PROVISIONAL (UC-124): not derived, measured or cited.  On the OI-CVNS-13 simulation they cost false trips at high heart
+ * are PROVISIONAL (UC-126): not derived, measured or cited.  On the OI-CVNS-13 simulation they cost false trips at high heart
  * rates and nowhere else (NP-FW-CVNS-001 §14.8). */
 #define NP_CARDIAC_HR_DELTA_L1_BPM 14U      /* PROVISIONAL */
 #define NP_CARDIAC_HR_DELTA_L2_BPM 13U      /* PROVISIONAL */
