@@ -68,6 +68,40 @@ static int required_emitters(np_hub_mod_type_t t, const uint8_t *params,
     return n;
 }
 
+/*
+ * The checks a DRIVE command meets before any hardware is touched, over the `n` sockets in s_list.
+ *
+ * Params must be exactly the struct the mod_type defines: a short block would be read past its end, and a long one means the
+ * producer and this firmware disagree about the struct. Then placement, all sockets: one requirement per (socket, emitter),
+ * because check_placement is satisfied by ANY type in a mask and the command needs ALL of them. NP_HUB_ERR_INVALID_ARG for a
+ * malformed command (or one that lights nothing, which UHDR would otherwise record as a delivered PBM modality),
+ * NP_HUB_ERR_NOT_PRESENT when a socket lacks an emitter.
+ */
+static np_hub_status_t check_drive_placement(const np_session_cmd_t *cmd, uint16_t n)
+{
+    if (cmd->params_len != params_size_for(cmd->mod_type)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    np_elem_type_t need[3];
+    int n_need = required_emitters(cmd->mod_type, cmd->params, need);
+    if (n_need <= 0) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    uint16_t n_reqs = 0U;
+    for (uint16_t i = 0U; i < n; i++) {
+        for (int k = 0; k < n_need; k++) {
+            s_reqs[n_reqs].socket_id = (uint8_t)s_list[i];
+            s_reqs[n_reqs].type_mask = NP_ELEM_BIT(need[k]);
+            n_reqs++;
+        }
+    }
+    uint16_t n_fail = 0U;
+    if (np_module_map_check_placement(s_reqs, n_reqs, NULL, 0U, &n_fail) != NP_HUB_OK) {
+        return NP_HUB_ERR_NOT_PRESENT;
+    }
+    return NP_HUB_OK;
+}
+
 /* What a pause remembers (SWR-SS-05): one entry per socket that was being driven. */
 typedef struct {
     uint16_t          socket;
@@ -136,6 +170,49 @@ void np_sock_disp_reset(void)
     np_mod_pbm_socket_clear_channel_latches();
 }
 
+np_hub_status_t np_sock_disp_admit_protocol(const np_session_desc_t *desc)
+{
+    if (desc == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    // Which commands name sockets at all, and light something: a stop command and a slot-addressed one need no module here.
+    bool names_sockets = false;
+    for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
+        const np_session_cmd_t *c = &desc->cmds[i];
+        if (c->target_kind == (uint8_t)NP_PROTO_TARGET_SOCKET_MASK && c->params_len != 0U && is_socket_addressable(c->mod_type)) {
+            names_sockets = true;
+        }
+    }
+    if (!names_sockets) {
+        return NP_HUB_OK;   // the inventory has nothing to say about this protocol
+    }
+    np_hexmap_scan_t scan = np_module_map_scan_state();
+    if (scan == NP_HEXMAP_SCAN_IN_PROGRESS) {
+        return NP_HUB_ERR_INVENTORY_PENDING;   // wait, do not refuse
+    }
+    if (scan != NP_HEXMAP_SCAN_COMPLETE) {
+        return NP_HUB_ERR_INVENTORY_INCOMPLETE;
+    }
+    for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
+        const np_session_cmd_t *c = &desc->cmds[i];
+        if (c->target_kind != (uint8_t)NP_PROTO_TARGET_SOCKET_MASK || c->params_len == 0U || !is_socket_addressable(c->mod_type)) {
+            continue;
+        }
+        uint16_t n = 0U;
+        if (np_protocol_socket_expand(c, s_list, NP_HEXMAP_MAX_SOCKETS, &n) != NP_HUB_OK || n == 0U) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        np_hub_status_t rc = check_drive_placement(c, n);
+        if (rc == NP_HUB_ERR_NOT_PRESENT) {
+            return NP_HUB_ERR_MODULE_FIT;
+        }
+        if (rc != NP_HUB_OK) {
+            return rc;
+        }
+    }
+    return NP_HUB_OK;
+}
+
 np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)
 {
     if (cmd == NULL || cmd->target_kind != NP_PROTO_TARGET_SOCKET_MASK) {
@@ -176,35 +253,10 @@ np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)
         return NP_HUB_OK;
     }
 
-    /* 4. Params must be exactly the struct the mod_type defines. A short block
-     *    would be read past its end; a long one means the producer and this
-     *    firmware disagree about the struct. */
-    if (cmd->params_len != params_size_for(cmd->mod_type)) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-
-    np_elem_type_t need[3];
-    int n_need = required_emitters(cmd->mod_type, cmd->params, need);
-    if (n_need <= 0) {
-        /* Malformed, or a drive command that lights nothing — which UHDR would
-         * otherwise record as a delivered PBM modality. */
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-
-    /* 5. Placement, all sockets, before any hardware is touched. One
-     *    requirement per (socket, emitter): check_placement is satisfied by ANY
-     *    type in a mask, and the command needs ALL of them. */
-    uint16_t n_reqs = 0U;
-    for (uint16_t i = 0U; i < n; i++) {
-        for (int k = 0; k < n_need; k++) {
-            s_reqs[n_reqs].socket_id = (uint8_t)s_list[i];
-            s_reqs[n_reqs].type_mask = NP_ELEM_BIT(need[k]);
-            n_reqs++;
-        }
-    }
-    uint16_t n_fail = 0U;
-    if (np_module_map_check_placement(s_reqs, n_reqs, NULL, 0U, &n_fail) != NP_HUB_OK) {
-        return NP_HUB_ERR_NOT_PRESENT;
+    /* 4 and 5. The params must be what the mod_type defines, and every socket must carry every emitter they light. */
+    np_hub_status_t placed = check_drive_placement(cmd, n);
+    if (placed != NP_HUB_OK) {
+        return placed;
     }
 
     /* 6. Power (OI-HEXTILE-09). */

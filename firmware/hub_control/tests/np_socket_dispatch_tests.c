@@ -425,6 +425,59 @@ static void test_malformed(void)
     check(count_ops('D') == 0 && !cranial_requested(), "no malformed command drove anything");
 }
 
+/* OI-HWFIT-01: the descriptor-level fit check, with the inventory states the principal ruled on (2026-11-08). */
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_admit_protocol_follows_the_scan_state_and_the_fitted_modules(void)
+{
+    setup();
+    const uint16_t base_s[] = { 1, 2 };
+    const uint16_t tri_on_base[] = { 3 };
+    np_session_desc_t d;
+    memset(&d, 0, sizeof d);
+    d.cmds[0] = base_cmd(base_s, 2);
+    d.cmd_count = 1;
+
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_NOT_SCANNED, "no pass has begun: the initial state");
+    check(np_sock_disp_admit_protocol(&d) == NP_HUB_ERR_INVENTORY_INCOMPLETE, "not scanned: a protocol that drives sockets is refused as an incomplete inventory");
+
+    np_session_desc_t slot_only;
+    memset(&slot_only, 0, sizeof slot_only);
+    slot_only.cmds[0].mod_type = NP_MOD_EEG;
+    slot_only.cmds[0].target_kind = NP_PROTO_TARGET_SLOT;
+    slot_only.cmds[0].params_len = 1;
+    slot_only.cmd_count = 1;
+    check(np_sock_disp_admit_protocol(&slot_only) == NP_HUB_OK, "a protocol that names no socket is not the inventory's business, scanned or not");
+
+    np_module_map_invalidate_all();
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_IN_PROGRESS, "a pass is in progress");
+    check(np_sock_disp_admit_protocol(&d) == NP_HUB_ERR_INVENTORY_PENDING, "in progress: the answer is PENDING, which the caller waits out, never a refusal");
+    check(np_sock_disp_admit_protocol(&slot_only) == NP_HUB_OK, "in progress: a protocol that names no socket still loads at once");
+    np_session_cmd_t c = base_cmd(base_s, 2);
+    check(np_sock_disp_command(&c) == NP_HUB_ERR_NOT_PRESENT, "invalidated: no cached record answers a placement check until the pass confirms it");
+
+    for (uint16_t s = 0; s < 10; s++)  { plug(s, TILE_BASE);  }    /* the pass re-reads the modules */
+    np_module_map_scan_end(true);
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_COMPLETE, "the pass ended complete");
+    check(np_sock_disp_admit_protocol(&d) == NP_HUB_OK, "complete: base tiles carry 660 and 808 nm, so the protocol is admitted");
+
+    d.cmds[1] = smart_cmd(tri_on_base, 1, 0x04);
+    d.cmd_count = 2;
+    check(np_sock_disp_admit_protocol(&d) == NP_HUB_ERR_MODULE_FIT, "complete: a 1064 nm command on a base tile is MODULE_FIT");
+
+    np_module_map_invalidate_all();
+    np_module_map_scan_end(false);
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_FAILED, "a pass that could not identify a module is FAILED");
+    check(np_sock_disp_admit_protocol(&d) == NP_HUB_ERR_INVENTORY_INCOMPLETE, "failed: refused as an incomplete inventory, not as a fit");
+    np_module_map_scan_end(true);
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_FAILED, "a late scan_end cannot turn a failed pass into a complete one");
+
+    np_session_desc_t stop;
+    memset(&stop, 0, sizeof stop);
+    stop.cmds[0] = stop_cmd(NP_MOD_PBM_BASE, base_s, 2);
+    stop.cmd_count = 1;
+    check(np_sock_disp_admit_protocol(&stop) == NP_HUB_OK, "a stop command needs no module");
+}
+
 /* @verifies REQ-FWHUB-32 */
 static void test_placement_all_or_nothing(void)
 {
@@ -707,6 +760,7 @@ int main(void)
     test_pbm_on_t1b_admitted();
     test_malformed();
     test_placement_all_or_nothing();
+    test_admit_protocol_follows_the_scan_state_and_the_fitted_modules();
     test_driver_fault_rolls_back();
     test_stop_keeps_gate_for_others();
     test_auto_stop();

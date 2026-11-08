@@ -96,6 +96,16 @@ typedef enum {
      * the apps could only call malformed; it is something the author can fix (make the protocol again for this helmet),
      * so it has its own status.  Reason 31 in the upload-check frame. */
     NP_HUB_ERR_BAD_ADDRESS          = -31,
+    /* OI-HWFIT-01 (the principal, 2026-11-08): a module scan is in progress, so whether the modules fitted can run the protocol is not
+     * yet known. INTERNAL: np_runner_load returns it and its caller waits and loads again; it is never an upload verdict, so it never
+     * reaches the app. The protocol is delayed until the scan ends, not refused. */
+    NP_HUB_ERR_INVENTORY_PENDING    = -32,
+    /* OI-HWFIT-01: the protocol names sockets and the module inventory is not usable: no scan has been begun, the last one failed
+     * (a fitted module could not be identified), or one did not end within the wait. Reason 33 in the upload-check frame. */
+    NP_HUB_ERR_INVENTORY_INCOMPLETE = -33,
+    /* OI-HWFIT-01: the scan is complete and a socket the protocol drives lacks an emitter it lights. The person must fit the module or
+     * choose another protocol. Reason 34 in the upload-check frame. */
+    NP_HUB_ERR_MODULE_FIT           = -34,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

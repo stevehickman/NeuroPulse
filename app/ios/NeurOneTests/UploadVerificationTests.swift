@@ -133,6 +133,8 @@ final class UploadVerificationTests: XCTestCase {
         XCTAssertEqual(cause(8), .tooManyCommands)   // NP_HUB_ERR_CMD_TOO_MANY: the author can shorten it
         XCTAssertEqual(cause(30), .photicZone)       // NP_HUB_ERR_PHOTIC_ZONE: the author can change the frequency
         XCTAssertEqual(cause(31), .badAddress)       // NP_HUB_ERR_BAD_ADDRESS: make it again for this helmet
+        XCTAssertEqual(cause(33), .inventoryIncomplete)   // NP_HUB_ERR_INVENTORY_INCOMPLETE: no usable module inventory
+        XCTAssertEqual(cause(34), .moduleFit)             // NP_HUB_ERR_MODULE_FIT: the fitted modules cannot run it
         XCTAssertEqual(cause(13), .sessionActive)
         XCTAssertEqual(cause(25), .bootRefused)
         XCTAssertEqual(cause(29), .noLayout)   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload

@@ -322,4 +322,12 @@
  * letter is received. See NP-FW-EMMC-002 Rev 1 §F and NP-REG-PBM1064-001 Q-13. */
 #define NP_MODE_F_REGULATORY_CLEARED  0
 
+/* ── Module inventory wait (OI-HWFIT-01, the principal 2026-11-08) ─────────────────────────────────────────────────────────────── */
+
+/* How long an upload that drives sockets waits for a module scan in progress before it is refused as an incomplete inventory, and
+ * how often it asks again. PROVISIONAL: not derived from a measured scan time (the scan has no call site yet, OI-HEXMAP-03). It is
+ * kept under the app's 10 s wait for the upload report, so the person is told by the hub and not by the app timing out. */
+#define NP_INVENTORY_WAIT_MS        5000U   /* PROVISIONAL */
+#define NP_INVENTORY_WAIT_STEP_MS    100U   /* PROVISIONAL */
+
 #endif /* NP_HUB_CONFIG_H */

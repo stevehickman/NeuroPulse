@@ -219,6 +219,8 @@ extension HelmetRefusalCause {
         case "no_layout": self = .noLayout
         case "photic_zone": self = .photicZone
         case "bad_address": self = .badAddress
+        case "inventory_incomplete": self = .inventoryIncomplete
+        case "module_fit": self = .moduleFit
         case "too_many_commands": self = .tooManyCommands
         case "other": self = .other
         case "unmatched": self = .unmatched

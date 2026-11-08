@@ -784,6 +784,19 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
+    /* OI-HWFIT-01 (the principal, 2026-11-08): a protocol that drives sockets runs only on modules that can run it, and the person
+     * hears it when they send the protocol. While a module scan is in progress the answer is not yet known: INVENTORY_PENDING is
+     * returned, which the caller waits out and loads again (np_runner_load_waiting); a protocol is delayed by a scan, never refused
+     * for it. A scan that never ran, failed or did not end is NP_HUB_ERR_INVENTORY_INCOMPLETE, and a complete scan that finds a
+     * socket short is NP_HUB_ERR_MODULE_FIT. The dispatcher's own check at the session's start stays the authority. */
+    rc = np_sock_disp_admit_protocol(&s_ctx.desc);
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
     /* Initialize stop-tracking to "no stop pending". */
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
         s_ctx.stop_at_ms[i] = 0U;
@@ -794,6 +807,21 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 
     xEventGroupSetBits(s_events, NP_EV_SESSION_START);
     return NP_HUB_OK;
+}
+
+np_hub_status_t np_runner_load_waiting(const uint8_t *proto_buf, size_t proto_len,
+                                       uint32_t budget_ms, uint32_t step_ms, void (*sleep_ms)(uint32_t))
+{
+    np_hub_status_t rc = np_runner_load(proto_buf, proto_len);
+    uint32_t waited = 0U;
+    // Each attempt releases the lease and clears the descriptor, so a try is repeatable; the buffer is the caller's and is intact.
+    while (rc == NP_HUB_ERR_INVENTORY_PENDING && waited < budget_ms && sleep_ms != NULL && step_ms != 0U) {
+        sleep_ms(step_ms);
+        waited += step_ms;
+        rc = np_runner_load(proto_buf, proto_len);
+    }
+    // A scan that did not end in the budget is an inventory that could not be completed.
+    return (rc == NP_HUB_ERR_INVENTORY_PENDING) ? NP_HUB_ERR_INVENTORY_INCOMPLETE : rc;
 }
 
 np_hub_status_t np_runner_run(void)

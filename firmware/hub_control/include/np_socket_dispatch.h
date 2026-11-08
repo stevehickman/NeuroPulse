@@ -125,6 +125,19 @@ void np_sock_disp_reset(void);
  */
 np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd);
 
+/*
+ * np_sock_disp_admit_protocol — OI-HWFIT-01: can the modules fitted now run every socket-addressed drive command in the
+ * descriptor? Called at load, with the session lease held, so the person hears it when they send the protocol and not when the
+ * session starts. The check at dispatch (np_sock_disp_command) stays the authority and is not replaced.
+ *
+ * A protocol that names no socket is not the inventory's business: NP_HUB_OK, whatever the scan state. Otherwise:
+ *   scan IN_PROGRESS            → NP_HUB_ERR_INVENTORY_PENDING   (internal: the caller waits and tries again, it never reaches the app)
+ *   scan NOT_SCANNED or FAILED  → NP_HUB_ERR_INVENTORY_INCOMPLETE
+ *   scan COMPLETE               → NP_HUB_ERR_MODULE_FIT if any socket lacks an emitter a command lights, else NP_HUB_OK
+ * The need is derived by the same code the dispatcher uses, so the two cannot disagree.
+ */
+np_hub_status_t np_sock_disp_admit_protocol(const np_session_desc_t *desc);
+
 /* Stop every socket whose stop_at_ms ≤ now_ms. */
 void np_sock_disp_process_stops(uint32_t now_ms);
 

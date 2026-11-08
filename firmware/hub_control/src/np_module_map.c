@@ -57,6 +57,7 @@ static struct {
     const np_socket_geom_t *geom;      /* borrowed const helmet table            */
     uint16_t                n_sockets;
     bool                    initialized;
+    np_hexmap_scan_t        scan;      /* zero = NOT_SCANNED, so init/unbind reset it */
     np_socket_record_t      rec[NP_HEXMAP_MAX_SOCKETS];
 } s_map;
 
@@ -240,6 +241,35 @@ np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sock
 void np_module_map_unbind(void)
 {
     memset(&s_map, 0, sizeof(s_map));
+}
+
+void np_module_map_invalidate_all(void)
+{
+    for (uint16_t i = 0u; i < s_map.n_sockets; i++) {
+        s_map.rec[i].confirmed = false;
+    }
+    if (s_map.initialized) {
+        s_map.scan = NP_HEXMAP_SCAN_IN_PROGRESS;
+    }
+}
+
+void np_module_map_mark_stale(void)
+{
+    if (s_map.initialized) {
+        s_map.scan = NP_HEXMAP_SCAN_IN_PROGRESS;
+    }
+}
+
+void np_module_map_scan_end(bool ok)
+{
+    if (s_map.scan == NP_HEXMAP_SCAN_IN_PROGRESS) {
+        s_map.scan = ok ? NP_HEXMAP_SCAN_COMPLETE : NP_HEXMAP_SCAN_FAILED;
+    }
+}
+
+np_hexmap_scan_t np_module_map_scan_state(void)
+{
+    return s_map.scan;
 }
 
 bool np_module_map_address_valid(uint16_t socket_id)

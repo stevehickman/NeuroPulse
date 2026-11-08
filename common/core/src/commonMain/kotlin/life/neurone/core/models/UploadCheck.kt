@@ -166,6 +166,12 @@ enum class HelmetRefusalCause(val rule: String) {
     /** The protocol names a socket this helmet does not have (`NP_HUB_ERR_BAD_ADDRESS`, reason 31). */
     BAD_ADDRESS("bad_address"),
 
+    /** The protocol names sockets and the helmet has no usable module inventory: no scan has run, the last one failed, or one did not end in time (`NP_HUB_ERR_INVENTORY_INCOMPLETE`, reason 33). */
+    INVENTORY_INCOMPLETE("inventory_incomplete"),
+
+    /** The modules fitted now cannot run the protocol: a socket it drives lacks an emitter it lights (`NP_HUB_ERR_MODULE_FIT`, reason 34). */
+    MODULE_FIT("module_fit"),
+
     /** The protocol has more commands than the helmet can hold (`NP_HUB_ERR_CMD_TOO_MANY`, reason 8). */
     TOO_MANY_COMMANDS("too_many_commands"),
     OTHER("other"),

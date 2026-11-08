@@ -150,4 +150,28 @@ np_hub_status_t np_hexmap_inventory_read(uint16_t  socket_id,
  */
 np_hub_status_t np_hexmap_poll_socket(uint16_t socket_id, bool *changed_out);
 
+/*
+ * np_hexmap_scan_all — one whole pass (OI-HWFIT-01): np_module_map_invalidate_all(), a poll of every wired socket, then
+ * np_module_map_scan_end(). What causes a pass (the principal, 2026-11-08): a rim latch being opened (a module cannot be seated or
+ * released without one, so this covers a module entering or leaving), and a power source being connected. The sources of those two
+ * events are OI-HEXMAP-03's; each calls this.
+ *
+ * Power: the supercap is assumed NOT to carry the hub through a loss of the source, so a power-up is a cold start, the map is empty and
+ * NOT_SCANNED, and a pass runs before any protocol that drives sockets is admitted. If it did carry the hub through, a protocol
+ * already running continues on the inventory it was admitted on. That is why a pass is never started under a session:
+ *
+ *   a session holds the lease → nothing is invalidated, the inventory is only marked stale (new uploads wait), a pass is remembered
+ *                               (np_hexmap_scan_pending()) and the call returns NP_HUB_ERR_SESSION_ACTIVE. The caller runs it
+ *                               when the session ends.
+ *
+ * The pass is COMPLETE when every poll read cleanly. A socket that reads as empty is a clean read: the bus gives the same answer
+ * for no module as for a dead one, and the map already treats both as empty. A socket whose identity block is there but cannot
+ * be used (wrong format, a bad CRC, an impossible count) makes the pass FAILED, because a module is fitted and the hub does not
+ * know what it is. Returns NP_HUB_OK, or the first such status. The caller holds the probe lease where the platform needs one.
+ */
+np_hub_status_t np_hexmap_scan_all(void);
+
+/* True while a pass was asked for under a session and has not yet run: the caller runs np_hexmap_scan_all() when the session ends. */
+bool np_hexmap_scan_pending(void);
+
 #endif /* NP_HEXMAP_INVENTORY_H */

@@ -434,6 +434,7 @@ void np_progress_build(const np_progress_in_t *in, uint8_t out[NP_PROGRESS_LEN])
 /* ── The socket dispatch, the dose model, the cross-check, the pause limit ───── */
 
 void np_sock_disp_reset(void)   {}
+np_hub_status_t np_sock_disp_admit_protocol(const np_session_desc_t *desc) { (void)desc; return NP_HUB_OK; }   /* OI-HWFIT-01: the run tests are not about fit */
 void np_pst_session_reset(void) {}
 
 np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)

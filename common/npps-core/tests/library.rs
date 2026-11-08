@@ -239,7 +239,7 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         (29, "no_layout"),
         // 30 is NP_HUB_ERR_PHOTIC_ZONE and 31 NP_HUB_ERR_BAD_ADDRESS: what the author must change, each with a cause of its own. 8 is
         // NP_HUB_ERR_CMD_TOO_MANY, which was `malformed` and is now `too_many_commands`.
-        (30, "photic_zone"), (31, "bad_address"), (8, "too_many_commands"),
+        (30, "photic_zone"), (31, "bad_address"), (33, "inventory_incomplete"), (34, "module_fit"), (8, "too_many_commands"),
         (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");

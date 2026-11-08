@@ -47,6 +47,8 @@ struct ProtocolUploadFlow {
         case .noLayout: return String(localized: "PROTOCOL_MENU_REFUSED_NO_LAYOUT")
         case .photicZone: return String(localized: "PROTOCOL_MENU_REFUSED_PHOTIC_ZONE")
         case .badAddress: return String(localized: "PROTOCOL_MENU_REFUSED_BAD_ADDRESS")
+        case .inventoryIncomplete: return String(localized: "PROTOCOL_MENU_REFUSED_INVENTORY_INCOMPLETE")
+        case .moduleFit: return String(localized: "PROTOCOL_MENU_REFUSED_MODULE_FIT")
         case .tooManyCommands: return String(localized: "PROTOCOL_MENU_REFUSED_TOO_MANY_COMMANDS")
         case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
         case .unmatched: return String(localized: "PROTOCOL_MENU_UPLOAD_UNMATCHED")

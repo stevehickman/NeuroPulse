@@ -72,6 +72,8 @@ static np_hub_status_t g_layout_rc; /* np_layout_admit(): is a layout bound for 
 static uint8_t g_layout_arg;        /* the version np_runner_load() asked it about */
 static np_hub_status_t g_addr_rc;   /* np_layout_check_protocol_addresses(): does the protocol name only valid addresses */
 static int     g_addr_calls;
+static np_hub_status_t g_fit_rc;    /* np_sock_disp_admit_protocol(): can the fitted modules run it (OI-HWFIT-01) */
+static int     g_fit_calls;
 
 /* Everything np_runner_load() could ASK of the safety MCU or the rest of the hub.  A refusal must leave all of these
  * at zero: "before anything is requested of the safety MCU" is what the code comments promise. */
@@ -91,6 +93,8 @@ static void reset_doubles(void)
     g_layout_arg      = 0U;
     g_addr_rc         = NP_HUB_OK;
     g_addr_calls      = 0;
+    g_fit_rc          = NP_HUB_OK;
+    g_fit_calls       = 0;
     g_spi_asks = g_event_sets = g_sock_resets = g_pst_resets = 0U;
     g_event_bits = 0U;
 }
@@ -190,6 +194,7 @@ TickType_t xTaskGetTickCount(void)  { return 0U; }
 /* ── What np_runner_load() resets, counted ───────────────────────────────────── */
 
 void np_sock_disp_reset(void)   { g_sock_resets++; }
+np_hub_status_t np_sock_disp_admit_protocol(const np_session_desc_t *desc) { (void)desc; g_fit_calls++; return g_fit_rc; }
 void np_pst_session_reset(void) { g_pst_resets++; }
 
 /* ── np_runner_progress(): the snapshot of the descriptor the runner holds ──── */
@@ -573,6 +578,59 @@ static void test_a_protocol_that_names_an_address_the_helmet_lacks_is_refused_wh
     check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "address: the same blob loads once its addresses are valid");
 }
 
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_a_protocol_the_fitted_modules_cannot_run_is_refused_at_upload_and_leaves_nothing(void)
+{
+    fresh();
+    blob_t b;
+    blob_t1(&b, 1U, 60000U);
+    g_fit_rc = NP_HUB_ERR_MODULE_FIT;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_MODULE_FIT, "fit: a socket short of an emitter refuses the protocol with a status of its own");
+    check(g_fit_calls == 1, "fit: the check ran once");
+    expect_nothing_left_behind("module fit");
+    g_fit_rc = NP_HUB_ERR_INVENTORY_INCOMPLETE;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVENTORY_INCOMPLETE, "fit: an unusable inventory is refused with a status of its own");
+    expect_nothing_left_behind("incomplete inventory");
+    g_fit_rc = NP_HUB_OK;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "fit: the same blob loads once the modules fit");
+}
+
+/* The doubles for the waiting loop: the fit check reports PENDING until `g_pending_until` sleeps have happened. */
+static unsigned g_sleeps;
+static unsigned g_pending_until;
+static void fake_sleep(uint32_t ms) { (void)ms; g_sleeps++; if (g_sleeps >= g_pending_until) { g_fit_rc = NP_HUB_OK; } }
+
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_a_scan_in_progress_delays_the_upload_and_does_not_refuse_it(void)
+{
+    fresh();
+    blob_t b;
+    blob_t1(&b, 1U, 60000U);
+    g_sleeps = 0U; g_pending_until = 3U;
+    g_fit_rc = NP_HUB_ERR_INVENTORY_PENDING;
+    check(np_runner_load_waiting(b.buf, b.len, 5000U, 100U, fake_sleep) == NP_HUB_OK, "wait: a scan that ends within the budget lets the upload load");
+    check(g_sleeps == 3U, "wait: it slept until the scan ended and no longer");
+    check(np_lease_held(), "wait: the loaded session holds the lease");
+}
+
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_a_scan_that_does_not_end_in_the_budget_is_an_incomplete_inventory(void)
+{
+    fresh();
+    blob_t b;
+    blob_t1(&b, 1U, 60000U);
+    g_sleeps = 0U; g_pending_until = 1000000U;
+    g_fit_rc = NP_HUB_ERR_INVENTORY_PENDING;
+    check(np_runner_load_waiting(b.buf, b.len, 500U, 100U, fake_sleep) == NP_HUB_ERR_INVENTORY_INCOMPLETE,
+          "wait: past the budget the upload is refused as an incomplete inventory, and PENDING is never the verdict");
+    check(g_sleeps == 5U, "wait: it waited the whole budget, no more");
+    expect_nothing_left_behind("scan never ended");
+    // Another refusal is returned at once, not waited out.
+    g_sleeps = 0U; g_fit_rc = NP_HUB_ERR_MODULE_FIT;
+    check(np_runner_load_waiting(b.buf, b.len, 500U, 100U, fake_sleep) == NP_HUB_ERR_MODULE_FIT && g_sleeps == 0U,
+          "wait: a verdict that is not PENDING is returned without sleeping");
+}
+
 /* @verifies REQ-FWHUB-64#a */
 static void test_the_layout_refusal_comes_before_the_address_check(void)
 {
@@ -661,10 +719,10 @@ static void test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_nam
 {
     /* The reasons the apps group into a cause of their own (common/npps-core/src/library.rs, helmet_cause).  A status that
      * np_runner_load() can return and that is not here would reach a person as "some other reason". */
-    static const int NAMED_REASONS[] = { 2, 4, 5, 6, 7, 8, 9, 13, 19, 20, 25, 27, 28, 29, 30, 31 };
+    static const int NAMED_REASONS[] = { 2, 4, 5, 6, 7, 8, 9, 13, 19, 20, 25, 27, 28, 29, 30, 31, 33, 34 };
     fresh();
     blob_t b;
-    int seen[8]; unsigned n = 0U;
+    int seen[10]; unsigned n = 0U;
     blob_visual(&b, 1U, 0U, 20U);
     seen[n++] = -(int)np_runner_load(b.buf, b.len);
     fresh(); g_addr_rc = NP_HUB_ERR_BAD_ADDRESS; blob_t1(&b, 1U, 60000U);
@@ -672,6 +730,10 @@ static void test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_nam
     fresh(); g_admits_sessions = false; blob_t1(&b, 1U, 60000U);
     seen[n++] = -(int)np_runner_load(b.buf, b.len);
     fresh(); blob_t2(&b, 1U, 60000U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    fresh(); g_fit_rc = NP_HUB_ERR_INVENTORY_INCOMPLETE; blob_t1(&b, 1U, 60000U);
+    seen[n++] = -(int)np_runner_load(b.buf, b.len);
+    fresh(); g_fit_rc = NP_HUB_ERR_MODULE_FIT; blob_t1(&b, 1U, 60000U);
     seen[n++] = -(int)np_runner_load(b.buf, b.len);
     bool all_named = true;
     for (unsigned i = 0U; i < n; i++) {
@@ -705,6 +767,9 @@ int main(void)
     test_the_tier_refusal_comes_before_the_hardware_version_one();
     test_a_refusal_after_a_good_load_does_not_disturb_it();
     test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves_nothing();
+    test_a_protocol_the_fitted_modules_cannot_run_is_refused_at_upload_and_leaves_nothing();
+    test_a_scan_in_progress_delays_the_upload_and_does_not_refuse_it();
+    test_a_scan_that_does_not_end_in_the_budget_is_an_incomplete_inventory();
     test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_name();
 
     if (g_unexpected != 0U) {

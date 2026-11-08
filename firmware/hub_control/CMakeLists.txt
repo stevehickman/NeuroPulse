@@ -113,6 +113,7 @@ if(NP_BUILD_TESTS)
         tests/np_hexmap_inventory_tests.c
         src/np_hexmap_inventory.c
         src/np_module_map.c
+        src/np_session_lease.c        # np_hexmap_scan_all() leaves a running session's inventory alone (OI-HWFIT-01)
     )
     target_include_directories(np_hexmap_inventory_tests PRIVATE include ../pbm/include)
     target_compile_options(np_hexmap_inventory_tests PRIVATE -Wall -Wextra -std=c11)

@@ -508,6 +508,50 @@ np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sock
 void np_module_map_unbind(void);
 
 /*
+ * Whether the inventory can be answered from (OI-HWFIT-01). A record is used only once a poll has confirmed it (REQ-LFS-02), so a
+ * decision that needs every socket (does this protocol fit the modules fitted now?) has to know that a whole pass has finished:
+ *
+ *   NOT_SCANNED   no pass has been begun since the map was bound: the initial state. Nothing is coming, so waiting is pointless.
+ *   IN_PROGRESS   a pass was begun by np_module_map_invalidate_all() and has not ended. A decision waits for it; it is not refused.
+ *   COMPLETE      the pass ended with every socket polled and read cleanly (an empty socket is a clean read).
+ *   FAILED        the pass ended, but a socket's module could not be identified, so the inventory is not to be trusted.
+ *
+ * The inventory is invalidated, and a pass begun, whenever a rim latch is opened (the clusters' levers are reachable only through
+ * them), a module enters or leaves a socket, or a power source is connected. The sources of those three events are
+ * OI-HEXMAP-03's; this unit holds the state they drive.
+ */
+typedef enum {
+    NP_HEXMAP_SCAN_NOT_SCANNED = 0,
+    NP_HEXMAP_SCAN_IN_PROGRESS = 1,
+    NP_HEXMAP_SCAN_COMPLETE    = 2,
+    NP_HEXMAP_SCAN_FAILED      = 3,
+} np_hexmap_scan_t;
+
+/*
+ * np_module_map_invalidate_all — begin a pass. Every record stops being confirmed, so every placement check, group query,
+ * calibration lookup and UID read answers "not present" until the pass re-confirms it, and the state becomes IN_PROGRESS.
+ * The cached records stay in the map (they let the pass skip re-inventory of a module whose UID is unchanged); a module is
+ * answered from again only once the pass has re-read its UID in its socket. Safe before init (nothing to invalidate).
+ */
+void np_module_map_invalidate_all(void);
+
+/*
+ * np_module_map_mark_stale — the next upload must wait for a new pass, but what is answering now keeps answering. Sets IN_PROGRESS
+ * and leaves every record confirmed. This is what a trigger does while a session is running: that session was admitted on the
+ * inventory before the trigger and continues on it (its commands are still placement-checked against the same records), while no
+ * protocol is admitted on an inventory that may have changed.
+ */
+void np_module_map_mark_stale(void);
+
+/*
+ * np_module_map_scan_end — end the pass begun by np_module_map_invalidate_all(): COMPLETE if `ok`, else FAILED. Ignored when no
+ * pass is in progress, so a late or repeated call cannot turn a state into another.
+ */
+void np_module_map_scan_end(bool ok);
+
+np_hexmap_scan_t np_module_map_scan_state(void);
+
+/*
  * np_module_map_apply_poll — apply one socket's power-on / hot-plug poll result.
  *
  *   reported_uid : UID the socket's module returned (zero = socket empty).

@@ -73,6 +73,15 @@ void np_runner_init(EventGroupHandle_t hub_events);
 np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len);
 
 /*
+ * np_runner_load_waiting — np_runner_load, delayed rather than refused while a module scan is in progress (OI-HWFIT-01).
+ * np_runner_load returns NP_HUB_ERR_INVENTORY_PENDING when the protocol drives sockets and the scan has not ended; this sleeps
+ * `step_ms` (through `sleep_ms`, so it is host-testable) and loads again, up to `budget_ms` in all. A scan still running at the end of
+ * the budget is NP_HUB_ERR_INVENTORY_INCOMPLETE. Any other verdict is returned at once. NP_HUB_ERR_INVENTORY_PENDING is never returned.
+ */
+np_hub_status_t np_runner_load_waiting(const uint8_t *proto_buf, size_t proto_len,
+                                       uint32_t budget_ms, uint32_t step_ms, void (*sleep_ms)(uint32_t));
+
+/*
  * np_runner_run — blocking session execution loop.
  * Called from task_hub_control after NP_EV_SESSION_START is received.
  * Returns when the session is complete, aborted, or faulted.

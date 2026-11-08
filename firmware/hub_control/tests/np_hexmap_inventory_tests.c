@@ -508,6 +508,61 @@ static void test_restore_confirmed_by_poll(void)
           "restore: different module replaces the cached record");
 }
 
+/* OI-HWFIT-01: one whole pass, and what ends it complete or failed. */
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_scan_all_confirms_every_wired_socket_and_completes(void)
+{
+    reset_all();
+    plug(0, 0x10, T1A, sizeof(T1A));
+    plug(3, 0x40, T1B, sizeof(T1B));
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_NOT_SCANNED, "scan: nothing has begun a pass");
+    check(np_hexmap_scan_all() == NP_HUB_OK && np_module_map_scan_state() == NP_HEXMAP_SCAN_COMPLETE,
+          "scan: every wired socket read cleanly (empty ones included), so the pass is complete");
+    check(socket_holds(0, 0x10) && socket_holds(3, 0x40) && socket_empty(1), "scan: the modules are confirmed where they are, the rest are empty");
+
+    // A latch opens and a module is swapped: the pass invalidates everything, then reads the helmet as it now is.
+    plug(3, 0x41, T1A, sizeof(T1A));
+    np_module_map_invalidate_all();
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_IN_PROGRESS && socket_empty(0) && socket_empty(3),
+          "scan: invalidated, nothing answers until the pass re-reads it");
+    check(np_hexmap_scan_all() == NP_HUB_OK && socket_holds(3, 0x41) && socket_holds(0, 0x10),
+          "scan: the pass sees the swapped module and the unchanged one");
+}
+
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_scan_all_fails_when_a_fitted_module_cannot_be_identified(void)
+{
+    reset_all();
+    plug(0, 0x10, T1A, sizeof(T1A));
+    plug(1, 0x20, T1A, sizeof(T1A));
+    g_tile[1].regs[NP_HEXMAP_ID_REG + 10 + 2] ^= 0x01;   /* a module is there and its identity block is corrupt */
+    check(np_hexmap_scan_all() == NP_HUB_ERR_BAD_MAGIC && np_module_map_scan_state() == NP_HEXMAP_SCAN_FAILED,
+          "scan: a fitted module that cannot be identified fails the pass");
+    check(socket_holds(0, 0x10), "scan: the sockets that did read are still confirmed, and the pass still finished");
+}
+
+/* A trigger under a running session: that session continues on the inventory it was admitted on, and the pass waits for it to end. */
+/* @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21) */
+static void test_a_pass_asked_for_under_a_session_leaves_its_inventory_and_runs_after(void)
+{
+    reset_all();
+    plug(0, 0x10, T1A, sizeof(T1A));
+    check(np_hexmap_scan_all() == NP_HUB_OK && np_module_map_scan_state() == NP_HEXMAP_SCAN_COMPLETE, "session: a first pass completes");
+
+    np_lease_init(NULL, NULL);
+    check(np_lease_claim() == NP_HUB_OK, "session: a protocol is loaded and holds the lease");
+    plug(0, 0x11, T1B, sizeof(T1B));            // the power source is reconnected, or a latch opened, and the helmet has changed
+    check(np_hexmap_scan_all() == NP_HUB_ERR_SESSION_ACTIVE, "session: the pass is not started under a session");
+    check(socket_holds(0, 0x10), "session: the running session's inventory still answers as it did");
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_IN_PROGRESS, "session: but a new upload is made to wait, because the inventory may be stale");
+    check(np_hexmap_scan_pending(), "session: and the pass is remembered");
+
+    np_lease_release();                         // the session ends
+    check(np_hexmap_scan_pending(), "session end: the pass is still owed");
+    check(np_hexmap_scan_all() == NP_HUB_OK && !np_hexmap_scan_pending(), "session end: the pass runs and clears the debt");
+    check(np_module_map_scan_state() == NP_HEXMAP_SCAN_COMPLETE && socket_holds(0, 0x11), "session end: the new inventory is what the next upload sees");
+}
+
 int main(void)
 {
     printf("=== np_hexmap_inventory tests (OI-HEXMAP-02) ===\n");
@@ -529,6 +584,9 @@ int main(void)
     test_unwired_and_out_of_domain();
     test_inventory_fn_contract();
     test_restore_confirmed_by_poll();
+    test_scan_all_confirms_every_wired_socket_and_completes();
+    test_scan_all_fails_when_a_fitted_module_cannot_be_identified();
+    test_a_pass_asked_for_under_a_session_leaves_its_inventory_and_runs_after();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

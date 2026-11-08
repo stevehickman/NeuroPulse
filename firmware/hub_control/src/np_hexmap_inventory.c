@@ -8,6 +8,7 @@
  */
 
 #include "np_hexmap_inventory.h"
+#include "np_session_lease.h"
 #include "np_module_map.h"
 #include "np_pbm_hal.h"
 #include "np_pbm_types.h"
@@ -142,4 +143,35 @@ np_hub_status_t np_hexmap_poll_socket(uint16_t socket_id, bool *changed_out)
         return rc;          /* not a socket of this helmet */
     }
     return (read_rc != NP_HUB_OK) ? read_rc : rc;
+}
+
+static bool s_scan_pending;
+
+bool np_hexmap_scan_pending(void)
+{
+    return s_scan_pending;
+}
+
+np_hub_status_t np_hexmap_scan_all(void)
+{
+    if (np_lease_held()) {
+        // A session is running on the inventory it was admitted on: leave that answering, make new uploads wait, run the pass after.
+        np_module_map_mark_stale();
+        s_scan_pending = true;
+        return NP_HUB_ERR_SESSION_ACTIVE;
+    }
+    s_scan_pending = false;
+    np_module_map_invalidate_all();
+    np_hub_status_t first_bad = NP_HUB_OK;
+    for (uint16_t s = 0u; s < NP_HEXMAP_MAX_SOCKETS; s++) {
+        if (!np_module_map_address_valid(s)) {
+            continue;
+        }
+        np_hub_status_t rc = np_hexmap_poll_socket(s, NULL);
+        if (rc != NP_HUB_OK && rc != NP_HUB_ERR_NOT_PRESENT && first_bad == NP_HUB_OK) {
+            first_bad = rc;
+        }
+    }
+    np_module_map_scan_end(first_bad == NP_HUB_OK);
+    return first_bad;
 }

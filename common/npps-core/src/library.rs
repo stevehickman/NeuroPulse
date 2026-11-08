@@ -300,6 +300,13 @@ const REASON_PHOTIC_ZONE: u64 = 30;
 /// `NP_HUB_ERR_BAD_ADDRESS` (REQ-FWHUB-64): the protocol names a socket this helmet does not have. It was reason 2 (`malformed`); the
 /// author can make the protocol again for this helmet, so it has a cause of its own, `bad_address`.
 const REASON_BAD_ADDRESS: u64 = 31;
+/// `NP_HUB_ERR_INVENTORY_INCOMPLETE` (`OI-HWFIT-01`): the protocol names sockets and the helmet has no usable module inventory (no scan
+/// has run, the last one failed, or one did not end in time). Nothing the author changes fixes it; the person can close the helmet and
+/// wait, or reconnect power, so it has a cause of its own, `inventory_incomplete`. Reason 33.
+const REASON_INVENTORY_INCOMPLETE: u64 = 33;
+/// `NP_HUB_ERR_MODULE_FIT` (`OI-HWFIT-01`): the scan is complete and a socket the protocol drives lacks an emitter it lights. The person
+/// fits the module or chooses another protocol, so it has a cause of its own, `module_fit`. Reason 34.
+const REASON_MODULE_FIT: u64 = 34;
 /// `NP_HUB_ERR_CMD_TOO_MANY`: more commands than the helmet can hold. The author can shorten the protocol or split it, so it has a
 /// cause of its own, `too_many_commands`, and no longer shares `malformed` with a descriptor the app built wrongly.
 const REASON_CMD_TOO_MANY: u64 = 8;
@@ -336,6 +343,8 @@ fn helmet_cause(req: &Value) -> R<Value> {
         REASON_CMD_TOO_MANY => "too_many_commands", // NP_HUB_ERR_CMD_TOO_MANY: more steps than the helmet holds
         REASON_PHOTIC_ZONE => "photic_zone",   // NP_HUB_ERR_PHOTIC_ZONE
         REASON_BAD_ADDRESS => "bad_address",   // NP_HUB_ERR_BAD_ADDRESS
+        REASON_INVENTORY_INCOMPLETE => "inventory_incomplete", // NP_HUB_ERR_INVENTORY_INCOMPLETE
+        REASON_MODULE_FIT => "module_fit",     // NP_HUB_ERR_MODULE_FIT
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
         REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets

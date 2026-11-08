@@ -377,6 +377,12 @@ static void task_hub_control(void *arg)
     }
 }
 
+/* OI-HWFIT-01: the sleep an upload takes while it waits for a module scan to end. */
+static void inventory_wait_sleep(uint32_t ms)
+{
+    vTaskDelay(pdMS_TO_TICKS(ms));
+}
+
 /* ── task_protocol_rx ─────────────────────────────────────────────────────────── */
 
 /*
@@ -402,7 +408,8 @@ static void task_protocol_rx(void *arg)
          * then report the hash with the verdict so the app can compare it with what it sent.
          * np_runner_load verifies the signature and refuses a bad blob; the verdict is its result. */
         np_upload_check_received(g_proto_buf, recv_len);
-        np_upload_check_result(np_runner_load(g_proto_buf, recv_len));
+        np_upload_check_result(np_runner_load_waiting(g_proto_buf, recv_len, NP_INVENTORY_WAIT_MS,
+                                                      NP_INVENTORY_WAIT_STEP_MS, inventory_wait_sleep));
 
         /* Zero the receive buffer to avoid leaving a plaintext protocol in RAM. */
         memset(g_proto_buf, 0, recv_len);

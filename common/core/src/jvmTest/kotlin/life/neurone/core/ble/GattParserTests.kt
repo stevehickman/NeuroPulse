@@ -429,6 +429,8 @@ class GattParserTests {
         assertEquals(HelmetRefusalCause.TOO_MANY_COMMANDS, cause(8))   // NP_HUB_ERR_CMD_TOO_MANY: the author can shorten it
         assertEquals(HelmetRefusalCause.PHOTIC_ZONE, cause(30))        // NP_HUB_ERR_PHOTIC_ZONE: the author can change the frequency
         assertEquals(HelmetRefusalCause.BAD_ADDRESS, cause(31))        // NP_HUB_ERR_BAD_ADDRESS: make it again for this helmet
+        assertEquals(HelmetRefusalCause.INVENTORY_INCOMPLETE, cause(33))  // NP_HUB_ERR_INVENTORY_INCOMPLETE: no usable module inventory
+        assertEquals(HelmetRefusalCause.MODULE_FIT, cause(34))            // NP_HUB_ERR_MODULE_FIT: the fitted modules cannot run it
         assertEquals(HelmetRefusalCause.SESSION_ACTIVE, cause(13))
         assertEquals(HelmetRefusalCause.BOOT_REFUSED, cause(25))
         assertEquals(HelmetRefusalCause.NO_LAYOUT, cause(29))   // NP_HUB_ERR_NO_LAYOUT: its own cause, not a failed upload
