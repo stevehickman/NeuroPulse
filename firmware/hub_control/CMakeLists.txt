@@ -402,6 +402,17 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_ppx_tests PRIVATE m)
 
+    # REQ-FWHUB-69 / OI-FWHUB-32 (1a): which ADC channel is occipital and which judge a discharge generalised, as a table.
+    add_executable(np_ppx_roles_tests
+        tests/np_ppx_roles_tests.c
+        src/np_ppx_roles.c
+        src/np_ppx_detect.c
+    )
+    target_include_directories(np_ppx_roles_tests PRIVATE include)
+    target_compile_options(np_ppx_roles_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_ppx_roles_tests PRIVATE m)
+
     # OI-FMEA-09 / FMEA-M03-02: the commanded-versus-delivered stimulation
     # cross-check. Pure C; the runner that calls it compiles in np_runner_load_tests, which reaches only the load.
     add_executable(np_stim_xcheck_tests
