@@ -48,4 +48,10 @@ void np_simh_cvns_init(void);
 void np_simh_cvns_status(void);
 bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+
+/* The safety MCU in the loop (np_sim_safety_harness.c, OI-SIMFW-09). */
+void np_simh_safety_init(void);
+void np_simh_safety_status(void);
+bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c);
+
 #endif

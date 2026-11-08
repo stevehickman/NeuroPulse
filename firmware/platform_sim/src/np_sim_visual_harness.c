@@ -18,6 +18,7 @@
  * (fail and reading are the shared commands of np_sim_pbm_harness.c; a vis_* op name addresses the goggles.)
  */
 #include "np_sim_bus.h"
+#include "np_sim_safety.h"
 #include "np_sim_pbm_harness.h"
 
 #include "np_hub_types.h"
@@ -42,10 +43,10 @@ static void vis_result(const char *cmd, int code)
 {
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_VISUAL, 0U);
     np_sim_emit("{\"ev\":\"result\",\"cmd\":\"%s\",\"code\":%d,\"requested_enables\":%u,\"granted_enables\":%u,"
-                "\"emitting\":%s,\"emdr\":%s,\"seated\":%s,\"edges_delivered\":%u,\"safety_mcu\":\"not_in_loop\"}",
+                "\"emitting\":%s,\"emdr\":%s,\"seated\":%s,\"edges_delivered\":%u,\"safety_mcu\":\"%s\"}",
                 cmd, code, (unsigned)np_safety_spi_get_requested_mask(), (unsigned)np_safety_spi_get_granted_mask(),
                 (m && m->vis_emitting) ? "true" : "false", (m && m->vis_emdr_on) ? "true" : "false",
-                (m && m->vis_seated) ? "true" : "false", m ? (unsigned)m->vis_edges_delivered : 0U);
+                (m && m->vis_seated) ? "true" : "false", m ? (unsigned)m->vis_edges_delivered : 0U, np_sim_safety_label());
 }
 
 void np_simh_visual_status(void)

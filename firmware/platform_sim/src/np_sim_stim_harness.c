@@ -25,6 +25,7 @@
  *   stim_raw <slot> <len>                        a command of the wrong size, or for a slot that is not this driver's
  */
 #include "np_sim_bus.h"
+#include "np_sim_safety.h"
 #include "np_sim_pbm_harness.h"
 
 #include "np_hub_types.h"
@@ -70,8 +71,8 @@ void np_simh_stim_init(void)
 static void stim_result(const char *cmd, int code)
 {
     np_sim_emit("{\"ev\":\"result\",\"cmd\":\"%s\",\"code\":%d,\"requested_enables\":%u,\"granted_enables\":%u,"
-                "\"safety_mcu\":\"not_in_loop\"}",
-                cmd, code, (unsigned)np_safety_spi_get_requested_mask(), (unsigned)np_safety_spi_get_granted_mask());
+                "\"safety_mcu\":\"%s\"}",
+                cmd, code, (unsigned)np_safety_spi_get_requested_mask(), (unsigned)np_safety_spi_get_granted_mask(), np_sim_safety_label());
 }
 
 static bool slot_from(const char *name, uint8_t *slot)
