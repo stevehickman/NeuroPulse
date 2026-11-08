@@ -249,6 +249,13 @@ struct ZoneModuleConfiguration: Equatable {
 
     var isEmpty: Bool { sockets.isEmpty }
 
+    /// What the shared fit check is asked with (OI-HWFIT-01): socket id to the tile type the hub reported, for the sockets that
+    /// hold an identified module without a fault. Nil when the hub has reported no inventory at all, since then there is
+    /// nothing to check against, which is not the same as every socket being empty.
+    var tileTypes: [Int: Int]? {
+        isEmpty ? nil : Dictionary(uniqueKeysWithValues: presentSockets.map { (Int($0.socketID), Int($0.moduleType.rawValue)) })
+    }
+
     func status(forSocket id: UInt8) -> ZoneModuleStatus? { sockets[id] }
 
     func isPresent(socket id: UInt8) -> Bool { sockets[id]?.isPresent ?? false }

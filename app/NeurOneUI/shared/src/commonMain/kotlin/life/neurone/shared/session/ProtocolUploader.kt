@@ -53,9 +53,8 @@ class ProtocolUploader(
      * check against and the answer is none, so the hub decides at session start.
      */
     private fun shortfalls(descriptor: ByteArray): List<ShortfallGroup> {
-        val fitted = gatt.zoneModules.value
-        if (fitted.isEmpty) return emptyList()
-        return ModuleFit.check(descriptor, fitted.presentSockets.associate { it.socketId to it.moduleType.rawValue })
+        val tileTypes = gatt.zoneModules.value.tileTypes ?: return emptyList()
+        return ModuleFit.check(descriptor, tileTypes)
     }
 
     /** One-shot: covers the next cervical upload only. */

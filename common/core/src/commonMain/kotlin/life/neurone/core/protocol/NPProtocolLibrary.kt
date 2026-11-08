@@ -14,6 +14,8 @@ import life.neurone.core.common.UUID
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.namedZoneRefs
 import life.neurone.core.npps.toNppsCoreItem
+import life.neurone.core.session.HubDescriptorCompiler
+import life.neurone.core.session.ModuleFit
 
 // Port of iOS NPProtocolLibrary (app/ios/NeurOne/Protocol/NPProtocolLibrary.swift).
 // Pure-JVM: bundled + user protocol store, device-tier/EEG-consent availability, and
@@ -88,11 +90,9 @@ val NPProtocolEntry.isComposite: Boolean get() = this is NPProtocolEntry.Composi
 val NPProtocolDefinition.requiredModalityTypes: Set<NPModalityType>
     get() = modalities.filter { it.enabled }.map { it.modalityType }.toSet()
 
-fun NPProtocolDefinition.requires1064SmartModule(): Boolean =
-    modalities.filter { it.enabled }.any {
-        val p = it.params
-        p is NPModalityParams.PbmTranscranial && p.params.wavelength.requiresSmartModule
-    }
+/** True when the protocol drives lattice sockets, the only modality whose fit depends on what is fitted where (OI-HWFIT-01). */
+fun NPProtocolDefinition.drivesPbmSockets(): Boolean =
+    modalities.any { it.enabled && it.params is NPModalityParams.PbmTranscranial }
 
 // MARK: - Availability ------------------------------------------------------------------
 
@@ -144,7 +144,8 @@ class NPProtocolLibrary(
 
     var connectedDeviceTier: DeviceTier = DeviceTier.NONE
         private set
-    var has1064SmartModules: Boolean = false
+    /** Socket id to the tile type the hub reports there; null until it reports any (OI-HWFIT-01). */
+    var fittedTileTypes: Map<Int, Int>? = null
         private set
     var availableModalities: Set<NPModalityType> = NP_T1_MODALITY_SET
         private set
@@ -207,9 +208,7 @@ class NPProtocolLibrary(
             is NPProtocolEntry.Single -> {
                 val missing = mutableListOf<NPModalityType>()
                 val def = entry.protocol
-                if (def.requires1064SmartModule() && !has1064SmartModules) {
-                    missing.add(NPModalityType.PBM_TRANSCRANIAL)
-                }
+                if (!fitsFittedModules(def)) missing.add(NPModalityType.PBM_TRANSCRANIAL)
                 for (modality in def.requiredModalityTypes) {
                     if (!isModalityAvailable(modality) && !missing.contains(modality)) missing.add(modality)
                 }
@@ -230,9 +229,29 @@ class NPProtocolLibrary(
         NPModalityTier.ACCESSORY -> true
     }
 
-    fun updateAvailability(tier: DeviceTier, smartModules: Boolean) {
+    /**
+     * Whether the modules fitted now can run [def] as authored (OI-HWFIT-01): the protocol is compiled and the shared core's
+     * fit check is asked, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and not against
+     * "a smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends, and the
+     * hub's placement check is the authority. True when nothing can be said: no inventory reported, a protocol that does not
+     * drive sockets, or one that does not compile yet (a clinician-selected target not chosen) so the upload will say why.
+     */
+    private fun fitsFittedModules(def: NPProtocolDefinition): Boolean {
+        val tiles = fittedTileTypes ?: return true
+        if (!def.drivesPbmSockets()) return true
+        return try {
+            ModuleFit.check(fitCompiler.build(def, deviceSerial = null, clinicianSockets = null).blob, tiles).isEmpty()
+        } catch (e: Exception) {
+            true
+        }
+    }
+
+    // The compiler is used unsigned (`build`), so the signer is never called.
+    private val fitCompiler = HubDescriptorCompiler({ error("the fit check never signs") })
+
+    fun updateAvailability(tier: DeviceTier, tileTypes: Map<Int, Int>?) {
         connectedDeviceTier = tier
-        has1064SmartModules = smartModules
+        fittedTileTypes = tileTypes
         availableModalities = when (tier) {
             DeviceTier.NONE -> emptySet()
             DeviceTier.T1 -> NP_T1_MODALITY_SET

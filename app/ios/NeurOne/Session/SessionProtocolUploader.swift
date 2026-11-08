@@ -327,9 +327,7 @@ final class SessionProtocolUploader: ObservableObject {
     /// hub's own placement check stays the authority. With no inventory reported (older firmware, or none received yet) there
     /// is nothing to check against and the hub decides at session start.
     private func checkFit(_ descriptor: HubDescriptor) throws {
-        let fitted = gatt.zoneModules
-        guard !fitted.isEmpty else { return }
-        let tileTypes = Dictionary(uniqueKeysWithValues: fitted.presentSockets.map { (Int($0.socketID), Int($0.moduleType.rawValue)) })
+        guard let tileTypes = gatt.zoneModules.tileTypes else { return }
         do {
             let short = try ModuleFit.check(descriptor: descriptor.blob, tileTypes: tileTypes)
             if !short.isEmpty { throw UploadError.doesNotFit(short) }

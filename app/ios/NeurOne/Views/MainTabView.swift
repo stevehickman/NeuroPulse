@@ -43,11 +43,11 @@ struct MainTabView: View {
         }
         // OI-HWFIT-01: what the protocol menu offers follows the connected helmet. Until this, nothing set the library's tier, so
         // it stayed `.none` and every protocol read as unavailable. The tier is the hub's verdict and only decides what the menu
-        // offers; the hub gates a T2 protocol itself.
+        // offers, with the tile in each socket judged by the shared fit check; the hub gates a T2 protocol itself.
         .onReceive(gatt.$connectionState.combineLatest(gatt.$hubTier, gatt.$zoneModules)) { state, tier, modules in
             protocolLibrary.updateAvailability(
                 tier: NPProtocolLibrary.DeviceTier.forHelmet(connected: state == .connected, hub: tier),
-                smartModules: modules.presentSockets.contains { $0.moduleType == .pbm1064 })
+                tileTypes: modules.tileTypes)
         }
     }
 

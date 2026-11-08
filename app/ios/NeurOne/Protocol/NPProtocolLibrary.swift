@@ -40,7 +40,8 @@ final class NPProtocolLibrary: ObservableObject {
 
     @Published var userProtocols: [NPProtocolEntry] = []
     @Published var availableModalities: Set<NPModalityType> = NPModalityType.t1Set
-    @Published var has1064SmartModules: Bool = false
+    /// Socket id to the tile type the hub reports there; nil until it reports any (OI-HWFIT-01).
+    @Published var fittedTileTypes: [Int: Int]? = nil
     @Published var connectedDeviceTier: DeviceTier = .none
     @Published var validationResults: [UUID: NPValidationResult] = [:]
 
@@ -162,11 +163,9 @@ final class NPProtocolLibrary: ObservableObject {
         // Single protocol
         let required = entry.requiredModalityTypes
 
-        // Check 1064nm smart module requirement
+        // Whether the modules fitted now can run it (OI-HWFIT-01). Not strictly a missing modality: the PBM modality is flagged.
         var missing: [NPModalityType] = []
-        if case .single(let proto) = entry, proto.requires1064SmartModule(), !has1064SmartModules {
-            // Not strictly a missing modality but we flag the PBM modality
-            // We treat it as unavailable pbmTranscranial (smart module variant)
+        if case .single(let proto) = entry, !fitsFittedModules(proto) {
             missing.append(.pbmTranscranial)
         }
 
@@ -179,6 +178,18 @@ final class NPProtocolLibrary: ObservableObject {
         }
 
         return missing.isEmpty ? .available : .unavailable(missingModalities: missing)
+    }
+
+    /// Whether the modules fitted now can run `proto` as authored (OI-HWFIT-01): the protocol is compiled and the shared core's fit
+    /// check is asked, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and not against "a
+    /// smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends, and the hub's
+    /// placement check is the authority. True when nothing can be said: no inventory reported, a protocol that does not drive
+    /// sockets, or one that does not compile yet (a clinician-selected target not chosen), so the upload will say why.
+    private func fitsFittedModules(_ proto: NPProtocolDefinition) -> Bool {
+        guard let tiles = fittedTileTypes, proto.drivesPbmSockets() else { return true }
+        guard let descriptor = try? HubDescriptorCompiler.build(proto),
+              let short = try? ModuleFit.check(descriptor: descriptor.blob, tileTypes: tiles) else { return true }
+        return short.isEmpty
     }
 
     private func isModalityAvailable(_ modality: NPModalityType) -> Bool {
@@ -528,9 +539,9 @@ final class NPProtocolLibrary: ObservableObject {
 
     // MARK: Device availability update
 
-    func updateAvailability(tier: DeviceTier, smartModules: Bool) {
+    func updateAvailability(tier: DeviceTier, tileTypes: [Int: Int]?) {
         connectedDeviceTier = tier
-        has1064SmartModules = smartModules
+        fittedTileTypes = tileTypes
         switch tier {
         case .none:
             availableModalities = []
@@ -538,9 +549,6 @@ final class NPProtocolLibrary: ObservableObject {
             availableModalities = NPModalityType.t1Set
         case .t2:
             availableModalities = NPModalityType.t2Set
-        }
-        if smartModules {
-            availableModalities.insert(.pbmTranscranial) // already in, but belt+braces
         }
     }
 

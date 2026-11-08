@@ -2,6 +2,8 @@ package life.neurone.core.protocol
 
 import life.neurone.core.ble.HubTier
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.models.ZoneModuleType
+import life.neurone.core.session.HubDescriptorCompiler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -76,16 +78,34 @@ class NPProtocolLibraryTests {
     @Test
     fun availabilityAvailableForT1ProtocolWithT1Device() {
         val lib = library()
-        lib.updateAvailability(DeviceTier.T1, smartModules = false)
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
         val gamma = lib.bundledProtocols.first { it.name == "Gamma Focus" }
         assertTrue(lib.availability(gamma).isAvailable, "Gamma Focus is all-T1 and must be available on a T1 device.")
+    }
+
+    // OI-HWFIT-01: a protocol is judged against the sockets it drives, not against "a smart tile is fitted somewhere".
+    // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+    @Test
+    fun aSocketProtocolIsUnavailableWhenTheReportedTilesCannotRunItAndAvailableWhenNoInventoryWasReported() {
+        val lib = library()
+        val pbm = lib.bundledProtocols.first { e ->
+            e is NPProtocolEntry.Single && e.protocol.drivesPbmSockets() && e.protocol.requiredModalityTypes.none { it.tier != NPModalityTier.T1 } &&
+                // one the menu can judge: it compiles with no operator choices
+                runCatching { HubDescriptorCompiler({ error("unsigned") }).build(e.protocol, null, null) }.isSuccess
+        }
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
+        assertTrue(lib.availability(pbm).isAvailable, "no inventory reported: nothing to check against, the hub decides")
+        // The hub reports a deep-PBM tile in one socket and nothing else: the protocol's sockets carry no 660 or 808 nm emitter.
+        lib.updateAvailability(DeviceTier.T1, tileTypes = mapOf(1 to ZoneModuleType.PBM_1170.rawValue))
+        val a = lib.availability(pbm)
+        assertTrue(a is ProtocolAvailability.Unavailable && NPModalityType.PBM_TRANSCRANIAL in a.missingModalities, "$a")
     }
 
     // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocolBlockedWhenConsentDeclined() {
         val lib = library(consent = false)
-        lib.updateAvailability(DeviceTier.T1, smartModules = false)
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
         // Gamma Focus includes eeg_neurofeedback → blocked without BIPA consent.
         val gamma = lib.bundledProtocols.first { it.name == "Gamma Focus" }
         assertEquals(ProtocolAvailability.EegConsentRequired, lib.availability(gamma))
@@ -95,7 +115,7 @@ class NPProtocolLibraryTests {
     @Test
     fun eegConsentTogglePropagates() {
         val lib = library(consent = false)
-        lib.updateAvailability(DeviceTier.T1, smartModules = false)
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
         val gamma = lib.bundledProtocols.first { it.name == "Gamma Focus" }
         assertEquals(ProtocolAvailability.EegConsentRequired, lib.availability(gamma))
         lib.updateEEGConsent(true)
@@ -106,7 +126,7 @@ class NPProtocolLibraryTests {
     @Test
     fun retinalHealthNonEEGAvailableWithoutConsent() {
         val lib = library(consent = false)
-        lib.updateAvailability(DeviceTier.T1, smartModules = false)
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
         // Retinal Health is visual-only (no EEG) → unaffected by consent.
         val retinal = lib.bundledProtocols.first { it.name == "Retinal Health" }
         assertTrue(lib.availability(retinal).isAvailable)

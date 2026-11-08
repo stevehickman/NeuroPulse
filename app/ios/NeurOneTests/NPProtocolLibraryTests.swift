@@ -18,6 +18,32 @@ import XCTest
 
 final class NPProtocolLibraryTests: XCTestCase {
 
+    // MARK: - OI-HWFIT-01 availability follows what is fitted where
+
+    // A protocol is judged against the sockets it drives, not against "a smart tile is fitted somewhere".
+    @MainActor
+    // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+    func testSocketProtocolIsJudgedAgainstTheReportedTiles() throws {
+        let library = NPProtocolLibrary()
+        let pbm = NPProtocolEntry.single(NPProtocolDefinition(
+            name: "Fit PBM",
+            modalities: [NPProtocolModality(params: .pbmTranscranial(
+                NPPBMTranscranialParams(target: .named(["All"]), wavelength: .NM_808,
+                                        irradianceMWcm2: 302, frequencyHz: 0, dutyCyclePercent: 100)))]))
+
+        library.updateAvailability(tier: .t1, tileTypes: nil)
+        XCTAssertTrue(library.availability(for: pbm).isAvailable, "no inventory reported: nothing to check against, the hub decides")
+
+        // The hub reports a deep-PBM tile in one socket and nothing else: the zone's sockets carry no 808 nm emitter.
+        library.updateAvailability(tier: .t1, tileTypes: [1: Int(ZoneModuleType.pbm1170.rawValue)])
+        XCTAssertFalse(library.availability(for: pbm).isAvailable)
+
+        // Base PBM tiles in every socket of the zone carry 808 nm.
+        let sockets = try XCTUnwrap(NPZoneRegistry.sockets(forZone: "All"))
+        library.updateAvailability(tier: .t1, tileTypes: Dictionary(uniqueKeysWithValues: sockets.map { ($0, Int(ZoneModuleType.pbmBase.rawValue)) }))
+        XCTAssertTrue(library.availability(for: pbm).isAvailable)
+    }
+
     // MARK: - ISC-39 Every predefined template loads without errors
 
     @MainActor

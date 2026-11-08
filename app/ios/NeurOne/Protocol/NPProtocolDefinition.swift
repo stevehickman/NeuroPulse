@@ -756,11 +756,10 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         Set(modalities.filter { $0.enabled }.map { $0.modalityType })
     }
 
-    func requires1064SmartModule() -> Bool {
-        modalities.filter { $0.enabled }.contains { mod in
-            if case .pbmTranscranial(let p) = mod.params {
-                return p.wavelength.requiresSmartModule
-            }
+    /// True when the protocol drives lattice sockets, the only modality whose fit depends on what is fitted where (OI-HWFIT-01).
+    func drivesPbmSockets() -> Bool {
+        modalities.contains { mod in
+            if mod.enabled, case .pbmTranscranial = mod.params { return true }
             return false
         }
     }

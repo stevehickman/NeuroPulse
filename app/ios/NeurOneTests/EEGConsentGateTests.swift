@@ -88,7 +88,7 @@ final class EEGConsentGateTests: XCTestCase {
     // @verifies REQ-ONBOARD-05#a
     func testEEGProtocol_unavailableWhenConsentDeclined() {
         let library = NPProtocolLibrary()
-        library.updateAvailability(tier: .t1, smartModules: false)   // hardware present
+        library.updateAvailability(tier: .t1, tileTypes: nil)   // hardware present
         library.updateEEGConsent(false)                              // consent declined
 
         let avail = library.availability(for: eegProtocol())
@@ -114,7 +114,7 @@ final class EEGConsentGateTests: XCTestCase {
     // @verifies REQ-ONBOARD-05#c
     func testEEGProtocol_availableWhenConsentGranted() {
         let library = NPProtocolLibrary()
-        library.updateAvailability(tier: .t1, smartModules: false)
+        library.updateAvailability(tier: .t1, tileTypes: nil)
         library.updateEEGConsent(true)
 
         XCTAssertTrue(library.availability(for: eegProtocol()).isAvailable)
@@ -126,7 +126,7 @@ final class EEGConsentGateTests: XCTestCase {
     // @verifies REQ-ONBOARD-05#b
     func testNonEEGProtocol_unaffectedByConsentState() {
         let library = NPProtocolLibrary()
-        library.updateAvailability(tier: .t1, smartModules: false)
+        library.updateAvailability(tier: .t1, tileTypes: nil)
 
         library.updateEEGConsent(false)
         XCTAssertTrue(library.availability(for: pbmProtocol()).isAvailable,

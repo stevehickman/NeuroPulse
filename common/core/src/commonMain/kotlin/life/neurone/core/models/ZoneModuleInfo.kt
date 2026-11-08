@@ -122,6 +122,14 @@ data class ZoneModuleConfiguration(val sockets: Map<Int, ZoneModuleStatus> = emp
 
     val isEmpty: Boolean get() = sockets.isEmpty()
 
+    /**
+     * What the shared fit check is asked with (`OI-HWFIT-01`): socket id to the tile type the hub reported, for the sockets
+     * that hold an identified module without a fault. Null when the hub has reported no inventory at all, since then there is
+     * nothing to check against, which is not the same as every socket being empty.
+     */
+    val tileTypes: Map<Int, Int>?
+        get() = if (isEmpty) null else presentSockets.associate { it.socketId to it.moduleType.rawValue }
+
     fun status(socketId: Int): ZoneModuleStatus? = sockets[socketId]
 
     fun isPresent(socketId: Int): Boolean = sockets[socketId]?.isPresent ?: false
