@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 152
+**Revision:** 153
 **Date:** 2026-11-08  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -803,3 +803,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 150 | 2026-11-06 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` added (not built): a modality-independent panic control, fixed in the lower left corner of every screen, that pauses at once and asks for a second step in a centred modal dialog.** No existing requirement text changed. |
 | 151 | 2026-11-06 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` status updated: built (hub and Compose app).** No requirement text changed. The Kotlin was not run where it was written. |
 | 152 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-04` added: the Helmet owner screen's detector switches (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
+| 153 | 2026-11-08 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` status updated: the dialog for an automated halt is built (Compose).** No requirement text changed. The Kotlin was not run where it was written. |
