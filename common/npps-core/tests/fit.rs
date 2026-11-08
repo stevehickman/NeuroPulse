@@ -108,3 +108,26 @@ fn the_library_entry_point_every_app_already_calls_answers_fitcheck() {
     let bad = serde_json::json!({ "op": "fitCheck", "descriptorHex": "zz", "inventory": {} });
     assert!(library_json(&bad.to_string()).is_err());
 }
+
+// @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+#[test]
+fn a_caller_with_only_the_hubs_tile_types_asks_with_them() {
+    use neurone_npps_core::api::library_json;
+    let (blob, frontal) = compiled("pbm1064");
+    let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
+    let by_type = |t: u64| -> serde_json::Map<String, Value> { frontal.iter().map(|s| (s.to_string(), serde_json::json!(t))).collect() };
+    let ask = |inv: &serde_json::Map<String, Value>| {
+        let req = serde_json::json!({ "op": "fitCheck", "descriptorHex": hex, "inventory": inv });
+        serde_json::from_str::<Value>(&library_json(&req.to_string()).unwrap()).unwrap()
+    };
+    assert_eq!(ask(&by_type(3))["fits"], true, "T1-C carries 1064 nm");
+    for t in [1, 2, 4] {
+        assert_eq!(ask(&by_type(t))["fits"], false, "type {t} has no 1064 nm emitter");
+    }
+    // Absent, unknown and a type this build does not know all carry nothing, and the socket reads as empty.
+    for t in [0, 255, 77] {
+        let r = ask(&by_type(t));
+        assert_eq!(r["fits"], false);
+        assert_eq!(r["shortfalls"][0]["empty"], true);
+    }
+}

@@ -32,6 +32,17 @@ pub struct Shortfall {
     pub missing: Vec<Missing>,
 }
 
+/// The element names carried by the module design behind a hub tile type (`wireTypes` in `module-designs.json`). A type with
+/// no entry (absent, unknown, or one this build does not know) carries none, so a socket holding it is treated as empty.
+pub fn elements_of_wire_type(wire_type: u64) -> Vec<String> {
+    let d = designs();
+    d["wireTypes"][wire_type.to_string()]
+        .as_str()
+        .and_then(|part| d["modules"][part]["elements"].as_array())
+        .map(|l| l.iter().filter_map(|e| e.as_str().map(String::from)).collect())
+        .unwrap_or_default()
+}
+
 fn designs() -> Value {
     serde_json::from_str(DESIGNS).expect("module-designs.json is valid JSON")
 }

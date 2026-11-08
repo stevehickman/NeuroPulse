@@ -526,15 +526,20 @@ fn map_variant(req: &Value) -> R<Value> {
 }
 
 /// `OI-HWFIT-01` stage 2: can the compiled descriptor (`descriptorHex`) run on the modules fitted now? `inventory` maps a
-/// socket id to the element names its module carries; a socket not listed is empty. The answer is advice: the hub's placement
-/// check stays the authority (`fit.rs`).
+/// socket id to what is fitted there: the element names the module carries, or the tile type the hub reported (a number,
+/// resolved here to its module design), so a caller holding only the hub's status needs no table of its own. A socket not
+/// listed is empty. The answer is advice: the hub's placement check stays the authority (`fit.rs`).
 fn fit_check(req: &Value) -> R<Value> {
     let blob = crate::api::hex_decode(req["descriptorHex"].as_str().ok_or("descriptorHex is required")?)?;
     let mut inventory = HashMap::new();
-    for (socket, elements) in req["inventory"].as_object().ok_or("inventory must be an object")? {
+    for (socket, fitted) in req["inventory"].as_object().ok_or("inventory must be an object")? {
         let id: u32 = socket.parse().map_err(|_| format!("'{socket}' is not a socket id"))?;
-        let names = elements.as_array().ok_or("a socket's elements must be an array")?;
-        inventory.insert(id, names.iter().map(|e| e.as_str().map(String::from).ok_or("an element must be a name")).collect::<Result<_, _>>()?);
+        let elements: Vec<String> = match (fitted.as_u64(), fitted.as_array()) {
+            (Some(wire_type), _) => crate::fit::elements_of_wire_type(wire_type),
+            (_, Some(names)) => names.iter().map(|e| e.as_str().map(String::from).ok_or("an element must be a name")).collect::<Result<_, _>>()?,
+            _ => return Err("a socket's entry must be a tile type or a list of elements".into()),
+        };
+        inventory.insert(id, elements);
     }
     let shortfalls: Vec<Value> = crate::fit::check_fit(&blob, &inventory)?
         .into_iter()

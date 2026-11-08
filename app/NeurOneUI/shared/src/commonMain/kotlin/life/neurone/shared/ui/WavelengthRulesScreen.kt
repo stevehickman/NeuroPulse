@@ -39,7 +39,7 @@ import org.jetbrains.compose.resources.stringResource
 // (NP-NPPS-REF-001 §7a). Loosening or tightening a window changes what compiles, immediately. The store refuses an
 // invalid window and keeps the last good one, so a half-typed number never reaches a compile.
 
-private val channelLabel: Map<NPPBMChannelElement, StringResource> = mapOf(
+internal val channelLabel: Map<NPPBMChannelElement, StringResource> = mapOf(
     NPPBMChannelElement.LED_660 to Res.string.element_led_660,
     NPPBMChannelElement.LED_808 to Res.string.element_led_808,
     NPPBMChannelElement.LED_1064 to Res.string.element_led_1064,

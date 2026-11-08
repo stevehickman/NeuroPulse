@@ -15,6 +15,13 @@
     "hall": 12,
     "dual_electrode": 13
   },
+  "wireTypes": {
+    "note": "The module design behind each tile type the hub reports in ZONE_MODULE_STATUS (np_zn_module_type_t, np_zone_notify.h): the status carries a type and no element list, so a caller that has only the status asks the core with the type. 1 T1-A and 3 T1-C are NP-HW-HEXTILE-001 §4.2; 4 is the 1170 nm tile. 2 (T1-B) is an inference: its spec is out of scope of that document, so the PBM-plus-dual-electrode combo is assumed (UC-122). A type not listed (absent 0, unknown 255, or any other) carries no element.",
+    "1": "ZM-PBM-DUAL",
+    "2": "ZM-COMBO",
+    "3": "ZM-PBM-TRI",
+    "4": "ZM-PBM-DEEP"
+  },
   "modules": {
     "ZM-PBM-DUAL": { "displayName": "PBM dual-wavelength", "elements": ["led_660", "led_808", "ntc", "pd_forward", "pd_back"] },
     "ZM-PBM-TRI": { "displayName": "PBM tri-wavelength (1064nm smart)", "elements": ["led_660", "led_808", "led_1064", "ntc", "pd_forward", "pd_back"] },

@@ -19,6 +19,7 @@ import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.SessionStatus
+import life.neurone.core.session.SocketShortfall
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
 import life.neurone.shared.session.ProgrammingOutcome
@@ -66,6 +67,9 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // A protocol held back until its author acknowledges each zone-model caution (docs/reference/safety-zones.md).
     var awaitingCautions by remember { mutableStateOf<Pair<NPProtocolEntry.Single, List<NPZoneCaution>>?>(null) }
 
+    // A protocol the fitted modules cannot run as authored, held back before anything is sent (OI-HWFIT-01).
+    var notFitted by remember { mutableStateOf<List<SocketShortfall>?>(null) }
+
     // Mode 3: the next protocol chosen is programmed for use without a phone (the iOS `programAutonomous`).
     var programMode by remember { mutableStateOf(false) }
 
@@ -111,6 +115,12 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
         }
         val programming = programMode
         val message = when (result) {
+            is ProtocolUploader.Result.DoesNotFit -> {
+                notFitted = result.shortfalls
+                showMenu = false
+                programMode = false
+                return
+            }
             is ProtocolUploader.Result.Success -> sentToHub
             is ProtocolUploader.Result.Failure -> result.message
             is ProtocolUploader.Result.CervicalRestartBlocked -> cervicalBlocked
@@ -160,6 +170,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onCancel = { awaitingCautions = null },
         )
     }
+
+    notFitted?.let { NotFittedDialog(it, onDismiss = { notFitted = null }) }
 
     awaitingDifferentPerson?.let { held ->
         AlertDialog(

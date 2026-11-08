@@ -11,6 +11,8 @@ import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.session.ProtocolChunker
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.core.session.HubDescriptorCompiler
+import life.neurone.core.session.ModuleFit
+import life.neurone.core.session.SocketShortfall
 import kotlinx.coroutines.delay
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.UploadCheckStatus
@@ -32,6 +34,11 @@ class ProtocolUploader(
         /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */
         data class Success(val sentHash: String) : Result
         data class Failure(val message: String) : Result
+        /**
+         * The protocol compiled, and the modules fitted now cannot run it as authored (OI-HWFIT-01). Nothing was sent. The hub
+         * drives all the sockets a command names or none, so a partly covered protocol is not loadable.
+         */
+        data class DoesNotFit(val shortfalls: List<SocketShortfall>) : Result
         /** An unread cardiac cutoff from an offline session — read the summary first. */
         data object CervicalRestartBlocked : Result
         /** Another person on this device has an outstanding cutoff — confirm the profile is yours. */
@@ -39,6 +46,17 @@ class ProtocolUploader(
     }
 
     private var differentPersonConfirmed = false
+
+    /**
+     * What the descriptor needs that the sockets lack (OI-HWFIT-01), from the inventory the hub reported. Advice: the hub's own
+     * placement check stays the authority. With no inventory reported (older firmware, or none received yet) there is nothing to
+     * check against and the answer is none, so the hub decides at session start.
+     */
+    private fun shortfalls(descriptor: ByteArray): List<SocketShortfall> {
+        val fitted = gatt.zoneModules.value
+        if (fitted.isEmpty) return emptyList()
+        return ModuleFit.check(descriptor, fitted.presentSockets.associate { it.socketId to it.moduleType.rawValue })
+    }
 
     /** One-shot: covers the next cervical upload only. */
     fun confirmDifferentPerson() {
@@ -73,6 +91,8 @@ class ProtocolUploader(
                 hardwareVersion = gatt.hardwareVersion.value,
                 autonomous = autonomous,
             )
+            val short = shortfalls(blob.blob)
+            if (short.isNotEmpty()) return Result.DoesNotFit(short)
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
@@ -100,6 +120,8 @@ class ProtocolUploader(
                 composite, members, deviceSerial ?: gatt.deviceSerial, acknowledgedCautions,
                 hardwareVersion = gatt.hardwareVersion.value,
             )
+            val short = shortfalls(blob.blob)
+            if (short.isNotEmpty()) return Result.DoesNotFit(short)
             ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {

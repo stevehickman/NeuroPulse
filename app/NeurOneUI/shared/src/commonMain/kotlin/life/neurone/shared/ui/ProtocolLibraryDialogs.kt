@@ -10,10 +10,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import life.neurone.core.protocol.NPPBMChannelElement
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.SaveResult
 import life.neurone.core.protocol.UploadGate
+import life.neurone.core.session.SocketShortfall
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -154,5 +156,34 @@ fun HardwareMismatchDialog(
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * A protocol that compiled but cannot run on the modules fitted now (OI-HWFIT-01). Nothing was sent. Each line is one set of
+ * sockets that lack the same element, with the module designs that carry it; the shared core worked it out
+ * ([life.neurone.core.session.ModuleFit]) and the hub's own placement check stays the authority.
+ */
+@Composable
+fun NotFittedDialog(shortfalls: List<SocketShortfall>, onDismiss: () -> Unit) {
+    // Sockets that miss the same elements are one line, so forty empty sockets do not make forty lines.
+    val lines = shortfalls.groupBy { s -> s.missing }.map { (missing, sockets) ->
+        // `map` is inline, so it may read a string resource; `joinToString`'s lambda may not.
+        val needs = missing.map { m ->
+            NPPBMChannelElement.fromRaw(m.element)?.let { channelLabel[it] }?.let { stringResource(it) } ?: m.element
+        }.joinToString(", ")
+        val parts = missing.flatMap { it.candidateParts }.distinct().joinToString(", ")
+        stringResource(Res.string.upload_not_fitted_line, sockets.map { it.socket }.sorted().joinToString(", "), needs, parts)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.upload_not_fitted_title)) },
+        text = {
+            Column {
+                Text(stringResource(Res.string.upload_not_fitted_body))
+                lines.forEach { Spacer(Modifier.height(8.dp)); Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_ok)) } },
     )
 }
