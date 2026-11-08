@@ -6,7 +6,11 @@ import {
   entryIsReadOnly,
   requiredModalities,
 } from '../../../../common/types/protocol';
-import { loadPredefinedProtocols, getCachedPredefinedProtocols } from './predefinedProtocols';
+import { loadPredefinedProtocols, getCachedPredefinedProtocols, getPredefinedNamespace } from './predefinedProtocols';
+import { compileProtocol } from './hubCompiler';
+import { wavelengthRulesStore } from './wavelengthRulesStore';
+import { nppsFitCheck } from '../../../../common/lib/nppsCore';
+import type { NPHelmetInventory } from '../../../../common/lib/helmetInventory';
 import {
   rules, summaries, supportedVersions, contentHash, familyKey,
   type SaveResult, type DeleteResult, type UploadGate, type UploadOutcome,
@@ -65,7 +69,7 @@ export class ProtocolLibrary {
   private _predefinedProtocols: NPProtocolEntry[] = [];
   private _predefinedLoaded = false;
   private _deviceTier: DeviceTier = 'none';
-  private _has1064SmartModules: boolean = false;
+  private _inventory: NPHelmetInventory | null = null;
   private _listeners: Array<() => void> = [];
 
   constructor(private readonly storage: KeyValueStorage | null = defaultStorage()) {
@@ -98,8 +102,9 @@ export class ProtocolLibrary {
     return this._deviceTier;
   }
 
-  get has1064SmartModules(): boolean {
-    return this._has1064SmartModules;
+  /** What the simulated helmet has fitted in each socket; null when none is reported (OI-HWFIT-01). */
+  get inventory(): NPHelmetInventory | null {
+    return this._inventory;
   }
 
   canEdit(entry: NPProtocolEntry): boolean {
@@ -116,11 +121,6 @@ export class ProtocolLibrary {
 
     const tierSet = this._deviceTier === 't2' ? T2_MODALITIES : T1_MODALITIES;
     for (const m of tierSet) available.add(m);
-
-    // 1064nm upgrade
-    if (this._has1064SmartModules) {
-      available.add('pbm_transcranial'); // already there, but 1064nm wavelength enabled
-    }
 
     // Accessories always considered present for availability check
     for (const m of ACCESSORY_MODALITIES) available.add(m);
@@ -158,7 +158,32 @@ export class ProtocolLibrary {
     if (missing.length > 0) {
       return { available: false, missingModalities: missing };
     }
+    // Whether the modules fitted now can run it (OI-HWFIT-01). Not strictly a missing modality: the PBM modality is flagged.
+    if (!this.fitsFittedModules(entry)) {
+      return { available: false, missingModalities: ['pbm_transcranial'] };
+    }
     return { available: true };
+  }
+
+  /**
+   * Whether the modules fitted now can run `entry` as authored (OI-HWFIT-01): the protocol is compiled and the shared core's fit
+   * check is asked of the descriptor, as the Kotlin and Swift libraries do. Advice only. True when nothing can be said: no
+   * inventory, a protocol that drives no sockets, or one that does not compile yet (a clinician-selected target not chosen).
+   * A composite is not compiled on the web, so it is not judged here.
+   */
+  private fitsFittedModules(entry: NPProtocolEntry): boolean {
+    if (!this._inventory || entry.kind !== 'single') return true;
+    const proto = entry.protocol;
+    if (!proto.modalities.some(m => m.enabled && m.modalityParams.type === 'pbm_transcranial')) return true;
+    try {
+      const { blob } = compileProtocol(proto, {
+        zones: getPredefinedNamespace()?.zones,
+        wavelengthRules: wavelengthRulesStore.resolved,
+      });
+      return nppsFitCheck(blob, this._inventory.elementsBySocket).fits;
+    } catch {
+      return true;
+    }
   }
 
   /**
@@ -433,9 +458,9 @@ export class ProtocolLibrary {
     }
   }
 
-  updateDeviceTier(tier: DeviceTier, has1064SmartModules: boolean): void {
+  updateDeviceTier(tier: DeviceTier, inventory: NPHelmetInventory | null): void {
     this._deviceTier = tier;
-    this._has1064SmartModules = has1064SmartModules;
+    this._inventory = inventory;
     this.notify();
   }
 

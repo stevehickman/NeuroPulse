@@ -2,11 +2,16 @@
 // SWR-HV-04). These tests run the real core (the WebAssembly build) over an in-memory store, so a rule that drifts from
 // the Kotlin, Swift and C# libraries fails here.
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { initNppsCore } from '../../../../common/lib/nppsCore';
 import { entryId, entryName, defaultParams } from '../../../../common/types/protocol';
 import type { NPProtocolEntry, NPProtocolDefinition } from '../../../../common/types/protocol';
 import { ProtocolLibrary, type KeyValueStorage } from './protocolLibrary';
+import * as predefined from './predefinedProtocols';
+import { parseNPPSFile, buildNamespace } from '../../../../common/lib/nppsParser';
+import { NPSimulatedInventoryProvider } from '../../../../common/lib/helmetInventory';
 
 class MemoryStorage implements KeyValueStorage {
   private m = new Map<string, string>();
@@ -181,5 +186,39 @@ describe('persistence and export (SWR-WO-02)', () => {
     const other = new ProtocolLibrary(new MemoryStorage());
     const [imported] = other.importScript(text);
     expect(other.isUsed(imported)).toBe(true);
+  });
+});
+
+describe('availability follows the sockets a protocol drives (OI-HWFIT-01)', () => {
+  // A 1064 nm block over the "All" zone: it needs a 1064 nm emitter in every socket of the zone.
+  const pbm1064: NPProtocolEntry = (() => {
+    const base = entry('pbm1064');
+    if (base.kind !== 'single') throw new Error('single');
+    base.protocol.modalities = [{
+      id: 'm1', enabled: true,
+      interval: { intervalOnSeconds: 0, intervalOffSeconds: 0 },
+      modalityParams: { type: 'pbm_transcranial', params: { ...defaultParams('pbm_transcranial'), wavelength: '1064nm', irradianceMWcm2: 20 } },
+    }] as unknown as NPProtocolDefinition['modalities'];
+    return base;
+  })();
+
+  // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+  it('is unavailable on a helmet whose modules carry no 1064 nm emitter, available on one that does, and unjudged with none reported', async () => {
+    // The zone namespace the browser would have loaded: the shipped zone file.
+    const zones = parseNPPSFile(fs.readFileSync(path.join(__dirname, '../../../../protocols/predefined/00-zones.npps'), 'utf8'));
+    vi.spyOn(predefined, 'getPredefinedNamespace').mockReturnValue(buildNamespace([zones]).namespace);
+    const lib = libraryWith(pbm1064);
+    const inv = (preset: 'full-t1' | 'full-t2') => new NPSimulatedInventoryProvider(preset).getInventory();
+
+    lib.updateDeviceTier('t1', null);
+    expect(lib.checkAvailability(pbm1064).available, 'no inventory reported: the hub decides').toBe(true);
+
+    lib.updateDeviceTier('t1', inv('full-t1')); // ZM-COMBO: 660 and 808 nm
+    const short = lib.checkAvailability(pbm1064);
+    expect(short.available).toBe(false);
+    expect(short.missingModalities).toEqual(['pbm_transcranial']);
+
+    lib.updateDeviceTier('t1', inv('full-t2')); // ZM-COMBO-TRI: adds 1064 nm
+    expect(lib.checkAvailability(pbm1064).available).toBe(true);
   });
 });

@@ -15,7 +15,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  NPSimulatedInventoryProvider,
   type NPInventoryPreset,
   type NPHelmetInventory,
 } from '../../../../common/lib/helmetInventory';
@@ -56,7 +55,7 @@ import { t, tPlural } from '../../../../common/lib/i18n';
 // Labels are resolved at render time, not at module load: `t` reads the
 // translations that initI18n() has loaded, and a module-level constant would
 // capture the pre-init English before that resolves.
-const PRESETS: Array<{ id: NPInventoryPreset; labelKey: string }> = [
+export const PRESETS: Array<{ id: NPInventoryPreset; labelKey: string }> = [
   { id: 'full-t1', labelKey: 'WEB_PRESET_FULL_T1' },
   { id: 'full-t2', labelKey: 'WEB_PRESET_FULL_T2' },
   { id: 'pbm-only', labelKey: 'WEB_PRESET_PBM_ONLY' },
@@ -67,8 +66,16 @@ const PRESETS: Array<{ id: NPInventoryPreset; labelKey: string }> = [
 
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
 
-export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
-  const [preset, setPreset] = useState<NPInventoryPreset>('full-t1');
+/**
+ * `preset` and `inventory` are the simulated helmet's, held by the app so the protocol menu's availability and this screen
+ * judge the same fitted modules (OI-HWFIT-01).
+ */
+export function HelmetConfig({ entries, preset, onPreset, inventory }: {
+  entries: NPProtocolEntry[];
+  preset: NPInventoryPreset;
+  onPreset: (p: NPInventoryPreset) => void;
+  inventory: NPHelmetInventory | null;
+}) {
   const [conditionFilter, setConditionFilter] = useState<string>('');
   const [selectedProtocol, setSelectedProtocol] = useState<string | null>(null);
 
@@ -80,11 +87,6 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
   const namespace = getPredefinedNamespace();
   const zones = namespace?.zones ?? new Map<string, NPZoneDefinition>();
   const conditionRegistry = namespace?.conditions ?? NO_CONDITIONS;
-
-  const inventory = useMemo(
-    () => new NPSimulatedInventoryProvider(preset).getInventory(),
-    [preset],
-  );
 
   // The wavelength rules in force (shipped defaults + the user's edits). Both
   // this screen and the compiler read the same resolved set.
@@ -138,7 +140,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
 
   return (
     <div className="config-screen">
-      <InventoryPane preset={preset} onPreset={setPreset} inventory={inventory} />
+      <InventoryPane preset={preset} onPreset={onPreset} inventory={inventory} />
 
       <section className="config-pane">
         <header className="config-pane-header">

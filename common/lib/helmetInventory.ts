@@ -121,6 +121,11 @@ export class NPHelmetInventory {
     return anyOf.some(e => this.provides(socketId, e));
   }
 
+  /** Socket id to the element names its module carries, for the occupied sockets: what the core's fit check is asked with. */
+  get elementsBySocket(): Record<string, NPElementType[]> {
+    return Object.fromEntries(this.allSockets.filter(s => s.present).map(s => [String(s.socketId), s.elements]));
+  }
+
   get occupiedSockets(): number[] {
     return [...this.bySocket.values()].filter(s => s.present).map(s => s.socketId).sort((a, b) => a - b);
   }

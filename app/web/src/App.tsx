@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { NPProtocolEntry, NPCompositeProtocol } from '../../../common/types/protocol';
 import { protocolLibrary, DeviceTier } from './lib/protocolLibrary';
 import { limitsStore } from './lib/limitsStore';
@@ -6,7 +6,8 @@ import { NPLimitsSet } from '../../../common/types/limits';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { ProtocolComposer } from './components/ProtocolComposer';
-import { HelmetConfig } from './components/HelmetConfig';
+import { HelmetConfig, PRESETS } from './components/HelmetConfig';
+import { NPSimulatedInventoryProvider, type NPInventoryPreset } from '../../../common/lib/helmetInventory';
 import { t } from '../../../common/lib/i18n';
 
 // ─── Protocol Context ─────────────────────────────────────────────────────────
@@ -56,7 +57,9 @@ export default function App() {
   const [refused, setRefused] = useState<{ entry: NPProtocolEntry; variantExists: boolean } | null>(null);
   const [appView, setAppView] = useState<AppView>({ view: 'menu' });
   const [deviceTier, setDeviceTierState] = useState<DeviceTier>('t1');
-  const [has1064, setHas1064] = useState(false);
+  // The simulated helmet's fitted modules, one preset for the protocol menu and the configuration screen (OI-HWFIT-01).
+  const [preset, setPreset] = useState<NPInventoryPreset>('full-t1');
+  const inventory = useMemo(() => new NPSimulatedInventoryProvider(preset).getInventory(), [preset]);
   const [limitsVersion, setLimitsVersion] = useState(0);
   const [resolvedLimits, setResolvedLimits] = useState<NPLimitsSet>(() => limitsStore.resolvedLimits);
 
@@ -80,19 +83,12 @@ export default function App() {
 
   // Init device tier
   useEffect(() => {
-    protocolLibrary.updateDeviceTier(deviceTier, has1064);
-  }, [deviceTier, has1064]);
+    protocolLibrary.updateDeviceTier(deviceTier, inventory);
+    refresh();
+  }, [deviceTier, inventory, refresh]);
 
   function handleDeviceTierChange(tier: DeviceTier) {
     setDeviceTierState(tier);
-    protocolLibrary.updateDeviceTier(tier, has1064);
-    refresh();
-  }
-
-  function handleHas1064Change(val: boolean) {
-    setHas1064(val);
-    protocolLibrary.updateDeviceTier(deviceTier, val);
-    refresh();
   }
 
   // A save into a used family is refused (SWR-FM-03): say so, keep the editor open, offer the copy (SWR-PL-04).
@@ -163,9 +159,9 @@ export default function App() {
         <div className="app-header-device">
           <DeviceTierControl
             tier={deviceTier}
-            has1064={has1064}
+            preset={preset}
             onChangeTier={handleDeviceTierChange}
-            onChangeHas1064={handleHas1064Change}
+            onChangePreset={setPreset}
           />
         </div>
       </div>
@@ -231,7 +227,7 @@ export default function App() {
             />
           )}
           {appView.view === 'configure' && (
-            <HelmetConfig entries={protocolLibrary.allProtocols} />
+            <HelmetConfig entries={protocolLibrary.allProtocols} preset={preset} onPreset={setPreset} inventory={inventory} />
           )}
           {appView.view === 'editor' && (
             <ProtocolEditor
@@ -258,14 +254,14 @@ export default function App() {
 
 function DeviceTierControl({
   tier,
-  has1064,
+  preset,
   onChangeTier,
-  onChangeHas1064,
+  onChangePreset,
 }: {
   tier: DeviceTier;
-  has1064: boolean;
+  preset: NPInventoryPreset;
   onChangeTier: (t: DeviceTier) => void;
-  onChangeHas1064: (v: boolean) => void;
+  onChangePreset: (p: NPInventoryPreset) => void;
 }) {
   return (
     <div className="device-tier-select">
@@ -295,15 +291,25 @@ function DeviceTierControl({
         {tier === 'none' ? t('WEB_OFFLINE') : tier === 't1' ? 'T1' : 'T2'}
       </span>
       {tier !== 'none' && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={has1064}
-            onChange={e => onChangeHas1064(e.target.checked)}
-            style={{ accentColor: 'var(--accent)' }}
-          />
-          1064nm
-        </label>
+        <select
+          value={preset}
+          onChange={e => onChangePreset(e.target.value as NPInventoryPreset)}
+          aria-label={t('WEB_SIMULATE')}
+          style={{
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            fontSize: 12,
+            padding: '4px 8px',
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+        >
+          {PRESETS.map(p => (
+            <option key={p.id} value={p.id}>{t(p.labelKey)}</option>
+          ))}
+        </select>
       )}
     </div>
   );

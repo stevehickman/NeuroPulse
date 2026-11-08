@@ -225,6 +225,21 @@ export function nppsLibrary(request: { op: string; [field: string]: unknown }): 
   return JSON.parse(new TextDecoder().decode(call('npps_library_json', JSON.stringify(request))));
 }
 
+/** The answer to a fit check (neurone_npps_core::fit, OI-HWFIT-01): `groups` are the sockets that fall short in the same way. */
+export interface NppsFit {
+  fits: boolean;
+  groups: Array<{ sockets: number[]; missing: Array<{ element: string; candidateParts: string[] }> }>;
+}
+
+/**
+ * Can the compiled descriptor run on what is fitted? `inventory` maps a socket id to the element names its module carries (or
+ * the tile type the hub reported); a socket not listed is empty. Advice: the hub's placement check is the authority.
+ */
+export function nppsFitCheck(descriptor: Uint8Array, inventory: Record<string, readonly string[] | number>): NppsFit {
+  const descriptorHex = Array.from(descriptor, b => b.toString(16).padStart(2, '0')).join('');
+  return nppsLibrary({ op: 'fitCheck', descriptorHex, inventory });
+}
+
 /** What the core's parse returns. Models are built from it by common/lib/nppsParser.ts. */
 export interface NppsParsed {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
