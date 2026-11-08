@@ -101,6 +101,20 @@ void np_hal_status_led_set(np_led_state_t state)
 
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * Module-inventory triggers (np_inventory_scan.c, OI-HEXMAP-03)
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+bool np_hal_rim_latch_open(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+bool np_hal_power_source_present(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Protocol identity (np_protocol.c)
  * ──────────────────────────────────────────────────────────────────────────*/
 

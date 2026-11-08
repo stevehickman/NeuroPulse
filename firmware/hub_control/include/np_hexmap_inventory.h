@@ -158,18 +158,23 @@ np_hub_status_t np_hexmap_poll_socket(uint16_t socket_id, bool *changed_out);
  *
  * Power: the supercap is assumed NOT to carry the hub through a loss of the source, so a power-up is a cold start, the map is empty and
  * NOT_SCANNED, and a pass runs before any protocol that drives sockets is admitted. If it did carry the hub through, a protocol
- * already running continues on the inventory it was admitted on. That is why a pass is never started under a session:
- *
- *   a session holds the lease → nothing is invalidated, the inventory is only marked stale (new uploads wait), a pass is remembered
- *                               (np_hexmap_scan_pending()) and the call returns NP_HUB_ERR_SESSION_ACTIVE. The caller runs it
- *                               when the session ends.
+ * already running continues on the inventory it was admitted on. That is why a pass is never started under a session: the caller
+ * holds the probe lease for the pass (np_lease_probe_begin(), which is refused while a session holds the lease), and when it cannot
+ * it calls np_hexmap_scan_defer() instead.
  *
  * The pass is COMPLETE when every poll read cleanly. A socket that reads as empty is a clean read: the bus gives the same answer
  * for no module as for a dead one, and the map already treats both as empty. A socket whose identity block is there but cannot
  * be used (wrong format, a bad CRC, an impossible count) makes the pass FAILED, because a module is fitted and the hub does not
- * know what it is. Returns NP_HUB_OK, or the first such status. The caller holds the probe lease where the platform needs one.
+ * know what it is. Returns NP_HUB_OK, or the first such status. `changed_out`, if given, is set when any socket's record changed, which is
+ * what decides whether the map is worth persisting. The caller holds the probe lease where the platform needs one.
  */
-np_hub_status_t np_hexmap_scan_all(void);
+np_hub_status_t np_hexmap_scan_all(bool *changed_out);
+
+/*
+ * np_hexmap_scan_defer — a pass is wanted and a session holds the lease. Nothing is invalidated: the session keeps answering from the
+ * inventory it was admitted on. The inventory is marked stale, so no new upload is admitted on it, and the pass is remembered.
+ */
+void np_hexmap_scan_defer(void);
 
 /* True while a pass was asked for under a session and has not yet run: the caller runs np_hexmap_scan_all() when the session ends. */
 bool np_hexmap_scan_pending(void);

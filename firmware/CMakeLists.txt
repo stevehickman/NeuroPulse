@@ -107,6 +107,7 @@
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_socket_layouts_tests   (REQ-FWHUB-64: socket table by hardware version)
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
+#                             → np_inventory_scan_tests   (OI-HEXMAP-03 when the inventory pass runs)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
@@ -374,6 +375,11 @@ if(NP_BUILD_TESTS)
     # the real np_module_map, against simulated tiles.
     add_test(NAME np_hexmap_inventory_tests
         COMMAND np_hexmap_inventory_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-HEXMAP-03 / OI-HWFIT-01: when the module inventory pass runs (boot, a rim latch, a power source, a session's end).
+    add_test(NAME np_inventory_scan_tests
+        COMMAND np_inventory_scan_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-HUB-C06: np_module_map's UID-keyed calibration record reaching a

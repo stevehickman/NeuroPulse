@@ -125,7 +125,7 @@ extern "C" {
  * That file is now host-test only.  np_pbm_hal_tia_gain_boot_init() is declared
  * in the same header but has no caller in the image, so it is not owed.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   119
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   121
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
@@ -168,6 +168,21 @@ typedef enum {
 } np_led_state_t;
 
 extern void     np_hal_status_led_set(np_led_state_t state);        /* OI-HUB-MAIN-02 */
+
+/* ── Module-inventory triggers (OI-HEXMAP-03, OI-HWFIT-01) ───────────────────────────────────────────────────────────────
+ *
+ * Two levels the hub samples to know when the fitted modules may have changed (np_inventory_scan.c). Both are LEVELS read by the
+ * module-detect task, not interrupts: the hub starts a scan on the change, and the scan cannot run in an ISR anyway.
+ *
+ *   np_hal_rim_latch_open()        true while ANY of the four rim latches is open (the Hall interlock, MECH-1). The cluster levers are
+ *                                  reachable only with the rim latches open, so no module can be seated or released while this is
+ *                                  false.
+ *   np_hal_power_source_present()  true while a USB-C power source is connected. A rise from false to true starts a scan: the supercap
+ *                                  is assumed not to carry the hub through a loss of the source, and if it does, a running session
+ *                                  continues on the inventory it was admitted on.
+ */
+extern bool     np_hal_rim_latch_open(void);                        /* OI-HEXMAP-03 */
+extern bool     np_hal_power_source_present(void);                  /* OI-HEXMAP-03 */
 /* np_hal_get_device_session_count() (OI-HUB-MAIN-03) RETIRED 2026-09-24 —
  * the count is persisted in the Config partition by np_session_count
  * (OI-LFS-12, NP-SOUP-LFS-001 §13.13). */

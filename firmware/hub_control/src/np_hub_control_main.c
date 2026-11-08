@@ -58,6 +58,7 @@
 #include "np_pbm_socket_telem.h" /* OI-FWHUB-10: idle tile health pass */
 #include "np_session_log.h"
 #include "np_layout_bind.h"   /* REQ-FWHUB-64 */
+#include "np_inventory_scan.h"  /* OI-HEXMAP-03 */
 #include "np_pbm_cal_bridge.h" /* REQ-FWHUB-64: the PBM library asks the hub for valid addresses and module calibration */
 #include "np_log_backend.h"
 #include "np_session_count.h"   /* OI-LFS-12: persisted device session count */
@@ -467,10 +468,17 @@ static void task_module_detect(void *arg)
          * re-initialisation cannot race a load.  Until this pass runs a session is refused (np_layout_admit()),
          * which fails closed; the window is at most one poll period. */
         if (np_lease_probe_begin()) {
+            bool rebound = false;
             (void)np_layout_follow_report(np_safety_spi_get_hardware_version(),
-                                          np_safety_spi_get_tier_report(NULL, NULL), NULL);
+                                          np_safety_spi_get_tier_report(NULL, NULL), &rebound);
             np_lease_probe_end();
+            if (rebound) {
+                np_inventory_request();   /* the module map was re-initialised empty: a pass is owed */
+            }
         }
+
+        /* OI-HEXMAP-03 (OI-HWFIT-01): the module inventory pass, when a rim latch, a power source, the layout or a session's end has owed one. */
+        (void)np_inventory_service();
 
         for (uint8_t slot = NP_HUB_SLOT_VISUAL; slot < NP_HUB_SLOT_MAX; slot++) {
             if (!np_lease_probe_begin()) {
@@ -566,6 +574,10 @@ void np_hub_control_app_main(void)
      * before the scheduler runs; np_layout_admit() refuses a session whose helmet reports another version.
      * A version with no layout binds nothing and refuses every session. */
     (void)np_layout_bind(np_safety_spi_get_hardware_version());
+
+    /* OI-HEXMAP-03 (OI-HWFIT-01): restore the cached module map, mark the inventory stale and owe a pass. A power-up always scans before a
+     * protocol that drives sockets is admitted; the pass itself runs in task_module_detect. After the layout is bound, before the scheduler. */
+    np_inventory_boot();
 
     /* REQ-FWHUB-64 (OI-FWHUB-27): give the PBM library its three questions about the hub: which socket addresses
      * this helmet has (the validator that makes np_pbm_session_desc_expand() refuse an address that is not a
