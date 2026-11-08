@@ -10,6 +10,7 @@ import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.PauseLimit
+import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.CervicalPadStatus
@@ -125,6 +126,38 @@ class NeurOneGattManager(
         if (!pauseLimitCharPresent) return false
         central.write(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID), bytes)
         central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        return true
+    }
+
+    /**
+     * The photoparoxysmal detector's two clinician switches and its evidence level as the helmet holds them (REQ-FWHUB-71),
+     * null when not known: not read yet, the helmet does not publish it, or the link is not paired (it is encrypted).
+     */
+    private val _ppxConfig = MutableStateFlow<PpxConfig?>(null)
+    val ppxConfig: StateFlow<PpxConfig?> = _ppxConfig
+
+    private var ppxConfigCharPresent = false
+
+    private val _ppxConfigPublished = MutableStateFlow(false)
+
+    /** True when this helmet publishes the detector's settings, so the owner screen can offer them. */
+    val ppxConfigPublished: StateFlow<Boolean> = _ppxConfigPublished
+
+    /** Ask the helmet for the detector's settings (an encrypted READ, refused until the helmet is paired). */
+    fun requestPpxConfig() {
+        if (ppxConfigCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
+    }
+
+    /**
+     * Set the detector's two switches. Turning "stop on occipital-only" on reaches a session already running; turning it off,
+     * and the override either way, apply from the next. The helmet refuses the override while its detector has no evidence.
+     * The write is followed by a read, so the screen shows what the helmet holds and not what was asked for. Returns false
+     * when the helmet publishes none.
+     */
+    fun writePpxConfig(stopOnOccipitalOnly: Boolean, manualOverride: Boolean): Boolean {
+        if (!ppxConfigCharPresent) return false
+        central.write(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID), PpxConfig.toWire(stopOnOccipitalOnly, manualOverride))
+        central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
         return true
     }
 
@@ -361,6 +394,10 @@ class NeurOneGattManager(
         pauseLimitCharPresent = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) in characteristics
         _pauseLimitPublished.value = pauseLimitCharPresent
         if (pauseLimitCharPresent) central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        // REQ-FWHUB-71: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
+        ppxConfigCharPresent = UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) in characteristics
+        _ppxConfigPublished.value = ppxConfigCharPresent
+        if (ppxConfigCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
         // SWR-SS-07: read once at link so a session already running shows its figures, then notified on the telemetry tick.
         if (UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) in characteristics) {
             central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID))
@@ -421,6 +458,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.DEVICE_TIER_ID) -> _deviceTier.value = GattParser.parseDeviceTier(value)
             UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
+            UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) -> _ppxConfig.value = GattParser.parsePpxConfig(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
                 _session.value = _session.value.copy(hrv = hrv)
@@ -629,6 +667,9 @@ class NeurOneGattManager(
         _pauseLimitSeconds.value = null
         pauseLimitCharPresent = false
         _pauseLimitPublished.value = false
+        _ppxConfig.value = null
+        ppxConfigCharPresent = false
+        _ppxConfigPublished.value = false
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
         // on reconnect, and a stale "present" socket would let a placement gate pass on a module
         // pulled while disconnected. The map goes too — the next link may be another helmet.

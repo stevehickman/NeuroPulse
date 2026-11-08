@@ -354,6 +354,18 @@ if(NP_BUILD_TESTS)
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_visual_tests PRIVATE m)
 
+    # REQ-FWHUB-71: the detector's two clinician switches (a Config record, the GATT read/write, the asymmetry).
+    add_executable(np_ppx_config_tests
+        tests/np_ppx_config_tests.c
+        src/np_ppx_config.c
+        src/np_ppx_detect.c
+        src/np_ppx_policy.c
+    )
+    target_include_directories(np_ppx_config_tests PRIVATE include ../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_options(np_ppx_config_tests PRIVATE -Wall -Wextra -std=c11)
+    target_link_libraries(np_ppx_config_tests PRIVATE m)
+
     # REQ-FWHUB-67 / -69 / -70 / -71: the photoparoxysmal detector, its "cannot see" rule and the policy that says what it may replace.
     # Pure C, run against synthetic signals (the harness a validation would use; it is not the validation).
     add_executable(np_ppx_tests
@@ -536,6 +548,9 @@ if(NP_BUILD_TESTS)
         src/np_warranty_token.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05
+        src/np_ppx_config.c           # REQ-FWHUB-71 (the GATT table references it)
+        src/np_ppx_detect.c
+        src/np_ppx_policy.c
         src/np_cvns_fault_summary.c
         src/np_transport.c
     )
@@ -558,6 +573,9 @@ if(NP_BUILD_TESTS)
         tests/np_consumables_tests.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
+        src/np_ppx_config.c
+        src/np_ppx_detect.c
+        src/np_ppx_policy.c
         src/np_gatt_server.c
         src/np_upload_check.c
         src/np_session_stop.c
@@ -642,6 +660,7 @@ set(HUB_SOURCES
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
+    src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
     src/np_ramp_plan.c            # SWR-SS-05: coordinated ramp-up
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_socket_layouts.c       # REQ-FWHUB-64: socket table by hardware version (lookup)

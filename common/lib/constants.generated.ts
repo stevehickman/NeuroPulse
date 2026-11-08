@@ -226,6 +226,12 @@ export const GattIds = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds,
   // before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: 0x001B,
+  // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings (REQ-FWHUB-71).
+  // Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical; REQ-FWHUB-70). Write:
+  // flags only. Flags: bit 0 stop on an occipital-only discharge (on by default), bit 1 manual override of the 3
+  // to 30 Hz refusal (off by default; it lifts the refusal only where the evidence level is 1). Any other bit set
+  // is refused. Set by the hardware owner.
+  PPX_CONFIG_ID: 0x001E,
   // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record; 1 when it
   // holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field writes it.
   HARDWARE_VERSION_ID: 0x001C,
@@ -297,6 +303,12 @@ export const GattUuidStrings = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
   // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: "4e455550-001b-1000-8000-00805f9b34fb",
+  // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
+  // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
+  // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
+  // bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+  // evidence level is 1). Any other bit set is refused. Set by the hardware owner.
+  PPX_CONFIG_ID: "4e455550-001e-1000-8000-00805f9b34fb",
   // READ 1 B: the helmet hardware version, 1 to 15, from the safety MCU's verified tier-identity record;
   // 1 when it holds none (SWR-HV-06, SWR-HV-07). A characteristic of the helmet: nothing in the field
   // writes it.
@@ -320,6 +332,10 @@ export const GattSizes = {
   UPLOAD_CHECK_LEN: 34,
   // PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit.
   PAUSE_LIMIT_LEN: 4,
+  // PPX_CONFIG read: one byte of flags, one byte of evidence level.
+  PPX_CONFIG_LEN: 2,
+  // PPX_CONFIG write: one byte of flags.
+  PPX_CONFIG_WRITE_LEN: 1,
   // HARDWARE_VERSION: one byte, 1 to 15.
   HARDWARE_VERSION_LEN: 1,
   // DEVICE_TIER: one byte, DEVICE_TIER_UNKNOWN, DEVICE_TIER_T1 or DEVICE_TIER_T2.

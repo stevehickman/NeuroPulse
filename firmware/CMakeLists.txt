@@ -421,6 +421,10 @@ if(NP_BUILD_TESTS)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # REQ-FWHUB-67 / -69 / -70 / -71: the photoparoxysmal detector, its "cannot see" rule and its policy (synthetic signals).
+    add_test(NAME np_ppx_config_tests
+        COMMAND np_ppx_config_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_ppx_tests
         COMMAND np_ppx_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
