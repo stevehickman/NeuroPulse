@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 154
+**Revision:** 155
 **Date:** 2026-11-08  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -807,3 +807,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 152 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-04` added: the Helmet owner screen's detector switches (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
 | 153 | 2026-11-08 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` status updated: the dialog for an automated halt is built (Compose).** No requirement text changed. The Kotlin was not run where it was written. |
 | 154 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-05` added: the Helmet owner screen's sensitivity slider (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
+| 155 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-06` added: the Helmet owner screen's cardiac cutoff sensitivity slider (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
