@@ -196,11 +196,19 @@ class NPProtocolLibrary(
         }
         return when (entry) {
             is NPProtocolEntry.Composite -> {
+                // The tier of each layer's modalities, then the fit of the plan the layers compile to (OI-HWFIT-01, gap 8): a
+                // composite is one descriptor, so its sockets are judged together and not layer by layer.
                 val missing = linkedSetOf<NPModalityType>()
                 for (layer in entry.composite.layers) {
                     val def = findSingle(layer.protocolName) ?: continue
-                    val sub = availability(NPProtocolEntry.Single(def))
-                    if (sub is ProtocolAvailability.Unavailable) missing.addAll(sub.missingModalities)
+                    missing.addAll(modalitiesUnavailableForTier(def))
+                }
+                val members = compositeMembers(entry)
+                if (members != null && !fitsFittedModules(members.any { it.drivesPbmSockets() }) {
+                        fitCompiler.buildComposite(entry.composite, members, null, emptyList(), null).blob
+                    }
+                ) {
+                    missing.add(NPModalityType.PBM_TRANSCRANIAL)
                 }
                 if (missing.isEmpty()) ProtocolAvailability.Available
                 else ProtocolAvailability.Unavailable(missing.toList())
@@ -208,10 +216,10 @@ class NPProtocolLibrary(
             is NPProtocolEntry.Single -> {
                 val missing = mutableListOf<NPModalityType>()
                 val def = entry.protocol
-                if (!fitsFittedModules(def)) missing.add(NPModalityType.PBM_TRANSCRANIAL)
-                for (modality in def.requiredModalityTypes) {
-                    if (!isModalityAvailable(modality) && !missing.contains(modality)) missing.add(modality)
+                if (!fitsFittedModules(def.drivesPbmSockets()) { fitCompiler.build(def, deviceSerial = null, clinicianSockets = null).blob }) {
+                    missing.add(NPModalityType.PBM_TRANSCRANIAL)
                 }
+                for (modality in modalitiesUnavailableForTier(def)) if (modality !in missing) missing.add(modality)
                 if (missing.isEmpty()) ProtocolAvailability.Available
                 else ProtocolAvailability.Unavailable(missing)
             }
@@ -223,6 +231,9 @@ class NPProtocolLibrary(
         }
     }
 
+    private fun modalitiesUnavailableForTier(def: NPProtocolDefinition): List<NPModalityType> =
+        def.requiredModalityTypes.filter { !isModalityAvailable(it) }
+
     private fun isModalityAvailable(modality: NPModalityType): Boolean = when (modality.tier) {
         NPModalityTier.T1 -> connectedDeviceTier == DeviceTier.T1 || connectedDeviceTier == DeviceTier.T2
         NPModalityTier.T2 -> connectedDeviceTier == DeviceTier.T2
@@ -230,17 +241,17 @@ class NPProtocolLibrary(
     }
 
     /**
-     * Whether the modules fitted now can run [def] as authored (OI-HWFIT-01): the protocol is compiled and the shared core's
-     * fit check is asked, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and not against
-     * "a smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends, and the
-     * hub's placement check is the authority. True when nothing can be said: no inventory reported, a protocol that does not
-     * drive sockets, or one that does not compile yet (a clinician-selected target not chosen) so the upload will say why.
+     * Whether the modules fitted now can run what [descriptor] compiles (OI-HWFIT-01): the shared core's fit check is asked of
+     * the compiled protocol or composite, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and
+     * not against "a smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends,
+     * and the hub's placement check is the authority. True when nothing can be said: no inventory reported, nothing that
+     * [drivesSockets], or one that does not compile yet (a clinician-selected target not chosen) so the upload will say why.
      */
-    private fun fitsFittedModules(def: NPProtocolDefinition): Boolean {
+    private fun fitsFittedModules(drivesSockets: Boolean, descriptor: () -> ByteArray): Boolean {
         val tiles = fittedTileTypes ?: return true
-        if (!def.drivesPbmSockets()) return true
+        if (!drivesSockets) return true
         return try {
-            ModuleFit.check(fitCompiler.build(def, deviceSerial = null, clinicianSockets = null).blob, tiles).isEmpty()
+            ModuleFit.check(descriptor(), tiles).isEmpty()
         } catch (e: Exception) {
             true
         }

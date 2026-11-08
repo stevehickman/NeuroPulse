@@ -101,6 +101,24 @@ class NPProtocolLibraryTests {
         assertTrue(a is ProtocolAvailability.Unavailable && NPModalityType.PBM_TRANSCRANIAL in a.missingModalities, "$a")
     }
 
+    // OI-HWFIT-01, gap 8: a composite is one descriptor, so the fit is asked of the plan its layers compile to.
+    // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+    @Test
+    fun aCompositeIsJudgedAgainstThePlanItsLayersCompileTo() {
+        val lib = library()
+        val composite = lib.bundledProtocols.filterIsInstance<NPProtocolEntry.Composite>().first { e ->
+            val members = lib.compositeMembers(e)
+            members != null && members.any { it.drivesPbmSockets() } &&
+                members.all { m -> m.requiredModalityTypes.none { it.tier != NPModalityTier.T1 } } &&
+                runCatching { HubDescriptorCompiler({ error("unsigned") }).buildComposite(e.composite, members, null, emptyList(), null) }.isSuccess
+        }
+        lib.updateAvailability(DeviceTier.T1, tileTypes = null)
+        assertTrue(lib.availability(composite).isAvailable, "no inventory reported: the hub decides")
+        lib.updateAvailability(DeviceTier.T1, tileTypes = mapOf(1 to ZoneModuleType.PBM_1170.rawValue))
+        val a = lib.availability(composite)
+        assertTrue(a is ProtocolAvailability.Unavailable && NPModalityType.PBM_TRANSCRANIAL in a.missingModalities, "$a")
+    }
+
     // @verifies REQ-ONBOARD-05#a
     @Test
     fun eegProtocolBlockedWhenConsentDeclined() {

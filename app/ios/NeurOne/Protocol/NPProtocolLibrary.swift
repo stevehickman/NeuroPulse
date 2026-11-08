@@ -148,47 +148,54 @@ final class NPProtocolLibrary: ObservableObject {
             return .unavailable(missingModalities: [])
         }
 
-        // For composite protocols, resolve through the library
+        // For composite protocols, resolve through the library: the tier of each layer's modalities, then the fit of the plan
+        // the layers compile to (OI-HWFIT-01, gap 8). A composite is one descriptor, so its sockets are judged together and not
+        // layer by layer.
         if case .composite(let comp) = entry {
-            var missingNames: Set<NPModalityType> = []
+            var missingNames: [NPModalityType] = []
             for layer in comp.layers {
                 if let proto = findSingle(named: layer.protocolName) {
-                    let sub = availability(for: .single(proto))
-                    if case .unavailable(let m) = sub { missingNames.formUnion(m) }
+                    for m in modalitiesUnavailableForTier(proto) where !missingNames.contains(m) { missingNames.append(m) }
                 }
             }
-            return missingNames.isEmpty ? .available : .unavailable(missingModalities: Array(missingNames))
+            if let members = compositeMembers(comp),
+               !fitsFittedModules(drivesSockets: members.contains { $0.drivesPbmSockets() },
+                                  descriptor: { try HubDescriptorCompiler.buildComposite(comp, members: members).blob }),
+               !missingNames.contains(.pbmTranscranial) {
+                missingNames.append(.pbmTranscranial)
+            }
+            return missingNames.isEmpty ? .available : .unavailable(missingModalities: missingNames)
         }
 
         // Single protocol
-        let required = entry.requiredModalityTypes
-
-        // Whether the modules fitted now can run it (OI-HWFIT-01). Not strictly a missing modality: the PBM modality is flagged.
         var missing: [NPModalityType] = []
-        if case .single(let proto) = entry, !fitsFittedModules(proto) {
-            missing.append(.pbmTranscranial)
-        }
-
-        for modality in required {
-            if !isModalityAvailable(modality) {
-                if !missing.contains(modality) {
-                    missing.append(modality)
-                }
+        if case .single(let proto) = entry {
+            // Whether the modules fitted now can run it (OI-HWFIT-01). Not strictly a missing modality: the PBM modality is flagged.
+            if !fitsFittedModules(drivesSockets: proto.drivesPbmSockets(), descriptor: { try HubDescriptorCompiler.build(proto).blob }) {
+                missing.append(.pbmTranscranial)
+            }
+            for modality in modalitiesUnavailableForTier(proto) where !missing.contains(modality) { missing.append(modality) }
+        } else {
+            for modality in entry.requiredModalityTypes where !isModalityAvailable(modality) && !missing.contains(modality) {
+                missing.append(modality)
             }
         }
 
         return missing.isEmpty ? .available : .unavailable(missingModalities: missing)
     }
 
-    /// Whether the modules fitted now can run `proto` as authored (OI-HWFIT-01): the protocol is compiled and the shared core's fit
-    /// check is asked, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and not against "a
-    /// smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends, and the hub's
-    /// placement check is the authority. True when nothing can be said: no inventory reported, a protocol that does not drive
-    /// sockets, or one that does not compile yet (a clinician-selected target not chosen), so the upload will say why.
-    private func fitsFittedModules(_ proto: NPProtocolDefinition) -> Bool {
-        guard let tiles = fittedTileTypes, proto.drivesPbmSockets() else { return true }
-        guard let descriptor = try? HubDescriptorCompiler.build(proto),
-              let short = try? ModuleFit.check(descriptor: descriptor.blob, tileTypes: tiles) else { return true }
+    private func modalitiesUnavailableForTier(_ proto: NPProtocolDefinition) -> [NPModalityType] {
+        proto.requiredModalityTypes.filter { !isModalityAvailable($0) }
+    }
+
+    /// Whether the modules fitted now can run what `descriptor` compiles (OI-HWFIT-01): the shared core's fit check is asked of
+    /// the compiled protocol or composite, so a protocol that needs 1064 nm on one zone is judged against that zone's sockets and
+    /// not against "a smart tile is fitted somewhere". Advice only: the upload runs the same check on the descriptor it sends,
+    /// and the hub's placement check is the authority. True when nothing can be said: no inventory reported, nothing that
+    /// `drivesSockets`, or one that does not compile yet (a clinician-selected target not chosen), so the upload will say why.
+    private func fitsFittedModules(drivesSockets: Bool, descriptor: () throws -> Data) -> Bool {
+        guard let tiles = fittedTileTypes, drivesSockets else { return true }
+        guard let blob = try? descriptor(), let short = try? ModuleFit.check(descriptor: blob, tileTypes: tiles) else { return true }
         return short.isEmpty
     }
 

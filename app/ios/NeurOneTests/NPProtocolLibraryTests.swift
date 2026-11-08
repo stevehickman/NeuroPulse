@@ -44,6 +44,23 @@ final class NPProtocolLibraryTests: XCTestCase {
         XCTAssertTrue(library.availability(for: pbm).isAvailable)
     }
 
+    // A composite is one descriptor, so the fit is asked of the plan its layers compile to (OI-HWFIT-01, gap 8).
+    @MainActor
+    // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+    func testCompositeIsJudgedAgainstThePlanItsLayersCompileTo() throws {
+        let library = NPProtocolLibrary()
+        let composite = try XCTUnwrap(library.bundledProtocols.first { entry in
+            guard case .composite(let c) = entry, let members = library.compositeMembers(c) else { return false }
+            return members.contains { $0.drivesPbmSockets() }
+                && members.allSatisfy { $0.requiredModalityTypes.allSatisfy { $0.tier == .t1 } }
+                && (try? HubDescriptorCompiler.buildComposite(c, members: members)) != nil
+        })
+        library.updateAvailability(tier: .t1, tileTypes: nil)
+        XCTAssertTrue(library.availability(for: composite).isAvailable, "no inventory reported: the hub decides")
+        library.updateAvailability(tier: .t1, tileTypes: [1: Int(ZoneModuleType.pbm1170.rawValue)])
+        XCTAssertFalse(library.availability(for: composite).isAvailable)
+    }
+
     // MARK: - ISC-39 Every predefined template loads without errors
 
     @MainActor
