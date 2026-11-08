@@ -153,8 +153,11 @@ np_hub_status_t np_protocol_hw_version_admit(const np_session_desc_t *desc,
  * (mode 0 or 3) at a whole-hertz frequency from NP_VISUAL_PPX_RISK_MIN_HZ to NP_VISUAL_PPX_RISK_MAX_HZ, with
  * NP_HUB_ERR_PHOTIC_ZONE.  A command with a short parameter block (a stop) names no frequency and is not checked here;
  * the goggles refuse it at dispatch if it is not a stop.  The rule is NP_VISUAL_PPX_ZONE, the one the goggles use.
+ *
+ * `zone_permitted` is np_ppx_zone_permitted() (REQ-FWHUB-70): true only where the detector has the evidence to stand in for the
+ * refusal, so it is false today and the check refuses as it always has.  The caller passes it so that this file stays pure.
  */
-np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc);
+np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc, bool zone_permitted);
 
 /*
  * np_protocol_sort_cmds

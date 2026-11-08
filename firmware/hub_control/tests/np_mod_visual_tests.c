@@ -39,6 +39,9 @@
 #include "np_hub_config.h"
 #include "np_hub_types.h"
 #include "np_session_runner.h"
+#include "np_mod_visual.h"
+#include "np_ppx_detect.h"
+#include "np_ppx_policy.h"
 
 /* The doubles below define symbols declared in np_sw02_platform_hal.h, so
  * drift from the production contract is a compile error here too
@@ -153,6 +156,8 @@ void np_safety_spi_request_disable_from_isr(uint16_t bits)
 }
 
 void np_runner_abort(np_abort_reason_t reason) { (void)reason; }
+static int g_panics;
+np_hub_status_t np_runner_panic(void) { g_panics++; return NP_HUB_OK; }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────────── */
 
@@ -338,6 +343,116 @@ static void test_the_photoparoxysmal_zone_is_never_driven(void)
     check(start_with(2U, 10U) == NP_HUB_OK && emitting(), "zone: retinal PBM is not a photic drive either");
 }
 
+
+/* ── The detector as the zone's guard (REQ-FWHUB-69, -70, -72) ─────────────── */
+
+static uint32_t g_rng_v = 99U;
+static float vnoise(void) { float a = 0.0f; for (int i = 0; i < 12; i++) { g_rng_v = g_rng_v * 1664525U + 1013904223U; a += (float)(g_rng_v >> 8) / 16777216.0f; } return (a - 6.0f) * 10.0f; }
+
+/* `seconds` of quiet 8-channel signal into the detector; `spike_at` >= 0 adds a 200 uV step on channels 0, 2, 3, 4 at that sample. */
+static void feed_quiet(float seconds, long spike_at)
+{
+    const long total = (long)(seconds * 500.0f);
+    float blk[20 * 8];
+    for (long n0 = 0; n0 < total; n0 += 20) {
+        for (long s = 0; s < 20; s++) {
+            for (long c = 0; c < 8; c++) {
+                float v = vnoise();
+                if (n0 + s == spike_at && ((0x1DU >> c) & 1U)) { v += 200.0f; }
+                blk[s * 8 + c] = v;
+            }
+        }
+        np_ppx_feed(blk, 20U, 8U);
+    }
+}
+
+/* A detector that sees, with its halt wired to the goggles, and a policy with the given evidence. */
+static void guarded(np_ppx_evidence_t ev, bool override_on)
+{
+    np_ppx_config_t cfg = { .stop_on_occipital_only = true, .manual_override = override_on };
+    np_ppx_policy_init(ev, cfg);
+    np_ppx_params_t pr;
+    np_ppx_params_provisional(&pr);
+    np_ppx_roles_t roles = { 0x03U, 0xFCU };
+    np_ppx_init(&pr, roles, true);
+    np_ppx_set_halt_fn(np_mod_visual_ppx_notify);
+    g_rng_v = 99U;
+    feed_quiet(3.0f, -1);
+    g_panics = 0;
+}
+
+static void unguard(void)
+{
+    np_ppx_config_t cfg = { .stop_on_occipital_only = true, .manual_override = false };
+    np_ppx_policy_init(NP_PPX_EVIDENCE_NONE, cfg);
+    np_ppx_set_halt_fn(NULL);
+}
+
+/* @verifies REQ-FWHUB-70 */
+static void test_the_zone_is_driven_only_where_the_evidence_and_the_override_allow_it(void)
+{
+    armed(); guarded(NP_PPX_EVIDENCE_NONE, true);
+    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(), "guard: no evidence: refused, even with the override");
+    armed(); guarded(NP_PPX_EVIDENCE_BENCH, false);
+    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(), "guard: bench evidence without the override: refused");
+    armed(); guarded(NP_PPX_EVIDENCE_BENCH, true);
+    check(start_with(0U, 20U) == NP_HUB_OK && emitting(), "guard: bench evidence with the clinician's override, detector seeing: driven");
+    armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
+    check(start_with(0U, 20U) == NP_HUB_OK && emitting(), "guard: clinical evidence: driven");
+    unguard();
+}
+
+/* @verifies REQ-FWHUB-69 */
+static void test_the_zone_is_not_started_when_the_detector_cannot_see(void)
+{
+    armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
+    np_ppx_params_t pr; np_ppx_params_provisional(&pr);
+    np_ppx_roles_t roles = { 0x03U, 0xFCU };
+    np_ppx_init(&pr, roles, true);                 /* a fresh session: still warming up, so blind */
+    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting() && g_led_sets == 0,
+          "blind: a detector that cannot see: the zone is refused, with no LED and no enable");
+    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "blind: a drive outside the zone does not wait for it");
+    unguard();
+}
+
+/* @verifies REQ-FWHUB-67 */
+/* @verifies REQ-FWHUB-72 */
+static void test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_session(void)
+{
+    armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
+    check(start_with(0U, 20U) == NP_HUB_OK && emitting() && np_mod_visual_photic_zone_active(), "halt: the zone is being driven");
+    feed_quiet(2.0f, 300);
+    check(!emitting() && !np_mod_visual_photic_zone_active(), "halt: the LEDs are off and the enable is withdrawn");
+    check(g_panics == 1, "halt: and the session is held paused by the panic, not aborted");
+    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && start_with(0U, 40U) == NP_HUB_ERR_SAFETY_REJECTED,
+          "halt: after a detection the goggles refuse every later drive in the session");
+    unguard();
+}
+
+/* @verifies REQ-FWHUB-67 */
+static void test_a_discharge_while_nothing_in_the_zone_is_driven_stops_nothing(void)
+{
+    armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
+    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "halt: 40 Hz drives");
+    feed_quiet(2.0f, 300);
+    check(emitting() && g_panics == 0, "halt: a discharge while only 40 Hz runs does not stop it (the zone is the guarded range)");
+    unguard();
+}
+
+/* @verifies REQ-FWHUB-69 */
+static void test_losing_sight_during_a_zone_drive_halts_it(void)
+{
+    armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
+    check(start_with(0U, 20U) == NP_HUB_OK && emitting(), "blind: the zone is being driven");
+    float blk[20 * 8];
+    for (int b = 0; b < 400; b++) {                 /* every lead goes flat: 16 s is longer than the level's time constant needs */
+        for (int s = 0; s < 20; s++) { for (int c = 0; c < 8; c++) { blk[s * 8 + c] = 5.0f; } }
+        np_ppx_feed(blk, 20U, 8U);
+    }
+    check(!emitting() && g_panics == 1, "blind: the detector lost sight: the LEDs are off and the session is held paused");
+    unguard();
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -348,6 +463,11 @@ int main(void)
     test_telemetry_backstop();
     test_mode_f_is_compiled_out();
     test_the_photoparoxysmal_zone_is_never_driven();
+    test_the_zone_is_driven_only_where_the_evidence_and_the_override_allow_it();
+    test_the_zone_is_not_started_when_the_detector_cannot_see();
+    test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_session();
+    test_a_discharge_while_nothing_in_the_zone_is_driven_stops_nothing();
+    test_losing_sight_during_a_zone_drive_halts_it();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);

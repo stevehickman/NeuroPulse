@@ -242,6 +242,7 @@ if(NP_BUILD_TESTS)
         tests/np_runner_load_tests.c
         src/np_session_runner.c
         src/np_session_lease.c
+        src/np_ppx_policy.c
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -270,6 +271,7 @@ if(NP_BUILD_TESTS)
         tests/np_runner_run_tests.c
         src/np_session_runner.c
         src/np_session_lease.c
+        src/np_ppx_policy.c
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -334,6 +336,8 @@ if(NP_BUILD_TESTS)
     add_executable(np_mod_visual_tests
         tests/np_mod_visual_tests.c
         modules/np_mod_visual.c
+        src/np_ppx_detect.c
+        src/np_ppx_policy.c
     )
     # FreeRTOS headers only, for np_session_runner.h's types: nothing here
     # calls the kernel, so none of it is linked (the POSIX port's config branch,
@@ -348,6 +352,19 @@ if(NP_BUILD_TESTS)
         NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
     target_compile_options(np_mod_visual_tests PRIVATE
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_mod_visual_tests PRIVATE m)
+
+    # REQ-FWHUB-67 / -69 / -70 / -71: the photoparoxysmal detector, its "cannot see" rule and the policy that says what it may replace.
+    # Pure C, run against synthetic signals (the harness a validation would use; it is not the validation).
+    add_executable(np_ppx_tests
+        tests/np_ppx_tests.c
+        src/np_ppx_detect.c
+        src/np_ppx_policy.c
+    )
+    target_include_directories(np_ppx_tests PRIVATE include)
+    target_compile_options(np_ppx_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_ppx_tests PRIVATE m)
 
     # OI-FMEA-09 / FMEA-M03-02: the commanded-versus-delivered stimulation
     # cross-check. Pure C; the runner that calls it compiles in np_runner_load_tests, which reaches only the load.
@@ -643,6 +660,8 @@ set(HUB_SOURCES
     src/np_socket_dispatch.c      # OI-FWHUB-01: socket-indexed dispatch registry
     src/np_chan_decl.c            # OI-MMSOCK-02: electrode-geometry declarations to the safety MCU
     src/np_stim_xcheck.c          # OI-FMEA-09: commanded-vs-delivered stimulation cross-check
+    src/np_ppx_detect.c           # REQ-FWHUB-67/-69: the photoparoxysmal detector (not armed: evidence NONE)
+    src/np_ppx_policy.c           # REQ-FWHUB-70/-71: what the detector may replace
     src/np_pbm_power_gov.c        # OI-FWHUB-09 / OI-HEXTILE-09: governor, CLOSED by default
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 

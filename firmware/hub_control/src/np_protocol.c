@@ -284,10 +284,13 @@ uint16_t np_protocol_socket_count(const np_session_cmd_t *cmd)
     return n;
 }
 
-np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc)
+np_hub_status_t np_protocol_photic_admit(const np_session_desc_t *desc, bool zone_permitted)
 {
     if (desc == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
+    }
+    if (zone_permitted) {
+        return NP_HUB_OK;   /* the detector is the guard; the goggles still refuse to start if it cannot see (REQ-FWHUB-69) */
     }
     for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
         const np_session_cmd_t *c = &desc->cmds[i];

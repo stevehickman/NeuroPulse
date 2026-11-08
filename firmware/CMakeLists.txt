@@ -420,6 +420,11 @@ if(NP_BUILD_TESTS)
         COMMAND np_mod_stim_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # REQ-FWHUB-67 / -69 / -70 / -71: the photoparoxysmal detector, its "cannot see" rule and its policy (synthetic signals).
+    add_test(NAME np_ppx_tests
+        COMMAND np_ppx_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).
     add_test(NAME np_mod_visual_tests
         COMMAND np_mod_visual_tests
