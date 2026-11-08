@@ -1,0 +1,28 @@
+{
+  "note": "The module designs that exist and the element types they carry (OI-HWFIT-01). The one authority: the core's fit check (common/npps-core/src/fit.rs) and the web's helmetInventory.ts read this file. The element ordinals are the firmware's np_elem_type_t (firmware/hub_control/include/np_module_map.h), frozen once written to NVRAM: append only, never renumber; common/lib/moduleDesigns.test.ts fails if the header and this file disagree. Not yet versioned with the hardware version (OI-HWFIT-01 question a).",
+  "elements": {
+    "led_660": 1,
+    "led_808": 2,
+    "led_1064": 3,
+    "led_1170": 4,
+    "eeg_electrode": 5,
+    "tes_electrode": 6,
+    "vns_contact": 7,
+    "ntc": 8,
+    "pd_forward": 9,
+    "pd_back": 10,
+    "ir_prox": 11,
+    "hall": 12,
+    "dual_electrode": 13
+  },
+  "modules": {
+    "ZM-PBM-DUAL": { "displayName": "PBM dual-wavelength", "elements": ["led_660", "led_808", "ntc", "pd_forward", "pd_back"] },
+    "ZM-PBM-TRI": { "displayName": "PBM tri-wavelength (1064nm smart)", "elements": ["led_660", "led_808", "led_1064", "ntc", "pd_forward", "pd_back"] },
+    "ZM-PBM-DEEP": { "displayName": "Deep PBM 1170nm", "elements": ["led_1170", "ntc", "pd_forward"] },
+    "ZM-EEG": { "displayName": "EEG electrode", "elements": ["eeg_electrode"] },
+    "ZM-TES": { "displayName": "tES electrode", "elements": ["tes_electrode"] },
+    "ZM-DUAL-EL": { "displayName": "Dual EEG/tES electrode (Ag/AgCl)", "elements": ["dual_electrode"] },
+    "ZM-COMBO": { "displayName": "PBM + dual electrode combo", "elements": ["led_660", "led_808", "dual_electrode", "ntc", "pd_forward"] },
+    "ZM-COMBO-TRI": { "displayName": "Tri-wavelength PBM + dual electrode combo", "elements": ["led_660", "led_808", "led_1064", "dual_electrode", "ntc", "pd_forward", "pd_back"] }
+  }
+}

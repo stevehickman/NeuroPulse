@@ -3,9 +3,8 @@
 // This is the data the configuration UI needs to answer "can this protocol run
 // on THIS helmet, and if not, what is missing where". Firmware already models
 // it (np_module_map.h: socket_id -> { module UID, health, element types }) and
-// caches it in NVRAM, but NO GATT characteristic exposes it yet — the only
-// hardware-facing characteristic is the 5-byte legacy `zoneModuleStatus`, which
-// can describe five anatomical zone modules and nothing finer.
+// caches it in NVRAM. The module designs (part number to elements) are
+// `common/npps/module-designs.json`, shared with the core's fit check (OI-HWFIT-01).
 //
 // So the inventory arrives through a provider interface. A simulated provider
 // drives the UI today (mirroring the existing device-tier simulator); a real
@@ -16,6 +15,7 @@
 // the same class as accessory authentication. No user biology passes through
 // here, and nothing in this file is UHDR (see np_module_map.h "Privacy").
 
+import moduleDesigns from '../npps/module-designs.json';
 import { NP_SOCKETS, NP_ROW_WIDTHS, type NPSocketGeometry } from './socketMap.generated';
 import { isValidSocketId, socketRangeLabel } from './socketSet';
 
@@ -29,41 +29,13 @@ const ANTERIOR_ROW_COUNT = Math.floor(NP_ROW_WIDTHS.length / 2);
 // ─── Element types ─────────────────────────────────────────────────────────────
 
 /**
- * Mirrors firmware `np_elem_type_t` (np_module_map.h). Enum values there are
- * frozen once written to NVRAM — append only, never renumber — so this union
- * must stay in the same order when it gains members.
+ * The element types of `common/npps/module-designs.json`, which holds the firmware `np_elem_type_t` ordinals
+ * (np_module_map.h; frozen once written to NVRAM — append only, never renumber).
  */
-export type NPElementType =
-  | 'led_660'
-  | 'led_808'
-  | 'led_1064'
-  | 'led_1170'
-  | 'eeg_electrode'
-  | 'tes_electrode'
-  | 'vns_contact'
-  | 'ntc'
-  | 'pd_forward'
-  | 'pd_back'
-  | 'ir_prox'
-  | 'hall'
-  | 'dual_electrode';
+export type NPElementType = keyof typeof moduleDesigns.elements;
 
-/** Wire values, matching the firmware enum ordinals exactly. */
-export const ELEMENT_TYPE_ORDINAL: Record<NPElementType, number> = {
-  led_660: 1,
-  led_808: 2,
-  led_1064: 3,
-  led_1170: 4,
-  eeg_electrode: 5,
-  tes_electrode: 6,
-  vns_contact: 7,
-  ntc: 8,
-  pd_forward: 9,
-  pd_back: 10,
-  ir_prox: 11,
-  hall: 12,
-  dual_electrode: 13,
-};
+/** Wire values, matching the firmware enum ordinals exactly (module-designs.json is the one table). */
+export const ELEMENT_TYPE_ORDINAL: Record<NPElementType, number> = moduleDesigns.elements;
 
 /**
  * Locale KEY per element type, resolved with t() at render time — see the note
@@ -97,48 +69,12 @@ export interface NPModuleType {
   elements: NPElementType[];
 }
 
-export const MODULE_TYPES: Record<string, NPModuleType> = {
-  'ZM-PBM-DUAL': {
-    partNumber: 'ZM-PBM-DUAL',
-    displayName: 'PBM dual-wavelength',
-    elements: ['led_660', 'led_808', 'ntc', 'pd_forward', 'pd_back'],
-  },
-  'ZM-PBM-TRI': {
-    partNumber: 'ZM-PBM-TRI',
-    displayName: 'PBM tri-wavelength (1064nm smart)',
-    elements: ['led_660', 'led_808', 'led_1064', 'ntc', 'pd_forward', 'pd_back'],
-  },
-  'ZM-PBM-DEEP': {
-    partNumber: 'ZM-PBM-DEEP',
-    displayName: 'Deep PBM 1170nm',
-    elements: ['led_1170', 'ntc', 'pd_forward'],
-  },
-  'ZM-EEG': {
-    partNumber: 'ZM-EEG',
-    displayName: 'EEG electrode',
-    elements: ['eeg_electrode'],
-  },
-  'ZM-TES': {
-    partNumber: 'ZM-TES',
-    displayName: 'tES electrode',
-    elements: ['tes_electrode'],
-  },
-  'ZM-DUAL-EL': {
-    partNumber: 'ZM-DUAL-EL',
-    displayName: 'Dual EEG/tES electrode (Ag/AgCl)',
-    elements: ['dual_electrode'],
-  },
-  'ZM-COMBO': {
-    partNumber: 'ZM-COMBO',
-    displayName: 'PBM + dual electrode combo',
-    elements: ['led_660', 'led_808', 'dual_electrode', 'ntc', 'pd_forward'],
-  },
-  'ZM-COMBO-TRI': {
-    partNumber: 'ZM-COMBO-TRI',
-    displayName: 'Tri-wavelength PBM + dual electrode combo',
-    elements: ['led_660', 'led_808', 'led_1064', 'dual_electrode', 'ntc', 'pd_forward', 'pd_back'],
-  },
-};
+export const MODULE_TYPES: Record<string, NPModuleType> = Object.fromEntries(
+  Object.entries(moduleDesigns.modules).map(([partNumber, m]) => [
+    partNumber,
+    { partNumber, displayName: m.displayName, elements: [...m.elements] as NPElementType[] },
+  ]),
+);
 
 /** Cheapest module(s) that would supply `element`, for the "what's needed" text. */
 export function modulesProviding(element: NPElementType): NPModuleType[] {

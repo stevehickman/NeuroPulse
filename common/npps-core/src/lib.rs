@@ -19,6 +19,7 @@ pub mod constants {
     include!(concat!(env!("OUT_DIR"), "/constants.rs"));
 }
 pub mod error;
+pub mod fit;
 pub mod identity;
 pub mod js;
 pub mod lexer;
