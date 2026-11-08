@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-11-08
 **Status:** DRAFT
 **Effective Date:** —
@@ -680,3 +680,4 @@ coil have no firmware driver (stubs, §19), so in firmware mode they are never d
 | 5 | 2026-11-06 | NeurOne Firmware Engineering | **§20 and §7: `OI-SIMFW-23` closed (fixed in `np_cvns_session.c`, `np_cvns_interlock.c` and `np_mod_cvns.c`); the re-enable scenario now shows a refusal inside the lockout and an acceptance after it.** |
 | 6 | 2026-11-08 | NeurOne Software Engineering | **§7 OI-SIMFW-10: the four §11 questions are drafted for the bench and first-article owner in docs/human-input/oi-simfw-10-bench-apparatus.md (DRAFT, not sent). The item stays open.** |
 | 7 | 2026-11-08 | NeurOne Software Engineering | **§7: `OI-SIMFW-11` closed by the principal (2026-11-08): the simulator refuses what the device refuses; §9 findings row updated.** |
+| 8 | 2026-11-08 | NeurOne Software Engineering | **§18 and its gaps: the simulator links the photoparoxysmal detector's own sources (`np_ppx_policy.c`, `np_ppx_detect.c`) and replaces the `np_runner_abort` double with an `np_runner_halt` double in `np_sim_spike_link.c`, so every simulator test target links again after #789 to #791; no file under `firmware/hub_control` changed (`REQ-SIMFW-03`).** |
