@@ -56,6 +56,7 @@ Sorted by open item.
 | `OI-RISK2-06` | `oi-risk2-06-clinical-question.md` | Should a cervical cardiac cutoff also withhold auricular VNS? | DRAFT, not sent |
 | `OI-RISK2-07` | `oi-risk2-07-update-path-test.md` | Confirm the owed NV-pages-survive-update test, where it binds, and who carries it. Waits on the first safety-MCU update path. | DRAFT, not sent |
 | `OI-RISK2-09` | `oi-risk2-09-cvns-detection-adequacy.md` | Is the `REQ-CVNS-09` cardiac detection requirement clinically adequate? Five sub-questions (a)–(e). | DRAFT, not sent |
+| `OI-SIMFW-10` | `oi-simfw-10-bench-apparatus.md` | Bench and first-article owner: does a rig exist, is its hub the real RT1062, which FAI items would be scripted, is scripted-run evidence acceptable (`REQ-SIMFW-10`)? | DRAFT, ready to send |
 | `OI-SINK-10` | `oi-sink-10-reloft-thermal.md` | Principal with Thermal + ME: accept the slightly worse scalp-side thermal figure from the 3 mm re-loft, take the re-loft on the inner face only, or wait for `THERM-1b`? Does not reopen `REQ-CAV-04`. | DRAFT, ready to send |
 | `OI-SW03-01` | `oi-sw03-01-app-safety-class.md` | Quality + Safety: is Class B still right for the companion app and the shared core it runs on? A per-function table of what else enforces each limit the app refuses. | DRAFT, ready to send |
 | `OI-VNSCLIP-08` | `oi-vnsclip-08-frequency-ceiling.md` | Clinical + Risk: is the 25 Hz auricular VNS ceiling a hazard control or an equivalence bound? No source found states a safety reason for it. | ANSWERED 2026-10-29 (principal): option A; follow-up done |
