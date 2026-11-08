@@ -208,7 +208,7 @@ static void test_the_photoparoxysmal_halt(void)
     run("vis 0 2 50 0 63 0 0 0 0");
     run("vis_ppx");
     check(!vis()->vis_emitting && !enabled(), "ppx: the LEDs go dark and the enable drops");
-    check(count("\"fn\":\"np_runner_panic\"") == 1, "ppx: and the driver asks the runner to panic-pause the session, once (the runner is a sim double)");
+    check(count("\"fn\":\"np_runner_halt\"") == 1 && strstr(last_with("\"fn\":\"np_runner_halt\""), "\"cause\":") != NULL, "ppx: and the driver asks the runner to hold the session with the detector's cause, once (the runner is a sim double)");
     run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !vis()->vis_emitting, "ppx: a later command is refused");
     run("vis_sample");
