@@ -43,6 +43,19 @@ pub fn elements_of_wire_type(wire_type: u64) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Sockets that fall short in the same way, as one group: forty empty sockets that all lack a 1064 nm emitter are one line
+/// for a person to read, not forty. Groups are in order of their lowest socket; sockets within one are ascending.
+pub fn group_shortfalls(shortfalls: &[Shortfall]) -> Vec<(Vec<u32>, Vec<Missing>)> {
+    let mut groups: Vec<(Vec<u32>, Vec<Missing>)> = vec![];
+    for s in shortfalls {
+        match groups.iter_mut().find(|(_, m)| *m == s.missing) {
+            Some((sockets, _)) => sockets.push(s.socket),
+            None => groups.push((vec![s.socket], s.missing.clone())),
+        }
+    }
+    groups
+}
+
 fn designs() -> Value {
     serde_json::from_str(DESIGNS).expect("module-designs.json is valid JSON")
 }

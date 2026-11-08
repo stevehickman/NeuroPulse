@@ -31,6 +31,9 @@ protocol ProtocolUploadGateway: AnyObject {
     /// The helmet's hardware version (SWR-HV-06), 1 until it is read.
     var hardwareVersion: Int { get }
 
+    /// What the hub reports is fitted in each socket (ZONE_MODULE_STATUS), empty until a report arrives (OI-HWFIT-01).
+    var zoneModules: ZoneModuleConfiguration { get }
+
     /// What the hub says it received at the last upload (SWR-UP-01); nil before the first report or on a hub whose firmware
     /// does not publish it.
     var uploadCheck: UploadCheck? { get }
@@ -45,6 +48,7 @@ extension ProtocolUploadGateway {
     var cervicalOutstandingForAnotherUser: Bool { false }
     var deviceSerial: Data? { nil }
     var hardwareVersion: Int { 1 }
+    var zoneModules: ZoneModuleConfiguration { ZoneModuleConfiguration() }
     var uploadCheck: UploadCheck? { nil }
     func requestUploadCheck() {}
 }

@@ -12,7 +12,7 @@ import life.neurone.core.session.ProtocolChunker
 import life.neurone.core.session.ProtocolSigner
 import life.neurone.core.session.HubDescriptorCompiler
 import life.neurone.core.session.ModuleFit
-import life.neurone.core.session.SocketShortfall
+import life.neurone.core.session.ShortfallGroup
 import kotlinx.coroutines.delay
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.UploadCheckStatus
@@ -38,7 +38,7 @@ class ProtocolUploader(
          * The protocol compiled, and the modules fitted now cannot run it as authored (OI-HWFIT-01). Nothing was sent. The hub
          * drives all the sockets a command names or none, so a partly covered protocol is not loadable.
          */
-        data class DoesNotFit(val shortfalls: List<SocketShortfall>) : Result
+        data class DoesNotFit(val shortfalls: List<ShortfallGroup>) : Result
         /** An unread cardiac cutoff from an offline session — read the summary first. */
         data object CervicalRestartBlocked : Result
         /** Another person on this device has an outstanding cutoff — confirm the profile is yours. */
@@ -52,7 +52,7 @@ class ProtocolUploader(
      * placement check stays the authority. With no inventory reported (older firmware, or none received yet) there is nothing to
      * check against and the answer is none, so the hub decides at session start.
      */
-    private fun shortfalls(descriptor: ByteArray): List<SocketShortfall> {
+    private fun shortfalls(descriptor: ByteArray): List<ShortfallGroup> {
         val fitted = gatt.zoneModules.value
         if (fitted.isEmpty) return emptyList()
         return ModuleFit.check(descriptor, fitted.presentSockets.associate { it.socketId to it.moduleType.rawValue })

@@ -19,7 +19,7 @@ import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.SessionStatus
-import life.neurone.core.session.SocketShortfall
+import life.neurone.core.session.ShortfallGroup
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.*
 import life.neurone.shared.session.ProgrammingOutcome
@@ -68,7 +68,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     var awaitingCautions by remember { mutableStateOf<Pair<NPProtocolEntry.Single, List<NPZoneCaution>>?>(null) }
 
     // A protocol the fitted modules cannot run as authored, held back before anything is sent (OI-HWFIT-01).
-    var notFitted by remember { mutableStateOf<List<SocketShortfall>?>(null) }
+    var notFitted by remember { mutableStateOf<List<ShortfallGroup>?>(null) }
 
     // Mode 3: the next protocol chosen is programmed for use without a phone (the iOS `programAutonomous`).
     var programMode by remember { mutableStateOf(false) }

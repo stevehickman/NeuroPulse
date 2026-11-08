@@ -23,6 +23,9 @@ enum UploadError: LocalizedError {
     /// The protocol contains cervical VNS and another person on this device has an outstanding
     /// cardiac cutoff: the wearer must confirm they are a different person first.
     case differentPersonConfirmationRequired
+    /// The protocol compiled, and the modules fitted now cannot run it as authored (OI-HWFIT-01). Nothing was sent. The hub
+    /// drives all the sockets a command names or none, so a partly covered protocol is not loadable.
+    case doesNotFit([ShortfallGroup])
 
     var errorDescription: String? {
         switch self {
@@ -44,6 +47,9 @@ enum UploadError: LocalizedError {
             return String(localized: "UPLOAD_CERVICAL_BLOCKED")
         case .differentPersonConfirmationRequired:
             return String(localized: "CVNS_DIFFERENT_PERSON_BODY")
+        case .doesNotFit(let groups):
+            return ([String(localized: "UPLOAD_NOT_FITTED_TITLE"), String(localized: "UPLOAD_NOT_FITTED_BODY")]
+                    + groups.map(ModuleFit.line)).joined(separator: "\n")
         }
     }
 }
@@ -113,6 +119,7 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
+        try checkFit(signed)
         return try await send(signed)
     }
 
@@ -304,10 +311,29 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
+        let signed: HubDescriptor
         do {
-            return try HubDescriptorCompiler.signed(unsigned)
+            signed = try HubDescriptorCompiler.signed(unsigned)
         } catch {
             let err = UploadError.signingFailed(error)
+            lastError = err
+            throw err
+        }
+        try checkFit(signed)
+        return signed
+    }
+
+    /// Whether the modules fitted now can run the descriptor (OI-HWFIT-01), from the inventory the hub reported. Advice: the
+    /// hub's own placement check stays the authority. With no inventory reported (older firmware, or none received yet) there
+    /// is nothing to check against and the hub decides at session start.
+    private func checkFit(_ descriptor: HubDescriptor) throws {
+        let fitted = gatt.zoneModules
+        guard !fitted.isEmpty else { return }
+        let tileTypes = Dictionary(uniqueKeysWithValues: fitted.presentSockets.map { (Int($0.socketID), Int($0.moduleType.rawValue)) })
+        do {
+            let short = try ModuleFit.check(descriptor: descriptor.blob, tileTypes: tileTypes)
+            if !short.isEmpty { throw UploadError.doesNotFit(short) }
+        } catch let err as UploadError {
             lastError = err
             throw err
         }

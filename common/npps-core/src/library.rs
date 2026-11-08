@@ -541,14 +541,17 @@ fn fit_check(req: &Value) -> R<Value> {
         };
         inventory.insert(id, elements);
     }
-    let shortfalls: Vec<Value> = crate::fit::check_fit(&blob, &inventory)?
-        .into_iter()
-        .map(|s| {
-            let missing: Vec<Value> = s.missing.into_iter().map(|m| json!({ "element": m.element, "candidateParts": m.candidate_parts })).collect();
-            json!({ "socket": s.socket, "empty": s.empty, "missing": missing })
-        })
+    let found = crate::fit::check_fit(&blob, &inventory)?;
+    let missing_json = |missing: &[crate::fit::Missing]| -> Vec<Value> {
+        missing.iter().map(|m| json!({ "element": m.element, "candidateParts": m.candidate_parts })).collect()
+    };
+    let shortfalls: Vec<Value> =
+        found.iter().map(|s| json!({ "socket": s.socket, "empty": s.empty, "missing": missing_json(&s.missing) })).collect();
+    let groups: Vec<Value> = crate::fit::group_shortfalls(&found)
+        .iter()
+        .map(|(sockets, missing)| json!({ "sockets": sockets, "missing": missing_json(missing) }))
         .collect();
-    Ok(json!({ "fits": shortfalls.is_empty(), "shortfalls": shortfalls }))
+    Ok(json!({ "fits": found.is_empty(), "shortfalls": shortfalls, "groups": groups }))
 }
 
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.

@@ -19,10 +19,10 @@ class ModuleFitTests {
     @Test fun a_helmet_with_no_modules_is_short_everywhere_and_a_1064_tile_everywhere_fits() {
         val blob = golden("pbm1064")
         val bare = ModuleFit.check(blob, emptyMap())
-        assertTrue(bare.isNotEmpty() && bare.all { it.empty })
-        assertTrue(bare.all { s -> s.missing.any { it.element == "led_1064" && "ZM-PBM-TRI" in it.candidateParts } })
-        val everywhere = bare.associate { it.socket to 3 }
-        assertEquals(emptyList(), ModuleFit.check(blob, everywhere))
-        assertEquals(bare.size, ModuleFit.check(blob, bare.associate { it.socket to 1 }).size)
+        assertEquals(1, bare.size, "every socket lacks the same thing, so they are one group")
+        assertTrue(bare[0].missing.any { it.element == "led_1064" && "ZM-PBM-TRI" in it.candidateParts })
+        val sockets = bare[0].sockets
+        assertEquals(emptyList(), ModuleFit.check(blob, sockets.associateWith { 3 }))
+        assertEquals(sockets, ModuleFit.check(blob, sockets.associateWith { 1 }).single().sockets)
     }
 }

@@ -131,3 +131,27 @@ fn a_caller_with_only_the_hubs_tile_types_asks_with_them() {
         assert_eq!(r["shortfalls"][0]["empty"], true);
     }
 }
+
+// @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+#[test]
+fn sockets_that_fall_short_the_same_way_are_one_group() {
+    use neurone_npps_core::api::library_json;
+    let (blob, frontal) = compiled("pbmMerged"); // needs 660 and 808 nm
+    let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
+    let both = serde_json::json!(["led_660", "led_808"]);
+    let mut inv: serde_json::Map<String, Value> = frontal.iter().map(|s| (s.to_string(), both.clone())).collect();
+    // Two sockets lack both emitters (one empty, one an electrode), one lacks 808 nm only.
+    inv.remove(&frontal[0].to_string());
+    inv.insert(frontal[1].to_string(), serde_json::json!(["eeg_electrode"]));
+    inv.insert(frontal[2].to_string(), serde_json::json!(["led_660"]));
+    let req = serde_json::json!({ "op": "fitCheck", "descriptorHex": hex, "inventory": inv });
+    let r: Value = serde_json::from_str(&library_json(&req.to_string()).unwrap()).unwrap();
+    let groups = r["groups"].as_array().unwrap();
+    assert_eq!(groups.len(), 2);
+    let mut first = [frontal[0], frontal[1]];
+    first.sort();
+    assert_eq!(groups[0]["sockets"], serde_json::json!(first));
+    assert_eq!(groups[0]["missing"].as_array().unwrap().len(), 2);
+    assert_eq!(groups[1]["sockets"], serde_json::json!([frontal[2]]));
+    assert_eq!(groups[1]["missing"][0]["element"], "led_808");
+}

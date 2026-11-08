@@ -56,6 +56,34 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
     }
 
+    // MARK: - OI-HWFIT-01: fit is checked before a byte is sent
+
+    // The hub reports a deep-PBM tile in one socket and nothing else, so a 660 nm protocol over the default zones has sockets
+    // that carry no 660 nm emitter. The core names them, nothing is written, and the message says what to fit.
+    // @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+    func testUploadIsHeldBackWhenTheFittedModulesCannotRunTheProtocol() async throws {
+        let gateway = MockProtocolUploadGateway()
+        gateway.zoneModules = ZoneModuleConfiguration(sockets: [
+            1: ZoneModuleStatus(socketID: 1, moduleType: .pbm1170, isPresent: true, hasFault: false),
+        ])
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        let definition = NPProtocolDefinition(
+            name: "Fit",
+            timingMode: .duration(20 * 60),
+            modalities: [NPProtocolModality(
+                params: .pbmTranscranial(NPPBMTranscranialParams(irradianceMWcm2: 100, frequencyHz: 20, dutyCyclePercent: 25)),
+                interval: .continuous, enabled: true)]
+        )
+        do {
+            try await uploader.upload(definition)
+            XCTFail("a protocol the fitted modules cannot run must not be sent")
+        } catch UploadError.doesNotFit(let groups) {
+            XCTAssertFalse(groups.isEmpty)
+            XCTAssertTrue(groups.flatMap(\.missing).contains { $0.candidateParts.contains("ZM-PBM-DUAL") })
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0, "nothing is written when the protocol does not fit")
+    }
+
     // MARK: - OI-AND-WIRE-02: the hub's serial reaches the descriptor header
 
     // The serial the gateway read from the hub is stamped at header offset 28 (§4.2), so the
@@ -344,6 +372,7 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
     var cervicalRestartBlocked = false
     var cervicalOutstandingForAnotherUser = false
     var deviceSerial: Data?
+    var zoneModules = ZoneModuleConfiguration()
     private(set) var uploadCallCount = 0
     private var chunks: [Data] = []
 
