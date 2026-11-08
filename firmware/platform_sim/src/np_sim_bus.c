@@ -70,10 +70,18 @@ int np_sim_op_from_name(const char *name)
 
 uint32_t np_sim_now_ms(void) { return g_virtual ? g_vnow_ms : real_now_ms(); }
 
+static np_sim_tick_fn g_tick_hook;
+
+void np_sim_set_tick_hook(np_sim_tick_fn fn) { g_tick_hook = fn; }
+
 void np_sim_advance_ms(uint32_t ms)
 {
     if (!g_virtual) { g_virtual = true; g_vnow_ms = real_now_ms(); }
-    g_vnow_ms += ms;
+    if (g_tick_hook == NULL) { g_vnow_ms += ms; return; }
+    for (uint32_t i = 0U; i < ms; i++) {
+        g_vnow_ms += 1U;
+        g_tick_hook();
+    }
 }
 
 void np_sim_use_real_clock(void) { g_virtual = false; }

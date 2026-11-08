@@ -89,8 +89,43 @@ set(NP_SIM_PBM_FIRMWARE
 # and does not belong in this layer's build output.
 set_source_files_properties(../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
 
+# The safety MCU, in the loop (NP-SIM-FW-001 §22, OI-SIMFW-09): its own sources, listed by their paths under firmware/, with
+# np_safety_main.c's main() renamed by a compile definition on that one file so it can run on a thread.  No firmware file is
+# edited (REQ-SIMFW-03).  The platform/ drivers (register level) are not here: src/np_sim_safety_hal.c defines the np_hal_* seams.
+set(NP_SIM_SAFETY_FIRMWARE
+    ../safety_mcu/src/np_safety_main.c
+    ../safety_mcu/src/np_gpio_mgr.c
+    ../safety_mcu/src/np_spi_watchdog.c
+    ../safety_mcu/src/np_charge_monitor.c
+    ../safety_mcu/src/np_thermal_interlock.c
+    ../safety_mcu/src/np_cardiac_interlock.c
+    ../safety_mcu/src/np_impedance_check.c
+    ../safety_mcu/src/np_session_sig.c
+    ../safety_mcu/src/np_fault_latch.c
+    ../safety_mcu/src/np_nv_state.c
+    ../safety_mcu/src/np_tier_identity.c
+)
+set_source_files_properties(../safety_mcu/src/np_safety_main.c PROPERTIES COMPILE_DEFINITIONS "main=np_sim_safety_main")
+# np_gpio_mgr_tests' own device: GPIOA and GPIOB as two opaque host addresses, force-included; the tier authority key is the TEST
+# key np_tier_identity_tests signs with, force-included the same way (REQ-SIMFW-08: test keys only).
+set(NP_SIM_SAFETY_PORTS ${CMAKE_CURRENT_SOURCE_DIR}/../safety_mcu/tests/np_gpio_mgr_test_ports.h)
+set(NP_SIM_SAFETY_TIERKEY ${CMAKE_CURRENT_SOURCE_DIR}/../safety_mcu/tests/np_tier_test_key.h)
+foreach(f ${NP_SIM_SAFETY_FIRMWARE})
+    set_source_files_properties(${f} PROPERTIES
+        INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../safety_mcu/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../common/include"
+        COMPILE_OPTIONS "-std=gnu11;-include;${NP_SIM_SAFETY_PORTS};-Wno-unused-parameter")
+endforeach()
+set_property(SOURCE ../safety_mcu/src/np_tier_identity.c APPEND PROPERTY COMPILE_OPTIONS "-include;${NP_SIM_SAFETY_TIERKEY}")
+set_source_files_properties(src/np_sim_safety_hal.c PROPERTIES
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../safety_mcu/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher;${CMAKE_CURRENT_SOURCE_DIR}/../common/include;${CMAKE_CURRENT_SOURCE_DIR}/src"
+    COMPILE_OPTIONS "-include;${NP_SIM_SAFETY_PORTS}")
+
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
+    src/np_sim_safety_hal.c
+    src/np_sim_safety_link.c
+    src/np_sim_safety_harness.c
+    ${NP_SIM_SAFETY_FIRMWARE}
     src/np_sim_pbm.c
     src/np_sim_stim.c
     src/np_sim_stim_harness.c
@@ -115,7 +150,7 @@ add_library(np_sim_pbm STATIC
 target_include_directories(np_sim_pbm PUBLIC ${NP_SIM_INCLUDES})
 target_compile_definitions(np_sim_pbm PUBLIC NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
 target_compile_options(np_sim_pbm PRIVATE -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-target_link_libraries(np_sim_pbm PUBLIC np_crypto m)
+target_link_libraries(np_sim_pbm PUBLIC np_crypto m pthread)
 
 # The spike process: stdin text commands in, JSON lines out.
 add_executable(np_sim_pbm_spike spike/np_sim_pbm_spike.c)
@@ -132,6 +167,9 @@ target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
 target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_safety_tests tests/np_sim_safety_tests.c)
+target_link_libraries(np_sim_safety_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_safety_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_eeg_tests tests/np_sim_eeg_tests.c)
 target_link_libraries(np_sim_eeg_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_eeg_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
@@ -163,5 +201,6 @@ add_custom_target(np_sim_run_tests
     COMMAND np_sim_intranasal_tests
     COMMAND np_sim_stubs_tests
     COMMAND np_sim_cvns_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests
+    COMMAND np_sim_safety_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests
     COMMENT "Running the simulator scenario tests")
