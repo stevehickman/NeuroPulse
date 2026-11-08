@@ -36,9 +36,9 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/portable/ThirdParty/GCC/Posix
 )
 
-# The production governor refuses every load.  It is linked under another name so
-# that the simulator's own np_pbm_power_admit (np_sim_spike_link.c) is the one the
-# dispatcher calls; the same rename np_socket_dispatch_tests uses.
+# The production governor refuses every load and the simulator keeps it (OI-SIMFW-11).  It is
+# linked under another name so the thin np_pbm_power_admit in np_sim_spike_link.c can sit in
+# front of it and carry the host-test-only opening; the same rename np_socket_dispatch_tests uses.
 set_source_files_properties(../hub_control/src/np_pbm_power_gov.c PROPERTIES
     COMPILE_DEFINITIONS "np_pbm_power_admit=np_pbm_power_admit_production")
 
@@ -61,6 +61,8 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/modules/np_mod_vns.c
     ../hub_control/modules/np_mod_audio.c
     ../hub_control/modules/np_mod_visual.c
+    ../hub_control/src/np_ppx_policy.c   # np_mod_visual.c calls np_ppx_zone_permitted / np_ppx_seeing
+    ../hub_control/src/np_ppx_detect.c
     ../hub_control/modules/np_mod_intranasal.c
     ../hub_control/modules/np_mod_t2_stubs.c
     # cervical VNS: the driver, the safety library it integrates and the re-enable manager

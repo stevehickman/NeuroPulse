@@ -115,6 +115,7 @@ static void status(void)
 void np_simh_init(void)
 {
     np_sim_reset();
+    np_sim_governor_open_for_test(false);   /* the production governor, which refuses every load */
     /* The firmware's own binding, as bring-up does it (REQ-FWHUB-64): the layout of hardware version 1. */
     (void)np_layout_bind(1U);
     g_layout = np_layout_bound();

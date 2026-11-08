@@ -11,7 +11,7 @@
  *   lease probe      first-party code (np_session_lease.c) once the runner links
  *   hex-map NVRAM    first-party code behind a file-backed block device (OI-SIMFW-05)
  *   protocol seams   device serial and key: test keys only (REQ-SIMFW-08)
- *   power governor   see np_pbm_power_admit below
+ *   power governor   the production one (refuses every load); see np_pbm_power_admit below
  */
 #include "np_sim_bus.h"
 
@@ -117,6 +117,14 @@ void np_runner_abort(np_abort_reason_t reason)
                 (unsigned)np_sim_now_ms(), (int)reason);
 }
 
+/* The panic control is the runner's too, and the runner is not in the loop: reported, not performed.  A double of
+ * first-party code, listed as a gap. */
+np_hub_status_t np_runner_panic(void)
+{
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_panic\"}", (unsigned)np_sim_now_ms());
+    return NP_HUB_ERR_NO_SESSION;
+}
+
 /* ── no session lease, no persistence ─────────────────────────────────────────── */
 
 bool np_lease_probe_begin(void) { return true; }
@@ -136,22 +144,33 @@ np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
 { memset(pub_key_out, 0, 32); return NP_HUB_OK; }
 
 /* ── power governor ──────────────────────────────────────────────────────────────
- * The governor that ships refuses EVERY load (np_pbm_power_gov.c, OI-FWHUB-09 /
- * OI-HEXTILE-09), so against it no tile can be driven and the dispatch path the
- * simulator exists to exercise is closed.  The simulator links the production
- * governor under another name and admits here, once announcing that it has.
- * Whether a simulator should admit what the device refuses is a decision, not a
- * detail: NP-SIM-FW-001 OI-SIMFW-11. */
-bool np_pbm_power_admit(const np_session_cmd_t *cmd, const np_sock_disp_socket_t *current)
+ * The simulator mimics the device: np_pbm_power_admit() is the production governor
+ * (np_pbm_power_gov.c, linked under another name only so this wrapper can sit in
+ * front of it), and it refuses EVERY load until OI-FWHUB-09 replaces it.  So a PBM
+ * drive over the socket, the bridge or the page is refused with NP_HUB_ERR_POWER_BUDGET,
+ * exactly as the helmet refuses it (NP-SIM-FW-001 OI-SIMFW-11, decided).
+ *
+ * The one departure is a C-only seam, np_sim_governor_open_for_test(), that the host
+ * test binaries call so the driver, rollback and fault paths behind the governor stay
+ * coverable.  It is not a text command, so the bridge cannot reach it, and opening it
+ * is announced once in the event stream (sim_policy). */
+extern bool np_pbm_power_admit_production(const np_session_cmd_t *cmd, const np_sock_disp_socket_t *current);
+
+static bool s_governor_open_for_test;
+
+void np_sim_governor_open_for_test(bool open)
 {
-    static bool announced;
-    (void)cmd; (void)current;
-    if (!announced) {
-        announced = true;
-        np_sim_emit("{\"ev\":\"sim_policy\",\"what\":\"power governor admits every load; "
+    s_governor_open_for_test = open;
+    if (open) {
+        np_sim_emit("{\"ev\":\"sim_policy\",\"what\":\"power governor opened by a host test; "
                     "the production governor refuses every load (OI-FWHUB-09)\"}");
     }
-    return true;
+}
+
+bool np_pbm_power_admit(const np_session_cmd_t *cmd, const np_sock_disp_socket_t *current)
+{
+    if (s_governor_open_for_test) { return true; }
+    return np_pbm_power_admit_production(cmd, current);
 }
 
 /* ── critical sections ────────────────────────────────────────────────────────────
