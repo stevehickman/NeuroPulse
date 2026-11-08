@@ -6,7 +6,8 @@
  * Uses TIM2 at 1MHz to capture RR intervals with 1µs resolution.
  *
  * Cutoff condition: the current 8-interval mean differs by more than
- *   NP_CARDIAC_HR_DELTA_BPM from any 1 s snapshot of it in the last 18 s
+ *   NP_CARDIAC_HR_DELTA_BPM (level 0; a smaller one at the owner's higher
+ *   sensitivity levels, REQ-CVNS-14) from any 1 s snapshot of it in the last 18 s
  *   (NP-FW-CVNS-001 Rev 10 §5.4, OI-CVNS-12, principal 2026-10-01).  Until
  *   Rev 10 the comparison was against a baseline refreshed unconditionally
  *   every 5 s, which adopted a step part-way through the 8-interval window:
@@ -80,6 +81,16 @@ static bool     s_lockout_active;
 static uint32_t s_lockout_start_ms;         /* stored start (not end) for wrap safety */
 static bool     s_cutoff_active;
 
+/* Cutoff sensitivity (REQ-CVNS-14).  s_sens_hub is the newest valid level the hub asked for; s_sens_cur is the level in force: it
+ * is raised the moment the hub asks for more and lowered only when a new request re-arms (np_cardiac_interlock_arm_reset), so a
+ * session already running is never made less protected.  Both are RAM only and start at 0, the validated cutoff. */
+static uint8_t  s_sens_hub;
+static uint8_t  s_sens_cur;
+_Static_assert(NP_SAFETY_CARDIAC_SENS_MAX == 2U, "one threshold per level above 0 is defined in np_safety_config.h");
+static const uint8_t HR_DELTA_BY_LEVEL[NP_SAFETY_CARDIAC_SENS_MAX + 1U] = {
+    NP_CARDIAC_HR_DELTA_BPM, NP_CARDIAC_HR_DELTA_L1_BPM, NP_CARDIAC_HR_DELTA_L2_BPM,
+};
+
 /* Hub heart-rate report (OI-CVNS-14).  RAM only: the wearer's heart rate is
  * UHDR and is never persisted or forwarded.  s_xchk_ms is the SysTick time of
  * the beat behind the estimate (receipt time minus the frame's own age). */
@@ -123,6 +134,8 @@ np_safe_status_t np_cardiac_interlock_init(void)
     s_lockout_active       = false;
     s_lockout_start_ms     = 0U;
     s_cutoff_active        = false;
+    s_sens_hub             = 0U;
+    s_sens_cur             = 0U;
     s_nv_request           = false;
     s_nv_value             = false;
     s_restored_pending     = false;
@@ -145,6 +158,28 @@ void np_cardiac_interlock_arm_reset(void)
     s_rr_count        = 0U;
     s_rr_head         = 0U;
     s_first_beat_seen = false;
+    s_sens_cur        = s_sens_hub;   /* a new request is where a LOWER level takes effect (REQ-CVNS-14) */
+}
+
+/*
+ * np_cardiac_interlock_set_sensitivity — the level the hub's report carries (REQ-CVNS-14).  A level above the maximum is
+ * ignored and the level in force is kept; a valid level is remembered, and RAISES the level in force at once.  Lowering waits
+ * for the next arm_reset, so it never reaches a session already running.
+ */
+void np_cardiac_interlock_set_sensitivity(uint16_t level)
+{
+    if (level > (uint16_t)NP_SAFETY_CARDIAC_SENS_MAX) {
+        return;
+    }
+    s_sens_hub = (uint8_t)level;
+    if (s_sens_hub > s_sens_cur) {
+        s_sens_cur = s_sens_hub;
+    }
+}
+
+uint8_t np_cardiac_interlock_sensitivity(void)
+{
+    return s_sens_cur;
 }
 
 /*
@@ -483,7 +518,7 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
      * compares by magnitude (FMEA-M05-02). */
     uint16_t delta_bpm = hist_max_delta(cur_bpm);
 
-    if (delta_bpm > NP_CARDIAC_HR_DELTA_BPM && !s_cutoff_active) {
+    if (delta_bpm > HR_DELTA_BY_LEVEL[s_sens_cur] && !s_cutoff_active) {
         cardiac_cutoff(state, now_ms);
     }
 }

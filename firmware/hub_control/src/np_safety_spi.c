@@ -561,7 +561,7 @@ np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag)
 }
 
 np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10,
-                                             uint16_t age_ms)
+                                             uint16_t age_ms, uint8_t sens_level)
 {
     np_safety_hr_report_cmd_t cmd;
     uint8_t rx_dummy[NP_SAFETY_HR_REPORT_FRAME_LEN];
@@ -570,6 +570,7 @@ np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10,
     cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
     cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
     cmd.cmd_type     = NP_SAFETY_CMD_HR_REPORT;
+    cmd.cardiac_sens = (sens_level <= NP_SAFETY_CARDIAC_SENS_MAX) ? sens_level : 0U;   /* REQ-CVNS-14 */
     if (valid) {
         cmd.flags  = NP_SAFETY_HR_FLAG_VALID;
         cmd.hr_x10 = hr_x10;

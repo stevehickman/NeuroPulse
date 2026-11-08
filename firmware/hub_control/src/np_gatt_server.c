@@ -13,6 +13,7 @@
 #include "np_consumables.h"
 #include "np_cvns_fault_summary.h"
 #include "np_hub_config.h"
+#include "np_cardiac_sens.h"
 #include "np_pause_limit.h"
 #include "np_session_hold.h"
 #include "np_ppx_config.h"
@@ -130,6 +131,11 @@ static const np_gatt_char_t TABLE[] = {
     /* REQ-FWHUB-68: how sensitive the detector is (read: level and highest level; write: level). 0 is the validated floor. */
     { NP_GATT_PPX_SENSITIVITY_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_PPX_SENSITIVITY_LEN, (uint8_t)NP_GATT_PPX_SENSITIVITY_WRITE_LEN, np_ppx_sensitivity_read, np_ppx_sensitivity_write },
+
+    /* REQ-FWHUB-74: how sensitive the cervical VNS cardiac cutoff is (read: level and highest level; write: level). 0 is the
+     * validated cutoff and there is none below it. */
+    { NP_GATT_CARDIAC_SENSITIVITY_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_CARDIAC_SENSITIVITY_LEN, (uint8_t)NP_GATT_CARDIAC_SENSITIVITY_WRITE_LEN, np_cardiac_sens_read, np_cardiac_sens_write },
 
     /* SWR-SS-09: why a session is held paused (a person's pause or panic, or the detector's halt). */
     { NP_GATT_SESSION_HOLD_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,

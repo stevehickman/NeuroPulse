@@ -2,6 +2,7 @@ package life.neurone.core.ble
 
 import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.CervicalPadStatus
+import life.neurone.core.models.CardiacSensitivity
 import life.neurone.core.models.FirmwareVersion
 import life.neurone.core.models.HRVData
 import life.neurone.core.models.HoldCause
@@ -77,6 +78,9 @@ object GattParser {
 
     /** PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit (SWR-SS-05). Null if malformed. */
     fun parsePauseLimit(data: ByteArray): Long? = PauseLimit.fromWire(data)
+
+    /** CARDIAC_SENSITIVITY: the cervical VNS cutoff's sensitivity level and the highest the helmet offers (REQ-FWHUB-74). Null if malformed. */
+    fun parseCardiacSensitivity(data: ByteArray): CardiacSensitivity? = CardiacSensitivity.fromWire(data)
 
     /** PPX_SENSITIVITY: the detector's sensitivity level and the highest the helmet offers (REQ-FWHUB-68). Null if malformed. */
     fun parsePpxSensitivity(data: ByteArray): PpxSensitivity? = PpxSensitivity.fromWire(data)

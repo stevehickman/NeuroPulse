@@ -295,9 +295,13 @@ np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag);
  * safety MCU for its ±5 BPM cross-check (np_safety_hr_report_cmd_t, OI-CVNS-14).
  * valid=false sends "no estimate" (hr_x10 and age_ms are then sent as zero).
  * The value is the wearer's heart rate: UHDR, device-internal, never logged.
+ *
+ * `sens_level` is the owner's cardiac cutoff sensitivity (np_cardiac_sens.h, REQ-CVNS-14): it rides in the word that was
+ * reserved, whether or not the heart rate is valid. 0 is the cutoff as validated; a level above NP_SAFETY_CARDIAC_SENS_MAX is
+ * sent as 0 (the validated cutoff), never as a lower threshold than the owner asked for.
  */
 np_hub_status_t np_safety_spi_send_hr_report(bool valid, uint16_t hr_x10,
-                                             uint16_t age_ms);
+                                             uint16_t age_ms, uint8_t sens_level);
 
 /*
  * np_safety_spi_get_tier — the unit's tier as the safety MCU established it

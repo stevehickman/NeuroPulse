@@ -354,6 +354,15 @@ if(NP_BUILD_TESTS)
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_visual_tests PRIVATE m)
 
+    # REQ-FWHUB-74: the cervical VNS cardiac cutoff's sensitivity, the hub's half (a Config record and the GATT read/write).
+    add_executable(np_cardiac_sens_tests
+        tests/np_cardiac_sens_tests.c
+        src/np_cardiac_sens.c
+    )
+    target_include_directories(np_cardiac_sens_tests PRIVATE include ../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_options(np_cardiac_sens_tests PRIVATE -Wall -Wextra -std=c11)
+
     # SWR-SS-09: SESSION_HOLD, why a session is held (the characteristic; the cause is the runner's). Pure C.
     add_executable(np_session_hold_tests
         tests/np_session_hold_tests.c
@@ -558,6 +567,7 @@ if(NP_BUILD_TESTS)
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05
         src/np_ppx_config.c           # REQ-FWHUB-71 (the GATT table references it)
+        src/np_cardiac_sens.c         # REQ-FWHUB-74 (the GATT table references it)
         src/np_ppx_detect.c
         src/np_ppx_policy.c
         src/np_cvns_fault_summary.c
@@ -583,6 +593,7 @@ if(NP_BUILD_TESTS)
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
         src/np_ppx_config.c
+        src/np_cardiac_sens.c
         src/np_ppx_detect.c
         src/np_ppx_policy.c
         src/np_gatt_server.c
@@ -671,6 +682,7 @@ set(HUB_SOURCES
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
+    src/np_cardiac_sens.c         # REQ-FWHUB-74: the cervical cutoff's sensitivity
     src/np_session_hold.c         # SWR-SS-09: why a session is held
     src/np_ramp_plan.c            # SWR-SS-05: coordinated ramp-up
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)

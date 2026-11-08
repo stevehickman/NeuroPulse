@@ -76,6 +76,7 @@
 #include "np_hub_types.h"
 #include "np_ramp_plan.h"
 #include "np_module_registry.h"
+#include "np_cardiac_sens.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
 #include <string.h>
@@ -784,7 +785,7 @@ static void cvns_send_hr_report(uint32_t now_ms)
     const bool valid = np_cvns_interlock_hr_report(&s_interlock, now_ms,
                                                    NP_SAFETY_HR_REPORT_INTERVALS,
                                                    &hr_x10, &age_ms);
-    (void)np_safety_spi_send_hr_report(valid, hr_x10, age_ms);
+    (void)np_safety_spi_send_hr_report(valid, hr_x10, age_ms, np_cardiac_sens_level());   /* REQ-CVNS-14 */
 }
 
 /* ── Scheduler tick (OI-CVNS-HUB-07) ─────────────────────────────────────────── */

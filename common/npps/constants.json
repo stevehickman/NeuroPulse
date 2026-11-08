@@ -516,6 +516,13 @@
           "hub": true
         },
         {
+          "name": "CARDIAC_SENSITIVITY_ID",
+          "value": 33,
+          "int": true,
+          "note": "READ 2 B / WRITE 1 B, encrypted link only: how sensitive the cervical VNS cardiac cutoff is (REQ-FWHUB-74, REQ-CVNS-14). Read: the level, then the highest level the helmet offers. Write: the level. 0 is the validated cutoff (REQ-CVNS-09, a change of more than 15 BPM) and there is no level below it: the owner can make the cutoff fire on a smaller change, never a larger one. A level above the highest is refused. The safety MCU raises its level at once and lowers it only when a new cervical VNS request starts. Set by the hardware owner.",
+          "hub": true
+        },
+        {
           "name": "HARDWARE_VERSION_ID",
           "value": 28,
           "int": true,
@@ -599,6 +606,18 @@
           "value": 1,
           "int": true,
           "note": "PPX_SENSITIVITY write: one byte of level."
+        },
+        {
+          "name": "CARDIAC_SENSITIVITY_LEN",
+          "value": 2,
+          "int": true,
+          "note": "CARDIAC_SENSITIVITY read: one byte of level, one byte of the highest level."
+        },
+        {
+          "name": "CARDIAC_SENSITIVITY_WRITE_LEN",
+          "value": 1,
+          "int": true,
+          "note": "CARDIAC_SENSITIVITY write: one byte of level."
         },
         {
           "name": "HARDWARE_VERSION_LEN",

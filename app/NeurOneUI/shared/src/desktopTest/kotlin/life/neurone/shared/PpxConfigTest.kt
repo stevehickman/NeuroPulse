@@ -4,6 +4,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import life.neurone.core.common.UUID
+import life.neurone.core.models.CardiacSensitivity
 import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PpxConfig
 import life.neurone.core.models.PpxEvidence
@@ -240,5 +241,68 @@ class PpxSensitivityTest {
         manager.onDisconnected("hub")
         assertNull(manager.ppxSensitivity.value)
         assertFalse(manager.ppxSensitivityPublished.value)
+    }
+}
+
+/** The cervical VNS cardiac cutoff's sensitivity, read from and written to the helmet (REQ-FWHUB-74, REQ-CVNS-12). */
+@OptIn(ExperimentalCoroutinesApi::class)
+class CardiacSensitivityTest {
+    private class Central : BleCentral {
+        override val adapterState = AdapterState.ON
+        val log = mutableListOf<String>()
+        val writes = mutableListOf<Pair<UUID, List<Byte>>>()
+        override fun setListener(listener: BleCentralListener) {}
+        override fun startScan(serviceUuid: UUID) {}
+        override fun stopScan() {}
+        override fun connect(deviceId: String) {}
+        override fun disconnect() {}
+        override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+        override fun enableNotifications(uuid: UUID) {}
+        override fun read(uuid: UUID) { log += "read" }
+        override fun write(uuid: UUID, value: ByteArray) { log += "write"; writes += uuid to value.toList() }
+    }
+
+    private val csId = UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID)
+
+    // @verifies REQ-FWHUB-74
+    @Test fun the_frame_is_the_level_and_the_highest_level_and_a_level_above_the_highest_is_not_believed() {
+        assertEquals(CardiacSensitivity(0, 2), CardiacSensitivity.fromWire(byteArrayOf(0, 2)))
+        assertEquals(CardiacSensitivity(2, 2), CardiacSensitivity.fromWire(byteArrayOf(2, 2)))
+        assertTrue(assertNotNull(CardiacSensitivity.fromWire(byteArrayOf(0, 2))).isStandard)
+        assertNull(CardiacSensitivity.fromWire(byteArrayOf(3, 2)), "a level above the highest the helmet offers")
+        assertNull(CardiacSensitivity.fromWire(byteArrayOf(1)), "too short")
+        assertNull(CardiacSensitivity.fromWire(byteArrayOf(1, 2, 0)), "too long")
+    }
+
+    // @verifies REQ-FWHUB-74
+    @Test fun the_write_is_one_byte_and_there_is_no_level_below_zero() {
+        assertContentEquals(byteArrayOf(2), CardiacSensitivity.toWire(2))
+        assertNull(CardiacSensitivity.toWire(-1), "nothing is less sensitive than the validated cutoff")
+    }
+
+    // @verifies REQ-FWHUB-74
+    @Test fun a_helmet_without_it_takes_no_write_and_one_with_it_is_read_written_and_forgotten() = runTest {
+        val central = Central()
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        assertNull(manager.cardiacSensitivity.value)
+        assertFalse(manager.cardiacSensitivityPublished.value)
+        assertFalse(manager.writeCardiacSensitivity(1))
+        assertTrue(central.writes.isEmpty())
+        manager.onCharacteristicsDiscovered(setOf(csId))
+        assertTrue(manager.cardiacSensitivityPublished.value)
+        assertTrue("read" in central.log)
+        manager.onCharacteristicRead(csId, byteArrayOf(1, 2))
+        assertEquals(CardiacSensitivity(1, 2), manager.cardiacSensitivity.value)
+        manager.onCharacteristicRead(csId, byteArrayOf(9, 2))
+        assertNull(manager.cardiacSensitivity.value, "a malformed frame is not believed")
+        central.log.clear()
+        assertTrue(manager.writeCardiacSensitivity(2))
+        assertEquals(listOf(csId to listOf<Byte>(2)), central.writes)
+        assertEquals(listOf("write", "read"), central.log, "the screen then shows what the helmet holds")
+        assertFalse(manager.writeCardiacSensitivity(-1), "a level below 0 is never sent")
+        manager.onCharacteristicRead(csId, byteArrayOf(2, 2))
+        manager.onDisconnected("hub")
+        assertNull(manager.cardiacSensitivity.value)
+        assertFalse(manager.cardiacSensitivityPublished.value)
     }
 }

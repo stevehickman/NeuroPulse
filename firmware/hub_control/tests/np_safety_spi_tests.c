@@ -232,6 +232,29 @@ static void test_fault_and_cutoff_replies_are_safety_faults(void)
           "a CUTOFF reply is reported as a safety fault");
 }
 
+/* @verifies REQ-CVNS-14 */
+static void test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_level_is_sent_as_the_validated_cutoff(void)
+{
+    reset();
+    check(np_safety_spi_send_hr_report(true, 700U, 40U, 2U) == NP_HUB_OK && g_tx_len == NP_SAFETY_HR_REPORT_FRAME_LEN,
+          "sens: the report is the 12-byte heart-rate frame");
+    const np_safety_hr_report_cmd_t *c = (const np_safety_hr_report_cmd_t *)g_tx;
+    check(c->cmd_type == NP_SAFETY_CMD_HR_REPORT && c->cardiac_sens == 2U && c->hr_x10 == 700U && c->age_ms == 40U,
+          "sens: the level is in the word that was reserved, beside the heart rate");
+    check(c->checksum == sum(g_tx, NP_SAFETY_HR_REPORT_FRAME_LEN - 2U), "sens: and the checksum covers it");
+    reset();
+    (void)np_safety_spi_send_hr_report(false, 0U, 0U, 1U);
+    c = (const np_safety_hr_report_cmd_t *)g_tx;
+    check(c->cardiac_sens == 1U && (c->flags & NP_SAFETY_HR_FLAG_VALID) == 0U, "sens: the level is sent with no valid heart rate too");
+    reset();
+    (void)np_safety_spi_send_hr_report(true, 700U, 40U, 0U);
+    check(((const np_safety_hr_report_cmd_t *)g_tx)->cardiac_sens == 0U, "sens: level 0 is the word an earlier hub sent, 0");
+    reset();
+    (void)np_safety_spi_send_hr_report(true, 700U, 40U, (uint8_t)(NP_SAFETY_CARDIAC_SENS_MAX + 1U));
+    check(((const np_safety_hr_report_cmd_t *)g_tx)->cardiac_sens == 0U,
+          "sens: a level above the maximum is sent as 0, the validated cutoff, never as a smaller threshold than was asked");
+}
+
 int main(void)
 {
     printf("Hub safety SPI host tests (REQ-FWHUB-11, -17, -18)\n");
@@ -242,6 +265,7 @@ int main(void)
     test_a_corrupt_reply_zeroes_the_grant_not_the_request();
     test_session_sig_is_its_own_frame_and_requests_nothing();
     test_fault_and_cutoff_replies_are_safety_faults();
+    test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_level_is_sent_as_the_validated_cutoff();
     printf("\n%s (%d failure%s)\n", g_failures ? "FAILED" : "PASSED",
            g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;
