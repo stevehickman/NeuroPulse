@@ -127,6 +127,10 @@ static const np_gatt_char_t TABLE[] = {
     { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
 
+    /* REQ-FWHUB-68: how sensitive the detector is (read: level and highest level; write: level). 0 is the validated floor. */
+    { NP_GATT_PPX_SENSITIVITY_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_PPX_SENSITIVITY_LEN, (uint8_t)NP_GATT_PPX_SENSITIVITY_WRITE_LEN, np_ppx_sensitivity_read, np_ppx_sensitivity_write },
+
     /* SWR-SS-09: why a session is held paused (a person's pause or panic, or the detector's halt). */
     { NP_GATT_SESSION_HOLD_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
       (uint8_t)NP_HOLD_LEN, 0u, np_hold_read, NULL },

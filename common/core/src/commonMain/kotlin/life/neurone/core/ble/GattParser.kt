@@ -9,6 +9,7 @@ import life.neurone.core.models.OtaStatusPacket
 import life.neurone.core.models.PacerPhase
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
+import life.neurone.core.models.PpxSensitivity
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.SessionStatus
 import life.neurone.core.models.UploadCheck
@@ -76,6 +77,9 @@ object GattParser {
 
     /** PAUSE_LIMIT: a little-endian uint32 count of seconds; 0 is no limit (SWR-SS-05). Null if malformed. */
     fun parsePauseLimit(data: ByteArray): Long? = PauseLimit.fromWire(data)
+
+    /** PPX_SENSITIVITY: the detector's sensitivity level and the highest the helmet offers (REQ-FWHUB-68). Null if malformed. */
+    fun parsePpxSensitivity(data: ByteArray): PpxSensitivity? = PpxSensitivity.fromWire(data)
 
     /** SESSION_HOLD: why a session is held paused, one byte (SWR-SS-09). Null if malformed or not known. */
     fun parseHoldCause(data: ByteArray): HoldCause? = HoldCause.fromWire(data)

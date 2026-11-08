@@ -16,6 +16,7 @@
 #define NP_PPX_POLICY_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
     NP_PPX_EVIDENCE_NONE     = 0,
@@ -29,6 +30,7 @@ typedef enum {
 typedef struct {
     bool stop_on_occipital_only;   /* the clinician's switch: halt on an occipital-only discharge too; ON by default */
     bool manual_override;          /* the clinician's override: with bench evidence only, lift the refusal; OFF by default */
+    uint8_t sensitivity;           /* 0 the validated setting, up to NP_PPX_SENS_MAX more sensitive; never below 0 (REQ-FWHUB-68) */
 } np_ppx_config_t;
 
 /* Bring-up (and tests): the evidence level and the clinician's configuration. Without a call: NONE, and the defaults above. */

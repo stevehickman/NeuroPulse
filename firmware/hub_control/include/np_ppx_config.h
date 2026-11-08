@@ -9,6 +9,12 @@
  *   bit 1  MANUAL OVERRIDE         lift the refusal of REQ-FWHUB-65 / -66 where the detector has bench evidence only
  *                                  (np_ppx_policy.h). OFF by default. With no evidence it lifts nothing.
  *
+ * SENSITIVITY (PPX_SENSITIVITY, a characteristic of its own so an app that knows only PPX_CONFIG still reads and writes the
+ * switches): a level from 0, the validated setting, to NP_PPX_SENS_MAX. There is no level below 0, so a clinician can make the
+ * detector more sensitive and never less than it was validated (REQ-FWHUB-68). Read: two bytes, the level then the highest
+ * level the helmet offers (so the app does not hard-code the range). Write: one byte; a level above the highest is refused.
+ * Raising it reaches a detector already watching; lowering it waits for the next session, as the occipital switch does.
+ *
  * Wire (PPX_CONFIG, encrypted link only). READ: two bytes, the flags then the evidence level in force (0 none, 1 bench, 2
  * clinical), so the app can say what the override can and cannot do today. WRITE: one byte of flags. A write with any other
  * bit set is refused, so a future flag is never half-understood.
@@ -54,5 +60,10 @@ uint8_t np_ppx_config_flags(void);
 
 np_hub_status_t np_ppx_config_read(uint8_t *buf, size_t cap, size_t *len_out);
 np_hub_status_t np_ppx_config_write(const uint8_t *data, size_t len);
+
+/* The level in force (0 is the validated setting), and the GATT read and write of PPX_SENSITIVITY. */
+uint8_t np_ppx_sensitivity_level(void);
+np_hub_status_t np_ppx_sensitivity_read(uint8_t *buf, size_t cap, size_t *len_out);
+np_hub_status_t np_ppx_sensitivity_write(const uint8_t *data, size_t len);
 
 #endif /* NP_PPX_CONFIG_H */

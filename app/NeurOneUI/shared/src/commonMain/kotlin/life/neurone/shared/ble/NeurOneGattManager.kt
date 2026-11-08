@@ -12,6 +12,7 @@ import life.neurone.core.models.CervicalFaultStatus
 import life.neurone.core.models.HoldCause
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
+import life.neurone.core.models.PpxSensitivity
 import life.neurone.core.models.SessionProgress
 import life.neurone.core.models.UploadCheck
 import life.neurone.core.models.CervicalPadStatus
@@ -169,6 +170,35 @@ class NeurOneGattManager(
      */
     private val _holdCause = MutableStateFlow<HoldCause?>(null)
     val holdCause: StateFlow<HoldCause?> = _holdCause
+
+    /** The detector's sensitivity level and the highest the helmet offers (REQ-FWHUB-68), null when not known. */
+    private val _ppxSensitivity = MutableStateFlow<PpxSensitivity?>(null)
+    val ppxSensitivity: StateFlow<PpxSensitivity?> = _ppxSensitivity
+
+    private var ppxSensitivityCharPresent = false
+
+    private val _ppxSensitivityPublished = MutableStateFlow(false)
+
+    /** True when this helmet publishes the sensitivity, so the owner screen can offer it. */
+    val ppxSensitivityPublished: StateFlow<Boolean> = _ppxSensitivityPublished
+
+    /** Ask the helmet for the detector's sensitivity (an encrypted READ, refused until the helmet is paired). */
+    fun requestPpxSensitivity() {
+        if (ppxSensitivityCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID))
+    }
+
+    /**
+     * Set the detector's sensitivity level. Raising it reaches a session already running; lowering it applies from the next. Level
+     * 0 is the validated setting and the helmet has none below it. The write is followed by a read, so the screen shows what the
+     * helmet holds. Returns false when the helmet publishes none or the level is negative.
+     */
+    fun writePpxSensitivity(level: Int): Boolean {
+        val bytes = PpxSensitivity.toWire(level) ?: return false
+        if (!ppxSensitivityCharPresent) return false
+        central.write(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID), bytes)
+        central.read(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID))
+        return true
+    }
 
     private val _bluetoothUnavailable = MutableStateFlow(false)
     val bluetoothUnavailable: StateFlow<Boolean> = _bluetoothUnavailable
@@ -403,6 +433,10 @@ class NeurOneGattManager(
         pauseLimitCharPresent = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) in characteristics
         _pauseLimitPublished.value = pauseLimitCharPresent
         if (pauseLimitCharPresent) central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        // REQ-FWHUB-68: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
+        ppxSensitivityCharPresent = UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID) in characteristics
+        _ppxSensitivityPublished.value = ppxSensitivityCharPresent
+        if (ppxSensitivityCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID))
         // REQ-FWHUB-71: optional (hub firmware); encrypted, so the read is refused until the helmet is paired.
         ppxConfigCharPresent = UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) in characteristics
         _ppxConfigPublished.value = ppxConfigCharPresent
@@ -473,6 +507,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.UPLOAD_CHECK_ID) -> _uploadCheck.value = GattParser.parseUploadCheck(value)
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) -> _ppxConfig.value = GattParser.parsePpxConfig(value)
+            UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID) -> _ppxSensitivity.value = GattParser.parsePpxSensitivity(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) -> _holdCause.value = GattParser.parseHoldCause(value)
             UUID.fromString(GattUuidStrings.HRV_COHERENCE_ID) -> GattParser.parseHrvCoherence(value)?.let { hrv ->
@@ -683,6 +718,9 @@ class NeurOneGattManager(
         pauseLimitCharPresent = false
         _pauseLimitPublished.value = false
         _holdCause.value = null
+        _ppxSensitivity.value = null
+        ppxSensitivityCharPresent = false
+        _ppxSensitivityPublished.value = false
         _ppxConfig.value = null
         ppxConfigCharPresent = false
         _ppxConfigPublished.value = false

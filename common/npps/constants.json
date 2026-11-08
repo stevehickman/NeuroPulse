@@ -509,6 +509,13 @@
           "hub": true
         },
         {
+          "name": "PPX_SENSITIVITY_ID",
+          "value": 32,
+          "int": true,
+          "note": "READ 2 B / WRITE 1 B, encrypted link only: how sensitive the photoparoxysmal detector is (REQ-FWHUB-68). Read: the level, then the highest level the helmet offers. Write: the level. 0 is the validated setting and there is no level below it: a clinician can make the detector more sensitive, never less. A level above the highest is refused. Set by the hardware owner.",
+          "hub": true
+        },
+        {
           "name": "HARDWARE_VERSION_ID",
           "value": 28,
           "int": true,
@@ -580,6 +587,18 @@
           "value": 1,
           "int": true,
           "note": "SESSION_HOLD: one byte, the hold cause."
+        },
+        {
+          "name": "PPX_SENSITIVITY_LEN",
+          "value": 2,
+          "int": true,
+          "note": "PPX_SENSITIVITY read: one byte of level, one byte of the highest level."
+        },
+        {
+          "name": "PPX_SENSITIVITY_WRITE_LEN",
+          "value": 1,
+          "int": true,
+          "note": "PPX_SENSITIVITY write: one byte of level."
         },
         {
           "name": "HARDWARE_VERSION_LEN",
