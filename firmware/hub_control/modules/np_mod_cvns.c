@@ -717,7 +717,8 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
     /* Stop — graceful ramp-down and unified disable.  A session paused between legs is closed here too, so it leaves its
      * one record (np_cvns_session_stop on a suspended session). */
     if (params == NULL || len == 0U) {
-        if (s_state.active || np_cvns_session_suspended(&s_session)) {
+        if (s_state.active || np_cvns_session_suspended(&s_session) ||
+            np_cvns_session_stage(&s_session) == NP_CVNS_STAGE_FAULT) {
             np_cvns_session_stop(&s_session, np_mod_cvns_hal_now_ms());
             s_state.active = false;
         }
@@ -905,7 +906,10 @@ bool np_mod_cvns_active(void)
  */
 void np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms)
 {
-    if (!s_state.ready || !s_state.active) {
+    /* OI-SIMFW-23: a faulted session keeps feeding the detector, so the baseline
+     * a re-enable requires can re-form during the lockout. */
+    if (!s_state.ready ||
+        (!s_state.active && np_cvns_session_stage(&s_session) != NP_CVNS_STAGE_FAULT)) {
         return;
     }
     np_cvns_interlock_push_ppg(&s_interlock, sample, timestamp_ms);
@@ -918,7 +922,8 @@ void np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms)
  * Complements the hub-global re-enable manager (np_cvns_reenable): that manager
  * decides when the UNIFIED enable bit may re-assert (3-gate: lockout + confirm +
  * fresh impedance); this call re-arms the LIBRARY's interlock (baseline + its
- * own lockout).  Both must agree before stimulation resumes.
+ * own lockout).  Both must agree before stimulation resumes.  A success ends the
+ * faulted session and enables nothing: a new session must be started (OI-SIMFW-23).
  */
 np_hub_status_t np_mod_cvns_request_reenable(uint32_t now_s)
 {

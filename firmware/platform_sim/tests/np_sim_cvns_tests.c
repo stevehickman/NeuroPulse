@@ -304,18 +304,29 @@ static void test_the_session_completes_at_its_length(void)
           "complete: at its 120 s length it completes, the driver is released and the enable is dropped");
 }
 
-/* Characterisation of a re-enable that cannot succeed (OI-SIMFW-23). */
-/* @verifies-none Characterisation of the re-enable path after a session fault; the finding is OI-SIMFW-23. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_faulted_session_cannot_be_re_enabled(void)
+/* A faulted session is re-armed after the lockout, with the baseline re-formed (OI-SIMFW-23, fixed). */
+/* @verifies-none The re-enable path through the real driver and library; the library's and driver's own suites verify the parts. Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_faulted_session_can_be_re_enabled_after_the_lockout(void)
 {
     reach_active();
     run("cvns_run 12000 -1");
-    check(stage() == STAGE_FAULT && interlock() == 0,
-          "re-enable: after the fault the interlock is IDLE, not FAULT: the session's fault path disabled it");
-    run("cvns_run 40000 70");                        /* past the 30 s lockout, the pulse train back */
+    check(stage() == STAGE_FAULT && interlock() == 3,
+          "re-enable: after the fault the interlock stays FAULT (latched), not IDLE");
+    run("cvns_run 5000 70");                         /* inside the 30 s lockout, the pulse train back */
     run("cvns_reenable");
     check(!result_code_is(0) && stage() == STAGE_FAULT && !enable_bit(),
-          "re-enable: refused even after the lockout, because the interlock only re-enables from FAULT (OI-SIMFW-23)");
+          "re-enable: refused inside the lockout");
+    run("cvns_run 40000 70");                        /* past the lockout; the baseline re-forms from the pulse train */
+    run("cvns_reenable");
+    const bool accepted = result_code_is(0);
+    run("cvns_state");
+    check(accepted && stage() == 0 && interlock() == 0 && !enable_bit(),
+          "re-enable: accepted after the lockout with the baseline re-formed; the faulted session ends and nothing is enabled");
+    run("cvns 2 10000 1000 250 10 1");
+    const bool started = result_code_is(0);
+    run("cvns_state");
+    check(started && stage() == STAGE_IMPEDANCE,
+          "re-enable: permission to start a new session, which begins at the impedance check (option 2)");
 }
 
 /* @verifies-none Stop, suspend and shutdown; np_mod_cvns_tests verifies them. Simulator evidence only (REQ-SIMFW-06). */
@@ -409,7 +420,7 @@ int main(void)
     test_a_heart_rate_step_is_not_a_cutoff_on_the_main_side();
     test_stop_in_delivery_ends_the_session_and_drops_the_enable();
     test_the_session_completes_at_its_length();
-    test_a_faulted_session_cannot_be_re_enabled();
+    test_a_faulted_session_can_be_re_enabled_after_the_lockout();
     test_stop_suspend_and_shutdown_end_the_session_cleanly();
     test_reenable_is_refused_without_a_fault_or_inside_the_lockout();
     test_malformed_command();

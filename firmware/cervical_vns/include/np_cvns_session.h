@@ -84,6 +84,8 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 /*
  * Called by the app layer after the user explicitly confirms re-enable.
  * Only succeeds if lockout has elapsed and baseline has been re-established.
+ * On success the faulted session ends (stage IDLE) and nothing is enabled: the
+ * re-enable is permission to start a NEW session (OI-SIMFW-23, option 2).
  */
 np_cvns_status_t np_cvns_session_request_reenable(np_cvns_session_ctx_t *ctx,
                                                     uint32_t               now_s);
