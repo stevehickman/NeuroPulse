@@ -35,7 +35,7 @@ pub fn parse_json(source: &str) -> Result<String, String> {
     .to_string())
 }
 
-fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("not hex: {s}"));
     }

@@ -83,3 +83,28 @@ fn slot_addressed_modalities_need_no_socket_and_garbage_is_refused() {
     cut.truncate(70);
     assert!(check_fit(&cut, &HashMap::new()).is_err());
 }
+
+// @verifies-none OI-HWFIT-01 the requirement row waits on the open item's decisions (CLAUDE.md §18, §21)
+#[test]
+fn the_library_entry_point_every_app_already_calls_answers_fitcheck() {
+    use neurone_npps_core::api::library_json;
+    let (blob, frontal) = compiled("pbm1064");
+    let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
+    let inv: serde_json::Map<String, Value> =
+        frontal.iter().map(|s| (s.to_string(), serde_json::json!(["led_660", "led_808"]))).collect();
+    let ask = |inventory: &serde_json::Map<String, Value>| {
+        let req = serde_json::json!({ "op": "fitCheck", "descriptorHex": hex, "inventory": inventory });
+        serde_json::from_str::<Value>(&library_json(&req.to_string()).unwrap()).unwrap()
+    };
+    let short = ask(&inv);
+    assert_eq!(short["fits"], false);
+    assert_eq!(short["shortfalls"][0]["missing"][0]["element"], "led_1064");
+    assert_eq!(short["shortfalls"][0]["missing"][0]["candidateParts"], serde_json::json!(["ZM-COMBO-TRI", "ZM-PBM-TRI"]));
+
+    let tri: serde_json::Map<String, Value> =
+        frontal.iter().map(|s| (s.to_string(), serde_json::json!(["led_660", "led_808", "led_1064"]))).collect();
+    assert_eq!(ask(&tri)["fits"], true);
+
+    let bad = serde_json::json!({ "op": "fitCheck", "descriptorHex": "zz", "inventory": {} });
+    assert!(library_json(&bad.to_string()).is_err());
+}

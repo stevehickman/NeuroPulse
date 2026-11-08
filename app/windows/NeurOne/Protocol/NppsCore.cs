@@ -131,7 +131,7 @@ static class NppsCore
 
     /// The protocol library's rules, one JSON op per call (`{"op":"saveCheck"|"deleteCheck"|"cloneFamily"|"addVariantCheck"|
     /// "variantFor"|"supportedVersions"|"layouts"|"layoutDiff"|"uploadGate"|"uploadResult"|"helmetCause"|"mergeImport"|"offered"|
-    /// "usedRecord"|"propagationOffer"|"applyChanges"|"mapVariant", …}`), answered as JSON. Every app asks this same
+    /// "usedRecord"|"propagationOffer"|"applyChanges"|"mapVariant"|"fitCheck", …}`), answered as JSON. Every app asks this same
     /// core, so the five cannot disagree on what a used protocol allows.
     public static JsonNode Library(JsonNode request)
         => JsonNode.Parse(Call(npps_library_json, Encoding.UTF8.GetBytes(request.ToJsonString())))!;

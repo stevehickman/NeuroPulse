@@ -1,5 +1,5 @@
 //! The protocol library's rules, once, for every app (`SWR-PL-02/03/06`, `SWR-UP-02`, `SWR-WO-01/02/03`,
-//! `SWR-FM-03…07`, `SWR-HV-04`; issue #569 package 4, `CLAUDE.md` §20).
+//! `SWR-FM-03…07`, `SWR-HV-04`; issue #569 package 4, `CLAUDE.md` §20), and the stage 2 fit check (`fitCheck`, `OI-HWFIT-01`).
 //!
 //! The library is storage and screens on each platform. What it may and may not do is decided here, so the five
 //! platforms cannot disagree: whether a save is allowed, what a clone is, what an upload outcome marks, which refusal an
@@ -525,6 +525,27 @@ fn map_variant(req: &Value) -> R<Value> {
     Ok(json!({ "status": "not_supported" }))
 }
 
+/// `OI-HWFIT-01` stage 2: can the compiled descriptor (`descriptorHex`) run on the modules fitted now? `inventory` maps a
+/// socket id to the element names its module carries; a socket not listed is empty. The answer is advice: the hub's placement
+/// check stays the authority (`fit.rs`).
+fn fit_check(req: &Value) -> R<Value> {
+    let blob = crate::api::hex_decode(req["descriptorHex"].as_str().ok_or("descriptorHex is required")?)?;
+    let mut inventory = HashMap::new();
+    for (socket, elements) in req["inventory"].as_object().ok_or("inventory must be an object")? {
+        let id: u32 = socket.parse().map_err(|_| format!("'{socket}' is not a socket id"))?;
+        let names = elements.as_array().ok_or("a socket's elements must be an array")?;
+        inventory.insert(id, names.iter().map(|e| e.as_str().map(String::from).ok_or("an element must be a name")).collect::<Result<_, _>>()?);
+    }
+    let shortfalls: Vec<Value> = crate::fit::check_fit(&blob, &inventory)?
+        .into_iter()
+        .map(|s| {
+            let missing: Vec<Value> = s.missing.into_iter().map(|m| json!({ "element": m.element, "candidateParts": m.candidate_parts })).collect();
+            json!({ "socket": s.socket, "empty": s.empty, "missing": missing })
+        })
+        .collect();
+    Ok(json!({ "fits": shortfalls.is_empty(), "shortfalls": shortfalls }))
+}
+
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.
 pub fn library_json(request: &str) -> R<String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("library request is not JSON: {e}"))?;
@@ -547,6 +568,7 @@ pub fn library_json(request: &str) -> R<String> {
         "propagationOffer" => propagation_offer(&req)?,
         "applyChanges" => apply_changes(&req)?,
         "mapVariant" => map_variant(&req)?,
+        "fitCheck" => fit_check(&req)?,
         other => return Err(format!("unknown library operation '{other}'")),
     };
     Ok(out.to_string())
