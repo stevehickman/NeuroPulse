@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-11-08
 **Status:** DRAFT
 **Effective Date:** —
@@ -536,7 +536,7 @@ The goggles, `REQ-SIMFW-13`: the module with the IEC 62471 interlocks, so the on
 |---|---|---|
 | Seams | `platform_sim/src/np_sim_visual.c` | The seven `np_mod_visual_hal_*` seams. Seated, eye-open and MPE-ok are what the scenario sets. **The three boolean seams answer false for an injected failure or an absent goggle**, the refusing answer, so a fault cannot read as permission. The LEDs record what the driver commanded. No optical power, irradiance or MPE: the hardware ceiling is not modelled, so `mpe_ok` is a switch. |
 | **The Hall edge runs the driver's own handler** | `np_sim_visual_lift()` | A lift clears the seated reading and **calls the handler `np_mod_visual.c` registered** (`hall_unseated_isr`, with `np_mod_visual_hal_led_stop`, `np_safety_spi_request_disable_from_isr` and the `s_hall_cut` latch), the way the platform interrupt would. A registration the scenario failed leaves no handler: "a return other than `NP_HUB_OK` means no edge will be delivered". `vis_lift_during_command` delivers the lift between the seated read and the enable, the window the latch exists for. `vis_lift_silent` lifts with no edge, so only the telemetry poll sees it. |
-| Firmware it runs | the device's own file | `np_mod_visual.c`. No firmware file changed. `np_runner_abort`, which `np_mod_visual_ppx_halt` calls, is a **sim double** in `np_sim_spike_link.c` that reports the request (first-party code, listed below). |
+| Firmware it runs | the device's own file | `np_mod_visual.c`. No firmware file changed. `np_runner_halt`, which `np_mod_visual_ppx_halt` calls (the detector's hold, #789 to #791), is a **sim double** in `np_sim_spike_link.c` that reports the request; `np_ppx_policy.c` and `np_ppx_detect.c` are linked as the device's own files (first-party code, listed below). |
 | Harness | `platform_sim/src/np_sim_visual_harness.c` | `vis_detect`, `vis_init`, `vis`, `vis_stop`, `vis_shutdown`, `vis_lift`, `vis_lift_silent`, `vis_lift_during_command`, `vis_lower`, `vis_ppx`, `vis_sample`, `vis_raw`, `vis_sensor`. |
 | Bridge | `fw-bridge.js` | `kind: "visual"` in `MODULE_SET` (`add`, `present`, `sensor`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and the `FW_COMMAND`s above. |
 | Tests | `platform_sim/tests/np_sim_visual_tests.c` | Fourteen scenarios, 45 checks: arming, no emission without an armed handler, every mode, each interlock, faulted sensors, the edge cut, a missed edge caught by the poll, the lift between read and enable, a failed LED command, a lost LED stop, the photoparoxysmal halt, a malformed command, and the marking and isolation properties. |
@@ -549,7 +549,7 @@ The goggles, `REQ-SIMFW-13`: the module with the IEC 62471 interlocks, so the on
 |---|---|
 | **Mode F (NIR retinal walk)** | Compiled out: `NP_MODE_F_REGULATORY_CLEARED` is 0 (`np_hub_config.h`), so `mode_f_enable` is ignored and the test says so. Running it means building with the flag set, which is a regulatory decision, not a simulator one. This is most of the uncovered lines. |
 | Optical output and the hardware MPE ceiling | Not modelled; `mpe_ok` is a switch. |
-| The runner | `np_runner_abort` is a double that reports the request. What the runner does with it is not seen. |
+| The runner | `np_runner_halt` is a double that reports the request. What the runner does with it is not seen. |
 | The EEG path that detects a photoparoxysmal pattern | `vis_ppx` is the call that path makes; the detector is not in the loop (and the EEG model produces no signal, §14). |
 | The edge-to-dark time | The sim delivers the edge synchronously, so it measures nothing (`OI-FWHUB-26` owns the measurement). |
 | Shade control | `shade_req` is carried in the command and never read by the driver. |
@@ -680,3 +680,4 @@ coil have no firmware driver (stubs, §19), so in firmware mode they are never d
 | 5 | 2026-11-06 | NeurOne Firmware Engineering | **§20 and §7: `OI-SIMFW-23` closed (fixed in `np_cvns_session.c`, `np_cvns_interlock.c` and `np_mod_cvns.c`); the re-enable scenario now shows a refusal inside the lockout and an acceptance after it.** |
 | 6 | 2026-11-08 | NeurOne Software Engineering | **§7 OI-SIMFW-10: the four §11 questions are drafted for the bench and first-article owner in docs/human-input/oi-simfw-10-bench-apparatus.md (DRAFT, not sent). The item stays open.** |
 | 7 | 2026-11-08 | NeurOne Software Engineering | **§7: `OI-SIMFW-11` closed by the principal (2026-11-08): the simulator refuses what the device refuses; §9 findings row updated.** |
+| 8 | 2026-11-08 | NeurOne Software Engineering | **§18 and its gaps: the simulator links the photoparoxysmal detector's own sources (`np_ppx_policy.c`, `np_ppx_detect.c`) and replaces the `np_runner_abort` double with an `np_runner_halt` double in `np_sim_spike_link.c`, so every simulator test target links again after #789 to #791; no file under `firmware/hub_control` changed (`REQ-SIMFW-03`).** |

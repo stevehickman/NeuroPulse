@@ -108,13 +108,16 @@ void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
                 (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
 }
 
-/* The runner is not in the loop.  np_mod_visual_ppx_halt() asks it to abort the session; the simulator reports the
- * request and does nothing else, so a photoparoxysmal halt shows as what the driver did (LEDs off, enable dropped,
- * further commands refused) plus the abort it asked for.  A double of first-party code, listed as a gap. */
-void np_runner_abort(np_abort_reason_t reason)
+/* The runner is not in the loop.  np_mod_visual.c's halt_for() (the photoparoxysmal detector's halt) asks it to hold the
+ * session PAUSED with the detector's cause; the simulator reports the request and does nothing else, so a halt shows as
+ * what the driver did (LEDs off, enable dropped, further commands refused) plus the hold it asked for.  A double of
+ * first-party code, listed as a gap.  (np_runner_abort, which the driver called before the detector commits, is no
+ * longer reached from anything this layer links.) */
+np_hub_status_t np_runner_halt(np_hold_cause_t cause)
 {
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_abort\",\"reason\":%d}",
-                (unsigned)np_sim_now_ms(), (int)reason);
+    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_halt\",\"cause\":%d}",
+                (unsigned)np_sim_now_ms(), (int)cause);
+    return NP_HUB_ERR_NO_SESSION;
 }
 
 /* The panic control is the runner's too, and the runner is not in the loop: reported, not performed.  A double of
