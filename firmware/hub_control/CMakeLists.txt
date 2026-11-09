@@ -361,7 +361,7 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_mod_eeg_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_eeg_tests PRIVATE m)
-    # OI-SIMFW-19 / REQ-AUDIO-17, REQ-AUDIO-18: the audio driver's volume range and
+    # OI-SIMFW-19 / REQ-AUDIO-19, REQ-AUDIO-18: the audio driver's level ceiling and
     # EEG-adaptive mode gate (NP-FW-HUB-001 §8.5). np_mod_audio.c is linked real; the HAL is a double.
     add_executable(np_mod_audio_tests
         tests/np_mod_audio_tests.c

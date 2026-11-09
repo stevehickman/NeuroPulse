@@ -7,7 +7,7 @@
  *
  * The model records what the driver told the output stage and nothing it would sound like: planar mode (off, binaural,
  * isochronic, pink or brown noise), carrier, beat and volume, and the bone transducer's frequency and volume.  There is
- * no sample path and no sound pressure level, so volume is a percentage the driver passed on, not a level.  The mesh
+ * no sample path and no sound pressure level, so the level is the absolute dB SPL x 2 the driver passed on, not a measured one.  The mesh
  * impedance is what the scenario gave the part, no default.
  *
  * Injection.  Five seams return nothing, so an armed response makes the CALL not happen (as for the EEG front end);
@@ -55,39 +55,39 @@ np_hub_status_t np_mod_audio_hal_codec_init(void)
     return NP_HUB_OK;
 }
 
-void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t vol_pct)
+void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_binaural");
     if (m == NULL) { return; }
     char args[48];
-    (void)snprintf(args, sizeof args, "[%u,%u,%u]", carrier_hz, beat_mhz, vol_pct);
+    (void)snprintf(args, sizeof args, "[%u,%u,%u]", carrier_hz, beat_mhz, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_BINAURAL, args)) { return; }
-    m->audio_mode = 1U; m->audio_carrier_hz = carrier_hz; m->audio_beat_mhz = beat_mhz; m->audio_vol_pct = vol_pct;
-    m->driven = (vol_pct != 0U);
+    m->audio_mode = 1U; m->audio_carrier_hz = carrier_hz; m->audio_beat_mhz = beat_mhz; m->audio_level_half_db = level_half_db;
+    m->driven = (level_half_db != 0U);
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_BINAURAL, args, (int)NP_HUB_OK, "default");
 }
 
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_isochronic");
     if (m == NULL) { return; }
     char args[32];
-    (void)snprintf(args, sizeof args, "[%u,%u]", freq_hz, vol_pct);
+    (void)snprintf(args, sizeof args, "[%u,%u]", freq_hz, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_ISOCHRONIC, args)) { return; }
-    m->audio_mode = 2U; m->audio_carrier_hz = freq_hz; m->audio_vol_pct = vol_pct;
-    m->driven = (vol_pct != 0U);
+    m->audio_mode = 2U; m->audio_carrier_hz = freq_hz; m->audio_level_half_db = level_half_db;
+    m->driven = (level_half_db != 0U);
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_ISOCHRONIC, args, (int)NP_HUB_OK, "default");
 }
 
-void np_mod_audio_hal_set_noise(uint8_t type, uint8_t vol_pct)
+void np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_noise");
     if (m == NULL) { return; }
     char args[32];
-    (void)snprintf(args, sizeof args, "[%u,%u]", type, vol_pct);
+    (void)snprintf(args, sizeof args, "[%u,%u]", type, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_NOISE, args)) { return; }
-    m->audio_mode = (type == 0U) ? 3U : 4U; m->audio_vol_pct = vol_pct;
-    m->driven = (vol_pct != 0U);
+    m->audio_mode = (type == 0U) ? 3U : 4U; m->audio_level_half_db = level_half_db;
+    m->driven = (level_half_db != 0U);
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_NOISE, args, (int)NP_HUB_OK, "default");
 }
 
@@ -96,19 +96,19 @@ void np_mod_audio_hal_stop_planar(void)
     np_sim_module_t *m = resolve("audio_stop_planar");
     if (m == NULL) { return; }
     if (swallowed(m, NP_SIM_OP_AUDIO_STOP_PLANAR, "[]")) { return; }   /* a lost stop: the planar drivers keep playing */
-    m->audio_mode = 0U; m->audio_vol_pct = 0U;
+    m->audio_mode = 0U; m->audio_level_half_db = 0U;
     m->driven = m->audio_bone_on;
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_STOP_PLANAR, "[]", (int)NP_HUB_OK, "default");
 }
 
-void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_bone_set");
     if (m == NULL) { return; }
     char args[32];
-    (void)snprintf(args, sizeof args, "[%u,%u]", freq_hz, vol_pct);
+    (void)snprintf(args, sizeof args, "[%u,%u]", freq_hz, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_BONE_SET, args)) { return; }
-    m->audio_bone_on = (vol_pct != 0U); m->audio_bone_hz = freq_hz; m->audio_bone_vol_pct = vol_pct;
+    m->audio_bone_on = (level_half_db != 0U); m->audio_bone_hz = freq_hz; m->audio_bone_level_half_db = level_half_db;
     m->driven = m->audio_mode != 0U || m->audio_bone_on;
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_BONE_SET, args, (int)NP_HUB_OK, "default");
 }
@@ -118,7 +118,7 @@ void np_mod_audio_hal_bone_stop(void)
     np_sim_module_t *m = resolve("audio_bone_stop");
     if (m == NULL) { return; }
     if (swallowed(m, NP_SIM_OP_AUDIO_BONE_STOP, "[]")) { return; }
-    m->audio_bone_on = false; m->audio_bone_vol_pct = 0U;
+    m->audio_bone_on = false; m->audio_bone_level_half_db = 0U;
     m->driven = m->audio_mode != 0U;
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_BONE_STOP, "[]", (int)NP_HUB_OK, "default");
 }

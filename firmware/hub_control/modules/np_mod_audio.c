@@ -11,13 +11,18 @@
  * beats is adjusted every NP_AUDIO_ADAPT_INTERVAL_MS to track the dominant EEG
  * band.  The EEG module posts its dominant band via np_mod_audio_set_eeg_band().
  *
+ * Level.  Every level is an ABSOLUTE sound pressure level in dB SPL at the ear (level_half_db, 0.5 dB
+ * steps), never a percentage, so the same command means the same sound on any driver.  The HAL owns the
+ * per-component calibration from that level to its drive.  A level above NP_AUDIO_MAX_LEVEL_HALF_DB
+ * (85 dB SPL) is refused before anything changes (NP-HW-AUDIO-001 REQ-AUDIO-19).
+ *
  * HAL stubs:
  *   OI-AUDIO-01: np_mod_audio_hal_codec_init()
- *   OI-AUDIO-02: np_mod_audio_hal_set_binaural(carrier_hz, beat_mhz, vol_pct)
- *   OI-AUDIO-03: np_mod_audio_hal_set_isochronic(freq_hz, vol_pct)
- *   OI-AUDIO-04: np_mod_audio_hal_set_noise(type, vol_pct)  — 0=pink, 1=brown
+ *   OI-AUDIO-02: np_mod_audio_hal_set_binaural(carrier_hz, beat_mhz, level_half_db)
+ *   OI-AUDIO-03: np_mod_audio_hal_set_isochronic(freq_hz, level_half_db)
+ *   OI-AUDIO-04: np_mod_audio_hal_set_noise(type, level_half_db)  — 0=pink, 1=brown
  *   OI-AUDIO-05: np_mod_audio_hal_stop_planar()
- *   OI-AUDIO-06: np_mod_audio_hal_bone_set(freq_hz, vol_pct) — bone conduction
+ *   OI-AUDIO-06: np_mod_audio_hal_bone_set(freq_hz, level_half_db) — bone conduction
  *   OI-AUDIO-07: np_mod_audio_hal_bone_stop()
  *   OI-AUDIO-08: np_mod_audio_hal_mesh_impedance() → float ohm (fouling detect)
  */
@@ -30,7 +35,6 @@
 
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
 #define NP_AUDIO_MODE_BINAURAL  0U   /* np_mod_audio_params_t.mode */
-#define NP_AUDIO_VOLUME_MAX_PCT 100U /* np_mod_audio_params_t.volume_pct is 0-100 */
 
 static const uint16_t BAND_BEAT_MHZ[5] = {
     2000U,   /* delta: 2Hz */
@@ -46,7 +50,7 @@ typedef struct {
     uint8_t  mode;
     uint16_t carrier_hz;
     uint16_t beat_mhz;
-    uint8_t  vol_pct;
+    uint8_t  level_half_db;
     bool     bone_on;
     bool     eeg_adaptive;
     bool     active;
@@ -66,7 +70,7 @@ void np_mod_audio_set_eeg_band(uint8_t band)
     if (s_state.mode != NP_AUDIO_MODE_BINAURAL) { return; }
     s_state.beat_mhz = BAND_BEAT_MHZ[band];
     np_mod_audio_hal_set_binaural(s_state.carrier_hz, s_state.beat_mhz,
-                                   s_state.vol_pct);
+                                   s_state.level_half_db);
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
@@ -111,33 +115,32 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
 
     const np_mod_audio_params_t *p = (const np_mod_audio_params_t *)params;
 
-    /* volume_pct is specified 0-100 (np_hub_types.h).  A value above it is outside
-     * the contract: refuse before any state changes or any output is commanded, so
-     * neither the planar drivers nor the bone transducer receive it, and a running
-     * command is left as it was (OI-SIMFW-19, REQ-AUDIO-17).  Refused, not clamped:
+    /* The level is absolute (dB SPL x 2), and above the 85 dB SPL ceiling it is outside the contract: refuse
+     * before any state changes or any output is commanded, so neither the planar drivers nor the bone
+     * transducer receive it and a running command is left as it was (REQ-AUDIO-19).  Refused, not clamped:
      * a clamped command plays something other than what was authored. */
-    if (p->volume_pct > NP_AUDIO_VOLUME_MAX_PCT) {
+    if (p->level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) {
         return NP_HUB_ERR_INVALID_ARG;
     }
 
     s_state.mode         = p->mode;
     s_state.carrier_hz   = p->carrier_hz;
     s_state.beat_mhz     = p->beat_mhz;
-    s_state.vol_pct      = p->volume_pct;
+    s_state.level_half_db      = p->level_half_db;
     s_state.eeg_adaptive = (p->eeg_adaptive != 0U);
 
     switch (p->mode) {
     case 0: /* binaural */
-        np_mod_audio_hal_set_binaural(p->carrier_hz, p->beat_mhz, p->volume_pct);
+        np_mod_audio_hal_set_binaural(p->carrier_hz, p->beat_mhz, p->level_half_db);
         break;
     case 1: /* isochronic */
-        np_mod_audio_hal_set_isochronic(p->carrier_hz, p->volume_pct);
+        np_mod_audio_hal_set_isochronic(p->carrier_hz, p->level_half_db);
         break;
     case 2: /* pink noise */
-        np_mod_audio_hal_set_noise(0U, p->volume_pct);
+        np_mod_audio_hal_set_noise(0U, p->level_half_db);
         break;
     case 3: /* brown noise */
-        np_mod_audio_hal_set_noise(1U, p->volume_pct);
+        np_mod_audio_hal_set_noise(1U, p->level_half_db);
         break;
     default:
         np_mod_audio_hal_stop_planar();
@@ -146,7 +149,7 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
 
     if (p->bone_conduct_en) {
         /* Bone conduction at carrier frequency for breathing pacer / sync cue */
-        np_mod_audio_hal_bone_set(p->carrier_hz, p->volume_pct);
+        np_mod_audio_hal_bone_set(p->carrier_hz, p->level_half_db);
         s_state.bone_on = true;
     } else if (s_state.bone_on) {
         np_mod_audio_hal_bone_stop();

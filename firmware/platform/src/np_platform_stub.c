@@ -543,25 +543,25 @@ np_hub_status_t np_mod_audio_hal_codec_init(void)
 }
 
 void np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
-                                   uint16_t beat_mhz, uint8_t vol_pct)
+                                   uint16_t beat_mhz, uint8_t level_half_db)
 {
     (void)carrier_hz;
     (void)beat_mhz;
-    (void)vol_pct;
+    (void)level_half_db;
     NP_PLATFORM_TRAP();
 }
 
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
 {
     (void)freq_hz;
-    (void)vol_pct;
+    (void)level_half_db;
     NP_PLATFORM_TRAP();
 }
 
-void np_mod_audio_hal_set_noise(uint8_t type, uint8_t vol_pct)
+void np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db)
 {
     (void)type;
-    (void)vol_pct;
+    (void)level_half_db;
     NP_PLATFORM_TRAP();
 }
 
@@ -570,10 +570,10 @@ void np_mod_audio_hal_stop_planar(void)
     NP_PLATFORM_TRAP();
 }
 
-void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t level_half_db)
 {
     (void)freq_hz;
-    (void)vol_pct;
+    (void)level_half_db;
     NP_PLATFORM_TRAP();
 }
 

@@ -270,13 +270,17 @@ extern float           np_mod_vns_hal_get_hr_bpm(void);
 extern uint32_t        np_mod_vns_hal_now_ms(void);                 /* OI-VNS-10 */
 
 /* ── Neural audio entrainment (np_mod_audio.c) ──────────────────────────── */
+/* level_half_db is an ABSOLUTE level: dB SPL at the ear x 2, never a percentage.  The implementation owns the
+ * calibration from that level to its own drive (it differs per driver); the driver in np_mod_audio.c has already
+ * refused anything above NP_AUDIO_MAX_LEVEL_HALF_DB.  The bone transducer is NOT calibrated to dB SPL
+ * (NP-HW-AUDIO-001 OI-AUDIOHW-02); it receives the same number as an upper bound on its drive, not a measured level. */
 extern np_hub_status_t np_mod_audio_hal_codec_init(void);
 extern void  np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
-                                           uint16_t beat_mhz, uint8_t vol_pct);
-extern void  np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t vol_pct);
-extern void  np_mod_audio_hal_set_noise(uint8_t type, uint8_t vol_pct);
+                                           uint16_t beat_mhz, uint8_t level_half_db);
+extern void  np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db);
+extern void  np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db);
 extern void  np_mod_audio_hal_stop_planar(void);
-extern void  np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t vol_pct);
+extern void  np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t level_half_db);
 extern void  np_mod_audio_hal_bone_stop(void);
 extern float np_mod_audio_hal_mesh_impedance(void);
 

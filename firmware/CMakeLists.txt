@@ -462,7 +462,7 @@ if(NP_BUILD_TESTS)
         COMMAND np_mod_vns_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    # OI-SIMFW-19 / REQ-AUDIO-17, REQ-AUDIO-18: the audio driver's volume range and adaptive-mode gate.
+    # OI-SIMFW-19 / REQ-AUDIO-19, REQ-AUDIO-18: the audio driver's level ceiling and adaptive-mode gate.
     add_test(NAME np_mod_audio_tests
         COMMAND np_mod_audio_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

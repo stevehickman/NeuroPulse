@@ -1,12 +1,12 @@
 /*
  * NeurOne Hub Control — Audio Driver Host Tests
- * Document: NP-FW-HUB-001 §8.5, NP-HW-AUDIO-001 REQ-AUDIO-17 / REQ-AUDIO-18 (OI-SIMFW-19)
+ * Document: NP-FW-HUB-001 §8.5, NP-HW-AUDIO-001 REQ-AUDIO-19 / REQ-AUDIO-18 (OI-SIMFW-19)
  *
  * Two behaviours of np_mod_audio.c found by the firmware-in-the-loop simulator
  * (NP-SIM-FW-001 §16):
- *   1. REQ-AUDIO-17: volume_pct is specified 0-100 (np_hub_types.h).  The driver passed
- *      200 straight to the planar drivers and the bone transducer.  A command above 100
- *      is now refused (NP_HUB_ERR_INVALID_ARG) before any state changes or output is
+ *   1. REQ-AUDIO-19: level_half_db is the ABSOLUTE level, dB SPL x 2, with a ceiling of 85 dB SPL
+ *      (170).  The driver once passed 200 straight to the planar drivers and the bone transducer.
+ *      A command above the ceiling is refused (NP_HUB_ERR_INVALID_ARG) before any state changes or output is
  *      commanded, and a running command is left as it was.
  *   2. REQ-AUDIO-18: EEG-adaptive mode retunes the BINAURAL carrier (NP-FW-HUB-001 §8.5).
  *      np_mod_audio_set_eeg_band() re-applied binaural whatever the mode, so an
@@ -56,23 +56,23 @@ static audio_log_t g;
 static void note_vol(uint8_t v) { if (v > g.max_vol_seen) { g.max_vol_seen = v; } }
 
 np_hub_status_t np_mod_audio_hal_codec_init(void) { return NP_HUB_OK; }
-void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t vol_pct)
+void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t level_half_db)
 {
-    g.binaural_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = beat_mhz; g.planar_vol = vol_pct;
-    note_vol(vol_pct);
+    g.binaural_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = beat_mhz; g.planar_vol = level_half_db;
+    note_vol(level_half_db);
 }
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
 {
-    g.iso_calls++; g.carrier_hz = freq_hz; g.planar_vol = vol_pct; note_vol(vol_pct);
+    g.iso_calls++; g.carrier_hz = freq_hz; g.planar_vol = level_half_db; note_vol(level_half_db);
 }
-void np_mod_audio_hal_set_noise(uint8_t type, uint8_t vol_pct)
+void np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db)
 {
-    (void)type; g.noise_calls++; g.planar_vol = vol_pct; note_vol(vol_pct);
+    (void)type; g.noise_calls++; g.planar_vol = level_half_db; note_vol(level_half_db);
 }
 void np_mod_audio_hal_stop_planar(void) { g.stop_calls++; }
-void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t vol_pct)
+void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t level_half_db)
 {
-    (void)freq_hz; g.bone_set_calls++; g.bone_vol = vol_pct; note_vol(vol_pct);
+    (void)freq_hz; g.bone_set_calls++; g.bone_vol = level_half_db; note_vol(level_half_db);
 }
 void  np_mod_audio_hal_bone_stop(void) { g.bone_stop_calls++; }
 float np_mod_audio_hal_mesh_impedance(void) { return 0.0f; }
@@ -85,39 +85,39 @@ static void reset(void)
     (void)np_mod_audio_init(NP_HUB_SLOT_AUDIO);
 }
 
-static np_hub_status_t cmd(uint8_t mode, uint8_t vol, uint8_t bone, uint8_t adaptive)
+static np_hub_status_t cmd(uint8_t mode, uint8_t level, uint8_t bone, uint8_t adaptive)
 {
     np_mod_audio_params_t p;
     memset(&p, 0, sizeof(p));
     p.mode = mode;
     p.carrier_hz = 440U;
     p.beat_mhz = 6000U;
-    p.volume_pct = vol;
+    p.level_half_db = level;
     p.bone_conduct_en = bone;
     p.eeg_adaptive = adaptive;
     return np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p));
 }
 
-/* ── REQ-AUDIO-17: volume ─────────────────────────────────────────────────────── */
+/* ── REQ-AUDIO-19: the ceiling ────────────────────────────────────────────────────── */
 
-/* @verifies REQ-AUDIO-17 */
-static void test_a_volume_over_100_reaches_no_transducer(void)
+/* @verifies REQ-AUDIO-19#b */
+static void test_a_level_above_the_ceiling_reaches_no_transducer(void)
 {
-    static const uint8_t OVER[] = { 101U, 200U, 255U };
+    static const uint8_t OVER[] = { 171U, 200U, 255U };
     for (unsigned i = 0; i < sizeof(OVER); i++) {
         for (uint8_t mode = 0U; mode <= 4U; mode++) {
             reset();
             np_hub_status_t r = cmd(mode, OVER[i], 1U, 0U);
-            check(r == NP_HUB_ERR_INVALID_ARG, "volume above 100 is refused with INVALID_ARG");
+            check(r == NP_HUB_ERR_INVALID_ARG, "a level above 85 dB SPL is refused with INVALID_ARG");
             check(g.binaural_calls + g.iso_calls + g.noise_calls + g.bone_set_calls == 0 &&
                   g.max_vol_seen == 0U,
-                  "volume above 100 reaches neither the planar drivers nor the bone transducer");
+                  "a level above 85 dB SPL reaches neither the planar drivers nor the bone transducer");
         }
     }
 }
 
-/* @verifies REQ-AUDIO-17 */
-static void test_a_refused_volume_leaves_a_running_command_as_it_was(void)
+/* @verifies REQ-AUDIO-19#b */
+static void test_a_refused_level_leaves_a_running_command_as_it_was(void)
 {
     reset();
     check(cmd(0U, 40U, 1U, 1U) == NP_HUB_OK, "a valid command starts");
@@ -130,12 +130,12 @@ static void test_a_refused_volume_leaves_a_running_command_as_it_was(void)
           "the earlier binaural command is still the running one, adaptive and at its own volume");
 }
 
-/* @verifies REQ-AUDIO-17 */
+/* @verifies REQ-AUDIO-19#b */
 static void test_the_range_edges_still_play(void)
 {
     reset();
-    check(cmd(0U, 100U, 1U, 0U) == NP_HUB_OK && g.planar_vol == 100U && g.bone_vol == 100U,
-          "100 plays at 100 on both paths");
+    check(cmd(0U, 170U, 1U, 0U) == NP_HUB_OK && g.planar_vol == 170U && g.bone_vol == 170U,
+          "exactly 85 dB SPL plays on both paths");
     reset();
     check(cmd(2U, 0U, 1U, 0U) == NP_HUB_OK && g.noise_calls == 1 && g.planar_vol == 0U,
           "0 is accepted and passed on as 0");
@@ -188,8 +188,8 @@ static void test_a_band_update_after_a_stop_plays_nothing(void)
 
 int main(void)
 {
-    test_a_volume_over_100_reaches_no_transducer();
-    test_a_refused_volume_leaves_a_running_command_as_it_was();
+    test_a_level_above_the_ceiling_reaches_no_transducer();
+    test_a_refused_level_leaves_a_running_command_as_it_was();
     test_the_range_edges_still_play();
     test_a_band_update_does_not_turn_another_mode_into_binaural();
     test_a_band_update_still_retunes_a_binaural_session();

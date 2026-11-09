@@ -356,7 +356,9 @@ typedef struct __attribute__((packed)) {
     uint8_t  mode;           /* 0=binaural, 1=isochronic, 2=pink, 3=brown, 4=off */
     uint16_t carrier_hz;     /* carrier frequency Hz (binaural/isochronic) */
     uint16_t beat_mhz;       /* beat / modulation frequency mHz */
-    uint8_t  volume_pct;     /* 0–100 */
+    uint8_t  level_half_db;     /* ABSOLUTE level, dB SPL at the ear (re 20 uPa) in 0.5 dB steps: 2 x dB.
+                                 * 0 = output off; > NP_AUDIO_MAX_LEVEL_HALF_DB is refused (REQ-AUDIO-19,20).
+                                 * Never a percentage or any scale relative to a component. */
     uint8_t  bone_conduct_en;/* 1=enable mastoid bone conduction */
     uint8_t  eeg_adaptive;   /* 1=lock beat_mhz to EEG dominant band output */
 } np_mod_audio_params_t;

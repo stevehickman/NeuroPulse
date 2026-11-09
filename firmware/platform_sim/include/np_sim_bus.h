@@ -151,10 +151,10 @@ typedef struct {
     bool              audio_inited;
     uint8_t           audio_mode;                      /* 0 off, 1 binaural, 2 isochronic, 3 pink noise, 4 brown noise */
     uint16_t          audio_carrier_hz, audio_beat_mhz;
-    uint8_t           audio_vol_pct;
+    uint8_t           audio_level_half_db;
     bool              audio_bone_on;
     uint16_t          audio_bone_hz;
-    uint8_t           audio_bone_vol_pct;
+    uint8_t           audio_bone_level_half_db;
     float             audio_mesh_ohm;                  /* caller-set                                             */
     /* the goggles (NP_SIM_KIND_VISUAL) */
     bool              vis_seated, vis_eye_open, vis_mpe_ok;       /* what the sensors read; caller-set           */
