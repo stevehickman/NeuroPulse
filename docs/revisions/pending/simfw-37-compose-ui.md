@@ -1,0 +1,7 @@
+date: 2026-11-09
+## DHF
+author: NeurOne Software Engineering
+text: **{NP-SIM-FW-001 from → to}: `OI-SIMFW-37` decided: the simulator hosts the Compose Multiplatform UI.**
+## NP-SIM-FW-001
+author: NeurOne Software Engineering
+text: **§7: `OI-SIMFW-37` decided by the principal: the page hosts the Compose Multiplatform UI through its browser host and not the React app; how it reaches the twin, the browser host's gaps and the fate of the helmet view and standalone mode stay open.**
