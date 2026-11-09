@@ -1782,7 +1782,7 @@ returns 0 for it so no enable is requested. Audio delivers no current, no light 
 
 EEG-adaptive mode retunes the binaural carrier every `NP_AUDIO_ADAPT_INTERVAL_MS` to track the
 dominant EEG band, which the EEG driver posts via `np_mod_audio_set_eeg_band()`. The band→beat table
-(`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz.
+(`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz. **Only a running binaural command (mode 0) is retuned; any other mode is left as commanded** (`OI-SIMFW-19`, `REQ-AUDIO-18`). **`volume_pct` above 100 is refused with `NP_HUB_ERR_INVALID_ARG` before anything is commanded** (`REQ-AUDIO-17`); new host test `np_mod_audio_tests`.
 
 ### 8.6 Visual — `np_mod_visual.c`
 

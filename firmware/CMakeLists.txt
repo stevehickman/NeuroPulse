@@ -110,6 +110,7 @@
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #                             → np_mod_vns_tests          (OI-SIMFW-17 VNS contact confirmation, non-finite impedance)
+#                             → np_mod_audio_tests        (OI-SIMFW-19 audio volume range, EEG-adaptive mode gate)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
@@ -446,6 +447,11 @@ if(NP_BUILD_TESTS)
     # OI-SIMFW-17 / REQ-VNSC-07: the auricular VNS driver refuses a non-finite impedance.
     add_test(NAME np_mod_vns_tests
         COMMAND np_mod_vns_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-SIMFW-19 / REQ-AUDIO-17, REQ-AUDIO-18: the audio driver's volume range and adaptive-mode gate.
+    add_test(NAME np_mod_audio_tests
+        COMMAND np_mod_audio_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_visual_tests

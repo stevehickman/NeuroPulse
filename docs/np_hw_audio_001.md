@@ -144,6 +144,10 @@ change surfaces as a disagreement with a document rather than with a driver.
 > protocols rely on this: `CLAUDE.md` §3 modality ⑥ reserves the bone-conduction channel for the
 > breathing cue while the planar path carries binaural content.
 
+> **`REQ-AUDIO-17`** — `volume_pct` is **0–100**, and a command above 100 is **refused** (`NP_HUB_ERR_INVALID_ARG`) before any state changes or any output is commanded, so neither the planar drivers nor the bone transducer receive it and a running command is left as it was. *What fails without it:* a value the wire format does not define, up to 255, reaches the output stage and the HAL decides what it means. *Traceable to:* the field's specified range (`np_hub_types.h`, `np_mod_audio_params_t`); an out-of-range input must not reach the transducers. **This sets no sound level:** 100 is the top of an uncalibrated scale, and the acoustic ceiling remains `OI-AUDIOHW-01`. Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
+
+> **`REQ-AUDIO-18`** — An EEG band update (`np_mod_audio_set_eeg_band()`) retunes **only a running binaural command** (mode 0). An isochronic, noise or off command is left as commanded. *What fails without it:* an adaptive isochronic or noise session turns into binaural, and an off command starts a tone. *Traceable to:* `NP-FW-HUB-001` §8.5 ("EEG-adaptive mode retunes the binaural carrier"). Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
+
 ---
 
 ## 5. Safety position — the one modality with no enable line

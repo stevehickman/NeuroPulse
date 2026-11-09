@@ -124,23 +124,29 @@ static void test_eeg_adaptive_beat_follows_the_band(void)
     check(au()->audio_beat_mhz == 6000U, "adaptive: a command without it ignores band updates");
 }
 
-/* @verifies-none Characterisation of np_mod_audio.c's mode handling under EEG adaptation; the finding is OI-SIMFW-19. Simulator evidence only (REQ-SIMFW-06). */
-static void test_adaptation_switches_a_non_binaural_mode_to_binaural(void)
+/* @verifies-none The driver's mode gate is np_mod_audio.c's (REQ-AUDIO-18); np_mod_audio_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_adaptation_leaves_a_non_binaural_mode_alone(void)
 {
     setup();
     run("audio 1 440 0 30 0 1");
-    check(au()->audio_mode == 2U, "mode switch: isochronic is playing");
+    check(au()->audio_mode == 2U, "mode: isochronic is playing");
     run("audio_eeg_band 2");
-    check(au()->audio_mode == 1U, "mode switch: an EEG band update turns it into binaural (OI-SIMFW-19)");
+    check(au()->audio_mode == 2U, "mode: an EEG band update leaves it isochronic (OI-SIMFW-19, closed)");
+    run("audio 2 440 0 30 0 1");
+    run("audio_eeg_band 2");
+    check(au()->audio_mode == 3U, "mode: and leaves pink noise as pink noise");
 }
 
-/* @verifies-none Characterisation of np_mod_audio.c's lack of a volume clamp; the finding is OI-SIMFW-19. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_volume_over_100_reaches_the_output_stage(void)
+/* @verifies-none The driver's volume range is np_mod_audio.c's (REQ-AUDIO-17); np_mod_audio_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_volume_over_100_is_refused_before_the_output_stage(void)
 {
     setup();
     run("audio 0 200 10000 200 1 0");
-    check(au()->audio_vol_pct == 200U && au()->audio_bone_vol_pct == 200U,
-          "volume: 200 % reaches both the planar drivers and the bone transducer; the driver clamps nothing (OI-SIMFW-19)");
+    check(field("\"ev\":\"result\"", "\"code\":") != 0.0, "volume: 200 % is refused");
+    check(au()->audio_mode == 0U && au()->audio_vol_pct == 0U && au()->audio_bone_vol_pct == 0U && !au()->audio_bone_on,
+          "volume: and reaches neither the planar drivers nor the bone transducer (OI-SIMFW-19, closed)");
+    run("audio 0 200 10000 100 1 0");
+    check(au()->audio_vol_pct == 100U && au()->audio_bone_vol_pct == 100U, "volume: 100 % plays");
 }
 
 /* @verifies-none Malformed command; np_mod_audio.c's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */
@@ -202,8 +208,8 @@ int main(void)
     test_bone_conduction_follows_the_command();
     test_stop_and_lost_stops();
     test_eeg_adaptive_beat_follows_the_band();
-    test_adaptation_switches_a_non_binaural_mode_to_binaural();
-    test_a_volume_over_100_reaches_the_output_stage();
+    test_adaptation_leaves_a_non_binaural_mode_alone();
+    test_a_volume_over_100_is_refused_before_the_output_stage();
     test_malformed_command_and_shutdown();
     test_telemetry_reads_the_mesh_and_returns_no_record();
     test_default_and_injected_answers_are_marked();
