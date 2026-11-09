@@ -522,7 +522,7 @@ test('end to end: the real goggle driver emits, and the Hall edge cuts it throug
 });
 
 // @verifies REQ-SIMFW-11
-test('end to end: a bilateral intranasal command that fails on its second side leaves the first driven, and a T2 stub refuses', { skip: !BIN }, async () => {
+test('end to end: a bilateral intranasal command that fails on its second side stops the first, so nothing is driven (OI-SIMFW-21, fixed), and a T2 stub refuses', { skip: !BIN }, async () => {
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];
   bridge.on('message', (m) => seen.push(m));
@@ -536,8 +536,8 @@ test('end to end: a bilateral intranasal command that fails on its second side l
   bridge.stop();
   const r = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'ins').map((m) => m.event)[0];
   assert.notStrictEqual(r.code, 0, 'the command fails');
-  assert.strictEqual(r.left_on, true, 'with the left side still driven');
-  assert.strictEqual(r.right_on, false);
+  assert.strictEqual(r.left_on, false, 'the left side that was written is stopped again, not left driven');
+  assert.strictEqual(r.right_on, false, 'and the right side never started');
   const stub = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'stub').event;
   assert.ok(stub.code < 0, 'the TMS stub refuses');
   assert.strictEqual(stub.requested_enables & 0x800, 0, 'and requests no TMS enable');
