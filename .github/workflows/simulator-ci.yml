@@ -10,7 +10,7 @@ name: Simulator CI (firmware in the loop, host only)
 #   1. scripts/check-sim-host-only.ts (REQ-SIMFW-01): nothing outside firmware/platform_sim/ names the sim
 #      layer, the one entry in firmware/CMakeLists.txt is guarded, and a cross-toolchain configure with
 #      NP_BUILD_SIM=ON defines no np_sim_ target (with a host configure as the positive control).
-#   2. The ten np_sim_* scenario suites, through the np_sim_run_tests target.
+#   2. The eleven np_sim_* scenario suites, through the np_sim_run_tests target.
 #   3. `node --test` over simulator/server/fw-bridge.test.js and simulator/js/*.test.mjs, with
 #      NP_SIM_FW_BIN set so the end-to-end tests run against the real firmware process and are not skipped.
 #
@@ -51,7 +51,7 @@ permissions:
 env:
   # The suites np_sim_run_tests runs (firmware/platform_sim/CMakeLists.txt). A silently shrinking selection
   # is the failure this guards: a custom target exits 0 over fewer suites just as happily as over all of them.
-  NP_SIM_SUITE_COUNT: '10'
+  NP_SIM_SUITE_COUNT: '11'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -203,7 +203,7 @@ jobs:
                 -DCMAKE_CROSSCOMPILING=OFF \
                 firmware
 
-      # Builds and runs the ten scenario suites (the custom target's COMMANDs, in order; a failing suite
+      # Builds and runs the eleven scenario suites (the custom target's COMMANDs, in order; a failing suite
       # stops it with a non-zero exit) and builds the firmware process the bridge tests drive. Only these
       # targets are built, not the 70 device host tests, which their own workflows build.
       - name: Build and run the scenario suites (np_sim_run_tests)

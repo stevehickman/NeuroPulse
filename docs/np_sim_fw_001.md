@@ -743,6 +743,22 @@ The bridge and the page now drive the safety MCU of §22. The rule is `REQ-SIMFW
 
 ---
 
+## 24. The hub's own drivers commanding the safety MCU, as built (`REQ-SIMFW-07`)
+
+`np_sim_safety_tests` (§22) sets the hub's request mask and currents directly. `np_sim_hub_safety_tests` (4 scenarios, each in a forked child) commands the hub's own module
+drivers instead, so the request the safety MCU sees is the one the driver made, and asserts the line at the pin:
+
+| Scenario | Seen |
+|---|---|
+| A PBM tile | `drive` makes the cranial request; no line before the session is signed; signed, the line is asserted and granted; a `stop` withdraws the request and the line goes. (The shipped governor refuses every load, `OI-SIMFW-11`; the scenario opens it with `np_sim_governor_open_for_test`.) |
+| A hot zone | the hub still commands the tile, the MCU has released its line, and the status says THERMAL. |
+| A tDCS pair | `tdcs` on a declared 1 cm2 electrode is granted once the runner's waveform and area declarations are sent, and cut at the 150 mC session ceiling while the hub goes on commanding the pair. |
+| The goggles | a 40 Hz photic drive (outside the refused 3 to 30 Hz band, `REQ-FWHUB-65`) is asserted at the visual line; after the lift edge the request is withdrawn and the line is released. |
+
+Not verification evidence (`REQ-SIMFW-06`). The runner is still a stand-in: this scenario plays the heartbeat task, the signature and the declarations (§22).
+
+---
+
 ## Revision history
 
 | Rev | Date | Author | Change |
