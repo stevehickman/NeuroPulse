@@ -219,6 +219,32 @@ export const TEST_AID = Object.freeze({
 
 const fw = (cmd, rest = {}) => ({ type: 'FW_COMMAND', cmd, ...rest });
 
+// What each module needs to be placed, driven and stopped.  Values are the scenarios' own (UC-128); the visual command is EMDR because the
+// goggles refuse photic driving at 3-30 Hz until the detector exists (REQ-FWHUB-65).  Modules are keyed as the registry keys them.
+const HUB_MODULES = Object.freeze({
+  pbm: { label: 'PBM tile (socket 1)',
+    place: [{ type: 'MODULE_SET', socket: 0, patch: { add: 30 } }], on: [fw('drive', { sockets: [0] })], off: [fw('stop', { sockets: [0] })] },
+  eeg: { label: 'EEG front end',
+    place: [{ type: 'MODULE_SET', kind: 'eeg', patch: { add: {} } }, fw('eeg_init')],
+    on: [fw('eeg', { channel_mask: 255, gain: 6, notch: 1, ref_mode: 0, adaptive_out: 0 })], off: [fw('eeg_stop')] },
+  vns: { label: 'Auricular VNS clip',
+    place: [{ type: 'MODULE_SET', kind: 'vns', patch: { add: 5000 } }, fw('vns_init')],
+    on: [fw('vns', { side: 0, freq_mhz: 25000, amp_ua: 2000, pw_us: 250, ppg: 1, eeg_ref: 1, hrv_proto: 0 })], off: [fw('vns_stop')] },
+  audio: { label: 'Audio (planar + bone)',
+    place: [{ type: 'MODULE_SET', kind: 'audio', patch: { add: 1000 } }, fw('audio_init')],
+    on: [fw('audio', { mode: 0, carrier_hz: 200, beat_mhz: 10000, level_half_db: 80, bone: 0, adaptive: 0 })], off: [fw('audio_stop')] },
+  visual: { label: 'Visual goggles (EMDR)',
+    place: [{ type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } }, fw('vis_init')],
+    on: [fw('vis', { mode: 1, freq_hz: 0, duty_pct: 50, wl: 0, zone_lo: 63, zone_hi: 0, emdr_mhz: 100, mode_f: 0, shade: 0 })], off: [fw('vis_stop')] },
+  intranasal: { label: 'Intranasal probe',
+    place: [{ type: 'MODULE_SET', kind: 'intranasal', patch: { add: { auth: true, contact: true } } }, fw('ins_init')],
+    on: [fw('ins', { side: 0, freq_code: 1, duty: 20, cur_660: 10, cur_808: 10 })], off: [fw('ins_stop')] },
+  cvns: { label: 'Cervical VNS (T2)',
+    place: [{ type: 'MODULE_SET', kind: 'cvns', patch: { add: { left_kohm: 2, right_kohm: 2, unix_base_s: 0 } } }, fw('cvns_init')],
+    on: [fw('cvns', { side: 0, freq_mhz: 10000, amp_ua: 1000, pw_us: 250, ramp_s: 10, baseline_req: 1 })], off: [fw('cvns_stop')] },
+});
+export const HUB_MODULE_LIST = Object.freeze(Object.entries(HUB_MODULES).map(([id, m]) => ({ id, label: m.label })));
+
 export const SCRIPTS = {
   // Attach also puts every contact in contact: a contact check that fails at session start does not recover in the session
   // (np_impedance_check.c has no auto-retry), so the contacts are set before the first heartbeat, as the scenarios do.
@@ -249,6 +275,17 @@ export const SCRIPTS = {
   hubStim: (channel) => channel === 'tdcs'
     ? [{ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: 5 } }, fw('tdcs', { pair: 0, current_ua: 1000, polarity: 0, ramp_s: 30, area_mcm2: 25000 }), fw('status')]
     : [{ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: 5 } }, fw('bes', { pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: 500 }), fw('status')],
+  /**
+   * The hub's own commands for every other module, as a controller or the app would send them (NP-SIM-FW-001 §23, OI-SIMFW-28).  `place`
+   * is the user putting the part on the helmet (the simulated hardware); `on` and `off` are the driver commands.  A PBM drive is refused
+   * by the production power governor (OI-SIMFW-11) and the page shows the refusal, as the device would.  null: not a module of the table.
+   */
+  hubModule: (kind, phase) => {
+    const t = HUB_MODULES[kind];
+    if (!t) return null;
+    const out = phase === 'place' ? t.place : phase === 'on' ? t.on : t.off;
+    return [...out, fw('status')];
+  },
   hubStimStop: (channel) => [fw('stim_stop', { channel }), fw('status')],
   heartbeat: (ms) => [fw('safety_run', { ms, state: TEST_AID.runningState }), fw('status')],
   heartbeatLoss: (ms) => [fw('advance', { ms }), fw('status')],
@@ -333,7 +370,7 @@ export const FAULTS = Object.freeze([
     title: 'The cranial NTC reads hotter than the 62 C row of the MCU\'s table', script: () => SCRIPTS.thermal(TEST_AID.hotAdcCounts),
     clear: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
   { id: 'ntc_open', group: 'Sensors', label: 'NTC reads open', needs: NEEDS.ATTACHED,
-    title: 'The cranial NTC reads as an open sensor (the HAL\'s unset reading, 4095 counts). In the firmware as built this is not detected: see OI-SIMFW-36', script: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
+    title: 'The cranial NTC reads as an open sensor (the HAL\'s unset reading, 4095 counts). In the firmware as built this is not detected: see OI-SIMFW-37', script: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
   { id: 'contact_lost', group: 'Sensors', label: 'Electrode contact lost', needs: NEEDS.ATTACHED,
     title: 'The chosen channel\'s contact impedance goes far outside the window. The MCU checks contact at session start, so use this before the first Beat; later it has no effect (np_impedance_check.c has no re-check)',
     script: (channel = 0) => [...SCRIPTS.contact(channel, FAULT_OPEN_OHM), run(FAULT_RUN_MS), fw('status')],

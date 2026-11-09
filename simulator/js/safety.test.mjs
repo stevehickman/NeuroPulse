@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { createRequire } from 'node:module';
-import { SafetyMcu, SCRIPTS, LINES, VERDICT, decodeStatus, describeSlot, lineNameFor, TEST_AID, FAULTS, FAULTS_UNAVAILABLE, outageScript, OUTAGE_MIN_MS, OUTAGE_MAX_MS } from './safety.js';
+import { HUB_MODULE_LIST, SafetyMcu, SCRIPTS, LINES, VERDICT, decodeStatus, describeSlot, lineNameFor, TEST_AID, FAULTS, FAULTS_UNAVAILABLE, outageScript, OUTAGE_MIN_MS, OUTAGE_MAX_MS } from './safety.js';
 import { SimModuleRegistry } from './simmodule.js';
 import { accessoryStates } from './accessories.js';
 
@@ -156,6 +156,7 @@ test('every message the test aid sends is one the bridge accepts, and none carri
     SCRIPTS.request('bes'), SCRIPTS.release('bes'), SCRIPTS.contact(2, 5000), SCRIPTS.declare(5, 2, 20000, 1000), SCRIPTS.thermal(TEST_AID.hotAdcCounts),
     SCRIPTS.cardiacBaseline(), SCRIPTS.cardiacStep(), SCRIPTS.cvnsPrepare(), SCRIPTS.hubStim('bes'), SCRIPTS.hubStim('tdcs'), SCRIPTS.hubStimStop('bes'),
     ...LINES.map((l) => SCRIPTS.prepareLine(l.name)).filter((x) => x !== null),
+    ...HUB_MODULE_LIST.flatMap((m) => ['place', 'on', 'off'].map((ph) => SCRIPTS.hubModule(m.id, ph))),
   ];
   assert.ok(scripts.length > 17);
   for (const sc of scripts) {
