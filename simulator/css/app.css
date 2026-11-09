@@ -606,3 +606,25 @@ html, body {
 @media (prefers-reduced-motion: reduce) { .accwin, .accwin-art .art-part.on .led, .accwin-art .art-part.on .pad { animation: none; } }
 
 .accwin-status { font-size: 11px; color: var(--text-dim); min-height: 1.4em; font-family: var(--font-mono); }
+
+/* ── Safety MCU panel (NP-SIM-FW-001 §23) ────────────────────────────────── */
+.safety-panel[hidden] { display: none; }
+.safety-badge { display: inline-block; padding: 3px 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.safety-in  { background: rgba(0,255,136,.12); color: var(--success); border: 1px solid rgba(0,255,136,.35); }
+.safety-out { background: rgba(255,154,200,.10); color: #ff9ac8; border: 1px solid rgba(255,154,200,.35); }
+.safety-note { font-size: 10px; color: var(--text-dim); line-height: 1.35; margin: 0 0 8px; }
+.safety-lines { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; }
+.safety-lines th { text-align: left; color: var(--text-faint); font-weight: 600; padding: 2px 3px; }
+.safety-lines td { padding: 2px 3px; color: var(--text-dim); border-top: 1px solid var(--border); }
+.safety-on  { color: var(--success); font-weight: 700; }
+.safety-off { color: var(--text-faint); }
+.safety-kv { display: flex; flex-direction: column; font-size: 10px; margin-bottom: 4px; }
+.safety-k { color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
+.safety-v { color: var(--text); font-family: var(--font-mono); word-break: break-word; }
+.safety-aid { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-bright); }
+.safety-aid-title { font-size: 10px; color: var(--warn); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 4px; }
+.safety-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 5px; }
+.safety-row-label { flex: 0 0 62px; font-size: 10px; color: var(--text-dim); }
+.safety-btn { flex: 0 1 auto; padding: 4px 7px; font-size: 10px; }
+.safety-select { width: auto; max-width: 110px; font-size: 10px; padding: 3px; }
+.safety-error { color: var(--danger); font-size: 10px; min-height: 12px; }

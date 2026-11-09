@@ -28,7 +28,6 @@
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
-#include "np_cardiac_sens.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,12 +36,12 @@
 extern void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask, uint8_t mcu_status);
 extern void np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid);
 
-/* The cervical cutoff's sensitivity is the hardware owner's stored setting (REQ-FWHUB-74), whose store the simulator does not
- * run.  The sim reports level 0, the cutoff as validated (np_cardiac_sens.h), so np_mod_cvns.c links.  Added with OI-SIMFW-20
- * because the simulator did not build after #796; it does not model the setting. */
+/* The owner's cardiac cutoff sensitivity (REQ-CVNS-14) is a hub setting read from the config store by np_cardiac_sens.c, which the
+ * simulator does not link (OI-SIMFW-30).  The driver's heart-rate report asks for it, so the simulator answers 0: the cutoff as
+ * validated, never a lower threshold than the owner asked for. */
 uint8_t np_cardiac_sens_level(void) { return 0U; }
 
-static double g_next_peak_ms;     /* the R-peak train's phase, carried across safety_run calls (absolute virtual ms) */
+static double g_next_peak_ms;    /* the R-peak train's phase, carried across safety_run calls (absolute virtual ms) */
 static int    g_peak_bpm;
 
 void np_simh_safety_init(void) { g_next_peak_ms = 0.0; g_peak_bpm = 0; }
@@ -160,7 +159,8 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
     } else if (strcmp(cmd, "safety_user") == 0 && a) {
         state_event("safety_state", cmd, (int)np_safety_spi_send_active_user((uint32_t)strtoul(a, NULL, 0)));
     } else if (strcmp(cmd, "safety_hr") == 0 && a && b && c) {
-        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, (uint16_t)atoi(b), (uint16_t)atoi(c), 0U));
+        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, (uint16_t)atoi(b), (uint16_t)atoi(c),
+                                                                                   0U /* sens_level: the cutoff as validated, REQ-CVNS-14 */));
     } else if (strcmp(cmd, "safety_enable") == 0 && a) {                    /* what a modality driver does beside its own command */
         np_safety_spi_request_enable((uint16_t)strtoul(a, NULL, 0));
     } else if (strcmp(cmd, "safety_disable") == 0 && a) {

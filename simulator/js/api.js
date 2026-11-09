@@ -75,6 +75,16 @@ export class DeviceAPI {
 
   get connected() { return this._open(); }
 
+  /**
+   * Sends one firmware-bridge message (FW_COMMAND, MODULE_SET, ...).  The server's bridge validates it (REQ-SIMFW-12); a message it
+   * refuses comes back as an ERROR.  Returns false when there is no connection.
+   */
+  sendFirmware(msg) {
+    if (!this._open()) return false;
+    this._send(msg);
+    return true;
+  }
+
   // ─── private ──────────────────────────────────────────────────────────────
 
   _connect() {
@@ -144,11 +154,14 @@ export class DeviceAPI {
       case 'MODULE_LIST':
       case 'MODULE_STATE':
       case 'FW_LOG':
+      case 'SAFETY_STATE':      // the safety MCU in the loop: status, fault slot, enable lines (NP-SIM-FW-001 §23)
+      case 'SAFETY_EVENT':
         this._cb.onFirmwareMessage?.(msg);
         break;
 
       case 'ERROR':
         console.warn(`[NP-API] Server error ${msg.code}: ${msg.message}`);
+        this._cb.onError?.(msg);
         break;
 
       default:

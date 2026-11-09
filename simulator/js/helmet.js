@@ -910,7 +910,7 @@ export class HelmetModel {
     if (!on) return;
     let pairs;
     if (st.source === 'firmware') {
-      pairs = st.modules.filter((m) => m.driven).map((m) => ({ index: m.index, dc: m.detail?.dc === true }));
+      pairs = st.modules.filter((m) => m.drawnDriven).map((m) => ({ index: m.index, dc: m.detail?.dc === true }));
     } else {
       pairs = [{ index: 0, dc: !!snap.tdcs?.active && !snap.bes?.active }];
     }
