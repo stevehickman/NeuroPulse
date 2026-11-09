@@ -22,6 +22,21 @@ typedef struct {
 
 static np_xcheck_chan_t s_chan[NP_SAFETY_MAX_CHANNELS];
 
+/*
+ * True for a finite float.  Tested on the bits, not with isfinite(): the hub is
+ * built with -ffast-math (CMakeLists.txt), which makes the compiler assume no
+ * NaN or infinity and folds isfinite() away (arm-none-eabi-gcc 13.2.1 emits no
+ * test for it), and a NaN comparison has no defined outcome.  An all-ones
+ * exponent field is NaN or infinity.  Same test as np_mod_vns.c (OI-SIMFW-17);
+ * a shared header is OI-SIMFW-29's follow-up.
+ */
+static bool xcheck_float_is_finite(float v)
+{
+    uint32_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return (bits & 0x7F800000UL) != 0x7F800000UL;
+}
+
 /* The modalities whose telemetry carries a DELIVERED current read, and the
  * safety-MCU channel each one's commanded current is published on.  Every
  * other modality returns NP_SAFETY_MAX_CHANNELS and is not cross-checked. */
@@ -117,9 +132,13 @@ bool np_stim_xcheck_observe(const np_telem_record_t *rec, uint32_t now_ms)
     }
 
     /* Magnitude: DC polarity may read back negative.  A non-finite reading
-     * cannot show delivery is within bounds, so it counts against it. */
+     * cannot show delivery is within bounds, so it counts against it.  The
+     * finiteness test is on the bits (xcheck_float_is_finite), because under
+     * -ffast-math isfinite() is dead code and the NaN outcome of the magnitude
+     * comparison below is whatever condition code the compiler chose
+     * (OI-SIMFW-29, REQ-FWHUB-41). */
     const float delivered = rec->data.stim.current_ua;
-    const bool  excess    = !isfinite(delivered) ||
+    const bool  excess    = !xcheck_float_is_finite(delivered) ||
                             fabsf(delivered) > bound + margin;
 
     if (!excess) {

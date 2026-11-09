@@ -110,9 +110,10 @@ env:
   # 61 → 62: np_runner_load_tests (GitHub #569, REQ-FWHUB-62).
   # 62 → 63: np_runner_run_tests (GitHub #569, REQ-FWHUB-63).
   # 67 → 68: np_mod_vns_tests (OI-SIMFW-17, REQ-VNSC-07).
-  NP_TOTAL_TEST_COUNT: '70'
+  # 70 → 71: np_stim_xcheck_nonfinite_tests (OI-SIMFW-29, REQ-FWHUB-41).
+  NP_TOTAL_TEST_COUNT: '71'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '59'
+  NP_CLASS_B_TEST_COUNT: '60'
 
 jobs:
   host-tests-all:

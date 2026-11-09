@@ -91,6 +91,7 @@ np_socket_dispatch_tests 561
 np_socket_layouts_tests 266
 np_safety_spi_tests 234
 np_stim_xcheck_tests 199
+np_stim_xcheck_nonfinite_tests 130  # measured 133 on a local --coverage build; 3 below it for toolchain difference
 np_transport_tests 209
 np_uhdr_key_tests 431
 np_zone_announce_tests 444
