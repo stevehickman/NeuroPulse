@@ -433,7 +433,7 @@ test('end to end: a tDCS ramp runs the real driver and an over-delivery on one p
 });
 
 // @verifies REQ-SIMFW-11
-test('end to end: the real EEG driver configures the sim front end and a lost stop is visible', { skip: !BIN }, async () => {
+test('end to end: the real EEG driver configures the sim front end, reports a lost stop, and a second stop retries it (OI-SIMFW-16, closed)', { skip: !BIN }, async () => {
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];
   bridge.on('message', (m) => seen.push(m));
@@ -444,13 +444,19 @@ test('end to end: the real EEG driver configures the sim front end and a lost st
   bridge.handle({ type: 'MODULE_FAIL', kind: 'eeg', op: 'eeg_stop', code: -17, times: 1 });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_stop' });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'status' });
-  await wait(500);
+  await wait(300);
+  const states = () => seen.filter((m) => m.type === 'MODULE_STATE' && m.event.id === 'eeg:0');
+  const stops = () => seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'eeg_stop');
+  assert.strictEqual(stops()[0].event.code, -17, 'the driver reports the lost stop');
+  assert.strictEqual(stops()[0].event.eeg_running, true, 'while the converter still runs');
+  assert.strictEqual(states().pop().event.driven, true, 'and the module state says so');
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'eeg_stop' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'status' });
+  await wait(300);
   bridge.stop();
-  const stop = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'eeg_stop');
-  assert.strictEqual(stop.event.code, 0, 'the driver reports the stop done');
-  assert.strictEqual(stop.event.eeg_running, true, 'while the converter still runs');
-  const state = seen.filter((m) => m.type === 'MODULE_STATE' && m.event.id === 'eeg:0').pop();
-  assert.strictEqual(state.event.driven, true, 'and the module state says so');
+  assert.strictEqual(stops()[1].event.code, 0, 'a second stop retries and lands');
+  assert.strictEqual(stops()[1].event.eeg_running, false, 'the converter has stopped');
+  assert.strictEqual(states().pop().event.driven, false, 'and the module state says so');
 });
 
 // @verifies REQ-SIMFW-11

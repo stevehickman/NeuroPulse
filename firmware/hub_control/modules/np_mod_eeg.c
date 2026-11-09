@@ -112,7 +112,11 @@ np_hub_status_t np_mod_eeg_control(uint8_t slot, const void *params, uint16_t le
     /* Stop */
     if (params == NULL || len == 0U) {
         if (s_recording) {
-            np_mod_eeg_hal_stop_continuous();
+            /* OI-SIMFW-16 / REQ-FWEEG-01: clear the flag only when the stop landed.
+             * A lost stop leaves it set, so the next stop (or shutdown) tries the
+             * converter again, and the caller is told.  One attempt per call. */
+            const np_hub_status_t rc = np_mod_eeg_hal_stop_continuous();
+            if (rc != NP_HUB_OK) { return rc; }
             s_recording = false;
         }
         return NP_HUB_OK;

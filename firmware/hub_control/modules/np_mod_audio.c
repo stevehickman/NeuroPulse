@@ -14,7 +14,7 @@
  * Level.  Every level is an ABSOLUTE sound pressure level in dB SPL at the ear (level_half_db, 0.5 dB
  * steps), never a percentage, so the same command means the same sound on any driver.  The HAL owns the
  * per-component calibration from that level to its drive.  A level above NP_AUDIO_MAX_LEVEL_HALF_DB
- * (85 dB SPL) is refused before anything changes (NP-HW-AUDIO-001 REQ-AUDIO-17).
+ * (85 dB SPL) is refused before anything changes (NP-HW-AUDIO-001 REQ-AUDIO-19).
  *
  * HAL stubs:
  *   OI-AUDIO-01: np_mod_audio_hal_codec_init()
@@ -34,6 +34,8 @@
 #include "np_sw02_platform_hal.h"
 
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
+#define NP_AUDIO_MODE_BINAURAL  0U   /* np_mod_audio_params_t.mode */
+
 static const uint16_t BAND_BEAT_MHZ[5] = {
     2000U,   /* delta: 2Hz */
     6000U,   /* theta: 6Hz */
@@ -62,6 +64,10 @@ void np_mod_audio_set_eeg_band(uint8_t band)
 {
     if (!s_state.active || !s_state.eeg_adaptive) { return; }
     if (band >= 5U) { return; }
+    /* NP-FW-HUB-001 §8.5: EEG-adaptive mode retunes the BINAURAL carrier.  Only a
+     * running binaural command (mode 0) is retuned; an isochronic, noise or off
+     * command is left as commanded (OI-SIMFW-19, REQ-AUDIO-18). */
+    if (s_state.mode != NP_AUDIO_MODE_BINAURAL) { return; }
     s_state.beat_mhz = BAND_BEAT_MHZ[band];
     np_mod_audio_hal_set_binaural(s_state.carrier_hz, s_state.beat_mhz,
                                    s_state.level_half_db);
@@ -109,7 +115,10 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
 
     const np_mod_audio_params_t *p = (const np_mod_audio_params_t *)params;
 
-    /* REQ-AUDIO-17: refuse, never reshape.  Checked before any state or output changes. */
+    /* The level is absolute (dB SPL x 2), and above the 85 dB SPL ceiling it is outside the contract: refuse
+     * before any state changes or any output is commanded, so neither the planar drivers nor the bone
+     * transducer receive it and a running command is left as it was (REQ-AUDIO-19).  Refused, not clamped:
+     * a clamped command plays something other than what was authored. */
     if (p->level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) {
         return NP_HUB_ERR_INVALID_ARG;
     }

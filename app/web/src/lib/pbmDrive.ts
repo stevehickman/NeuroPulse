@@ -59,7 +59,7 @@ export function irradianceToRegister(
   return Math.max(1, Math.min(255, Math.round(irradianceMWcm2 / fullScaleMWcm2 * 255)));
 }
 
-/** Acoustic output ceiling, dB SPL at the ear. Absolute (NP-HW-AUDIO-001 REQ-AUDIO-17). */
+/** Acoustic output ceiling, dB SPL at the ear. Absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). */
 export const AUDIO_MAX_DB_SPL = 85;
 
 /** dB SPL at the ear → the wire byte (2 × dB), or throw above the ceiling. Never reduces a level to fit. */

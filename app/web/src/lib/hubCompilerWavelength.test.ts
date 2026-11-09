@@ -263,12 +263,12 @@ ${extra}    }`;
 
 describe('audio level', () => {
   const audio = (v: string) => protocol(`    audio_entrainment {\n        carrier_hz: 440Hz\n        isochronic_hz: 10Hz\n        volume: ${v}\n    }`);
-  // @verifies REQ-AUDIO-17
+  // @verifies REQ-AUDIO-20#a
   it('writes the absolute level, 2 x dB SPL', () => {
     expect(commands(audio('65dB'))[0].params[5]).toBe(130);
     expect(commands(audio('85dB'))[0].params[5]).toBe(170);
   });
-  // @verifies REQ-AUDIO-17
+  // @verifies REQ-AUDIO-19#a
   it('refuses a level above the 85 dB SPL ceiling', () => {
     expect(() => commands(audio('85.5dB'))).toThrow(/acoustic output ceiling/);
     expect(() => commands(audio('95dB'))).toThrow(/acoustic output ceiling/);

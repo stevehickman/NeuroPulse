@@ -388,7 +388,7 @@ void np_mod_eeg_hal_start_continuous(void)
     NP_PLATFORM_TRAP();
 }
 
-void np_mod_eeg_hal_stop_continuous(void)
+np_hub_status_t np_mod_eeg_hal_stop_continuous(void)
 {
     NP_PLATFORM_TRAP();
 }

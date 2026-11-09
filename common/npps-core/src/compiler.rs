@@ -62,7 +62,7 @@ const PBM_FULL_SCALE: [(Channel, f64); 3] =
     [(Channel::Led660, 403.0), (Channel::Led808, 403.0), (Channel::Led1064, 28.0)];
 const INTRANASAL_FULL_SCALE: f64 = 100.0;
 /// Acoustic output ceiling, dB SPL at the ear: absolute, not a fraction of any driver's range
-/// (NP-HW-AUDIO-001 REQ-AUDIO-17). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
+/// (NP-HW-AUDIO-001 REQ-AUDIO-19). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
 const AUDIO_MAX_DB_SPL: f64 = 85.0;
 const EPS: f64 = 1e-9;
 const CLINICAL_TACS_MAX_CHANNELS: f64 = 21.0;

@@ -786,7 +786,7 @@ Over-ear planar magnetic + bone conduction.
 | `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100 |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
 | `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats |
-| `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-17`) |
+| `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-19`) |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
 | `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |
 

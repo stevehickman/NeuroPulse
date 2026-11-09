@@ -124,17 +124,20 @@ static void test_eeg_adaptive_beat_follows_the_band(void)
     check(au()->audio_beat_mhz == 6000U, "adaptive: a command without it ignores band updates");
 }
 
-/* @verifies-none Characterisation of np_mod_audio.c's mode handling under EEG adaptation; the finding is OI-SIMFW-19. Simulator evidence only (REQ-SIMFW-06). */
-static void test_adaptation_switches_a_non_binaural_mode_to_binaural(void)
+/* @verifies-none The driver's mode gate is np_mod_audio.c's (REQ-AUDIO-18); np_mod_audio_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_adaptation_leaves_a_non_binaural_mode_alone(void)
 {
     setup();
     run("audio 1 440 0 30 0 1");
-    check(au()->audio_mode == 2U, "mode switch: isochronic is playing");
+    check(au()->audio_mode == 2U, "mode: isochronic is playing");
     run("audio_eeg_band 2");
-    check(au()->audio_mode == 1U, "mode switch: an EEG band update turns it into binaural (OI-SIMFW-19)");
+    check(au()->audio_mode == 2U, "mode: an EEG band update leaves it isochronic (OI-SIMFW-19, closed)");
+    run("audio 2 440 0 30 0 1");
+    run("audio_eeg_band 2");
+    check(au()->audio_mode == 3U, "mode: and leaves pink noise as pink noise");
 }
 
-/* @verifies REQ-AUDIO-17 */
+/* @verifies REQ-AUDIO-19#b */
 static void test_a_level_above_the_ceiling_is_refused_and_changes_nothing(void)
 {
     setup();
@@ -144,7 +147,8 @@ static void test_a_level_above_the_ceiling_is_refused_and_changes_nothing(void)
     check(au()->audio_level_half_db == 60U && au()->audio_bone_level_half_db == 60U,
           "ceiling: 85.5 dB SPL is refused and neither output changes (OI-SIMFW-19)");
     run("audio 0 200 10000 200 1 0");
-    check(au()->audio_level_half_db == 60U, "ceiling: 100 dB SPL is refused too, not clamped");
+    check(field("\"ev\":\"result\"", "\"code\":") != 0.0, "ceiling: 100 dB SPL is refused, not clamped");
+    check(au()->audio_level_half_db == 60U, "ceiling: and the running level is left as it was");
     run("audio 0 200 10000 170 1 0");
     check(au()->audio_level_half_db == 170U && au()->audio_bone_level_half_db == 170U,
           "ceiling: exactly 85 dB SPL is delivered to both outputs");
@@ -209,7 +213,7 @@ int main(void)
     test_bone_conduction_follows_the_command();
     test_stop_and_lost_stops();
     test_eeg_adaptive_beat_follows_the_band();
-    test_adaptation_switches_a_non_binaural_mode_to_binaural();
+    test_adaptation_leaves_a_non_binaural_mode_alone();
     test_a_level_above_the_ceiling_is_refused_and_changes_nothing();
     test_malformed_command_and_shutdown();
     test_telemetry_reads_the_mesh_and_returns_no_record();

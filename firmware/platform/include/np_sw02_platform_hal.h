@@ -231,7 +231,10 @@ extern uint16_t        np_mod_ins_hal_pd_read(uint8_t side, uint8_t wl);
 extern void     np_mod_eeg_hal_spi_write_reg(uint8_t reg, uint8_t val);
 extern uint8_t  np_mod_eeg_hal_spi_read_reg(uint8_t reg);
 extern void     np_mod_eeg_hal_start_continuous(void);
-extern void     np_mod_eeg_hal_stop_continuous(void);
+/* Stop returns NP_HUB_OK when the converter stopped; anything else means the
+ * stop did not land and the driver keeps its recording flag so a second stop
+ * retries (OI-SIMFW-16, REQ-FWEEG-01). */
+extern np_hub_status_t np_mod_eeg_hal_stop_continuous(void);
 extern float    np_mod_eeg_hal_read_impedance(uint8_t ch);
 extern float    np_mod_eeg_hal_get_band_power(uint8_t band);
 extern uint8_t  np_mod_eeg_hal_get_dominant_band(void);

@@ -109,7 +109,9 @@
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#                             → np_mod_eeg_tests          (OI-SIMFW-16 EEG lost stop reported and retried)
 #                             → np_mod_vns_tests          (OI-SIMFW-17 VNS contact confirmation, non-finite impedance)
+#                             → np_mod_audio_tests        (OI-SIMFW-19 audio volume range, EEG-adaptive mode gate)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
@@ -182,7 +184,7 @@ project(neurone_firmware C ASM)
 
 # ── Global options ─────────────────────────────────────────────────────────────
 option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)
-option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); not part of any CI job yet" OFF)
+option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); run by simulator-ci.yml, never linked into a device image" OFF)
 option(NP_BUILD_BOOTLOADER "Include the bootloader in the build"               ON)
 
 # ── Toolchain guard (cross-compiled modules) ──────────────────────────────────
@@ -444,8 +446,18 @@ if(NP_BUILD_TESTS)
 
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).
     # OI-SIMFW-17 / REQ-VNSC-07: the auricular VNS driver refuses a non-finite impedance.
+    # OI-SIMFW-16 / REQ-FWEEG-01: the EEG driver reports a lost stop and retries it.
+    add_test(NAME np_mod_eeg_tests
+        COMMAND np_mod_eeg_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_mod_vns_tests
         COMMAND np_mod_vns_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-SIMFW-19 / REQ-AUDIO-19, REQ-AUDIO-18: the audio driver's level ceiling and adaptive-mode gate.
+    add_test(NAME np_mod_audio_tests
+        COMMAND np_mod_audio_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_mod_visual_tests
