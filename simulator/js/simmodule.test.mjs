@@ -40,7 +40,7 @@ test('a module records which ops it has only ever answered from the default mode
   const reg = new SimModuleRegistry();
   assert.strictEqual(reg.banner(), '', 'no banner while no firmware is attached');
   reg.onMessage({ type: 'MODULE_STATE', event: { ev: 'module', id: 'pbm_base:1', kind: 'pbm_base', index: 1, present: true } }, 0);
-  assert.match(reg.banner(), /No safety MCU is running/, 'the scope notice appears with the first module');
+  assert.match(reg.banner(), /Safety MCU not in loop/, 'the scope notice appears with the first module');
 });
 
 // @verifies REQ-SIMFW-11

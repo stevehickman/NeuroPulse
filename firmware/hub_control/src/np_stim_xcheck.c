@@ -28,7 +28,7 @@ static np_xcheck_chan_t s_chan[NP_SAFETY_MAX_CHANNELS];
  * NaN or infinity and folds isfinite() away (arm-none-eabi-gcc 13.2.1 emits no
  * test for it), and a NaN comparison has no defined outcome.  An all-ones
  * exponent field is NaN or infinity.  Same test as np_mod_vns.c (OI-SIMFW-17);
- * a shared header is OI-SIMFW-29's follow-up.
+ * a shared header is OI-SIMFW-31's follow-up.
  */
 static bool xcheck_float_is_finite(float v)
 {
@@ -136,7 +136,7 @@ bool np_stim_xcheck_observe(const np_telem_record_t *rec, uint32_t now_ms)
      * finiteness test is on the bits (xcheck_float_is_finite), because under
      * -ffast-math isfinite() is dead code and the NaN outcome of the magnitude
      * comparison below is whatever condition code the compiler chose
-     * (OI-SIMFW-29, REQ-FWHUB-41). */
+     * (OI-SIMFW-31, REQ-FWHUB-41). */
     const float delivered = rec->data.stim.current_ua;
     const bool  excess    = !xcheck_float_is_finite(delivered) ||
                             fabsf(delivered) > bound + margin;

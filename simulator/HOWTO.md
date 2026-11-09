@@ -27,6 +27,8 @@
 15. [Browser Compatibility and Performance](#15-browser-compatibility-and-performance)
 16. [Known Limitations (v0.1.0)](#16-known-limitations-v010)
 18. [Firmware in the Loop (spike)](#18-firmware-in-the-loop-spike)
+19. [Accessories: drawn only while in use](#19-accessories-drawn-only-while-in-use)
+20. [The safety MCU in the browser](#20-the-safety-mcu-in-the-browser)
 
 ---
 
@@ -1023,7 +1025,7 @@ simulated module you can fail on demand. Design and findings: `docs/np_sim_fw_00
 standalone mode (§3) is unchanged, and nothing here runs unless you start the server with the firmware
 binary.
 
-- **Scope today:** PBM base tiles only, the hub's socket dispatch only, no safety MCU. The page says so
+- **Scope today:** PBM base tiles only, the hub's socket dispatch only, no safety MCU unless you attach one (§20). The page says so
   while any module is attached, and a tile is shown driven when the hub commanded it, **not** when a
   safety MCU would have allowed it. Timing is indicative. Nothing here is verification evidence.
 - **Build and run:** the commands are in NP-SIM-FW-001 §12. Start the server with
@@ -1077,3 +1079,35 @@ can be seen without the firmware.
 **Driving them from the firmware** (`NP_SIM_FW_BIN`): the bridge takes `kind` in `MODULE_SET`, `MODULE_FAIL` and `MODULE_CLEAR`
 (`stim_pair`, `eeg`, `vns`, `audio`, `visual`, `intranasal`, `cvns`) and the module commands in `FW_COMMAND`; the list is in
 `NP-SIM-FW-001` §13 to §20. The real server asks the firmware for every module's state 40 ms after a command, so the page follows.
+
+
+---
+
+## 20. The safety MCU in the browser
+
+With the server started on the firmware binary (`NP_SIM_FW_BIN`, §18) the page shows a **Safety MCU** section at the top of the
+right panel. Design and findings: `NP-SIM-FW-001` §23. **Nothing here is verification evidence** (`REQ-SIMFW-06`).
+
+- **The header says which case you are in.** `Safety MCU not in loop` means no MCU is attached: a module is drawn driven when
+  the hub commanded it, not when a safety MCU would have allowed it. `Safety MCU in the loop` means the device's own safety MCU
+  sources are running (§22 of the design) and the drawing rule is the real one: **a module is drawn driven only while the MCU
+  has its enable line enabled.** A module the hub commanded and the MCU withheld is dim amber (a tile), or not drawn (an
+  accessory, the electrodes). The audio path and the EEG front end request no enable, so the MCU does not gate them.
+- **The state** is the firmware's own: per line, what the hub requests, what the MCU grants, and whether the line is ENABLED (the
+  MCU's GPIO, which is the authority: after a heartbeat loss the line drops before any reply can say why); the status flags; the
+  fault slot; virtual milliseconds since the last heartbeat run; the watchdog (the flag in the last reply, and whether the
+  independent watchdog is holding the MCU in reset); the last cutoff (`reason pending` until a reply carries the flags); and the
+  tier record.
+- **The test aid** plays the two parts the device has other hardware for, the heartbeat task and the app, with the simulator's TEST
+  root key (seed 7). It is labelled as a test aid on the page. **Suggested order:** Attach (T1 or T2; it also puts every contact in
+  contact, because a contact check that fails at session start does not recover in the session), then a hub command (BES on),
+  then Beat 1 s and Sign (a session takes about a second to start, and a declaration sent before it starts is wiped), then pick
+  the line and Prepare (declared waveform and area, and the enable request), then Beat again. The BES line is enabled and the
+  electrodes appear. **Lose it 2 s** advances the virtual clock with no heartbeat: the line is cut and the electrodes go. For the
+  cervical VNS, Request cVNS before the first beat, then Prepare on that line after Sign, then 70 bpm and Step to 100.
+- **Virtual time moves only when a command moves it** (a heartbeat run, Lose it, or the stimulation `advance`). Nothing runs in
+  the background.
+- **From a script**, the same commands are `FW_COMMAND` messages (`safety_attach`, `safety_run`, `safety_sig`, `safety_enable`
+  with `lines: ["bes"]`, and the rest of `NP-SIM-FW-001` §23). A client names lines and never numbers them, and the OTP-programming
+  commands are accepted once, before the attach. The server sends `SAFETY_STATE` and `SAFETY_EVENT` messages and puts the last
+  state in `MODULE_LIST`.

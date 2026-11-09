@@ -433,7 +433,7 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_stim_xcheck_tests PRIVATE m)
 
-    # OI-SIMFW-29 / REQ-FWHUB-41: the cross-check's non-finite reading, built with
+    # OI-SIMFW-31 / REQ-FWHUB-41: the cross-check's non-finite reading, built with
     # the device's floating-point flags (-O2 -ffast-math -fno-math-errno
     # -ffreestanding, as np_hub_control below) because those flags are what can
     # fold isfinite() away.  The test source #errors if -ffinite-math-only is lost.

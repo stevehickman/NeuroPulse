@@ -234,7 +234,7 @@ env:
   # 50 → 51: np_runner_load_tests (GitHub #569, REQ-FWHUB-62: np_runner_load() has a host test).
   # 51 → 52: np_runner_run_tests (GitHub #569, REQ-FWHUB-63: np_runner_run() has a host test).
   # 56 → 57: np_mod_vns_tests (OI-SIMFW-17, REQ-VNSC-07).
-  # 59 → 60: np_stim_xcheck_nonfinite_tests (OI-SIMFW-29, REQ-FWHUB-41).
+  # 59 → 60: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
   NP_CLASS_B_TEST_COUNT: '60'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request

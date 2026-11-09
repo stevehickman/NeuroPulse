@@ -6,7 +6,8 @@
  */
 const test = require('node:test');
 const assert = require('node:assert');
-const { FwBridge, BridgeError, messageToLines, eventToMessage } = require('./fw-bridge');
+const { FwBridge, BridgeError, messageToLines, eventToMessage, SAFETY_LINES } = require('./fw-bridge');
+const { EventEmitter } = require('node:events');
 
 // @verifies REQ-SIMFW-12
 test('a client string is never placed in a command line', () => {
@@ -249,6 +250,135 @@ test('events are routed: identity and state to MODULE_STATE, the rest to FW_LOG'
   assert.strictEqual(eventToMessage({ ev: 'unrouted' }).type, 'FW_LOG');
 });
 
+// ── the safety MCU in the loop (NP-SIM-FW-001 §23, REQ-SIMFW-15) ───────────────────────────────────────────────────────────────
+
+// @verifies REQ-SIMFW-12 REQ-SIMFW-15#a
+test('a client string is never placed in a safety MCU command line', () => {
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'safety_attach', seed: '7\nquit', tier: 1, uid: 9, hw_version: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_attach', seed: 256, tier: 1, uid: 9, hw_version: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 3, uid: 9, hw_version: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 16 },
+    { type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, hw_version: 1 },                       // uid missing
+    { type: 'FW_COMMAND', cmd: 'safety_attach', tier: 0 },                                              // seed missing
+    { type: 'FW_COMMAND', cmd: 'safety_beat', state: 8 },
+    { type: 'FW_COMMAND', cmd: 'safety_beat', state: '3\nquit' },
+    { type: 'FW_COMMAND', cmd: 'safety_run', ms: 0, state: 3 },
+    { type: 'FW_COMMAND', cmd: 'safety_run', ms: 60001, state: 3 },
+    { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3, bpm: '70\nquit' },
+    { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3, bpm: 301 },
+    { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1.5, state: 3 },
+    { type: 'FW_COMMAND', cmd: 'safety_sig', which: 'good\nquit' },
+    { type: 'FW_COMMAND', cmd: 'safety_sig', which: 'ugly' },
+    { type: 'FW_COMMAND', cmd: 'safety_sig' },
+    { type: 'FW_COMMAND', cmd: 'safety_limits', channel: 14, area_mcm2: 100 },
+    { type: 'FW_COMMAND', cmd: 'safety_limits', channel: 5, area_mcm2: 65536 },
+    { type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 256, phase_us: 0 },
+    { type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 2, phase_us: '1\nquit' },
+    { type: 'FW_COMMAND', cmd: 'safety_enable', lines: ['bes\nquit'] },
+    { type: 'FW_COMMAND', cmd: 'safety_enable', lines: ['constructor'] },                                 // not a line, though an Object key
+    { type: 'FW_COMMAND', cmd: 'safety_enable', lines: [32] },                                           // a client mask is never accepted
+    { type: 'FW_COMMAND', cmd: 'safety_enable', lines: [] },
+    { type: 'FW_COMMAND', cmd: 'safety_enable', mask: 32 },
+    { type: 'FW_COMMAND', cmd: 'safety_disable', lines: 'bes' },
+    { type: 'FW_COMMAND', cmd: 'safety_current', channel: 5, ua: 65536 },
+    { type: 'FW_COMMAND', cmd: 'safety_adc', channel: 6, counts: 100 },
+    { type: 'FW_COMMAND', cmd: 'safety_adc', channel: 0, counts: 4096 },
+    { type: 'FW_COMMAND', cmd: 'safety_imp', channel: 4, ohm: 5000 },
+    { type: 'FW_COMMAND', cmd: 'safety_imp', channel: 2, ohm: '5000\nquit' },
+    { type: 'FW_COMMAND', cmd: 'safety_imp', channel: 2, ohm: -1 },
+    { type: 'FW_COMMAND', cmd: 'safety_cvns_el', electrode: 2, ohm: 2000 },
+    { type: 'FW_COMMAND', cmd: 'safety_hr', valid: 1, hr_x10: 700, age_ms: 0 },                         // a number, not a boolean
+    { type: 'FW_COMMAND', cmd: 'safety_hr', valid: true, hr_x10: 70000, age_ms: 0 },
+    { type: 'FW_COMMAND', cmd: 'safety_user', tag: 4294967296 },
+    { type: 'FW_COMMAND', cmd: 'safety_reenable', on: 'true' },
+    { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall\nquit', n: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'reboot', n: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall', n: 1.5 },
+  ];
+  for (const m of hostile) {
+    assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+  }
+  // a command name is looked up, never forwarded: one that is not in the whitelist is refused
+  for (const cmd of ['safety_rpeak\nquit', 'safety_anything', 'safety_status\nquit', 'safety_attach\nquit']) {
+    assert.throws(() => messageToLines({ type: 'FW_COMMAND', cmd }), BridgeError, JSON.stringify(cmd));
+  }
+});
+
+// @verifies REQ-SIMFW-12 REQ-SIMFW-15#a
+test('a valid safety MCU message becomes exactly the well-formed lines the harness takes', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }),
+    ['safety_root 7', 'safety_uid 9', 'safety_tier 1 1', 'safety_attach']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 0 }), ['safety_root 7', 'safety_attach'], 'tier 0: no tier record');
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_beat', state: 3 }), ['safety_beat 3']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 }), ['safety_run 1000 3']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3, bpm: 70 }), ['safety_run 1000 3 70']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_sig', which: 'bad' }), ['safety_sig bad']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_limits', channel: 5, area_mcm2: 1000 }), ['safety_limits 5 1000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 2, phase_us: 20000 }), ['safety_wave 5 2 20000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_enable', lines: ['bes'] }), ['safety_enable 32'], 'the mask is built here, from a name');
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_enable', lines: ['pbm_cranial', 'cvns'] }), ['safety_enable 1025']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_disable', lines: ['tdcs'] }), ['safety_disable 64']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_current', channel: 10, ua: 1000 }), ['safety_current 10 1000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_adc', channel: 0, counts: 600 }), ['safety_adc 0 600']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_imp', channel: 2, ohm: 5000 }), ['safety_imp 2 5000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_cvns_el', electrode: 1, ohm: 2000 }), ['safety_cvns_el 1 2000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_hr', valid: true, hr_x10: 700, age_ms: 0 }), ['safety_hr 1 700 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_user', tag: 1 }), ['safety_user 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_reenable', on: true }), ['safety_reenable 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall', n: 1 }), ['safety_fault stall 1 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'spi_flip', n: 3, arg: 4 }), ['safety_fault spi_flip 3 4']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_rpeak' }), ['safety_rpeak']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_status' }), ['safety_status']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_root_corrupt' }), ['safety_root_corrupt']);
+  assert.deepStrictEqual(Object.keys(SAFETY_LINES), ['pbm_cranial', 'bes', 'tdcs', 'vns', 'visual', 'intranasal', 'cvns', 'tms', 'pbm_1170', 'clin_stim'],
+    'ten lines, in the MCU\'s order');
+});
+
+function fakeProc() {
+  const proc = new EventEmitter();
+  proc.written = [];
+  proc.stdin = { write: (l) => { proc.written.push(l); return true; } };
+  proc.stdout = Object.assign(new EventEmitter(), { setEncoding() {} });
+  proc.kill = () => {};
+  return proc;
+}
+
+// @verifies REQ-SIMFW-15#a
+test('the OTP is programmed once, before the safety MCU is attached, and never again from a client', () => {
+  const proc = fakeProc();
+  const bridge = new FwBridge({ bin: 'x', spawnFn: () => proc }).start();
+  const attach = { type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 };
+  assert.ok(bridge.handle(attach));
+  assert.deepStrictEqual(proc.written, ['safety_root 7\n', 'safety_uid 9\n', 'safety_tier 1 1\n', 'safety_attach\n']);
+  assert.throws(() => bridge.handle(attach), BridgeError, 'a second attach would reprogram the OTP under a running MCU');
+  assert.throws(() => bridge.handle({ type: 'FW_COMMAND', cmd: 'safety_root_corrupt' }), BridgeError);
+  assert.strictEqual(proc.written.length, 4, 'and nothing was written for either');
+  assert.ok(bridge.handle({ type: 'FW_COMMAND', cmd: 'safety_beat', state: 3 }), 'the other commands still go');
+});
+
+// @verifies REQ-SIMFW-15#b
+test('the safety MCU\'s events are routed to the page: state, independent-watchdog reset, unknown pin', () => {
+  assert.strictEqual(eventToMessage({ ev: 'safety_state', attached: true }).type, 'SAFETY_STATE');
+  assert.strictEqual(eventToMessage({ ev: 'safety_iwdg_reset', t: 1, resets: 1 }).type, 'SAFETY_EVENT');
+  assert.strictEqual(eventToMessage({ ev: 'safety_pin_unknown', t: 1, pin: 3 }).type, 'SAFETY_EVENT');
+  assert.strictEqual(eventToMessage({ ev: 'unrouted', symbol: 'np_safety_hal_spi_transfer' }).type, 'FW_LOG', 'the absence of the link stays a log line');
+  assert.strictEqual(eventToMessage({ ev: 'safety_state', attached: true }).event.attached, true, 'and the event is carried whole');
+});
+
+// @verifies REQ-SIMFW-15#b
+test('a page that connects late is sent the last safety state, and none before an attach', () => {
+  const proc = fakeProc();
+  const bridge = new FwBridge({ bin: 'x', spawnFn: () => proc }).start();
+  assert.strictEqual(bridge.list().safety, null, 'no safety MCU: no state');
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const ev = { ev: 'safety_state', cmd: 'status', attached: true, lines: 32, safety_mcu: 'in_loop' };
+  proc.stdout.emit('data', JSON.stringify(ev) + '\n' + JSON.stringify({ ev: 'safety_iwdg_reset', t: 5, resets: 1 }) + '\n');
+  assert.deepStrictEqual(seen.map((m) => m.type), ['SAFETY_STATE', 'SAFETY_EVENT']);
+  assert.deepStrictEqual(bridge.list().safety, ev);
+});
+
 const BIN = process.env.NP_SIM_FW_BIN;
 
 // @verifies REQ-SIMFW-11
@@ -426,4 +556,42 @@ test('end to end: the real cervical VNS flow gets from the baseline through the 
   assert.strictEqual(st.abort_reason, 0, 'with no abort reason');
   assert.strictEqual(st.enable_requested, true);
   assert.strictEqual(st.safety_mcu, 'scenario', 'the state says the safety MCU is the scenario');
+});
+
+// @verifies REQ-SIMFW-15#a REQ-SIMFW-15#b
+test('end to end: through the bridge the safety MCU grants a BES line, then the heartbeat is lost and it cuts it', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const send = (m) => bridge.handle(m);
+  send({ type: 'FW_COMMAND', cmd: 'status' });
+  await wait(100);
+  assert.strictEqual(seen.filter((m) => m.type === 'SAFETY_STATE').length, 0, 'no safety state before an attach');
+  send({ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_imp', channel: 2, ohm: 5000 });
+  send({ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: 5 } });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_sig', which: 'good' });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 400, state: 3 });
+  // the declarations come after the session has started: the session-start reset wipes an earlier one (np_sim_safety_tests.c)
+  send({ type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 2, phase_us: 20000 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_limits', channel: 5, area_mcm2: 1000 });
+  send({ type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: 500 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
+  await wait(300);
+  const states = () => seen.filter((m) => m.type === 'SAFETY_STATE').map((m) => m.event);
+  const granted = states().pop();
+  assert.strictEqual(granted.attached, true);
+  assert.strictEqual(granted.safety_mcu, 'in_loop');
+  assert.strictEqual((granted.lines >> 1) & 1, 1, 'the BES line (index 1) is enabled');
+  assert.strictEqual((granted.granted >> 5) & 1, 1, 'and granted (bit 5)');
+  send({ type: 'FW_COMMAND', cmd: 'advance', ms: 2500 });
+  send({ type: 'FW_COMMAND', cmd: 'status' });
+  await wait(300);
+  bridge.stop();
+  const cut = states().pop();
+  assert.strictEqual((cut.lines >> 1) & 1, 0, 'with no heartbeat the MCU cuts the BES line');
+  assert.strictEqual((cut.requested >> 5) & 1, 1, 'while the hub still requests it');
+  assert.strictEqual(bridge.list().safety.lines, cut.lines, 'and MODULE_LIST carries that state');
 });

@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Cross-Check Non-Finite Reading Host Tests
- * OI-SIMFW-29 / NP-FW-HUB-001 §8.3.1, REQ-FWHUB-41; NP-FMEA-001 §3.3 FMEA-M03-02
+ * OI-SIMFW-31 / NP-FW-HUB-001 §8.3.1, REQ-FWHUB-41; NP-FMEA-001 §3.3 FMEA-M03-02
  *
  * REQ-FWHUB-41's cross-check counts a non-finite delivered-current reading
  * (NaN, +/-infinity: an absent or failed DAC) as an excess, because it cannot
@@ -20,7 +20,7 @@
  * the compile if the flags are lost.  On a host x86 gcc or clang the unfixed
  * driver happens to pass these tests too (the comparison there is unordered-safe);
  * the failing build is Cortex-M7 clang, run under qemu-system-arm (NP-FW-HUB-001
- * §8.3.1, OI-SIMFW-29).  What this test pins on every host is the behaviour.
+ * §8.3.1, OI-SIMFW-31).  What this test pins on every host is the behaviour.
  *
  * Non-finite values are built from bits: NAN and INFINITY are undefined under
  * -ffinite-math-only, and a compiler may constant-fold them away.
