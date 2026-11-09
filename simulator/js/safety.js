@@ -248,8 +248,8 @@ export const HUB_MODULE_LIST = Object.freeze(Object.entries(HUB_MODULES).map(([i
 export const SCRIPTS = {
   // Attach also puts every contact in contact: a contact check that fails at session start does not recover in the session
   // (np_impedance_check.c has no auto-retry), so the contacts are set before the first heartbeat, as the scenarios do.
-  attach: (tier = TEST_AID.tier) => [
-    fw('safety_attach', { seed: TEST_AID.seed, tier, uid: TEST_AID.uid, hw_version: TEST_AID.hw_version }),
+  attach: (tier = TEST_AID.tier, corruptKey = false) => [
+    fw('safety_attach', { seed: TEST_AID.seed, tier, uid: TEST_AID.uid, hw_version: TEST_AID.hw_version, ...(corruptKey ? { corrupt_key: true } : {}) }),
     fw('safety_imp', { channel: 0, ohm: TEST_AID.contactOhm }), fw('safety_imp', { channel: 1, ohm: TEST_AID.contactOhm }),
     fw('safety_imp', { channel: 2, ohm: TEST_AID.contactOhm }), fw('safety_imp', { channel: 3, ohm: TEST_AID.cvnsContactOhm }),
     fw('safety_cvns_el', { electrode: 0, ohm: TEST_AID.cvnsContactOhm }), fw('safety_cvns_el', { electrode: 1, ohm: TEST_AID.cvnsContactOhm }),
@@ -318,3 +318,94 @@ export const SCRIPTS = {
   // The waveform is declared after the session starts, with Prepare on the cervical VNS line.
   cvnsPrepare: () => [fw('safety_enable', { lines: ['cvns'] }), fw('safety_current', { channel: TEST_AID.cvnsChannel, ua: TEST_AID.cvnsMicroamps }), fw('status')],
 };
+
+// ── the fault panel: every fault the system is built to detect, as the page can cause it (NP-SIM-FW-001 §23, REQ-SIMFW-16) ──────────────
+//
+// A fault here is an input to the firmware, never a verdict: the page sets what the part's pins, its link or its sensors would carry,
+// and the safety MCU's own sources decide what follows.  Nothing in this table says what a fault should do, so a recovery that the
+// firmware does (a heartbeat loss ends on the first live beat) or does not do (a latched fault) is the firmware's, and the table
+// follows it when the firmware changes.  Every entry is a list of FW_COMMANDs the bridge validates.
+const FAULT_RUN_MS = 3000;            // long enough for the longest detector to act (the 1.5 s heartbeat watchdog, the 2 s tick check); UC-135
+const FAULT_BAD_FRAMES = 10;          // how many heartbeat frames or command frames arrive damaged; UC-135
+const FAULT_OPEN_OHM = 1000000;       // a contact that has come away; far outside the impedance window; UC-135
+const run = (ms) => fw('safety_run', { ms, state: TEST_AID.runningState });
+const NEEDS = Object.freeze({ ANY: 'any', ATTACHED: 'attached', UNATTACHED: 'unattached' });
+
+/**
+ * @typedef {{ id: string, group: string, label: string, title: string, needs: string, script: (arg?: any) => object[], clear?: () => object[] }} FaultDef
+ * `clear` undoes an injected condition that stays until it is undone (a frozen clock, a stalled loop, a contact left open); a fault
+ * that is a one-off event has none.  Whether the MCU then recovers is the firmware's.
+ */
+export const FAULTS = Object.freeze([
+  { id: 'heartbeat_loss', group: 'Link', label: 'Heartbeat lost', needs: NEEDS.ATTACHED,
+    title: 'The simulated hub stops sending its 200 ms heartbeat for 2 s of virtual time (not a loss of power to this computer)',
+    script: () => SCRIPTS.heartbeatLoss(2000) },
+  { id: 'frame_corrupt', group: 'Link', label: 'Damaged heartbeat frames', needs: NEEDS.ATTACHED,
+    title: `The next ${FAULT_BAD_FRAMES} heartbeat frames arrive with a damaged magic byte, then the hub keeps beating. Shows under Last cutoff; the MCU recovers when frames are good again`,
+    script: () => [fw('safety_fault', { kind: 'spi_flip', n: FAULT_BAD_FRAMES, arg: 0 }), run(FAULT_RUN_MS), fw('status')] },
+  { id: 'spi_timeout', group: 'Link', label: 'SPI transfer times out', needs: NEEDS.ATTACHED,
+    title: `The next ${FAULT_BAD_FRAMES} SPI transfers time out`,
+    script: () => [fw('safety_fault', { kind: 'spi_timeout', n: FAULT_BAD_FRAMES, arg: 0 }), run(FAULT_RUN_MS), fw('status')] },
+  { id: 'cmd_corrupt', group: 'Link', label: 'Damaged command frames', needs: NEEDS.ATTACHED,
+    title: 'Use before Sign. The next three command frames arrive with their first byte inverted and the app sends the session signature three times; three corrupt frames in a row is what the MCU counts. Once a session is signed this has no effect.',
+    script: () => [fw('safety_fault', { kind: 'cmd_flip', n: 3, arg: 0 }), ...SCRIPTS.signSession('good'), ...SCRIPTS.signSession('good'), ...SCRIPTS.signSession('good')] },
+  { id: 'bad_signature', group: 'Session', label: 'Bad session signature', needs: NEEDS.ATTACHED,
+    title: 'The app signs the session with one bit of the signature flipped', script: () => SCRIPTS.signSession('bad') },
+  { id: 'key_corrupt', group: 'Part', label: 'Root key fails its CRC', needs: NEEDS.UNATTACHED,
+    title: 'Attaches a part whose programmed root key has one bit flipped; the MCU starts in a fault',
+    script: (tier = TEST_AID.tier) => SCRIPTS.attach(tier, true) },
+  { id: 'systick', group: 'Part', label: 'SysTick frozen', needs: NEEDS.ATTACHED,
+    title: 'The millisecond clock stops while the independent timer runs; the MCU compares the two',
+    script: () => [fw('safety_fault', { kind: 'systick', n: 1, arg: 0 }), run(FAULT_RUN_MS), fw('status')],
+    clear: () => [fw('safety_fault', { kind: 'systick', n: 0, arg: 0 }), fw('status')] },
+  { id: 'stall', group: 'Part', label: 'Main loop stalled', needs: NEEDS.ATTACHED,
+    title: 'The MCU\'s main loop stops running; only its independent watchdog can act',
+    script: () => [fw('safety_fault', { kind: 'stall', n: 1, arg: 0 }), run(FAULT_RUN_MS), fw('status')],
+    clear: () => [fw('safety_fault', { kind: 'stall', n: 0, arg: 0 }), fw('status')] },
+  { id: 'nv_fail', group: 'Part', label: 'Flash will not write', needs: NEEDS.ATTACHED,
+    title: 'Every flash erase and program fails from now on, so a cutoff cannot be recorded; pair with a thermal or cardiac fault',
+    script: () => [fw('safety_fault', { kind: 'nv_erase', n: 100, arg: 0 }), fw('safety_fault', { kind: 'nv_program', n: 100, arg: 0 }), fw('status')],
+    clear: () => [fw('safety_fault', { kind: 'nv_erase', n: 0, arg: 0 }), fw('safety_fault', { kind: 'nv_program', n: 0, arg: 0 }), fw('status')] },
+  { id: 'thermal', group: 'Sensors', label: 'Cranial NTC too hot', needs: NEEDS.ATTACHED,
+    title: 'The cranial NTC reads hotter than the 62 C row of the MCU\'s table', script: () => SCRIPTS.thermal(TEST_AID.hotAdcCounts),
+    clear: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
+  { id: 'ntc_open', group: 'Sensors', label: 'NTC reads open', needs: NEEDS.ATTACHED,
+    title: 'The cranial NTC reads as an open sensor (the HAL\'s unset reading, 4095 counts). In the firmware as built this is not detected: see OI-SIMFW-41', script: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
+  { id: 'contact_lost', group: 'Sensors', label: 'Electrode contact lost', needs: NEEDS.ATTACHED,
+    title: 'The chosen channel\'s contact impedance goes far outside the window. The MCU checks contact at session start, so use this before the first Beat; later it has no effect (np_impedance_check.c has no re-check)',
+    script: (channel = 0) => [...SCRIPTS.contact(channel, FAULT_OPEN_OHM), run(FAULT_RUN_MS), fw('status')],
+    clear: (channel = 0) => SCRIPTS.contact(channel, channel === 3 ? TEST_AID.cvnsContactOhm : TEST_AID.contactOhm) },
+  { id: 'cvns_electrode', group: 'Sensors', label: 'cVNS electrode off', needs: NEEDS.ATTACHED,
+    title: 'Electrode 0 of the cervical VNS pair comes away. Cervical VNS only: set the line up as for Heart rate steps up, with the baseline',
+    script: () => [fw('safety_cvns_el', { electrode: 0, ohm: FAULT_OPEN_OHM }), run(FAULT_RUN_MS), fw('status')],
+    clear: () => [fw('safety_cvns_el', { electrode: 0, ohm: TEST_AID.cvnsContactOhm }), fw('status')] },
+  { id: 'cardiac_step', group: 'Sensors', label: 'Heart rate steps up', needs: NEEDS.ATTACHED,
+    title: 'After a steady 70 bpm baseline, a step to 100 bpm. Cervical VNS only: attach a T2 unit, Request cVNS, Beat, Sign, then Prepare on that line first',
+    script: () => [...SCRIPTS.cardiacBaseline().slice(0, -1), ...SCRIPTS.cardiacStep()] },
+  { id: 'rpeak_stale', group: 'Sensors', label: 'R-peak signal lost', needs: NEEDS.ATTACHED,
+    title: 'The heart-rate feed reports no valid beat. Cervical VNS only: set the line up as for Heart rate steps up, with the baseline',
+    script: () => [fw('safety_hr', { valid: false, hr_x10: 0, age_ms: 65535 }), run(FAULT_RUN_MS), fw('status')] },
+]);
+const FAULT_BY_ID = new Map(FAULTS.map((f) => [f.id, f]));
+export const faultById = (id) => FAULT_BY_ID.get(id) ?? null;
+
+/** Faults the system is meant to detect that the page cannot cause, and why.  Shown on the panel so a missing button is not read as a pass. */
+export const FAULTS_UNAVAILABLE = Object.freeze([
+  { label: 'Photoparoxysmal EEG', why: 'The detector is not built (OI-FWHUB-29); the goggles refuse 3-30 Hz photic driving outright (REQ-FWHUB-65).' },
+  { label: 'Brown-out or loss of USB-C power', why: 'The MCU has no supply-monitor input in the harness. A real loss of the page\'s own link is mapped to a heartbeat loss instead (below).' },
+  { label: 'OTP unprovisioned', why: 'No page command programs an all-zero key.' },
+]);
+
+/**
+ * A real outage of what the simulated hub stands on: the page's link to the firmware process.  The hub's heartbeat task lives behind
+ * that link, so while it is down no heartbeat is sent; the virtual clock moves only when the page commands it, so on reconnect the
+ * page advances it by the wall time that was lost, with no heartbeat.  It is a heartbeat loss as the MCU sees it, and the firmware
+ * decides what follows.  Capped at one harness call (the bridge's run limit).  Not a loss of power to this computer, which nothing
+ * on a page can observe, and which would stop the simulation.
+ */
+export const OUTAGE_MIN_MS = 1500;     // the MCU's own watchdog period: a shorter outage would not be one; UC-135
+export const OUTAGE_MAX_MS = 60000;
+export function outageScript(lostAtWallMs, backAtWallMs) {
+  const ms = Math.min(OUTAGE_MAX_MS, Math.max(0, Math.round(backAtWallMs - lostAtWallMs)));
+  return ms >= OUTAGE_MIN_MS ? SCRIPTS.heartbeatLoss(ms) : null;
+}

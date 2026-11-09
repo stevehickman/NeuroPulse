@@ -33,6 +33,8 @@ export class DeviceAPI {
     this._badge        = document.getElementById('api-badge');
     this._lastTelemetry = 0;   // ms timestamp of last TELEMETRY send
     this._reconnectTimeout = null;
+    this._lostAtMs = null;     // wall time the link to the server went down after it had been up (a real outage); null while up or never up
+    this._hasBeenUp = false;
 
     this._connect();
   }
@@ -98,6 +100,8 @@ export class DeviceAPI {
     }
 
     this._ws.addEventListener('open', () => {
+      this._hasBeenUp = true;
+      if (this._lostAtMs !== null) { const lost = this._lostAtMs; this._lostAtMs = null; this._cb.onLinkRestored?.(lost, Date.now()); }
       this._setBadge(true);
       this._send({ type: 'CLIENT_HELLO', role: 'display', version: SIM_VERSION });
     });
@@ -109,6 +113,7 @@ export class DeviceAPI {
     this._ws.addEventListener('close', () => {
       this._setBadge(false);
       this._ws = null;
+      if (this._hasBeenUp && this._lostAtMs === null) { this._lostAtMs = Date.now(); this._cb.onLinkLost?.(this._lostAtMs); }
       // Reconnect after a delay — server may restart
       clearTimeout(this._reconnectTimeout);
       this._reconnectTimeout = setTimeout(() => this._connect(), RECONNECT_DELAY_MS);

@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { createRequire } from 'node:module';
-import { HUB_MODULE_LIST, SafetyMcu, SCRIPTS, LINES, VERDICT, decodeStatus, describeSlot, lineNameFor, TEST_AID } from './safety.js';
+import { HUB_MODULE_LIST, SafetyMcu, SCRIPTS, LINES, VERDICT, decodeStatus, describeSlot, lineNameFor, TEST_AID, FAULTS, FAULTS_UNAVAILABLE, outageScript, OUTAGE_MIN_MS, OUTAGE_MAX_MS } from './safety.js';
 import { SimModuleRegistry } from './simmodule.js';
 import { accessoryStates } from './accessories.js';
 
@@ -164,4 +164,45 @@ test('every message the test aid sends is one the bridge accepts, and none carri
   }
   assert.strictEqual(SCRIPTS.prepareLine('tms'), null, 'a line the page does not know how to prepare is not guessed at');
   assert.strictEqual(TEST_AID.seed, 7, 'the TEST root key seed the harness scenarios use');
+});
+
+// @verifies REQ-SIMFW-16#a
+test('every fault on the panel is a list of messages the bridge accepts, and a clear undoes only what it set', () => {
+  assert.ok(FAULTS.length >= 14);
+  const ids = new Set();
+  for (const f of FAULTS) {
+    assert.ok(!ids.has(f.id), `fault id ${f.id} is unique`); ids.add(f.id);
+    for (const arg of f.id === 'contact_lost' ? [0, 1, 2, 3] : [undefined]) {
+      for (const msg of f.script(arg)) assert.doesNotThrow(() => messageToLines(msg), `${f.id}: ${JSON.stringify(msg)}`);
+      if (f.clear) for (const msg of f.clear(arg)) assert.doesNotThrow(() => messageToLines(msg), `${f.id} clear: ${JSON.stringify(msg)}`);
+    }
+  }
+  assert.ok(FAULTS.every((f) => ['any', 'attached', 'unattached'].includes(f.needs)));
+});
+
+// @verifies REQ-SIMFW-16#b
+test('a fault is an input: no fault script carries a verdict, a line mask or a status value', () => {
+  for (const f of FAULTS) for (const msg of f.script(0)) {
+    for (const k of ['mask', 'lines', 'granted', 'status', 'verdict', 'fault_slot']) assert.ok(!(k in msg) || (msg.cmd === 'safety_enable'), `${f.id} sets ${k}`);
+  }
+  assert.ok(FAULTS_UNAVAILABLE.some((u) => /Photoparoxysmal/.test(u.label)), 'a fault the page cannot cause is listed, not hidden');
+});
+
+// @verifies REQ-SIMFW-16#c
+test('a real outage of the link becomes a heartbeat loss of the same length, and a blip does not', () => {
+  assert.strictEqual(outageScript(1000, 1000 + OUTAGE_MIN_MS - 1), null);
+  const sc = outageScript(1000, 1000 + 4000);
+  assert.deepStrictEqual(sc.map((m) => m.cmd), ['advance', 'status']);
+  assert.strictEqual(sc[0].ms, 4000);
+  assert.strictEqual(outageScript(0, 10 * 60 * 1000)[0].ms, OUTAGE_MAX_MS, 'capped at one harness call');
+  assert.strictEqual(outageScript(5000, 1000), null, 'a clock that went backwards is not an outage');
+  for (const m of sc) assert.doesNotThrow(() => messageToLines(m));
+});
+
+// @verifies REQ-SIMFW-16#a
+test('attach can start a part whose root key is corrupt, and no other message can', () => {
+  const lines = messageToLines(SCRIPTS.attach(1, true)[0]);
+  assert.ok(lines.indexOf('safety_root_corrupt') > lines.findIndex((l) => l.startsWith('safety_root ')));
+  assert.strictEqual(lines.at(-1), 'safety_attach');
+  assert.ok(!messageToLines(SCRIPTS.attach(1)[0]).includes('safety_root_corrupt'));
 });
