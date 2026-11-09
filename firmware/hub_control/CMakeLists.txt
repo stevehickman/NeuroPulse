@@ -474,6 +474,20 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_stim_xcheck_tests PRIVATE m)
 
+    # OI-SIMFW-31 / REQ-FWHUB-41: the cross-check's non-finite reading, built with
+    # the device's floating-point flags (-O2 -ffast-math -fno-math-errno
+    # -ffreestanding, as np_hub_control below) because those flags are what can
+    # fold isfinite() away.  The test source #errors if -ffinite-math-only is lost.
+    add_executable(np_stim_xcheck_nonfinite_tests
+        tests/np_stim_xcheck_nonfinite_tests.c
+        src/np_stim_xcheck.c
+    )
+    target_include_directories(np_stim_xcheck_nonfinite_tests PRIVATE include)
+    target_compile_options(np_stim_xcheck_nonfinite_tests PRIVATE
+        -std=c11 -Wall -Wextra -O2 -g -DNPTEST_HOST
+        -ffast-math -fno-math-errno -ffreestanding)
+    target_link_libraries(np_stim_xcheck_nonfinite_tests PRIVATE m)
+
     # REQ-FWHUB-11 / -17 / -18: the heartbeat's session_status byte, the mask it
     # transmits, and the session-signature command frame. Links the real
     # np_safety_spi.c; the kernel is not linked (its two critical-section calls
