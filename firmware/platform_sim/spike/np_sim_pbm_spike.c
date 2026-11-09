@@ -30,7 +30,7 @@
  * Visual goggles (np_sim_visual_harness.c lists them all):
  *   vis_add <seated> <eye> <mpe> | vis <mode> <freq> <duty> <wl> <zlo> <zhi> <emdr> <mode_f> <shade> | vis_lift | vis_ppx
  * Audio (np_sim_audio_harness.c lists them all):
- *   audio_add <mesh_ohm> | audio <mode> <carrier_hz> <beat_mhz> <vol_pct> <bone> <adaptive> | audio_stop | audio_eeg_band <b>
+ *   audio_add <mesh_ohm> | audio <mode> <carrier_hz> <beat_mhz> <level_half_db> <bone> <adaptive> | audio_stop | audio_eeg_band <b>
  * EEG front end (np_sim_eeg_harness.c lists them all):
  *   eeg_add [id] | eeg_init | eeg <chmask> <gain> <notch> <ref_mode> <adaptive> | eeg_stop | eeg_sample | eeg_regs
  *   status                          every module, the dispatch table, requested enables

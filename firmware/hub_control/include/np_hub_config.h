@@ -144,6 +144,11 @@
  * Audio alone is hub-side: it is not safety-MCU-gated.                       */
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
 
+/* Acoustic output ceiling, ABSOLUTE: 85 dB SPL at the ear, in the 0.5 dB units of
+ * np_mod_audio_params_t.level_half_db (85 x 2 = 170).  NP-HW-AUDIO-001 REQ-AUDIO-17 (OI-AUDIOHW-01).
+ * A command above it is REFUSED, never clamped.  Class B code only; audio has no safety-MCU line. */
+#define NP_AUDIO_MAX_LEVEL_HALF_DB  170U
+
 /* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
  * 3.5mm Ag/AgCl sintered electrode area = 0.0962 cm² (NP_HD_ELECTRODE_AREA_CM2
  * in sloreta_hdtdcs/include/np_hd_config.h).  Expressed in milli-cm² and

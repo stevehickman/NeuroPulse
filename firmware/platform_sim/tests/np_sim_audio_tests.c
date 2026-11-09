@@ -61,7 +61,7 @@ static void test_each_mode_reaches_the_output_stage(void)
 {
     setup();
     run("audio 0 200 10000 40 0 0");
-    check(au()->audio_mode == 1U && au()->audio_carrier_hz == 200U && au()->audio_beat_mhz == 10000U && au()->audio_vol_pct == 40U,
+    check(au()->audio_mode == 1U && au()->audio_carrier_hz == 200U && au()->audio_beat_mhz == 10000U && au()->audio_level_half_db == 40U,
           "mode: binaural carries carrier, beat and volume");
     run("audio 1 440 0 30 0 0");
     check(au()->audio_mode == 2U && au()->audio_carrier_hz == 440U, "mode: isochronic carries its frequency");
@@ -80,7 +80,7 @@ static void test_bone_conduction_follows_the_command(void)
 {
     setup();
     run("audio 0 200 10000 40 1 0");
-    check(au()->audio_bone_on && au()->audio_bone_hz == 200U && au()->audio_bone_vol_pct == 40U, "bone: on at the carrier and the volume");
+    check(au()->audio_bone_on && au()->audio_bone_hz == 200U && au()->audio_bone_level_half_db == 40U, "bone: on at the carrier and the volume");
     run("audio 0 200 10000 40 0 0");
     check(!au()->audio_bone_on && au()->audio_mode == 1U, "bone: a later command without it turns it off and leaves the planar drivers");
 }
@@ -134,13 +134,20 @@ static void test_adaptation_switches_a_non_binaural_mode_to_binaural(void)
     check(au()->audio_mode == 1U, "mode switch: an EEG band update turns it into binaural (OI-SIMFW-19)");
 }
 
-/* @verifies-none Characterisation of np_mod_audio.c's lack of a volume clamp; the finding is OI-SIMFW-19. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_volume_over_100_reaches_the_output_stage(void)
+/* @verifies REQ-AUDIO-17 */
+static void test_a_level_above_the_ceiling_is_refused_and_changes_nothing(void)
 {
     setup();
+    run("audio 0 200 10000 60 1 0");
+    check(au()->audio_level_half_db == 60U, "ceiling: a 30 dB SPL command is applied");
+    run("audio 0 200 10000 171 1 0");
+    check(au()->audio_level_half_db == 60U && au()->audio_bone_level_half_db == 60U,
+          "ceiling: 85.5 dB SPL is refused and neither output changes (OI-SIMFW-19)");
     run("audio 0 200 10000 200 1 0");
-    check(au()->audio_vol_pct == 200U && au()->audio_bone_vol_pct == 200U,
-          "volume: 200 % reaches both the planar drivers and the bone transducer; the driver clamps nothing (OI-SIMFW-19)");
+    check(au()->audio_level_half_db == 60U, "ceiling: 100 dB SPL is refused too, not clamped");
+    run("audio 0 200 10000 170 1 0");
+    check(au()->audio_level_half_db == 170U && au()->audio_bone_level_half_db == 170U,
+          "ceiling: exactly 85 dB SPL is delivered to both outputs");
 }
 
 /* @verifies-none Malformed command; np_mod_audio.c's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */
@@ -203,7 +210,7 @@ int main(void)
     test_stop_and_lost_stops();
     test_eeg_adaptive_beat_follows_the_band();
     test_adaptation_switches_a_non_binaural_mode_to_binaural();
-    test_a_volume_over_100_reaches_the_output_stage();
+    test_a_level_above_the_ceiling_is_refused_and_changes_nothing();
     test_malformed_command_and_shutdown();
     test_telemetry_reads_the_mesh_and_returns_no_record();
     test_default_and_injected_answers_are_marked();

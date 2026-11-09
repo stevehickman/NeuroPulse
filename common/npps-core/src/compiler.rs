@@ -61,8 +61,9 @@ const FLAG_AUTONOMOUS: u8 = 1 << 1;
 const PBM_FULL_SCALE: [(Channel, f64); 3] =
     [(Channel::Led660, 403.0), (Channel::Led808, 403.0), (Channel::Led1064, 28.0)];
 const INTRANASAL_FULL_SCALE: f64 = 100.0;
-const AUDIO_DB_AT_ZERO: f64 = 40.0;
-const AUDIO_DB_PER_PERCENT: f64 = 0.5;
+/// Acoustic output ceiling, dB SPL at the ear: absolute, not a fraction of any driver's range
+/// (NP-HW-AUDIO-001 REQ-AUDIO-17). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
+const AUDIO_MAX_DB_SPL: f64 = 85.0;
 const EPS: f64 = 1e-9;
 const CLINICAL_TACS_MAX_CHANNELS: f64 = 21.0;
 
@@ -180,17 +181,17 @@ fn irradiance_to_register(irr: f64, full_scale: f64, channel: &str) -> R<u8> {
     Ok(js_round(irr / full_scale * 255.0).clamp(1.0, 255.0) as u8)
 }
 
-fn db_to_volume_percent(db: f64) -> R<u8> {
-    let pct = (db - AUDIO_DB_AT_ZERO) / AUDIO_DB_PER_PERCENT;
-    if !db.is_finite() || pct < -EPS || pct > 100.0 + EPS {
+/// dB SPL at the ear → the wire byte, 2 × dB (0.5 dB steps). Refuses a level that is not positive and finite, or
+/// above the ceiling; never reduces one to fit.
+fn db_to_level_half_db(db: f64) -> R<u8> {
+    if !db.is_finite() || db <= 0.0 || db > AUDIO_MAX_DB_SPL + EPS {
         return Err(format!(
-            "Audio level {} dB SPL is outside the range the drive can deliver ({}–{} dB SPL). The protocol is refused, not reduced to fit.",
+            "Audio level {} dB SPL is outside 0–{} dB SPL, the acoustic output ceiling. The protocol is refused, not reduced to fit.",
             num_string(db),
-            num_string(AUDIO_DB_AT_ZERO),
-            num_string(AUDIO_DB_AT_ZERO + 100.0 * AUDIO_DB_PER_PERCENT)
+            num_string(AUDIO_MAX_DB_SPL)
         ));
     }
-    Ok(js_round(pct).clamp(0.0, 100.0) as u8)
+    Ok(js_round(db * 2.0).clamp(1.0, AUDIO_MAX_DB_SPL * 2.0) as u8)
 }
 
 fn put16(buf: &mut [u8], at: usize, v: f64) {
@@ -899,7 +900,7 @@ fn encode_audio(p: &Value) -> R<Encoded> {
     } else if s(p, "noiseType") == "brown" {
         mode = 3;
     }
-    let vol = db_to_volume_percent(f(p, "volumeDb"))?;
+    let vol = db_to_level_half_db(f(p, "volumeDb"))?;
     let mut buf = vec![0u8; 8];
     buf[0] = mode;
     put16(&mut buf, 1, f(p, "carrierHz").min(65535.0));

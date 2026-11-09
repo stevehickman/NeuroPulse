@@ -1782,6 +1782,8 @@ conduction, both from the hub I²S codec via SAI.
 **Not safety-MCU gated** — `NP_SAFETY_EN_AUDIO` is 0, deliberately, and `slot_to_safety_bit()`
 returns 0 for it so no enable is requested. Audio delivers no current, no light and no field.
 
+**Level.** The command's level is absolute: dB SPL at the ear × 2 (`level_half_db`), never a percentage. The driver refuses a level above `NP_AUDIO_MAX_LEVEL_HALF_DB` (85 dB SPL) before anything changes; the HAL owns each component's calibration (`NP-HW-AUDIO-001` `REQ-AUDIO-17`, `-18`).
+
 EEG-adaptive mode retunes the binaural carrier every `NP_AUDIO_ADAPT_INTERVAL_MS` to track the
 dominant EEG band, which the EEG driver posts via `np_mod_audio_set_eeg_band()`. The band→beat table
 (`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz.

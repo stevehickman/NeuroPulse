@@ -41,16 +41,6 @@ export const PBM_FULL_SCALE_MW_CM2: Readonly<Record<NPPBMChannelElement, number>
  */
 export const INTRANASAL_FULL_SCALE_MW_CM2 = 100;
 
-/**
- * Audio calibration: dB SPL at the ear is `AUDIO_DB_AT_ZERO + AUDIO_DB_PER_PERCENT × volume_pct`,
- * volume_pct being the uncalibrated 0–100 wire field. PROVISIONAL PLACEHOLDER
- * (register row UC-066, OI-AUDIOHW-01): nothing relates that field to sound
- * pressure, and no dB SPL ceiling exists. The line keeps every shipped
- * protocol's wire value where it was and tops out at 90 dB SPL at 100.
- */
-export const AUDIO_DB_AT_ZERO = 40;
-export const AUDIO_DB_PER_PERCENT = 0.5;
-
 const EPS = 1e-9;
 
 /** Irradiance → 0–255 current register, or throw when the channel cannot reach it. */
@@ -69,15 +59,16 @@ export function irradianceToRegister(
   return Math.max(1, Math.min(255, Math.round(irradianceMWcm2 / fullScaleMWcm2 * 255)));
 }
 
-/** dB SPL → 0–100 volume register, or throw when outside the calibrated range. */
-export function dbToVolumePercent(db: number): number {
-  const pct = (db - AUDIO_DB_AT_ZERO) / AUDIO_DB_PER_PERCENT;
-  if (!Number.isFinite(db) || pct < -EPS || pct > 100 + EPS) {
+/** Acoustic output ceiling, dB SPL at the ear. Absolute (NP-HW-AUDIO-001 REQ-AUDIO-17). */
+export const AUDIO_MAX_DB_SPL = 85;
+
+/** dB SPL at the ear → the wire byte (2 × dB), or throw above the ceiling. Never reduces a level to fit. */
+export function dbToLevelHalfDb(db: number): number {
+  if (!Number.isFinite(db) || db <= 0 || db > AUDIO_MAX_DB_SPL + EPS) {
     throw new Error(
-      `Audio level ${db} dB SPL is outside the range the drive can deliver ` +
-      `(${AUDIO_DB_AT_ZERO}–${AUDIO_DB_AT_ZERO + 100 * AUDIO_DB_PER_PERCENT} dB SPL). ` +
+      `Audio level ${db} dB SPL is outside 0–${AUDIO_MAX_DB_SPL} dB SPL, the acoustic output ceiling. ` +
       `The protocol is refused, not reduced to fit.`,
     );
   }
-  return Math.max(0, Math.min(100, Math.round(pct)));
+  return Math.max(1, Math.min(AUDIO_MAX_DB_SPL * 2, Math.round(db * 2)));
 }

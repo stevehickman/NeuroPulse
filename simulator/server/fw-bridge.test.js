@@ -137,8 +137,8 @@ test('a client string is never placed in an audio command line, and a valid one 
     { type: 'MODULE_FAIL', kind: 'audio', op: 'audio_binaural\nquit', code: -17, times: 1 },
     { type: 'MODULE_FAIL', kind: 'audio', op: 'vns_stim_set', code: -17, times: 1 },
     { type: 'MODULE_SET', kind: 'audio', patch: { add: '8\nquit' } },
-    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 70000, beat_mhz: 1, volume_pct: 1, bone: 0, adaptive: 0 },
-    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 1, volume_pct: '40\nquit', bone: 0, adaptive: 0 },
+    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 70000, beat_mhz: 1, level_half_db: 1, bone: 0, adaptive: 0 },
+    { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 1, level_half_db: '40\nquit', bone: 0, adaptive: 0 },
     { type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: -1 },
     { type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200 },
   ];
@@ -147,7 +147,7 @@ test('a client string is never placed in an audio command line, and a valid one 
   }
   assert.deepStrictEqual(messageToLines({ type: 'MODULE_SET', kind: 'audio', patch: { add: 8 } }), ['audio_add 8']);
   assert.deepStrictEqual(messageToLines({ type: 'MODULE_FAIL', kind: 'audio', op: 'audio_bone_stop', code: -17, times: 1 }), ['fail 0 audio_bone_stop -17 1']);
-  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 10000, volume_pct: 40, bone: 1, adaptive: 0 }),
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 10000, level_half_db: 40, bone: 1, adaptive: 0 }),
     ['audio 0 200 10000 40 1 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: 2 }), ['audio_eeg_band 2']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'audio_stop' }), ['audio_stop']);
@@ -482,7 +482,7 @@ test('end to end: the real audio driver plays, adapts to an EEG band, and a lost
   bridge.on('message', (m) => seen.push(m));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   bridge.handle({ type: 'MODULE_SET', kind: 'audio', patch: { add: 8 } });
-  bridge.handle({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 6000, volume_pct: 40, bone: 0, adaptive: 1 });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'audio', mode: 0, carrier_hz: 200, beat_mhz: 6000, level_half_db: 40, bone: 0, adaptive: 1 });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'audio_eeg_band', band: 2 });
   bridge.handle({ type: 'MODULE_FAIL', kind: 'audio', op: 'audio_stop_planar', code: -17, times: 1 });
   bridge.handle({ type: 'FW_COMMAND', cmd: 'audio_stop' });

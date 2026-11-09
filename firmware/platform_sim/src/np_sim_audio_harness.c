@@ -5,7 +5,7 @@
  *   audio_add <mesh_ohm>           the audio path, with the mesh impedance it reads
  *   audio_absent | audio_present | audio_clear
  *   audio_detect | audio_init
- *   audio <mode> <carrier_hz> <beat_mhz> <vol_pct> <bone> <adaptive>   np_mod_audio_control
+ *   audio <mode> <carrier_hz> <beat_mhz> <level_half_db> <bone> <adaptive>   np_mod_audio_control
  *   audio_stop | audio_shutdown
  *   audio_eeg_band <band>          np_mod_audio_set_eeg_band, the call the EEG telemetry path makes
  *   audio_sample                   np_mod_audio_telemetry
@@ -35,10 +35,10 @@ void np_simh_audio_init(void) { }
 static void audio_state_event(const char *ev, const char *cmd, int code)
 {
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_AUDIO, 0U);
-    np_sim_emit("{\"ev\":\"%s\",\"cmd\":\"%s\",\"code\":%d,\"mode\":%u,\"carrier_hz\":%u,\"beat_mhz\":%u,\"vol_pct\":%u,"
+    np_sim_emit("{\"ev\":\"%s\",\"cmd\":\"%s\",\"code\":%d,\"mode\":%u,\"carrier_hz\":%u,\"beat_mhz\":%u,\"level_half_db\":%u,"
                 "\"bone_on\":%s,\"bone_hz\":%u,\"codec_inited\":%s}",
                 ev, cmd, code, m ? (unsigned)m->audio_mode : 0U, m ? (unsigned)m->audio_carrier_hz : 0U,
-                m ? (unsigned)m->audio_beat_mhz : 0U, m ? (unsigned)m->audio_vol_pct : 0U,
+                m ? (unsigned)m->audio_beat_mhz : 0U, m ? (unsigned)m->audio_level_half_db : 0U,
                 (m && m->audio_bone_on) ? "true" : "false", m ? (unsigned)m->audio_bone_hz : 0U,
                 (m && m->audio_inited) ? "true" : "false");
 }
@@ -47,9 +47,9 @@ void np_simh_audio_status(void)
 {
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_AUDIO, 0U);
     if (m == NULL) { return; }
-    np_sim_emit("{\"ev\":\"module_state\",\"id\":\"audio:0\",\"present\":%s,\"driven\":%s,\"mode\":%u,\"vol_pct\":%u,\"bone_on\":%s}",
+    np_sim_emit("{\"ev\":\"module_state\",\"id\":\"audio:0\",\"present\":%s,\"driven\":%s,\"mode\":%u,\"level_half_db\":%u,\"bone_on\":%s}",
                 m->present ? "true" : "false", m->driven ? "true" : "false", (unsigned)m->audio_mode,
-                (unsigned)m->audio_vol_pct, m->audio_bone_on ? "true" : "false");
+                (unsigned)m->audio_level_half_db, m->audio_bone_on ? "true" : "false");
 }
 
 bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, char *e)
@@ -72,7 +72,7 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
         int bone = 0, adaptive = 0;
         if (sscanf(e, "%d %d", &bone, &adaptive) != 2) { return false; }   /* e is the rest of the line */
         const np_mod_audio_params_t p = { .mode = (uint8_t)atoi(a), .carrier_hz = (uint16_t)atoi(b),
-                                          .beat_mhz = (uint16_t)atoi(c), .volume_pct = (uint8_t)atoi(d),
+                                          .beat_mhz = (uint16_t)atoi(c), .level_half_db = (uint8_t)atoi(d),
                                           .bone_conduct_en = (uint8_t)bone, .eeg_adaptive = (uint8_t)adaptive };
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "audio_stop") == 0) {
