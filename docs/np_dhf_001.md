@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 269
+**Revision:** 270
 **Date:** 2026-11-09
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 269 | 2026-11-09 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 270 | 2026-11-09 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 2 | 2026-11-05 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 155 | 2026-11-08 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -114,7 +114,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-HW-HUB-001 | Hub PCB — Cranial Socket Interface, I2C Fan-Out and PD Analog Front End | 9 | 2026-11-03 | [np_hw_hub_001.md](./np_hw_hub_001.md) | DRAFT | SPEC-HW |
 | NP-HW-HEXTILE-001 | Hex-Tile Module — Electrical / FPC Specification (T1-A, T1-C) | 27 | 2026-11-03 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TCAP-001 | T2 Clinical Electrode Cap — Wiring and Driver Channel Assignment | 2 | 2026-09-20 | [np_hw_tcap_001.md](./np_hw_tcap_001.md) | DRAFT | SPEC-HW |
-| NP-HW-AUDIO-001 | Audio Cup Assembly — Hardware Specification | 6 | 2026-11-09 | [np_hw_audio_001.md](./np_hw_audio_001.md) | DRAFT | SPEC-HW |
+| NP-HW-AUDIO-001 | Audio Cup Assembly — Hardware Specification | 7 | 2026-11-09 | [np_hw_audio_001.md](./np_hw_audio_001.md) | DRAFT | SPEC-HW |
 | NP-HW-NASAL-001 | Intranasal Bilateral Y-Probe and Hygiene Sleeve — Hardware Specification | 3 | 2026-11-09 | [np_hw_nasal_001.md](./np_hw_nasal_001.md) | DRAFT | SPEC-HW |
 | NP-HW-VNSCLIP-001 | Auricular VNS / HRV Clip — Hardware Specification | 4 | 2026-11-09 | [np_hw_vnsclip_001.md](./np_hw_vnsclip_001.md) | DRAFT | SPEC-HW |
 | NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 4 | 2026-11-08 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |

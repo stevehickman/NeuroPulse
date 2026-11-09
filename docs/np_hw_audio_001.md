@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-11-09
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
@@ -638,3 +638,4 @@ Against `NP-FAI-001` §2:
 | 4 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` DECIDED (principal): option B** — one in-cup microphone per side, measurement only, no anti-noise. Adds §3.1, the first requirements that originate in this document, each with what fails and its trace (`CLAUDE.md` §18): `REQ-AUDIO-14` (the microphone, measurement only), `REQ-AUDIO-15` (raw audio excluded by design — bystanders are neither §6.0 consent subject), `REQ-AUDIO-16` (the seal is the dominant leak; no fully open-back cup). The ear-side-of-mesh placement stays a condition, because `OI-ACC-05`'s candidate is not adopted. §7: probe-tone hazard live, anti-noise hazard retired in place. Raises `OI-AUDIOHW-09` (microphone selection, including analogue vs PDM and hub codec inputs) and `OI-AUDIOHW-10` (seal-measurement firmware). **No value set; the foam's `150` unchanged; no cost stated; `REQ-AUDIO-04a` and `REQ-AUDIO-12` unaffected.** |
 | 5 | 2026-11-09 | NeurOne Firmware Engineering | **REQ-AUDIO-17 and REQ-AUDIO-18 added (OI-SIMFW-19).** Volume range 0-100 enforced by refusal; band update gated on binaural mode. No figure set. |
 | 6 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §4, §5.1, §9: OI-AUDIOHW-01 decided (principal): 85 dB SPL at the ear, level ceiling only with no dose model; REQ-AUDIO-19 and REQ-AUDIO-20 (absolute scale); raises OI-AUDIOHW-11 (calibration at the ear) and OI-AUDIOHW-12 (check the cited standards).** |
+| 7 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §5, §5.2, §7, §9: OI-AUDIOHW-02 decided as a rule (principal): REQ-AUDIO-21, bone ceiling at equal hearing level in dB re 1 µN on an artificial mastoid, refused never clamped; the figure is not stated because the ISO 389-3 and ISO 389-1/-7 tables were not readable; raises OI-AUDIOHW-13. No firmware, figure or constant changed.** |
