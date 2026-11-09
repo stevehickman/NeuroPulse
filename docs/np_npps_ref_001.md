@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 34
-**Date:** 2026-11-03  
+**Revision:** 35
+**Date:** 2026-11-09  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -1972,3 +1972,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 34 | 2026-11-03 | NeurOne Software Engineering | **§6: what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`).** Layers are laid on one timeline and compiled to one descriptor; two layers driving one modality at once are refused except transcranial PBM on sockets they do not share; a layer may not outrun its protocol; `intensity_scale` is above 0 and at most 1. Two shipped composites are refused by the overlap rule until a decision. |
+| 35 | 2026-11-09 | NeurOne Software Engineering | **§7 audio volume row: the 85 dB SPL ceiling replaces the provisional calibrated range.** |

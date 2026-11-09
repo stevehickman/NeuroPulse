@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 51
+**Revision:** 52
 **Date:** 2026-11-09
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23

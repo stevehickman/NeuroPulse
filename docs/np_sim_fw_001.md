@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 18
+**Revision:** 19
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -766,3 +766,4 @@ The bridge and the page now drive the safety MCU of §22. The rule is `REQ-SIMFW
 | 16 | 2026-11-09 | NeurOne Firmware Engineering | **§5, §7, §8, §12: OI-SIMFW-13 closed; OI-SIMFW-14 narrowed.** The simulator runs in `simulator-ci.yml` (ten C suites, the bridge and page `node --test`, the host-only guard), outside the host-test partition on purpose. `REQ-SIMFW-01` names its gate, `scripts/check-sim-host-only.ts`. The seam-count check of `REQ-SIMFW-02` is not built because the count is not well defined while `OI-SIMFW-02` is open. The end-to-end PBM test now asserts the governor's refusal (−18) in place of a write-fault rollback the governor never lets run; the rollback stays covered by `np_sim_pbm_tests`. |
 | 17 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §16: OI-SIMFW-19 closed.** The two audio scenarios assert the fix. The simulator build repaired (safety harness argument; cardiac sensitivity double). |
 | 18 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §18: OI-SIMFW-21 partly closed.** Point 2 (partial bilateral failure) fixed and its scenario asserts the fix; point 1 (authentication read once) stays open with the question stated. |
+| 19 | 2026-11-09 | NeurOne Systems Engineering | **§16: OI-SIMFW-19 volume half closed (level_half_db, refusal above 85 dB SPL); the EEG-band mode switch stays open.** |
