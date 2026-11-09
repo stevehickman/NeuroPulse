@@ -37,6 +37,19 @@ const INS_SENSORS = new Set(['auth', 'contact']);
 const STUB_NAMES = new Set(['qeeg', 'tms', 'pbm_1170nm', 'clin_tacs', 'hd_tdcs', 'vibrotactile']);   // np_mod_t2_stubs.c
 const STUB_OPS = new Set(['detect', 'init', 'control', 'telemetry', 'shutdown']);
 const CVNS_OPS = new Set(['cvns_accessory', 'cvns_imp_measure_start', 'cvns_imp_measure_poll', 'cvns_reenable_imp_start', 'cvns_reenable_imp_poll']);   // the cervical VNS accessory
+// The ten stimulation enable lines the safety MCU drives, by name, with the enable bit the hub requests and the MCU grants
+// (NP_SAFETY_EN_*, firmware/common/include/np_spi_wire_types.h; the order is np_sim_safety_line_name()).  A client names lines;
+// the mask on the command line is built here (REQ-SIMFW-12, REQ-SIMFW-15).
+const SAFETY_LINES = Object.freeze({
+  pbm_cranial: 1 << 0, bes: 1 << 5, tdcs: 1 << 6, vns: 1 << 7, visual: 1 << 8,
+  intranasal: 1 << 9, cvns: 1 << 10, tms: 1 << 11, pbm_1170: 1 << 12, clin_stim: 1 << 13,
+});
+const SAFETY_FAULTS = new Set(['nv_erase', 'nv_program', 'spi_timeout', 'spi_flip', 'stall', 'systick']);   // np_sim_safety_fault_t
+const SAFETY_SIG = new Set(['good', 'bad']);
+// Commands that program the part's OTP: only before the safety MCU is attached, as manufacture does (REQ-UPG-02).
+const SAFETY_PROGRAMMING = new Set(['safety_attach', 'safety_root_corrupt']);
+const SAFETY_CHANNELS = 14;                                   // NP_SAFETY_MAX_CHANNELS
+const SAFETY_MAX_RUN_MS = 60000;                              // one blocking harness call; unjustified-choices.md UC-127
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -428,6 +441,75 @@ function cvnsCommandLines(msg) {
   }
 }
 
+/** The mask of a list of line names; a name that is not one of the ten lines is refused. */
+function safetyLineMask(v) {
+  if (!Array.isArray(v) || v.length < 1 || v.length > Object.keys(SAFETY_LINES).length) {
+    throw new BridgeError(`lines must be a list of 1..${Object.keys(SAFETY_LINES).length} line names`);
+  }
+  let mask = 0;
+  for (const n of v) {
+    if (typeof n !== 'string' || !Object.hasOwn(SAFETY_LINES, n)) throw new BridgeError(`line must be one of ${Object.keys(SAFETY_LINES).join(', ')}`);
+    mask |= SAFETY_LINES[n];
+  }
+  return mask;
+}
+
+/**
+ * FW_COMMANDs for the safety MCU in the loop (NP-SIM-FW-001 §22, §23).  The page plays the two parts the device has other hardware
+ * for, the heartbeat task and the app, with a TEST root key; none of it is verification evidence (REQ-SIMFW-06).
+ */
+function safetyCommandLines(msg) {
+  const u8 = (v, what) => int(v, 0, 255, what);
+  const ch = (v) => int(v, 0, SAFETY_CHANNELS - 1, 'channel');
+  const state = (v) => int(v, 0, 7, 'state');                 // np_session_state_t
+  switch (msg.cmd) {
+    case 'safety_attach': {
+      // The OTP is programmed first, as manufacture does, then the MCU starts.  tier 0 programs no tier record.
+      const lines = [`safety_root ${u8(msg.seed, 'seed')}`];
+      const tier = int(msg.tier, 0, 2, 'tier');
+      if (tier !== 0) lines.push(`safety_uid ${u8(msg.uid, 'uid')}`, `safety_tier ${tier} ${int(msg.hw_version, 1, 15, 'hw_version')}`);
+      lines.push('safety_attach');
+      return lines;
+    }
+    case 'safety_beat':
+      return [`safety_beat ${state(msg.state)}`];
+    case 'safety_run': {
+      const tail = msg.bpm === undefined ? '' : ` ${int(msg.bpm, 0, 300, 'bpm')}`;
+      return [`safety_run ${int(msg.ms, 1, SAFETY_MAX_RUN_MS, 'ms')} ${state(msg.state)}${tail}`];
+    }
+    case 'safety_sig':
+      if (typeof msg.which !== 'string' || !SAFETY_SIG.has(msg.which)) throw new BridgeError(`which must be one of ${[...SAFETY_SIG].join(', ')}`);
+      return [`safety_sig ${msg.which}`];
+    case 'safety_limits':
+      return [`safety_limits ${ch(msg.channel)} ${int(msg.area_mcm2, 0, 65535, 'area_mcm2')}`];
+    case 'safety_wave':
+      return [`safety_wave ${ch(msg.channel)} ${u8(msg.class, 'class')} ${int(msg.phase_us, 0, 4294967295, 'phase_us')}`];
+    case 'safety_enable': case 'safety_disable':
+      return [`${msg.cmd} ${safetyLineMask(msg.lines)}`];
+    case 'safety_current':
+      return [`safety_current ${ch(msg.channel)} ${int(msg.ua, 0, 65535, 'ua')}`];
+    case 'safety_adc':
+      return [`safety_adc ${int(msg.channel, 0, 5, 'channel')} ${int(msg.counts, 0, 4095, 'counts')}`];
+    case 'safety_imp':
+      return [`safety_imp ${int(msg.channel, 0, 3, 'channel')} ${int(msg.ohm, 0, 4294967295, 'ohm')}`];
+    case 'safety_cvns_el':
+      return [`safety_cvns_el ${int(msg.electrode, 0, 1, 'electrode')} ${int(msg.ohm, 0, 4294967295, 'ohm')}`];
+    case 'safety_hr':
+      return [`safety_hr ${bit(msg.valid, 'valid')} ${int(msg.hr_x10, 0, 65535, 'hr_x10')} ${int(msg.age_ms, 0, 65535, 'age_ms')}`];
+    case 'safety_user':
+      return [`safety_user ${int(msg.tag, 0, 4294967295, 'tag')}`];
+    case 'safety_reenable':
+      return [`safety_reenable ${bit(msg.on, 'on')}`];
+    case 'safety_fault':
+      if (typeof msg.kind !== 'string' || !SAFETY_FAULTS.has(msg.kind)) throw new BridgeError(`kind must be one of ${[...SAFETY_FAULTS].join(', ')}`);
+      return [`safety_fault ${msg.kind} ${int(msg.n, 0, 1000000, 'n')} ${int(msg.arg ?? 0, 0, 65535, 'arg')}`];
+    case 'safety_rpeak': case 'safety_status': case 'safety_root_corrupt':
+      return [msg.cmd];                       // a member of the whitelist, never the client's string
+    default:
+      return null;
+  }
+}
+
 function stimChannel(v) {
   if (typeof v !== 'string' || !STIM_CHANNELS.has(v)) {
     throw new BridgeError(`channel must be one of ${[...STIM_CHANNELS].join(', ')}`);
@@ -511,7 +593,7 @@ function messageToLines(msg) {
   if (msg.kind === 'intranasal') return insModuleLines(msg);
   if (msg.kind === 'cvns') return cvnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
@@ -569,6 +651,11 @@ function eventToMessage(ev) {
     case 'module_state':
     case 'inject':
       return { type: 'MODULE_STATE', event: ev };
+    case 'safety_state':                       // the safety MCU's status, fault slot and enable lines (NP-SIM-FW-001 §23)
+      return { type: 'SAFETY_STATE', event: ev };
+    case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
+    case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for
+      return { type: 'SAFETY_EVENT', event: ev };
     default:
       return { type: 'FW_LOG', event: ev };
   }
@@ -590,6 +677,8 @@ class FwBridge extends EventEmitter {
     this._proc = null;
     this._buf = '';
     this._modules = new Map();   // id -> last module/module_state event, for MODULE_LIST
+    this._safety = null;         // the last safety_state event; null while no safety MCU has been attached
+    this._safetyRequested = false;   // an attach has been accepted: the OTP is no longer programmable from a client
   }
 
   start() {
@@ -611,7 +700,11 @@ class FwBridge extends EventEmitter {
 
   /** Validates a client message and sends its lines.  Throws BridgeError. */
   handle(msg) {
+    if (msg.type === 'FW_COMMAND' && SAFETY_PROGRAMMING.has(msg.cmd) && this._safetyRequested) {
+      throw new BridgeError('the safety MCU is already attached: the OTP is programmed before attach only');
+    }
     const lines = messageToLines(msg);
+    if (msg.type === 'FW_COMMAND' && msg.cmd === 'safety_attach') this._safetyRequested = true;
     for (const l of lines) this._proc.stdin.write(l + '\n');
     if (this._autoStatus > 0 && lines.some((l) => l !== 'status')) this._scheduleStatus();
     return lines.length > 0;
@@ -626,7 +719,7 @@ class FwBridge extends EventEmitter {
   }
 
   list() {
-    return { type: 'MODULE_LIST', modules: [...this._modules.values()] };
+    return { type: 'MODULE_LIST', modules: [...this._modules.values()], safety: this._safety };
   }
 
   _onData(chunk) {
@@ -638,9 +731,10 @@ class FwBridge extends EventEmitter {
       let ev;
       try { ev = JSON.parse(line); } catch { continue; }   // not an event
       if (ev.ev === 'module' || ev.ev === 'module_state') this._modules.set(ev.id, ev);
+      if (ev.ev === 'safety_state') this._safety = ev;
       this.emit('message', eventToMessage(ev));
     }
   }
 }
 
-module.exports = { FwBridge, BridgeError, messageToLines, eventToMessage };
+module.exports = { FwBridge, BridgeError, messageToLines, eventToMessage, SAFETY_LINES };

@@ -7,11 +7,13 @@
  * nothing back (see HelmetModel.update).
  *
  * It is fed the events the firmware bridge relays (MODULE_STATE, FW_LOG) and
- * invents none: a tile is drawn driven only if the firmware's own record says the
- * sim module holds a commanded drive.  REQ-SIMFW-07 (also requiring the safety
- * MCU's enable to be asserted) is not met by this spike: no safety MCU is in the
- * loop, and the page says so (see SimModuleRegistry.banner).
+ * invents none: a module is drawn driven only if the firmware's own record says the
+ * sim module holds a commanded drive AND, while the safety MCU is in the loop, the
+ * MCU has that module's enable line enabled (REQ-SIMFW-07, REQ-SIMFW-15).  With no
+ * safety MCU attached the hub's command is all there is, and the page says so (see
+ * SimModuleRegistry.banner).
  */
+import { SafetyMcu, VERDICT } from './safety.js';
 
 export const FAULT_FLASH_S = 1.5;
 
@@ -37,7 +39,23 @@ export class SimModule {
     this.lastFault = null;           // { op, code }
     this.unscripted = new Set();     // ops that have only ever been answered by the default model
     this.detail = {};                // the module's own latest fields (amp_ua, left, right, stage, ...), as the firmware reported them
+    this.safety = null;              // the registry's SafetyMcu; null (a module on its own) behaves as "not in the loop"
   }
+
+  /** What the safety MCU says about this module's enable line: a VERDICT. */
+  get gate() { return this.safety ? this.safety.gateFor(this.kind, this.detail) : { verdict: VERDICT.NOT_IN_LOOP, line: null }; }
+
+  /**
+   * Driven as the page draws it (REQ-SIMFW-07).  The hub commanded it, and, while the safety MCU is in the loop and gates this
+   * module, the MCU has granted its line.  A module the MCU does not gate (audio, EEG) is drawn on the hub's command.
+   */
+  get drawnDriven() {
+    const v = this.gate.verdict;
+    return this.driven && v !== VERDICT.WITHHELD;
+  }
+
+  /** Commanded by the hub and withheld by the MCU's line: the case the page used to draw as driven. */
+  get withheld() { return this.driven && this.gate.verdict === VERDICT.WITHHELD; }
 
   /** Folds one firmware event in.  `nowS` is the page's wall time in seconds. */
   apply(ev, nowS) {
@@ -98,9 +116,13 @@ export class SimModule {
       // an injected failure answered this tile within the last moment: magenta
       m.emissive.setHex(0xff2d9a);
       m.emissiveIntensity = 1.2;
-    } else if (this.driven) {
+    } else if (this.drawnDriven) {
       m.emissive.setHex(0xff3b1f);   // 660 nm family, as the zone path draws it
       m.emissiveIntensity = 0.6 + 0.9 * Math.min(1, Math.max(this.curA, this.curB) / 255);
+    } else if (this.withheld) {
+      // commanded by the hub, line not enabled by the safety MCU: a dim amber, not the red of a module that is delivering
+      m.emissive.setHex(0x8a6d00);
+      m.emissiveIntensity = 0.25;
     } else {
       m.emissive.setHex(0x334455);
       m.emissiveIntensity = 0.05;
@@ -127,8 +149,12 @@ export class SimModuleRegistry {
     // tile in socket 0 are three modules, not one.
     this._byKey = new Map();
     this.log = [];                    // recent FW_LOG events, newest last
-    this.sawSafetyMcu = false;        // no safety MCU is in the spike's loop
+    this.safety = new SafetyMcu();    // the safety MCU as the page knows it; not in the loop until a safety_state says attached
+    this.sawFirmware = false;         // the bridge has said anything: the page is talking to a firmware process
   }
+
+  /** The safety MCU is in the loop (the firmware's own `safety_mcu` label). */
+  get sawSafetyMcu() { return this.safety.inLoop; }
 
   bySocket(index) { return this._byKey.get(`${TILE_KIND}:${index}`); }
   byLatticeId(id) { return this.bySocket(latticeIdToFirmwareIndex(id)); }
@@ -141,7 +167,12 @@ export class SimModuleRegistry {
   /** One bridge message: MODULE_LIST, MODULE_STATE or FW_LOG. */
   onMessage(msg, nowS) {
     if (msg.type === 'MODULE_LIST') {
+      this.sawFirmware = true;
+      this.safety.restore(msg.safety);
       for (const ev of msg.modules) this._applyTo(ev, nowS);
+    } else if (msg.type === 'SAFETY_STATE' || msg.type === 'SAFETY_EVENT') {
+      this.sawFirmware = true;
+      this.safety.apply(msg.event);
     } else if (msg.type === 'MODULE_STATE' || msg.type === 'FW_LOG') {
       this._applyTo(msg.event, nowS);
       if (msg.type === 'FW_LOG') {
@@ -159,6 +190,7 @@ export class SimModuleRegistry {
     let mod = this._byKey.get(key);
     if (!mod && (ev.ev === 'module' || ev.ev === 'module_state')) {
       mod = new SimModule(ev.id, parsed.kind, parsed.index);
+      mod.safety = this.safety;
       this._byKey.set(key, mod);
     }
     if (mod) mod.apply(ev, nowS);
@@ -172,11 +204,15 @@ export class SimModuleRegistry {
     return kind === null || index === null ? null : { kind, index };
   }
 
-  /** What the page must say while the safety MCU is not in the loop (REQ-SIMFW-07). */
+  /**
+   * What the page must say while the safety MCU is not in the loop (REQ-SIMFW-07): the note is visible whenever a module is attached
+   * and no MCU is.  With the MCU in the loop the note says what the drawing now follows.
+   */
   banner() {
-    return this.size === 0
-      ? ''
-      : 'Firmware in the loop: hub only. No safety MCU is running, so a tile is shown driven '
-        + 'when the hub commanded it, not when a safety MCU would have allowed it. Timing is indicative.';
+    if (this.size === 0) return '';
+    return this.safety.inLoop
+      ? 'Safety MCU in the loop: a module is shown driven only while the MCU has its enable line enabled. Timing is virtual.'
+      : 'Safety MCU not in loop: a module is shown driven when the hub commanded it, not when a safety MCU would have allowed it. '
+        + 'Timing is indicative.';
   }
 }
