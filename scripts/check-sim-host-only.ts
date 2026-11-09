@@ -28,7 +28,7 @@
  *   3. SELF-GUARDED. firmware/platform_sim/CMakeLists.txt returns under `CMAKE_CROSSCOMPILING` and
  *      again unless both NP_BUILD_TESTS and NP_BUILD_SIM are set, before it creates anything.
  *   4. (--cross-probe) THE GUARD WORKS. Configures the super-project twice with a throwaway toolchain
- *      file that makes CMake cross-compile (no ARM compiler needed): once with the host toolchain and
+ *      file that makes CMake cross-compile (no ARM compiler or binutils needed): once with the host toolchain and
  *      NP_BUILD_SIM=ON, where the sim targets must exist (the positive control, so the probe cannot
  *      pass because it looked at nothing), and once as a cross build with NP_BUILD_SIM=ON, where no
  *      `np_sim_` target may exist.
@@ -193,7 +193,12 @@ export function probeVerdict(hostTargets: string, crossTargets: string): string[
 }
 
 function ninjaTargets(src: string, build: string, extra: string[]): { out: string; err: string | null } {
-  const c = spawnSync("cmake", ["-S", src, "-B", build, "-G", "Ninja", "-DNP_BUILD_TESTS=ON", "-DNP_BUILD_SIM=ON", ...extra], { encoding: "utf8" });
+  // The device's CMake files call find_program(... REQUIRED) for the ARM binutils (objcopy, size, nm) at configure time.
+  // This probe only lists targets and never builds, so those are pinned to a stub: the probe then needs no ARM tool on the
+  // machine (the CI runner has none at this step) and configures the same everywhere. A tool found by name would also be
+  // found on a developer's machine and missed in CI, which is how the first CI run failed.
+  const stubs = ["-DOBJCOPY=/bin/true", "-DSIZE=/bin/true", "-DNP_ARM_NM=/bin/true"];
+  const c = spawnSync("cmake", ["-S", src, "-B", build, "-G", "Ninja", "-DNP_BUILD_TESTS=ON", "-DNP_BUILD_SIM=ON", ...stubs, ...extra], { encoding: "utf8" });
   if (c.status !== 0) return { out: "", err: `cmake configure failed:\n${c.stdout}${c.stderr}` };
   const t = spawnSync("ninja", ["-C", build, "-t", "targets", "all"], { encoding: "utf8" });
   if (t.status !== 0) return { out: "", err: `ninja -t targets failed:\n${t.stderr}` };
@@ -331,7 +336,7 @@ add_library(np_sim_pbm STATIC src/a.c)
   expect("a target created before the guards is caught", 1, quiet());
 
   clean();
-  write(SIM_CMAKE, GOOD_SIM.replace("if(CMAKE_CROSSCOMPILING)", "# if(CMAKE_CROSSCOMPILING)").replace("    return()\nendif()\nif(NOT", "    return()\nendif()\nif(NOT"));
+  write(SIM_CMAKE, GOOD_SIM.replace("if(CMAKE_CROSSCOMPILING)", "# if(CMAKE_CROSSCOMPILING)"));
   expect("a commented-out guard is not a guard", 1, quiet());
 
   // Vacuity: nothing to scan must fail, not pass.
