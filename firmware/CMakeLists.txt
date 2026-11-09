@@ -182,7 +182,7 @@ project(neurone_firmware C ASM)
 
 # ── Global options ─────────────────────────────────────────────────────────────
 option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)
-option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); not part of any CI job yet" OFF)
+option(NP_BUILD_SIM    "Also build the host-only firmware-in-the-loop simulator layer (NP-SIM-FW-001); run by simulator-ci.yml, never linked into a device image" OFF)
 option(NP_BUILD_BOOTLOADER "Include the bootloader in the build"               ON)
 
 # ── Toolchain guard (cross-compiled modules) ──────────────────────────────────

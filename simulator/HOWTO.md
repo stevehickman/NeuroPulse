@@ -1040,6 +1040,36 @@ binary.
   bounds how many it will drive at 32 (NP-FW-HUB-001, `REQ-FWHUB-64`); the limits are the lattice, the sockets
   filled, and power and heat. The simulator keeps the production power governor, which refuses every load until `OI-FWHUB-09`, so a drive is refused with `NP_HUB_ERR_POWER_BUDGET` (−18) and no tile lights, as on the helmet (`OI-SIMFW-11`).
 
+### 18.1 Testing the firmware-driven mode
+
+The simulator's tests run in CI, in `.github/workflows/simulator-ci.yml` (job "Simulator build and tests (host only)"), on
+every pull request that touches `firmware/`, `simulator/` or that workflow. They are development tests, **not verification
+evidence** (`REQ-SIMFW-06`), and they are not in the device's host-test partition (`ci/host-test-partition.txt`). To run
+what the job runs, from the repository root:
+
+```bash
+cmake -S firmware -B build/sim -G Ninja -DCMAKE_BUILD_TYPE=Debug -DNP_BUILD_TESTS=ON -DNP_BUILD_SIM=ON
+```
+
+```bash
+cmake --build build/sim --target np_sim_run_tests np_sim_pbm_spike
+```
+
+```bash
+cd simulator && NP_SIM_FW_BIN=$PWD/../build/sim/platform_sim/np_sim_pbm_spike node --test server/fw-bridge.test.js js/*.test.mjs
+```
+
+```bash
+bun scripts/check-sim-host-only.ts --cross-probe
+```
+
+- `np_sim_run_tests` runs the ten `np_sim_*` scenario suites in C. The job fails if fewer than ten report `ALL PASS`.
+- Without `NP_SIM_FW_BIN` the end-to-end `node --test` cases **skip and the command still exits 0**. The job fails on any skip.
+- The end-to-end PBM case asserts the production governor's refusal (`NP_HUB_ERR_POWER_BUDGET`, −18, nothing driven). The write-fault
+  and rollback path behind the governor is covered by `np_sim_pbm_tests`, which opens the governor through a C-only seam.
+- `check-sim-host-only.ts` is the `REQ-SIMFW-01` guard: nothing under `firmware/` outside `firmware/platform_sim/` may name the
+  sim layer, and a cross-toolchain configure must define no `np_sim_` target.
+
 ---
 
 ## 19. Accessories: drawn only while in use
