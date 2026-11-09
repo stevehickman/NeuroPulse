@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 4
-**Date:** 2026-09-24
+**Revision:** 5
+**Date:** 2026-11-09
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -143,6 +143,10 @@ change surfaces as a disagreement with a document rather than with a driver.
 > independently addressable and must remain independently drivable in hardware. The HRV biofeedback
 > protocols rely on this: `CLAUDE.md` §3 modality ⑥ reserves the bone-conduction channel for the
 > breathing cue while the planar path carries binaural content.
+
+> **`REQ-AUDIO-17`** — `volume_pct` is **0–100**, and a command above 100 is **refused** (`NP_HUB_ERR_INVALID_ARG`) before any state changes or any output is commanded, so neither the planar drivers nor the bone transducer receive it and a running command is left as it was. *What fails without it:* a value the wire format does not define, up to 255, reaches the output stage and the HAL decides what it means. *Traceable to:* the field's specified range (`np_hub_types.h`, `np_mod_audio_params_t`); an out-of-range input must not reach the transducers. **This sets no sound level:** 100 is the top of an uncalibrated scale, and the acoustic ceiling remains `OI-AUDIOHW-01`. Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
+
+> **`REQ-AUDIO-18`** — An EEG band update (`np_mod_audio_set_eeg_band()`) retunes **only a running binaural command** (mode 0). An isochronic, noise or off command is left as commanded. *What fails without it:* an adaptive isochronic or noise session turns into binaural, and an off command starts a tone. *Traceable to:* `NP-FW-HUB-001` §8.5 ("EEG-adaptive mode retunes the binaural carrier"). Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
 
 ---
 
@@ -550,3 +554,4 @@ Against `NP-FAI-001` §2:
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **Foam prompt re-scoped by principal decision (§6.1, §8).** Comfort and hygiene replacement is at the user's discretion; the prompt covers loss of seal only, measured by the in-cup microphone of noise cancelling the programme intends to add. **Raises `OI-AUDIOHW-08`** (add ANC with a feedback mic, or decide not to) — it reverses the record's *no microphone anywhere in the design*, so privacy, acoustic-safety and placement consequences are listed with it. **No requirement added, no value set, no threshold changed.** |
 | 3 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` analysed; not decided (§6.4).** Separates the measurement from the noise cancelling: the foam's seal (`OI-ACC-04`) needs an in-cup microphone and a probe tone, not an anti-noise loop. States three options — **A** feedback/hybrid ANC, **B** in-cup microphone for measurement only, **C** no microphone — and **recommends B**. New findings: the microphone is also the only route to a measured in-cup level for `OI-AUDIOHW-01` (§6.4.2); every predefined protocol's 440 Hz carrier sits in feedback ANC's band, so A changes what the modality delivers (§6.4.3); A needs a low-latency loop the hub SAI/DMA chain cannot provide, deciding `REQ-AUDIO-04a` by force (§6.4.5); bystanders are neither `CLAUDE.md` §6.0 consent subject, so raw audio must be excluded structurally (§6.4.6); a PDM microphone is a new clocked source for `NP-EMC-CAV-001`. Two placement conditions recorded for A or B (§6.4.7), two conditional hazards added to §7, one row to §8. **No requirement added, no value set, no threshold or constant changed, no cost stated.** |
 | 4 | 2026-09-24 | NeurOne Systems Engineering | **`OI-AUDIOHW-08` DECIDED (principal): option B** — one in-cup microphone per side, measurement only, no anti-noise. Adds §3.1, the first requirements that originate in this document, each with what fails and its trace (`CLAUDE.md` §18): `REQ-AUDIO-14` (the microphone, measurement only), `REQ-AUDIO-15` (raw audio excluded by design — bystanders are neither §6.0 consent subject), `REQ-AUDIO-16` (the seal is the dominant leak; no fully open-back cup). The ear-side-of-mesh placement stays a condition, because `OI-ACC-05`'s candidate is not adopted. §7: probe-tone hazard live, anti-noise hazard retired in place. Raises `OI-AUDIOHW-09` (microphone selection, including analogue vs PDM and hub codec inputs) and `OI-AUDIOHW-10` (seal-measurement firmware). **No value set; the foam's `150` unchanged; no cost stated; `REQ-AUDIO-04a` and `REQ-AUDIO-12` unaffected.** |
+| 5 | 2026-11-09 | NeurOne Firmware Engineering | **REQ-AUDIO-17 and REQ-AUDIO-18 added (OI-SIMFW-19).** Volume range 0-100 enforced by refusal; band update gated on binaural mode. No figure set. |

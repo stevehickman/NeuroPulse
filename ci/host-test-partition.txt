@@ -76,6 +76,7 @@ B np_mod_visual_tests
 B np_cardiac_sens_tests
 B np_mod_eeg_tests
 B np_mod_vns_tests
+B np_mod_audio_tests
 B np_ppx_config_tests
 B np_session_hold_tests
 B np_ppx_roles_tests

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 49
+**Revision:** 50
 **Date:** 2026-11-09
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -1785,7 +1785,7 @@ returns 0 for it so no enable is requested. Audio delivers no current, no light 
 
 EEG-adaptive mode retunes the binaural carrier every `NP_AUDIO_ADAPT_INTERVAL_MS` to track the
 dominant EEG band, which the EEG driver posts via `np_mod_audio_set_eeg_band()`. The band→beat table
-(`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz.
+(`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz. **Only a running binaural command (mode 0) is retuned; any other mode is left as commanded** (`OI-SIMFW-19`, `REQ-AUDIO-18`). **`volume_pct` above 100 is refused with `NP_HUB_ERR_INVALID_ARG` before anything is commanded** (`REQ-AUDIO-17`); new host test `np_mod_audio_tests`.
 
 ### 8.6 Visual — `np_mod_visual.c`
 
