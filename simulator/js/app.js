@@ -166,6 +166,8 @@ class NeurOneSimulator {
         if (el) el.textContent = this._simModules.banner();
         this._safetyPanel?.render();
       },
+      onLinkLost: (t) => this._safetyPanel?.linkLost(t),
+      onLinkRestored: (lost, back) => this._safetyPanel?.linkRestored(lost, back),
       onError: (msg) => { if (typeof msg.code === 'string' && msg.code.endsWith('FW_MESSAGE')) this._safetyPanel?.showError(`Refused by the bridge: ${msg.message}`); },
       onSessionStart: (descriptor) => {
         const id = descriptor.protocolId;
