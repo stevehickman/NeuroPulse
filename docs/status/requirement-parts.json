@@ -89,6 +89,10 @@
     }
   },
   "nonTest": {
+    "REQ-SIMFW-01": {
+      "method": "analysis (CI gate)",
+      "reason": "NP-SIM-FW-001 §5 names scripts/check-sim-host-only.ts, with a self-test over the bad trees, as the check that fails a device target linking the sim layer"
+    },
     "REQ-NPPS-13": {
       "method": "inspection",
       "reason": "NP-NPPS-REF-001 §14 names inspection of generated files as the verification"
