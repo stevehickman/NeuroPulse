@@ -180,14 +180,16 @@ static void test_a_lift_between_the_read_and_the_enable_is_caught_by_the_latch(v
     check(count("\"ev\":\"hall_edge\"") == 1 && vis()->vis_edges_delivered == 1U, "race: through exactly one delivered edge");
 }
 
-/* @verifies-none Characterisation of np_mod_visual.c ignoring the LED driver's status; the finding is OI-SIMFW-20. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_failed_led_command_is_reported_as_success(void)
+/* @verifies REQ-FWHUB-75 */
+static void test_a_failed_led_command_fails_closed(void)
 {
     setup();
     run("fail 0 vis_led_set -17 1");
     run("vis 0 2 50 0 63 0 0 0 0");
-    check(result_code_is(0) && enabled() && !vis()->vis_emitting,
-          "led fault: the LED command fails, the driver ignores its status, reports success and requests the enable with nothing lit (OI-SIMFW-20)");
+    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting,
+          "led fault: the LED command fails, the driver returns the failure, requests no enable and leaves nothing lit (OI-SIMFW-20, fixed)");
+    run("vis 0 2 50 0 63 0 0 0 0");
+    check(result_code_is(0) && enabled() && vis()->vis_emitting, "led fault: the injection was one call; the next command lands");
 }
 
 /* @verifies-none Stop; np_mod_visual.c's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */
@@ -269,7 +271,7 @@ int main(void)
     test_the_hall_edge_cuts_emission_at_once();
     test_a_missed_edge_is_caught_only_by_the_poll();
     test_a_lift_between_the_read_and_the_enable_is_caught_by_the_latch();
-    test_a_failed_led_command_is_reported_as_success();
+    test_a_failed_led_command_fails_closed();
     test_a_lost_led_stop_leaves_the_leds_lit();
     test_the_photoparoxysmal_halt();
     test_malformed_command_and_shutdown();

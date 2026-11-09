@@ -74,6 +74,8 @@ static uint16_t g_req_mask;      /* the requested-enable mask, modelled */
 static bool     g_in_isr;
 static bool     g_eye_open = true;   /* what the IR proximity sensor reads */
 static int      g_led_sets;          /* led_set() calls since reset */
+static np_hub_status_t g_led_rc;     /* what led_set() answers (OI-SIMFW-20) */
+static int      g_emdr_sets;         /* emdr_set() calls since reset */
 static uint8_t  g_last_wl, g_last_freq, g_last_duty;
 static int      g_task_call_in_isr;   /* task-only API called from the ISR */
 static np_hub_status_t g_register_rc;
@@ -107,6 +109,8 @@ static void reset_doubles(void)
     g_lift_during_led_set = false;
     g_eye_open = true;
     g_led_sets = 0;
+    g_led_rc = NP_HUB_OK;
+    g_emdr_sets = 0;
     g_last_wl = g_last_freq = g_last_duty = 0U;
 }
 
@@ -129,13 +133,15 @@ np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_sel,
         fire_edge();
         g_leds_on = true;   /* the set completes after the ISR returns */
     }
-    return NP_HUB_OK;
+    /* A failed command is modelled as the worst case: it may have lit the LEDs before it reported the error, so only the
+     * driver's own stop leaves them dark (OI-SIMFW-20). */
+    return g_led_rc;
 }
 
 void np_mod_visual_hal_led_stop(void)        { g_leds_on = false; }
 bool np_mod_visual_hal_ir_eye_open(void)     { return g_eye_open; }
 bool np_mod_visual_hal_goggle_seated(void)   { return g_seated; }
-void np_mod_visual_hal_emdr_set(uint8_t r)   { (void)r; g_leds_on = true; }
+void np_mod_visual_hal_emdr_set(uint8_t r)   { (void)r; g_emdr_sets++; g_leds_on = true; }
 bool np_mod_visual_hal_mpe_check(void)       { return true; }
 
 void np_safety_spi_request_enable(uint16_t bits)
@@ -455,6 +461,55 @@ static void test_losing_sight_during_a_zone_drive_halts_it(void)
     unguard();
 }
 
+/* @verifies REQ-FWHUB-75 */
+/* OI-SIMFW-20: the status of the LED command is checked.  A command that fails is not a running session. */
+static void test_a_failed_led_command_is_not_a_running_session(void)
+{
+    np_mod_visual_params_t p;
+    np_hub_status_t rc;
+
+    /* Photic (mode 0). */
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    g_led_rc = NP_HUB_ERR_MOD_FAULT;
+    rc = start();
+    check(rc == NP_HUB_ERR_MOD_FAULT, "led fault: the failure status goes back to the caller (photic)");
+    check((g_req_mask & NP_SAFETY_EN_VISUAL) == 0U, "led fault: no enable is requested (photic)");
+    check(!g_leds_on, "led fault: nothing is left driven (photic)");
+    check(!np_mod_visual_photic_zone_active(), "led fault: the session is not marked active");
+
+    /* The refusal is not sticky: the same command lands once the LED driver answers. */
+    g_led_rc = NP_HUB_OK;
+    check(start() == NP_HUB_OK && emitting(), "led fault: a later command that lands is admitted");
+
+    /* Retinal PBM (mode 2). */
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    p = photic();
+    p.mode = 2U;
+    g_led_rc = NP_HUB_ERR_MOD_FAULT;
+    rc = np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p));
+    check(rc == NP_HUB_ERR_MOD_FAULT && !emitting(), "led fault: retinal PBM fails closed with the failure status");
+
+    /* Combined (mode 3): the EMDR half is not started after a failed LED half. */
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    p = photic();
+    p.mode = 3U;
+    g_led_rc = NP_HUB_ERR_MOD_FAULT;
+    rc = np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p));
+    check(rc == NP_HUB_ERR_MOD_FAULT && !emitting() && g_emdr_sets == 0,
+          "led fault: combined mode fails closed and does not start the EMDR half");
+
+    /* A running session whose next command fails is stopped, not left on the old command. */
+    reset_doubles();
+    (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
+    check(start() == NP_HUB_OK && emitting(), "led fault: a session is running");
+    g_led_rc = NP_HUB_ERR_MOD_FAULT;
+    rc = start();
+    check(rc == NP_HUB_ERR_MOD_FAULT && !emitting(), "led fault: a failed replacement command stops the running session");
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -470,6 +525,7 @@ int main(void)
     test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_session();
     test_a_discharge_while_nothing_in_the_zone_is_driven_stops_nothing();
     test_losing_sight_during_a_zone_drive_halts_it();
+    test_a_failed_led_command_is_not_a_running_session();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);
