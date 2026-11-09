@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 25
+**Revision:** 26
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -833,3 +833,4 @@ Not verification evidence (`REQ-SIMFW-06`). The runner is still a stand-in: this
 | 23 | 2026-11-09 | NeurOne Firmware Engineering | **New §24: `np_sim_hub_safety_tests` (4 scenarios) command the hub's own module drivers (a PBM tile, a hot zone, a tDCS pair, the goggles) and assert the line at the pin, `REQ-SIMFW-07`; the simulator CI suite count is 11.** |
 | 24 | 2026-11-09 | NeurOne Software Engineering | **§7, §23: `OI-SIMFW-28` closed on the principal's rule that the simulator is driven as the real thing is (an app function by the page's app, a hardware-control function by the simulated control); the Module row places and commands the PBM tile, EEG, auricular VNS, audio, goggles, probe and cervical VNS, with the device's refusals standing; `OI-SIMFW-36` raised (hardware controls not simulated); `UC-128` extended.** |
 | 25 | 2026-11-09 | NeurOne Software Engineering | **§7, new §25: the principal's rule (the app is the real app; every part has a twin running its software, simulating its effects and returning its information) recorded; `OI-SIMFW-36` decided with build open; `OI-SIMFW-37` to `OI-SIMFW-40` raised for the app, the wire protocol, the parts without a twin and the effects.** |
+| 26 | 2026-11-09 | NeurOne Software Engineering | **§23: new REQ-SIMFW-16 and the fault panel (every fault the page can cause is an input to the firmware, never a verdict; a real link outage becomes a heartbeat loss); OI-SIMFW-27 records why the heartbeat-loss cut is absent from the reply and that the simulator follows the firmware; OI-SIMFW-41 raised.** |
