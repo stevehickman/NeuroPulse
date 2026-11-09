@@ -469,6 +469,8 @@ function safetyCommandLines(msg) {
       const lines = [`safety_root ${u8(msg.seed, 'seed')}`];
       const tier = int(msg.tier, 0, 2, 'tier');
       if (tier !== 0) lines.push(`safety_uid ${u8(msg.uid, 'uid')}`, `safety_tier ${tier} ${int(msg.hw_version, 1, 15, 'hw_version')}`);
+      // A fault of manufacture the page can play: one bit of the programmed key flipped, so it no longer matches its CRC.
+      if (msg.corrupt_key !== undefined && bit(msg.corrupt_key, 'corrupt_key')) lines.push('safety_root_corrupt');
       lines.push('safety_attach');
       return lines;
     }

@@ -10,7 +10,7 @@
  *
  * Text is set with textContent: nothing a firmware event carries is parsed as HTML.
  */
-import { LINES, SCRIPTS, TEST_AID } from './safety.js';
+import { LINES, SCRIPTS, TEST_AID, FAULTS, FAULTS_UNAVAILABLE, outageScript, OUTAGE_MIN_MS } from './safety.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -32,6 +32,8 @@ export class SafetyPanel {
     this._pump = null;
     this._tier = 1;
     this._lineSel = 'bes';
+    this._active = new Set();     // faults injected that stay until cleared
+    this._outageNote = '';
     this._build();
     this.render();
   }
@@ -131,8 +133,90 @@ export class SafetyPanel {
     this._err.setAttribute('role', 'alert');
     aid.append(this._err);
 
-    r.append(this._badge, this._note, this._state, aid);
+    r.append(this._badge, this._note, this._state, aid, this._buildFaults());
   }
+
+  /**
+   * The fault panel (REQ-SIMFW-16): one button per fault the system is built to detect, each an input to the firmware and never a
+   * verdict.  A fault that stays until undone shows a Clear button; whether the MCU then recovers is the firmware's.
+   */
+  _buildFaults() {
+    const box = el('div', 'safety-faults');
+    box.dataset.testid = 'fault-panel';
+    box.append(el('h4', 'safety-aid-title', 'Fault panel'));
+    box.append(el('p', 'safety-note',
+      'Each button sets what a pin, the link or a sensor would carry; the safety MCU\'s own sources decide what follows, and whether it recovers is theirs. '
+      + 'A simulator test aid, not verification evidence (REQ-SIMFW-06).'));
+    this._faultBtns = new Map();
+    const chan = el('select', 'select safety-select');
+    chan.setAttribute('aria-label', 'Contact channel');
+    for (const [v, t] of [[0, 'Contact 0'], [1, 'Contact 1'], [2, 'Contact 2'], [3, 'Contact 3 (cVNS)']]) { const o = el('option', null, t); o.value = String(v); chan.append(o); }
+    this._chan = chan;
+    const groups = new Map();
+    for (const f of FAULTS) { if (!groups.has(f.group)) groups.set(f.group, []); groups.get(f.group).push(f); }
+    for (const [g, list] of groups) {
+      const kids = [];
+      for (const f of list) {
+        const b = this._btn(f.label, f.title, () => this._inject(f));
+        b.dataset.fault = f.id;
+        this._faultBtns.set(f.id, b);
+        kids.push(b);
+        if (f.clear) {
+          const c = this._btn('Clear', `Undo: ${f.label}`, () => this._clear(f));
+          c.dataset.clear = f.id; c.hidden = true;
+          this._faultBtns.set(`clear:${f.id}`, c);
+          kids.push(c);
+        }
+        if (f.id === 'contact_lost') kids.push(chan);
+      }
+      box.append(this._row(g, ...kids));
+    }
+    const un = el('ul', 'safety-unavailable');
+    un.setAttribute('aria-label', 'Faults this page cannot cause');
+    for (const u of FAULTS_UNAVAILABLE) un.append(el('li', null, `${u.label}: ${u.why}`));
+    box.append(el('p', 'safety-note', 'Not available here:'), un);
+    this._outage = el('p', 'safety-note');
+    this._outage.dataset.testid = 'fault-outage';
+    this._outage.textContent = 'A real loss of this page\'s link to the simulator is played as a heartbeat loss of the same length when it returns.';
+    box.append(this._outage);
+    return box;
+  }
+
+  _inject(f) {
+    const arg = f.id === 'contact_lost' ? Number(this._chan.value) : undefined;
+    if (f.needs === 'attached' && !this._reg.safety.inLoop) { this._error('Attach the safety MCU first: this fault is an input to it.'); return; }
+    if (f.needs === 'unattached' && this._reg.safety.inLoop) { this._error('This fault is set on a part before it starts; reload the simulator for a fresh part.'); return; }
+    if (f.clear) this._active.add(f.id === 'contact_lost' ? `${f.id}:${arg}` : f.id);
+    this.run(f.id === 'key_corrupt' ? f.script(this._tier) : f.script(arg));
+    this.render();
+  }
+
+  _clear(f) {
+    const keys = [...this._active].filter((k) => k === f.id || k.startsWith(`${f.id}:`));
+    for (const k of keys) {
+      const arg = k.includes(':') ? Number(k.split(':')[1]) : undefined;
+      this.run(f.clear(arg));
+      this._active.delete(k);
+    }
+    this.render();
+  }
+
+  /** The page's link to the simulator went down (a real outage); the hub's heartbeat task is behind that link. */
+  linkLost() { this._outageNote = 'Link to the simulator lost: no heartbeat is being sent.'; this._showOutage(); }
+
+  /** The link came back: play the wall time lost as a heartbeat loss, if the MCU is in the loop and the outage was long enough to be one. */
+  linkRestored(lostAt, backAt) {
+    const sc = this._reg.safety.inLoop ? outageScript(lostAt, backAt) : null;
+    if (sc) {
+      this._outageNote = `Link lost for ${Math.round((backAt - lostAt) / 1000)} s: played as a heartbeat loss of that length (capped at one harness call).`;
+      this.run(sc);
+    } else {
+      this._outageNote = `Link lost for ${Math.round((backAt - lostAt) / 1000)} s: ${this._reg.safety.inLoop ? `under ${OUTAGE_MIN_MS / 1000} s, not a heartbeat loss` : 'no safety MCU in the loop'}.`;
+    }
+    this._showOutage();
+  }
+
+  _showOutage() { if (this._outage) this._outage.textContent = this._outageNote; }
 
   /** Redraws the state from the registry's SafetyMcu. */
   render() {
@@ -142,6 +226,14 @@ export class SafetyPanel {
     this._badge.textContent = sum.inLoop ? 'Safety MCU: in loop' : 'Safety MCU: not in loop';
     this._badge.className = `safety-badge ${sum.inLoop ? 'safety-in' : 'safety-out'}`;
     this._attach.disabled = sum.inLoop;
+    if (this._faultBtns) {
+      for (const f of FAULTS) {
+        const b = this._faultBtns.get(f.id);
+        b.disabled = f.needs === 'attached' ? !sum.inLoop : f.needs === 'unattached' ? sum.inLoop : false;
+        const c = this._faultBtns.get(`clear:${f.id}`);
+        if (c) c.hidden = ![...this._active].some((k) => k === f.id || k.startsWith(`${f.id}:`));
+      }
+    }
     this._note.textContent = sum.inLoop
       ? 'The device\'s own safety MCU sources are running. A module is drawn driven only while the MCU has its line enabled.'
       : 'No safety MCU is attached: a module is drawn driven when the hub commanded it, not when a safety MCU would have allowed it.';
