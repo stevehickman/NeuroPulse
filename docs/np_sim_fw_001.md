@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 10
-**Date:** 2026-11-08
+**Revision:** 11
+**Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -756,3 +756,4 @@ The bridge and the page now drive the safety MCU of §22. The rule is `REQ-SIMFW
 | 8 | 2026-11-08 | NeurOne Software Engineering | **§18 and its gaps: the simulator links the photoparoxysmal detector's own sources (`np_ppx_policy.c`, `np_ppx_detect.c`) and replaces the `np_runner_abort` double with an `np_runner_halt` double in `np_sim_spike_link.c`, so every simulator test target links again after #789 to #791; no file under `firmware/hub_control` changed (`REQ-SIMFW-03`).** |
 | 9 | 2026-11-08 | NeurOne Firmware Engineering | **§7, §15: OI-SIMFW-17 closed.** The driver refuses a non-finite contact impedance; the VNS scenario that recorded the defect asserts the refusal. |
 | 10 | 2026-11-08 | NeurOne Software Engineering | **New §22 and `REQ-SIMFW-14`: the safety MCU's own sources run unmodified behind the hub's `np_safety_spi.c` over a 40-function host HAL, paced at the independent watchdog's refresh; 19 scenarios drive the heartbeat and independent watchdogs, both charge ceilings, the impedance and declaration gates, the thermal cutoff, the tier gate and the cardiac cutoff (with its persistence across a power-on reset) to their cutoffs; `OI-SIMFW-09` closed and `OI-SIMFW-24` to `OI-SIMFW-26` raised (a thermal table that does not match its stated divider, the paths no scenario reaches, and the bridge and browser).** |
+| 11 | 2026-11-09 | NeurOne Software Engineering | **New §23 and `REQ-SIMFW-15`: the bridge whitelists every `safety_*` command from validated integers and whitelisted names (a line is named, never numbered; the OTP is programmed once, before the attach) and routes the MCU's events to the page; the page draws a module as driven only while the MCU's enable line for it is enabled, says `Safety MCU not in loop` when none is attached, shows each line's request, grant and enable, the status, the fault slot, the last cutoff and the watchdog, and carries a test aid that plays the heartbeat task and the app with the TEST root key. `OI-SIMFW-26` closed; `OI-SIMFW-27` (a heartbeat-loss cut that no reply reported), `OI-SIMFW-28` and `OI-SIMFW-29` raised; `OI-SIMFW-30` raised and fixed in `firmware/platform_sim/` (the simulator no longer built after the cardiac sensitivity setting: the harness passes level 0 and defines `np_cardiac_sens_level()` as 0); `UC-127` and `UC-128` registered.** |
