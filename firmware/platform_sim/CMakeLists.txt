@@ -169,6 +169,9 @@ target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
 target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_hub_safety_tests tests/np_sim_hub_safety_tests.c)
+target_link_libraries(np_sim_hub_safety_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_hub_safety_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_executable(np_sim_safety_tests tests/np_sim_safety_tests.c)
 target_link_libraries(np_sim_safety_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_safety_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
@@ -204,5 +207,6 @@ add_custom_target(np_sim_run_tests
     COMMAND np_sim_stubs_tests
     COMMAND np_sim_cvns_tests
     COMMAND np_sim_safety_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests
+    COMMAND np_sim_hub_safety_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests np_sim_hub_safety_tests
     COMMENT "Running the simulator scenario tests")

@@ -17,6 +17,7 @@
 #include "np_sim_pbm_harness.h"
 #include "np_sim_safety.h"
 #include "np_sim_test_util.h"
+#include "np_sim_safety_test_consts.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -65,13 +66,9 @@ static void alone(void (*scenario)(void))
 #define STATUS_FAULT 0x01U
 #define STATUS_WATCHDOG 0x02U
 #define STATUS_CUTOFF 0x04U
-#define STATUS_THERMAL 0x10U
-#define STATUS_CHARGE 0x20U
 #define STATUS_CARDIAC 0x40U
 
-#define LINE_PBM 0
 #define LINE_BES 1
-#define LINE_TDCS 2
 #define LINE_CVNS 6
 
 #define EN_PBM  (1U << 0)
