@@ -235,8 +235,9 @@ env:
   # 51 → 52: np_runner_run_tests (GitHub #569, REQ-FWHUB-63: np_runner_run() has a host test).
   # 56 → 57: np_mod_vns_tests (OI-SIMFW-17, REQ-VNSC-07).
   # 59 → 60: np_mod_eeg_tests (OI-SIMFW-16, REQ-FWEEG-01).
-  # 60 → 61: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
-  NP_CLASS_B_TEST_COUNT: '61'
+  # 60 → 61: np_mod_audio_tests (OI-SIMFW-19, REQ-AUDIO-17, REQ-AUDIO-18).
+  # 61 → 62: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
+  NP_CLASS_B_TEST_COUNT: '62'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.

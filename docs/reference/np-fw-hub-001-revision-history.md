@@ -47,3 +47,4 @@ Moved verbatim from `docs/np_fw_hub_001.md` §15 at Rev 21. That section is now 
 | 47 | 2026-11-09 | NeurOne Firmware Engineering | **§8.4: the register citation in the VNS lost-stop note reads `UC-129`; no behaviour or figure changed.** |
 | 48 | 2026-11-09 | NeurOne Firmware Engineering | **New REQ-FWHUB-75: the visual driver fails closed on a failed LED command (OI-SIMFW-20).** The LEDs are stopped, no enable is requested, the session is not active and the HAL status is returned. Host test `np_mod_visual_tests`. |
 | 49 | 2026-11-09 | NeurOne Firmware Engineering | **New REQ-FWEEG-01 and §8.2: a lost EEG stop is reported and retried (OI-SIMFW-16).** The HAL stop returns a status; the driver clears its recording flag only when the stop landed. New host test `np_mod_eeg_tests`. No figure changes. |
+| 50 | 2026-11-09 | NeurOne Firmware Engineering | **§8.5: only a binaural session is retuned by an EEG band update; a volume above 100 is refused (OI-SIMFW-19).** |
