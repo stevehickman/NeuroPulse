@@ -1844,6 +1844,8 @@ principle. Duty ceiling `INS_DUTY_MAX` = 25 %, the same ceiling as the cranial t
 Detection requires **both** `auth_check()` and `pd_contact()`. This is the only authenticated
 consumable path in the firmware (CLAUDE.md §2.3 — hygiene sleeves).
 
+**A drive command that fails on either side leaves nothing emitting** (`OI-SIMFW-21`, `REQ-NASAL-15`): a bilateral command writes the left side and then the right, and a failed write stops both sides, clears the driver's active state and withdraws the enable request before reporting `NP_HUB_ERR_MOD_FAULT`. Authentication is still read once, at `init()`; when it must be read again is not specified (`OI-SIMFW-21` point 1, open).
+
 ### 8.8 Cervical VNS (T2) — `np_mod_cvns.c`
 
 The only glue between the hub module framework and the standalone cervical VNS safety library

@@ -112,10 +112,11 @@ env:
   # 67 → 68: np_mod_vns_tests (OI-SIMFW-17, REQ-VNSC-07).
   # 70 → 71: np_mod_eeg_tests (OI-SIMFW-16, REQ-FWEEG-01).
   # 71 → 72: np_mod_audio_tests (OI-SIMFW-19, REQ-AUDIO-17, REQ-AUDIO-18).
-  # 72 → 73: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
-  NP_TOTAL_TEST_COUNT: '73'
+  # 72 → 73: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
+  # 73 → 74: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
+  NP_TOTAL_TEST_COUNT: '74'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '62'
+  NP_CLASS_B_TEST_COUNT: '63'
 
 jobs:
   host-tests-all:

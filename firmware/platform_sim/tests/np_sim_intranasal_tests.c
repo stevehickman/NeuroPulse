@@ -96,7 +96,7 @@ static void test_an_unauthenticated_probe_is_never_driven(void)
     check(!result_code_is(0) && !ins()->driven && !enabled(), "auth: after a failed authentication a command is refused and nothing is driven");
 }
 
-/* @verifies-none Characterisation of np_mod_intranasal.c authenticating once, at init; the finding is OI-SIMFW-21. Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none Characterisation of np_mod_intranasal.c authenticating once, at init; the finding is OI-SIMFW-21 point 1, still open (no specified trigger). Simulator evidence only (REQ-SIMFW-06). */
 static void test_authentication_is_checked_once_at_init(void)
 {
     setup();
@@ -104,20 +104,20 @@ static void test_authentication_is_checked_once_at_init(void)
     run("ins_sensor contact 0");
     run("ins 0 40 20 60 70");
     check(result_code_is(0) && ins()->driven && enabled(),
-          "auth once: a probe whose sleeve and contact have since gone is still driven, because the answer is cached from init (OI-SIMFW-21)");
+          "auth once: a probe whose sleeve and contact have since gone is still driven, because the answer is cached from init (OI-SIMFW-21 point 1, open)");
 }
 
-/* @verifies-none Characterisation of a half-applied bilateral command; the finding is OI-SIMFW-21. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_bilateral_command_that_fails_on_the_second_side_leaves_the_first_driven(void)
+/* @verifies-none A partly applied bilateral command is undone by np_mod_intranasal.c (REQ-NASAL-15, OI-SIMFW-21, fixed); np_mod_intranasal_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_bilateral_command_that_fails_on_the_second_side_leaves_nothing_driven(void)
 {
     setup();
     run("fail 0 ins_pwm_set -17 1 1");                       /* the second pwm_set fails */
     run("ins 0 40 20 60 70");
     check(!result_code_is(0) && !enabled(), "half-applied: a failure on the right side fails the command and requests no enable");
-    check(ins()->ins_side_on[0] && !ins()->ins_side_on[1],
-          "half-applied: but the left side, already written, stays driven (OI-SIMFW-21)");
+    check(!ins()->ins_side_on[0] && !ins()->ins_side_on[1] && !ins()->driven,
+          "half-applied: the left side, already written, is stopped, so nothing is driven (OI-SIMFW-21, fixed)");
     run("ins_stop");
-    check(ins()->ins_side_on[0], "half-applied: and a stop does not reach it, because the driver's flag was never set (OI-SIMFW-21)");
+    check(!ins()->driven && !enabled(), "half-applied: and a stop afterwards leaves it so");
 }
 
 /* @verifies-none Dose telemetry is np_mod_intranasal.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
@@ -177,7 +177,7 @@ int main(void)
     test_duty_is_capped_before_the_emitters();
     test_an_unauthenticated_probe_is_never_driven();
     test_authentication_is_checked_once_at_init();
-    test_a_bilateral_command_that_fails_on_the_second_side_leaves_the_first_driven();
+    test_a_bilateral_command_that_fails_on_the_second_side_leaves_nothing_driven();
     test_telemetry_reads_both_probes();
     test_malformed_command_and_shutdown();
     test_default_and_injected_answers_are_marked();

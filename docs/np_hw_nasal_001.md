@@ -155,6 +155,7 @@ document owes the hub the four values.
 | **REQ-NASAL-10** | Session admission requires **both** an authentication pass and a photodiode contact confirmation | `np_mod_intranasal_detect()`; `NP-FW-HUB-001` §8.7 |
 | **REQ-NASAL-11** | Duty ceiling **25 %** (`INS_DUTY_MAX` = `0x32`), and the protocol grammar bounds `duty_cycle` 1–25 % | `firmware/hub_control/modules/np_mod_intranasal.c`; `NP-NPPS-REF-001` §4.2 |
 | **REQ-NASAL-12** | Ambient envelope: full dose ≤ +30 °C, derate +30 → +35 °C, block > +35 °C — **the probe carries the same band as every helmet module** | `NP-ENV-OPRANGE-001` |
+| **REQ-NASAL-15** | A drive command that does not fully apply **leaves nothing emitting**: if any side's write fails (the second side of a bilateral command included), the driver stops both sides, clears its active state, withdraws the enable request and reports the module fault. *Fails without it:* the side already written keeps emitting with no enable requested and no state for the stop path to act on (`OI-SIMFW-21`) | `CLAUDE.md` §4.2 (a fault leaves nothing driven); `np_mod_intranasal.c`; `NP-FW-HUB-001` §8.7 |
 
 ---
 
