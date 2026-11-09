@@ -21,6 +21,15 @@
  *      NaN (undefined behaviour);
  *   4. detection does not report a clip on a non-finite reading.
  *
+ * REQ-VNSC-14 (OI-SIMFW-18): a command refused after it began, and a lost stop.
+ *   5. a failed stimulator write leaves the PPG, the EEG reference routing and the
+ *      HRV session stopped, the stimulator told to stop, and no enable requested;
+ *   6. a stimulator stop that fails is reported (NP_HUB_ERR_MOD_FAULT) while the
+ *      enable is still withdrawn and everything else still stopped;
+ *   7. the lost stop is retried by the next stop, and by the next start (which is
+ *      refused, starting nothing, while the stop is still lost);
+ *   8. an accepted command and a clean stop are unchanged.
+ *
  * The device build uses -ffast-math, under which isfinite() and a NaN comparison
  * may be folded to a constant.  The driver therefore tests the exponent bits.
  * This host build does not use -ffast-math; the driver was also compiled and
@@ -69,6 +78,10 @@ np_hub_status_t np_mod_vns_telemetry(uint8_t slot, np_telem_record_t *out);
 
 static float    g_impedance;
 static int      g_stim_set_calls, g_ppg_starts, g_eeg_route_calls, g_hrv_creates;
+static int      g_ppg_stops, g_stim_stops, g_hrv_destroys;
+static bool     g_eeg_route_on, g_ppg_on;
+static np_hub_status_t g_stim_set_rc;
+static int      g_stim_stop_failures;   /* the next N stimulator stops fail */
 static uint16_t g_req_mask;
 static uint16_t g_published_ua;
 
@@ -85,12 +98,21 @@ np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz,
 {
     (void)side; (void)freq_mhz; (void)amp_ua; (void)pw_us;
     g_stim_set_calls++;
+    return g_stim_set_rc;
+}
+np_hub_status_t np_mod_vns_hal_stim_stop(uint8_t side)
+{
+    (void)side;
+    g_stim_stops++;
+    if (g_stim_stop_failures > 0) {
+        g_stim_stop_failures--;
+        return NP_HUB_ERR_MOD_FAULT;
+    }
     return NP_HUB_OK;
 }
-np_hub_status_t np_mod_vns_hal_stim_stop(uint8_t side) { (void)side; return NP_HUB_OK; }
-void  np_mod_vns_hal_ppg_start(void)          { g_ppg_starts++; }
-void  np_mod_vns_hal_ppg_stop(void)           { }
-void  np_mod_vns_hal_eeg_ref_route(bool en)   { (void)en; g_eeg_route_calls++; }
+void  np_mod_vns_hal_ppg_start(void)          { g_ppg_starts++; g_ppg_on = true; }
+void  np_mod_vns_hal_ppg_stop(void)           { g_ppg_stops++; g_ppg_on = false; }
+void  np_mod_vns_hal_eeg_ref_route(bool en)   { g_eeg_route_on = en; g_eeg_route_calls++; }
 float np_mod_vns_hal_get_rmssd(void)          { return 0.0f; }
 float np_mod_vns_hal_get_coherence(void)      { return 0.0f; }
 float np_mod_vns_hal_get_hr_bpm(void)         { return 0.0f; }
@@ -112,7 +134,7 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
     return NP_HRV_OK;
 }
 void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)    { (void)sess; (void)now_ms; }
-void np_hrv_session_destroy(np_hrv_session_t *sess)                  { (void)sess; }
+void np_hrv_session_destroy(np_hrv_session_t *sess)                  { (void)sess; g_hrv_destroys++; }
 void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reason)
 {
     (void)rec; (void)reason;
@@ -124,6 +146,11 @@ static void reset(float imp)
 {
     g_impedance = imp;
     g_stim_set_calls = g_ppg_starts = g_eeg_route_calls = g_hrv_creates = 0;
+    g_ppg_stops = g_stim_stops = g_hrv_destroys = 0;
+    g_eeg_route_on = false;
+    g_ppg_on = false;
+    g_stim_set_rc = NP_HUB_OK;
+    g_stim_stop_failures = 0;
     g_req_mask = 0U;
     g_published_ua = 0U;
     (void)np_mod_vns_init(NP_HUB_SLOT_VNS_HRV);
@@ -235,12 +262,125 @@ static void test_detection_does_not_report_a_clip_on_a_non_finite_reading(void)
           "detect: a finite in-range read is a present clip");
 }
 
+/* What the command started and nothing has stopped: true means still running. */
+static bool ppg_running(void)  { return g_ppg_on; }
+static bool hrv_running(void)  { return g_hrv_creates > g_hrv_destroys; }
+static bool enable_requested(void) { return (g_req_mask & NP_SAFETY_EN_VNS_HRV) != 0U; }
+
+/* @verifies REQ-VNSC-14#a */
+static void test_a_failed_stimulator_write_leaves_nothing_running(void)
+{
+    reset(1200.0f);
+    g_stim_set_rc = NP_HUB_ERR_MOD_FAULT;
+    check(drive() == NP_HUB_ERR_MOD_FAULT, "refused write: the command is refused with the module-fault status");
+    check(!ppg_running(), "refused write: the PPG it started is stopped");
+    check(!g_eeg_route_on, "refused write: the EEG reference routing it started is switched off");
+    check(!hrv_running(), "refused write: the HRV session it started is ended");
+    check(g_stim_stops == 1, "refused write: the stimulator is told to stop, as the write may have partly landed");
+    check(!enable_requested() && g_published_ua == 0U, "refused write: no enable requested and no current published");
+
+    /* The driver is reusable: a later accepted command works, then stops clean. */
+    g_stim_set_rc = NP_HUB_OK;
+    check(drive() == NP_HUB_OK && enable_requested() && ppg_running() && g_eeg_route_on,
+          "refused write: a later command on a working stimulator is accepted");
+}
+
+/* @verifies REQ-VNSC-14#a */
+static void test_a_refused_recommand_stops_the_session_it_interrupted(void)
+{
+    reset(1200.0f);
+    check(drive() == NP_HUB_OK && enable_requested(), "recommand: a first command is accepted");
+    g_stim_set_rc = NP_HUB_ERR_MOD_FAULT;
+    check(drive() == NP_HUB_ERR_MOD_FAULT, "recommand: the second command's write fails");
+    check(!enable_requested() && g_published_ua == 0U && !ppg_running() && !g_eeg_route_on && !hrv_running(),
+          "recommand: the stimulator state is unknown, so the earlier session stops too");
+}
+
+/* @verifies REQ-VNSC-14#b */
+static void test_a_lost_stimulator_stop_is_reported_and_the_enable_still_drops(void)
+{
+    reset(1200.0f);
+    (void)drive();
+    g_stim_stop_failures = 1;
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_ERR_MOD_FAULT,
+          "lost stop: the failure is reported to the caller");
+    check(!enable_requested() && g_published_ua == 0U && !ppg_running() && !g_eeg_route_on && !hrv_running(),
+          "lost stop: the enable is withdrawn, the current cleared and everything else stopped regardless");
+}
+
+/* @verifies REQ-VNSC-14#c */
+static void test_a_lost_stop_is_retried_by_the_next_stop(void)
+{
+    reset(1200.0f);
+    (void)drive();
+    g_stim_stop_failures = 2;
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_ERR_MOD_FAULT, "retry stop: first stop lost");
+    int before = g_stim_stops;
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_ERR_MOD_FAULT && g_stim_stops == before + 1,
+          "retry stop: the next stop tries the stimulator again, and is lost again, and says so");
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == before + 2,
+          "retry stop: the next stop lands and reports success");
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == before + 2,
+          "retry stop: once landed, a further stop does not touch the stimulator");
+}
+
+/* @verifies REQ-VNSC-14#c */
+static void test_a_start_is_refused_while_a_stop_is_still_lost(void)
+{
+    reset(1200.0f);
+    (void)drive();
+    g_stim_stop_failures = 2;
+    (void)np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U);
+    int sets = g_stim_set_calls, ppg = g_ppg_starts, hrv = g_hrv_creates;
+    check(drive() == NP_HUB_ERR_MOD_FAULT, "start while lost: refused while the earlier stop is still lost");
+    check(g_stim_set_calls == sets && g_ppg_starts == ppg && g_hrv_creates == hrv && !enable_requested() && !g_eeg_route_on,
+          "start while lost: and nothing is started");
+    check(drive() == NP_HUB_OK && enable_requested() && g_stim_set_calls == sets + 1,
+          "start while lost: once the retry lands the command is accepted");
+}
+
+/* @verifies REQ-VNSC-14#a */
+static void test_a_refused_write_whose_stop_is_lost_stays_pending(void)
+{
+    reset(1200.0f);
+    g_stim_set_rc = NP_HUB_ERR_MOD_FAULT;
+    g_stim_stop_failures = 1;
+    check(drive() == NP_HUB_ERR_MOD_FAULT && !ppg_running() && !g_eeg_route_on && !enable_requested(),
+          "refused write, lost stop: refused, everything else stopped, no enable");
+    g_stim_set_rc = NP_HUB_OK;
+    int stops = g_stim_stops;
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == stops + 1,
+          "refused write, lost stop: the next stop retries the stimulator and lands");
+}
+
+/* @verifies REQ-VNSC-14#d */
+static void test_an_accepted_command_and_a_clean_stop_are_unchanged(void)
+{
+    reset(1200.0f);
+    check(drive() == NP_HUB_OK && g_stim_set_calls == 1 && g_stim_stops == 0 && ppg_running() && g_eeg_route_on &&
+          hrv_running() && enable_requested() && g_published_ua == 2000U,
+          "accepted: starts everything, stops nothing, publishes the commanded current");
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == 1 &&
+          !ppg_running() && !g_eeg_route_on && !hrv_running() && !enable_requested() && g_published_ua == 0U,
+          "accepted: a stop reports success and stops everything");
+    reset(1200.0f);
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == 0,
+          "accepted: a stop with nothing running reports success without touching the stimulator");
+}
+
 int main(void)
 {
     test_a_non_finite_impedance_is_refused_and_starts_nothing();
     test_the_range_still_enables_inside_and_refuses_outside();
     test_a_non_finite_reading_is_reported_as_zero_ohm();
     test_detection_does_not_report_a_clip_on_a_non_finite_reading();
+    test_a_failed_stimulator_write_leaves_nothing_running();
+    test_a_refused_recommand_stops_the_session_it_interrupted();
+    test_a_lost_stimulator_stop_is_reported_and_the_enable_still_drops();
+    test_a_lost_stop_is_retried_by_the_next_stop();
+    test_a_start_is_refused_while_a_stop_is_still_lost();
+    test_a_refused_write_whose_stop_is_lost_stays_pending();
+    test_an_accepted_command_and_a_clean_stop_are_unchanged();
     printf("%s (%d failures)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }
