@@ -70,6 +70,7 @@ typedef struct {
     bool              active;
     bool              ppg_on;
     uint8_t           active_side;
+    bool              stim_stop_pending; /* a stimulator stop failed or a start write may have landed: stop it again */
     float             last_impedance_ohm;
     np_hrv_session_t *hrv_sess;   /* NULL when no HRV protocol is running */
 } np_mod_vns_state_t;
@@ -128,6 +129,47 @@ static void vns_hrv_session_stop(void)
     }
 }
 
+/*
+ * Stop everything this driver starts: stimulator, safety enable, published
+ * current, PPG, HRV session, EEG reference routing (OI-SIMFW-18).  Used by the
+ * stop command and by a start command that is refused after it began.
+ *
+ * The stimulator stop is the one step that can fail.  Its failure does not stop
+ * the rest: the safety enable is withdrawn, the published current cleared and the
+ * PPG, session and routing stopped regardless, because the enable line is what
+ * the safety MCU acts on.  But a stop that did not land is not forgotten:
+ * `stim_stop_pending` keeps it, the status is returned to the caller
+ * (NP_HUB_ERR_MOD_FAULT), and the next stop, or the next start, attempts it
+ * again.  The retry policy is that one attempt per call; no timer, no loop.
+ */
+static np_hub_status_t vns_stop_all(void)
+{
+    np_hub_status_t rc = NP_HUB_OK;
+
+    if (s_state.active || s_state.stim_stop_pending) {
+        if (np_mod_vns_hal_stim_stop(s_state.active_side) == NP_HUB_OK) {
+            s_state.stim_stop_pending = false;
+        } else {
+            s_state.stim_stop_pending = true;
+            rc = NP_HUB_ERR_MOD_FAULT;
+        }
+    }
+    if (s_state.active) {
+        s_state.active = false;
+        np_safety_spi_request_disable(NP_SAFETY_EN_VNS_HRV);
+        /* OI-CHARGE-05 (c): clear the published commanded current beside
+         * the enable it belongs to. */
+        np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, 0U);
+    }
+    if (s_state.ppg_on) {
+        np_mod_vns_hal_ppg_stop();
+        s_state.ppg_on = false;
+    }
+    vns_hrv_session_stop();
+    np_mod_vns_hal_eeg_ref_route(false);
+    return rc;
+}
+
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_mod_vns_detect(uint8_t slot, np_hub_mod_type_t *type_out)
@@ -160,21 +202,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     /* Stop */
     if (params == NULL || len == 0U) {
-        if (s_state.active) {
-            (void)np_mod_vns_hal_stim_stop(s_state.active_side);
-            s_state.active = false;
-            np_safety_spi_request_disable(NP_SAFETY_EN_VNS_HRV);
-            /* OI-CHARGE-05 (c): clear the published commanded current beside
-             * the enable it belongs to. */
-            np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, 0U);
-        }
-        if (s_state.ppg_on) {
-            np_mod_vns_hal_ppg_stop();
-            s_state.ppg_on = false;
-        }
-        vns_hrv_session_stop();
-        np_mod_vns_hal_eeg_ref_route(false);
-        return NP_HUB_OK;
+        return vns_stop_all();
     }
 
     if (len < sizeof(np_mod_vns_hrv_params_t)) {
@@ -195,6 +223,15 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     s_state.last_impedance_ohm = imp_finite ? imp : 0.0f;
     if (!(imp_finite && imp >= VNS_CONTACT_MIN_OHM && imp <= VNS_CONTACT_MAX_OHM)) {
         return NP_HUB_ERR_SAFETY_REJECTED; /* safety MCU will also reject */
+    }
+
+    /* OI-SIMFW-18: a stimulator stop that was lost is retried before anything new
+     * starts.  If it is lost again the command is refused and nothing is started. */
+    if (s_state.stim_stop_pending) {
+        if (np_mod_vns_hal_stim_stop(s_state.active_side) != NP_HUB_OK) {
+            return NP_HUB_ERR_MOD_FAULT;
+        }
+        s_state.stim_stop_pending = false;
     }
 
     /* Route A1/A2 EEG reference if requested */
@@ -221,7 +258,17 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
                                                     p->freq_mhz,
                                                     amp,
                                                     p->pulse_width_us);
-    if (rc != NP_HUB_OK) { return NP_HUB_ERR_MOD_FAULT; }
+    if (rc != NP_HUB_OK) {
+        /* OI-SIMFW-18 / REQ-VNSC-14: a refused command leaves nothing running.
+         * The PPG, the EEG reference routing and the HRV session were started
+         * above; a failed write may still have partly landed, so the stimulator
+         * is stopped too, and a session this command interrupted stops with it.
+         * If that stop is lost it stays pending (vns_stop_all). */
+        s_state.active_side       = p->side;
+        s_state.stim_stop_pending = true;
+        (void)vns_stop_all();
+        return NP_HUB_ERR_MOD_FAULT;
+    }
 
     s_state.active      = true;
     s_state.active_side = p->side;
