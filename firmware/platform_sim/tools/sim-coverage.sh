@@ -21,7 +21,11 @@ cmake --build "$work" --target np_sim_run_tests -j"$(nproc)" >/dev/null
 objdir="$work/platform_sim/CMakeFiles/np_sim_pbm.dir"
 if [ "$#" -eq 0 ]; then
   set -- hub_control/modules/np_mod_pbm.c hub_control/modules/np_mod_stim.c hub_control/src/np_stim_xcheck.c \
-         hub_control/src/np_socket_dispatch.c hub_control/src/np_module_map.c
+         hub_control/src/np_socket_dispatch.c hub_control/src/np_module_map.c \
+         safety_mcu/src/np_fault_latch.c safety_mcu/src/np_nv_state.c safety_mcu/src/np_session_sig.c \
+         safety_mcu/src/np_cardiac_interlock.c safety_mcu/src/np_thermal_interlock.c safety_mcu/src/np_charge_monitor.c \
+         safety_mcu/src/np_safety_main.c safety_mcu/src/np_tier_identity.c safety_mcu/src/np_impedance_check.c \
+         safety_mcu/src/np_spi_watchdog.c safety_mcu/src/np_gpio_mgr.c
 fi
 
 printf '%-52s %s\n' "source" "lines reached"
