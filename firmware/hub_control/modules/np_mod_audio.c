@@ -29,6 +29,9 @@
 #include "np_sw02_platform_hal.h"
 
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
+#define NP_AUDIO_MODE_BINAURAL  0U   /* np_mod_audio_params_t.mode */
+#define NP_AUDIO_VOLUME_MAX_PCT 100U /* np_mod_audio_params_t.volume_pct is 0-100 */
+
 static const uint16_t BAND_BEAT_MHZ[5] = {
     2000U,   /* delta: 2Hz */
     6000U,   /* theta: 6Hz */
@@ -57,6 +60,10 @@ void np_mod_audio_set_eeg_band(uint8_t band)
 {
     if (!s_state.active || !s_state.eeg_adaptive) { return; }
     if (band >= 5U) { return; }
+    /* NP-FW-HUB-001 §8.5: EEG-adaptive mode retunes the BINAURAL carrier.  Only a
+     * running binaural command (mode 0) is retuned; an isochronic, noise or off
+     * command is left as commanded (OI-SIMFW-19, REQ-AUDIO-18). */
+    if (s_state.mode != NP_AUDIO_MODE_BINAURAL) { return; }
     s_state.beat_mhz = BAND_BEAT_MHZ[band];
     np_mod_audio_hal_set_binaural(s_state.carrier_hz, s_state.beat_mhz,
                                    s_state.vol_pct);
@@ -103,6 +110,15 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
     }
 
     const np_mod_audio_params_t *p = (const np_mod_audio_params_t *)params;
+
+    /* volume_pct is specified 0-100 (np_hub_types.h).  A value above it is outside
+     * the contract: refuse before any state changes or any output is commanded, so
+     * neither the planar drivers nor the bone transducer receive it, and a running
+     * command is left as it was (OI-SIMFW-19, REQ-AUDIO-17).  Refused, not clamped:
+     * a clamped command plays something other than what was authored. */
+    if (p->volume_pct > NP_AUDIO_VOLUME_MAX_PCT) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
 
     s_state.mode         = p->mode;
     s_state.carrier_hz   = p->carrier_hz;
