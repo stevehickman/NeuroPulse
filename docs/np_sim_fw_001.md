@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 23
+**Revision:** 24
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -800,3 +800,4 @@ Not verification evidence (`REQ-SIMFW-06`). The runner is still a stand-in: this
 | 21 | 2026-11-09 | NeurOne Software Engineering | **§7 `OI-SIMFW-13`: "Simulator scope" and "Simulator build and tests (host only)" are required status checks (the principal, 2026-11-09), so a change that breaks the simulator does not merge; the ruleset edit is the administrator's and the file leads it until it is made.** |
 | 22 | 2026-11-09 | NeurOne Software Engineering | **§7, §22, REQ-SIMFW-14: the fault latch across a warm reset, the repeated signature failure, the cardiac re-enable and its repeat contact check, the three geometry gates, the cross-check's failure paths, per-user scope, the cutoff log's rollover and an interrupted compaction, the thermal re-arm and two tier records that do not verify each have a scenario; line coverage of the safety MCU's sources re-measured (np_fault_latch.c 51 to 83 %, np_nv_state.c 62 to 93 %, np_session_sig.c 79 to 87 %, np_cardiac_interlock.c 79 to 97 %, np_charge_monitor.c 90 to 96 %, np_tier_identity.c 85 to 92 %, np_thermal_interlock.c 89 to 100 %, np_safety_main.c 85 to 100 %) with the method recorded; harness additions safety_geom, the cmd_flip fault, nv_program with a skip count, a warm-reset latch and silicon erase; OI-SIMFW-25 partly closed; OI-SIMFW-32 to OI-SIMFW-35 raised (a restored fault loses its slot and cannot be cleared, the signature lock, area and phase taken as sent, a lost compaction COMMIT withholds every user); UC-132 registered.** |
 | 23 | 2026-11-09 | NeurOne Firmware Engineering | **New §24: `np_sim_hub_safety_tests` (4 scenarios) command the hub's own module drivers (a PBM tile, a hot zone, a tDCS pair, the goggles) and assert the line at the pin, `REQ-SIMFW-07`; the simulator CI suite count is 11.** |
+| 24 | 2026-11-09 | NeurOne Software Engineering | **§7, §23: `OI-SIMFW-28` closed on the principal's rule that the simulator is driven as the real thing is (an app function by the page's app, a hardware-control function by the simulated control); the Module row places and commands the PBM tile, EEG, auricular VNS, audio, goggles, probe and cervical VNS, with the device's refusals standing; `OI-SIMFW-36` raised (hardware controls not simulated); `UC-128` extended.** |
