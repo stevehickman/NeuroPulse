@@ -83,7 +83,7 @@ static void test_control_configures_enabled_and_powers_down_the_rest(void)
     check(reg(9) == 0x60U, "control: a second command re-enables them");
 }
 
-/* @verifies-none Stop is np_mod_eeg.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none Stop is np_mod_eeg.c's; the hub suite verifies it (REQ-FWEEG-01). Simulator evidence only (REQ-SIMFW-06). */
 static void test_stop_and_a_lost_stop(void)
 {
     setup();
@@ -93,10 +93,13 @@ static void test_stop_and_a_lost_stop(void)
     run("eeg 0xFF 6 0 0 0");
     run("fail 0 eeg_stop -17 1");
     run("eeg_stop");
-    check(result_code_is(0) && eeg()->eeg_running,
-          "lost stop: the driver reports success while the converter still runs (the divergence the simulator exists to show)");
+    check(!result_code_is(0) && eeg()->eeg_running,
+          "lost stop: the driver reports the failure while the converter still runs (OI-SIMFW-16, closed)");
     run("eeg_stop");
-    check(eeg()->eeg_running, "lost stop: and a second stop does not retry it: the driver cleared its recording flag at the first, so the converter runs on");
+    check(result_code_is(0) && !eeg()->eeg_running,
+          "lost stop: a second stop retries it, the converter stops, and the driver reports success");
+    run("eeg_stop");
+    check(result_code_is(0), "lost stop: and a stop with nothing recording is still accepted");
 }
 
 /* @verifies-none A lost start; np_mod_eeg.c's reply is verified by the hub suite. Simulator evidence only (REQ-SIMFW-06). */

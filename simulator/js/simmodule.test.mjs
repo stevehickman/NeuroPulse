@@ -75,7 +75,11 @@ test('the lattice id (1..80) maps to the firmware index (0..79), and a registry 
 const BIN = process.env.NP_SIM_FW_BIN;
 
 // @verifies-none End to end: the real firmware process through the bridge into the registry. Simulator evidence only (REQ-SIMFW-06).
-test('end to end: the real firmware drives three tiles, one write fails, the registry shows the rollback', { skip: !BIN }, async () => {
+// OI-SIMFW-11 (closed): the simulator links the production power governor, which refuses every load (OI-FWHUB-09), as the
+// device does. A drive therefore returns NP_HUB_ERR_POWER_BUDGET (-18) before any tile write, so an injected write fault
+// is armed and never consumed. The write-fault and rollback path behind the governor is covered in C by np_sim_pbm_tests,
+// which opens the governor through a C-only seam that no bridge message reaches.
+test('end to end: the real firmware refuses a PBM drive at the power governor (-18), drives nothing, and an armed write fault is never reached', { skip: !BIN }, async () => {
   const { FwBridge } = require('../server/fw-bridge');
   const reg = new SimModuleRegistry();
   const bridge = new FwBridge({ bin: BIN }).start();
@@ -88,8 +92,10 @@ test('end to end: the real firmware drives three tiles, one write fails, the reg
   await new Promise((r) => setTimeout(r, 400));
   bridge.stop();
   assert.strictEqual(reg.size, 3);
-  assert.strictEqual(reg.bySocket(1).lastFault.code, -17, 'the failure is on tile 1');
-  assert.strictEqual(reg.bySocket(0).lastFault, null);
-  assert.ok([0, 1, 2].every((i) => reg.bySocket(i).driven === false), 'all dark after the rollback');
-  assert.ok(reg.log.some((e) => e.ev === 'fw_log' && e.fn === 'np_log_shdr_fault'), 'the firmware\'s own log line is in the stream');
+  const drive = reg.log.find((e) => e.ev === 'result' && e.cmd === 'drive');
+  assert.ok(drive, 'the firmware answered the drive command');
+  assert.strictEqual(drive.code, -18, 'refused at the governor: NP_HUB_ERR_POWER_BUDGET');
+  assert.strictEqual(drive.active, 0, 'no tile was activated');
+  assert.ok([0, 1, 2].every((i) => reg.bySocket(i).driven === false), 'all dark: nothing is drawn as driven');
+  assert.ok([0, 1, 2].every((i) => reg.bySocket(i).lastFault === null), 'no write was attempted, so no tile faulted');
 });
