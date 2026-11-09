@@ -347,6 +347,20 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_vns_tests PRIVATE m)
 
+    # OI-SIMFW-21 / REQ-NASAL-15: the intranasal driver leaves nothing emitting when a
+    # drive command fails part way (NP-FW-HUB-001 §8.7).  np_mod_intranasal.c is
+    # linked real; the safety SPI, the SHDR log and the HAL are doubles.
+    add_executable(np_mod_intranasal_tests
+        tests/np_mod_intranasal_tests.c
+        modules/np_mod_intranasal.c
+    )
+    target_include_directories(np_mod_intranasal_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_mod_intranasal_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt, the enable
     # window it can land in, and the telemetry backstop (NP-FW-HUB-001 §8.6).
     add_executable(np_mod_visual_tests

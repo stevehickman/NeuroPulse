@@ -71,6 +71,7 @@ B np_map3_record_tests
 B np_mod_cvns_tests
 B np_mod_pbm_chlatch_tests
 B np_mod_stim_tests
+B np_mod_intranasal_tests
 B np_mod_visual_tests
 B np_cardiac_sens_tests
 B np_mod_vns_tests

@@ -99,7 +99,17 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
         rc = np_mod_ins_hal_pwm_set(1U, p->cur_660, p->cur_808, p->freq_code, duty);
     }
 
-    if (rc != NP_HUB_OK) { return NP_HUB_ERR_MOD_FAULT; }
+    if (rc != NP_HUB_OK) {
+        /* REQ-NASAL-15 (OI-SIMFW-21): fail closed.  A bilateral command writes the left side before the right,
+         * so a failure on the second write left the first side emitting with s_state.active never set, and the
+         * stop path (which acts only on that flag) could not reach it.  A command that does not fully apply
+         * leaves nothing emitting: stop both sides whatever was written, drop the flag, withdraw the enable. */
+        np_mod_ins_hal_pwm_stop(0U); /* left */
+        np_mod_ins_hal_pwm_stop(1U); /* right */
+        s_state.active = false;
+        np_safety_spi_request_disable(NP_SAFETY_EN_INTRANASAL);
+        return NP_HUB_ERR_MOD_FAULT;
+    }
 
     s_state.active = true;
     np_safety_spi_request_enable(NP_SAFETY_EN_INTRANASAL);

@@ -154,7 +154,7 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
     } else if (strcmp(cmd, "safety_user") == 0 && a) {
         state_event("safety_state", cmd, (int)np_safety_spi_send_active_user((uint32_t)strtoul(a, NULL, 0)));
     } else if (strcmp(cmd, "safety_hr") == 0 && a && b && c) {
-        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, (uint16_t)atoi(b), (uint16_t)atoi(c)));
+        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, (uint16_t)atoi(b), (uint16_t)atoi(c), 0U));
     } else if (strcmp(cmd, "safety_enable") == 0 && a) {                    /* what a modality driver does beside its own command */
         np_safety_spi_request_enable((uint16_t)strtoul(a, NULL, 0));
     } else if (strcmp(cmd, "safety_disable") == 0 && a) {

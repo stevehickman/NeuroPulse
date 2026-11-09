@@ -109,7 +109,8 @@
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
-#                             → np_mod_vns_tests          (OI-SIMFW-17 VNS contact confirmation, non-finite impedance)
+#                             → np_mod_intranasal_tests   (OI-SIMFW-21 intranasal partial failure fails closed)
+#                             → np_mod_vns_tests         (OI-SIMFW-17 VNS contact confirmation, non-finite impedance)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
 #                             → np_session_lease_tests    (OI-FWHUB-17 detect/session exclusion)
@@ -440,6 +441,11 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_ppx_roles_tests
         COMMAND np_ppx_roles_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-SIMFW-21 / REQ-NASAL-15: the intranasal driver leaves nothing emitting after a partly applied command.
+    add_test(NAME np_mod_intranasal_tests
+        COMMAND np_mod_intranasal_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).

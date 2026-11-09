@@ -26,6 +26,7 @@
 #include "np_log_hrv.h"
 #include "np_session_runner.h"
 #include "np_cvns_reenable.h"
+#include "np_cardiac_sens.h"
 #include "np_cvns_fault_summary.h"
 
 #include "FreeRTOS.h"
@@ -98,6 +99,8 @@ np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
     return NP_HUB_OK;
 }
 uint32_t np_log_session_count(void) { return 1U; }
+/* The owner's cardiac cutoff sensitivity (np_cardiac_sens.c, REQ-FWHUB-74) needs the Config store and the GATT server, which are not linked; level 0 is the cutoff as validated. */
+uint8_t np_cardiac_sens_level(void) { return 0U; }
 void np_transport_hal_enter_critical(void) { }
 void np_transport_hal_exit_critical(void)  { }
 
