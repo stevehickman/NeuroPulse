@@ -305,3 +305,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 269 | 2026-11-09 | NeurOne Software Engineering | **21 → 22: the safety MCU's unreached paths (OI-SIMFW-25) are driven by 21 new scenarios (40 in all), and four behaviours that look surprising are recorded as OI-SIMFW-32 to OI-SIMFW-35, none decided.** |
 | 270 | 2026-11-09 | NeurOne Systems Engineering | **6 → 7: OI-AUDIOHW-02 decided as a rule (bone path held to the same hearing level as the planar path, as an absolute force level in dB re 1 µN); the figure and the wire field are OI-AUDIOHW-13.** |
 | 271 | 2026-11-09 | NeurOne Firmware Engineering | **22 → 23: scenarios in which the hub's own tile, tDCS and goggle drivers command the safety MCU model and the enable line at the pin is asserted.** |
+| 272 | 2026-11-09 | NeurOne Software Engineering | **23 → 24: the simulator page commands every module through the hub's drivers (`OI-SIMFW-28` closed).** |

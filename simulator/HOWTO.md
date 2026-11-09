@@ -1142,3 +1142,6 @@ right panel. Design and findings: `NP-SIM-FW-001` §23. **Nothing here is verifi
   with `lines: ["bes"]`, and the rest of `NP-SIM-FW-001` §23). A client names lines and never numbers them, and the OTP-programming
   commands are accepted once, before the attach. The server sends `SAFETY_STATE` and `SAFETY_EVENT` messages and puts the last
   state in `MODULE_LIST`.
+
+
+The panel's **Module** row places any module (PBM tile, EEG, auricular VNS, audio, goggles, probe, cervical VNS) and sends its driver command and its stop through the hub, as a controller does. A PBM drive is refused by the governor (−18, `OI-SIMFW-11`); the goggles are driven in EMDR (photic driving is refused, `REQ-FWHUB-65`). Hardware controls are not simulated (`OI-SIMFW-36`).
