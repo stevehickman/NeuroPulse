@@ -210,10 +210,11 @@ in the repository. Per `CLAUDE.md` §19 what remains is an open item, not a regi
 **Weighting.** The standards state dB(A); the `.npps` `volume` field and this ceiling state dB SPL
 (unweighted, `NP-NPPS-REF-001` §4.1b). Below about 1 kHz A-weighting only lowers the figure, so an
 unweighted 85 never exceeds 85 dB(A) there. Between roughly 2 and 4 kHz A-weighting adds up to about
-1.3 dB. Every shipped carrier is 440 Hz; whether a carrier above 1 kHz needs a lower ceiling is
-for `OI-AUDIOHW-11`, which measures at the ear.
+1.3 dB. Every shipped carrier is 440 Hz. **Decided (§5.3, computed from the A-weighting formula, not
+measured):** the maximum is +1.27 dB near 2.5 kHz and 440 Hz is −4.10 dB, so a tone above 1 kHz is bounded
+rather than given a lower ceiling (`REQ-AUDIO-25`).
 
-> **`REQ-AUDIO-19`** and **`REQ-AUDIO-20`** are in §3.1.
+> **`REQ-AUDIO-19`** and **`REQ-AUDIO-20`** are in §3.1. How the ceiling is calibrated and verified, and the margin under it, is §5.3.
 
 ### 5.2 The bone-conduction ceiling — the same hearing level, as an absolute force level (Rev 7, `OI-AUDIOHW-02`)
 
@@ -251,6 +252,116 @@ the failure this document exists to avoid. Computing it is `OI-AUDIOHW-13`.
 ceilings or needs a combined one (`OI-AUDIOHW-13`); and whether an element can deliver the ceiling cleanly,
 or distorts and is felt as vibration before it reaches it, which is the element's characterisation
 (`OI-AUDIOHW-04`) and is **not** a reason to lower the ceiling here.
+
+### 5.3 Calibrating and verifying the 85 dB SPL ceiling at the ear — the method (`OI-AUDIOHW-11`, decided on paper; nothing here is measured)
+
+`REQ-AUDIO-19`(c) and `REQ-AUDIO-20`(b),(c) need a measurement that does not yet exist: no driver is selected
+(`OI-AUDIOHW-04`) and the audio HAL functions trap. This section fixes **how** the ceiling is calibrated and
+verified, **what the margin under 85 is made of**, and **whether the weighting needs a bound**, so a unit built
+under `OI-AUDIOHW-04` has a method to be measured against. **It sets no size for any margin term and measures
+nothing.** The planar path only; the bone path is `REQ-AUDIO-21` and `OI-AUDIOHW-13`.
+
+**What each instrument can and cannot see.**
+
+| | Ear simulator, at its eardrum reference point | In-cup microphone (`REQ-AUDIO-14`) |
+|---|---|---|
+| Sees | A level at a defined point behind a model of the ear canal and eardrum impedance, on a fixture the cup is mounted on, repeatably and traceably | The pressure in the front volume, on the wearer's own fit, in the field |
+| Cannot see | A particular wearer's ear, hair, glasses or fit: it stands for an ear and is not the wearer's | The eardrum. It sits before the canal, so the canal's resonance, the pinna and the canal volume are outside it, and one wearer's cup-to-eardrum difference is not a constant |
+| Bone path | Not measured (`REQ-AUDIO-21`) | Blind to it (§6.4.2) |
+| Data class | Nothing about a person: **SHDR-class** | Wearer- and fit-dependent: **UHDR** (§3.1, last paragraph) |
+
+**Decision 1 — the ceiling is verified at the ear simulator, and the in-cup microphone is not a safety
+measurement.** A table built from the simulator is the only route to a level whose source is traceable and
+that carries nothing about a wearer. **No cup-to-eardrum correction is applied or needed**, because nothing
+converts an in-cup reading to an eardrum level: the simulator is read at its eardrum point directly, and the
+in-cup microphone closes no loop and enforces nothing (`REQ-AUDIO-14`). A correction would be needed only if
+the microphone enforced the ceiling at run time. That is **not adopted**, for three reasons from the record: it
+would put a wearer-dependent UHDR figure into a safety control; a correction fixed on a simulator is the
+simulator's and not the wearer's; and a loop is what `REQ-AUDIO-14` excludes. What the microphone adds at the
+factory is a **reference reading**, taken at the same instant as the simulator reading, so the unit's
+microphone-to-eardrum-point relationship on the simulator is on file and the microphone's own function is
+cross-checked. In the field it can be compared only against a relationship made on a simulator fit, so a
+deviation cannot be told from a different fit. It therefore cannot bound drift (m3 below), and whether it
+flags a large change is `OI-ACC-04`'s question and not this section's.
+
+**Decision 2 — the margin is a structure of named terms, and its size is open.** The level delivered at the
+simulator is the commanded level plus an error. The error has the sources below, each bounded by a different
+measurement, and each is a number nobody has.
+
+| Term | What it is | Bounded by | Size |
+|---|---|---|---|
+| **m1** | Expanded uncertainty of the ear-simulator chain: reference calibrator, microphone, and repeatability of seating the cup on the fixture. A verification pass on the **same** chain does not remove its systematic part | The chain's calibration certificate and a seating-repeatability test on a built unit | **Open** |
+| **m2** | Table representation error: the table has finitely many frequency and level points, and the author picks carriers and levels between them | The verification pass at points not used to build the table (`REQ-AUDIO-22`(e)) | **Open** |
+| **m3** | Drift between calibration and use: temperature, driver ageing, mesh and foam state (`REQ-AUDIO-07`, §6.1) | Lifetime and temperature characterisation of the selected driver (`OI-AUDIOHW-04`) | **Open** |
+| **q** | Quantisation: codec gain steps are not the 0.5 dB steps of `level_half_db` | **Zero by construction**: every HAL rounds level-to-drive toward lower output (`REQ-AUDIO-23`(c)) | 0 |
+
+Unit-to-unit spread is **not** a term: the per-unit table exists to remove it, and what survives is m1 and m2.
+It matters elsewhere, because the driver and amplifier must reach the commanded cap with headroom across that
+spread, which is `OI-AUDIOHW-04`'s to show.
+
+**Decision 3 — the terms add arithmetically.** `REQ-AUDIO-19` says *never exceeds*. A root-sum-square
+combination states a probability of exceeding, and no distribution exists for any term. The sum of the bounds
+is the only combination that needs none. Its cost is a larger margin, accepted until a measurement shows two
+terms are not independent in the bad direction.
+
+**One term is deliberately absent: simulator to wearer.** A real ear differs from the simulator and no factory
+measurement bounds that. It is not added to M and not hidden: `UC-134` records that the simulator's level
+stands for the wearer's by assumption, and `OI-RISK2-02` owns whether it needs a term.
+
+**Decision 4 — the weighting needs a bound on the tone frequency, not a frequency-dependent ceiling.** The
+standards in §5.1 state dB(A) and the ceiling is unweighted SPL. A-weighting is, from the formula of
+IEC 61672-1 (the public formula; its constants are carried from published summaries and **not checked against
+the purchased text**, which `OI-AUDIOHW-12` now also covers):
+
+    R_A(f) = 12194² f⁴ / [ (f² + 20.6²) · sqrt( (f² + 107.7²)(f² + 737.9²) ) · (f² + 12194²) ]
+    A(f)   = 20 · log10 R_A(f) + 2.00 dB
+
+Computed from it (not measured, and not read from a table):
+
+| Frequency | A(f) |
+|---|---|
+| 200 Hz | −10.85 dB |
+| **440 Hz** (every shipped carrier) | **−4.10 dB** |
+| 1,000 Hz | 0.00 dB (the +2.00 normalises it) |
+| 2,000 Hz | +1.20 dB |
+| **about 2,500 Hz** (the maximum) | **+1.27 dB** |
+| 4,000 Hz | +0.96 dB |
+| about 6,100 Hz | 0.00 dB, and negative above |
+
+So a 440 Hz carrier at 85 dB SPL is **80.9 dB(A)**, and a tone near 2.5 kHz at 85 dB SPL is **86.3 dB(A)**,
+above the 85 dB(A) action level §5.1 cites. For an ideal 1/f (pink) and 1/f² (brown) spectrum over 20 Hz to
+20 kHz the same formula gives −12.8 and −23.7 dB, which shows the sign only: **no noise spectrum is specified**
+(`OI-AUDIOHW-04`), so the noise commands are measured at both weightings (`REQ-AUDIO-22`(b)).
+
+**Does something real fail without a bound? Yes, narrowly.** `carrier_hz` is a 16-bit field. The compiler only
+clamps it into the field's width (`min(65535)` in `common/npps-core/src/compiler.rs`), and neither the
+compiler, the hub driver nor `NP-NPPS-REF-001` bounds it otherwise, so any signed protocol may command a tone
+anywhere in that range. §5.1 chose 85 so that a session can never, by level alone, be louder than the level at
+which the cited standards begin to require action. That property is false between about 1 kHz and 6.1 kHz, by up
+to 1.27 dB. A tone far above half the codec's sample rate would also alias to a different, audible frequency;
+the codec's rate is not recorded, so the size of that is unknown.
+
+**Why a bound on frequency and not a ceiling that falls with frequency.** Both refuse and neither reshapes. The
+bound is one comparison, identical in the Rust compiler and the C hub driver. A frequency-dependent ceiling
+would carry the weighting curve into both, a derived function written twice in two languages (§20's
+one-home rule is the same idea). The bound sits where the nominal weighting is zero, so everything under it is
+at or below 85 dB(A) with no curve. And **nothing in the record needs a carrier above 1 kHz**: every shipped
+protocol sets 440 Hz, the app default is 200 Hz, and `NP-NPPS-REF-001` §4.7 gives the field no purpose beyond
+"Hz of carrier tone". The cost is the 1 to 6.1 kHz range, which nothing uses. If a protocol ever needs it, the
+alternative is one derivation away (the ceiling becomes 85 − A(f) wherever A(f) is positive). **The bound
+restricts a field an author could set before, so the principal confirms it** (`OI-AUDIOHW-11`).
+
+| ID | Requirement | What fails if it is not met | Traceable to |
+|---|---|---|---|
+| **REQ-AUDIO-22** | **The ceiling is verified, and the level-to-drive table is measured, at the eardrum reference point of an ear simulator, on every unit, for each cup mounted on the simulator's fixture as worn.** (a) The device is an ear simulator that models the ear canal and eardrum impedance and states a level at a defined eardrum reference point; a flat coupler and the in-cup microphone are not accepted for the table or the verification, and the exact standard and configuration for a circumaural cup (IEC 60318-4 with a pinna simulator, or IEC 60318-1) is chosen against the standards' text (`OI-AUDIOHW-11`); (b) the quantity is unweighted SPL in steady state: for a pulsed (isochronic) command the level during the pulse and never an average over its off time, for a binaural command each cup's own tone, and for a noise command both the unweighted broadband level and the A-weighted level are recorded and neither may exceed 85; (c) the fit is the best seal the cup makes on the fixture, unless characterisation shows a permitted frequency whose level rises with a leak, in which case the worst fit for that frequency is used; (d) the table covers the frequencies and levels the product permits, and a command outside the measured domain is refused, never extrapolated; (e) verification is a separate pass, at points not used to build the table, and a unit is accepted only if every measured level plus m1 plus m3 is at or below 85 dB SPL | Without a defined point and quantity, "85 dB SPL at the ear" has no measurement, and a time average of a pulsed tone, or a coupler with no ear impedance, reads lower than the ear receives. Without (d), a level at an unmeasured frequency is a guess, and a table extrapolated past its range can deliver more than it says. Without (e), the table's own error is never observed | `REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c); §5.1 (the dB(A) basis of the noise check; no exposure-duration model is set, so an averaged level would be a dose model by another name). The simulator standards are carried from memory and are not checked (`OI-AUDIOHW-12`) |
+| **REQ-AUDIO-23** | **The command ceiling is the delivered-level ceiling less a guard band: C = 85 − M, with M at least m1 + m2 + m3.** (a) The refusals of `REQ-AUDIO-19`(a),(b) are at C and not at 85, so a command at C delivers at most 85 across the terms; (b) the terms are added arithmetically, not statistically; (c) every conversion from level to drive in a HAL rounds toward lower output; (d) the sizes of m1, m2 and m3 come from measurement, and M is entered in `docs/status/unjustified-choices.md` (`UC-133`) until it has a derivation. **Until M is set the shipped ceiling (`NP_AUDIO_MAX_LEVEL_HALF_DB`, 85 dB SPL) is a zero-margin stand-in that does not meet (a), and no unit can be released on it.** No output exists today, because the HAL functions trap | Without a margin, a command at 85 delivers 85 plus the calibration's error on a unit whose error is positive, and `REQ-AUDIO-19` is broken by exactly the amount nobody measured. Without (c), a codec step that rounds up delivers more than commanded | `REQ-AUDIO-19` (*never exceeds*); `REQ-AUDIO-20`(b); `CLAUDE.md` §3 (a ceiling refuses, never reshapes) |
+| **REQ-AUDIO-24** | **The calibration table is a record of the device's condition and of nothing about a wearer, and the planar path plays nothing without a valid one.** (a) It is **SHDR-class**: measured on a simulator before any wearer exists, linked to the device and not to a person, and no value from the in-cup microphone or any wearer measurement is written into it or alters it; (b) it is bound to the chain it was measured on (the hub, and the cup where the cup carries an identity, `OI-AUDIOHW-07`) and integrity-checked, and a missing, mismatched or corrupt record means **the planar path refuses to output**, never a datasheet default; (c) it is written only by factory or service calibration, never by a session, a protocol or the app's ordinary paths; (d) it lives with the factory calibration already kept in the hub's Config/Calibration partition (`NP-FW-NVRAM-001` §2, row 3), unless `OI-AUDIOHW-07` makes the cup a separately replaceable part, in which case the transducer's half travels with the cup | Without (a), a wearer-derived figure sits in a device-condition store and the SHDR/UHDR line (`CLAUDE.md` §5.1) is crossed, or a wearer's fit sets a safety control. Without (b), a defaulted or stale table maps a command to a drive nobody measured, which is how a command at 85 reaches an ear above it. Without (c), a session can rewrite the one control the audio path has, because the safety MCU holds no enable for it (§5) | `CLAUDE.md` §5.1 (SHDR defining test, rule 1), §4.2; `REQ-AUDIO-09`; `NP-FW-HUB-001` §9 (no stored value widens a grant); `NP-FW-NVRAM-001` §2 |
+| **REQ-AUDIO-25** | **Every tone frequency the planar path is commanded to produce is at most 1,000 Hz: `carrier_hz`, and for a binaural or isochronic command `carrier_hz` plus the beat or pulse rate.** The compiler refuses a protocol above it before signing and the hub driver refuses the command before any state or output changes. Refused, never clamped | A-weighting adds up to 1.27 dB between about 1 kHz and 6.1 kHz, so an unweighted 85 dB SPL tone there is up to 86.3 dB(A), above the 85 dB(A) action level §5.1 gives as the reason for 85. The field is otherwise unbounded to 65,535 Hz | §5.1 (85 chosen at the action level in dB(A)); NIOSH Pub. 98-126 and Directive 2003/10/EC (dB(A)); the IEC 61672-1 weighting, computed above (`OI-AUDIOHW-12` checks it); `CLAUDE.md` §3 (a ceiling refuses, never reshapes). The 1,000 Hz is not chosen: it is where the nominal weighting is zero |
+
+**Not built:** no compiler or driver check, no calibration record, no table. `REQ-AUDIO-22` to `-25` are
+untested by design (`CLAUDE.md` §21: a requirement for an unbuilt feature stays untested until the code that
+meets it is written). The `carrier_hz` row of `NP-NPPS-REF-001` §4.7 and `common/npps-core` carry
+`REQ-AUDIO-25` when it is implemented.
 
 ---
 
@@ -606,8 +717,8 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-08** | **DECIDED 2026-09-24 (principal, Rev 4) — option B: one in-cup microphone per side, measurement only, no anti-noise; bound as `REQ-AUDIO-14`–`16` (§3.1); succeeded by `OI-AUDIOHW-09` and `-10`.** Analysed in Rev 3 (§6.4), recommendation B. The measurement needs the microphone, not the noise cancelling (§6.4.1); the microphone is also the only route found to a measured level for `OI-AUDIOHW-01` (§6.4.2); anti-noise sits in the band of every shipped carrier (§6.4.3), adds output and instability hazards (§6.4.4), and needs a low-latency loop the hub's SAI/DMA path cannot provide, which would decide `REQ-AUDIO-04a` by force (§6.4.5); bystander audio has no consent subject, so raw audio must be excluded structurally (§6.4.6); and no requirement states what ambient noise costs a session, so under `CLAUDE.md` §18 nothing yet requires anti-noise (§6.4.8). **As raised:** **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | — (decided) |
 | **OI-AUDIOHW-09** | **Select the in-cup microphone** (`REQ-AUDIO-14`). Decide analogue vs digital (PDM) output knowing that a PDM part runs a clock of the order of a megahertz beside the temporal EEG sites and is a new source for `NP-EMC-CAV-001`'s analysis; confirm the hub codec (`NP-HW-HUB-001`) has an input per cup; add the microphone conductors to `OI-AUDIOHW-07`'s cable; fix the position within the front volume, and decide whether it goes on the ear side of the mesh (only `OI-ACC-05`'s candidate needs that). The cable change is a module interface under `REQ-UPG-03` and lands on both tiers | EE + Acoustic + EMC | A11 tooling; `OI-ACC-04` closure |
 | **OI-AUDIOHW-10** | **Implement the seal measurement in firmware.** Microphone HAL (a new entry beside `OI-AUDIO-01…08`), the probe signal and its level (bounded by `OI-AUDIOHW-01`), the powered capture window, reduction to a seal score, and `REQ-AUDIO-15`'s containment: decide whether a CI gate in the manner of `scripts/check-redaction-shape.ts` enforces that no sample leaves the reduction call. The dB criterion is `OI-ACC-04`'s, not this item's | FW + Privacy | `OI-ACC-04` closure |
-| **OI-AUDIOHW-11** | **Calibrate and verify the 85 dB SPL ceiling at the ear** (`REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c)). Nothing yet maps `level_half_db` to a driver, because no driver is selected (`OI-AUDIOHW-04`): the HAL stubs trap. Decide the measurement (an ear simulator such as IEC 60318-4, and what the in-cup microphone adds, §6.4.2), the cup-to-eardrum correction, the unit-to-unit tolerance the calibration must leave under 85, and whether a carrier above 1 kHz needs a lower ceiling (§5.1, weighting) | EE + Acoustic | T1 release; `NP-FAI-AUDIO-001` |
-| **OI-AUDIOHW-12** | **NARROWED 2026-11-09 (not closed).** Checked against public excerpts: NIOSH 98-126 (85 dBA, 8 h, 3 dB) **verified**; WHO–ITU 80 dB(A)/40 h adult **verified**, and H.870 has a 2022 edition superseding 2018; Directive 2003/10/EC Art. 3 (85 dB(A), 140 Pa) **verified**; IEC 60318-6:2007 title and number **verified**; ISO 389-3:2016 title and scope **verified**. **Corrected:** the claim that EN 50332 treats 85 dB(A) as the normal maximum was unsupported and is withdrawn (§5.1). **Remains open:** (1) the IEC 62368-1 cl. 10.6 and EN 50332-1/-2/-3 texts (paywalled) and the RS1/RS2 wording, only summaries were read; (2) IEC 60645-1:2017 cl. 6.1.5 number and content; (3) ISO 389-1/-7 values and whether either fits a circumaural cup, and the ISO 389-3 values (`OI-AUDIOHW-13`); (4) a re-read of the NIOSH, WHO–ITU and Directive texts at their own hosts, since those were unreachable from the checking environment; (5) whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path), an ISO 14971 decision for `OI-RISK2-02` | Systems + Regulatory | Hazard analysis |
+| **OI-AUDIOHW-11** | **PART DECIDED on paper 2026-11-09 (the method, §5.3); the measurement and the margin's size stay OPEN because no driver is selected (`OI-AUDIOHW-04`).** **Decided:** the ceiling is verified and the level-to-drive table measured at the eardrum point of an ear simulator, per unit and per cup, never at a coupler or the in-cup microphone (`REQ-AUDIO-22`); the in-cup microphone is a factory reference reading and a field indicator only, and **no cup-to-eardrum correction exists or is needed** because nothing enforces the ceiling from it; the command ceiling is C = 85 − M with M the arithmetic sum of m1 (simulator chain), m2 (table representation) and m3 (drift), quantisation held to zero by rounding down (`REQ-AUDIO-23`); the table is SHDR-class, bound to its chain, fails closed and is written only at factory or service (`REQ-AUDIO-24`); the A-weighting question is answered by computation from the IEC 61672-1 formula (−4.10 dB at 440 Hz, +1.27 dB at about 2.5 kHz) and by a bound of 1,000 Hz on every tone frequency rather than a frequency-dependent ceiling (`REQ-AUDIO-25`). **Open:** (1) measure a built unit: the sizes of m1, m2 and m3, and so M (`UC-133`); the shipped 85 is a zero-margin stand-in until then; (2) choose the exact simulator standard and configuration for a circumaural cup against the standards' text (candidates IEC 60318-4 with a pinna simulator, IEC 60318-1; both carried from memory, `OI-AUDIOHW-12`); (3) the principal confirms `REQ-AUDIO-25`, which restricts a protocol field, or prefers the frequency-dependent ceiling; (4) implement the 1,000 Hz refusal in the compiler and hub driver, and the calibration record and its fail-closed check; (5) whether the record is signed or only CRC-bound is an ISO 14971 decision (`OI-RISK2-02`, with `OI-AUDIOHW-12`), and signing would be a Rust primitive (`CLAUDE.md` §22); (6) simulator-to-wearer difference is unbounded by any factory measurement and is assumed (`UC-134`); (7) the ISO 389 air reference in `REQ-AUDIO-21`(b) is stated for a particular coupler or simulator, and the planar 85 and that reference must be on the same one or differ by the standard's own figure (`OI-AUDIOHW-13`); (8) peak (impulsive) level is not bounded here. **As raised:** calibrate and verify the 85 dB SPL ceiling at the ear (`REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c)); nothing maps `level_half_db` to a driver and the HAL stubs trap | EE + Acoustic | T1 release; `NP-FAI-AUDIO-001` |
+| **OI-AUDIOHW-12** | **NARROWED 2026-11-09 (not closed).** Checked against public excerpts: NIOSH 98-126 (85 dBA, 8 h, 3 dB) **verified**; WHO–ITU 80 dB(A)/40 h adult **verified**, and H.870 has a 2022 edition superseding 2018; Directive 2003/10/EC Art. 3 (85 dB(A), 140 Pa) **verified**; IEC 60318-6:2007 title and number **verified**; ISO 389-3:2016 title and scope **verified**. **Corrected:** the claim that EN 50332 treats 85 dB(A) as the normal maximum was unsupported and is withdrawn (§5.1). **Remains open:** (1) the IEC 62368-1 cl. 10.6 and EN 50332-1/-2/-3 texts (paywalled) and the RS1/RS2 wording, only summaries were read; (2) IEC 60645-1:2017 cl. 6.1.5 number and content; (3) ISO 389-1/-7 values and whether either fits a circumaural cup, and the ISO 389-3 values (`OI-AUDIOHW-13`); (4) a re-read of the NIOSH, WHO–ITU and Directive texts at their own hosts, since those were unreachable from the checking environment; (5) whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path), an ISO 14971 decision for `OI-RISK2-02` **Also open, added by `OI-AUDIOHW-11` (§5.3):** (6) the IEC 61672-1 A-weighting formula and constants (computed from memory of the public formula), and (7) the ear-simulator standards IEC 60318-4 and IEC 60318-1, both carried from memory. | Systems + Regulatory | Hazard analysis  |
 | **OI-AUDIOHW-13** | **Compute the bone ceiling and give it a field** (`REQ-AUDIO-21`). (1) Read the ISO 389-3 mastoid values and the ISO 389-1/-7 air values at the carrier frequencies and compute L_F,max in dB re 1 µN; the figure then goes in `REQ-AUDIO-21` and, if it is a limit chosen rather than derived, in the register (`CLAUDE.md` §19). (2) Add a bone level to the wire: today `np_mod_audio_hal_bone_set` receives the planar `level_half_db`, which is not a bone level. Decide the field's unit and width (force level in dB re 1 µN needs its own `np_mod_audio_params_t` field and a descriptor change on both tiers, `REQ-UPG-03`), and enforce the ceiling in the compiler and the hub driver by refusal. (3) Decide the combined case when both paths play. (4) Verify on a built unit (`OI-AUDIOHW-04`, `OI-AUDIOHW-11`). `OI-AUDIOHW-12`'s citation check covers the standards named in §5.2 | Systems + Acoustic + FW | T1 release; before the bone HAL is implemented |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
