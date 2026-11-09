@@ -10,7 +10,7 @@
  *
  * Text is set with textContent: nothing a firmware event carries is parsed as HTML.
  */
-import { LINES, SCRIPTS, TEST_AID } from './safety.js';
+import { HUB_MODULE_LIST, LINES, SCRIPTS, TEST_AID } from './safety.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -117,6 +117,15 @@ export class SafetyPanel {
       this._btn('BES off', null, () => this.run(SCRIPTS.hubStimStop('bes'))),
       this._btn('tDCS on', null, () => this.run(SCRIPTS.hubStim('tdcs'))),
       this._btn('tDCS off', null, () => this.run(SCRIPTS.hubStimStop('tdcs')))));
+
+    const mod = el('select', 'select safety-select');
+    mod.setAttribute('aria-label', 'Module for the hub command');
+    for (const m of HUB_MODULE_LIST) { const o = el('option', null, m.label); o.value = m.id; mod.append(o); }
+    aid.append(this._row('Module', mod,
+      this._btn('Place', 'Put the module on the helmet (the simulated hardware) and initialise its driver', () => this.run(SCRIPTS.hubModule(mod.value, 'place'))),
+      this._btn('Command on', 'The hub driver\'s command for this module, as a controller would send it. Refused or withheld exactly where the device refuses or withholds it',
+        () => this.run(SCRIPTS.hubModule(mod.value, 'on'))),
+      this._btn('Command off', null, () => this.run(SCRIPTS.hubModule(mod.value, 'off')))));
 
     aid.append(this._row('Thermal',
       this._btn('Hot NTC', 'Cranial NTC reads hotter than the 62 C row of the MCU\'s table', () => this.run(SCRIPTS.thermal(TEST_AID.hotAdcCounts))),
