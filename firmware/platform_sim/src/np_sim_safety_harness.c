@@ -19,7 +19,8 @@
  *   safety_limits <ch> <area_mcm2>       one channel's electrode area; safety_wave <ch> <class> <phase_us>
  *   safety_enable <mask> | safety_disable <mask> | safety_current <ch> <ua>   the hub's own request and commanded-current state
  *   safety_user <tag> | safety_hr <valid> <hr_x10> <age_ms> | safety_reenable 0|1
- *   safety_fault nv_erase|nv_program|spi_timeout|spi_flip|stall|systick <n> [arg]
+ *   safety_geom clin_stim|tdcs|bes 0|1   the hub's own "this session needs an electrode geometry" flag, which every heartbeat then carries
+ *   safety_fault nv_erase|nv_program|spi_timeout|spi_flip|stall|systick|cmd_flip <n> [arg]
  *   safety_status
  */
 #include "np_sim_bus.h"
@@ -169,6 +170,11 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         np_safety_spi_set_channel_current((uint8_t)atoi(a), (uint16_t)atoi(b));
     } else if (strcmp(cmd, "safety_reenable") == 0 && a) {
         np_safety_spi_set_cvns_reenable(atoi(a) != 0);
+    } else if (strcmp(cmd, "safety_geom") == 0 && a && b) {                 /* the three geometry gates of np_charge_monitor.c */
+        const bool on = atoi(b) != 0;
+        if      (strcmp(a, "clin_stim") == 0) { np_safety_spi_set_geom_required(on); }
+        else if (strcmp(a, "tdcs") == 0)      { np_safety_spi_set_geom_required_tdcs(on); }
+        else if (strcmp(a, "bes") == 0)       { np_safety_spi_set_geom_required_bes(on); }
     } else if (strcmp(cmd, "safety_fault") == 0 && a && b) {
         const uint32_t n = (uint32_t)strtoul(b, NULL, 10);
         const uint32_t arg = c ? (uint32_t)strtoul(c, NULL, 10) : 0U;
@@ -178,6 +184,7 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         else if (strcmp(a, "spi_flip") == 0)    { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_SPI_FLIP, n, arg); }
         else if (strcmp(a, "stall") == 0)       { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_STALL, n, arg); }
         else if (strcmp(a, "systick") == 0)     { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_SYSTICK_FREEZE, n, arg); }
+        else if (strcmp(a, "cmd_flip") == 0)    { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_CMD_FLIP, n, arg); }
     } else if (strcmp(cmd, "safety_status") == 0) {
         state_event("safety_state", cmd, 0);
     }

@@ -37,6 +37,7 @@ int np_test_port_a;
 int np_test_port_b;
 
 extern int np_sim_safety_main(void);        /* np_safety_main.c's main(), renamed by the build */
+extern void np_fault_latch_commit(const np_safety_state_t *state);     /* np_safety_main.c declares it the same way; no header does */
 
 /* ── The part's silicon: OTP and flash, shared with forked children ──────────────────────────────────────────────────── */
 typedef struct {
@@ -45,9 +46,26 @@ typedef struct {
     uint8_t  otp_tier[NP_TIER_RECORD_LEN];
     uint8_t  uid[NP_DEVICE_UID_LEN];
     uint32_t flash[NP_NV_PAGE_COUNT][NP_NV_SLOTS_PER_PAGE][2];
+    /* The fault latch's retention across a warm reset (np_fault_latch.c: "explicitly NOT zeroed by startup code on warm reset").
+     * The MCU's latch is a file-scope static, so it dies with the process; this is what the model of the part keeps of it when the
+     * independent watchdog resets the MCU, and a power-on reset (np_sim_safety_power_on_reset) forgets it. */
+    bool     latch_kept;
+    uint8_t  latch_status;
+    uint8_t  latch_slot;
+    uint16_t latch_count;
 } silicon_t;
 
 static silicon_t *g_si;
+
+static void erase_silicon(void)
+{
+    memset(g_si->otp_root, 0xFF, sizeof g_si->otp_root);
+    g_si->otp_root_crc = 0xFFFFFFFFU;
+    memset(g_si->otp_tier, 0xFF, sizeof g_si->otp_tier);
+    memset(g_si->uid, 0, sizeof g_si->uid);
+    memset(g_si->flash, 0xFF, sizeof g_si->flash);
+    g_si->latch_kept = false;
+}
 
 void np_sim_safety_silicon(void)
 {
@@ -55,11 +73,13 @@ void np_sim_safety_silicon(void)
     void *p = mmap(NULL, sizeof(silicon_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) { return; }
     g_si = (silicon_t *)p;
-    memset(g_si->otp_root, 0xFF, sizeof g_si->otp_root);
-    g_si->otp_root_crc = 0xFFFFFFFFU;
-    memset(g_si->otp_tier, 0xFF, sizeof g_si->otp_tier);
-    memset(g_si->uid, 0, sizeof g_si->uid);
-    memset(g_si->flash, 0xFF, sizeof g_si->flash);
+    erase_silicon();
+}
+
+void np_sim_safety_silicon_erase(void)
+{
+    np_sim_safety_silicon();
+    if (g_si != NULL) { erase_silicon(); }
 }
 
 /* ── Scheduler ───────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -80,7 +100,7 @@ static bool     g_systick_frozen;
 static uint32_t g_systick_at;
 
 /* Fault counters. */
-static uint32_t g_nv_erase_fail, g_nv_prog_fail, g_spi_timeout_n, g_spi_flip_n, g_spi_flip_byte;
+static uint32_t g_nv_erase_fail, g_nv_prog_fail, g_spi_timeout_n, g_spi_flip_n, g_spi_flip_byte, g_cmd_flip_n, g_cmd_flip_byte, g_nv_prog_skip, g_nv_programs;
 
 /* ── Inputs of the part's world ──────────────────────────────────────────────────────────────────────────────────────── */
 #define SIM_IMP_OPEN_OHM  999999UL      /* np_hal_impedance.c's NP_HAL_IMP_FAILSAFE_OHM: an open contact */
@@ -140,6 +160,10 @@ bool np_sim_safety_spi_exchange(const uint8_t *tx, uint16_t len, uint8_t *rx)
     if (len == NP_SAFETY_RX_EXT_FRAME_LEN && g_spi_flip_n > 0U) {
         g_spi_flip_n--;
         if (g_spi_flip_byte < len) { frame[g_spi_flip_byte] ^= 0xFFU; }
+    }
+    if (len == NP_SAFETY_CMD_FRAME_LEN && g_cmd_flip_n > 0U) {
+        g_cmd_flip_n--;
+        if (g_cmd_flip_byte < len) { frame[g_cmd_flip_byte] ^= 0xFFU; }
     }
     /* The reply clocked out during this transfer is the one staged by an earlier iteration; the hub discards it unless the
      * transfer is a heartbeat. */
@@ -313,7 +337,9 @@ bool np_hal_nv_erase_page(uint8_t page)
 bool np_hal_nv_program_dword(uint8_t page, uint16_t slot, uint32_t lo, uint32_t hi)
 {
     if (g_si == NULL || page >= NP_NV_PAGE_COUNT || slot >= NP_NV_SLOTS_PER_PAGE) { return false; }
-    if (g_nv_prog_fail > 0U) { g_nv_prog_fail--; return false; }
+    if (g_nv_prog_skip > 0U) { g_nv_prog_skip--; }                       /* the first `arg` programs after the injection succeed */
+    else if (g_nv_prog_fail > 0U) { g_nv_prog_fail--; return false; }
+    g_nv_programs++;
     g_si->flash[page][slot][0] &= lo;               /* programming can only clear bits */
     g_si->flash[page][slot][1] &= hi;
     return true;
@@ -336,8 +362,44 @@ static void step_one(void)
     pthread_mutex_unlock(&g_mu);
 }
 
+/* The independent watchdog's reset is a warm reset: the part keeps the fault latch (np_fault_latch.c) and clears everything else.
+ * What it keeps is read through the firmware's own report, which is the one place the latch's reportable fields are marshalled
+ * (the tick is device-internal and is not kept). */
+static void keep_latch(void)
+{
+    np_fault_latch_report_t rep;
+    np_fault_latch_build_report(&rep);
+    if (g_si == NULL) { return; }
+    g_si->latch_status = rep.status;
+    g_si->latch_slot = rep.slot;
+    g_si->latch_count = rep.count;
+    g_si->latch_kept = (rep.count > 0U);
+}
+
+/* The next MCU in this silicon starts from the latch the last one left: the latch is written back through the firmware's own
+ * commit, so its magic, status, slot and count are what the part's retained memory would hold.  Consecutive commits alternate
+ * their status, so each is a transition and the count lands on the kept value. */
+static void restore_latch(void)
+{
+    if (g_si == NULL || !g_si->latch_kept) { return; }
+    np_safety_state_t s;
+    memset(&s, 0, sizeof s);
+    for (uint16_t k = 1U; k <= g_si->latch_count; k++) {
+        if (k == g_si->latch_count) { s.status = g_si->latch_status; s.fault_slot = g_si->latch_slot; }
+        else                        { s.status = (uint8_t)(g_si->latch_status ^ ((k & 1U) != 0U ? 0x80U : 0x40U)); s.fault_slot = 0U; }
+        np_fault_latch_commit(&s);
+    }
+}
+
+void np_sim_safety_power_on_reset(void)
+{
+    np_sim_safety_silicon();
+    g_si->latch_kept = false;
+}
+
 static void enter_reset(void)
 {
+    keep_latch();
     g_held_in_reset = true;
     g_iwdg_resets++;
     for (uint8_t i = 0U; i < NP_SIM_SAFETY_LINES; i++) { g_pin_high[i] = true; }   /* the reset path holds every enable disabled */
@@ -360,6 +422,7 @@ bool np_sim_safety_attach(void)
 {
     if (g_attached) { return false; }
     np_sim_safety_silicon();
+    restore_latch();
     np_sim_advance_ms(0U);                          /* the clock is virtual from here */
     g_running = true;
     g_credit = false;
@@ -390,9 +453,10 @@ void np_sim_safety_inject(np_sim_safety_fault_t what, uint32_t n, uint32_t arg)
 {
     switch (what) {
     case NP_SIM_SAFETY_FAULT_NV_ERASE:        g_nv_erase_fail = n; break;
-    case NP_SIM_SAFETY_FAULT_NV_PROGRAM:      g_nv_prog_fail = n; break;
+    case NP_SIM_SAFETY_FAULT_NV_PROGRAM:      g_nv_prog_fail = n; g_nv_prog_skip = arg; break;
     case NP_SIM_SAFETY_FAULT_SPI_TIMEOUT:     g_spi_timeout_n = n; break;
     case NP_SIM_SAFETY_FAULT_SPI_FLIP:        g_spi_flip_n = n; g_spi_flip_byte = arg; break;
+    case NP_SIM_SAFETY_FAULT_CMD_FLIP:        g_cmd_flip_n = n; g_cmd_flip_byte = arg; break;
     case NP_SIM_SAFETY_FAULT_STALL:           g_stall = (n != 0U); break;
     case NP_SIM_SAFETY_FAULT_SYSTICK_FREEZE:
         g_systick_frozen = (n != 0U);
@@ -416,6 +480,12 @@ void np_sim_safety_info(np_sim_safety_info_t *o)
     o->last_reply_status = f.status;
     o->last_reply_granted = (uint16_t)((uint16_t)f.granted_lo | ((uint16_t)f.granted_hi << 8));
     o->last_reply_fault_slot = f.fault_slot;
+    np_fault_latch_report_t rep;
+    np_fault_latch_build_report(&rep);
+    o->nv_programs = g_nv_programs;
+    o->latch_status = rep.status;
+    o->latch_slot = rep.slot;
+    o->latch_count = rep.count;
 }
 
 /* ── Manufacture: OTP programming and the app's signature ───────────────────────────────────────────────────────────── */

@@ -44,8 +44,9 @@ const SAFETY_LINES = Object.freeze({
   pbm_cranial: 1 << 0, bes: 1 << 5, tdcs: 1 << 6, vns: 1 << 7, visual: 1 << 8,
   intranasal: 1 << 9, cvns: 1 << 10, tms: 1 << 11, pbm_1170: 1 << 12, clin_stim: 1 << 13,
 });
-const SAFETY_FAULTS = new Set(['nv_erase', 'nv_program', 'spi_timeout', 'spi_flip', 'stall', 'systick']);   // np_sim_safety_fault_t
+const SAFETY_FAULTS = new Set(['nv_erase', 'nv_program', 'spi_timeout', 'spi_flip', 'stall', 'systick', 'cmd_flip']);   // np_sim_safety_fault_t
 const SAFETY_SIG = new Set(['good', 'bad']);
+const SAFETY_GEOM = new Set(['clin_stim', 'tdcs', 'bes']);                // the three geometry gates of np_charge_monitor.c
 // Commands that program the part's OTP: only before the safety MCU is attached, as manufacture does (REQ-UPG-02).
 const SAFETY_PROGRAMMING = new Set(['safety_attach', 'safety_root_corrupt']);
 const SAFETY_CHANNELS = 14;                                   // NP_SAFETY_MAX_CHANNELS
@@ -500,6 +501,9 @@ function safetyCommandLines(msg) {
       return [`safety_user ${int(msg.tag, 0, 4294967295, 'tag')}`];
     case 'safety_reenable':
       return [`safety_reenable ${bit(msg.on, 'on')}`];
+    case 'safety_geom':
+      if (typeof msg.channel !== 'string' || !SAFETY_GEOM.has(msg.channel)) throw new BridgeError(`channel must be one of ${[...SAFETY_GEOM].join(', ')}`);
+      return [`safety_geom ${msg.channel} ${bit(msg.on, 'on')}`];
     case 'safety_fault':
       if (typeof msg.kind !== 'string' || !SAFETY_FAULTS.has(msg.kind)) throw new BridgeError(`kind must be one of ${[...SAFETY_FAULTS].join(', ')}`);
       return [`safety_fault ${msg.kind} ${int(msg.n, 0, 1000000, 'n')} ${int(msg.arg ?? 0, 0, 65535, 'arg')}`];

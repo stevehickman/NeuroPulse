@@ -294,6 +294,11 @@ test('a client string is never placed in a safety MCU command line', () => {
     { type: 'FW_COMMAND', cmd: 'safety_reenable', on: 'true' },
     { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall\nquit', n: 1 },
     { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'reboot', n: 1 },
+    { type: 'FW_COMMAND', cmd: 'safety_geom', channel: 'tdcs\nquit', on: true },
+    { type: 'FW_COMMAND', cmd: 'safety_geom', channel: 'constructor', on: true },
+    { type: 'FW_COMMAND', cmd: 'safety_geom', channel: 'tdcs', on: 1 },                                  // a number, not a boolean
+    { type: 'FW_COMMAND', cmd: 'safety_geom', on: true },
+    { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'cmd_flip\nquit', n: 3 },
     { type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall', n: 1.5 },
   ];
   for (const m of hostile) {
@@ -326,6 +331,9 @@ test('a valid safety MCU message becomes exactly the well-formed lines the harne
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_hr', valid: true, hr_x10: 700, age_ms: 0 }), ['safety_hr 1 700 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_user', tag: 1 }), ['safety_user 1']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_reenable', on: true }), ['safety_reenable 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_geom', channel: 'tdcs', on: true }), ['safety_geom tdcs 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'cmd_flip', n: 3 }), ['safety_fault cmd_flip 3 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'nv_program', n: 1, arg: 3 }), ['safety_fault nv_program 1 3']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'stall', n: 1 }), ['safety_fault stall 1 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_fault', kind: 'spi_flip', n: 3, arg: 4 }), ['safety_fault spi_flip 3 4']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'safety_rpeak' }), ['safety_rpeak']);

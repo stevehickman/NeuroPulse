@@ -35,6 +35,15 @@ extern "C" {
 /* The flash and OTP of the part.  Allocated in memory shared with child processes, so a power-cycled MCU (a new process) finds
  * what the last one left.  Idempotent.  Erased on creation: OTP all 0xFF, flash all 0xFF. */
 void np_sim_safety_silicon(void);
+/* A new part: OTP, UID, flash and the kept fault latch all erased.  A scenario that follows one that shared its silicon with its children
+ * calls this first, or it boots on what the earlier scenario left (a cardiac cutoff in flash, a tier record in the OTP). */
+void np_sim_safety_silicon_erase(void);
+
+/* A warm reset and a power-on reset.  The independent watchdog's reset is a warm reset: the part keeps the fault latch (np_fault_latch.c)
+ * and clears the rest, so the model keeps what the firmware's own report says the latch held, and the next MCU attached over the same
+ * silicon starts from it.  np_sim_safety_power_on_reset() is power loss: the latch is forgotten.  The MCU itself never restarts in the
+ * process that was reset (a reset MCU is held in reset); the next MCU is a new process, as a power cycle is. */
+void np_sim_safety_power_on_reset(void);
 
 /* Programming the OTP the way manufacture does (REQ-UPG-02: no field route writes it).  The root key is derived from `seed` by
  * Monocypher; the sim keeps the seed so it can sign sessions.  A TEST key, never a production one (REQ-SIMFW-08). */
@@ -61,11 +70,12 @@ void np_sim_safety_rpeak(void);                                             /* a
 /* Faults the part can have. */
 typedef enum {
     NP_SIM_SAFETY_FAULT_NV_ERASE = 0,       /* the next n page erases fail */
-    NP_SIM_SAFETY_FAULT_NV_PROGRAM,         /* the next n double-word programs fail */
+    NP_SIM_SAFETY_FAULT_NV_PROGRAM,         /* n double-word programs fail, after the first `arg` have succeeded: power lost part-way through a write */
     NP_SIM_SAFETY_FAULT_SPI_TIMEOUT,        /* the next n hub transfers time out */
     NP_SIM_SAFETY_FAULT_SPI_FLIP,           /* the next n heartbeat transfers arrive with byte `arg` XOR 0xFF */
     NP_SIM_SAFETY_FAULT_STALL,              /* the polling loop hangs (the independent watchdog's case) */
-    NP_SIM_SAFETY_FAULT_SYSTICK_FREEZE      /* SysTick stops; TIM2 keeps running (OI-FMEA-12 (b)) */
+    NP_SIM_SAFETY_FAULT_SYSTICK_FREEZE,     /* SysTick stops; TIM2 keeps running (OI-FMEA-12 (b)) */
+    NP_SIM_SAFETY_FAULT_CMD_FLIP            /* the next n command frames (the 102-byte session signature) arrive with byte `arg` XOR 0xFF */
 } np_sim_safety_fault_t;
 void np_sim_safety_inject(np_sim_safety_fault_t what, uint32_t n, uint32_t arg);
 
@@ -81,6 +91,10 @@ typedef struct {
     uint16_t last_reply_granted;
     uint8_t  last_reply_status;
     uint8_t  last_reply_fault_slot;
+    uint32_t nv_programs;           /* double-word programs that landed in this process: how full the log's live page is */
+    uint8_t  latch_status;          /* the MCU's fault latch as its own np_fault_latch_build_report() gives it (np_fault_latch.c) */
+    uint8_t  latch_slot;
+    uint16_t latch_count;
 } np_sim_safety_info_t;
 void        np_sim_safety_info(np_sim_safety_info_t *out);
 const char *np_sim_safety_line_name(uint8_t line);
