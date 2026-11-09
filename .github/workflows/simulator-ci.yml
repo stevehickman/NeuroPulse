@@ -20,11 +20,11 @@ name: Simulator CI (firmware in the loop, host only)
 # Class B and Class C host tests, which are verification evidence, and the simulator is not (REQ-SIMFW-06).
 # The count asserted here is the number of suites, in the step that runs them.
 #
-# Not a required status check. Neither job below carries the required-context warning, and
-# ci/required-checks.txt does not list them: the Safety ruleset is changed by an administrator together with
-# that file (NP-SW-CI-001 §6.7.8), and whether the simulator is to gate a merge is the principal's decision
-# (OI-SIMFW-13 note). Both jobs report on every pull request (skipped when out of scope), so they can be
-# made required later by adding the two names to both places.
+# Required status checks. Both jobs below carry the required-context warning and are listed in
+# ci/required-checks.txt, so the Safety ruleset waits on them (NP-SW-CI-001 §6.7.8, §6.10): a change that breaks
+# the simulator's build or its tests no longer merges (the principal, 2026-11-09, closing the OI-SIMFW-30 cost of an
+# unrequired simulator build). The ruleset is changed by an administrator together with that file. Both jobs report
+# on every pull request (skipped when out of scope), so requiring them cannot deadlock an out-of-scope change.
 #
 # ── Scoping ───────────────────────────────────────────────────────────────────────────────────────────
 # Same shape as safety-mcu-ci.yml (NP-SW-CI-001 §6.7): the relevance list lives in the `changes` job and the
@@ -60,6 +60,11 @@ concurrency:
 jobs:
   changes:
     name: Simulator scope
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -164,6 +169,11 @@ jobs:
 
   simulator-tests:
     name: Simulator build and tests (host only)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     # Skip ONLY on a definite negative (see safety-mcu-ci.yml): an errored `changes` job leaves its output
