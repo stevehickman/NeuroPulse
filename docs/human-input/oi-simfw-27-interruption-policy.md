@@ -68,8 +68,9 @@ cause** (outage, withdrawn grant, contact chatter, rejected-frame storms that dr
 entries fall inside a window `W`, the line latches by PR-2. Counting all causes together is deliberate: the person feels one
 stimulus stopping and starting, not a list of causes.
 
-*My reading of "the cardiac approach", for confirmation:* the cardiac interlock has no count-in-window; its first event latches.
+**"The cardiac approach", as the principal confirmed it (2026-11-09):** the cardiac interlock has no count-in-window; its first event latches.
 So what is shared is the **latch and release path** (PR-2) and the **fail-closed handling of an unknown time**, not a counter.
+This fixes how PR-2 and PR-3 are read; it does not answer Q4.
 If the owner wants the cardiac interlock itself to count, that is a separate decision about a `REQ-CVNS-09` behaviour that was presented to FDA.
 
 The window's start is not known across a reset (no RTC): a reset is itself an interruption and is entered, and the count
