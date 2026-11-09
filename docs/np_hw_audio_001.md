@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-11-09
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
@@ -1021,3 +1021,4 @@ supply the raw curves, not only the datasheet summary, and the lot-to-lot spread
 | 5 | 2026-11-09 | NeurOne Firmware Engineering | **REQ-AUDIO-17 and REQ-AUDIO-18 added (OI-SIMFW-19).** Volume range 0-100 enforced by refusal; band update gated on binaural mode. No figure set. |
 | 6 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §4, §5.1, §9: OI-AUDIOHW-01 decided (principal): 85 dB SPL at the ear, level ceiling only with no dose model; REQ-AUDIO-19 and REQ-AUDIO-20 (absolute scale); raises OI-AUDIOHW-11 (calibration at the ear) and OI-AUDIOHW-12 (check the cited standards).** |
 | 7 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §5, §5.2, §7, §9: OI-AUDIOHW-02 decided as a rule (principal): REQ-AUDIO-21, bone ceiling at equal hearing level in dB re 1 µN on an artificial mastoid, refused never clamped; the figure is not stated because the ISO 389-3 and ISO 389-1/-7 tables were not readable; raises OI-AUDIOHW-13. No firmware, figure or constant changed.** |
+| 8 | 2026-11-09 | NeurOne Systems Engineering | **§5.1, §5.2, §5.3, §8.2, §9: OI-AUDIOHW-12 narrowed (NIOSH, WHO-ITU, Directive 2003/10/EC, IEC 60318-6 and ISO 389-3 verified from public excerpts; the claim that EN 50332 treats 85 dB(A) as the normal maximum withdrawn; paywalled texts stay open). OI-AUDIOHW-11 part decided: new §5.3 and REQ-AUDIO-22 to -25 (ear-simulator verification per unit and cup, guard band of named terms with open sizes, SHDR-class fail-closed calibration table, A-weighting computed and every tone frequency bounded at 1,000 Hz, confirmed by the principal for now with the reasoning and the route to revisit in new §5.3.1; UC-133, UC-134). OI-AUDIOHW-13: no cited source for the 500 Hz values so nothing computed, wire options and a combined-path recommendation recorded. OI-AUDIOHW-04: new §8.2 selection package (SEL-P01-P13, SEL-B01-B12, relations D1-D4, matrices, interface questions, vendor list), no part selected. No firmware, constant or limit changed.** |
