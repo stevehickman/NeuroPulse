@@ -123,6 +123,8 @@ traceable (`CLAUDE.md` §18). **No value is set by any of them.**
 | **REQ-AUDIO-19** | **The planar path's sound pressure level at the ear never exceeds 85 dB SPL.** (a) The protocol compiler refuses, before signing, a protocol whose audio level is above it, or not positive and finite; (b) the hub driver refuses a command above it before any state or output changes; (c) the level delivered at the ear is verified against it on a built unit. A limits block (`max_volume_db`) may lower the ceiling and never raise it. **Refused, never clamped:** a clamped level is a different stimulus from the one authored | A level above it risks pain and injury, and with no way to know the wearer's exposure outside a session no dose margin can be assumed. A clamp would silently deliver a stimulus nobody authored | NIOSH Pub. 98-126; WHO–ITU H.870; IEC 62368-1 cl. 10.6 / EN 50332; Directive 2003/10/EC (§5.1, checked by `OI-AUDIOHW-12`). Principal direction 2026-11-09. `CLAUDE.md` §3 (a ceiling refuses, never reshapes) |
 | **REQ-AUDIO-20** | **Every audio level, on every interface, is an absolute sound pressure level in dB SPL at the ear, never a percentage or any scale relative to a component.** (a) The hub wire field is `level_half_db`, 2 × dB SPL, 0 meaning off; (b) each component's HAL owns its own calibration from that level to its drive, so the same command sounds the same on any driver; (c) that calibration is measured at the ear (`OI-AUDIOHW-11`). The bone transducer is outside (c) until `OI-AUDIOHW-02` | A relative scale means one command produces different sound on different components, so REQ-AUDIO-19 would bound a number rather than a sound | Principal direction 2026-11-09 (all scales are absolute); `NP-NPPS-REF-001` Rev 18 §4.1b (the protocol layer is already absolute) |
 
+| **REQ-AUDIO-21** | **The bone-conduction transducer's output is limited at the same hearing level as the planar path, stated as an absolute force level.** (a) The bone level is its own absolute quantity, **force level in dB re 1 µN on an IEC 60318-6 mechanical coupler (artificial mastoid), at the carrier frequency**, never a percentage and never the planar level number; (b) the ceiling at carrier frequency *f* is **L_F,max(f) = RETVFL_mastoid(f) + (85 − RETSPL_air(f))**, which is the hearing level that `REQ-AUDIO-19`'s 85 dB SPL gives on the air path, carried to the bone path through the reference thresholds of ISO 389-3 and the matching air reference of ISO 389-1/-7; (c) a command above it is refused, never clamped, in the compiler and the hub driver; (d) the delivered force level is verified on a built unit. The bone and planar paths are each held to their own ceiling; their combined effect is not summed (`OI-AUDIOHW-13`) | A planar ceiling written in dB SPL does not bound a vibrator: the same number drives a mastoid transducer to a different loudness, and through a different path that bypasses the ear canal and the cup's seal. Without its own ceiling, a bone cue (breathing pacer, sync cue) is limited by nothing | ISO 389-3:2016 (reference equivalent threshold vibratory force levels, mastoid); ISO 389-1/-7; IEC 60318-6; IEC 60645-1:2017 cl. 6.1.5 (bone vibrator output level). Principal direction 2026-11-09 (all scales absolute, `REQ-AUDIO-20`). `CLAUDE.md` §3 (a ceiling refuses, never reshapes). **The dB re 1 µN figure is not stated here: it needs the standards' tables (§5.2, `OI-AUDIOHW-13`)** |
+
 Figures derived from the microphone — the seal score and any in-cup level — are **UHDR**, computed
 and used on-device (`docs/reference/data-architecture-detail.md` §5.1 boundary resolutions).
 
@@ -167,11 +169,10 @@ MCU owns *stimulation* enable lines, and audio delivers no current, no light and
 **The planar path has an acoustic output ceiling (Rev 6, `REQ-AUDIO-19`, §5.1).** The bone-conduction
 path does not, and an air-conduction limit does not transfer to it unexamined:
 
-- **Bone-conduction drive limit.** Still absent, and the less familiar of the two: bone conduction
-  bypasses the ear canal, so an air-conduction limit does not transfer to it unexamined.
-  **`OI-AUDIOHW-02`.** The driver passes the bone transducer the same level number it passes the planar
-  drivers, so the number bounds that transducer's command. It is **not** a bone-conduction level and is
-  not calibrated to one.
+- **Bone-conduction drive limit.** Decided as a **rule**, not yet as a figure (Rev 7, §5.2,
+  `REQ-AUDIO-21`). The driver still passes the bone transducer the same level number it passes the planar
+  drivers, so that number is an upper bound on its command and **not** a bone level; the field that
+  carries a bone force level does not exist yet (`OI-AUDIOHW-13`).
 
 ### 5.1 The acoustic output ceiling — 85 dB SPL, absolute (Rev 6, principal direction 2026-11-09)
 
@@ -211,6 +212,43 @@ unweighted 85 never exceeds 85 dB(A) there. Between roughly 2 and 4 kHz A-weight
 for `OI-AUDIOHW-11`, which measures at the ear.
 
 > **`REQ-AUDIO-19`** and **`REQ-AUDIO-20`** are in §3.1.
+
+### 5.2 The bone-conduction ceiling — the same hearing level, as an absolute force level (Rev 7, `OI-AUDIOHW-02`)
+
+**Why the planar number does not transfer.** Bone conduction bypasses the ear canal, the ear pad's seal
+and the cup volume that `REQ-AUDIO-19` is measured in. A planar level in dB SPL says nothing about how
+hard a mastoid vibrator drives the skull, and the same drive number gives a different vibration on every
+element, isolator and contact force (`OI-AUDIOHW-04`). By `REQ-AUDIO-20` the bone level cannot be a fraction
+of a component's range either, so it needs its own absolute unit.
+
+**The unit.** Force level in dB re 1 µN, measured on an artificial mastoid (IEC 60318-6). It is the unit the
+bone-conduction reference thresholds are stated in (ISO 389-3), so the ceiling can be tied to hearing
+level; acceleration at the mastoid is not, so it is not used.
+
+**The rule.** The bone path is held to the **same hearing level** as the air path, at each carrier
+frequency: the hearing level is the planar ceiling's 85 dB SPL minus the air reference threshold at that
+frequency, and the bone ceiling is that hearing level above the bone reference threshold. Written out in
+`REQ-AUDIO-21`(b). Equal hearing level is a stated choice, derived from the two reference-threshold
+standards, with no figure in it that this document invented.
+
+**What is not here.** The dB re 1 µN number. It needs the ISO 389-3 mastoid values and the matching air
+values from ISO 389-1/-7 at the carrier frequencies (every shipped carrier is 440 Hz), and those tables
+are not in the repository and were not readable from the published summaries. Stating one from memory is
+the failure this document exists to avoid. Computing it is `OI-AUDIOHW-13`.
+
+**Standards used.**
+
+| Standard | What it contributes | Checked |
+|---|---|---|
+| ISO 389-3:2016 | Reference equivalent threshold vibratory force levels for pure-tone bone vibrators, mastoid, with the forehead difference in an informative annex | That it exists and covers the mastoid vibrator, from its published scope. The values were not read |
+| IEC 60318-6 | The mechanical coupler (artificial mastoid) the force level is measured on | **Not checked**: the title and number are carried from memory |
+| IEC 60645-1:2017, cl. 6.1.5 | Bone vibrator output level for audiometric equipment | That the clause exists, from a table of contents. The limits were not read |
+| ISO 389-1/-7 | The air reference thresholds the hearing level is taken against | Not checked. Which one applies depends on the measurement point `OI-AUDIOHW-11` chooses |
+
+**Two things this rule does not settle.** Whether a cue played on both paths at once is bounded by two
+ceilings or needs a combined one (`OI-AUDIOHW-13`); and whether an element can deliver the ceiling cleanly,
+or distorts and is felt as vibration before it reaches it, which is the element's characterisation
+(`OI-AUDIOHW-04`) and is **not** a reason to lower the ceiling here.
 
 ---
 
@@ -502,7 +540,7 @@ the input list, not the analysis.
 | Candidate hazard | Why it is on the list |
 |---|---|
 | Acoustic overexposure (planar path) | No SPL ceiling exists anywhere (§5, `OI-AUDIOHW-01`) |
-| Bone-conduction overexposure | Separate limit, separate transfer path, also absent (`OI-AUDIOHW-02`) |
+| Bone-conduction overexposure | Separate limit, separate transfer path. **Rule set (Rev 7, §5.2, `REQ-AUDIO-21`); the figure and the field that carries it are not (`OI-AUDIOHW-13`)** |
 | Mesh refitted wrongly, or a third-party mesh fitted | User-serviceable part carrying an RF claim (§6.3) |
 | Mesh fouling undetected | Trigger unimplemented (`OI-ACC-05`); both the acoustic and the RF consequence go unflagged |
 | Bayonet failure in service | The part exists **because** the plastic predecessor flattened at 500–1,000 cycles; the replacement has no cycle rating of its own |
@@ -557,7 +595,7 @@ Against `NP-FAI-001` §2:
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
 | **OI-AUDIOHW-01** | **DECIDED 2026-11-09 (principal, Rev 6): 85 dB SPL at the ear on the planar path, absolute scale, level ceiling only — bound as `REQ-AUDIO-19`/`-20` (§5.1).** No exposure-duration or daily-dose model, because the device cannot know exposure outside sessions. Succeeded by `OI-AUDIOHW-11` (calibration and verification at the ear) and `OI-AUDIOHW-12` (check the citations). **As raised:** no acoustic output ceiling existed, and `volume_pct` was an uncalibrated 0–100 wire field. The in-cup microphone (`REQ-AUDIO-14`) gives a measured in-cup level per wearer and fit (§6.4.2), not at the eardrum and blind to bone conduction; the ceiling also bounds the seal probe tone | Systems + Clinical | — (decided) |
-| **OI-AUDIOHW-02** | **No bone-conduction drive ceiling exists**, and an air-conduction limit does not transfer to it unexamined. Decide the limit and the standard it is taken from | Systems + Clinical | Hazard analysis; T1 release |
+| **OI-AUDIOHW-02** | **DECIDED as a rule 2026-11-09 (principal, Rev 7): the bone path is held to the same hearing level as the planar path, stated as an absolute force level in dB re 1 µN on an IEC 60318-6 artificial mastoid — bound as `REQ-AUDIO-21` (§5.2).** The figure and the wire field are `OI-AUDIOHW-13`. No firmware gating in the interim: the bone HAL is an unbuilt stub and no element is selected. **As raised:** no bone-conduction drive ceiling existed, and an air-conduction limit does not transfer to it unexamined | Systems + Clinical | — (decided; figure `OI-AUDIOHW-13`) |
 | **OI-AUDIOHW-03** | **The mesh frame's 40 dB RF figure is a shielding claim outside the audited stack (§6.3)** — absent from `CLAUDE.md` §4.3, from `docs/reference/hardware-detail.md` §4.3, from `NP-BIB-EMF-001`'s per-layer audit and from `NP-DT-001` `DI-PERF-22` — on a **user-replaceable** part whose fouling trigger is unimplemented (`OI-ACC-05`). Decide whether it is a programme claim or a supplier figure, and stop quoting it beside audited ones either way | Systems + EMC | Shielding claim integrity; `NP-BIB-EMF-001` completeness |
 | **OI-AUDIOHW-04** | Select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* exists | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
 | **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
@@ -567,7 +605,8 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-09** | **Select the in-cup microphone** (`REQ-AUDIO-14`). Decide analogue vs digital (PDM) output knowing that a PDM part runs a clock of the order of a megahertz beside the temporal EEG sites and is a new source for `NP-EMC-CAV-001`'s analysis; confirm the hub codec (`NP-HW-HUB-001`) has an input per cup; add the microphone conductors to `OI-AUDIOHW-07`'s cable; fix the position within the front volume, and decide whether it goes on the ear side of the mesh (only `OI-ACC-05`'s candidate needs that). The cable change is a module interface under `REQ-UPG-03` and lands on both tiers | EE + Acoustic + EMC | A11 tooling; `OI-ACC-04` closure |
 | **OI-AUDIOHW-10** | **Implement the seal measurement in firmware.** Microphone HAL (a new entry beside `OI-AUDIO-01…08`), the probe signal and its level (bounded by `OI-AUDIOHW-01`), the powered capture window, reduction to a seal score, and `REQ-AUDIO-15`'s containment: decide whether a CI gate in the manner of `scripts/check-redaction-shape.ts` enforces that no sample leaves the reduction call. The dB criterion is `OI-ACC-04`'s, not this item's | FW + Privacy | `OI-ACC-04` closure |
 | **OI-AUDIOHW-11** | **Calibrate and verify the 85 dB SPL ceiling at the ear** (`REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c)). Nothing yet maps `level_half_db` to a driver, because no driver is selected (`OI-AUDIOHW-04`): the HAL stubs trap. Decide the measurement (an ear simulator such as IEC 60318-4, and what the in-cup microphone adds, §6.4.2), the cup-to-eardrum correction, the unit-to-unit tolerance the calibration must leave under 85, and whether a carrier above 1 kHz needs a lower ceiling (§5.1, weighting) | EE + Acoustic | T1 release; `NP-FAI-AUDIO-001` |
-| **OI-AUDIOHW-12** | **Check the §5.1 citations against the standards' texts** (NIOSH 98-126, WHO–ITU H.870, IEC 62368-1 cl. 10.6, EN 50332, Directive 2003/10/EC). Carried from published summaries; the IEC/EN texts are paywalled. Also decide whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path) — an ISO 14971 decision for `OI-RISK2-02` | Systems + Regulatory | Hazard analysis |
+| **OI-AUDIOHW-12** | **Check the §5.1 citations against the standards' texts** (NIOSH 98-126, WHO–ITU H.870, IEC 62368-1 cl. 10.6, EN 50332, Directive 2003/10/EC) **and the §5.2 bone standards** (ISO 389-3, IEC 60318-6, IEC 60645-1 cl. 6.1.5, ISO 389-1/-7). Carried from published summaries; the IEC/EN texts are paywalled. Also decide whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path) — an ISO 14971 decision for `OI-RISK2-02` | Systems + Regulatory | Hazard analysis |
+| **OI-AUDIOHW-13** | **Compute the bone ceiling and give it a field** (`REQ-AUDIO-21`). (1) Read the ISO 389-3 mastoid values and the ISO 389-1/-7 air values at the carrier frequencies and compute L_F,max in dB re 1 µN; the figure then goes in `REQ-AUDIO-21` and, if it is a limit chosen rather than derived, in the register (`CLAUDE.md` §19). (2) Add a bone level to the wire: today `np_mod_audio_hal_bone_set` receives the planar `level_half_db`, which is not a bone level. Decide the field's unit and width (force level in dB re 1 µN needs its own `np_mod_audio_params_t` field and a descriptor change on both tiers, `REQ-UPG-03`), and enforce the ceiling in the compiler and the hub driver by refusal. (3) Decide the combined case when both paths play. (4) Verify on a built unit (`OI-AUDIOHW-04`, `OI-AUDIOHW-11`). `OI-AUDIOHW-12`'s citation check covers the standards named in §5.2 | Systems + Acoustic + FW | T1 release; before the bone HAL is implemented |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
 > `firmware/hub_control/modules/np_mod_audio.c`, for the audio **HAL stubs**. Open-item IDs are
