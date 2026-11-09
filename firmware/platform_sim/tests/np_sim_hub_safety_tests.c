@@ -153,6 +153,6 @@ int main(void)
     in_child(test_a_hot_zone_releases_the_line_while_the_hub_still_commands_the_tile);
     in_child(test_a_tdcs_command_is_granted_after_its_declaration_and_meets_the_charge_ceiling);
     in_child(test_the_visual_line_follows_the_goggles);
-    printf("\n%s (%d failure(s))\n", g_failures == 0 ? "ALL PASSED" : "FAILED", g_failures);
+    printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }
