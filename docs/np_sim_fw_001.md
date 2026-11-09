@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 19
+**Revision:** 20
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -769,3 +769,4 @@ The bridge and the page now drive the safety MCU of §22. The rule is `REQ-SIMFW
 | 17 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §16: OI-SIMFW-19 closed.** The two audio scenarios assert the fix. The simulator build repaired (safety harness argument; cardiac sensitivity double). |
 | 18 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §18: OI-SIMFW-21 partly closed.** Point 2 (partial bilateral failure) fixed and its scenario asserts the fix; point 1 (authentication read once) stays open with the question stated. |
 | 19 | 2026-11-09 | NeurOne Systems Engineering | **§16: OI-SIMFW-19 volume half closed (level_half_db, refusal above 85 dB SPL); the EEG-band mode switch stays open.** |
+| 20 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §13: new `OI-SIMFW-31`, closed.** The cross-check's non-finite test is on the exponent bits; the simulator cannot see the `-ffast-math` folding because it is not built with it, and §13 says so. |
