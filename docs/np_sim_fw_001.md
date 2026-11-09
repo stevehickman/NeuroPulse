@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 26
+**Revision:** 27
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -834,3 +834,4 @@ Not verification evidence (`REQ-SIMFW-06`). The runner is still a stand-in: this
 | 24 | 2026-11-09 | NeurOne Software Engineering | **§7, §23: `OI-SIMFW-28` closed on the principal's rule that the simulator is driven as the real thing is (an app function by the page's app, a hardware-control function by the simulated control); the Module row places and commands the PBM tile, EEG, auricular VNS, audio, goggles, probe and cervical VNS, with the device's refusals standing; `OI-SIMFW-36` raised (hardware controls not simulated); `UC-128` extended.** |
 | 25 | 2026-11-09 | NeurOne Software Engineering | **§7, new §25: the principal's rule (the app is the real app; every part has a twin running its software, simulating its effects and returning its information) recorded; `OI-SIMFW-36` decided with build open; `OI-SIMFW-37` to `OI-SIMFW-40` raised for the app, the wire protocol, the parts without a twin and the effects.** |
 | 26 | 2026-11-09 | NeurOne Software Engineering | **§23: new REQ-SIMFW-16 and the fault panel (every fault the page can cause is an input to the firmware, never a verdict; a real link outage becomes a heartbeat loss); OI-SIMFW-27 records why the heartbeat-loss cut is absent from the reply and that the simulator follows the firmware; OI-SIMFW-41 raised.** |
+| 27 | 2026-11-09 | NeurOne Software Engineering | **§7: `OI-SIMFW-37` decided by the principal: the page hosts the Compose Multiplatform UI through its browser host and not the React app; how it reaches the twin, the browser host's gaps stay open; D-2 decided (the standalone mode is retired once one local container holding the twin, the bridge and the Compose bundle replaces it); the helmet view is decided to live inside the Compose UI, shared by the simulator and the real-hardware app.** |
