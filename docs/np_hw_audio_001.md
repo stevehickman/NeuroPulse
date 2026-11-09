@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 7
+**Revision:** 8
 **Date:** 2026-11-09
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
@@ -123,7 +123,7 @@ traceable (`CLAUDE.md` §18). **No value is set by any of them.**
 | **REQ-AUDIO-19** | **The planar path's sound pressure level at the ear never exceeds 85 dB SPL.** (a) The protocol compiler refuses, before signing, a protocol whose audio level is above it, or not positive and finite; (b) the hub driver refuses a command above it before any state or output changes; (c) the level delivered at the ear is verified against it on a built unit. A limits block (`max_volume_db`) may lower the ceiling and never raise it. **Refused, never clamped:** a clamped level is a different stimulus from the one authored | A level above it risks pain and injury, and with no way to know the wearer's exposure outside a session no dose margin can be assumed. A clamp would silently deliver a stimulus nobody authored | NIOSH Pub. 98-126; WHO–ITU H.870; IEC 62368-1 cl. 10.6 / EN 50332; Directive 2003/10/EC (§5.1, checked by `OI-AUDIOHW-12`). Principal direction 2026-11-09. `CLAUDE.md` §3 (a ceiling refuses, never reshapes) |
 | **REQ-AUDIO-20** | **Every audio level, on every interface, is an absolute sound pressure level in dB SPL at the ear, never a percentage or any scale relative to a component.** (a) The hub wire field is `level_half_db`, 2 × dB SPL, 0 meaning off; (b) each component's HAL owns its own calibration from that level to its drive, so the same command sounds the same on any driver; (c) that calibration is measured at the ear (`OI-AUDIOHW-11`). The bone transducer is outside (c) until `OI-AUDIOHW-02` | A relative scale means one command produces different sound on different components, so REQ-AUDIO-19 would bound a number rather than a sound | Principal direction 2026-11-09 (all scales are absolute); `NP-NPPS-REF-001` Rev 18 §4.1b (the protocol layer is already absolute) |
 
-| **REQ-AUDIO-21** | **The bone-conduction transducer's output is limited at the same hearing level as the planar path, stated as an absolute force level.** (a) The bone level is its own absolute quantity, **force level in dB re 1 µN on an IEC 60318-6 mechanical coupler (artificial mastoid), at the carrier frequency**, never a percentage and never the planar level number; (b) the ceiling at carrier frequency *f* is **L_F,max(f) = RETVFL_mastoid(f) + (85 − RETSPL_air(f))**, which is the hearing level that `REQ-AUDIO-19`'s 85 dB SPL gives on the air path, carried to the bone path through the reference thresholds of ISO 389-3 and the matching air reference of ISO 389-1/-7; (c) a command above it is refused, never clamped, in the compiler and the hub driver; (d) the delivered force level is verified on a built unit. The bone and planar paths are each held to their own ceiling; their combined effect is not summed (`OI-AUDIOHW-13`) | A planar ceiling written in dB SPL does not bound a vibrator: the same number drives a mastoid transducer to a different loudness, and through a different path that bypasses the ear canal and the cup's seal. Without its own ceiling, a bone cue (breathing pacer, sync cue) is limited by nothing | ISO 389-3:2016 (reference equivalent threshold vibratory force levels, mastoid); ISO 389-1/-7; IEC 60318-6; IEC 60645-1:2017 cl. 6.1.5 (bone vibrator output level). Principal direction 2026-11-09 (all scales absolute, `REQ-AUDIO-20`). `CLAUDE.md` §3 (a ceiling refuses, never reshapes). **The dB re 1 µN figure is not stated here: it needs the standards' tables (§5.2, `OI-AUDIOHW-13`)** |
+| **REQ-AUDIO-21** | **The bone-conduction transducer's output is limited at the same hearing level as the planar path, stated as an absolute force level.** (a) The bone level is its own absolute quantity, **force level in dB re 1 µN on an IEC 60318-6 mechanical coupler (artificial mastoid), at the carrier frequency**, never a percentage and never the planar level number; (b) the ceiling at carrier frequency *f* is **L_F,max(f) = RETVFL_mastoid(f) + (85 − RETSPL_air(f))**, which is the hearing level that `REQ-AUDIO-19`'s 85 dB SPL gives on the air path, carried to the bone path through the reference thresholds of ISO 389-3 and the matching air reference of ISO 389-1/-7; (c) a command above it is refused, never clamped, in the compiler and the hub driver; (d) the delivered force level is verified on a built unit. The bone and planar paths are each held to their own ceiling; their combined effect is not summed (`OI-AUDIOHW-13`) | A planar ceiling written in dB SPL does not bound a vibrator: the same number drives a mastoid transducer to a different loudness, and through a different path that bypasses the ear canal and the cup's seal. Without its own ceiling, a bone cue (breathing pacer, sync cue) is limited by nothing | ISO 389-3:2016 (reference equivalent threshold vibratory force levels, mastoid); ISO 389-1/-7; IEC 60318-6; IEC 60645-1:2017 cl. 6.1.5 (bone vibrator output level). Principal direction 2026-11-09 (all scales absolute, `REQ-AUDIO-20`). `CLAUDE.md` §3 (a ceiling refuses, never reshapes). **The dB re 1 µN figure is not stated here and the field that would carry it does not exist: the standards' tables could not be read from any source reachable in the 2026-11-09 attempt, so (b) is a rule without a number, and (c) and (d) are not buildable until it has one (§5.2, `OI-AUDIOHW-13`)** |
 
 Figures derived from the microphone — the seal score and any in-cup level — are **UHDR**, computed
 and used on-device (`docs/reference/data-architecture-detail.md` §5.1 boundary resolutions).
@@ -185,7 +185,7 @@ the hours it may last. The device cannot know what the wearer is exposed to outs
 cannot know how much of any day's budget a session leaves, and no session may be built to approach one.
 A bound that holds whatever else happened that day has to be a level the device never exceeds.
 
-**Why 85.** The standards below put the onset of hearing-conservation obligations at 85 dB(A) for a full
+**Why 85.** NIOSH's recommended limit and the EU Directive below put the onset of hearing-conservation obligations at 85 dB(A) for a full
 working day. Setting the ceiling there means a session can never, by level alone, be louder than the
 level at which those standards begin to require action, and it sits far under the level at which
 sound is painful or injurious in seconds. What the ceiling does **not** mean is that a session at the
@@ -196,22 +196,25 @@ which that formula allows for roughly 80 hours.
 
 | Standard | What it says | Use here |
 |---|---|---|
-| NIOSH, *Criteria for a Recommended Standard: Occupational Noise Exposure*, Pub. 98-126 (1998) | REL 85 dBA, 8 h time-weighted average, 3 dB exchange rate | The 85 and the dose arithmetic above |
-| WHO–ITU H.870 (2018), *Guidelines for safe listening devices/systems*; WHO–ITU global standard for safe listening devices and systems (2019) | Adult weekly dose of 80 dB(A) for 40 h/week | Consumer listening devices are held to a *lower* weekly dose than 85 dB(A) for a full day, which is why the shipped 75 dB protocols matter and why 85 is a ceiling, not a target |
-| IEC 62368-1 clause 10.6 and EN 50332-1/-2/-3 (personal audio players and headphones) | Acoustic-energy-source classification; 85 dB(A) is the output level EN 50332 treats as the normal maximum for personal music players | The nearest product standard for a head-worn audio output. Clause designations (RS1/RS2) are **not** quoted here: they were not checked against the text |
-| Directive 2003/10/EC (physical agents, noise) | Upper exposure action value 85 dB(A) daily, with peak action values in dB(C) | The EU basis for treating 85 dB(A) as the action level |
+| NIOSH, *Criteria for a Recommended Standard: Occupational Noise Exposure*, Pub. 98-126 (1998) | REL 85 dBA, 8 h time-weighted average, 3 dB exchange rate | The 85 and the dose arithmetic above. **VERIFIED** (`OI-AUDIOHW-12`, 2026-11-09), from excerpts of the archived CDC text (§1.1.2); the PDF host was unreachable |
+| WHO–ITU H.870 (2018), *Guidelines for safe listening devices/systems*; WHO–ITU global standard for safe listening devices and systems (2019) | Adult weekly dose of 80 dB(A) for 40 h/week (children 75 dB(A), 40 h). **VERIFIED** from WHO's publication page and secondary summaries, not the ITU text. **H.870 has a 2022 edition (approved 03/2022) that supersedes the 2018 one**; the 2018 text was not compared with it | Consumer listening devices are held to a *lower* weekly dose than 85 dB(A) for a full day, which is why the shipped 75 dB protocols matter and why 85 is a ceiling, not a target |
+| IEC 62368-1 clause 10.6 and EN 50332-1/-2/-3 (personal audio players and headphones) | Acoustic-energy-source classification for personal audio. **CORRECTED (`OI-AUDIOHW-12`):** the earlier claim that EN 50332 treats 85 dB(A) as the normal maximum is **not supported**. Summaries report the older EN 50332-1 package limit as 100 dB(A) (150 mV analogue), with IEC 62368-1 ed. 2 cl. 10.6 built on an 85 dB(A) level, and the A11:2020 amendment replacing cl. 10.6 with RS1/RS2/RS3 classes (RS1 reported as ≤ 80 dB(A)). **All of this is from search-engine summaries, none from the paywalled texts: PARTLY / UNVERIFIABLE-PAYWALLED** | The nearest product standard for a head-worn audio output. **No EN 50332 or IEC 62368-1 figure or clause is relied on here**; the 85 rests on NIOSH and the Directive. The text is to be read before either is cited for a number |
+| Directive 2003/10/EC (physical agents, noise) | Art. 3: upper exposure action value L_EX,8h = 85 dB(A) and peak 140 Pa (137 dB(C), footnote); lower 80 dB(A) / 112 Pa; limit value 87 dB(A) / 200 Pa. Peak values are stated in Pa, with the dB(C) figure in a footnote. **VERIFIED**, from a search summary of the legislation.gov.uk copy (the retained UK text, not the Official Journal) | The EU basis for treating 85 dB(A) as the action level |
 
-**Citations are carried from published summaries and have not been checked against the purchased
-standards** (IEC and EN texts are not in the repository). Checking them is `OI-AUDIOHW-12`; per
-`CLAUDE.md` §19 that check is an open item, not a register row.
+**Check status (`OI-AUDIOHW-12`, 2026-11-09).** NIOSH, WHO–ITU and the Directive were checked against
+public excerpts (the CDC, ITU, EUR-Lex and legislation.gov.uk hosts could not be fetched directly, so each
+reading is of a search-engine summary of the source; the Directive and NIOSH figures agree across more than
+one source). The EN 50332 / IEC 62368-1 row was corrected. The IEC and EN texts are paywalled and are not
+in the repository. Per `CLAUDE.md` §19 what remains is an open item, not a register row.
 
 **Weighting.** The standards state dB(A); the `.npps` `volume` field and this ceiling state dB SPL
 (unweighted, `NP-NPPS-REF-001` §4.1b). Below about 1 kHz A-weighting only lowers the figure, so an
 unweighted 85 never exceeds 85 dB(A) there. Between roughly 2 and 4 kHz A-weighting adds up to about
-1.3 dB. Every shipped carrier is 440 Hz; whether a carrier above 1 kHz needs a lower ceiling is
-for `OI-AUDIOHW-11`, which measures at the ear.
+1.3 dB. Every shipped carrier is 440 Hz. **Decided (§5.3, computed from the A-weighting formula, not
+measured):** the maximum is +1.27 dB near 2.5 kHz and 440 Hz is −4.10 dB, so a tone above 1 kHz is bounded
+rather than given a lower ceiling (`REQ-AUDIO-25`).
 
-> **`REQ-AUDIO-19`** and **`REQ-AUDIO-20`** are in §3.1.
+> **`REQ-AUDIO-19`** and **`REQ-AUDIO-20`** are in §3.1. How the ceiling is calibrated and verified, and the margin under it, is §5.3.
 
 ### 5.2 The bone-conduction ceiling — the same hearing level, as an absolute force level (Rev 7, `OI-AUDIOHW-02`)
 
@@ -231,24 +234,170 @@ frequency, and the bone ceiling is that hearing level above the bone reference t
 `REQ-AUDIO-21`(b). Equal hearing level is a stated choice, derived from the two reference-threshold
 standards, with no figure in it that this document invented.
 
-**What is not here.** The dB re 1 µN number. It needs the ISO 389-3 mastoid values and the matching air
-values from ISO 389-1/-7 at the carrier frequencies (every shipped carrier is 440 Hz), and those tables
-are not in the repository and were not readable from the published summaries. Stating one from memory is
-the failure this document exists to avoid. Computing it is `OI-AUDIOHW-13`.
+**What is not here.** The dB re 1 µN number. It needs the ISO 389-3 mastoid value and the matching ISO 389-1/-7
+air value at the carrier (every shipped carrier is 440 Hz; the nearest standard frequency is 500 Hz), and
+those tables are not in the repository. **A second attempt on 2026-11-09 (`OI-AUDIOHW-13` part 1) searched the
+public web for both values and found neither stated with a citation:** the search results named the standards
+and their scope but quoted no 500 Hz value, and the pages that might (a university calibration course, the
+standards bodies' free previews, a journal article on mastoid thresholds) could not be fetched from the
+session. No value is carried in from memory, so **no L_F,max is computed or stated**. Stating one without a
+source is the failure this document exists to avoid.
 
 **Standards used.**
 
 | Standard | What it contributes | Checked |
 |---|---|---|
-| ISO 389-3:2016 | Reference equivalent threshold vibratory force levels for pure-tone bone vibrators, mastoid, with the forehead difference in an informative annex | That it exists and covers the mastoid vibrator, from its published scope. The values were not read |
-| IEC 60318-6 | The mechanical coupler (artificial mastoid) the force level is measured on | **Not checked**: the title and number are carried from memory |
-| IEC 60645-1:2017, cl. 6.1.5 | Bone vibrator output level for audiometric equipment | That the clause exists, from a table of contents. The limits were not read |
-| ISO 389-1/-7 | The air reference thresholds the hearing level is taken against | Not checked. Which one applies depends on the measurement point `OI-AUDIOHW-11` chooses |
+| ISO 389-3:2016 | Reference equivalent threshold vibratory force levels for pure-tone bone vibrators, mastoid, with the forehead difference in an informative annex | **VERIFIED** (title, scope), `OI-AUDIOHW-12`: *Acoustics — Reference zero for the calibration of audiometric equipment — Part 3: Reference equivalent threshold vibratory force levels for pure tones and bone vibrators*, 2016; RETVFL is defined as the force level on a mechanical coupler at normal threshold; forehead–mastoid differences are an informative annex. From the ISO catalogue abstract. The values were not read |
+| IEC 60318-6 | The mechanical coupler (artificial mastoid) the force level is measured on | **VERIFIED** (number, title), `OI-AUDIOHW-12`: IEC 60318-6:2007, *Electroacoustics — Simulators of human head and ear — Part 6: Mechanical coupler for the measurement on bone vibrators*; specified 125 Hz to 8 kHz for a 175 mm² ± 25 mm² tip, and **not in general equal to the force on a person's mastoid**. From the IEC webstore listing. The text was not read |
+| IEC 60645-1:2017, cl. 6.1.5 | Bone vibrator output level for audiometric equipment | **PARTLY**: the contents lists 6.1.5 *Bone vibrator output level*, but, as the contents were read through a summary, it appears under heading 6.1 beside speech-signal clauses, so the clause number is to be confirmed in the text. The limits were not read (paywalled) |
+| ISO 389-1/-7 | The air reference thresholds the hearing level is taken against | **PARTLY**: ISO 389-1:2017 is *Reference equivalent threshold sound pressure levels for pure tones and supra-aural earphones*, and ISO 389-7:2019 is the reference threshold under free-field and diffuse-field listening, not interchangeable with 389-1. Neither is stated for a circumaural cup (another part of ISO 389 may be the one, not checked). Which applies depends on the measurement point `OI-AUDIOHW-11` chooses, and the choice is part of `OI-AUDIOHW-13`. Values not read |
 
 **Two things this rule does not settle.** Whether a cue played on both paths at once is bounded by two
 ceilings or needs a combined one (`OI-AUDIOHW-13`); and whether an element can deliver the ceiling cleanly,
 or distorts and is felt as vibration before it reaches it, which is the element's characterisation
 (`OI-AUDIOHW-04`) and is **not** a reason to lower the ceiling here.
+
+### 5.3 Calibrating and verifying the 85 dB SPL ceiling at the ear — the method (`OI-AUDIOHW-11`, decided on paper; nothing here is measured)
+
+`REQ-AUDIO-19`(c) and `REQ-AUDIO-20`(b),(c) need a measurement that does not yet exist: no driver is selected
+(`OI-AUDIOHW-04`) and the audio HAL functions trap. This section fixes **how** the ceiling is calibrated and
+verified, **what the margin under 85 is made of**, and **whether the weighting needs a bound**, so a unit built
+under `OI-AUDIOHW-04` has a method to be measured against. **It sets no size for any margin term and measures
+nothing.** The planar path only; the bone path is `REQ-AUDIO-21` and `OI-AUDIOHW-13`.
+
+**What each instrument can and cannot see.**
+
+| | Ear simulator, at its eardrum reference point | In-cup microphone (`REQ-AUDIO-14`) |
+|---|---|---|
+| Sees | A level at a defined point behind a model of the ear canal and eardrum impedance, on a fixture the cup is mounted on, repeatably and traceably | The pressure in the front volume, on the wearer's own fit, in the field |
+| Cannot see | A particular wearer's ear, hair, glasses or fit: it stands for an ear and is not the wearer's | The eardrum. It sits before the canal, so the canal's resonance, the pinna and the canal volume are outside it, and one wearer's cup-to-eardrum difference is not a constant |
+| Bone path | Not measured (`REQ-AUDIO-21`) | Blind to it (§6.4.2) |
+| Data class | Nothing about a person: **SHDR-class** | Wearer- and fit-dependent: **UHDR** (§3.1, last paragraph) |
+
+**Decision 1 — the ceiling is verified at the ear simulator, and the in-cup microphone is not a safety
+measurement.** A table built from the simulator is the only route to a level whose source is traceable and
+that carries nothing about a wearer. **No cup-to-eardrum correction is applied or needed**, because nothing
+converts an in-cup reading to an eardrum level: the simulator is read at its eardrum point directly, and the
+in-cup microphone closes no loop and enforces nothing (`REQ-AUDIO-14`). A correction would be needed only if
+the microphone enforced the ceiling at run time. That is **not adopted**, for three reasons from the record: it
+would put a wearer-dependent UHDR figure into a safety control; a correction fixed on a simulator is the
+simulator's and not the wearer's; and a loop is what `REQ-AUDIO-14` excludes. What the microphone adds at the
+factory is a **reference reading**, taken at the same instant as the simulator reading, so the unit's
+microphone-to-eardrum-point relationship on the simulator is on file and the microphone's own function is
+cross-checked. In the field it can be compared only against a relationship made on a simulator fit, so a
+deviation cannot be told from a different fit. It therefore cannot bound drift (m3 below), and whether it
+flags a large change is `OI-ACC-04`'s question and not this section's.
+
+**Decision 2 — the margin is a structure of named terms, and its size is open.** The level delivered at the
+simulator is the commanded level plus an error. The error has the sources below, each bounded by a different
+measurement, and each is a number nobody has.
+
+| Term | What it is | Bounded by | Size |
+|---|---|---|---|
+| **m1** | Expanded uncertainty of the ear-simulator chain: reference calibrator, microphone, and repeatability of seating the cup on the fixture. A verification pass on the **same** chain does not remove its systematic part | The chain's calibration certificate and a seating-repeatability test on a built unit | **Open** |
+| **m2** | Table representation error: the table has finitely many frequency and level points, and the author picks carriers and levels between them | The verification pass at points not used to build the table (`REQ-AUDIO-22`(e)) | **Open** |
+| **m3** | Drift between calibration and use: temperature, driver ageing, mesh and foam state (`REQ-AUDIO-07`, §6.1) | Lifetime and temperature characterisation of the selected driver (`OI-AUDIOHW-04`) | **Open** |
+| **q** | Quantisation: codec gain steps are not the 0.5 dB steps of `level_half_db` | **Zero by construction**: every HAL rounds level-to-drive toward lower output (`REQ-AUDIO-23`(c)) | 0 |
+
+Unit-to-unit spread is **not** a term: the per-unit table exists to remove it, and what survives is m1 and m2.
+It matters elsewhere, because the driver and amplifier must reach the commanded cap with headroom across that
+spread, which is `OI-AUDIOHW-04`'s to show.
+
+**Decision 3 — the terms add arithmetically.** `REQ-AUDIO-19` says *never exceeds*. A root-sum-square
+combination states a probability of exceeding, and no distribution exists for any term. The sum of the bounds
+is the only combination that needs none. Its cost is a larger margin, accepted until a measurement shows two
+terms are not independent in the bad direction.
+
+**One term is deliberately absent: simulator to wearer.** A real ear differs from the simulator and no factory
+measurement bounds that. It is not added to M and not hidden: `UC-134` records that the simulator's level
+stands for the wearer's by assumption, and `OI-RISK2-02` owns whether it needs a term.
+
+**Decision 4 — the weighting needs a bound on the tone frequency, not a frequency-dependent ceiling.** The
+standards in §5.1 state dB(A) and the ceiling is unweighted SPL. A-weighting is, from the formula of
+IEC 61672-1 (the public formula; its constants are carried from published summaries and **not checked against
+the purchased text**, which `OI-AUDIOHW-12` now also covers):
+
+    R_A(f) = 12194² f⁴ / [ (f² + 20.6²) · sqrt( (f² + 107.7²)(f² + 737.9²) ) · (f² + 12194²) ]
+    A(f)   = 20 · log10 R_A(f) + 2.00 dB
+
+Computed from it (not measured, and not read from a table):
+
+| Frequency | A(f) |
+|---|---|
+| 200 Hz | −10.85 dB |
+| **440 Hz** (every shipped carrier) | **−4.10 dB** |
+| 1,000 Hz | 0.00 dB (the +2.00 normalises it) |
+| 2,000 Hz | +1.20 dB |
+| **about 2,500 Hz** (the maximum) | **+1.27 dB** |
+| 4,000 Hz | +0.96 dB |
+| about 6,100 Hz | 0.00 dB, and negative above |
+
+So a 440 Hz carrier at 85 dB SPL is **80.9 dB(A)**, and a tone near 2.5 kHz at 85 dB SPL is **86.3 dB(A)**,
+above the 85 dB(A) action level §5.1 cites. For an ideal 1/f (pink) and 1/f² (brown) spectrum over 20 Hz to
+20 kHz the same formula gives −12.8 and −23.7 dB, which shows the sign only: **no noise spectrum is specified**
+(`OI-AUDIOHW-04`), so the noise commands are measured at both weightings (`REQ-AUDIO-22`(b)).
+
+**Does something real fail without a bound? Yes, narrowly.** `carrier_hz` is a 16-bit field. The compiler only
+clamps it into the field's width (`min(65535)` in `common/npps-core/src/compiler.rs`), and neither the
+compiler, the hub driver nor `NP-NPPS-REF-001` bounds it otherwise, so any signed protocol may command a tone
+anywhere in that range. §5.1 chose 85 so that a session can never, by level alone, be louder than the level at
+which the cited standards begin to require action. That property is false between about 1 kHz and 6.1 kHz, by up
+to 1.27 dB. A tone far above half the codec's sample rate would also alias to a different, audible frequency;
+the codec's rate is not recorded, so the size of that is unknown.
+
+**Why a bound on frequency and not a ceiling that falls with frequency.** Both refuse and neither reshapes. The
+bound is one comparison, identical in the Rust compiler and the C hub driver. A frequency-dependent ceiling
+would carry the weighting curve into both, a derived function written twice in two languages (§20's
+one-home rule is the same idea). The bound sits where the nominal weighting is zero, so everything under it is
+at or below 85 dB(A) with no curve. And **nothing in the record needs a carrier above 1 kHz**: every shipped
+protocol sets 440 Hz, the app default is 200 Hz, and `NP-NPPS-REF-001` §4.7 gives the field no purpose beyond
+"Hz of carrier tone". The cost is the 1 to 6.1 kHz range, which nothing uses. If a protocol ever needs it, the
+alternative is one derivation away (the ceiling becomes 85 − A(f) wherever A(f) is positive). **The bound
+restricts a field an author could set before, so the principal confirms it** (`OI-AUDIOHW-11`).
+
+| ID | Requirement | What fails if it is not met | Traceable to |
+|---|---|---|---|
+| **REQ-AUDIO-22** | **The ceiling is verified, and the level-to-drive table is measured, at the eardrum reference point of an ear simulator, on every unit, for each cup mounted on the simulator's fixture as worn.** (a) The device is an ear simulator that models the ear canal and eardrum impedance and states a level at a defined eardrum reference point; a flat coupler and the in-cup microphone are not accepted for the table or the verification, and the exact standard and configuration for a circumaural cup (IEC 60318-4 with a pinna simulator, or IEC 60318-1) is chosen against the standards' text (`OI-AUDIOHW-11`); (b) the quantity is unweighted SPL in steady state: for a pulsed (isochronic) command the level during the pulse and never an average over its off time, for a binaural command each cup's own tone, and for a noise command both the unweighted broadband level and the A-weighted level are recorded and neither may exceed 85; (c) the fit is the best seal the cup makes on the fixture, unless characterisation shows a permitted frequency whose level rises with a leak, in which case the worst fit for that frequency is used; (d) the table covers the frequencies and levels the product permits, and a command outside the measured domain is refused, never extrapolated; (e) verification is a separate pass, at points not used to build the table, and a unit is accepted only if every measured level plus m1 plus m3 is at or below 85 dB SPL | Without a defined point and quantity, "85 dB SPL at the ear" has no measurement, and a time average of a pulsed tone, or a coupler with no ear impedance, reads lower than the ear receives. Without (d), a level at an unmeasured frequency is a guess, and a table extrapolated past its range can deliver more than it says. Without (e), the table's own error is never observed | `REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c); §5.1 (the dB(A) basis of the noise check; no exposure-duration model is set, so an averaged level would be a dose model by another name). The simulator standards are carried from memory and are not checked (`OI-AUDIOHW-12`) |
+| **REQ-AUDIO-23** | **The command ceiling is the delivered-level ceiling less a guard band: C = 85 − M, with M at least m1 + m2 + m3.** (a) The refusals of `REQ-AUDIO-19`(a),(b) are at C and not at 85, so a command at C delivers at most 85 across the terms; (b) the terms are added arithmetically, not statistically; (c) every conversion from level to drive in a HAL rounds toward lower output; (d) the sizes of m1, m2 and m3 come from measurement, and M is entered in `docs/status/unjustified-choices.md` (`UC-133`) until it has a derivation. **Until M is set the shipped ceiling (`NP_AUDIO_MAX_LEVEL_HALF_DB`, 85 dB SPL) is a zero-margin stand-in that does not meet (a), and no unit can be released on it.** No output exists today, because the HAL functions trap | Without a margin, a command at 85 delivers 85 plus the calibration's error on a unit whose error is positive, and `REQ-AUDIO-19` is broken by exactly the amount nobody measured. Without (c), a codec step that rounds up delivers more than commanded | `REQ-AUDIO-19` (*never exceeds*); `REQ-AUDIO-20`(b); `CLAUDE.md` §3 (a ceiling refuses, never reshapes) |
+| **REQ-AUDIO-24** | **The calibration table is a record of the device's condition and of nothing about a wearer, and the planar path plays nothing without a valid one.** (a) It is **SHDR-class**: measured on a simulator before any wearer exists, linked to the device and not to a person, and no value from the in-cup microphone or any wearer measurement is written into it or alters it; (b) it is bound to the chain it was measured on (the hub, and the cup where the cup carries an identity, `OI-AUDIOHW-07`) and integrity-checked, and a missing, mismatched or corrupt record means **the planar path refuses to output**, never a datasheet default; (c) it is written only by factory or service calibration, never by a session, a protocol or the app's ordinary paths; (d) it lives with the factory calibration already kept in the hub's Config/Calibration partition (`NP-FW-NVRAM-001` §2, row 3), unless `OI-AUDIOHW-07` makes the cup a separately replaceable part, in which case the transducer's half travels with the cup | Without (a), a wearer-derived figure sits in a device-condition store and the SHDR/UHDR line (`CLAUDE.md` §5.1) is crossed, or a wearer's fit sets a safety control. Without (b), a defaulted or stale table maps a command to a drive nobody measured, which is how a command at 85 reaches an ear above it. Without (c), a session can rewrite the one control the audio path has, because the safety MCU holds no enable for it (§5) | `CLAUDE.md` §5.1 (SHDR defining test, rule 1), §4.2; `REQ-AUDIO-09`; `NP-FW-HUB-001` §9 (no stored value widens a grant); `NP-FW-NVRAM-001` §2 |
+| **REQ-AUDIO-25** | **CONFIRMED 2026-11-09 (principal), for now; open to revisit (§5.3.1).** **Every tone frequency the planar path is commanded to produce is at most 1,000 Hz: `carrier_hz`, and for a binaural or isochronic command `carrier_hz` plus the beat or pulse rate.** The compiler refuses a protocol above it before signing and the hub driver refuses the command before any state or output changes. Refused, never clamped | A-weighting adds up to 1.27 dB between about 1 kHz and 6.1 kHz, so an unweighted 85 dB SPL tone there is up to 86.3 dB(A), above the 85 dB(A) action level §5.1 gives as the reason for 85. The field is otherwise unbounded to 65,535 Hz | §5.1 (85 chosen at the action level in dB(A)); NIOSH Pub. 98-126 and Directive 2003/10/EC (dB(A)); the IEC 61672-1 weighting, computed above (`OI-AUDIOHW-12` checks it); `CLAUDE.md` §3 (a ceiling refuses, never reshapes). The 1,000 Hz is not chosen: it is where the nominal weighting is zero |
+
+**Not built:** no compiler or driver check, no calibration record, no table. `REQ-AUDIO-22` to `-25` are
+untested by design (`CLAUDE.md` §21: a requirement for an unbuilt feature stays untested until the code that
+meets it is written). The `carrier_hz` row of `NP-NPPS-REF-001` §4.7 and `common/npps-core` carry
+`REQ-AUDIO-25` when it is implemented.
+
+#### 5.3.1 `REQ-AUDIO-25` confirmed for now, and why (principal, 2026-11-09)
+
+**Decision.** The 1,000 Hz bound on every tone frequency stands, **for now**. The principal confirmed it and
+said it may be revisited if researchers want more.
+
+**Why a bound, and why 1,000 Hz.**
+1. **It protects the one property §5.1 gives for choosing 85.** The standards state dB(A); the ceiling is
+   unweighted dB SPL. Below about 1 kHz A-weighting only lowers the figure, so an unweighted 85 never
+   exceeds 85 dB(A). Above it the weighting is positive, up to +1.27 dB near 2.5 kHz (computed from the
+   IEC 61672-1 formula, not measured), so an 85 dB SPL tone there is up to 86.3 dB(A). Nothing else in the
+   record stops a protocol author choosing such a tone: `carrier_hz` is bounded only by its 16-bit width.
+2. **1,000 Hz is not a figure chosen for this purpose.** It is where the nominal weighting is zero, so the
+   bound does not rest on the precision of the weighting constants, which are carried from memory and
+   unchecked (`OI-AUDIOHW-12`).
+3. **Nothing in the record uses a higher frequency.** Every shipped carrier is 440 Hz, and the binaural and
+   isochronic rates are far below 1 kHz, so no existing protocol is refused. Only a field an author could
+   have set, and no one has, is restricted.
+4. **Simpler than the alternative.** A frequency-dependent ceiling needs the weighting curve implemented
+   twice, in the compiler (Rust) and the hub driver (C), and kept in agreement. A single comparison is
+   one line in each and cannot drift.
+5. **It refuses, never clamps** (`CLAUDE.md` §3): a clamped tone is a different stimulus from the one
+   authored.
+
+**What revisiting would look like.** The bound is a stand-in for a frequency-dependent ceiling, one
+derivation away: at tone frequency *f* the command ceiling becomes 85 dB SPL less the positive part of the
+A-weighting at *f* (and less the guard band of `REQ-AUDIO-23`), so a tone above 1 kHz is allowed at a
+lower level and the §5.1 property still holds. Taking it needs: a stated use above 1 kHz from the
+researchers, the weighting constants checked against IEC 61672-1 (`OI-AUDIOHW-12`), the curve implemented
+once and shared between the compiler and the driver, and the request recorded as a decision, since a
+looser limit is a change to a hazard control (`CLAUDE.md` §18). Raising or removing the bound without
+that is not a detail.
 
 ---
 
@@ -588,6 +737,239 @@ Against `NP-FAI-001` §2:
 > at all"* but *"the owning specification is DRAFT and carries no dimensioned geometry."* That is a
 > smaller absence and a differently-owned one, and stating it precisely is the point.
 
+### 8.2 `OI-AUDIOHW-04` — the selection package (Rev 8). **Ready for the principal. No part, class or figure is selected here.**
+
+`OI-AUDIOHW-04` asked for the planar magnetic driver and the bone-conduction element to be selected and
+specified. Selection is an engineering and principal decision, and no part number, datasheet or measurement
+exists in the record, so this subsection does the work that comes **before** a selection: it says which
+parameters a selection must fix, which of them follow by arithmetic from figures the record already holds,
+what the candidate technology classes look like on public evidence, what the choice forces on other open
+items, and which vendor quantities to ask for. **Nothing below sets a value.** Where a number is written,
+it is carried from the record and the row says where from. The numbers a selection must still choose (every
+margin, every distortion limit, every stray-field limit) are named as *not set*, and each one that is chosen
+without a derivation becomes a register row under `CLAUDE.md` §19 in the change that chooses it.
+
+**What is already locked, and not reopened here.** `CLAUDE.md` §3 modality ⑦ locks the roster entry
+*planar magnetic + bone conduction*, and `REQ-AUDIO-02`/`-03` bind a 40 mm planar magnetic driver and a
+piezoelectric element on a silicone isolator at the mastoid, one per side. The decision matrices in §8.2.3
+show the other classes only because the question was asked; **choosing any other class reopens a locked
+decision and is the principal's, not this document's.** What is also decided: the planar ceiling (85 dB SPL
+at the ear, `REQ-AUDIO-19`/`-20`), the bone ceiling as a rule (`REQ-AUDIO-21`, figure pending in
+`OI-AUDIOHW-13`), independent drive of the two paths (`REQ-AUDIO-11`), one measurement-only microphone per
+cup with no anti-noise (`REQ-AUDIO-14`–`16`), and that amplification location is **not** decided
+(`REQ-AUDIO-04a`).
+
+#### 8.2.1 What the record gives the selection, and what it does not
+
+| Input | What the record holds | Source |
+|---|---|---|
+| Shipped carrier | 440 Hz in every predefined protocol that sets one; the app default is 200 Hz | `protocols/predefined/*.npps`; `common/types/protocol.ts` |
+| Authorable carrier range | **None found.** The compiler writes `carrier_hz` as a 16-bit field clamped only at 65535, and no validator range for it was found in `common/npps-core/src` | `common/npps-core/src/compiler.rs` (the `put16` of `carrierHz`) |
+| Beat and isochronic rate | Authorable 0.5–100 Hz; the EEG-adaptive band map is 2, 6, 10, 20, 40 Hz | `docs/status/unjustified-choices.md` UC-082; §4 |
+| Noise content | Pink and brown are enumerated values; **no band limit, spectral shape or crest factor is stated anywhere in the record** | `docs/np_npps_ref_001.md` (`noise`) |
+| Bone-path signal | `np_mod_audio_hal_bone_set(freq_hz, level_half_db)`: a tone at the carrier frequency and one level. The breathing cue is 4–7 breaths/min (about 0.067–0.117 Hz), so it is an envelope on that tone, not a sub-hertz transducer response | `firmware/hub_control/modules/np_mod_audio.c`; `docs/reference/modality-stack.md` modality ⑥ |
+| Other bone-path tones | `firmware/zone_announce` defines 150, 200, 440 and 880 Hz tones for a bone transducer, 8 kHz sample rate, amplitude −6 dBFS, with a note about DC bias through the piezo. Whether it stays reachable is `OI-FWHUB-18`'s | `firmware/zone_announce/include/np_zone_announce_config.h` |
+| Hub-side audio path | "I²S codec via SAI" and nothing else. **`NP-HW-HUB-001` has no audio section: no codec part, channel count, output stage or rail is recorded.** The firmware assumes SAI1/SAI2 for the planar drivers and SAI3 for "the bone conduction amplifier" | `NP-FW-HUB-001` §8.5; `np_zone_announce_config.h` |
+| EEG acquisition | ADS1299, 8 channels, 500 Hz (`CLAUDE.md` §3). `A1`/`A2` linked-ear references ride the VNS clip's pads | `CLAUDE.md` §3; `NP-HW-EEGNET-001` `REQ-NET-19` |
+| EMC source analysis | `NP-EMC-CAV-001`'s source table lists cluster controllers, the I²C tree, PWM LED drivers and the ADS1299 bank. **No audio source is in it**, and `NP-BIB-EMF-001` §5.4 found no literature relating ambient EMF to audio entrainment outcomes | `docs/np_emc_cav_001.md` source table; `docs/np_bib_emf_001.md` §5.4 |
+| Fit system and mass | Spring-decoupled electrode pods, 80–120 g; no mass budget for A11 | `docs/reference/hardware-detail.md` §4.4; `OI-AUDIOHW-05` |
+
+**Three gaps the selection cannot close alone, raised for the principal:**
+
+1. **The carrier range is unbounded on the wire,** so the frequency band each transducer must cover is
+   undetermined. Either a range is decided (a requirement, to `CLAUDE.md` §18's standard) or the band is
+   whatever the transducers deliver and the compiler refuses carriers outside it.
+2. **The noise content has no stated band or crest factor,** so "reaches 85 dB SPL cleanly in brown noise"
+   cannot be checked. Brown noise concentrates energy at low frequency, where a driver's excursion limit binds.
+3. **Four output channels, or three.** `REQ-AUDIO-11` makes the planar and bone paths independent, and
+   `REQ-AUDIO-03` puts one bone element per side. The HAL passes one bone frequency and one level, so one
+   mono bone drive feeding both elements is the shipped behaviour; whether the two bone elements are driven
+   separately is not stated. The hub codec channel count follows from it.
+
+#### 8.2.2 Requirements table — what a selection must specify
+
+Row IDs `SEL-P` (planar, A11.1) and `SEL-B` (bone, A11.2) name **parameters to be fixed**, not requirements:
+none carries a value, so none is a `REQ-` row and none has a test (`CLAUDE.md` §21). A parameter becomes a
+requirement when a value is set for it and the value passes §18's two questions. *Derived relations* use
+only figures held in the record; every symbol that is not one of those is a quantity the selection measures
+or a vendor states. *Margin* terms (`H`) are choices and are **not set**.
+
+**Relations used in the tables below**
+
+- **D1 — planar drive.** For each carrier *f*, let `S(f)` be the transducer's sensitivity at the ear
+  (dB SPL per volt rms, in the cup, measured at the point `OI-AUDIOHW-11` chooses, with the worst seal
+  `REQ-AUDIO-16` allows and with the mesh in place). The drive that gives the ceiling is
+  `V85(f) = 10^((85 − S(f)) / 20)` V. The element and its amplifier must deliver cleanly (within the THD
+  limit the selection sets) at least `V85(f) · 10^(H_P / 20)`, where `H_P = H_tol + H_seal + H_crest` covers
+  unit-to-unit calibration tolerance (`OI-AUDIOHW-11`), the seal shortfall between calibration and the worst
+  allowed seal, and the crest of the content (noise, isochronic edges). Current is the voltage divided by
+  the impedance magnitude at *f*.
+- **D2 — planar band.** The response must cover `[f_c − b, f_c + b]` for every authorable carrier `f_c`
+  and beat `b` (conservative: the HAL stub does not say how the two ears split the beat). At the shipped
+  carrier and the authorable limit this is 440 ± 100 Hz, that is 340–540 Hz; the EEG-adaptive maximum
+  (40 Hz) gives 400–480 Hz. Pink and brown noise add a band the record does not state (gap 2).
+- **D3 — bone force.** The element must deliver, on an IEC 60318-6 artificial mastoid at the static force
+  it runs at, a force level of at least `L_F,max(f_c) + H_B` dB re 1 µN at each carrier, where `L_F,max` is
+  `REQ-AUDIO-21`(b) and its figure is `OI-AUDIOHW-13`'s. In newtons that is `10^(L / 20)` µN. The drive is
+  then `V_B(f) = F_req(f) / K_F(f)`, with `K_F` the force per volt the vendor or the bench gives. `H_B` is
+  not set.
+- **D4 — bone band.** The bone path plays a tone at the carrier, so its band is the authorable carrier range
+  itself (gap 1), plus 150–880 Hz if the zone announcement stays. The breathing envelope needs no
+  transducer response below the carrier, but the drive electronics must pass a 0.067–0.117 Hz envelope
+  without a DC term reaching the element (`SEL-B06`).
+
+**A11.1 — planar magnetic driver (`SEL-P`)**
+
+| ID | Parameter the selection must specify | Derived relation or where the value comes from | What fails if it is not met | Traceable to |
+|---|---|---|---|---|
+| SEL-P01 | Impedance magnitude and phase versus frequency over the D2 band, with the unit-to-unit and temperature spread | Vendor curve, then bench. Current is `V85` over the impedance magnitude (D1) | The amplifier cannot supply the current for 85 dB SPL, or the amplifier location (`REQ-AUDIO-04a`) is chosen on a wrong load. Without a clean-unit curve and its spread, impedance cannot detect mesh fouling | `REQ-AUDIO-07`; `REQ-AUDIO-04a`; D1 |
+| SEL-P02 | Sensitivity at the ear, dB SPL per volt and per milliwatt, at each shipped carrier, mesh fitted, worst allowed seal | D1 gives `V85` from it | The driver cannot be calibrated to the absolute level the command states, so `REQ-AUDIO-19` bounds a number rather than a sound | `REQ-AUDIO-19`(c); `REQ-AUDIO-20`(b),(c); `OI-AUDIOHW-11` |
+| SEL-P03 | Frequency response over D2 with its tolerance, and left-right match in level and phase at the carrier | D2. The match tolerance is not set | Binaural content is built on the two ears receiving the commanded tones, so an unmatched pair delivers a different stimulus. A band that misses the carrier cannot play the protocol | `CLAUDE.md` §3 modality ⑦; `REQ-AUDIO-20`(b) (the same command sounds the same on any driver) |
+| SEL-P04 | Total harmonic distortion at 85 dB SPL at each shipped carrier and at the D2 band edges; the limit is **not set** | Vendor curve at the stated drive, then bench at the ear | At the ceiling the output is no longer the authored stimulus. A ceiling that refuses and never reshapes is defeated by a transducer that reshapes | `CLAUDE.md` §3 (a ceiling refuses, never reshapes); `REQ-AUDIO-19` |
+| SEL-P05 | Maximum continuous and peak drive (volts, watts, amperes) and the damage threshold of the diaphragm and its conductor, with the thermal limit in the cup | D1 headroom `H_P` must sit under this. Whether the hardware needs its own limit is `OI-AUDIOHW-12`'s: headroom enlarges the gap between what the hardware can output and the 85 dB it may | A command inside the ceiling, or a fault, destroys the driver. Too much headroom means the ceiling rests on Class B code alone | `REQ-AUDIO-19`; `OI-AUDIOHW-12`; §7 (acoustic overexposure) |
+| SEL-P06 | Linear excursion limit and low-frequency output at 85 dB SPL in pink and brown noise, with the content's band and crest factor stated by its owner (gap 2) | `H_crest` of D1 | The driver clips or bottoms out on the noise modes, which are shipped content | `docs/np_npps_ref_001.md` (`noise`); `REQ-AUDIO-19` |
+| SEL-P07 | Back-wave treatment: open, closed, or damped vent, and the acoustic resistance and compliance of the rear path | Fixes how much leak the driver itself adds to the front volume | A rear path that is a large designed leak makes the seal measurement read the vent instead of the foam | `REQ-AUDIO-16`; `REQ-AUDIO-14`; §6.4.7 |
+| SEL-P08 | Insertion loss of the silver-coated mesh in front of the driver at the carrier, clean and fouled | Adds to `S(f)` in D1; spread between mesh states is part of `H_tol` | The calibration holds with one mesh and not the next, and a user-replaceable part moves the delivered level | `REQ-AUDIO-05`; `REQ-AUDIO-07`; `REQ-AUDIO-20`(c) |
+| SEL-P09 | Magnetic stray field of the magnet assembly: static field versus distance, on the axis and at the temporal EEG sites, at the L2 mu-metal layer and at the fluxgate positions; **limit not set**, to be derived by EMC from the fluxgate input range and the EEG motion-artefact criterion | Vendor field plot, then bench. The fluxgate range is a part datasheet quantity not read in this task | A static offset on the fluxgate mis-sets the Helmholtz cancellation, a magnet near L2 changes its permeability state, and electrode or lead motion in a static field adds artefact to a µV recording | `CLAUDE.md` §4.3 (fluxgate, mu-metal); `NP-EMC-CAV-001` (audio is absent from its source table); `NP-BIB-EMF-001` §5.4 |
+| SEL-P10 | Time-varying emission: audio-frequency magnetic and electric field from the drive current at the carrier and its harmonics, and the amplifier's switching edges if it is class D | Depends on amplifier location (§8.2.4). The ADS1299 samples at 500 Hz and the carrier is 440 Hz, above its Nyquist rate, so what the converter's filter does to a 440 Hz interferer is an EMC question to answer from its datasheet | Carrier pickup in the EEG, aliased into the band the neurofeedback reads, in the modality that closes its loop on that EEG | `CLAUDE.md` §3 (ADS1299, 500 Hz); `NP-EMC-CAV-001` source analysis |
+| SEL-P11 | Mass, centre of mass and envelope (frame outer size and thickness around the 40 mm active diameter) | Vendor weight, then weigh the assembly. The mass budget is `OI-AUDIOHW-05`'s and does not exist | The assembly loads the fit system with an unbudgeted mass and the driver does not fit the cup | `REQ-AUDIO-02`; `CLAUDE.md` §4.4; §7 (mass and centre of mass); `OI-AUDIOHW-05` |
+| SEL-P12 | Sensitivity drift over temperature, humidity, sweat exposure and life, and how the drift is monitored | Vendor life data, then bench ageing | The calibrated map from `level_half_db` to sound drifts above 85 between verifications | `REQ-AUDIO-19`(c); `OI-AUDIOHW-11` |
+| SEL-P13 | Terminals, conductor gauge, polarity and strain relief of the driver's own leads | Fixed together with `OI-AUDIOHW-07` | The cup-to-hub connector cannot be chosen once across the head-worn accessories | `OI-AUDIOHW-07` |
+
+**A11.2 — bone-conduction element (`SEL-B`)**
+
+| ID | Parameter the selection must specify | Derived relation or where the value comes from | What fails if it is not met | Traceable to |
+|---|---|---|---|---|
+| SEL-B01 | Construction (bimorph, stack, diaphragm-coupled) and how it couples to the isolator | `REQ-AUDIO-03` fixes piezoelectric and a silicone isolator | The isolator, mounting and drive electronics are specified against nothing | `REQ-AUDIO-03` |
+| SEL-B02 | Force per volt `K_F(f)` in µN/V on an IEC 60318-6 artificial mastoid, at the static force it runs at, over the D4 band | D3 | The `REQ-AUDIO-21` ceiling cannot be calibrated or verified: a force level is the only unit it is stated in | `REQ-AUDIO-21`(a),(d); `REQ-AUDIO-20` |
+| SEL-B03 | Maximum clean force level at each carrier and the THD at it; limit **not set** | D3 with `H_B`. The reference electromagnetic vibrator is reported to distort strongly at low frequency, so this row is not a formality | The element cannot deliver `L_F,max` without distortion or a felt buzz, or only by running its drive at the limit | `REQ-AUDIO-21`; §5.2 (whether an element can deliver the ceiling cleanly is the element's characterisation) |
+| SEL-B04 | Static contact force and contact area at which B02 and B03 were measured, and `K_F` versus static force across the range the fit system can produce | Static force comes from the cup clamp (`OI-AUDIOHW-05`). The load dependence of output force is in the §8.2.3 sources | Output differs between wearers and heads with the same command, and the ceiling is verified on a load the product never sees | `REQ-AUDIO-21`(d); `OI-AUDIOHW-05`; `REQ-AUDIO-10` |
+| SEL-B05 | Mechanical resonance (free and loaded through the isolator) and its Q, relative to the carriers | Compared with D4 | A resonance near a shipped carrier makes force per volt vary steeply with the exact carrier, with temperature and with contact force | `REQ-AUDIO-21`(b) (the ceiling is a function of frequency) |
+| SEL-B06 | Capacitance versus frequency, dissipation factor, maximum drive voltage (peak), and the DC bias the element tolerates without depolarising | `V_B` from D3 against the rail. The zone-announce firmware already notes DC bias through the piezo | The drive stage cannot reach the force, or a DC term at stop or start damages the element and moves the device off its calibration | `REQ-AUDIO-21`; `np_zone_announce.h` (OI-ZA-04) |
+| SEL-B07 | Isolation of the drive voltage from the skin: dielectric withstand and leakage across the isolator and housing | Value comes from the drive voltage in SEL-B06 and the applicable patient-leakage limit, **not read here** | The assembly puts current into the wearer, which moves A11 into the §4.2 table and requires a safety-MCU enable line | `REQ-AUDIO-09`; `REQ-AUDIO-12` |
+| SEL-B08 | Isolator Shore durometer and thickness, and the loss factor of the silicone; **not set** | Material is `OI-AUDIOHW-06`'s | `K_F`, resonance and comfort depend on it, and a different silicone changes the calibrated force | `REQ-AUDIO-03`; `OI-AUDIOHW-06`; `REQ-AUDIO-21` |
+| SEL-B09 | Mass, mounting, and the contact pressure the clamp puts on the mastoid | A pressure limit for the mastoid is **not in the record** and is a question for human-factors | Discomfort or a pressure injury on a long session, and a bone path no one will keep seated | `CLAUDE.md` §4.4; `OI-AUDIOHW-05`; `REQ-AUDIO-10` |
+| SEL-B10 | Airborne sound the element radiates into the cup volume at the force ceiling | Measured with the in-cup microphone and the ear simulator | The planar ceiling and the seal measurement both see an uncounted source, and the two ceilings are not independent | `REQ-AUDIO-21`; `REQ-AUDIO-14`; `OI-AUDIOHW-13` item 3 |
+| SEL-B11 | Electric field from the drive conductors and the element, and for an electromagnetic class the static and alternating magnetic field, near the `A1`/`A2` reference pads and the temporal sites | Depends on drive voltage and cable routing (§8.2.4) | Pickup in the linked-ear reference degrades every EEG channel | `REQ-NET-19`; `NP-EMC-CAV-001` source analysis |
+| SEL-B12 | Termination and fatigue of the element's leads at the isolator, and drift of `K_F` with temperature, sweat and age | Vendor data, then bench | A lead fails in service, or the calibration drifts above the ceiling | `REQ-AUDIO-21`(d); `OI-AUDIOHW-07` |
+
+#### 8.2.3 Decision matrices — candidate technology classes
+
+**Reading rule.** Each cell is marked **cited** (a public source states it, URL in the key) or **reasoned**
+(derived here from physics or from the record, with no source). The cited sources are manufacturer and
+review pages, patents and clinical papers, not controlled comparisons, and **their pages were read as
+search-result summaries only; none was opened in full** (the session could not reach those hosts). A cited
+cell is a lead to check before it is relied on, not a datasheet value. Opening each source and recording what
+it says is part of the selection (§8.2.5, item 4).
+
+*Source key.* [S1] https://headphones.com/blogs/features/headphone-driver-types-explained ·
+[S2] https://www.campfireaudio.com/blogs/insights/iem-driver-types-balanced-armature-dynamic-planar ·
+[S3] https://theaudiostuff.com/glossary/planar-magnetic/ ·
+[S4] https://www.hifinews.com/content/mrspeakers-ether-2-headphones-lab-report ·
+[S5] https://www.hifidiprinzio.it/en/hi-fi-complements/headphones/meze-audio-meze-audio-empyrean.html (a manufacturer claim) ·
+[S6] https://patents.google.com/patent/US8107646 ·
+[S7] https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/11611836 ·
+[S8] https://vde-verlag.de/proceedings-de/456391050.html ·
+[S9] https://patents.google.com/patent/US7869610 ·
+[S10] https://patents.google.com/patent/US7376237 ·
+[S11] https://research.chalmers.se/en/publication/501681 (Radioear B71 and B81 on the mastoid) ·
+[S12] https://research.chalmers.se/en/publication/122966 (bone transducer output force and load condition).
+
+**A. Over-ear 40 mm transducer. Planar is the locked class** (`REQ-AUDIO-02`); the other two columns are shown for comparison only.
+
+| Property | Planar magnetic (locked) | Dynamic (moving coil) | Balanced armature |
+|---|---|---|---|
+| Distortion | Often described as lower, because the thin diaphragm carries its conductor and has no separate coil to break up — **cited** [S1][S3] | Can distort at high level from voice-coil movement — **cited** [S1] | Described as detailed, but limited in range as a single driver — **cited** [S1][S2] |
+| Mass and size | Heavier and larger because of large magnet arrays on a large diaphragm; lighter designs exist — **cited** [S1][S3][S4] | Lighter for the same class — **cited** [S1] | Very small; used mostly in-ear — **cited** [S1][S2]. A 40 mm over-ear role is not what the class is used for — **reasoned** |
+| Sensitivity and impedance | Often low impedance and low sensitivity, so it needs current rather than voltage; impedance nearly flat across frequency — **cited** [S3] | Typically less demanding of the amplifier — **reasoned**; described as less efficient by one source — **cited** [S1] | Not stated in the sources read |
+| Low-frequency output | Large diaphragm moves air at low frequency — **reasoned**; excursion limit at brown-noise level is the open question (gap 2) — **reasoned** | Deep bass is credited to the class — **cited** [S1] | Weaker at strong bass — **cited** [S1][S2] |
+| Stray magnetic field | Two magnet arrays around the diaphragm, so a field outside the cup that depends on the shielding plates — **reasoned**. One manufacturer claims its plates keep most of it off the head — **cited** [S5], a marketing claim, **not evidence**. Field magnitude is a vendor plot to request (§8.2.6) | One magnet and coil; smaller field source — **reasoned** | Small magnet near a small armature — **reasoned** |
+| Rear radiation | The back wave leaves through the magnet plate, so open-back is common and a closed back needs deliberate damping — **reasoned**. Bears on `REQ-AUDIO-16` | Back wave is usually sealed or vented behind the cone — **reasoned** | Sealed housing — **reasoned** |
+| Fit with `CLAUDE.md` §3 | **Locked** | Reopens §3 modality ⑦ | Reopens §3 modality ⑦ |
+
+**B. Bone-conduction element at the mastoid. Piezoelectric is the bound class** (`REQ-AUDIO-03`, from `docs/reference/modality-stack.md`). Choosing another reopens that row.
+
+| Property | Piezo (bound) | Electromagnetic vibrator (B71 type) | Balanced-armature-type vibrator |
+|---|---|---|---|
+| Low-frequency output | Practical piezo vibrators are reported to resonate around 1 kHz or higher, leaving low-frequency reproduction weak — **cited** [S6], a patent background statement, not a measurement; needs relatively higher voltage at low frequency — **cited** [S7]. **Every shipped bone carrier (200 and 440 Hz and the 150–880 Hz tones) is below that figure** — **reasoned** from the record | Output falls above 6–8 kHz; low frequency is its strength relative to piezo — **cited** [S7][S11] | Balanced design claims a lower resonance without added weight — **cited** [S9][S10], patents |
+| Distortion | Not stated for the shipped band in the sources read | The B71 is reported to produce high harmonic distortion at low frequency, the B81 substantially less — **cited** [S11] | Claimed lower than unbalanced vibrators — **cited** [S9], the patentee's claim |
+| Size and mass | Main advantage is a small, slim, light element — **cited** [S8] | Heavier; low-frequency response by adding mass — **cited** [S10] | Smaller than a conventional vibrator — **reasoned**; the sources read give no size |
+| Drive | Capacitive, so a voltage-driven high-impedance load; a high-voltage stage may be needed — **reasoned**; needs more voltage at low frequency — **cited** [S7] | Current-driven coil — **reasoned**; high current consumption — **cited** [S7] | Current-driven coil — **reasoned** |
+| Stray field and EMC | No magnet. High drive voltage and its edges couple capacitively — **reasoned** | Magnet and coil at the mastoid, beside the `A1`/`A2` reference pads; susceptible to environmental electromagnetic interference — **cited** [S7] | Magnet and coil, small — **reasoned** |
+| Reference role | None | The audiometric reference vibrator whose thresholds underlie the ISO 389-3 values the `REQ-AUDIO-21` ceiling is taken from — **cited** [S11] | None |
+| Load dependence | Output force depends on the load it drives, for every class — **cited** [S12]. The ceiling is stated on the artificial mastoid, not on a head | Same | Same |
+| Fit with the record | **Bound** by `REQ-AUDIO-03` | Reopens `REQ-AUDIO-03` | Reopens `REQ-AUDIO-03` |
+
+**The one finding the matrix raises.** The bound piezo class and the shipped bone content meet at the
+frequency where the cited evidence says piezo is weakest. That is **not** a finding that piezo fails: the
+sources are patents and a conference abstract, and a given element can be built for the band. It is a reason
+to measure `SEL-B02` and `SEL-B03` on candidate elements at 200 and 440 Hz **before tooling commits**, and
+to bring the result to the principal as the one case where the bound class might not reach the bound
+ceiling cleanly. If it does not, the options are a different element class (`REQ-AUDIO-03` reopened) or a
+carrier range for the bone path chosen to suit the element (gap 1). Neither is chosen here.
+
+#### 8.2.4 Interface questions the selection forces
+
+| # | Question | What the selection changes | Open item |
+|---|---|---|---|
+| Q1 | **Where the amplifiers sit** (`REQ-AUDIO-04a`): all in the hub, all in the cup, or planar in the hub and bone in the cup | A planar driver with low impedance and low sensitivity needs current (`SEL-P01`, `SEL-P02`), which a hub-side stage must carry down the cable (conductor gauge and loss, mass on the head). A piezo needs voltage (`SEL-B06`), so a stage that makes it needs a rail the hub PCB has not recorded. An in-cup stage puts power, heat and, if class D, switching edges beside the temporal EEG sites, where `NP-EMC-CAV-001` has no audio source and `REQ-AUDIO-09` says the cup delivers nothing to the wearer | `REQ-AUDIO-04a`; `OI-AUDIOHW-04` |
+| Q2 | **Cable conductors** | Per transducer class: planar drive pair per ear; one or two bone drive conductors; microphone signal, bias and return per cup if analogue, or clock and data if PDM; shield; and power and a digital link if any stage is in the cup. An analogue microphone line running beside a loaded planar line is a crosstalk case — **reasoned**. The conductor total follows from Q1 and is not counted here | `OI-AUDIOHW-07` |
+| Q3 | **Microphone type** | Analogue output adds no clock near the EEG but needs a preamplifier and a quiet routing; PDM adds a clock of the order of a megahertz (§6.4.6). Where the converter sits is Q1's answer | `OI-AUDIOHW-09` |
+| Q4 | **Hub codec channels** | At least two planar channels and one or two bone channels (gap 3), against a codec the hub document does not record. `REQ-AUDIO-11` forbids a design in which bone and planar share one channel | `REQ-AUDIO-11`; `NP-HW-HUB-001` (no audio section) |
+| Q5 | **Hardware limit behind the 85 dB** | `REQ-AUDIO-19` refuses in the compiler and the hub driver, both Class B. How far the hardware can exceed 85 dB (`H_P`) is a selection outcome, and whether a hardware limit is needed is an ISO 14971 decision | `OI-AUDIOHW-12` |
+| Q6 | **Tier landing** | A change to the cup's connector or conductor set lands on both tiers or neither | `REQ-UPG-03` |
+
+**Recommendation — awaiting the principal; nothing here is decided.**
+
+1. **Keep the cup free of amplification and clocks, and amplify in the hub** (Q1), *unless* the candidate
+   planar part turns out to need a current the cable cannot carry acceptably. Reasoning: the cup is
+   the one place that is both beside the temporal EEG sites and in contact with the wearer; every active
+   stage put there adds an EMC source the analysis has not yet counted (`SEL-P10`, `SEL-B11`) and, for the
+   bone element, a drive voltage one insulation fault from the skin (`SEL-B07`). The cost is a longer
+   analogue run, so the selection should **prefer the planar candidate with the higher sensitivity and
+   impedance**, which lowers cable current, over one chosen for other properties alone.
+2. **If the piezo needs a high-voltage stage, place that stage in the hub too,** and carry the voltage
+   on an insulated conductor to the element, rather than putting a converter at the mastoid. The
+   isolation row (`SEL-B07`) then specifies the element and cable, not a converter.
+3. **Choose the microphone's type after Q1,** analogue if the converter stays in the hub and PDM only if a
+   stage is in the cup anyway.
+4. **Measure before committing:** the two measurements that can change the class decision are
+   `SEL-B02`/`SEL-B03` at 200 and 440 Hz, and `SEL-P09` at the fluxgate and temporal sites.
+5. **Decide the carrier range and the noise band first** (gaps 1 and 2). They decide the bands in D2 and
+   D4 and the headroom in `SEL-P06`, and a selection made before them fixes a spec against content nobody
+   has bounded.
+
+#### 8.2.5 What is delivered, and what awaits a decision
+
+Delivered: the parameter tables (§8.2.2), the derived relations D1–D4, the class matrices with their source
+status (§8.2.3), the forced questions and a recommendation (§8.2.4) and the vendor request list (§8.2.6).
+**Awaiting the principal:** (1) the amplifier location (`REQ-AUDIO-04a`) and the choice of any part;
+(2) whether to bound the carrier range, and the noise band (gaps 1 and 2); (3) whether the bound piezo class
+stands if the §8.2.3 finding is borne out by measurement; and (4) opening the cited sources, which also
+belongs to the selection. **No register row is added:** this subsection sets no figure, so there is no
+choice without derivation to register. The first margin, distortion limit or stray-field limit chosen in a
+later revision adds its row in that change (`CLAUDE.md` §19).
+
+#### 8.2.6 Vendor datasheet quantities to request
+
+For **each planar candidate:** impedance magnitude and phase versus frequency, with tolerance · sensitivity
+(dB SPL per volt and per milliwatt, stated measurement method) · frequency response and its tolerance, and
+left-right match · THD versus level and frequency · rated and peak power, and the damage threshold ·
+diaphragm linear excursion · back-wave and venting construction, and a closed-back variant if one exists ·
+magnet material and grade, with a **stray-field plot** (static, versus distance, on and off axis) and the
+frame's ferromagnetic content · mass, centre of mass and outline drawing · operating temperature, humidity
+and sweat rating, and the sensitivity drift data over life · terminals and lead details.
+
+For **each bone candidate:** construction · force per volt on an IEC 60318-6 artificial mastoid at a stated
+static force and area, over the D4 band, and force-versus-static-force data · maximum force level
+and THD at it · free and loaded resonance and Q · capacitance versus frequency and dissipation factor (or,
+for an electromagnetic type, coil impedance) · maximum drive voltage or current and the DC bias limit ·
+dielectric withstand and leakage of the housing · mass and outline · airborne radiation if measured ·
+magnetic field plot (electromagnetic types) · operating and ageing data · lead termination details.
+
+For **both:** whether the vendor has measured the part on the IEC 60318-4 and 60318-6 couplers and will
+supply the raw curves, not only the datasheet summary, and the lot-to-lot spread.
+
 ---
 
 ## 9. Open items
@@ -597,16 +979,16 @@ Against `NP-FAI-001` §2:
 | **OI-AUDIOHW-01** | **DECIDED 2026-11-09 (principal, Rev 6): 85 dB SPL at the ear on the planar path, absolute scale, level ceiling only — bound as `REQ-AUDIO-19`/`-20` (§5.1).** No exposure-duration or daily-dose model, because the device cannot know exposure outside sessions. Succeeded by `OI-AUDIOHW-11` (calibration and verification at the ear) and `OI-AUDIOHW-12` (check the citations). **As raised:** no acoustic output ceiling existed, and `volume_pct` was an uncalibrated 0–100 wire field. The in-cup microphone (`REQ-AUDIO-14`) gives a measured in-cup level per wearer and fit (§6.4.2), not at the eardrum and blind to bone conduction; the ceiling also bounds the seal probe tone | Systems + Clinical | — (decided) |
 | **OI-AUDIOHW-02** | **DECIDED as a rule 2026-11-09 (principal, Rev 7): the bone path is held to the same hearing level as the planar path, stated as an absolute force level in dB re 1 µN on an IEC 60318-6 artificial mastoid — bound as `REQ-AUDIO-21` (§5.2).** The figure and the wire field are `OI-AUDIOHW-13`. No firmware gating in the interim: the bone HAL is an unbuilt stub and no element is selected. **As raised:** no bone-conduction drive ceiling existed, and an air-conduction limit does not transfer to it unexamined | Systems + Clinical | — (decided; figure `OI-AUDIOHW-13`) |
 | **OI-AUDIOHW-03** | **The mesh frame's 40 dB RF figure is a shielding claim outside the audited stack (§6.3)** — absent from `CLAUDE.md` §4.3, from `docs/reference/hardware-detail.md` §4.3, from `NP-BIB-EMF-001`'s per-layer audit and from `NP-DT-001` `DI-PERF-22` — on a **user-replaceable** part whose fouling trigger is unimplemented (`OI-ACC-05`). Decide whether it is a programme claim or a supplier figure, and stop quoting it beside audited ones either way | Systems + EMC | Shielding claim integrity; `NP-BIB-EMF-001` completeness |
-| **OI-AUDIOHW-04** | Select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* exists | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
+| **OI-AUDIOHW-04** | **SELECTION PACKAGE READY (§8.2); part selection awaits the principal.** Done: the parameters a selection must fix for each transducer, each with what fails and its trace (`SEL-P01`–`P13`, `SEL-B01`–`B12`); derived relations D1–D4 from decided figures (85 dB SPL, `REQ-AUDIO-21`, the shipped carriers); class matrices marked cited or reasoned, with the locked classes marked as locked; the interface questions (amplifier location, cable, microphone, codec channels) and a recommendation labelled as awaiting the principal; and the vendor request list. **Not done, and not decided here:** no part or class is chosen, no value set, no margin chosen, the cited sources were read as search summaries only, and three gaps need a decision first — the authorable carrier range is unbounded, the noise band is unstated, and the codec channel count is unrecorded. **As raised:** select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* existed | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
 | **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
 | **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact) | ME + Quality | Hazard analysis; T1 release |
 | **OI-AUDIOHW-07** | Select the cup-to-hub cable, connector and strain relief. The same connector gap `NP-HW-TCAP-001` §8 records for the T2 cap and `NP-HW-VNSCLIP-001` §8 for the clip — worth deciding **once** across the head-worn accessories rather than three times | EE + ME | A11 tooling |
 | **OI-AUDIOHW-08** | **DECIDED 2026-09-24 (principal, Rev 4) — option B: one in-cup microphone per side, measurement only, no anti-noise; bound as `REQ-AUDIO-14`–`16` (§3.1); succeeded by `OI-AUDIOHW-09` and `-10`.** Analysed in Rev 3 (§6.4), recommendation B. The measurement needs the microphone, not the noise cancelling (§6.4.1); the microphone is also the only route found to a measured level for `OI-AUDIOHW-01` (§6.4.2); anti-noise sits in the band of every shipped carrier (§6.4.3), adds output and instability hazards (§6.4.4), and needs a low-latency loop the hub's SAI/DMA path cannot provide, which would decide `REQ-AUDIO-04a` by force (§6.4.5); bystander audio has no consent subject, so raw audio must be excluded structurally (§6.4.6); and no requirement states what ambient noise costs a session, so under `CLAUDE.md` §18 nothing yet requires anti-noise (§6.4.8). **As raised:** **Add noise cancelling with an in-cup (feedback) microphone, or decide not to.** Intended for session quality; also the only measurement found for the foam's loss of seal (`OI-ACC-04`, §6.1) and a candidate for mesh fouling if the mic sits on the ear side of the mesh (`OI-ACC-05`, §6.2). **It reverses a property the record states — there is no microphone anywhere in the design** — so it carries: a privacy decision (on-device processing only, a seal score out, no audio stored; the score depends on the wearer's head and is presumptively UHDR); an acoustic-safety one (anti-noise adds output and can howl when the seal breaks, which makes `OI-AUDIOHW-01` more pressing); and placement, cable and power consequences for `OI-AUDIOHW-05` and `-07`. Microphones put no current, light or field into the assembly, so `REQ-AUDIO-12` is not triggered | EE + Acoustic + Privacy | — (decided) |
 | **OI-AUDIOHW-09** | **Select the in-cup microphone** (`REQ-AUDIO-14`). Decide analogue vs digital (PDM) output knowing that a PDM part runs a clock of the order of a megahertz beside the temporal EEG sites and is a new source for `NP-EMC-CAV-001`'s analysis; confirm the hub codec (`NP-HW-HUB-001`) has an input per cup; add the microphone conductors to `OI-AUDIOHW-07`'s cable; fix the position within the front volume, and decide whether it goes on the ear side of the mesh (only `OI-ACC-05`'s candidate needs that). The cable change is a module interface under `REQ-UPG-03` and lands on both tiers | EE + Acoustic + EMC | A11 tooling; `OI-ACC-04` closure |
 | **OI-AUDIOHW-10** | **Implement the seal measurement in firmware.** Microphone HAL (a new entry beside `OI-AUDIO-01…08`), the probe signal and its level (bounded by `OI-AUDIOHW-01`), the powered capture window, reduction to a seal score, and `REQ-AUDIO-15`'s containment: decide whether a CI gate in the manner of `scripts/check-redaction-shape.ts` enforces that no sample leaves the reduction call. The dB criterion is `OI-ACC-04`'s, not this item's | FW + Privacy | `OI-ACC-04` closure |
-| **OI-AUDIOHW-11** | **Calibrate and verify the 85 dB SPL ceiling at the ear** (`REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c)). Nothing yet maps `level_half_db` to a driver, because no driver is selected (`OI-AUDIOHW-04`): the HAL stubs trap. Decide the measurement (an ear simulator such as IEC 60318-4, and what the in-cup microphone adds, §6.4.2), the cup-to-eardrum correction, the unit-to-unit tolerance the calibration must leave under 85, and whether a carrier above 1 kHz needs a lower ceiling (§5.1, weighting) | EE + Acoustic | T1 release; `NP-FAI-AUDIO-001` |
-| **OI-AUDIOHW-12** | **Check the §5.1 citations against the standards' texts** (NIOSH 98-126, WHO–ITU H.870, IEC 62368-1 cl. 10.6, EN 50332, Directive 2003/10/EC) **and the §5.2 bone standards** (ISO 389-3, IEC 60318-6, IEC 60645-1 cl. 6.1.5, ISO 389-1/-7). Carried from published summaries; the IEC/EN texts are paywalled. Also decide whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path) — an ISO 14971 decision for `OI-RISK2-02` | Systems + Regulatory | Hazard analysis |
-| **OI-AUDIOHW-13** | **Compute the bone ceiling and give it a field** (`REQ-AUDIO-21`). (1) Read the ISO 389-3 mastoid values and the ISO 389-1/-7 air values at the carrier frequencies and compute L_F,max in dB re 1 µN; the figure then goes in `REQ-AUDIO-21` and, if it is a limit chosen rather than derived, in the register (`CLAUDE.md` §19). (2) Add a bone level to the wire: today `np_mod_audio_hal_bone_set` receives the planar `level_half_db`, which is not a bone level. Decide the field's unit and width (force level in dB re 1 µN needs its own `np_mod_audio_params_t` field and a descriptor change on both tiers, `REQ-UPG-03`), and enforce the ceiling in the compiler and the hub driver by refusal. (3) Decide the combined case when both paths play. (4) Verify on a built unit (`OI-AUDIOHW-04`, `OI-AUDIOHW-11`). `OI-AUDIOHW-12`'s citation check covers the standards named in §5.2 | Systems + Acoustic + FW | T1 release; before the bone HAL is implemented |
+| **OI-AUDIOHW-11** | **PART DECIDED on paper 2026-11-09 (the method, §5.3); the measurement and the margin's size stay OPEN because no driver is selected (`OI-AUDIOHW-04`).** **Decided:** the ceiling is verified and the level-to-drive table measured at the eardrum point of an ear simulator, per unit and per cup, never at a coupler or the in-cup microphone (`REQ-AUDIO-22`); the in-cup microphone is a factory reference reading and a field indicator only, and **no cup-to-eardrum correction exists or is needed** because nothing enforces the ceiling from it; the command ceiling is C = 85 − M with M the arithmetic sum of m1 (simulator chain), m2 (table representation) and m3 (drift), quantisation held to zero by rounding down (`REQ-AUDIO-23`); the table is SHDR-class, bound to its chain, fails closed and is written only at factory or service (`REQ-AUDIO-24`); the A-weighting question is answered by computation from the IEC 61672-1 formula (−4.10 dB at 440 Hz, +1.27 dB at about 2.5 kHz) and by a bound of 1,000 Hz on every tone frequency rather than a frequency-dependent ceiling (`REQ-AUDIO-25`). **Open:** (1) measure a built unit: the sizes of m1, m2 and m3, and so M (`UC-133`); the shipped 85 is a zero-margin stand-in until then; (2) choose the exact simulator standard and configuration for a circumaural cup against the standards' text (candidates IEC 60318-4 with a pinna simulator, IEC 60318-1; both carried from memory, `OI-AUDIOHW-12`); (3) ~~the principal confirms `REQ-AUDIO-25`~~ **confirmed 2026-11-09 (principal), for now** (§5.3.1); revisit if researchers need a tone above 1 kHz, by the frequency-dependent ceiling derived there; (4) implement the 1,000 Hz refusal in the compiler and hub driver, and the calibration record and its fail-closed check; (5) whether the record is signed or only CRC-bound is an ISO 14971 decision (`OI-RISK2-02`, with `OI-AUDIOHW-12`), and signing would be a Rust primitive (`CLAUDE.md` §22); (6) simulator-to-wearer difference is unbounded by any factory measurement and is assumed (`UC-134`); (7) the ISO 389 air reference in `REQ-AUDIO-21`(b) is stated for a particular coupler or simulator, and the planar 85 and that reference must be on the same one or differ by the standard's own figure (`OI-AUDIOHW-13`); (8) peak (impulsive) level is not bounded here. **As raised:** calibrate and verify the 85 dB SPL ceiling at the ear (`REQ-AUDIO-19`(c), `REQ-AUDIO-20`(b),(c)); nothing maps `level_half_db` to a driver and the HAL stubs trap | EE + Acoustic | T1 release; `NP-FAI-AUDIO-001` |
+| **OI-AUDIOHW-12** | **NARROWED 2026-11-09 (not closed).** Checked against public excerpts: NIOSH 98-126 (85 dBA, 8 h, 3 dB) **verified**; WHO–ITU 80 dB(A)/40 h adult **verified**, and H.870 has a 2022 edition superseding 2018; Directive 2003/10/EC Art. 3 (85 dB(A), 140 Pa) **verified**; IEC 60318-6:2007 title and number **verified**; ISO 389-3:2016 title and scope **verified**. **Corrected:** the claim that EN 50332 treats 85 dB(A) as the normal maximum was unsupported and is withdrawn (§5.1). **Remains open:** (1) the IEC 62368-1 cl. 10.6 and EN 50332-1/-2/-3 texts (paywalled) and the RS1/RS2 wording, only summaries were read; (2) IEC 60645-1:2017 cl. 6.1.5 number and content; (3) ISO 389-1/-7 values and whether either fits a circumaural cup, and the ISO 389-3 values (`OI-AUDIOHW-13`); (4) a re-read of the NIOSH, WHO–ITU and Directive texts at their own hosts, since those were unreachable from the checking environment; (5) whether the hazard control sits in Class B code alone or needs more (the ceiling is enforced in compiler and hub driver, both outside a Class C path), an ISO 14971 decision for `OI-RISK2-02` **Also open, added by `OI-AUDIOHW-11` (§5.3):** (6) the IEC 61672-1 A-weighting formula and constants (computed from memory of the public formula), and (7) the ear-simulator standards IEC 60318-4 and IEC 60318-1, both carried from memory. | Systems + Regulatory | Hazard analysis  |
+| **OI-AUDIOHW-13** | **Compute the bone ceiling and give it a field** (`REQ-AUDIO-21`). **State 2026-11-09: part 1 attempted and still open; part 2 not changed, options below; part 3 recommended, not decided; part 4 open (hardware).** **(1) The figure.** Needs two values at 500 Hz: the ISO 389-3 mastoid RETVFL (dB re 1 µN) and the ISO 389-1/-7 RETSPL (dB re 20 µPa) for the air reference that matches the cup. A public-web search found no source that states either with a citation (only standard titles, scope and terminology, and an unverified remark that the 1998 RETFL values carry into the 2016 RETVFL), and the sources that might hold the tables were not reachable from the session (their hosts are outside its allowed network). **Nothing was computed.** To close: someone with the standards (ISO 389-3:2016 and ISO 389-1:2017 or ISO 389-7) reads the two 500 Hz values, **and** says which air reference applies (supra-aural, circumaural or insert, and which coupler: `OI-AUDIOHW-11` chooses the measurement point, §5.1), then L_F,max = RETVFL + (85 − RETSPL). A value read from a secondary source goes in marked *carried from a secondary source, not checked against the standard*, with its URL, and stays in the register (`CLAUDE.md` §19) until `OI-AUDIOHW-12` checks it. The 440 Hz carrier sits between standard frequencies; using the 500 Hz row is a choice to state, and once the neighbouring rows (250 Hz and 500 Hz) are both read, compute L_F,max at each and say which is used. **(2) The wire: not changed, and why.** `np_mod_audio_hal_bone_set` still receives the planar `level_half_db`, which is not a bone level (§4). Adding the field is mechanically small on the firmware side and **not well-bounded as a change**: it touches `np_mod_audio_params_t` (8 bytes today, `NP-FW-HUB-001` §4.6) and `encode_audio`, the two golden files, the simulator runtime bundle, and the authoring layer, because a bone level has no protocol key yet (`boneConductionPacer` is a boolean in `common/npps/fields.json`, `NP-NPPS-REF-001`, and the parsers, editors and fixtures of six platforms read it). It also cannot be enforced without part 1's figure, so a field added now would carry a level with no ceiling behind it, which `REQ-AUDIO-21`(c) does not allow. Principal decisions needed, with the recommendation: **(a) Unit and width.** Recommended: one new little-endian `uint16` `bone_level_half_db`, 2 × force level in dB re 1 µN, 0 meaning bone off, mirroring `level_half_db` (`REQ-AUDIO-20`); whether a `uint8` would do depends on the figure, which is not known, so do not choose the narrow one before it is. **(b) What happens to `bone_conduct_en`.** Recommended: it is removed and a non-zero `bone_level_half_db` is the enable, so no descriptor can say *on* without saying *how loud*; the block grows from 8 to 9 bytes. **(c) Version.** The precedent is Rev 27 of `NP-FW-HUB-001` (the VNS block widened, `NP_HUB_PROTO_VERSION` not bumped, because `REQ-FWHUB-10`: no descriptor has shipped): an old 8-byte block is refused by `len < sizeof`, which fails closed. Recommended: the same, on both tiers (`REQ-UPG-03`). **(d) Authoring.** Who sets the bone level: a fixed value per protocol (a new `.npps` key, `NP-NPPS-REF-001` Rev bump, and the compiler refuses above L_F,max before signing), or derived from the protocol's air level at equal hearing level by the compiler. Recommended: an authored key, because the compiler's derived value would hide the bone level from the protocol's author, which `REQ-AUDIO-20` forbids. **(e) Interim.** Option A: leave as is (the principal chose record-only on 2026-11-09). Option B: **refuse `bone_conduct_en = 1` in the compiler and the hub driver until the field and figure exist**, so no unleveled bone output can be commanded; this removes the breathing cue from every protocol that uses it, which is why it is not done without a decision. **(3) The combined case (both paths playing): recommendation, not a decision.** The two ceilings are each a hearing level of 85 dB, and both stimuli reach the same cochlea, so at one frequency they add; two independently legal commands can exceed the intended hearing level. Options: **(i)** each path to its own ceiling and nothing more (the Rev 7 text); the worst case is an in-phase sum of two equal contributions, **6 dB** above one (20 log10 2, arithmetic and not an invented limit), and phase between a cup driver and a mastoid vibrator is not controlled; **(ii)** a combined ceiling in hearing level, refusing a command whose two path levels, each expressed as hearing level, sum in amplitude above 85 dB HL (20 log10 of the sum of 10^(HL/20)); it adds no constant, reduces to the single-path ceilings when one path is off, and is conservative because it assumes coherent addition; **(iii)** forbid both at once (bone only when the planar level is 0), the simplest and also removes the breathing cue during a binaural session, which is the shipped use. **Recommended: (ii)**, enforced in the compiler and the hub driver by refusal, once part 1 gives each path its hearing level; (i) only if the principal accepts a 6 dB worst case on the hearing-level ceiling. **(4) Verify on a built unit** (`OI-AUDIOHW-04`, `OI-AUDIOHW-11`): hardware, out of scope here and open. `OI-AUDIOHW-12`'s citation check covers the standards named in §5.2 | Systems + Acoustic + FW | T1 release; before the bone HAL is implemented |
 
 > **On the `OI-AUDIOHW-` prefix.** `OI-AUDIO-01…08` is already in use, in
 > `firmware/hub_control/modules/np_mod_audio.c`, for the audio **HAL stubs**. Open-item IDs are
@@ -639,3 +1021,4 @@ Against `NP-FAI-001` §2:
 | 5 | 2026-11-09 | NeurOne Firmware Engineering | **REQ-AUDIO-17 and REQ-AUDIO-18 added (OI-SIMFW-19).** Volume range 0-100 enforced by refusal; band update gated on binaural mode. No figure set. |
 | 6 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §4, §5.1, §9: OI-AUDIOHW-01 decided (principal): 85 dB SPL at the ear, level ceiling only with no dose model; REQ-AUDIO-19 and REQ-AUDIO-20 (absolute scale); raises OI-AUDIOHW-11 (calibration at the ear) and OI-AUDIOHW-12 (check the cited standards).** |
 | 7 | 2026-11-09 | NeurOne Systems Engineering | **§3.1, §5, §5.2, §7, §9: OI-AUDIOHW-02 decided as a rule (principal): REQ-AUDIO-21, bone ceiling at equal hearing level in dB re 1 µN on an artificial mastoid, refused never clamped; the figure is not stated because the ISO 389-3 and ISO 389-1/-7 tables were not readable; raises OI-AUDIOHW-13. No firmware, figure or constant changed.** |
+| 8 | 2026-11-09 | NeurOne Systems Engineering | **§5.1, §5.2, §5.3, §8.2, §9: OI-AUDIOHW-12 narrowed (NIOSH, WHO-ITU, Directive 2003/10/EC, IEC 60318-6 and ISO 389-3 verified from public excerpts; the claim that EN 50332 treats 85 dB(A) as the normal maximum withdrawn; paywalled texts stay open). OI-AUDIOHW-11 part decided: new §5.3 and REQ-AUDIO-22 to -25 (ear-simulator verification per unit and cup, guard band of named terms with open sizes, SHDR-class fail-closed calibration table, A-weighting computed and every tone frequency bounded at 1,000 Hz, confirmed by the principal for now with the reasoning and the route to revisit in new §5.3.1; UC-133, UC-134). OI-AUDIOHW-13: no cited source for the 500 Hz values so nothing computed, wire options and a combined-path recommendation recorded. OI-AUDIOHW-04: new §8.2 selection package (SEL-P01-P13, SEL-B01-B12, relations D1-D4, matrices, interface questions, vendor list), no part selected. No firmware, constant or limit changed.** |

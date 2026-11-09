@@ -325,9 +325,9 @@ export const SCRIPTS = {
 // and the safety MCU's own sources decide what follows.  Nothing in this table says what a fault should do, so a recovery that the
 // firmware does (a heartbeat loss ends on the first live beat) or does not do (a latched fault) is the firmware's, and the table
 // follows it when the firmware changes.  Every entry is a list of FW_COMMANDs the bridge validates.
-const FAULT_RUN_MS = 3000;            // long enough for the longest detector to act (the 1.5 s heartbeat watchdog, the 2 s tick check); UC-133
-const FAULT_BAD_FRAMES = 10;          // how many heartbeat frames or command frames arrive damaged; UC-133
-const FAULT_OPEN_OHM = 1000000;       // a contact that has come away; far outside the impedance window; UC-133
+const FAULT_RUN_MS = 3000;            // long enough for the longest detector to act (the 1.5 s heartbeat watchdog, the 2 s tick check); UC-135
+const FAULT_BAD_FRAMES = 10;          // how many heartbeat frames or command frames arrive damaged; UC-135
+const FAULT_OPEN_OHM = 1000000;       // a contact that has come away; far outside the impedance window; UC-135
 const run = (ms) => fw('safety_run', { ms, state: TEST_AID.runningState });
 const NEEDS = Object.freeze({ ANY: 'any', ATTACHED: 'attached', UNATTACHED: 'unattached' });
 
@@ -370,7 +370,7 @@ export const FAULTS = Object.freeze([
     title: 'The cranial NTC reads hotter than the 62 C row of the MCU\'s table', script: () => SCRIPTS.thermal(TEST_AID.hotAdcCounts),
     clear: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
   { id: 'ntc_open', group: 'Sensors', label: 'NTC reads open', needs: NEEDS.ATTACHED,
-    title: 'The cranial NTC reads as an open sensor (the HAL\'s unset reading, 4095 counts). In the firmware as built this is not detected: see OI-SIMFW-37', script: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
+    title: 'The cranial NTC reads as an open sensor (the HAL\'s unset reading, 4095 counts). In the firmware as built this is not detected: see OI-SIMFW-41', script: () => SCRIPTS.thermal(TEST_AID.coldAdcCounts) },
   { id: 'contact_lost', group: 'Sensors', label: 'Electrode contact lost', needs: NEEDS.ATTACHED,
     title: 'The chosen channel\'s contact impedance goes far outside the window. The MCU checks contact at session start, so use this before the first Beat; later it has no effect (np_impedance_check.c has no re-check)',
     script: (channel = 0) => [...SCRIPTS.contact(channel, FAULT_OPEN_OHM), run(FAULT_RUN_MS), fw('status')],
@@ -403,7 +403,7 @@ export const FAULTS_UNAVAILABLE = Object.freeze([
  * decides what follows.  Capped at one harness call (the bridge's run limit).  Not a loss of power to this computer, which nothing
  * on a page can observe, and which would stop the simulation.
  */
-export const OUTAGE_MIN_MS = 1500;     // the MCU's own watchdog period: a shorter outage would not be one; UC-133
+export const OUTAGE_MIN_MS = 1500;     // the MCU's own watchdog period: a shorter outage would not be one; UC-135
 export const OUTAGE_MAX_MS = 60000;
 export function outageScript(lostAtWallMs, backAtWallMs) {
   const ms = Math.min(OUTAGE_MAX_MS, Math.max(0, Math.round(backAtWallMs - lostAtWallMs)));
