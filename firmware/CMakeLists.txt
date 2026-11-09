@@ -109,6 +109,7 @@
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#                             → np_mod_eeg_tests          (OI-SIMFW-16 EEG lost stop reported and retried)
 #                             → np_mod_vns_tests          (OI-SIMFW-17 VNS contact confirmation, non-finite impedance)
 #                             → np_mod_visual_tests       (OI-FWHUB-26 goggle Hall edge interrupt)
 #                             → np_module_registry_tests  (OI-FWHUB-16 accessory rescan)
@@ -444,6 +445,11 @@ if(NP_BUILD_TESTS)
 
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt (NP-FW-HUB-001 §8.6).
     # OI-SIMFW-17 / REQ-VNSC-07: the auricular VNS driver refuses a non-finite impedance.
+    # OI-SIMFW-16 / REQ-FWEEG-01: the EEG driver reports a lost stop and retries it.
+    add_test(NAME np_mod_eeg_tests
+        COMMAND np_mod_eeg_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_mod_vns_tests
         COMMAND np_mod_vns_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

@@ -17,9 +17,10 @@
  *   dominant band      the first band with the highest power among the five the scenario set.  The seam says
  *                      "dominant" and nothing else; this is the obvious reading of it, and the gap list says so.
  *
- * What an injected response means here.  Four of the eight seams return nothing or a byte, so a response code
- * cannot be carried back.  An armed response makes the CALL not happen: a write is dropped, a start or stop is
+ * What an injected response means here.  Three of the eight seams return nothing or a byte, so a response code
+ * cannot be carried back.  An armed response makes the CALL not happen: a write is dropped, a start is
  * ignored, a calibration does not run, and a read returns 0.  Each is reported as injected with the code.
+ * A stop returns the code (OI-SIMFW-16), so the driver sees the lost stop.
  */
 #include "np_sim_bus.h"
 
@@ -87,17 +88,18 @@ void np_mod_eeg_hal_start_continuous(void)
     np_sim_report_hal(m, NP_SIM_OP_EEG_START, "[]", (int)NP_HUB_OK, "default");
 }
 
-void np_mod_eeg_hal_stop_continuous(void)
+np_hub_status_t np_mod_eeg_hal_stop_continuous(void)
 {
     np_sim_module_t *m = resolve("eeg_stop");
-    if (m == NULL) { return; }
+    if (m == NULL) { return NP_HUB_ERR_NOT_PRESENT; }
     int code;
     if (np_sim_take_response(m, NP_SIM_OP_EEG_STOP, &code)) {
         np_sim_report_hal(m, NP_SIM_OP_EEG_STOP, "[]", code, "injected");
-        return;                             /* a lost stop: the converter keeps running */
+        return (np_hub_status_t)code;       /* a lost stop: the converter keeps running */
     }
     m->eeg_running = false;
     np_sim_report_hal(m, NP_SIM_OP_EEG_STOP, "[]", (int)NP_HUB_OK, "default");
+    return NP_HUB_OK;
 }
 
 float np_mod_eeg_hal_read_impedance(uint8_t ch)
