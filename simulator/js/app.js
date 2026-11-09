@@ -14,6 +14,7 @@ import { UIManager }    from './ui.js';
 import { PROTOCOLS, loadLibrary } from './vendor/npps-runtime.js';
 import { DeviceAPI }    from './api.js';
 import { SimModuleRegistry } from './simmodule.js';
+import { SafetyPanel } from './safety-panel.js';
 import { accessoryStates } from './accessories.js';
 import { AccessoryWindows } from './acc-windows.js';
 import { SIM_VERSION }  from './version.js';
@@ -163,7 +164,9 @@ class NeurOneSimulator {
         this._simModules.onMessage(msg, this._wallNow ?? 0);
         const el = document.getElementById('fw-banner');
         if (el) el.textContent = this._simModules.banner();
+        this._safetyPanel?.render();
       },
+      onError: (msg) => { if (typeof msg.code === 'string' && msg.code.endsWith('FW_MESSAGE')) this._safetyPanel?.showError(`Refused by the bridge: ${msg.message}`); },
       onSessionStart: (descriptor) => {
         const id = descriptor.protocolId;
         if (id && PROTOCOLS[id]) {
@@ -189,6 +192,9 @@ class NeurOneSimulator {
       },
       onAccessoryChange: (name, on) => { this._demo[name] = on; },
     });
+    // The safety MCU's state and a small test aid that plays the heartbeat task and the app (NP-SIM-FW-001 §23)
+    const root = document.getElementById('safety-panel');
+    if (root) this._safetyPanel = new SafetyPanel(root, { registry: this._simModules, send: (m) => this._api.sendFirmware(m) });
   }
 
   _initUI() {

@@ -108,11 +108,6 @@ void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
                 (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
 }
 
-/* The owner's cardiac cutoff sensitivity (np_cardiac_sens.c, which needs the config store and the GATT table, neither in
- * the loop): np_mod_cvns.c reads it when it reports the heart rate.  0 is the cutoff as validated.  A double of
- * first-party code, listed as a gap. */
-uint8_t np_cardiac_sens_level(void) { return 0U; }
-
 /* The runner is not in the loop.  np_mod_visual.c's halt_for() (the photoparoxysmal detector's halt) asks it to hold the
  * session PAUSED with the detector's cause; the simulator reports the request and does nothing else, so a halt shows as
  * what the driver did (LEDs off, enable dropped, further commands refused) plus the hold it asked for.  A double of

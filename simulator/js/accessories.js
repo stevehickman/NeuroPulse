@@ -53,8 +53,9 @@ export const WINDOW_ACCESSORIES = Object.freeze(ACCESSORIES.filter((a) => a.moun
 
 /** In use, from the firmware's modules of one kind. The cervical VNS counts from its session being active, not only its enable. */
 function firmwareInUse(kind, modules) {
-  if (kind === 'cvns') return modules.some((m) => m.driven || m.detail?.active === true);
-  return modules.some((m) => m.driven);
+  // drawnDriven: commanded by the hub and, while the safety MCU is in the loop, granted by it (REQ-SIMFW-07, REQ-SIMFW-15)
+  if (kind === 'cvns') return modules.some((m) => m.drawnDriven || m.detail?.active === true);
+  return modules.some((m) => m.drawnDriven);
 }
 
 /**
