@@ -43,3 +43,7 @@ Main firmware (i.MX RT1062, Class B)
 Class C scope
 Safety MCU host tests (Class C)
 Cross-build and link (STM32G071, Cortex-M0+, Class C)
+
+# simulator-ci.yml — firmware in the loop, host only
+Simulator scope
+Simulator build and tests (host only)

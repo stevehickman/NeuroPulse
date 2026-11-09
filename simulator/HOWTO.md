@@ -1044,7 +1044,8 @@ binary.
 
 The simulator's tests run in CI, in `.github/workflows/simulator-ci.yml` (job "Simulator build and tests (host only)"), on
 every pull request that touches `firmware/`, `simulator/` or that workflow. They are development tests, **not verification
-evidence** (`REQ-SIMFW-06`), and they are not in the device's host-test partition (`ci/host-test-partition.txt`). To run
+evidence** (`REQ-SIMFW-06`), and they are not in the device's host-test partition (`ci/host-test-partition.txt`). The two jobs are required status checks
+(`ci/required-checks.txt`), so a pull request that breaks the simulator's build or its tests does not merge. To run
 what the job runs, from the repository root:
 
 ```bash
