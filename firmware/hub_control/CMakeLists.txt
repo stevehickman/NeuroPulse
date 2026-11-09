@@ -347,6 +347,21 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_mod_vns_tests PRIVATE m)
 
+    # OI-SIMFW-16 / REQ-FWEEG-01: the EEG driver reports a lost stop and keeps its
+    # recording flag so the next stop retries (NP-FW-HUB-001 §8.2).  np_mod_eeg.c is
+    # linked real; the HAL is a double.
+    add_executable(np_mod_eeg_tests
+        tests/np_mod_eeg_tests.c
+        modules/np_mod_eeg.c
+    )
+    target_include_directories(np_mod_eeg_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
+    target_compile_options(np_mod_eeg_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_mod_eeg_tests PRIVATE m)
+
     # OI-FWHUB-26 / REQ-FWHUB-21: the goggle Hall edge interrupt, the enable
     # window it can land in, and the telemetry backstop (NP-FW-HUB-001 §8.6).
     add_executable(np_mod_visual_tests
