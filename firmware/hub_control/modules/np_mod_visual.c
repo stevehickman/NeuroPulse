@@ -214,31 +214,48 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo |
                                     ((uint16_t)(p->zone_mask_hi & 0x0FU) << 8));
 
+    /* OI-SIMFW-20: the status of every LED command is checked.  A command that did not land leaves the LEDs in a state the
+     * session did not author, so the call fails closed: everything the call may have started is stopped, no enable is
+     * requested, the session is not marked active, and the HAL's status goes back to the caller.  Nothing is reshaped or
+     * retried; the protocol is the protocol's. */
+    np_hub_status_t led_rc = NP_HUB_OK;
+
 #if NP_MODE_F_REGULATORY_CLEARED
     /* Mode F: NIR retinal PBM — gated on RISK-03 Q-13 regulatory opinion.
      * 808-830nm at ≤ MPE, runs concurrently with photic; wl=1 (808nm) only. */
     if (p->mode_f_enable) {
-        (void)np_mod_visual_hal_led_set(zone_mask, 1U, 0U, 10U); /* CW at 10% */
+        led_rc = np_mod_visual_hal_led_set(zone_mask, 1U, 0U, 10U); /* CW at 10% */
     }
 #endif
 
-    switch (p->mode) {
-    case 0: /* photic driving */
-        np_mod_visual_hal_led_set(zone_mask, p->wl_select, p->freq_hz, p->duty_pct);
-        break;
-    case 1: /* EMDR */
-        np_mod_visual_hal_emdr_set(p->emdr_rate_mhz);
-        break;
-    case 2: /* retinal PBM — 808-830nm dedicated */
-        np_mod_visual_hal_led_set(zone_mask, 1U, 0U, p->duty_pct);
-        break;
-    case 3: /* combined photic + EMDR */
-        np_mod_visual_hal_led_set(zone_mask, p->wl_select, p->freq_hz, p->duty_pct);
-        np_mod_visual_hal_emdr_set(p->emdr_rate_mhz);
-        break;
-    default:
+    if (led_rc == NP_HUB_OK) {
+        switch (p->mode) {
+        case 0: /* photic driving */
+            led_rc = np_mod_visual_hal_led_set(zone_mask, p->wl_select, p->freq_hz, p->duty_pct);
+            break;
+        case 1: /* EMDR */
+            np_mod_visual_hal_emdr_set(p->emdr_rate_mhz);
+            break;
+        case 2: /* retinal PBM — 808-830nm dedicated */
+            led_rc = np_mod_visual_hal_led_set(zone_mask, 1U, 0U, p->duty_pct);
+            break;
+        case 3: /* combined photic + EMDR */
+            led_rc = np_mod_visual_hal_led_set(zone_mask, p->wl_select, p->freq_hz, p->duty_pct);
+            if (led_rc == NP_HUB_OK) {
+                np_mod_visual_hal_emdr_set(p->emdr_rate_mhz);
+            }
+            break;
+        default:
+            np_mod_visual_hal_led_stop();
+            break;
+        }
+    }
+
+    if (led_rc != NP_HUB_OK) {
         np_mod_visual_hal_led_stop();
-        break;
+        np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
+        s_state.active = false;
+        return led_rc;
     }
 
     s_state.active    = true;
