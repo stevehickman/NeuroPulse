@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 45
-**Date:** 2026-11-08
+**Revision:** 46
+**Date:** 2026-11-09
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -1761,6 +1761,8 @@ the start/stop interface.
 `[VNS_CONTACT_MIN_OHM, VNS_CONTACT_MAX_OHM]` = [500 Ω, 5000 Ω] before `np_mod_vns_control()` requests
 `NP_SAFETY_EN_VNS_HRV`. **A non-finite reading (NaN, infinity) is refused with the same status as an out-of-range one** (`OI-SIMFW-17`, `REQ-VNSC-07`); the driver tests the float's exponent bits, because the hub is built with `-ffast-math`, under which `isfinite()` and a NaN comparison may be folded away. The safety MCU independently holds the enable if contacts are not confirmed
 (CLAUDE.md §4.2) — the hub check exists to avoid asking, not to substitute for the MCU's refusal.
+
+**A refused start leaves nothing running, and a lost stop is reported and retried (`OI-SIMFW-18`, `REQ-VNSC-14`).** If `np_mod_vns_hal_stim_set` fails, the driver stops the PPG, the A1/A2 EEG reference routing and the HRV session it started, tells the stimulator to stop (the failed write may have partly landed), requests no enable, and returns `NP_HUB_ERR_MOD_FAULT`; a session the command interrupted stops with it, because the stimulator state is unknown. A stimulator stop that fails returns `NP_HUB_ERR_MOD_FAULT` from the stop command (and from `np_mod_vns_shutdown`), but the safety enable is still withdrawn, the published current cleared and the rest stopped. The stop stays pending: the next stop and the next start command attempt it again, and a start is refused (nothing started) while it is lost. One attempt per call; there is no timer or count (`UC-127`). Class B only; `np_mod_vns_hal_stim_stop` already returned a status, so no HAL signature changed.
 
 The HRV session uses `np_mod_vns_hal_now_ms()`, the same free-running millisecond clock the session
 start/stop/tick timing uses — see the §5.3 note on clock domains.
