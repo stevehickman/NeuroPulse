@@ -1,0 +1,7 @@
+date: 2026-11-09
+## DHF
+author: NeurOne Systems Engineering
+text: **{NP-HW-AUDIO-001 from → to}: the four open audio items worked in parallel: OI-AUDIOHW-12 narrowed (citations checked against public excerpts, one claim withdrawn), OI-AUDIOHW-11 part decided (calibration method, guard-band structure, 1,000 Hz tone bound awaiting the principal), OI-AUDIOHW-13 worked (bone figure still unsourced, wire options and a combined-path recommendation recorded), OI-AUDIOHW-04 selection package ready (no part selected).**
+## NP-HW-AUDIO-001
+author: NeurOne Systems Engineering
+text: **§5.1, §5.2, §5.3, §8.2, §9: OI-AUDIOHW-12 narrowed (NIOSH, WHO-ITU, Directive 2003/10/EC, IEC 60318-6 and ISO 389-3 verified from public excerpts; the claim that EN 50332 treats 85 dB(A) as the normal maximum withdrawn; paywalled texts stay open). OI-AUDIOHW-11 part decided: new §5.3 and REQ-AUDIO-22 to -25 (ear-simulator verification per unit and cup, guard band of named terms with open sizes, SHDR-class fail-closed calibration table, A-weighting computed and every tone frequency bounded at 1,000 Hz awaiting the principal; UC-133, UC-134). OI-AUDIOHW-13: no cited source for the 500 Hz values so nothing computed, wire options and a combined-path recommendation recorded. OI-AUDIOHW-04: new §8.2 selection package (SEL-P01-P13, SEL-B01-B12, relations D1-D4, matrices, interface questions, vendor list), no part selected. No firmware, constant or limit changed.**
