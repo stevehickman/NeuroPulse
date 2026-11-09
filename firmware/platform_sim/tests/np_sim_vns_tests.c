@@ -112,26 +112,29 @@ static void test_a_non_finite_impedance_is_not_read_as_no_contact(void)
           "non-finite contact: a NaN impedance is refused and enables nothing (OI-SIMFW-17, closed)");
 }
 
-/* @verifies-none A failed stimulator write; the driver's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none A failed stimulator write; the driver's reply is the hub suite's (REQ-VNSC-14#a). Simulator evidence only (REQ-SIMFW-06). */
 static void test_a_failed_stimulator_write_enables_nothing(void)
 {
     setup();
     run("fail 0 vns_stim_set -17 1");
     run("vns 0 25000 2000 250 1 1 0");
     check(!result_code_is(0) && !enabled() && !vns()->driven, "fault: a failed write refuses the command and requests no enable");
-    check(vns()->vns_ppg_on && vns()->vns_eeg_ref,
-          "fault: but the PPG and the EEG reference routing, started before the write, are left on (the refusal does not undo them)");
+    check(!vns()->vns_ppg_on && !vns()->vns_eeg_ref,
+          "fault: and the PPG and the EEG reference routing, started before the write, are stopped (OI-SIMFW-18, closed)");
 }
 
-/* @verifies-none A lost stop; np_mod_vns.c's reply is the hub suite's. Simulator evidence only (REQ-SIMFW-06). */
-static void test_a_lost_stimulator_stop_is_not_retried(void)
+/* @verifies-none A lost stop; np_mod_vns.c's reply is the hub suite's (REQ-VNSC-14#b, #c). Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_lost_stimulator_stop_is_reported_and_retried(void)
 {
     setup();
-    run("vns 0 25000 2000 250 0 0 0");
+    run("vns 0 25000 2000 250 1 1 0");
     run("fail 0 vns_stim_stop -17 1");
     run("vns_stop");
-    check(result_code_is(0) && !enabled() && vns()->driven,
-          "lost stop: the hub drops the enable and reports success while the stimulator still drives");
+    check(!result_code_is(0) && !enabled() && vns()->driven,
+          "lost stop: the hub drops the enable, reports the failure, and the stimulator still drives (OI-SIMFW-18, closed)");
+    check(!vns()->vns_ppg_on && !vns()->vns_eeg_ref, "lost stop: the PPG and the reference routing stopped regardless");
+    run("vns_stop");
+    check(result_code_is(0) && !vns()->driven, "lost stop: the next stop retries the stimulator, which stops, and reports success");
 }
 
 /* @verifies-none The HRV session lifecycle is the library's and np_mod_vns.c's; their suites verify it. Simulator evidence only (REQ-SIMFW-06). */
@@ -213,7 +216,7 @@ int main(void)
     test_no_contact_means_no_stimulation();
     test_a_non_finite_impedance_is_not_read_as_no_contact();
     test_a_failed_stimulator_write_enables_nothing();
-    test_a_lost_stimulator_stop_is_not_retried();
+    test_a_lost_stimulator_stop_is_reported_and_retried();
     test_the_real_hrv_session_starts_and_ends_with_the_command();
     test_telemetry_reports_the_readouts_and_the_contact();
     test_malformed_command_and_shutdown();
