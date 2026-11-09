@@ -1,0 +1,254 @@
+name: Simulator CI (firmware in the loop, host only)
+
+# NP-SIM-FW-001 (OI-SIMFW-13, OI-SIMFW-14). The firmware-in-the-loop simulator is a development tool, not
+# part of the device (IEC 62304 Class: N/A) and never verification evidence (REQ-SIMFW-06). This workflow
+# exists so that the simulator keeps BUILDING and RUNNING when the firmware under it changes: it was in no CI
+# job, and a change to np_mod_visual and np_safety_spi left it unbuilt on main until a person noticed
+# (OI-SIMFW-30).
+#
+# What it runs:
+#   1. scripts/check-sim-host-only.ts (REQ-SIMFW-01): nothing outside firmware/platform_sim/ names the sim
+#      layer, the one entry in firmware/CMakeLists.txt is guarded, and a cross-toolchain configure with
+#      NP_BUILD_SIM=ON defines no np_sim_ target (with a host configure as the positive control).
+#   2. The ten np_sim_* scenario suites, through the np_sim_run_tests target.
+#   3. `node --test` over simulator/server/fw-bridge.test.js and simulator/js/*.test.mjs, with
+#      NP_SIM_FW_BIN set so the end-to-end tests run against the real firmware process and are not skipped.
+#
+# NOT in the host-test partition. The np_sim_* suites are opt-in custom-target executables, not add_test()
+# registrations, so ci/host-test-partition.txt, the NP_*_TEST_COUNT copies and ci/host-test-floors.txt
+# (NP-SW-CI-001 §6.10, §6.14) do not know them, and that is intended: those files describe the device's
+# Class B and Class C host tests, which are verification evidence, and the simulator is not (REQ-SIMFW-06).
+# The count asserted here is the number of suites, in the step that runs them.
+#
+# Not a required status check. Neither job below carries the required-context warning, and
+# ci/required-checks.txt does not list them: the Safety ruleset is changed by an administrator together with
+# that file (NP-SW-CI-001 §6.7.8), and whether the simulator is to gate a merge is the principal's decision
+# (OI-SIMFW-13 note). Both jobs report on every pull request (skipped when out of scope), so they can be
+# made required later by adding the two names to both places.
+#
+# ── Scoping ───────────────────────────────────────────────────────────────────────────────────────────
+# Same shape as safety-mcu-ci.yml (NP-SW-CI-001 §6.7): the relevance list lives in the `changes` job and the
+# build job gates on its output, so an out-of-scope pull request sees `skipped`, not a missing check.
+#
+# firmware/** is listed because the simulator links the device's own sources unmodified (REQ-SIMFW-03):
+# hub_control, pbm, safety_mcu, crypto, shdr, hrv_biofeedback, cervical_vns, common and the platform
+# headers, so a change to any of them can break it, and because the host-only guard's population is every
+# build file under firmware/ (a device target anywhere could link the layer). A narrower list would be a
+# second description of the simulator's link line to keep in step with firmware/platform_sim/CMakeLists.txt.
+# simulator/** holds the bridge and the page whose tests run here.
+
+on:
+  # Push only validates the default branch after a merge. A PR branch is covered by
+  # pull_request, so it no longer triggers two runs of the same commit.
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The suites np_sim_run_tests runs (firmware/platform_sim/CMakeLists.txt). A silently shrinking selection
+  # is the failure this guards: a custom target exits 0 over fewer suites just as happily as over all of them.
+  NP_SIM_SUITE_COUNT: '10'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Simulator scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+    env:
+      # ── THE SIMULATOR RELEVANCE LIST ──────────────────────────────────────────────────────────────────
+      NP_SCOPE_PATHS: |
+        firmware/**
+        simulator/**
+        .github/workflows/simulator-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
+        scripts/ci-changed-scope.sh
+        scripts/check-sim-host-only.ts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the matcher diffs against the merge base, which a
+          # shallow clone does not contain.
+          fetch-depth: 0
+
+      - name: Matcher self-test
+        run: scripts/ci-changed-scope.sh --self-test
+
+      - name: Write the relevance list
+        run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
+
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
+      - name: Scope assertions
+        run: |
+          set -euo pipefail
+          assert() { # <expected> <path>
+            printf '%s\n' "$2" > .scope-probe
+            got=$(scripts/ci-changed-scope.sh --relevant scope.paths .scope-probe)
+            if [ "$got" != "$1" ]; then
+              echo "::error::Simulator scope assertion failed: '$2' expected relevant=$1, got $got"
+              exit 1
+            fi
+            echo "ok: $2 → $got"
+          }
+          assert true  firmware/platform_sim/src/np_sim_bus.c
+          assert true  firmware/hub_control/src/np_mod_pbm.c
+          assert true  firmware/safety_mcu/src/np_gpio_mgr.c
+          assert true  firmware/crypto/np_sha256.c
+          assert true  simulator/server/fw-bridge.js
+          assert true  simulator/js/simmodule.test.mjs
+          assert true  scripts/check-sim-host-only.ts
+          assert true  .github/workflows/simulator-ci.yml
+          assert false app/web/src/main.ts
+          assert false docs/np_sim_fw_001.md
+          assert false docs/np_sw_ci_001.md
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_EVENT: ${{ github.event_name }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          NP_REF: ${{ github.ref }}
+          # Last-green base inputs.  A fork PR's head_branch is the fork's branch
+          # name, so runs are matched on the head REPOSITORY as well.
+          GH_TOKEN: ${{ github.token }}
+          NP_REPO: ${{ github.repository }}
+          NP_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          NP_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          # Fail-safe direction is BUILD: no base means the scope of the change is unknown, and
+          # unknown is treated as in scope (see safety-mcu-ci.yml for the full reasoning).
+          if ! merge_base=$(scripts/ci-changed-scope.sh --diff-base \
+                 "$NP_EVENT" "${NP_BASE:-}" "$NP_HEAD" "$NP_DEFAULT_BRANCH" "$NP_REF") \
+             || [ -z "$merge_base" ]; then
+            echo "::notice::no usable base revision (event=$NP_EVENT, ref=$NP_REF, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(scripts/ci-changed-scope.sh --resolve-base simulator-ci.yml "$merge_base" \
+                   "$NP_EVENT" "$NP_HEAD" "$NP_HEAD_BRANCH" "$NP_DEFAULT_BRANCH" "$NP_HEAD_REPO" "$NP_REPO")
+          git diff --name-only "${base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+            relevant=true
+          else
+            relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)
+            echo "--- in-scope files ---"
+            scripts/ci-changed-scope.sh --match scope.paths changed.txt
+          fi
+          echo "relevant=${relevant}" | tee -a "$GITHUB_OUTPUT"
+
+  simulator-tests:
+    name: Simulator build and tests (host only)
+    runs-on: ubuntu-latest
+    needs: changes
+    # Skip ONLY on a definite negative (see safety-mcu-ci.yml): an errored `changes` job leaves its output
+    # empty and this job runs anyway.
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      # REQ-SIMFW-01 (OI-SIMFW-14). The guard's own assertions run before it is trusted: a guard that
+      # passes on every tree would turn "the sim layer never reaches a device image" into a green tick.
+      - name: Host-only guard self-test
+        run: bun scripts/check-sim-host-only.ts --self-test
+
+      - name: Host-only guard (the sim layer never reaches a device target)
+        run: bun scripts/check-sim-host-only.ts --cross-probe
+
+      # Configured from the firmware super-project with the two opt-in options. NP_BUILD_SIM adds
+      # firmware/platform_sim, which the device builds never see.
+      - name: Configure (host build with the simulator)
+        run: |
+          cmake -B build/sim \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                -DNP_BUILD_SIM=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
+                firmware
+
+      # Builds and runs the ten scenario suites (the custom target's COMMANDs, in order; a failing suite
+      # stops it with a non-zero exit) and builds the firmware process the bridge tests drive. Only these
+      # targets are built, not the 70 device host tests, which their own workflows build.
+      - name: Build and run the scenario suites (np_sim_run_tests)
+        run: |
+          set -euo pipefail
+          cmake --build build/sim --target np_sim_run_tests np_sim_pbm_spike 2>&1 | tee sim-suites.log
+          suites=$(grep -c '^ALL PASS (0 failures)$' sim-suites.log || true)
+          echo "suites=${suites} expected=${NP_SIM_SUITE_COUNT}"
+          if [ "${suites}" != "${NP_SIM_SUITE_COUNT}" ]; then
+            echo "::error::simulator suite drift: expected ${NP_SIM_SUITE_COUNT} suites reporting ALL PASS, saw ${suites}."
+            exit 1
+          fi
+          if grep -q '^FAIL' sim-suites.log; then
+            echo "::error::a simulator suite printed a FAIL line"
+            exit 1
+          fi
+
+      # node:test over the bridge and the page's modules. NP_SIM_FW_BIN makes the end-to-end tests run the
+      # real np_sim_pbm_spike; without it they skip and still exit 0, so a skip is a failure here.
+      - name: Record the Node version
+        run: node --version
+
+      - name: Bridge and page tests (node --test)
+        working-directory: simulator
+        env:
+          NP_SIM_FW_BIN: ${{ github.workspace }}/build/sim/platform_sim/np_sim_pbm_spike
+        run: |
+          set -euo pipefail
+          test -x "$NP_SIM_FW_BIN"
+          node --test server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
+          if ! grep -q '^# fail 0$' ../node-test.log; then
+            echo "::error::node --test reported a failure"
+            exit 1
+          fi
+          if ! grep -q '^# skipped 0$' ../node-test.log; then
+            echo "::error::a simulator test was skipped: the end-to-end tests need NP_SIM_FW_BIN and must all run"
+            exit 1
+          fi
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-ci-logs
+          path: |
+            sim-suites.log
+            node-test.log
+          retention-days: 7

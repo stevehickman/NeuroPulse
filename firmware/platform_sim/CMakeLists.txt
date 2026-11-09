@@ -3,8 +3,9 @@
 #
 # REQ-SIMFW-01: this directory is never built for the device.  firmware/platform/
 # is the layer a device image links, and it is cross-compile only; this is the
-# layer a host process links, and it is host only.  The guard below is the whole
-# of that property until the CI check (REQ-SIMFW-02's census, §8 step 2) exists.
+# layer a host process links, and it is host only.  The guard below is the first
+# half of that property; the second is scripts/check-sim-host-only.ts, run by
+# .github/workflows/simulator-ci.yml, which fails any device target that names this layer.
 #
 # REQ-SIMFW-03: every firmware source below is the device's own file, listed by
 # its path under firmware/.  Nothing is copied, and nothing under firmware/
@@ -162,8 +163,9 @@ add_executable(np_sim_pbm_tests tests/np_sim_pbm_tests.c)
 target_link_libraries(np_sim_pbm_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_pbm_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 # Not add_test(): CI's host-test partition, counts and coverage floors (NP-SW-CI-001 §6.10, §6.14)
-# do not know this target, and it is opt-in (NP_BUILD_SIM).  Run it as:  ctest -R np_sim  via the
-# custom target below.  NP-SIM-FW-001 OI-SIMFW-13 owns putting it in the partition.
+# do not know this target, and it is opt-in (NP_BUILD_SIM).  Run it through the custom target
+# below (np_sim_run_tests); simulator-ci.yml does, and deliberately keeps it out of the partition
+# (OI-SIMFW-13, closed): these suites are development tests, not verification evidence (REQ-SIMFW-06).
 add_executable(np_sim_stim_tests tests/np_sim_stim_tests.c)
 target_link_libraries(np_sim_stim_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_stim_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
