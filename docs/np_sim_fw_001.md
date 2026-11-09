@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-11-09
 **Status:** DRAFT
 **Effective Date:** —
@@ -759,3 +759,4 @@ The bridge and the page now drive the safety MCU of §22. The rule is `REQ-SIMFW
 | 12 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §15: OI-SIMFW-18 closed.** The VNS driver stops what a refused command started and reports and retries a lost stimulator stop; the two scenarios that recorded the defect assert the fixed behaviour. |
 | 13 | 2026-11-09 | NeurOne Software Engineering | **§7, §15: the citation of the VNS recovery-policy register row (`OI-SIMFW-18`) reads `UC-129`; no behaviour or figure changed.** |
 | 14 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §17: OI-SIMFW-20 closed.** The driver checks the LED command's status and fails closed; the visual scenario that recorded the defect asserts it. The sim safety harness builds again after the cervical sensitivity change (a sim-side `np_cardiac_sens_level` returning 0). |
+| 15 | 2026-11-09 | NeurOne Firmware Engineering | **§7, §14: OI-SIMFW-16 closed.** The EEG driver reports a lost stop and keeps its recording flag so the next stop retries; the `lost stop` scenario asserts the fixed behaviour. |
