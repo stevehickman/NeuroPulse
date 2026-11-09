@@ -14,6 +14,7 @@
 #include "np_sim_pbm_harness.h"
 #include "np_sim_safety.h"
 #include "np_sim_test_util.h"
+#include "np_sim_safety_test_consts.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -47,12 +48,8 @@ static void in_child(void (*scenario)(void))
     if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) { g_failures++; printf("FAIL: scenario child did not finish cleanly\n"); }
 }
 
-#define LINE_PBM  0
-#define LINE_TDCS 2
 #define LINE_VIS  4
 #define NTC_HOT   600U           /* hotter than the 62 C row (650) of the firmware's table (np_thermal_interlock.c): a test input */
-#define STATUS_THERMAL 0x10U
-#define STATUS_CHARGE  0x20U
 
 static void boot(void)
 {
