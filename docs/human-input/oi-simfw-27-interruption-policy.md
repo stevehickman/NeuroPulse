@@ -73,8 +73,11 @@ So what is shared is the **latch and release path** (PR-2) and the **fail-closed
 This fixes how PR-2 and PR-3 are read; it does not answer Q4.
 If the owner wants the cardiac interlock itself to count, that is a separate decision about a `REQ-CVNS-09` behaviour that was presented to FDA.
 
-The window's start is not known across a reset (no RTC): a reset is itself an interruption and is entered, and the count
-restarts empty. *(Option for the owner: persist the count and treat it as if no time had passed. That is stricter and costs a flash write per interruption.)*
+**Across a reset (option C of Q3, chosen by the principal 2026-11-09):** the window's start is not known across a reset (no RTC), and a window that restarted empty
+on every boot would never trip on a reset loop (a brown-out loop, a loose connector that cuts power, a watchdog-reset loop), because each boot would start at a count of 1.
+So in-run interruptions are counted in RAM, and **each unexpected reset is also counted once, at boot, from the reset cause, in a small persisted counter** (no flash write during a flap storm, and none while stimulating).
+At boot the persisted count is added to the RAM count **as if no time had passed** (the fail-closed rule of the cardiac interlock). It is **cleared once the line has run for `W` without an interruption**, using uptime since boot, which is known, so a device left unplugged does not latch on a stale count.
+The reset cause must be readable on the part; if it is not, this option falls back to counting every boot (a stricter reading). *(Not checked on the hardware.)*
 
 *Fails without it:* a loose USB-C connector dropping out for 1 s ten times a minute never reaches `T_resume`, yet stimulation cycles on and off.
 
@@ -122,7 +125,7 @@ Each chosen number is a row in `docs/status/unjustified-choices.md` until derive
 |---|---|---|
 | Q1 | Should an outage be time-qualified at all (PR-1), or should any outage over the watchdog timeout latch? | **A** time-qualified (this draft). **B** latch on any outage: simplest, but a connector glitch ends the session. **C** keep today's no-latch and add only logging and reporting: no new latch, resumes with no acknowledgement |
 | Q2 | Is the flapping window counted across all causes (PR-3)? | **A** all causes together (draft). **B** per cause class: easier to tune, but a mix of causes never trips |
-| Q3 | Does the count survive a reset? | **A** restarts empty, the reset itself is an entry (draft). **B** persisted and treated as no time passed: stricter, costs flash writes |
+| Q3 | Does the count survive a reset? | **A** restarts empty, the reset itself is an entry: simplest, but a reset loop never trips. **B** the whole count persisted, as if no time passed: strictest, costs a flash write per interruption (up to a 40 ms erase in the loop) and can latch on a stale count. **C** in-run counts in RAM, each unexpected reset counted once at boot in a small persisted counter, cleared after a quiet run of `W` (**chosen by the principal 2026-11-09, recorded here; the owner may still object**) |
 | Q4 | Does the cardiac interlock itself get a count (PR-3's note)? | **A** no, share only the latch and release path (draft). **B** yes: a change to a behaviour presented to FDA |
 | Q5 | Is a ramp resumed from the actual level for every cause, with a full ramp after a hard cut (PR-4)? | **A** yes (draft). **B** resume mid-ramp after a short cut too: gentler, but it steps current if the hardware was at zero |
 | Q6 | Where is the ramp's authority? | **A** the hub owns the ramp and is told of every grant change (draft; smallest change). **B** the MCU also enforces a maximum slope after any re-grant, independent of the hub: strongest, new MCU code and a new hazard control |
