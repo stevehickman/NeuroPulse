@@ -946,7 +946,7 @@ carrier range for the bone path chosen to suit the element (gap 1). Neither is c
 Delivered: the parameter tables (§8.2.2), the derived relations D1–D4, the class matrices with their source
 status (§8.2.3), the forced questions and a recommendation (§8.2.4) and the vendor request list (§8.2.6).
 **Awaiting the principal:** (1) ~~the amplifier location~~ **decided 2026-11-09: in the hub, `REQ-AUDIO-04a`**, and the choice of any part;
-(2) whether to bound the carrier range, and the noise band (gaps 1 and 2); (3) whether the bound piezo class
+(2) ~~whether to bound the carrier range~~ **no fixed floor on the carrier band, for now (decided 2026-11-10, §8.2.7 E)**, and the noise band (gap 2) is still open; (3) whether the bound piezo class
 stands if the §8.2.3 finding is borne out by measurement; and (4) opening the cited sources, which also
 belongs to the selection. **No register row is added:** this subsection sets no figure, so there is no
 choice without derivation to register. The first margin, distortion limit or stray-field limit chosen in a
@@ -1045,6 +1045,60 @@ depends on the band the noise is stated over, which is exactly what is not state
 4. **Measured data.** No 40 mm planar driver has public measurements, so selection still needs vendor data and bench
    measurement (§8.2.6). **No part, class, figure or constant is selected or set here.**
 
+**E. Decision of 2026-11-10 (principal): no fixed floor on the carrier band, for now**
+
+**Decision.** No fixed lower limit is set on the carrier band. The part is chosen on the characteristics that matter
+for the content and the product, and the carrier floor is not a selection input. This answers the first half of gap 1
+for now; `REQ-AUDIO-25` still bounds the top at 1,000 Hz (§5.3.1). It is revisited if a candidate's measured response
+makes a floor necessary, and the band each transducer must cover is then whatever its measured response gives.
+
+**What it changes in §8.2.2 and §8.2.3.** `D4` (bone band) and the bone-path options of §8.2.3 no longer wait on a
+floor. The finding that the bound piezo class is weakest below about 1 kHz, where shipped bone carriers sit, **still
+holds**: with no floor, a bone carrier at the low end is allowed, so the measurement at 200 and 440 Hz (`SEL-B02`,
+`SEL-B03`) is not optional and becomes the check that a chosen element reaches the ceiling at the carriers actually used.
+Not setting a floor moves that risk from the protocol field to the part test; it does not remove it.
+
+**Frequency precision for binaural beats (a consideration, not a requirement).** A binaural beat is the **difference**
+between the two ears' tone frequencies, so what matters is the *difference* being right, not each frequency's absolute
+accuracy. Reasoned here, not measured:
+1. **Where the precision comes from.** Both channels are synthesised by the hub codec from one sample clock
+   (`REQ-AUDIO-04`). A fractional clock error ε moves both tones by the same fraction, so the beat moves by only
+   `beat × ε` (a 10 Hz beat on a clock 0.1 % off is off by 0.01 Hz). Common-clock synthesis is what keeps the beat
+   accurate. If the two ears ever came from **separate** clocks, the carrier error between them would be the beat error
+   (a 0.1 Hz carrier mismatch is 5 % of a 2 Hz beat), which is the case to avoid. The wire already carries the beat in
+   millihertz (`beat_mhz`) and the carrier in whole hertz, so the wire does not limit precision; the synthesis in the
+   HAL (`OI-AUDIO-02`) and the codec clock (`OI-AUDIOHW-14`) do.
+2. **What the transducer contributes.** Not frequency, which a transducer does not set, but matched amplitude and
+   phase between the two cups and low crosstalk between the ears. No literature bound for channel matching was found in
+   this session. **Ask each planar candidate for left/right sensitivity and phase matching of a matched pair**
+   (§8.2.6).
+3. **Bone conduction cannot present a binaural beat.** Vibration at the mastoid reaches both cochleae, so the two ears
+   cannot be isolated; this is standard audiology teaching and is **not verified from a source in this session**. The
+   design already keeps binaural content on the planar path and the bone path for the breathing and sync cue
+   (`REQ-AUDIO-11`), which is consistent with that.
+
+**F. The noise band: how the candidate part classes compare**
+
+The noise stimulus is played on the **planar path only** (the bone path receives one tone, §8.2.2 `D4`), so the
+comparison is of the over-ear classes. "Noise band" here means the frequency range over which a part can reproduce the
+stimulus. Figures are published specifications of other products, not of a candidate; the classes other than planar are
+shown for comparison only (§8.2.3).
+
+| Class | Published bandwidth (examples) | Reading for pink and brown noise | Source |
+|---|---|---|---|
+| Planar magnetic (locked) | 10 Hz–40 kHz (QUAD ERA-1), 20 Hz–20 kHz (HE400se, LCD1), 6 Hz–75 kHz (Sundara) | Covers a 20 Hz–20 kHz noise definition; the low end matters for brown noise, which concentrates its energy there, so ask for low-frequency distortion and excursion limit at the stated level | [QUAD](https://apos.audio/products/quad-era-1-planar-magnetic-headphone), [HE400se](https://www.audioconcierge.co.uk/he400se/), [LCD1](https://www.head-fi.org/f/showcase/audeze-lcd1.15070/) |
+| Dynamic 40 mm | 15 Hz–28 kHz (M-Audio HDH40), 10 Hz–22 kHz (BL-40 Pro), 10 Hz–35 kHz (Behringer BH40) | Also covers 20 Hz–20 kHz; deep bass is credited to the class | [HDH40](https://www.m-audio.com/accessories/hdh40.html), [BL-40 Pro](https://www.pssl.com/products/american-audio-bl-40-pro-headphones), [BH40](https://avlgear.com/collections/behringer/products/behringer-bh40-40mm-circum-aural-high-fidelity-headphones) |
+| Balanced armature | No bandwidth figure read; sources describe it as weaker at strong bass and as an in-ear class | The class least likely to carry brown noise; not suited to a 40 mm over-ear role | [headphone driver types](https://headphones.com/blogs/features/headphone-driver-types-explained), [Campfire Audio](https://www.campfireaudio.com/blogs/insights/iem-driver-types-balanced-armature-dynamic-planar) |
+| Bone (either class) | Not a noise path in this design | Not applicable | §8.2.2 `D4` |
+
+**Reading.** On published bandwidth the planar and dynamic classes both span the 20 Hz–20 kHz band that the one test
+standard read describes, so **bandwidth does not separate them**; the differences are in low-frequency distortion and
+excursion at the noise level, weight, and stray field (§8.2.3), none of which these published figures give. The stated
+bandwidth is a manufacturer claim, usually without the tolerance (such as ±3 dB) or the measurement conditions. A
+self-noise figure of a transducer is not a meaningful quantity here; the noise floor that matters belongs to the hub's
+amplifier and codec (`OI-AUDIOHW-14`). **Open:** the noise band and crest factor the product states (§B), which turn
+these bandwidths into pass or fail, and measured data on a candidate.
+
 ---
 
 ## 9. Open items
@@ -1054,7 +1108,7 @@ depends on the band the noise is stated over, which is exactly what is not state
 | **OI-AUDIOHW-01** | **DECIDED 2026-11-09 (principal, Rev 6): 85 dB SPL at the ear on the planar path, absolute scale, level ceiling only — bound as `REQ-AUDIO-19`/`-20` (§5.1).** No exposure-duration or daily-dose model, because the device cannot know exposure outside sessions. Succeeded by `OI-AUDIOHW-11` (calibration and verification at the ear) and `OI-AUDIOHW-12` (check the citations). **As raised:** no acoustic output ceiling existed, and `volume_pct` was an uncalibrated 0–100 wire field. The in-cup microphone (`REQ-AUDIO-14`) gives a measured in-cup level per wearer and fit (§6.4.2), not at the eardrum and blind to bone conduction; the ceiling also bounds the seal probe tone | Systems + Clinical | — (decided) |
 | **OI-AUDIOHW-02** | **DECIDED as a rule 2026-11-09 (principal, Rev 7): the bone path is held to the same hearing level as the planar path, stated as an absolute force level in dB re 1 µN on an IEC 60318-6 artificial mastoid — bound as `REQ-AUDIO-21` (§5.2).** The figure and the wire field are `OI-AUDIOHW-13`. No firmware gating in the interim: the bone HAL is an unbuilt stub and no element is selected. **As raised:** no bone-conduction drive ceiling existed, and an air-conduction limit does not transfer to it unexamined | Systems + Clinical | — (decided; figure `OI-AUDIOHW-13`) |
 | **OI-AUDIOHW-03** | **The mesh frame's 40 dB RF figure is a shielding claim outside the audited stack (§6.3)** — absent from `CLAUDE.md` §4.3, from `docs/reference/hardware-detail.md` §4.3, from `NP-BIB-EMF-001`'s per-layer audit and from `NP-DT-001` `DI-PERF-22` — on a **user-replaceable** part whose fouling trigger is unimplemented (`OI-ACC-05`). Decide whether it is a programme claim or a supplier figure, and stop quoting it beside audited ones either way | Systems + EMC | Shielding claim integrity; `NP-BIB-EMF-001` completeness |
-| **OI-AUDIOHW-04** | **SELECTION PACKAGE READY (§8.2); part selection awaits the principal. Amplifier location DECIDED 2026-11-09: in the hub (`REQ-AUDIO-04a`). Literature and functional-bound findings recorded in §8.2.7 (no part selected).** Done: the parameters a selection must fix for each transducer, each with what fails and its trace (`SEL-P01`–`P13`, `SEL-B01`–`B12`); derived relations D1–D4 from decided figures (85 dB SPL, `REQ-AUDIO-21`, the shipped carriers); class matrices marked cited or reasoned, with the locked classes marked as locked; the interface questions (amplifier location, cable, microphone, codec channels) and a recommendation labelled as awaiting the principal; and the vendor request list. **Not done, and not decided here:** no part or class is chosen, no value set, no margin chosen, the cited sources were read as search summaries only, and three gaps need a decision first — the authorable carrier range is unbounded, the noise band is unstated, and the codec channel count is unrecorded. **As raised:** select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* existed | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
+| **OI-AUDIOHW-04** | **SELECTION PACKAGE READY (§8.2); part selection awaits the principal. Amplifier location DECIDED 2026-11-09: in the hub (`REQ-AUDIO-04a`). Literature and functional-bound findings recorded in §8.2.7 (no part selected). No fixed carrier floor, for now (2026-11-10).** Done: the parameters a selection must fix for each transducer, each with what fails and its trace (`SEL-P01`–`P13`, `SEL-B01`–`B12`); derived relations D1–D4 from decided figures (85 dB SPL, `REQ-AUDIO-21`, the shipped carriers); class matrices marked cited or reasoned, with the locked classes marked as locked; the interface questions (amplifier location, cable, microphone, codec channels) and a recommendation labelled as awaiting the principal; and the vendor request list. **Not done, and not decided here:** no part or class is chosen, no value set, no margin chosen, the cited sources were read as search summaries only, and three gaps need a decision first — the authorable carrier range is unbounded, the noise band is unstated, and the codec channel count is unrecorded. **As raised:** select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* existed | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
 | **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
 | **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact) | ME + Quality | Hazard analysis; T1 release |
 | **OI-AUDIOHW-07** | Select the cup-to-hub cable, connector and strain relief. The same connector gap `NP-HW-TCAP-001` §8 records for the T2 cap and `NP-HW-VNSCLIP-001` §8 for the clip — worth deciding **once** across the head-worn accessories rather than three times | EE + ME | A11 tooling |
