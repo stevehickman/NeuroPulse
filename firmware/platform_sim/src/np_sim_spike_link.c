@@ -14,6 +14,7 @@
  *   power governor   the production one (refuses every load); see np_pbm_power_admit below
  */
 #include "np_sim_bus.h"
+#include "np_sim_pbm_harness.h"   /* np_sim_proto_pubkey */
 
 #include "np_hub_types.h"
 #include "np_module_map.h"
@@ -98,8 +99,7 @@ np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
     return NP_HUB_OK;
 }
 uint32_t np_log_session_count(void) { return 1U; }
-void np_transport_hal_enter_critical(void) { }
-void np_transport_hal_exit_critical(void)  { }
+/* np_transport_hal_enter/exit_critical: np_transport.c's own host model, built with NPTEST_HOST (CMakeLists.txt). */
 
 /* The SHDR accessory-authentication record the intranasal driver writes at init: reported as it is logged. */
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
@@ -144,7 +144,7 @@ np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 { (void)buf; (void)len; return NP_HUB_ERR_NOT_PRESENT; }
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
-{ memset(pub_key_out, 0, 32); return NP_HUB_OK; }
+{ np_sim_proto_pubkey(pub_key_out); return NP_HUB_OK; }   /* the TEST protocol signing key's public half, np_sim_proto.c */
 
 /* ── power governor ──────────────────────────────────────────────────────────────
  * The simulator mimics the device: np_pbm_power_admit() is the production governor

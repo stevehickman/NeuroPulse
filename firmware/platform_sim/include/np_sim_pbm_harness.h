@@ -54,4 +54,8 @@ void np_simh_safety_init(void);
 void np_simh_safety_status(void);
 bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c);
 
+/* The app's protocol upload, over the hub's own transport (OI-SIMFW-38).  np_sim_proto.c. */
+void np_sim_proto_pubkey(uint8_t pub[32]);
+bool np_simh_proto_line(const char *cmd, char *a);
+
 #endif

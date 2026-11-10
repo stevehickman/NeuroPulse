@@ -51,6 +51,7 @@ const SAFETY_GEOM = new Set(['clin_stim', 'tdcs', 'bes']);                // the
 const SAFETY_PROGRAMMING = new Set(['safety_attach', 'safety_root_corrupt']);
 const SAFETY_CHANNELS = 14;                                   // NP_SAFETY_MAX_CHANNELS
 const SAFETY_MAX_RUN_MS = 60000;                              // one blocking harness call; unjustified-choices.md UC-127
+const PROTO_BLOB_MAX_BYTES = 6148;                            // NP_HUB_PROTO_BLOB_MAX (np_hub_types.h): 64 commands, the header and the signature
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -442,6 +443,30 @@ function cvnsCommandLines(msg) {
   }
 }
 
+/**
+ * FW_COMMANDs for the app's protocol upload (NP-SIM-FW-001 §26, REQ-SIMFW-17).  The bridge relays BYTES: a client sends the hub's framed
+ * stream as hex, exactly as the app writes it to the transport, and the bridge builds a command from validated hex and nothing else.
+ */
+function protoHex(v, what, maxBytes) {
+  if (typeof v !== 'string' || v.length === 0 || v.length % 2 !== 0 || v.length > maxBytes * 2 || !/^[0-9a-fA-F]+$/.test(v)) {
+    throw new BridgeError(`${what} must be hex of 1..${maxBytes} bytes`);
+  }
+  return v;
+}
+
+function protoCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'proto_sign':    // the signing service, played with the TEST protocol key: the blob (header, commands, zeroed signature slot)
+      return [`proto_sign ${protoHex(msg.hex, 'hex', PROTO_BLOB_MAX_BYTES)}`];
+    case 'proto_feed':    // one write of the framed stream (4-byte little-endian length, then the blob), any length up to a whole frame
+      return [`proto_feed ${protoHex(msg.hex, 'hex', PROTO_BLOB_MAX_BYTES + 4)}`];
+    case 'proto_pump':    // one pass of the hub's protocol task
+      return ['proto_pump'];
+    default:
+      return null;
+  }
+}
+
 /** The mask of a list of line names; a name that is not one of the ten lines is refused. */
 function safetyLineMask(v) {
   if (!Array.isArray(v) || v.length < 1 || v.length > Object.keys(SAFETY_LINES).length) {
@@ -599,7 +624,7 @@ function messageToLines(msg) {
   if (msg.kind === 'intranasal') return insModuleLines(msg);
   if (msg.kind === 'cvns') return cvnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg) ?? protoCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
