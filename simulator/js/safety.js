@@ -403,7 +403,7 @@ export const FAULTS_UNAVAILABLE = Object.freeze([
  * decides what follows.  Capped at one harness call (the bridge's run limit).  Not a loss of power to this computer, which nothing
  * on a page can observe, and which would stop the simulation.
  */
-export const OUTAGE_MIN_MS = 1500;     // the MCU's own watchdog period: a shorter outage would not be one; UC-135
+export const OUTAGE_MIN_MS = 1500;     // the MCU's watchdog timeout (NP_SAFETY_WATCHDOG_MS): a shorter outage would not be one; UC-135
 export const OUTAGE_MAX_MS = 60000;
 export function outageScript(lostAtWallMs, backAtWallMs) {
   const ms = Math.min(OUTAGE_MAX_MS, Math.max(0, Math.round(backAtWallMs - lostAtWallMs)));
