@@ -11,7 +11,7 @@
  * The producers keep their settings through np_cfg_store.c over LittleFS, so the storage is here too: the device's own Config-instance
  * geometry (np_lfs_instance.c) over a RAM medium, which is the block device the hub's own storage tests use (tests/np_lfs_powerbd.c).
  * It is formatted at the first gatt_init, as a new part would be.  A RAM medium is not the eMMC: no wear, no timing, no power loss
- * unless a test injects one (UC-138).
+ * unless a test injects one (UC-139).
  *
  * Commands (decimal ids, hex bytes; the bridge validates both, REQ-SIMFW-12):
  *   gatt_init                 bring up the storage and the service (np_gatt_init), once
@@ -63,7 +63,7 @@ np_hub_status_t np_gatt_hal_register(const np_gatt_char_t *table, size_t count)
 
 /* The warranty token is drawn from the TRNG at the first read and kept (np_warranty_token.c).  Here the draw is the host's entropy
  * (getrandom), which has none of the RT1062 TRNG's NIST SP 800-90B health tests: the token's value is random and kept, and nothing more is
- * claimed of it (UC-138). */
+ * claimed of it (UC-139). */
 np_hub_status_t np_warranty_hal_trng_generate(uint8_t *buf, size_t len)
 {
     size_t got = 0U;
