@@ -658,7 +658,7 @@ async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [], befo
     blob,
     feeds: ev.filter((e) => e.ev === 'result' && e.cmd === 'proto_feed'),
     pump: ev.find((e) => e.ev === 'result' && e.cmd === 'proto_pump'),
-    frame: (ev.find((e) => e.ev === 'gatt_notify') || {}).hex,
+    frame: (seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event).find((e) => e.ev === 'gatt_notify') || {}).hex,   // the hub's GATT notification, routed as the app would receive it
   };
 }
 
@@ -780,4 +780,79 @@ test('end to end: a zero length prefix is refused by the hub\'s transport, and a
   const pumps = ev.filter((e) => e.ev === 'result' && e.cmd === 'proto_pump');
   assert.strictEqual(pumps[0].blob, true, 'the first blob is taken');
   assert.strictEqual(pumps[1].blob, false, 'and there is no second');
+});
+
+
+// ── the hub's GATT service, answered by np_gatt_server.c (NP-SIM-FW-001 §27, REQ-SIMFW-19) ──────────────────────
+
+// @verifies REQ-SIMFW-19#a
+test('the bridge relays GATT reads and writes as validated ids and hex and nothing else', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_init' }), ['gatt_init']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_table' }), ['gatt_table']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24 }), ['gatt_read 24 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: 20 }), ['gatt_read 24 20']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_write', id: 15, hex: '01' }), ['gatt_write 15 01']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: '24\nquit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: -1 },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: 65536 },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: '0; quit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_read' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '01\nquit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '0' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '00'.repeat(513) },       // more than one ATT write
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8 },
+    { type: 'FW_COMMAND', cmd: 'gatt_init; quit' },
+  ];
+  for (const m of hostile) {
+    // a hostile value is refused; an unknown cmd is not the bridge's and yields no command line at all
+    let lines = null;
+    try { lines = messageToLines(m); } catch (e) { assert.ok(e instanceof BridgeError); continue; }
+    assert.deepStrictEqual(lines, [], JSON.stringify(m));
+  }
+});
+
+/** Runs GATT messages against the real firmware process; returns the GATT_EVENTs and the logged events in order. */
+async function gatt(messages) {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(300);                                         // the firmware process is up before the first command
+  for (const m of messages) bridge.handle({ type: 'FW_COMMAND', ...m });
+  await wait(600);
+  bridge.stop();
+  return { events: seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event), log: seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event) };
+}
+
+// @verifies REQ-SIMFW-19#b
+test('end to end: the device\'s own GATT server answers; what the hub does not publish is not found', { skip: !BIN }, async () => {
+  const r = await gatt([
+    { cmd: 'gatt_read', id: 24 },                          // before gatt_init: the service is not up
+    { cmd: 'gatt_init' }, { cmd: 'gatt_table' },
+    { cmd: 'gatt_read', id: 24 },                          // UPLOAD_CHECK: 34 bytes, status none
+    { cmd: 'gatt_read', id: 16 }, { cmd: 'gatt_read', id: 16 },   // WARRANTY_TOKEN: drawn once, kept
+    { cmd: 'gatt_read', id: 17 },                          // FIRMWARE_VERSION: not published
+    { cmd: 'gatt_write', id: 8, hex: '04' + '00'.repeat(100) },   // PROTOCOL_UPLOAD: not published
+    { cmd: 'gatt_read', id: 22 },                          // ACTIVE_USER is write-only
+    { cmd: 'gatt_write', id: 15, hex: '0102' },            // SESSION_STOP takes exactly one byte
+  ]);
+  assert.ok(r.log.some((e) => e.ev === 'error' && /not up/.test(e.what)), 'a read before gatt_init is refused');
+  const table = r.events.filter((e) => e.ev === 'gatt_char');
+  assert.ok(table.length > 10 && table.every((c) => c.count === table.length), 'every characteristic is reported, in order');
+  const ids = table.map((c) => c.id);
+  assert.ok(ids.includes(24) && ids.includes(16) && ids.includes(23), 'the hub publishes the upload check, the warranty token and the serial');
+  assert.ok(!ids.includes(8) && !ids.includes(17), 'and does not publish the protocol upload or the firmware version');
+  const reads = r.events.filter((e) => e.ev === 'gatt_read');
+  const byId = (id) => reads.filter((e) => e.id === id);
+  assert.strictEqual(byId(24)[0].att, 0);
+  assert.strictEqual(byId(24)[0].hex.length, 68, 'UPLOAD_CHECK is 34 bytes');
+  assert.strictEqual(byId(24)[0].hex.slice(0, 2), '00', 'status: none yet');
+  assert.strictEqual(byId(16)[0].hex.length, 64, 'the warranty token is 32 bytes');
+  assert.strictEqual(byId(16)[0].hex, byId(16)[1].hex, 'drawn once and kept');
+  assert.strictEqual(byId(17)[0].att, 0x0a, 'FIRMWARE_VERSION: attribute not found');
+  assert.strictEqual(byId(22)[0].att, 0x02, 'a write-only characteristic is not readable');
+  const writes = r.events.filter((e) => e.ev === 'gatt_write');
+  assert.strictEqual(writes.find((e) => e.id === 8).att, 0x0a, 'the protocol upload is not published, so a write to it is not found');
+  assert.strictEqual(writes.find((e) => e.id === 15).att, 0x0d, 'a write of the wrong length is refused before the handler sees it');
 });

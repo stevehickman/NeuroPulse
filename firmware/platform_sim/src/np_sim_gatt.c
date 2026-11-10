@@ -153,16 +153,13 @@ bool np_simh_gatt_line(const char *cmd, char *a, char *b)
     if (!g_up) { bad(cmd, "the GATT service is not up (gatt_init first)"); return true; }
 
     if (strcmp(cmd, "gatt_table") == 0) {
+        /* One event a characteristic: np_sim_emit's line is 512 bytes, and the whole table is longer. */
         size_t n = 0U;
         const np_gatt_char_t *t = np_gatt_table(&n);
-        char line[64 + 80 * 40];
-        size_t off = (size_t)snprintf(line, sizeof line, "{\"ev\":\"gatt_table\",\"chars\":[");
-        for (size_t i = 0U; i < n && off + 80U < sizeof line; i++) {
-            off += (size_t)snprintf(&line[off], sizeof line - off, "%s{\"id\":%u,\"props\":%u,\"max_len\":%u,\"write_len\":%u}",
-                                    i == 0U ? "" : ",", (unsigned)t[i].id, (unsigned)t[i].props, (unsigned)t[i].max_len, (unsigned)t[i].write_len);
+        for (size_t i = 0U; i < n; i++) {
+            np_sim_emit("{\"ev\":\"gatt_char\",\"index\":%u,\"count\":%u,\"id\":%u,\"props\":%u,\"max_len\":%u,\"write_len\":%u}",
+                        (unsigned)i, (unsigned)n, (unsigned)t[i].id, (unsigned)t[i].props, (unsigned)t[i].max_len, (unsigned)t[i].write_len);
         }
-        (void)snprintf(&line[off], sizeof line - off, "]}");
-        np_sim_emit("%s", line);
         return true;
     }
     if (strcmp(cmd, "gatt_read") == 0) {

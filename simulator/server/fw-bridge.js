@@ -475,6 +475,25 @@ function protoCommandLines(msg) {
   }
 }
 
+/**
+ * FW_COMMANDs for the hub's GATT service (NP-SIM-FW-001 §27, REQ-SIMFW-19).  The app is a GATT central: it reads and writes characteristics by
+ * id.  The bridge relays validated decimal ids and hex, and the device's own np_gatt_server.c answers (a characteristic it does not publish is
+ * not found).  The write is capped at one ATT write (512 bytes); the hub refuses a length it does not take.
+ */
+function gattCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'gatt_init':    // storage and service up, once (the twin's first boot)
+    case 'gatt_table':   // the characteristics the hub publishes
+      return [msg.cmd];                                   // a member of the whitelist, never the client's string
+    case 'gatt_read':
+      return [`gatt_read ${int(msg.id, 0, 65535, 'id')} ${int(msg.offset ?? 0, 0, 65535, 'offset')}`];
+    case 'gatt_write':
+      return [`gatt_write ${int(msg.id, 0, 65535, 'id')} ${protoHex(msg.hex, 'hex', 512)}`];
+    default:
+      return null;
+  }
+}
+
 /** The mask of a list of line names; a name that is not one of the ten lines is refused. */
 function safetyLineMask(v) {
   if (!Array.isArray(v) || v.length < 1 || v.length > Object.keys(SAFETY_LINES).length) {
@@ -632,7 +651,7 @@ function messageToLines(msg) {
   if (msg.kind === 'intranasal') return insModuleLines(msg);
   if (msg.kind === 'cvns') return cvnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg) ?? protoCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg) ?? protoCommandLines(msg) ?? gattCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
@@ -692,6 +711,11 @@ function eventToMessage(ev) {
       return { type: 'MODULE_STATE', event: ev };
     case 'safety_state':                       // the safety MCU's status, fault slot and enable lines (NP-SIM-FW-001 §23)
       return { type: 'SAFETY_STATE', event: ev };
+    case 'gatt_char':                          // the hub's GATT service: each characteristic it publishes, what a read and a write answered, a notification
+    case 'gatt_read':
+    case 'gatt_write':
+    case 'gatt_notify':
+      return { type: 'GATT_EVENT', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for
       return { type: 'SAFETY_EVENT', event: ev };
