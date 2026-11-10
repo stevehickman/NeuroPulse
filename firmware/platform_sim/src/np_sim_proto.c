@@ -63,17 +63,6 @@ void np_sim_proto_pubkey(uint8_t pub[32])
     memcpy(pub, g_pk, 32);
 }
 
-/* np_gatt_server.c is not linked: the hub's notification is reported as the event the app would receive.  A double of first-party
- * code, listed as a gap (OI-SIMFW-39). */
-np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
-{
-    char hex[2U * 64U + 1U];
-    size_t n = len < 64U ? len : 64U;
-    for (size_t i = 0U; i < n; i++) { (void)snprintf(&hex[2U * i], 3U, "%02x", data[i]); }
-    np_sim_emit("{\"ev\":\"gatt_notify\",\"t\":%u,\"id\":%u,\"len\":%u,\"hex\":\"%s\"}", (unsigned)np_sim_now_ms(), (unsigned)id, (unsigned)len, hex);
-    return NP_HUB_OK;
-}
-
 /* The hub's own bring-up gives the runner an event group; here it is a token, and what the runner posts to it is reported (see
  * xEventGroupSetBits in np_sim_spike_link.c). */
 static int  g_ev_token;

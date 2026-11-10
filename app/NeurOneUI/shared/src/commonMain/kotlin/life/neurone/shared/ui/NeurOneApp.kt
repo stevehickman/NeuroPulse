@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import life.neurone.core.setup.SetupFlow
@@ -83,11 +84,30 @@ fun NeurOneApp(services: AppServices) {
     LaunchedEffect(Unit) { installValidationText() }
     MaterialTheme {
         Column {
+            SimulatedHubNotice(services)
             StorageNotice(services)
             PresenceGate(services) { Root(services) }
         }
     }
 }
+
+/**
+ * Says so, above every screen, when the hub this app is talking to is the simulator's twin and not a helmet (`REQ-SIMFW-19` (c)). Nothing
+ * when the host has a real central.
+ */
+@Composable
+private fun SimulatedHubNotice(services: AppServices) {
+    if (!services.platform.simulatedHub) return
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer) {
+        Text(
+            stringResource(Res.string.simulated_hub_notice),
+            modifier = Modifier.padding(12.dp).testTag(SIMULATED_HUB_NOTICE_TAG),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+const val SIMULATED_HUB_NOTICE_TAG = "simulated_hub_notice"
 
 /**
  * Says so when the protected data is not sealed on this run (desktop audit item 1, SWR-MG-13). Locked: the saved data cannot be

@@ -61,5 +61,6 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c);
 void np_sim_proto_pubkey(uint8_t pub[32]);
 np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len);   /* the TEST device serial, for np_proto_hal_get_device_serial */
 bool np_simh_proto_line(const char *cmd, char *a);
+bool np_simh_gatt_line(const char *cmd, char *a, char *b);   /* np_sim_gatt.c */
 
 #endif

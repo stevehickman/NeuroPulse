@@ -86,11 +86,6 @@ np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
     g_cvfs_len = len;
     return NP_HUB_OK;
 }
-void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
-{
-    (void)frame;
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_cvfs_hal_notify\",\"len\":%u}", (unsigned)np_sim_now_ms(), (unsigned)len);
-}
 np_hub_status_t np_hub_cvns_reenable_confirm(void) { return np_cvns_reenable_confirm(); }
 np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
 {

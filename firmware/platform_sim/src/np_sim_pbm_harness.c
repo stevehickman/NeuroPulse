@@ -153,6 +153,7 @@ void np_simh_line(char *line)
     if (np_simh_cvns_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_safety_line(cmd, a, b, c)) { return; }
     if (np_simh_proto_line(cmd, a)) { return; }
+    if (np_simh_gatt_line(cmd, a, b)) { return; }
 
     uint16_t socks[NP_HEXMAP_MAX_SOCKETS];
     unsigned n;
