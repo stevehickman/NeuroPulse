@@ -21,13 +21,38 @@ enum class HubStatusReason(val code: Int, override val key: String) : SocketReas
     POWER_BUDGET(-18, "HELMET_REASON_HUB_POWER_BUDGET"),
 
     /**
-     * `NP_HUB_ERR_SAFETY_REJECTED`: a module driver's own safety check refused the command. The goggles' drivers return it for a halted
-     * photic detector, an unarmed or open Hall sensor, a goggle not seated, a closed eye in a retinal mode and the MPE check; the probe's
-     * for an unauthenticated sleeve; the auricular VNS driver's for a contact impedance that is not finite or outside the window
-     * (`np_mod_vns.c`, `REQ-VNSC-07`). The hub returns the one code, so the
-     * cause among them is not reported (`OI-SIMFW-47`).
+     * `NP_HUB_ERR_SAFETY_REJECTED`: a safety refusal the hub does not split. Since `OI-SIMFW-47` (the Principal, 2026-11-10) the goggles,
+     * the probe and the auricular clip no longer return it: each of their checks has its own code below (`REQ-FWHUB-77`). What still
+     * returns it is the cervical VNS lockout and its re-enable confirm window (`np_mod_cvns.c`, `np_cvns_reenable.c`).
      */
     DRIVER_INTERLOCK(-10, "HELMET_REASON_HUB_DRIVER_INTERLOCK"),
+
+    /** `NP_HUB_ERR_PHOTIC_ZONE`: photic driving at 3 to 30 Hz is refused until the Oz detector exists (`REQ-FWHUB-66`; at the drive, `np_mod_visual.c`). */
+    PHOTIC_ZONE(-30, "HELMET_REASON_HUB_PHOTIC_ZONE"),
+
+    /** `NP_HUB_ERR_PPX_HALT`: the photoparoxysmal detector halted photic driving, and the goggles refuse every later drive in the session. */
+    PPX_HALT(-32, "HELMET_REASON_HUB_PPX_HALT"),
+
+    /** `NP_HUB_ERR_PPX_BLIND`: photic driving in the zone is permitted but the detector cannot see (`REQ-FWHUB-69`). */
+    PPX_BLIND(-33, "HELMET_REASON_HUB_PPX_BLIND"),
+
+    /** `NP_HUB_ERR_GOGGLE_LIFT_UNARMED`: the Hall lift interrupt is not armed, so a lift could not be taken back. */
+    GOGGLE_LIFT_UNARMED(-34, "HELMET_REASON_HUB_GOGGLE_LIFT_UNARMED"),
+
+    /** `NP_HUB_ERR_GOGGLES_NOT_SEATED`: not in the wear position, or lifted between the seated read and the enable. */
+    GOGGLES_NOT_SEATED(-35, "HELMET_REASON_HUB_GOGGLES_NOT_SEATED"),
+
+    /** `NP_HUB_ERR_EYE_NOT_OPEN`: a retinal mode with the eye not open (IR proximity). */
+    EYE_NOT_OPEN(-36, "HELMET_REASON_HUB_EYE_NOT_OPEN"),
+
+    /** `NP_HUB_ERR_MPE_CHECK`: the IEC 62471 exposure check failed. */
+    MPE_CHECK(-37, "HELMET_REASON_HUB_MPE_CHECK"),
+
+    /** `NP_HUB_ERR_SLEEVE_NOT_AUTH`: the intranasal probe's sleeve is not authenticated. */
+    SLEEVE_NOT_AUTH(-38, "HELMET_REASON_HUB_SLEEVE_NOT_AUTH"),
+
+    /** `NP_HUB_ERR_CONTACT_NOT_CONFIRMED`: the auricular VNS clip's contact impedance is not finite or is outside the window (`REQ-VNSC-07`). */
+    CONTACT_NOT_CONFIRMED(-39, "HELMET_REASON_HUB_CONTACT_NOT_CONFIRMED"),
 
     /** `NP_HUB_ERR_INVALID_ARG`: the command's parameters were too short or out of range. */
     INVALID_ARGUMENT(-2, "HELMET_REASON_HUB_INVALID_ARGUMENT"),

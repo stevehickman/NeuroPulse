@@ -96,6 +96,20 @@ typedef enum {
      * the apps could only call malformed; it is something the author can fix (make the protocol again for this helmet),
      * so it has its own status.  Reason 31 in the upload-check frame. */
     NP_HUB_ERR_BAD_ADDRESS          = -31,
+    /* OI-SIMFW-47 (the principal, 2026-11-10: the firmware reports which check failed).  A module driver's own safety check used
+     * to refuse with the one code NP_HUB_ERR_SAFETY_REJECTED (-10) whatever it was; each check now has its own, so a screen can
+     * say which.  -10 stays for the refusals this list does not split (cervical VNS lockout and re-enable confirm window).
+     * These are DEVICE-LOCAL statuses: they reach a caller of the driver (the app, the simulator) and are never written to the
+     * SHDR device-health log, whose fault code for a slot-addressed command is the one generic abort reason, so a closed eye or a
+     * lost contact is not recorded against the device (CLAUDE.md section 5.1).  Single owner: this header (REQ-FWHUB-77). */
+    NP_HUB_ERR_PPX_HALT             = -32,  /* goggles: the photoparoxysmal detector has halted photic driving */
+    NP_HUB_ERR_PPX_BLIND            = -33,  /* goggles: photic driving in the zone is permitted but the detector cannot see (REQ-FWHUB-69) */
+    NP_HUB_ERR_GOGGLE_LIFT_UNARMED  = -34,  /* goggles: the Hall lift interrupt is not armed, so a lift could not be taken back */
+    NP_HUB_ERR_GOGGLES_NOT_SEATED   = -35,  /* goggles: not in the wear position (Hall sensor), or lifted during the command */
+    NP_HUB_ERR_EYE_NOT_OPEN         = -36,  /* goggles: a retinal mode with the eye not open (IR proximity) */
+    NP_HUB_ERR_MPE_CHECK            = -37,  /* goggles: the IEC 62471 exposure check failed */
+    NP_HUB_ERR_SLEEVE_NOT_AUTH      = -38,  /* intranasal probe: the sleeve is not authenticated */
+    NP_HUB_ERR_CONTACT_NOT_CONFIRMED = -39, /* auricular VNS clip: contact impedance not finite or outside the window */
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

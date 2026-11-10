@@ -69,6 +69,7 @@ np_hub_status_t np_mod_visual_telemetry(uint8_t slot, np_telem_record_t *out);
 /* ── Doubles: a model of the hardware the driver commands ─────────────────────── */
 
 static bool     g_seated;        /* what the Hall element reads */
+static bool     g_mpe_ok = true; /* what the exposure check reads (OI-SIMFW-47) */
 static bool     g_leds_on;       /* last LED command was a set, not a stop */
 static uint16_t g_req_mask;      /* the requested-enable mask, modelled */
 static bool     g_in_isr;
@@ -98,6 +99,7 @@ static void fire_edge(void)
 
 static void reset_doubles(void)
 {
+    g_mpe_ok = true;
     g_seated = true;
     g_leds_on = false;
     g_req_mask = 0U;
@@ -142,7 +144,7 @@ void np_mod_visual_hal_led_stop(void)        { g_leds_on = false; }
 bool np_mod_visual_hal_ir_eye_open(void)     { return g_eye_open; }
 bool np_mod_visual_hal_goggle_seated(void)   { return g_seated; }
 void np_mod_visual_hal_emdr_set(uint8_t r)   { (void)r; g_emdr_sets++; g_leds_on = true; }
-bool np_mod_visual_hal_mpe_check(void)       { return true; }
+bool np_mod_visual_hal_mpe_check(void)       { return g_mpe_ok; }
 
 void np_safety_spi_request_enable(uint16_t bits)
 {
@@ -211,8 +213,8 @@ static void test_unarmed_goggle_never_emits(void)
     g_register_rc = NP_HUB_ERR_GENERIC;
     (void)np_mod_visual_init(NP_HUB_SLOT_VISUAL);
 
-    check(start() == NP_HUB_ERR_SAFETY_REJECTED,
-          "unarmed: control() is refused when the interrupt cannot be armed");
+    check(start() == NP_HUB_ERR_GOGGLE_LIFT_UNARMED,
+          "unarmed: control() is refused when the interrupt cannot be armed, as its own status");
     check(!emitting(),
           "unarmed: no LED set and no enable request");
 }
@@ -241,8 +243,8 @@ static void test_edge_inside_control_window(void)
     g_lift_during_led_set = true;
     np_hub_status_t rc = start();
 
-    check(rc == NP_HUB_ERR_SAFETY_REJECTED,
-          "window: an edge between the seated read and the enable is reported");
+    check(rc == NP_HUB_ERR_GOGGLES_NOT_SEATED,
+          "window: an edge between the seated read and the enable is reported as a goggle not seated");
     check(!emitting(),
           "window: the goggle is dark and the enable request is clear afterwards");
 }
@@ -308,8 +310,8 @@ static void test_mode_f_is_compiled_out(void)
     p = photic();
     p.mode = 2U;               /* the dedicated retinal PBM mode keeps its check */
     check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p))
-              == NP_HUB_ERR_SAFETY_REJECTED,
-          "mode F: retinal mode 2 is still refused with the eye closed");
+              == NP_HUB_ERR_EYE_NOT_OPEN,
+          "mode F: retinal mode 2 is still refused with the eye closed, as its own status");
 }
 
 static np_hub_status_t start_with(uint8_t mode, uint8_t freq_hz)
@@ -333,11 +335,11 @@ static void test_the_photoparoxysmal_zone_is_never_driven(void)
     /* Both ends of the zone are inside it, and nothing is driven or enabled when the answer is a refusal. */
     for (uint8_t f = 3U; f <= 30U; f++) {
         armed();
-        check(start_with(0U, f) == NP_HUB_ERR_SAFETY_REJECTED && !emitting() && g_led_sets == 0,
+        check(start_with(0U, f) == NP_HUB_ERR_PHOTIC_ZONE && !emitting() && g_led_sets == 0,
               "zone: photic driving at every whole hertz from 3 to 30 is refused, with no LED and no enable");
     }
     armed();
-    check(start_with(3U, 10U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(),
+    check(start_with(3U, 10U) == NP_HUB_ERR_PHOTIC_ZONE && !emitting(),
           "zone: the combined mode drives at freq_hz too, so it is refused as well");
     armed();
     check(start_with(0U, 2U) == NP_HUB_OK && emitting(), "zone: 2 Hz is outside it, and drives");
@@ -400,9 +402,9 @@ static void unguard(void)
 static void test_the_zone_is_driven_only_where_the_evidence_and_the_override_allow_it(void)
 {
     armed(); guarded(NP_PPX_EVIDENCE_NONE, true);
-    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(), "guard: no evidence: refused, even with the override");
+    check(start_with(0U, 20U) == NP_HUB_ERR_PHOTIC_ZONE && !emitting(), "guard: no evidence: refused, even with the override");
     armed(); guarded(NP_PPX_EVIDENCE_BENCH, false);
-    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting(), "guard: bench evidence without the override: refused");
+    check(start_with(0U, 20U) == NP_HUB_ERR_PHOTIC_ZONE && !emitting(), "guard: bench evidence without the override: refused");
     armed(); guarded(NP_PPX_EVIDENCE_BENCH, true);
     check(start_with(0U, 20U) == NP_HUB_OK && emitting(), "guard: bench evidence with the clinician's override, detector seeing: driven");
     armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
@@ -417,7 +419,7 @@ static void test_the_zone_is_not_started_when_the_detector_cannot_see(void)
     np_ppx_params_t pr; np_ppx_params_provisional(&pr);
     np_ppx_roles_t roles = { 0x03U, 0xFCU };
     np_ppx_init(&pr, roles, true);                 /* a fresh session: still warming up, so blind */
-    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && !emitting() && g_led_sets == 0,
+    check(start_with(0U, 20U) == NP_HUB_ERR_PPX_BLIND && !emitting() && g_led_sets == 0,
           "blind: a detector that cannot see: the zone is refused, with no LED and no enable");
     check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "blind: a drive outside the zone does not wait for it");
     unguard();
@@ -432,8 +434,8 @@ static void test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_se
     feed_quiet(2.0f, 300);
     check(!emitting() && !np_mod_visual_photic_zone_active(), "halt: the LEDs are off and the enable is withdrawn");
     check(g_panics == 1 && g_last_cause == NP_HOLD_DETECTOR_DISCHARGE, "halt: and the session is held paused, not aborted, with the detector's discharge as the cause");
-    check(start_with(0U, 20U) == NP_HUB_ERR_SAFETY_REJECTED && start_with(0U, 40U) == NP_HUB_ERR_SAFETY_REJECTED,
-          "halt: after a detection the goggles refuse every later drive in the session");
+    check(start_with(0U, 20U) == NP_HUB_ERR_PPX_HALT && start_with(0U, 40U) == NP_HUB_ERR_PPX_HALT,
+          "halt: after a detection the goggles refuse every later drive in the session, as a halt");
     unguard();
 }
 
@@ -510,6 +512,39 @@ static void test_a_failed_led_command_is_not_a_running_session(void)
     check(rc == NP_HUB_ERR_MOD_FAULT && !emitting(), "led fault: a failed replacement command stops the running session");
 }
 
+/* @verifies REQ-FWHUB-77#a */
+static void test_each_goggle_check_refuses_with_its_own_status(void)
+{
+    /* Seated but the eye closed, in the retinal mode only. */
+    armed();
+    g_eye_open = false;
+    check(start_with(2U, 0U) == NP_HUB_ERR_EYE_NOT_OPEN && !emitting(), "own status: eye not open in a retinal mode");
+
+    /* The exposure check. */
+    armed();
+    g_mpe_ok = false;
+    check(start_with(1U, 0U) == NP_HUB_ERR_MPE_CHECK && !emitting(), "own status: the exposure check");
+
+    /* Not seated. */
+    armed();
+    g_seated = false;
+    check(start_with(1U, 0U) == NP_HUB_ERR_GOGGLES_NOT_SEATED && !emitting(), "own status: goggles not seated");
+
+    /* No two of the goggle checks, and none of them and the old shared status, are one code (REQ-FWHUB-77 a). */
+    const np_hub_status_t codes[] = {
+        NP_HUB_ERR_PHOTIC_ZONE, NP_HUB_ERR_PPX_HALT, NP_HUB_ERR_PPX_BLIND, NP_HUB_ERR_GOGGLE_LIFT_UNARMED,
+        NP_HUB_ERR_GOGGLES_NOT_SEATED, NP_HUB_ERR_EYE_NOT_OPEN, NP_HUB_ERR_MPE_CHECK,
+    };
+    int distinct = 1;
+    for (size_t i = 0U; i < sizeof codes / sizeof codes[0]; i++) {
+        if (codes[i] == NP_HUB_ERR_SAFETY_REJECTED || codes[i] >= 0) { distinct = 0; }
+        for (size_t j = i + 1U; j < sizeof codes / sizeof codes[0]; j++) {
+            if (codes[i] == codes[j]) { distinct = 0; }
+        }
+    }
+    check(distinct, "own status: no two goggle checks share a code, and none is the shared -10");
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -526,6 +561,7 @@ int main(void)
     test_a_discharge_while_nothing_in_the_zone_is_driven_stops_nothing();
     test_losing_sight_during_a_zone_drive_halts_it();
     test_a_failed_led_command_is_not_a_running_session();
+    test_each_goggle_check_refuses_with_its_own_status();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);
