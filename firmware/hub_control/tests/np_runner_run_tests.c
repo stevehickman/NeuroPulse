@@ -713,6 +713,33 @@ static void test_a_refused_command_is_logged_refused_and_not_counted_delivered(v
 }
 
 
+/* @verifies REQ-FWHUB-77#d */
+static void test_a_device_local_driver_status_is_never_written_to_the_shdr_fault_log(void)
+{
+    /* The goggles', probe's and clip's own checks now return their own statuses (REQ-FWHUB-77 a to c).  A slot-addressed command that a
+     * module refuses is recorded as the one generic module fault; the status itself reaches the caller and never the SHDR device-health
+     * log, so a closed eye or a lost contact is not recorded against the device (CLAUDE.md section 5.1). */
+    const np_hub_status_t codes[] = {
+        NP_HUB_ERR_PPX_HALT, NP_HUB_ERR_PPX_BLIND, NP_HUB_ERR_GOGGLE_LIFT_UNARMED, NP_HUB_ERR_GOGGLES_NOT_SEATED,
+        NP_HUB_ERR_EYE_NOT_OPEN, NP_HUB_ERR_MPE_CHECK, NP_HUB_ERR_SLEEVE_NOT_AUTH, NP_HUB_ERR_CONTACT_NOT_CONFIRMED,
+    };
+    int leaked = 0, generic = 1;
+    for (size_t k = 0U; k < sizeof codes / sizeof codes[0]; k++) {
+        fresh();
+        blob_t b;
+        two_command_session(&b);
+        g_control_rc[NP_HUB_SLOT_VISUAL] = codes[k];
+        (void)load_and_run(&b);
+        for (unsigned i = 0U; i < g_log_n; i++) {
+            if (g_log[i].kind == RUN_EV_SHDR_FAULT && g_log[i].b == (uint32_t)(uint8_t)(-codes[k])) { leaked++; }
+        }
+        if (g_end_uhdr.abort_reason != NP_ABORT_MOD_FAULT) { generic = 0; }
+    }
+    check(leaked == 0, "shdr: no device-local driver status is written to the SHDR fault log with its own code");
+    check(generic, "shdr: each is recorded as the one generic module fault");
+}
+
+
 /* ── More scripted moments ────────────────────────────────────────────────────── */
 
 
@@ -1310,6 +1337,7 @@ int main(void)
     test_a_session_runs_to_its_duration_and_completes();
     test_the_session_start_record_and_the_fitting_come_before_any_command();
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
+    test_a_device_local_driver_status_is_never_written_to_the_shdr_fault_log();
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();
     test_an_abort_keeps_the_reason_it_was_given();
     test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended();

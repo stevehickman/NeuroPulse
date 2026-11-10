@@ -94,11 +94,37 @@ enum class WithheldReason(override val key: String) : SocketReason {
     CONTACT_CHECK_FAILED("HELMET_REASON_WITHHELD_CONTACT"),
 
     /**
-     * No status flag says why. An undeclared electrical waveform class, the tier gate and a line the hub has not requested are all
-     * withheld with status OK and no fault slot (§23), so they cannot be told apart from what the MCU reports (`OI-SIMFW-47`).
+     * The hub never asked for this line's enable (its own requested mask has no bit for the line), so there was nothing for the MCU to
+     * grant. This is the hub's own record (`np_safety_spi_get_requested_mask`, the `requested` field of the simulator's `safety_state`),
+     * and the MCU is not involved (`OI-SIMFW-47`).
+     */
+    NOT_REQUESTED("HELMET_REASON_WITHHELD_NOT_REQUESTED"),
+
+    /**
+     * The unit's signed tier identity does not allow this line: a T2 line (cervical VNS, TMS, 1170 nm, clinical stimulation) on a unit
+     * the MCU does not establish as T2. The MCU reports it in the tier report of the reply (`np_safety_tier_report_t`: the REFUSED flag
+     * and the reason, read by `np_safety_spi_get_tier_report`), which the simulator's `safety_state` carries as `tier_refused` and
+     * `tier_reason`. It applies only to the lines in [TIER_GATED_LINE_MASK], because the flag says a T2 line was refused, not which.
+     */
+    TIER_GATE("HELMET_REASON_WITHHELD_TIER"),
+
+    /**
+     * No status flag and no report says why: the MCU withholds a line for an undeclared electrical waveform class, or for a missing
+     * electrode geometry, with status OK and no fault slot (`np_charge_monitor_decl_gate`, `np_charge_monitor_geom_gate`; §23). Class C
+     * firmware change proposed as `OI-SIMFW-50`; until the safety MCU's owner decides, this is shown as what it is.
      */
     UNREPORTED("HELMET_REASON_WITHHELD_UNREPORTED"),
 }
+
+/**
+ * The enable lines the MCU's tier gate can withhold, as the enable bits the hub requests and the MCU grants: the cervical VNS, TMS,
+ * 1170 nm and clinical stimulation lines (`NP_SAFETY_EN_T2_MASK`, `np_safety_protocol.h`; bits 10 to 13 of `np_spi_wire_types.h`).
+ * A test holds this to the header.
+ */
+const val TIER_GATED_LINE_MASK: Int = (1 shl 10) or (1 shl 11) or (1 shl 12) or (1 shl 13)
+
+/** True when [lineBit], one enable bit of the requested mask, is a line the tier gate can withhold. */
+fun isTierGatedLine(lineBit: Int): Boolean = lineBit and TIER_GATED_LINE_MASK != 0
 
 /** Why the safety MCU dropped a line it had enabled while the hub still requested it (state CUT_OFF). */
 enum class CutoffReason(override val key: String) : SocketReason {
@@ -146,12 +172,16 @@ object SafetyStatusBits {
 }
 
 /**
- * The reason for a WITHHELD socket from the MCU's last status byte. Order, first match wins: the session signature, then the
- * contact check. Both can be set at once; the Safety MCU panel shows every flag.
+ * The reason for a WITHHELD socket from the hub's requested bit for its line, the MCU's last status byte and its tier report.
+ * Order, first match wins: a line the hub never requested (nothing else can apply to it), the session signature, the contact check,
+ * then the tier gate. [tierGated] is true only when [isTierGatedLine] holds for the socket's line and the MCU's tier report says a T2
+ * line was refused. Several can be set at once; the Safety MCU panel shows every flag.
  */
-fun withheldReasonOf(status: Int): WithheldReason = when {
+fun withheldReasonOf(status: Int, requested: Boolean = true, tierGated: Boolean = false): WithheldReason = when {
+    !requested -> WithheldReason.NOT_REQUESTED
     status and SafetyStatusBits.SIG_PENDING != 0 -> WithheldReason.AWAITING_SESSION_SIGNATURE
     status and SafetyStatusBits.IMPEDANCE != 0 -> WithheldReason.CONTACT_CHECK_FAILED
+    tierGated -> WithheldReason.TIER_GATE
     else -> WithheldReason.UNREPORTED
 }
 

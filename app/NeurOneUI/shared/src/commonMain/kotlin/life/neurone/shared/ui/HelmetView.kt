@@ -156,6 +156,8 @@ private fun reasonLabel(r: SocketReason): StringResource = when (r) {
     is WithheldReason -> when (r) {
         WithheldReason.AWAITING_SESSION_SIGNATURE -> Res.string.helmet_reason_withheld_signature
         WithheldReason.CONTACT_CHECK_FAILED -> Res.string.helmet_reason_withheld_contact
+        WithheldReason.NOT_REQUESTED -> Res.string.helmet_reason_withheld_not_requested
+        WithheldReason.TIER_GATE -> Res.string.helmet_reason_withheld_tier
         WithheldReason.UNREPORTED -> Res.string.helmet_reason_withheld_unreported
     }
     is CutoffReason -> when (r) {

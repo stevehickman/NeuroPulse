@@ -189,6 +189,7 @@ static float make_float(uint32_t bits)
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
 /* @verifies REQ-VNSC-07 */
+/* @verifies REQ-FWHUB-77#c */
 static void test_a_non_finite_impedance_is_refused_and_starts_nothing(void)
 {
     const float cases[] = {
@@ -213,6 +214,7 @@ static void test_a_non_finite_impedance_is_refused_and_starts_nothing(void)
 }
 
 /* @verifies REQ-VNSC-07 */
+/* @verifies REQ-FWHUB-77#c */
 static void test_the_range_still_enables_inside_and_refuses_outside(void)
 {
     const float inside[]  = { 500.0f, 1200.0f, 5000.0f };
