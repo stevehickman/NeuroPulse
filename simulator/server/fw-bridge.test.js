@@ -700,6 +700,66 @@ test('end to end: a protocol the TEST key signed is accepted by the hub\'s own v
   assert.deepStrictEqual([bf[0], bf[1]], [2, 6], 'REFUSED, reason 6');
 });
 
+// @verifies REQ-SIMFW-17#a,e
+test('the bridge relays the TEST device serial as whole hex and the boot decision as a whitelisted name', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(32) }), [`proto_serial ${'11'.repeat(32)}`]);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'refuse' }), ['proto_boot refuse']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'admit' }), ['proto_boot admit']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(31) },            // not the whole serial
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(33) },
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '1\nquit' + '1'.repeat(61) },
+    { type: 'FW_COMMAND', cmd: 'proto_serial' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'admit\nquit' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'maybe' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot' },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m).slice(0, 80));
+});
+
+const MCU = [{ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 0 }];
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: the device-serial replay guard is live: a protocol for another serial is refused as the wrong device, and a loaded one says so', { skip: !BIN }, async () => {
+  const ok = await upload(GOLDEN.pbm660, { before: MCU });
+  assert.strictEqual(ok.pump.code, 0);
+  assert.strictEqual(ok.pump.loaded, true, 'np_runner_load took it');
+  assert.strictEqual(ok.pump.session_started, false, 'and no session started: np_runner_run is not modelled (OI-SIMFW-45)');
+  const other = await upload(GOLDEN.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(32) }, ...MCU] });
+  assert.strictEqual(other.pump.code, -7, 'NP_HUB_ERR_WRONG_DEVICE');
+  assert.strictEqual(other.pump.loaded, false);
+  assert.deepStrictEqual([Buffer.from(other.frame, 'hex')[0], Buffer.from(other.frame, 'hex')[1]], [2, 7], 'REFUSED, reason 7');
+});
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: a boot that did not admit sessions refuses every protocol, as the device does today (OI-NVRAM-19)', { skip: !BIN }, async () => {
+  const r = await upload(GOLDEN.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'refuse' }, ...MCU] });
+  assert.strictEqual(r.pump.code, -25, 'NP_HUB_ERR_BOOT_REFUSED');
+  assert.strictEqual(r.pump.loaded, false);
+});
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: a protocol that was loaded holds the session lease, so a second is refused while it is held', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const e of MCU) bridge.handle(e);
+  await wait(400);
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: GOLDEN.pbm660 });
+  await wait(300);
+  const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
+  const bytes = framed(Buffer.from(signed.hex, 'hex')).toString('hex');
+  for (let i = 0; i < 2; i++) {
+    bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: bytes });
+    bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_pump' });
+    await wait(300);
+  }
+  bridge.stop();
+  const pumps = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'proto_pump').map((m) => m.event);
+  assert.deepStrictEqual(pumps.map((p) => p.code), [0, -13], 'loaded, then NP_HUB_ERR_SESSION_ACTIVE: np_lease_claim refuses while the first is held');
+});
+
 // @verifies REQ-SIMFW-17#b
 test('end to end: a zero length prefix is refused by the hub\'s transport, and a second blob is refused until the first is taken', { skip: !BIN }, async () => {
   const bridge = new FwBridge({ bin: BIN }).start();

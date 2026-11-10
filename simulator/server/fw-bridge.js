@@ -462,6 +462,14 @@ function protoCommandLines(msg) {
       return [`proto_feed ${protoHex(msg.hex, 'hex', PROTO_BLOB_MAX_BYTES + 4)}`];
     case 'proto_pump':    // one pass of the hub's protocol task
       return ['proto_pump'];
+    case 'proto_serial': {  // the TEST device serial the replay guard compares with: exactly 32 bytes, as hex
+      const hex = protoHex(msg.hex, 'hex', 32);
+      if (hex.length !== 64) throw new BridgeError('hex must be the whole 32-byte device serial');
+      return [`proto_serial ${hex}`];
+    }
+    case 'proto_boot':    // the boot decision (whether the config partition mounted): sessions admitted or refused
+      if (msg.mode !== 'admit' && msg.mode !== 'refuse') throw new BridgeError('mode must be admit or refuse');
+      return [`proto_boot ${msg.mode}`];   // a member of the whitelist, never the client's string
     default:
       return null;
   }

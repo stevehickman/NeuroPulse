@@ -6,15 +6,17 @@
  * The hub's transport (np_transport.c) reassembles them; task_protocol_rx takes the blob out, hashes it (np_upload_check.c, SWR-UP-01),
  * verifies and loads it (np_runner_load), and reports the verdict to the app as the 34-byte upload-check frame.
  *
- * What runs here is the device's own code for every step but the last: np_transport_feed, np_hal_proto_queue_receive,
- * np_upload_check_received and _result, and np_protocol_verify_and_parse with the admissions np_runner_load makes before it asks the
- * safety MCU for anything.  np_runner_load itself is not in the loop (np_sim_spike_link.c), so a session is not started: the verdict
- * is the hub's own, the run is not.
+ * What runs here is the device's own code: np_transport_feed, np_hal_proto_queue_receive, np_upload_check_received and _result, and
+ * np_runner_load (the boot admission, the session lease, np_protocol_verify_and_parse with the device-serial replay guard, then the tier,
+ * hardware-version, layout, address and photic admissions).  np_runner_run is not modelled (OI-SIMFW-45), so a load that succeeds does not
+ * start a session and holds the lease: the verdict is the hub's own, the run is not.
  *
  * Commands (stdin, one line each):
  *   proto_sign <hex>   play the SIGNING SERVICE: sign an unsigned blob (zeroed signature slot) with the TEST protocol key; emits proto_signed
  *   proto_feed <hex>   write these bytes of the framed stream to the transport, as one BLE write or one CDC read would
- *   proto_pump         one pass of task_protocol_rx: take a complete blob, if any, hash it, verify it, report the verdict
+ *   proto_pump         one pass of task_protocol_rx: take a complete blob, if any, hash it, np_runner_load it, report the verdict
+ *   proto_serial <hex> set the TEST device serial the replay guard compares with (32 bytes; all zero by default, UC-137)
+ *   proto_boot admit|refuse  the boot decision: whether the device's config partition mounted and sessions are admitted
  *
  * The signing key is a TEST key whose seed is below (REQ-SIMFW-08); signing for the real service stays in Rust (CLAUDE.md §22) and is not
  * on this route (OI-SIMFW-41).  Nothing here is verification evidence (REQ-SIMFW-06).
@@ -25,8 +27,10 @@
 
 #include "np_gatt_server.h"
 #include "np_layout_bind.h"
+#include "np_log_backend.h"
 #include "np_protocol.h"
 #include "np_safety_spi.h"
+#include "np_session_runner.h"
 #include "np_transport.h"
 #include "np_upload_check.h"
 
@@ -67,6 +71,32 @@ np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
     size_t n = len < 64U ? len : 64U;
     for (size_t i = 0U; i < n; i++) { (void)snprintf(&hex[2U * i], 3U, "%02x", data[i]); }
     np_sim_emit("{\"ev\":\"gatt_notify\",\"t\":%u,\"id\":%u,\"len\":%u,\"hex\":\"%s\"}", (unsigned)np_sim_now_ms(), (unsigned)id, (unsigned)len, hex);
+    return NP_HUB_OK;
+}
+
+/* The hub's own bring-up gives the runner an event group; here it is a token, and what the runner posts to it is reported (see
+ * xEventGroupSetBits in np_sim_spike_link.c). */
+static int  g_ev_token;
+static bool g_runner_inited;
+static bool g_boot_decided;
+static void np_runner_init_once(void)
+{
+    if (!g_runner_inited) { np_runner_init((EventGroupHandle_t)&g_ev_token); g_runner_inited = true; }
+    if (!g_boot_decided) {      /* a boot nothing has decided: the simulator's default is a bound block device (UC-137) */
+        (void)np_log_backend_init();
+        g_boot_decided = true;
+    }
+}
+
+/* The device serial the TEST device reports: all zero, which is what the app's compiler writes into the header when it has no device
+ * serial (the golden descriptors, app/NeurOneShared/TestData/hub-descriptor-golden.json), so a protocol compiled without one passes the
+ * replay guard, and a protocol for another serial does not (proto_serial changes it).  UC-137. */
+static uint8_t g_serial[NP_GATT_DEVICE_SERIAL_LEN];
+
+np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len)
+{
+    if (buf == NULL || len < NP_GATT_DEVICE_SERIAL_LEN) { return NP_HUB_ERR_INVALID_ARG; }
+    memcpy(buf, g_serial, NP_GATT_DEVICE_SERIAL_LEN);
     return NP_HUB_OK;
 }
 
@@ -121,6 +151,24 @@ bool np_simh_proto_line(const char *cmd, char *a)
         np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_feed\",\"code\":%d,\"bytes\":%d}", (int)rc, n);
         return true;
     }
+    if (strcmp(cmd, "proto_serial") == 0) {
+        uint8_t tmp[NP_GATT_DEVICE_SERIAL_LEN];
+        int n = (a != NULL) ? unhex(a, tmp, sizeof tmp) : -1;
+        if (n != (int)NP_GATT_DEVICE_SERIAL_LEN) { bad(cmd, "needs the device serial as hex, whole"); return true; }
+        memcpy(g_serial, tmp, sizeof g_serial);
+        np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_serial\",\"code\":0}");
+        return true;
+    }
+    if (strcmp(cmd, "proto_boot") == 0) {
+        /* The boot decision of np_hub_control_main.c (OI-NVRAM-19): the config partition mounted, so sessions are admitted, or it did not and
+         * np_runner_load refuses every protocol as NP_HUB_ERR_BOOT_REFUSED.  The firmware's own functions set the flag. */
+        if (a != NULL && strcmp(a, "admit") == 0)       { (void)np_log_backend_init(); }
+        else if (a != NULL && strcmp(a, "refuse") == 0) { np_log_backend_refuse(); }
+        else { bad(cmd, "needs admit or refuse"); return true; }
+        g_boot_decided = true;
+        np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_boot\",\"code\":0,\"admits\":%s}", np_log_backend_admits_sessions() ? "true" : "false");
+        return true;
+    }
     if (strcmp(cmd, "proto_pump") == 0) {
         size_t len = 0U;
         np_hub_status_t rc = np_hal_proto_queue_receive(g_rx, sizeof g_rx, &len, 0U);
@@ -128,22 +176,20 @@ bool np_simh_proto_line(const char *cmd, char *a)
             np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_pump\",\"code\":%d,\"blob\":false}", (int)rc);
             return true;
         }
-        /* task_protocol_rx: hash the bytes as they arrived, then load.  np_runner_load is not in the loop, so the load is its first
-         * steps, in its order (np_session_runner.c): verify and parse, the tier, the hardware version, the layout. */
+        /* task_protocol_rx: hash the bytes as they arrived, then np_runner_load: the device's own admissions, in its own order (the boot
+         * flag, the session lease, verify and parse with the device-serial replay guard, the tier, the hardware version, the layout and
+         * its addresses, the photic refusal).  A load that succeeds holds the session lease until a run ends it. */
         np_upload_check_received(g_rx, len);
+        np_runner_init_once();
+        np_hub_status_t v = np_runner_load(g_rx, len);
         np_session_desc_t desc;
         memset(&desc, 0, sizeof desc);
-        np_hub_status_t v = np_protocol_verify_and_parse(g_rx, len, &desc);
-        if (v == NP_HUB_OK) { v = np_protocol_tier_admit(&desc, np_safety_spi_get_tier()); }
-        if (v == NP_HUB_OK) {
-            v = np_protocol_hw_version_admit(&desc, np_safety_spi_get_hardware_version(), np_safety_spi_get_tier_report(NULL, NULL));
-        }
-        if (v == NP_HUB_OK) { v = np_layout_admit(np_safety_spi_get_hardware_version()); }
+        (void)np_protocol_verify_and_parse(g_rx, len, &desc);   /* for the command count the event reports; the load above is the verdict */
         np_upload_check_result(v);
         memset(g_rx, 0, len);
         np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_pump\",\"code\":%d,\"blob\":true,\"len\":%u,\"cmd_count\":%u,"
-                    "\"session_started\":false,\"safety_mcu\":\"%s\"}",
-                    (int)v, (unsigned)len, v == NP_HUB_OK ? (unsigned)desc.cmd_count : 0U, np_sim_safety_label());
+                    "\"loaded\":%s,\"session_started\":false,\"safety_mcu\":\"%s\"}",
+                    (int)v, (unsigned)len, v == NP_HUB_OK ? (unsigned)desc.cmd_count : 0U, v == NP_HUB_OK ? "true" : "false", np_sim_safety_label());
         return true;
     }
     return false;
