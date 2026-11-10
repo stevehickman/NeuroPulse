@@ -19,7 +19,9 @@ final class NppsCoreTests: XCTestCase {
     }
 
     private static func json(_ name: String) throws -> [String: Any] {
-        let url = root().appendingPathComponent("app/NeurOneShared/TestData").appendingPathComponent(name)
+        // The hub golden is shared with the simulator's test, so it lives in common/testdata (CLAUDE.md section 20).
+        let dir = name == "hub-descriptor-golden.json" ? "common/testdata" : "app/NeurOneShared/TestData"
+        let url = root().appendingPathComponent(dir).appendingPathComponent(name)
         let object = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
         return try XCTUnwrap(object as? [String: Any])
     }

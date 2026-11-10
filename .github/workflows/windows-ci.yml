@@ -5,7 +5,7 @@ name: Windows CI (dotnet)
 # The project targets net8.0-windows10.0.19041.0, so it needs a Windows runner. The tests are
 # plain xunit (no UI, no device), and the one that matters here is HubDescriptorCompilerTests:
 # it diffs the Windows compiler's output byte for byte against
-# app/NeurOneShared/TestData/hub-descriptor-golden.json, which is the web compiler's
+# common/testdata/hub-descriptor-golden.json, which is the web compiler's
 # own output (scripts/gen-hub-descriptor-golden.ts). Android's and iOS's CI diff the same file,
 # which is what keeps the three native compilers on the one NP-FW-HUB-001 §4 wire (OI-AND-WIRE-01).
 # The golden file and the zone file the tests read are therefore build inputs and are in
@@ -48,7 +48,7 @@ jobs:
     env:
       NP_SCOPE_PATHS: |
         app/windows/**
-        app/NeurOneShared/TestData/hub-descriptor-golden.json
+        common/testdata/hub-descriptor-golden.json
         # The serializer and validator are the core's too: the tests push these goldens through the binding.
         app/NeurOneShared/TestData/npps-serialize-golden.json
         app/NeurOneShared/TestData/npps-validate-golden.json

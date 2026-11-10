@@ -60,7 +60,7 @@ jobs:
         # the web parser's own output, so the goldens it reads are build inputs (OI-NPPS-CORE-01).
         app/NeurOneShared/TestData/npps-parse-golden.json
         app/NeurOneShared/TestData/hub-descriptor-cases.json
-        app/NeurOneShared/TestData/hub-descriptor-golden.json
+        common/testdata/hub-descriptor-golden.json
         # The serializer and validator are the core's too, held to the web implementations they replaced.
         app/NeurOneShared/TestData/npps-serialize-golden.json
         app/NeurOneShared/TestData/npps-validate-golden.json

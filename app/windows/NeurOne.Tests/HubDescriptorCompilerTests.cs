@@ -35,7 +35,7 @@ public class HubDescriptorCompilerTests
     }
 
     private static readonly Dictionary<string, string> Golden = JsonSerializer.Deserialize<Dictionary<string, string>>(
-        File.ReadAllText(Path.Combine(Root, "app", "NeurOneShared", "TestData", "hub-descriptor-golden.json")))!;
+        File.ReadAllText(Path.Combine(Root, "common", "testdata", "hub-descriptor-golden.json")))!;
 
     private static readonly DateTimeOffset NOW = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000);
     private static readonly byte[] UUID = Enumerable.Repeat((byte)0xAB, 16).ToArray();

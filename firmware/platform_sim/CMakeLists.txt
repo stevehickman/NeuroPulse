@@ -48,6 +48,10 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_socket_dispatch.c
     ../hub_control/src/np_module_map.c
     ../hub_control/src/np_protocol.c
+    # the app's upload path: the transport that reassembles the framed bytes and the upload check that hashes them (OI-SIMFW-38)
+    ../hub_control/src/np_transport.c   # built with -DNPTEST_HOST like the rest of this library: its own single-threaded model
+    ../hub_control/src/np_upload_check.c
+    ../hub_control/src/np_proto_verify.c
     ../hub_control/src/np_pbm_power_gov.c
     ../hub_control/src/np_safety_spi.c
     ../hub_control/src/np_socket_layouts.c
@@ -81,6 +85,15 @@ set(NP_SIM_PBM_FIRMWARE
     ../hrv_biofeedback/src/np_hrv_eeg_biofeedback.c
     ../hub_control/src/np_stim_xcheck.c
     ../hub_control/src/np_ramp_plan.c
+    # the session runner and what it alone needs (OI-SIMFW-43): the lease, the pause rule, the channel declaration
+    ../hub_control/src/np_session_runner.c
+    ../hub_control/src/np_session_lease.c
+    ../hub_control/src/np_session_pause.c
+    ../hub_control/src/np_chan_decl.c
+    ../hub_control/src/np_session_hold.c        # np_hold_notify: the SESSION_HOLD frame the runner raises
+    ../hub_control/src/np_session_progress.c    # np_progress_build, np_progress_notify: the SESSION_PROGRESS frame
+    ../hub_control/src/np_session_fitting.c
+    ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse)
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
@@ -121,11 +134,25 @@ set_source_files_properties(src/np_sim_safety_hal.c PROPERTIES
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../safety_mcu/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher;${CMAKE_CURRENT_SOURCE_DIR}/../common/include;${CMAKE_CURRENT_SOURCE_DIR}/src"
     COMPILE_OPTIONS "-include;${NP_SIM_SAFETY_PORTS}")
 
+# The TEST protocol signing service of np_sim_proto.c: Monocypher's Ed25519 signer, the one the safety harness already uses for its TEST root key.
+set_source_files_properties(src/np_sim_proto.c PROPERTIES
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher")
+
+# np_log_backend.c names the bootloader's partition sizes (np_config.h).
+set_source_files_properties(../hub_control/src/np_log_backend.c PROPERTIES
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/include")
+
+# The hub's own signature check (np_proto_verify.c) calls Monocypher's crypto_ed25519_check, the vendored SOUP np_crypto links.
+set_source_files_properties(../hub_control/src/np_proto_verify.c PROPERTIES
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher")
+
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
+    src/np_sim_runner_seams.c
     src/np_sim_safety_hal.c
     src/np_sim_safety_link.c
     src/np_sim_safety_harness.c
+    src/np_sim_proto.c
     ${NP_SIM_SAFETY_FIRMWARE}
     src/np_sim_pbm.c
     src/np_sim_stim.c
