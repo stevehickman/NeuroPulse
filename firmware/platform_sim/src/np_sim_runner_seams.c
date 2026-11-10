@@ -100,6 +100,4 @@ void np_log_session_end(const np_session_uhdr_record_t *u, const np_session_shdr
 void np_log_flush(void)                                         { unmodelled("np_log_flush"); }
 void np_log_shdr_pbm_session_counts(const np_pst_counts_t *c)   { (void)c; unmodelled("np_log_shdr_pbm_session_counts"); }
 void np_log_telemetry(const np_telem_record_t *rec)             { (void)rec; unmodelled("np_log_telemetry"); }
-void np_cons_on_session_end(uint32_t mods_active_mask)          { (void)mods_active_mask; unmodelled("np_cons_on_session_end"); }
 np_mod_entry_t *np_mod_reg_get(uint8_t slot)                    { (void)slot; unmodelled("np_mod_reg_get"); return NULL; }
-uint32_t np_pause_limit_seconds(void)                           { unmodelled("np_pause_limit_seconds"); return 0U; }

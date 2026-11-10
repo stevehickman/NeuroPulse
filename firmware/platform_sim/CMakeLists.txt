@@ -31,6 +31,9 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    # the storage the GATT producers keep settings in: LittleFS (SW-02 SOUP) and the hub's RAM block device header (np_sim_gatt.c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/littlefs
+    ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/tests
     # headers only: np_safety_spi.c and np_session_runner.h name FreeRTOS types.  The kernel is not
     # linked in the spike (single-threaded); the real scheduler arrives with the task layer (§8 step 3).
     ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/freertos/kernel/include
@@ -93,6 +96,17 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_session_hold.c        # np_hold_notify: the SESSION_HOLD frame the runner raises
     ../hub_control/src/np_session_progress.c    # np_progress_build, np_progress_notify: the SESSION_PROGRESS frame
     ../hub_control/src/np_session_fitting.c
+    # the hub's GATT server (np_gatt_server.c) and the producers its table names (OI-SIMFW-38: the app reaches the hub over GATT)
+    ../hub_control/src/np_gatt_server.c
+    ../hub_control/src/np_consumables.c
+    ../hub_control/src/np_cardiac_sens.c
+    ../hub_control/src/np_pause_limit.c
+    ../hub_control/src/np_ppx_config.c
+    ../hub_control/src/np_session_stop.c
+    ../hub_control/src/np_warranty_token.c
+    # the storage they keep their settings in: the store over LittleFS, in the device's own Config-instance geometry (np_sim_gatt.c)
+    ../hub_control/src/np_cfg_store.c
+    ../hub_control/src/np_lfs_instance.c
     ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse)
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
@@ -153,6 +167,8 @@ add_library(np_sim_pbm STATIC
     src/np_sim_safety_link.c
     src/np_sim_safety_harness.c
     src/np_sim_proto.c
+    src/np_sim_gatt.c
+    ../hub_control/tests/np_lfs_powerbd.c   # the RAM block device the hub's own storage tests use
     ${NP_SIM_SAFETY_FIRMWARE}
     src/np_sim_pbm.c
     src/np_sim_stim.c
@@ -178,7 +194,7 @@ add_library(np_sim_pbm STATIC
 target_include_directories(np_sim_pbm PUBLIC ${NP_SIM_INCLUDES})
 target_compile_definitions(np_sim_pbm PUBLIC NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
 target_compile_options(np_sim_pbm PRIVATE -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-target_link_libraries(np_sim_pbm PUBLIC np_crypto m pthread)
+target_link_libraries(np_sim_pbm PUBLIC np_crypto np_littlefs m pthread)
 
 # The spike process: stdin text commands in, JSON lines out.
 add_executable(np_sim_pbm_spike spike/np_sim_pbm_spike.c)

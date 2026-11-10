@@ -37,10 +37,8 @@
 extern void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask, uint8_t mcu_status);
 extern void np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid);
 
-/* The owner's cardiac cutoff sensitivity (REQ-CVNS-14) is a hub setting read from the config store by np_cardiac_sens.c, which the
- * simulator does not link (OI-SIMFW-30).  The driver's heart-rate report asks for it, so the simulator answers 0: the cutoff as
- * validated, never a lower threshold than the owner asked for. */
-uint8_t np_cardiac_sens_level(void) { return 0U; }
+/* The owner's cardiac cutoff sensitivity (REQ-CVNS-14) is the device's own np_cardiac_sens.c, over the config store (np_sim_gatt.c).
+ * Before gatt_init the store is not up and the level reads as the default, 0: the cutoff as validated. */
 
 static double g_next_peak_ms;    /* the R-peak train's phase, carried across safety_run calls (absolute virtual ms) */
 static int    g_peak_bpm;

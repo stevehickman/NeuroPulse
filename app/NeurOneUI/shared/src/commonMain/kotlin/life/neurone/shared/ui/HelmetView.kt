@@ -123,6 +123,64 @@ fun HelmetView(state: HelmetState, modifier: Modifier = Modifier) {
             }
         }
         Legend()
+        Reasons(helmetReasonRows(state))
+    }
+}
+
+/**
+ * An exhaustive mapping from every reason to its string: a reason with no text does not compile, so the list cannot fall behind
+ * the reasons. The keys these resolve are the ones each value names in `HelmetReason.kt` (a test holds the two together).
+ */
+private fun reasonLabel(r: SocketReason): StringResource = when (r) {
+    is HubStatusReason -> when (r) {
+        HubStatusReason.POWER_BUDGET -> Res.string.helmet_reason_hub_power_budget
+        HubStatusReason.DRIVER_INTERLOCK -> Res.string.helmet_reason_hub_driver_interlock
+        HubStatusReason.INVALID_ARGUMENT -> Res.string.helmet_reason_hub_invalid_argument
+        HubStatusReason.NOT_PRESENT -> Res.string.helmet_reason_hub_not_present
+        HubStatusReason.MODULE_FAULT -> Res.string.helmet_reason_hub_module_fault
+        HubStatusReason.MODULE_INIT -> Res.string.helmet_reason_hub_module_init
+        HubStatusReason.TIMEOUT -> Res.string.helmet_reason_hub_timeout
+        HubStatusReason.SAFETY_FAULT -> Res.string.helmet_reason_hub_safety_fault
+        HubStatusReason.SESSION_ACTIVE -> Res.string.helmet_reason_hub_session_active
+        HubStatusReason.UNREPORTED -> Res.string.helmet_reason_hub_unreported
+    }
+    is WithheldReason -> when (r) {
+        WithheldReason.AWAITING_SESSION_SIGNATURE -> Res.string.helmet_reason_withheld_signature
+        WithheldReason.CONTACT_CHECK_FAILED -> Res.string.helmet_reason_withheld_contact
+        WithheldReason.UNREPORTED -> Res.string.helmet_reason_withheld_unreported
+    }
+    is CutoffReason -> when (r) {
+        CutoffReason.INDEPENDENT_WATCHDOG -> Res.string.helmet_reason_cutoff_independent_watchdog
+        CutoffReason.SESSION_SIGNATURE -> Res.string.helmet_reason_cutoff_session_signature
+        CutoffReason.MCU_FAULT -> Res.string.helmet_reason_cutoff_mcu_fault
+        CutoffReason.THERMAL -> Res.string.helmet_reason_cutoff_thermal
+        CutoffReason.CHARGE -> Res.string.helmet_reason_cutoff_charge
+        CutoffReason.CARDIAC -> Res.string.helmet_reason_cutoff_cardiac
+        CutoffReason.HEARTBEAT_LOST -> Res.string.helmet_reason_cutoff_heartbeat
+        CutoffReason.CUTOFF_ONLY -> Res.string.helmet_reason_cutoff_only
+        CutoffReason.UNREPORTED -> Res.string.helmet_reason_cutoff_unreported
+    }
+}
+
+/** Tag a test can address: the reasons list, present only when some socket has a reason to give. */
+const val HELMET_REASONS_TAG = "helmet_reasons"
+
+/** The reason beside each state: the state's own tile, its legend text, the reason in words and how many sockets share it. */
+@Composable
+private fun Reasons(rows: List<HelmetReasonRow>) {
+    if (rows.isEmpty()) return
+    Column(Modifier.testTag(HELMET_REASONS_TAG), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(Res.string.helmet_reasons_title), style = MaterialTheme.typography.labelMedium)
+        for (row in rows) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(22.dp)) { drawTile(size.width / 2f, size.height / 2f, size.width * 0.46f, HELMET_STYLE.getValue(row.state)) }
+                Column {
+                    Text(stringResource(legendLabel(row.state)), style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(reasonLabel(row.reason)), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(Res.string.helmet_reason_sockets, row.count.toString()), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
     }
 }
 

@@ -37,6 +37,12 @@ interface PlatformServices {
     val bleCentral: BleCentral
 
     /**
+     * True when [bleCentral] is the simulator's, so the hub the app is talking to is a twin on this computer and not a helmet
+     * (NP-SIM-FW-001 §27, `REQ-SIMFW-19` (c)). The app says so above every screen; a host with a real central leaves it false.
+     */
+    val simulatedHub: Boolean get() = false
+
+    /**
      * Signs the session descriptor the hub will run (Ed25519 over its signed region, NP-FW-HUB-001 §4.4). The hub
      * rejects an unsigned or corrupted protocol, so a host must supply one: the JDK's on the JVM targets, and the common
      * `Ed25519ProtocolSigner` on iOS and the browser, where no synchronous platform signer exists.

@@ -65,6 +65,12 @@ data class HelmetSocket(
     /** The safety MCU has recorded a cutoff of this socket's line; it counts only while the line is not enabled. */
     val cutoff: Boolean = false,
     val outcome: CommandOutcome = CommandOutcome.NONE,
+    /**
+     * Why the socket is in its state, where the source knows: a [HubStatusReason] for REFUSED, WRITE_FAILED and FAULT, a
+     * [WithheldReason] for WITHHELD, a [CutoffReason] for CUT_OFF. `null`, or a reason of the wrong kind for the state, is
+     * shown as that state's UNREPORTED (`reasonOf`), never as a reason that does not apply.
+     */
+    val reason: SocketReason? = null,
 )
 
 /**
@@ -73,6 +79,9 @@ data class HelmetSocket(
  */
 data class HelmetState(val sockets: Map<Int, HelmetSocket>, val safetyInLoop: Boolean) {
     fun drawState(id: Int): SocketDrawState = sockets[id]?.let(::drawStateOf) ?: SocketDrawState.ABSENT
+
+    /** The reason beside a socket's state, or null where the state has none (`reasonOf`). */
+    fun reason(id: Int): SocketReason? = sockets[id]?.let(::reasonOf)
 
     companion object {
         /** Every socket of the lattice, none fitted. */
@@ -98,4 +107,17 @@ fun drawStateOf(s: HelmetSocket): SocketDrawState = when {
     s.line == LineVerdict.UNGATED -> SocketDrawState.DRIVEN_UNGATED
     s.line == LineVerdict.DISABLED -> if (s.cutoff) SocketDrawState.CUT_OFF else SocketDrawState.WITHHELD
     else -> SocketDrawState.COMMANDED
+}
+
+/**
+ * The reason to show beside a socket's state (`REQ-SIMFW-18`#d). Only the states with a cause have one: REFUSED, WRITE_FAILED and
+ * FAULT take a [HubStatusReason], WITHHELD a [WithheldReason], CUT_OFF a [CutoffReason]. A reason of another kind, or none, is the
+ * state's UNREPORTED, so the view never shows a cause the source did not give for this state. Every other state shows none: nothing
+ * went wrong in them that a person would ask about.
+ */
+fun reasonOf(s: HelmetSocket): SocketReason? = when (drawStateOf(s)) {
+    SocketDrawState.REFUSED, SocketDrawState.WRITE_FAILED, SocketDrawState.FAULT -> (s.reason as? HubStatusReason) ?: HubStatusReason.UNREPORTED
+    SocketDrawState.WITHHELD -> (s.reason as? WithheldReason) ?: WithheldReason.UNREPORTED
+    SocketDrawState.CUT_OFF -> (s.reason as? CutoffReason) ?: CutoffReason.UNREPORTED
+    else -> null
 }
