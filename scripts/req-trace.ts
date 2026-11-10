@@ -5,7 +5,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/req-trace.ts --self-test
  * CI-Scans: requirement definitions in docs/*.md against every test file's @verifies tags, and the untraced-test baseline
- * CI-Scan-Paths: docs/** firmware/** app/** common/** ci/**
+ * CI-Scan-Paths: docs/** firmware/** app/** common/** ci/** simulator/**
  *
  * Answers three questions, from the tracked tree alone:
  *   1. How many tests are associated with each requirement?
@@ -45,7 +45,7 @@
  * reported UNSCOPED: a whole-requirement tag cannot show every part is tested.
  *
  * TEST UNITS: C `static void test_*(…)` · Kotlin `@Test fun` · Swift
- * `func test*` / `@Test func` · TypeScript `it(` / `test(` · Rust `#[test] fn` ·
+ * `func test*` / `@Test func` · TypeScript and JavaScript (`.ts`, `.js`, `.mjs`) `it(` / `test(` · Rust `#[test] fn` ·
  * C# `[Fact]`/`[Theory]`/`[Test]`/`[TestMethod]` · Python `def test_*`.
  * PARAMETERIZED tests (it.each, @ParameterizedTest, @Test(arguments:), #[rstest] / #[test_case], [Theory],
  * pytest.mark.parametrize) are one unit each, however many cases they run: a tag above one covers every
@@ -211,13 +211,16 @@ export function extractRequirements(file: string, src: string): Requirement[] {
 }
 
 // ── Test discovery ──────────────────────────────────────────────────────────
-const EXT = /\.(c|kt|swift|ts|rs|cs|py)$/;
+const EXT = /\.(c|kt|swift|ts|js|mjs|rs|cs|py)$/;
 const SKIP = /(^|\/)(vendor|node_modules|build|editscripts|docs|\.git)(\/|$)/;
-const TEST_PATH = /(^|\/)(tests?|__tests__|[A-Za-z]*Tests?|jvmTest|commonTest|desktopTest|androidTest)(\/|$)|\.test\.ts$|_tests?\.c$|Tests?\.(kt|swift|cs)$|(^|\/)test_[^/]*\.py$/;
+const TEST_PATH = /(^|\/)(tests?|__tests__|[A-Za-z]*Tests?|jvmTest|commonTest|desktopTest|androidTest)(\/|$)|\.test\.(ts|js|mjs)$|_tests?\.c$|Tests?\.(kt|swift|cs)$|(^|\/)test_[^/]*\.py$/;
 
 export function isTestFile(path: string): boolean {
   return EXT.test(path) && !SKIP.test(path) && TEST_PATH.test(path);
 }
+
+/** TypeScript and JavaScript tests share the it( / test( forms (vitest, and node:test in simulator/). */
+const isJsLike = (ext: string): boolean => ext === "ts" || ext === "js" || ext === "mjs";
 
 interface Unit { line: number; name: string; parameterized?: boolean }
 
@@ -260,7 +263,7 @@ export function findUnits(path: string, lines: string[]): Unit[] {
     if (ext === "c" && (m = l.match(/^(?:static\s+)?(?:void|int)\s+(test_\w+)\s*\(/))) out.push({ line: i + 1, name: m[1] });
     else if (ext === "swift" && (m = l.match(/^\s*(?:@Test\b.*?)?func\s+(test\w*|`[^`]+`|\w+)\s*\(/)) && (/func\s+test/.test(l) || /@Test\b/.test(lines[i - 1] ?? "") || /@Test\b/.test(l)))
       out.push({ line: i + 1, name: m[1], parameterized: /@Test\([^)]*arguments:/.test(l + (lines[i - 1] ?? "")) || undefined });
-    else if (ext === "ts" && (m = l.match(/^\s*(?:it|test)\.each\b/))) {
+    else if (isJsLike(ext) && (m = l.match(/^\s*(?:it|test)\.each\b/))) {
       // title: the first `)('title'` / `` `('title' `` within the next 60 lines (the table may be long)
       let name = "";
       for (let j = i; j < Math.min(i + 60, lines.length) && !name; j++) {
@@ -269,7 +272,7 @@ export function findUnits(path: string, lines: string[]): Unit[] {
       }
       out.push({ line: i + 1, name: name || "(parameterized)", parameterized: true });
     }
-    else if (ext === "ts" && (m = l.match(/^\s*(?:it|test)(?:\.\w+)?\(\s*(['"`])(.+?)\1/))) out.push({ line: i + 1, name: m[2] });
+    else if (isJsLike(ext) && (m = l.match(/^\s*(?:it|test)(?:\.\w+)?\(\s*(['"`])(.+?)\1/))) out.push({ line: i + 1, name: m[2] });
     else if (ext === "py" && (m = l.match(/^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/))) {
       let k = i - 1;
       while (k >= 0 && /^\s*@/.test(lines[k])) k--;
@@ -606,6 +609,10 @@ function selfTest(): void {
 
   const ts2 = scanTestFile("app/web/src/lib/a.test.ts", "// @verifies-file REQ-AA-04\nit('x', () => {});\ntest(\"y\", () => {});", pr);
   eq("ts file-level", ts2.map((t) => t.verifies.length), [1, 1]);
+  const js1 = scanTestFile("simulator/js/a.test.mjs", "// @verifies REQ-AA-04\ntest('x', () => {});\ntest('y', { skip: false }, () => {});", pr);
+  eq("mjs units (node:test, simulator/)", js1.map((t) => t.name), ["x", "y"]);
+  eq("mjs tag attaches to the next test only", js1.map((t) => t.verifies.length), [1, 0]);
+  eq("js test files are test files, a js source is not", [isTestFile("simulator/js/a.test.mjs"), isTestFile("simulator/server/a.test.js"), isTestFile("simulator/js/helmet.js")], [true, true, false]);
   eq("rs", scanTestFile("common/npps-core/tests/a.rs", "#[test]\nfn good() {}", pr).map((t) => t.name), ["good"]);
   eq("swift", scanTestFile("app/ios/NeurOneTests/ATests.swift", "func testFoo() {}\nfunc helper() {}", pr).map((t) => t.name), ["testFoo"]);
   // parameterized forms: one unit each, flagged

@@ -5,3 +5,4 @@
 # `@verifies-none <reason>`, then lower the count with `bun scripts/req-trace.ts --update-baseline`.
 # Never raise a count to admit a new untraced test.
 
+simulator/server/fw-bridge.test.js 1
