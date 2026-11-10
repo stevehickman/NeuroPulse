@@ -1,6 +1,6 @@
 # OI-SIMFW-27 — a proposed interruption policy: outage length, flapping, ramps, and what is logged and delivered
 
-**Status:** PARTLY ANSWERED 2026-11-10 by the principal: **Q1 A, Q2 A, Q3 C, Q4 A, Q5 A, Q6 B** (recorded in §4 and in `docs/status/completed-decisions.md`); **Q7 and Q8 are open**. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
+**Status:** PARTLY ANSWERED 2026-11-10 by the principal: **Q1 A, Q2 A, Q3 C, Q4 A, Q5 A, Q6 B, Q7 A (widened)** (recorded in §4 and in `docs/status/completed-decisions.md`); **Q8 is open**. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
 **To:** the safety MCU's owner (not yet named), with Risk and Clinical/HFE where marked. **Owning item:** `OI-SIMFW-27`
 (`docs/np_sim_fw_001.md` §23); touches `OI-SIMFW-41` only where noted.
 
@@ -110,11 +110,17 @@ No path may resume at a level the person was last at while the hardware has been
 ### PR-5 — every interruption is logged; only those that change behaviour are delivered
 
 - **Logged (all):** every interruption, in the MCU's cutoff log, with the line, the cause class, the outage length, the ramp phase and level at the start, and the outcome (resumed, latched). Flapping entries are logged one by one.
-- **Delivered to the user (only these):** (a) a latch, because stimulation stays off and they must act; (b) an interruption that dropped a line and restarted its ramp, as a non-blocking notice, because the person felt it. **Not delivered:** a loss shorter than the watchdog timeout (the line never dropped), and rejected frames the sequence gate absorbed.
+- **Delivered to the user, each with an explanation (Q7 A, widened by the principal 2026-11-10: anything the person will notice or feel needs an explanation):**
+  (a) **a latch**, blocking, because stimulation stays off and they must act;
+  (b) **an interruption that dropped a line or restarted a ramp**, as a non-blocking notice, because the person felt it;
+  (c) **a ramp that is held, paused or waiting long enough to be noticed**, that is, for longer than `T_notice`: the ramp gate holding while another modality's ramp finishes, a ramp-down, the cervical VNS checks taking longer than expected, or a resume that is still waiting on the MCU's grant. This is not only an *uncommanded* interruption: a commanded pause that holds long enough is explained too.
+  An explanation says **what is happening, why in plain terms, and what comes next** (it will resume, or it needs the person's action). The reply carries a **reason code**; the app owns the words, because firmware renders no text (CLAUDE.md §17), so each new reason is a key in all eleven locales.
+  **Not delivered:** a loss shorter than the watchdog timeout (the line never dropped), a hold or interruption shorter than `T_notice` that nothing the person could feel changed, and rejected frames the sequence gate absorbed. The existing ramp report (`np_ramp_report_t`: phase, percent, time left) already carries the held and pre-check phases, so (c) adds a reason, not a new channel.
 - A latch is both logged and delivered. The reply to the hub carries a sticky "interruption since last read" flag and the last outage length, so a short interruption is visible to the hub even when it is not shown to the person. This closes the second half of `OI-SIMFW-27` (no reply reported the cut).
 - **Data class:** an interruption is a *device condition* (SHDR) by the §5.1 test, and the cause field must be carried in the **same uniform shape for every cause**, so a cardiac cause is not revealed by a different record layout (§5.1 rule 2, `scripts/check-redaction-shape.ts`). The cardiac cause is carried as `np_fault_latch.c` carries it today. When in doubt, UHDR.
+- **The explanation is on-device and for the person; the SHDR record stays uniform.** Telling the person why is not a disclosure to NeuroOne. What leaves the device is the uniform SHDR record only, with the warranty owner's consent (§6.0).
 
-*Fails without it:* a log that omits flapping cannot show why a session latched; a notification for every absorbed glitch teaches the person to ignore the one that matters.
+*Fails without it:* a log that omits flapping cannot show why a session latched; a notification for every absorbed glitch teaches the person to ignore the one that matters. A stimulus that stops or a ramp that stalls with no explanation reads as a broken device.
 
 ### PR-6 — the parameters and who may set them
 
@@ -125,6 +131,7 @@ No path may resume at a level the person was last at while the hardware has been
 | `N`, `W` | flapping count and window | `N` at least 2 | as `T_resume` | the rate at which a person stops treating interruptions as separate |
 | `S_max` (per ramping line) | largest allowed rise of the commanded current per unit time after a grant | tDCS: no more than the slope the §3 ramp bounds; cervical VNS: not yet derived | as `T_resume` (only tighter) | tDCS from CLAUDE.md §3 as above; cervical VNS from the clinical side
 | `I_start_max` (per ramping line) | largest commanded current allowed in the first heartbeat after a grant | at most the first step of the slope above | as `T_resume` (only tighter) | follows `S_max` and the heartbeat period |
+| `T_notice` | the shortest hold, pause or interruption the person is assumed to notice, above which an explanation is delivered (PR-5 (c)) | at most the shortest ramp step a person can feel | as `T_resume` (only **shorter**: more explanations, never fewer) | human-factors input; until then a row in `docs/status/unjustified-choices.md`
 
 **Never settable by the app** (CLAUDE.md §4.2: no app-side path may bypass the MCU). The only direction any setting may move after manufacture is the safe one, the pattern of `REQ-CVNS-14` (the owner may make the interlock more sensitive, never less).
 Each chosen number is a row in `docs/status/unjustified-choices.md` until derived (CLAUDE.md §19).
@@ -139,7 +146,7 @@ Each chosen number is a row in `docs/status/unjustified-choices.md` until derive
 | Q4 | Does the cardiac interlock itself get a count (PR-3's note)? | **A** no, share only the latch and release path (draft). **B** yes: a change to a behaviour presented to FDA | **A**, principal, 2026-11-10: the cardiac interlock gets no count; `REQ-CVNS-09` is unchanged |
 | Q5 | Is a ramp resumed from the actual level for every cause, with a full ramp after a hard cut (PR-4)? | **A** yes (draft). **B** resume mid-ramp after a short cut too: gentler, but it steps current if the hardware was at zero | **A**, principal, 2026-11-10: resume from the actual level, a full ramp after a hard cut |
 | Q6 | Where is the ramp's authority? | **A** the hub owns the ramp and is told of every grant change (draft; smallest change). **B** the MCU also enforces a maximum slope after any re-grant, independent of the hub: strongest, new MCU code and a new hazard control | **B**, principal, 2026-11-10: the MCU also enforces a slope after any grant, folded in now because no certification has been done yet. The hub still owns the ramp. The check uses the commanded current until `OI-FMEA-09` gives a delivered-current read |
-| Q7 | Is an interruption that dropped a line and restarted a ramp delivered as a notice (PR-5)? | **A** yes, non-blocking (draft). **B** logged only until it latches: quieter, but the person feels a restart with no explanation | open |
+| Q7 | Is an interruption that dropped a line and restarted a ramp delivered as a notice (PR-5)? | **A** yes, non-blocking (draft). **B** logged only until it latches: quieter, but the person feels a restart with no explanation | **A, widened**, principal, 2026-11-10: anything the person will notice or feel needs an explanation, so a ramp held or paused long enough to be noticed (above `T_notice`) is explained too, not only an interruption that dropped a line |
 | Q8 | Where does the persistent latch live? | **A** the cardiac cutoff's non-volatile record (draft). **B** a new record: separate, but a second compaction path (`OI-SIMFW-35` is the worked case) | open |
 
 ## 5. What is known, what is assumed
