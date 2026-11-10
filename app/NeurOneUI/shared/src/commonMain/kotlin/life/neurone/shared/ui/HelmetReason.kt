@@ -111,7 +111,7 @@ enum class WithheldReason(override val key: String) : SocketReason {
     /**
      * No status flag and no report says why: the MCU withholds a line for an undeclared electrical waveform class, or for a missing
      * electrode geometry, with status OK and no fault slot (`np_charge_monitor_decl_gate`, `np_charge_monitor_geom_gate`; §23). Class C
-     * firmware change proposed as `OI-SIMFW-50`; until the safety MCU's owner decides, this is shown as what it is.
+     * firmware change proposed as `OI-SIMFW-61`; until the safety MCU's owner decides, this is shown as what it is.
      */
     UNREPORTED("HELMET_REASON_WITHHELD_UNREPORTED"),
 }
