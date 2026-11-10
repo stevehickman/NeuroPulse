@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 28
+**Revision:** 29
 **Date:** 2026-11-10
 **Status:** DRAFT
 **Effective Date:** —
@@ -885,3 +885,4 @@ The first slice of the twin speaking the device's protocol (§25). What the real
 | 26 | 2026-11-09 | NeurOne Software Engineering | **§23: new REQ-SIMFW-16 and the fault panel (every fault the page can cause is an input to the firmware, never a verdict; a real link outage becomes a heartbeat loss); OI-SIMFW-27 records why the heartbeat-loss cut is absent from the reply and that the simulator follows the firmware; OI-SIMFW-41 raised.** |
 | 27 | 2026-11-09 | NeurOne Software Engineering | **§7: `OI-SIMFW-37` decided by the principal: the page hosts the Compose Multiplatform UI through its browser host and not the React app; how it reaches the twin, the browser host's gaps stay open; D-2 decided (the standalone mode is retired once one local container holding the twin, the bridge and the Compose bundle replaces it); the helmet view is decided to live inside the Compose UI, shared by the simulator and the real-hardware app.** |
 | 28 | 2026-11-10 | NeurOne Software Engineering | **§7, §23: OI-SIMFW-27 row points to the drafted interruption policy (docs/human-input/oi-simfw-27-interruption-policy.md, not a decision); REQ-SIMFW-16 (c) says watchdog timeout, the term the firmware uses.** |
+| 29 | 2026-11-10 | NeurOne Software Engineering | **§7: `OI-SIMFW-37` records the first slice of the shared Compose helmet view (state and drawing rule, 2D socket map, legend, a test of `REQ-SIMFW-07`), that Gradle could not run for that slice, and what is missing against `helmet.js`. Also: New §26 and `REQ-SIMFW-17`: the bridge relays an upload as validated hex, the hub's own transport and upload check take it in, and the app receives the hub's verdict frame; `OI-SIMFW-38` first slice built; `OI-SIMFW-42` (the hub's verifier call is wrong, so no signed protocol verifies), `OI-SIMFW-43` (the route stops at the runner) and `OI-SIMFW-44` (the signing stand-in) raised; `UC-136` registered. Also: the helmet view's second slice on the principal's rulings (2D for now, 3D if it can be done, the stricter drawing rule kept, every different state drawn differently): §25 gets the ten-state table and the 3D notes, new `REQ-SIMFW-18`, and `OI-SIMFW-37` records the rulings; Gradle ran this time and `HelmetStateTest` passed (14 tests). §7, §26, `REQ-SIMFW-17`#e: `OI-SIMFW-42` closed (the hub verifies a signed protocol); `OI-SIMFW-43` closed in part: `np_runner_load` is in the loop with the device-serial replay guard and the boot admission live (`proto_serial`, `proto_boot`), `OI-SIMFW-45` (`np_runner_run`) and `OI-SIMFW-46` (transports, GATT server) raised; `UC-137` registered.** |
