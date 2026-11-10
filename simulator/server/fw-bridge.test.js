@@ -636,11 +636,13 @@ test('the bridge relays a protocol upload as validated hex and nothing else', ()
 });
 
 /** Runs one upload through the real firmware process: sign, feed in `chunk`-byte writes, pump; returns what the firmware reported. */
-async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [] } = {}) {
+async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [], before = [] } = {}) {
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];
   bridge.on('message', (m) => seen.push(m));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const e of before) bridge.handle(e);
+  await wait(before.length ? 400 : 0);
   bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: blobHex });
   await wait(300);
   const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
@@ -682,14 +684,20 @@ test('end to end: the hub\'s own parser runs before its signature check, so a ba
 });
 
 // @verifies REQ-SIMFW-17#c
-test('end to end: a protocol the TEST key signed is refused as a bad signature, which is a defect in the hub\'s call to the verifier (OI-SIMFW-42)', { skip: !BIN }, async () => {
-  // np_protocol.c declares np_ed25519_verify(msg, len, sig, pubkey); firmware/crypto defines np_ed25519_verify(pubkey, msg, len, sig) and
-  // refuses a message over 256 bytes.  Linked together (as the simulator links them) the hub passes the message as the key.  When that is
-  // fixed this verdict becomes ACCEPTED (frame status 1, reason 0): change this test in that change, and close OI-SIMFW-42.
-  const r = await upload(GOLDEN.pbm660);
-  assert.strictEqual(r.pump.code, -6, 'NP_HUB_ERR_BAD_SIGNATURE');
+test('end to end: a protocol the TEST key signed is accepted by the hub\'s own verifier, and a flipped bit in it is refused as a bad signature (OI-SIMFW-42)', { skip: !BIN }, async () => {
+  // OI-SIMFW-42 was a call in the wrong argument order and a 256-byte cap in the shared library: np_protocol.c now calls
+  // np_proto_verify_signature, which takes a message up to NP_HUB_PROTO_BLOB_MAX.  The golden protocols are 300 to 560 bytes.
+  // The admissions after the signature (tier, hardware version) read what the safety MCU reported, so the MCU is attached with a T1 record for
+  // hardware version 1 and runs one second of heartbeats first, as it does before a session (REQ-FWHUB-61, SWR-HV-08).
+  const mcu = [{ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 0 }];
+  const r = await upload(GOLDEN.pbm660, { before: mcu });
+  assert.strictEqual(r.pump.code, 0, 'NP_HUB_OK');
   const f = Buffer.from(r.frame, 'hex');
-  assert.deepStrictEqual([f[0], f[1]], [2, 6], 'REFUSED, reason 6');
+  assert.deepStrictEqual([f[0], f[1]], [1, 0], 'ACCEPTED, no reason');
+  const bad = await upload(GOLDEN.pbm660, { before: mcu, mutate: (b) => { b[100] ^= 0x01; return b; } });   // a command byte, after the TEST signature was made
+  assert.strictEqual(bad.pump.code, -6, 'NP_HUB_ERR_BAD_SIGNATURE');
+  const bf = Buffer.from(bad.frame, 'hex');
+  assert.deepStrictEqual([bf[0], bf[1]], [2, 6], 'REFUSED, reason 6');
 });
 
 // @verifies REQ-SIMFW-17#b

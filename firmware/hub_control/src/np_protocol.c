@@ -2,9 +2,9 @@
  * NeurOne Hub Control Program — Protocol Parser and Verifier
  * Document: NP-FW-HUB-001 Rev 1 §4
  *
- * Ed25519 verification reuses the self-contained verifier from
- * firmware/bootloader/src/np_signature.c (same key derivation; different
- * public key stored in Config partition as NP_CFG_PROTO_PUB_KEY).
+ * Ed25519 verification is np_proto_verify_signature (np_proto_verify.h): the
+ * vendored Monocypher RFC 8032 check, with a different public key from the
+ * bootloader's, stored in Config partition as NP_CFG_PROTO_PUB_KEY.
  *
  * HAL stub OI-PROTO-01: np_proto_hal_get_device_serial(buf, NP_GATT_DEVICE_SERIAL_LEN)
  *   Reads the device serial from Config partition.
@@ -17,14 +17,10 @@
 
 #include "np_sw02_platform_hal.h"
 
-/* Ed25519 verify — the shared library's own signature, crypto/include/np_crypto.h:
- * the public key FIRST, then the message, its length and the signature.  (An earlier declaration here put
- * the message first, so the library read the message as the key and no signed protocol verified, OI-SIMFW-42.
- * The declaration stays local because this file links standalone in the host tests; the simulator links this
- * file with the library itself and its end-to-end test is what catches a mismatch.) */
-extern int np_ed25519_verify(const uint8_t *pubkey,
-                              const uint8_t *msg, uint32_t msg_len,
-                              const uint8_t *sig);
+/* The signature check has one declaration, shared with its definition (np_proto_verify.h).  An earlier local
+ * `extern` of np_ed25519_verify here had the message first and the library defines the key first, so no signed
+ * protocol verified, and the library refuses a message over 256 bytes (OI-SIMFW-42). */
+#include "np_proto_verify.h"
 
 /* ── Internal helpers ─────────────────────────────────────────────────────────── */
 
@@ -176,7 +172,7 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_BAD_SIGNATURE;
     }
 
-    if (np_ed25519_verify(pub_key, buf, (uint32_t)msg_len, sig) != 0) {
+    if (np_proto_verify_signature(pub_key, buf, (uint32_t)msg_len, sig) != 0) {
         return NP_HUB_ERR_BAD_SIGNATURE;
     }
 

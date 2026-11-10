@@ -51,6 +51,7 @@ set(NP_SIM_PBM_FIRMWARE
     # the app's upload path: the transport that reassembles the framed bytes and the upload check that hashes them (OI-SIMFW-38)
     ../hub_control/src/np_transport.c   # built with -DNPTEST_HOST like the rest of this library: its own single-threaded model
     ../hub_control/src/np_upload_check.c
+    ../hub_control/src/np_proto_verify.c
     ../hub_control/src/np_pbm_power_gov.c
     ../hub_control/src/np_safety_spi.c
     ../hub_control/src/np_socket_layouts.c
@@ -127,6 +128,10 @@ set_source_files_properties(src/np_sim_safety_hal.c PROPERTIES
 # The TEST protocol signing service of np_sim_proto.c: Monocypher's Ed25519 signer, the one the safety harness already uses for its TEST root key.
 set_source_files_properties(src/np_sim_proto.c PROPERTIES
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher")
+
+# The hub's own signature check (np_proto_verify.c) calls Monocypher's crypto_ed25519_check, the vendored SOUP np_crypto links.
+set_source_files_properties(../hub_control/src/np_proto_verify.c PROPERTIES
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher")
 
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
