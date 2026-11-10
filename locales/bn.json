@@ -1328,6 +1328,7 @@
   "SETUP_TITLE_ZONE_MODULES": "Zone Modules",
   "SETUP_ZONE_SUMMARY": "{0} of {1} sockets populated",
   "SETUP_ZONE_WAITING": "Waiting for the helmet to report its modules…",
+  "SIMULATED_HUB_NOTICE": "Simulated hub: this app is connected to a hub that is simulated on this computer, not to a helmet. Nothing here reaches a person, and protocols are signed with a TEST key.",
   "SOCKET_ERR_CLINICIAN_MISSING": "PBM transcranial target is 'clinician_selected': the operator must choose the sockets before this protocol can run.",
   "SOCKET_ERR_EMPTY_TARGET": "PBM transcranial target ({0}) resolves to no sockets — a session would report a delivered dose while lighting nothing. Resolve it to at least one socket.",
   "SOCKET_ERR_INVALID_SOCKET": "Socket {0} named by {1} is not a socket on this helmet ({2}).",
