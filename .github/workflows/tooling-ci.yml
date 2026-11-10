@@ -659,7 +659,7 @@ jobs:
           assert scope.pbmmodel.paths false hardware/np_socket_map_v1.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
           assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
-          assert scope.sharedplace.paths true  app/NeurOneShared/TestData/hub-descriptor-golden.json
+          assert scope.sharedplace.paths true  common/testdata/hub-descriptor-golden.json
           assert scope.sharedplace.paths true  common/lib/nppsParser.ts
           assert scope.sharedplace.paths true  simulator/src/npps-runtime.ts
           assert scope.sharedplace.paths false docs/np_art_001.md

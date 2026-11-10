@@ -89,7 +89,7 @@ static void np_runner_init_once(void)
 }
 
 /* The device serial the TEST device reports: all zero, which is what the app's compiler writes into the header when it has no device
- * serial (the golden descriptors, app/NeurOneShared/TestData/hub-descriptor-golden.json), so a protocol compiled without one passes the
+ * serial (the golden descriptors, common/testdata/hub-descriptor-golden.json), so a protocol compiled without one passes the
  * replay guard, and a protocol for another serial does not (proto_serial changes it).  UC-137. */
 static uint8_t g_serial[NP_GATT_DEVICE_SERIAL_LEN];
 

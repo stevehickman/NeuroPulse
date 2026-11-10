@@ -613,7 +613,7 @@ test('end to end: through the bridge the safety MCU grants a BES line, then the 
 // ── the app's protocol upload, over the hub's own transport (NP-SIM-FW-001 §26, REQ-SIMFW-17) ──────────────────────────────────
 
 const nodeCrypto = require('node:crypto');
-const GOLDEN = require('../../app/NeurOneShared/TestData/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot
+const GOLDEN = require('../../common/testdata/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot
 const framed = (blob) => Buffer.concat([Buffer.from(new Uint32Array([blob.length]).buffer), blob]);   // a 4-byte little-endian length, then the blob
 
 // @verifies REQ-SIMFW-17#a

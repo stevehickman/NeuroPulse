@@ -67,6 +67,8 @@ val generateBundledProtocols by tasks.registering {
 // goldens the web parser and compiler produced (app/NeurOneShared/TestData) are generated into Kotlin. Strings
 // are chunked: one JVM constant is capped at 64 KB.
 val testDataDir = layout.projectDirectory.dir("../../app/NeurOneShared/TestData")
+// Fixtures shared by the apps AND a non-app artifact (the simulator test reads the hub golden) live in common/ (CLAUDE.md §20).
+val commonTestDataDir = layout.projectDirectory.dir("../testdata")
 val generatedGoldensDir = layout.buildDirectory.dir("generated/goldens/commonTest/kotlin")
 val repoFixtures: java.io.File = layout.projectDirectory.dir("../../npps/fixtures").asFile
 
@@ -78,7 +80,7 @@ val generateTestGoldens by tasks.registering {
         "hubCases" to "hub-descriptor-cases.json",
         "hubGolden" to "hub-descriptor-golden.json",
     )
-    inputs.files(sources.values.map { testDataDir.file(it) })
+    inputs.files(sources.values.map { (if (it == "hub-descriptor-golden.json") commonTestDataDir else testDataDir).file(it) })
     inputs.dir(repoFixtures)
     outputs.dir(generatedGoldensDir)
     doLast {
@@ -104,7 +106,7 @@ val generateTestGoldens by tasks.registering {
             appendLine()
             appendLine("internal object TestGoldens {")
             for ((name, file) in sources) {
-                val chunks = testDataDir.file(file).asFile.readText().chunked(12_000)
+                val chunks = (if (file == "hub-descriptor-golden.json") commonTestDataDir else testDataDir).file(file).asFile.readText().chunked(12_000)
                 appendLine("    val $name: String = listOf(")
                 for (chunk in chunks) appendLine("        ${literal(chunk)},")
                 appendLine("    ).joinToString(\"\")")
@@ -220,6 +222,7 @@ kotlin {
             // Test data shared by every app lives in app/NeurOneShared/TestData, not under this module
             // (hub-descriptor-golden.json is read by the Android, iOS and Windows tests).
             resources.srcDir(layout.projectDirectory.dir("../../app/NeurOneShared/TestData"))
+            resources.srcDir(layout.projectDirectory.dir("../testdata"))
             // locales/en.json: the validator returns locale keys, and the tests resolve them in English (TestLocale).
             resources.srcDir(layout.projectDirectory.dir("../../locales"))
             dependencies {

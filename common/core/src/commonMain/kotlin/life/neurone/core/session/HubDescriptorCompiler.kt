@@ -20,7 +20,7 @@ import life.neurone.core.platform.secureRandomBytes
 // port of the web compiler, one of four hand-written ports that drifted; it now maps the Android
 // models to the core's protocol shape, hands over the clock, the session UUID and the zone
 // namespace, and signs the result. What a protocol compiles to, and what refuses it, is decided in
-// the core and is the same on every runtime. app/NeurOneShared/TestData/hub-descriptor-golden.json
+// the core and is the same on every runtime. common/testdata/hub-descriptor-golden.json
 // holds the web compiler's output for the same definitions; HubDescriptorCompilerTests diffs this
 // class against it, so the core is held to the web reference from here as well as from Rust.
 //
