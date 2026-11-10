@@ -63,8 +63,8 @@ np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
     return NP_HUB_OK;
 }
 
-int np_ed25519_verify(const uint8_t *msg, size_t msg_len,
-                      const uint8_t *sig, const uint8_t *pub_key)
+int np_ed25519_verify(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
+                      const uint8_t *sig)
 {
     (void)msg; (void)msg_len; (void)sig; (void)pub_key;
     return 0;   /* accept */
