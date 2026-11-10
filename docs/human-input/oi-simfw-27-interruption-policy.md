@@ -1,6 +1,6 @@
 # OI-SIMFW-27 — a proposed interruption policy: outage length, flapping, ramps, and what is logged and delivered
 
-**Status:** DRAFT, not sent. **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
+**Status:** PARTLY ANSWERED 2026-11-10 by the principal: **Q1 A, Q2 A, Q3 C, Q4 A** (recorded in §4 and in `docs/status/completed-decisions.md`); **Q5 to Q8 are open**. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
 **To:** the safety MCU's owner (not yet named), with Risk and Clinical/HFE where marked. **Owning item:** `OI-SIMFW-27`
 (`docs/np_sim_fw_001.md` §23); touches `OI-SIMFW-41` only where noted.
 
@@ -121,16 +121,16 @@ Each chosen number is a row in `docs/status/unjustified-choices.md` until derive
 
 ## 4. Questions for the reviewer (answer by picking an option)
 
-| # | Question | Options and what each costs |
-|---|---|---|
-| Q1 | Should an outage be time-qualified at all (PR-1), or should any outage over the watchdog timeout latch? | **A** time-qualified (this draft). **B** latch on any outage: simplest, but a connector glitch ends the session. **C** keep today's no-latch and add only logging and reporting: no new latch, resumes with no acknowledgement |
-| Q2 | Is the flapping window counted across all causes (PR-3)? | **A** all causes together (draft). **B** per cause class: easier to tune, but a mix of causes never trips |
-| Q3 | Does the count survive a reset? | **A** restarts empty, the reset itself is an entry: simplest, but a reset loop never trips. **B** the whole count persisted, as if no time passed: strictest, costs a flash write per interruption (up to a 40 ms erase in the loop) and can latch on a stale count. **C** in-run counts in RAM, each unexpected reset counted once at boot in a small persisted counter, cleared after a quiet run of `W` (**chosen by the principal 2026-11-09, recorded here; the owner may still object**) |
-| Q4 | Does the cardiac interlock itself get a count (PR-3's note)? | **A** no, share only the latch and release path (draft). **B** yes: a change to a behaviour presented to FDA |
-| Q5 | Is a ramp resumed from the actual level for every cause, with a full ramp after a hard cut (PR-4)? | **A** yes (draft). **B** resume mid-ramp after a short cut too: gentler, but it steps current if the hardware was at zero |
-| Q6 | Where is the ramp's authority? | **A** the hub owns the ramp and is told of every grant change (draft; smallest change). **B** the MCU also enforces a maximum slope after any re-grant, independent of the hub: strongest, new MCU code and a new hazard control |
-| Q7 | Is an interruption that dropped a line and restarted a ramp delivered as a notice (PR-5)? | **A** yes, non-blocking (draft). **B** logged only until it latches: quieter, but the person feels a restart with no explanation |
-| Q8 | Where does the persistent latch live? | **A** the cardiac cutoff's non-volatile record (draft). **B** a new record: separate, but a second compaction path (`OI-SIMFW-35` is the worked case) |
+| # | Question | Options and what each costs | Answer |
+|---|---|---|---|
+| Q1 | Should an outage be time-qualified at all (PR-1), or should any outage over the watchdog timeout latch? | **A** time-qualified (this draft). **B** latch on any outage: simplest, but a connector glitch ends the session. **C** keep today's no-latch and add only logging and reporting: no new latch, resumes with no acknowledgement | **A**, principal, 2026-11-10: time-qualified |
+| Q2 | Is the flapping window counted across all causes (PR-3)? | **A** all causes together (draft). **B** per cause class: easier to tune, but a mix of causes never trips | **A**, principal, 2026-11-10: all causes together |
+| Q3 | Does the count survive a reset? | **A** restarts empty, the reset itself is an entry: simplest, but a reset loop never trips. **B** the whole count persisted, as if no time passed: strictest, costs a flash write per interruption (up to a 40 ms erase in the loop) and can latch on a stale count. **C** in-run counts in RAM, each unexpected reset counted once at boot in a small persisted counter, cleared after a quiet run of `W` (**chosen by the principal 2026-11-09, recorded here; the owner may still object**) | **C**, principal, 2026-11-10 (also 2026-11-09) |
+| Q4 | Does the cardiac interlock itself get a count (PR-3's note)? | **A** no, share only the latch and release path (draft). **B** yes: a change to a behaviour presented to FDA | **A**, principal, 2026-11-10: the cardiac interlock gets no count; `REQ-CVNS-09` is unchanged |
+| Q5 | Is a ramp resumed from the actual level for every cause, with a full ramp after a hard cut (PR-4)? | **A** yes (draft). **B** resume mid-ramp after a short cut too: gentler, but it steps current if the hardware was at zero | open |
+| Q6 | Where is the ramp's authority? | **A** the hub owns the ramp and is told of every grant change (draft; smallest change). **B** the MCU also enforces a maximum slope after any re-grant, independent of the hub: strongest, new MCU code and a new hazard control | open |
+| Q7 | Is an interruption that dropped a line and restarted a ramp delivered as a notice (PR-5)? | **A** yes, non-blocking (draft). **B** logged only until it latches: quieter, but the person feels a restart with no explanation | open |
+| Q8 | Where does the persistent latch live? | **A** the cardiac cutoff's non-volatile record (draft). **B** a new record: separate, but a second compaction path (`OI-SIMFW-35` is the worked case) | open |
 
 ## 5. What is known, what is assumed
 
