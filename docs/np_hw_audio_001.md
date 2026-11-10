@@ -390,6 +390,8 @@ said it may be revisited if researchers want more.
 5. **It refuses, never clamps** (`CLAUDE.md` §3): a clamped tone is a different stimulus from the one
    authored.
 
+**Evidence for revisiting, recorded 2026-11-09 (§8.2.7).** The literature supports the bound on a *binaural* carrier (beats are not heard above about 1 kHz) but not on an *isochronic* one: the auditory 40 Hz work in mice used a 10 kHz tone presented at 40 Hz (from a patent summary; the paper's methods were not read), and A-weighting is negative at 10 kHz, so the argument above does not apply there. This changes nothing today; it is the trigger the next paragraph describes.
+
 **What revisiting would look like.** The bound is a stand-in for a frequency-dependent ceiling, one
 derivation away: at tone frequency *f* the command ceiling becomes 85 dB SPL less the positive part of the
 A-weighting at *f* (and less the guard band of `REQ-AUDIO-23`), so a tone above 1 kHz is allowed at a
@@ -944,7 +946,7 @@ carrier range for the bone path chosen to suit the element (gap 1). Neither is c
 Delivered: the parameter tables (§8.2.2), the derived relations D1–D4, the class matrices with their source
 status (§8.2.3), the forced questions and a recommendation (§8.2.4) and the vendor request list (§8.2.6).
 **Awaiting the principal:** (1) ~~the amplifier location~~ **decided 2026-11-09: in the hub, `REQ-AUDIO-04a`**, and the choice of any part;
-(2) whether to bound the carrier range, and the noise band (gaps 1 and 2); (3) whether the bound piezo class
+(2) ~~whether to bound the carrier range~~ **no fixed floor on the carrier band, for now (decided 2026-11-10, §8.2.7 E)**, and the noise band (gap 2) is still open; (3) whether the bound piezo class
 stands if the §8.2.3 finding is borne out by measurement; and (4) opening the cited sources, which also
 belongs to the selection. **No register row is added:** this subsection sets no figure, so there is no
 choice without derivation to register. The first margin, distortion limit or stray-field limit chosen in a
@@ -970,6 +972,133 @@ magnetic field plot (electromagnetic types) · operating and ageing data · lead
 For **both:** whether the vendor has measured the part on the IEC 60318-4 and 60318-6 couplers and will
 supply the raw curves, not only the datasheet summary, and the lot-to-lot spread.
 
+#### 8.2.7 What the literature and the candidate parts say about the carrier range, the noise band and the functional bounds (recorded 2026-11-09)
+
+**Status of this subsection.** It records findings. **It sets no requirement, figure or constant, and decides nothing.**
+Every cited item was read as a **search-result summary only** (the session could not open the sources), so each
+is a lead to confirm against the paper or datasheet, not a datasheet value. Where a number is computed here, it is
+marked *computed*. It answers gaps 1 and 2 of §8.2.1 as far as the public record goes and no further.
+
+**A. The carrier range (gap 1) — what the literature bounds**
+
+| Question | Finding | Source | Status |
+|---|---|---|---|
+| Highest carrier at which a **binaural** beat is heard | About 1 kHz. Oster (1973) found beats detectable only below 1,000 Hz; a 40 Hz beat response followed a 400 Hz carrier but not one above 3 kHz. Licklider's paper calls 1 kHz a soft limit: beats were heard above it, but only with careful attention and small frequency differences | [systematic review of 14 EEG studies](https://pmc.ncbi.nlm.nih.gov/articles/PMC10198548); [Licklider, *On the Frequency Limits of Binaural Beats*](https://scilit.com/publications/cb675e8fb5d8e9394ff9f4dac21f140c) | Cited via review summary |
+| Carrier at which the beat is most easily heard | Near 400 Hz (Licklider: the largest usable beat separation, about 35 Hz, near 400 Hz). The "400–500 Hz optimal" wording is looser than the data | same | Cited via review summary |
+| Largest beat frequency (separation) | About 30 to 40 Hz depending on the source and method (Perrott and Nelson about 30 Hz; Licklider about 35 Hz; another review 40 Hz). **The EEG-adaptive maximum, 40 Hz, sits at the edge** | same | Cited via review summaries |
+| "Oster curve" optimal carriers by brainwave band (for example 160–210 Hz for theta) | **Not usable.** The figures in circulation trace to a [commercial meditation site](https://www.binauralbeatsmeditation.com/oster-curve/), not to Oster, and they conflict with the 400 Hz peak above | that site | Not relied on |
+| A **floor** on the carrier | **None found.** No source read states a lower limit | — | Absence recorded |
+| **Isochronic / amplitude-modulated** tone: a carrier limit | **None found for perception.** The auditory 40 Hz work reported in mice used a **10 kHz tone presented at 40 Hz** (duty cycle about 4 % to 80 % in a related patent claim); the paper's methods were not read, and nothing found says which carrier the human 40 Hz studies used | [Martorell et al. 2019, Cell 177, via search summary and a patent](https://uspto.report/patent/app/20190105509); [40 Hz sensory stimulation review](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12855508/) | Secondary only; the primary paper's methods are to be read |
+
+**Consequence for `REQ-AUDIO-25` (recorded, not acted on).** The literature gives an *independent* reason for the
+1,000 Hz bound **on a binaural carrier**: a binaural beat above about 1 kHz buys nothing. It does **not** support the
+bound on an **isochronic** carrier. The 40 Hz auditory work cited above used a 10 kHz carrier, which the bound would
+refuse. At 10 kHz the A-weighting is negative (*computed*, under B below), so the A-weighting argument that
+justifies the bound (§5.3.1, point 1) does not apply there; it applies only between about 1 kHz and 6.1 kHz.
+**This is the first concrete reason to revisit the bound that §5.3.1 anticipated** (researchers wanting a tone above
+1 kHz). The route is already written there: a frequency-dependent ceiling, 85 less the positive A-weighting at the
+tone frequency. Whether to narrow the bound to binaural carriers, keep it, or take that route is the principal's.
+This subsection changes nothing.
+
+**B. The noise band (gap 2) — what the literature and the standards say**
+
+| Question | Finding | Source | Status |
+|---|---|---|---|
+| Spectral definition | Pink noise falls about 3 dB per octave (equal energy per octave). Brown noise has a 1/f² power spectrum, falling about 6 dB per octave, so it is weighted to the lowest frequencies | [Colors of noise](https://en.wikipedia.org/wiki/Colors_of_noise); [brown noise reference](https://mediacollege.com/audio/noise/brown-noise.html) | Cited via search summary |
+| Measurement band of a pink noise test signal | **20 Hz to 20 kHz** for an IEC 60268-1 band-limited pink noise (a sound-analysis vendor's description); an SMPTE pink noise signal lists **10 Hz to 22.4 kHz** | [test-signals page](https://soundexpert.org/test-signals); [SMPTE ST 2095-1](https://pub.smpte.org/doc/st2095-1/20150901-pub/st2095-1-2015.pdf) | Secondary; **the standards' texts were not read**, and the two sources differ |
+| Crest factor of pink noise | About **12 dB** (peak to rms): 11.5–12 dB for the SMPTE signal, about 12 dB in a Live Design description and a forum report | [SMPTE ST 2095-1](https://pub.smpte.org/doc/st2095-1/20150901-pub/st2095-1-2015.pdf) and secondary sources | Secondary; a generator setting, not a physical constant |
+| Levels used in noise stimulation studies | About 40 to 60 dB SPL, mostly **brief pink-noise bursts locked to sleep slow waves** rather than continuous noise: about 50 dB SPL bursts ([Frontiers review](https://www.frontiersin.org/articles/10.3389/fnins.2022.755958/pdf)); 40 dB through bone-conduction transducers in a 2023 pilot ([PubMed 37593850](https://pubmed.ncbi.nlm.nih.gov/37593850/)); 60 dB SPL measured at an in-ear headphone ([arXiv 1407.7999](https://arxiv.org/pdf/1407.7999)) | the links | Cited via search summary; all far below 85 dB SPL |
+| A noise band or crest factor **for brown noise**, or for a wellness product | **None found** | — | Absence recorded |
+
+**What the A-weighting does to noise (*computed*).** Using the A-weighting formula carried from IEC 61672-1 (from
+memory, unchecked: `OI-AUDIOHW-12`) over an assumed 20 Hz to 20 kHz band, the A-weighted level of noise at a given
+unweighted SPL is lower by about **2.0 dB for white noise, 2.9 dB for pink and 12.8 dB for brown**. The weighting at the
+tone frequencies is −4.1 dB at 440 Hz, 0 at 1,000 Hz, +1.27 dB at 2,500 Hz, 0 at about 6,100 Hz, −2.5 dB at 10 kHz and
+−9.4 dB at 20 kHz. So an unweighted 85 dB SPL ceiling never exceeds 85 dB(A) for pink or brown noise (the property §5.1
+gives for 85), and for brown noise it is about 13 dB conservative. **The band assumption is the point:** the result
+depends on the band the noise is stated over, which is exactly what is not stated (gap 2).
+
+**C. The functional bounds of the candidate parts**
+
+| Part | Evidence | Source | Meaning against §8.2.2's D1–D4 |
+|---|---|---|---|
+| **Planar over-ear driver, bandwidth** | Published planar headphones list 10 Hz–40 kHz (QUAD ERA-1) or 20 Hz–20 kHz (HiFiMAN HE400se, Audeze LCD1), and 6 Hz–75 kHz for the Sundara | [QUAD ERA-1](https://apos.audio/products/quad-era-1-planar-magnetic-headphone); [HE400se](https://www.audioconcierge.co.uk/he400se/); [LCD1](https://www.head-fi.org/f/showcase/audeze-lcd1.15070/) | The D2 band (340–540 Hz, or the whole 100–1,000 Hz carrier range) is nowhere near a limit. A 10 kHz isochronic carrier would also be within published bandwidth. Manufacturer claims |
+| **Planar, sensitivity, impedance, distortion** | About 91 to 96 dB per milliwatt at 20 to 40 Ω; the QUAD lists at most 0.2 % THD at 1 kHz and 100 dB | same | *Illustration only, not a requirement:* 94 dB/mW at 25 Ω reaches 85 dB with about 0.13 mW (*computed*), roughly 2 mA, so the cable-current concern of `REQ-AUDIO-04a` is small for a part like this. The cup, mesh and seal change the figure (`OI-AUDIOHW-11`) |
+| **Planar, 40 mm** | **No 40 mm planar driver with published specifications or independent measurements was found.** The 40 mm results were dynamic drivers; the planar ones were larger. Maximum SPL and excursion for a 40 mm planar are unknown | — | `SEL-P03` to `SEL-P06` stay open until a candidate is measured |
+| **Planar, resonance** | Independent measurements of a larger planar (the Oppo PM-1, a 54 mm class design) show a **dip near 400 Hz that coincides with a driver resonance** | [Stereophile measurements](https://stereophile.com/content/scrumptious-oppo-digital-pm-1-planar-magnetic-headphone-measurements) | A planar resonance near the shipped 440 Hz carrier is possible. **Ask each candidate for its response at 340–540 Hz** (§8.2.6). Independent measurement sources to use: Stereophile, [TechPowerUp](https://techpowerup.com/review/hifiman-he400se-headphones/4.html), Oratory1990 |
+| **Electromagnetic bone vibrator (B71, B81)** | Peak force level about **120–128 dB** from 500 to 2,000 Hz in the linear range, the B81 about 5 dB higher; low-frequency limit: tone bursts reproduced down to about **400 Hz** only; output falls above 6–8 kHz; a newer B250 gives more output and less distortion at low frequency | [maximum output and low-frequency limitations of the B71 and B81](https://labs.sonicfield.org/library/maximum-output-and-low-frequency-limitations-of-b71-and-b81-clinical-bone-vibrat); [Chalmers, B250 comparison](https://research.chalmers.se/publication/541230/file/541230_Fulltext.pdf); [transducer types and thresholds](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5895012/) | Even the audiometric reference vibrator is limited below about 400 Hz. The shipped bone carriers (200 and 440 Hz, and the 150–880 Hz announcement tones) are at or below that. Above 6–8 kHz output falls, so a bone path at 10 kHz is not supported by this class |
+| **Piezo bone element** | A patent states a practical-size piezo vibrator has a resonance of **1 kHz or more**, so low-frequency reproduction is weak; a 2024 conference paper's piezo actuator reached an output force level of 75 dB re 1 µN, which it called too low for rehabilitation | [US 8,107,646](https://patents.google.com/patent/US8107646); [VDE proceedings](https://vde-verlag.de/proceedings-de/456391050.html) | The finding of §8.2.3 stands: the bound class and the shipped bone content meet where piezo is weakest. The 75 dB figure is a **different metric** from the B71's peak force level, so it is not a measured gap to the B71. Patent and conference evidence, not a datasheet |
+
+**D. What this adds to the selection, and what stays open**
+
+1. **The carrier range.** For a binaural carrier the literature supports an upper bound near 1 kHz and a best region near
+   400 Hz, with no floor. For the planar path the range is not a hardware constraint. For the **bone** path the evidence
+   points to a practical floor near 400 Hz for the electromagnetic class and weakness below 1 kHz for the piezo class,
+   against shipped carriers of 200 and 440 Hz. A bone-path carrier range chosen to suit the element is one of the two
+   options already named in §8.2.3. **This is not chosen here.**
+2. **The isochronic carrier.** The only high-carrier use found (10 kHz, in mice) conflicts with `REQ-AUDIO-25` and with the
+   bone element's range. It is the revisit trigger of §5.3.1, to be weighed by the principal. **Open:** read the primary
+   papers' methods for the carrier and the sound level used in the human 40 Hz studies.
+3. **The noise band.** The public record gives a measurement band (20 Hz–20 kHz or 10 Hz–22.4 kHz, from secondary
+   sources) and a typical crest factor (about 12 dB), and says nothing for brown noise. **Open:** the standard's text, and
+   the band and crest factor the product states. Both set the `H_crest` term of D1 and the excursion in `SEL-P06`.
+4. **Measured data.** No 40 mm planar driver has public measurements, so selection still needs vendor data and bench
+   measurement (§8.2.6). **No part, class, figure or constant is selected or set here.**
+
+**E. Decision of 2026-11-10 (principal): no fixed floor on the carrier band, for now**
+
+**Decision.** No fixed lower limit is set on the carrier band. The part is chosen on the characteristics that matter
+for the content and the product, and the carrier floor is not a selection input. This answers the first half of gap 1
+for now; `REQ-AUDIO-25` still bounds the top at 1,000 Hz (§5.3.1). It is revisited if a candidate's measured response
+makes a floor necessary, and the band each transducer must cover is then whatever its measured response gives.
+
+**What it changes in §8.2.2 and §8.2.3.** `D4` (bone band) and the bone-path options of §8.2.3 no longer wait on a
+floor. The finding that the bound piezo class is weakest below about 1 kHz, where shipped bone carriers sit, **still
+holds**: with no floor, a bone carrier at the low end is allowed, so the measurement at 200 and 440 Hz (`SEL-B02`,
+`SEL-B03`) is not optional and becomes the check that a chosen element reaches the ceiling at the carriers actually used.
+Not setting a floor moves that risk from the protocol field to the part test; it does not remove it.
+
+**Frequency precision for binaural beats (a consideration, not a requirement).** A binaural beat is the **difference**
+between the two ears' tone frequencies, so what matters is the *difference* being right, not each frequency's absolute
+accuracy. Reasoned here, not measured:
+1. **Where the precision comes from.** Both channels are synthesised by the hub codec from one sample clock
+   (`REQ-AUDIO-04`). A fractional clock error ε moves both tones by the same fraction, so the beat moves by only
+   `beat × ε` (a 10 Hz beat on a clock 0.1 % off is off by 0.01 Hz). Common-clock synthesis is what keeps the beat
+   accurate. If the two ears ever came from **separate** clocks, the carrier error between them would be the beat error
+   (a 0.1 Hz carrier mismatch is 5 % of a 2 Hz beat), which is the case to avoid. The wire already carries the beat in
+   millihertz (`beat_mhz`) and the carrier in whole hertz, so the wire does not limit precision; the synthesis in the
+   HAL (`OI-AUDIO-02`) and the codec clock (`OI-AUDIOHW-14`) do.
+2. **What the transducer contributes.** Not frequency, which a transducer does not set, but matched amplitude and
+   phase between the two cups and low crosstalk between the ears. No literature bound for channel matching was found in
+   this session. **Ask each planar candidate for left/right sensitivity and phase matching of a matched pair**
+   (§8.2.6).
+3. **Bone conduction cannot present a binaural beat.** Vibration at the mastoid reaches both cochleae, so the two ears
+   cannot be isolated; this is standard audiology teaching and is **not verified from a source in this session**. The
+   design already keeps binaural content on the planar path and the bone path for the breathing and sync cue
+   (`REQ-AUDIO-11`), which is consistent with that.
+
+**F. The noise band: how the candidate part classes compare**
+
+The noise stimulus is played on the **planar path only** (the bone path receives one tone, §8.2.2 `D4`), so the
+comparison is of the over-ear classes. "Noise band" here means the frequency range over which a part can reproduce the
+stimulus. Figures are published specifications of other products, not of a candidate; the classes other than planar are
+shown for comparison only (§8.2.3).
+
+| Class | Published bandwidth (examples) | Reading for pink and brown noise | Source |
+|---|---|---|---|
+| Planar magnetic (locked) | 10 Hz–40 kHz (QUAD ERA-1), 20 Hz–20 kHz (HE400se, LCD1), 6 Hz–75 kHz (Sundara) | Covers a 20 Hz–20 kHz noise definition; the low end matters for brown noise, which concentrates its energy there, so ask for low-frequency distortion and excursion limit at the stated level | [QUAD](https://apos.audio/products/quad-era-1-planar-magnetic-headphone), [HE400se](https://www.audioconcierge.co.uk/he400se/), [LCD1](https://www.head-fi.org/f/showcase/audeze-lcd1.15070/) |
+| Dynamic 40 mm | 15 Hz–28 kHz (M-Audio HDH40), 10 Hz–22 kHz (BL-40 Pro), 10 Hz–35 kHz (Behringer BH40) | Also covers 20 Hz–20 kHz; deep bass is credited to the class | [HDH40](https://www.m-audio.com/accessories/hdh40.html), [BL-40 Pro](https://www.pssl.com/products/american-audio-bl-40-pro-headphones), [BH40](https://avlgear.com/collections/behringer/products/behringer-bh40-40mm-circum-aural-high-fidelity-headphones) |
+| Balanced armature | No bandwidth figure read; sources describe it as weaker at strong bass and as an in-ear class | The class least likely to carry brown noise; not suited to a 40 mm over-ear role | [headphone driver types](https://headphones.com/blogs/features/headphone-driver-types-explained), [Campfire Audio](https://www.campfireaudio.com/blogs/insights/iem-driver-types-balanced-armature-dynamic-planar) |
+| Bone (either class) | Not a noise path in this design | Not applicable | §8.2.2 `D4` |
+
+**Reading.** On published bandwidth the planar and dynamic classes both span the 20 Hz–20 kHz band that the one test
+standard read describes, so **bandwidth does not separate them**; the differences are in low-frequency distortion and
+excursion at the noise level, weight, and stray field (§8.2.3), none of which these published figures give. The stated
+bandwidth is a manufacturer claim, usually without the tolerance (such as ±3 dB) or the measurement conditions. A
+self-noise figure of a transducer is not a meaningful quantity here; the noise floor that matters belongs to the hub's
+amplifier and codec (`OI-AUDIOHW-14`). **Open:** the noise band and crest factor the product states (§B), which turn
+these bandwidths into pass or fail, and measured data on a candidate.
+
 ---
 
 ## 9. Open items
@@ -979,7 +1108,7 @@ supply the raw curves, not only the datasheet summary, and the lot-to-lot spread
 | **OI-AUDIOHW-01** | **DECIDED 2026-11-09 (principal, Rev 6): 85 dB SPL at the ear on the planar path, absolute scale, level ceiling only — bound as `REQ-AUDIO-19`/`-20` (§5.1).** No exposure-duration or daily-dose model, because the device cannot know exposure outside sessions. Succeeded by `OI-AUDIOHW-11` (calibration and verification at the ear) and `OI-AUDIOHW-12` (check the citations). **As raised:** no acoustic output ceiling existed, and `volume_pct` was an uncalibrated 0–100 wire field. The in-cup microphone (`REQ-AUDIO-14`) gives a measured in-cup level per wearer and fit (§6.4.2), not at the eardrum and blind to bone conduction; the ceiling also bounds the seal probe tone | Systems + Clinical | — (decided) |
 | **OI-AUDIOHW-02** | **DECIDED as a rule 2026-11-09 (principal, Rev 7): the bone path is held to the same hearing level as the planar path, stated as an absolute force level in dB re 1 µN on an IEC 60318-6 artificial mastoid — bound as `REQ-AUDIO-21` (§5.2).** The figure and the wire field are `OI-AUDIOHW-13`. No firmware gating in the interim: the bone HAL is an unbuilt stub and no element is selected. **As raised:** no bone-conduction drive ceiling existed, and an air-conduction limit does not transfer to it unexamined | Systems + Clinical | — (decided; figure `OI-AUDIOHW-13`) |
 | **OI-AUDIOHW-03** | **The mesh frame's 40 dB RF figure is a shielding claim outside the audited stack (§6.3)** — absent from `CLAUDE.md` §4.3, from `docs/reference/hardware-detail.md` §4.3, from `NP-BIB-EMF-001`'s per-layer audit and from `NP-DT-001` `DI-PERF-22` — on a **user-replaceable** part whose fouling trigger is unimplemented (`OI-ACC-05`). Decide whether it is a programme claim or a supplier figure, and stop quoting it beside audited ones either way | Systems + EMC | Shielding claim integrity; `NP-BIB-EMF-001` completeness |
-| **OI-AUDIOHW-04** | **SELECTION PACKAGE READY (§8.2); part selection awaits the principal. Amplifier location DECIDED 2026-11-09: in the hub (`REQ-AUDIO-04a`).** Done: the parameters a selection must fix for each transducer, each with what fails and its trace (`SEL-P01`–`P13`, `SEL-B01`–`B12`); derived relations D1–D4 from decided figures (85 dB SPL, `REQ-AUDIO-21`, the shipped carriers); class matrices marked cited or reasoned, with the locked classes marked as locked; the interface questions (amplifier location, cable, microphone, codec channels) and a recommendation labelled as awaiting the principal; and the vendor request list. **Not done, and not decided here:** no part or class is chosen, no value set, no margin chosen, the cited sources were read as search summaries only, and three gaps need a decision first — the authorable carrier range is unbounded, the noise band is unstated, and the codec channel count is unrecorded. **As raised:** select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* existed | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
+| **OI-AUDIOHW-04** | **SELECTION PACKAGE READY (§8.2); part selection awaits the principal. Amplifier location DECIDED 2026-11-09: in the hub (`REQ-AUDIO-04a`). Literature and functional-bound findings recorded in §8.2.7 (no part selected). No fixed carrier floor, for now (2026-11-10).** Done: the parameters a selection must fix for each transducer, each with what fails and its trace (`SEL-P01`–`P13`, `SEL-B01`–`B12`); derived relations D1–D4 from decided figures (85 dB SPL, `REQ-AUDIO-21`, the shipped carriers); class matrices marked cited or reasoned, with the locked classes marked as locked; the interface questions (amplifier location, cable, microphone, codec channels) and a recommendation labelled as awaiting the principal; and the vendor request list. **Not done, and not decided here:** no part or class is chosen, no value set, no margin chosen, the cited sources were read as search summaries only, and three gaps need a decision first — the authorable carrier range is unbounded, the noise band is unstated, and the codec channel count is unrecorded. **As raised:** select and specify the planar magnetic driver and the bone-conduction element (electrical, acoustic and mechanical parameters). Nothing beyond *"40 mm planar magnetic"* and *"piezoelectric at the mastoid"* existed | EE + Acoustic | A11 tooling; `NP-FAI-AUDIO-001` F1/F2 |
 | **OI-AUDIOHW-05** | Specify cup body, ear-pad and bayonet geometry, clamping force and assembly mass. The bayonet's material decision (`docs/reference/durability-maintenance.md`) has no interface behind it, and A11's mass loads the `CLAUDE.md` §4.4 fit system with a figure nobody has written down | ME | A11 tooling; fit verification |
 | **OI-AUDIOHW-06** | Specify ear-pad and silicone isolator materials and their biocompatibility basis (prolonged skin contact) | ME + Quality | Hazard analysis; T1 release |
 | **OI-AUDIOHW-07** | Select the cup-to-hub cable, connector and strain relief. The same connector gap `NP-HW-TCAP-001` §8 records for the T2 cap and `NP-HW-VNSCLIP-001` §8 for the clip — worth deciding **once** across the head-worn accessories rather than three times | EE + ME | A11 tooling |
