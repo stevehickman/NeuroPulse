@@ -312,3 +312,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 276 | 2026-11-09 | NeurOne Systems Engineering | **8 → 9: REQ-AUDIO-04a decided (principal): all audio amplification, including any piezo high-voltage stage, is in the hub and the cup is passive; the hub-side stage is raised as OI-AUDIOHW-14.** |
 | 277 | 2026-11-09 | NeurOne Software Engineering | **26 → 27: `OI-SIMFW-37` decided: the simulator hosts the Compose Multiplatform UI.** |
 | 278 | 2026-11-10 | NeurOne Software Engineering | **27 → 28: OI-SIMFW-27 points to a drafted interruption policy for the safety MCU's owner; "watchdog period" corrected to "watchdog timeout" in REQ-SIMFW-16.** |
+| 279 | 2026-11-10 | NeurOne Systems Engineering | **9 → 10: literature on the carrier range and noise band and the functional bounds of the candidate parts recorded as findings; no requirement, figure or constant set.** |
