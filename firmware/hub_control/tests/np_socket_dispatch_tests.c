@@ -30,6 +30,7 @@
 #include "../include/np_hub_types.h"
 #include "../include/np_module_map.h"
 #include "../include/np_protocol.h"
+#include "../include/np_proto_verify.h"
 #include "../include/np_safety_spi.h"
 #include "../include/np_socket_dispatch.h"
 
@@ -64,7 +65,7 @@ np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
     return NP_HUB_OK;
 }
 
-int np_ed25519_verify(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
+int np_proto_verify_signature(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
                       const uint8_t *sig)
 {
     (void)msg; (void)msg_len; (void)sig; (void)pub_key;

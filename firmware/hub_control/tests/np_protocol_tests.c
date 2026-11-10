@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "../include/np_protocol.h"
+#include "../include/np_proto_verify.h"
 
 /* The doubles below define symbols declared in np_sw02_platform_hal.h.
  * Including it is what makes drift from the production contract a compile
@@ -59,14 +60,22 @@ np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
 {
-    memset(pub_key_out, 0, 32);
+    memset(pub_key_out, 0xA5, 32);      /* a pattern, so the verifier double can tell the key from the message (REQ-FWHUB-76) */
     return NP_HUB_OK;
 }
 
-int np_ed25519_verify(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
-                      const uint8_t *sig)
+/* What the last verifier call was given (REQ-FWHUB-76). */
+static const uint8_t *g_vf_key, *g_vf_msg, *g_vf_sig;
+static uint32_t       g_vf_len;
+static uint8_t        g_vf_key0;
+static int            g_vf_calls;
+
+int np_proto_verify_signature(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
+                              const uint8_t *sig)
 {
-    (void)msg; (void)msg_len; (void)sig; (void)pub_key;
+    g_vf_key = pub_key; g_vf_msg = msg; g_vf_len = msg_len; g_vf_sig = sig;
+    g_vf_key0 = pub_key[0];
+    g_vf_calls++;
     return 0;   /* accept */
 }
 
@@ -164,6 +173,25 @@ static void test_wire_layout(void)
 }
 
 /* ── The hardware version stamp (SWR-HV-08) ───────────────────────────────────── */
+
+/* @verifies REQ-FWHUB-76 */
+static void test_signature_check_arguments(void)
+{
+    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
+    blob_t b;
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+    size_t len = blob_finish(&b);
+    np_session_desc_t desc;
+    g_vf_calls = 0;
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "verify args: parses");
+    check(g_vf_calls == 1, "verify args: the signature is checked once");
+    check(g_vf_key0 == 0xA5U, "verify args: the first argument is the public key the HAL reported, not the message");
+    check(g_vf_msg == b.buf, "verify args: the message is the start of the blob");
+    check(g_vf_len == (uint32_t)(len - NP_HUB_PROTO_SIG_LEN), "verify args: the message is every byte but the trailing signature");
+    check(g_vf_sig == b.buf + len - NP_HUB_PROTO_SIG_LEN, "verify args: the signature is the trailing 64 bytes");
+}
 
 /* @verifies SWR-HV-08 */
 /* @verifies REQ-FWHUB-61 */
@@ -1027,6 +1055,7 @@ static void test_photic_admit(void)
 int main(void)
 {
     test_wire_layout();
+    test_signature_check_arguments();
     test_hardware_version_stamp();
 
     test_slot_target_roundtrip();

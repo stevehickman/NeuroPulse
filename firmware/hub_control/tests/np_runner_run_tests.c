@@ -42,6 +42,7 @@
 #include "np_pause_limit.h"
 #include "np_pbm_socket_telem.h"
 #include "np_protocol.h"
+#include "np_proto_verify.h"
 #include "np_ramp_plan.h"
 #include "np_safety_spi.h"
 #include "np_session_fitting.h"
@@ -293,7 +294,7 @@ np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
     return NP_HUB_OK;
 }
 
-int np_ed25519_verify(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
+int np_proto_verify_signature(const uint8_t *pub_key, const uint8_t *msg, uint32_t msg_len,
                       const uint8_t *sig)
 {
     (void)msg; (void)msg_len; (void)sig; (void)pub_key;
