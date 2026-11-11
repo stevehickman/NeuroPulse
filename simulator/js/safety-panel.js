@@ -275,7 +275,15 @@ export class SafetyPanel {
       kv('Watchdog', `${wd.flagInLastReply ? 'WATCHDOG flag in the last reply' : 'no flag in the last reply'}; independent watchdog ${wd.heldInReset ? 'HOLDING THE MCU IN RESET' : 'running'} (${wd.resets} resets)`, 'safety-watchdog'),
       kv('Last cutoff', this._cutoffText(sum.lastCutoff), 'safety-cutoff'),
       kv('Tier record', sum.tier === 0 ? 'not reported yet' : `T${sum.tier}`, 'safety-tier'),
+      kv('Withheld by a gate', this._withheldText(sum.withheld), 'safety-withheld'),
     );
+  }
+
+  _withheldText(w) {
+    if (!w || !w.valid) return 'no report in the last reply';
+    const label = (n) => (LINES.find((l) => l.name === n) || { label: n }).label;
+    const part = (title, list) => `${title}: ${list.length ? list.map(label).join(', ') : 'none'}`;
+    return `${part('waveform not declared', w.declaration)}; ${part('electrode geometry missing', w.geometry)}`;
   }
 
   _cutoffText(c) {

@@ -206,3 +206,28 @@ test('attach can start a part whose root key is corrupt, and no other message ca
   assert.strictEqual(lines.at(-1), 'safety_attach');
   assert.ok(!messageToLines(SCRIPTS.attach(1)[0]).includes('safety_root_corrupt'));
 });
+
+// ── the withhold report: which gate held a line (OI-SIMFW-61, REQ-FWHUB-81) ─────────────────────────────────────────────────────────
+
+// @verifies REQ-FWHUB-81#d
+test('the withhold report is decoded into line names, and an event without it reads as no report', () => {
+  const reg = new SimModuleRegistry();
+  reg.onMessage({ type: 'SAFETY_STATE', event: state({ withhold_valid: true, withhold_decl: (1 << 5) | (1 << 6), withhold_geom: 1 << 13 }) }, 0);
+  const w = reg.safety.withheld;
+  assert.strictEqual(w.valid, true);
+  assert.deepStrictEqual(w.declaration, ['bes', 'tdcs'], 'the declaration gate\'s lines, by the enable bit the page\'s line table gives them');
+  assert.deepStrictEqual(w.geometry, ['clin_stim']);
+  assert.deepStrictEqual(reg.safety.summary().withheld, w, 'and the panel\'s summary carries the same');
+
+  reg.onMessage({ type: 'SAFETY_STATE', event: state({ withhold_valid: false, withhold_decl: 0, withhold_geom: 0 }) }, 0);
+  assert.deepStrictEqual(reg.safety.withheld, { valid: false, declaration: [], geometry: [] }, 'a reply with no valid report');
+
+  reg.onMessage({ type: 'SAFETY_STATE', event: state() }, 0);
+  assert.deepStrictEqual(reg.safety.withheld, { valid: false, declaration: [], geometry: [] }, 'an event with no such fields');
+});
+
+// @verifies REQ-FWHUB-81#d
+test('with no safety MCU in the loop there is no withhold report', () => {
+  const reg = new SimModuleRegistry();
+  assert.deepStrictEqual(reg.safety.withheld, { valid: false, declaration: [], geometry: [] });
+});

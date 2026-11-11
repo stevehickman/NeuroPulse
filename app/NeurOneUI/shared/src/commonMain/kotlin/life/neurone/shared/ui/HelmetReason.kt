@@ -109,9 +109,23 @@ enum class WithheldReason(override val key: String) : SocketReason {
     TIER_GATE("HELMET_REASON_WITHHELD_TIER"),
 
     /**
-     * No status flag and no report says why: the MCU withholds a line for an undeclared electrical waveform class, or for a missing
-     * electrode geometry, with status OK and no fault slot (`np_charge_monitor_decl_gate`, `np_charge_monitor_geom_gate`; §23). Class C
-     * firmware change proposed as `OI-SIMFW-61`; until the safety MCU's owner decides, this is shown as what it is.
+     * The MCU's waveform-declaration gate holds the line: an electrical channel whose waveform class was never declared this session
+     * (`np_charge_monitor_decl_gate`, OI-CHARGE-05). The MCU says so in its withhold report (`np_safety_withhold_report_t`, window
+     * bytes 27 to 33, `OI-SIMFW-61`), which `np_safety_spi_get_withhold_report` reads and the simulator's `safety_state` carries as
+     * `withhold_decl`; the status byte is OK and no fault slot is set.
+     */
+    UNDECLARED_WAVEFORM("HELMET_REASON_WITHHELD_UNDECLARED"),
+
+    /**
+     * The MCU's electrode-geometry gate holds the line: the session needs a geometry on it (clinical stimulation, tDCS or BES/tACS)
+     * and no valid area command has set one (`np_charge_monitor_geom_gate`, OI-CHARGE-03, -04 and OI-MMSOCK-02). Reported in the same
+     * withhold report, as the simulator's `withhold_geom`.
+     */
+    MISSING_GEOMETRY("HELMET_REASON_WITHHELD_GEOMETRY"),
+
+    /**
+     * No status flag and no report says why: the MCU withheld the line and none of the causes the hub can read applies, or the reply
+     * carried no valid withhold report (an older MCU, a corrupt window). Shown as what it is.
      */
     UNREPORTED("HELMET_REASON_WITHHELD_UNREPORTED"),
 }
@@ -172,18 +186,32 @@ object SafetyStatusBits {
 }
 
 /**
- * The reason for a WITHHELD socket from the hub's requested bit for its line, the MCU's last status byte and its tier report.
- * Order, first match wins: a line the hub never requested (nothing else can apply to it), the session signature, the contact check,
- * then the tier gate. [tierGated] is true only when [isTierGatedLine] holds for the socket's line and the MCU's tier report says a T2
+ * The reason for a WITHHELD socket from the hub's requested bit for its line, the MCU's last status byte, its tier report and its
+ * withhold report (`OI-SIMFW-61`: [geometryHeld] and [declarationHeld] are true when the report's `withhold_geom` / `withhold_decl`
+ * names the socket's line, see [isHeldByGate]; both are false when the reply carried no valid report).
+ * Order, first match wins: a line the hub never requested (nothing else can apply to it), the session signature (until it clears the MCU
+ * grants nothing, so the gates are not the cause), the geometry gate, the declaration gate (the report puts a line in one only, the
+ * geometry gate's first), the contact check, then the tier gate. [tierGated] is true only when [isTierGatedLine] holds for the socket's line and the MCU's tier report says a T2
  * line was refused. Several can be set at once; the Safety MCU panel shows every flag.
  */
-fun withheldReasonOf(status: Int, requested: Boolean = true, tierGated: Boolean = false): WithheldReason = when {
+fun withheldReasonOf(
+    status: Int,
+    requested: Boolean = true,
+    tierGated: Boolean = false,
+    geometryHeld: Boolean = false,
+    declarationHeld: Boolean = false,
+): WithheldReason = when {
     !requested -> WithheldReason.NOT_REQUESTED
     status and SafetyStatusBits.SIG_PENDING != 0 -> WithheldReason.AWAITING_SESSION_SIGNATURE
+    geometryHeld -> WithheldReason.MISSING_GEOMETRY
+    declarationHeld -> WithheldReason.UNDECLARED_WAVEFORM
     status and SafetyStatusBits.IMPEDANCE != 0 -> WithheldReason.CONTACT_CHECK_FAILED
     tierGated -> WithheldReason.TIER_GATE
     else -> WithheldReason.UNREPORTED
 }
+
+/** True when the withhold report's [mask] (`withhold_decl` or `withhold_geom`) names the enable bit [lineBit] of a socket's line. */
+fun isHeldByGate(mask: Int, lineBit: Int): Boolean = lineBit != 0 && mask and lineBit == lineBit
 
 /**
  * The reason for a CUT_OFF socket from the MCU's last status byte and fault slot, and whether the independent watchdog reset it.

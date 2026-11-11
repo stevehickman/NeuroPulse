@@ -16,6 +16,7 @@ import life.neurone.shared.ui.TIER_GATED_LINE_MASK
 import life.neurone.shared.ui.helmetReasonRows
 import life.neurone.shared.ui.isTierGatedLine
 import life.neurone.shared.ui.reasonOf
+import life.neurone.shared.ui.isHeldByGate
 import life.neurone.shared.ui.withheldReasonOf
 import java.io.File
 import kotlin.test.Test
@@ -155,6 +156,32 @@ class HelmetReasonTest {
         assertEquals(WithheldReason.TIER_GATE, withheldReasonOf(0, tierGated = true))
         assertEquals(WithheldReason.CONTACT_CHECK_FAILED, withheldReasonOf(SafetyStatusBits.IMPEDANCE, tierGated = true))
         assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0, tierGated = false), "the tier report alone is not enough for a T1 line")
+    }
+
+    // @verifies REQ-SIMFW-18#d
+    @Test
+    fun theWithholdReportNamesWhichGateHeldTheLine() {
+        // Status OK and no fault slot: the MCU's own withhold report is the only thing that says why (OI-SIMFW-61).
+        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(0, declarationHeld = true))
+        assertEquals(WithheldReason.MISSING_GEOMETRY, withheldReasonOf(0, geometryHeld = true))
+        assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0), "no valid report: shown as what it is")
+        // Order: not requested, then the session signature, then the geometry gate, the declaration gate, the contact check, the tier gate.
+        assertEquals(WithheldReason.NOT_REQUESTED, withheldReasonOf(0, requested = false, geometryHeld = true, declarationHeld = true))
+        assertEquals(WithheldReason.AWAITING_SESSION_SIGNATURE, withheldReasonOf(SafetyStatusBits.SIG_PENDING, geometryHeld = true))
+        assertEquals(WithheldReason.MISSING_GEOMETRY, withheldReasonOf(0, geometryHeld = true, declarationHeld = true))
+        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(SafetyStatusBits.IMPEDANCE, declarationHeld = true))
+        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(0, tierGated = true, declarationHeld = true))
+    }
+
+    // @verifies REQ-SIMFW-18#d
+    @Test
+    fun aLineIsHeldByAGateWhenTheReportsMaskHasItsEnableBit() {
+        val tdcsBit = 1 shl 6
+        val besBit = 1 shl 5
+        assertEquals(true, isHeldByGate(tdcsBit or besBit, tdcsBit))
+        assertEquals(false, isHeldByGate(besBit, tdcsBit))
+        assertEquals(false, isHeldByGate(0, tdcsBit))
+        assertEquals(false, isHeldByGate(0xFFFF, 0), "a socket whose module has no enable line is never held by a gate")
     }
 
     // @verifies REQ-SIMFW-18#d
