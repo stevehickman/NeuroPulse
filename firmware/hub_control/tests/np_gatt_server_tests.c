@@ -1111,7 +1111,7 @@ static void test_protocol_upload_is_an_encrypted_write_only_stream(void)
 static void test_upload_reassembles_at_every_write_size(void)
 {
     static const size_t SIZES[] = { 1U, 100U, 508U, 509U, NP_HUB_PROTO_BLOB_MAX };
-    static const size_t CHUNKS[] = { 1U, 20U, 183U, 509U, 512U };
+    static const size_t CHUNKS[] = { 1U, 20U, 182U, 185U, 244U, 512U };   /* 20: the default ATT_MTU of 23; 182, 185, 244: MTUs of 185, 188, 247 less 3; 512: the ceiling */
     bool all_ok = true;
     bool all_equal = true;
     np_transport_init();

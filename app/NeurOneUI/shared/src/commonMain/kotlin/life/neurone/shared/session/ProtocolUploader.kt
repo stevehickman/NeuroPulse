@@ -77,7 +77,7 @@ class ProtocolUploader internal constructor(
                 hardwareVersion = gatt.hardwareVersion.value,
                 autonomous = autonomous,
             )
-            ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
+            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
@@ -104,7 +104,7 @@ class ProtocolUploader internal constructor(
                 composite, members, deviceSerial ?: gatt.deviceSerial, acknowledgedCautions,
                 hardwareVersion = gatt.hardwareVersion.value,
             )
-            ProtocolChunker.chunk(blob.blob).forEach { gatt.writeProtocolChunk(it) }
+            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")

@@ -76,6 +76,41 @@ class ProtocolChunkerTests {
 
     // @verifies REQ-FWHUB-80#d
     @Test
+    fun everyWriteSizeTheLinkCanReportGivesTheFixturesWrites() {
+        val sizes = fixture["write_sizes"]!!.jsonArray.map { it.jsonPrimitive.int }
+        assertEquals(listOf(20, 185, 244, 512), sizes, "the default MTU's 20, an iOS 185, the 244 of an MTU of 247, and the ceiling")
+        var checked = 0
+        for (c in fixture["cases"]!!.jsonArray) {
+            val name = c.jsonObject["name"]!!.jsonPrimitive.content
+            val blob = bytes(c.jsonObject["blob"]!!.jsonPrimitive.content)
+            val bySize = c.jsonObject["chunks_by_write_size"]?.jsonObject ?: continue
+            for (size in sizes) {
+                val want = bySize[size.toString()]!!.jsonArray.map { it.jsonPrimitive.content }
+                assertEquals(want, ProtocolChunker.chunk(blob, size).map { hex(it) }, "$name at $size")
+                checked++
+            }
+        }
+        assertTrue(checked >= 20, "five cases at four sizes")
+    }
+
+    // @verifies REQ-FWHUB-80#d
+    @Test
+    fun theWriteSizeIsClampedToTheHubsOneToFiveHundredTwelveAndTheStreamIsTheSameAtEverySize() {
+        val data = ByteArray(1500) { ((it * 7) and 0xFF).toByte() }
+        assertTrue(ProtocolChunker.chunk(data, 4096).all { it.size <= BleTransfer.MAX_WRITE_SIZE }, "above 512 is cut at 512")
+        assertTrue(ProtocolChunker.chunk(data, 0).all { it.size == 1 }, "below 1 is cut at 1")
+        assertTrue(ProtocolChunker.chunk(data, -5).all { it.size == 1 })
+        val reference = stream(ProtocolChunker.chunk(data, BleTransfer.MAX_WRITE_SIZE))
+        for (size in listOf(1, 20, 182, 185, 244, 512)) {
+            val chunks = ProtocolChunker.chunk(data, size)
+            assertContentEquals(reference, stream(chunks), "the stream is the same at write size $size")
+            assertTrue(chunks.all { it.size <= size }, "no write over $size")
+            assertTrue(chunks.dropLast(1).all { it.size == size }, "every write but the last is full at $size")
+        }
+    }
+
+    // @verifies REQ-FWHUB-80#d
+    @Test
     fun anEmptyBlobIsOneWriteOfAZeroLengthWhichTheHubRefuses() {
         val chunks = ProtocolChunker.chunk(ByteArray(0))
         assertEquals(1, chunks.size)

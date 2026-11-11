@@ -933,10 +933,22 @@
           "note": "The BLE 5 ATT MTU write ceiling, in bytes."
         },
         {
+          "name": "ATT_WRITE_OVERHEAD",
+          "value": 3,
+          "int": true,
+          "note": "A write request carries the ATT_MTU less 3 bytes (1 opcode, 2 handle): Bluetooth Core v5.3 Vol 3 Part F §3.4.5.1."
+        },
+        {
+          "name": "ATT_DEFAULT_WRITE_LENGTH",
+          "value": 20,
+          "int": true,
+          "note": "The write a link carries before any MTU is negotiated: the default ATT_MTU of 23 less ATT_WRITE_OVERHEAD (Core v5.3 Vol 3 Part F §3.2.8). The upload works at this size, and every size from 1 to MAX_WRITE_SIZE."
+        },
+        {
           "name": "PROTOCOL_LEN_PREFIX",
           "value": 4,
           "int": true,
-          "note": "The width of the length prefix that leads the protocol upload stream, little-endian (NP_TRANSPORT_LEN_PREFIX, np_transport.h). The blob follows it; the upload is split at MAX_WRITE_SIZE with no other framing."
+          "note": "The width of the length prefix that leads the protocol upload stream, little-endian (NP_TRANSPORT_LEN_PREFIX, np_transport.h). The blob follows it; the upload is split at the link's write length (the negotiated ATT_MTU less ATT_WRITE_OVERHEAD, at most MAX_WRITE_SIZE) with no other framing."
         },
         {
           "name": "OTA_CHUNK_SIZE",

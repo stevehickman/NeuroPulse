@@ -84,6 +84,34 @@ struct ProtocolChunkerTests {
     }
 
     // @verifies REQ-FWHUB-80#d
+    @Test func everyWriteSizeTheLinkCanReportGivesTheFixturesWrites() throws {
+        let cases = try #require(try Self.fixture()["cases"] as? [[String: Any]])
+        let sizes = try #require(try Self.fixture()["write_sizes"] as? [Int])
+        #expect(sizes == [20, 185, 244, 512])
+        for c in cases {
+            let name = try #require(c["name"] as? String)
+            let blob = bytes(try #require(c["blob"] as? String))
+            guard let bySize = c["chunks_by_write_size"] as? [String: [String]] else { continue }
+            for size in sizes {
+                let want = try #require(bySize[String(size)], "\(name) at \(size)")
+                #expect(ProtocolChunker.chunk(blob, writeSize: size).map(hex) == want, "\(name) at \(size)")
+            }
+        }
+    }
+
+    // @verifies REQ-FWHUB-80#d
+    @Test func theWriteSizeIsClampedToTheHubsOneToFiveHundredTwelve() {
+        let data = pattern(1500)
+        #expect(ProtocolChunker.chunk(data, writeSize: 4096).allSatisfy { $0.count <= BleTransfer.MAX_WRITE_SIZE })
+        #expect(ProtocolChunker.chunk(data, writeSize: 0).allSatisfy { $0.count == 1 })
+        for size in [1, 20, 182, 244, 512] {
+            let s = stream(ProtocolChunker.chunk(data, writeSize: size))
+            #expect(Data(s.dropFirst(BleTransfer.PROTOCOL_LEN_PREFIX)) == data, "the blob at write size \(size)")
+            #expect(ProtocolChunker.chunk(data, writeSize: size).allSatisfy { $0.count <= size }, "no write over \(size)")
+        }
+    }
+
+    // @verifies REQ-FWHUB-80#d
     @Test func anEmptyBlobIsOneWriteOfAZeroLengthWhichTheHubRefuses() {
         let chunks = ProtocolChunker.chunk(Data())
         #expect(chunks == [Data([0, 0, 0, 0])])

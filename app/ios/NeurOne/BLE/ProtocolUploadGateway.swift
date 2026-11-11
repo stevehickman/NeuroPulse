@@ -32,6 +32,11 @@ protocol ProtocolUploadGateway: AnyObject {
     /// The helmet's hardware version (SWR-HV-06), 1 until it is read.
     var hardwareVersion: Int { get }
 
+    /// The longest write the link carries now: the negotiated ATT_MTU less 3 bytes, which CoreBluetooth reports as
+    /// `maximumWriteValueLength(for: .withResponse)`. The upload is cut at this size, to at most 512. A gateway that cannot tell
+    /// answers the default ATT_MTU's 20, which the upload works at (OI-SIMFW-63).
+    var maximumWriteLength: Int { get }
+
     /// What the hub says it received at the last upload (SWR-UP-01); nil before the first report or on a hub whose firmware
     /// does not publish it.
     var uploadCheck: UploadCheck? { get }
@@ -50,8 +55,13 @@ extension ProtocolUploadGateway {
     func requestUploadCheck() {}
 }
 
-// NeurOneGATTManager satisfies this protocol without any code changes —
-// we just add the conformance declaration here.
+extension ProtocolUploadGateway {
+    /// A gateway that does not report the negotiated MTU writes at the default ATT_MTU's 20 bytes.
+    var maximumWriteLength: Int { BleTransfer.ATT_DEFAULT_WRITE_LENGTH }
+}
+
+// NeurOneGATTManager satisfies this protocol with the conformance declaration and the write length its peripheral reports.
 extension NeurOneGATTManager: ProtocolUploadGateway {
     var isHubConnected: Bool { connectionState == .connected }
+    var maximumWriteLength: Int { writeLengthWithResponse }
 }

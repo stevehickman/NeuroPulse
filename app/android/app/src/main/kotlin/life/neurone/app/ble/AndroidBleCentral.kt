@@ -22,6 +22,7 @@ import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
 import java.util.UUID
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
 import life.neurone.shared.ble.AdapterState
@@ -40,6 +41,10 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
     private companion object {
         // Client Characteristic Configuration Descriptor (enables notifications).
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
+
+        // The largest ATT_MTU Android asks for: 517 is the ceiling of the specification (Core v5.3 Vol 3 Part F §3.2.8); the hub takes
+        // writes of 1 to 512 bytes and the app cuts at the MTU less 3, to at most 512.
+        const val MAX_ATT_MTU = 517
     }
 
     private val bluetoothManager: BluetoothManager? =
@@ -50,6 +55,9 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
     private var gatt: BluetoothGatt? = null
     private var scanning = false
     private var serviceUuid: UUID? = null
+
+    // The ATT_MTU of the link: 23 until onMtuChanged says otherwise (OI-SIMFW-63).
+    @Volatile private var attMtu: Int = 23
 
     // Characteristics resolved after service discovery, keyed by UUID.
     private val characteristics: MutableMap<UUID, BluetoothGattCharacteristic> = mutableMapOf()
@@ -64,6 +72,9 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
     }
 
     // MARK: BleCentral
+
+    // A write request carries the MTU less 3 bytes; 20 at the default MTU, which the upload works at.
+    override val writeLength: Int get() = (attMtu - BleTransfer.ATT_WRITE_OVERHEAD).coerceAtLeast(1)
 
     override val adapterState: AdapterState
         get() = when {
@@ -190,13 +201,23 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
     private val gattCallback = object : android.bluetooth.BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
-                BluetoothProfile.STATE_CONNECTED -> listener?.onConnected(g.device.address)
+                BluetoothProfile.STATE_CONNECTED -> {
+                    // Ask for the largest ATT_MTU first and tell the manager the hub is connected once the answer arrives, so its first
+                    // GATT operations (discovery) do not collide with the MTU exchange. A refused request is not waited for.
+                    attMtu = 23
+                    if (!g.requestMtu(MAX_ATT_MTU)) listener?.onConnected(g.device.address)
+                }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     val address = g.device.address
                     characteristics.clear()
                     listener?.onDisconnected(address)
                 }
             }
+        }
+
+        override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) attMtu = mtu
+            listener?.onConnected(g.device.address)
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {

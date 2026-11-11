@@ -1,6 +1,7 @@
 package life.neurone.shared.ble
 
 import life.neurone.core.common.UUID
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.core.protocol.GattUuidStrings
 
 // The simulated hub's end of the BLE seam (NP-SIM-FW-001 §27, REQ-SIMFW-19).
@@ -58,11 +59,14 @@ interface HubBridge {
     fun send(command: HubBridgeCommand): Boolean
 }
 
-class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
+class SimulatedBleCentral(private val bridge: HubBridge, attMtu: Int = DEFAULT_SIMULATED_ATT_MTU) : BleCentral {
 
     /** The id the simulated hub is found under; the same on every run, because there is one twin. */
     companion object {
         const val SIMULATED_HUB_ID = "simulated-hub"
+
+        /** The ATT_MTU the simulated link has negotiated unless a test says otherwise: a common value on a phone with the data length extension (UC-152). */
+        const val DEFAULT_SIMULATED_ATT_MTU = 247
 
         // 128-bit UUID of a NeurOne characteristic: the id is the four hex digits after the first group (np_app_wire_constants.h).
         fun uuidOf(id: Int): UUID {
@@ -74,6 +78,11 @@ class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
     }
 
     val isSimulated: Boolean get() = true
+
+    /** The ATT_MTU of the simulated link; a test sets it to see the upload cut at each size (the default ATT_MTU is 23). */
+    var attMtu: Int = attMtu
+
+    override val writeLength: Int get() = (attMtu - BleTransfer.ATT_WRITE_OVERHEAD).coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
 
     /** An ATT refusal the hub gave (a read or write the app asked for), for the screen or a test to show. Not an app-visible callback. */
     var onAttRefusal: ((uuid: UUID, att: Int, wasRead: Boolean) -> Unit)? = null

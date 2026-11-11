@@ -442,9 +442,14 @@ enum HubDescriptorWire {
 enum BleTransfer {
     /// The BLE 5 ATT MTU write ceiling, in bytes.
     static let MAX_WRITE_SIZE: Int = 512
+    /// A write request carries the ATT_MTU less 3 bytes (1 opcode, 2 handle): Bluetooth Core v5.3 Vol 3 Part F §3.4.5.1.
+    static let ATT_WRITE_OVERHEAD: Int = 3
+    /// The write a link carries before any MTU is negotiated: the default ATT_MTU of 23 less ATT_WRITE_OVERHEAD (Core v5.3
+    /// Vol 3 Part F §3.2.8). The upload works at this size, and every size from 1 to MAX_WRITE_SIZE.
+    static let ATT_DEFAULT_WRITE_LENGTH: Int = 20
     /// The width of the length prefix that leads the protocol upload stream, little-endian
-    /// (NP_TRANSPORT_LEN_PREFIX, np_transport.h). The blob follows it; the upload is split at
-    /// MAX_WRITE_SIZE with no other framing.
+    /// (NP_TRANSPORT_LEN_PREFIX, np_transport.h). The blob follows it; the upload is split at the link's write length
+    /// (the negotiated ATT_MTU less ATT_WRITE_OVERHEAD, at most MAX_WRITE_SIZE) with no other framing.
     static let PROTOCOL_LEN_PREFIX: Int = 4
     /// ATT_MTU(512) − 3 ATT header − 1 OTA opcode − 2 chunk index leaves 506; 496 keeps a margin for GATT
     /// stack overhead.

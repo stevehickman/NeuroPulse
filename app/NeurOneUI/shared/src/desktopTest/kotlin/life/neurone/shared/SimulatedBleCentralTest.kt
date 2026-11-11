@@ -153,6 +153,34 @@ class SimulatedBleCentralTest {
         assertEquals(listOf(SimulatedBleCentral.uuidOf(uploadCheck) to listOf<Byte>(1, 2)), rec.changes)
     }
 
+    // @verifies REQ-FWHUB-80#d
+    @Test fun the_central_reports_the_write_a_link_carries_which_is_the_mtu_less_three_and_at_most_512() = runTest {
+        val bridge = FakeBridge()
+        assertEquals(244, SimulatedBleCentral(bridge).writeLength, "the default MTU of 247")
+        assertEquals(20, SimulatedBleCentral(bridge, 23).writeLength, "the default ATT_MTU of 23")
+        assertEquals(512, SimulatedBleCentral(bridge, 517).writeLength, "the largest MTU, cut at the hub's ceiling")
+        assertEquals(1, SimulatedBleCentral(bridge, 4).writeLength)
+        val central = SimulatedBleCentral(bridge)
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        central.attMtu = 188
+        assertEquals(185, manager.writeLength, "the manager reports what its central does")
+        // A central that cannot tell answers the default ATT_MTU's 20.
+        val inert = object : life.neurone.shared.ble.BleCentral {
+            override val adapterState = AdapterState.ON
+            override fun setListener(listener: BleCentralListener) {}
+            override fun startScan(serviceUuid: UUID) {}
+            override fun stopScan() {}
+            override fun connect(deviceId: String) {}
+            override fun disconnect() {}
+            override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+            override fun enableNotifications(uuid: UUID) {}
+            override fun read(uuid: UUID) {}
+            override fun write(uuid: UUID, value: ByteArray) {}
+        }
+        assertEquals(20, inert.writeLength)
+        assertEquals(20, NeurOneGattManager(inert, TestScope(testScheduler)).writeLength)
+    }
+
     // @verifies REQ-SIMFW-19#c
     @Test fun a_disconnect_of_a_link_that_was_up_tells_the_hub_and_one_that_never_connected_tells_it_nothing() {
         val bridge = FakeBridge()

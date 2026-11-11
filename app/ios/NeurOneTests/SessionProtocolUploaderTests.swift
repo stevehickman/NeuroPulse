@@ -152,6 +152,35 @@ final class SessionProtocolUploaderTests: XCTestCase {
                        "header + 25 ON commands + 25 STOP commands + signature")
     }
 
+    // MARK: - OI-SIMFW-63: the upload is cut at the link's write length
+
+    // On a link that negotiated no MTU the write is 20 bytes (the default ATT_MTU of 23 less 3): the upload is cut there and
+    // still reassembles to the descriptor. At the MTUs a phone negotiates it is cut at MTU - 3, never above 512.
+    // @verifies REQ-FWHUB-80#d
+    func testUploadIsCutAtTheLinksWriteLength() async throws {
+        for writeLength in [20, 182, 244, 512, 600] {
+            let gateway = MockProtocolUploadGateway()
+            gateway.maximumWriteLength = writeLength
+            let uploader = SessionProtocolUploader(gatt: gateway)
+            let definition = NPProtocolDefinition(
+                name: "Many commands",
+                timingMode: .duration(20 * 60),
+                modalities: [
+                    NPProtocolModality(
+                        params: .besTacs(NPBESTacsParams(frequencyHz: 10, intensityMilliamps: 0.8, waveform: .sinusoidal)),
+                        interval: NPIntervalConfig(intervalOnSeconds: 20, intervalOffSeconds: 28, repeatCount: nil),
+                        enabled: true
+                    )
+                ]
+            )
+            try await uploader.upload(definition)
+            let limit = min(writeLength, BleTransfer.MAX_WRITE_SIZE)
+            XCTAssertTrue(gateway.writeSizes().allSatisfy { $0 <= limit }, "no write exceeds \(limit) at a write length of \(writeLength)")
+            XCTAssertEqual(Array(gateway.reassembledPayload().prefix(4)), [0x50, 0x48, 0x50, 0x4E],
+                           "the descriptor reassembles whatever the write length (\(writeLength))")
+        }
+    }
+
     // MARK: - ISC-35: Validation guard — hardware safety ceiling
 
     // upload(_:NPProtocolDefinition) must throw UploadError.validationFailed and
@@ -344,6 +373,7 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
     var cervicalRestartBlocked = false
     var cervicalOutstandingForAnotherUser = false
     var deviceSerial: Data?
+    var maximumWriteLength: Int = BleTransfer.MAX_WRITE_SIZE
     private(set) var uploadCallCount = 0
     private var chunks: [Data] = []
 
@@ -356,6 +386,9 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
         chunks.append(chunk)
         completion(.success(()))
     }
+
+    /// The size of every write made, in order.
+    func writeSizes() -> [Int] { chunks.map { $0.count } }
 
     /// Reassemble all received chunks into the original wire blob, as the hub's transport does: the writes are one byte
     /// stream, a 4-byte little-endian length and then the blob (NP-FW-HUB-001 §2.3, REQ-FWHUB-80).

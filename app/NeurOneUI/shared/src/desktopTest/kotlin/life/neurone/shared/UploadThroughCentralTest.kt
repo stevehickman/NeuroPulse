@@ -61,20 +61,20 @@ class UploadThroughCentralTest {
         interval = NPIntervalConfig.CONTINUOUS,
     )
 
-    /** `common/testdata/upload-stream-golden.json`, from the module's directory (the tests run there). */
-    private fun fixtureChunks(name: String): List<String> {
+    /** The fixture's writes for a case, at the write size `size` (the hub's 512-byte ceiling is the case's `chunks`). */
+    private fun fixtureChunks(name: String, size: Int = 512): List<String> {
         val file = File("../../../common/testdata/upload-stream-golden.json")
         assertTrue(file.exists(), "the shared fixture is at ${file.absolutePath}")
         val cases = Json.parseToJsonElement(file.readText()).jsonObject["cases"]!!.jsonArray
-        return cases.first { it.jsonObject["name"]!!.jsonPrimitive.content == name }.jsonObject["chunks"]!!.jsonArray.map { it.jsonPrimitive.content }
+        val case = cases.first { it.jsonObject["name"]!!.jsonPrimitive.content == name }.jsonObject
+        return (if (size == 512) case["chunks"]!! else case["chunks_by_write_size"]!!.jsonObject[size.toString()]!!).jsonArray.map { it.jsonPrimitive.content }
     }
 
-    // @verifies REQ-SIMFW-19#c
-    // @verifies REQ-FWHUB-80#d
-    @Test fun the_uploader_writes_the_fixtures_exact_bytes_to_the_upload_characteristic_through_the_simulated_central() = runTest {
+    /** The app's uploader, with the real chunker, on a link that negotiated `attMtu`: the writes it makes to the upload characteristic. */
+    private fun TestScope.writesAt(attMtu: Int?): List<HubBridgeCommand.Write> {
         val bridge = FakeBridge()
-        val central = SimulatedBleCentral(bridge)
-        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        val central = if (attMtu == null) SimulatedBleCentral(bridge) else SimulatedBleCentral(bridge, attMtu)
+        val manager = NeurOneGattManager(central, this)
         bridge.report(HubBridgeEvent.Opened)
         published.forEachIndexed { i, id -> bridge.report(HubBridgeEvent.Characteristic(index = i, count = published.size, id = id, props = 1)) }
         assertEquals(ConnectionState.CONNECTED, manager.connectionState.value)
@@ -85,13 +85,28 @@ class UploadThroughCentralTest {
         val compiler = HubDescriptorCompiler(zeroSigner, clockSeconds = { 1_700_000_000L }, randomBytes = { n -> ByteArray(n) { 0xAB.toByte() } })
         val uploader = ProtocolUploader(manager, compiler)
         val definition = NPProtocolDefinition(name = "g", timingMode = NPTimingMode.Duration(1200), modalities = listOf(pbm("660nm", 200.0)))
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(definition, deviceSerial = ByteArray(32), clinicianSockets = listOf(7, 3)))
+        return bridge.sent.filterIsInstance<HubBridgeCommand.Write>()
+    }
 
-        val result = uploader.upload(definition, deviceSerial = ByteArray(32), clinicianSockets = listOf(7, 3))
-        assertIs<ProtocolUploader.Result.Success>(result)
-
-        val writes = bridge.sent.filterIsInstance<HubBridgeCommand.Write>()
+    // @verifies REQ-SIMFW-19#c
+    // @verifies REQ-FWHUB-80#d
+    @Test fun the_uploader_writes_the_fixtures_exact_bytes_to_the_upload_characteristic_through_the_simulated_central() = runTest {
+        val writes = writesAt(null)   // the simulated central's default MTU of 247: a write of 244
         assertTrue(writes.isNotEmpty() && writes.all { it.id == 0x08 }, "every write is to the protocol upload characteristic")
-        assertEquals(fixtureChunks("golden_pbm660"), writes.map { it.hex },
+        assertEquals(fixtureChunks("golden_pbm660", 244), writes.map { it.hex },
             "the uploader's writes through the central are exactly the fixture's, the bytes the twin's test replays")
+    }
+
+    // @verifies REQ-FWHUB-80#d
+    @Test fun the_uploader_cuts_at_the_links_mtu_less_three_and_the_default_mtu_of_23_gives_twenty_byte_writes() = runTest {
+        // ATT_MTU 23 (no MTU negotiated), 188 (an iOS link), 247 (the data length extension), 515 (the hub's 512 ceiling).
+        for ((mtu, size) in listOf(23 to 20, 188 to 185, 247 to 244, 515 to 512)) {
+            val writes = writesAt(mtu)
+            assertTrue(writes.all { it.id == 0x08 && it.hex.length / 2 <= size }, "no write over $size at an MTU of $mtu")
+            assertEquals(fixtureChunks("golden_pbm660", size), writes.map { it.hex }, "the fixture's writes at an MTU of $mtu")
+        }
+        // An MTU above the ceiling's is cut at the hub's 512, not at the MTU less 3.
+        assertTrue(writesAt(517).all { it.hex.length / 2 <= 512 })
     }
 }

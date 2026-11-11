@@ -898,37 +898,44 @@ const chunkCase = (name) => UPLOAD_STREAM.cases.find((c) => c.name === name);
 const UPLOAD_MCU = [{ cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { cmd: 'safety_run', ms: 1000, state: 0 }];
 
 // @verifies REQ-FWHUB-80#a
-test('end to end: the exact writes the apps\' chunkers make are taken by the hub\'s GATT server and reassembled by its transport (OI-SIMFW-49)', { skip: !BIN }, async () => {
+test('end to end: the exact writes the apps\' chunkers make, at every write size, are taken by the hub\'s GATT server and reassembled by its transport (OI-SIMFW-49, OI-SIMFW-63)', { skip: !BIN }, async () => {
   const c = chunkCase('golden_pbm660');
-  const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
-    ...c.chunks.map((hex) => ({ cmd: 'gatt_write', id: 8, hex })), { cmd: 'proto_pump' },
-  ]);
-  assert.strictEqual(r.writes.length, c.chunks.length, 'one answer a write');
-  assert.ok(r.writes.every((w) => w.att === 0), 'every write is accepted (ATT success)');
-  assert.strictEqual(r.pump.blob, true, 'a whole blob came out of the transport');
-  assert.strictEqual(r.pump.len, c.blob.length / 2, 'with every byte of it');
-  // The golden descriptor carries a zeroed signature slot: the hub takes it in, parses it and refuses only the signature.
-  assert.strictEqual(r.pump.code, -6, 'refused as NP_HUB_ERR_BAD_SIGNATURE, after the hub\'s parser accepted the descriptor');
-  const f = Buffer.from(r.frame, 'hex');
-  assert.strictEqual(f.subarray(2).toString('hex'), nodeCrypto.createHash('sha256').update(Buffer.from(c.blob, 'hex')).digest('hex'),
-    'its hash is the SHA-256 of the blob the app\'s chunks made');
+  for (const size of UPLOAD_STREAM.write_sizes) {
+    const chunks = size === 512 ? c.chunks : c.chunks_by_write_size[String(size)];
+    const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+      ...chunks.map((hex) => ({ cmd: 'gatt_write', id: 8, hex })), { cmd: 'proto_pump' },
+    ]);
+    assert.strictEqual(r.writes.length, chunks.length, `one answer a write at ${size}`);
+    assert.ok(r.writes.every((w) => w.att === 0), `every write is accepted (ATT success) at ${size}`);
+    assert.strictEqual(r.pump.blob, true, `a whole blob came out of the transport at ${size}`);
+    assert.strictEqual(r.pump.len, c.blob.length / 2, `with every byte of it at ${size}`);
+    // The golden descriptor carries a zeroed signature slot: the hub takes it in, parses it and refuses only the signature.
+    assert.strictEqual(r.pump.code, -6, `refused as NP_HUB_ERR_BAD_SIGNATURE, after the hub's parser accepted the descriptor, at ${size}`);
+    const f = Buffer.from(r.frame, 'hex');
+    assert.strictEqual(f.subarray(2).toString('hex'), nodeCrypto.createHash('sha256').update(Buffer.from(c.blob, 'hex')).digest('hex'),
+      `its hash is the SHA-256 of the blob the app's chunks made, at ${size}`);
+  }
 });
 
 // @verifies REQ-FWHUB-80#a
-test('end to end: a protocol the TEST key signed, written to 0x0008 at the chunker\'s write boundaries, is accepted by the hub (OI-SIMFW-49)', { skip: !BIN }, async () => {
+test('end to end: a protocol the TEST key signed, written to 0x0008 at the chunker\'s write boundaries for each MTU, is accepted by the hub (OI-SIMFW-49, OI-SIMFW-64, OI-SIMFW-63)', { skip: !BIN }, async () => {
   const c = chunkCase('golden_pbm660');
-  const sizes = c.chunks.map((h) => h.length / 2);
-  const r = await gattTwoPhase([...UPLOAD_MCU, { cmd: 'gatt_init' }, { cmd: 'proto_sign', hex: GOLDEN.pbm660 }], (log) => {
-    const signed = Buffer.from(log.find((e) => e.ev === 'proto_signed').hex, 'hex');
-    assert.strictEqual(signed.length, c.blob.length / 2, 'signing fills the signature slot and changes no length, so the write boundaries are the chunker\'s');
-    const stream = framed(signed);
-    let off = 0;
-    const writes = sizes.map((n) => { const hex = stream.subarray(off, off + n).toString('hex'); off += n; return { cmd: 'gatt_write', id: 8, hex }; });
-    return [...writes, { cmd: 'proto_pump' }];
-  });
-  assert.ok(r.writes.length > 0 && r.writes.every((w) => w.att === 0), 'every write is accepted');
-  assert.strictEqual(r.pump.code, 0, 'NP_HUB_OK: the upload through GATT is accepted as the one through the transport directly was');
-  assert.deepStrictEqual([Buffer.from(r.frame, 'hex')[0], Buffer.from(r.frame, 'hex')[1]], [1, 0], 'ACCEPTED, no reason');
+  // ATT_MTU 23 (the default: 20-byte writes), 188 (185), 247 (244) and 515 (the 512 ceiling): the writes the app makes at each (UploadThroughCentralTest).
+  for (const size of UPLOAD_STREAM.write_sizes) {
+    const chunks = size === 512 ? c.chunks : c.chunks_by_write_size[String(size)];
+    const sizes = chunks.map((h) => h.length / 2);
+    const r = await gattTwoPhase([...UPLOAD_MCU, { cmd: 'gatt_init' }, { cmd: 'proto_sign', hex: GOLDEN.pbm660 }], (log) => {
+      const signed = Buffer.from(log.find((e) => e.ev === 'proto_signed').hex, 'hex');
+      assert.strictEqual(signed.length, c.blob.length / 2, 'signing fills the signature slot and changes no length, so the write boundaries are the chunker\'s');
+      const stream = framed(signed);
+      let off = 0;
+      const writes = sizes.map((n) => { const hex = stream.subarray(off, off + n).toString('hex'); off += n; return { cmd: 'gatt_write', id: 8, hex }; });
+      return [...writes, { cmd: 'proto_pump' }];
+    });
+    assert.ok(r.writes.length === chunks.length && r.writes.every((w) => w.att === 0), `every write is accepted at a write size of ${size}`);
+    assert.strictEqual(r.pump.code, 0, `NP_HUB_OK at ${size}: the upload through GATT is accepted as the one through the transport directly was`);
+    assert.deepStrictEqual([Buffer.from(r.frame, 'hex')[0], Buffer.from(r.frame, 'hex')[1]], [1, 0], `ACCEPTED, no reason, at ${size}`);
+  }
 });
 
 // @verifies REQ-FWHUB-80#b,c
