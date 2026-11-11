@@ -1,10 +1,10 @@
 # Principal question for review: OI-SIMFW-04, which clock the twin runs on
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-04-clock-domains.md`. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, §29)
 **To:** The principal
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.
-**Why now:** the twin as built already runs on one kind of clock, and that was never recorded as a choice. `OI-SIMFW-50` (the hub's own five tasks under the FreeRTOS POSIX port) is where the choice starts to bind, and the principal approved that item first in the order of `NP-SIM-FW-001` §28. Nothing in the repository acts as if this were answered.
+**Why now:** the twin as built already runs on one kind of clock, and that was never recorded as a choice. `OI-SIMFW-50` (the hub's own five tasks under the FreeRTOS POSIX port) is where the choice starts to bind, and the principal approved that item first in the order of `NP-SIM-FW-001` §28. *(Written before the answer; see section 5.)*
 
 ## 1. What is known (measured or read on 2026-11-11)
 
@@ -31,3 +31,31 @@ That `OI-SIMFW-50` will link the kernel and run the hub's tasks. If the answer t
 ## 4. What to send back
 
 The option for Q1 and the answer to Q2, a sentence on why (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answer is recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-04`) and in `docs/status/completed-decisions.md`.
+
+## 5. Answers
+
+**The principal, 2026-11-11, in two parts, verbatim.**
+
+1. "The time model (OI-SIMFW-04) should reflect the hardware as closely as possible."
+2. After the lead proposed the model below: "Yes, record it that way for OI-SIMFW-04."
+
+**The decision** is therefore the lead's proposal, which the principal agreed to. The reasoning behind the proposal is the lead's and not the principal's.
+
+- **One virtual timeline:** a single deterministic scheduler advances virtual time.
+- **Several clock domains derived from it, not one identical clock for every part.** From the hardware as the repository describes it:
+  - the hub, on its own oscillator; it sends the 200 ms heartbeat;
+  - the safety MCU's SYSCLK, which SysTick and TIM2 share, so their ratio is exact by construction (`firmware/safety_mcu/include/np_safety_config.h`, "Tick liveness");
+  - the safety MCU's independent watchdog on the LSI oscillator, whose 29.5 to 34 kHz spread makes the nominal 1,000 ms about 941 to 1,085 ms (`np_safety_config.h`, "Hardware independent watchdog").
+- **Each domain has its own rate offset, and the default is exact (offset zero).** With no scenario set, the behaviour equals the single virtual clock already built for the safety MCU.
+- **Drift and the LSI spread are named scenarios** (for example SYSCLK slow or fast, the LSI at 29.5 kHz and at 34 kHz, the hub fast or slow against the safety MCU). The failure modes they let the simulator exercise are the one `NP-FMEA-001` FMEA-M02-02 says is not caught (SYSCLK itself slowing), the independent watchdog's timeout margin (`OI-SWCI-49`) and the SYSCLK drift item of GitHub #467.
+
+**Against the options drafted in section 3.**
+
+- **Q1:** nearest to **option B (virtual time for everything)**: one timeline, deterministic, no real-time mode. It goes beyond B in one respect. B put the hub's tasks, the heartbeat and the watchdogs on "one counter". The decision derives several domains from the one timeline, each with its own rate. Option C (a real-time mode beside the virtual one) is not part of it. How wall time relates to virtual time for a person at the page is left open (`oi-simfw-04-clock-domains.md`, Q4).
+- **Q2 (must the heartbeat and the watchdogs share a clock): no.** They are on separate domains: the heartbeat on the hub's, the heartbeat watchdog on the safety MCU's SYSCLK, the independent watchdog on the LSI. With every offset at its default of zero they coincide, which is what is built today.
+
+**Rationale.** The principal's stated reason is the first sentence: reflect the hardware as closely as possible. No other rationale and no condition that would reopen it was given.
+
+**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-22`) and §7 (`OI-SIMFW-04`: decided, build open), and `docs/status/completed-decisions.md` (2026-11-11). **Not built.** The twin still has one virtual counter that every part of the safety MCU model reads, and it runs no hub task.
+
+**Left open by the answer** (drafted, not decided, in `oi-simfw-04-clock-domains.md`): how the hub's FreeRTOS tasks get virtual time; which offsets and spreads are the named scenarios and where their figures come from (none is invented: only the LSI's two ends are stated in a file); whether jitter is modelled; how wall time relates to virtual time for the page and for a bench run; what a timing result from the twin may be evidence for.
