@@ -310,7 +310,7 @@ class GattParserTests {
         assertEquals(false, active(7))
     }
 
-    // @verifies SWR-HV-06
+    // @verifies SWR-HV-06#f
     @Test
     fun parseHardwareVersionReadsOneByteFromOneToFifteen() {
         for (v in 1..15) assertEquals(v, GattParser.parseHardwareVersion(byteArrayOf(v.toByte())))

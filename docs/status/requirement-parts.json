@@ -59,6 +59,19 @@
       "a": "The cVNS PPG sample rate is pinned and compile-time asserted",
       "b": "The cardiac baseline is not waivable by a descriptor"
     },
+    "SWR-HV-06": {
+      "a": "The hardware version is held in one place on the helmet and is always there: a consumer takes the helmet's value and keeps none of its own",
+      "b": "It is part of the tier identity, in the upper nibble of the tier byte, and is read by the safety MCU (from a record that verifies for this unit)",
+      "c": "It is given to the main processor over the SPI link",
+      "d": "One firmware function returns it",
+      "e": "Nothing in the field writes or changes it",
+      "f": "At most 16 hardware versions exist: a value outside the field's versions is not a version",
+      "g": "The factory step writes and verifies it, checking it against the board's revision before programming (not built)"
+    },
+    "SWR-HV-07": {
+      "a": "A unit with no readable version (no record, a malformed record, one that does not verify) reads as version 1 and is not faulted",
+      "b": "The default is removed in the same change that adds hardware version 2, and that removal is a checked item on the increment record (not due until version 2)"
+    },
     "SWR-FM-02": {
       "a": "A family has releases, and a release has one variant for each hardware version",
       "b": "A release is a major.minor version of a predefined protocol",
