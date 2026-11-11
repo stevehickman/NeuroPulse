@@ -105,13 +105,13 @@ final class SessionProgressTests: XCTestCase {
         XCTAssertNil(manager.progress)
     }
 
-    // @verifies SWR-HV-07
+    // @verifies SWR-HV-07#a
     @MainActor
     func testAHelmetThatStatesNoVersionIsVersionOne() {
         XCTAssertEqual(NeurOneGATTManager(mockCentral: InertBLECentral()).hardwareVersion, 1)
     }
 
-    // @verifies SWR-HV-06
+    // @verifies SWR-HV-06#a,f
     @MainActor
     func testTheVersionTheHelmetReportsIsUsedAndABadByteIsNotBelieved() {
         let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
@@ -156,7 +156,7 @@ final class SessionProgressTests: XCTestCase {
         XCTAssertEqual(Tier.forHelmet(connected: true, hub: nil), .t1, "firmware with no DEVICE_TIER characteristic is not T2")
     }
 
-    // @verifies SWR-HV-06
+    // @verifies SWR-HV-06#a
     @MainActor
     func testTheNextLinkMayBeAnotherHelmetSoADroppedLinkForgetsTheVersion() {
         let manager = NeurOneGATTManager(mockCentral: InertBLECentral())
