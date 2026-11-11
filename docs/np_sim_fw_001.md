@@ -417,7 +417,7 @@ socket may share an index without meeting (`NP_SIM_KIND_STIM_PAIR`; the isolatio
 | Harness | `platform_sim/src/np_sim_stim_harness.c` | Text commands that call the driver's every entry point (`control`, `telemetry`, `tick`, `tdcs_pause`, `tdcs_ramp`, `tdcs_ramp_up_ms`, `detect`, `shutdown`) and the runner's two call sites around the cross-check. |
 | Firmware it runs | the device's own files | `np_mod_stim.c`, `np_stim_xcheck.c`, `np_ramp_plan.c` and the stimulation half of `np_safety_spi.c` (`request_enable`, `request_disable`, `set_channel_current`). No firmware file changed. |
 | Bridge | `fw-bridge.js` | `kind: "stim_pair"` in `MODULE_SET`, `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `bes`, `tdcs`, `stim_stop`, `stim_shutdown`, `sample`, `tdcs_pause`, `stim_session_start`, `advance`. Built from validated integers and whitelisted names (`REQ-SIMFW-12`); the hostile-input test covers them. |
-| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 66 checks: drive and stop, the 1 mA cap reaching the DAC, a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), the 30 s floor and the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
+| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 68 checks: drive and stop, a BES amplitude above 1 mA refused before the DAC (`NP-FW-HUB-001` `REQ-FWHUB-76`; it was a cap reaching the DAC until Rev {NP-SIM-FW-001 to}), a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), a ramp below the 30 s floor and a current above 2 mA refused, the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
 
 **Line coverage** (`firmware/platform_sim/tools/sim-coverage.sh`, gcov, the scenario tests only):
 
@@ -491,7 +491,7 @@ The ear clip, `REQ-SIMFW-13`. One clip, so one module (`NP_SIM_KIND_VNS`, index 
 | Firmware it runs | the device's own files | `np_mod_vns.c` **and the real HRV session library** (`hrv_biofeedback/`: session, PPG, coherence, pacer, taVNS sync, EEG biofeedback). The library is pure C with no kernel and no seam, so it runs as it is: the driver creates and starts a real session on `hrv_proto > 0`, and stopping the module ends it and hands the library's finished record to the logger once. No firmware file changed. |
 | Harness | `platform_sim/src/np_sim_vns_harness.c` | `vns_detect`, `vns_init`, `vns`, `vns_stop`, `vns_shutdown`, `vns_sample`, `vns_raw`, and scenario state `vns_readouts`. |
 | Bridge | `fw-bridge.js` | `kind: "vns"` in `MODULE_SET` (`add`, `present`, `readouts`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `vns`, `vns_init`, `vns_detect`, `vns_stop`, `vns_shutdown`, `vns_sample`. |
-| Tests | `platform_sim/tests/np_sim_vns_tests.c` | Twelve scenarios, 34 checks: the contact-range probe, drive and stop on either or both ears, the 40 mA cap reaching the stimulator and the safety channel, no contact meaning no stimulation, a non-finite impedance, a failed stimulator write, a lost stop that is reported and retried, the real HRV session's lifecycle, telemetry, a malformed command, shutdown, and the marking and isolation properties. |
+| Tests | `platform_sim/tests/np_sim_vns_tests.c` | Twelve scenarios, 37 checks: the contact-range probe, drive and stop on either or both ears, an amplitude above 40 mA refused with nothing started and nothing published to the safety channel (`REQ-FWHUB-76`; it was a 40 mA cap until Rev {NP-SIM-FW-001 to}), no contact meaning no stimulation, a non-finite impedance, a failed stimulator write, a lost stop that is reported and retried, the real HRV session's lifecycle, telemetry, a malformed command, shutdown, and the marking and isolation properties. |
 
 **Line coverage.**
 
@@ -594,7 +594,7 @@ The probe, `REQ-SIMFW-13`. One probe, so one module (`NP_SIM_KIND_INTRANASAL`, i
 | Firmware it runs | the device's own file | `np_mod_intranasal.c`. No firmware file changed. `np_log_shdr_zone_auth` is a logging sink in `np_sim_spike_link.c` that reports the authentication record as it is written. |
 | Harness | `platform_sim/src/np_sim_intranasal_harness.c` | `ins_detect`, `ins_init`, `ins`, `ins_stop`, `ins_shutdown`, `ins_sample`, `ins_raw`, and scenario state `ins_sensor`, `ins_pd`. |
 | Bridge | `fw-bridge.js` | `kind: "intranasal"` in `MODULE_SET` (`add`, `present`, `sensor`, `pd`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `ins`, `ins_init`, `ins_detect`, `ins_stop`, `ins_shutdown`, `ins_sample`. |
-| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 25 checks. |
+| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 26 checks. A duty above `0x32` is refused before the emitters (`REQ-FWHUB-76`; it was written as `0x32` until Rev {NP-SIM-FW-001 to}). |
 
 **Line coverage:** `hub_control/modules/np_mod_intranasal.c` 100 % of 47.
 

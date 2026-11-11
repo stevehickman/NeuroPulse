@@ -264,11 +264,11 @@ authored. The rule is **refuse, never reshape**, and refusal happens where the i
 | Where | What bounds it | State |
 |---|---|---|
 | Before signing | A protocol whose peak exceeds 400 mW/cm², or whose time averages break the weighted sum, is refused | **not built** (`OI-HEXTILE-31`) |
-| Hub | Today `NP_PBM_DUTY_MAX_REG` clamps to 25 %. It is the only firmware bound in force, so it is replaced by the pre-signing check, not deleted ahead of it | **still clamps** (`OI-HEXTILE-31`) |
+| Hub | Today `NP_PBM_DUTY_MAX_REG` **refuses** a duty above 25 % (`NP-FW-HUB-001` `REQ-FWHUB-76`, 2026-11-11; it clamped until then). It is the only firmware bound in force, so it is replaced by the pre-signing check, not deleted ahead of it | **refuses, interim** (`OI-HEXTILE-31`) |
 | Tile hardware, holding against U1's own failure | U3: peak ≤ 400 (`REQ-TDRV-01`). U4: today ≤ 50 % conduction, which forbids CW. To be redesigned to hold each channel's average to 200 × C_A of its wavelength and allow any duty, CW included, below it | **U4 redesign open** (`OI-HEXTILE-30`) |
 
 **Consequence to know until those close.** A pulsed duty above 25 % cannot reach the tile today:
-the language refuses it, and the compiler and the hub clamp it. **A CW command can.** The language
+the language refuses it, the compiler clamps it and the hub refuses it (the hub clamped it until 2026-11-11, `NP-FW-HUB-001` `REQ-FWHUB-76`). **A CW command can.** The language
 allows `frequency: 0`, and nothing checks a CW protocol's `CUR` against R-4's average terms. So
 under this specification, a CW protocol at high intensity would be bounded only by U4, and U4 is
 neither built nor yet in its redesigned form. No tile exists, so nothing is exposed today. **This is

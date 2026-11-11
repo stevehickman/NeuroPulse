@@ -1559,8 +1559,9 @@ for one-artwork reasons (§6.2's depopulation principle) is EE's choice, not a r
    forbids, at any current. The WPE advantage is forgone, and the difference lands on the tile as heat
    in `NP-HW-HEXTILE-001` §9.3. The limiter's tolerance band also sits below 50 %, so CW reaches
    slightly less than 200 mW/cm².
-3. **The firmware cannot command CW 200 today anyway.** `np_pbm_drive_set_duty()` clamps every
-   mode, CW included, to `NP_PBM_DUTY_MAX_REG` = 25 % (`firmware/pbm/include/np_pbm_config.h`;
+3. **The firmware cannot command CW 200 today anyway.** `np_pbm_drive_set_duty()` holds every
+   mode, CW included, to `NP_PBM_DUTY_MAX_REG` = 25 % (it clamped until 2026-11-11 and now refuses
+   above it, `NP-FW-HUB-001` `REQ-FWHUB-76`; the bound is the same) (`firmware/pbm/include/np_pbm_config.h`;
    `NP-FW-PBM1064-001` §5.3). R-4's 200 mW/cm² CW ceiling is therefore unreachable through the
    firmware's duty path. B at 50 % sits behind the firmware's 25 % with 2× margin and does not
    conflict with it. Which of the two the CW mode is meant to be governed by is a question for the

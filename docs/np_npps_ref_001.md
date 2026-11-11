@@ -475,7 +475,7 @@ Photobiomodulation via scalp-facing LED zones.
 |-------|-----------|------|--------|
 | `irradiance` | `irradiance_mw_cm2` | number, `mW_cm2` | **Required.** Peak irradiance at the scalp, for this block's wavelength alone (§4.1b). ≤ 400 (CLAUDE.md §3) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator and the hub still refuse or clamp above 25 %** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces the clamp with a pre-signing check |
+| `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator and the hub still refuse above 25 %, and the compiler still clamps at 25 %,** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces them with a pre-signing check (the hub clamped until 2026-11-11; it now refuses, `NP-FW-HUB-001` `REQ-FWHUB-76`) |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
 | `wavelength` | `wavelength` | string | **Required.** **One wavelength**, e.g. `"810nm"` (§4.1a). The combined names `"660_808nm"` and `"660_808_1064nm"` are retired. **Quoted** (§2) |
 
