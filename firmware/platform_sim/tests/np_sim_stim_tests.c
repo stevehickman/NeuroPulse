@@ -70,7 +70,7 @@ static void test_bes_drive_and_stop(void)
     check(c[NP_SAFETY_CH_BES_TACS] == 0U, "bes: stop clears the published current");
 }
 
-/* @verifies-none The amplitude limit is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-76). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The amplitude limit is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
 static void test_bes_amplitude_above_the_limit_is_refused_before_the_dac(void)
 {
     setup();
@@ -159,7 +159,7 @@ static void test_tdcs_ramp_up_and_charge(void)
     check(field("\"ev\":\"stim_sample\"", "\"charge_uc\":") == 25000.0, "tdcs: and 1000 uA for a further 10 s adds 10000 uC");
 }
 
-/* @verifies-none The 30 s floor is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-76). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The 30 s floor is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
 static void test_tdcs_ramp_floor_and_area_are_enforced(void)
 {
     setup();

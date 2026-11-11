@@ -212,7 +212,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     const np_mod_vns_hrv_params_t *p = (const np_mod_vns_hrv_params_t *)params;
 
-    /* REQ-FWHUB-76: an amplitude above the ceiling is refused, not clamped (the 40 mA stop-gap, NP_VNS_MAX_CURRENT_UA;
+    /* REQ-FWHUB-78: an amplitude above the ceiling is refused, not clamped (the 40 mA stop-gap, NP_VNS_MAX_CURRENT_UA;
      * #554, #559).  First: before the impedance read, the EEG reference routing, the PPG, the HRV session and the
      * stimulator, so the refusal starts nothing (REQ-VNSC-14) and a command already running is left as it was. */
     if (np_cmd_limits_check(NP_MOD_VNS_HRV, params, len) != NP_HUB_OK) {
@@ -259,7 +259,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     }
 
     /* VNS stimulation */
-    /* As commanded: a value above the ceiling was refused at the top (REQ-FWHUB-76). */
+    /* As commanded: a value above the ceiling was refused at the top (REQ-FWHUB-78). */
     const uint16_t amp = p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,

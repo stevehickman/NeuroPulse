@@ -32,7 +32,7 @@
 #include "../include/np_protocol.h"
 #include "../include/np_safety_spi.h"
 #include "../include/np_socket_dispatch.h"
-#include "../include/np_cmd_limits.h"     /* NP_PBM_DUTY_MAX_REG, for the REQ-FWHUB-76 test */
+#include "../include/np_cmd_limits.h"     /* NP_PBM_DUTY_MAX_REG, for the REQ-FWHUB-78 test */
 
 /* np_protocol.c's platform seams — same signatures the production contract
  * declares, so drift is a compile error here too. */
@@ -699,9 +699,9 @@ static void test_session_load_forgets_a_pause(void)
           "pause: a new session never inherits a paused one's sockets");
 }
 
-/* REQ-FWHUB-76: the interim 25 % duty limit refuses the whole command at the dispatcher, before placement, power
+/* REQ-FWHUB-78: the interim 25 % duty limit refuses the whole command at the dispatcher, before placement, power
  * or any socket.  (The driver double here accepts any duty, so a pass means the dispatcher refused.) */
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_duty_above_the_limit_refuses_the_whole_command_before_any_socket(void)
 {
     setup();

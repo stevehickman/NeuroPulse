@@ -373,7 +373,7 @@ static void test_an_accepted_command_and_a_clean_stop_are_unchanged(void)
 }
 
 /* The current ceiling refuses; it does not clamp.  60 mA used to reach the stimulator, and the safety MCU, as 40 mA. */
-/* @verifies REQ-FWHUB-76#c,f */
+/* @verifies REQ-FWHUB-78#c,f */
 static void test_an_amplitude_above_the_ceiling_is_refused_and_starts_nothing(void)
 {
     reset(1200.0f);
@@ -390,7 +390,7 @@ static void test_an_amplitude_above_the_ceiling_is_refused_and_starts_nothing(vo
 
 /* A value refused before anything is touched is not REQ-VNSC-14 (a)'s case (a write that may have partly landed):
  * nothing of the running session is in doubt, so it is left as it was. */
-/* @verifies REQ-FWHUB-76#f */
+/* @verifies REQ-FWHUB-78#f */
 static void test_a_refused_amplitude_leaves_a_running_session_as_it_was(void)
 {
     reset(1200.0f);

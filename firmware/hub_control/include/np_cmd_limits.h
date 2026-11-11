@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — command limits: refuse, never clamp
- * Document: NP-FW-HUB-001 §8 (REQ-FWHUB-76)
+ * Document: NP-FW-HUB-001 §8 (REQ-FWHUB-78)
  *
  * The limits the hub's T1 drivers hold on a commanded value, and the one check that
  * applies them.  A command outside a limit is REFUSED (NP_HUB_ERR_INVALID_ARG).  It
@@ -105,7 +105,7 @@ static inline np_hub_status_t np_cmd_limits_check(np_hub_mod_type_t mod_type,
 }
 
 /*
- * np_cmd_limits_admit — the load-time half (REQ-FWHUB-76 (g)).  Refuses a descriptor
+ * np_cmd_limits_admit — the load-time half (REQ-FWHUB-78 (g)).  Refuses a descriptor
  * that holds ANY command np_cmd_limits_check() refuses, whole, with
  * NP_HUB_ERR_INVALID_ARG: reason 2 in the upload-check frame, the cause the apps
  * already show for a descriptor built wrongly.  The shared core refuses every one of

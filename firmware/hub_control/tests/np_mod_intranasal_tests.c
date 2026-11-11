@@ -151,7 +151,7 @@ static void test_a_fully_applied_command_still_drives(void)
 }
 
 /* The duty ceiling refuses; it does not clamp.  Duty 200 used to reach the emitters as 0x32, a pulse train nobody authored. */
-/* @verifies REQ-FWHUB-76#d,f */
+/* @verifies REQ-FWHUB-78#d,f */
 static void test_a_duty_above_the_ceiling_is_refused_and_starts_nothing(void)
 {
     reset();
@@ -164,7 +164,7 @@ static void test_a_duty_above_the_ceiling_is_refused_and_starts_nothing(void)
           "duty: exactly the ceiling is accepted and reaches the emitters as authored");
 }
 
-/* @verifies REQ-FWHUB-76#f */
+/* @verifies REQ-FWHUB-78#f */
 static void test_a_refused_duty_leaves_a_running_command_as_it_was(void)
 {
     reset();

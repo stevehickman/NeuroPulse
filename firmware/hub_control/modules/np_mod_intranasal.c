@@ -25,7 +25,7 @@
 #include "np_sw02_platform_hal.h"
 
 /* INS_DUTY_MAX (0x32, 25 %, the same ceiling as the cranial tiles) is in np_cmd_limits.h.  A duty above it is REFUSED,
- * never clamped (REQ-FWHUB-76).  The refusal is interim: it goes with the 25 % cap when OI-HEXTILE-31 is built. */
+ * never clamped (REQ-FWHUB-78).  The refusal is interim: it goes with the 25 % cap when OI-HEXTILE-31 is built. */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -91,7 +91,7 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
 
     const np_mod_intranasal_params_t *p = (const np_mod_intranasal_params_t *)params;
 
-    /* REQ-FWHUB-76: refused before either side is written or the enable requested, so nothing is started and a command
+    /* REQ-FWHUB-78: refused before either side is written or the enable requested, so nothing is started and a command
      * already emitting is left as it was. */
     if (np_cmd_limits_check(NP_MOD_INTRANASAL, params, len) != NP_HUB_OK) {
         return NP_HUB_ERR_INVALID_ARG;

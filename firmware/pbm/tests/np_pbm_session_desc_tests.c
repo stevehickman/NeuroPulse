@@ -749,10 +749,10 @@ static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_cou
           "address: with no validator installed nothing is checked (the library's behaviour before the hub supplied one)");
 }
 
-/* ── The duty limit refuses; it does not clamp (NP-FW-HUB-001 REQ-FWHUB-76 (e)) ── */
+/* ── The duty limit refuses; it does not clamp (NP-FW-HUB-001 REQ-FWHUB-78 (e)) ── */
 
 /* np_pbm_drive_set_duty() used to write 0x32 for any duty above it. */
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_set_duty_above_the_limit_is_refused_and_writes_nothing(void)
 {
     np_pbm_drv_slot_t drv;
@@ -779,7 +779,7 @@ static void test_set_duty_above_the_limit_is_refused_and_writes_nothing(void)
 }
 
 /* Without this the ramp, which ignores set_duty's status, would hold at the last duty the driver accepted. */
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_session_start_refuses_a_preset_duty_above_the_limit(void)
 {
     np_pbm_session_desc_t desc;

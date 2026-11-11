@@ -684,7 +684,7 @@ static void test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_nam
     check(all_named, "reasons: the refusals np_runner_load gives here are all ones the apps name");
 }
 
-/* ── REQ-FWHUB-76 (g): a value outside a limit a hub driver holds refuses the protocol at load ─────────────────── */
+/* ── REQ-FWHUB-78 (g): a value outside a limit a hub driver holds refuses the protocol at load ─────────────────── */
 
 static void blob_bes(blob_t *b, uint16_t amplitude_ua)
 {
@@ -718,7 +718,7 @@ static void blob_ins(blob_t *b, uint8_t duty)
     blob_make(b, 1U, 60000U, NP_MOD_INTRANASAL, NP_HUB_SLOT_INTRANASAL, (const uint8_t *)&p, sizeof p);
 }
 
-/* @verifies REQ-FWHUB-76#g */
+/* @verifies REQ-FWHUB-78#g */
 static void test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leaves_nothing(void)
 {
     blob_t b;
@@ -739,7 +739,7 @@ static void test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leave
     expect_nothing_left_behind("limits intranasal");
 }
 
-/* @verifies REQ-FWHUB-76#g */
+/* @verifies REQ-FWHUB-78#g */
 static void test_a_command_exactly_at_each_driver_limit_loads(void)
 {
     blob_t b;
@@ -758,7 +758,7 @@ static void test_a_command_exactly_at_each_driver_limit_loads(void)
 
 /* The predicate itself, for the commands a slot-target blob cannot carry (socket-addressed PBM) and for one bad
  * command among good ones.  The drivers call the same function at dispatch. */
-/* @verifies REQ-FWHUB-76#e,g */
+/* @verifies REQ-FWHUB-78#e,g */
 static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(void)
 {
     np_mod_pbm_base_params_t base = { .freq_code = 0x28U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U };

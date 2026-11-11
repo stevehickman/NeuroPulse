@@ -7,7 +7,7 @@
  * NP_MOD_TDCS commands to the same control() function; the type field in the
  * registry entry identifies which command format to expect.
  *
- * Limits held here (np_cmd_limits.h, REQ-FWHUB-76).  A command outside one is
+ * Limits held here (np_cmd_limits.h, REQ-FWHUB-78).  A command outside one is
  * REFUSED with NP_HUB_ERR_INVALID_ARG before anything is driven, enabled or
  * published; it is never clamped, because a clamped command is a different
  * stimulus from the one authored (CLAUDE.md §3):
@@ -41,7 +41,7 @@
 #include "np_sw02_platform_hal.h"
 
 /* STIM_MAX_AMP_BES_UA, STIM_MAX_AMP_TDCS_UA and STIM_MIN_RAMP_S are in np_cmd_limits.h: the load-time check and this
- * driver read one definition.  A command outside them is refused, never clamped (REQ-FWHUB-76). */
+ * driver read one definition.  A command outside them is refused, never clamped (REQ-FWHUB-78). */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -180,7 +180,7 @@ void np_mod_stim_tdcs_ramp(np_ramp_report_t *out)
 
 /* How long dispatching this tDCS command now would take to reach its level: the whole ramp, or the rest of it when it
  * is a resume that reverses a ramp-down in progress.  0 for a command the driver will refuse (a wrong length, or a
- * current or ramp outside its limit, REQ-FWHUB-76): a refused command ramps nothing, so there is nothing to wait for. */
+ * current or ramp outside its limit, REQ-FWHUB-78): a refused command ramps nothing, so there is nothing to wait for. */
 uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *params, uint16_t len)
 {
     if (params == NULL || len != sizeof(np_mod_tdcs_params_t)) { return 0U; }
@@ -265,7 +265,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         }
         const np_mod_bes_tacs_params_t *p = (const np_mod_bes_tacs_params_t *)params;
 
-        /* REQ-FWHUB-76: an amplitude above the limit is refused, not clamped.  First, before the DAC, the enable, the
+        /* REQ-FWHUB-78: an amplitude above the limit is refused, not clamped.  First, before the DAC, the enable, the
          * published current or the cross-check is touched, so a refusal leaves a running command exactly as it was
          * and nothing new started.  The core refuses the same value before signing, so reaching this is a
          * descriptor the core did not make. */
@@ -283,7 +283,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         st->active = true;
         np_safety_spi_request_enable(NP_SAFETY_EN_BES_TACS);
         /* OI-CHARGE-05 (c): publish the commanded amplitude — the same number
-         * handed to the DAC, and (REQ-FWHUB-76) the number that was authored, so
+         * handed to the DAC, and (REQ-FWHUB-78) the number that was authored, so
          * the safety MCU's per-phase check runs against what is driven. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, amp);
         /* OI-FMEA-09: the same number, to the commanded-vs-delivered check.
@@ -306,7 +306,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
             return NP_HUB_ERR_INVALID_ARG;
         }
 
-        /* REQ-FWHUB-76: a current above the limit, or a ramp shorter than the minimum, is refused.  Neither is
+        /* REQ-FWHUB-78: a current above the limit, or a ramp shorter than the minimum, is refused.  Neither is
          * reshaped: 2 mA where 3 mA was authored, or a 30 s ramp where 10 s was authored, is a stimulus nobody
          * authored.  Before the ramp, the enable, the published current and the ramp model are touched, so a
          * running command (a ramp-down in progress included) is left exactly as it was. */

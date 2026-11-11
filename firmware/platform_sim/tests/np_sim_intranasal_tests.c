@@ -78,7 +78,7 @@ static void test_each_side_selection_reaches_the_emitters(void)
     check(!ins()->ins_side_on[0] && ins()->ins_side_on[1], "sides: 2 drives the right only");
 }
 
-/* @verifies-none The duty ceiling is np_mod_intranasal.c's; the hub suite verifies it (REQ-FWHUB-76). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The duty ceiling is np_mod_intranasal.c's; the hub suite verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
 static void test_duty_above_the_ceiling_is_refused_before_the_emitters(void)
 {
     setup();

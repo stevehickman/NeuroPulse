@@ -420,13 +420,13 @@ static void test_drive_fault_is_shdr_without_socket(void)
     check(g_untracked == 1, "a stop tells the meter the socket is dark");
 }
 
-/* ── The duty limit refuses; it does not clamp (REQ-FWHUB-76 (e), interim: OI-HEXTILE-31) ── */
+/* ── The duty limit refuses; it does not clamp (REQ-FWHUB-78 (e), interim: OI-HEXTILE-31) ── */
 
 np_hub_status_t np_mod_pbm_init(uint8_t slot);
 np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t len);
 
 /* A base tile at 50 % duty used to be driven at 25 %. */
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_socket_base_duty_above_the_limit_is_refused_and_starts_nothing(void)
 {
     setup();
@@ -447,7 +447,7 @@ static void test_socket_base_duty_above_the_limit_is_refused_and_starts_nothing(
           "base socket: exactly the limit is accepted and written as authored");
 }
 
-/* @verifies REQ-FWHUB-76#f */
+/* @verifies REQ-FWHUB-78#f */
 static void test_a_refused_duty_leaves_a_driven_base_socket_as_it_was(void)
 {
     setup();
@@ -464,7 +464,7 @@ static void test_a_refused_duty_leaves_a_driven_base_socket_as_it_was(void)
           "running: the socket's stored preset is the running command's, not the refused one's");
 }
 
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_socket_smart_duty_above_the_limit_is_refused_and_starts_nothing(void)
 {
     setup();
@@ -482,7 +482,7 @@ static void test_socket_smart_duty_above_the_limit_is_refused_and_starts_nothing
 }
 
 /* The retired 5-slot path holds the same rule: it is still compiled and still the driver's control(). */
-/* @verifies REQ-FWHUB-76#e,f */
+/* @verifies REQ-FWHUB-78#e,f */
 static void test_slot_path_duty_above_the_limit_is_refused_before_anything_is_read_or_driven(void)
 {
     setup();

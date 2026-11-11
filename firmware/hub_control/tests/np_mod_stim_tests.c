@@ -287,7 +287,7 @@ static void test_unowned_slot_is_refused(void)
 
 /* OI-FMEA-09: the driver hands the cross-check the same number it publishes
  * to the safety MCU and drives (the commanded one: above the limit a command
- * is refused, REQ-FWHUB-76), and tells it how long a tDCS decrease ramps.
+ * is refused, REQ-FWHUB-78), and tells it how long a tDCS decrease ramps.
  * The real np_stim_xcheck.c is linked, so this proves the wiring end to end;
  * np_stim_xcheck_tests owns the comparison itself. */
 static np_telem_record_t stim_rec(np_hub_mod_type_t type, float delivered_ua)
@@ -350,12 +350,12 @@ static void test_driver_feeds_the_cross_check(void)
 }
 
 
-/* ── Limits refuse; they do not clamp (REQ-FWHUB-76) ─────────────────────────── */
+/* ── Limits refuse; they do not clamp (REQ-FWHUB-78) ─────────────────────────── */
 
 static void start_tdcs_at_steady(uint32_t t0);
 
 /* BES at 5 mA used to be driven, published and cross-checked as 1 mA. */
-/* @verifies REQ-FWHUB-76#a,f */
+/* @verifies REQ-FWHUB-78#a,f */
 static void test_bes_above_the_limit_is_refused_and_starts_nothing(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -383,7 +383,7 @@ static void test_bes_above_the_limit_is_refused_and_starts_nothing(void)
           "BES limit: exactly 1 mA is accepted, driven and published as authored");
 }
 
-/* @verifies REQ-FWHUB-76#f */
+/* @verifies REQ-FWHUB-78#f */
 static void test_a_refused_bes_command_leaves_a_running_one_as_it_was(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
@@ -415,7 +415,7 @@ static void test_a_refused_bes_command_leaves_a_running_one_as_it_was(void)
 }
 
 /* tDCS at 3 mA used to be ramped, published and cross-checked as 2 mA; a 10 s ramp used to run as 30 s. */
-/* @verifies REQ-FWHUB-76#b,f */
+/* @verifies REQ-FWHUB-78#b,f */
 static void test_tdcs_outside_its_limits_is_refused_and_starts_nothing(void)
 {
     np_mod_stim_init(NP_HUB_SLOT_TDCS);
@@ -456,7 +456,7 @@ static void test_tdcs_outside_its_limits_is_refused_and_starts_nothing(void)
     (void)np_mod_stim_control(NP_HUB_SLOT_TDCS, NULL, 0U);
 }
 
-/* @verifies REQ-FWHUB-76#f */
+/* @verifies REQ-FWHUB-78#f */
 static void test_a_refused_tdcs_command_leaves_a_running_one_as_it_was(void)
 {
     start_tdcs_at_steady(1000U);                  /* 2 mA, 30 s ramp, at steady state */

@@ -3,7 +3,7 @@
  * Document: NP-FW-PBM1064-001 Rev 1 §5
  *
  * A duty write above NP_PBM_DUTY_MAX_REG (0x32 = 25%) is REFUSED and writes nothing; it is never clamped
- * (NP-FW-PBM1064-001 §5.5; NP-FW-HUB-001 REQ-FWHUB-76; CLAUDE.md §3).  Interim with the 25 % cap: OI-HEXTILE-31.
+ * (NP-FW-PBM1064-001 §5.5; NP-FW-HUB-001 REQ-FWHUB-78; CLAUDE.md §3).  Interim with the 25 % cap: OI-HEXTILE-31.
  * Startup sequence: CONFIG → CUR → FREQ → DUTY → CH_ENABLE → STATUS check.
  * Periodic STATUS + FAULT_LATCH poll at 5 s intervals handles OCP and thermal.
  */

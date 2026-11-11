@@ -36,7 +36,7 @@
 #include "np_session_log.h"
 #include "np_log_backend.h"   /* OI-NVRAM-19: np_log_backend_admits_sessions() */
 #include "np_layout_bind.h"   /* REQ-FWHUB-64: np_layout_admit() */
-#include "np_cmd_limits.h"    /* REQ-FWHUB-76: np_cmd_limits_admit() */
+#include "np_cmd_limits.h"    /* REQ-FWHUB-78: np_cmd_limits_admit() */
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
@@ -813,7 +813,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
         return rc;
     }
 
-    /* REQ-FWHUB-76 (g): a command whose value is outside a limit a hub driver holds (BES or tDCS current, the tDCS
+    /* REQ-FWHUB-78 (g): a command whose value is outside a limit a hub driver holds (BES or tDCS current, the tDCS
      * ramp, auricular VNS current, PBM or intranasal duty) refuses the protocol here, whole, so the person learns it
      * when they send the protocol and not as a refused command mid-session.  The drivers refuse the same command at
      * dispatch with the same predicate (np_cmd_limits_check); this is the earlier of the two.  The status is

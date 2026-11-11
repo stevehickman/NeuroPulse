@@ -77,7 +77,7 @@ static void test_drive_and_stop(void)
     check(vns()->vns_side_on[0] && vns()->vns_side_on[1], "drive: side 2 drives both ears");
 }
 
-/* @verifies-none The current ceiling is np_mod_vns.c's; the hub suite verifies it (REQ-FWHUB-76). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The current ceiling is np_mod_vns.c's; the hub suite verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
 static void test_an_amplitude_above_the_ceiling_is_refused_before_the_stimulator(void)
 {
     setup();
