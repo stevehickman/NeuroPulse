@@ -1,9 +1,9 @@
 # Principal question for review: OI-SIMFW-05 (b), the saved file's name, extension, opening and association
 
-**Status:** Question A ANSWERED 2026-11-11 (the principal); question G ANSWERED 2026-11-11 (the principal): uniqueness is not needed; B to F, H to K and the new L are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Question A ANSWERED 2026-11-11 (the principal); question G ANSWERED 2026-11-11 (the principal): uniqueness is not needed; question L: first half ANSWERED 2026-11-11 (the principal): a save never overwrites a closed file, and may update a file the same session created; its second half is open; B to F, H to K, the rest of L, and M1 to M6 which that answer raises, are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5 of `oi-simfw-05-temporary-file.md`, which question E here touches)
-**Response needed:** an option for each of B to F and H to L, with a short rationale, name, role and date.
+**Response needed:** an option for each of B to F, H to K, the second half of L, and M1 to M6, with a short rationale, name, role and date.
 **Why now:** on 2026-11-11 the principal answered Q1 of `oi-simfw-05-temporary-file.md` and gave direction for a saved copy: the person picks the directory, which is remembered; the default name is "the logged in userID followed by a timestamp"; and the extension is unique to NeurOne so the file opens on double click. That direction raises six questions it does not answer. None is decided here, and nothing in the repository acts as if any open one were answered. *(Written before the answer to A; see section 4.)*
 
 ## 1. What is known
@@ -63,7 +63,7 @@ It is a stored setting. What can be said now: it would hold a path and nothing e
 
 ## 3. What to send back
 
-An option for each of B to F and H to L, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
+An option for each of B to F, H to K, the second half of L, and M1 to M6, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
 
 ## 4. Answers
 
@@ -92,6 +92,19 @@ An option for each of B to F and H to L, a sentence on why for each (`CLAUDE.md`
 **Rationale for the answer to question A.** The sentence gives its own: the principal recognises the data-privacy challenge and addresses it by encryption at rest. Nothing further was given.
 
 **Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` part (e)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11).
+
+**The principal, 2026-11-11, verbatim, on question L (the principal labelled it "Q3"):** "Q3: A save never overwrites a file once that file has been closed. A save can continue to update a file that was created by that same session."
+
+**Question L, first half: decided.**
+
+1. Once a saved file has been closed, a save never overwrites it.
+2. A save may continue to update a file that was created by that same session.
+
+No rationale was given beyond the sentence. Recorded as `REQ-SIMFW-21` part (i). Not built. The consequence to confirm that was recorded under question G ("the filesystem will prevent them from being identical" holds only if a save never overwrites) is met by this answer for closed files.
+
+**Question L, second half: not answered.** What the twin does when a save is refused because a closed file of that name already exists (refuse and tell the person, append a counter, or ask for another name) stays open.
+
+**Not said, and needed before this can be built or tested** (questions M1 to M6, section 6): what "closed" means; what "update" means; how the twin knows a file is this session's; what a crash during an update leaves; from when the retention period runs for a file that is updated; and how this bears on when a save may be requested.
 
 ## 5. Questions the answer to A raises (none decided)
 
@@ -134,7 +147,7 @@ Q4 of `oi-simfw-05-temporary-file.md`, option (1), was "encrypted as the device 
 - **(2) The device's partition encryption only,** inside an otherwise clear file. Costs: the SHDR partition and the twin's synthetic state are in the clear, which is not what "the file" encrypted at rest says; waits for `OI-SIMFW-52`. Gains: the file holds what a device would.
 - **(3) Both.** Costs: two layers and two keys to manage. Gains: the file is protected as a file, and the twin runs the device's path.
 
-**L. What does the twin do when a saved copy's name already exists?** (Raised by the answer to G. It needs an answer only for the build.)
+**L. What does the twin do when a saved copy's name already exists?** (Raised by the answer to G. It needs an answer only for the build.) **First half ANSWERED 2026-11-11 (the principal; section 4): a save never overwrites a file once it has been closed, and may continue to update a file the same session created. Second half, options (a) to (c) below, OPEN.** The answer removes the silent-overwrite case; it does not remove the need for a defined behaviour when a closed file of that name exists.
 
 For the filesystem to keep two files from being identical, the twin has to create a saved copy exclusively: the create fails if the name exists, and nothing is overwritten. An overwriting save would silently destroy another person's file in a shared directory, which is the fault the project refuses elsewhere: a thing is rejected and said so, never silently reshaped (`CLAUDE.md` §3). **To confirm first:** that a save never overwrites an existing file. Then, when the exclusive create is refused:
 
@@ -143,3 +156,40 @@ For the filesystem to keep two files from being identical, the twin has to creat
 - **(c) Ask the person for another name.** Costs: a prompt in the middle of a save; a bench script has nobody to ask. Gains: the person chooses.
 
 The default name, a pseudonymous id followed by a timestamp, already makes a collision improbable: it needs two saves with the same id into one directory within the timestamp's resolution, or a person typing a name that exists. The resolution of the timestamp is part of question A's open remainder (its format).
+
+## 6. Questions the answer to L raises (none decided)
+
+**M1. What does "closed" mean?**
+
+- **(a) The session ends.** The file is closed when the twin process exits. Under the second sentence, every save during the session updates the one file, and the file becomes fixed at exit. Costs: a crash ends the session without a deliberate close (M3, M4); a long session has one file that keeps changing.
+- **(b) The person closes it,** by an explicit "finish and keep" action. Saves before that update the file; after it the file is fixed and a further save starts a new file. Costs: one more action to explain, and a session that ends without it needs a rule (closed at exit, as (a)). Gains: the person decides when a record is final.
+- **(c) Each save writes the file and closes it at once,** so every later save in the session is a new file. **This contradicts the second sentence of the decision,** which lets a save continue to update a file the session created; under (c) there is never an open file to update. Listed because it is the simplest reading of "save", and to be ruled out or the second sentence explained.
+- **(d) Closed when the twin has not written to it for a stated time.** Costs: needs a figure nobody has given, and a person cannot tell by looking whether the next save will update or start a new file. Gains: none that (a) or (b) lacks.
+
+**M2. What does "update" mean?**
+
+- **(a) Replace with the latest snapshot.** Each later save in the session replaces the content of the session's one file (the person presses save again). Costs: the earlier snapshot is gone, by the person's own action. Gains: one file per session, always whole.
+- **(b) A live mirror.** Once saved, the file is kept in step continuously while the twin runs. Costs: the twin writes its state to two places for the whole session; the saved file is exposed to a crash in the middle of an update at any moment, not only when the person saves (M4); the working file of Q1 and Q2 stays separate and unlinked either way. Gains: the file is current when the session ends without a final save.
+- **(c) Append-only.** Later saves add to the file; nothing already written changes. Costs: the file grows; the format has to hold a sequence of states. Gains: nothing already saved is ever lost, and a crash can damage only the last addition (M4).
+
+**M3. How does the twin know a file is this session's?**
+
+"Created by that same session" needs something only the creating session has. One way would be a session identifier, made at start and held only by the running process, recorded in the file's header (which the encryption direction would cover). It must not be satisfied by a file that merely carries the same pseudonymous id in its name: the id is the person's across sessions, and ids need not be unique (question G), so the name proves nothing about the session. To confirm that rule. Then, **a file left by a session that crashed was never closed.** What does a restarted twin do with it? Options: (i) treat it as closed from now on: no session may update it (the session that made it is gone), and it is examined as it is; (ii) offer to recover it into a new file, leaving the original untouched; (iii) let the next session of the same person continue it. (iii) needs a way to prove "the same person", which the name does not give, and stretches "that same session"; it is listed only to be ruled out or chosen deliberately.
+
+**M4. What does a crash during an update leave?**
+
+The file is encrypted at rest (the principal's direction), so a half-written update can make the whole file unreadable unless the format is built for it. Options, none chosen:
+
+- **Write a complete new version beside the file and replace it atomically.** A replace of a file the session itself created and has not closed is allowed by the decision. Costs: twice the space during a save; "atomic" depends on the filesystem, and on network or mapped container directories it is weaker (general knowledge, not from a repository file). Gains: the file is always either the old version or the new.
+- **An append-only format in which each addition is separately authenticated.** Costs: a more elaborate format and opener. Gains: a crash loses at most the last addition; fits M2 (c).
+- **Accept that a crash during an update can lose the file.** Costs: a person loses what they asked to keep, though by a fault and not silently if the opener says the file is damaged. Gains: nothing to build.
+
+The file-format question (E) has to cover this. A mark inside the header, or a final authenticated record, saying the file was closed would let an opener tell a closed file from one that never was, which M1, M3 and M5 all need.
+
+**M5. From when does the retention period run, and is an unclosed file offered for deletion?**
+
+"Kept for one week" (`REQ-SIMFW-21` part (f)) needs a start, and with files that are updated while open there are three candidates: **from creation** (costs: a file from a long session, or one continued over days if that is ever allowed, can be expired the moment it is closed); **from closing** (costs: an unclosed file left by a crash has no start, so it needs its own rule); **from the last update** (costs: the same for a crashed file, though the last write time serves; under M2 (b) the period restarts continuously while the twin runs). And for a file left unclosed by a crash: when does its period start, and is it listed and offered for deletion with the expired copies, or shown apart as a damaged or unfinished file? This extends point R0 of `oi-simfw-05-temporary-file.md` (counted from saving or from last opening).
+
+**M6. How this bears on "when a save may be requested".**
+
+Continuing to update a file during a session suggests that a save can be requested during the session, since there is otherwise nothing to continue. It informs that question (Q3 of `oi-simfw-05-temporary-file.md`, options A, B, C) and does not answer it: a save chosen at start whose file is then updated through the session (M2 (b)) fits the sentence equally. Q3's open list stays as it is: when a save may be requested, and how the directory is picked safely.
