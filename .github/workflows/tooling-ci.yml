@@ -916,6 +916,19 @@ jobs:
       - name: Relevance lists cover the build graph and every gate's population
         run: bun scripts/check-ci-scope.ts
 
+      # OI-SWCI-54 (NP-SW-CI-001 §6.17). The protection on main is a GitHub setting, so no
+      # pull request shows an edit to it. ci/main-ruleset.json and ci/required-checks.txt
+      # state what it is expected to be; this step proves that expected state is itself a
+      # protection (a pull_request rule, no role that bypasses outside a pull request, an App
+      # bypass tied to a workflow that still exists). It runs here because this job's list
+      # already covers what it reads: ci/** and every workflow. It does not contact GitHub.
+      # The comparison with the live ruleset is build-all.yml's, weekly and on demand.
+      - name: Main-ruleset guard self-test (prove each offline and live rule can fail)
+        run: bun scripts/check-main-ruleset.ts --self-test
+
+      - name: The expected protection of main is a protection
+        run: bun scripts/check-main-ruleset.ts
+
   doc-naming:
     name: document filenames match their serials (NP-CONV-001 §4.0)
     runs-on: ubuntu-latest
