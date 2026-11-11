@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 79 (current)  
+**Revision:** 80 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -46,6 +46,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
 | **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number) | `docs/revisions/README.md` |
 | **UHDR presence gate** (who may read UHDR on a phone, a computer or a browser, and what runs locked) | `docs/np_app_presence_001.md` |
+| **Any upload or download** (protocols, session data, logs, configuration, calibration, firmware, user data) on any transport (§23) | `docs/np_fw_hub_001.md` §2 |
 | **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |
 | PBM optical resolution floor ("targets region X" claims) | `docs/np_opt_psf_001.md` |
 | **Any shielding claim, or adding to / removing from the §4.3 stack** | `docs/np_bib_emf_001.md` |
@@ -492,8 +493,18 @@ What "cryptographic" covers and the library-selection rules: `docs/reference/eng
 
 ---
 
+## 23. ENCRYPTED TRANSFER — NOTHING UPLOADS OR DOWNLOADS IN THE CLEAR (locked, the principal, 2026-11-11) → `docs/np_fw_hub_001.md` §2
+
+**Every upload to, and every download from, the headset or the control hub is encrypted, on every transport, and no unencrypted path exists for protocols, session data, logs, configuration, calibration, firmware or user data.** The two reasons are the principal's: data privacy (§5) and hardening the system against malware injection. Encryption is separate from the session-protocol signature (§4.2) and never replaces it: a path is both signed and encrypted.
+
+- **A path is conformant only when it is shown to be encrypted.** Which paths are covered, at which layer (the BLE link, or the payload end to end), and which are not yet, is in the owning file and in the open item that raised the rule (`OI-SIMFW-62`). **USB-C CDC has no link-layer encryption, so "encrypted" is not assumed to cover it** until its payload is. Until a path is covered it is a known gap, listed, not a conformant path.
+- **Protection only goes up.** An encrypted path is never made weaker, replaced by a clear one, or given an unencrypted fallback, in a release, a test mode or a bench mode. A change that would lower any protection a transfer has is the principal's decision and is not made as a detail.
+- **The keys are held by the two ends and never by NeurOne.** Transport encryption must not give NeurOne access to UHDR (§5.1); the key rules of §5 are unchanged. Cryptographic code follows §22 (Rust, once, in `common/npps-core`).
+
+---
+
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md`, and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§22) and every
+`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§23) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*
