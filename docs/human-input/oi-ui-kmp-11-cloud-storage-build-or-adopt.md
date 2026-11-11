@@ -1,18 +1,18 @@
 # Principal decision for review: OI-UI-KMP-11 (GitHub #566), build or adopt for the cloud storage API, and three choices that follow
 
-**Status:** PARTLY ANSWERED 2026-11-11 (Q1 answered by the principal; Q2, Q3 and Q4 open). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** PARTLY ANSWERED 2026-11-11 (Q1 and Q2 answered by the principal; Q3 and Q4 open). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-UI-KMP-11` M9 to M12; GitHub #566; `NP-SW-CLOUDSTORE-001` §7)
 **To:** The principal
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.
-**Still needed:** a ruling on Q2, Q3 and Q4 (section 3), as section 4 sets out.
+**Still needed:** a ruling on Q3 and Q4 (section 3), as section 4 sets out.
 **Why now:** #566 asks for a build-or-adopt decision and cannot close without one. Nothing is blocked today: every cloud place carries the health-data backup only, and no migration runs over one.
 
 ## 1. The questions in one line each
 
-1. Is "build thin adapters, adopt no storage library" the decision of record?
-2. How is Oracle Cloud Infrastructure reached, if at all?
-3. What must be shown before a cloud route may carry a migration, and who provides the test accounts?
-4. Should Google Drive get a claim built on a pre-generated file ID, or stay backup-only?
+1. Is "build thin adapters, adopt no storage library" the decision of record? **Answered 2026-11-11: yes.**
+2. How is Oracle Cloud Infrastructure reached, if at all? **Answered 2026-11-11: option A, the existing S3 form at Oracle's compatibility endpoint, backup only.**
+3. What must be shown before a cloud route may carry a migration, and who provides the test accounts? **Open.**
+4. Should Google Drive get a claim built on a pre-generated file ID, or stay backup-only? **Open.**
 
 ## 2. What is known
 
@@ -39,7 +39,7 @@ All of it is in `docs/np_sw_cloudstore_001.md`; section numbers below are that d
 
 The sender recommends A, for the reasons in §7.7: no candidate covers the list, the adapters exist and pass one suite, and adoption's cost is measured while its benefit covers only the three best-documented stores.
 
-**Q2. Oracle Cloud Infrastructure.**
+**Q2. Oracle Cloud Infrastructure.** *Answered 2026-11-11: option A (section 5).*
 
 | Option | What it means | Cost |
 |--------|---------------|------|
@@ -76,6 +76,16 @@ An answer takes effect only when it is recorded in `docs/np_sw_cloudstore_001.md
 - **What it ratifies:** the direction of 2026-10-27 to build the thin adapters as a reusable library, which was acted on then and not logged.
 - **Rationale:** the principal gave none beyond the decision. The reasons in `NP-SW-CLOUDSTORE-001` §7.7 are the sender's own, from its evaluation, and are kept there as the supporting record; they are not the principal's words.
 - **Conditions that would reopen it:** none were stated.
-- **Not covered by this answer:** Q2, Q3 and Q4. Nothing in the repository acts as if they were answered.
+- **Not covered by this answer:** Q2, Q3 and Q4.
 
-**Q2, Q3, Q4:** open.
+**Q2, answered 2026-11-11 by the principal** (relayed to the sender by the session lead): "pick option A". Option A is: offer Oracle Cloud Infrastructure through the existing S3 form, at Oracle's S3 compatibility endpoint, for the health-data backup only.
+
+- **Recorded in:** `docs/np_sw_cloudstore_001.md` §7.1, §7.2, §7.5 and §7.9; `docs/status/completed-decisions.md` (2026-11-11).
+- **Rationale:** the principal gave none beyond the choice.
+- **What it means:** no new code; a person enters a Customer Secret Key and the endpoint host in the S3 form; it carries the health-data backup only and cannot carry a migration on today's evidence, because Oracle's compatibility pages do not mention a conditional create.
+- **The condition that came with option A stands:** it must be tried against an Oracle account first. That has not been done and cannot be until a test account exists, which is Q3. The route is decided and unverified; it is not described anywhere as working or supported.
+- **Found when recording it** (`NP-SW-CLOUDSTORE-001` §7.5): the form's endpoint and region fields accept Oracle's host and region names; its bucket field takes Amazon's form only and refuses a name with a capital letter or an underscore, such as the `MyBucket` of Oracle's own example. No code was changed. Widening that pattern, if wanted, is a new request.
+- **Conditions that would reopen it:** none were stated.
+- **Not covered by this answer:** a native Oracle adapter (option B, not chosen), Q3 and Q4.
+
+**Q3, Q4:** open. Nothing in the repository acts as if they were answered.
