@@ -23,7 +23,7 @@ enum ProtocolChunker {
             UInt8((n >> 16) & 0xFF),
             UInt8((n >> 24) & 0xFF),
         ])
-        assert(stream.count == BleTransfer.PROTOCOL_LEN_PREFIX, "the length prefix is a 32-bit little-endian value")
+        assert(stream.count == BleTransfer.PROTOCOL_LEN_PREFIX)
         stream.append(data)
 
         var chunks: [Data] = []
