@@ -36,6 +36,7 @@ class WebSocketHubBridge(private val url: String) : HubBridge {
         is HubBridgeCommand.Read -> hubSend("gatt_read", command.id, command.offset, "")
         is HubBridgeCommand.Write -> hubSend("gatt_write", command.id, 0, command.hex)
         HubBridgeCommand.Disconnect -> hubSend("gatt_disconnect", 0, 0, "")
+        is HubBridgeCommand.Link -> hubSend("gatt_link", if (command.encrypted) 1 else 0, 0, "")
     }
 }
 
@@ -70,6 +71,7 @@ private external fun hubOpen(url: String, cb: (String, String, String, String, S
         const msg = { type: 'FW_COMMAND', cmd };
         if (cmd === 'gatt_read') { msg.id = id; msg.offset = offset; }
         if (cmd === 'gatt_write') { msg.id = id; msg.hex = hex; }
+        if (cmd === 'gatt_link') { msg.encrypted = id === 1; }
         hub.ws.send(JSON.stringify(msg));
         return true;
     }""",

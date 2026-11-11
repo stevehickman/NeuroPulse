@@ -28,6 +28,9 @@ sealed interface HubBridgeCommand {
 
     /** The link is down: the hub drops a half-written upload and keeps a complete one (np_gatt_on_disconnect, REQ-FWHUB-80). */
     data object Disconnect : HubBridgeCommand
+
+    /** What the stack reports of the link's security: the simulated central's link is bonded, so it says encrypted (REQ-FWHUB-81). */
+    data class Link(val encrypted: Boolean) : HubBridgeCommand
 }
 
 /** What the twin reports, as typed events. */
@@ -105,7 +108,9 @@ class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
         connecting = true
         table.clear()
         // The twin boots at the first command; an Init to a twin that is up already is refused and changes nothing.
-        if (!bridge.send(HubBridgeCommand.Init) || !bridge.send(HubBridgeCommand.Table)) connecting = false
+        // The link is bonded, so encrypted (UC-139): the twin is told, as a stack's security callback tells the hub, after a
+        // disconnect cleared it. Pairing itself is not modelled (OI-SIMFW-48).
+        if (!bridge.send(HubBridgeCommand.Init) || !bridge.send(HubBridgeCommand.Table) || !bridge.send(HubBridgeCommand.Link(true))) connecting = false
     }
 
     override fun disconnect() {

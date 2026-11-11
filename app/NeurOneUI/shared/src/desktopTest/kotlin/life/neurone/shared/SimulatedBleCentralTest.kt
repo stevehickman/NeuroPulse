@@ -89,7 +89,7 @@ class SimulatedBleCentralTest {
         bridge.report(HubBridgeEvent.Opened)
         assertEquals(listOf(SimulatedBleCentral.SIMULATED_HUB_ID), rec.found)
         central.connect(SimulatedBleCentral.SIMULATED_HUB_ID)
-        assertEquals(listOf(HubBridgeCommand.Init, HubBridgeCommand.Table), bridge.sent, "the twin is brought up, then its table asked for")
+        assertEquals(listOf(HubBridgeCommand.Init, HubBridgeCommand.Table, HubBridgeCommand.Link(true)), bridge.sent, "the twin is brought up, its table asked for, and the bonded link reported encrypted")
         assertTrue(rec.connected.isEmpty(), "not connected until the whole table has arrived")
         bridge.report(*table(uploadCheck, warrantyToken).toTypedArray())
         assertEquals(listOf(SimulatedBleCentral.SIMULATED_HUB_ID), rec.connected)

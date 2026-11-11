@@ -58,11 +58,12 @@
 #define NP_GATT_PROP_READ     0x01u
 #define NP_GATT_PROP_WRITE    0x02u   /* write with response */
 #define NP_GATT_PROP_NOTIFY   0x04u
-/* The stack must refuse access on a link that is not encrypted (ATT 0x0F,
- * Insufficient Encryption).  Set on DEVICE_SERIAL: a stable hardware serial
- * readable by any central in range is a tracking identifier.  Enforced by the
- * platform seam (np_gatt_hal_register); a modifier, not an access mode, so it
- * is only meaningful with READ or WRITE. */
+/* Access needs an encrypted link: on one that is not, the read, write or notification is refused (ATT 0x0F,
+ * Insufficient Encryption).  Set on every characteristic that carries a protocol, a session, a log, user data or an
+ * identifier (CLAUDE.md section 23, NP-FW-HUB-001 section 2.5, REQ-FWHUB-81); first on DEVICE_SERIAL, a stable hardware
+ * serial readable by any central in range being a tracking identifier.  Enforced twice: by the stack at the permission
+ * (np_gatt_hal_register), and here, against the link state the stack reports (np_gatt_set_link_encrypted), so a host
+ * test reaches the refusal.  A modifier, not an access mode, so it is only meaningful with READ or WRITE. */
 #define NP_GATT_PROP_ENC      0x08u
 /* With WRITE: the characteristic takes a byte stream, not a value.  A write of 1..NP_GATT_STREAM_WRITE_MAX bytes is
  * accepted whatever the row's write_len (0 for such a row), and every write is handed to the handler as it arrives,
@@ -88,6 +89,8 @@ typedef enum {
     NP_ATT_ATTRIBUTE_NOT_FOUND    = 0x0A,
     NP_ATT_INVALID_VALUE_LENGTH   = 0x0D,
     NP_ATT_UNLIKELY_ERROR         = 0x0E,
+    /* The characteristic has NP_GATT_PROP_ENC and the link is not encrypted (Core v5.3 Vol 3 Part F §3.4.1.1). */
+    NP_ATT_INSUFFICIENT_ENCRYPTION = 0x0F,
     /* Application error: the hub refused the value (a write outside the state
      * that accepts it, or a value its handler rejects).  The app's
      * write-with-response fails, which is what np_cvns_fault_summary.h's
@@ -151,16 +154,26 @@ np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,
 np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len);
 
 /*
+ * np_gatt_set_link_encrypted — the stack's security callback: the link to the central is now encrypted (true) or not
+ * (false).  The state starts false and fails closed: until the stack says the link is encrypted, every NP_GATT_PROP_ENC
+ * characteristic refuses a read, a write and a notification.  "Encrypted" is all this says; whether the pairing that made
+ * the key was authenticated (a passkey or a numeric comparison, not Just Works) is not decided here (OI-SIMFW-72).
+ */
+void np_gatt_set_link_encrypted(bool encrypted);
+
+/*
  * np_gatt_on_disconnect — the stack's link-down callback.  A stream write that was cut off part way would leave the
  * transport holding half a blob, and the next link's first bytes would be read as the rest of it: this drops the partial
- * reassembly (np_transport_reset), and keeps a blob that was completed and not yet taken (REQ-FWHUB-80).
+ * reassembly (np_transport_reset), and keeps a blob that was completed and not yet taken (REQ-FWHUB-80).  It also
+ * clears the link state: the next link is not encrypted until the stack says so.
  */
 void np_gatt_on_disconnect(void);
 
 /*
  * np_gatt_notify — send `len` bytes as a notification of `id`.  Refuses an id
  * without NOTIFY and an over-length value (NP_HUB_ERR_INVALID_ARG).  A no-op
- * at the platform when nothing is subscribed.
+ * at the platform when nothing is subscribed.  On an ENC characteristic with the link not encrypted it sends nothing
+ * and reports success: there is no one entitled to receive it, which is the same as nothing subscribed.
  */
 np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len);
 

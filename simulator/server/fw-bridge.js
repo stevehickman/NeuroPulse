@@ -486,6 +486,8 @@ function gattCommandLines(msg) {
     case 'gatt_table':   // the characteristics the hub publishes
     case 'gatt_disconnect':   // the link is down: np_gatt_on_disconnect (a half-written upload is dropped)
       return [msg.cmd];                                   // a member of the whitelist, never the client's string
+    case 'gatt_link':    // what the stack reports of the link's security: encrypted or not (CLAUDE.md section 23)
+      return [`gatt_link ${bit(msg.encrypted, 'encrypted')}`];
     case 'gatt_read':
       return [`gatt_read ${int(msg.id, 0, 65535, 'id')} ${int(msg.offset ?? 0, 0, 65535, 'offset')}`];
     case 'gatt_write':
@@ -717,6 +719,7 @@ function eventToMessage(ev) {
     case 'gatt_write':
     case 'gatt_notify':
     case 'gatt_disconnect':
+    case 'gatt_link':
       return { type: 'GATT_EVENT', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for

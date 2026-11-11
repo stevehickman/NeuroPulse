@@ -20,13 +20,17 @@ import life.neurone.core.models.UploadVerdict
 // NP-FW-HUB-001 §4 (OI-AND-WIRE-01), chunk it to BLE-MTU frames, and write each to the hub's
 // PROTOCOL_UPLOAD characteristic. Compile + chunk are pure-JVM (unit-tested in :core); this
 // class only sequences the GATT writes.
-class ProtocolUploader(
+class ProtocolUploader internal constructor(
     private val gatt: NeurOneGattManager,
-    /** The wavelength rules in force, read at each upload; null keeps the shipped defaults. */
-    wavelengthRules: () -> life.neurone.core.protocol.NPWavelengthRules? = { null },
-    signer: ProtocolSigner,
+    /** The compiler; a test passes one with its own clock and session id to pin the bytes written. */
+    private val compiler: HubDescriptorCompiler,
 ) {
-    private val compiler = HubDescriptorCompiler(signer, wavelengthRules = wavelengthRules)
+    constructor(
+        gatt: NeurOneGattManager,
+        /** The wavelength rules in force, read at each upload; null keeps the shipped defaults. */
+        wavelengthRules: () -> life.neurone.core.protocol.NPWavelengthRules? = { null },
+        signer: ProtocolSigner,
+    ) : this(gatt, HubDescriptorCompiler(signer, wavelengthRules = wavelengthRules))
 
     sealed interface Result {
         /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */

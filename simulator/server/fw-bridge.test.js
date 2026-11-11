@@ -643,6 +643,10 @@ async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [], befo
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const e of before) bridge.handle(e);
   await wait(before.length ? 400 : 0);
+  // The GATT service up, so the upload check can be notified: UPLOAD_CHECK requires an encrypted link (REQ-FWHUB-81) and the twin's bonded link is
+  // reported encrypted at gatt_init.  Without it the notification is dropped, as it is on a hub with nobody entitled to receive it.
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'gatt_init' });
+  await wait(300);
   bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: blobHex });
   await wait(300);
   const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
@@ -790,6 +794,11 @@ test('the bridge relays GATT reads and writes as validated ids and hex and nothi
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_init' }), ['gatt_init']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_table' }), ['gatt_table']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_disconnect' }), ['gatt_disconnect']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', encrypted: true }), ['gatt_link 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', encrypted: false }), ['gatt_link 0']);
+  for (const bad of [{}, { encrypted: 1 }, { encrypted: 'true' }, { encrypted: null }]) {
+    assert.throws(() => messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', ...bad }), BridgeError, JSON.stringify(bad));
+  }
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24 }), ['gatt_read 24 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: 20 }), ['gatt_read 24 20']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_write', id: 15, hex: '01' }), ['gatt_write 15 01']);
@@ -932,7 +941,8 @@ test('end to end: a second blob while the first waits is BUSY, a malformed lengt
     { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the next one while it waits: BUSY
     { cmd: 'proto_pump' },                                 // the hub takes the first
     { cmd: 'gatt_write', id: 8, hex: half },               // half of a blob arrives
-    { cmd: 'gatt_disconnect' },                            // and the link drops
+    { cmd: 'gatt_disconnect' },                            // and the link drops, taking its encryption with it
+    { cmd: 'gatt_link', encrypted: true },                 // the next link is bonded again
     { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the next link's blob is read from its start
     { cmd: 'proto_pump' },
   ]);
@@ -940,4 +950,32 @@ test('end to end: a second blob while the first waits is BUSY, a malformed lengt
   const pumps = r.log.filter((e) => e.ev === 'result' && e.cmd === 'proto_pump' && e.blob === true);
   assert.strictEqual(pumps.length, 2, 'two blobs were taken, one after each pump');
   assert.ok(pumps.every((p) => p.len === c.blob.length / 2), 'each whole, and the second with nothing of the half before it');
+});
+
+// ── every upload and download is encrypted: the link's security through the twin (CLAUDE.md section 23, REQ-FWHUB-81) ─────────────
+
+// @verifies REQ-FWHUB-81#a,b,c
+test('end to end: with the link not encrypted the hub refuses to carry data (ATT 0x0F) and still takes a stop; encrypted, it carries it (REQ-FWHUB-81)', { skip: !BIN }, async () => {
+  const c = chunkCase('golden_pbm660');
+  const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+    { cmd: 'gatt_link', encrypted: false },
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the protocol upload
+    { cmd: 'gatt_read', id: 24 },                          // UPLOAD_CHECK: the hash of what was loaded
+    { cmd: 'gatt_read', id: 16 },                          // WARRANTY_TOKEN
+    { cmd: 'gatt_read', id: 23 },                          // DEVICE_SERIAL
+    { cmd: 'gatt_write', id: 15, hex: '01' },              // SESSION_STOP: not encrypted, on purpose
+    { cmd: 'gatt_link', encrypted: true },
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },
+    { cmd: 'gatt_read', id: 24 },
+    { cmd: 'gatt_disconnect' },                            // the link goes down and takes its encryption with it
+    { cmd: 'gatt_read', id: 24 },
+  ]);
+  const w = r.events.filter((e) => e.ev === 'gatt_write');
+  const rd = r.events.filter((e) => e.ev === 'gatt_read');
+  assert.strictEqual(w[0].att, 0x0f, 'an upload on an unencrypted link is refused: insufficient encryption');
+  assert.deepStrictEqual(rd.slice(0, 3).map((e) => e.att), [0x0f, 0x0f, 0x0f], 'and so is every read of data: the upload check, the warranty token, the serial');
+  assert.notStrictEqual(w[1].att, 0x0f, 'a stop is not refused for want of encryption');
+  assert.strictEqual(w[2].att, 0, 'the same upload on an encrypted link is accepted');
+  assert.strictEqual(rd[3].att, 0, 'and the upload check is read');
+  assert.strictEqual(rd[4].att, 0x0f, 'after a disconnect the link is unencrypted again until the stack says otherwise');
 });

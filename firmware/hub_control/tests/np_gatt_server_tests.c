@@ -197,6 +197,7 @@ static void reset_world(void)
     g_posted_users = 0;
     g_confirm_rc = NP_HUB_OK;
     g_confirms = 0;
+    np_gatt_set_link_encrypted(true);   /* the stack has reported an encrypted link (REQ-FWHUB-81); each test below that needs another says so */
     np_warranty_token_reset_cache();
     np_cvfs_init();
     np_upload_check_init();
@@ -1186,6 +1187,7 @@ static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
     /* A link that dropped half way through: the first 512 bytes arrived. */
     check(write_stream(0U, 512U, 512U) == NP_ATT_OK, "disconnect: the first write of a blob is accepted");
     np_gatt_on_disconnect();
+    np_gatt_set_link_encrypted(true);   /* a disconnect clears the link state; the next link is encrypted again */
     /* The next link writes a whole blob; had the half remained, its first bytes would have been read as the rest of it. */
     make_blob(200U);
     const size_t total2 = make_stream(200U);
@@ -1197,12 +1199,150 @@ static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
     /* A blob that completed and was not yet taken survives the link going down. */
     check(write_stream(0U, total2, 512U) == NP_ATT_OK, "disconnect: a blob completes");
     np_gatt_on_disconnect();
+    np_gatt_set_link_encrypted(true);   /* a disconnect clears the link state; the next link is encrypted again */
     check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 200U,
           "disconnect: a completed blob that was not yet taken is kept");
 }
 
+/* ── The link: every characteristic that carries data requires an encrypted link (CLAUDE.md section 23, REQ-FWHUB-81) ── */
+
+/* @verifies REQ-FWHUB-81#b */
+static void test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there(void)
+{
+    uint8_t buf[NP_GATT_VALUE_MAX];
+    size_t len = 0U;
+    /* No test has run reset_world yet, so nothing has told the server the link is encrypted. */
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: before the stack reports an encrypted link, an encrypted characteristic refuses a read");
+    np_gatt_set_link_encrypted(true);
+    check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof(buf), &len) != NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: once the stack reports it, the read is not refused for encryption");
+    np_gatt_on_disconnect();
+    check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: a disconnect clears it, so the next link is unencrypted until the stack says otherwise");
+    np_gatt_set_link_encrypted(false);
+    np_gatt_set_link_encrypted(true);
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_every_characteristic_that_carries_data_refuses_an_unencrypted_link(void)
+{
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    static uint8_t data[NP_GATT_STREAM_WRITE_MAX];
+    uint8_t buf[NP_GATT_VALUE_MAX];
+    size_t len = 0U;
+
+    /* The two rows that are not encrypted are named, so a row added later has to be decided: it is encrypted unless it is added here. */
+    bool exactly_the_exceptions = true;
+    bool read_refused = true;
+    bool write_refused = true;
+    bool read_not_refused_for_encryption = true;
+    bool write_not_refused_for_encryption = true;
+    bool notify_dropped = true;
+    int rows_checked = 0;
+
+    reset_world();
+    for (size_t i = 0U; i < n; i++) {
+        const bool exempt = t[i].id == NP_GATT_SESSION_STOP_ID || t[i].id == NP_GATT_SESSION_PAUSE_ID;
+        if (((t[i].props & NP_GATT_PROP_ENC) != 0U) == exempt) {
+            exactly_the_exceptions = false;
+        }
+        if (exempt) {
+            continue;
+        }
+        rows_checked++;
+        const size_t wlen = ((t[i].props & NP_GATT_PROP_STREAM) != 0U) ? 1U : t[i].write_len;
+
+        np_gatt_set_link_encrypted(false);
+        const int confirms = g_confirms;
+        const int users = g_posted_users;
+        if ((t[i].props & NP_GATT_PROP_READ) != 0U &&
+            np_gatt_on_read(t[i].id, 0U, buf, sizeof(buf), &len) != NP_ATT_INSUFFICIENT_ENCRYPTION) {
+            read_refused = false;
+        }
+        if ((t[i].props & NP_GATT_PROP_WRITE) != 0U &&
+            np_gatt_on_write(t[i].id, data, wlen) != NP_ATT_INSUFFICIENT_ENCRYPTION) {
+            write_refused = false;
+        }
+        if ((t[i].props & NP_GATT_PROP_NOTIFY) != 0U) {
+            const int before = g_notifies;
+            if (np_gatt_notify(t[i].id, data, 1U) != NP_HUB_OK || g_notifies != before) {
+                notify_dropped = false;
+            }
+        }
+        /* An unencrypted write reached no handler. */
+        if (g_confirms != confirms || g_posted_users != users) {
+            write_refused = false;
+        }
+
+        np_gatt_set_link_encrypted(true);
+        if ((t[i].props & NP_GATT_PROP_READ) != 0U &&
+            np_gatt_on_read(t[i].id, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION) {
+            read_not_refused_for_encryption = false;
+        }
+        if ((t[i].props & NP_GATT_PROP_WRITE) != 0U &&
+            np_gatt_on_write(t[i].id, data, wlen) == NP_ATT_INSUFFICIENT_ENCRYPTION) {
+            write_not_refused_for_encryption = false;
+        }
+        if ((t[i].props & NP_GATT_PROP_NOTIFY) != 0U) {
+            const int before = g_notifies;
+            if (np_gatt_notify(t[i].id, data, 1U) != NP_HUB_OK || g_notifies != before + 1) {
+                notify_dropped = false;
+            }
+        }
+    }
+    np_transport_init();   /* the stream write above left a byte in the reassembly */
+    check(rows_checked == (int)n - 2, "link: every row but the two named is checked");
+    check(exactly_the_exceptions, "link: every row requires an encrypted link except the stop and the pause/panic writes, and those two only");
+    check(read_refused, "link: an unencrypted read of every encrypted row is refused (ATT 0x0F)");
+    check(write_refused, "link: an unencrypted write to every encrypted row is refused (ATT 0x0F) and reaches no handler");
+    check(notify_dropped, "link: a notification of an encrypted row is not sent on an unencrypted link and is sent on an encrypted one");
+    check(read_not_refused_for_encryption && write_not_refused_for_encryption,
+          "link: on an encrypted link no row is refused for encryption");
+    (void)len;
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_encrypted_reads_work_and_the_protocol_upload_takes_a_stream(void)
+{
+    uint8_t buf[NP_GATT_VALUE_MAX];
+    size_t len = 0U;
+    reset_world();
+    check(np_gatt_on_read(NP_GATT_UPLOAD_CHECK_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_OK && len == NP_UPLOAD_CHECK_LEN,
+          "link: an encrypted link reads the upload check");
+    check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_OK && len == NP_GATT_DEVICE_TIER_LEN,
+          "link: and the device tier");
+    np_transport_init();
+    make_blob(100U);
+    const size_t total = make_stream(100U);
+    np_gatt_set_link_encrypted(false);
+    check(write_stream(0U, total, 512U) == NP_ATT_INSUFFICIENT_ENCRYPTION, "link: an unencrypted upload is refused");
+    size_t got = 0U;
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_ERR_TIMEOUT, "link: and nothing reached the transport");
+    np_gatt_set_link_encrypted(true);
+    check(write_stream(0U, total, 512U) == NP_ATT_OK, "link: the same upload on an encrypted link is accepted");
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 100U &&
+          memcmp(g_got, g_blob, 100U) == 0, "link: and it arrives whole");
+}
+
+/* @verifies REQ-FWHUB-81#c */
+static void test_the_stop_and_panic_writes_do_not_wait_on_a_key(void)
+{
+    const uint8_t stop = 0x01U;
+    reset_world();
+    np_gatt_set_link_encrypted(false);
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) != NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: a stop is not refused for want of encryption");
+    const uint8_t panic = 0x03U;
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) != NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: a panic is not refused for want of encryption");
+    np_gatt_set_link_encrypted(true);
+}
+
 int main(void)
 {
+    test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there();   /* first: nothing has reported a link yet */
     test_uuids_match_the_contract();
     test_table_is_what_the_hub_produces();
     test_access_rules();
@@ -1235,6 +1375,9 @@ int main(void)
     test_upload_write_lengths();
     test_upload_refusals_say_which();
     test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one();
+    test_every_characteristic_that_carries_data_refuses_an_unencrypted_link();
+    test_encrypted_reads_work_and_the_protocol_upload_takes_a_stream();
+    test_the_stop_and_panic_writes_do_not_wait_on_a_key();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);
