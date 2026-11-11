@@ -3866,6 +3866,88 @@ when present and otherwise the image default, and the simulator runtime they rel
 `macos-15` image. Whether they pass unchanged on `macos-26` is established by the first CI run, not by this
 section.
 
+### 6.17 The ruleset on `main` is written down and compared with GitHub (2026-11-11, GitHub #446, `OI-SWCI-54`, `OI-SWCI-52`)
+
+**What GitHub #446 asked for already exists.** The issue was written on 2026-09-25. Its first group, a
+`pull_request` rule on `main` and exact required contexts, was applied on 2026-09-27 (§6.13.5), and its other
+items closed in §6.10, §6.14 and §4.15. Read on 2026-11-11, the `Safety` ruleset (`16412379`) holds
+`deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` (ten contexts) and
+`copilot_code_review`, and it is `active`.
+
+**What was still wrong.** The ruleset is a GitHub setting. No pull request shows an edit to it, and the only
+comparison with the tree was a `diff` in the header of `ci/required-checks.txt`, run by hand. Three things had
+drifted, and nothing had said so:
+
+| Drift | Since | Where the record stood |
+|---|---|---|
+| The bypass list has a second entry, `Integration 5585393` in mode `always` | 2026-11-02, when the revision App was added (`docs/revisions/README.md`) | §6.13.5: "One entry", and "a push to `main` that did not come through a PR is now refused for every actor". **Both statements are superseded by this section.** The App can push to `main` with no pull request |
+| A `copilot_code_review` rule is in force | not known | no record |
+| Ten contexts are required, not eight | the two simulator contexts were added with `simulator-ci.yml` | `ci/required-checks.txt` was kept in step. §6.13.4's "all eight" is the count on its date |
+
+None of the three is a defect in the protection. Each is a settings change that left no record, which is the
+failure this section closes.
+
+**What was built.**
+
+| Piece | What it does |
+|---|---|
+| `ci/main-ruleset.json` | The expected protection apart from the contexts: the rule types in force, the `pull_request` parameters, the strict flag, the App the contexts are bound to, and the bypass actors. The contexts stay in `ci/required-checks.txt` and are not restated. Each value was read from GitHub on 2026-11-11; the file says which were decided by a record and which were only observed |
+| `scripts/check-main-ruleset.ts` (offline) | Rules R1 to R6: the expected state is itself a protection. The ruleset is active on the default branch with no exclusion; the four core rules are expected; no person or role bypasses outside a pull request (`OI-SWCI-22`); an App that bypasses names a workflow that still exists; the manifest is not empty and has no duplicate; every compared parameter is stated. Runs in `tooling-ci.yml`'s `ci-scope` job, whose list already covers `ci/**` and every workflow |
+| `scripts/check-main-ruleset.ts --live` | Rules L1 to L8: GitHub against the expected state, in both directions. A context GitHub requires that the manifest lacks (it may block every merge); a manifest context GitHub does not require (the gate does not apply); a context bound to another App or to none; a rule type missing or undeclared; a parameter that differs; enforcement or conditions that differ; the bypass list; a rule from another ruleset. Runs weekly and on demand as the `main-ruleset-live` job of `build-all.yml`, and by hand after any settings change |
+| `--live-from <ruleset.json> <rules.json>` | The same comparison on two saved API responses |
+| `--contexts` | A report, not a gate: every job, and whether its name can be required as it stands. On this tree 70 jobs: 10 required, 38 eligible, 22 not (ten workflows name their scope job `Relevance`, two jobs are matrices, two workflows have a `paths:` filter, two do not run on pull requests) |
+
+**It reads and changes nothing.** `--live` calls `GET /rulesets/{id}` and `GET /rules/branches/main` through
+`gh api`. Applying a change stays the principal's, by the runbook in
+`docs/human-input/oi-swci-54-main-ruleset.md`.
+
+**Why the live half is not a pull-request check.** Two documented orders put the tree and the ruleset out of
+step on purpose: a context is added to the manifest and merged before the ruleset requires it (§6.7.8 Step 0),
+and a rename changes the ruleset before the pull request merges (§6.13.3). A pull-request check would be red
+in the middle of both. The weekly run sees only the settled state.
+
+**Falsified.** The self-test passes an unchanged fixture and fails 15 single mutations of the expected state
+and 22 of the live responses, each on its own rule, plus 9 cases of the context report and 5 runs through the
+files (a missing expected file fails; it does not pass empty). Against the real files and the two live
+responses saved on 2026-11-11, each row was run and then discarded:
+
+| Mutation | Caught by |
+|---|---|
+| `Simulator scope` deleted from `ci/required-checks.txt` | L1: *"GitHub requires 'Simulator scope', which ci/required-checks.txt does not list"* |
+| `Web scope` added to the manifest only | L2: *"is in ci/required-checks.txt but GitHub does not require it"* |
+| Admin bypass set to `always` in `ci/main-ruleset.json` | R3: *"may bypass outside a pull request"* |
+| `assign-revisions.yml` deleted, App bypass kept | R4: *"bypasses for .github/workflows/assign-revisions.yml, which does not exist"* |
+| `copilot_code_review` dropped from the expected file | L4: *"is in force on main but not in ci/main-ruleset.json"* |
+| `pull_request` rule removed from the live response | L4: *"is expected but not in force on main: the protection shrank"* |
+| Admin bypass `always` in the live response | L7, both directions |
+| Bypass list absent from the live response | passes with a printed note; fails with `--require-bypass` |
+
+On the unchanged tree, `bun scripts/check-main-ruleset.ts --live` passed against GitHub on 2026-11-11, with a
+token that could see the bypass list.
+
+**Not established.** (1) The `main-ruleset-live` job has not run on GitHub. Whether the job token can read
+the ruleset, and whether it sees the bypass list, is settled by its first run; if it cannot see the list the
+script says so and compares the rest. (2) That `Integration 5585393` is the App `RevNumberFixer`: the session
+could not read the Apps endpoint. (3) Classic branch protection: `GET /branches/main/protection` returned 403
+to the session; it was 404 on 2026-08-10. (4) The job is only as loud as a red `build-all`, which is
+`OI-SWCI-10`.
+
+**`OI-SWCI-52` closed in the same change.** `ci-changed-scope.sh --self-test` now runs `np_resolve_base`
+against a stub `gh` first on `PATH`. The stub reads the head repository out of the `--jq` filter, prints the
+matching head commits or fails, and records what it was asked. Thirteen cases: a green head found; the nearer
+of two; no earlier run; a failing call; a head from another repository; a fork's own pull request; the head
+alone; a force-pushed-away head; and three where the API must not be asked at all (the default branch,
+`workflow_dispatch`, no branch). The last two check the query (this workflow, this branch, `status=success`)
+and that a failing call prints its warning. Falsified: nine single mutations of `np_resolve_base` each fail at
+least one case, among them dropping the head-repository filter, dropping `status=success`, and trusting the
+first candidate without the ancestry test.
+
+**Settings nobody has decided (`OI-SWCI-54`).** Five, put to the principal in
+`docs/human-input/oi-swci-54-main-ruleset.md`: the App's `always` bypass; whether more contexts are required
+(none of the privacy gates is); `require_extra_approval_for_unattributed_changes`, which §6.13.5 left to be
+observed; the `copilot_code_review` rule; and whether a branch must be up to date (`OI-SWCI-53` in settings
+form). Until an answer is recorded, `ci/main-ruleset.json` states what GitHub holds, and no setting changes.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -3894,7 +3976,7 @@ section.
 | ~~OI-SWCI-13~~ | ~~Sweep the five documents still citing the retired `firmware-host-tests.yml` (`np_sw_001.md`, `np_dhf_001.md`, `status/pending-decisions.md`, `status/document-register.md`, `status/completed-decisions.md`). The section-ref guard does not validate workflow filenames, so nothing fails on them~~ **CLOSED 2026-09-26 (GitHub #446, §6.10)** — the one live citation (`np_sw_001.md` §9.4 FreeRTOS row, a present-tense "passes in `firmware-host-tests` CI") is corrected. The rest are dated history and stay as written: `np_dhf_001.md` revision row 17, closed `[x]` entries in `pending-decisions.md`, a dated entry in `completed-decisions.md`, and the frozen `document-register.md` (OI-CONV-07). Rewriting a dated record to name a workflow that did not exist on that date would falsify it | Quality | — |
 | ~~OI-SWCI-15~~ | **Raised 2026-08-09 during phase 1 review; a firmware finding, not a CI one.** `load_and_jump()` verifies the image in its eMMC bank, then copies it to OCRAM, then jumps — so the signature check covers the *source*, not the copy that actually executes. A bit flip, a truncated copy, or a wrong length yields corrupt code at an entry point the boot record says was verified. Standard practice is to re-hash (or at minimum CRC) the staged image after the copy and before the jump. While in that path, confirm D-cache clean / I-cache invalidate happens after staging — the classic omission in exactly this sequence. Out of scope for phase 1 (which only supplies the C runtime); it touches the same function as the phase-2 OCRAM fix, so the two are naturally worked together. **Half of the cache clause is settled by §4.14 (phase 11, OI-SWCI-45), and the way it got settled is itself the finding:** this row had been asking for a D-cache clean in the staging path for 25 days when phase 10 raised OI-SWCI-45 for the D-cache being absent, 24 rows apart in this table, with neither naming the other — §4.8's "two statements compared by nothing", occurring inside the open-items list. With the D-cache decided OFF there is **nothing to clean**, so that half is a no-op for as long as the decision holds and for as long as nothing upstream turns the cache on. The **invalidate** half is untouched and is the reason this stays open: the I-cache *is* enabled, nothing in this repository establishes what the boot ROM leaves behind, and the application-side check added at §4.14.5 cannot cover it — a stale-instruction fault at the jump happens before `main()` is ever reached. Re-verifying the staged copy, the other half of this item, is unaffected by any of it **CLOSED 2026-09-26 (§4.15, GitHub #447).** `load_and_jump()` now hashes the staged copy and re-authenticates the header it re-read (`np_app_image_verify_staged()`), then writes `ICIALLU` before the jump. The D-cache clean stays a no-op while §4.14's OFF decision holds, and the code says where it becomes mandatory. The first positive test found that **the bootloader's own Ed25519 could not verify any valid signature**. It is replaced by the vendored Monocypher 4.0.2 behind a small-order-key guard (§4.15.2). Boot-time cost on target is unmeasured | Firmware / Safety SW | Closed |
 | ~~OI-SWCI-16~~ | **Raised 2026-08-09.** If `memset` is ever used to zeroise key or signature material in the bootloader, it survives dead-store elimination today only because it is an opaque cross-TU call. Enabling LTO would make those stores removable. Audit the `np_signature.c` scrub sites and give them an explicit volatile-based zeroiser rather than depending on that accident **CLOSED 2026-09-26 by audit (§4.15.4).** There are no scrub sites. The bootloader verifies and never signs, so it holds no secret, and the `memset` calls were SHA padding initialisation, not scrubs. The rule carried forward: a secret introduced into the bootloader arrives with a non-elidable zeroiser in the same change | Firmware / Security | Closed |
-| OI-SWCI-10 | How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification **Update 2026-09-26 (GitHub #446, §6.10):** still open (Steve). §6.10 records the lowest-machinery option, a final `if: failure()` job that opens or updates one labelled issue with `issues: write` on that job alone. Correspondence E now catches on the PR the copy drift that was the one recorded unseen failure (§4.10.7) | Steve | Phase 0 |
+| OI-SWCI-10 | How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification **Update 2026-09-26 (GitHub #446, §6.10):** still open (Steve). §6.10 records the lowest-machinery option, a final `if: failure()` job that opens or updates one labelled issue with `issues: write` on that job alone. Correspondence E now catches on the PR the copy drift that was the one recorded unseen failure (§4.10.7) **Update 2026-11-11 (GitHub #446, §6.17):** still open. The question is drafted for the principal in `docs/human-input/oi-swci-10-build-all-red.md`. It now also decides how loud the weekly ruleset comparison is | Steve | Phase 0 |
 | ~~OI-SWCI-11~~ | ~~Per-PR ctest granularity: should a change to one module run only that module's ctest targets, or is the full 25-target host suite cheap enough that selection adds drift risk for no gain? The §5.0 principle argues for selection; the suite's runtime may argue against. Measure before deciding~~ **CLOSED 2026-09-26 (GitHub #446, §6.10)** — measured and decided against selection. The whole host suite configures in 0.4 s, builds in 2.0 s and runs in 7.2 s on a 4-core machine (slowest target `np_hd_fai_tests`, 4.0 s). A module → target map would be one more hand-kept correspondence, bought for single-digit seconds. Reopen if the suite's run time passes a minute | Firmware | — |
 | OI-SWCI-27 | **Raised 2026-08-11 during phase 7 (§4.4.2).** The firmware half of the enable-line reset window is closed — `np_hal_gpio_init()` presets every enable HIGH via `BSRR` before switching `MODER` to output, so no driven-LOW window exists in software. The **hardware** half is not: the external pull-up value and the pad's power-on high-impedance window are hardware facts recorded in no software document here, and they alone hold the ten enable lines disabled between the power rail rising and the first instruction. This is `np_safety_hal.h` open question 10's second half. Pull-up sizing for the PCB review. **Widened Rev 23 (2026-09-25, GitHub #437): the review checks the pull-up's supply domain as well as its value.** The enable pins drive an inverting buffer (`np_gpio_mgr.c:5-7`). A pull-up rail lost while the buffer stays powered therefore reaches *enabled*, and `NP-HW-HUB-001` **HUB-REQ-C06 (b)** requires the pull-up and the buffer on one rail (`NP-RISK-004` §2.2, adopted) | Firmware / Safety HW | G1 |
 | OI-SWCI-28 | **Raised 2026-08-11 during phase 7.** The six NTC sense-domain pins and ADC1 input channels (`NP_NTC0..5_*` in `np_safety_config.h`) are **provisional**, on the same footing as every other GPIO assignment in that file. `np_hal_adc.c` needs a concrete input per domain to be a driver rather than a stub, so they are declared beside the enable lines — where a double-assignment would be visible, which is the failure mode that bit `NP_EN_PBM_ZONE4_PIN`/PA4. Confirm against PCB layout | Firmware | G1 |
@@ -3923,8 +4005,9 @@ section.
 | OI-SWCI-49 | **Raised 2026-09-25 with the safety-MCU IWDG (`NP-RISK-002` OI-RISK2-05, GitHub #437).** `np_hal_iwdg.c` starts the IWDG immediately before the main loop at **1,000 ms nominal** (`NP_SAFETY_IWDG_TIMEOUT_MS`; ~941–1,085 ms across the LSI's 29.5–34 kHz spread). The value is **provisional**. It must exceed the main loop's worst-case iteration, and no WCET for that loop has ever been measured: it contains an Ed25519 verify (`np_session_sig_verify()`) and a flash page erase (40 ms max). On silicon: (i) measure the worst-case iteration, including a signature verify and an NV rotation; (ii) show the IWDG running, i.e. that a deliberately stalled loop resets and every enable reads disabled after reset, and record that latency for `NP-FMEA-001` OI-FMEA-01; (iii) set the timeout to about 2× the measured WCET, and consider the window option (WINR) once a minimum iteration time is known. The host test covers the timeout arithmetic and the refresh key only, because the fake register file cannot observe the start key | Firmware / Safety HW | G1 |
 | ~~OI-SWCI-50~~ | **CLOSED 2026-09-27 (Rev 28, §6.12.4): the context is required.** The `Safety` ruleset requires it, and the manifest comparison is empty. — Rev 27: **DECIDED 2026-09-27 (§6.12): require it. In-repo half done; open until Steve applies the ruleset (§6.12.3) and the read-only diff is empty.** The precondition below was met: 44/44 green under gcc ASan + UBSan on PR #478 and on `main` `9a55773`. `ci/required-checks.txt` lists the context and the job carries the warning. — As raised: **Raised 2026-09-27 with §6.11 (`NP-SOUP-LFS-001` `OI-LFS-13`).** `CMake host tests (Class B, ASan + UBSan)` runs on every in-scope PR but is **not a required context**, so a sanitizer finding shows red and blocks nothing. Decide whether to require it. Requiring it means, in one operation (§6.7.8): add the line to `ci/required-checks.txt`, add the in-file "required-status-check CONTEXT" warning to the job (`check-ci-scope.ts` correspondence C demands both), and add the context to the `Safety` ruleset. **Recommended once the first Linux gcc run is green**, since it is the only Class B check that fails on UB by design and not by luck | Steve | — |
 | OI-SWCI-51 | **Raised 2026-10-14 with §6.15; narrowed 2026-10-28 (Rev 36).** The last-green diff base now covers thirteen of the repository's workflows. It does not cover `codeql.yml` (per-language `analyze` jobs: whether GitHub's code-scanning check accepts a category that was not re-analysed on the new head has to be established before a security scanner skips one) or `dependency-scan.yml` (its `paths:` list uses `**/` and `*` shapes `ci-changed-scope.sh` rejects). Both only gained a `concurrency` group. The nine converted workflows are untested on GitHub until their first pull-request run | Quality / Firmware | — |
-| OI-SWCI-52 | **Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository | Quality | — |
+| ~~OI-SWCI-52~~ | **CLOSED 2026-11-11 (§6.17).** `ci-changed-scope.sh --self-test` runs `np_resolve_base` against a stub `gh`: thirteen cases, the four named here among them, and nine single mutations of the function each fail one. ~~**Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository~~ | Quality | — |
 | OI-SWCI-53 | **Raised 2026-10-14 with §6.15.3 item 2.** A green run tested the pull request merged with `main` as it was then, and a later push that changes nothing in scope does not re-test it against a `main` that has since moved. Decide whether that is acceptable given the push to `main` and `build-all.yml`, or whether a candidate older than the last move of the base should be refused | Quality | — |
+| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer` | Steve | — |
 
 ## 8. Traceability
 
