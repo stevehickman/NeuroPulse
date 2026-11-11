@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 32
-**Date:** 2026-11-10
+**Revision:** 33
+**Date:** 2026-11-11
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -995,3 +995,4 @@ The second slice of the twin speaking the device's protocol (§25). The real app
 | 30 | 2026-11-10 | NeurOne Software Engineering | **§5, §7, §25: `REQ-SIMFW-18`#d (the reason beside each state: a closed set of typed reasons, only causes the firmware reports, a cause not reported shown as not reported); the table of reasons and where each is reported; `OI-SIMFW-47` raised (several causes reach the view as one: a driver's own check, an MCU withhold with status OK, a module fault no tile reports); `OI-SIMFW-37` third slice; `UC-138` registered. **§5, §7, §26, new §27, `REQ-SIMFW-19`: the hub's own GATT server (`np_gatt_server.c`, its producers and the config store over a RAM medium) runs in the twin; the bridge relays `gatt_*` as validated ids and hex; the app's `BleCentral` seam has a simulated implementation, the browser host takes it with `?hub=sim`, and the app says the hub is simulated; `OI-SIMFW-38` second slice; `OI-SIMFW-46` narrowed; `OI-SIMFW-48` (the link is bonded) and `OI-SIMFW-49` (the hub does not publish the protocol upload and the app's chunk framing is not the transport's) raised; `UC-139` registered.** |
 | 31 | 2026-11-10 | NeurOne Software Engineering | **§5: new `REQ-SIMFW-20`, the accessories rule of §21 (the principal, 2026-11-05) as a requirement with three parts, so the 12 tests of `accessories.test.mjs` can name it; the traceability gate now scans `simulator/` JavaScript tests.** |
 | 32 | 2026-11-10 | NeurOne Software Engineering | **§7, §25: `OI-SIMFW-47` decided and closed for Class B and the app (the reason table now names each check; the view names the tier gate and a line the hub never requested); new `OI-SIMFW-61`, a proposal for the safety MCU's owner to report why the declaration and geometry gates withheld a line. §7, new §28: `OI-SIMFW-39` inventory done (every programmable part, its firmware, whether the twin runs it, measured with `sim-coverage.sh` over the linked sources); `OI-SIMFW-50` to `OI-SIMFW-60` raised for the parts that do not run; the cluster controllers and the hex-tile MCU have no firmware code, and the active EMF stage has no source.** |
+| 33 | 2026-11-11 | NeurOne Software Engineering | **§28: the order in which the parts without a twin are taken (run loop and task set, HRV scenarios, storage and data services, cluster and tile firmware, boot and update, 1064 nm and T2, register drivers, active EMF) is approved by the principal; no item is started by this.** |
