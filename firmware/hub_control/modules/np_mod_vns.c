@@ -29,6 +29,7 @@
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
 #include "np_log_hrv.h"
+#include "np_cmd_limits.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -211,6 +212,13 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     const np_mod_vns_hrv_params_t *p = (const np_mod_vns_hrv_params_t *)params;
 
+    /* REQ-FWHUB-76: an amplitude above the ceiling is refused, not clamped (the 40 mA stop-gap, NP_VNS_MAX_CURRENT_UA;
+     * #554, #559).  First: before the impedance read, the EEG reference routing, the PPG, the HRV session and the
+     * stimulator, so the refusal starts nothing (REQ-VNSC-14) and a command already running is left as it was. */
+    if (np_cmd_limits_check(NP_MOD_VNS_HRV, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     /* Contact confirmation before enable */
     float imp = np_mod_vns_hal_impedance_check();
     /* OI-SIMFW-17 / REQ-VNSC-07: a non-finite reading (NaN, +/-inf) is not a
@@ -251,8 +259,8 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     }
 
     /* VNS stimulation */
-    /* 40 mA stop-gap ceiling derived from the per-phase charge limit (np_shared_constants.h; #554, #559). */
-    uint16_t amp = (p->amplitude_ua > NP_VNS_MAX_CURRENT_UA) ? NP_VNS_MAX_CURRENT_UA : p->amplitude_ua;
+    /* As commanded: a value above the ceiling was refused at the top (REQ-FWHUB-76). */
+    const uint16_t amp = p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,
                                                     p->freq_mhz,
@@ -273,9 +281,9 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     s_state.active      = true;
     s_state.active_side = p->side;
     np_safety_spi_request_enable(NP_SAFETY_EN_VNS_HRV);
-    /* OI-CHARGE-05 (c): publish the capped commanded amplitude — the same
-     * number handed to the stimulator, so the safety MCU's per-phase check
-     * runs against what was commanded rather than what was authored. */
+    /* OI-CHARGE-05 (c): publish the commanded amplitude — the same number handed
+     * to the stimulator and the number that was authored, so the safety MCU's
+     * per-phase check runs against what is driven. */
     np_safety_spi_set_channel_current(NP_SAFETY_CH_VNS_HRV, amp);
 
     return NP_HUB_OK;

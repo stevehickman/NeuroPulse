@@ -749,6 +749,61 @@ static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_cou
           "address: with no validator installed nothing is checked (the library's behaviour before the hub supplied one)");
 }
 
+/* ── The duty limit refuses; it does not clamp (NP-FW-HUB-001 REQ-FWHUB-76 (e)) ── */
+
+/* np_pbm_drive_set_duty() used to write 0x32 for any duty above it. */
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_set_duty_above_the_limit_is_refused_and_writes_nothing(void)
+{
+    np_pbm_drv_slot_t drv;
+    memset(&drv, 0, sizeof(drv));
+    uint8_t reg[3] = { 0, 0, 0 };
+
+    check(np_pbm_drive_set_duty(0U, &drv, NP_PBM_CH_ALL_EN, 0x20U) == NP_PBM_OK &&
+          drv.duty[0] == 0x20U && drv.duty[1] == 0x20U && drv.duty[2] == 0x20U,
+          "set_duty: a duty below the limit is written as commanded");
+
+    check(np_pbm_drive_set_duty(0U, &drv, NP_PBM_CH_ALL_EN, (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U)) == NP_PBM_ERR_INVALID_ARG,
+          "set_duty: one code above the limit is refused");
+    check(np_pbm_drive_set_duty(0U, &drv, NP_PBM_CH_ALL_EN, 0xC8U) == NP_PBM_ERR_INVALID_ARG,
+          "set_duty: 100 % is refused, not written as 25 %");
+    (void)np_pbm_hal_i2c_read(0U, NP_PBM_REG_DUTY_A, reg, 3U);
+    check(drv.duty[0] == 0x20U && drv.duty[1] == 0x20U && drv.duty[2] == 0x20U &&
+          reg[0] == 0x20U && reg[1] == 0x20U && reg[2] == 0x20U,
+          "set_duty: a refused write changes no duty register and no shadow");
+
+    check(np_pbm_drive_set_duty(0U, &drv, NP_PBM_CH_ALL_EN, NP_PBM_DUTY_MAX_REG) == NP_PBM_OK &&
+          drv.duty[0] == NP_PBM_DUTY_MAX_REG && drv.duty[2] == NP_PBM_DUTY_MAX_REG,
+          "set_duty: exactly the limit is accepted and written as commanded");
+    check(np_pbm_fai_sm05().passed, "FAI-SM-05 passes: a duty above 25 % is refused with the registers unchanged");
+}
+
+/* Without this the ramp, which ignores set_duty's status, would hold at the last duty the driver accepted. */
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_session_start_refuses_a_preset_duty_above_the_limit(void)
+{
+    np_pbm_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.version = NP_SES1064_VERSION;
+    desc.hdr.group_count = 2U;
+    desc.hdr.duration_s = 62U;
+    mask_set(desc.groups[0].mask, 0U);
+    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+    mask_set(desc.groups[1].mask, 1U);
+    desc.groups[1].preset = make_preset(150U, 6U, (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U));
+
+    np_pbm_session_ctx_t ctx;
+    np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
+    check(np_pbm_session_start(&ctx, &desc) == NP_PBM_ERR_INVALID_ARG,
+          "session_start: one preset above the duty limit refuses the session");
+    check(ctx.stage == NP_PBM_STAGE_IDLE && ctx.active_socket_count == 0U && !ctx.drv[0].initialized,
+          "session_start: nothing was taken and no driver IC was started, the in-limit group's included");
+
+    desc.groups[1].preset.duty = NP_PBM_DUTY_MAX_REG;
+    check(np_pbm_session_start(&ctx, &desc) == NP_PBM_OK && ctx.stage == NP_PBM_STAGE_RAMP_UP,
+          "session_start: with every preset at or below the limit the session starts");
+}
+
 int main(void)
 {
     test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_count_it();
@@ -772,6 +827,9 @@ int main(void)
     test_session_cal_source_default_without_resolver();
     test_session_cal_source_varies_per_socket();
     test_session_cal_not_keyed_by_socket();
+
+    test_set_duty_above_the_limit_is_refused_and_writes_nothing();
+    test_session_start_refuses_a_preset_duty_above_the_limit();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

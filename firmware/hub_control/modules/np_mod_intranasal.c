@@ -19,11 +19,13 @@
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
 
-#define INS_DUTY_MAX 0x32U  /* 25%, same ceiling as zone modules */
+/* INS_DUTY_MAX (0x32, 25 %, the same ceiling as the cranial tiles) is in np_cmd_limits.h.  A duty above it is REFUSED,
+ * never clamped (REQ-FWHUB-76).  The refusal is interim: it goes with the 25 % cap when OI-HEXTILE-31 is built. */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -88,7 +90,13 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
     }
 
     const np_mod_intranasal_params_t *p = (const np_mod_intranasal_params_t *)params;
-    uint8_t duty = (p->duty > INS_DUTY_MAX) ? INS_DUTY_MAX : p->duty;
+
+    /* REQ-FWHUB-76: refused before either side is written or the enable requested, so nothing is started and a command
+     * already emitting is left as it was. */
+    if (np_cmd_limits_check(NP_MOD_INTRANASAL, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    const uint8_t duty = p->duty;
 
     np_hub_status_t rc = NP_HUB_OK;
 

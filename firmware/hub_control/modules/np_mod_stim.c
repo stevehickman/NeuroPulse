@@ -7,10 +7,14 @@
  * NP_MOD_TDCS commands to the same control() function; the type field in the
  * registry entry identifies which command format to expect.
  *
- * Safety constraints (hardware-enforced by safety MCU):
- *   BES/tACS: ≤ 1mA per electrode pair (40µC/cm² charge density hardware limit)
- *   tDCS:     ≤ 2mA DC; 30s minimum ramp enforced in firmware; hardware charge
- *              density limit 40µC/cm² (safety MCU cannot be overridden by app)
+ * Limits held here (np_cmd_limits.h, REQ-FWHUB-76).  A command outside one is
+ * REFUSED with NP_HUB_ERR_INVALID_ARG before anything is driven, enabled or
+ * published; it is never clamped, because a clamped command is a different
+ * stimulus from the one authored (CLAUDE.md §3):
+ *   BES/tACS: amplitude ≤ 1 mA per electrode pair
+ *   tDCS:     current ≤ 2 mA DC; ramp ≥ 30 s
+ * The safety MCU's charge ceilings (40 µC/cm² per phase for BES/tACS, 150 mC/cm²
+ * per session for tDCS) are independent of these and cannot be overridden by the app.
  *
  * HAL stubs:
  *   OI-STIM-01: np_mod_stim_hal_dac_set(pair, waveform, freq_mhz, amp_ua)
@@ -31,14 +35,13 @@
 #include "np_safety_spi.h"
 #include "np_stim_xcheck.h"
 #include "np_ramp_plan.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
 
-/* Safety caps (firmware layer; safety MCU has an independent hardware cap). */
-#define STIM_MAX_AMP_BES_UA   1000U  /* 1mA */
-#define STIM_MAX_AMP_TDCS_UA  2000U  /* 2mA */
-#define STIM_MIN_RAMP_S       30U
+/* STIM_MAX_AMP_BES_UA, STIM_MAX_AMP_TDCS_UA and STIM_MIN_RAMP_S are in np_cmd_limits.h: the load-time check and this
+ * driver read one definition.  A command outside them is refused, never clamped (REQ-FWHUB-76). */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
@@ -56,7 +59,7 @@ typedef struct {
     td_phase_t        phase;
     uint8_t           polarity;
     uint16_t          target_ua;
-    uint16_t          ramp_s;        /* the full-scale ramp, seconds (>= STIM_MIN_RAMP_S) */
+    uint16_t          ramp_s;        /* the full-scale ramp, seconds, as commanded (a command below STIM_MIN_RAMP_S is refused) */
     uint16_t          seg_from_ua;   /* level at the start of the current segment */
     uint16_t          seg_to_ua;
     uint32_t          seg_start_ms;
@@ -176,13 +179,15 @@ void np_mod_stim_tdcs_ramp(np_ramp_report_t *out)
 }
 
 /* How long dispatching this tDCS command now would take to reach its level: the whole ramp, or the rest of it when it
- * is a resume that reverses a ramp-down in progress. */
+ * is a resume that reverses a ramp-down in progress.  0 for a command the driver will refuse (a wrong length, or a
+ * current or ramp outside its limit, REQ-FWHUB-76): a refused command ramps nothing, so there is nothing to wait for. */
 uint32_t np_mod_stim_tdcs_ramp_up_ms(const void *params, uint16_t len)
 {
     if (params == NULL || len != sizeof(np_mod_tdcs_params_t)) { return 0U; }
+    if (np_cmd_limits_check(NP_MOD_TDCS, params, len) != NP_HUB_OK) { return 0U; }
     const np_mod_tdcs_params_t *p = (const np_mod_tdcs_params_t *)params;
-    const uint16_t cur = (p->current_ua > STIM_MAX_AMP_TDCS_UA) ? STIM_MAX_AMP_TDCS_UA : p->current_ua;
-    const uint16_t ramp_s = (p->ramp_s < STIM_MIN_RAMP_S) ? STIM_MIN_RAMP_S : p->ramp_s;
+    const uint16_t cur = p->current_ua;
+    const uint16_t ramp_s = p->ramp_s;
     const np_mod_stim_state_t *st = &s_tdcs_state;
     if (st->active && st->phase == TD_DOWN && st->active_pair == p->electrode_pair && st->polarity == p->polarity &&
         st->target_ua == cur && st->ramp_s == ramp_s) {
@@ -260,9 +265,14 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         }
         const np_mod_bes_tacs_params_t *p = (const np_mod_bes_tacs_params_t *)params;
 
-        /* Firmware amplitude cap */
-        uint16_t amp = (p->amplitude_ua > STIM_MAX_AMP_BES_UA)
-                        ? STIM_MAX_AMP_BES_UA : p->amplitude_ua;
+        /* REQ-FWHUB-76: an amplitude above the limit is refused, not clamped.  First, before the DAC, the enable, the
+         * published current or the cross-check is touched, so a refusal leaves a running command exactly as it was
+         * and nothing new started.  The core refuses the same value before signing, so reaching this is a
+         * descriptor the core did not make. */
+        if (np_cmd_limits_check(NP_MOD_BES_TACS, params, len) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        const uint16_t amp = p->amplitude_ua;
 
         np_hub_status_t rc = np_mod_stim_hal_dac_set(p->electrode_pair,
                                                        p->waveform,
@@ -272,9 +282,9 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         st->active_pair = p->electrode_pair;
         st->active = true;
         np_safety_spi_request_enable(NP_SAFETY_EN_BES_TACS);
-        /* OI-CHARGE-05 (c): publish the capped commanded amplitude — the same
-         * number handed to the DAC, so the safety MCU's per-phase check runs
-         * against what was actually commanded, not what was authored. */
+        /* OI-CHARGE-05 (c): publish the commanded amplitude — the same number
+         * handed to the DAC, and (REQ-FWHUB-76) the number that was authored, so
+         * the safety MCU's per-phase check runs against what is driven. */
         np_safety_spi_set_channel_current(NP_SAFETY_CH_BES_TACS, amp);
         /* OI-FMEA-09: the same number, to the commanded-vs-delivered check.
          * The DAC steps, so there is no ramp to hold through. */
@@ -296,9 +306,15 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
             return NP_HUB_ERR_INVALID_ARG;
         }
 
-        uint16_t current = (p->current_ua > STIM_MAX_AMP_TDCS_UA)
-                            ? STIM_MAX_AMP_TDCS_UA : p->current_ua;
-        uint16_t ramp_s  = (p->ramp_s < STIM_MIN_RAMP_S) ? STIM_MIN_RAMP_S : p->ramp_s;
+        /* REQ-FWHUB-76: a current above the limit, or a ramp shorter than the minimum, is refused.  Neither is
+         * reshaped: 2 mA where 3 mA was authored, or a 30 s ramp where 10 s was authored, is a stimulus nobody
+         * authored.  Before the ramp, the enable, the published current and the ramp model are touched, so a
+         * running command (a ramp-down in progress included) is left exactly as it was. */
+        if (np_cmd_limits_check(NP_MOD_TDCS, params, len) != NP_HUB_OK) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        const uint16_t current = p->current_ua;
+        const uint16_t ramp_s  = p->ramp_s;
 
         /* SWR-SS-05: a resume during a ramp-down reverses it, at the same slope, from where it had got to. */
         uint16_t from = 0U;
@@ -327,7 +343,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         st->ramp_s = ramp_s;
         td_segment(st, (seg_ms == 0U) ? TD_STEADY : TD_UP, from, current, seg_ms, s_now_ms);
         np_safety_spi_request_enable(NP_SAFETY_EN_TDCS);
-        /* OI-CHARGE-05 (c): the capped DC target.  Published at the ramp TARGET
+        /* OI-CHARGE-05 (c): the commanded DC target.  Published at the ramp TARGET
          * rather than tracking the ramp, which over-states delivered charge
          * during the 30 s ramp-up — the strict direction, and the one that
          * keeps this a property of the signed descriptor rather than of

@@ -77,15 +77,20 @@ static void test_drive_and_stop(void)
     check(vns()->vns_side_on[0] && vns()->vns_side_on[1], "drive: side 2 drives both ears");
 }
 
-/* @verifies-none The current cap is np_mod_vns.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
-static void test_the_amplitude_is_capped_before_the_stimulator(void)
+/* @verifies-none The current ceiling is np_mod_vns.c's; the hub suite verifies it (REQ-FWHUB-76). Simulator evidence only (REQ-SIMFW-06). */
+static void test_an_amplitude_above_the_ceiling_is_refused_before_the_stimulator(void)
 {
     setup();
-    run("vns 0 25000 60000 250 0 0 0");
-    check(vns()->vns_amp_ua == 40000U, "cap: the stimulator was told 40 mA, not the 60 mA authored");
+    run("vns 0 25000 60000 250 1 1 0");
+    check(!result_code_is(0), "ceiling: 60 mA is refused, not clamped to 40 mA");
+    check(!vns()->driven && !enabled() && !vns()->vns_ppg_on && !vns()->vns_eeg_ref,
+          "ceiling: no stimulation, no enable, no PPG and no reference routing were started");
     uint16_t c[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(c);
-    check(c[NP_SAFETY_CH_VNS_HRV] == 40000U, "cap: and so was the safety channel");
+    check(c[NP_SAFETY_CH_VNS_HRV] == 0U, "ceiling: and no current was published to the safety channel");
+    g_cap_n = 0;
+    run("vns 0 25000 40000 250 0 0 0");
+    check(result_code_is(0) && vns()->vns_amp_ua == 40000U, "ceiling: exactly 40 mA is accepted and driven as authored");
 }
 
 /* @verifies-none Contact confirmation is np_mod_vns.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
@@ -212,7 +217,7 @@ int main(void)
 {
     test_detect_is_a_contact_range_check();
     test_drive_and_stop();
-    test_the_amplitude_is_capped_before_the_stimulator();
+    test_an_amplitude_above_the_ceiling_is_refused_before_the_stimulator();
     test_no_contact_means_no_stimulation();
     test_a_non_finite_impedance_is_not_read_as_no_contact();
     test_a_failed_stimulator_write_enables_nothing();

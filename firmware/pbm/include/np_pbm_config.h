@@ -84,7 +84,10 @@
 
 /*
  * DUTY register encodes 0.5% per LSB: 0x00=0%, 0x32=25%, 0xC8=100%.
- * Hub firmware never writes > NP_PBM_DUTY_MAX_REG to any DUTY register.
+ * Hub firmware never writes > NP_PBM_DUTY_MAX_REG to any DUTY register: a command
+ * above it is REFUSED, never clamped (NP-FW-HUB-001 REQ-FWHUB-76).  INTERIM: the
+ * 25 % cap is retired as policy (CLAUDE.md Rev 59) and this bound goes when the
+ * pre-signing check of OI-HEXTILE-31 is built.
  */
 #define NP_PBM_DUTY_MAX_REG         0x32U   /* 50 decimal; 25% duty           */
 #define NP_PBM_DUTY_FULL_REG        0xC8U   /* 200 decimal; 100% (CW ref)     */

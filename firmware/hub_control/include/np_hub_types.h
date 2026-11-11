@@ -270,7 +270,7 @@ typedef struct {
 
 typedef struct __attribute__((packed)) {
     uint8_t freq_code;     /* 0x00=CW 0x01=2Hz 0x06=6Hz 0x0A=10Hz 0x14=20Hz 0x28=40Hz */
-    uint8_t duty;          /* duty register value ≤ 0x32 (25%); firmware-enforced */
+    uint8_t duty;          /* duty register value ≤ 0x32 (25%); above it the command is refused (REQ-FWHUB-76, interim: OI-HEXTILE-31) */
     uint8_t cur_a;         /* 660nm LED current register */
     uint8_t cur_b;         /* 808nm LED current register */
 } np_mod_pbm_base_params_t;
@@ -279,7 +279,7 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 for all channels; firmware-enforced */
+    uint8_t duty;          /* ≤ 0x32 for all channels; above it the command is refused (REQ-FWHUB-76) */
     uint8_t cur_a;         /* 660nm */
     uint8_t cur_b;         /* 808nm */
     uint8_t cur_c;         /* 1064nm */
@@ -291,7 +291,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t side;          /* 0=bilateral, 1=left, 2=right */
     uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 */
+    uint8_t duty;          /* ≤ 0x32 (INS_DUTY_MAX); above it the command is refused (REQ-FWHUB-76) */
     uint8_t cur_660;       /* 660nm current register */
     uint8_t cur_808;       /* 808nm current register */
 } np_mod_intranasal_params_t;
@@ -311,7 +311,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  electrode_pair; /* 0=F3-F4 1=P3-P4 2=Fz-Pz (see pinout) */
     uint16_t freq_mhz;       /* frequency in milli-Hz (1000=1Hz, 40000=40Hz) */
-    uint16_t amplitude_ua;   /* peak amplitude µA; firmware cap ≤ 1000 (1mA) */
+    uint16_t amplitude_ua;   /* peak amplitude µA; ≤ 1000 (1mA), refused above, never clamped (REQ-FWHUB-76) */
     uint8_t  waveform;       /* 0=sinusoidal, 1=biphasic square */
     uint8_t  phase_deg;      /* relative phase 0–359 */
 } np_mod_bes_tacs_params_t;
@@ -320,9 +320,9 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t  electrode_pair; /* channel pair — see tDCS montage table */
-    uint16_t current_ua;     /* DC current µA; firmware cap ≤ 2000 (2mA) */
+    uint16_t current_ua;     /* DC current µA; ≤ 2000 (2mA), refused above, never clamped (REQ-FWHUB-76) */
     uint8_t  polarity;       /* 0=anode at pair-A, 1=cathode at pair-A */
-    uint16_t ramp_s;         /* ramp duration; firmware minimum 30s enforced */
+    uint16_t ramp_s;         /* ramp duration; ≥ 30 s, refused below, never lengthened (REQ-FWHUB-76) */
     /* OI-CHARGE-04: area of ONE electrode, milli-cm² (1 unit = 0.001 cm²).
      * electrode_pair names 10-20 SITES (F3-F4, P3-P4, Fz-Pz) and says nothing
      * about pad size, so the geometry the 40µC/cm² limit divides by has to be
@@ -340,7 +340,7 @@ typedef struct __attribute__((packed)) {
     uint32_t freq_mhz;        /* stim freq mHz; 32 bits so no frequency the descriptor can author is cut off
                                * (a 16-bit field topped out at 65.535 Hz). The 25 Hz ceiling is removed:
                                * OI-VNSCLIP-08, the principal 2026-10-29. Not a safety limit of any kind. */
-    uint16_t amplitude_ua;    /* µA; firmware cap ≤ 40000 (NP_VNS_MAX_CURRENT_UA) */
+    uint16_t amplitude_ua;    /* µA; ≤ 40000 (NP_VNS_MAX_CURRENT_UA), refused above, never clamped (REQ-FWHUB-76) */
     uint16_t pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs. Authored range 50–500 µs
                                * (VNS_MIN/MAX_PULSE_WIDTH_US); widened from 8 bits so the 300 and 500 µs
                                * widths the taVNS studies use can be written. The safety MCU's per-phase

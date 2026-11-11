@@ -32,6 +32,7 @@
 #include "../include/np_protocol.h"
 #include "../include/np_safety_spi.h"
 #include "../include/np_socket_dispatch.h"
+#include "../include/np_cmd_limits.h"     /* NP_PBM_DUTY_MAX_REG, for the REQ-FWHUB-76 test */
 
 /* np_protocol.c's platform seams — same signatures the production contract
  * declares, so drift is a compile error here too. */
@@ -698,6 +699,45 @@ static void test_session_load_forgets_a_pause(void)
           "pause: a new session never inherits a paused one's sockets");
 }
 
+/* REQ-FWHUB-76: the interim 25 % duty limit refuses the whole command at the dispatcher, before placement, power
+ * or any socket.  (The driver double here accepts any duty, so a pass means the dispatcher refused.) */
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_duty_above_the_limit_refuses_the_whole_command_before_any_socket(void)
+{
+    setup();
+    const uint16_t lit[] = { 1, 2 };
+    np_session_cmd_t first = base_cmd(lit, 2);
+    check(np_sock_disp_command(&first) == NP_HUB_OK && np_sock_disp_active_count() == 2 && cranial_requested(),
+          "duty: two sockets are lit by an earlier command");
+    const int drives = count_ops('D'), admits = g_admit_calls;
+
+    const uint16_t s[] = { 2, 3, 4 };              /* overlaps a lit socket */
+    np_session_cmd_t c = base_cmd(s, 3);
+    np_mod_pbm_base_params_t p;
+    memcpy(&p, c.params, sizeof p);
+    p.duty = (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U);
+    memcpy(c.params, &p, sizeof p);
+    check(np_sock_disp_command(&c) == NP_HUB_ERR_INVALID_ARG, "duty: one code above the limit -> INVALID_ARG, not a module fault");
+    check(count_ops('D') == drives && count_ops('S') == 0 && g_admit_calls == admits,
+          "duty: no socket was driven or stopped, and power admission was never asked");
+    check(np_sock_disp_active_count() == 2 && cranial_requested() && g_disable_calls == 0,
+          "duty: the sockets the earlier command lit are still lit and the lattice gate is untouched");
+
+    const uint16_t t[] = { 12, 13 };
+    np_session_cmd_t sm = smart_cmd(t, 2, 0x07);
+    np_mod_pbm_smart_params_t sp;
+    memcpy(&sp, sm.params, sizeof sp);
+    sp.duty = 0xC8U;
+    memcpy(sm.params, &sp, sizeof sp);
+    check(np_sock_disp_command(&sm) == NP_HUB_ERR_INVALID_ARG && count_ops('D') == drives,
+          "duty: a smart command at 100 % is refused the same way");
+
+    sp.duty = NP_PBM_DUTY_MAX_REG;
+    memcpy(sm.params, &sp, sizeof sp);
+    check(np_sock_disp_command(&sm) == NP_HUB_OK && np_sock_disp_active_count() == 4,
+          "duty: exactly the limit is admitted and driven");
+}
+
 int main(void)
 {
     test_production_governor_is_closed();
@@ -719,6 +759,7 @@ int main(void)
     test_resume_is_refused_where_a_fresh_command_would_be();
     test_resume_restores_each_preset_as_its_own_command();
     test_session_load_forgets_a_pause();
+    test_duty_above_the_limit_refuses_the_whole_command_before_any_socket();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

@@ -74,11 +74,17 @@ np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id, uint8_t cur_a,
 
 static uint8_t g_startup_mask, g_freq_mask, g_duty_mask, g_ch_enable_written;
 static int     g_ch_enable_writes;
+static uint8_t g_duty_last;            /* the duty the smart driver was last asked to write */
+static int     g_duty_writes, g_startups;
+static int     g_slot_pwm_writes;      /* the retired slot path's base PWM seam */
+static uint8_t g_slot_pwm_duty;
+static int     g_slot_ntc_reads;
 
 np_pbm_status_t np_pbm_drive_startup(uint8_t slot, np_pbm_drv_slot_t *drv,
                                      const np_pbm_preset_t *preset)
 {
     (void)slot;
+    g_startups++;
     g_startup_mask   = preset->channel_mask;
     drv->ch_enable   = preset->channel_mask;
     drv->initialized = true;
@@ -96,8 +102,10 @@ np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot, np_pbm_drv_slot_t *drv,
 np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot, np_pbm_drv_slot_t *drv,
                                       uint8_t ch_mask, uint8_t duty)
 {
-    (void)slot; (void)drv; (void)duty;
+    (void)slot; (void)drv;
     g_duty_mask = ch_mask;
+    g_duty_last = duty;
+    g_duty_writes++;
     return NP_PBM_OK;
 }
 
@@ -156,10 +164,12 @@ void np_pst_note_drive_fault(void) { g_drive_faults++; }
 np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot, uint8_t cur_a, uint8_t cur_b,
                                        uint8_t freq_code, uint8_t duty)
 {
-    (void)slot; (void)cur_a; (void)cur_b; (void)freq_code; (void)duty;
+    (void)slot; (void)cur_a; (void)cur_b; (void)freq_code;
+    g_slot_pwm_writes++;
+    g_slot_pwm_duty = duty;
     return NP_HUB_OK;
 }
-float    np_mod_pbm_hal_ntc_read(uint8_t slot) { (void)slot; return 25.0f; }
+float    np_mod_pbm_hal_ntc_read(uint8_t slot) { (void)slot; g_slot_ntc_reads++; return 25.0f; }
 uint16_t np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx) { (void)slot; (void)wl_idx; return 0U; }
 bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out)
 {
@@ -208,6 +218,8 @@ static void setup(void)
     g_ntc = 25.0f; g_ntc_fail = false; g_track_full = false;
     g_tracked = g_untracked = g_refusals = g_drive_faults = 0;
     g_faults = 0; g_fault_slot = g_fault_type = g_fault_code = 0U;
+    g_duty_last = 0U; g_duty_writes = g_startups = 0;
+    g_slot_pwm_writes = 0; g_slot_pwm_duty = 0U; g_slot_ntc_reads = 0;
 }
 
 static np_hub_status_t drive_base(uint16_t s)
@@ -408,6 +420,84 @@ static void test_drive_fault_is_shdr_without_socket(void)
     check(g_untracked == 1, "a stop tells the meter the socket is dark");
 }
 
+/* ── The duty limit refuses; it does not clamp (REQ-FWHUB-76 (e), interim: OI-HEXTILE-31) ── */
+
+np_hub_status_t np_mod_pbm_init(uint8_t slot);
+np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t len);
+
+/* A base tile at 50 % duty used to be driven at 25 %. */
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_socket_base_duty_above_the_limit_is_refused_and_starts_nothing(void)
+{
+    setup();
+    np_mod_pbm_base_params_t p = BASE;
+    p.duty = (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U);
+    check(np_mod_pbm_socket_drive(40U, NP_MOD_PBM_BASE, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG,
+          "base socket: one code above the limit is refused");
+    p.duty = 0x64U;
+    check(np_mod_pbm_socket_drive(40U, NP_MOD_PBM_BASE, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG,
+          "base socket: 50 % is refused, not driven at 25 %");
+    check(g_pwm_writes == 0, "base socket: the PWM was never written");
+    check(g_tracked == 0 && g_refusals == 0 && g_drive_faults == 0 && g_faults == 0,
+          "base socket: no metering slot taken, no pre-drive refusal or drive fault counted, nothing logged to SHDR");
+
+    p.duty = NP_PBM_DUTY_MAX_REG;
+    check(np_mod_pbm_socket_drive(40U, NP_MOD_PBM_BASE, &p, sizeof p) == NP_HUB_OK &&
+          g_pwm_writes == 1 && g_pwm_last.duty == NP_PBM_DUTY_MAX_REG,
+          "base socket: exactly the limit is accepted and written as authored");
+}
+
+/* @verifies REQ-FWHUB-76#f */
+static void test_a_refused_duty_leaves_a_driven_base_socket_as_it_was(void)
+{
+    setup();
+    check(drive_base(41U) == NP_HUB_OK && g_pwm_last.duty == BASE.duty, "running: socket 41 is driven at its authored duty");
+    np_mod_pbm_base_params_t p = BASE;
+    p.duty = 0xC8U; p.cur_a = 1U; p.cur_b = 2U;
+    const int writes = g_pwm_writes, tracked = g_tracked;
+    check(np_mod_pbm_socket_drive(41U, NP_MOD_PBM_BASE, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG,
+          "running: a later command above the limit is refused");
+    check(g_pwm_writes == writes && g_tracked == tracked && g_untracked == 0, "running: nothing was written, tracked or untracked");
+    /* The stored preset is still the first command's: a channel latch re-applies it, not the refused one. */
+    check(np_mod_pbm_socket_disable_channel(41U, NP_PBM_CH_A_EN) == NP_HUB_OK &&
+          g_pwm_last.duty == BASE.duty && g_pwm_last.cur_b == BASE.cur_b && g_pwm_last.cur_a == 0U,
+          "running: the socket's stored preset is the running command's, not the refused one's");
+}
+
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_socket_smart_duty_above_the_limit_is_refused_and_starts_nothing(void)
+{
+    setup();
+    np_mod_pbm_smart_params_t p = smart_params(NP_PBM_CH_ALL_EN);
+    p.duty = (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U);
+    check(np_mod_pbm_socket_drive(42U, NP_MOD_PBM_SMART, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG,
+          "smart socket: one code above the limit is refused");
+    check(g_startups == 0 && g_duty_writes == 0 && g_tracked == 0 && g_refusals == 0 && g_faults == 0,
+          "smart socket: the driver IC was never started, no duty written, nothing tracked, counted or logged");
+
+    p.duty = NP_PBM_DUTY_MAX_REG;
+    check(np_mod_pbm_socket_drive(42U, NP_MOD_PBM_SMART, &p, sizeof p) == NP_HUB_OK &&
+          g_duty_writes == 1 && g_duty_last == NP_PBM_DUTY_MAX_REG,
+          "smart socket: exactly the limit is accepted and written as authored");
+}
+
+/* The retired 5-slot path holds the same rule: it is still compiled and still the driver's control(). */
+/* @verifies REQ-FWHUB-76#e,f */
+static void test_slot_path_duty_above_the_limit_is_refused_before_anything_is_read_or_driven(void)
+{
+    setup();
+    (void)np_mod_pbm_init(0U);
+    np_mod_pbm_base_params_t p = BASE;
+    p.duty = 0x33U;
+    check(np_mod_pbm_control(0U, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG, "slot: one code above the limit is refused");
+    check(g_slot_pwm_writes == 0 && g_slot_ntc_reads == 0 && g_faults == 0,
+          "slot: refused before the NTC read and the PWM write, and nothing is logged");
+    p.duty = 0x32U;
+    check(np_mod_pbm_control(0U, &p, sizeof p) == NP_HUB_OK && g_slot_pwm_writes == 1 && g_slot_pwm_duty == 0x32U,
+          "slot: exactly the limit is accepted and written as authored");
+    (void)np_mod_pbm_control(0U, NULL, 0U);
+}
+
 int main(void)
 {
     printf("=== np_mod_pbm per-channel disable latch (OI-PBMCH-03) ===\n");
@@ -422,6 +512,10 @@ int main(void)
     test_invalid_args();
     test_predrive_refusals();
     test_drive_fault_is_shdr_without_socket();
+    test_socket_base_duty_above_the_limit_is_refused_and_starts_nothing();
+    test_a_refused_duty_leaves_a_driven_base_socket_as_it_was();
+    test_socket_smart_duty_above_the_limit_is_refused_and_starts_nothing();
+    test_slot_path_duty_above_the_limit_is_refused_before_anything_is_read_or_driven();
     printf("\n%s — %d failure(s)\n", g_failures ? "FAILED" : "PASSED", g_failures);
     return g_failures ? 1 : 0;
 }

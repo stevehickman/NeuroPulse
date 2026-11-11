@@ -18,7 +18,7 @@ extern "C" {
 typedef struct {
     uint8_t cur[3];          /* current setpoints: [0]=CH_A, [1]=CH_B, [2]=CH_C  */
     uint8_t freq_code[3];    /* PWM frequency codes per channel                    */
-    uint8_t duty[3];         /* actual duty values written (post-clamp)            */
+    uint8_t duty[3];         /* duty values written (as commanded; never clamped)  */
     uint8_t ch_enable;       /* last written CH_ENABLE register                   */
     uint8_t status;          /* last STATUS read                                  */
     bool    initialized;     /* true after successful startup sequence             */
@@ -35,7 +35,8 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
                                                const np_pbm_preset_t *preset);
 
 /*
- * Set duty on one or all channels.  Clamps to NP_PBM_DUTY_MAX_REG.
+ * Set duty on one or all channels.  A duty above NP_PBM_DUTY_MAX_REG is refused
+ * (NP_PBM_ERR_INVALID_ARG) and nothing is written; it is never clamped.
  * ch_mask: bitmask (NP_PBM_CH_A_EN etc.); 0xFF = all enabled channels.
  */
 np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,

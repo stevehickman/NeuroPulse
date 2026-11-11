@@ -36,6 +36,7 @@
 #include "np_session_log.h"
 #include "np_log_backend.h"   /* OI-NVRAM-19: np_log_backend_admits_sessions() */
 #include "np_layout_bind.h"   /* REQ-FWHUB-64: np_layout_admit() */
+#include "np_cmd_limits.h"    /* REQ-FWHUB-76: np_cmd_limits_admit() */
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
@@ -805,6 +806,20 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
      * with a status of its own, so the person learns it when they send the protocol and not when the session runs.  The
      * goggles refuse the same drive at dispatch (REQ-FWHUB-65); this is the earlier of the two. */
     rc = np_protocol_photic_admit(&s_ctx.desc, np_ppx_zone_permitted());
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
+    /* REQ-FWHUB-76 (g): a command whose value is outside a limit a hub driver holds (BES or tDCS current, the tDCS
+     * ramp, auricular VNS current, PBM or intranasal duty) refuses the protocol here, whole, so the person learns it
+     * when they send the protocol and not as a refused command mid-session.  The drivers refuse the same command at
+     * dispatch with the same predicate (np_cmd_limits_check); this is the earlier of the two.  The status is
+     * NP_HUB_ERR_INVALID_ARG, reason 2: the shared core refuses these values before signing, so a descriptor that
+     * carries one was built wrongly, which is what reason 2 already means to the apps (OI-FWHUB-30). */
+    rc = np_cmd_limits_admit(&s_ctx.desc);
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
         s_ctx.state = NP_SESSION_IDLE;

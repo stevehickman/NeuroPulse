@@ -31,6 +31,7 @@
 #include "task.h"
 
 #include "np_chan_decl.h"
+#include "np_cmd_limits.h"
 #include "np_consumables.h"
 #include "np_cvns_reenable.h"
 #include "np_module_registry.h"
@@ -683,6 +684,114 @@ static void test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_nam
     check(all_named, "reasons: the refusals np_runner_load gives here are all ones the apps name");
 }
 
+/* ── REQ-FWHUB-76 (g): a value outside a limit a hub driver holds refuses the protocol at load ─────────────────── */
+
+static void blob_bes(blob_t *b, uint16_t amplitude_ua)
+{
+    np_mod_bes_tacs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = 10000U; p.amplitude_ua = amplitude_ua;
+    blob_make(b, 1U, 60000U, NP_MOD_BES_TACS, NP_HUB_SLOT_BES_TACS, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_tdcs(blob_t *b, uint16_t current_ua, uint16_t ramp_s)
+{
+    np_mod_tdcs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.current_ua = current_ua; p.ramp_s = ramp_s; p.electrode_area_mcm2 = 25000U;
+    blob_make(b, 1U, 60000U, NP_MOD_TDCS, NP_HUB_SLOT_TDCS, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_vns(blob_t *b, uint16_t amplitude_ua)
+{
+    np_mod_vns_hrv_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = 25000U; p.amplitude_ua = amplitude_ua; p.pulse_width_us = 250U;
+    blob_make(b, 1U, 60000U, NP_MOD_VNS_HRV, NP_HUB_SLOT_VNS_HRV, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_ins(blob_t *b, uint8_t duty)
+{
+    np_mod_intranasal_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_code = 40U; p.duty = duty; p.cur_660 = 60U; p.cur_808 = 70U;
+    blob_make(b, 1U, 60000U, NP_MOD_INTRANASAL, NP_HUB_SLOT_INTRANASAL, (const uint8_t *)&p, sizeof p);
+}
+
+/* @verifies REQ-FWHUB-76#g */
+static void test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leaves_nothing(void)
+{
+    blob_t b;
+    fresh(); blob_bes(&b, 1001U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: BES at 1001 uA is refused at load");
+    expect_nothing_left_behind("limits BES");
+    fresh(); blob_tdcs(&b, 2001U, 30U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: tDCS at 2001 uA is refused at load");
+    expect_nothing_left_behind("limits tDCS current");
+    fresh(); blob_tdcs(&b, 1000U, 29U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: a tDCS ramp of 29 s is refused at load");
+    expect_nothing_left_behind("limits tDCS ramp");
+    fresh(); blob_vns(&b, (uint16_t)(NP_VNS_MAX_CURRENT_UA + 1U));
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: auricular VNS at 40001 uA is refused at load");
+    expect_nothing_left_behind("limits VNS");
+    fresh(); blob_ins(&b, (uint8_t)(INS_DUTY_MAX + 1U));
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: intranasal duty 0x33 is refused at load");
+    expect_nothing_left_behind("limits intranasal");
+}
+
+/* @verifies REQ-FWHUB-76#g */
+static void test_a_command_exactly_at_each_driver_limit_loads(void)
+{
+    blob_t b;
+    fresh(); blob_bes(&b, 1000U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: BES at exactly 1 mA loads");
+    fresh(); blob_tdcs(&b, 2000U, 30U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: tDCS at exactly 2 mA with a 30 s ramp loads");
+    fresh(); blob_vns(&b, (uint16_t)NP_VNS_MAX_CURRENT_UA);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: auricular VNS at exactly 40 mA loads");
+    fresh(); blob_ins(&b, (uint8_t)INS_DUTY_MAX);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: intranasal duty at exactly 0x32 loads");
+    /* A stop (an empty parameter block) names no value and is not a refusal. */
+    fresh(); blob_make(&b, 1U, 60000U, NP_MOD_BES_TACS, NP_HUB_SLOT_BES_TACS, EEG_PARAMS, 0U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: a stop command loads");
+}
+
+/* The predicate itself, for the commands a slot-target blob cannot carry (socket-addressed PBM) and for one bad
+ * command among good ones.  The drivers call the same function at dispatch. */
+/* @verifies REQ-FWHUB-76#e,g */
+static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(void)
+{
+    np_mod_pbm_base_params_t base = { .freq_code = 0x28U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U };
+    np_mod_pbm_smart_params_t smart = { .freq_code = 0x28U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U,
+                                        .cur_c = 1U, .ch_mask = 7U };
+    check(np_cmd_limits_check(NP_MOD_PBM_BASE, &base, sizeof base) == NP_HUB_OK &&
+          np_cmd_limits_check(NP_MOD_PBM_SMART, &smart, sizeof smart) == NP_HUB_OK,
+          "predicate: PBM duty at exactly 0x32 is inside the limit");
+    base.duty = (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U); smart.duty = 0xC8U;
+    check(np_cmd_limits_check(NP_MOD_PBM_BASE, &base, sizeof base) == NP_HUB_ERR_INVALID_ARG &&
+          np_cmd_limits_check(NP_MOD_PBM_SMART, &smart, sizeof smart) == NP_HUB_ERR_INVALID_ARG,
+          "predicate: PBM duty above 0x32 is refused, base and smart");
+    check(np_cmd_limits_check(NP_MOD_PBM_BASE, NULL, 0U) == NP_HUB_OK &&
+          np_cmd_limits_check(NP_MOD_EEG, EEG_PARAMS, sizeof EEG_PARAMS) == NP_HUB_OK,
+          "predicate: a stop, and a modality with no limit here, pass");
+
+    static np_session_desc_t d;                   /* static: the descriptor is large */
+    memset(&d, 0, sizeof d);
+    d.cmd_count = 3U;
+    d.cmds[0].mod_type = NP_MOD_EEG;      d.cmds[0].params_len = sizeof EEG_PARAMS;
+    memcpy(d.cmds[0].params, EEG_PARAMS, sizeof EEG_PARAMS);
+    base.duty = 0x20U;
+    d.cmds[1].mod_type = NP_MOD_PBM_BASE; d.cmds[1].params_len = sizeof base;
+    memcpy(d.cmds[1].params, &base, sizeof base);
+    d.cmds[2].mod_type = NP_MOD_PBM_SMART; d.cmds[2].params_len = sizeof smart;
+    memcpy(d.cmds[2].params, &smart, sizeof smart);            /* duty 0xC8 */
+    check(np_cmd_limits_admit(&d) == NP_HUB_ERR_INVALID_ARG, "admit: one command above a limit refuses the whole descriptor");
+    smart.duty = NP_PBM_DUTY_MAX_REG;
+    memcpy(d.cmds[2].params, &smart, sizeof smart);
+    check(np_cmd_limits_admit(&d) == NP_HUB_OK, "admit: with every command inside its limit the descriptor is admitted");
+    check(np_cmd_limits_admit(NULL) == NP_HUB_ERR_INVALID_ARG, "admit: no descriptor is refused");
+}
+
 int main(void)
 {
     test_a_good_protocol_loads_and_holds_the_lease();
@@ -707,6 +816,9 @@ int main(void)
     test_a_refusal_after_a_good_load_does_not_disturb_it();
     test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves_nothing();
     test_every_refusal_np_runner_load_can_give_has_a_reason_the_apps_name();
+    test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leaves_nothing();
+    test_a_command_exactly_at_each_driver_limit_loads();
+    test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command();
 
     if (g_unexpected != 0U) {
         printf("FAIL: np_runner_load() reached %u run-loop seam call(s)\n", g_unexpected);

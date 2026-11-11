@@ -148,8 +148,31 @@ static void test_a_fully_applied_command_still_drives(void)
     (void)np_mod_intranasal_control(SLOT, NULL, 0U);
     check(!g_side_on[0] && !enable_requested(), "applied: stop drops the side and the enable");
     check(drive(2U, 20U) == NP_HUB_OK && !g_side_on[0] && g_side_on[1], "applied: 2 drives the right only");
-    (void)np_mod_intranasal_control(SLOT, NULL, 0U);
-    check(drive(0U, 200U) == NP_HUB_OK && g_duty[0] == 0x32U && g_duty[1] == 0x32U, "applied: duty 200 reaches the emitters as the 0x32 ceiling");
+}
+
+/* The duty ceiling refuses; it does not clamp.  Duty 200 used to reach the emitters as 0x32, a pulse train nobody authored. */
+/* @verifies REQ-FWHUB-76#d,f */
+static void test_a_duty_above_the_ceiling_is_refused_and_starts_nothing(void)
+{
+    reset();
+    check(drive(0U, 0x33U) == NP_HUB_ERR_INVALID_ARG, "duty: one code above the ceiling is refused");
+    check(g_set_calls == 0 && !g_side_on[0] && !g_side_on[1] && !enable_requested(),
+          "duty: neither side was written and no enable was requested");
+    check(drive(0U, 200U) == NP_HUB_ERR_INVALID_ARG && g_set_calls == 0, "duty: 200 is refused, not written as 0x32");
+
+    check(drive(0U, 0x32U) == NP_HUB_OK && g_duty[0] == 0x32U && g_duty[1] == 0x32U && enable_requested(),
+          "duty: exactly the ceiling is accepted and reaches the emitters as authored");
+}
+
+/* @verifies REQ-FWHUB-76#f */
+static void test_a_refused_duty_leaves_a_running_command_as_it_was(void)
+{
+    reset();
+    check(drive(0U, 20U) == NP_HUB_OK && g_side_on[0] && g_side_on[1], "running: a bilateral command at duty 20 is driving");
+    const int calls = g_set_calls;
+    check(drive(0U, 0x40U) == NP_HUB_ERR_INVALID_ARG, "running: a later command above the ceiling is refused");
+    check(g_set_calls == calls && g_side_on[0] && g_side_on[1] && g_duty[0] == 20U && g_duty[1] == 20U && enable_requested(),
+          "running: nothing was written, so the command already emitting is exactly as it was, enable included");
 }
 
 int main(void)
@@ -159,6 +182,8 @@ int main(void)
     test_a_failing_single_side_command_leaves_nothing_emitting();
     test_a_failed_command_also_stops_a_running_one();
     test_a_fully_applied_command_still_drives();
+    test_a_duty_above_the_ceiling_is_refused_and_starts_nothing();
+    test_a_refused_duty_leaves_a_running_command_as_it_was();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

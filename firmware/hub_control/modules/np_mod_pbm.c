@@ -23,6 +23,7 @@
 #include "np_safety_spi.h"
 #include "np_socket_dispatch.h"   /* socket entry points + NP_HEXMAP_MAX_SOCKETS */
 #include "np_pbm_socket_telem.h"  /* OI-FWHUB-10: metering + counts */
+#include "np_cmd_limits.h"        /* REQ-FWHUB-76: refuse, never clamp */
 #include <string.h>
 
 /* Pull in existing PBM detection and drive infrastructure. */
@@ -69,12 +70,18 @@ static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
 static np_pbm_cal_t s_cal[NP_HUB_ZONE_SLOT_COUNT][NP_PBM_WL_COUNT];
 static bool             s_cal_loaded = false;
 
-/* ── Duty ceiling enforcement ────────────────────────────────────────────────── */
-
-static uint8_t clamp_duty(uint8_t duty)
-{
-    return (duty > NP_PBM_DUTY_MAX_REG) ? NP_PBM_DUTY_MAX_REG : duty;
-}
+/* ── Duty ceiling enforcement ──────────────────────────────────────────────────
+ *
+ * REQ-FWHUB-76: a duty above NP_PBM_DUTY_MAX_REG (0x32, 25 %) is REFUSED with
+ * NP_HUB_ERR_INVALID_ARG before anything is driven.  It used to be clamped, which
+ * delivered a pulse train nobody authored (CLAUDE.md §3).
+ *
+ * INTERIM.  The 25 % duty cap is retired as policy (CLAUDE.md Rev 59): duty is the
+ * protocol's.  This refusal stays only because it is the one firmware bound in
+ * force until the pre-signing check of OI-HEXTILE-31 is built, and it is removed
+ * with that item.  The check itself is np_cmd_limits_check() (np_cmd_limits.h),
+ * the one the load-time admission uses.
+ */
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
 
@@ -166,6 +173,14 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         return NP_HUB_OK;
     }
 
+    /* REQ-FWHUB-76: the duty limit, before the NTC read (whose refusal writes an SHDR fault) and before any drive.
+     * The block is read as the struct the branches below read it as. */
+    const bool as_smart = (s_state[slot].type == NP_MOD_PBM_SMART &&
+                           len >= sizeof(np_mod_pbm_smart_params_t));
+    if (np_cmd_limits_check(as_smart ? NP_MOD_PBM_SMART : NP_MOD_PBM_BASE, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     /* NTC over-temperature check before enabling */
     float ntc = np_mod_pbm_hal_ntc_read(slot);
     if (ntc >= (float)NP_PBM_THERMAL_CUTOFF_C) {
@@ -179,7 +194,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)params;
 
-        uint8_t duty = clamp_duty(p->duty);
+        const uint8_t duty = p->duty;   /* as commanded; above the limit was refused (REQ-FWHUB-76) */
         np_pbm_drv_slot_t *drv = &s_state[slot].drv;
 
         /* Bring up the driver IC (CONFIG → CUR → FREQ → DUTY=0 → CH_ENABLE →
@@ -213,7 +228,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         const np_mod_pbm_base_params_t *p =
             (const np_mod_pbm_base_params_t *)params;
 
-        uint8_t duty = clamp_duty(p->duty);
+        const uint8_t duty = p->duty;   /* as commanded; above the limit was refused (REQ-FWHUB-76) */
         np_hub_status_t rc = np_mod_pbm_hal_pwm_set(slot,
                                                       p->cur_a, p->cur_b,
                                                       p->freq_code, duty);
@@ -342,7 +357,7 @@ static np_hub_status_t base_pwm_apply(uint16_t socket_id)
     const uint8_t cur_a = (off & NP_PBM_CH_A_EN) ? 0U : p->cur_a;
     const uint8_t cur_b = (off & NP_PBM_CH_B_EN) ? 0U : p->cur_b;
     return (np_mod_pbm_hal_socket_pwm_set(socket_id, cur_a, cur_b,
-                                          p->freq_code, clamp_duty(p->duty))
+                                          p->freq_code, p->duty)   /* stored only after the limit check */
             == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
 }
 
@@ -391,6 +406,13 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
     if (!smart && !base) {
         return NP_HUB_ERR_INVALID_ARG;
     }
+    /* REQ-FWHUB-76: a duty above the limit is refused, not clamped.  Before the pre-drive step, which counts a
+     * refusal of its own and takes a metering slot, and before the socket's stored preset or type is touched: a
+     * refused command leaves the socket driven, tracked and latched exactly as it was.  The dispatcher makes the
+     * same check for the whole command before any socket is driven (np_sock_disp_command). */
+    if (np_cmd_limits_check(mod_type, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
     np_hub_status_t pre = socket_predrive(socket_id, mod_type);
     if (pre != NP_HUB_OK) {
         return pre;
@@ -400,7 +422,7 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
         const np_mod_pbm_smart_params_t *p =
             (const np_mod_pbm_smart_params_t *)params;
         const uint8_t     addr = (uint8_t)socket_id;   /* < 128, fits */
-        const uint8_t     duty = clamp_duty(p->duty);
+        const uint8_t     duty = p->duty;
         const uint8_t     mask = (uint8_t)(p->ch_mask & (uint8_t)~s_sock_ch_off[socket_id]);
         np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
 

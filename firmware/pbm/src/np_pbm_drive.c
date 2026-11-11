@@ -2,7 +2,8 @@
  * NeurOne 1064nm Smart Zone Module — I2C LED Driver Protocol
  * Document: NP-FW-PBM1064-001 Rev 1 §5
  *
- * All duty register writes clamp to NP_PBM_DUTY_MAX_REG (0x32 = 25%).
+ * A duty write above NP_PBM_DUTY_MAX_REG (0x32 = 25%) is REFUSED and writes nothing; it is never clamped
+ * (NP-FW-PBM1064-001 §5.5; NP-FW-HUB-001 REQ-FWHUB-76; CLAUDE.md §3).  Interim with the 25 % cap: OI-HEXTILE-31.
  * Startup sequence: CONFIG → CUR → FREQ → DUTY → CH_ENABLE → STATUS check.
  * Periodic STATUS + FAULT_LATCH poll at 5 s intervals handles OCP and thermal.
  */
@@ -12,12 +13,6 @@
 #include <string.h>
 
 /* ── Internal helpers ───────────────────────────────────────────────────────── */
-
-static uint8_t clamp_duty(uint8_t requested)
-{
-    return (requested <= NP_PBM_DUTY_MAX_REG) ?
-           requested : NP_PBM_DUTY_MAX_REG;
-}
 
 static np_pbm_status_t write_reg(uint8_t slot, uint8_t reg, uint8_t val)
 {
@@ -73,7 +68,8 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
     drv->freq_code[1] = fcode;
     drv->freq_code[2] = fcode;
 
-    /* Step 4: DUTY — clamped to 25%. Write 0 initially (ramp starts at 0). */
+    /* Step 4: DUTY — write 0 initially (ramp starts at 0).  The preset's duty is written by
+     * np_pbm_drive_set_duty(), which refuses a value above 25%. */
     rc = write_reg(slot, NP_PBM_REG_DUTY_A, 0U); if (rc != NP_PBM_OK) { return rc; }
     rc = write_reg(slot, NP_PBM_REG_DUTY_B, 0U); if (rc != NP_PBM_OK) { return rc; }
     rc = write_reg(slot, NP_PBM_REG_DUTY_C, 0U); if (rc != NP_PBM_OK) { return rc; }
@@ -113,23 +109,27 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
                                                 uint8_t ch_mask,
                                                 uint8_t duty)
 {
-    uint8_t clamped = clamp_duty(duty);
+    /* Refused, never clamped: a clamped duty is a pulse train nobody authored.  Before any register is written,
+     * so every channel keeps the duty it had. */
+    if (duty > NP_PBM_DUTY_MAX_REG) {
+        return NP_PBM_ERR_INVALID_ARG;
+    }
     np_pbm_status_t rc = NP_PBM_OK;
 
     if (ch_mask & NP_PBM_CH_A_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_A, clamped);
+        rc = write_reg(slot, NP_PBM_REG_DUTY_A, duty);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[0] = clamped;
+        drv->duty[0] = duty;
     }
     if (ch_mask & NP_PBM_CH_B_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_B, clamped);
+        rc = write_reg(slot, NP_PBM_REG_DUTY_B, duty);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[1] = clamped;
+        drv->duty[1] = duty;
     }
     if (ch_mask & NP_PBM_CH_C_EN) {
-        rc = write_reg(slot, NP_PBM_REG_DUTY_C, clamped);
+        rc = write_reg(slot, NP_PBM_REG_DUTY_C, duty);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->duty[2] = clamped;
+        drv->duty[2] = duty;
     }
     return NP_PBM_OK;
 }

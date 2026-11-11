@@ -285,8 +285,9 @@ static void test_unowned_slot_is_refused(void)
           "control: a slot this driver does not own is refused");
 }
 
-/* OI-FMEA-09: the driver hands the cross-check the same capped number it
- * publishes to the safety MCU, and tells it how long a tDCS decrease ramps.
+/* OI-FMEA-09: the driver hands the cross-check the same number it publishes
+ * to the safety MCU and drives (the commanded one: above the limit a command
+ * is refused, REQ-FWHUB-76), and tells it how long a tDCS decrease ramps.
  * The real np_stim_xcheck.c is linked, so this proves the wiring end to end;
  * np_stim_xcheck_tests owns the comparison itself. */
 static np_telem_record_t stim_rec(np_hub_mod_type_t type, float delivered_ua)
@@ -304,12 +305,13 @@ static void test_driver_feeds_the_cross_check(void)
     np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
     np_stim_xcheck_clear();
 
-    /* BES authored at 5 mA is capped to 1 mA: the check must use 1 mA. */
+    /* BES commanded at the 1 mA limit: the check's bound is 1 mA. */
     np_mod_bes_tacs_params_t bes;
     memset(&bes, 0, sizeof bes);
     bes.freq_mhz     = 10000U;
-    bes.amplitude_ua = 5000U;
-    np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes);
+    bes.amplitude_ua = 1000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_OK,
+          "xcheck wiring: BES at exactly 1 mA is accepted");
 
     np_telem_record_t over = stim_rec(NP_MOD_BES_TACS, 1500.0f);
     bool raised = false;
@@ -317,8 +319,8 @@ static void test_driver_feeds_the_cross_check(void)
         raised = np_stim_xcheck_observe(&over, t) || raised;
     }
     check(raised && np_stim_xcheck_latched(NP_SAFETY_CH_BES_TACS),
-          "xcheck wiring: 1.5 mA delivered against the CAPPED 1 mA BES "
-          "command is flagged (the authored 5 mA is not the bound)");
+          "xcheck wiring: 1.5 mA delivered against the 1 mA BES command "
+          "is flagged");
 
     /* tDCS 2 mA, then stopped: delivery ramps down over 30 s, so 1.9 mA
      * shortly after the stop is the ramp, not a divergence. */
@@ -347,6 +349,130 @@ static void test_driver_feeds_the_cross_check(void)
                   "window is flagged (driver stuck on)");
 }
 
+
+/* ── Limits refuse; they do not clamp (REQ-FWHUB-76) ─────────────────────────── */
+
+static void start_tdcs_at_steady(uint32_t t0);
+
+/* BES at 5 mA used to be driven, published and cross-checked as 1 mA. */
+/* @verifies REQ-FWHUB-76#a,f */
+static void test_bes_above_the_limit_is_refused_and_starts_nothing(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
+    np_stim_xcheck_clear();
+    reset_stubs(); memset(g_chan_ua, 0, sizeof g_chan_ua);
+
+    np_mod_bes_tacs_params_t bes;
+    memset(&bes, 0, sizeof bes);
+    bes.freq_mhz     = 10000U;
+    bes.amplitude_ua = 1001U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG,
+          "BES limit: 1001 uA is refused");
+    bes.amplitude_ua = 5000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG,
+          "BES limit: 5 mA is refused, not driven as 1 mA");
+    check(g_dac_set_calls == 0 && g_enabled_bits == 0U && g_chan_ua[NP_SAFETY_CH_BES_TACS] == 0U,
+          "BES limit: the DAC was not written, no enable requested, no current published to the safety MCU");
+    /* The refused command set no bound: a stop afterwards finds nothing active and touches nothing. */
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, NULL, 0U) == NP_HUB_OK && g_dac_stop_calls == 0,
+          "BES limit: the driver is still idle (a stop has nothing to stop)");
+
+    bes.amplitude_ua = 1000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_OK &&
+          g_dac_amp_ua == 1000U && g_chan_ua[NP_SAFETY_CH_BES_TACS] == 1000U,
+          "BES limit: exactly 1 mA is accepted, driven and published as authored");
+}
+
+/* @verifies REQ-FWHUB-76#f */
+static void test_a_refused_bes_command_leaves_a_running_one_as_it_was(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
+    np_stim_xcheck_clear();
+    reset_stubs(); memset(g_chan_ua, 0, sizeof g_chan_ua);
+
+    np_mod_bes_tacs_params_t bes;
+    memset(&bes, 0, sizeof bes);
+    bes.freq_mhz     = 10000U;
+    bes.amplitude_ua = 600U;
+    (void)np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes);
+    reset_stubs();                                /* the published-current spy keeps the driver's 600 */
+
+    bes.amplitude_ua = 3000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG,
+          "BES running: a later command above the limit is refused");
+    check(g_dac_set_calls == 0 && g_dac_stop_calls == 0 && g_disabled_bits == 0U &&
+          g_chan_ua[NP_SAFETY_CH_BES_TACS] == 600U,
+          "BES running: the DAC, the enable and the published current are untouched");
+    /* The cross-check still holds the running command's 600 uA as its bound: 900 uA delivered is over it. */
+    np_telem_record_t over = stim_rec(NP_MOD_BES_TACS, 900.0f);
+    bool raised = false;
+    for (uint32_t t = 1000U; t <= 3000U; t += 1000U) {
+        raised = np_stim_xcheck_observe(&over, t) || raised;
+    }
+    check(raised, "BES running: the cross-check's bound is still the running command's, not the refused one's");
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, NULL, 0U) == NP_HUB_OK && g_dac_stop_calls == 1,
+          "BES running: the running command is still the driver's to stop");
+}
+
+/* tDCS at 3 mA used to be ramped, published and cross-checked as 2 mA; a 10 s ramp used to run as 30 s. */
+/* @verifies REQ-FWHUB-76#b,f */
+static void test_tdcs_outside_its_limits_is_refused_and_starts_nothing(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_TDCS);
+    np_stim_xcheck_clear();
+    reset_stubs(); memset(g_chan_ua, 0, sizeof g_chan_ua);
+
+    np_mod_tdcs_params_t t;
+    memset(&t, 0, sizeof t);
+    t.electrode_pair = 1U; t.ramp_s = 30U; t.electrode_area_mcm2 = 35000U;
+
+    t.current_ua = 2001U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_ERR_INVALID_ARG, "tDCS limit: 2001 uA is refused");
+    t.current_ua = 3000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_ERR_INVALID_ARG,
+          "tDCS limit: 3 mA is refused, not ramped to 2 mA");
+    check(np_mod_stim_tdcs_ramp_up_ms(&t, sizeof t) == 0U,
+          "tDCS limit: the runner is told a refused command has no ramp to wait for");
+
+    t.current_ua = 1000U; t.ramp_s = 29U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_ERR_INVALID_ARG, "tDCS ramp: 29 s is refused");
+    t.ramp_s = 0U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_ERR_INVALID_ARG,
+          "tDCS ramp: 0 s is refused, not lengthened to 30 s");
+    check(np_mod_stim_tdcs_ramp_up_ms(&t, sizeof t) == 0U, "tDCS ramp: and has no ramp to wait for");
+
+    check(g_dc_ramp_calls == 0 && g_enabled_bits == 0U && g_chan_ua[NP_SAFETY_CH_TDCS] == 0U,
+          "tDCS limit: no ramp was commanded, no enable requested, no current published to the safety MCU");
+    np_ramp_report_t r;
+    np_mod_stim_tdcs_ramp(&r);
+    check(r.phase == NP_RAMP_NONE && !np_mod_stim_tdcs_pause(),
+          "tDCS limit: no ramp is modelled and there is nothing to pause");
+
+    t.current_ua = 2000U; t.ramp_s = 30U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_OK &&
+          g_dc_target_ua == 2000U && g_dc_ramp_s == 30U && g_chan_ua[NP_SAFETY_CH_TDCS] == 2000U,
+          "tDCS limit: exactly 2 mA with exactly a 30 s ramp is accepted, ramped and published as authored");
+    check(np_mod_stim_tdcs_ramp_up_ms(&t, sizeof t) == 30000U, "tDCS limit: and its ramp is the 30 s authored");
+    (void)np_mod_stim_control(NP_HUB_SLOT_TDCS, NULL, 0U);
+}
+
+/* @verifies REQ-FWHUB-76#f */
+static void test_a_refused_tdcs_command_leaves_a_running_one_as_it_was(void)
+{
+    start_tdcs_at_steady(1000U);                  /* 2 mA, 30 s ramp, at steady state */
+    reset_stubs();                                /* the published-current spy keeps the driver's 2000 */
+
+    np_mod_tdcs_params_t t;
+    memset(&t, 0, sizeof t);
+    t.electrode_pair = 1U; t.current_ua = 2500U; t.ramp_s = 30U; t.electrode_area_mcm2 = 35000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &t, sizeof t) == NP_HUB_ERR_INVALID_ARG,
+          "tDCS running: a later command above the limit is refused");
+    check(g_dc_ramp_calls == 0 && g_disabled_bits == 0U && g_chan_ua[NP_SAFETY_CH_TDCS] == 2000U,
+          "tDCS running: no ramp was commanded, the enable is held and the published current is the running one");
+    check(np_mod_stim_tdcs_pause() && g_dc_ramp_calls == 1 && g_dc_target_ua == 0U && g_dc_ramp_s == 30U,
+          "tDCS running: the running command still ramps down from its own 2 mA on a pause");
+    (void)np_mod_stim_control(NP_HUB_SLOT_TDCS, NULL, 0U);
+}
 
 /* ── tDCS pause: ramp down at the slope, reverse on an early resume (SWR-SS-05) ─ */
 
@@ -461,6 +587,10 @@ int main(void)
     test_param_length_is_exact();
     test_unowned_slot_is_refused();
     test_driver_feeds_the_cross_check();
+    test_bes_above_the_limit_is_refused_and_starts_nothing();
+    test_a_refused_bes_command_leaves_a_running_one_as_it_was();
+    test_tdcs_outside_its_limits_is_refused_and_starts_nothing();
+    test_a_refused_tdcs_command_leaves_a_running_one_as_it_was();
     test_tdcs_pause_ramps_down_with_the_enable_held();
     test_tdcs_pause_part_way_up_ramps_down_from_where_it_got_to();
     test_tdcs_resume_during_the_ramp_down_reverses_it();
