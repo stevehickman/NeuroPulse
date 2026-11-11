@@ -1,0 +1,41 @@
+{
+  "_comment": "The protection GitHub is expected to hold on main, apart from the required contexts, which are ci/required-checks.txt and are not restated here. scripts/check-main-ruleset.ts checks this file on every pull request that touches ci/ or a workflow (rules R1 to R6) and compares GitHub with it weekly in build-all.yml and by hand (--live, rules L1 to L8). NP-SW-CI-001 §6.17. This file changes nothing on GitHub: a settings change is the principal's (docs/human-input/oi-swci-54-main-ruleset.md), and this file is edited in the same operation, as ci/required-checks.txt is.",
+  "_observed": "Every value was read from GitHub on 2026-11-11 (gh api repos/stevehickman/NeuroPulse/rulesets/16412379 and .../rules/branches/main). Decided by a record: the pull_request rule, its first six parameters and the admin bypass mode (NP-SW-CI-001 §6.13.1); the App bypass (docs/revisions/README.md). Observed, and decided by no record: pull_request.require_extra_approval_for_unattributed_changes, pull_request.required_reviewers and the copilot_code_review rule. They are stated so that a change to them is seen, not because a record chose them (OI-SWCI-54).",
+  "repository": "stevehickman/NeuroPulse",
+  "ruleset_id": 16412379,
+  "name": "Safety",
+  "enforcement": "active",
+  "target": "branch",
+  "include": ["~DEFAULT_BRANCH"],
+  "exclude": [],
+  "rule_types": ["copilot_code_review", "deletion", "non_fast_forward", "pull_request", "required_status_checks"],
+  "status_checks": {
+    "strict": false,
+    "integration_id": 15368
+  },
+  "pull_request": {
+    "required_approving_review_count": 0,
+    "dismiss_stale_reviews_on_push": false,
+    "require_code_owner_review": false,
+    "require_last_push_approval": false,
+    "required_review_thread_resolution": false,
+    "allowed_merge_methods": ["merge", "squash", "rebase"],
+    "required_reviewers": [],
+    "require_extra_approval_for_unattributed_changes": true
+  },
+  "bypass_actors": [
+    {
+      "actor_type": "RepositoryRole",
+      "actor_id": 5,
+      "bypass_mode": "pull_request",
+      "who": "Repository admin. Pull requests only: an admin may merge a pull request over a failing check and may not push to main (OI-SWCI-22)."
+    },
+    {
+      "actor_type": "Integration",
+      "actor_id": 5585393,
+      "bypass_mode": "always",
+      "who": "A GitHub App. The records say the App RevNumberFixer is on the bypass list (docs/revisions/README.md); that this id is that App was not confirmed from the session that wrote this file.",
+      "workflow": ".github/workflows/assign-revisions.yml"
+    }
+  ]
+}
