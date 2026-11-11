@@ -1,9 +1,9 @@
 # Principal question for review: OI-SIMFW-05 (b), the saved file's name, extension, opening and association
 
-**Status:** Question A ANSWERED 2026-11-11 (the principal); question G ANSWERED 2026-11-11 (the principal): uniqueness is not needed; question L: first half ANSWERED 2026-11-11 (the principal): a save never overwrites a closed file, and may update a file the same session created; a 'save as' closes the file that was open (the principal, 2026-11-11); its second half is open; B to F, H to K, the rest of L, and M1 to M7 which those answers raise, are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Question A ANSWERED 2026-11-11 (the principal); question G ANSWERED 2026-11-11 (the principal): uniqueness is not needed; question L: first half ANSWERED 2026-11-11 (the principal): a save never overwrites a closed file, and may update a file the same session created; a 'save as' closes the file that was open (the principal, 2026-11-11); M2 ANSWERED 2026-11-11 (the principal): a 'save' appends, and a 'save as' creates a new file with the content since the last 'save' (two readings, to confirm); its second half is open; B to F, H to K, the rest of L, M1 and M3 to M7, and P1 to P8 which the answer to M2 raises, are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5 of `oi-simfw-05-temporary-file.md`, which question E here touches)
-**Response needed:** an option for each of B to F, H to K, the second half of L, and M1 to M7, with a short rationale, name, role and date.
+**Response needed:** an option for each of B to F, H to K, the second half of L, M1, M3 to M7, and P1 to P8, with a short rationale, name, role and date.
 **Why now:** on 2026-11-11 the principal answered Q1 of `oi-simfw-05-temporary-file.md` and gave direction for a saved copy: the person picks the directory, which is remembered; the default name is "the logged in userID followed by a timestamp"; and the extension is unique to NeurOne so the file opens on double click. That direction raises six questions it does not answer. None is decided here, and nothing in the repository acts as if any open one were answered. *(Written before the answer to A; see section 4.)*
 
 ## 1. What is known
@@ -63,7 +63,7 @@ It is a stored setting. What can be said now: it would hold a path and nothing e
 
 ## 3. What to send back
 
-An option for each of B to F, H to K, the second half of L, and M1 to M7, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
+An option for each of B to F, H to K, the second half of L, M1, M3 to M7, and P1 to P8, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
 
 ## 4. Answers
 
@@ -122,6 +122,22 @@ No rationale was given beyond the sentences. The second is recorded as `REQ-SIMF
 - **Supposed, to confirm, not decided:** after a 'save as', the session's later updates go to the new file.
 - **Still not said:** whether the person can close a file explicitly without a 'save as'; what happens to an unclosed file after a crash; and what "update" consists of (M2).
 
+**The principal, 2026-11-11, verbatim, on what "update" means (M2):** "'save' appends. 'Save as' creates a new file with all the content since the last 'save'."
+
+**M2: decided.**
+
+1. **A 'save' appends** to the file the session currently has open. This is option (c) of M2. Options (a), replace with the latest snapshot, and (b), a live mirror, are not taken and stay in section 6 as the record.
+2. **A 'save as' creates a new file with all the content since the last 'save'.**
+
+With the earlier answers: a 'save as' closes the file that was open, and later 'save' commands append to the new file. No rationale was given beyond the sentence. Recorded as `REQ-SIMFW-21` part (n). Not built.
+
+**The second sentence has two readings. Neither is chosen here.**
+
+- **Reading (A), the apparent meaning (the lead's reading, to confirm):** the new file holds only the content since the last 'save'. It is a segment. The earlier file keeps everything up to and including the last 'save', the new file continues from there, and a session's content is spread across files.
+- **Reading (B), listed so the principal can rule it out:** the new file holds all the content of the session so far. This sits badly with the words "since the last 'save'", which bound the content from a point and not from the start.
+
+Under reading (A) a saved file is no longer self-contained, which is what questions P1 to P8 (section 7) are about.
+
 ## 5. Questions the answer to A raises (none decided)
 
 **G. How is "cannot clash with an id another user picked" made true, and how much uniqueness is needed?** **ANSWERED 2026-11-11 (the principal): uniqueness is not needed (section 4). Options (a) to (d) below are NOT TAKEN and are kept as the record of what was considered.** The answer rests on the file being encrypted under a key that is not shared, so it depends on question H: under H option (a) it would not hold.
@@ -175,14 +191,14 @@ The default name, a pseudonymous id followed by a timestamp, already makes a col
 
 ## 6. Questions the answer to L raises (none decided)
 
-**M1. What does "closed" mean?** *(Partly answered 2026-11-11, section 4. Known: a 'save as' closes the file that was open, and the end of the session closes it; a session defaults to the duration of a user login, so option (a) below as worded, "the twin process exits", is not the principal's meaning unless N2 of `oi-simfw-05-temporary-file.md` is answered that way. Option (c) is ruled out by the principal's two answers taken together: a plain save updates the open file. Still open: whether the person can close a file explicitly, as in (b); what happens to an unclosed file after a crash (M3); and (d).)*
+**M1. What does "closed" mean?** *(Since M2 was answered, 2026-11-11: with an append-only file, a final authenticated record saying "closed" would let an opener tell a closed file from an unclosed one; see P4.)* *(Partly answered 2026-11-11, section 4. Known: a 'save as' closes the file that was open, and the end of the session closes it; a session defaults to the duration of a user login, so option (a) below as worded, "the twin process exits", is not the principal's meaning unless N2 of `oi-simfw-05-temporary-file.md` is answered that way. Option (c) is ruled out by the principal's two answers taken together: a plain save updates the open file. Still open: whether the person can close a file explicitly, as in (b); what happens to an unclosed file after a crash (M3); and (d).)*
 
 - **(a) The session ends.** The file is closed when the twin process exits. Under the second sentence, every save during the session updates the one file, and the file becomes fixed at exit. Costs: a crash ends the session without a deliberate close (M3, M4); a long session has one file that keeps changing.
 - **(b) The person closes it,** by an explicit "finish and keep" action. Saves before that update the file; after it the file is fixed and a further save starts a new file. Costs: one more action to explain, and a session that ends without it needs a rule (closed at exit, as (a)). Gains: the person decides when a record is final.
 - **(c) Each save writes the file and closes it at once,** so every later save in the session is a new file. **This contradicts the second sentence of the decision,** which lets a save continue to update a file the session created; under (c) there is never an open file to update. Listed because it is the simplest reading of "save", and to be ruled out or the second sentence explained.
 - **(d) Closed when the twin has not written to it for a stated time.** Costs: needs a figure nobody has given, and a person cannot tell by looking whether the next save will update or start a new file. Gains: none that (a) or (b) lacks.
 
-**M2. What does "update" mean?** *(Not answered. The principal's sentence of 2026-11-11, "A second save in a session (Not a 'save as') updates the currently open file", settles that a save command updates the open file; it does not say whether the update replaces the content with the latest snapshot, mirrors continuously, or appends. Known since 2026-11-11: a plain save updates the file the session has open, a 'save as' closes that file and, it is supposed, later updates go to the new one. Options (a), (b) and (c) below are all still open. Because a session is a login and may span several runs of the twin, an update can come from a later run than the one that created the file.)*
+**M2. What does "update" mean?** **ANSWERED 2026-11-11 (the principal; section 4): a 'save' appends, option (c). Options (a) and (b) below are NOT TAKEN and are kept as the record.** *(The note that follows was written before the answer.)* *(Not answered. The principal's sentence of 2026-11-11, "A second save in a session (Not a 'save as') updates the currently open file", settles that a save command updates the open file; it does not say whether the update replaces the content with the latest snapshot, mirrors continuously, or appends. Known since 2026-11-11: a plain save updates the file the session has open, a 'save as' closes that file and, it is supposed, later updates go to the new one. Options (a), (b) and (c) below are all still open. Because a session is a login and may span several runs of the twin, an update can come from a later run than the one that created the file.)*
 
 - **(a) Replace with the latest snapshot.** Each later save in the session replaces the content of the session's one file (the person presses save again). Costs: the earlier snapshot is gone, by the person's own action. Gains: one file per session, always whole.
 - **(b) A live mirror.** Once saved, the file is kept in step continuously while the twin runs. Costs: the twin writes its state to two places for the whole session; the saved file is exposed to a crash in the middle of an update at any moment, not only when the person saves (M4); the working file of Q1 and Q2 stays separate and unlinked either way. Gains: the file is current when the session ends without a final save.
@@ -204,6 +220,8 @@ The file-format question (E) has to cover this. A mark inside the header, or a f
 
 **M5. From when does the retention period run, and is an unclosed file offered for deletion?**
 
+*(Since M2 was answered, 2026-11-11: under reading (A) the files of one session form a chain, the retention clock as recorded is per file, and deleting an earlier file can leave later ones unusable; see P3.)*
+
 "Kept for one week" (`REQ-SIMFW-21` part (f)) needs a start, and with files that are updated while open there are three candidates: **from creation** (costs: a file from a long session, or one continued over days if that is ever allowed, can be expired the moment it is closed); **from closing** (costs: an unclosed file left by a crash has no start, so it needs its own rule); **from the last update** (costs: the same for a crashed file, though the last write time serves; under M2 (b) the period restarts continuously while the twin runs). And for a file left unclosed by a crash: when does its period start, and is it listed and offered for deletion with the expired copies, or shown apart as a damaged or unfinished file? This extends point R0 of `oi-simfw-05-temporary-file.md` (counted from saving or from last opening).
 
 **M6. How this bears on "when a save may be requested".**
@@ -217,3 +235,29 @@ Continuing to update a file during a session suggests that a save can be request
 - **Is 'save as' available at launch?** A save can be requested at launch (`REQ-SIMFW-21` part (j)). At launch no file is yet open in this run, though under a session that spans runs one may be open from an earlier run (N2, N4 of `oi-simfw-05-temporary-file.md`): does a launch-time request with a name close it?
 - **In a container** the same limits apply as to any save: the new file can only be in the mapped directory, since a running container cannot gain a mount (C1 of `oi-simfw-05-temporary-file.md`).
 - **Is the file that a 'save as' closes complete at that moment?** That depends on what "update" means (M2): under a snapshot it is whatever the last save wrote; under a live mirror it is current.
+
+## 7. Questions the answer to M2 raises (none decided)
+
+**P1. What is "content", and where is the base?**
+
+The principal decided that the twin stores everything in a file: the UHDR and SHDR records and the synthetic state. Something that is appended on each save must then be a record of what changed since the last save, a journal, and not another copy of whole partitions. **That is an inference from "appends", not something the principal said.** If it is right, the file format is a base state followed by appended records; for a file-system image those records would be the changed blocks, or the operations that changed them. The first file of a session must then hold a base (the initial state) or refer to one. Under reading (A) a file created by 'save as' has no base of its own. Where is the base: only in the first file of the session; copied into each new file (which is reading (B) in effect); or is the initial state always the same empty part, so that no base need be stored? Costs: the first makes every later file depend on the first; the second makes files large and repeats content; the third holds only if a session always starts from an empty part, which a session that spans runs of the twin (N2 of `oi-simfw-05-temporary-file.md`) may not.
+
+**P2. Chains of files.** Under reading (A) a file made by 'save as' can be used only together with the earlier files of the same session.
+
+- **(a) Each file records the identity of the one before it:** a session identifier and a sequence number, and a digest of the previous file's final state, so an opener can check it holds a complete, unaltered chain. Costs: more in the header; a renamed or moved file is still recognised, but a missing one makes the rest unusable and the opener must say so.
+- **(b) Each file is independent.** This contradicts reading (A); it is reading (B).
+- **(c) The opener opens one file at a time and says what is missing.** Costs: a person sees a fragment and has to find the rest themselves. Gains: the simplest opener.
+
+This bears on question B (what a double click on one file of a chain does), question E (the header, which would carry the chain information with the magic, version and provenance) and the session identifier of M3.
+
+**P3. The expiry offer and dependent files.** It is decided that the twin lists expired copies and offers to delete them (`REQ-SIMFW-21` part (g)). Under reading (A), deleting an earlier file of a chain can leave the later files unusable, and the retention clock is per file (M5). **Without a rule, an expiry offer could invite a person to destroy the base of a saved run.** Options: the offer lists a chain as one unit and warns when a deletion would orphan a later file (costs: the twin must find the whole chain, P2); or it lists files singly and says what depends on each (costs: the person has to work out the effect); or the retention period of a chain is that of its newest file, so the files of a chain expire together (costs: an old file is kept longer than its own week; this changes what part (f) means for a chain and would need the principal's word).
+
+**P4. Appending, encryption and a crash** (M4). An append-only file in which each appended record is separately authenticated was one of M4's three options and is now the natural one: the answer settles M2 and narrows M4. It does not settle: the key (question H); whether every file of a chain uses the same key (if not, the opener needs several); or what a crash in the middle of an append leaves, which would be a truncated last record that the opener has to recognise and discard without rejecting the file. A final authenticated record marking the file closed would tell a closed file from an unclosed one (M1).
+
+**P5. The first 'save' of a session, and a 'save as' with no earlier 'save'.** Under reading (A), what is "since the last 'save'" when there has been none? It is supposed that it means since the start of the session, to be confirmed and not decided here. With a session that defaults to a login and may span runs of the twin, "the start of the session" is itself something to pin down (N1, N2 of `oi-simfw-05-temporary-file.md`).
+
+**P6. A 'save' with nothing new since the last one.** An append of nothing, which leaves the file as it was and says so; or a refusal. A small question, for the build.
+
+**P7. A save requested at launch** (S1 of `oi-simfw-05-temporary-file.md`). The answer makes a save an explicit command that appends. A launch-time request then means either "open a file at start and append to it on each save command" or "append continuously as the twin runs". Not decided; S1 stays open.
+
+**P8. What the twin must track** (a build question, listed). Under Q2 option D the working file is unnamed and separate. A saved file is now a journal and not a copy of the working file, so a save no longer means copying the working file through its open handle, as was noted earlier under Q3. To append what changed since the last save, the twin has to know what changed: a change log, or write counters per block. How is for the build.
