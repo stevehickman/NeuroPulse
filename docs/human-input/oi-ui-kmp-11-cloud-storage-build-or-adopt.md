@@ -1,9 +1,10 @@
 # Principal decision for review: OI-UI-KMP-11 (GitHub #566), build or adopt for the cloud storage API, and three choices that follow
 
-**Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** PARTLY ANSWERED 2026-11-11 (Q1 answered by the principal; Q2, Q3 and Q4 open). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-UI-KMP-11` M9 to M12; GitHub #566; `NP-SW-CLOUDSTORE-001` §7)
 **To:** The principal
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.
+**Still needed:** a ruling on Q2, Q3 and Q4 (section 3), as section 4 sets out.
 **Why now:** #566 asks for a build-or-adopt decision and cannot close without one. Nothing is blocked today: every cloud place carries the health-data backup only, and no migration runs over one.
 
 ## 1. The questions in one line each
@@ -28,7 +29,7 @@ All of it is in `docs/np_sw_cloudstore_001.md`; section numbers below are that d
 
 ## 3. Questions
 
-**Q1. Is "build" the decision of record?**
+**Q1. Is "build" the decision of record?** *Answered 2026-11-11: yes (section 5).*
 
 | Option | What it means | Cost |
 |--------|---------------|------|
@@ -65,4 +66,16 @@ Google's guide (read 2026-11-11) says a create with a pre-generated file ID that
 
 For each question: the option chosen (or another), a one-line rationale, any condition that would reopen it, and name, role and date. For Q3, also who will create the accounts and registrations, or a statement that they are deferred.
 
-The answer takes effect only when it is recorded in `docs/np_sw_cloudstore_001.md` and logged in `docs/status/completed-decisions.md`. Until then the repository treats every question here as open.
+An answer takes effect only when it is recorded in `docs/np_sw_cloudstore_001.md` and logged in `docs/status/completed-decisions.md`. Until then the repository treats the question as open.
+
+## 5. Answers
+
+**Q1, answered 2026-11-11 by the principal** (relayed to the sender by the session lead): "build thin adapters, adopt no storage library" is the decision of record. This is option A.
+
+- **Recorded in:** `docs/np_sw_cloudstore_001.md` §7.1 and §7.7; `docs/status/completed-decisions.md` (2026-11-11).
+- **What it ratifies:** the direction of 2026-10-27 to build the thin adapters as a reusable library, which was acted on then and not logged.
+- **Rationale:** the principal gave none beyond the decision. The reasons in `NP-SW-CLOUDSTORE-001` §7.7 are the sender's own, from its evaluation, and are kept there as the supporting record; they are not the principal's words.
+- **Conditions that would reopen it:** none were stated.
+- **Not covered by this answer:** Q2, Q3 and Q4. Nothing in the repository acts as if they were answered.
+
+**Q2, Q3, Q4:** open.
