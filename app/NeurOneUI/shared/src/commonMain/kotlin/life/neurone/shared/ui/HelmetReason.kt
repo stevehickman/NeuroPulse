@@ -21,13 +21,38 @@ enum class HubStatusReason(val code: Int, override val key: String) : SocketReas
     POWER_BUDGET(-18, "HELMET_REASON_HUB_POWER_BUDGET"),
 
     /**
-     * `NP_HUB_ERR_SAFETY_REJECTED`: a module driver's own safety check refused the command. The goggles' drivers return it for a halted
-     * photic detector, an unarmed or open Hall sensor, a goggle not seated, a closed eye in a retinal mode and the MPE check; the probe's
-     * for an unauthenticated sleeve; the auricular VNS driver's for a contact impedance that is not finite or outside the window
-     * (`np_mod_vns.c`, `REQ-VNSC-07`). The hub returns the one code, so the
-     * cause among them is not reported (`OI-SIMFW-47`).
+     * `NP_HUB_ERR_SAFETY_REJECTED`: a safety refusal the hub does not split. Since `OI-SIMFW-47` (the Principal, 2026-11-10) the goggles,
+     * the probe and the auricular clip no longer return it: each of their checks has its own code below (`REQ-FWHUB-77`). What still
+     * returns it is the cervical VNS lockout and its re-enable confirm window (`np_mod_cvns.c`, `np_cvns_reenable.c`).
      */
     DRIVER_INTERLOCK(-10, "HELMET_REASON_HUB_DRIVER_INTERLOCK"),
+
+    /** `NP_HUB_ERR_PHOTIC_ZONE`: photic driving at 3 to 30 Hz is refused until the Oz detector exists (`REQ-FWHUB-66`; at the drive, `np_mod_visual.c`). */
+    PHOTIC_ZONE(-30, "HELMET_REASON_HUB_PHOTIC_ZONE"),
+
+    /** `NP_HUB_ERR_PPX_HALT`: the photoparoxysmal detector halted photic driving, and the goggles refuse every later drive in the session. */
+    PPX_HALT(-32, "HELMET_REASON_HUB_PPX_HALT"),
+
+    /** `NP_HUB_ERR_PPX_BLIND`: photic driving in the zone is permitted but the detector cannot see (`REQ-FWHUB-69`). */
+    PPX_BLIND(-33, "HELMET_REASON_HUB_PPX_BLIND"),
+
+    /** `NP_HUB_ERR_GOGGLE_LIFT_UNARMED`: the Hall lift interrupt is not armed, so a lift could not be taken back. */
+    GOGGLE_LIFT_UNARMED(-34, "HELMET_REASON_HUB_GOGGLE_LIFT_UNARMED"),
+
+    /** `NP_HUB_ERR_GOGGLES_NOT_SEATED`: not in the wear position, or lifted between the seated read and the enable. */
+    GOGGLES_NOT_SEATED(-35, "HELMET_REASON_HUB_GOGGLES_NOT_SEATED"),
+
+    /** `NP_HUB_ERR_EYE_NOT_OPEN`: a retinal mode with the eye not open (IR proximity). */
+    EYE_NOT_OPEN(-36, "HELMET_REASON_HUB_EYE_NOT_OPEN"),
+
+    /** `NP_HUB_ERR_MPE_CHECK`: the IEC 62471 exposure check failed. */
+    MPE_CHECK(-37, "HELMET_REASON_HUB_MPE_CHECK"),
+
+    /** `NP_HUB_ERR_SLEEVE_NOT_AUTH`: the intranasal probe's sleeve is not authenticated. */
+    SLEEVE_NOT_AUTH(-38, "HELMET_REASON_HUB_SLEEVE_NOT_AUTH"),
+
+    /** `NP_HUB_ERR_CONTACT_NOT_CONFIRMED`: the auricular VNS clip's contact impedance is not finite or is outside the window (`REQ-VNSC-07`). */
+    CONTACT_NOT_CONFIRMED(-39, "HELMET_REASON_HUB_CONTACT_NOT_CONFIRMED"),
 
     /** `NP_HUB_ERR_INVALID_ARG`: the command's parameters were too short or out of range. */
     INVALID_ARGUMENT(-2, "HELMET_REASON_HUB_INVALID_ARGUMENT"),
@@ -69,11 +94,37 @@ enum class WithheldReason(override val key: String) : SocketReason {
     CONTACT_CHECK_FAILED("HELMET_REASON_WITHHELD_CONTACT"),
 
     /**
-     * No status flag says why. An undeclared electrical waveform class, the tier gate and a line the hub has not requested are all
-     * withheld with status OK and no fault slot (§23), so they cannot be told apart from what the MCU reports (`OI-SIMFW-47`).
+     * The hub never asked for this line's enable (its own requested mask has no bit for the line), so there was nothing for the MCU to
+     * grant. This is the hub's own record (`np_safety_spi_get_requested_mask`, the `requested` field of the simulator's `safety_state`),
+     * and the MCU is not involved (`OI-SIMFW-47`).
+     */
+    NOT_REQUESTED("HELMET_REASON_WITHHELD_NOT_REQUESTED"),
+
+    /**
+     * The unit's signed tier identity does not allow this line: a T2 line (cervical VNS, TMS, 1170 nm, clinical stimulation) on a unit
+     * the MCU does not establish as T2. The MCU reports it in the tier report of the reply (`np_safety_tier_report_t`: the REFUSED flag
+     * and the reason, read by `np_safety_spi_get_tier_report`), which the simulator's `safety_state` carries as `tier_refused` and
+     * `tier_reason`. It applies only to the lines in [TIER_GATED_LINE_MASK], because the flag says a T2 line was refused, not which.
+     */
+    TIER_GATE("HELMET_REASON_WITHHELD_TIER"),
+
+    /**
+     * No status flag and no report says why: the MCU withholds a line for an undeclared electrical waveform class, or for a missing
+     * electrode geometry, with status OK and no fault slot (`np_charge_monitor_decl_gate`, `np_charge_monitor_geom_gate`; §23). Class C
+     * firmware change proposed as `OI-SIMFW-61`; until the safety MCU's owner decides, this is shown as what it is.
      */
     UNREPORTED("HELMET_REASON_WITHHELD_UNREPORTED"),
 }
+
+/**
+ * The enable lines the MCU's tier gate can withhold, as the enable bits the hub requests and the MCU grants: the cervical VNS, TMS,
+ * 1170 nm and clinical stimulation lines (`NP_SAFETY_EN_T2_MASK`, `np_safety_protocol.h`; bits 10 to 13 of `np_spi_wire_types.h`).
+ * A test holds this to the header.
+ */
+const val TIER_GATED_LINE_MASK: Int = (1 shl 10) or (1 shl 11) or (1 shl 12) or (1 shl 13)
+
+/** True when [lineBit], one enable bit of the requested mask, is a line the tier gate can withhold. */
+fun isTierGatedLine(lineBit: Int): Boolean = lineBit and TIER_GATED_LINE_MASK != 0
 
 /** Why the safety MCU dropped a line it had enabled while the hub still requested it (state CUT_OFF). */
 enum class CutoffReason(override val key: String) : SocketReason {
@@ -121,12 +172,16 @@ object SafetyStatusBits {
 }
 
 /**
- * The reason for a WITHHELD socket from the MCU's last status byte. Order, first match wins: the session signature, then the
- * contact check. Both can be set at once; the Safety MCU panel shows every flag.
+ * The reason for a WITHHELD socket from the hub's requested bit for its line, the MCU's last status byte and its tier report.
+ * Order, first match wins: a line the hub never requested (nothing else can apply to it), the session signature, the contact check,
+ * then the tier gate. [tierGated] is true only when [isTierGatedLine] holds for the socket's line and the MCU's tier report says a T2
+ * line was refused. Several can be set at once; the Safety MCU panel shows every flag.
  */
-fun withheldReasonOf(status: Int): WithheldReason = when {
+fun withheldReasonOf(status: Int, requested: Boolean = true, tierGated: Boolean = false): WithheldReason = when {
+    !requested -> WithheldReason.NOT_REQUESTED
     status and SafetyStatusBits.SIG_PENDING != 0 -> WithheldReason.AWAITING_SESSION_SIGNATURE
     status and SafetyStatusBits.IMPEDANCE != 0 -> WithheldReason.CONTACT_CHECK_FAILED
+    tierGated -> WithheldReason.TIER_GATE
     else -> WithheldReason.UNREPORTED
 }
 

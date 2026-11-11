@@ -1204,7 +1204,7 @@ static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
           "disconnect: a completed blob that was not yet taken is kept");
 }
 
-/* ── The link: every characteristic that carries data requires an encrypted link (CLAUDE.md section 23, REQ-FWHUB-81) ── */
+/* ── The link: every characteristic that carries data requires an encrypted link (CLAUDE.md §23, REQ-FWHUB-81) ── */
 
 /* @verifies REQ-FWHUB-81#b */
 static void test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there(void)

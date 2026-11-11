@@ -13,6 +13,7 @@ const registryWith = (events) => {
 };
 const snap = (over = {}) => ({ visual: {}, audio: {}, bes: {}, tdcs: {}, tms: {}, vns: {}, intranasal: {}, cvns: {}, haptic: {}, ...over });
 
+// @verifies REQ-SIMFW-20#b
 test('each accessory is attached to the helmet or has its own window, as the hardware documents say', () => {
   const mount = Object.fromEntries(ACCESSORIES.map((a) => [a.id, a.mount]));
   for (const id of ['goggles', 'earcups', 'tmsCoil', 'hapticPad', 'stimElectrodes']) assert.strictEqual(mount[id], MOUNT.HELMET, id);
@@ -20,11 +21,13 @@ test('each accessory is attached to the helmet or has its own window, as the har
   assert.strictEqual(HELMET_ACCESSORIES.length + WINDOW_ACCESSORIES.length, ACCESSORIES.length);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('nothing is in use when nothing is running', () => {
   for (const st of accessoryStates({ snap: snap() }).values()) assert.strictEqual(st.inUse, false, st.id);
   for (const st of accessoryStates({ registry: new SimModuleRegistry(), snap: snap() }).values()) assert.strictEqual(st.inUse, false, st.id);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('standalone: an accessory is in use exactly when its modality is live in the session', () => {
   const st = accessoryStates({ snap: snap({ visual: { active: true }, vns: { active: true }, bes: { active: true } }) });
   assert.strictEqual(st.get('goggles').inUse, true);
@@ -35,6 +38,7 @@ test('standalone: an accessory is in use exactly when its modality is live in th
   assert.strictEqual(st.get('cvns').inUse, false);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('standalone: the intranasal probe and the cervical pads are in use when the protocol uses them', () => {
   const st = accessoryStates({ snap: snap({ intranasal: { active: true, wavelengths: ['660nm', '808nm'] }, cvns: { active: true } }) });
   assert.strictEqual(st.get('intranasal').inUse, true);
@@ -42,12 +46,14 @@ test('standalone: the intranasal probe and the cervical pads are in use when the
   assert.strictEqual(st.get('vnsClip').inUse, false);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('standalone: the haptic pad, which no shipped protocol drives, is in use from its modality or from the demo switch', () => {
   assert.strictEqual(accessoryStates({ snap: snap() }).get('hapticPad').inUse, false);
   assert.strictEqual(accessoryStates({ snap: snap({ haptic: { active: true } }) }).get('hapticPad').inUse, true);
   assert.strictEqual(accessoryStates({ snap: snap(), demo: { hapticPad: true } }).get('hapticPad').inUse, true);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('firmware: an accessory is in use exactly when its module is driven, and the session is not consulted', () => {
   const r = registryWith([
     { ev: 'module', id: 'vns:0', kind: 'vns', index: 0, present: true },
@@ -64,6 +70,7 @@ test('firmware: an accessory is in use exactly when its module is driven, and th
   assert.strictEqual(st.get('tmsCoil').source, 'none');
 });
 
+// @verifies REQ-SIMFW-20#a
 test('firmware: a module of another kind with the same index is a different module', () => {
   const r = registryWith([
     { ev: 'module', id: 'pbm_base:0', kind: 'pbm_base', index: 0, present: true },
@@ -76,6 +83,7 @@ test('firmware: a module of another kind with the same index is a different modu
   assert.strictEqual(accessoryStates({ registry: r }).get('stimElectrodes').inUse, false, 'a driven tile does not make the stimulation pair driven');
 });
 
+// @verifies REQ-SIMFW-20#a
 test('firmware: the cervical VNS is in use while its session is active, before its enable is requested', () => {
   const r = registryWith([
     { ev: 'module', id: 'cvns:0', kind: 'cvns', index: 0, present: true },
@@ -88,6 +96,7 @@ test('firmware: the cervical VNS is in use while its session is active, before i
   assert.strictEqual(st.modules[0].detail.stage, 2);
 });
 
+// @verifies REQ-SIMFW-20#c
 test('window slots lie around the perimeter and never over the middle', () => {
   for (const [vw, vh] of [[1000, 700], [1400, 900], [700, 600]]) {
     const slots = windowSlots(vw, vh);
@@ -109,6 +118,7 @@ test('window slots lie around the perimeter and never over the middle', () => {
   }
 });
 
+// @verifies REQ-SIMFW-20#c
 test('a window keeps its slot: the rect for an accessory does not depend on which others are showing', () => {
   const a = windowRects(1200, 800);
   const b = windowRects(1200, 800);
@@ -118,6 +128,7 @@ test('a window keeps its slot: the rect for an accessory does not depend on whic
   assert.ok(windowSlots(1200, 800)[0].w <= WINDOW_BASE.w);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('firmware: the cervical VNS window goes when its session ends, reported by the result of the stop', () => {
   const r = registryWith([
     { ev: 'module', id: 'cvns:0', kind: 'cvns', index: 0, present: true },
@@ -130,6 +141,7 @@ test('firmware: the cervical VNS window goes when its session ends, reported by 
   assert.strictEqual(r.byKind('cvns')[0].detail.stage, 0);
 });
 
+// @verifies REQ-SIMFW-20#a
 test('a result that is not a cervical VNS stage is not folded into a module', () => {
   const r = registryWith([{ ev: 'module', id: 'vns:0', kind: 'vns', index: 0, present: true }]);
   r.onMessage({ type: 'FW_LOG', event: { ev: 'result', cmd: 'vns', code: 0, stimulating: true } }, 0);

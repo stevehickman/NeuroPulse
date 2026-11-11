@@ -26,7 +26,7 @@
 #include "np_warranty_token.h"
 
 /* Whether the link to the central is encrypted, as the stack last said (np_gatt_set_link_encrypted).  False until it does:
- * the refusal is the default and the encrypted link is what has to be shown (CLAUDE.md section 23). */
+ * the refusal is the default and the encrypted link is what has to be shown (CLAUDE.md §23). */
 static bool s_link_encrypted = false;
 
 /* The UUID base, least-significant byte first (np_app_wire_constants.h, generated from common/npps/constants.json). */

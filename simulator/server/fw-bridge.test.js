@@ -959,7 +959,7 @@ test('end to end: a second blob while the first waits is BUSY, a malformed lengt
   assert.ok(pumps.every((p) => p.len === c.blob.length / 2), 'each whole, and the second with nothing of the half before it');
 });
 
-// ── every upload and download is encrypted: the link's security through the twin (CLAUDE.md section 23, REQ-FWHUB-81) ─────────────
+// ── every upload and download is encrypted: the link's security through the twin (CLAUDE.md §23, REQ-FWHUB-81) ─────────────
 
 // @verifies REQ-FWHUB-81#a,b,c
 test('end to end: with the link not encrypted the hub refuses to carry data (ATT 0x0F) and still takes a stop; encrypted, it carries it (REQ-FWHUB-81)', { skip: !BIN }, async () => {

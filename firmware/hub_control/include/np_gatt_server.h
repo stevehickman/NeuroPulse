@@ -60,7 +60,7 @@
 #define NP_GATT_PROP_NOTIFY   0x04u
 /* Access needs an encrypted link: on one that is not, the read, write or notification is refused (ATT 0x0F,
  * Insufficient Encryption).  Set on every characteristic that carries a protocol, a session, a log, user data or an
- * identifier (CLAUDE.md section 23, NP-FW-HUB-001 section 2.5, REQ-FWHUB-81); first on DEVICE_SERIAL, a stable hardware
+ * identifier (CLAUDE.md §23, NP-FW-HUB-001 section 2.5, REQ-FWHUB-81); first on DEVICE_SERIAL, a stable hardware
  * serial readable by any central in range being a tracking identifier.  Enforced twice: by the stack at the permission
  * (np_gatt_hal_register), and here, against the link state the stack reports (np_gatt_set_link_encrypted), so a host
  * test reaches the refusal.  A modifier, not an access mode, so it is only meaningful with READ or WRITE. */

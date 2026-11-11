@@ -462,6 +462,7 @@ jobs:
         app/**
         common/**
         ci/**
+        simulator/**
         scripts/req-trace.ts
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
@@ -705,6 +706,7 @@ jobs:
           assert scope.reqtrace.paths true  docs/status/requirement-parts.json
           assert scope.reqtrace.paths true  firmware/safety_mcu/tests/np_tier_identity_tests.c
           assert scope.reqtrace.paths true  ci/req-trace-baseline.txt
+          assert scope.reqtrace.paths true  simulator/js/accessories.test.mjs
           assert scope.reqtrace.paths true  scripts/req-trace.ts
           assert scope.reqtrace.paths false locales/en.json
 
