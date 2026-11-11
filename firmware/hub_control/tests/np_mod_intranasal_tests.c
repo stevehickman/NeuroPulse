@@ -175,6 +175,16 @@ static void test_a_refused_duty_leaves_a_running_command_as_it_was(void)
           "running: nothing was written, so the command already emitting is exactly as it was, enable included");
 }
 
+/* @verifies REQ-FWHUB-77#b */
+static void test_an_unauthenticated_sleeve_is_refused_as_its_own_status(void)
+{
+    reset();
+    g_auth = false;
+    (void)np_mod_intranasal_init(SLOT);        /* init reads the sleeve once (OI-SIMFW-21 point 1) */
+    check(drive(0U, 20U) == NP_HUB_ERR_SLEEVE_NOT_AUTH, "sleeve: an unauthenticated sleeve is refused as its own status, not -10");
+    check(!g_side_on[0] && !g_side_on[1] && !enable_requested() && g_set_calls == 0, "sleeve: nothing is driven and no enable is requested");
+}
+
 int main(void)
 {
     test_a_failure_on_the_second_side_stops_the_first();
@@ -184,6 +194,7 @@ int main(void)
     test_a_fully_applied_command_still_drives();
     test_a_duty_above_the_ceiling_is_refused_and_starts_nothing();
     test_a_refused_duty_leaves_a_running_command_as_it_was();
+    test_an_unauthenticated_sleeve_is_refused_as_its_own_status();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

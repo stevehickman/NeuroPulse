@@ -609,3 +609,250 @@ test('end to end: through the bridge the safety MCU grants a BES line, then the 
   assert.strictEqual((cut.requested >> 5) & 1, 1, 'while the hub still requests it');
   assert.strictEqual(bridge.list().safety.lines, cut.lines, 'and MODULE_LIST carries that state');
 });
+
+// ── the app's protocol upload, over the hub's own transport (NP-SIM-FW-001 §26, REQ-SIMFW-17) ──────────────────────────────────
+
+const nodeCrypto = require('node:crypto');
+const GOLDEN = require('../../common/testdata/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot
+const framed = (blob) => Buffer.concat([Buffer.from(new Uint32Array([blob.length]).buffer), blob]);   // a 4-byte little-endian length, then the blob
+
+// @verifies REQ-SIMFW-17#a
+test('the bridge relays a protocol upload as validated hex and nothing else', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: '0a0B' }), ['proto_feed 0a0B']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: 'ff'.repeat(100) }), [`proto_sign ${'ff'.repeat(100)}`]);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_pump' }), ['proto_pump']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '0a\nquit' },
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '0a0' },                       // odd length
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: 'zz' },
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '' },
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: 12 },
+    { type: 'FW_COMMAND', cmd: 'proto_feed' },
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00'.repeat(6153) },           // more than one whole frame
+    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: '00'.repeat(6149) },           // more than one whole blob
+    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: ['00'] },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m).slice(0, 80));
+});
+
+/** Runs one upload through the real firmware process: sign, feed in `chunk`-byte writes, pump; returns what the firmware reported. */
+async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [], before = [] } = {}) {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const e of before) bridge.handle(e);
+  await wait(before.length ? 400 : 0);
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: blobHex });
+  await wait(300);
+  const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
+  const blob = mutate(Buffer.from(signed.hex, 'hex'));
+  const bytes = framed(blob);
+  for (let i = 0; i < bytes.length; i += chunk) bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: bytes.subarray(i, i + chunk).toString('hex') });
+  for (const e of extra) bridge.handle(e);
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_pump' });
+  await wait(500);
+  bridge.stop();
+  const ev = seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event);
+  return {
+    blob,
+    feeds: ev.filter((e) => e.ev === 'result' && e.cmd === 'proto_feed'),
+    pump: ev.find((e) => e.ev === 'result' && e.cmd === 'proto_pump'),
+    frame: (seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event).find((e) => e.ev === 'gatt_notify') || {}).hex,   // the hub's GATT notification, routed as the app would receive it
+  };
+}
+
+// @verifies REQ-SIMFW-17#b,c
+test('end to end: a protocol split into 20-byte writes is reassembled by the hub\'s transport, hashed as received, and given a verdict frame', { skip: !BIN }, async () => {
+  const r = await upload(GOLDEN.pbm660, { chunk: 20 });
+  assert.ok(r.feeds.length > 1 && r.feeds.every((f) => f.code === 0), 'every fragment is accepted');
+  assert.strictEqual(r.pump.blob, true, 'and a whole blob came out of the mailbox');
+  assert.strictEqual(r.pump.len, r.blob.length, 'with every byte of it');
+  assert.strictEqual(r.pump.session_started, false, 'the runner is not in the loop, and the pump says no session started');
+  const f = Buffer.from(r.frame, 'hex');
+  assert.strictEqual(f.length, 34, 'the frame is the 34 bytes np_upload_check.c sends');
+  assert.strictEqual(f.subarray(2).toString('hex'), nodeCrypto.createHash('sha256').update(r.blob).digest('hex'), 'its hash is the SHA-256 of the bytes as they arrived');
+  assert.strictEqual(f[0], 2, 'a verdict (REFUSED), not still PENDING');
+});
+
+// @verifies REQ-SIMFW-17#c
+test('end to end: the hub\'s own parser runs before its signature check, so a bad magic word is refused as one (OI-SIMFW-42)', { skip: !BIN }, async () => {
+  const r = await upload(GOLDEN.pbm660, { mutate: (b) => { b[0] ^= 0xff; return b; } });   // the magic word, after the TEST signature was made
+  assert.notStrictEqual(r.pump.code, -6, 'not as a bad signature');
+  assert.strictEqual(r.pump.code, -4, 'but as NP_HUB_ERR_BAD_MAGIC');
+  assert.strictEqual(Buffer.from(r.frame, 'hex')[1], 4, 'and the frame names that reason');
+});
+
+// @verifies REQ-SIMFW-17#c
+test('end to end: a protocol the TEST key signed is accepted by the hub\'s own verifier, and a flipped bit in it is refused as a bad signature (OI-SIMFW-42)', { skip: !BIN }, async () => {
+  // OI-SIMFW-42 was a call in the wrong argument order and a 256-byte cap in the shared library: np_protocol.c now calls
+  // np_proto_verify_signature, which takes a message up to NP_HUB_PROTO_BLOB_MAX.  The golden protocols are 300 to 560 bytes.
+  // The admissions after the signature (tier, hardware version) read what the safety MCU reported, so the MCU is attached with a T1 record for
+  // hardware version 1 and runs one second of heartbeats first, as it does before a session (REQ-FWHUB-61, SWR-HV-08).
+  const mcu = [{ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 0 }];
+  const r = await upload(GOLDEN.pbm660, { before: mcu });
+  assert.strictEqual(r.pump.code, 0, 'NP_HUB_OK');
+  const f = Buffer.from(r.frame, 'hex');
+  assert.deepStrictEqual([f[0], f[1]], [1, 0], 'ACCEPTED, no reason');
+  const bad = await upload(GOLDEN.pbm660, { before: mcu, mutate: (b) => { b[100] ^= 0x01; return b; } });   // a command byte, after the TEST signature was made
+  assert.strictEqual(bad.pump.code, -6, 'NP_HUB_ERR_BAD_SIGNATURE');
+  const bf = Buffer.from(bad.frame, 'hex');
+  assert.deepStrictEqual([bf[0], bf[1]], [2, 6], 'REFUSED, reason 6');
+});
+
+// @verifies REQ-SIMFW-17#a,e
+test('the bridge relays the TEST device serial as whole hex and the boot decision as a whitelisted name', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(32) }), [`proto_serial ${'11'.repeat(32)}`]);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'refuse' }), ['proto_boot refuse']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'admit' }), ['proto_boot admit']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(31) },            // not the whole serial
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(33) },
+    { type: 'FW_COMMAND', cmd: 'proto_serial', hex: '1\nquit' + '1'.repeat(61) },
+    { type: 'FW_COMMAND', cmd: 'proto_serial' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'admit\nquit' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'maybe' },
+    { type: 'FW_COMMAND', cmd: 'proto_boot' },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m).slice(0, 80));
+});
+
+const MCU = [{ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 0 }];
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: the device-serial replay guard is live: a protocol for another serial is refused as the wrong device, and a loaded one says so', { skip: !BIN }, async () => {
+  const ok = await upload(GOLDEN.pbm660, { before: MCU });
+  assert.strictEqual(ok.pump.code, 0);
+  assert.strictEqual(ok.pump.loaded, true, 'np_runner_load took it');
+  assert.strictEqual(ok.pump.session_started, false, 'and no session started: np_runner_run is not modelled (OI-SIMFW-45)');
+  const other = await upload(GOLDEN.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '11'.repeat(32) }, ...MCU] });
+  assert.strictEqual(other.pump.code, -7, 'NP_HUB_ERR_WRONG_DEVICE');
+  assert.strictEqual(other.pump.loaded, false);
+  assert.deepStrictEqual([Buffer.from(other.frame, 'hex')[0], Buffer.from(other.frame, 'hex')[1]], [2, 7], 'REFUSED, reason 7');
+});
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: a boot that did not admit sessions refuses every protocol, as the device does today (OI-NVRAM-19)', { skip: !BIN }, async () => {
+  const r = await upload(GOLDEN.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_boot', mode: 'refuse' }, ...MCU] });
+  assert.strictEqual(r.pump.code, -25, 'NP_HUB_ERR_BOOT_REFUSED');
+  assert.strictEqual(r.pump.loaded, false);
+});
+
+// @verifies REQ-SIMFW-17#e
+test('end to end: a protocol that was loaded holds the session lease, so a second is refused while it is held', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const e of MCU) bridge.handle(e);
+  await wait(400);
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: GOLDEN.pbm660 });
+  await wait(300);
+  const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
+  const bytes = framed(Buffer.from(signed.hex, 'hex')).toString('hex');
+  for (let i = 0; i < 2; i++) {
+    bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: bytes });
+    bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_pump' });
+    await wait(300);
+  }
+  bridge.stop();
+  const pumps = seen.filter((m) => m.type === 'FW_LOG' && m.event.ev === 'result' && m.event.cmd === 'proto_pump').map((m) => m.event);
+  assert.deepStrictEqual(pumps.map((p) => p.code), [0, -13], 'loaded, then NP_HUB_ERR_SESSION_ACTIVE: np_lease_claim refuses while the first is held');
+});
+
+// @verifies REQ-SIMFW-17#b
+test('end to end: a zero length prefix is refused by the hub\'s transport, and a second blob is refused until the first is taken', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00000000' });
+  const small = Buffer.alloc(200, 7);
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: framed(small).toString('hex') });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_feed', hex: framed(small).toString('hex') });   // the first is still in the mailbox
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_pump' });
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_pump' });
+  await wait(500);
+  bridge.stop();
+  const ev = seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event);
+  const feeds = ev.filter((e) => e.ev === 'result' && e.cmd === 'proto_feed').map((e) => e.code);
+  assert.deepStrictEqual(feeds, [-2, 0, -13], 'INVALID_ARG, accepted, then SESSION_ACTIVE: the device\'s own transport answers');
+  const pumps = ev.filter((e) => e.ev === 'result' && e.cmd === 'proto_pump');
+  assert.strictEqual(pumps[0].blob, true, 'the first blob is taken');
+  assert.strictEqual(pumps[1].blob, false, 'and there is no second');
+});
+
+
+// ── the hub's GATT service, answered by np_gatt_server.c (NP-SIM-FW-001 §27, REQ-SIMFW-19) ──────────────────────
+
+// @verifies REQ-SIMFW-19#a
+test('the bridge relays GATT reads and writes as validated ids and hex and nothing else', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_init' }), ['gatt_init']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_table' }), ['gatt_table']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24 }), ['gatt_read 24 0']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: 20 }), ['gatt_read 24 20']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_write', id: 15, hex: '01' }), ['gatt_write 15 01']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: '24\nquit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: -1 },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: 65536 },
+    { type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: '0; quit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_read' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '01\nquit' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '0' },
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8, hex: '00'.repeat(513) },       // more than one ATT write
+    { type: 'FW_COMMAND', cmd: 'gatt_write', id: 8 },
+    { type: 'FW_COMMAND', cmd: 'gatt_init; quit' },
+  ];
+  for (const m of hostile) {
+    // a hostile value is refused; an unknown cmd is not the bridge's and yields no command line at all
+    let lines = null;
+    try { lines = messageToLines(m); } catch (e) { assert.ok(e instanceof BridgeError); continue; }
+    assert.deepStrictEqual(lines, [], JSON.stringify(m));
+  }
+});
+
+/** Runs GATT messages against the real firmware process; returns the GATT_EVENTs and the logged events in order. */
+async function gatt(messages) {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(300);                                         // the firmware process is up before the first command
+  for (const m of messages) bridge.handle({ type: 'FW_COMMAND', ...m });
+  await wait(600);
+  bridge.stop();
+  return { events: seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event), log: seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event) };
+}
+
+// @verifies REQ-SIMFW-19#b
+test('end to end: the device\'s own GATT server answers; what the hub does not publish is not found', { skip: !BIN }, async () => {
+  const r = await gatt([
+    { cmd: 'gatt_read', id: 24 },                          // before gatt_init: the service is not up
+    { cmd: 'gatt_init' }, { cmd: 'gatt_table' },
+    { cmd: 'gatt_read', id: 24 },                          // UPLOAD_CHECK: 34 bytes, status none
+    { cmd: 'gatt_read', id: 16 }, { cmd: 'gatt_read', id: 16 },   // WARRANTY_TOKEN: drawn once, kept
+    { cmd: 'gatt_read', id: 17 },                          // FIRMWARE_VERSION: not published
+    { cmd: 'gatt_write', id: 8, hex: '04' + '00'.repeat(100) },   // PROTOCOL_UPLOAD: not published
+    { cmd: 'gatt_read', id: 22 },                          // ACTIVE_USER is write-only
+    { cmd: 'gatt_write', id: 15, hex: '0102' },            // SESSION_STOP takes exactly one byte
+  ]);
+  assert.ok(r.log.some((e) => e.ev === 'error' && /not up/.test(e.what)), 'a read before gatt_init is refused');
+  const table = r.events.filter((e) => e.ev === 'gatt_char');
+  assert.ok(table.length > 10 && table.every((c) => c.count === table.length), 'every characteristic is reported, in order');
+  const ids = table.map((c) => c.id);
+  assert.ok(ids.includes(24) && ids.includes(16) && ids.includes(23), 'the hub publishes the upload check, the warranty token and the serial');
+  assert.ok(!ids.includes(8) && !ids.includes(17), 'and does not publish the protocol upload or the firmware version');
+  const reads = r.events.filter((e) => e.ev === 'gatt_read');
+  const byId = (id) => reads.filter((e) => e.id === id);
+  assert.strictEqual(byId(24)[0].att, 0);
+  assert.strictEqual(byId(24)[0].hex.length, 68, 'UPLOAD_CHECK is 34 bytes');
+  assert.strictEqual(byId(24)[0].hex.slice(0, 2), '00', 'status: none yet');
+  assert.strictEqual(byId(16)[0].hex.length, 64, 'the warranty token is 32 bytes');
+  assert.strictEqual(byId(16)[0].hex, byId(16)[1].hex, 'drawn once and kept');
+  assert.strictEqual(byId(17)[0].att, 0x0a, 'FIRMWARE_VERSION: attribute not found');
+  assert.strictEqual(byId(22)[0].att, 0x02, 'a write-only characteristic is not readable');
+  const writes = r.events.filter((e) => e.ev === 'gatt_write');
+  assert.strictEqual(writes.find((e) => e.id === 8).att, 0x0a, 'the protocol upload is not published, so a write to it is not found');
+  assert.strictEqual(writes.find((e) => e.id === 15).att, 0x0d, 'a write of the wrong length is refused before the handler sees it');
+});

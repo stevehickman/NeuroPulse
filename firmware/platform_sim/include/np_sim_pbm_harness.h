@@ -3,6 +3,9 @@
 #define NP_SIM_PBM_HARNESS_H
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "np_hub_types.h"
 
 /* Host tests only, never a text command: open the power governor so the driver paths behind it can run.  The
  * default is the production governor, which refuses every load (OI-SIMFW-11).  np_simh_init() closes it again. */
@@ -53,5 +56,11 @@ bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char
 void np_simh_safety_init(void);
 void np_simh_safety_status(void);
 bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c);
+
+/* The app's protocol upload, over the hub's own transport (OI-SIMFW-38).  np_sim_proto.c. */
+void np_sim_proto_pubkey(uint8_t pub[32]);
+np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len);   /* the TEST device serial, for np_proto_hal_get_device_serial */
+bool np_simh_proto_line(const char *cmd, char *a);
+bool np_simh_gatt_line(const char *cmd, char *a, char *b);   /* np_sim_gatt.c */
 
 #endif

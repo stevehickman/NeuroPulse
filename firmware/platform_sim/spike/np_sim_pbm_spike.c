@@ -52,7 +52,7 @@
 
 int main(void)
 {
-    char line[256];
+    static char line[16384];   /* a protocol upload is one hex line: NP_HUB_PROTO_BLOB_MAX bytes is under 8 KB of hex (OI-SIMFW-38) */
     np_simh_init();
     np_sim_emit("{\"ev\":\"ready\",\"spike\":\"pbm\",\"firmware\":\"np_socket_dispatch,np_module_map,"
                 "np_protocol,np_mod_pbm,np_pbm_socket_telem,np_safety_spi,"

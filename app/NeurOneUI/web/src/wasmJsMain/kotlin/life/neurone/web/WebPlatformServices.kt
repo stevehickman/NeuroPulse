@@ -32,6 +32,8 @@ class WebPlatformServices(
     override val analyticsBackend: AnalyticsBackend = NoOpAnalyticsBackend(),
     // The sign-in window. The browser has no HttpTransport, so AppServices builds no CloudAuth from it yet (NP-SW-CLOUDSTORE-001 4c.6).
     override val authorizationLauncher: life.neurone.core.cloudauth.AuthorizationLauncher? = WebAuthorizationLauncher(),
+    /** True when [bleCentral] is the simulator's, so the app says the hub is a twin and not a helmet (`REQ-SIMFW-19` (c)). */
+    override val simulatedHub: Boolean = false,
 ) : PlatformServices {
 
     /** Nothing the app keeps is written to `localStorage`, so the person is told it is gone when the page is (REQ-SW03-18 (b)). */

@@ -210,7 +210,7 @@ static void test_the_photoparoxysmal_halt(void)
     run("vis 0 2 50 0 63 0 0 0 0");
     run("vis_ppx");
     check(!vis()->vis_emitting && !enabled(), "ppx: the LEDs go dark and the enable drops");
-    check(count("\"fn\":\"np_runner_halt\"") == 1 && strstr(last_with("\"fn\":\"np_runner_halt\""), "\"cause\":") != NULL, "ppx: and the driver asks the runner to hold the session with the detector's cause, once (the runner is a sim double)");
+    check(count("\"ev\":\"runner_event\"") == 0, "ppx: the driver asks the device's own runner to hold the session, which has no session running, so it posts nothing (the runner is linked, OI-SIMFW-43)");
     run("vis 0 2 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !vis()->vis_emitting, "ppx: a later command is refused");
     run("vis_sample");

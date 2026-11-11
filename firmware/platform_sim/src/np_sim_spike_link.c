@@ -14,6 +14,7 @@
  *   power governor   the production one (refuses every load); see np_pbm_power_admit below
  */
 #include "np_sim_bus.h"
+#include "np_sim_pbm_harness.h"   /* np_sim_proto_pubkey */
 
 #include "np_hub_types.h"
 #include "np_module_map.h"
@@ -85,11 +86,6 @@ np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
     g_cvfs_len = len;
     return NP_HUB_OK;
 }
-void np_cvfs_hal_notify(const uint8_t *frame, size_t len)
-{
-    (void)frame;
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_cvfs_hal_notify\",\"len\":%u}", (unsigned)np_sim_now_ms(), (unsigned)len);
-}
 np_hub_status_t np_hub_cvns_reenable_confirm(void) { return np_cvns_reenable_confirm(); }
 np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
 {
@@ -98,8 +94,7 @@ np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
     return NP_HUB_OK;
 }
 uint32_t np_log_session_count(void) { return 1U; }
-void np_transport_hal_enter_critical(void) { }
-void np_transport_hal_exit_critical(void)  { }
+/* np_transport_hal_enter/exit_critical: np_transport.c's own host model, built with NPTEST_HOST (CMakeLists.txt). */
 
 /* The SHDR accessory-authentication record the intranasal driver writes at init: reported as it is logged. */
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
@@ -108,30 +103,9 @@ void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
                 (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
 }
 
-/* The runner is not in the loop.  np_mod_visual.c's halt_for() (the photoparoxysmal detector's halt) asks it to hold the
- * session PAUSED with the detector's cause; the simulator reports the request and does nothing else, so a halt shows as
- * what the driver did (LEDs off, enable dropped, further commands refused) plus the hold it asked for.  A double of
- * first-party code, listed as a gap.  (np_runner_abort, which the driver called before the detector commits, is no
- * longer reached from anything this layer links.) */
-np_hub_status_t np_runner_halt(np_hold_cause_t cause)
-{
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_halt\",\"cause\":%d}",
-                (unsigned)np_sim_now_ms(), (int)cause);
-    return NP_HUB_ERR_NO_SESSION;
-}
+/* The runner is linked (np_session_runner.c, OI-SIMFW-43), so np_runner_halt, np_runner_panic and the session lease are the device's own.
+ * Without a loaded session np_runner_halt answers NP_HUB_ERR_NO_SESSION, as it did here. */
 
-/* The panic control is the runner's too, and the runner is not in the loop: reported, not performed.  A double of
- * first-party code, listed as a gap. */
-np_hub_status_t np_runner_panic(void)
-{
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_runner_panic\"}", (unsigned)np_sim_now_ms());
-    return NP_HUB_ERR_NO_SESSION;
-}
-
-/* ── no session lease, no persistence ─────────────────────────────────────────── */
-
-bool np_lease_probe_begin(void) { return true; }
-void np_lease_probe_end(void)   { }
 void np_pbm_session_set_uid_resolver(np_pbm_socket_uid_fn fn, void *ctx) { (void)fn; (void)ctx; }
 
 np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
@@ -142,9 +116,9 @@ np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
 /* ── protocol identity: not exercised by a socket command ────────────────────── */
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
-{ (void)buf; (void)len; return NP_HUB_ERR_NOT_PRESENT; }
+{ return np_sim_proto_serial(buf, len); }   /* the TEST device serial, np_sim_proto.c: the replay guard of np_protocol_verify_and_parse is live */
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
-{ memset(pub_key_out, 0, 32); return NP_HUB_OK; }
+{ np_sim_proto_pubkey(pub_key_out); return NP_HUB_OK; }   /* the TEST protocol signing key's public half, np_sim_proto.c */
 
 /* ── power governor ──────────────────────────────────────────────────────────────
  * The simulator mimics the device: np_pbm_power_admit() is the production governor

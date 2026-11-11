@@ -10,7 +10,7 @@
 **A file whose content is common to more than one app (iOS, Android, Windows, web) lives in
 `app/NeurOneShared/`, directly or in a subdirectory of it, and is never stored in one app's
 directory for the others to reach into.** Subdirectories are made as needed: `TestData/` for
-fixtures several apps' tests read (`hub-descriptor-golden.json`), `Resources/` for generated or
+fixtures several apps' tests read (`npps-parse-golden.json`; one the simulator's tests also read, `hub-descriptor-golden.json`, is in `common/testdata/` instead, because an app and a non-app artifact share it), `Resources/` for generated or
 hand-written resources several apps bundle (`Localizable.xcstrings`), `Sources/` for the Swift package.
 
 - **Decide at creation.** A new file that a second app will read, bundle or diff against is created in

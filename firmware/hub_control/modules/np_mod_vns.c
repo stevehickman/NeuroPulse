@@ -230,7 +230,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
     const bool imp_finite = vns_float_is_finite(imp);
     s_state.last_impedance_ohm = imp_finite ? imp : 0.0f;
     if (!(imp_finite && imp >= VNS_CONTACT_MIN_OHM && imp <= VNS_CONTACT_MAX_OHM)) {
-        return NP_HUB_ERR_SAFETY_REJECTED; /* safety MCU will also reject */
+        return NP_HUB_ERR_CONTACT_NOT_CONFIRMED; /* safety MCU will also reject */
     }
 
     /* OI-SIMFW-18: a stimulator stop that was lost is retried before anything new

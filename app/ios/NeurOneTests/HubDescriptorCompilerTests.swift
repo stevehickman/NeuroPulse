@@ -20,7 +20,8 @@ final class HubDescriptorCompilerTests: XCTestCase {
         // .../app/ios/NeurOneTests/<this file> → .../app/NeurOneShared/TestData/
         var url = URL(fileURLWithPath: "\(file)")
         for _ in 0..<3 { url.deleteLastPathComponent() }   // → app/
-        url.appendPathComponent("NeurOneShared/TestData/hub-descriptor-golden.json")
+        url.deleteLastPathComponent()                       // → the repository root
+        url.appendPathComponent("common/testdata/hub-descriptor-golden.json")
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode([String: String].self, from: data)
     }

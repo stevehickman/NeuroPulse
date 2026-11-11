@@ -193,6 +193,7 @@ static float make_float(uint32_t bits)
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
 
 /* @verifies REQ-VNSC-07 */
+/* @verifies REQ-FWHUB-77#c */
 static void test_a_non_finite_impedance_is_refused_and_starts_nothing(void)
 {
     const float cases[] = {
@@ -210,13 +211,14 @@ static void test_a_non_finite_impedance_is_refused_and_starts_nothing(void)
         reset(cases[i]);
         np_hub_status_t rc = drive();
         snprintf(msg, sizeof(msg), "%s: refused with the out-of-range status", CASE_NAMES[i]);
-        check(rc == NP_HUB_ERR_SAFETY_REJECTED, msg);
+        check(rc == NP_HUB_ERR_CONTACT_NOT_CONFIRMED, msg);
         snprintf(msg, sizeof(msg), "%s: no stimulator write, enable, current, PPG, EEG routing or HRV session", CASE_NAMES[i]);
         check(nothing_started(), msg);
     }
 }
 
 /* @verifies REQ-VNSC-07 */
+/* @verifies REQ-FWHUB-77#c */
 static void test_the_range_still_enables_inside_and_refuses_outside(void)
 {
     const float inside[]  = { 500.0f, 1200.0f, 5000.0f };
@@ -229,7 +231,7 @@ static void test_the_range_still_enables_inside_and_refuses_outside(void)
     }
     for (unsigned i = 0; i < sizeof(outside) / sizeof(outside[0]); i++) {
         reset(outside[i]);
-        check(drive() == NP_HUB_ERR_SAFETY_REJECTED && nothing_started(),
+        check(drive() == NP_HUB_ERR_CONTACT_NOT_CONFIRMED && nothing_started(),
               "out of range (0, 499.9, 5000.1, 1e9 ohm): refused with the same status, nothing started");
     }
 }

@@ -161,7 +161,7 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 
     /* Refuse if PPX halt is active */
     if (s_state.ppx_halt) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_PPX_HALT;
     }
 
     if (len < sizeof(np_mod_visual_params_t)) {
@@ -177,8 +177,11 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     if (NP_VISUAL_PPX_ZONE(p->mode, p->freq_hz)) {
         /* REQ-FWHUB-70: the refusal stands unless the detector has the evidence to stand in for it.  REQ-FWHUB-69: and even
          * then the drive does not start unless the detector can see. */
-        if (!np_ppx_zone_permitted() || !np_ppx_seeing()) {
-            return NP_HUB_ERR_SAFETY_REJECTED;
+        if (!np_ppx_zone_permitted()) {
+            return NP_HUB_ERR_PHOTIC_ZONE;      /* the refusal np_runner_load makes (REQ-FWHUB-66), made again at the drive */
+        }
+        if (!np_ppx_seeing()) {
+            return NP_HUB_ERR_PPX_BLIND;
         }
     }
 
@@ -188,11 +191,11 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
      * only for the retinal modes.  The latch is cleared BEFORE the seated read,
      * so a lift after the read is caught after the enable below. */
     if (!s_state.hall_irq_armed) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_GOGGLE_LIFT_UNARMED;
     }
     s_hall_cut = false;
     if (!np_mod_visual_hal_goggle_seated()) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_GOGGLES_NOT_SEATED;
     }
 
     /* Safety check 2: Eye open (IR proximity) required for retinal modes.
@@ -203,12 +206,12 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 #else
     if (p->mode == 2U && !np_mod_visual_hal_ir_eye_open()) {
 #endif
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_EYE_NOT_OPEN;
     }
 
     /* Safety check 3: IEC 62471 MPE check */
     if (!np_mod_visual_hal_mpe_check()) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_MPE_CHECK;
     }
 
     uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo |
@@ -270,7 +273,7 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
         np_mod_visual_hal_led_stop();
         np_safety_spi_request_disable(NP_SAFETY_EN_VISUAL);
         s_state.active = false;
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_GOGGLES_NOT_SEATED;      /* lifted between the seated read and the enable */
     }
 
     return NP_HUB_OK;

@@ -755,6 +755,7 @@ set(HUB_SOURCES
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_cvns_fault_summary.c   # NP-SW-FAULTMSG-001 §9.6: offline-fault summary + GATT handlers
     src/np_gatt_server.c          # OI-WA-03 / #381: BLE GATT service table + dispatch
+    src/np_proto_verify.c         # OI-SIMFW-42: the protocol signature check (Ed25519 over a blob, not capped at 256 bytes)
     src/np_upload_check.c         # SWR-UP-01: hash of the received protocol + verdict, UPLOAD_CHECK
     src/np_session_stop.c         # SWR-SS-06: SESSION_STOP write ends the session
     src/np_session_progress.c     # SWR-SS-07: SESSION_PROGRESS frame
@@ -808,6 +809,7 @@ target_include_directories(np_hub_control
             ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}  # np_sw02_platform_hal.h (OI-SWCI-40)
             ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes (np_log_backend.c)
             ${CMAKE_CURRENT_SOURCE_DIR}/../factory_reset/include  # np_reset_marker.c: the HAL it implements
+            ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher  # np_proto_verify.c: crypto_ed25519_check (the SOUP np_crypto links)
 )
 
 # ── Compiler flags ─────────────────────────────────────────────────────────────

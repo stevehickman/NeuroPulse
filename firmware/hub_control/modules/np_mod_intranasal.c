@@ -82,7 +82,7 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
     }
 
     if (!s_state.authenticated) {
-        return NP_HUB_ERR_SAFETY_REJECTED;
+        return NP_HUB_ERR_SLEEVE_NOT_AUTH;
     }
 
     if (len < sizeof(np_mod_intranasal_params_t)) {

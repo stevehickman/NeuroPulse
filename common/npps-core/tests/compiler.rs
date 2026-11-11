@@ -10,6 +10,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+fn golden_data(name: &str) -> Value {
+    // common/testdata: the golden is read by the simulator test too, so it is not under app/ (CLAUDE.md section 20).
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../testdata").join(name);
+    serde_json::from_str(&std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))).unwrap()
+}
+
 fn data(name: &str) -> Value {
     let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../app/NeurOneShared/TestData").join(name);
     serde_json::from_str(&fs::read_to_string(p).expect(name)).expect(name)
@@ -81,7 +87,7 @@ fn every_definition_compiles_to_the_web_compilers_bytes() {
 // @verifies REQ-NPPS-12
 #[test]
 fn the_golden_file_the_other_runtimes_read_agrees_with_the_cases_file() {
-    let golden = data("hub-descriptor-golden.json");
+    let golden = golden_data("hub-descriptor-golden.json");
     let cases = data("hub-descriptor-cases.json");
     for (name, case) in cases["cases"].as_object().unwrap() {
         assert_eq!(golden[name], case["hex"], "{name}");
