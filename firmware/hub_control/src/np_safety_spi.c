@@ -114,6 +114,7 @@ np_hub_status_t np_safety_spi_init(void)
     s_tier           = NP_TIER_UNKNOWN;
     s_tier_reason    = NP_TIER_REASON_OK;
     s_tier_refused   = false;
+    s_hw_version     = NP_HW_VERSION_DEFAULT;   /* SWR-HV-07: no report yet reads as 1 */
     for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
         s_cvns_imp_kohm[e] = 0.0f;
     }
