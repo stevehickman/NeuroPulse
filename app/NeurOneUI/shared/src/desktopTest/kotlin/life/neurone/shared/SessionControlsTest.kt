@@ -128,13 +128,13 @@ class HardwareVersionTest {
 
     private val versionId = UUID.fromString(GattUuidStrings.HARDWARE_VERSION_ID)
 
-    // @verifies SWR-HV-07
+    // @verifies SWR-HV-07#a
     @Test fun a_helmet_that_states_none_is_version_one() = runTest {
         val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
         assertEquals(1, manager.hardwareVersion.value)
     }
 
-    // @verifies SWR-HV-06
+    // @verifies SWR-HV-06#a,f
     @Test fun the_version_the_helmet_reports_is_the_one_the_gate_uses_and_a_bad_byte_is_not_believed() = runTest {
         val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
         manager.onCharacteristicRead(versionId, byteArrayOf(2))
@@ -145,7 +145,7 @@ class HardwareVersionTest {
         assertEquals(2, manager.hardwareVersion.value, "a frame of the wrong length changes nothing")
     }
 
-    // @verifies SWR-HV-06
+    // @verifies SWR-HV-06#a
     @Test fun the_next_link_may_be_another_helmet_so_a_dropped_link_forgets_the_version() = runTest {
         val manager = NeurOneGattManager(InertCentral(), TestScope(testScheduler))
         manager.onCharacteristicRead(versionId, byteArrayOf(5))

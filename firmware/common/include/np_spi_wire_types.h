@@ -721,7 +721,12 @@ typedef char _np_spi_nv_report_fits_check[
  * version 1 exists, on both sides of the link.  REMOVAL ITEM: delete this
  * default, and its uses in np_tier_identity.c and np_safety_spi.c, in the same
  * change that adds hardware version 2 — a checked item on the increment record
- * (NP-REG-UPG-001 §7.8, OI-UPG-09). */
+ * (NP-REG-UPG-001 §7.8, OI-UPG-09).  CHECKED BY THE BUILD: the generated socket
+ * table (hub_control/src/np_socket_layouts.generated.c) is an #error once it
+ * holds a second hardware version while this macro is still defined.  The
+ * apps keep the same default (DEFAULT_HARDWARE_VERSION in the Kotlin GATT
+ * manager, defaultHardwareVersion in the iOS one); the build does not see
+ * those two, so they are on the same item by hand. */
 #define NP_HW_VERSION_DEFAULT           1U
 
 #define NP_SAFETY_TIER_REPORT_MAGIC     0x7DU
