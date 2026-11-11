@@ -28,11 +28,30 @@
 #include "np_hub_types.h"
 #include "../../common/include/np_shared_constants.h"   /* NP_VNS_MAX_CURRENT_UA */
 #include "../../pbm/include/np_pbm_config.h"            /* NP_PBM_DUTY_MAX_REG   */
+#include "../../cervical_vns/include/np_cvns_config.h"  /* NP_CVNS_* ranges      */
 
 /* BES / tACS peak amplitude and tDCS current (CLAUDE.md §3: ≤ 1 mA T1, ≤ 2 mA).  The
  * safety MCU holds its own, independent, charge ceilings. */
 #define STIM_MAX_AMP_BES_UA   1000U  /* 1 mA */
 #define STIM_MAX_AMP_TDCS_UA  2000U  /* 2 mA */
+/* BES / tACS frequency, in the wire's milli-hertz (CLAUDE.md §3: 0.5–40 Hz).  These are BES_TACS_MIN_HZ and
+ * BES_TACS_MAX_HZ of common/npps/constants.json x 1000, the range the shared validator already enforces before
+ * signing; scripts/check-hub-wire-format.ts fails if either differs from the JSON.  The floor is also what keeps
+ * the phase the hub declares to the safety MCU true: at 0.5 Hz a phase is 1 s, inside NP_CHARGE_MAX_PHASE_US (2 s),
+ * so np_chan_decl_half_period_us() never clamps a phase the hub then drives (and 0 Hz, a division by zero there,
+ * never reaches it). */
+#define NP_BES_FREQ_MHZ_MIN   500U    /* 0.5 Hz */
+#define NP_BES_FREQ_MHZ_MAX   40000U  /* 40 Hz  */
+/* Clinical tACS (T2) frequency floor, milli-hertz: CLINICAL_TACS_MIN_HZ of constants.json x 1000, for the same
+ * reason (it shares np_chan_decl_half_period_us).  Its maximum, 100 Hz, is above what the 16-bit milli-hertz
+ * field can carry, so the field is its own upper bound.  The driver is not built; this is the load-time check
+ * only (np_mod_t2_stubs.c). */
+#define NP_CLIN_TACS_FREQ_MHZ_MIN 500U  /* 0.5 Hz */
+
+/* EEG PGA gain code: np_mod_eeg_params_t defines 0..6 (1x to 24x).  7 is not a gain the ADS1299 CHnSET field
+ * defines for use, and a code above 7 does not fit the 3-bit field: it used to be masked into another gain. */
+#define NP_EEG_GAIN_CODE_MAX  6U
+
 /* tDCS ramp (CLAUDE.md §3: 30 s ramp).  A shorter authored ramp is refused, not
  * lengthened: a longer ramp is also a stimulus nobody authored. */
 #define STIM_MIN_RAMP_S       30U
@@ -66,7 +85,41 @@ static inline np_hub_status_t np_cmd_limits_check(np_hub_mod_type_t mod_type,
         np_mod_bes_tacs_params_t p;
         if (len < sizeof p) { return NP_HUB_OK; }
         memcpy(&p, params, sizeof p);
-        return (p.amplitude_ua > STIM_MAX_AMP_BES_UA) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+        return (p.amplitude_ua > STIM_MAX_AMP_BES_UA ||
+                p.freq_mhz < NP_BES_FREQ_MHZ_MIN || p.freq_mhz > NP_BES_FREQ_MHZ_MAX)
+                 ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+    }
+    case NP_MOD_CLIN_TACS: {
+        np_mod_clin_tacs_params_t p;
+        if (len < sizeof p) { return NP_HUB_OK; }
+        memcpy(&p, params, sizeof p);
+        return (p.freq_mhz < NP_CLIN_TACS_FREQ_MHZ_MIN) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+    }
+    case NP_MOD_EEG: {
+        np_mod_eeg_params_t p;
+        if (len < sizeof p) { return NP_HUB_OK; }
+        memcpy(&p, params, sizeof p);
+        return (p.gain > NP_EEG_GAIN_CODE_MAX) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+    }
+    case NP_MOD_AUDIO: {
+        np_mod_audio_params_t p;
+        if (len < sizeof p) { return NP_HUB_OK; }
+        memcpy(&p, params, sizeof p);
+        return (p.level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+    }
+    case NP_MOD_CVNS: {
+        /* The ranges np_mod_cvns_build_config() holds; it calls this, so there is one definition.  A pulse
+         * width of 0 is the documented default (250 us), an absent field and not a value out of range. */
+        np_mod_cvns_params_t p;
+        if (len < sizeof p) { return NP_HUB_OK; }
+        memcpy(&p, params, sizeof p);
+        const uint32_t freq_mhz = (uint32_t)p.freq_mhz;
+        const uint16_t pw = (p.pulse_width_us == 0U) ? 250U : p.pulse_width_us;
+        return (freq_mhz < (NP_CVNS_FREQ_HZ_MIN * 1000U) || freq_mhz > (NP_CVNS_FREQ_HZ_MAX * 1000U) ||
+                p.amplitude_ua > NP_CVNS_CURRENT_UA_MAX ||
+                pw < NP_CVNS_PULSE_WIDTH_US_MIN || pw > NP_CVNS_PULSE_WIDTH_US_MAX ||
+                p.side > 2U)
+                 ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
     }
     case NP_MOD_TDCS: {
         np_mod_tdcs_params_t p;

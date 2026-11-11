@@ -79,6 +79,7 @@
 #include "np_cardiac_sens.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 /* Cervical VNS safety library (firmware/cervical_vns/). */
@@ -239,18 +240,14 @@ np_hub_status_t np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
 {
     memset(out, 0, sizeof(*out));
 
+    /* The ranges are np_cmd_limits_check()'s (np_cmd_limits.h), the predicate np_runner_load() runs over the
+     * whole protocol at upload (REQ-FWHUB-78 (g)), so the two refusals cannot disagree: frequency, amplitude,
+     * pulse width (0 is the 250 us default) and side. */
+    if (np_cmd_limits_check(NP_MOD_CVNS, p, (uint16_t)sizeof(*p)) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
     const uint32_t freq_mhz = (uint32_t)p->freq_mhz;
-    if (freq_mhz < (NP_CVNS_FREQ_HZ_MIN * 1000U) ||
-        freq_mhz > (NP_CVNS_FREQ_HZ_MAX * 1000U)) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    if (p->amplitude_ua > NP_CVNS_CURRENT_UA_MAX) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
     const uint16_t pw = (p->pulse_width_us == 0U) ? 250U : p->pulse_width_us;
-    if (pw < NP_CVNS_PULSE_WIDTH_US_MIN || pw > NP_CVNS_PULSE_WIDTH_US_MAX) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
 
     uint8_t electrode_config;
     switch (p->side) {

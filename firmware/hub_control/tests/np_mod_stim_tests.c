@@ -414,6 +414,37 @@ static void test_a_refused_bes_command_leaves_a_running_one_as_it_was(void)
           "BES running: the running command is still the driver's to stop");
 }
 
+/* The driver had no frequency limit: any value the field could carry reached the DAC, and below 0.25 Hz the phase
+ * declared to the safety MCU was clamped shorter than the one driven (np_chan_decl_tests). */
+/* @verifies REQ-FWHUB-78#j,f */
+static void test_bes_frequency_outside_its_range_is_refused_and_starts_nothing(void)
+{
+    np_mod_stim_init(NP_HUB_SLOT_BES_TACS);
+    np_stim_xcheck_clear();
+    reset_stubs(); memset(g_chan_ua, 0, sizeof g_chan_ua);
+
+    np_mod_bes_tacs_params_t bes;
+    memset(&bes, 0, sizeof bes);
+    bes.amplitude_ua = 500U;
+
+    bes.freq_mhz = 499U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG, "BES frequency: 0.499 Hz is refused");
+    bes.freq_mhz = 0U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG, "BES frequency: 0 Hz (DC) is refused");
+    bes.freq_mhz = 40001U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_ERR_INVALID_ARG, "BES frequency: 40.001 Hz is refused");
+    check(g_dac_set_calls == 0 && g_enabled_bits == 0U && g_chan_ua[NP_SAFETY_CH_BES_TACS] == 0U,
+          "BES frequency: the DAC was not written, no enable requested, no current published");
+
+    bes.freq_mhz = 500U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_OK && g_dac_freq_mhz == 500U,
+          "BES frequency: exactly 0.5 Hz is accepted and driven as authored");
+    bes.freq_mhz = 40000U;
+    check(np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &bes, sizeof bes) == NP_HUB_OK && g_dac_freq_mhz == 40000U,
+          "BES frequency: exactly 40 Hz is accepted and driven as authored");
+    (void)np_mod_stim_control(NP_HUB_SLOT_BES_TACS, NULL, 0U);
+}
+
 /* tDCS at 3 mA used to be ramped, published and cross-checked as 2 mA; a 10 s ramp used to run as 30 s. */
 /* @verifies REQ-FWHUB-78#b,f */
 static void test_tdcs_outside_its_limits_is_refused_and_starts_nothing(void)
@@ -589,6 +620,7 @@ int main(void)
     test_driver_feeds_the_cross_check();
     test_bes_above_the_limit_is_refused_and_starts_nothing();
     test_a_refused_bes_command_leaves_a_running_one_as_it_was();
+    test_bes_frequency_outside_its_range_is_refused_and_starts_nothing();
     test_tdcs_outside_its_limits_is_refused_and_starts_nothing();
     test_a_refused_tdcs_command_leaves_a_running_one_as_it_was();
     test_tdcs_pause_ramps_down_with_the_enable_held();

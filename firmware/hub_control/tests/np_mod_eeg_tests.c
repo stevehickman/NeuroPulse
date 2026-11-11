@@ -141,6 +141,29 @@ static void test_a_command_while_a_stop_is_lost_does_not_restart(void)
     check(stop() == NP_HUB_OK && !g_running, "reconfigure: and the next stop still lands");
 }
 
+/* A gain code above 6 used to be masked into the 3-bit register field: 8 was written, and recorded, as 1x. */
+/* @verifies REQ-FWHUB-78#h,f */
+static void test_a_gain_code_outside_the_wire_definition_is_refused_and_writes_nothing(void)
+{
+    setup();
+    np_mod_eeg_params_t p = PARAMS;
+    const int writes = g_writes;
+    p.gain = 7U;
+    check(np_mod_eeg_control(NP_HUB_SLOT_EEG, &p, (uint16_t)sizeof p) == NP_HUB_ERR_INVALID_ARG, "gain: code 7 is refused");
+    p.gain = 8U;
+    check(np_mod_eeg_control(NP_HUB_SLOT_EEG, &p, (uint16_t)sizeof p) == NP_HUB_ERR_INVALID_ARG, "gain: code 8 is refused, not written as 1x");
+    check(g_writes == writes && g_starts == 0 && !g_running, "gain: no register was written and acquisition was not started");
+
+    p.gain = 6U;
+    check(np_mod_eeg_control(NP_HUB_SLOT_EEG, &p, (uint16_t)sizeof p) == NP_HUB_OK && g_starts == 1 && g_running,
+          "gain: code 6, the highest the wire defines, is accepted and acquisition starts");
+    p.gain = 9U;
+    const int after = g_writes;
+    check(np_mod_eeg_control(NP_HUB_SLOT_EEG, &p, (uint16_t)sizeof p) == NP_HUB_ERR_INVALID_ARG && g_writes == after && g_running,
+          "gain: a refused command leaves a running acquisition and its channel registers as they were");
+    (void)stop();
+}
+
 int main(void)
 {
     test_a_clean_start_and_stop_are_unchanged();
@@ -148,6 +171,7 @@ int main(void)
     test_a_lost_stop_is_retried_by_the_next_stop();
     test_shutdown_reports_and_retries();
     test_a_command_while_a_stop_is_lost_does_not_restart();
+    test_a_gain_code_outside_the_wire_definition_is_refused_and_writes_nothing();
     printf("\n%s (%d failure(s))\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

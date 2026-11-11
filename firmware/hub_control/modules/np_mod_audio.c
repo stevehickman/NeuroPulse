@@ -29,6 +29,7 @@
 
 #include "np_hub_types.h"
 #include "np_module_registry.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -119,7 +120,7 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
      * before any state changes or any output is commanded, so neither the planar drivers nor the bone
      * transducer receive it and a running command is left as it was (REQ-AUDIO-19).  Refused, not clamped:
      * a clamped command plays something other than what was authored. */
-    if (p->level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) {
+    if (np_cmd_limits_check(NP_MOD_AUDIO, params, len) != NP_HUB_OK) {   /* the predicate the load-time check runs */
         return NP_HUB_ERR_INVALID_ARG;
     }
 

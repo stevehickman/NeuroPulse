@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "../include/np_chan_decl.h"
+#include "../include/np_cmd_limits.h"   /* REQ-FWHUB-78 (j): the frequency floors */
 
 static int g_failures = 0;
 
@@ -241,6 +242,51 @@ static void test_half_period(void)
           "1 mHz -> clamped");
 }
 
+/* REQ-FWHUB-78 (j).  np_chan_decl_half_period_us() clamps the phase it declares to the safety MCU at
+ * NP_CHARGE_MAX_PHASE_US (and returns that ceiling for 0 Hz).  A clamped declaration is SHORTER than the phase
+ * the DAC then drives, so the per-phase charge check under-states it.  The hub now refuses the frequencies at
+ * which that happens, so the clamp cannot fire for any command the hub admits.  Exhaustive: every value the
+ * 16-bit milli-hertz field can carry, for both modalities that declare a half period. */
+/* @verifies REQ-FWHUB-78#j */
+static void test_no_admitted_frequency_reaches_the_declared_phase_clamp(void)
+{
+    unsigned bes_admitted = 0U, bes_clamped_admitted = 0U, tacs_admitted = 0U, tacs_clamped_admitted = 0U;
+    unsigned clamp_region_refused = 0U, clamp_region = 0U;
+
+    for (uint32_t f = 0U; f <= 0xFFFFU; f++) {
+        /* exact, unclamped half period; 0 Hz has none */
+        const bool clamps = (f == 0U) || (500000000UL / f > (uint32_t)NP_CHARGE_MAX_PHASE_US);
+        const bool declared_true = (f != 0U) && (np_chan_decl_half_period_us((uint16_t)f) == 500000000UL / f);
+
+        np_mod_bes_tacs_params_t b;
+        memset(&b, 0, sizeof b);
+        b.freq_mhz = (uint16_t)f; b.amplitude_ua = 500U;
+        const bool bes_ok = (np_cmd_limits_check(NP_MOD_BES_TACS, &b, sizeof b) == NP_HUB_OK);
+
+        np_mod_clin_tacs_params_t t;
+        memset(&t, 0, sizeof t);
+        t.freq_mhz = (uint16_t)f; t.amplitude_ua = 500U;
+        const bool tacs_ok = (np_cmd_limits_check(NP_MOD_CLIN_TACS, &t, sizeof t) == NP_HUB_OK);
+
+        if (bes_ok)  { bes_admitted++;  if (clamps || !declared_true) { bes_clamped_admitted++; } }
+        if (tacs_ok) { tacs_admitted++; if (clamps || !declared_true) { tacs_clamped_admitted++; } }
+        if (clamps)  { clamp_region++;  if (!bes_ok && !tacs_ok) { clamp_region_refused++; } }
+    }
+    check(bes_admitted == (NP_BES_FREQ_MHZ_MAX - NP_BES_FREQ_MHZ_MIN + 1U),
+          "BES/tACS: exactly the frequencies from 0.5 Hz to 40 Hz are admitted");
+    check(bes_clamped_admitted == 0U,
+          "BES/tACS: for every admitted frequency the declared phase is the true half period, never the clamp");
+    check(tacs_admitted == (0xFFFFU - NP_CLIN_TACS_FREQ_MHZ_MIN + 1U) && tacs_clamped_admitted == 0U,
+          "clinical tACS: every frequency from 0.5 Hz up is admitted, and none reaches the clamp");
+    check(clamp_region == 250U && clamp_region_refused == clamp_region,
+          "every frequency at which the clamp fires (0 to 249 mHz) is refused for both modalities");
+
+    /* The edges, by value. */
+    check(np_chan_decl_half_period_us((uint16_t)NP_BES_FREQ_MHZ_MIN) == 1000000UL &&
+          1000000UL < (uint32_t)NP_CHARGE_MAX_PHASE_US,
+          "the floor, 0.5 Hz, declares 1 s: half the 2 s at which the clamp begins");
+}
+
 int main(void)
 {
     test_bes_arms_its_gate_and_sends_its_area();
@@ -252,6 +298,7 @@ int main(void)
     test_mixed_session_arms_each_gate_independently();
     test_nothing_electrical();
     test_half_period();
+    test_no_admitted_frequency_reaches_the_declared_phase_clamp();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

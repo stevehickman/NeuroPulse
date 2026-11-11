@@ -758,6 +758,105 @@ static void test_a_command_exactly_at_each_driver_limit_loads(void)
     check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "limits: a stop command loads");
 }
 
+/* Audio and cervical VNS already refused at dispatch (REQ-AUDIO-19; REQ-NPPS-23 (c)); EEG gain, the BES frequency
+ * range and the clinical tACS floor are new.  All are now refused when the protocol is sent. */
+static void blob_audio(blob_t *b, uint8_t level_half_db)
+{
+    np_mod_audio_params_t p;
+    memset(&p, 0, sizeof p);
+    p.mode = 2U; p.level_half_db = level_half_db;
+    blob_make(b, 1U, 60000U, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_cvns(blob_t *b, uint16_t freq_mhz, uint16_t amplitude_ua, uint16_t pulse_width_us, uint8_t side)
+{
+    np_mod_cvns_params_t p;
+    memset(&p, 0, sizeof p);
+    p.side = side; p.freq_mhz = freq_mhz; p.amplitude_ua = amplitude_ua; p.pulse_width_us = pulse_width_us;
+    p.ramp_s = 10U; p.baseline_req = 1U;
+    blob_make(b, 1U, 60000U, NP_MOD_CVNS, NP_HUB_SLOT_CVNS, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_bes_at(blob_t *b, uint16_t freq_mhz)
+{
+    np_mod_bes_tacs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = freq_mhz; p.amplitude_ua = 500U;
+    blob_make(b, 1U, 60000U, NP_MOD_BES_TACS, NP_HUB_SLOT_BES_TACS, (const uint8_t *)&p, sizeof p);
+}
+
+static void blob_eeg_gain(blob_t *b, uint8_t gain)
+{
+    uint8_t p[sizeof EEG_PARAMS];
+    memcpy(p, EEG_PARAMS, sizeof p);
+    p[1] = gain;
+    blob_make(b, 1U, 60000U, NP_MOD_EEG, NP_HUB_SLOT_EEG, p, sizeof p);
+}
+
+static void blob_clin_tacs(blob_t *b, uint16_t freq_mhz)
+{
+    np_mod_clin_tacs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = freq_mhz; p.amplitude_ua = 1000U; p.channel_mask_lo = 1U;
+    blob_make(b, 1U, 60000U, NP_MOD_CLIN_TACS, NP_HUB_SLOT_CLIN_TACS, (const uint8_t *)&p, sizeof p);
+}
+
+static void expect_refused_at_load(blob_t *b, bool t2, const char *name)
+{
+    char msg[160];
+    fresh();
+    if (t2) { g_tier = NP_TIER_T2; }
+    snprintf(msg, sizeof msg, "%s is refused at load", name);
+    check(np_runner_load(b->buf, b->len) == NP_HUB_ERR_INVALID_ARG, msg);
+    expect_nothing_left_behind(name);
+}
+
+static void expect_loads(blob_t *b, bool t2, const char *name)
+{
+    char msg[160];
+    fresh();
+    if (t2) { g_tier = NP_TIER_T2; }
+    snprintf(msg, sizeof msg, "%s loads", name);
+    check(np_runner_load(b->buf, b->len) == NP_HUB_OK, msg);
+}
+
+/* @verifies REQ-FWHUB-78#g */
+static void test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload(void)
+{
+    blob_t b;
+    blob_audio(&b, (uint8_t)(NP_AUDIO_MAX_LEVEL_HALF_DB + 1U));
+    expect_refused_at_load(&b, false, "audio: 85.5 dB SPL");
+    blob_audio(&b, (uint8_t)NP_AUDIO_MAX_LEVEL_HALF_DB);
+    expect_loads(&b, false, "audio: exactly 85 dB SPL");
+
+    blob_cvns(&b, 25001U, 2000U, 250U, 0U);  expect_refused_at_load(&b, true, "cVNS: 25.001 Hz");
+    blob_cvns(&b, 999U, 2000U, 250U, 0U);    expect_refused_at_load(&b, true, "cVNS: 0.999 Hz");
+    blob_cvns(&b, 25000U, 2001U, 250U, 0U);  expect_refused_at_load(&b, true, "cVNS: 2001 uA");
+    blob_cvns(&b, 25000U, 2000U, 199U, 0U);  expect_refused_at_load(&b, true, "cVNS: a 199 us pulse");
+    blob_cvns(&b, 25000U, 2000U, 1001U, 0U); expect_refused_at_load(&b, true, "cVNS: a 1001 us pulse");
+    blob_cvns(&b, 25000U, 2000U, 250U, 3U);  expect_refused_at_load(&b, true, "cVNS: a side that is not right, left or bilateral");
+
+    blob_cvns(&b, 25000U, 2000U, 1000U, 2U); expect_loads(&b, true, "cVNS: 25 Hz, 2 mA, 1000 us, bilateral (every limit at once)");
+    blob_cvns(&b, 1000U, 2000U, 200U, 0U);   expect_loads(&b, true, "cVNS: 1 Hz and a 200 us pulse (the lower edges)");
+    blob_cvns(&b, 25000U, 1000U, 0U, 1U);    expect_loads(&b, true, "cVNS: pulse width 0, the 250 us default");
+}
+
+/* @verifies REQ-FWHUB-78#g,h,j */
+static void test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_at_upload(void)
+{
+    blob_t b;
+    blob_bes_at(&b, 499U);    expect_refused_at_load(&b, false, "BES: 0.499 Hz");
+    blob_bes_at(&b, 40001U);  expect_refused_at_load(&b, false, "BES: 40.001 Hz");
+    blob_bes_at(&b, 500U);    expect_loads(&b, false, "BES: exactly 0.5 Hz");
+    blob_bes_at(&b, 40000U);  expect_loads(&b, false, "BES: exactly 40 Hz");
+
+    blob_eeg_gain(&b, 7U);    expect_refused_at_load(&b, false, "EEG: gain code 7");
+    blob_eeg_gain(&b, 6U);    expect_loads(&b, false, "EEG: gain code 6");
+
+    blob_clin_tacs(&b, 499U); expect_refused_at_load(&b, true, "clinical tACS: 0.499 Hz");
+    blob_clin_tacs(&b, 500U); expect_loads(&b, true, "clinical tACS: exactly 0.5 Hz");
+}
+
 /* The predicate itself, for the commands a slot-target blob cannot carry (socket-addressed PBM) and for one bad
  * command among good ones.  The drivers call the same function at dispatch. */
 /* @verifies REQ-FWHUB-78#e,g */
@@ -821,6 +920,8 @@ int main(void)
     test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leaves_nothing();
     test_a_command_exactly_at_each_driver_limit_loads();
     test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command();
+    test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload();
+    test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_at_upload();
 
     if (g_unexpected != 0U) {
         printf("FAIL: np_runner_load() reached %u run-loop seam call(s)\n", g_unexpected);
