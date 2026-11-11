@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 37
-**Date:** 2026-10-30  
+**Revision:** 38
+**Date:** 2026-11-11  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4145,3 +4145,11 @@ Two things follow. First, vendor the **narrowest possible subset** for the safet
 ### 9.5 What this unblocks
 
 Phases 4 and 5 in §6 are no longer blocked on a decision — they are now ordinary work items, gated only on the vendoring being performed to the standard in §9.3. Phase 0 (the workflow itself) never depended on this and can proceed independently.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 38 | 2026-11-11 | NeurOne Software Engineering | **New §6.17: the expected protection of `main` and its comparison with GitHub (rules R1 to R6 and L1 to L8), the three settings changes that had left no record (§6.13.5's "one bypass entry" and "refused for every actor" are superseded), and what is not established. §7: `OI-SWCI-52` closed, `OI-SWCI-54` raised, `OI-SWCI-10` updated.** |
