@@ -63,7 +63,7 @@ fn an_in_range_value_still_compiles() {
 // @verifies REQ-NPPS-04
 #[test]
 fn a_socket_or_clock_that_does_not_fit_32_bits_is_refused_not_wrapped() {
-    let pbm = json!({ "zones": "clinician_selected", "wavelength": "660nm", "irradianceMWcm2": 100, "frequencyHz": 10, "dutyCyclePercent": 50 });
+    let pbm = json!({ "zones": "clinician_selected", "wavelength": "660nm", "irradianceMWcm2": 100, "frequencyHz": 10, "dutyCyclePercent": 25 });
     // 2^32 + 1 used to truncate to socket 1.
     refused(compile_with("pbm_transcranial", pbm.clone(), json!([4294967297u64]), json!(1)), "socket id");
     refused(compile_with("pbm_transcranial", pbm.clone(), json!([1]), json!(4294967297u64)), "nowUnix");

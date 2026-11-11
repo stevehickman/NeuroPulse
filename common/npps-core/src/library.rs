@@ -300,6 +300,11 @@ const REASON_PHOTIC_ZONE: u64 = 30;
 /// `NP_HUB_ERR_BAD_ADDRESS` (REQ-FWHUB-64): the protocol names a socket this helmet does not have. It was reason 2 (`malformed`); the
 /// author can make the protocol again for this helmet, so it has a cause of its own, `bad_address`.
 const REASON_BAD_ADDRESS: u64 = 31;
+/// `NP_HUB_ERR_OUTSIDE_LIMIT` (REQ-FWHUB-78 (g), `OI-FWHUB-35` (a)): a command in the protocol holds a value outside a limit the helmet's
+/// drivers hold. It was reason 2 (`malformed`); the author can change the value, so it has a cause of its own, `outside_limit`
+/// (`PROTOCOL_MENU_REFUSED_OUTSIDE_LIMIT`). The compiler refuses the same values before signing (`REQ-NPPS-33` (e)), so a
+/// descriptor this core made does not meet it.
+const REASON_OUTSIDE_LIMIT: u64 = 40;
 /// `NP_HUB_ERR_CMD_TOO_MANY`: more commands than the helmet can hold. The author can shorten the protocol or split it, so it has a
 /// cause of its own, `too_many_commands`, and no longer shares `malformed` with a descriptor the app built wrongly.
 const REASON_CMD_TOO_MANY: u64 = 8;
@@ -336,6 +341,7 @@ fn helmet_cause(req: &Value) -> R<Value> {
         REASON_CMD_TOO_MANY => "too_many_commands", // NP_HUB_ERR_CMD_TOO_MANY: more steps than the helmet holds
         REASON_PHOTIC_ZONE => "photic_zone",   // NP_HUB_ERR_PHOTIC_ZONE
         REASON_BAD_ADDRESS => "bad_address",   // NP_HUB_ERR_BAD_ADDRESS
+        REASON_OUTSIDE_LIMIT => "outside_limit", // NP_HUB_ERR_OUTSIDE_LIMIT
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
         REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets
