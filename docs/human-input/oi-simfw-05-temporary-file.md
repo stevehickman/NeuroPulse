@@ -1,6 +1,6 @@
 # Principal question for review: OI-SIMFW-05 (a), the rules for the twin's temporary storage file
 
-**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); Q3 partly answered by the Q1 answer; Q4 partly answered by the answer to question A of `oi-simfw-05-saved-file.md` (the file is encrypted at rest); the rest of Q3 and Q4, and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); Q3 partly answered (by the Q1 answer, and its retention part answered: one week by default, configurable); Q4 partly answered by the answer to question A of `oi-simfw-05-saved-file.md` (the file is encrypted at rest); the rest of Q3 and Q4, and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5, and whoever owns bench and first-article test, not yet named, for Q3 and Q5)
 **Response needed:** an option for each of Q1 to Q5, with a short rationale, name, role and date.
@@ -112,10 +112,22 @@ No rationale was given beyond the choice. Recorded in `REQ-SIMFW-21` part (b). N
 
 Against the options drafted under Q3, point 1 is nearest to "(2) a directory named by the person" but chosen at the time of saving and remembered, and point 2 lets the person name the file, which none of the three drafted options did. It is not option (3) as drafted unless the path travels in a client message, which the sentence does not say.
 
-**Still open under Q3:**
+**The principal, 2026-11-11, verbatim, on the retention part of Q3:** "Q3: keep the saved file default to 1 week but allow it to be configured."
+
+**Decided (part of Q3, "how long is a saved copy kept"):** a saved copy is kept for one week by default, and the period can be configured. No rationale was given beyond the sentence. Recorded as `REQ-SIMFW-21` part (f). Not built. The default of one week is the principal's choice and has no derivation, measurement or citation behind it, so it has a row in `docs/status/unjustified-choices.md` (`UC-154`); a value a person configures is theirs and is not a register row.
+
+**Still open under Q3, exactly four things:** when a save may be requested; who deletes a saved copy at the end of its period; how the directory is picked safely; and the container case.
 
 - **When a save may be requested:** at start, during the session, or both (options A, B, C of Q3). Not said.
-- **How long a saved copy is kept, and who deletes it.** Not said.
+- **Who deletes a saved copy when its period ends.** Not said. To confirm, with nothing assumed:
+  - **(a) The twin deletes expired saved copies itself.** Nothing runs when the twin is not running, so this can only happen when it starts (or while it runs): a file can outlive its week until the next start, which may be much later or never. Costs: the twin would delete files in a directory the person chose, so it must know a file is its own and never delete anything else. The means for that are the unique extension and a header with a magic number and a version (questions B, C and E of `oi-simfw-05-saved-file.md`), none of them decided; a file the person moved is not found and so is never deleted, and a file the person renamed must still be recognised by its header and not its name; and a person who saved a run "for later examination" may be surprised to find it gone. Gains: the period means what it says without anyone acting.
+  - **(b) The twin lists expired copies and offers to delete them.** Costs: files stay until a person agrees, so the period is a prompt and not a limit; the list needs somewhere to appear. Gains: nothing vanishes unasked.
+  - **(c) Nothing deletes them; one week is the period after which a copy is marked as expired.** Costs: saved files accumulate; "kept for one week" then says only when the mark appears. Gains: the twin never deletes a file in a person's directory.
+- **Points the retention answer leaves to settle, each a question:**
+  - Is the week counted from when the copy was saved, or from when it was last opened?
+  - What may the configured value be: is there a minimum, a maximum, and is a value meaning "do not expire" allowed?
+  - Where is the setting kept? The same local preference store as the remembered directory would be the natural place (question F of `oi-simfw-05-saved-file.md`, open).
+  - The clock. A retention period of a week is real time. The twin's time model is a virtual timeline with clock domains (`OI-SIMFW-04`, decided, not built), and a virtual clock can be advanced a week in a moment. So expiry has to be judged by the host's wall clock and never by the twin's virtual time. This is stated as a consequence to confirm, not as a decision.
 - **How the person picks the directory, and what that means for `REQ-SIMFW-12`.** "They pick the directory" is a person's choice on the host. Two ways it could be made are different things. *A native picker on the host* (a dialog run by a program on the host, or a setting given when the twin is started): the path never passes through a browser message, and `REQ-SIMFW-12` is untouched; it needs a host-side program or a start-time setting. *A path typed into the page:* the path arrives in a client message, so a client chooses where on the machine a file is written. `REQ-SIMFW-12` as written forbids a client string in a command line of the firmware process; a typed path would have to be handled by the bridge alone, validated, and never passed to that process, and whether that is acceptable is the principal's to say. A browser's own file-save dialog is a third way: the browser writes the file where the person chose and the page never learns the path, but then the twin cannot remember the directory, which point 1 asks for.
 - **What happens in the container.** A directory the person picks is a directory on the host; the container sees it only if it is mounted. Whether the mount is fixed when the container starts, and what "pick" then means, is not said.
 
@@ -129,4 +141,4 @@ Against the options drafted under Q3, point 1 is nearest to "(2) a directory nam
 
 **Rationale.** None was given beyond the sentences quoted.
 
-**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` parts (b) and (d)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11). Q5 is unanswered, and Q3 and Q4 are answered only in part.
+**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` parts (b), (d) and (f)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11). Q5 is unanswered, and Q3 and Q4 are answered only in part.
