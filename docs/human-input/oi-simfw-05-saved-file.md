@@ -1,9 +1,9 @@
 # Principal question for review: OI-SIMFW-05 (b), the saved file's name, extension, opening and association
 
-**Status:** Question A ANSWERED 2026-11-11 (the principal); B to F, and G to K which the answer raises, are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Question A ANSWERED 2026-11-11 (the principal); question G ANSWERED 2026-11-11 (the principal): uniqueness is not needed; B to F, H to K and the new L are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5 of `oi-simfw-05-temporary-file.md`, which question E here touches)
-**Response needed:** an option for each of B to K, with a short rationale, name, role and date.
+**Response needed:** an option for each of B to F and H to L, with a short rationale, name, role and date.
 **Why now:** on 2026-11-11 the principal answered Q1 of `oi-simfw-05-temporary-file.md` and gave direction for a saved copy: the person picks the directory, which is remembered; the default name is "the logged in userID followed by a timestamp"; and the extension is unique to NeurOne so the file opens on double click. That direction raises six questions it does not answer. None is decided here, and nothing in the repository acts as if any open one were answered. *(Written before the answer to A; see section 4.)*
 
 ## 1. What is known
@@ -63,7 +63,7 @@ It is a stored setting. What can be said now: it would hold a path and nothing e
 
 ## 3. What to send back
 
-An option for each of B to K, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
+An option for each of B to F and H to L, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
 
 ## 4. Answers
 
@@ -73,18 +73,29 @@ An option for each of B to K, a sentence on why for each (`CLAUDE.md` §18 wants
 
 **Also in the sentence, recorded as the principal's direction and not as a closed question:**
 
-- **The id cannot clash with a pseudonymous id another user picked earlier.** How that is achieved is not said, and it pulls against "only they know" (question G).
+- **The id cannot clash with a pseudonymous id another user picked earlier.** How that is achieved is not said, and it pulls against "only they know" (question G). **WITHDRAWN by the principal later the same day; see the answer on question G below.**
 - **The file is encrypted at rest, and that is how the principal addresses the data-privacy concern** raised under question A: an identity in a file name beside SHDR records (`CLAUDE.md` §5.1). This partly answers Q4 of `oi-simfw-05-temporary-file.md`, in its half "is the synthetic UHDR in the file encrypted": encrypted. It does not say which of that question's options (1) or (3) is meant, under which key, or whether the working temporary file is encrypted as well as a saved copy (questions H to K). Q4 is not answered.
 
 **Not said and still open in question A itself:** the timestamp's format and time zone, and what the default name is if the person has picked no id yet. The decision makes the second easier to state (the save asks for an id), but it was not said.
 
-**Rationale.** The sentence gives its own: the principal recognises the data-privacy challenge and addresses it by encryption at rest. Nothing further was given.
+**The principal, 2026-11-11, verbatim, on uniqueness (question G):** "On uniqueness: I'm going to backtrack on this. If the file is encrypted, only the keyholder can open it anyway, and two different users will simply have files that have similar names (the filesystem will prevent them from being identical). So I don't think we need uniqueness"
+
+**Question G: answered. Uniqueness is not needed.** The pseudonymous id does not have to be unique. The clause of the earlier answer to question A, "It can't clash with a previously picked pseudonymous ID that another user picked", is withdrawn by this sentence. The rest of that answer stands: a pseudonymous id the person picks, theirs alone to know, which need not match their login. No registry, no appended random part and no collision check is required. Options (a) to (d) under question G are not taken; they stay in section 5 as the record of what was considered. `REQ-SIMFW-21` part (e) never mentioned uniqueness and is unchanged.
+
+**The principal's reasons, as given:** if the file is encrypted only the keyholder can open it, and two users will simply have files with similar names, which the filesystem prevents from being identical.
+
+**Two things that reasoning rests on, recorded as consequences to confirm and not as decisions:**
+
+1. **"Only the keyholder can open it anyway" holds only if the key is not shared.** Under question H option (a), a TEST key in the repository, anyone with the code can open any saved file, and the argument does not hold. So the withdrawal depends on the answer to H. It is noted under G and under H.
+2. **"The filesystem will prevent them from being identical" holds only if the twin creates a saved copy exclusively,** so that the create fails when the name exists. A save that overwrites would destroy another person's file in a shared directory with nothing said. What the twin does when an exclusive create is refused is question L.
+
+**Rationale for the answer to question A.** The sentence gives its own: the principal recognises the data-privacy challenge and addresses it by encryption at rest. Nothing further was given.
 
 **Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` part (e)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11).
 
 ## 5. Questions the answer to A raises (none decided)
 
-**G. How is "cannot clash with an id another user picked" made true, and how much uniqueness is needed?**
+**G. How is "cannot clash with an id another user picked" made true, and how much uniqueness is needed?** **ANSWERED 2026-11-11 (the principal): uniqueness is not needed (section 4). Options (a) to (d) below are NOT TAKEN and are kept as the record of what was considered.** The answer rests on the file being encrypted under a key that is not shared, so it depends on question H: under H option (a) it would not hold.
 
 The tension, stated plainly: an id that only its owner knows, and an id that is checked against everyone else's, cannot both hold unless uniqueness is established without disclosing ids. Any registry that answers "taken" lets a person confirm that an id exists, and by trying many, enumerate them. And a shared registry is a store that someone holds (NeurOne, or the bench's owner) linking pseudonyms to the people who registered them, which is against the spirit of `CLAUDE.md` §5.1 (SHDR is never linked to user identity) and §5.3 (no linkage table exists).
 
@@ -95,7 +106,7 @@ What a clash would actually cause: two people's saved files would begin with the
 - **(c) A shared registry of salted hashes of ids.** Costs: it is still a store someone holds; a hash of a short human-picked id is guessable by trying likely ids, so it leaks which ids exist to anyone who can query it or who obtains it, and with the salt known it can be searched offline; it needs a network and an operator. Gains: uniqueness across machines.
 - **(d) A registry kept by whoever owns a bench, for that bench only.** Costs: the bench owner holds a list tying pseudonyms to the people who use the bench, which is a linkage table in small; it does nothing for a person not on a bench. Gains: uniqueness where files from several people actually meet.
 
-**H. Who holds the key that "encrypted at rest" needs?**
+**H. Who holds the key that "encrypted at rest" needs?** *(The principal's withdrawal of uniqueness, question G, rests on "only the keyholder can open it": that is true under options (b), (c) and (d) and false under option (a). To confirm with the answer to this question.)*
 
 - **(a) A TEST key in the twin.** The twin holds test keys only (`REQ-SIMFW-08`). Costs, plainly: a test key is in the repository, so it keeps out nobody who has the code, and it protects nothing that a reader of this repository could not undo. It would make the file unreadable to ordinary tools and to no one else. Gains: nothing for the person to remember; double click needs no prompt.
 - **(b) A key derived from a passphrase the person gives when saving,** needed again to open. Costs: a forgotten passphrase loses the file; opening on double click needs a prompt; a weak passphrase is a weak key. Gains: only the person can open the file, which is the only option here under which the encryption protects against someone who holds the file and the code.
@@ -109,7 +120,7 @@ Whichever is chosen, **the opener needs the key.** That bears on question B: a v
 - **(1) The saved copy only.** Costs: the working temporary file is in the clear while the twin runs. It is owner-only and, where the host allows it, has no name (Q1 and Q2 of `oi-simfw-05-temporary-file.md`), and on a host where it has a name and can be left behind it would be left in the clear. Gains: the twin's own storage path is unchanged.
 - **(2) The saved copy and the working temporary file.** Costs: every read and write of the twin's storage passes through the encryption, and the working file needs a key before anyone has asked to save (a key made for the session and discarded would do, and then a save re-encrypts under the key of question H). Gains: nothing is ever on disk in the clear.
 
-**Encryption at rest does not cover the file's name.** The pseudonymous id and the timestamp are in the clear in the name whatever is chosen here. The pseudonym is what stands between the name and a person, which is why question G matters and why a registry that ties pseudonyms to people would undo it.
+**Encryption at rest does not cover the file's name.** The pseudonymous id and the timestamp are in the clear in the name whatever is chosen here. The pseudonym is what stands between the name and a person. (Question G is answered: no registry of pseudonyms is to exist, so nothing ties one to a person.)
 
 **J. Where does the encryption code live?** (A consequence to confirm, not a design.)
 
@@ -122,3 +133,13 @@ Q4 of `oi-simfw-05-temporary-file.md`, option (1), was "encrypted as the device 
 - **(1) Whole-file encryption only.** The partitions inside are as the twin writes them. Costs: the device's own UHDR encryption path is not exercised by this. Gains: can be built without `OI-SIMFW-52`.
 - **(2) The device's partition encryption only,** inside an otherwise clear file. Costs: the SHDR partition and the twin's synthetic state are in the clear, which is not what "the file" encrypted at rest says; waits for `OI-SIMFW-52`. Gains: the file holds what a device would.
 - **(3) Both.** Costs: two layers and two keys to manage. Gains: the file is protected as a file, and the twin runs the device's path.
+
+**L. What does the twin do when a saved copy's name already exists?** (Raised by the answer to G. It needs an answer only for the build.)
+
+For the filesystem to keep two files from being identical, the twin has to create a saved copy exclusively: the create fails if the name exists, and nothing is overwritten. An overwriting save would silently destroy another person's file in a shared directory, which is the fault the project refuses elsewhere: a thing is rejected and said so, never silently reshaped (`CLAUDE.md` §3). **To confirm first:** that a save never overwrites an existing file. Then, when the exclusive create is refused:
+
+- **(a) Refuse, and tell the person.** Costs: the person has to save again; with the default name they would get a new timestamp a second later, so a retry normally succeeds. Gains: nothing happens that was not asked for.
+- **(b) Append a counter to the name and save.** Costs: the file is saved under a name the person did not see beforehand, so they must be told the name actually used, or it is a silent change of what they asked for. Gains: the save succeeds at once.
+- **(c) Ask the person for another name.** Costs: a prompt in the middle of a save; a bench script has nobody to ask. Gains: the person chooses.
+
+The default name, a pseudonymous id followed by a timestamp, already makes a collision improbable: it needs two saves with the same id into one directory within the timestamp's resolution, or a person typing a name that exists. The resolution of the timestamp is part of question A's open remainder (its format).
