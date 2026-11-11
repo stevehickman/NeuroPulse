@@ -992,7 +992,7 @@ static void test_the_thermal_interlock_re_arms_below_its_hysteresis_and_the_hub_
 
 /* ── The withhold report, from the MCU's own gates to the hub's getter (OI-SIMFW-61) ── */
 
-/* @verifies REQ-FWHUB-81#d */
+/* @verifies REQ-FWHUB-82#d */
 static void test_the_hub_learns_which_gate_withheld_a_line(void)
 {
     uint16_t decl = 0U, geom = 0U;
@@ -1015,7 +1015,7 @@ static void test_the_hub_learns_which_gate_withheld_a_line(void)
           "withhold report: the next beat's report no longer names the line");
 }
 
-/* @verifies REQ-FWHUB-81#d */
+/* @verifies REQ-FWHUB-82#d */
 static void test_the_hub_learns_which_geometry_was_missing(void)
 {
     uint16_t decl = 0U, geom = 0U;

@@ -843,7 +843,7 @@ static uint16_t withhold_sum(const np_safety_withhold_report_t *r)
                       (uint16_t)(r->geom_mask >> 8));
 }
 
-/* @verifies REQ-FWHUB-81#a */
+/* @verifies REQ-FWHUB-82#a */
 static void test_withhold_decl_mask_names_the_undeclared_lines(void)
 {
     np_charge_monitor_init();
@@ -866,7 +866,7 @@ static void test_withhold_decl_mask_names_the_undeclared_lines(void)
           "withhold: a declared channel leaves the report, the others stay");
 }
 
-/* @verifies REQ-FWHUB-81#a */
+/* @verifies REQ-FWHUB-82#a */
 static void test_withhold_geom_mask_names_the_missing_geometry(void)
 {
     np_charge_monitor_init();
@@ -885,7 +885,7 @@ static void test_withhold_geom_mask_names_the_missing_geometry(void)
           "withhold: tDCS and BES/tACS geometry are reported together, and independently of the first");
 }
 
-/* @verifies REQ-FWHUB-81#b */
+/* @verifies REQ-FWHUB-82#b */
 static void test_withhold_masks_are_per_beat_and_first_gate_wins(void)
 {
     np_charge_monitor_init();
@@ -926,7 +926,7 @@ static void test_withhold_masks_are_per_beat_and_first_gate_wins(void)
 
 /* The gates run on every loop iteration but granted_mask is re-granted only when a heartbeat arrives, so
  * from the second iteration on the line is already clear: the report must not fall to zero then. */
-/* @verifies REQ-FWHUB-81#b */
+/* @verifies REQ-FWHUB-82#b */
 static void test_withhold_report_is_stable_across_loop_iterations(void)
 {
     np_charge_monitor_init();
@@ -945,7 +945,7 @@ static void test_withhold_report_is_stable_across_loop_iterations(void)
           "withhold: the second iteration, with the lines already cleared, reports the same masks");
 }
 
-/* @verifies REQ-FWHUB-81#a */
+/* @verifies REQ-FWHUB-82#a */
 static void test_withhold_names_only_requested_lines(void)
 {
     np_charge_monitor_init();
@@ -959,7 +959,7 @@ static void test_withhold_names_only_requested_lines(void)
           "withhold: a line the hub never requested is not reported as withheld");
 }
 
-/* @verifies REQ-FWHUB-81#a */
+/* @verifies REQ-FWHUB-82#a */
 static void test_withhold_report_shape_magic_and_checksum(void)
 {
     np_safety_state_t s = requested_state();
@@ -985,7 +985,7 @@ static void test_withhold_report_shape_magic_and_checksum(void)
     check(1, "withhold report: NULL state or output is a no-op, not a crash");
 }
 
-/* @verifies REQ-FWHUB-81#c */
+/* @verifies REQ-FWHUB-82#c */
 static void test_withhold_report_does_not_change_the_frame(void)
 {
     check(NP_SAFETY_RX_EXT_FRAME_LEN == 38U, "withhold report: the extended frame is still 38 bytes");

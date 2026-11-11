@@ -610,7 +610,7 @@ test('end to end: through the bridge the safety MCU grants a BES line, then the 
   assert.strictEqual(bridge.list().safety.lines, cut.lines, 'and MODULE_LIST carries that state');
 });
 
-// @verifies REQ-FWHUB-81#d
+// @verifies REQ-FWHUB-82#d
 test('end to end: the withhold report says the BES line is held for its undeclared waveform class, and drops it once declared', { skip: !BIN }, async () => {
   const bridge = new FwBridge({ bin: BIN }).start();
   const seen = [];

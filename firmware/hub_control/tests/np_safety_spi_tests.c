@@ -274,7 +274,7 @@ static void test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_l
 
 /* ── The withhold report (OI-SIMFW-61): parsed, validated, never stale ─────── */
 
-/* @verifies REQ-FWHUB-81#b */
+/* @verifies REQ-FWHUB-82#b */
 static void test_the_withhold_report_is_parsed_and_a_bad_one_is_refused(void)
 {
     uint16_t decl = 0xAAAAU, geom = 0xAAAAU;

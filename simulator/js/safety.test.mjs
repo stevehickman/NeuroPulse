@@ -207,9 +207,9 @@ test('attach can start a part whose root key is corrupt, and no other message ca
   assert.ok(!messageToLines(SCRIPTS.attach(1)[0]).includes('safety_root_corrupt'));
 });
 
-// ── the withhold report: which gate held a line (OI-SIMFW-61, REQ-FWHUB-81) ─────────────────────────────────────────────────────────
+// ── the withhold report: which gate held a line (OI-SIMFW-61, REQ-FWHUB-82) ─────────────────────────────────────────────────────────
 
-// @verifies REQ-FWHUB-81#d
+// @verifies REQ-FWHUB-82#d
 test('the withhold report is decoded into line names, and an event without it reads as no report', () => {
   const reg = new SimModuleRegistry();
   reg.onMessage({ type: 'SAFETY_STATE', event: state({ withhold_valid: true, withhold_decl: (1 << 5) | (1 << 6), withhold_geom: 1 << 13 }) }, 0);
@@ -226,7 +226,7 @@ test('the withhold report is decoded into line names, and an event without it re
   assert.deepStrictEqual(reg.safety.withheld, { valid: false, declaration: [], geometry: [] }, 'an event with no such fields');
 });
 
-// @verifies REQ-FWHUB-81#d
+// @verifies REQ-FWHUB-82#d
 test('with no safety MCU in the loop there is no withhold report', () => {
   const reg = new SimModuleRegistry();
   assert.deepStrictEqual(reg.safety.withheld, { valid: false, declaration: [], geometry: [] });
