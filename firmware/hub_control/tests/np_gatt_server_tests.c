@@ -535,7 +535,7 @@ static void test_device_serial(void)
     g_serial_rc = NP_HUB_OK;
 }
 
-/* @verifies SWR-HV-06 */
+/* @verifies SWR-HV-06#a,e */
 static void test_hardware_version_is_read_from_the_safety_mcu_and_cannot_be_written(void)
 {
     uint8_t buf[8];
