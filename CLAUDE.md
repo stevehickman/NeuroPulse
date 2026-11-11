@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 80 (current)  
+**Revision:** 81 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -481,7 +481,8 @@ like a test, never for a test that merely has no row yet. Tag syntax, test units
 platform reaches it** (JNI on Android, the C ABI on iOS and Windows, WebAssembly on the web). It is not
 written again in Kotlin, Swift, C# or TypeScript, and not taken from a platform or third-party library.
 
-- **No JVM code runs on the helmet.** The hub firmware is C (§4.1, §4.2); Kotlin, Java and any other
+- **No JVM code runs on the helmet.** The hub firmware is C (§4.1, §4.2), and the main processor's may also include
+  `no_std` Rust (the principal, 2026-11-11), never the safety MCU's; Kotlin, Java and any other
   managed-runtime code is companion-app code and is never moved onto the headset.
 - **A library whose licence would oblige NeurOne's own code to be copyleft (GPL, AGPL) is not added**
   (the principal, 2026-10-17).

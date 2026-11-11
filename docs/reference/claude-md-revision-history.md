@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 81 (2026-11-11) — §22: the hub's main processor may include `no_std` Rust (the principal). No other locked decision changed.**
+
+**What changed.** §22's bullet "The hub firmware is C (§4.1, §4.2)" now also says the main processor's firmware may include `no_std` Rust, and never the safety MCU's. `docs/reference/engineering-rules.md` §22 detail and `docs/np_soup_kotlin_001.md` said the same thing in their own words and are changed to match. Nothing else in this file changed.
+
+**Why.** The principal answered the first question of the end-to-end encryption feasibility study (`docs/np_sim_fw_001.md` §29, `OI-SIMFW-71`): hub firmware language can include `no_std` Rust. The build probes there show the crypto primitives (AES-GCM, HKDF, HMAC, SHA-2, X25519, Ed25519) compile without `std` for the main processor's Cortex-M7, and `spake2` and `hpke` need an allocator and an entropy hook, so the ruling lets the hub share its crypto with `common/npps-core` instead of carrying a second implementation in C.
+
+**What it leaves.** The ruling names the hub and the principal did not name the safety MCU, so the safety MCU stays C (IEC 62304 Class C, bare-metal, MISRA C:2012); extending it is a separate decision. Nothing is built: `npps-core` is not `no_std` and splitting out the crypto is `OI-SIMFW-71`. A new crate joins `docs/np_soup_rust_001.md` in the change that adds it (§22). The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
 **Rev 80 (2026-11-11) — new §23: every upload and download is encrypted, on every transport; a locked invariant (the principal). No other locked decision changed.**
 
 **What changed.** CLAUDE.md gains §23 and one Document Map row (`docs/np_fw_hub_001.md` §2). The rule: every upload to and download from the headset or control hub is encrypted on every transport, with no unencrypted path for protocols, session data, logs, configuration, calibration, firmware or user data. The section states that encryption does not replace the signature of §4.2, that a path counts as conformant only once it is shown to be encrypted, that USB-C CDC (no link-layer encryption) is not assumed covered, that protection only goes up, and that the keys are held by the two ends and never by NeurOne. The footer's section range reads §1 to §6 and §16 to §23. Nothing else in this file changed.
