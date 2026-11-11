@@ -1,6 +1,6 @@
 # Principal question for review: OI-SIMFW-05 (a), the rules for the twin's temporary storage file
 
-**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); Q3 partly answered (by the Q1 answer; retention answered: one week by default, configurable; who deletes at expiry answered: the twin lists expired copies and offers to delete them; the container case answered: the saved files' directory is mounted on the host to examine or delete them; when a save may be requested answered: both at launch and by a command during the session; open under Q3: how the directory is picked safely; the principal's answer of 2026-11-11 that a save never overwrites a closed file, labelled "Q3" by the principal, answers question L of `oi-simfw-05-saved-file.md` and is recorded there); Q4 partly answered by the answer to question A of `oi-simfw-05-saved-file.md` (the file is encrypted at rest); the rest of Q3 and Q4, and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); the meaning of "session" CORRECTED by the principal 2026-11-11 (it defaults to the duration of a user login), which puts the chosen Q2 option D in question without changing it (questions N1 to N4); Q3 partly answered (by the Q1 answer; retention answered: one week by default, configurable; who deletes at expiry answered: the twin lists expired copies and offers to delete them; the container case answered: the saved files' directory is mounted on the host to examine or delete them; when a save may be requested answered: both at launch and by a command during the session; open under Q3: how the directory is picked safely; the principal's answer of 2026-11-11 that a save never overwrites a closed file, labelled "Q3" by the principal, answers question L of `oi-simfw-05-saved-file.md` and is recorded there); Q4 partly answered by the answer to question A of `oi-simfw-05-saved-file.md` (the file is encrypted at rest); the rest of Q3 and Q4, and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5, and whoever owns bench and first-article test, not yet named, for Q3 and Q5)
 **Response needed:** an option for each of Q1 to Q5, with a short rationale, name, role and date.
@@ -17,7 +17,7 @@
 
 ## 2. What is assumed
 
-- That "the session" is one run of the twin process (from its start to its exit). If it means something else (a browser tab, a container's lifetime, one protocol session), Q2 changes.
+- **CORRECTED by the principal, 2026-11-11: "A session defaults to the duration of a user login."** (See section 5.) The assumption as drafted read: That "the session" is one run of the twin process (from its start to its exit). If it means something else (a browser tab, a container's lifetime, one protocol session), Q2 changes.
 - That the UHDR and SHDR records the sentence names are the twin's synthetic ones. `REQ-SIMFW-08` and `CLAUDE.md` §5.1 already require that; the sentence is not read as changing them.
 
 Say so if either is wrong.
@@ -96,6 +96,8 @@ An option for each question, the two assumptions of section 2 confirmed or corre
 
 No rationale was given beyond the choice. Recorded in `REQ-SIMFW-21` part (b). Not built.
 
+**Option D stands as the principal chose it. It is now in question,** because it was drafted and chosen on the assumption that a session is one run of the twin process, and the principal has since said that a session defaults to the duration of a user login (below, and question N2). Nothing here changes the record of the choice.
+
 **What the choice of D does not say, kept open:**
 
 - **The sub-question asked under Q2, whether a leftover after a host power cut is acceptable if it is removed at the next start, or must be impossible, was not answered in words.** What D implies: where B applies a leftover is impossible, because the file has no name; where C applies a file can be left by a crash, a kill or a power cut and stays until the twin next starts on that machine, which may be never. **To confirm:** is that leftover acceptable on a host where only C is available? Yes, or no (and then such a host is not supported until it has an equivalent of B).
@@ -103,6 +105,30 @@ No rationale was given beyond the choice. Recorded in `REQ-SIMFW-21` part (b). N
 - **How a dead session's file is told from a live one's under C.** A lock held by the live process, or a recorded process id; process ids are reused, so an id alone can spare a dead session's file or condemn a live one's. This is an engineering question for the build. It is listed and not answered.
 
 **A consequence of D for Q3, stated and not decided:** where B applies the working file has no name, so a save cannot copy it by name; it has to copy through the open handle, from inside the twin. Where C applies the file has a name and could be copied by name. So "save" is one operation inside the twin on a B host, and could be either on a C host. Which it is on a C host, and whether the two kinds of host should behave the same, is part of Q3.
+
+**The principal, 2026-11-11, verbatim, on the meaning of "session" and on 'save as':** "A session defaults to the duration of a user login. Note, however, that a user command to save during a session could also be a 'save as', in which case, if any file was previously open, it is closed and cannot later be updated."
+
+**The meaning of "session": decided.** A session defaults to the duration of a user login. This corrects the first assumption of section 2, which the principal was asked to confirm or correct. "Defaults" means it can be something else when set otherwise; the sentence does not say how, or by whom (question N3). The second sentence, on 'save as', is recorded in `oi-simfw-05-saved-file.md` §4. No rationale was given beyond the sentences.
+
+**Questions this raises. The first two may reopen a decision already made. None is decided here.**
+
+- **N1. Which "login"?**
+  - **(a) The operating-system login of the person on the host.** The session ends at OS logout; whether a screen lock ends it is to be said. Costs: the twin has to learn of a logout, which is different on every host and is not visible from inside a container; a machine left logged in for weeks is one session.
+  - **(b) A login to the twin itself:** the person identifies themselves to the twin, for example with the pseudonymous id they pick and a passphrase. The session ends when that login is closed, or after a period without use if one is wanted. Costs: a login to build, and a passphrase to remember. It would bear on question H of `oi-simfw-05-saved-file.md` (who holds the key), since a passphrase given at login could also supply the encryption key; that is noted, not decided.
+  - **(c) The login of the container's user,** which in practice is the life of the container. The session ends when the container stops. Costs: it is one run of the container, close to the meaning the principal has just corrected. Gains: it needs nothing new.
+- **N2. Does the session outlive the twin process? This conflicts with Q2 option D as chosen.** If a session is the length of a login, the twin may be started and stopped several times within one session. Q2 option D creates the working file and unlinks it while open, so that it cannot outlive the process. Under the corrected meaning that no longer makes the file disappear at the end of the session: it makes it disappear at every process exit, which is too early if the person expects the twin's state to still be there when they start it again within the same login. The principal's first sentence said the file "should disappear when the user exits the session". Options, none chosen:
+  - **(a) The working file has a name and survives restarts of the twin within the login, and is deleted at the end of the login.** Something has to perform that deletion: a logout hook on the host (different per operating system, and not available to a container), or cleanup at the next start of the twin or at the next login. On a power cut or a crash of the host nothing runs, so the file is left until that next cleanup. This is Q2 option C with a different trigger, and it gives up what option B gave (a file that cannot outlive the process). It also needs the twin to recognise its own session's working file across runs (N4).
+  - **(b) The working file still dies with the process, and "session" is used in two senses:** one run for the working file, a login for a saved file and for the rule about updating it. Costs: two meanings of one word, which has to be said everywhere it is used; the twin's state does not persist across restarts unless it was saved. Gains: Q2 option D stays exactly as chosen.
+  - **(c) Option D as chosen, with the principal accepting that the twin's state does not persist across restarts within a login.** In effect (b) without calling it two meanings: for the working file, the end of the process is treated as the end of the session.
+- **N3. How "defaults" can be changed.** By a setting, a flag at launch, or a command; by whom (the person, or whoever sets up a bench); and what a session then ends on (one run, a stated time, an explicit "end session" action). Not said.
+- **N4. What has to be re-read because it assumed one process run.** Each of these was drafted, and some were answered, with "session" meaning one run. They are listed so the principal can see what the correction touches; none is changed by this list.
+  - **Q2, options A to D** (above): "normal exit", "cannot outlive the process" and "sessions that are no longer running" all speak of the process.
+  - **What "closed" and "update" mean** (M1 and M2 of `oi-simfw-05-saved-file.md`), updated there.
+  - **The same-session update rule** (`REQ-SIMFW-21` part (i)). A saved file created by an earlier run of the twin within the same login belongs to the same session by the principal's definition, so a later run may update it. The twin then has to recognise its own session's file across runs. One way would be a session identifier recorded in the file's header and kept somewhere that lasts for the login; where it is kept, and that it ends with the login, are part of N1 and M3. A matching pseudonymous id in the name is still not enough.
+  - **The retention clock** (R0, M5): "from closing" now includes closing at the end of a login.
+  - **The expiry offer** (R3): "at every start of the twin" and "at the start of a session" are no longer the same moment; which is meant is to be said.
+  - **Question L of `oi-simfw-05-saved-file.md`** (a save never overwrites a closed file): "closed" now has two known causes, a 'save as' and the end of the session.
+  - **S1 and S4 above:** "the working file disappears at exit" is true of the process under option D and is not the same as "at the end of the session".
 
 **Q3: partly answered. Q3 is not closed.** The sentence gives direction for a saved copy, recorded here as the principal's stated direction and not as an answer to the whole question:
 
