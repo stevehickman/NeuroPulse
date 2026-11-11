@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 155
-**Date:** 2026-11-08  
+**Revision:** 156
+**Date:** 2026-11-11  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -808,3 +808,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 153 | 2026-11-08 | NeurOne Software Engineering | **§6.3.6: `SWR-SS-09` status updated: the dialog for an automated halt is built (Compose).** No requirement text changed. The Kotlin was not run where it was written. |
 | 154 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-05` added: the Helmet owner screen's sensitivity slider (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
 | 155 | 2026-11-08 | NeurOne Software Engineering | **§6.3: `SWR-WO-06` added: the Helmet owner screen's cardiac cutoff sensitivity slider (built in Compose).** The Kotlin was not run where it was written; the iOS app is frozen. |
+| 156 | 2026-11-11 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-11` restated for the stream framing (a 4-byte little-endian length, then the blob, in writes of at most the link's write length: the negotiated MTU less 3, never above 512) in place of the START, CONT, END and SINGLE frames.** |
