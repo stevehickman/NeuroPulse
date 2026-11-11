@@ -25,6 +25,9 @@ sealed interface HubBridgeCommand {
     data class Read(val id: Int, val offset: Int = 0) : HubBridgeCommand
 
     data class Write(val id: Int, val hex: String) : HubBridgeCommand
+
+    /** The link is down: the hub drops a half-written upload and keeps a complete one (np_gatt_on_disconnect, REQ-FWHUB-80). */
+    data object Disconnect : HubBridgeCommand
 }
 
 /** What the twin reports, as typed events. */
@@ -107,9 +110,12 @@ class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
 
     override fun disconnect() {
         if (!connected && !connecting) return
+        val wasConnected = connected
         connected = false
         connecting = false
         subscribed.clear()
+        // A link that was up tells the hub it is down, as a stack's link-down callback does; a lost link to the server cannot.
+        if (wasConnected) bridge.send(HubBridgeCommand.Disconnect)
         listener?.onDisconnected(SIMULATED_HUB_ID)
     }
 

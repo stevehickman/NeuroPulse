@@ -8,12 +8,13 @@ import Foundation
 protocol ProtocolUploadGateway: AnyObject {
     var isHubConnected: Bool { get }
 
-    /// Write a single pre-framed BLE chunk to the hub's PROTOCOL_UPLOAD GATT characteristic.
+    /// Write one chunk of the protocol upload stream to the hub's PROTOCOL_UPLOAD GATT characteristic.
     /// This method is called **once per chunk**, not once per protocol blob.
     /// SessionProtocolUploader drives sequencing: it calls this method for each chunk produced
-    /// by ProtocolChunker (SINGLE / START / CONT / END frame headers) and advances only after
-    /// the previous chunk's completion handler fires with `.success`.
-    /// Hub firmware's reassembly state machine expects these framing headers in order.
+    /// by ProtocolChunker and advances only after the previous chunk's completion handler fires
+    /// with `.success`. The chunks are one byte stream (a 4-byte little-endian length, then the
+    /// blob) with no per-chunk header; the hub's transport reassembles it by the length
+    /// (NP-FW-HUB-001 §2.3, REQ-FWHUB-80).
     func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void)
 
     /// True while a cardiac cutoff from a session that ran without the app is unread

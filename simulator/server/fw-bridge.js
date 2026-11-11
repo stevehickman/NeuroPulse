@@ -484,6 +484,7 @@ function gattCommandLines(msg) {
   switch (msg.cmd) {
     case 'gatt_init':    // storage and service up, once (the twin's first boot)
     case 'gatt_table':   // the characteristics the hub publishes
+    case 'gatt_disconnect':   // the link is down: np_gatt_on_disconnect (a half-written upload is dropped)
       return [msg.cmd];                                   // a member of the whitelist, never the client's string
     case 'gatt_read':
       return [`gatt_read ${int(msg.id, 0, 65535, 'id')} ${int(msg.offset ?? 0, 0, 65535, 'offset')}`];
@@ -715,6 +716,7 @@ function eventToMessage(ev) {
     case 'gatt_read':
     case 'gatt_write':
     case 'gatt_notify':
+    case 'gatt_disconnect':
       return { type: 'GATT_EVENT', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for

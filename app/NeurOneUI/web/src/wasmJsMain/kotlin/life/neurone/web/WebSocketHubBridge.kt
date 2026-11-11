@@ -35,6 +35,7 @@ class WebSocketHubBridge(private val url: String) : HubBridge {
         HubBridgeCommand.Table -> hubSend("gatt_table", 0, 0, "")
         is HubBridgeCommand.Read -> hubSend("gatt_read", command.id, command.offset, "")
         is HubBridgeCommand.Write -> hubSend("gatt_write", command.id, 0, command.hex)
+        HubBridgeCommand.Disconnect -> hubSend("gatt_disconnect", 0, 0, "")
     }
 }
 

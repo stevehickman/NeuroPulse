@@ -20,6 +20,7 @@
 #include "np_safety_spi.h"
 #include "np_session_progress.h"
 #include "np_session_stop.h"
+#include "np_transport.h"
 #include "np_upload_check.h"
 #include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
@@ -88,6 +89,15 @@ static np_hub_status_t read_device_tier(uint8_t *buf, size_t cap, size_t *len_ou
     return NP_HUB_OK;
 }
 
+/* The protocol upload (0x0008): each write is the next bytes of the transport's framed stream, a 4-byte little-endian
+ * length and then the blob.  np_transport_feed reassembles it and its status says what happened to the bytes: accepted
+ * (the blob may or may not be complete), a malformed length (the partial frame is dropped and reassembly restarts), or
+ * the last blob still waiting to be taken (REQ-FWHUB-80). */
+static np_hub_status_t write_protocol_upload(const uint8_t *data, size_t len)
+{
+    return np_transport_feed(data, len);
+}
+
 /* ── The table ───────────────────────────────────────────────────────────────
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
@@ -152,6 +162,11 @@ static const np_gatt_char_t TABLE[] = {
     /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
     { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_PAUSE_LIMIT_LEN, 4u, np_pause_limit_read, np_pause_limit_write },
+
+    /* OI-SIMFW-49, REQ-FWHUB-80: the app's protocol upload, the transport's byte stream in writes of up to 512 bytes.  The
+     * hub loads a session from it, so the link must be encrypted. */
+    { NP_GATT_PROTOCOL_UPLOAD_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_STREAM | NP_GATT_PROP_ENC,
+      0u, 0u, NULL, write_protocol_upload },
 
     /* REQ-FWHUB-71: the detector's two clinician switches (read: flags and evidence level; write: flags). */
     { NP_GATT_PPX_CONFIG_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
@@ -252,14 +267,23 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if ((c->props & NP_GATT_PROP_WRITE) == 0U || c->write == NULL) {
         return NP_ATT_WRITE_NOT_PERMITTED;
     }
-    if (data == NULL || len != c->write_len) {
+    const bool stream = (c->props & NP_GATT_PROP_STREAM) != 0U;
+    if (data == NULL || (stream ? (len == 0U || len > NP_GATT_STREAM_WRITE_MAX) : (len != c->write_len))) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
     const np_hub_status_t rc = c->write(data, len);
     if (rc == NP_HUB_OK) {
         return NP_ATT_OK;
     }
+    if (stream && rc == NP_HUB_ERR_SESSION_ACTIVE) {
+        return NP_ATT_APP_BUSY;
+    }
     return (rc == NP_HUB_ERR_RAMPING) ? NP_ATT_APP_RAMPING : NP_ATT_APP_REFUSED;
+}
+
+void np_gatt_on_disconnect(void)
+{
+    np_transport_reset();
 }
 
 np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)

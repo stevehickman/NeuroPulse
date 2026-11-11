@@ -357,23 +357,11 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
         completion(.success(()))
     }
 
-    /// Reassemble all received chunks into the original wire blob by stripping
-    /// the BLE framing headers (mirrors ProtocolChunker frame spec).
+    /// Reassemble all received chunks into the original wire blob, as the hub's transport does: the writes are one byte
+    /// stream, a 4-byte little-endian length and then the blob (NP-FW-HUB-001 §2.3, REQ-FWHUB-80).
     func reassembledPayload() -> Data {
-        var out = Data()
-        for chunk in chunks {
-            guard let header = chunk.first else { continue }
-            switch header {
-            case 0x04: // SINGLE — header + payload
-                out.append(chunk.dropFirst())
-            case 0x01: // START — header + 2-byte length + payload
-                out.append(chunk.dropFirst(3))
-            case 0x02, 0x03: // CONT / END — header + payload
-                out.append(chunk.dropFirst())
-            default:
-                break
-            }
-        }
-        return out
+        var stream = Data()
+        for chunk in chunks { stream.append(chunk) }
+        return Data(stream.dropFirst(BleTransfer.PROTOCOL_LEN_PREFIX))
     }
 }

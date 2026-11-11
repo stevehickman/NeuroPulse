@@ -1,69 +1,38 @@
 import Foundation
 
-// BLE protocol blob chunking for Mode 2 protocol upload.
+// Splits a compiled + signed session descriptor into the writes of the Mode 2 PROTOCOL_UPLOAD characteristic.
 //
-// The hub firmware caps a single BLE 5 GATT write at 512 bytes (ATT MTU).
-// Compiled NPPS session descriptors can exceed this, so large blobs are split
-// into framed chunks. Framing protocol (matches hub firmware reassembly):
+// The wire is the hub transport's own framing, the same on BLE and on USB-C (NP-FW-HUB-001 §2.3, REQ-FWHUB-04,
+// REQ-FWHUB-80): a 4-byte little-endian length, then the blob, as one byte stream. The stream is cut into writes of at
+// most BleTransfer.MAX_WRITE_SIZE bytes and carries nothing else: no per-write header, so a write boundary means nothing
+// to the hub, which reassembles by the length (np_transport.c). Writes are made in order, each acknowledged before the next.
 //
-//   START  (0x01): header byte + 2-byte little-endian total length + ≤509 payload
-//   CONT   (0x02): header byte + ≤511 payload
-//   END    (0x03): header byte + remaining payload
-//   SINGLE (0x04): header byte + payload (whole blob fits in one chunk, ≤509 bytes)
+// An empty blob is one write of a zero length. The hub refuses a length of 0 (and one above its blob maximum, which the
+// hub alone knows and checks); the chunker does not guess either, so a refusal is the hub's.
 //
-// `chunk(_:)` is a pure function (Data → [Data]) with no side effects, so it is
-// unit-testable without any BLE stack.
+// `chunk(_:)` is a pure function (Data → [Data]) with no side effects, so it is unit-testable without any BLE stack.
+// (This replaced a START / CONT / END / SINGLE framing that no hub reassembled: OI-SIMFW-49, the principal's option A.)
 enum ProtocolChunker {
 
-    /// Frame header bytes — must match hub firmware reassembly state machine.
-    enum Frame: UInt8 {
-        case start  = 0x01
-        case cont   = 0x02
-        case end    = 0x03
-        case single = 0x04
-    }
-
-    /// Split a protocol blob into framed BLE-MTU-sized chunks.
-    ///
-    /// - Empty data → a single empty SINGLE chunk (`[Data([0x04])]`); the hub
-    ///   accepts it.
-    /// - `data.count ≤ 509` → one SINGLE chunk.
-    /// - Otherwise → START chunk (509-byte payload) + zero or more CONT chunks
-    ///   (511-byte payload each) + one END chunk with the remainder.
+    /// The upload stream for `data`, as the writes to make, in order.
     static func chunk(_ data: Data) -> [Data] {
-        // Single-chunk case: fits whole (including the empty blob).
-        if data.count <= BleTransfer.MAX_CHUNK_PAYLOAD {
-            var chunk = Data([Frame.single.rawValue])
-            chunk.append(data)
-            return [chunk]
-        }
+        let n = UInt32(truncatingIfNeeded: data.count)
+        var stream = Data([
+            UInt8(n & 0xFF),
+            UInt8((n >> 8) & 0xFF),
+            UInt8((n >> 16) & 0xFF),
+            UInt8((n >> 24) & 0xFF),
+        ])
+        assert(stream.count == BleTransfer.PROTOCOL_LEN_PREFIX, "the length prefix is a 32-bit little-endian value")
+        stream.append(data)
 
         var chunks: [Data] = []
-
-        // START chunk: header + 2-byte LE total length + first 509 payload bytes.
-        let total = UInt16(truncatingIfNeeded: data.count)
-        var start = Data([Frame.start.rawValue])
-        start.append(UInt8(total & 0xFF))          // little-endian low byte
-        start.append(UInt8((total >> 8) & 0xFF))   // little-endian high byte
-        let startEnd = data.index(data.startIndex, offsetBy: BleTransfer.MAX_CHUNK_PAYLOAD)
-        start.append(contentsOf: data[data.startIndex..<startEnd])
-        chunks.append(start)
-
-        // Remaining payload, split into CONT chunks with an END chunk last.
-        var offset = startEnd
-        while offset < data.endIndex {
-            let remaining = data.distance(from: offset, to: data.endIndex)
-            let take = min(BleTransfer.MAX_CONT_PAYLOAD, remaining)
-            let sliceEnd = data.index(offset, offsetBy: take)
-            let isLast = sliceEnd == data.endIndex
-
-            var chunk = Data([(isLast ? Frame.end : Frame.cont).rawValue])
-            chunk.append(contentsOf: data[offset..<sliceEnd])
-            chunks.append(chunk)
-
-            offset = sliceEnd
+        var offset = 0
+        while offset < stream.count {
+            let end = min(offset + BleTransfer.MAX_WRITE_SIZE, stream.count)
+            chunks.append(Data(stream[offset..<end]))
+            offset = end
         }
-
         return chunks
     }
 }

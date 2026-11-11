@@ -23,6 +23,7 @@
 #include "../include/np_safety_spi.h"
 #include "../include/np_session_stop.h"
 #include "../include/np_upload_check.h"
+#include "../include/np_transport.h"
 #include "np_crypto.h"
 
 static int g_failures = 0;
@@ -310,7 +311,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 17U, "table: seventeen characteristics, each with a producer");
+    check(n == 18U, "table: eighteen characteristics, each with a producer");
 
     bool coherent = true;
     bool pending_absent = true;
@@ -319,7 +320,8 @@ static void test_table_is_what_the_hub_produces(void)
         bool w = (t[i].props & NP_GATT_PROP_WRITE) != 0U;
         bool nt = (t[i].props & NP_GATT_PROP_NOTIFY) != 0U;
         if (r != (t[i].read != NULL) || w != (t[i].write != NULL) ||
-            (r || nt) != (t[i].max_len != 0U) || w != (t[i].write_len != 0U) ||
+            (r || nt) != (t[i].max_len != 0U) ||
+            (w != (t[i].write_len != 0U) && !(w && (t[i].props & NP_GATT_PROP_STREAM) != 0U && t[i].write_len == 0U)) ||
             t[i].max_len > NP_GATT_VALUE_MAX || t[i].write_len > NP_GATT_VALUE_MAX) {
             coherent = false;
         }
@@ -349,7 +351,7 @@ static void test_access_rules(void)
 
     check(np_gatt_on_read(0x0013U, 0U, buf, sizeof buf, &len) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on read");
-    check(np_gatt_on_write(0x0008U, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
+    check(np_gatt_on_write(0x0013U, &one, 1U) == NP_ATT_ATTRIBUTE_NOT_FOUND,
           "access: an unpublished id is not found on write");
     check(np_gatt_on_write(NP_GATT_WARRANTY_TOKEN_ID, buf, 32U) == NP_ATT_WRITE_NOT_PERMITTED,
           "access: the warranty token cannot be written");
@@ -1048,6 +1050,157 @@ static void test_ppx_config_is_an_encrypted_two_byte_read_and_one_byte_write(voi
     check(found && shape, "ppx config: published, encrypted-link only, read two bytes, write one");
 }
 
+/* ── The protocol upload (0x0008): the transport's byte stream, written by the apps (OI-SIMFW-49, REQ-FWHUB-80) ── */
+
+static uint8_t g_blob[NP_HUB_PROTO_BLOB_MAX];
+static uint8_t g_stream[NP_TRANSPORT_LEN_PREFIX + NP_HUB_PROTO_BLOB_MAX];
+static uint8_t g_got[NP_HUB_PROTO_BLOB_MAX];
+
+static void make_blob(size_t n)
+{
+    for (size_t i = 0U; i < n; i++) {
+        g_blob[i] = (uint8_t)((i * 7U + 3U) & 0xFFU);
+    }
+}
+
+/* The stream the apps write: a 4-byte little-endian length, then the blob.  Returns its length. */
+static size_t make_stream(size_t blob_len)
+{
+    g_stream[0] = (uint8_t)(blob_len & 0xFFU);
+    g_stream[1] = (uint8_t)((blob_len >> 8) & 0xFFU);
+    g_stream[2] = (uint8_t)((blob_len >> 16) & 0xFFU);
+    g_stream[3] = (uint8_t)((blob_len >> 24) & 0xFFU);
+    memcpy(g_stream + NP_TRANSPORT_LEN_PREFIX, g_blob, blob_len);
+    return NP_TRANSPORT_LEN_PREFIX + blob_len;
+}
+
+/* Write `n` bytes of g_stream from `from` in writes of `chunk` bytes; the first status that is not OK, else OK. */
+static np_att_status_t write_stream(size_t from, size_t n, size_t chunk)
+{
+    for (size_t off = 0U; off < n; off += chunk) {
+        size_t take = (n - off < chunk) ? (n - off) : chunk;
+        np_att_status_t st = np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, g_stream + from + off, take);
+        if (st != NP_ATT_OK) {
+            return st;
+        }
+    }
+    return NP_ATT_OK;
+}
+
+/* @verifies REQ-FWHUB-80#a */
+static void test_protocol_upload_is_an_encrypted_write_only_stream(void)
+{
+    size_t n = 0U;
+    const np_gatt_char_t *t = np_gatt_table(&n);
+    bool shape = false;
+    for (size_t i = 0U; i < n; i++) {
+        if (t[i].id == NP_GATT_PROTOCOL_UPLOAD_ID) {
+            shape = t[i].props == (NP_GATT_PROP_WRITE | NP_GATT_PROP_STREAM | NP_GATT_PROP_ENC) &&
+                    t[i].write_len == 0U && t[i].max_len == 0U && t[i].read == NULL && t[i].write != NULL;
+        }
+    }
+    check(shape, "upload: 0x0008 is published as an encrypted, write-only stream with a handler");
+    uint8_t buf[4];
+    size_t len = 0U;
+    check(np_gatt_on_read(NP_GATT_PROTOCOL_UPLOAD_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_READ_NOT_PERMITTED,
+          "upload: it cannot be read");
+}
+
+/* @verifies REQ-FWHUB-80#a */
+static void test_upload_reassembles_at_every_write_size(void)
+{
+    static const size_t SIZES[] = { 1U, 100U, 508U, 509U, NP_HUB_PROTO_BLOB_MAX };
+    static const size_t CHUNKS[] = { 1U, 20U, 183U, 509U, 512U };
+    bool all_ok = true;
+    bool all_equal = true;
+    np_transport_init();
+    for (size_t si = 0U; si < sizeof(SIZES) / sizeof(SIZES[0]); si++) {
+        make_blob(SIZES[si]);
+        const size_t total = make_stream(SIZES[si]);
+        for (size_t ci = 0U; ci < sizeof(CHUNKS) / sizeof(CHUNKS[0]); ci++) {
+            if (write_stream(0U, total, CHUNKS[ci]) != NP_ATT_OK) {
+                all_ok = false;
+            }
+            size_t got = 0U;
+            np_hub_status_t rc = np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U);
+            if (rc != NP_HUB_OK || got != SIZES[si] || memcmp(g_got, g_blob, SIZES[si]) != 0) {
+                all_equal = false;
+            }
+        }
+    }
+    check(all_ok, "upload: every write of a length-prefixed blob is accepted, at every write size");
+    check(all_equal, "upload: the transport hands the consumer exactly the blob, whatever the write size");
+}
+
+/* @verifies REQ-FWHUB-80#a */
+static void test_upload_write_lengths(void)
+{
+    uint8_t one = 0x01U;
+    np_transport_init();
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, &one, 0U) == NP_ATT_INVALID_VALUE_LENGTH, "upload: an empty write is refused");
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, g_stream, NP_GATT_STREAM_WRITE_MAX + 1U) == NP_ATT_INVALID_VALUE_LENGTH,
+          "upload: a write over 512 bytes is refused before the transport sees it");
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, NULL, 1U) == NP_ATT_INVALID_VALUE_LENGTH, "upload: no data is refused");
+    /* 508 bytes of blob make a stream of exactly 512 bytes: one write of the largest size. */
+    make_blob(508U);
+    const size_t total = make_stream(508U);
+    check(total == NP_GATT_STREAM_WRITE_MAX && np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, g_stream, total) == NP_ATT_OK,
+          "upload: a write of exactly 512 bytes is accepted");
+    size_t got = 0U;
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 508U, "upload: and it was the whole blob");
+}
+
+/* @verifies REQ-FWHUB-80#b */
+static void test_upload_refusals_say_which(void)
+{
+    np_transport_init();
+    /* A length of 0 and a length above the blob maximum are malformed: refused, and reassembly restarts. */
+    const uint8_t zero[4] = { 0U, 0U, 0U, 0U };
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, zero, sizeof(zero)) == NP_ATT_APP_REFUSED,
+          "upload: a length of 0 is refused");
+    const uint8_t huge[4] = { 0xFFU, 0xFFU, 0xFFU, 0xFFU };
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, huge, sizeof(huge)) == NP_ATT_APP_REFUSED,
+          "upload: a length above NP_HUB_PROTO_BLOB_MAX is refused");
+    make_blob(300U);
+    size_t total = make_stream(300U);
+    check(write_stream(0U, total, 512U) == NP_ATT_OK, "upload: a good blob right after a malformed prefix is taken: reassembly restarted");
+    size_t got = 0U;
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 300U &&
+          memcmp(g_got, g_blob, 300U) == 0, "upload: and it is the good blob, not a mix");
+
+    /* A second blob while the first has not been taken: BUSY, the bytes dropped; after the first is taken the stream is accepted. */
+    check(write_stream(0U, total, 512U) == NP_ATT_OK, "upload: the first blob completes into the mailbox");
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, g_stream, 10U) == NP_ATT_APP_BUSY,
+          "upload: a write while the last blob waits to be taken says BUSY, not refused");
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 300U, "upload: the waiting blob is taken");
+    check(write_stream(0U, total, 512U) == NP_ATT_OK, "upload: and the stream is accepted again from its start");
+    (void)np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U);
+}
+
+/* @verifies REQ-FWHUB-80#c */
+static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
+{
+    np_transport_init();
+    make_blob(1000U);
+    (void)make_stream(1000U);
+    /* A link that dropped half way through: the first 512 bytes arrived. */
+    check(write_stream(0U, 512U, 512U) == NP_ATT_OK, "disconnect: the first write of a blob is accepted");
+    np_gatt_on_disconnect();
+    /* The next link writes a whole blob; had the half remained, its first bytes would have been read as the rest of it. */
+    make_blob(200U);
+    const size_t total2 = make_stream(200U);
+    check(write_stream(0U, total2, 512U) == NP_ATT_OK, "disconnect: the next link's blob is accepted from its start");
+    size_t got = 0U;
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 200U &&
+          memcmp(g_got, g_blob, 200U) == 0, "disconnect: the consumer gets the next blob, whole, and nothing of the half");
+
+    /* A blob that completed and was not yet taken survives the link going down. */
+    check(write_stream(0U, total2, 512U) == NP_ATT_OK, "disconnect: a blob completes");
+    np_gatt_on_disconnect();
+    check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 200U,
+          "disconnect: a completed blob that was not yet taken is kept");
+}
+
 int main(void)
 {
     test_uuids_match_the_contract();
@@ -1077,6 +1230,11 @@ int main(void)
     test_pause_refused_while_ramping_says_so();
     test_panic_write_reaches_the_runner_and_is_never_a_pause();
     test_ppx_config_is_an_encrypted_two_byte_read_and_one_byte_write();
+    test_protocol_upload_is_an_encrypted_write_only_stream();
+    test_upload_reassembles_at_every_write_size();
+    test_upload_write_lengths();
+    test_upload_refusals_say_which();
+    test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

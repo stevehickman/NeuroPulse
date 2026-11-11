@@ -18,9 +18,11 @@
  *   gatt_table                list the characteristics the hub publishes
  *   gatt_read <id> <offset>   np_gatt_on_read: the ATT status and the bytes
  *   gatt_write <id> <hex>     np_gatt_on_write: the ATT status
+ *   gatt_disconnect           np_gatt_on_disconnect: the link went down
  *
- * A characteristic the hub does not publish answers NP_ATT_ATTRIBUTE_NOT_FOUND, as it does on the device.  That includes the protocol
- * upload (0x0008): np_gatt_server.h says binding np_transport_feed to it is a separate change, so the simulator does not bind it either.
+ * A characteristic the hub does not publish answers NP_ATT_ATTRIBUTE_NOT_FOUND, as it does on the device.  The protocol upload (0x0008)
+ * is published: a write to it goes to np_transport_feed through the device's own np_gatt_server.c (OI-SIMFW-49, REQ-FWHUB-80), and
+ * proto_pump takes the blob out the way task_protocol_rx does.
  */
 #include <stdbool.h>
 #include <stdio.h>
@@ -172,6 +174,11 @@ bool np_simh_gatt_line(const char *cmd, char *a, char *b)
         (void)snprintf(head, sizeof head, "{\"ev\":\"gatt_read\",\"id\":%u,\"att\":%d,", id, (int)st);
         emit_hex(head, st == NP_ATT_OK && len > 0U ? buf : (const uint8_t *)"", st == NP_ATT_OK ? len : 0U, "}");
         memset(buf, 0, sizeof buf);
+        return true;
+    }
+    if (strcmp(cmd, "gatt_disconnect") == 0) {
+        np_gatt_on_disconnect();
+        np_sim_emit("{\"ev\":\"gatt_disconnect\"}");
         return true;
     }
     if (strcmp(cmd, "gatt_write") == 0) {

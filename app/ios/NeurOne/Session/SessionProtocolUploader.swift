@@ -193,9 +193,10 @@ final class SessionProtocolUploader: ObservableObject {
         lastError = nil
         defer { isUploading = false }
 
-        // Frame the blob per the hub's BLE chunking protocol (START/CONT/END
-        // or a single SINGLE chunk). Chunking is a pure transform, separate
-        // from the BLE write path, so it stays unit-testable.
+        // Cut the blob into the hub's upload stream: a 4-byte little-endian
+        // length, then the blob, in writes of at most the ATT write size
+        // (REQ-FWHUB-80). Chunking is a pure transform, separate from the BLE
+        // write path, so it stays unit-testable.
         let chunks = ProtocolChunker.chunk(descriptor.blob)
 
         // Send chunks sequentially via a recursive completion-handler chain:

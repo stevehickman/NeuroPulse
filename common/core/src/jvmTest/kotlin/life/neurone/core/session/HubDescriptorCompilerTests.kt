@@ -223,9 +223,8 @@ class HubDescriptorCompilerTests {
         val blob = compiler.compile(def(600, pbm("808nm", 100.0))).blob
         val chunks = ProtocolChunker.chunk(blob)
         assertTrue(chunks.all { it.size <= BleTransfer.MAX_WRITE_SIZE })
-        val reassembled = chunks.flatMap { c ->
-            if (c[0] == ProtocolChunker.FRAME_START) c.drop(3) else c.drop(1)
-        }.toByteArray()
+        // The hub's transport reassembles the stream: a 4-byte little-endian length, then the blob (REQ-FWHUB-80).
+        val reassembled = chunks.flatMap { it.toList() }.drop(BleTransfer.PROTOCOL_LEN_PREFIX).toByteArray()
         assertContentEquals(blob, reassembled)
     }
 }

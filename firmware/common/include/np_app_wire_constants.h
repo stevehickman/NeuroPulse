@@ -18,6 +18,12 @@
  */
 #define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u
 /*
+ * WRITE, 1 to 512 bytes a write: the signed protocol blob as the transport's byte stream, a 4-byte
+ * little-endian length and then the blob, split at the write size with no per-chunk header
+ * (NP-FW-HUB-001 section 2.3, REQ-FWHUB-04, REQ-FWHUB-80). Encrypted link only.
+ */
+#define NP_GATT_PROTOCOL_UPLOAD_ID 0x0008u
+/*
  * WRITE 1 B (0x01 = stop). Ends the running or loaded session at the hub (SWR-SS-06).
  */
 #define NP_GATT_SESSION_STOP_ID 0x000Fu

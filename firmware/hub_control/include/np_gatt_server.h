@@ -24,8 +24,8 @@
  * traps exist to refuse.  Each is added with its producer.  Notably absent:
  *   - CVNS_PAD_STATUS  (0x0013) — the electrode-to-side mapping it reports is
  *     an open hardware item (OI-ACC-07 → OI-CVNSHW-01, -06)
- *   - the protocol upload (0x0008) — np_transport_feed() is its handler, and
- *     binding it is a separate change (OI-HUB-MAIN-01)
+ * (The protocol upload (0x0008) was absent until OI-SIMFW-49: it is published now, with
+ * np_transport_feed() as its handler, OI-HUB-MAIN-01, REQ-FWHUB-80; see NP_GATT_PROP_STREAM.)
  * scripts/check-consumable-triggers.ts fails the build if the first appears in
  * firmware without its §2.3 row being updated, and if CONSUMABLE_STATUS
  * (published since 2026-09-25, np_consumables.h) disappears from it.
@@ -64,6 +64,15 @@
  * platform seam (np_gatt_hal_register); a modifier, not an access mode, so it
  * is only meaningful with READ or WRITE. */
 #define NP_GATT_PROP_ENC      0x08u
+/* With WRITE: the characteristic takes a byte stream, not a value.  A write of 1..NP_GATT_STREAM_WRITE_MAX bytes is
+ * accepted whatever the row's write_len (0 for such a row), and every write is handed to the handler as it arrives,
+ * in order.  Only the protocol upload (0x0008) is one: the apps write the transport's framing across as many writes as
+ * the blob needs, and np_transport.c reassembles it (REQ-FWHUB-04, REQ-FWHUB-80). */
+#define NP_GATT_PROP_STREAM   0x10u
+
+/* The longest attribute value ATT allows, and so the longest write the hub accepts to a STREAM characteristic
+ * (Bluetooth Core v5.3 Vol 3 Part F §3.2.9).  The apps cut the upload at this size (BleTransfer.MAX_WRITE_SIZE). */
+#define NP_GATT_STREAM_WRITE_MAX 512u
 
 /* Largest value any characteristic here carries (CVNS_FAULT_STATUS, 36 B). */
 #define NP_GATT_VALUE_MAX     36u
@@ -90,6 +99,10 @@ typedef enum {
     /* Application error: a pause (or a second resume) was refused because the protocol is ramping up.  SESSION_PROGRESS
      * says how far the ramp is, so the app can tell the person why and how long (SWR-SS-05).  A stop is not refused. */
     NP_ATT_APP_RAMPING            = 0x82,
+    /* Application error: a write to a STREAM characteristic was refused because the hub still holds the last blob
+     * (NP_HUB_ERR_SESSION_ACTIVE, np_transport.h).  The bytes were dropped; wait for the hub to take it and write again
+     * from the start of the stream. */
+    NP_ATT_APP_BUSY               = 0x83,
 } np_att_status_t;
 
 typedef np_hub_status_t (*np_gatt_read_fn)(uint8_t *buf, size_t cap, size_t *len_out);
@@ -131,10 +144,18 @@ np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,
 
 /*
  * np_gatt_on_write — the stack's WRITE REQUEST callback.  Every write here is
- * fixed-length (the row's write_len): a value of any other length is refused
- * before the handler sees it.  Prepared (long) writes are not supported, and are not needed.
+ * fixed-length (the row's write_len) except a STREAM characteristic's, which takes 1..NP_GATT_STREAM_WRITE_MAX
+ * bytes: a value of any other length is refused before the handler sees it.  Prepared (long) writes are not
+ * supported, and are not needed.
  */
 np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len);
+
+/*
+ * np_gatt_on_disconnect — the stack's link-down callback.  A stream write that was cut off part way would leave the
+ * transport holding half a blob, and the next link's first bytes would be read as the rest of it: this drops the partial
+ * reassembly (np_transport_reset), and keeps a blob that was completed and not yet taken (REQ-FWHUB-80).
+ */
+void np_gatt_on_disconnect(void);
 
 /*
  * np_gatt_notify — send `len` bytes as a notification of `id`.  Refuses an id
