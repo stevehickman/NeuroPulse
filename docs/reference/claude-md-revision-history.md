@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 80 (2026-11-11) — new §23: every upload and download is encrypted, on every transport; a locked invariant (the principal). No other locked decision changed.**
+
+**What changed.** CLAUDE.md gains §23 and one Document Map row (`docs/np_fw_hub_001.md` §2). The rule: every upload to and download from the headset or control hub is encrypted on every transport, with no unencrypted path for protocols, session data, logs, configuration, calibration, firmware or user data. The section states that encryption does not replace the signature of §4.2, that a path counts as conformant only once it is shown to be encrypted, that USB-C CDC (no link-layer encryption) is not assumed covered, that protection only goes up, and that the keys are held by the two ends and never by NeurOne. The footer's section range reads §1 to §6 and §16 to §23. Nothing else in this file changed.
+
+**Why.** The principal's reasons were data privacy and hardening the system against malware injection. The question arose from `OI-SIMFW-62` (should the protocol upload require an encrypted link), which the principal answered with a rule for all transfers, then asked to make a locked invariant.
+
+**What it leaves.** The layer is not decided: whether the encryption is at the BLE link or end to end across BLE and USB-C. Link encryption on every BLE upload and download characteristic is the part that holds under either answer and is being built (`OI-SIMFW-62`); end-to-end payload encryption, which USB-C needs, is an open item with its design questions (key agreement, where the crypto lives, the framing, the OTA path). So the invariant states the rule and the gaps are listed in the owning file, not claimed closed. The §1 to §6 and §16 to §22 numbering and every subsection number are unchanged.
+
 **Rev 79 (2026-11-05) — §4.2: the Oz photoparoxysmal detector is stated as not built, and the goggles refuse photic driving at 3–30 Hz until it is. A limit's enforcement changed; no limit figure changed.**
 
 **What changed.** The EEG + Visual row of the §4.2 interlock table said the interlock was "Oz electrode, <200ms, clinician-unlock for 3–30Hz". It now says the detector is not built and gives the interim control: the hub refuses photic driving (modes 0 and 3) from 3 to 30 Hz, inclusive, with no unlock path (`REQ-FWHUB-65`). Nothing else in this file changed.
