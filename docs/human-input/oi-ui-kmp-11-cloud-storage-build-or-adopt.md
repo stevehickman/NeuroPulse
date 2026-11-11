@@ -1,10 +1,10 @@
 # Principal decision for review: OI-UI-KMP-11 (GitHub #566), build or adopt for the cloud storage API, and three choices that follow
 
-**Status:** PARTLY ANSWERED 2026-11-11 (Q1 and Q2 answered by the principal; Q3 and Q4 open). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** PARTLY ANSWERED 2026-11-11 (Q1, Q2 and Q4 answered by the principal; Q3 open). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-UI-KMP-11` M9 to M12; GitHub #566; `NP-SW-CLOUDSTORE-001` §7)
 **To:** The principal
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.
-**Still needed:** a ruling on Q3 and Q4 (section 3), as section 4 sets out.
+**Still needed:** a ruling on Q3 (section 3), as section 4 sets out.
 **Why now:** #566 asks for a build-or-adopt decision and cannot close without one. Nothing is blocked today: every cloud place carries the health-data backup only, and no migration runs over one.
 
 ## 1. The questions in one line each
@@ -12,7 +12,7 @@
 1. Is "build thin adapters, adopt no storage library" the decision of record? **Answered 2026-11-11: yes.**
 2. How is Oracle Cloud Infrastructure reached, if at all? **Answered 2026-11-11: option A, the existing S3 form at Oracle's compatibility endpoint, backup only.**
 3. What must be shown before a cloud route may carry a migration, and who provides the test accounts? **Open.**
-4. Should Google Drive get a claim built on a pre-generated file ID, or stay backup-only? **Open.**
+4. Should Google Drive get a claim built on a pre-generated file ID, or stay backup-only? **Answered 2026-11-11: it stays backup-only for now.**
 
 ## 2. What is known
 
@@ -53,7 +53,7 @@ The sender leans to A as the cheap first step and has no basis for choosing betw
 
 Proposed rule (§7.8): a route declares an exclusive create only when (a) the provider's own pages document both the create-if-absent and read-after-write, (b) the contract suite has passed against the provider itself, with the claim race run from two separate clients, and the run is recorded with its date, and (c) the change that flips the flag cites both. **Is that the rule? And who opens the test accounts** (AWS, Azure, Google Cloud, Oracle, an Apple developer container, a Microsoft and a Google consumer account) **and registers the OAuth clients** (§4c.13)? The accounts and registrations are the owner's to create; none exists, and no engineering step can stand in for them.
 
-**Q4. Google Drive.**
+**Q4. Google Drive.** *Answered 2026-11-11: option A, for now (section 5).*
 
 Google's guide (read 2026-11-11) says a create with a pre-generated file ID that was already used is answered 409. A claim could be built on that: the phone that writes the bundle takes an ID from Google, carries it in the bundle, and each restoring phone creates the claim file with that ID.
 
@@ -88,4 +88,12 @@ An answer takes effect only when it is recorded in `docs/np_sw_cloudstore_001.md
 - **Conditions that would reopen it:** none were stated.
 - **Not covered by this answer:** a native Oracle adapter (option B, not chosen), Q3 and Q4.
 
-**Q3, Q4:** open. Nothing in the repository acts as if they were answered.
+**Q4, answered 2026-11-11 by the principal** (relayed to the sender by the session lead): "stay backup-only for now". This is option A.
+
+- **Recorded in:** `docs/np_sw_cloudstore_001.md` §7.1, §7.4 and §7.9; `docs/status/completed-decisions.md` (2026-11-11).
+- **Rationale:** the principal gave none beyond the choice.
+- **What it means:** nothing changes in code. `GoogleDriveObjectStore.createIfAbsent` keeps throwing, Google Drive carries the health-data backup only, and the claim by pre-generated file ID is not designed or built.
+- **"For now" means it can be reopened.** What would reopen it is the result of the test drafted in `docs/human-input/oi-ui-kmp-11-google-drive-claim-experiment.md`, which a person with a Google test account has to run. It has not been run, and no such account exists (Q3). A result that ends the idea closes the question; a result that supports it is the ground for putting Q4 to the principal again with a design and its cost.
+- **Not covered by this answer:** Q3.
+
+**Q3:** open. Nothing in the repository acts as if it were answered.
