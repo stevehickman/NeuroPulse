@@ -1,6 +1,6 @@
 # Principal question for review: OI-SIMFW-05 (a), the rules for the twin's temporary storage file
 
-**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); Q3 partly answered by the Q1 answer; the rest of Q3, and Q4 and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Q1 and Q2 ANSWERED 2026-11-11 (the principal); Q3 partly answered by the Q1 answer; Q4 partly answered by the answer to question A of `oi-simfw-05-saved-file.md` (the file is encrypted at rest); the rest of Q3 and Q4, and Q5, are open (DRAFT, not sent). The questions the answer raises are drafted in `oi-simfw-05-saved-file.md`. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5, and whoever owns bench and first-article test, not yet named, for Q3 and Q5)
 **Response needed:** an option for each of Q1 to Q5, with a short rationale, name, role and date.
@@ -121,6 +121,12 @@ Against the options drafted under Q3, point 1 is nearest to "(2) a directory nam
 
 **Raised by the answer and not decided** (drafted in `oi-simfw-05-saved-file.md`): which "userID" and the identity it puts in a file name beside SHDR records; what "open on double click" does, against Q4 option A; the extension itself; what registers the file type on the host when the twin is a container; a header that states what the file is (Q5); where the remembered directory is kept.
 
-**Rationale.** None was given beyond the two sentences.
+**Q4: partly answered. Q4 is not closed.** In answering question A of `oi-simfw-05-saved-file.md` on 2026-11-11 the principal said, verbatim: "I recognize there is a challenge about data privacy here. We address it by encryption of the file at rest." Recorded as the principal's stated direction. It answers the half of Q4 that asks whether the synthetic UHDR in the file is encrypted: encrypted. **Still open under Q4:**
 
-**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` parts (b) and (d)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11). Q4 and Q5 are unanswered.
+- **The first half, what keeps a real person's UHDR out of the twin** (options A, B, C). Not addressed by the sentence.
+- **Which of options (1) and (3) is meant.** Option (2), in the clear, is ruled out by the sentence. Whether the encryption is the device's own partition encryption, a whole-file encryption, or both is question K of `oi-simfw-05-saved-file.md`.
+- **Under which key** (question H there), and **whether the working temporary file is encrypted as well as a saved copy** (question I there).
+
+**Rationale.** None was given beyond the sentences quoted.
+
+**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` parts (b) and (d)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11). Q5 is unanswered, and Q3 and Q4 are answered only in part.

@@ -1,10 +1,10 @@
 # Principal question for review: OI-SIMFW-05 (b), the saved file's name, extension, opening and association
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Question A ANSWERED 2026-11-11 (the principal); B to F, and G to K which the answer raises, are open (DRAFT, not sent). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5 of `oi-simfw-05-temporary-file.md`, which question E here touches)
-**Response needed:** an option for each of A to F, with a short rationale, name, role and date.
-**Why now:** on 2026-11-11 the principal answered Q1 of `oi-simfw-05-temporary-file.md` and gave direction for a saved copy: the person picks the directory, which is remembered; the default name is "the logged in userID followed by a timestamp"; and the extension is unique to NeurOne so the file opens on double click. That direction raises six questions it does not answer. None is decided here, and nothing in the repository acts as if any were.
+**Response needed:** an option for each of B to K, with a short rationale, name, role and date.
+**Why now:** on 2026-11-11 the principal answered Q1 of `oi-simfw-05-temporary-file.md` and gave direction for a saved copy: the person picks the directory, which is remembered; the default name is "the logged in userID followed by a timestamp"; and the extension is unique to NeurOne so the file opens on double click. That direction raises six questions it does not answer. None is decided here, and nothing in the repository acts as if any open one were answered. *(Written before the answer to A; see section 4.)*
 
 ## 1. What is known
 
@@ -63,4 +63,62 @@ It is a stored setting. What can be said now: it would hold a path and nothing e
 
 ## 3. What to send back
 
-An option for each of A to F, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
+An option for each of B to K, a sentence on why for each (`CLAUDE.md` §18 wants the reason recorded), anything that would reopen it, and name, role and date. The answers are recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`, and the requirement rows they imply are written then.
+
+## 4. Answers
+
+**The principal, 2026-11-11, verbatim, on question A:** "Using a pseudonymous ID for the userID (the user doing the saving can pick a userID that only they know even if it doesn't match their logged in userID. It can't clash with a previously picked pseudonymous ID that another user picked). I recognize there is a challenge about data privacy here. We address it by encryption of the file at rest."
+
+**Question A: decided.** The userID in the default name of a saved file is a pseudonymous id chosen by the person who saves. It need not match their login, and it is theirs alone to know. Against the options of section 2 this is option (3), a pseudonymous id, with one difference: option (3) proposed an id the machine makes at random, and the decision is an id the person picks. Recorded as `REQ-SIMFW-21` part (e). Not built.
+
+**Also in the sentence, recorded as the principal's direction and not as a closed question:**
+
+- **The id cannot clash with a pseudonymous id another user picked earlier.** How that is achieved is not said, and it pulls against "only they know" (question G).
+- **The file is encrypted at rest, and that is how the principal addresses the data-privacy concern** raised under question A: an identity in a file name beside SHDR records (`CLAUDE.md` §5.1). This partly answers Q4 of `oi-simfw-05-temporary-file.md`, in its half "is the synthetic UHDR in the file encrypted": encrypted. It does not say which of that question's options (1) or (3) is meant, under which key, or whether the working temporary file is encrypted as well as a saved copy (questions H to K). Q4 is not answered.
+
+**Not said and still open in question A itself:** the timestamp's format and time zone, and what the default name is if the person has picked no id yet. The decision makes the second easier to state (the save asks for an id), but it was not said.
+
+**Rationale.** The sentence gives its own: the principal recognises the data-privacy challenge and addresses it by encryption at rest. Nothing further was given.
+
+**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21` part (e)) and §7 (`OI-SIMFW-05`), and `docs/status/completed-decisions.md` (2026-11-11).
+
+## 5. Questions the answer to A raises (none decided)
+
+**G. How is "cannot clash with an id another user picked" made true, and how much uniqueness is needed?**
+
+The tension, stated plainly: an id that only its owner knows, and an id that is checked against everyone else's, cannot both hold unless uniqueness is established without disclosing ids. Any registry that answers "taken" lets a person confirm that an id exists, and by trying many, enumerate them. And a shared registry is a store that someone holds (NeurOne, or the bench's owner) linking pseudonyms to the people who registered them, which is against the spirit of `CLAUDE.md` §5.1 (SHDR is never linked to user identity) and §5.3 (no linkage table exists).
+
+What a clash would actually cause: two people's saved files would begin with the same characters. The timestamp in the name already separates the files, and each file is encrypted (the principal's direction), so a clash does not open one person's file to another. It would make it unclear whose file is whose when files from several people are in one directory. How much that matters is the principal's to judge.
+
+- **(a) Unique on this machine only.** The twin keeps a local list of ids used here and refuses a repeat by a different operating-system user. Costs: it cannot see other machines, so two people on two machines can pick the same id; the local list is itself a small store of pseudonyms on a shared machine, and "taken" tells one user of the machine that another used that id. Gains: no network, no registry anyone else holds.
+- **(b) No registry: a random part is appended to the id the person picks,** so a clash is negligible by construction. The picked id is the readable part. Costs: the name is longer, and the person cannot guarantee a short id is theirs alone, only that the whole of it is. Gains: nothing is stored anywhere and nothing can be enumerated. How long the random part must be follows from how many ids are expected and what clash probability is accepted: for n ids and b random bits the probability of any clash is about n squared divided by 2 to the power (b + 1). **An illustration with inputs that are mine and not proposed:** for 1,000 ids and a probability of at most one in a million, b must be at least log2(1,000² / (2 × 10⁻⁶)), about 38.9, so 39 bits, which is 8 characters of base 32. The two inputs are the principal's to set; nothing in the repository uses a figure from this.
+- **(c) A shared registry of salted hashes of ids.** Costs: it is still a store someone holds; a hash of a short human-picked id is guessable by trying likely ids, so it leaks which ids exist to anyone who can query it or who obtains it, and with the salt known it can be searched offline; it needs a network and an operator. Gains: uniqueness across machines.
+- **(d) A registry kept by whoever owns a bench, for that bench only.** Costs: the bench owner holds a list tying pseudonyms to the people who use the bench, which is a linkage table in small; it does nothing for a person not on a bench. Gains: uniqueness where files from several people actually meet.
+
+**H. Who holds the key that "encrypted at rest" needs?**
+
+- **(a) A TEST key in the twin.** The twin holds test keys only (`REQ-SIMFW-08`). Costs, plainly: a test key is in the repository, so it keeps out nobody who has the code, and it protects nothing that a reader of this repository could not undo. It would make the file unreadable to ordinary tools and to no one else. Gains: nothing for the person to remember; double click needs no prompt.
+- **(b) A key derived from a passphrase the person gives when saving,** needed again to open. Costs: a forgotten passphrase loses the file; opening on double click needs a prompt; a weak passphrase is a weak key. Gains: only the person can open the file, which is the only option here under which the encryption protects against someone who holds the file and the code.
+- **(c) A key held in the host's own credential store, per operating-system user.** Costs: different on every platform; not available inside the container without a host-side helper; the file opens only on that machine and for that user, so it cannot be handed to someone else to examine. Gains: no passphrase; protected from other users of the machine.
+- **(d) A random key per file, kept in the file's header, sealed under (b) or (c).** Costs: those of whichever seals it, and a little more format. Gains: the sealing secret can change without rewriting the file, and the header of question E has a natural place for it.
+
+Whichever is chosen, **the opener needs the key.** That bears on question B: a viewer or a resuming twin started by double click must obtain it (a prompt under (b), the credential store under (c), nothing under (a)).
+
+**I. What is encrypted?**
+
+- **(1) The saved copy only.** Costs: the working temporary file is in the clear while the twin runs. It is owner-only and, where the host allows it, has no name (Q1 and Q2 of `oi-simfw-05-temporary-file.md`), and on a host where it has a name and can be left behind it would be left in the clear. Gains: the twin's own storage path is unchanged.
+- **(2) The saved copy and the working temporary file.** Costs: every read and write of the twin's storage passes through the encryption, and the working file needs a key before anyone has asked to save (a key made for the session and discarded would do, and then a save re-encrypts under the key of question H). Gains: nothing is ever on disk in the clear.
+
+**Encryption at rest does not cover the file's name.** The pseudonymous id and the timestamp are in the clear in the name whatever is chosen here. The pseudonym is what stands between the name and a person, which is why question G matters and why a registry that ties pseudonyms to people would undo it.
+
+**J. Where does the encryption code live?** (A consequence to confirm, not a design.)
+
+`CLAUDE.md` §22: cryptographic work is written in Rust, once, in `common/npps-core`, and is not taken from a platform or third-party library; every new crate joins `docs/np_soup_rust_001.md` in the change that adds it. File encryption for the twin falls under that rule. It follows that the build needs the work done in `common/npps-core` and reached from the twin, a SOUP entry if a new crate is used, and an open item first if any part were to be written in another language. Confirm that the rule applies to the simulator's file as it does to the product, or say that it does not.
+
+**K. Which layer is meant: the file, the partition inside it, or both?**
+
+Q4 of `oi-simfw-05-temporary-file.md`, option (1), was "encrypted as the device does it, under a TEST key": the twin runs the device's own UHDR key and storage code (`OI-SIMFW-52`, not built), so the UHDR partition inside the file is sealed as the device seals it. The principal's sentence speaks of the file being encrypted at rest, which reads as a different layer: the whole of what the twin writes, encrypted as a file.
+
+- **(1) Whole-file encryption only.** The partitions inside are as the twin writes them. Costs: the device's own UHDR encryption path is not exercised by this. Gains: can be built without `OI-SIMFW-52`.
+- **(2) The device's partition encryption only,** inside an otherwise clear file. Costs: the SHDR partition and the twin's synthetic state are in the clear, which is not what "the file" encrypted at rest says; waits for `OI-SIMFW-52`. Gains: the file holds what a device would.
+- **(3) Both.** Costs: two layers and two keys to manage. Gains: the file is protected as a file, and the twin runs the device's path.
