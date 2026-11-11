@@ -296,7 +296,7 @@ static void test_format_rejections_are_t1(void)
 }
 
 /* ══ Hardware version (SWR-HV-06, SWR-HV-07, REQ-UPG-04) ═════════════════ */
-/* @verifies REQ-UPG-04 SWR-HV-06 */
+/* @verifies SWR-HV-06#b,f */
 static void test_hw_version_every_nibble(void)
 {
     uint8_t hw;
@@ -316,7 +316,7 @@ static void test_hw_version_every_nibble(void)
           "hw version: a verified T1 record at version 7 reads 7 and stays T1");
 }
 
-/* @verifies REQ-UPG-04 SWR-HV-07 */
+/* @verifies SWR-HV-06#f SWR-HV-07#a */
 static void test_hw_version_zero_nibble_is_malformed(void)
 {
     make_record_hw(0U, NP_TIER_T2, UID_THIS, g_sk);   /* validly signed */
@@ -326,7 +326,7 @@ static void test_hw_version_zero_nibble_is_malformed(void)
           "hw version: a malformed record reads as the default");
 }
 
-/* @verifies REQ-UPG-04 SWR-HV-07 */
+/* @verifies SWR-HV-06#b SWR-HV-07#a */
 static void test_hw_version_unverified_reads_default(void)
 {
     make_record_hw(5U, NP_TIER_T2, UID_OTHER, g_sk);
@@ -358,7 +358,90 @@ static void test_hw_version_unverified_reads_default(void)
           "hw version: a re-init against a blank window does not keep the old version");
 }
 
-/* @verifies REQ-UPG-04 SWR-HV-06 */
+/* Every value byte 5 can take, each in a record validly signed for this unit.
+ * The byte is two independent fields: the record is accepted exactly when the
+ * upper nibble is a version (1..15) AND the lower nibble is a tier (1 or 2);
+ * the verdict follows the lower nibble alone and the version the upper alone. */
+/* @verifies SWR-HV-06#b,f SWR-HV-07#a REQ-UPG-01#c */
+static void test_hw_version_every_value_of_the_tier_byte(void)
+{
+    unsigned b5;
+    bool accept_ok = true, tier_ok = true, ver_ok = true, refuse_ok = true;
+    for (b5 = 0U; b5 <= 0xFFU; b5++) {
+        const uint8_t hw    = (uint8_t)(b5 >> 4);
+        const uint8_t tier  = (uint8_t)(b5 & 0x0FU);
+        const bool    valid = (hw != 0U) && (tier == NP_TIER_T1 || tier == NP_TIER_T2);
+        make_record_byte5((uint8_t)b5, UID_THIS, g_sk, true);
+        boot();
+        if (valid) {
+            if (np_tier_identity_reason() != NP_TIER_REASON_OK)            { accept_ok = false; }
+            if (np_tier_identity_is_t2() != (tier == NP_TIER_T2))          { tier_ok = false; }
+            if (np_tier_identity_hw_version() != hw)                       { ver_ok = false; }
+        } else {
+            if (np_tier_identity_reason() != NP_TIER_REASON_FORMAT)        { refuse_ok = false; }
+            if (np_tier_identity_is_t2())                                  { refuse_ok = false; }
+            if (np_tier_identity_hw_version() != NP_HW_VERSION_DEFAULT)    { refuse_ok = false; }
+        }
+    }
+    check(accept_ok, "tier byte: all 30 values with a version 1..15 and a tier 1 or 2 verify");
+    check(tier_ok,   "tier byte: the verdict follows the lower nibble at every version");
+    check(ver_ok,    "tier byte: the version is the upper nibble at either tier");
+    check(refuse_ok, "tier byte: each of the other 226 values is malformed, T1, version 1");
+}
+
+/* The same split, on a record that does NOT verify: whatever the nibbles say,
+ * the unit is T1 and reads version 1.  Neither field is taken from it. */
+/* @verifies SWR-HV-06#b SWR-HV-07#a REQ-UPG-01#c */
+static void test_hw_version_unverified_at_every_nibble(void)
+{
+    uint8_t hw;
+    bool    other_ok = true, edited_tier_ok = true, edited_ver_ok = true;
+    for (hw = 1U; hw <= 15U; hw++) {
+        /* another unit's genuine T2 record */
+        make_record_hw(hw, NP_TIER_T2, UID_OTHER, g_sk);
+        boot();
+        if (np_tier_identity_is_t2() || np_tier_identity_reason() != NP_TIER_REASON_SIGNATURE ||
+            np_tier_identity_hw_version() != NP_HW_VERSION_DEFAULT) { other_ok = false; }
+
+        /* this unit's T1 record, tier nibble edited to T2, version nibble kept */
+        make_record_hw(hw, NP_TIER_T1, UID_THIS, g_sk);
+        g_otp_record[5] = (uint8_t)((hw << NP_TIER_BYTE_HWVER_SHIFT) | NP_TIER_T2);
+        boot();
+        if (np_tier_identity_is_t2() || np_tier_identity_reason() != NP_TIER_REASON_SIGNATURE ||
+            np_tier_identity_hw_version() != NP_HW_VERSION_DEFAULT) { edited_tier_ok = false; }
+
+        /* this unit's T2 record, version nibble edited, tier nibble kept */
+        make_record_hw(hw, NP_TIER_T2, UID_THIS, g_sk);
+        g_otp_record[5] = (uint8_t)((((hw % 15U) + 1U) << NP_TIER_BYTE_HWVER_SHIFT) | NP_TIER_T2);
+        boot();
+        if (np_tier_identity_is_t2() || np_tier_identity_reason() != NP_TIER_REASON_SIGNATURE ||
+            np_tier_identity_hw_version() != NP_HW_VERSION_DEFAULT) { edited_ver_ok = false; }
+    }
+    check(other_ok,       "unverified: another unit's record is T1 and reads version 1 at every version");
+    check(edited_tier_ok, "unverified: an edited tier nibble is T1 and reads version 1, the version nibble untouched");
+    check(edited_ver_ok,  "unverified: an edited version nibble loses the T2 verdict too (one signature covers both)");
+}
+
+/* A record of the format before the hardware version (record version 0x01),
+ * validly signed, is not a record this image knows. */
+/* @verifies SWR-HV-06#b REQ-UPG-02#a */
+static void test_hw_version_old_record_version_is_refused(void)
+{
+    uint8_t msg[NP_TIER_SIG_MSG_LEN];
+    make_record_hw(3U, NP_TIER_T2, UID_THIS, g_sk);
+    g_otp_record[4] = 0x01U;
+    memcpy(msg, NP_TIER_SIG_DOMAIN, NP_TIER_SIG_DOMAIN_LEN);
+    memcpy(&msg[NP_TIER_SIG_DOMAIN_LEN], g_otp_record, NP_TIER_RECORD_BODY_LEN);
+    memcpy(&msg[NP_TIER_SIG_DOMAIN_LEN + NP_TIER_RECORD_BODY_LEN], UID_THIS, NP_DEVICE_UID_LEN);
+    crypto_ed25519_sign(&g_otp_record[NP_TIER_RECORD_BODY_LEN], g_sk, msg, sizeof(msg));
+    boot();
+    expect_t1("record version 0x01, validly signed", NP_TIER_REASON_FORMAT);
+    check(NP_TIER_RECORD_VERSION == 0x02U, "record version is 0x02");
+    check(np_tier_identity_hw_version() == NP_HW_VERSION_DEFAULT,
+          "hw version: a record of the old version reads 1");
+}
+
+/* @verifies SWR-HV-06#c */
 static void test_hw_version_in_report(void)
 {
     np_safety_tier_report_t r;
@@ -369,6 +452,16 @@ static void test_hw_version_in_report(void)
     check(r.checksum == (uint16_t)(r.magic + r.tier + r.flags + r.reason + r.hw_version),
           "report: checksum covers the hardware version");
     check(sizeof(r) == NP_SAFETY_TIER_REPORT_LEN, "report: wire size is the declared length");
+
+    /* An unverified record: the report states 1 and the tier fails closed. */
+    make_record_hw(3U, NP_TIER_T2, UID_OTHER, g_sk);
+    boot();
+    np_tier_identity_build_report(&r, 0U);
+    check(r.hw_version == NP_HW_VERSION_DEFAULT && r.tier == NP_TIER_T1 &&
+          r.reason == NP_TIER_REASON_SIGNATURE,
+          "report: an unverified record is reported as version 1, T1, reason SIGNATURE");
+    check(r.checksum == (uint16_t)(r.magic + r.tier + r.flags + r.reason + r.hw_version),
+          "report: and its checksum still covers the version");
 }
 
 /* @verifies REQ-UPG-02#a */
@@ -503,6 +596,9 @@ int main(void)
     test_hw_version_every_nibble();
     test_hw_version_zero_nibble_is_malformed();
     test_hw_version_unverified_reads_default();
+    test_hw_version_every_value_of_the_tier_byte();
+    test_hw_version_unverified_at_every_nibble();
+    test_hw_version_old_record_version_is_refused();
     test_hw_version_in_report();
     test_signing_domain_is_the_version_2_string();
     test_verdict_is_retaken_at_each_boot();
