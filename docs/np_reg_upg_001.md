@@ -505,7 +505,7 @@ unit's identity is written once at manufacture, bound to the part and signed. Th
 is a fact of the same kind: it says which physical layout carried a session, a socket address names a
 place on the head only on a given layout, and nothing in the field may change it. So it joins the record.
 The requirement rows are `SWR-HV-06` and `SWR-HV-07` in `NP-SW-001` §6.3.2; this section is the design
-they rest on. **None of it is built:** no hardware-version identifier exists anywhere under `firmware/`.
+they rest on. **Status at Rev {NP-REG-UPG-001 to}:** the firmware half is built and host-tested (the byte-5 split, record version `0x02`, the domain string `NeurOne.TierId.2`, the verifier, the version in the tier report, the hub function and the hub-side refusal). The factory step (§7.9, `REQ-UPG-04`) and the default's removal are not. The status cells of `SWR-HV-06`, `SWR-HV-07` and `SWR-HV-08` in `NP-SW-001` §6.3.2 are the record, and the rest of this section is kept as it was decided. The sentence this replaces said none of it was built, which was true at Rev 4.
 
 **What the decision says.**
 
@@ -526,7 +526,10 @@ they rest on. **None of it is built:** no hardware-version identifier exists any
 5. **The default has an end.** It is removed in the same change that adds the version 2 layout-table
    entry, the version 2 zone lists and the variant-creation automation. That removal is a checked item on
    the increment record, because after version 2 exists an unreadable record would otherwise state a
-   layout the helmet may not have.
+   layout the helmet may not have. **The item is checked by the build (Rev {NP-REG-UPG-001 to}):** the generated
+   socket table (`firmware/hub_control/src/np_socket_layouts.generated.c`) is a compile error once it holds a
+   second hardware version while `NP_HW_VERSION_DEFAULT` is defined. The apps' two defaults
+   (`DEFAULT_HARDWARE_VERSION`, `defaultHardwareVersion`) are outside that build and stay on the item by hand.
 6. **The factory step agrees.** The programming step of `OI-UPG-08` writes the version with the tier. It
    checks the version against the board's revision before programming, since OTP cannot be corrected: a
    helmet written with the wrong version is scrap or must be re-labelled. The step reads the record back,
@@ -558,13 +561,15 @@ version (`SWR-HV-01`, `SWR-HV-05`). How the app reads it from the helmet (a GATT
 
 **Not decided, and not built:**
 
-1. **The wire layout.** The tier report is six bytes at window bytes 20 to 25 and carries a checksum over
-   bytes 0 to 3; whether it has room for a version field, or the window needs a new field, was not checked.
+1. **The wire layout: settled when the code was built (issue #569 package 1).** The window had room. The
+   report grew from six bytes to seven, at window bytes 20 to 26 of the 38-byte reply the hub already clocks,
+   and its checksum now covers bytes 0 to 4, the version included. No transfer and no frame length changed.
+   Bytes 27 to 37 stay spare. The text this replaces said the room had not been checked.
 2. **The hub-side refusal** of a protocol compiled for another hardware version is **decided** (principal,
    2026-10-28) and stated as `SWR-HV-08` in `NP-SW-001` §6.3.2: it sits with hub admission beside the tier
-   check, takes the helmet's version from the safety MCU, and is in addition to the app's refusal. **Not
-   built.** The descriptor carries no hardware version and its 64-byte header has no spare bytes, so a stamp
-   needs a header change and a protocol version bump.
+   check, takes the helmet's version from the safety MCU, and is in addition to the app's refusal. **Built
+   since** (`np_protocol_hw_version_admit`, called from the hub's load step; status in the `SWR-HV-08` row).
+   At Rev 5 this item read "Not built", because the descriptor then carried no hardware version.
 3. **The decision record per increment**, and where it lives (`docs/np_art_001.md` and the DHF are the
    likely homes).
 4. **The board-revision source the factory step checks against.** How the factory knows the board's revision
@@ -658,7 +663,7 @@ corrected, and no sampling plan is stated.
 | **OI-UPG-06** | **Trade-in disposition, and the owner's history on the new unit.** A returned T1 holds its user's UHDR partition, and NeurOne never accesses UHDR (`CLAUDE.md` §5.1). Specify a user-initiated key destruction before return, and a refurbish-as-T1 or scrap route that never needs the key. **Rev 2 adds:** the owner's history reaches the T2 only through the user-keyed backup in `CLAUDE.md` §5.1, and **nothing in the record says whether a backup restores onto a different device**. Specify that, or state that it does not (§7.4 (9)). **Binds only if trade-in is offered.** The restore question binds regardless | Privacy + Service + App | Trade-in offer; first T2 sale to a T1 owner |
 | **OI-UPG-07** | **A module UID seen on two devices links their SHDR records** (§7.4 (7)). Carry-over makes that routine. The link reads as *"one owner held both, and moved from a wellness unit to a medical device"*. That is an inference about a person, drawn from SHDR, which `CLAUDE.md` §5.1 links to device and warranty token only. Decide, before any module UID or per-module history enters an SHDR upload: never upload it, upload a per-device salted form that cannot be joined across devices, or show that the join is harmless. Rule 1 (*when in doubt → UHDR*) applies meanwhile. **Until then, no module UID enters an SHDR upload.** Today none does | Privacy + FW + Data | Any SHDR schema change carrying module identity; per-module predictive maintenance (`CLAUDE.md` §5.2) |
 | **OI-UPG-08** | **Tier-authority key and the manufacturing step that writes the identity** (§7.7, raised Rev 3). The firmware gate exists and fails closed, so **until this closes every unit is T1**, including every T2 unit. Four parts. **(i) Key ceremony:** generate the tier-authority Ed25519 key pair, and decide its custody. It is separate from the session-signing root key by design (§7.7). Decide whether the image carries one public key or a short list, for rotation, since a safety-image update is never automated OTA. **(ii) Programming step:** write every unit's record (T1 included) into OTP at `0x40`, signed over the unit's UID, before final acceptance. The UID is read from the unit, and the signing service never takes a UID it did not read. **(iii) Acceptance check:** refuse any unit whose tier report does not read reason `OK` with the tier its build record says. A blank T1 behaves correctly and is therefore invisible to every functional test. **(iv) Debug-port lock:** set RDP so no external interface can program the OTP window afterwards. That is `REQ-UPG-02`'s remaining test, and it also bears on `OI-FMEA-03`'s root key | Manufacturing + Security + FW (safety) + Quality | **Any T2 unit delivering a T2 modality**; first production of any unit (the T1 record) |
-| **OI-UPG-09** | **The helmet hardware version in the tier identity** (§7.8, raised Rev 4). Decided by the principal 2026-10-09. **Built (issue #569 package 1):** the byte-5 split, record version 0x02, the new domain string, the verifier, the tier-report field (the wire had room: 7 bytes in a 38-byte window), the hub function `np_safety_spi_get_hardware_version()` and the tests. **Not built:** the factory step, the default's removal, the hub-side refusal (decided 2026-10-28, `SWR-HV-08`; the descriptor stamp it needs is not built). Original build list: the byte-5 split and the new record version and domain string in `np_safety_config.h`, the verifier and `np_tier_identity_tests`; a version field in the tier report if the wire has room (not checked); the one function; the factory step of §7.9 (with `OI-UPG-08`) that writes the version and checks it against the board revision; the removal of the default 1 in the change that adds hardware version 2. Open: the wire layout, the hub-side refusal of another version's protocol, the decision record per increment, and the board-revision source | FW (safety) + FW (hub) + Manufacturing | Hardware version 2; the helmet-side refusal; first production of any unit (the version is written with the record) |
+| **OI-UPG-09** | **The helmet hardware version in the tier identity** (§7.8, raised Rev 4). Decided by the principal 2026-10-09. **Built (issue #569 package 1):** the byte-5 split, record version 0x02, the new domain string, the verifier, the tier-report field (the wire had room: 7 bytes in a 38-byte window), the hub function `np_safety_spi_get_hardware_version()` and the tests. **Added at Rev {NP-REG-UPG-001 to}:** a host test of the hub's parse of the report, the hub forgetting the version when its link is re-initialised, and a build check on the default's removal (§7.8 item 5). The hub-side refusal (`SWR-HV-08`) has been built since. **Not built:** the factory step (§7.9; no manufacturer, fixture or signing service exists) and the default's removal, which is not due until hardware version 2. Original build list: the byte-5 split and the new record version and domain string in `np_safety_config.h`, the verifier and `np_tier_identity_tests`; a version field in the tier report if the wire has room (not checked); the one function; the factory step of §7.9 (with `OI-UPG-08`) that writes the version and checks it against the board revision; the removal of the default 1 in the change that adds hardware version 2. Open: the wire layout, the hub-side refusal of another version's protocol, the decision record per increment, and the board-revision source | FW (safety) + FW (hub) + Manufacturing | Hardware version 2; the helmet-side refusal; first production of any unit (the version is written with the record) |
 
 > Items owned elsewhere and deliberately not duplicated: **`OI-TACSDRV-06`** (the decision itself;
 > `NP-HW-TACSDRV-001` §9; **CLOSED** Rev 2), **`RISK-PWRSRC-10`** and **`OI-PWRSRC-04`** (`NP-PWRSRC-001`;

@@ -12,6 +12,19 @@
  * The map's zMm is not carried: np_socket_geom_t has no z.
  */
 #include "np_socket_layouts.h"
+#include "../../common/include/np_spi_wire_types.h"
+
+/*
+ * SWR-HV-07 REMOVAL ITEM, checked by the compiler (NP-SW-001 §6.3.2; NP-REG-UPG-001 §7.8 item 5).
+ * A helmet with no readable hardware version reads as NP_HW_VERSION_DEFAULT (1) only while version 1 is the
+ * only one. The change that adds a second hardware version's socket map makes this count 2, and the build
+ * then stops here until that same change removes the default and its uses, on both processors and in the
+ * apps, and sets the rule for a record that does not verify (§7.8, not decided, item 5).
+ */
+#define NP_SOCKET_LAYOUT_VERSIONS 1
+#if (NP_SOCKET_LAYOUT_VERSIONS > 1) && defined(NP_HW_VERSION_DEFAULT)
+#error "SWR-HV-07: a second helmet hardware version exists, so NP_HW_VERSION_DEFAULT must be removed in this change (NP-REG-UPG-001 section 7.8 item 5)"
+#endif
 
 static const np_socket_geom_t NP_LAYOUT_V1_GEOM[80] = {
     { true, 127, -26 },   /* index 0 = socket 1 */
