@@ -52,6 +52,7 @@ extern void np_charge_monitor_decl_gate(np_safety_state_t *state);
 extern bool np_charge_monitor_is_dc(uint8_t channel);
 extern void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
                                                     np_safety_withhold_report_t *out);
+extern void np_charge_monitor_withhold_decide(np_safety_state_t *state, uint16_t other_refusals);
 extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
                                          const uint16_t    *current_ua,
                                          uint8_t            channel_count);
@@ -838,9 +839,11 @@ static np_safety_state_t requested_state(void)
 
 static uint16_t withhold_sum(const np_safety_withhold_report_t *r)
 {
-    return (uint16_t)((uint16_t)r->magic + (uint16_t)(r->decl_mask & 0xFFU) +
-                      (uint16_t)(r->decl_mask >> 8) + (uint16_t)(r->geom_mask & 0xFFU) +
-                      (uint16_t)(r->geom_mask >> 8));
+    return (uint16_t)((uint16_t)r->magic +
+                      (uint16_t)(r->decl_mask & 0xFFU)    + (uint16_t)(r->decl_mask >> 8) +
+                      (uint16_t)(r->geom_mask & 0xFFU)    + (uint16_t)(r->geom_mask >> 8) +
+                      (uint16_t)(r->decl_decided & 0xFFU) + (uint16_t)(r->decl_decided >> 8) +
+                      (uint16_t)(r->geom_decided & 0xFFU) + (uint16_t)(r->geom_decided >> 8));
 }
 
 /* @verifies REQ-FWHUB-82#a */
@@ -886,21 +889,21 @@ static void test_withhold_geom_mask_names_the_missing_geometry(void)
 }
 
 /* @verifies REQ-FWHUB-82#b */
-static void test_withhold_masks_are_per_beat_and_first_gate_wins(void)
+static void test_withhold_masks_are_per_beat_and_both_gates_report_a_shared_line(void)
 {
     np_charge_monitor_init();
 
-    /* Geometry gate first (as np_safety_main.c runs them): a line it clears is not repeated by the
-     * declaration gate. */
+    /* Both gates report every line whose condition holds: the geometry gate's line is NOT removed from the
+     * declaration mask (option 3 reports all conditions; the decided masks say which gate decides). */
     np_safety_state_t s = requested_state();
     s.geom_required_tdcs = true;
     np_charge_monitor_geom_gate(&s);
     np_charge_monitor_decl_gate(&s);
     check((s.withheld_geom_mask & NP_SAFETY_EN_TDCS) != 0U &&
-          (s.withheld_decl_mask & NP_SAFETY_EN_TDCS) == 0U,
-          "withhold: a line the geometry gate cleared is not repeated in the declaration mask");
+          (s.withheld_decl_mask & NP_SAFETY_EN_TDCS) != 0U,
+          "withhold: a line both gates hold is in BOTH condition masks");
     check((s.withheld_decl_mask & NP_SAFETY_EN_BES_TACS) != 0U,
-          "withhold: the declaration gate still reports the lines only it cleared");
+          "withhold: the declaration gate still reports the lines only it holds");
 
     /* The next beat: the geometry is applied and the line is granted again. */
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 25000U);
@@ -963,21 +966,24 @@ static void test_withhold_names_only_requested_lines(void)
 static void test_withhold_report_shape_magic_and_checksum(void)
 {
     np_safety_state_t s = requested_state();
-    s.withheld_decl_mask = 0x0140U;
-    s.withheld_geom_mask = 0x2060U;
+    s.withheld_decl_mask    = 0x0140U;
+    s.withheld_geom_mask    = 0x2060U;
+    s.withheld_decl_decided = 0x0100U;
+    s.withheld_geom_decided = 0x2000U;
     np_safety_withhold_report_t r;
     memset(&r, 0xFF, sizeof(r));
     np_charge_monitor_build_withhold_report(&s, &r);
-    check(sizeof(r) == NP_SAFETY_WITHHOLD_REPORT_LEN && NP_SAFETY_WITHHOLD_REPORT_LEN == 7U,
-          "withhold report: seven bytes");
+    check(sizeof(r) == NP_SAFETY_WITHHOLD_REPORT_LEN && NP_SAFETY_WITHHOLD_REPORT_LEN == 11U,
+          "withhold report: eleven bytes");
     check(r.magic == NP_SAFETY_WITHHOLD_REPORT_MAGIC, "withhold report: magic");
-    check(r.decl_mask == 0x0140U && r.geom_mask == 0x2060U, "withhold report: both masks carried as they are");
-    check(r.checksum == withhold_sum(&r), "withhold report: the checksum is the additive sum of bytes [0..4]");
+    check(r.decl_mask == 0x0140U && r.geom_mask == 0x2060U, "withhold report: both condition masks carried as they are");
+    check(r.decl_decided == 0x0100U && r.geom_decided == 0x2000U, "withhold report: both decided masks carried as they are");
+    check(r.checksum == withhold_sum(&r), "withhold report: the checksum is the additive sum of bytes [0..8]");
 
     np_safety_state_t z = requested_state();
     np_charge_monitor_build_withhold_report(&z, &r);
-    check(r.decl_mask == 0U && r.geom_mask == 0U && r.magic == NP_SAFETY_WITHHOLD_REPORT_MAGIC &&
-          r.checksum == withhold_sum(&r),
+    check(r.decl_mask == 0U && r.geom_mask == 0U && r.decl_decided == 0U && r.geom_decided == 0U &&
+          r.magic == NP_SAFETY_WITHHOLD_REPORT_MAGIC && r.checksum == withhold_sum(&r),
           "withhold report: fixed shape, a beat with no withhold carries zero masks, a magic and a checksum");
 
     np_charge_monitor_build_withhold_report(NULL, &r);
@@ -995,12 +1001,108 @@ static void test_withhold_report_does_not_change_the_frame(void)
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN,
           "withhold report: begins where the tier report ends");
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN <= NP_SAFETY_RX_EXT_FRAME_LEN &&
-          NP_SAFETY_RX_EXT_FRAME_LEN - (NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN) == 4U,
-          "withhold report: ends at byte 33 and leaves four spare bytes");
+          NP_SAFETY_RX_EXT_FRAME_LEN - (NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN) == 0U,
+          "withhold report: ends at byte 37, filling the spare window exactly, inside the unchanged 38-byte frame");
     check(NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_IMP_REPORT_MAGIC &&
           NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_NV_REPORT_MAGIC &&
           NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_TIER_REPORT_MAGIC,
           "withhold report: its magic is none of the other reports'");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_withhold_decide_names_the_gate_that_alone_holds_a_line(void)
+{
+    np_charge_monitor_init();
+
+    /* Nothing else holds anything: each gate decides the lines only it holds. */
+    np_safety_state_t s = requested_state();
+    s.geom_required_tdcs = true;
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_TDCS_IDX, NP_CHARGE_WAVE_DC, 0U);   /* declared: only geometry holds tDCS */
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    np_charge_monitor_withhold_decide(&s, 0U);
+    check((s.withheld_geom_decided & NP_SAFETY_EN_TDCS) != 0U && (s.withheld_decl_decided & NP_SAFETY_EN_TDCS) == 0U,
+          "decide: declared but with no geometry, the geometry gate decides the tDCS line");
+    check((s.withheld_decl_decided & NP_SAFETY_EN_BES_TACS) != 0U && (s.withheld_geom_decided & NP_SAFETY_EN_BES_TACS) == 0U,
+          "decide: undeclared and with no geometry required, the declaration gate decides the BES/tACS line");
+    check((s.withheld_decl_decided & (uint16_t)~s.withheld_decl_mask) == 0U &&
+          (s.withheld_geom_decided & (uint16_t)~s.withheld_geom_mask) == 0U,
+          "decide: a decided line is always one its gate's condition holds for");
+
+    /* A line another check also holds is decided by neither gate: here the tier gate (a T1 unit) holds cervical VNS. */
+    np_safety_state_t t = requested_state();
+    np_charge_monitor_geom_gate(&t);
+    np_charge_monitor_decl_gate(&t);
+    check((t.withheld_decl_mask & NP_SAFETY_EN_CVNS) != 0U, "decide: the cervical VNS line's class is undeclared, so the condition holds");
+    np_charge_monitor_withhold_decide(&t, (uint16_t)NP_SAFETY_EN_T2_MASK);
+    check((t.withheld_decl_decided & NP_SAFETY_EN_CVNS) == 0U,
+          "decide: with the tier gate also holding the line, the declaration gate does NOT decide it");
+    check((t.withheld_decl_decided & NP_SAFETY_EN_BES_TACS) != 0U,
+          "decide: and a line the tier gate does not hold is still decided");
+
+    /* An all-channel refusal (a fault, a pending signature) leaves no gate deciding anything. */
+    np_charge_monitor_withhold_decide(&t, 0xFFFFU);
+    check(t.withheld_decl_decided == 0U && t.withheld_geom_decided == 0U,
+          "decide: an all-channel refusal leaves both decided masks empty");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_withhold_decide_a_line_held_by_both_gates_is_decided_by_neither(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    s.geom_required_tdcs = true;                 /* geometry required and not applied, and tDCS class never declared */
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    np_charge_monitor_withhold_decide(&s, 0U);
+    check((s.withheld_geom_mask & NP_SAFETY_EN_TDCS) != 0U && (s.withheld_decl_mask & NP_SAFETY_EN_TDCS) != 0U,
+          "decide: the tDCS line is in both condition masks");
+    check((s.withheld_geom_decided & NP_SAFETY_EN_TDCS) == 0U && (s.withheld_decl_decided & NP_SAFETY_EN_TDCS) == 0U,
+          "decide: and in neither decided mask, since fixing one gate leaves the other holding it");
+
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_TDCS_IDX, NP_CHARGE_WAVE_DC, 0U);
+    np_safety_state_t t = requested_state();
+    t.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&t);
+    np_charge_monitor_decl_gate(&t);
+    np_charge_monitor_withhold_decide(&t, 0U);
+    check((t.withheld_geom_decided & NP_SAFETY_EN_TDCS) != 0U,
+          "decide: once the class is declared, the geometry gate alone holds the line and decides it");
+}
+
+/* The decided masks are conditions too: they must not fall to zero on the loop iterations where granted_mask is already clear. */
+/* @verifies REQ-FWHUB-82#e */
+static void test_withhold_decide_is_stable_across_loop_iterations(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    np_charge_monitor_withhold_decide(&s, 0U);
+    const uint16_t first = s.withheld_decl_decided;
+    check(first != 0U, "decide: the first iteration decides the undeclared lines");
+    for (int i = 0; i < 5; i++) {
+        np_charge_monitor_geom_gate(&s);
+        np_charge_monitor_decl_gate(&s);
+        np_charge_monitor_withhold_decide(&s, 0U);
+    }
+    check(s.withheld_decl_decided == first,
+          "decide: later iterations, with the lines already cleared from granted_mask, decide the same lines");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_withhold_decide_edge_cases(void)
+{
+    np_safety_state_t s = requested_state();
+    np_charge_monitor_withhold_decide(NULL, 0U);
+    check(1, "decide: a NULL state is a no-op, not a crash");
+    np_charge_monitor_init();
+    s.requested_mask = 0U;
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    np_charge_monitor_withhold_decide(&s, 0U);
+    check(s.withheld_decl_decided == 0U && s.withheld_geom_decided == 0U,
+          "decide: a hub that requested nothing has nothing decided");
 }
 
 int main(void)
@@ -1037,11 +1139,15 @@ int main(void)
     test_phase_clamped();
     test_withhold_decl_mask_names_the_undeclared_lines();
     test_withhold_geom_mask_names_the_missing_geometry();
-    test_withhold_masks_are_per_beat_and_first_gate_wins();
+    test_withhold_masks_are_per_beat_and_both_gates_report_a_shared_line();
     test_withhold_report_is_stable_across_loop_iterations();
     test_withhold_names_only_requested_lines();
     test_withhold_report_shape_magic_and_checksum();
     test_withhold_report_does_not_change_the_frame();
+    test_withhold_decide_names_the_gate_that_alone_holds_a_line();
+    test_withhold_decide_a_line_held_by_both_gates_is_decided_by_neither();
+    test_withhold_decide_is_stable_across_loop_iterations();
+    test_withhold_decide_edge_cases();
 
     printf("=== %d failure(s) ===\n", g_failures);
     return (g_failures == 0) ? 0 : 1;

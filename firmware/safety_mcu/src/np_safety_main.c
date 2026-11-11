@@ -85,6 +85,10 @@ extern void np_fault_latch_commit(const np_safety_state_t *state);
 extern void np_tier_identity_gate(np_safety_state_t *state);
 extern void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
                                                     np_safety_withhold_report_t *out);
+extern void np_charge_monitor_withhold_decide(np_safety_state_t *state, uint16_t other_refusals);
+extern uint16_t np_impedance_check_held_mask(void);
+extern uint16_t np_cardiac_interlock_held_mask(const np_safety_state_t *state);
+extern bool np_tier_identity_is_t2(void);
 extern void np_tier_identity_build_report(np_safety_tier_report_t *out,
                                           uint16_t                 requested_mask);
 
@@ -110,6 +114,43 @@ static bool              s_prior_latch_reported = false;
  * for up to one page erase, so retries are bounded, and a flash that cannot
  * record a cutoff is a device fault to surface, not to hide. */
 static uint8_t           s_nv_fail_count = 0U;
+
+/* ── Withhold report: what holds a line besides the two charge gates (OI-SIMFW-61) ──
+ * The lines something other than the geometry and declaration gates holds this
+ * beat, each read as a CONDITION from state the MCU already keeps and never from
+ * bits already cleared (granted_mask is only re-granted on a heartbeat):
+ *   - the heartbeat grant's all-channel refusals: FAULT, THERMAL, CHARGE, a
+ *     pending session signature, a watchdog timeout (np_spi_watchdog.c);
+ *   - the cardiac block, for the lines it exists for (NP_CARDIAC_BLOCK_MASK): a
+ *     cutoff's CARDIAC flag, and the interlock's own holds that raise no flag
+ *     (a lockout, the pre-arm hold, the hub cross-check's silent hold), read
+ *     through np_cardiac_interlock_held_mask();
+ *   - the impedance gate (np_impedance_check_gate): a checked channel that has
+ *     not passed;
+ *   - the tier gate (np_tier_identity_gate): every T2 line on a unit that is not
+ *     T2.
+ * The same predicates the checks above apply, in the same terms; nothing new is
+ * evaluated and nothing is granted or cleared here.                             */
+static uint16_t other_refusals_for_report(const np_safety_state_t *state)
+{
+    uint16_t other = 0U;
+    const uint8_t all_channel = (uint8_t)(NP_SAFETY_STATUS_FAULT   | NP_SAFETY_STATUS_THERMAL |
+                                          NP_SAFETY_STATUS_CHARGE  | NP_SAFETY_STATUS_SIG_PENDING |
+                                          NP_SAFETY_STATUS_WATCHDOG);
+
+    if ((state->status & all_channel) != 0U) {
+        other = 0xFFFFU;
+    }
+    if ((state->status & NP_SAFETY_STATUS_CARDIAC) != 0U) {
+        other |= (uint16_t)NP_CARDIAC_BLOCK_MASK;
+    }
+    other |= np_cardiac_interlock_held_mask(state);
+    other |= np_impedance_check_held_mask();
+    if (!np_tier_identity_is_t2()) {
+        other |= (uint16_t)NP_SAFETY_EN_T2_MASK;
+    }
+    return other;
+}
 
 /* ── Checksum verification (matches hub_control np_safety_spi.c) ──────────── */
 
@@ -505,6 +546,10 @@ int main(void)
          * accumulate loop and the GPIO write, so a withheld line is never
          * energised and accrues no charge.  Nothing below adds a bit.        */
         np_tier_identity_gate(&s_state);
+
+        /* OI-SIMFW-61: which of the two charge gates decides each line they hold,
+         * from conditions, after every gate has had its say.  Changes no grant. */
+        np_charge_monitor_withhold_decide(&s_state, other_refusals_for_report(&s_state));
 
         /* Accumulate charge for currently-granted DC channels carrying a
          * non-zero commanded current.  dt_us is a compile-time constant —

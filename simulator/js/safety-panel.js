@@ -282,8 +282,10 @@ export class SafetyPanel {
   _withheldText(w) {
     if (!w || !w.valid) return 'no report in the last reply';
     const label = (n) => (LINES.find((l) => l.name === n) || { label: n }).label;
-    const part = (title, list) => `${title}: ${list.length ? list.map(label).join(', ') : 'none'}`;
-    return `${part('waveform not declared', w.declaration)}; ${part('electrode geometry missing', w.geometry)}`;
+    const names = (list) => (list.length ? list.map(label).join(', ') : 'none');
+    // Condition: what is true of the gate.  Decided: the lines nothing else holds either, so fixing this gate alone releases them.
+    return `waveform not declared: ${names(w.declaration)} (decides: ${names(w.declarationDecided)}); `
+      + `electrode geometry missing: ${names(w.geometry)} (decides: ${names(w.geometryDecided)})`;
   }
 
   _cutoffText(c) {

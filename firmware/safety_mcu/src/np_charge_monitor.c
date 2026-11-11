@@ -371,32 +371,74 @@ void np_charge_monitor_decl_gate(np_safety_state_t *state)
 
     /* OI-SIMFW-61: the lines this gate holds off, for the withhold report, taken
      * from the request and the condition as in np_charge_monitor_geom_gate().
-     * A line the geometry gate already holds is its report, not this one's. */
-    state->withheld_decl_mask =
-        (uint16_t)(held & state->requested_mask & (uint16_t)~state->withheld_geom_mask);
+     * A line the geometry gate also holds is named here too: the condition mask
+     * says what is true of this gate, and the decided mask (below) says whether
+     * it is the only thing holding the line. */
+    state->withheld_decl_mask = (uint16_t)(held & state->requested_mask);
+}
+
+/*
+ * np_charge_monitor_withhold_decide — which of the two gates DECIDES a withheld
+ * line (OI-SIMFW-61, option 3).  `other_refusals` is the set of lines that
+ * something other than these two gates holds this beat: the caller
+ * (np_safety_main.c) builds it from the MCU's own checks read as conditions
+ * (fault-class status flags, the cardiac block, the impedance gate, the tier
+ * gate).  A line is decided by a gate when that gate's condition holds for it
+ * and nothing else does: not the other gate, not anything in `other_refusals`.
+ * So a line held by both gates is decided by neither, and a line held by one gate
+ * and, say, the tier gate is decided by neither.  Called after the two gates have
+ * run, on every loop iteration, from conditions only (never from bits already
+ * cleared: granted_mask is only re-granted on a heartbeat), so the result is
+ * steady across the 200 ms between heartbeats.
+ */
+void np_charge_monitor_withhold_decide(np_safety_state_t *state, uint16_t other_refusals)
+{
+    if (state == NULL) {
+        return;
+    }
+    state->withheld_decl_decided = (uint16_t)(state->withheld_decl_mask &
+        (uint16_t)~(uint16_t)(other_refusals | state->withheld_geom_mask));
+    state->withheld_geom_decided = (uint16_t)(state->withheld_geom_mask &
+        (uint16_t)~(uint16_t)(other_refusals | state->withheld_decl_mask));
+}
+
+/* Additive sum of the first n bytes of the report, wrapping uint16: the checksum
+ * the other reports use. */
+static uint16_t withhold_sum(const uint16_t *words, uint8_t n_words, uint8_t magic)
+{
+    uint16_t sum = (uint16_t)magic;
+    uint8_t  i;
+    for (i = 0U; i < n_words; i++) {
+        sum = (uint16_t)(sum + (uint16_t)(words[i] & 0xFFU) + (uint16_t)(words[i] >> 8));
+    }
+    return sum;
 }
 
 /*
  * np_charge_monitor_build_withhold_report — the MISO withhold report for this
- * beat (OI-SIMFW-61): which requested lines the geometry gate and the
- * declaration gate cleared on their last run.  Fixed shape: every field is
- * populated whatever the state.  The checksum is the additive sum of bytes
- * [0..4], as the other reports' are.
+ * beat (OI-SIMFW-61): the conditions the geometry gate and the declaration gate
+ * hold for requested lines, and which of them decides.  Fixed shape: every field
+ * is populated whatever the state.  The checksum is the additive sum of bytes
+ * [0..8], as the other reports' are.
  */
 void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
                                              np_safety_withhold_report_t *out)
 {
+    uint16_t words[4];
+
     if ((state == NULL) || (out == NULL)) {
         return;
     }
-    out->magic     = NP_SAFETY_WITHHOLD_REPORT_MAGIC;
-    out->decl_mask = state->withheld_decl_mask;
-    out->geom_mask = state->withheld_geom_mask;
-    out->checksum  = (uint16_t)((uint16_t)out->magic +
-                                (uint16_t)(out->decl_mask & 0xFFU) +
-                                (uint16_t)(out->decl_mask >> 8) +
-                                (uint16_t)(out->geom_mask & 0xFFU) +
-                                (uint16_t)(out->geom_mask >> 8));
+    out->magic        = NP_SAFETY_WITHHOLD_REPORT_MAGIC;
+    out->decl_mask    = state->withheld_decl_mask;
+    out->geom_mask    = state->withheld_geom_mask;
+    out->decl_decided = state->withheld_decl_decided;
+    out->geom_decided = state->withheld_geom_decided;
+    words[0] = out->decl_mask;
+    words[1] = out->geom_mask;
+    words[2] = out->decl_decided;
+    words[3] = out->geom_decided;
+    out->checksum = withhold_sum(words, 4U, out->magic);
 }
 
 /* ── DC: per-session accumulation ─────────────────────────────────────────── */

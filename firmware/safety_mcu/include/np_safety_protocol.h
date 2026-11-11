@@ -146,13 +146,17 @@ typedef struct {
     bool     geom_required_bes; /* OI-MMSOCK-02: hub declared this session needs an
                                 * electrode-geometry declaration on BES_TACS (from
                                 * heartbeat NP_SESSION_STATUS_GEOM_REQ_BES bit)   */
-    uint16_t withheld_geom_mask; /* OI-SIMFW-61: requested lines that
-                                * np_charge_monitor_geom_gate() holds off on its
-                                * last run; assigned (not OR-ed) by the gate      */
-    uint16_t withheld_decl_mask; /* OI-SIMFW-61: requested lines that
-                                * np_charge_monitor_decl_gate() holds off on its
-                                * last run; the lines the geometry gate already
-                                * holds are not repeated here                     */
+    uint16_t withheld_geom_mask; /* OI-SIMFW-61: requested lines for which the
+                                * geometry gate's condition holds, assigned (not
+                                * OR-ed) by np_charge_monitor_geom_gate()          */
+    uint16_t withheld_decl_mask; /* OI-SIMFW-61: requested lines for which the
+                                * declaration gate's condition holds, assigned by
+                                * np_charge_monitor_decl_gate(); a line the
+                                * geometry gate also holds is named here too       */
+    uint16_t withheld_geom_decided; /* OI-SIMFW-61: of withheld_geom_mask, the lines
+                                * no other check holds; assigned by
+                                * np_charge_monitor_withhold_decide()              */
+    uint16_t withheld_decl_decided; /* OI-SIMFW-61: the same for the declaration gate */
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,

@@ -160,22 +160,33 @@ class HelmetReasonTest {
 
     // @verifies REQ-SIMFW-18#d
     @Test
-    fun theWithholdReportNamesWhichGateHeldTheLine() {
+    fun theWithholdReportNamesWhichGateDecidedTheLine() {
         // Status OK and no fault slot: the MCU's own withhold report is the only thing that says why (OI-SIMFW-61).
-        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(0, declarationHeld = true))
-        assertEquals(WithheldReason.MISSING_GEOMETRY, withheldReasonOf(0, geometryHeld = true))
-        assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0), "no valid report: shown as what it is")
-        // Order: not requested, then the session signature, then the geometry gate, the declaration gate, the contact check, the tier gate.
-        assertEquals(WithheldReason.NOT_REQUESTED, withheldReasonOf(0, requested = false, geometryHeld = true, declarationHeld = true))
-        assertEquals(WithheldReason.AWAITING_SESSION_SIGNATURE, withheldReasonOf(SafetyStatusBits.SIG_PENDING, geometryHeld = true))
-        assertEquals(WithheldReason.MISSING_GEOMETRY, withheldReasonOf(0, geometryHeld = true, declarationHeld = true))
-        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(SafetyStatusBits.IMPEDANCE, declarationHeld = true))
-        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(0, tierGated = true, declarationHeld = true))
+        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(0, declarationDecided = true))
+        assertEquals(WithheldReason.MISSING_GEOMETRY, withheldReasonOf(0, geometryDecided = true))
+        assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0), "no valid report, or a gate that holds the line without deciding it: shown as what it is")
+        // Order: not requested, then the session signature, then the gate that decides, the contact check, the tier gate.
+        assertEquals(WithheldReason.NOT_REQUESTED, withheldReasonOf(0, requested = false, geometryDecided = true, declarationDecided = true))
+        assertEquals(WithheldReason.AWAITING_SESSION_SIGNATURE, withheldReasonOf(SafetyStatusBits.SIG_PENDING, geometryDecided = true))
+        assertEquals(WithheldReason.UNDECLARED_WAVEFORM, withheldReasonOf(SafetyStatusBits.IMPEDANCE, declarationDecided = true))
     }
 
     // @verifies REQ-SIMFW-18#d
     @Test
-    fun aLineIsHeldByAGateWhenTheReportsMaskHasItsEnableBit() {
+    fun aGateWhoseConditionHoldsButDoesNotDecideTheLineIsNotNamed() {
+        // A signed T1 unit, cervical VNS requested, no class declared: the declaration CONDITION holds, the tier gate also holds the line,
+        // so the report's decided mask does not name it. The caller passes declarationDecided = false and the view names the tier gate,
+        // not the declaration (declaring the waveform would not release the line).
+        assertEquals(WithheldReason.TIER_GATE, withheldReasonOf(0, tierGated = true, declarationDecided = false))
+        // A line both charge gates hold is decided by neither, and nothing else the hub can read says why.
+        assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0, geometryDecided = false, declarationDecided = false))
+        // A contact check that failed beats a gate that does not decide.
+        assertEquals(WithheldReason.CONTACT_CHECK_FAILED, withheldReasonOf(SafetyStatusBits.IMPEDANCE, declarationDecided = false))
+    }
+
+    // @verifies REQ-SIMFW-18#d
+    @Test
+    fun aLineIsDecidedByAGateWhenTheReportsDecidedMaskHasItsEnableBit() {
         val tdcsBit = 1 shl 6
         val besBit = 1 shl 5
         assertEquals(true, isHeldByGate(tdcsBit or besBit, tdcsBit))

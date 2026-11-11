@@ -634,6 +634,8 @@ test('end to end: the withhold report says the BES line is held for its undeclar
   assert.strictEqual(held.withhold_valid, true, 'the reply carries a valid withhold report');
   assert.strictEqual((held.withhold_decl >> 5) & 1, 1, 'which names the BES line (bit 5) as held by the waveform-declaration gate');
   assert.strictEqual(held.withhold_geom, 0, 'and nothing as held by the geometry gate');
+  assert.strictEqual((held.withhold_decl_decided >> 5) & 1, 1, 'and the declaration gate DECIDES it: nothing else holds the line (signed, in contact)');
+  assert.strictEqual(held.withhold_geom_decided, 0, 'the geometry gate decides nothing');
   send({ type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 2, phase_us: 20000 });
   send({ type: 'FW_COMMAND', cmd: 'safety_limits', channel: 5, area_mcm2: 1000 });
   send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
@@ -642,6 +644,7 @@ test('end to end: the withhold report says the BES line is held for its undeclar
   const driven = states().pop();
   assert.strictEqual((driven.lines >> 1) & 1, 1, 'declared, the line is enabled');
   assert.strictEqual((driven.withhold_decl >> 5) & 1, 0, 'and the report no longer names it');
+  assert.strictEqual((driven.withhold_decl_decided >> 5) & 1, 0, 'in the decided mask either');
 });
 
 // ── the app's protocol upload, over the hub's own transport (NP-SIM-FW-001 §26, REQ-SIMFW-17) ──────────────────────────────────
