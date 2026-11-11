@@ -9,7 +9,8 @@
  *
  * The same predicate runs in two places, so they cannot disagree:
  *   · at load, np_cmd_limits_admit() over the whole descriptor (np_runner_load), so
- *     the person learns it when the protocol is sent;
+ *     the person learns it when the protocol is sent; there the status is
+ *     NP_HUB_ERR_OUTSIDE_LIMIT, a status of its own;
  *   · at dispatch, np_cmd_limits_check() first in each driver's control(), before
  *     any hardware, enable, published current or state is touched.
  *
@@ -160,9 +161,11 @@ static inline np_hub_status_t np_cmd_limits_check(np_hub_mod_type_t mod_type,
 /*
  * np_cmd_limits_admit — the load-time half (REQ-FWHUB-78 (g)).  Refuses a descriptor
  * that holds ANY command np_cmd_limits_check() refuses, whole, with
- * NP_HUB_ERR_INVALID_ARG: reason 2 in the upload-check frame, the cause the apps
- * already show for a descriptor built wrongly.  The shared core refuses every one of
- * these values before signing, so a descriptor that reaches this was not made by it.
+ * NP_HUB_ERR_OUTSIDE_LIMIT: a status of its own (the principal, 2026-11-11), reason 40
+ * in the upload-check frame, so an app can say that a value is outside a limit and
+ * not only that the descriptor was built wrongly.  One status for every limit; it does
+ * not say which.  The shared core refuses or holds every one of these values before
+ * signing, so a descriptor that reaches this was not made by it.
  */
 static inline np_hub_status_t np_cmd_limits_admit(const np_session_desc_t *desc)
 {
@@ -172,7 +175,7 @@ static inline np_hub_status_t np_cmd_limits_admit(const np_session_desc_t *desc)
     for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
         const np_session_cmd_t *c = &desc->cmds[i];
         if (np_cmd_limits_check(c->mod_type, c->params, c->params_len) != NP_HUB_OK) {
-            return NP_HUB_ERR_INVALID_ARG;
+            return NP_HUB_ERR_OUTSIDE_LIMIT;
         }
     }
     return NP_HUB_OK;

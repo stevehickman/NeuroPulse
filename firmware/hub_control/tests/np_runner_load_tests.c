@@ -725,19 +725,19 @@ static void test_a_command_outside_a_driver_limit_is_refused_at_upload_and_leave
 {
     blob_t b;
     fresh(); blob_bes(&b, 1001U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: BES at 1001 uA is refused at load");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_OUTSIDE_LIMIT, "limits: BES at 1001 uA is refused at load");
     expect_nothing_left_behind("limits BES");
     fresh(); blob_tdcs(&b, 2001U, 30U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: tDCS at 2001 uA is refused at load");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_OUTSIDE_LIMIT, "limits: tDCS at 2001 uA is refused at load");
     expect_nothing_left_behind("limits tDCS current");
     fresh(); blob_tdcs(&b, 1000U, 29U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: a tDCS ramp of 29 s is refused at load");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_OUTSIDE_LIMIT, "limits: a tDCS ramp of 29 s is refused at load");
     expect_nothing_left_behind("limits tDCS ramp");
     fresh(); blob_vns(&b, (uint16_t)(NP_VNS_MAX_CURRENT_UA + 1U));
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: auricular VNS at 40001 uA is refused at load");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_OUTSIDE_LIMIT, "limits: auricular VNS at 40001 uA is refused at load");
     expect_nothing_left_behind("limits VNS");
     fresh(); blob_ins(&b, (uint8_t)(INS_DUTY_MAX + 1U));
-    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_INVALID_ARG, "limits: intranasal duty 0x33 is refused at load");
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_OUTSIDE_LIMIT, "limits: intranasal duty 0x33 is refused at load");
     expect_nothing_left_behind("limits intranasal");
 }
 
@@ -807,7 +807,7 @@ static void expect_refused_at_load(blob_t *b, bool t2, const char *name)
     fresh();
     if (t2) { g_tier = NP_TIER_T2; }
     snprintf(msg, sizeof msg, "%s is refused at load", name);
-    check(np_runner_load(b->buf, b->len) == NP_HUB_ERR_INVALID_ARG, msg);
+    check(np_runner_load(b->buf, b->len) == NP_HUB_ERR_OUTSIDE_LIMIT, msg);
     expect_nothing_left_behind(name);
 }
 
@@ -886,11 +886,32 @@ static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(vo
     memcpy(d.cmds[1].params, &base, sizeof base);
     d.cmds[2].mod_type = NP_MOD_PBM_SMART; d.cmds[2].params_len = sizeof smart;
     memcpy(d.cmds[2].params, &smart, sizeof smart);            /* duty 0xC8 */
-    check(np_cmd_limits_admit(&d) == NP_HUB_ERR_INVALID_ARG, "admit: one command above a limit refuses the whole descriptor");
+    check(np_cmd_limits_admit(&d) == NP_HUB_ERR_OUTSIDE_LIMIT, "admit: one command above a limit refuses the whole descriptor, with the status of its own");
     smart.duty = NP_PBM_DUTY_MAX_REG;
     memcpy(d.cmds[2].params, &smart, sizeof smart);
     check(np_cmd_limits_admit(&d) == NP_HUB_OK, "admit: with every command inside its limit the descriptor is admitted");
     check(np_cmd_limits_admit(NULL) == NP_HUB_ERR_INVALID_ARG, "admit: no descriptor is refused");
+}
+
+/* The load-time refusal has a status of its own (the principal, 2026-11-11).  It is not the status a descriptor
+ * built wrongly gets, and it is the one number the header gives it, which the upload-check frame carries as 40. */
+/* @verifies REQ-FWHUB-78#g */
+static void test_the_load_time_limit_refusal_has_a_status_of_its_own(void)
+{
+    blob_t b;
+    fresh(); blob_bes(&b, 1001U);
+    const np_hub_status_t rc = np_runner_load(b.buf, b.len);
+    check(rc == NP_HUB_ERR_OUTSIDE_LIMIT && rc != NP_HUB_ERR_INVALID_ARG, "status: a value outside a limit is refused as OUTSIDE_LIMIT, not INVALID_ARG");
+    check(-(int)rc == 40, "status: the upload-check frame carries it as reason 40");
+    /* A descriptor that is malformed, not over a limit, keeps the status it had. */
+    fresh();
+    check(np_runner_load(NULL, b.len) == NP_HUB_ERR_INVALID_ARG, "status: a missing buffer is still INVALID_ARG");
+    /* The driver-level predicate is unchanged: one command outside a limit is INVALID_ARG there. */
+    np_mod_bes_tacs_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = 10000U; p.amplitude_ua = 1001U;
+    check(np_cmd_limits_check(NP_MOD_BES_TACS, &p, sizeof p) == NP_HUB_ERR_INVALID_ARG,
+          "status: the predicate the drivers call at dispatch still answers INVALID_ARG");
 }
 
 int main(void)
@@ -922,6 +943,7 @@ int main(void)
     test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command();
     test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload();
     test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_at_upload();
+    test_the_load_time_limit_refusal_has_a_status_of_its_own();
 
     if (g_unexpected != 0U) {
         printf("FAIL: np_runner_load() reached %u run-loop seam call(s)\n", g_unexpected);

@@ -88,6 +88,8 @@ struct UploadVerdict: Equatable {
 enum HelmetRefusalCause: Equatable {
     case tier, hardwareVersion, notReady, signature, wrongDevice, formatVersion, damaged, malformed, sessionActive
     case bootRefused, noLayout, photicZone, badAddress, tooManyCommands, other
+    /// A value in the protocol is outside a limit the hub holds (`NP_HUB_ERR_OUTSIDE_LIMIT`, reason 40; `REQ-FWHUB-78` (g)).
+    case outsideLimit
     /// Not a refusal: the hub's final answer is for other bytes than the ones just sent (`UploadVerdict.cause(forSentHash:)`).
     case unmatched
 }

@@ -60,6 +60,34 @@ For `ramp_s` and `baseline_req`: should the hub refuse a descriptor whose `ramp_
 whose `baseline_req` is 0, since it will not do what they say? **Leaning: yes**, for the same reason as Q1, once
 the definition says the fields are fixed.
 
+## Background found 2026-11-11 (lead)
+
+These are the lead's findings, recorded as given. They are not decisions.
+
+**(a) The goggles.**
+- The core's visual encoder (`common/npps-core/src/compiler.rs`, `encode_visual`) always writes `0xFF` and `0x0F`
+  for the zone mask, so a core-signed protocol never sets the upper nibble of `zone_mask_hi`.
+- `np_mod_visual.c` masks it off with `& 0x0F`, so the upper four bits are dropped only for a descriptor not made
+  by the core.
+- `np_hub_types.h` describes the field as "zones 8–11 (hi nibble)" and does not say the upper four bits are
+  reserved.
+- The header comment says "12-bit per-eye zone mask" while `CLAUDE.md` §3 says 6 zones per eye. Whether 12 bits is
+  both eyes together or something else is not stated, and is itself a question.
+- No file says why the bits are masked rather than refused.
+
+**(b) Cervical VNS.**
+- `NP_CVNS_SESSION_MAX_S` is "2 min gammaCore protocol" in `np_cvns_config.h`. Its only basis in the repository is
+  the gammaCore equivalence argument.
+- The driver sets every cervical command's duration to this maximum (`np_mod_cvns.c`), so a longer authored block
+  is cut silently, which is the silent cut the principal has ruled out.
+- From search results, not checked against the documents (a web search on 2026-11-11; the documents were not
+  read): the gammaCore labelling uses 2-minute stimulations repeated (three consecutive for an acute cluster
+  headache; two treatments a day of three stimulations in the US labelling; two stimulations per treatment in the
+  Canadian labelling). On that reading a 120 s maximum on one block matches one labelled stimulation and does not
+  bound the exposure of a treatment or a day.
+- From search results, not checked against the documents: no source found in that search gives a safety study for
+  a 120 s duration.
+
 ## What to send back
 
 For each question: the option, a short rationale (`CLAUDE.md` §18 wants the source of any new limit), what would

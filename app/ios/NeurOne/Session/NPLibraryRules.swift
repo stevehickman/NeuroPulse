@@ -220,6 +220,7 @@ extension HelmetRefusalCause {
         case "photic_zone": self = .photicZone
         case "bad_address": self = .badAddress
         case "too_many_commands": self = .tooManyCommands
+        case "outside_limit": self = .outsideLimit
         case "other": self = .other
         case "unmatched": self = .unmatched
         default: return nil

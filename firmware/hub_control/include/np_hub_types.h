@@ -110,6 +110,12 @@ typedef enum {
     NP_HUB_ERR_MPE_CHECK            = -37,  /* goggles: the IEC 62471 exposure check failed */
     NP_HUB_ERR_SLEEVE_NOT_AUTH      = -38,  /* intranasal probe: the sleeve is not authenticated */
     NP_HUB_ERR_CONTACT_NOT_CONFIRMED = -39, /* auricular VNS clip: contact impedance not finite or outside the window */
+    /* REQ-FWHUB-78 (g) (the principal, 2026-11-11: the load-time refusal has a status of its own).  The protocol holds a
+     * command whose value is outside a limit the hub holds (a current, a ramp, a duty, a frequency, a level, a gain code),
+     * so np_runner_load() refuses the whole protocol and nothing is started.  One status for every such limit: it does not
+     * say which.  Was NP_HUB_ERR_INVALID_ARG, which the apps can only call a descriptor built wrongly.  Reason 40 in the
+     * upload-check frame.  A driver that meets the same value at dispatch still answers NP_HUB_ERR_INVALID_ARG. */
+    NP_HUB_ERR_OUTSIDE_LIMIT        = -40,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

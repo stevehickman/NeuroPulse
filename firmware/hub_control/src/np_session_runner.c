@@ -817,8 +817,8 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
      * ramp, auricular VNS current, PBM or intranasal duty) refuses the protocol here, whole, so the person learns it
      * when they send the protocol and not as a refused command mid-session.  The drivers refuse the same command at
      * dispatch with the same predicate (np_cmd_limits_check); this is the earlier of the two.  The status is
-     * NP_HUB_ERR_INVALID_ARG, reason 2: the shared core refuses these values before signing, so a descriptor that
-     * carries one was built wrongly, which is what reason 2 already means to the apps (OI-FWHUB-30). */
+     * NP_HUB_ERR_OUTSIDE_LIMIT, reason 40, a status of its own (the principal, 2026-11-11): it was reason 2, which
+     * the apps can only call a descriptor built wrongly. */
     rc = np_cmd_limits_admit(&s_ctx.desc);
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
