@@ -15,7 +15,7 @@ namespace NeurOne.Protocol;
 /// or null), `NotReady` is a refusal only because the helmet had not yet heard its tier or hardware version (sending the same
 /// protocol again can succeed), and `Cause` is what to say: `tier`, `hardware_version`, `not_ready`, `signature`,
 /// `wrong_device`, `format_version`, `damaged`, `malformed`, `too_many_commands`, `session_active`, `boot_refused`, `no_layout`,
-/// `photic_zone`, `bad_address`, `outside_limit`, `other`, `unmatched`, or null
+/// `photic_zone`, `bad_address`, `outside_limit`, `cervical_block_too_short`, `cervical_block_too_long`, `other`, `unmatched`, or null
 /// for an accepted upload and for no answer.
 sealed record HelmetCauseAnswer(string? RefusalKind, bool NotReady, string? Cause);
 

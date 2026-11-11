@@ -26,6 +26,8 @@ fun helmetRefusalMessages(): Map<HelmetRefusalCause, String> = mapOf(
         HelmetRefusalCause.BAD_ADDRESS to stringResource(Res.string.protocol_menu_refused_bad_address),
         HelmetRefusalCause.TOO_MANY_COMMANDS to stringResource(Res.string.protocol_menu_refused_too_many_commands),
         HelmetRefusalCause.OUTSIDE_LIMIT to stringResource(Res.string.protocol_menu_refused_outside_limit),
+        HelmetRefusalCause.CERVICAL_BLOCK_TOO_SHORT to stringResource(Res.string.protocol_menu_refused_cervical_block_too_short),
+        HelmetRefusalCause.CERVICAL_BLOCK_TOO_LONG to stringResource(Res.string.protocol_menu_refused_cervical_block_too_long),
         HelmetRefusalCause.OTHER to stringResource(Res.string.protocol_menu_refused_generic),
         HelmetRefusalCause.UNMATCHED to stringResource(Res.string.protocol_menu_upload_unmatched),
 )

@@ -1118,6 +1118,8 @@
   "PROTOCOL_MENU_PROTOCOL_UNAVAILABLE": "Protocol Unavailable",
   "PROTOCOL_MENU_REFUSED_BAD_ADDRESS": "This protocol uses a module position that this version of the helmet does not have. Make the protocol again for this helmet, then send it. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_BOOT": "The helmet will not run a session until it restarts and passes its start-up check. Nothing will run.",
+  "PROTOCOL_MENU_REFUSED_CERVICAL_BLOCK_TOO_LONG": "A cervical stimulation block in this protocol is longer than the helmet can run, so the helmet did not accept it and the protocol was not started. Shorten the block, then send the protocol again.",
+  "PROTOCOL_MENU_REFUSED_CERVICAL_BLOCK_TOO_SHORT": "A cervical stimulation block in this protocol is too short to hold its ramp-up and ramp-down, so the helmet did not accept it and the protocol was not started. Lengthen the block, then send the protocol again.",
   "PROTOCOL_MENU_REFUSED_DAMAGED": "The protocol arrived damaged or incomplete. Send it again. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_FORMAT_VERSION": "The helmet and this app use different protocol formats. Update the app or the helmet's software, then send the protocol again. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_GENERIC": "The helmet did not accept this protocol. Nothing will run.",

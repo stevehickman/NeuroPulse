@@ -450,20 +450,12 @@ typedef char _np_spi_chan_limit_cmd_size_check[
 #define NP_CHARGE_WAVE_ALL      (NP_CHARGE_WAVE_DC | NP_CHARGE_WAVE_PULSE | \
                                  NP_CHARGE_WAVE_SINE)
 
-/* Longest phase duration either side will honour: 2,000,000 µs = 0.25 Hz.
- * Below the 0.5 Hz BES/tACS floor (CLAUDE.md §3), so it clamps nothing real.
- *
- * Shared rather than per-side because both ends clamp: the hub so the frame it
- * transmits already says what the MCU will conclude, and the MCU because it
- * must not depend on the hub having done so — a corrupt or hostile phase_us
- * would otherwise overflow the uint64 per-phase arithmetic.  Two independent
- * clamps against one number is only meaningful if it IS one number.
- *
- * Note the direction: this clamps a declaration DOWN, and a shorter declared
- * phase yields a SMALLER computed charge.  So the clamp is not itself a safety
- * control — it is bounds-checking, and what makes an under-declared phase safe
- * is the fail-closed declaration gate, not this.                            */
-#define NP_CHARGE_MAX_PHASE_US      2000000UL
+/* NP_CHARGE_MAX_PHASE_US (2,000,000 us) is REMOVED (the principal, 2026-11-11: "remove it and add the compile time
+ * check").  Both processors used to clamp a declared phase to it.  A clamp shortens the declaration, a shorter phase
+ * gives a SMALLER computed charge, so it could only under-state the per-phase charge; it was bounds-checking against
+ * overflow of the uint64 arithmetic, and that arithmetic needs no bound: a 16-bit current times a 32-bit phase times
+ * 2000 is at most 65535 x 4294967295 x 2000 = about 5.6e17, against about 1.8e19 for uint64.  The safety MCU now
+ * proves that at compile time from the types themselves (np_charge_monitor.c), and the phase is used as declared. */
 
 typedef struct __attribute__((packed)) {
     uint8_t  cmd_magic[2];                          /* NP_SAFETY_CMD_MAGIC_0 / _1 */

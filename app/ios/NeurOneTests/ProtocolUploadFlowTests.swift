@@ -58,7 +58,7 @@ final class ProtocolUploadFlowTests: XCTestCase {
     func testEveryCauseHasItsOwnMessageThatIsNotTheKey() {
         let causes: [HelmetRefusalCause] = [
             .tier, .hardwareVersion, .notReady, .signature, .wrongDevice, .formatVersion, .damaged, .malformed,
-            .sessionActive, .bootRefused, .noLayout, .photicZone, .badAddress, .tooManyCommands, .outsideLimit, .other, .unmatched,
+            .sessionActive, .bootRefused, .noLayout, .photicZone, .badAddress, .tooManyCommands, .outsideLimit, .cervicalBlockTooShort, .cervicalBlockTooLong, .other, .unmatched,
         ]
         let messages = causes.map { ProtocolUploadFlow.refusalMessage(for: $0) }
         XCTAssertEqual(Set(messages).count, causes.count, "two causes share one message")
