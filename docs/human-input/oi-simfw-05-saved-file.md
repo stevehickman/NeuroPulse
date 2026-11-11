@@ -44,7 +44,7 @@ Candidates, none chosen. Each is lower-case, starts with `np` as the existing fo
 
 **That no other program anywhere uses a candidate is UNVERIFIED and cannot be verified from this repository.** A check would need: the IANA media-type registry and the common public file-extension lists, a search of the Windows and macOS default associations, and a search of the app stores NeurOne ships to; even then an extension is not reserved to anyone, so the header of question E is what makes a file unmistakable, not the extension. Say also **whether the working temporary file of Q1 carries the same extension.** Same: one type to handle, and a leftover temporary file would open on double click. Different, or none: a leftover is not mistaken for a file someone chose to keep.
 
-**D. What registers the file type on the host, and what program does the double click start?**
+**D. What registers the file type on the host, and what program does the double click start?** *(Answered in part, 2026-11-11: the principal has said that a host-side launcher exists and creates a default host directory for the container's mapping if none is specified (`oi-simfw-05-temporary-file.md` §5, D2). That settles that there is a launcher. It does not settle file association, what a double click starts, or anything else the launcher does; options (1) to (4) below stay open for those.)*
 
 A file association is registered per operating system (by an installer, a package, or a first-run step), and it names a program on the host. A container cannot register an association on the host, and cannot be started by a double click by itself. So the direction implies something on the host beside the container. This draft does not design it. The options to choose between:
 
