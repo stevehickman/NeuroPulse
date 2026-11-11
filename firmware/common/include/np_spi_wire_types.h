@@ -747,4 +747,53 @@ typedef char _np_spi_tier_report_fits_check[
         <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
 ];
 
+/* ── MCU→hub withhold report (OI-SIMFW-61, the safety MCU owner's approval 2026-11-11) ─
+ * Why a line the hub requested was not granted, for the two gates that clear a
+ * line with status OK and no fault slot:
+ *   decl_mask  lines np_charge_monitor_decl_gate() cleared on this beat: an
+ *              electrical channel whose waveform class was never declared this
+ *              session (OI-CHARGE-05);
+ *   geom_mask  lines np_charge_monitor_geom_gate() cleared on this beat: a
+ *              channel whose session needs an electrode geometry that no valid
+ *              area command has set (OI-CHARGE-03/-04, OI-MMSOCK-02).
+ * Bit n is the NP_SAFETY_EN_* bit of the line, as in the granted mask.  A mask
+ * holds the lines the hub REQUESTED for which the gate's condition holds (the
+ * class is undeclared; the geometry is required and not applied), so a line the
+ * hub never asked for is never in either.  A line appears only in the mask of
+ * the FIRST gate that holds it (geometry runs first).  Both masks are
+ * recomputed on every loop iteration from the request and the condition, so a
+ * line whose class or geometry arrives disappears from the report on the next
+ * beat.  The condition is read, not the bits cleared on a run: the gates run on
+ * every iteration while granted_mask is only re-granted when a heartbeat
+ * arrives.  The report says what the gate holds; another interlock may hold the
+ * same line (a pending session signature, a failed contact check), and the
+ * status flags still say so.  Fixed shape: every field is populated on every
+ * beat, with zero masks when nothing was withheld.
+ *
+ * Privacy: line masks of device geometry and declaration state say nothing
+ * about a person.  This report is NOT written to SHDR (the SHDR schema has no
+ * field for it); the hub keeps it for its own display and for the app.
+ *
+ * The magic continues the sequence of the other reports (0x5A, 0x6C, 0x7D);
+ * its value is a choice, recorded in docs/status/unjustified-choices.md. */
+#define NP_SAFETY_WITHHOLD_REPORT_MAGIC   0x8EU
+#define NP_SAFETY_WITHHOLD_REPORT_OFFSET  (NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN)
+
+typedef struct __attribute__((packed)) {
+    uint8_t  magic;            /* NP_SAFETY_WITHHOLD_REPORT_MAGIC                      */
+    uint16_t decl_mask;        /* lines the declaration gate withheld this beat        */
+    uint16_t geom_mask;        /* lines the geometry gate withheld this beat           */
+    uint16_t checksum;         /* additive sum of bytes [0..4], wrapping uint16        */
+} np_safety_withhold_report_t; /* 7 bytes; window bytes [27..33]                       */
+
+#define NP_SAFETY_WITHHOLD_REPORT_LEN  7U
+
+typedef char _np_spi_withhold_report_size_check[
+    (sizeof(np_safety_withhold_report_t) == NP_SAFETY_WITHHOLD_REPORT_LEN) ? 1 : -1
+];
+typedef char _np_spi_withhold_report_fits_check[
+    ((NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN)
+        <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
+];
+
 #endif /* NP_SPI_WIRE_TYPES_H */

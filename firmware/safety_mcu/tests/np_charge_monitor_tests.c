@@ -50,6 +50,8 @@ extern void np_charge_monitor_set_channel_waveform(uint8_t channel, uint8_t wave
 extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
 extern void np_charge_monitor_decl_gate(np_safety_state_t *state);
 extern bool np_charge_monitor_is_dc(uint8_t channel);
+extern void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
+                                                    np_safety_withhold_report_t *out);
 extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
                                          const uint16_t    *current_ua,
                                          uint8_t            channel_count);
@@ -820,6 +822,187 @@ static void test_phase_clamped(void)
 
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
+/* ── Withhold report (OI-SIMFW-61): which requested lines each gate cleared ───── */
+
+/* A state in which the hub requested every line and every line is granted, as at a heartbeat. */
+static np_safety_state_t requested_state(void)
+{
+    np_safety_state_t s = fresh_state();
+    s.requested_mask = 0x3FFFU;
+    return s;
+}
+
+#define NP_SAFETY_ELECTRICAL_BITS                                                   \
+    ((uint16_t)(NP_SAFETY_EN_BES_TACS | NP_SAFETY_EN_TDCS | NP_SAFETY_EN_VNS_HRV |  \
+                NP_SAFETY_EN_CVNS | NP_SAFETY_EN_CLIN_STIM))
+
+static uint16_t withhold_sum(const np_safety_withhold_report_t *r)
+{
+    return (uint16_t)((uint16_t)r->magic + (uint16_t)(r->decl_mask & 0xFFU) +
+                      (uint16_t)(r->decl_mask >> 8) + (uint16_t)(r->geom_mask & 0xFFU) +
+                      (uint16_t)(r->geom_mask >> 8));
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_withhold_decl_mask_names_the_undeclared_lines(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    np_charge_monitor_decl_gate(&s);
+
+    check(s.withheld_decl_mask == NP_SAFETY_ELECTRICAL_BITS,
+          "withhold: the declaration gate reports exactly the undeclared electrical lines");
+    check(s.withheld_geom_mask == 0U,
+          "withhold: the declaration gate sets nothing in the geometry mask");
+    check((s.withheld_decl_mask & (uint16_t)~s.granted_mask) == s.withheld_decl_mask &&
+          (s.withheld_decl_mask & s.granted_mask) == 0U,
+          "withhold: every reported line is one that is no longer granted");
+
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_TDCS_IDX, NP_CHARGE_WAVE_DC, 0U);
+    np_safety_state_t t = requested_state();
+    np_charge_monitor_decl_gate(&t);
+    check((t.withheld_decl_mask & NP_SAFETY_EN_TDCS) == 0U &&
+          (t.withheld_decl_mask & NP_SAFETY_EN_BES_TACS) != 0U,
+          "withhold: a declared channel leaves the report, the others stay");
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_withhold_geom_mask_names_the_missing_geometry(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    s.geom_required = true;
+    np_charge_monitor_geom_gate(&s);
+    check(s.withheld_geom_mask == NP_SAFETY_EN_CLIN_STIM,
+          "withhold: a missing clinical-stimulation geometry is the clinical-stimulation line only");
+    check(s.withheld_decl_mask == 0U, "withhold: the geometry gate sets nothing in the declaration mask");
+
+    np_safety_state_t t = requested_state();
+    t.geom_required_tdcs = true;
+    t.geom_required_bes  = true;
+    np_charge_monitor_geom_gate(&t);
+    check(t.withheld_geom_mask == (uint16_t)(NP_SAFETY_EN_TDCS | NP_SAFETY_EN_BES_TACS),
+          "withhold: tDCS and BES/tACS geometry are reported together, and independently of the first");
+}
+
+/* @verifies REQ-FWHUB-81#b */
+static void test_withhold_masks_are_per_beat_and_first_gate_wins(void)
+{
+    np_charge_monitor_init();
+
+    /* Geometry gate first (as np_safety_main.c runs them): a line it clears is not repeated by the
+     * declaration gate. */
+    np_safety_state_t s = requested_state();
+    s.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    check((s.withheld_geom_mask & NP_SAFETY_EN_TDCS) != 0U &&
+          (s.withheld_decl_mask & NP_SAFETY_EN_TDCS) == 0U,
+          "withhold: a line the geometry gate cleared is not repeated in the declaration mask");
+    check((s.withheld_decl_mask & NP_SAFETY_EN_BES_TACS) != 0U,
+          "withhold: the declaration gate still reports the lines only it cleared");
+
+    /* The next beat: the geometry is applied and the line is granted again. */
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_TDCS_IDX, 25000U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_TDCS_IDX, NP_CHARGE_WAVE_DC, 0U);
+    np_safety_state_t t = requested_state();
+    t.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&t);
+    np_charge_monitor_decl_gate(&t);
+    check(t.withheld_geom_mask == 0U && (t.withheld_decl_mask & NP_SAFETY_EN_TDCS) == 0U,
+          "withhold: once the geometry and the class are in, the line is out of both masks");
+
+    /* The masks are assigned, not accumulated: a state that carried a mask is overwritten. */
+    np_safety_state_t u = requested_state();
+    u.withheld_geom_mask = 0xFFFFU;
+    u.withheld_decl_mask = 0xFFFFU;
+    np_charge_monitor_geom_gate(&u);
+    np_charge_monitor_decl_gate(&u);
+    check(u.withheld_geom_mask == 0U,
+          "withhold: the geometry mask is recomputed every run, not accumulated");
+    check(u.withheld_decl_mask != 0xFFFFU,
+          "withhold: the declaration mask is recomputed every run, not accumulated");
+}
+
+/* The gates run on every loop iteration but granted_mask is re-granted only when a heartbeat arrives, so
+ * from the second iteration on the line is already clear: the report must not fall to zero then. */
+/* @verifies REQ-FWHUB-81#b */
+static void test_withhold_report_is_stable_across_loop_iterations(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    s.geom_required_tdcs = true;
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    const uint16_t geom_first = s.withheld_geom_mask;
+    const uint16_t decl_first = s.withheld_decl_mask;
+    check(geom_first == NP_SAFETY_EN_TDCS && decl_first != 0U, "withhold: the first iteration reports both gates");
+
+    /* Next iteration, no heartbeat in between: granted_mask no longer holds those lines. */
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    check(s.withheld_geom_mask == geom_first && s.withheld_decl_mask == decl_first,
+          "withhold: the second iteration, with the lines already cleared, reports the same masks");
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_withhold_names_only_requested_lines(void)
+{
+    np_charge_monitor_init();
+    np_safety_state_t s = requested_state();
+    s.granted_mask   = NP_SAFETY_EN_PBM_CRANIAL;   /* the hub requested nothing electrical */
+    s.requested_mask = NP_SAFETY_EN_PBM_CRANIAL;
+    s.geom_required = true;
+    np_charge_monitor_geom_gate(&s);
+    np_charge_monitor_decl_gate(&s);
+    check(s.withheld_geom_mask == 0U && s.withheld_decl_mask == 0U,
+          "withhold: a line the hub never requested is not reported as withheld");
+}
+
+/* @verifies REQ-FWHUB-81#a */
+static void test_withhold_report_shape_magic_and_checksum(void)
+{
+    np_safety_state_t s = requested_state();
+    s.withheld_decl_mask = 0x0140U;
+    s.withheld_geom_mask = 0x2060U;
+    np_safety_withhold_report_t r;
+    memset(&r, 0xFF, sizeof(r));
+    np_charge_monitor_build_withhold_report(&s, &r);
+    check(sizeof(r) == NP_SAFETY_WITHHOLD_REPORT_LEN && NP_SAFETY_WITHHOLD_REPORT_LEN == 7U,
+          "withhold report: seven bytes");
+    check(r.magic == NP_SAFETY_WITHHOLD_REPORT_MAGIC, "withhold report: magic");
+    check(r.decl_mask == 0x0140U && r.geom_mask == 0x2060U, "withhold report: both masks carried as they are");
+    check(r.checksum == withhold_sum(&r), "withhold report: the checksum is the additive sum of bytes [0..4]");
+
+    np_safety_state_t z = requested_state();
+    np_charge_monitor_build_withhold_report(&z, &r);
+    check(r.decl_mask == 0U && r.geom_mask == 0U && r.magic == NP_SAFETY_WITHHOLD_REPORT_MAGIC &&
+          r.checksum == withhold_sum(&r),
+          "withhold report: fixed shape, a beat with no withhold carries zero masks, a magic and a checksum");
+
+    np_charge_monitor_build_withhold_report(NULL, &r);
+    np_charge_monitor_build_withhold_report(&z, NULL);
+    check(1, "withhold report: NULL state or output is a no-op, not a crash");
+}
+
+/* @verifies REQ-FWHUB-81#c */
+static void test_withhold_report_does_not_change_the_frame(void)
+{
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 38U, "withhold report: the extended frame is still 38 bytes");
+    check(NP_SAFETY_FRAME_LEN == 8U, "withhold report: the base reply is still 8 bytes");
+    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == 27U,
+          "withhold report: starts at window byte 27, straight after the tier report [20..26]");
+    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN,
+          "withhold report: begins where the tier report ends");
+    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN <= NP_SAFETY_RX_EXT_FRAME_LEN &&
+          NP_SAFETY_RX_EXT_FRAME_LEN - (NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN) == 4U,
+          "withhold report: ends at byte 33 and leaves four spare bytes");
+    check(NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_IMP_REPORT_MAGIC &&
+          NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_NV_REPORT_MAGIC &&
+          NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_TIER_REPORT_MAGIC,
+          "withhold report: its magic is none of the other reports'");
+}
+
 int main(void)
 {
     printf("=== np_charge_monitor_tests ===\n");
@@ -852,6 +1035,13 @@ int main(void)
     test_bes_geom_gate_blocks_until_applied();
     test_bes_geom_gate_independent_and_rearms();
     test_phase_clamped();
+    test_withhold_decl_mask_names_the_undeclared_lines();
+    test_withhold_geom_mask_names_the_missing_geometry();
+    test_withhold_masks_are_per_beat_and_first_gate_wins();
+    test_withhold_report_is_stable_across_loop_iterations();
+    test_withhold_names_only_requested_lines();
+    test_withhold_report_shape_magic_and_checksum();
+    test_withhold_report_does_not_change_the_frame();
 
     printf("=== %d failure(s) ===\n", g_failures);
     return (g_failures == 0) ? 0 : 1;

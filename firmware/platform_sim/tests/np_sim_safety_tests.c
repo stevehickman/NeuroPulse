@@ -990,6 +990,62 @@ static void test_the_thermal_interlock_re_arms_below_its_hysteresis_and_the_hub_
     check(np_sim_safety_line_enabled(LINE_PBM) && np_sim_safety_line_enabled(LINE_BES), "and both return when the hub's sensor is cold again");
 }
 
+/* ── The withhold report, from the MCU's own gates to the hub's getter (OI-SIMFW-61) ── */
+
+/* @verifies REQ-FWHUB-81#d */
+static void test_the_hub_learns_which_gate_withheld_a_line(void)
+{
+    uint16_t decl = 0U, geom = 0U;
+
+    boot(true, 0U);
+    np_sim_safety_set_impedance_ohm(1U, 5000U);
+    run("safety_run 1000 3");
+    run("safety_sig good");
+    np_safety_spi_request_enable(EN_TDCS);
+    np_safety_spi_set_channel_current(6U, 1000U);
+    run("safety_run 800 3");
+    check(!np_sim_safety_line_enabled(LINE_TDCS), "withhold report: the undeclared channel is held off (status OK, no fault slot)");
+    check(np_safety_spi_get_withhold_report(&decl, &geom), "withhold report: the hub reads a valid report off the MCU's own reply");
+    check((decl & EN_TDCS) != 0U && geom == 0U,
+          "withhold report: the declaration gate named the tDCS line and the geometry gate named nothing");
+    declare_dc(6U, 1000U);
+    run("safety_run 800 3");
+    check(np_sim_safety_line_enabled(LINE_TDCS), "withhold report: declared, the line is driven");
+    check(np_safety_spi_get_withhold_report(&decl, &geom) && (decl & EN_TDCS) == 0U && geom == 0U,
+          "withhold report: the next beat's report no longer names the line");
+}
+
+/* @verifies REQ-FWHUB-81#d */
+static void test_the_hub_learns_which_geometry_was_missing(void)
+{
+    uint16_t decl = 0U, geom = 0U;
+
+    boot(true, 2U);
+    np_sim_safety_set_impedance_ohm(1U, 5000U);
+    np_sim_safety_set_impedance_ohm(2U, 5000U);
+    np_safety_spi_request_enable(EN_TDCS | EN_BES);
+    np_safety_spi_set_channel_current(6U, 1000U);
+    np_safety_spi_set_channel_current(5U, 1000U);
+    run("safety_geom tdcs 1");
+    run("safety_geom bes 1");
+    start_session();
+    run("safety_wave 6 1 0");
+    settle();
+    run("safety_wave 5 2 20000");
+    run("safety_run 800 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom), "geometry report: a valid report arrives");
+    check(geom == (uint16_t)(EN_TDCS | EN_BES) && decl == 0U,
+          "geometry report: declared and in contact, the tDCS and BES/tACS lines are named by the geometry gate, not the declaration gate");
+    run("safety_limits 6 100");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom) && geom == EN_BES,
+          "geometry report: an area for tDCS takes tDCS out of the report and leaves BES/tACS");
+    run("safety_limits 5 1000");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom) && geom == 0U && decl == 0U,
+          "geometry report: an area for each line empties the report");
+}
+
 /* ── The geometry gates, and the commands the MCU takes as sent ── */
 
 /* @verifies REQ-SIMFW-14#c */
@@ -1127,6 +1183,7 @@ int main(void)
     in_child(test_the_dc_charge_ceiling_cuts_the_channel);
     in_child(test_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it);
     in_child(test_an_undeclared_electrical_channel_is_held_off);
+    in_child(test_the_hub_learns_which_gate_withheld_a_line);
     in_child(test_the_impedance_gate_withholds_a_channel_until_the_contact_passes);
     in_child(test_the_thermal_interlock_cuts_at_its_cutoff_and_holds);
     in_child(test_a_t1_unit_withholds_the_cervical_vns_line);
@@ -1155,6 +1212,7 @@ int main(void)
     test_a_compaction_cut_short_loses_no_cutoff();
     alone(test_the_thermal_interlock_re_arms_below_its_hysteresis_and_the_hub_sensor_cuts_everything);
     alone(test_each_geometry_gate_holds_its_channel_until_an_area_arrives);
+    alone(test_the_hub_learns_which_geometry_was_missing);
     alone(test_the_charge_monitor_takes_the_hubs_area_and_phase_as_sent);
     alone(test_a_pulsed_channel_declared_with_no_phase_is_never_cut);
     alone(test_a_tier_record_of_an_unknown_format_leaves_the_unit_t1);

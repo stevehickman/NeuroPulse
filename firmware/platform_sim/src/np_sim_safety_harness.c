@@ -52,14 +52,18 @@ static void state_event(const char *ev, const char *cmd, int code)
     uint8_t tier_reason = 0U;
     bool tier_refused = false;
     (void)np_safety_spi_get_tier_report(&tier_reason, &tier_refused);
+    uint16_t withhold_decl = 0U, withhold_geom = 0U;
+    const bool withhold_valid = np_safety_spi_get_withhold_report(&withhold_decl, &withhold_geom);
     np_sim_emit("{\"ev\":\"%s\",\"cmd\":\"%s\",\"code\":%d,\"t\":%u,\"attached\":%s,\"held_in_reset\":%s,\"iwdg_resets\":%u,"
                 "\"iterations\":%u,\"requested\":%u,\"granted\":%u,\"status\":%u,\"fault_slot\":%u,\"lines\":%u,"
-                "\"spi_overruns\":%u,\"spi_discarded\":%u,\"tier\":%u,\"tier_reason\":%u,\"tier_refused\":%s,\"safety_mcu\":\"in_loop\"}",
+                "\"spi_overruns\":%u,\"spi_discarded\":%u,\"tier\":%u,\"tier_reason\":%u,\"tier_refused\":%s,"
+                "\"withhold_valid\":%s,\"withhold_decl\":%u,\"withhold_geom\":%u,\"safety_mcu\":\"in_loop\"}",
                 ev, cmd, code, (unsigned)np_sim_now_ms(), i.attached ? "true" : "false", i.held_in_reset ? "true" : "false",
                 (unsigned)i.iwdg_resets, (unsigned)i.iterations, (unsigned)np_safety_spi_get_requested_mask(),
                 (unsigned)np_safety_spi_get_granted_mask(), (unsigned)np_safety_spi_get_status(), (unsigned)i.last_reply_fault_slot,
                 (unsigned)i.lines_enabled_mask, (unsigned)i.spi_overruns, (unsigned)i.spi_discarded,
-                (unsigned)np_safety_spi_get_tier(), (unsigned)tier_reason, tier_refused ? "true" : "false");
+                (unsigned)np_safety_spi_get_tier(), (unsigned)tier_reason, tier_refused ? "true" : "false",
+                withhold_valid ? "true" : "false", (unsigned)withhold_decl, (unsigned)withhold_geom);
 }
 
 void np_simh_safety_status(void)

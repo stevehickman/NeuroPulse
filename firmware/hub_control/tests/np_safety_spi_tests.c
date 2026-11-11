@@ -56,6 +56,10 @@ static int     g_transfers;
 static uint8_t g_reply_status;
 static uint16_t g_reply_granted;
 static bool     g_corrupt_reply;
+/* The withhold report (OI-SIMFW-61) the MCU double puts in window bytes [27..33]:
+ * 0 none (zero bytes), 1 valid with g_wh_decl / g_wh_geom, 2 valid but with a bad checksum. */
+static int      g_withhold_mode;
+static uint16_t g_wh_decl, g_wh_geom;
 
 static uint16_t sum(const uint8_t *b, size_t n)
 {
@@ -79,6 +83,16 @@ np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx, uint8_t *rx, uint8
         r.fault_slot = 0xFFU;
         r.checksum   = (uint16_t)(sum((const uint8_t *)&r, 6U) + (g_corrupt_reply ? 1U : 0U));
         memcpy(rx, &r, sizeof(r));
+        if (g_withhold_mode != 0) {
+            np_safety_withhold_report_t w;
+            w.magic     = NP_SAFETY_WITHHOLD_REPORT_MAGIC;
+            w.decl_mask = g_wh_decl;
+            w.geom_mask = g_wh_geom;
+            w.checksum  = (uint16_t)((uint16_t)w.magic + (uint16_t)(w.decl_mask & 0xFFU) +
+                                     (uint16_t)(w.decl_mask >> 8) + (uint16_t)(w.geom_mask & 0xFFU) +
+                                     (uint16_t)(w.geom_mask >> 8) + (g_withhold_mode == 2 ? 1U : 0U));
+            memcpy(rx + NP_SAFETY_WITHHOLD_REPORT_OFFSET, &w, sizeof(w));
+        }
     }
     return NP_HUB_OK;
 }
@@ -90,6 +104,9 @@ static void reset(void)
     g_reply_status = NP_SAFETY_STATUS_OK;
     g_reply_granted = 0U;
     g_corrupt_reply = false;
+    g_withhold_mode = 0;
+    g_wh_decl = 0U;
+    g_wh_geom = 0U;
     memset(g_tx, 0, sizeof(g_tx));
 }
 
@@ -255,6 +272,46 @@ static void test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_l
           "sens: a level above the maximum is sent as 0, the validated cutoff, never as a smaller threshold than was asked");
 }
 
+/* ── The withhold report (OI-SIMFW-61): parsed, validated, never stale ─────── */
+
+/* @verifies REQ-FWHUB-81#b */
+static void test_the_withhold_report_is_parsed_and_a_bad_one_is_refused(void)
+{
+    uint16_t decl = 0xAAAAU, geom = 0xAAAAU;
+
+    reset();
+    check(!np_safety_spi_get_withhold_report(&decl, &geom) && decl == 0U && geom == 0U,
+          "withhold: before any beat there is no report and both masks read 0");
+
+    g_withhold_mode = 1;
+    g_wh_decl = 0x0140U;
+    g_wh_geom = 0x2000U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x2140U, NULL, 0U);
+    check(np_safety_spi_get_withhold_report(&decl, &geom) && decl == 0x0140U && geom == 0x2000U,
+          "withhold: a valid report's two masks reach the getter");
+
+    g_wh_decl = 0U;
+    g_wh_geom = 0U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x2140U, NULL, 0U);
+    check(np_safety_spi_get_withhold_report(&decl, &geom) && decl == 0U && geom == 0U,
+          "withhold: a valid report of no withhold is valid, with both masks 0");
+
+    g_withhold_mode = 2;
+    g_wh_decl = 0x0140U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x2140U, NULL, 0U);
+    check(!np_safety_spi_get_withhold_report(&decl, &geom) && decl == 0U && geom == 0U,
+          "withhold: a report whose checksum is wrong is refused and reads as no report");
+
+    g_withhold_mode = 1;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x2140U, NULL, 0U);
+    g_withhold_mode = 0;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x2140U, NULL, 0U);
+    check(!np_safety_spi_get_withhold_report(&decl, &geom) && decl == 0U && geom == 0U,
+          "withhold: a beat that carries no report drops the last one, so a stale cause is never shown");
+
+    check(np_safety_spi_get_withhold_report(NULL, NULL) == false, "withhold: NULL outputs are accepted");
+}
+
 int main(void)
 {
     printf("Hub safety SPI host tests (REQ-FWHUB-11, -17, -18)\n");
@@ -266,6 +323,7 @@ int main(void)
     test_session_sig_is_its_own_frame_and_requests_nothing();
     test_fault_and_cutoff_replies_are_safety_faults();
     test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_level_is_sent_as_the_validated_cutoff();
+    test_the_withhold_report_is_parsed_and_a_bad_one_is_refused();
     printf("\n%s (%d failure%s)\n", g_failures ? "FAILED" : "PASSED",
            g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;

@@ -146,6 +146,13 @@ typedef struct {
     bool     geom_required_bes; /* OI-MMSOCK-02: hub declared this session needs an
                                 * electrode-geometry declaration on BES_TACS (from
                                 * heartbeat NP_SESSION_STATUS_GEOM_REQ_BES bit)   */
+    uint16_t withheld_geom_mask; /* OI-SIMFW-61: requested lines that
+                                * np_charge_monitor_geom_gate() holds off on its
+                                * last run; assigned (not OR-ed) by the gate      */
+    uint16_t withheld_decl_mask; /* OI-SIMFW-61: requested lines that
+                                * np_charge_monitor_decl_gate() holds off on its
+                                * last run; the lines the geometry gate already
+                                * holds are not repeated here                     */
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,

@@ -83,6 +83,8 @@ extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
 extern void np_gpio_mgr_apply(const np_safety_state_t *state);
 extern void np_fault_latch_commit(const np_safety_state_t *state);
 extern void np_tier_identity_gate(np_safety_state_t *state);
+extern void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
+                                                    np_safety_withhold_report_t *out);
 extern void np_tier_identity_build_report(np_safety_tier_report_t *out,
                                           uint16_t                 requested_mask);
 
@@ -597,6 +599,14 @@ int main(void)
                 np_tier_identity_build_report(&tier_report, s_state.requested_mask);
                 memcpy(&reply[NP_SAFETY_TIER_REPORT_OFFSET], &tier_report,
                        sizeof(tier_report));
+            }
+            /* Withhold report (OI-SIMFW-61): which requested lines the
+             * geometry gate and the declaration gate cleared on this beat. */
+            {
+                np_safety_withhold_report_t withhold_report;
+                np_charge_monitor_build_withhold_report(&s_state, &withhold_report);
+                memcpy(&reply[NP_SAFETY_WITHHOLD_REPORT_OFFSET], &withhold_report,
+                       sizeof(withhold_report));
             }
             np_hal_spi_send_reply(reply, (uint8_t)sizeof(reply));
         }
