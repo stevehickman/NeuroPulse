@@ -170,6 +170,20 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW01-M07 | Session protocol signature verification | `np_session_sig.c/.h` | Ed25519 verify on session descriptor before enabling any stimulation |
 | SW01-M08 | Fault latch and fault log | `np_fault.c/.h` | Latches fault state; logs to SHDR via SPI to SW-02; requires explicit app clear |
 
+> **SW01-M03, Rev {NP-SW-001 to} (2026-11-11): the declared phase is used as declared; the 2 s clamp is removed (the
+> principal: "On phase clamp: remove it and add the compile time check").** `np_charge_monitor_set_channel_waveform()`
+> clamped a declared phase to `NP_CHARGE_MAX_PHASE_US` (2,000,000 µs). A clamp shortens the declaration and so can only
+> under-state the per-phase charge; its stated purpose was to bound the 64-bit arithmetic. The phase is now stored as
+> sent (the longest declared phase still wins), the constant is deleted, and the bound is a compile-time proof:
+> `_Static_assert`s in `np_charge_monitor.c` take the maxima from the types in use (the heartbeat's 16-bit commanded
+> current, the wire's 32-bit `phase_us`) and fail the build if current × phase × 2000 could exceed `uint64_t`
+> (65,535 × 4,294,967,295 × 2,000 ≈ 5.6 × 10^17 against ≈ 1.8 × 10^19), or if either field is widened. The per-phase
+> comparison itself is unchanged. *What fails without it:* a phase longer than 2 s is checked at 2 s and a command over
+> the ceiling passes. *Trace:* `DI-SAFE-01a`; CLAUDE.md §3 (a ceiling refuses, it never reshapes). *Tested in:*
+> `np_charge_monitor_tests` (a 3 s phase and the longest phase the field carries are checked at their true charge).
+> **This is a change to Class C code made on the principal's decision. It has not had SW-01's independent review and
+> is not marked approved here** (`NP-FW-HUB-001` `OI-FWHUB-35` (d) lists the change-control steps owed).
+>
 > **SW01-M03 notes (OI-CHARGE-05, OI-FMEA-07 — corrected 2026-09-15).**
 >
 > **The file name was wrong for as long as this document existed.** `np_charge_density.c/.h` has

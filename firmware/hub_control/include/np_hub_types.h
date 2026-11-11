@@ -116,6 +116,14 @@ typedef enum {
      * say which.  Was NP_HUB_ERR_INVALID_ARG, which the apps can only call a descriptor built wrongly.  Reason 40 in the
      * upload-check frame.  A driver that meets the same value at dispatch still answers NP_HUB_ERR_INVALID_ARG. */
     NP_HUB_ERR_OUTSIDE_LIMIT        = -40,
+    /* REQ-FWHUB-78 (k) (the principal, 2026-11-11: keep the two cervical refusals as STRUCTURAL checks, each with a clear
+     * message of its own).  Neither is a limit: each is a block the cervical VNS library cannot represent.
+     * TOO_SHORT: the block is no longer than the library's ramp-up plus ramp-down, so it has no time at the authored
+     * level (a block with no length at all is this too).  TOO_LONG: the block is longer than the library's 16-bit
+     * seconds field can carry (65,535 s).  np_runner_load() refuses the protocol with these, reasons 41 and 42 in the
+     * upload-check frame; nothing is started. */
+    NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT = -41,
+    NP_HUB_ERR_CVNS_BLOCK_TOO_LONG  = -42,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

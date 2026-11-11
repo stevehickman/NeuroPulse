@@ -265,7 +265,9 @@ void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2
  *             rest; and classes OR together, because one enable bit can carry
  *             two modalities of different waveform class (CLIN_STIM).
  * phase_us:   phase duration µs — half-period for sinusoidal, pulse width for
- *             rectangular biphasic.  Clamped to NP_CHARGE_MAX_PHASE_US.
+ *             rectangular biphasic.  Stored as declared: it is never clamped
+ *             (the principal, 2026-11-11).  A clamp could only shorten the
+ *             declaration and so under-state the per-phase charge.
  */
 void np_charge_monitor_set_channel_waveform(uint8_t  channel,
                                             uint8_t  wave_class,
@@ -282,12 +284,8 @@ void np_charge_monitor_set_channel_waveform(uint8_t  channel,
     /* Longest declared phase wins: with two modalities on one enable bit the
      * larger phase yields the larger per-phase charge, which is the strict
      * reading.                                                              */
-    {
-        uint32_t clamped = (phase_us > NP_CHARGE_MAX_PHASE_US)
-                             ? (uint32_t)NP_CHARGE_MAX_PHASE_US : phase_us;
-        if (clamped > s_phase_us[channel]) {
-            s_phase_us[channel] = clamped;
-        }
+    if (phase_us > s_phase_us[channel]) {
+        s_phase_us[channel] = phase_us;
     }
 }
 
@@ -428,11 +426,39 @@ void np_charge_monitor_tick(np_safety_state_t *state)
  * chosen to round the RESULT UP (2000/3141 = 0.6367 > 2/pi = 0.63662), so the
  * approximation errs strict.
  *
- * Overflow: current_ua <= 65535 and phase_us <= NP_CHARGE_MAX_PHASE_US (2e6),
- * so the widest intermediate is 65535 x 2e6 x 2000 = 2.6e14 — comfortably
- * inside uint64.
+ * Overflow: none is possible, and that is proved at compile time below, not
+ * by bounding the declared phase (there is no clamp on it any more).  The
+ * current reaches this function as the heartbeat sends it, 16 bits; the phase
+ * is the wire's 32 bits.  The widest intermediate is therefore
+ *     65535 x 4294967295 x 2000 = about 5.6e17,
+ * against about 1.8e19 for uint64.  The assertions take the maxima from the
+ * types themselves, so widening either field stops the build here instead of
+ * wrapping the product at run time.
  */
-static uint64_t charge_per_phase_nc(uint8_t channel, uint32_t current_ua)
+
+/* The largest value an unsigned object of this size can hold (8 bytes or more: all ones). */
+#define NP_CHARGE_UMAX_OF(obj) \
+    ((sizeof(obj) >= sizeof(uint64_t)) ? UINT64_MAX : ((1ULL << (sizeof(obj) * 8U)) - 1ULL))
+/* The sine path's multiplier; the rectangular path multiplies by nothing, so this bounds both. */
+#define NP_CHARGE_SINE_NUMERATOR 2000ULL
+
+/* The commanded current as charge_per_phase_nc() receives it.  One name, so the assertions below and the function's
+ * parameter cannot drift apart. */
+typedef uint16_t np_charge_current_ua_t;
+
+/* (i) current max x phase max x 2000 fits in uint64, with both maxima read from the types in use: the current as
+ * charge_per_phase_nc() receives it and the phase as the monitor stores it. */
+_Static_assert(NP_CHARGE_UMAX_OF(np_charge_current_ua_t) <=
+                   (UINT64_MAX / NP_CHARGE_SINE_NUMERATOR) / NP_CHARGE_UMAX_OF(s_phase_us[0]),
+               "per-phase charge: current x phase x 2000 must fit uint64; a field was widened");
+/* (ii) what (i) assumed about the current is what the heartbeat sends, and the phase the monitor stores is as wide as
+ * the phase the wire carries, so no value can arrive that (i) did not cover. */
+_Static_assert(sizeof(((const np_safety_rx_ext_frame_t *)0)->current_ua[0]) == sizeof(np_charge_current_ua_t),
+               "per-phase charge: the heartbeat's commanded current is wider than the type the check assumed");
+_Static_assert(sizeof(((const np_safety_chan_wave_cmd_t *)0)->phase_us[0]) == sizeof(s_phase_us[0]),
+               "per-phase charge: the wire's phase_us and the stored phase differ in width");
+
+static uint64_t charge_per_phase_nc(uint8_t channel, np_charge_current_ua_t current_ua)
 {
     uint64_t phase_us = (uint64_t)s_phase_us[channel];
     uint64_t q_nc;
@@ -487,7 +513,7 @@ void np_charge_monitor_phase_tick(np_safety_state_t *state,
         if (s_limit_reached[ch]) {
             continue;               /* already latched off this session */
         }
-        if (charge_per_phase_nc(ch, (uint32_t)current_ua[ch]) >=
+        if (charge_per_phase_nc(ch, current_ua[ch]) >=
                 phase_limit_nc(ch)) {
             trip_channel(state, ch);
         }

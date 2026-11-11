@@ -1,6 +1,12 @@
 # OI-FWHUB-35 (d): the safety MCU's declared-phase clamp. Why it exists, and a proposal to refuse instead
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** the safety MCU's
+**Status:** DECIDED 2026-11-11 by the principal: option C, removal, with a compile-time check ("On phase clamp: remove
+it and add the compile time check"). This replaces the recommendation of option B below. Built in the same change:
+the clamp is removed from `np_charge_monitor.c` and `np_chan_decl.c`, `NP_CHARGE_MAX_PHASE_US` is deleted, and
+`_Static_assert`s prove the arithmetic from the types. **The safety owner's review and the rest of the Class C change
+control are still owed** (`NP-FW-HUB-001` `OI-FWHUB-35` (d)). The text below is kept as the history of the options;
+where it says nothing under `firmware/safety_mcu/` is changed, that was true when it was written. *Was:* DRAFT, not
+sent. **From:** a Claude Code session working for the principal. **To:** the safety MCU's
 owner (SW-01, IEC 62304 Class C). No addressee is named.
 
 **This is a proposal. Nothing under `firmware/safety_mcu/` is changed by it, and no safety MCU test or document is

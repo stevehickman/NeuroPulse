@@ -745,8 +745,11 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
 
     /* REQ-FWHUB-78 (k): the block runs for the length the protocol authored.  The driver used to give the library
      * 120 s for every command, so a longer block was cut short without a word.  The length is consumed here, so
-     * one told for an earlier command is never reused; a start with no length told, or with one that cannot be run
-     * as authored, is refused before any state is touched.  It is never defaulted and never shortened. */
+     * one told for an earlier command is never reused.  A start with no length told is refused: it is never
+     * defaulted.  So is a block the library cannot represent, which is a STRUCTURAL check and not a limit: one no
+     * longer than the ramp-up plus the ramp-down (no time at the authored level), or one beyond the library's 16-bit
+     * seconds field.  Refused before any state is touched; never shortened or stretched.  np_runner_load() makes
+     * the same two checks first, with a status of its own for each (NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT, _TOO_LONG). */
     const uint32_t block_ms = s_block_ms;
     s_block_ms = 0U;
     if (!np_cvns_block_ms_ok(block_ms)) {

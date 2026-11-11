@@ -79,6 +79,12 @@ Recorded in `NP-FW-HUB-001` (`REQ-FWHUB-78` (k), (l); `OI-FWHUB-35`) and `docs/s
   descriptor that sets bits with no zone, and to document the 12 bits. Built: any of the upper four bits of
   `zone_mask_hi` set is refused, at load and at dispatch; the field is documented as a 12-bit mask with four
   reserved bits. **Not decided:** what the twelve bits mean per eye (next section).
+- **The two remaining cervical refusals, verbatim:** "keep the geometric cervical refusals as structural checks.
+  Error messages should be clear when either of these is violated." Built: a block too short to hold its ramp-up
+  and ramp-down, and a block longer than the library's 16-bit seconds field can carry, are refused at upload with a
+  status of its own each (reasons 41 and 42) and a message of its own each (`cervical_block_too_short`,
+  `cervical_block_too_long`). They are structural checks, not limits: the library cannot represent the block.
+  The messages name no number, because the apps' refusal messages take no parameter.
 - **Still open from Q2:** whether a descriptor whose `ramp_s` or `baseline_req` differ from what the driver does
   should be refused.
 

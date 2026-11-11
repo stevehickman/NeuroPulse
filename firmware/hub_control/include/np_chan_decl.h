@@ -63,8 +63,9 @@ void np_chan_decl_build(const np_session_desc_t *desc, np_chan_decl_t *out);
 
 /*
  * np_chan_decl_half_period_us — one phase of a periodic waveform, µs, from its
- * frequency in milli-Hz; clamped to NP_CHARGE_MAX_PHASE_US, and 0 Hz returns
- * the clamp (the strictest verdict). Exposed for the test.
+ * frequency in milli-Hz: the exact half period, never clamped.  0 Hz, which the
+ * hub refuses before this runs, returns UINT32_MAX (the longest phase, so the
+ * safety MCU's verdict is the strictest). Exposed for the test.
  */
 uint32_t np_chan_decl_half_period_us(uint16_t freq_mhz);
 

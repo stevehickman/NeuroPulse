@@ -37,10 +37,9 @@
 #define STIM_MAX_AMP_TDCS_UA  2000U  /* 2 mA */
 /* BES / tACS frequency, in the wire's milli-hertz (CLAUDE.md §3: 0.5–40 Hz).  These are BES_TACS_MIN_HZ and
  * BES_TACS_MAX_HZ of common/npps/constants.json x 1000, the range the shared validator already enforces before
- * signing; scripts/check-hub-wire-format.ts fails if either differs from the JSON.  The floor is also what keeps
- * the phase the hub declares to the safety MCU true: at 0.5 Hz a phase is 1 s, inside NP_CHARGE_MAX_PHASE_US (2 s),
- * so np_chan_decl_half_period_us() never clamps a phase the hub then drives (and 0 Hz, a division by zero there,
- * never reaches it). */
+ * signing; scripts/check-hub-wire-format.ts fails if either differs from the JSON.  The floor also keeps 0 Hz, a
+ * division by zero in np_chan_decl_half_period_us(), from reaching it.  (The phase that function declares to the
+ * safety MCU is the exact half period; the 2 s clamp both processors once applied is removed.) */
 #define NP_BES_FREQ_MHZ_MIN   500U    /* 0.5 Hz */
 #define NP_BES_FREQ_MHZ_MAX   40000U  /* 40 Hz  */
 /* Clinical tACS (T2) frequency floor, milli-hertz: CLINICAL_TACS_MIN_HZ of constants.json x 1000, for the same
@@ -69,21 +68,29 @@
 #define INS_DUTY_MAX          0x32U
 
 /*
- * np_cvns_block_ms_ok — can a cervical VNS block of this authored length be run as authored?  There is no hardcoded
- * session maximum (retired: the principal, 2026-11-11; the length is the protocol's).  What is refused is a block
- * with no length (0: the hub never supplies one), one too short to hold the library's ramp up and ramp down (it
- * has no active time; geometry, not a health limit), and one longer than the library's 16-bit seconds field can
- * carry (the field's width, about 18 hours).  Whole seconds, rounded up, so the library's own end is never earlier
- * than the runner's stop at the end of the block.
+ * Cervical VNS block length: two STRUCTURAL checks, not limits (the principal, 2026-11-11).  There is no hardcoded
+ * session maximum (retired the same day; the length is the protocol's).  What cannot be run is a block the library
+ * cannot represent:
+ *   · too short: no longer than the library's ramp-up plus ramp-down, so it has no time at the authored level.  A
+ *     block with no length at all (0: the hub never supplies one) is this case too.
+ *   · too long: more whole seconds than the library's 16-bit seconds field carries (65,535 s, about 18 hours).
+ * Whole seconds, rounded up, so the library's own end is never earlier than the runner's stop at the end of the block.
  */
 static inline uint32_t np_cvns_block_s(uint32_t block_ms)
 {
     return (block_ms / 1000U) + ((block_ms % 1000U) != 0U ? 1U : 0U);
 }
-static inline bool np_cvns_block_ms_ok(uint32_t block_ms)
+/* NP_HUB_OK, NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT or NP_HUB_ERR_CVNS_BLOCK_TOO_LONG. */
+static inline np_hub_status_t np_cvns_block_status(uint32_t block_ms)
 {
     const uint32_t s = np_cvns_block_s(block_ms);
-    return s > ((uint32_t)NP_CVNS_RAMP_UP_S + (uint32_t)NP_CVNS_RAMP_DOWN_S) && s <= 0xFFFFU;
+    if (s <= ((uint32_t)NP_CVNS_RAMP_UP_S + (uint32_t)NP_CVNS_RAMP_DOWN_S)) { return NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT; }
+    if (s > 0xFFFFU) { return NP_HUB_ERR_CVNS_BLOCK_TOO_LONG; }
+    return NP_HUB_OK;
+}
+static inline bool np_cvns_block_ms_ok(uint32_t block_ms)
+{
+    return np_cvns_block_status(block_ms) == NP_HUB_OK;
 }
 /* The length a slot command authors: its own duration, or, when that is 0, the rest of the session (the wire's
  * meaning of 0 for a drive command, which registers no auto-stop: NP-FW-HUB-001 section 5.3).  Both are in the signed descriptor. */
@@ -213,11 +220,14 @@ static inline np_hub_status_t np_cmd_limits_admit(const np_session_desc_t *desc)
         if (np_cmd_limits_check(c->mod_type, c->params, c->params_len) != NP_HUB_OK) {
             return NP_HUB_ERR_OUTSIDE_LIMIT;
         }
-        /* A cervical VNS block is run for the length the protocol authored, never a hardcoded one, so a block
-         * that cannot be run as authored is refused here and not shortened (REQ-FWHUB-78 (k)). */
-        if (c->mod_type == NP_MOD_CVNS && c->params_len >= sizeof(np_mod_cvns_params_t) &&
-            !np_cvns_block_ms_ok(np_cmd_authored_ms(c, desc->duration_ms))) {
-            return NP_HUB_ERR_OUTSIDE_LIMIT;
+        /* A cervical VNS block is run for the length the protocol authored, never a hardcoded one.  A block the
+         * library cannot represent is refused here, not shortened or stretched, with the status that says which
+         * structural check it failed (REQ-FWHUB-78 (k)). */
+        if (c->mod_type == NP_MOD_CVNS && c->params_len >= sizeof(np_mod_cvns_params_t)) {
+            const np_hub_status_t block = np_cvns_block_status(np_cmd_authored_ms(c, desc->duration_ms));
+            if (block != NP_HUB_OK) {
+                return block;
+            }
         }
     }
     return NP_HUB_OK;

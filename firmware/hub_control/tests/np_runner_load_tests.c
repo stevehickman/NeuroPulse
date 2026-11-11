@@ -913,9 +913,23 @@ static void test_a_cervical_block_of_any_authored_length_loads_and_one_that_cann
     blob_cvns(&b, 25000U, 1500U, 250U, 0U); set_cmd_and_session_ms(&b, 0U, 600000U);
     expect_loads(&b, true, "cVNS length: a block with no duration of its own, which runs to the end of a 10 minute session");
 
+    /* The two structural checks, each with a status of its own (reasons 41 and 42), not the limit status. */
     blob_cvns(&b, 25000U, 1500U, 250U, 0U);
     set_cmd_and_session_ms(&b, (uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S) * 1000U, 400000U);
-    expect_refused_at_load(&b, true, "cVNS length: a block no longer than its two ramps");
+    fresh(); g_tier = NP_TIER_T2;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT && -(int)NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT == 41,
+          "cVNS length: a block no longer than its two ramps is refused as TOO_SHORT (reason 41)");
+    expect_nothing_left_behind("cVNS too short");
+
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U);
+    set_cmd_and_session_ms(&b, 65536000U, 70000000U);          /* 65,536 s: one more than the seconds field carries */
+    fresh(); g_tier = NP_TIER_T2;
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_CVNS_BLOCK_TOO_LONG && -(int)NP_HUB_ERR_CVNS_BLOCK_TOO_LONG == 42,
+          "cVNS length: a block of 65,536 s is refused as TOO_LONG (reason 42)");
+    expect_nothing_left_behind("cVNS too long");
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U);
+    set_cmd_and_session_ms(&b, 65535000U, 70000000U);
+    expect_loads(&b, true, "cVNS length: a block of exactly 65,535 s");
     blob_cvns(&b, 25000U, 1500U, 250U, 0U);
     set_cmd_and_session_ms(&b, (uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S + 1U) * 1000U, 400000U);
     expect_loads(&b, true, "cVNS length: one second longer than the two ramps");

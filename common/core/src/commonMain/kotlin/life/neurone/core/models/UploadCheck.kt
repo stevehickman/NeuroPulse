@@ -174,6 +174,18 @@ enum class HelmetRefusalCause(val rule: String) {
      * (`NP_HUB_ERR_OUTSIDE_LIMIT`, reason 40; `REQ-FWHUB-78` (g)). One cause for every limit: the helmet does not say which.
      */
     OUTSIDE_LIMIT("outside_limit"),
+
+    /**
+     * A cervical VNS block is too short to hold its ramp-up and ramp-down, so the helmet cannot run it
+     * (`NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT`, reason 41; `REQ-FWHUB-78` (k)). A structural check, not a limit.
+     */
+    CERVICAL_BLOCK_TOO_SHORT("cervical_block_too_short"),
+
+    /**
+     * A cervical VNS block is longer than the helmet can run (`NP_HUB_ERR_CVNS_BLOCK_TOO_LONG`, reason 42;
+     * `REQ-FWHUB-78` (k)). A structural check, not a limit.
+     */
+    CERVICAL_BLOCK_TOO_LONG("cervical_block_too_long"),
     OTHER("other"),
 
     /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */
