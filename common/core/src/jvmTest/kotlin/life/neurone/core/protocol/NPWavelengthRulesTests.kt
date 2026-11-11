@@ -42,6 +42,14 @@ class NPWavelengthRulesTests {
         }
     """.trimIndent()
 
+    /**
+     * [SERIES] as a pulsed block at the 25 % duty limit, for the tests that compile it. [SERIES] is continuous wave (100 %
+     * duty), which the compiler refuses while that limit stands (`REQ-NPPS-33` (a), interim until `OI-HEXTILE-31`); it used
+     * to sign such a block with the duty register at 25 %. These tests are about the wavelength rules and the block's
+     * start, not about duty, so they compile a block the duty limit admits.
+     */
+    private val PULSED = SERIES.replace("frequency: 0Hz", "frequency: 10Hz").replace("duty_cycle: 100%", "duty_cycle: 25%")
+
     // @verifies REQ-NPPS-03
     @Test
     fun defaultsMapTheSourceWavelengths() {
@@ -108,14 +116,14 @@ class NPWavelengthRulesTests {
     @Test
     fun theSessionWireCarriesBlockStartAndRefusesTheUnmapped() {
         // `start` is on the wire now: the binary descriptor has a start_ms per command (§4.1).
-        val proto = (parse(SERIES)[0] as NPProtocolEntry.Single).protocol
+        val proto = (parse(PULSED)[0] as NPProtocolEntry.Single).protocol
         assertNotNull(compile(proto))
 
-        val unmapped = (parse(SERIES.replace("start: 4m\n", "").replace("810nm", "850nm"))[0]
+        val unmapped = (parse(PULSED.replace("start: 4m\n", "").replace("810nm", "850nm"))[0]
             as NPProtocolEntry.Single).protocol
         assertFailsWith<IllegalArgumentException> { compile(unmapped) }
 
-        val ok = (parse(SERIES.replace("start: 4m\n", ""))[0] as NPProtocolEntry.Single).protocol
+        val ok = (parse(PULSED.replace("start: 4m\n", ""))[0] as NPProtocolEntry.Single).protocol
         assertNotNull(compile(ok))
     }
 
@@ -203,7 +211,7 @@ class NPWavelengthRulesTests {
     @Test
     fun theCompilerUsesTheRulesInForce() {
         val s = store()
-        val protocol = (parse(SERIES.replace("start: 4m\n", "").replace("810nm", "850nm"))[0] as NPProtocolEntry.Single).protocol
+        val protocol = (parse(PULSED.replace("start: 4m\n", "").replace("810nm", "850nm"))[0] as NPProtocolEntry.Single).protocol
         val compiler = HubDescriptorCompiler({ SignatureResult(ByteArray(64), "00") }, wavelengthRules = { s.resolved })
         assertFailsWith<IllegalArgumentException> { compiler.compile(protocol) }   // 850 nm: no default window takes it
         widened808(s)
