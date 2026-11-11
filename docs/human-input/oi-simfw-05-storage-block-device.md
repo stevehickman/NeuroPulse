@@ -1,10 +1,10 @@
 # Principal question for review: OI-SIMFW-05, what the twin's storage sits on
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-05-temporary-file.md`. Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, §29)
 **To:** The principal (with the owner of `NP-FW-NVRAM-001` for Q2)
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.
-**Why now:** the twin already has one block device, chosen while building the GATT slice (`NP-SIM-FW-001` §27) and never recorded as the choice `OI-SIMFW-05` asks for. `OI-SIMFW-51` (the hub's other storage and records) needs a device per partition, so the choice is about to be made again. Nothing in the repository acts as if this were answered.
+**Why now:** the twin already has one block device, chosen while building the GATT slice (`NP-SIM-FW-001` §27) and never recorded as the choice `OI-SIMFW-05` asks for. `OI-SIMFW-51` (the hub's other storage and records) needs a device per partition, so the choice is about to be made again. *(Written before the answer; see section 5.)*
 
 ## 1. What is known (read on 2026-11-11)
 
@@ -31,3 +31,20 @@ That `OI-SIMFW-51` goes ahead in some form, so more than one partition will need
 ## 4. What to send back
 
 The option for Q1, the answer to Q2, a sentence on why, anything that would reopen it, and name, role and date. The answer is recorded in `NP-SIM-FW-001` §7 (`OI-SIMFW-05`) and in `docs/status/completed-decisions.md`.
+
+## 5. Answers
+
+**The principal, 2026-11-11, verbatim:** "Since this will also be used as part of the test bench, store everything to a file (including UHDR and SHDR records - and synthetic state). The file should be temporary unless there is a specific request to save it for later examination. Otherwise, the temporary file should disappear when the user exits the session."
+
+**What it picks.**
+
+- **Q1: option B, a file,** and wider than B as drafted: the file holds everything, the UHDR and SHDR partitions and the twin's synthetic state included. Option C's saving is kept as an exception ("a specific request to save it for later examination"); otherwise the file is temporary and is gone when the user exits the session.
+- **Q2, the half that was the principal's (does the twin hold UHDR and SHDR partitions at all): yes.** Which other partitions and records the twin holds is still the `NP-FW-NVRAM-001` owner's (`OI-SIMFW-51`).
+
+**Rationale.** The principal gave none beyond the sentence: the stated reason is that the twin "will also be used as part of the test bench". No condition that would reopen it was given.
+
+**What it does not change.** `REQ-SIMFW-08` (the storage is synthetic; no image of a real UHDR or SHDR partition is ever mounted, opened or accepted; test keys only) and `CLAUDE.md` §5.1. The cost drafted against option B in section 3, that a path enters the twin, is now a question to answer and not a reason against: it is Q4 of `oi-simfw-05-temporary-file.md`.
+
+**Recorded in:** `NP-SIM-FW-001` §5 (`REQ-SIMFW-21`) and §7 (`OI-SIMFW-05`: decided, build open), and `docs/status/completed-decisions.md` (2026-11-11). **Not built.** RAM is still what the twin runs on.
+
+**Left open by the answer** (drafted, not decided, in `oi-simfw-05-temporary-file.md`): where the file lives and how it is protected; how its disappearance is made true after a crash or a kill; who requests a save, how, and where the copy goes; what keeps real UHDR out and whether the synthetic UHDR is encrypted in the file; what a saved file may be evidence for.
