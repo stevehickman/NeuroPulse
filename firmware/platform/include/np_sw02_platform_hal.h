@@ -244,7 +244,12 @@ extern void     np_mod_eeg_hal_self_calibrate(void);
  * The 40 uC/cm^2 charge-density limit is enforced by the safety MCU, not here
  * (CLAUDE.md §4.2).  np_mod_stim_hal_dc_set is declared but not yet called by
  * any caller in-tree, so unlike its six siblings it does not appear as an
- * unresolved symbol at link; it is part of the contract regardless. */
+ * unresolved symbol at link; it is part of the contract regardless.
+ *
+ * `polarity` is np_mod_tdcs_params_t.polarity passed through unchanged
+ * (np_hub_types.h): 0 = anode at pair-A, 1 = cathode at pair-A.  NOT defined
+ * here, and open (OI-SIMFW-15): the sign np_mod_stim_hal_read_current carries
+ * for DC, and what np_mod_stim_hal_read_charge totals. */
 extern np_hub_status_t np_mod_stim_hal_dac_set(uint8_t pair, uint8_t waveform,
                                                uint16_t freq_mhz, uint16_t amp_ua);
 extern np_hub_status_t np_mod_stim_hal_dac_stop(uint8_t pair);
