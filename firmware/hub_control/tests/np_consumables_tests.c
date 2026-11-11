@@ -148,6 +148,7 @@ static void boot(void)
     g_notifies = 0;
     g_writes = 0;
     g_during_write = NULL;
+    np_gatt_set_link_encrypted(true);   /* CONSUMABLE_STATUS requires an encrypted link (REQ-FWHUB-81); the stack has reported one */
     np_cons_test_reset();
     np_cons_init();
 }
