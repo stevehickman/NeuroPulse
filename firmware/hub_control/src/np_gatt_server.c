@@ -20,9 +20,14 @@
 #include "np_safety_spi.h"
 #include "np_session_progress.h"
 #include "np_session_stop.h"
+#include "np_transport.h"
 #include "np_upload_check.h"
 #include "np_sw02_platform_hal.h"
 #include "np_warranty_token.h"
+
+/* Whether the link to the central is encrypted, as the stack last said (np_gatt_set_link_encrypted).  False until it does:
+ * the refusal is the default and the encrypted link is what has to be shown (CLAUDE.md §23). */
+static bool s_link_encrypted = false;
 
 /* The UUID base, least-significant byte first (np_app_wire_constants.h, generated from common/npps/constants.json). */
 static const uint8_t UUID_BASE[16] = NP_GATT_UUID_BASE_INIT;
@@ -88,44 +93,56 @@ static np_hub_status_t read_device_tier(uint8_t *buf, size_t cap, size_t *len_ou
     return NP_HUB_OK;
 }
 
+/* The protocol upload (0x0008): each write is the next bytes of the transport's framed stream, a 4-byte little-endian
+ * length and then the blob.  np_transport_feed reassembles it and its status says what happened to the bytes: accepted
+ * (the blob may or may not be complete), a malformed length (the partial frame is dropped and reassembly restarts), or
+ * the last blob still waiting to be taken (REQ-FWHUB-80). */
+static np_hub_status_t write_protocol_upload(const uint8_t *data, size_t len)
+{
+    return np_transport_feed(data, len);
+}
+
 /* ── The table ───────────────────────────────────────────────────────────────
  * One row per characteristic the hub answers.  Add a row only with its
  * producer (np_gatt_server.h, "only what the hub produces"). */
 static const np_gatt_char_t TABLE[] = {
     { NP_GATT_CONSUMABLE_STATUS_ID,
-      NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY,
+      NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_NOTIFY | NP_GATT_PROP_ENC,
       (uint8_t)NP_CONS_WIRE_LEN, (uint8_t)NP_CONS_RESET_LEN,
       np_cons_read, np_cons_on_reset_write },
 
-    { NP_GATT_WARRANTY_TOKEN_ID, NP_GATT_PROP_READ,
+    { NP_GATT_WARRANTY_TOKEN_ID, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
       (uint8_t)NP_WARRANTY_TOKEN_LEN, 0u, read_warranty_token, NULL },
 
     { NP_GATT_DEVICE_SERIAL_ID, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_DEVICE_SERIAL_LEN, 0u, read_device_serial, NULL },
 
-    { NP_GATT_CVNS_FAULT_STATUS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+    { NP_GATT_CVNS_FAULT_STATUS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY | NP_GATT_PROP_ENC,
       (uint8_t)NP_CVFS_FRAME_MAX, 0u, np_cvfs_read, NULL },
 
-    { NP_GATT_CVNS_REENABLE_CONFIRM_ID, NP_GATT_PROP_WRITE,
+    { NP_GATT_CVNS_REENABLE_CONFIRM_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       0u, 1u, NULL, np_cvfs_on_reenable_confirm_write },
 
-    { NP_GATT_ACTIVE_USER_ID, NP_GATT_PROP_WRITE,
+    { NP_GATT_ACTIVE_USER_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       0u, 4u, NULL, np_cvfs_on_active_user_write },
 
     /* SWR-UP-01: the hash of the protocol bytes the hub received, and whether it accepted them. */
-    { NP_GATT_UPLOAD_CHECK_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+    { NP_GATT_UPLOAD_CHECK_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY | NP_GATT_PROP_ENC,
       (uint8_t)NP_UPLOAD_CHECK_LEN, 0u, np_upload_check_read, NULL },
 
-    /* SWR-SS-06: a stop request from the app ends the session at the hub. */
+    /* SWR-SS-06: a stop request from the app ends the session at the hub.  NOT encrypted, on purpose (REQ-FWHUB-81 (c),
+     * OI-SIMFW-73): it carries one command byte and no data, and a stop that a failed pairing could refuse is a stop that
+     * does not stop. */
     { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_stop_on_write },
 
-    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03). */
+    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  NOT encrypted, for the reason of the
+     * stop write above: a panic must never wait on a key. */
     { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_pause_on_write },
 
     /* SWR-SS-07: where the session is. */
-    { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+    { NP_GATT_SESSION_PROGRESS_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY | NP_GATT_PROP_ENC,
       (uint8_t)NP_PROGRESS_LEN, 0u, np_progress_read, NULL },
 
     /* REQ-FWHUB-68: how sensitive the detector is (read: level and highest level; write: level). 0 is the validated floor. */
@@ -138,20 +155,25 @@ static const np_gatt_char_t TABLE[] = {
       (uint8_t)NP_GATT_CARDIAC_SENSITIVITY_LEN, (uint8_t)NP_GATT_CARDIAC_SENSITIVITY_WRITE_LEN, np_cardiac_sens_read, np_cardiac_sens_write },
 
     /* SWR-SS-09: why a session is held paused (a person's pause or panic, or the detector's halt). */
-    { NP_GATT_SESSION_HOLD_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY,
+    { NP_GATT_SESSION_HOLD_ID, NP_GATT_PROP_READ | NP_GATT_PROP_NOTIFY | NP_GATT_PROP_ENC,
       (uint8_t)NP_HOLD_LEN, 0u, np_hold_read, NULL },
 
     /* SWR-HV-06: the helmet hardware version, 1..15. */
-    { NP_GATT_HARDWARE_VERSION_ID, NP_GATT_PROP_READ,
+    { NP_GATT_HARDWARE_VERSION_ID, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_HARDWARE_VERSION_LEN, 0u, read_hardware_version, NULL },
 
     /* OI-HWFIT-01: the unit's tier, 0 unknown, 1 T1, 2 T2. */
-    { NP_GATT_DEVICE_TIER_ID, NP_GATT_PROP_READ,
+    { NP_GATT_DEVICE_TIER_ID, NP_GATT_PROP_READ | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_DEVICE_TIER_LEN, 0u, read_device_tier, NULL },
 
     /* SWR-SS-05: the owner's pause time limit, seconds; 0 is no limit (the default). */
     { NP_GATT_PAUSE_LIMIT_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
       (uint8_t)NP_GATT_PAUSE_LIMIT_LEN, 4u, np_pause_limit_read, np_pause_limit_write },
+
+    /* OI-SIMFW-49, REQ-FWHUB-80: the app's protocol upload, the transport's byte stream in writes of up to 512 bytes.  The
+     * hub loads a session from it, so the link must be encrypted. */
+    { NP_GATT_PROTOCOL_UPLOAD_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_STREAM | NP_GATT_PROP_ENC,
+      0u, 0u, NULL, write_protocol_upload },
 
     /* REQ-FWHUB-71: the detector's two clinician switches (read: flags and evidence level; write: flags). */
     { NP_GATT_PPX_CONFIG_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
@@ -213,6 +235,9 @@ np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,
     if ((c->props & NP_GATT_PROP_READ) == 0U || c->read == NULL) {
         return NP_ATT_READ_NOT_PERMITTED;
     }
+    if ((c->props & NP_GATT_PROP_ENC) != 0U && !s_link_encrypted) {
+        return NP_ATT_INSUFFICIENT_ENCRYPTION;
+    }
     if (buf == NULL || len_out == NULL) {
         return NP_ATT_UNLIKELY_ERROR;
     }
@@ -252,14 +277,32 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if ((c->props & NP_GATT_PROP_WRITE) == 0U || c->write == NULL) {
         return NP_ATT_WRITE_NOT_PERMITTED;
     }
-    if (data == NULL || len != c->write_len) {
+    if ((c->props & NP_GATT_PROP_ENC) != 0U && !s_link_encrypted) {
+        return NP_ATT_INSUFFICIENT_ENCRYPTION;
+    }
+    const bool stream = (c->props & NP_GATT_PROP_STREAM) != 0U;
+    if (data == NULL || (stream ? (len == 0U || len > NP_GATT_STREAM_WRITE_MAX) : (len != c->write_len))) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
     const np_hub_status_t rc = c->write(data, len);
     if (rc == NP_HUB_OK) {
         return NP_ATT_OK;
     }
+    if (stream && rc == NP_HUB_ERR_SESSION_ACTIVE) {
+        return NP_ATT_APP_BUSY;
+    }
     return (rc == NP_HUB_ERR_RAMPING) ? NP_ATT_APP_RAMPING : NP_ATT_APP_REFUSED;
+}
+
+void np_gatt_set_link_encrypted(bool encrypted)
+{
+    s_link_encrypted = encrypted;
+}
+
+void np_gatt_on_disconnect(void)
+{
+    s_link_encrypted = false;
+    np_transport_reset();
 }
 
 np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
@@ -268,6 +311,9 @@ np_hub_status_t np_gatt_notify(uint16_t id, const uint8_t *data, size_t len)
     if (c == NULL || (c->props & NP_GATT_PROP_NOTIFY) == 0U ||
         data == NULL || len == 0U || len > c->max_len) {
         return NP_HUB_ERR_INVALID_ARG;
+    }
+    if ((c->props & NP_GATT_PROP_ENC) != 0U && !s_link_encrypted) {
+        return NP_HUB_OK;   /* nobody entitled to it: nothing is sent */
     }
     np_gatt_hal_notify(id, data, len);
     return NP_HUB_OK;

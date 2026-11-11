@@ -1,6 +1,7 @@
 package life.neurone.shared.ble
 
 import life.neurone.core.common.UUID
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.core.protocol.GattUuidStrings
 
 // The simulated hub's end of the BLE seam (NP-SIM-FW-001 §27, REQ-SIMFW-19).
@@ -25,6 +26,12 @@ sealed interface HubBridgeCommand {
     data class Read(val id: Int, val offset: Int = 0) : HubBridgeCommand
 
     data class Write(val id: Int, val hex: String) : HubBridgeCommand
+
+    /** The link is down: the hub drops a half-written upload and keeps a complete one (np_gatt_on_disconnect, REQ-FWHUB-80). */
+    data object Disconnect : HubBridgeCommand
+
+    /** What the stack reports of the link's security: the simulated central's link is bonded, so it says encrypted (REQ-FWHUB-81). */
+    data class Link(val encrypted: Boolean) : HubBridgeCommand
 }
 
 /** What the twin reports, as typed events. */
@@ -52,11 +59,14 @@ interface HubBridge {
     fun send(command: HubBridgeCommand): Boolean
 }
 
-class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
+class SimulatedBleCentral(private val bridge: HubBridge, attMtu: Int = DEFAULT_SIMULATED_ATT_MTU) : BleCentral {
 
     /** The id the simulated hub is found under; the same on every run, because there is one twin. */
     companion object {
         const val SIMULATED_HUB_ID = "simulated-hub"
+
+        /** The ATT_MTU the simulated link has negotiated unless a test says otherwise: a common value on a phone with the data length extension (UC-152). */
+        const val DEFAULT_SIMULATED_ATT_MTU = 247
 
         // 128-bit UUID of a NeurOne characteristic: the id is the four hex digits after the first group (np_app_wire_constants.h).
         fun uuidOf(id: Int): UUID {
@@ -68,6 +78,11 @@ class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
     }
 
     val isSimulated: Boolean get() = true
+
+    /** The ATT_MTU of the simulated link; a test sets it to see the upload cut at each size (the default ATT_MTU is 23). */
+    var attMtu: Int = attMtu
+
+    override val writeLength: Int get() = (attMtu - BleTransfer.ATT_WRITE_OVERHEAD).coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
 
     /** An ATT refusal the hub gave (a read or write the app asked for), for the screen or a test to show. Not an app-visible callback. */
     var onAttRefusal: ((uuid: UUID, att: Int, wasRead: Boolean) -> Unit)? = null
@@ -102,14 +117,19 @@ class SimulatedBleCentral(private val bridge: HubBridge) : BleCentral {
         connecting = true
         table.clear()
         // The twin boots at the first command; an Init to a twin that is up already is refused and changes nothing.
-        if (!bridge.send(HubBridgeCommand.Init) || !bridge.send(HubBridgeCommand.Table)) connecting = false
+        // The link is bonded, so encrypted (UC-139): the twin is told, as a stack's security callback tells the hub, after a
+        // disconnect cleared it. Pairing itself is not modelled (OI-SIMFW-48).
+        if (!bridge.send(HubBridgeCommand.Init) || !bridge.send(HubBridgeCommand.Table) || !bridge.send(HubBridgeCommand.Link(true))) connecting = false
     }
 
     override fun disconnect() {
         if (!connected && !connecting) return
+        val wasConnected = connected
         connected = false
         connecting = false
         subscribed.clear()
+        // A link that was up tells the hub it is down, as a stack's link-down callback does; a lost link to the server cannot.
+        if (wasConnected) bridge.send(HubBridgeCommand.Disconnect)
         listener?.onDisconnected(SIMULATED_HUB_ID)
     }
 
