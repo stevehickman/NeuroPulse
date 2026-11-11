@@ -135,6 +135,15 @@ private fun reasonLabel(r: SocketReason): StringResource = when (r) {
     is HubStatusReason -> when (r) {
         HubStatusReason.POWER_BUDGET -> Res.string.helmet_reason_hub_power_budget
         HubStatusReason.DRIVER_INTERLOCK -> Res.string.helmet_reason_hub_driver_interlock
+        HubStatusReason.PHOTIC_ZONE -> Res.string.helmet_reason_hub_photic_zone
+        HubStatusReason.PPX_HALT -> Res.string.helmet_reason_hub_ppx_halt
+        HubStatusReason.PPX_BLIND -> Res.string.helmet_reason_hub_ppx_blind
+        HubStatusReason.GOGGLE_LIFT_UNARMED -> Res.string.helmet_reason_hub_goggle_lift_unarmed
+        HubStatusReason.GOGGLES_NOT_SEATED -> Res.string.helmet_reason_hub_goggles_not_seated
+        HubStatusReason.EYE_NOT_OPEN -> Res.string.helmet_reason_hub_eye_not_open
+        HubStatusReason.MPE_CHECK -> Res.string.helmet_reason_hub_mpe_check
+        HubStatusReason.SLEEVE_NOT_AUTH -> Res.string.helmet_reason_hub_sleeve_not_auth
+        HubStatusReason.CONTACT_NOT_CONFIRMED -> Res.string.helmet_reason_hub_contact_not_confirmed
         HubStatusReason.INVALID_ARGUMENT -> Res.string.helmet_reason_hub_invalid_argument
         HubStatusReason.NOT_PRESENT -> Res.string.helmet_reason_hub_not_present
         HubStatusReason.MODULE_FAULT -> Res.string.helmet_reason_hub_module_fault
@@ -147,6 +156,8 @@ private fun reasonLabel(r: SocketReason): StringResource = when (r) {
     is WithheldReason -> when (r) {
         WithheldReason.AWAITING_SESSION_SIGNATURE -> Res.string.helmet_reason_withheld_signature
         WithheldReason.CONTACT_CHECK_FAILED -> Res.string.helmet_reason_withheld_contact
+        WithheldReason.NOT_REQUESTED -> Res.string.helmet_reason_withheld_not_requested
+        WithheldReason.TIER_GATE -> Res.string.helmet_reason_withheld_tier
         WithheldReason.UNREPORTED -> Res.string.helmet_reason_withheld_unreported
     }
     is CutoffReason -> when (r) {

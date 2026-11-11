@@ -12,7 +12,9 @@ import life.neurone.shared.ui.SocketDrawState
 import life.neurone.shared.ui.WithheldReason
 import life.neurone.shared.ui.cutoffReasonOf
 import life.neurone.shared.ui.drawStateOf
+import life.neurone.shared.ui.TIER_GATED_LINE_MASK
 import life.neurone.shared.ui.helmetReasonRows
+import life.neurone.shared.ui.isTierGatedLine
 import life.neurone.shared.ui.reasonOf
 import life.neurone.shared.ui.withheldReasonOf
 import java.io.File
@@ -99,6 +101,46 @@ class HelmetReasonTest {
         assertEquals(HubStatusReason.UNREPORTED, HubStatusReason.fromCode(0), "a success code is not a reason")
     }
 
+    // Each check of the goggles, the probe and the clip has its own status in np_hub_types.h (REQ-FWHUB-77), and the view's reason for
+    // it carries the header's number, read from the header itself so a renumbering there breaks this test and not the screen.
+    // @verifies REQ-SIMFW-18#d
+    @Test
+    fun eachDriverCheckReasonCarriesTheNumberTheFirmwareHeaderGivesItsStatus() {
+        val header = File(repoRoot(), "firmware/hub_control/include/np_hub_types.h").readText()
+        val codes = Regex("""NP_HUB_ERR_(\w+)\s*=\s*(-?\d+)""").findAll(header).associate { it.groupValues[1] to it.groupValues[2].toInt() }
+        val expected = mapOf(
+            "SAFETY_REJECTED" to HubStatusReason.DRIVER_INTERLOCK,
+            "PHOTIC_ZONE" to HubStatusReason.PHOTIC_ZONE,
+            "PPX_HALT" to HubStatusReason.PPX_HALT,
+            "PPX_BLIND" to HubStatusReason.PPX_BLIND,
+            "GOGGLE_LIFT_UNARMED" to HubStatusReason.GOGGLE_LIFT_UNARMED,
+            "GOGGLES_NOT_SEATED" to HubStatusReason.GOGGLES_NOT_SEATED,
+            "EYE_NOT_OPEN" to HubStatusReason.EYE_NOT_OPEN,
+            "MPE_CHECK" to HubStatusReason.MPE_CHECK,
+            "SLEEVE_NOT_AUTH" to HubStatusReason.SLEEVE_NOT_AUTH,
+            "CONTACT_NOT_CONFIRMED" to HubStatusReason.CONTACT_NOT_CONFIRMED,
+        )
+        for ((name, reason) in expected) {
+            assertEquals(codes[name], reason.code, "NP_HUB_ERR_$name is not the code the view carries")
+            assertEquals(reason, HubStatusReason.fromCode(codes.getValue(name)))
+        }
+    }
+
+    // The tier-gated set is the header's: bits 10 to 13, the T2 lines, and none of the lines a T1 unit may drive.
+    // @verifies REQ-SIMFW-18#d
+    @Test
+    fun theTierGatedLinesAreTheHeadersT2Lines() {
+        val wire = File(repoRoot(), "firmware/common/include/np_spi_wire_types.h").readText()
+        fun bit(name: String): Int =
+            1 shl Regex("""#define NP_SAFETY_EN_$name\s+\(1U << (\d+)\)""").find(wire)!!.groupValues[1].toInt()
+        val t2 = bit("CVNS") or bit("TMS") or bit("PBM_1170NM") or bit("CLIN_STIM")
+        assertEquals(t2, TIER_GATED_LINE_MASK)
+        for (t1 in listOf("PBM_CRANIAL", "BES_TACS", "TDCS", "VNS_HRV", "VISUAL", "INTRANASAL")) {
+            assertEquals(false, isTierGatedLine(bit(t1)), "a T1 line ($t1) is not tier-gated")
+        }
+        assertEquals(true, isTierGatedLine(bit("CVNS")))
+    }
+
     // @verifies REQ-SIMFW-18#d
     @Test
     fun theWithheldReasonFollowsTheStatusByteInTheOrderDocumented() {
@@ -106,6 +148,13 @@ class HelmetReasonTest {
         assertEquals(WithheldReason.CONTACT_CHECK_FAILED, withheldReasonOf(SafetyStatusBits.IMPEDANCE))
         assertEquals(WithheldReason.AWAITING_SESSION_SIGNATURE, withheldReasonOf(SafetyStatusBits.SIG_PENDING or SafetyStatusBits.IMPEDANCE))
         assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0), "status OK says nothing about why a line is withheld")
+        // A line the hub never requested has nothing for the MCU to grant, whatever the status says; it comes before every other cause.
+        assertEquals(WithheldReason.NOT_REQUESTED, withheldReasonOf(0, requested = false))
+        assertEquals(WithheldReason.NOT_REQUESTED, withheldReasonOf(SafetyStatusBits.SIG_PENDING, requested = false, tierGated = true))
+        // The tier gate is named only when the caller says this line is tier-gated, and after the flags the MCU reports in the status byte.
+        assertEquals(WithheldReason.TIER_GATE, withheldReasonOf(0, tierGated = true))
+        assertEquals(WithheldReason.CONTACT_CHECK_FAILED, withheldReasonOf(SafetyStatusBits.IMPEDANCE, tierGated = true))
+        assertEquals(WithheldReason.UNREPORTED, withheldReasonOf(0, tierGated = false), "the tier report alone is not enough for a T1 line")
     }
 
     // @verifies REQ-SIMFW-18#d
