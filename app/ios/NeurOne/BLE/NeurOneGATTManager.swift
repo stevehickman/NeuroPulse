@@ -400,6 +400,12 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     // MARK: - Write API
 
+    /// What a write with response carries now: the negotiated ATT_MTU less 3 bytes, as CoreBluetooth reports it; the default
+    /// ATT_MTU's 20 before a peripheral is connected (OI-SIMFW-63).
+    var writeLengthWithResponse: Int {
+        peripheral?.maximumWriteValueLength(for: .withResponse) ?? BleTransfer.ATT_DEFAULT_WRITE_LENGTH
+    }
+
     /// Mode 2: write a single protocol chunk to the hub (called per-chunk by SessionProtocolUploader).
     func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
         guard let char = protocolUploadChar, let p = peripheral else {

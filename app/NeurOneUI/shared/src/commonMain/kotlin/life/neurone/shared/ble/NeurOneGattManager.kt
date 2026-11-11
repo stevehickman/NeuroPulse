@@ -23,6 +23,7 @@ import life.neurone.core.models.SocketMap
 import life.neurone.core.models.SocketMapFrameAssembler
 import life.neurone.core.models.ZoneModuleConfiguration
 import life.neurone.core.models.ZoneModuleFrameAssembler
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.common.UUID
@@ -590,7 +591,10 @@ class NeurOneGattManager(
 
     // ── Commands ─────────────────────────────────────────────────────────
 
-    /** Mode 2 protocol upload. Caller must pre-chunk to ≤512-byte writes. */
+    /** The write size the upload is cut at: what the link carries now (the negotiated MTU less 3), at most the hub characteristic's 512. */
+    val writeLength: Int get() = central.writeLength.coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
+
+    /** Mode 2 protocol upload: one write of the stream, at most [writeLength] bytes (the caller cuts it, `ProtocolChunker`). */
     fun writeProtocolChunk(chunk: ByteArray) = central.write(UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID), chunk)
 
     fun requestSessionStop() = central.write(UUID.fromString(GattUuidStrings.SESSION_STOP_ID), byteArrayOf(0x01))

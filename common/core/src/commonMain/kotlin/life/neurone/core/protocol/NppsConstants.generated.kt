@@ -180,7 +180,9 @@ object GattIds {
     const val IMPEDANCE_RESULT_ID: Int = 0x0006
     // READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
     const val CONSUMABLE_STATUS_ID: Int = 0x0007
-    // WRITE, signed protocol blob.
+    // WRITE, 1 to 512 bytes a write: the signed protocol blob as the transport's byte stream, a 4-byte
+    // little-endian length and then the blob, split at the write size with no per-chunk header
+    // (NP-FW-HUB-001 section 2.3, REQ-FWHUB-04, REQ-FWHUB-80). Encrypted link only.
     const val PROTOCOL_UPLOAD_ID: Int = 0x0008
     // WRITE, triggers an EDF+ download.
     const val EDF_REQUEST_ID: Int = 0x0009
@@ -276,7 +278,9 @@ object GattUuidStrings {
     const val IMPEDANCE_RESULT_ID: String = "4E455550-0006-1000-8000-00805F9B34FB"
     // READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
     const val CONSUMABLE_STATUS_ID: String = "4E455550-0007-1000-8000-00805F9B34FB"
-    // WRITE, signed protocol blob.
+    // WRITE, 1 to 512 bytes a write: the signed protocol blob as the transport's byte stream, a 4-byte
+    // little-endian length and then the blob, split at the write size with no per-chunk header
+    // (NP-FW-HUB-001 section 2.3, REQ-FWHUB-04, REQ-FWHUB-80). Encrypted link only.
     const val PROTOCOL_UPLOAD_ID: String = "4E455550-0008-1000-8000-00805F9B34FB"
     // WRITE, triggers an EDF+ download.
     const val EDF_REQUEST_ID: String = "4E455550-0009-1000-8000-00805F9B34FB"
@@ -486,14 +490,23 @@ object HubDescriptorWire {
     const val FLAG_T2_TIER: Int = 1
 }
 
-// Sizes of the BLE writes the apps make: the Mode 2 protocol upload and the OTA image. Both apps chunk to these.
+// Sizes of the BLE writes the apps make: the Mode 2 protocol upload and the OTA image. Both apps chunk to these. (The
+// START, CONT, END and SINGLE frame sizes were retired with the framing, OI-SIMFW-49.)
 object BleTransfer {
     // The BLE 5 ATT MTU write ceiling, in bytes.
     const val MAX_WRITE_SIZE: Int = 512
-    // The most a START chunk carries (512 − 1 header − 2 length); also the single-chunk threshold.
-    const val MAX_CHUNK_PAYLOAD: Int = 509
-    // The most a CONT or END chunk carries (512 − 1 header).
-    const val MAX_CONT_PAYLOAD: Int = 511
+    // A write request carries the ATT_MTU less 3 bytes (1 opcode, 2 handle): Bluetooth Core v5.3 Vol 3
+    // Part F §3.4.5.1.
+    const val ATT_WRITE_OVERHEAD: Int = 3
+    // The write a link carries before any MTU is negotiated: the default ATT_MTU of 23 less
+    // ATT_WRITE_OVERHEAD (Core v5.3 Vol 3 Part F §3.2.8). The upload works at this size, and every size
+    // from 1 to MAX_WRITE_SIZE.
+    const val ATT_DEFAULT_WRITE_LENGTH: Int = 20
+    // The width of the length prefix that leads the protocol upload stream, little-endian
+    // (NP_TRANSPORT_LEN_PREFIX, np_transport.h). The blob follows it; the upload is split at the link's
+    // write length (the negotiated ATT_MTU less ATT_WRITE_OVERHEAD, at most MAX_WRITE_SIZE) with no other
+    // framing.
+    const val PROTOCOL_LEN_PREFIX: Int = 4
     // ATT_MTU(512) − 3 ATT header − 1 OTA opcode − 2 chunk index leaves 506; 496 keeps a margin for GATT
     // stack overhead.
     const val OTA_CHUNK_SIZE: Int = 496

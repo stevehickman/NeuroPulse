@@ -133,11 +133,10 @@ class UploadRefusalTest {
         assertEquals(ProtocolUploader.Result.DifferentPersonConfirmationRequired, uploader.upload(cervical(), deviceSerial = ByteArray(32)))
     }
 
-    /** The descriptor's flags byte (offset 6), read back out of the first chunk written to the hub. */
+    /** The descriptor's flags byte (offset 6), read back out of the first chunk written to the hub (after the 4-byte length prefix). */
     private fun flagsWritten(central: RecordingCentral): Int {
         val first = central.chunks.first()
-        val payloadStart = if (first[0] == life.neurone.core.session.ProtocolChunker.FRAME_START) 3 else 1
-        return first[payloadStart + 6].toInt() and 0xFF
+        return first[life.neurone.core.protocol.BleTransfer.PROTOCOL_LEN_PREFIX + 6].toInt() and 0xFF
     }
 
     // @verifies REQ-SW03-03 DI-SAFE-09 REQ-CVNS-09#f
