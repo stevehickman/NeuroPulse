@@ -1,0 +1,6 @@
+## DHF
+author: NeurOne Software Engineering
+text: **{NP-SIM-FW-001 from → to}: the seam route table and its CI check (`scripts/check-sim-seam-routes.ts`, `REQ-SIMFW-02`), the POSIX port shim, and `OI-SIMFW-02`, `-03`, `-06`, `-12` and `-14` closed; `OI-SIMFW-04` and `-05` drafted for the principal.**
+## NP-SIM-FW-001
+author: NeurOne Software Engineering
+text: **§5, §7, §8, new §29: every one of the 119 contract seams has a row in `firmware/platform_sim/np_sim_seam_routes.txt` (54 model, 9 infra, 13 unrouted, 4 firmware-host, 39 absent) and `scripts/check-sim-seam-routes.ts` holds the table to the tree in `simulator-ci.yml`, with no count asserted; the 119 and the "about 94" of §2 counted different things (the scan re-run finds 98, plus 19 seams called from directories it did not compile and 2 with no caller); `xPortIsInsideInterrupt` has a shim in `firmware/platform_sim/` and the `portMAX_DELAY` narrowing is shown harmless; `OI-SIMFW-02`, `-03`, `-06`, `-12` and `-14` closed; `REQ-SIMFW-02` names its check and is stated as not yet met for the 52 unrouted and absent seams; `OI-SIMFW-04` (time model) and `OI-SIMFW-05` (storage) record what is built and point to drafts in `docs/human-input/`, undecided.**
