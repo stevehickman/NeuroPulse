@@ -1,0 +1,154 @@
+# NeurOne Firmware-in-the-Loop Simulator: the seam route table (HOST ONLY)
+# Document: NP-SIM-FW-001 §29 (REQ-SIMFW-02; OI-SIMFW-02, OI-SIMFW-06, OI-SIMFW-14)
+#
+# One row for every symbol of the SW-02 platform contract: the global functions
+# firmware/platform/src/np_platform_stub.c defines, whose number is NP_SW02_PLATFORM_SYMBOL_COUNT
+# (np_sw02_platform_hal.h) and is asserted by the cross-build census (np_platform_census.cmake).
+# The row says what the twin does with the seam.  scripts/check-sim-seam-routes.ts compares every
+# row with the tree, so a seam added to or removed from the contract, or a definition added to or
+# removed from this layer, fails CI until the row is written.  No count is stated here: the gate
+# prints the counts it finds.
+#
+# Columns (whitespace separated):
+#   seam         the contract symbol
+#   disposition  model          defined in this layer and answered by a module on the bus, keyed (kind, index)
+#                infra          defined in this layer and answered by the twin itself (a clock, a TEST key,
+#                               the GATT relay, the SPI link to the safety MCU), not by a module
+#                unrouted       defined in this layer; reports itself as `unrouted` and returns a failure
+#                firmware-host  defined by the device's own source under NPTEST_HOST, which this layer links
+#                absent         not defined in the twin: no source the twin links calls it
+#   where        the file that defines it, relative to firmware/platform_sim/ ("-" when absent)
+#   space        what the seam's first argument addresses, as the contract declares it:
+#                socket-index   0-based socket INDEX space (np_sw02_platform_hal.h: "socket_id is INDEX
+#                               space (0-based)"); the page's 1-based socket number is converted once, in
+#                               the page (NP-SIM-FW-001 §12), and never reaches this layer
+#                pair           the stimulation electrode pair, the firmware's own number, passed through
+#                side           the side of a one-part module (ear clip, nasal probe), passed through
+#                slot           the firmware's slot number (the retired zone-slot PBM path and
+#                               firmware/pbm); no route exists, so the twin translates nothing
+#                channel        an EEG channel of the one front end
+#                partition      a log partition (np_log_part_t)
+#                char-id        a GATT characteristic id (np_gatt_server.h)
+#                none           the seam addresses one part or the hub itself
+#   item         for unrouted and absent rows, the open item under which the seam gets a route or its
+#                caller is linked; "none" where no item promises one (the reason is in §29); "-" otherwise
+#
+np_anon_hal_aes_ctr_crypt                   absent         -                                    none          OI-SIMFW-52
+np_anon_hal_emmc_read_scratch               absent         -                                    none          OI-SIMFW-52
+np_anon_hal_emmc_sanitize_scratch           absent         -                                    none          OI-SIMFW-52
+np_anon_hal_emmc_write_scratch              absent         -                                    none          OI-SIMFW-52
+np_anon_hal_trng_generate                   absent         -                                    none          OI-SIMFW-52
+np_config_read_accel_state                  absent         -                                    none          OI-SIMFW-52
+np_config_read_char_enrolment               absent         -                                    none          OI-SIMFW-52
+np_config_write_accel_state                 absent         -                                    none          OI-SIMFW-52
+np_config_write_char_enrolment              absent         -                                    none          OI-SIMFW-52
+np_cvfs_hal_load                            infra          src/np_sim_spike_link.c              none          -
+np_cvfs_hal_save                            infra          src/np_sim_spike_link.c              none          -
+np_cvns_hal_accessory_present               model          src/np_sim_cvns.c                    none          -
+np_cvns_hal_impedance_measure_poll          model          src/np_sim_cvns.c                    none          -
+np_cvns_hal_impedance_measure_start         model          src/np_sim_cvns.c                    none          -
+np_cvns_hal_impedance_poll                  model          src/np_sim_cvns.c                    none          -
+np_cvns_hal_impedance_start                 model          src/np_sim_cvns.c                    none          -
+np_factory_reset_hal_sanitize_uhdr          absent         -                                    none          OI-SIMFW-52
+np_factory_reset_hal_trng_generate          absent         -                                    none          OI-SIMFW-52
+np_factory_reset_hal_write_config_defaults  absent         -                                    none          OI-SIMFW-52
+np_factory_reset_hal_zero_config            absent         -                                    none          OI-SIMFW-52
+np_factory_reset_hal_zero_shdr              absent         -                                    none          OI-SIMFW-52
+np_gatt_hal_notify                          infra          src/np_sim_gatt.c                    char-id       -
+np_gatt_hal_register                        infra          src/np_sim_gatt.c                    none          -
+np_hal_status_led_set                       absent         -                                    none          OI-SIMFW-50
+np_imu_read_gap_resultants                  absent         -                                    none          OI-SIMFW-52
+np_log_hal_part_append                      firmware-host  ../hub_control/src/np_log_backend.c  partition     -
+np_log_hal_part_close                       firmware-host  ../hub_control/src/np_log_backend.c  partition     -
+np_log_hal_part_open                        firmware-host  ../hub_control/src/np_log_backend.c  partition     -
+np_log_hal_part_sync                        firmware-host  ../hub_control/src/np_log_backend.c  partition     -
+np_mod_audio_hal_bone_set                   model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_bone_stop                  model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_codec_init                 model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_mesh_impedance             model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_set_binaural               model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_set_isochronic             model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_set_noise                  model          src/np_sim_audio.c                   none          -
+np_mod_audio_hal_stop_planar                model          src/np_sim_audio.c                   none          -
+np_mod_cvns_hal_now_ms                      model          src/np_sim_cvns.c                    none          -
+np_mod_cvns_hal_now_unix                    model          src/np_sim_cvns.c                    none          -
+np_mod_eeg_hal_get_band_power               model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_get_dominant_band            model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_read_impedance               model          src/np_sim_eeg.c                     channel       -
+np_mod_eeg_hal_self_calibrate               model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_spi_read_reg                 model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_spi_write_reg                model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_start_continuous             model          src/np_sim_eeg.c                     none          -
+np_mod_eeg_hal_stop_continuous              model          src/np_sim_eeg.c                     none          -
+np_mod_ins_hal_auth_check                   model          src/np_sim_intranasal.c              none          -
+np_mod_ins_hal_pd_contact                   model          src/np_sim_intranasal.c              none          -
+np_mod_ins_hal_pd_read                      model          src/np_sim_intranasal.c              side          -
+np_mod_ins_hal_pwm_set                      model          src/np_sim_intranasal.c              side          -
+np_mod_ins_hal_pwm_stop                     model          src/np_sim_intranasal.c              side          -
+np_mod_pbm_hal_ntc_read                     unrouted       src/np_sim_unrouted.c                slot          none
+np_mod_pbm_hal_pd_read                      unrouted       src/np_sim_unrouted.c                slot          none
+np_mod_pbm_hal_pwm_set                      unrouted       src/np_sim_unrouted.c                slot          none
+np_mod_pbm_hal_socket_ntc_read              model          src/np_sim_pbm.c                     socket-index  -
+np_mod_pbm_hal_socket_pwm_set               model          src/np_sim_pbm.c                     socket-index  -
+np_mod_pbm_hal_socket_selftest_pd1          unrouted       src/np_sim_unrouted.c                socket-index  none
+np_mod_stim_hal_dac_set                     model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_dac_stop                    model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_dc_ramp                     model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_dc_set                      model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_read_charge                 model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_read_current                model          src/np_sim_stim.c                    pair          -
+np_mod_stim_hal_read_impedance              model          src/np_sim_stim.c                    pair          -
+np_mod_visual_hal_emdr_set                  model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_goggle_seated             model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_hall_irq_register         model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_ir_eye_open               model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_led_set                   model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_led_stop                  model          src/np_sim_visual.c                  none          -
+np_mod_visual_hal_mpe_check                 model          src/np_sim_visual.c                  none          -
+np_mod_vns_hal_eeg_ref_route                model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_get_coherence                model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_get_hr_bpm                   model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_get_rmssd                    model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_impedance_check              model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_now_ms                       model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_ppg_start                    model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_ppg_stop                     model          src/np_sim_vns.c                     none          -
+np_mod_vns_hal_stim_set                     model          src/np_sim_vns.c                     side          -
+np_mod_vns_hal_stim_stop                    model          src/np_sim_vns.c                     side          -
+np_pbm_hal_adc_read_pd                      unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_adc_read_zone_id                 unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_i2c_mux_enable                   unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_i2c_probe                        unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_i2c_read                         unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_i2c_write                        unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_now_ms                           infra          src/np_sim_unrouted.c                none          -
+np_pbm_hal_ntc_read                         absent         -                                    slot          OI-SIMFW-53
+np_pbm_hal_safety_mcu_enable                absent         -                                    slot          OI-SIMFW-53
+np_pbm_hal_shdr_log_fault                   unrouted       src/np_sim_unrouted.c                none          OI-SIMFW-53
+np_pbm_hal_t2_1170_enable                   absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_t2_1170_get_dose                 absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_t2_1170_get_temp                 absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_t2_1170_set_duty                 absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_t2_sloreta_get_target            absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_t2_throttle_request              absent         -                                    none          OI-SIMFW-53
+np_pbm_hal_tia_gain_set                     unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_pbm_hal_zone_announce                    unrouted       src/np_sim_unrouted.c                slot          OI-SIMFW-53
+np_platform_clock_init                      absent         -                                    none          OI-SIMFW-55
+np_proto_hal_get_device_serial              infra          src/np_sim_spike_link.c              none          -
+np_proto_hal_get_proto_pubkey               infra          src/np_sim_spike_link.c              none          -
+np_safety_hal_spi_transfer                  infra          src/np_sim_safety_link.c             none          -
+np_shdr_write_accel_char_record             absent         -                                    none          OI-SIMFW-52
+np_shdr_write_accel_record                  absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_aes_gcm_decrypt                 absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_aes_gcm_encrypt                 absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_argon2id                        absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_config_read_ukmd                absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_config_write_ukmd               absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_hw_bind                         absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_mount_uhdr                      absent         -                                    none          OI-SIMFW-52
+np_uhdr_hal_trng_generate                   absent         -                                    none          OI-SIMFW-52
+np_warranty_hal_trng_generate               infra          src/np_sim_gatt.c                    none          -
+np_za_platform_adc_read                     absent         -                                    slot          OI-SIMFW-54
+np_za_platform_sai_init                     absent         -                                    none          OI-SIMFW-54
+np_za_platform_sai_start                    absent         -                                    none          OI-SIMFW-54
+np_za_platform_sai_stop                     absent         -                                    none          OI-SIMFW-54
