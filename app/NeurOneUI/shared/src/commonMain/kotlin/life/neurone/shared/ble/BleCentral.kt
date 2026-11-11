@@ -1,6 +1,7 @@
 package life.neurone.shared.ble
 
 import life.neurone.core.common.UUID
+import life.neurone.core.protocol.BleTransfer
 
 // BLE central abstraction — port of iOS BLECentral.swift. Decouples
 // NeurOneGattManager from every platform Bluetooth API (android.bluetooth, CoreBluetooth, Web Bluetooth) so connection logic is
@@ -38,6 +39,13 @@ interface BleCentral {
     fun enableNotifications(uuid: UUID)
     fun read(uuid: UUID)
     fun write(uuid: UUID, value: ByteArray)
+
+    /**
+     * The longest write the link carries now: the negotiated ATT_MTU less 3 bytes (a write request's payload). A central that has
+     * negotiated none, or cannot tell, answers the default ATT_MTU's 20, which the upload works at (OI-SIMFW-63). The caller cuts
+     * the protocol upload at this size, to at most 512 (the hub characteristic's ceiling).
+     */
+    val writeLength: Int get() = BleTransfer.ATT_DEFAULT_WRITE_LENGTH
 
     /**
      * Re-read the adapter state after the user changed something outside the app (granted a

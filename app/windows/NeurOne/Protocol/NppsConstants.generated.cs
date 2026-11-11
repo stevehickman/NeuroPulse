@@ -196,7 +196,9 @@ static class GattIds
     public const int IMPEDANCE_RESULT_ID = 0x0006;
     /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
     public const int CONSUMABLE_STATUS_ID = 0x0007;
-    /// WRITE, signed protocol blob.
+    /// WRITE, 1 to 512 bytes a write: the signed protocol blob as the transport's byte stream, a 4-byte
+    /// little-endian length and then the blob, split at the write size with no per-chunk header
+    /// (NP-FW-HUB-001 section 2.3, REQ-FWHUB-04, REQ-FWHUB-80). Encrypted link only.
     public const int PROTOCOL_UPLOAD_ID = 0x0008;
     /// WRITE, triggers an EDF+ download.
     public const int EDF_REQUEST_ID = 0x0009;
@@ -293,7 +295,9 @@ static class GattUuidStrings
     public const string IMPEDANCE_RESULT_ID = "4E455550-0006-1000-8000-00805F9B34FB";
     /// READ/NOTIFY 8 B, WRITE 1 B (OI-ACC-08).
     public const string CONSUMABLE_STATUS_ID = "4E455550-0007-1000-8000-00805F9B34FB";
-    /// WRITE, signed protocol blob.
+    /// WRITE, 1 to 512 bytes a write: the signed protocol blob as the transport's byte stream, a 4-byte
+    /// little-endian length and then the blob, split at the write size with no per-chunk header
+    /// (NP-FW-HUB-001 section 2.3, REQ-FWHUB-04, REQ-FWHUB-80). Encrypted link only.
     public const string PROTOCOL_UPLOAD_ID = "4E455550-0008-1000-8000-00805F9B34FB";
     /// WRITE, triggers an EDF+ download.
     public const string EDF_REQUEST_ID = "4E455550-0009-1000-8000-00805F9B34FB";

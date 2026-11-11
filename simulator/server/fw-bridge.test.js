@@ -677,6 +677,10 @@ async function upload(blobHex, { chunk = 20, mutate = (b) => b, extra = [], befo
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const e of before) bridge.handle(e);
   await wait(before.length ? 400 : 0);
+  // The GATT service up, so the upload check can be notified: UPLOAD_CHECK requires an encrypted link (REQ-FWHUB-81) and the twin's bonded link is
+  // reported encrypted at gatt_init.  Without it the notification is dropped, as it is on a hub with nobody entitled to receive it.
+  bridge.handle({ type: 'FW_COMMAND', cmd: 'gatt_init' });
+  await wait(300);
   bridge.handle({ type: 'FW_COMMAND', cmd: 'proto_sign', hex: blobHex });
   await wait(300);
   const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
@@ -823,6 +827,12 @@ test('end to end: a zero length prefix is refused by the hub\'s transport, and a
 test('the bridge relays GATT reads and writes as validated ids and hex and nothing else', () => {
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_init' }), ['gatt_init']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_table' }), ['gatt_table']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_disconnect' }), ['gatt_disconnect']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', encrypted: true }), ['gatt_link 1']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', encrypted: false }), ['gatt_link 0']);
+  for (const bad of [{}, { encrypted: 1 }, { encrypted: 'true' }, { encrypted: null }]) {
+    assert.throws(() => messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_link', ...bad }), BridgeError, JSON.stringify(bad));
+  }
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24 }), ['gatt_read 24 0']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_read', id: 24, offset: 20 }), ['gatt_read 24 20']);
   assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'gatt_write', id: 15, hex: '01' }), ['gatt_write 15 01']);
@@ -867,7 +877,7 @@ test('end to end: the device\'s own GATT server answers; what the hub does not p
     { cmd: 'gatt_read', id: 24 },                          // UPLOAD_CHECK: 34 bytes, status none
     { cmd: 'gatt_read', id: 16 }, { cmd: 'gatt_read', id: 16 },   // WARRANTY_TOKEN: drawn once, kept
     { cmd: 'gatt_read', id: 17 },                          // FIRMWARE_VERSION: not published
-    { cmd: 'gatt_write', id: 8, hex: '04' + '00'.repeat(100) },   // PROTOCOL_UPLOAD: not published
+    { cmd: 'gatt_write', id: 8, hex: '00000000' },         // PROTOCOL_UPLOAD: published; a length of 0 is refused by the transport
     { cmd: 'gatt_read', id: 22 },                          // ACTIVE_USER is write-only
     { cmd: 'gatt_write', id: 15, hex: '0102' },            // SESSION_STOP takes exactly one byte
   ]);
@@ -876,7 +886,7 @@ test('end to end: the device\'s own GATT server answers; what the hub does not p
   assert.ok(table.length > 10 && table.every((c) => c.count === table.length), 'every characteristic is reported, in order');
   const ids = table.map((c) => c.id);
   assert.ok(ids.includes(24) && ids.includes(16) && ids.includes(23), 'the hub publishes the upload check, the warranty token and the serial');
-  assert.ok(!ids.includes(8) && !ids.includes(17), 'and does not publish the protocol upload or the firmware version');
+  assert.ok(ids.includes(8) && !ids.includes(17), 'and publishes the protocol upload (OI-SIMFW-49) but not the firmware version');
   const reads = r.events.filter((e) => e.ev === 'gatt_read');
   const byId = (id) => reads.filter((e) => e.id === id);
   assert.strictEqual(byId(24)[0].att, 0);
@@ -887,6 +897,126 @@ test('end to end: the device\'s own GATT server answers; what the hub does not p
   assert.strictEqual(byId(17)[0].att, 0x0a, 'FIRMWARE_VERSION: attribute not found');
   assert.strictEqual(byId(22)[0].att, 0x02, 'a write-only characteristic is not readable');
   const writes = r.events.filter((e) => e.ev === 'gatt_write');
-  assert.strictEqual(writes.find((e) => e.id === 8).att, 0x0a, 'the protocol upload is not published, so a write to it is not found');
+  assert.strictEqual(writes.find((e) => e.id === 8).att, 0x80, 'the protocol upload is published: a length of 0 reaches the transport and is refused (NP_ATT_APP_REFUSED), not not-found');
   assert.strictEqual(writes.find((e) => e.id === 15).att, 0x0d, 'a write of the wrong length is refused before the handler sees it');
+});
+
+// ── the app's protocol upload over GATT: the transport's framing is the wire (OI-SIMFW-49, REQ-FWHUB-80) ──────────────────────
+
+const UPLOAD_STREAM = require('../../common/testdata/upload-stream-golden.json');   // the exact writes the apps' chunkers make; the Kotlin and Swift tests pin them
+
+/** Two phases against one firmware process, so the second can use what the first reported (a signed blob). Returns the GATT_EVENTs and the logged events. */
+async function gattTwoPhase(phase1, build) {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(300);
+  for (const m of phase1) bridge.handle({ type: 'FW_COMMAND', ...m });
+  await wait(900);
+  const log1 = seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event);
+  for (const m of build(log1)) bridge.handle({ type: 'FW_COMMAND', ...m });
+  await wait(900);
+  bridge.stop();
+  const events = seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event);
+  const log = seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event);
+  return {
+    events, log,
+    writes: events.filter((e) => e.ev === 'gatt_write' && e.id === 8),
+    pump: log.find((e) => e.ev === 'result' && e.cmd === 'proto_pump'),
+    frame: (events.filter((e) => e.ev === 'gatt_notify' && e.id === 24).pop() || {}).hex,   // UPLOAD_CHECK, as the app is notified of it
+  };
+}
+
+const chunkCase = (name) => UPLOAD_STREAM.cases.find((c) => c.name === name);
+const UPLOAD_MCU = [{ cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 }, { cmd: 'safety_run', ms: 1000, state: 0 }];
+
+// @verifies REQ-FWHUB-80#a
+test('end to end: the exact writes the apps\' chunkers make, at every write size, are taken by the hub\'s GATT server and reassembled by its transport (OI-SIMFW-49, OI-SIMFW-63)', { skip: !BIN }, async () => {
+  const c = chunkCase('golden_pbm660');
+  for (const size of UPLOAD_STREAM.write_sizes) {
+    const chunks = size === 512 ? c.chunks : c.chunks_by_write_size[String(size)];
+    const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+      ...chunks.map((hex) => ({ cmd: 'gatt_write', id: 8, hex })), { cmd: 'proto_pump' },
+    ]);
+    assert.strictEqual(r.writes.length, chunks.length, `one answer a write at ${size}`);
+    assert.ok(r.writes.every((w) => w.att === 0), `every write is accepted (ATT success) at ${size}`);
+    assert.strictEqual(r.pump.blob, true, `a whole blob came out of the transport at ${size}`);
+    assert.strictEqual(r.pump.len, c.blob.length / 2, `with every byte of it at ${size}`);
+    // The golden descriptor carries a zeroed signature slot: the hub takes it in, parses it and refuses only the signature.
+    assert.strictEqual(r.pump.code, -6, `refused as NP_HUB_ERR_BAD_SIGNATURE, after the hub's parser accepted the descriptor, at ${size}`);
+    const f = Buffer.from(r.frame, 'hex');
+    assert.strictEqual(f.subarray(2).toString('hex'), nodeCrypto.createHash('sha256').update(Buffer.from(c.blob, 'hex')).digest('hex'),
+      `its hash is the SHA-256 of the blob the app's chunks made, at ${size}`);
+  }
+});
+
+// @verifies REQ-FWHUB-80#a
+test('end to end: a protocol the TEST key signed, written to 0x0008 at the chunker\'s write boundaries for each MTU, is accepted by the hub (OI-SIMFW-49, OI-SIMFW-64, OI-SIMFW-63)', { skip: !BIN }, async () => {
+  const c = chunkCase('golden_pbm660');
+  // ATT_MTU 23 (the default: 20-byte writes), 188 (185), 247 (244) and 515 (the 512 ceiling): the writes the app makes at each (UploadThroughCentralTest).
+  for (const size of UPLOAD_STREAM.write_sizes) {
+    const chunks = size === 512 ? c.chunks : c.chunks_by_write_size[String(size)];
+    const sizes = chunks.map((h) => h.length / 2);
+    const r = await gattTwoPhase([...UPLOAD_MCU, { cmd: 'gatt_init' }, { cmd: 'proto_sign', hex: GOLDEN.pbm660 }], (log) => {
+      const signed = Buffer.from(log.find((e) => e.ev === 'proto_signed').hex, 'hex');
+      assert.strictEqual(signed.length, c.blob.length / 2, 'signing fills the signature slot and changes no length, so the write boundaries are the chunker\'s');
+      const stream = framed(signed);
+      let off = 0;
+      const writes = sizes.map((n) => { const hex = stream.subarray(off, off + n).toString('hex'); off += n; return { cmd: 'gatt_write', id: 8, hex }; });
+      return [...writes, { cmd: 'proto_pump' }];
+    });
+    assert.ok(r.writes.length === chunks.length && r.writes.every((w) => w.att === 0), `every write is accepted at a write size of ${size}`);
+    assert.strictEqual(r.pump.code, 0, `NP_HUB_OK at ${size}: the upload through GATT is accepted as the one through the transport directly was`);
+    assert.deepStrictEqual([Buffer.from(r.frame, 'hex')[0], Buffer.from(r.frame, 'hex')[1]], [1, 0], `ACCEPTED, no reason, at ${size}`);
+  }
+});
+
+// @verifies REQ-FWHUB-80#b,c
+test('end to end: a second blob while the first waits is BUSY, a malformed length is refused, and a dropped link discards a half-written blob (OI-SIMFW-49)', { skip: !BIN }, async () => {
+  const c = chunkCase('golden_pbm660');
+  const half = c.chunks[0].slice(0, 100);                  // 50 of the stream's bytes: the length and part of the blob
+  const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+    { cmd: 'gatt_write', id: 8, hex: 'ffffffff' },         // a length above the blob maximum: refused
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // a whole blob: accepted, and now waiting to be taken
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the next one while it waits: BUSY
+    { cmd: 'proto_pump' },                                 // the hub takes the first
+    { cmd: 'gatt_write', id: 8, hex: half },               // half of a blob arrives
+    { cmd: 'gatt_disconnect' },                            // and the link drops, taking its encryption with it
+    { cmd: 'gatt_link', encrypted: true },                 // the next link is bonded again
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the next link's blob is read from its start
+    { cmd: 'proto_pump' },
+  ]);
+  assert.deepStrictEqual(r.writes.map((w) => w.att), [0x80, 0, 0x83, 0, 0], 'refused, accepted, BUSY (0x83), the half accepted, the whole one accepted');
+  const pumps = r.log.filter((e) => e.ev === 'result' && e.cmd === 'proto_pump' && e.blob === true);
+  assert.strictEqual(pumps.length, 2, 'two blobs were taken, one after each pump');
+  assert.ok(pumps.every((p) => p.len === c.blob.length / 2), 'each whole, and the second with nothing of the half before it');
+});
+
+// ── every upload and download is encrypted: the link's security through the twin (CLAUDE.md §23, REQ-FWHUB-81) ─────────────
+
+// @verifies REQ-FWHUB-81#a,b,c
+test('end to end: with the link not encrypted the hub refuses to carry data (ATT 0x0F) and still takes a stop; encrypted, it carries it (REQ-FWHUB-81)', { skip: !BIN }, async () => {
+  const c = chunkCase('golden_pbm660');
+  const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+    { cmd: 'gatt_link', encrypted: false },
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },        // the protocol upload
+    { cmd: 'gatt_read', id: 24 },                          // UPLOAD_CHECK: the hash of what was loaded
+    { cmd: 'gatt_read', id: 16 },                          // WARRANTY_TOKEN
+    { cmd: 'gatt_read', id: 23 },                          // DEVICE_SERIAL
+    { cmd: 'gatt_write', id: 15, hex: '01' },              // SESSION_STOP: not encrypted, on purpose
+    { cmd: 'gatt_link', encrypted: true },
+    { cmd: 'gatt_write', id: 8, hex: c.chunks[0] },
+    { cmd: 'gatt_read', id: 24 },
+    { cmd: 'gatt_disconnect' },                            // the link goes down and takes its encryption with it
+    { cmd: 'gatt_read', id: 24 },
+  ]);
+  const w = r.events.filter((e) => e.ev === 'gatt_write');
+  const rd = r.events.filter((e) => e.ev === 'gatt_read');
+  assert.strictEqual(w[0].att, 0x0f, 'an upload on an unencrypted link is refused: insufficient encryption');
+  assert.deepStrictEqual(rd.slice(0, 3).map((e) => e.att), [0x0f, 0x0f, 0x0f], 'and so is every read of data: the upload check, the warranty token, the serial');
+  assert.notStrictEqual(w[1].att, 0x0f, 'a stop is not refused for want of encryption');
+  assert.strictEqual(w[2].att, 0, 'the same upload on an encrypted link is accepted');
+  assert.strictEqual(rd[3].att, 0, 'and the upload check is read');
+  assert.strictEqual(rd[4].att, 0x0f, 'after a disconnect the link is unencrypted again until the stack says otherwise');
 });

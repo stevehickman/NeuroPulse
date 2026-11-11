@@ -3,6 +3,7 @@ package life.neurone.shared
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCSignatureOverride
 import life.neurone.core.common.UUID
+import life.neurone.core.protocol.BleTransfer
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
@@ -89,6 +90,10 @@ class IosBleCentral : BleCentral {
         val p = peripheral ?: return
         characteristics[uuid.toString()]?.let { p.readValueForCharacteristic(it) }
     }
+
+    // What CoreBluetooth says a write with response carries now (the negotiated MTU less 3); 20 before a peripheral is connected (OI-SIMFW-63).
+    override val writeLength: Int
+        get() = peripheral?.maximumWriteValueLengthForType(CBCharacteristicWriteWithResponse)?.toInt() ?: BleTransfer.ATT_DEFAULT_WRITE_LENGTH
 
     override fun write(uuid: UUID, value: ByteArray) {
         val p = peripheral ?: return

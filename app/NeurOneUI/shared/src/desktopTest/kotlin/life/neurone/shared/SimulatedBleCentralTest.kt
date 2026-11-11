@@ -89,7 +89,7 @@ class SimulatedBleCentralTest {
         bridge.report(HubBridgeEvent.Opened)
         assertEquals(listOf(SimulatedBleCentral.SIMULATED_HUB_ID), rec.found)
         central.connect(SimulatedBleCentral.SIMULATED_HUB_ID)
-        assertEquals(listOf(HubBridgeCommand.Init, HubBridgeCommand.Table), bridge.sent, "the twin is brought up, then its table asked for")
+        assertEquals(listOf(HubBridgeCommand.Init, HubBridgeCommand.Table, HubBridgeCommand.Link(true)), bridge.sent, "the twin is brought up, its table asked for, and the bonded link reported encrypted")
         assertTrue(rec.connected.isEmpty(), "not connected until the whole table has arrived")
         bridge.report(*table(uploadCheck, warrantyToken).toTypedArray())
         assertEquals(listOf(SimulatedBleCentral.SIMULATED_HUB_ID), rec.connected)
@@ -134,8 +134,8 @@ class SimulatedBleCentralTest {
         connected(bridge, central, rec, uploadCheck)
         central.write(SimulatedBleCentral.uuidOf(protocolUpload), byteArrayOf(0x04, 0x0f, 0xa0.toByte()))
         assertEquals(HubBridgeCommand.Write(protocolUpload, "040fa0"), bridge.sent.last())
-        bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0x0a))
-        assertEquals(listOf(Triple(SimulatedBleCentral.uuidOf(protocolUpload), 0x0a, false)), refusals)
+        bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0x80))   // NP_ATT_APP_REFUSED: the hub's transport refused the bytes
+        assertEquals(listOf(Triple(SimulatedBleCentral.uuidOf(protocolUpload), 0x80, false)), refusals)
         bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0))
         assertEquals(1, refusals.size, "a write the hub took is not a refusal")
     }
@@ -151,6 +151,47 @@ class SimulatedBleCentralTest {
         bridge.report(HubBridgeEvent.Notification(uploadCheck, "0102"), HubBridgeEvent.Notification(warrantyToken, "ff"),
             HubBridgeEvent.Notification(firmwareVersion, "01"))
         assertEquals(listOf(SimulatedBleCentral.uuidOf(uploadCheck) to listOf<Byte>(1, 2)), rec.changes)
+    }
+
+    // @verifies REQ-FWHUB-80#d
+    @Test fun the_central_reports_the_write_a_link_carries_which_is_the_mtu_less_three_and_at_most_512() = runTest {
+        val bridge = FakeBridge()
+        assertEquals(244, SimulatedBleCentral(bridge).writeLength, "the default MTU of 247")
+        assertEquals(20, SimulatedBleCentral(bridge, 23).writeLength, "the default ATT_MTU of 23")
+        assertEquals(512, SimulatedBleCentral(bridge, 517).writeLength, "the largest MTU, cut at the hub's ceiling")
+        assertEquals(1, SimulatedBleCentral(bridge, 4).writeLength)
+        val central = SimulatedBleCentral(bridge)
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
+        central.attMtu = 188
+        assertEquals(185, manager.writeLength, "the manager reports what its central does")
+        // A central that cannot tell answers the default ATT_MTU's 20.
+        val inert = object : life.neurone.shared.ble.BleCentral {
+            override val adapterState = AdapterState.ON
+            override fun setListener(listener: BleCentralListener) {}
+            override fun startScan(serviceUuid: UUID) {}
+            override fun stopScan() {}
+            override fun connect(deviceId: String) {}
+            override fun disconnect() {}
+            override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
+            override fun enableNotifications(uuid: UUID) {}
+            override fun read(uuid: UUID) {}
+            override fun write(uuid: UUID, value: ByteArray) {}
+        }
+        assertEquals(20, inert.writeLength)
+        assertEquals(20, NeurOneGattManager(inert, TestScope(testScheduler)).writeLength)
+    }
+
+    // @verifies REQ-SIMFW-19#c
+    @Test fun a_disconnect_of_a_link_that_was_up_tells_the_hub_and_one_that_never_connected_tells_it_nothing() {
+        val bridge = FakeBridge()
+        val central = SimulatedBleCentral(bridge)
+        central.disconnect()
+        assertTrue(bridge.sent.isEmpty(), "nothing was connected, so nothing is said")
+        val rec = Recorder()
+        connected(bridge, central, rec, protocolUpload)
+        central.disconnect()
+        assertEquals(HubBridgeCommand.Disconnect, bridge.sent.last(), "the hub is told the link is down (np_gatt_on_disconnect)")
+        assertEquals(listOf(SimulatedBleCentral.SIMULATED_HUB_ID), rec.disconnected)
     }
 
     // @verifies REQ-SIMFW-19#c
@@ -170,7 +211,8 @@ class SimulatedBleCentralTest {
     }
 
     // @verifies REQ-SIMFW-19#c
-    @Test fun the_apps_gatt_manager_connects_to_it_and_an_upload_write_is_refused_as_the_hub_refuses_it() = runTest {
+    // @verifies REQ-SIMFW-19#c
+    @Test fun the_apps_gatt_manager_connects_to_it_and_the_chunkers_writes_reach_the_upload_characteristic_in_order() = runTest {
         val bridge = FakeBridge()
         val central = SimulatedBleCentral(bridge)
         val refusals = mutableListOf<Pair<Int, Int>>()
@@ -178,13 +220,22 @@ class SimulatedBleCentralTest {
         val manager = NeurOneGattManager(central, TestScope(testScheduler))
         bridge.report(HubBridgeEvent.Opened)
         assertEquals(ConnectionState.CONNECTING, manager.connectionState.value, "the manager scans, finds the simulated hub and connects")
-        // The twin's table: what np_gatt_server.c publishes (no protocol upload, no firmware version).
-        val published = listOf(0x07, 0x10, 0x17, 0x14, 0x15, 0x16, 0x18, 0x0f, 0x1a, 0x1c, 0x1d, 0x1b, 0x1e, 0x20, 0x21)
+        // The twin's table: what np_gatt_server.c publishes, the protocol upload (0x08) among it (no firmware version).
+        val published = listOf(0x07, 0x08, 0x10, 0x17, 0x14, 0x15, 0x16, 0x18, 0x0f, 0x1a, 0x1c, 0x1d, 0x1b, 0x1e, 0x20, 0x21)
         table(*published.toIntArray()).forEach(bridge::report)
         assertEquals(ConnectionState.CONNECTED, manager.connectionState.value)
-        manager.writeProtocolChunk(byteArrayOf(0x04, 0x01, 0x02))
-        assertEquals(HubBridgeCommand.Write(protocolUpload, "040102"), bridge.sent.last(), "the app writes its upload chunk to the upload characteristic")
-        bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0x0a))
-        assertEquals(listOf(protocolUpload to 0x0a), refusals, "the hub does not publish the upload, so it is not found")
+        // The app's own chunker: the transport's stream, in writes of at most 512 bytes (REQ-FWHUB-80).
+        val blob = ByteArray(1100) { (it * 7).toByte() }
+        val chunks = life.neurone.core.session.ProtocolChunker.chunk(blob)
+        chunks.forEach { manager.writeProtocolChunk(it) }
+        val writes = bridge.sent.filterIsInstance<HubBridgeCommand.Write>()
+        assertEquals(
+            chunks.map { c -> HubBridgeCommand.Write(protocolUpload, c.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }) },
+            writes, "every chunk goes to the upload characteristic, in order, as the bytes the chunker made",
+        )
+        bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0))
+        assertTrue(refusals.isEmpty(), "a write the hub took is not a refusal")
+        bridge.report(HubBridgeEvent.WriteResult(protocolUpload, att = 0x83))
+        assertEquals(listOf(protocolUpload to 0x83), refusals, "the hub still holding the last blob (BUSY) is reported as the hub's refusal")
     }
 }
