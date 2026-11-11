@@ -53,6 +53,11 @@
  * defines for use, and a code above 7 does not fit the 3-bit field: it used to be masked into another gain. */
 #define NP_EEG_GAIN_CODE_MAX  6U
 
+/* Goggles zone mask: 12 bits.  zone_mask_lo is bits 0..7 and the low four bits of zone_mask_hi are bits 8..11.
+ * The upper four bits of zone_mask_hi are reserved and must be zero; a descriptor that sets one is refused
+ * (the principal, 2026-11-11).  A width of the field, not a number with a source of its own. */
+#define NP_VISUAL_ZONE_MASK_HI_RESERVED 0xF0U
+
 /* tDCS ramp (CLAUDE.md §3: 30 s ramp).  A shorter authored ramp is refused, not
  * lengthened: a longer ramp is also a stimulus nobody authored. */
 #define STIM_MIN_RAMP_S       30U
@@ -62,6 +67,31 @@
  * (CLAUDE.md Rev 59) and both go when the pre-signing check of OI-HEXTILE-31 is
  * built.  Until then the hub refuses above it (it used to clamp). */
 #define INS_DUTY_MAX          0x32U
+
+/*
+ * np_cvns_block_ms_ok — can a cervical VNS block of this authored length be run as authored?  There is no hardcoded
+ * session maximum (retired: the principal, 2026-11-11; the length is the protocol's).  What is refused is a block
+ * with no length (0: the hub never supplies one), one too short to hold the library's ramp up and ramp down (it
+ * has no active time; geometry, not a health limit), and one longer than the library's 16-bit seconds field can
+ * carry (the field's width, about 18 hours).  Whole seconds, rounded up, so the library's own end is never earlier
+ * than the runner's stop at the end of the block.
+ */
+static inline uint32_t np_cvns_block_s(uint32_t block_ms)
+{
+    return (block_ms / 1000U) + ((block_ms % 1000U) != 0U ? 1U : 0U);
+}
+static inline bool np_cvns_block_ms_ok(uint32_t block_ms)
+{
+    const uint32_t s = np_cvns_block_s(block_ms);
+    return s > ((uint32_t)NP_CVNS_RAMP_UP_S + (uint32_t)NP_CVNS_RAMP_DOWN_S) && s <= 0xFFFFU;
+}
+/* The length a slot command authors: its own duration, or, when that is 0, the rest of the session (the wire's
+ * meaning of 0 for a drive command, which registers no auto-stop: NP-FW-HUB-001 section 5.3).  Both are in the signed descriptor. */
+static inline uint32_t np_cmd_authored_ms(const np_session_cmd_t *c, uint32_t session_ms)
+{
+    if (c->duration_ms != 0U) { return c->duration_ms; }
+    return (session_ms > c->start_ms) ? (session_ms - c->start_ms) : 0U;
+}
 
 /*
  * np_cmd_limits_check — is this one command inside the limits the hub holds?
@@ -101,6 +131,12 @@ static inline np_hub_status_t np_cmd_limits_check(np_hub_mod_type_t mod_type,
         if (len < sizeof p) { return NP_HUB_OK; }
         memcpy(&p, params, sizeof p);
         return (p.gain > NP_EEG_GAIN_CODE_MAX) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+    }
+    case NP_MOD_VISUAL: {
+        np_mod_visual_params_t p;
+        if (len < sizeof p) { return NP_HUB_OK; }
+        memcpy(&p, params, sizeof p);
+        return ((p.zone_mask_hi & NP_VISUAL_ZONE_MASK_HI_RESERVED) != 0U) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
     }
     case NP_MOD_AUDIO: {
         np_mod_audio_params_t p;
@@ -175,6 +211,12 @@ static inline np_hub_status_t np_cmd_limits_admit(const np_session_desc_t *desc)
     for (uint8_t i = 0U; i < desc->cmd_count && i < NP_HUB_PROTO_CMD_MAX; i++) {
         const np_session_cmd_t *c = &desc->cmds[i];
         if (np_cmd_limits_check(c->mod_type, c->params, c->params_len) != NP_HUB_OK) {
+            return NP_HUB_ERR_OUTSIDE_LIMIT;
+        }
+        /* A cervical VNS block is run for the length the protocol authored, never a hardcoded one, so a block
+         * that cannot be run as authored is refused here and not shortened (REQ-FWHUB-78 (k)). */
+        if (c->mod_type == NP_MOD_CVNS && c->params_len >= sizeof(np_mod_cvns_params_t) &&
+            !np_cvns_block_ms_ok(np_cmd_authored_ms(c, desc->duration_ms))) {
             return NP_HUB_ERR_OUTSIDE_LIMIT;
         }
     }

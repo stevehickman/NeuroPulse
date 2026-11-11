@@ -13,7 +13,11 @@
  *   cvns_add <left_kohm> <right_kohm> <unix_base_s>     the accessory, with the hub-side impedance it measures
  *   cvns_absent | cvns_present | cvns_clear
  *   cvns_detect | cvns_init
- *   cvns <side> <freq_mhz> <amp_ua> <pw_us> <ramp_s> <baseline_req>   np_mod_cvns_control (side 0 right, 1 left, 2 both)
+ *   cvns <side> <freq_mhz> <amp_ua> <pw_us> <ramp_s> <baseline_req> [<block_ms>]   np_mod_cvns_control (side 0 right, 1 left, 2 both).
+ *                                             <block_ms> is the block's authored length, which the runner gives the driver from the
+ *                                             command header (np_mod_cvns_set_block_ms).  With none given the scenario's is used,
+ *                                             CVNS_SCENARIO_BLOCK_MS: a test input of this harness, not a firmware default (the
+ *                                             driver refuses a start with no length); 0 passes none, to show that refusal.
  *   cvns_mcu <granted_mask> <status>          the safety MCU's heartbeat reply (status 0 = OK)
  *   cvns_mcu_imp <left_kohm> <right_kohm>     the safety MCU's own impedance report
  *   cvns_run <ms> <bpm>                       advance, push PPG at <bpm> (0 flat signal, -1 no samples at all) and tick every 100 ms
@@ -41,6 +45,10 @@
 extern np_hub_status_t np_mod_cvns_detect(uint8_t slot, np_hub_mod_type_t *type_out);
 extern np_hub_status_t np_mod_cvns_init(uint8_t slot);
 extern np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t len);
+extern void np_mod_cvns_set_block_ms(uint32_t block_ms);
+/* The block length a scenario's `cvns` line uses when it gives none: the 2 minutes of the one shipped cervical protocol
+ * (protocols/predefined/clinical-26-tcvns-migraine.npps).  A harness input (UC-128), never a limit. */
+#define CVNS_SCENARIO_BLOCK_MS 120000UL
 extern np_hub_status_t np_mod_cvns_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_cvns_shutdown(uint8_t slot);
 extern void            np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
@@ -125,8 +133,10 @@ bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char
     } else if (strcmp(cmd, "cvns_init") == 0) {
         state_event("result", cmd, (int)np_mod_cvns_init(NP_HUB_SLOT_CVNS));
     } else if (strcmp(cmd, "cvns") == 0 && a && b && c && d && e) {
-        int ramp = 0, base = 0;                                  /* e is the rest of the line: <ramp_s> <baseline_req> */
-        if (sscanf(e, "%d %d", &ramp, &base) != 2) { return false; }
+        int ramp = 0, base = 0;                                  /* e is the rest of the line: <ramp_s> <baseline_req> [<block_ms>] */
+        unsigned long block_ms = CVNS_SCENARIO_BLOCK_MS;
+        if (sscanf(e, "%d %d %lu", &ramp, &base, &block_ms) < 2) { return false; }
+        np_mod_cvns_set_block_ms((uint32_t)block_ms);
         const np_mod_cvns_params_t p = { .side = (uint8_t)atoi(a), .freq_mhz = (uint16_t)atoi(b), .amplitude_ua = (uint16_t)atoi(c),
                                          .pulse_width_us = (uint16_t)atoi(d), .ramp_s = (uint16_t)ramp, .baseline_req = (uint8_t)base };
         state_event("result", cmd, (int)np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, (uint16_t)sizeof p));

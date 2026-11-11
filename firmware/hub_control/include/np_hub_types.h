@@ -390,8 +390,13 @@ typedef struct __attribute__((packed)) {
     uint8_t  freq_hz;        /* photic drive Hz (0.5–100); 0 for EMDR/PBM only */
     uint8_t  duty_pct;       /* duty cycle 0–100 */
     uint8_t  wl_select;      /* 0=660nm, 1=808nm, 2=both */
-    uint8_t  zone_mask_lo;   /* zones 0–7 (lo byte of 12-bit per-eye zone mask) */
-    uint8_t  zone_mask_hi;   /* zones 8–11 (hi nibble) */
+    /* The zone mask is 12 bits.  zone_mask_lo carries bits 0–7.  Bits 0–3 of zone_mask_hi carry bits 8–11.  Bits 4–7
+     * of zone_mask_hi are RESERVED and must be zero: a descriptor that sets one is refused, at load and at dispatch
+     * (REQ-FWHUB-78 (l); the principal, 2026-11-11).  What the twelve bits mean per eye is NOT stated anywhere and is
+     * open (OI-FWHUB-35): CLAUDE.md section 3 gives 6 zones per eye, and this comment used to say "12-bit per-eye zone
+     * mask".  The driver passes all twelve to np_mod_visual_hal_led_set() and gives them no meaning of its own. */
+    uint8_t  zone_mask_lo;   /* mask bits 0–7 */
+    uint8_t  zone_mask_hi;   /* mask bits 8–11 in bits 0–3; bits 4–7 reserved, must be 0 (refused otherwise) */
     uint8_t  emdr_rate_mhz;  /* EMDR L/R alternation rate mHz */
     uint8_t  mode_f_enable;  /* 1=Mode F (NIR retinal walk, 808-830nm) */
     uint8_t  shade_req;      /* 0=none, 1=S1_opaque */

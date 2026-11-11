@@ -15,8 +15,12 @@
 #define NP_CVNS_CURRENT_UA_MAX        2000u   /* µA; 2 mA absolute limit         */
 #define NP_CVNS_PULSE_WIDTH_US_MIN    200u    /* µs                              */
 #define NP_CVNS_PULSE_WIDTH_US_MAX    1000u   /* µs                              */
-#define NP_CVNS_SESSION_MIN_S         60u     /* s; minimum session duration     */
-#define NP_CVNS_SESSION_MAX_S         120u    /* s; 2 min gammaCore protocol     */
+/* NP_CVNS_SESSION_MIN_S (60) and NP_CVNS_SESSION_MAX_S (120, "2 min gammaCore protocol") are RETIRED (the principal,
+ * 2026-11-11; NP-HW-CVNS-001 REQ-CVNS-04, session part; register UC-145).  They had no documented health or safety
+ * source, only the gammaCore equivalence figure of NP-REG-CVNS-001 section 3.2, and a hardcoded maximum needs one.
+ * The length of a cervical block is the protocol's: the hub passes the length the signed descriptor authored, and
+ * the library refuses a configuration with no length (0) or one too short to hold its own ramps (geometry, not a
+ * health limit).  Risk entry: NP-RISK-002 (RISK-25-f, evaluation pending Quality and Safety). */
 
 /* ── Electrode configuration ────────────────────────────────────────────────── */
 /* NP_CVNS_ELECTRODE_COUNT (2, the bilateral assembly) is generated from common/npps/constants.json (group CvnsPad), the one

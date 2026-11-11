@@ -63,6 +63,7 @@ extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
 extern void     np_mod_cvns_suspend(void);
 extern void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out);
 extern uint32_t np_mod_cvns_ramp_up_ms(void);
+extern void     np_mod_cvns_set_block_ms(uint32_t block_ms);   /* REQ-FWHUB-78 (k) */
 
 /* tDCS ramp model (modules/np_mod_stim.c, SWR-SS-05): the driver models the ramp it commanded. */
 extern void     np_mod_stim_tick(uint32_t wall_ms);
@@ -209,6 +210,12 @@ static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms,
 
     const void *params     = (cmd->params_len > 0U) ? cmd->params : NULL;
     uint16_t    params_len = cmd->params_len;
+
+    /* REQ-FWHUB-78 (k): a cervical VNS block runs for the length the protocol authored.  The length is in the command
+     * header, which control() does not receive, so the driver is told it here; it used to assume 120 s. */
+    if (slot == NP_HUB_SLOT_CVNS && params != NULL) {
+        np_mod_cvns_set_block_ms(np_cmd_authored_ms(cmd, s_ctx.desc.duration_ms));
+    }
 
     np_hub_status_t rc = mod->control(slot, params, params_len);
     if (rc != NP_HUB_OK) {

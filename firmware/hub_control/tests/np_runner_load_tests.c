@@ -250,6 +250,7 @@ bool     np_mod_cvns_active(void)                                   { UNEXPECTED
 void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)          { (void)now_ms; (void)now_s; UNEXPECTED(); }
 void     np_mod_cvns_suspend(void)                                  { UNEXPECTED(); }
 void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out)   { (void)now_ms; (void)out; UNEXPECTED(); }
+void     np_mod_cvns_set_block_ms(uint32_t block_ms)               { (void)block_ms; UNEXPECTED(); }
 uint32_t np_mod_cvns_ramp_up_ms(void)                               { UNEXPECTED(); return 0U; }
 uint32_t np_mod_cvns_hal_now_ms(void)                               { UNEXPECTED(); return 0U; }
 uint32_t np_mod_cvns_hal_now_unix(void)                             { UNEXPECTED(); return 0U; }
@@ -893,6 +894,52 @@ static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(vo
     check(np_cmd_limits_admit(NULL) == NP_HUB_ERR_INVALID_ARG, "admit: no descriptor is refused");
 }
 
+/* The length of a cervical block is the protocol's (the 60..120 s firmware bounds are retired: the principal, 2026-11-11).
+ * A block that cannot be run as authored is refused when the protocol is sent; nothing is shortened or defaulted. */
+static void set_cmd_and_session_ms(blob_t *b, uint32_t cmd_ms, uint32_t session_ms)
+{
+    memcpy(b->buf + 60, &session_ms, 4);        /* header: session_duration_ms */
+    memcpy(b->buf + 68 + 6, &cmd_ms, 4);        /* first command header: duration_ms */
+}
+
+/* @verifies REQ-FWHUB-78#k */
+static void test_a_cervical_block_of_any_authored_length_loads_and_one_that_cannot_run_is_refused(void)
+{
+    blob_t b;
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U); set_cmd_and_session_ms(&b, 300000U, 400000U);
+    expect_loads(&b, true, "cVNS length: a 5 minute block (above the retired 120 s)");
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U); set_cmd_and_session_ms(&b, 30000U, 400000U);
+    expect_loads(&b, true, "cVNS length: a 30 s block (below the retired 60 s)");
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U); set_cmd_and_session_ms(&b, 0U, 600000U);
+    expect_loads(&b, true, "cVNS length: a block with no duration of its own, which runs to the end of a 10 minute session");
+
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U);
+    set_cmd_and_session_ms(&b, (uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S) * 1000U, 400000U);
+    expect_refused_at_load(&b, true, "cVNS length: a block no longer than its two ramps");
+    blob_cvns(&b, 25000U, 1500U, 250U, 0U);
+    set_cmd_and_session_ms(&b, (uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S + 1U) * 1000U, 400000U);
+    expect_loads(&b, true, "cVNS length: one second longer than the two ramps");
+}
+
+/* The goggles' zone mask is 12 bits; the upper four bits of zone_mask_hi are reserved and must be zero. */
+static void blob_visual_mask(blob_t *b, uint8_t lo, uint8_t hi)
+{
+    np_mod_visual_params_t p;
+    memset(&p, 0, sizeof p);
+    p.mode = 0U; p.freq_hz = 40U; p.duty_pct = 50U; p.zone_mask_lo = lo; p.zone_mask_hi = hi;
+    blob_make(b, 1U, 60000U, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, (const uint8_t *)&p, sizeof p);
+}
+
+/* @verifies REQ-FWHUB-78#l */
+static void test_a_reserved_zone_mask_bit_is_refused_at_upload(void)
+{
+    blob_t b;
+    blob_visual_mask(&b, 0xFFU, 0x1FU); expect_refused_at_load(&b, false, "zone mask: bit 4 of zone_mask_hi");
+    blob_visual_mask(&b, 0x00U, 0x80U); expect_refused_at_load(&b, false, "zone mask: bit 7 of zone_mask_hi");
+    blob_visual_mask(&b, 0xFFU, 0x0FU); expect_loads(&b, false, "zone mask: 0xFF 0x0F, what the shared core writes");
+    blob_visual_mask(&b, 0x01U, 0x00U); expect_loads(&b, false, "zone mask: 0x00 in the hi byte");
+}
+
 /* The load-time refusal has a status of its own (the principal, 2026-11-11).  It is not the status a descriptor
  * built wrongly gets, and it is the one number the header gives it, which the upload-check frame carries as 40. */
 /* @verifies REQ-FWHUB-78#g */
@@ -944,6 +991,8 @@ int main(void)
     test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload();
     test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_at_upload();
     test_the_load_time_limit_refusal_has_a_status_of_its_own();
+    test_a_cervical_block_of_any_authored_length_loads_and_one_that_cannot_run_is_refused();
+    test_a_reserved_zone_mask_bit_is_refused_at_upload();
 
     if (g_unexpected != 0U) {
         printf("FAIL: np_runner_load() reached %u run-loop seam call(s)\n", g_unexpected);

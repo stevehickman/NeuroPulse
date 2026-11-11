@@ -70,8 +70,10 @@ np_cvns_status_t np_cvns_stim_init(np_cvns_stim_ctx_t           *ctx,
         config->pulse_width_us > NP_CVNS_PULSE_WIDTH_US_MAX) {
         return NP_CVNS_ERR_INVALID_ARG;
     }
-    if (config->duration_s < NP_CVNS_SESSION_MIN_S ||
-        config->duration_s > NP_CVNS_SESSION_MAX_S) {
+    /* The length is the protocol's (the hardcoded 60..120 s bounds are retired: the principal, 2026-11-11).  Two
+     * things are still refused, and neither is a health limit: no length at all (never defaulted), and a length
+     * that cannot hold the ramp up and the ramp down, for which the active time below would be negative. */
+    if (config->duration_s <= (uint16_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S)) {
         return NP_CVNS_ERR_INVALID_ARG;
     }
 

@@ -170,8 +170,8 @@ The safety MCU (STM32G071, bare-metal, IEC 62304 Class C) must own the cervical 
 | `NP_CVNS_CURRENT_UA_MAX` | 2000 | Maximum current: 2 mA (CLAUDE.md §3 T2 spec) |
 | `NP_CVNS_PULSE_WIDTH_US_MIN` | 200 | Minimum pulse width (µs) |
 | `NP_CVNS_PULSE_WIDTH_US_MAX` | 1000 | Maximum pulse width (µs) |
-| `NP_CVNS_SESSION_MIN_S` | 60 | Minimum session duration (s) |
-| `NP_CVNS_SESSION_MAX_S` | 120 | Maximum session duration (s) — gammaCore protocol: 2 min |
+| ~~`NP_CVNS_SESSION_MIN_S`~~ | ~~60~~ | **RETIRED (Rev {NP-FW-CVNS-001 to}, 2026-11-11; the principal).** Was: minimum session duration (s). Removed from `np_cvns_config.h`. No stated basis beyond the "60–120 s" of `NP-REG-CVNS-001` §3.2 |
+| ~~`NP_CVNS_SESSION_MAX_S`~~ | ~~120~~ | **RETIRED (Rev {NP-FW-CVNS-001 to}, 2026-11-11; the principal: "move the limit to the protocol definition and the hardcode be retired with a risk-file entry").** Was: maximum session duration (s), "gammaCore protocol: 2 min". It had no documented health or safety source. The session's length is the protocol's: the hub gives the library the length the signed descriptor authored (`NP-FW-HUB-001` `REQ-FWHUB-78` (k)). `np_cvns_stim_init()` still refuses a configuration with no length (0) and one no longer than `NP_CVNS_RAMP_UP_S` + `NP_CVNS_RAMP_DOWN_S`, which has no active time; neither is a health limit. Risk: `NP-RISK-002` hazard 25-f, evaluation pending |
 
 ### 3.2 Electrode and contact
 
@@ -662,7 +662,7 @@ typedef struct {
     uint16_t freq_hz;              /* 1–25 Hz                                   */
     uint16_t current_ua;           /* 0–2000 µA                                 */
     uint16_t pulse_width_us;       /* 200–1000 µs                               */
-    uint16_t duration_s;           /* 60–120 s                                  */
+    uint16_t duration_s;           /* the protocol's authored length (Rev {NP-FW-CVNS-001 to}; was 60–120 s) */
     uint8_t  electrode_config;     /* 0=bilateral, 1=unilateral_L, 2=unilateral_R */
 } np_cvns_session_config_t;
 ```
