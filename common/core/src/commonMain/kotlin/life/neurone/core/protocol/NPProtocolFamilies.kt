@@ -232,6 +232,22 @@ internal object NPLibraryRules {
     fun isValidUsedRecord(record: JsonElement): Boolean =
         ask("usedRecord") { put("check", record) }["valid"]!!.jsonPrimitive.boolean
 
+    /**
+     * One family as its releases, latest first, each with one variant for each hardware version (SWR-FM-02). The answer
+     * is the core's: `releases` (`version`, `major`, `minor`, `variants` of `hardwareVersion`, `id`, `hash`), `unreleased`
+     * (entries whose version is not major.minor) and `conflicts` (two entries of one release for one hardware version,
+     * neither of which the core chooses).
+     */
+    fun familyTree(entries: JsonArray, familyId: String): JsonObject =
+        ask("familyTree") { put("entries", entries); put("familyId", familyId) }
+
+    /**
+     * Which family each arriving entry belongs to: an import merges by family id (SWR-FM-01). Each answer has `id`,
+     * `familyId`, `family` (`existing` or `new`) and `sameContentAs`, the local members of that family with the same content hash.
+     */
+    fun importFamilies(entries: JsonArray, incoming: JsonArray): JsonArray =
+        ask("importFamilies") { put("entries", entries); put("incoming", incoming) }["entries"]!!.jsonArray
+
     /** A protocol's identity (SWR-HV-01) for the one layout there is; null for a kind that has none (a composite is hashed by [compositeContentHash]) or a protocol that cannot be hashed yet. */
     fun contentHash(entry: NPProtocolEntry): String? {
         val protocol = (entry as? NPProtocolEntry.Single)?.protocol ?: return null

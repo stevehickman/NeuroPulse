@@ -1,0 +1,6 @@
+## DHF
+author: NeurOne Software Engineering
+text: **{NP-SW-001 from → to}: §6.3 status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` for GitHub #569 package 2 (families read as releases and variants, and import by family id, in the shared core).**
+## NP-SW-001
+author: NeurOne Software Engineering
+text: **§6.3: status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` updated for GitHub #569 package 2.** The shared Rust core reads a family as its releases (`major.minor`, latest first by number) with one variant for each hardware version (`familyTree`, `SWR-FM-02` parts a, b and e), and says which family an arriving protocol belongs to on import (`importFamilies`, `SWR-FM-01`); both are reached through the existing library entry point and wrapped for the Kotlin targets and the web app. The `SWR-HV-01` test now runs the compiler with different serials, wavelength-rules tables and flags and finds one hash, and a test finds the family id absent from the compiled bytes. The statuses that said no app calls the content hash are corrected: the Kotlin, Swift and web libraries do. The stores, the screens and the Swift wrapper are not built. Four rules the core reports and does not decide are asked of the principal in `docs/human-input/oi-ui-kmp-10-release-and-variant-rules.md`. No requirement text changed.
