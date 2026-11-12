@@ -334,7 +334,7 @@ Computed from it (not measured, and not read from a table):
 
 So a 440 Hz carrier at 85 dB SPL is **80.9 dB(A)**, and a tone near 2.5 kHz at 85 dB SPL is **86.3 dB(A)**,
 above the 85 dB(A) action level §5.1 cites. For an ideal 1/f (pink) and 1/f² (brown) spectrum over 20 Hz to
-20 kHz the same formula gives −12.8 and −23.7 dB, which shows the sign only: **no noise spectrum is specified**
+20 kHz the same formula gives −2.9 and −12.8 dB (recomputed 2026-11-12; this line read −12.8 and −23.7 before, which disagreed with §8.2.7 B), which shows the sign only: **no noise spectrum is specified**
 (`OI-AUDIOHW-04`), so the noise commands are measured at both weightings (`REQ-AUDIO-22`(b)).
 
 **Does something real fail without a bound? Yes, narrowly.** `carrier_hz` is a 16-bit field. The compiler only
@@ -781,7 +781,7 @@ cup with no anti-noise (`REQ-AUDIO-14`–`16`), and that amplification is in the
 1. **The carrier range is unbounded on the wire,** so the frequency band each transducer must cover is
    undetermined. Either a range is decided (a requirement, to `CLAUDE.md` §18's standard) or the band is
    whatever the transducers deliver and the compiler refuses carriers outside it.
-2. **The noise content has no stated band or crest factor,** so "reaches 85 dB SPL cleanly in brown noise"
+2. **The noise content has no stated band or crest factor** ~~so "reaches 85 dB SPL cleanly in brown noise" cannot be checked~~ **decided 2026-11-12 (principal, §8.2.7 F): 20 Hz to 20 kHz, crest factor 12 dB, ceiling unweighted over that band; PROVISIONAL, `UC-175`.** Before the decision: "reaches 85 dB SPL cleanly in brown noise"
    cannot be checked. Brown noise concentrates energy at low frequency, where a driver's excursion limit binds.
 3. **Four output channels, or three.** `REQ-AUDIO-11` makes the planar and bone paths independent, and
    `REQ-AUDIO-03` puts one bone element per side. The HAL passes one bone frequency and one level, so one
@@ -809,7 +809,7 @@ or a vendor states. *Margin* terms (`H`) are choices and are **not set**.
 - **D2 — planar band.** The response must cover `[f_c − b, f_c + b]` for every authorable carrier `f_c`
   and beat `b` (conservative: the HAL stub does not say how the two ears split the beat). At the shipped
   carrier and the authorable limit this is 440 ± 100 Hz, that is 340–540 Hz; the EEG-adaptive maximum
-  (40 Hz) gives 400–480 Hz. Pink and brown noise add a band the record does not state (gap 2).
+  (40 Hz) gives 400–480 Hz. Pink and brown noise are generated and measured over 20 Hz to 20 kHz (decided 2026-11-12, §8.2.7 F), so D2 for noise is the planar response over that band.
 - **D3 — bone force.** The element must deliver, on an IEC 60318-6 artificial mastoid at the static force
   it runs at, a force level of at least `L_F,max(f_c) + H_B` dB re 1 µN at each carrier, where `L_F,max` is
   `REQ-AUDIO-21`(b) and its figure is `OI-AUDIOHW-13`'s. In newtons that is `10^(L / 20)` µN. The drive is
@@ -829,7 +829,7 @@ or a vendor states. *Margin* terms (`H`) are choices and are **not set**.
 | SEL-P03 | Frequency response over D2 with its tolerance, and left-right match in level and phase at the carrier | D2. The match tolerance is not set | Binaural content is built on the two ears receiving the commanded tones, so an unmatched pair delivers a different stimulus. A band that misses the carrier cannot play the protocol | `CLAUDE.md` §3 modality ⑦; `REQ-AUDIO-20`(b) (the same command sounds the same on any driver) |
 | SEL-P04 | Total harmonic distortion at 85 dB SPL at each shipped carrier and at the D2 band edges; the limit is **not set** | Vendor curve at the stated drive, then bench at the ear | At the ceiling the output is no longer the authored stimulus. A ceiling that refuses and never reshapes is defeated by a transducer that reshapes | `CLAUDE.md` §3 (a ceiling refuses, never reshapes); `REQ-AUDIO-19` |
 | SEL-P05 | Maximum continuous and peak drive (volts, watts, amperes) and the damage threshold of the diaphragm and its conductor, with the thermal limit in the cup | D1 headroom `H_P` must sit under this. Whether the hardware needs its own limit is `OI-AUDIOHW-12`'s: headroom enlarges the gap between what the hardware can output and the 85 dB it may | A command inside the ceiling, or a fault, destroys the driver. Too much headroom means the ceiling rests on Class B code alone | `REQ-AUDIO-19`; `OI-AUDIOHW-12`; §7 (acoustic overexposure) |
-| SEL-P06 | Linear excursion limit and low-frequency output at 85 dB SPL in pink and brown noise, with the content's band and crest factor stated by its owner (gap 2) | `H_crest` of D1 | The driver clips or bottoms out on the noise modes, which are shipped content | `docs/np_npps_ref_001.md` (`noise`); `REQ-AUDIO-19` |
+| SEL-P06 | Linear excursion limit and low-frequency output at 85 dB SPL in pink and brown noise, with the content's band (20 Hz to 20 kHz) and crest factor (12 dB) as decided 2026-11-12, §8.2.7 F (gap 2) | `H_crest` of D1 | The driver clips or bottoms out on the noise modes, which are shipped content | `docs/np_npps_ref_001.md` (`noise`); `REQ-AUDIO-19` |
 | SEL-P07 | Back-wave treatment: open, closed, or damped vent, and the acoustic resistance and compliance of the rear path | Fixes how much leak the driver itself adds to the front volume | A rear path that is a large designed leak makes the seal measurement read the vent instead of the foam | `REQ-AUDIO-16`; `REQ-AUDIO-14`; §6.4.7 |
 | SEL-P08 | Insertion loss of the silver-coated mesh in front of the driver at the carrier, clean and fouled | Adds to `S(f)` in D1; spread between mesh states is part of `H_tol` | The calibration holds with one mesh and not the next, and a user-replaceable part moves the delivered level | `REQ-AUDIO-05`; `REQ-AUDIO-07`; `REQ-AUDIO-20`(c) |
 | SEL-P09 | Magnetic stray field of the magnet assembly: static field versus distance, on the axis and at the temporal EEG sites, at the L2 mu-metal layer and at the fluxgate positions; **limit not set**, to be derived by EMC from the fluxgate input range and the EEG motion-artefact criterion | Vendor field plot, then bench. The fluxgate range is a part datasheet quantity not read in this task | A static offset on the fluxgate mis-sets the Helmholtz cancellation, a magnet near L2 changes its permeability state, and electrode or lead motion in a static field adds artefact to a µV recording | `CLAUDE.md` §4.3 (fluxgate, mu-metal); `NP-EMC-CAV-001` (audio is absent from its source table); `NP-BIB-EMF-001` §5.4 |
@@ -946,7 +946,7 @@ carrier range for the bone path chosen to suit the element (gap 1). Neither is c
 Delivered: the parameter tables (§8.2.2), the derived relations D1–D4, the class matrices with their source
 status (§8.2.3), the forced questions and a recommendation (§8.2.4) and the vendor request list (§8.2.6).
 **Awaiting the principal:** (1) ~~the amplifier location~~ **decided 2026-11-09: in the hub, `REQ-AUDIO-04a`**, and the choice of any part;
-(2) ~~whether to bound the carrier range~~ **no fixed floor on the carrier band, for now (decided 2026-11-10, §8.2.7 E)**, and the noise band (gap 2) is still open; (3) whether the bound piezo class
+(2) ~~whether to bound the carrier range~~ **no fixed floor on the carrier band, for now (decided 2026-11-10, §8.2.7 E)**, and the noise band (gap 2) is **decided 2026-11-12, §8.2.7 F**; (3) whether the bound piezo class
 stands if the §8.2.3 finding is borne out by measurement; and (4) opening the cited sources, which also
 belongs to the selection. **No register row is added:** this subsection sets no figure, so there is no
 choice without derivation to register. The first margin, distortion limit or stray-field limit chosen in a
@@ -1100,6 +1100,23 @@ amplifier and codec (`OI-AUDIOHW-14`). **Open:** the noise band and crest factor
 these bandwidths into pass or fail, and measured data on a candidate.
 
 ---
+
+**F. Decision of 2026-11-12 (principal): the noise band, crest factor and weighting (gap 2 of §8.2.1)**
+
+| Question | Decision | Standards-derived or product choice |
+|---|---|---|
+| Band the pink and brown noise is generated over, and its level measured over | **20 Hz to 20 kHz** | Taken from the IEC 60268-1 band-limited pink noise description in B, a secondary source; **the standard's text was not read.** SMPTE ST 2095-1 (10 Hz to 22.4 kHz) was the other candidate and was not chosen. Choosing between them is the principal's product choice |
+| Crest factor (peak to rms) the noise is generated to and the amplifier must pass without clipping | **12 dB** | The typical pink-noise figure in B (11.5 to 12 dB for the SMPTE signal), a secondary source, text unread. **None was found for brown noise; 12 dB is applied to both by decision, not by evidence.** A generator setting, not a physical constant |
+| Weighting of the `REQ-AUDIO-19` ceiling for noise | **Unweighted over the band, as now.** `REQ-AUDIO-22`(b) still records the A-weighted level and neither may exceed 85 | Product choice. It keeps the ceiling conservative: over this band the A-weighted level is about 2.0 dB (white), 2.9 dB (pink) and 12.8 dB (brown) below the unweighted one (*computed*, formula unchecked, `OI-AUDIOHW-12`) |
+
+**What this settles and what it does not.** The 85 dB ceiling for noise is now unweighted SPL over 20 Hz to 20 kHz, so it
+is no longer ambiguous. `H_crest` of D1 is 12 dB for the noise modes, so the amplifier must pass a noise peak 12 dB above
+the rms level at 85 dB SPL without clipping. **Not settled:** the planar excursion at that level in brown noise
+(`SEL-P06`) still needs the driver's data, and the 20 Hz lower edge is what sets it. Both figures are carried as
+`UC-175` (`PROVISIONAL`) until the standards' texts are read.
+**No requirement row is added** (`CLAUDE.md` §18): `REQ-AUDIO-19` and `REQ-AUDIO-22`(b) already bind the ceiling and its
+measurement, and the band and crest factor are inputs to `SEL-P06` and D1, which are the selection's rows. **No code
+changed.** Generating noise to this band and crest factor in `np_mod_audio.c` is not done and is not built here.
 
 ## 9. Open items
 
