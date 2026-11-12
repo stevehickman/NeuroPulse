@@ -163,6 +163,7 @@ set_source_files_properties(../hub_control/src/np_proto_verify.c PROPERTIES
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
     src/np_sim_runner_seams.c
+    src/np_sim_port_shim.c            # xPortIsInsideInterrupt, which the POSIX port lacks (OI-SIMFW-03)
     src/np_sim_safety_hal.c
     src/np_sim_safety_link.c
     src/np_sim_safety_harness.c

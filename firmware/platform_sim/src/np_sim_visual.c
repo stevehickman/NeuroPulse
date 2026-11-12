@@ -22,6 +22,7 @@
  * nothing: an armed response makes the call not happen, and the LEDs stay lit.
  */
 #include "np_sim_bus.h"
+#include "np_sim_port_shim.h"
 
 #include "np_sw02_platform_hal.h"
 
@@ -46,7 +47,9 @@ void np_sim_visual_lift(void)
                 (unsigned)np_sim_now_ms(), m->vis_isr != NULL ? "true" : "false");
     if (m->vis_isr != NULL) {
         m->vis_edges_delivered++;
+        np_sim_isr_enter();           /* xPortIsInsideInterrupt() is true for the handler (np_sim_port_shim.h) */
         m->vis_isr();                 /* the platform interrupt: the driver's own handler runs */
+        np_sim_isr_exit();
     }
 }
 
