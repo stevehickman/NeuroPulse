@@ -7,7 +7,7 @@
  * CI-Scans: the SW-02 platform contract (np_platform_stub.c, NP_SW02_PLATFORM_SYMBOL_COUNT) against firmware/platform_sim/np_sim_seam_routes.txt, the sim layer's definitions and the sources the twin links
  * CI-Scan-Paths: firmware/** scripts/check-sim-seam-routes.ts
  *
- * NP-SIM-FW-001 §29, REQ-SIMFW-02 (OI-SIMFW-02, OI-SIMFW-06, OI-SIMFW-14).
+ * NP-SIM-FW-001 §30, REQ-SIMFW-02 (OI-SIMFW-02, OI-SIMFW-06, OI-SIMFW-14).
  *
  * ── What it asserts ──────────────────────────────────────────────────────────────────────────────
  *
@@ -388,7 +388,7 @@ if (import.meta.main) {
   }
   if (errors.length > 0) {
     for (const e of errors) console.error(`error: ${e}`);
-    console.error(`check-sim-seam-routes: ${errors.length} problem(s). NP-SIM-FW-001 §29, REQ-SIMFW-02.`);
+    console.error(`check-sim-seam-routes: ${errors.length} problem(s). NP-SIM-FW-001 §30, REQ-SIMFW-02.`);
     process.exit(1);
   }
   console.log(`scanned: ${contract} contract seam(s) against ${Object.keys(tree.simSources).length} sim source(s) and ${linkedFirmwareSources(tree.cmake).length} linked device source(s)`);

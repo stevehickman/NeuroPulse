@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware-in-the-Loop Simulator — what the POSIX kernel port lacks (HOST ONLY)
- * Document: NP-SIM-FW-001 §29 (OI-SIMFW-03).  REQ-SIMFW-01: never built for the device.
+ * Document: NP-SIM-FW-001 §30 (OI-SIMFW-03).  REQ-SIMFW-01: never built for the device.
  *
  * The vendored FreeRTOS POSIX port (firmware/vendor/freertos/portable/ThirdParty/GCC/Posix, SOUP,
  * not edited) has no xPortIsInsideInterrupt().  The Cortex-M7 port defines it inline in its

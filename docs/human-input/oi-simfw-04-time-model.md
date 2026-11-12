@@ -1,7 +1,7 @@
 # Principal question for review: OI-SIMFW-04, which clock the twin runs on
 
 **Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-04-clock-domains.md`. Not a controlled document; see `docs/human-input/README.md`.
-**From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, §29)
+**From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, §30)
 **To:** The principal
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.
 **Why now:** the twin as built already runs on one kind of clock, and that was never recorded as a choice. `OI-SIMFW-50` (the hub's own five tasks under the FreeRTOS POSIX port) is where the choice starts to bind, and the principal approved that item first in the order of `NP-SIM-FW-001` §28. *(Written before the answer; see section 5.)*

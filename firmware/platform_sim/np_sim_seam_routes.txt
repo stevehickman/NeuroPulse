@@ -1,5 +1,5 @@
 # NeurOne Firmware-in-the-Loop Simulator: the seam route table (HOST ONLY)
-# Document: NP-SIM-FW-001 §29 (REQ-SIMFW-02; OI-SIMFW-02, OI-SIMFW-06, OI-SIMFW-14)
+# Document: NP-SIM-FW-001 §30 (REQ-SIMFW-02; OI-SIMFW-02, OI-SIMFW-06, OI-SIMFW-14)
 #
 # One row for every symbol of the SW-02 platform contract: the global functions
 # firmware/platform/src/np_platform_stub.c defines, whose number is NP_SW02_PLATFORM_SYMBOL_COUNT
@@ -31,7 +31,7 @@
 #                char-id        a GATT characteristic id (np_gatt_server.h)
 #                none           the seam addresses one part or the hub itself
 #   item         for unrouted and absent rows, the open item under which the seam gets a route or its
-#                caller is linked; "none" where no item promises one (the reason is in §29); "-" otherwise
+#                caller is linked; "none" where no item promises one (the reason is in §30); "-" otherwise
 #
 np_anon_hal_aes_ctr_crypt                   absent         -                                    none          OI-SIMFW-52
 np_anon_hal_emmc_read_scratch               absent         -                                    none          OI-SIMFW-52

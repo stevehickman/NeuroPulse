@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware-in-the-Loop Simulator — what the POSIX kernel port lacks (HOST ONLY)
- * Document: NP-SIM-FW-001 §29 (OI-SIMFW-03).  See include/np_sim_port_shim.h.
+ * Document: NP-SIM-FW-001 §30 (OI-SIMFW-03).  See include/np_sim_port_shim.h.
  *
  * Nothing here is verification evidence (REQ-SIMFW-06).
  */

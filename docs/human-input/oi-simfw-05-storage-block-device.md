@@ -1,7 +1,7 @@
 # Principal question for review: OI-SIMFW-05, what the twin's storage sits on
 
 **Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-05-temporary-file.md`. Not a controlled document; see `docs/human-input/README.md`.
-**From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, §29)
+**From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, §30)
 **To:** The principal (with the owner of `NP-FW-NVRAM-001` for Q2)
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.
 **Why now:** the twin already has one block device, chosen while building the GATT slice (`NP-SIM-FW-001` §27) and never recorded as the choice `OI-SIMFW-05` asks for. `OI-SIMFW-51` (the hub's other storage and records) needs a device per partition, so the choice is about to be made again. *(Written before the answer; see section 5.)*

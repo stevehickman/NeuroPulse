@@ -37,7 +37,7 @@
  *
  * REQ-SIMFW-02's seam accounting. That is scripts/check-sim-seam-routes.ts, which compares the SW-02
  * platform contract with firmware/platform_sim/np_sim_seam_routes.txt and the sim layer (NP-SIM-FW-001
- * §29; OI-SIMFW-02 and OI-SIMFW-14, closed). It asserts no count: the census constant counts the
+ * §30; OI-SIMFW-02 and OI-SIMFW-14, closed). It asserts no count: the census constant counts the
  * contract, and the split by disposition is printed, not fixed.
  *
  * Usage: bun scripts/check-sim-host-only.ts [--cross-probe] [--self-test]
