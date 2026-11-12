@@ -13,7 +13,9 @@
  *     mask the safety MCU granted never feeds back into it (REQ-FWHUB-17);
  *   - the session-signature command is its own frame, carries the hash and the
  *     signature, and requests nothing: only a heartbeat reply can say the
- *     signature was accepted (REQ-FWHUB-18, step 2 of §7.3).
+ *     signature was accepted (REQ-FWHUB-18, step 2 of §7.3);
+ *   - the helmet hardware version is taken only from a tier report that checks
+ *     out, and reads 1 until one has (SWR-HV-06, SWR-HV-07; NP-SW-001 §6.3.2).
  *
  * Not tested here: the runner's rule that no non-zero enable is requested
  * before SIG_PENDING clears. np_session_runner.c links into no host test.
@@ -61,6 +63,16 @@ static bool     g_corrupt_reply;
 static int      g_withhold_mode;
 static uint16_t g_wh_decl, g_wh_geom, g_wh_decl_dec, g_wh_geom_dec;
 
+/* The tier report the double clocks out at window bytes [20..26].  g_tier_send
+ * false leaves those bytes zero, which is a hub that has been sent no report. */
+static bool     g_tier_send;
+static uint8_t  g_tier_magic;
+static uint8_t  g_tier_code;
+static uint8_t  g_tier_flags;
+static uint8_t  g_tier_reason;
+static uint8_t  g_tier_hw;
+static uint16_t g_tier_sum_error;   /* added to the checksum: 0 is a good report */
+
 static uint16_t sum(const uint8_t *b, size_t n)
 {
     uint16_t s = 0U;
@@ -98,6 +110,17 @@ np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx, uint8_t *rx, uint8
                                      (g_withhold_mode == 2 ? 1U : 0U));
             memcpy(rx + NP_SAFETY_WITHHOLD_REPORT_OFFSET, &w, sizeof(w));
         }
+        if (g_tier_send) {
+            np_safety_tier_report_t t;
+            memset(&t, 0, sizeof(t));
+            t.magic      = g_tier_magic;
+            t.tier       = g_tier_code;
+            t.flags      = g_tier_flags;
+            t.reason     = g_tier_reason;
+            t.hw_version = g_tier_hw;
+            t.checksum   = (uint16_t)(sum((const uint8_t *)&t, 5U) + g_tier_sum_error);
+            memcpy(rx + NP_SAFETY_TIER_REPORT_OFFSET, &t, sizeof(t));
+        }
     }
     return NP_HUB_OK;
 }
@@ -112,7 +135,19 @@ static void reset(void)
     g_withhold_mode = 0;
     g_wh_decl = 0U;
     g_wh_geom = 0U;
+    g_tier_send = false;
+    g_tier_magic = NP_SAFETY_TIER_REPORT_MAGIC;
+    g_tier_code = NP_TIER_T1;
+    g_tier_flags = 0U;
+    g_tier_reason = NP_TIER_REASON_OK;
+    g_tier_hw = 1U;
+    g_tier_sum_error = 0U;
     memset(g_tx, 0, sizeof(g_tx));
+}
+
+static np_hub_status_t beat(void)
+{
+    return np_safety_spi_heartbeat(NP_SESSION_IDLE, 0U, NULL, 0U);
 }
 
 static uint8_t status_of_last_beat(void)
@@ -335,6 +370,109 @@ static void test_the_withhold_report_is_parsed_and_a_bad_one_is_refused(void)
     check(np_safety_spi_get_withhold_report(NULL, NULL, NULL, NULL) == false, "withhold: NULL outputs are accepted");
 }
 
+/* ── SWR-HV-06, SWR-HV-07: the helmet hardware version in the tier report ── */
+
+/* @verifies SWR-HV-06#c,d */
+static void test_the_hardware_version_in_a_valid_tier_report_is_the_one_the_function_returns(void)
+{
+    bool each = true, tier_kept = true;
+    reset();
+    g_tier_send = true;
+    for (uint8_t v = 1U; v <= 15U; v++) {
+        g_tier_hw   = v;
+        g_tier_code = ((v & 1U) != 0U) ? NP_TIER_T1 : NP_TIER_T2;
+        if (beat() != NP_HUB_OK)                           { each = false; }
+        if (np_safety_spi_get_hardware_version() != v)     { each = false; }
+        if (np_safety_spi_get_tier() != g_tier_code)       { tier_kept = false; }
+    }
+    check(each, "hw version: each value 1..15 in a valid tier report is returned by the one hub function");
+    check(tier_kept, "hw version: the tier the hub holds is the report's tier at every version (independent)");
+    check(NP_SAFETY_TIER_REPORT_OFFSET == 20U && NP_SAFETY_TIER_REPORT_LEN == 7U &&
+          (NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN) <= NP_SAFETY_RX_EXT_FRAME_LEN,
+          "hw version: the report is window bytes 20 to 26, inside the frame the hub already reads");
+}
+
+/* @verifies SWR-HV-07#a */
+static void test_a_hub_that_has_no_valid_tier_report_reads_hardware_version_one(void)
+{
+    reset();
+    check(np_safety_spi_get_hardware_version() == NP_HW_VERSION_DEFAULT && NP_HW_VERSION_DEFAULT == 1U,
+          "hw version: before any beat the hub reads version 1");
+    check(beat() == NP_HUB_OK && np_safety_spi_get_hardware_version() == 1U,
+          "hw version: a reply with no tier report reads version 1, and the beat is not a fault");
+
+    /* A version learned on one boot does not outlive the hub's re-initialisation. */
+    g_tier_send = true;
+    g_tier_hw = 9U;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 9U, "hw version: (set-up) version 9 was learned");
+    reset();
+    check(np_safety_spi_get_hardware_version() == 1U,
+          "hw version: re-initialising the link forgets the version, as it forgets the tier");
+}
+
+/* @verifies SWR-HV-06#c,f */
+static void test_a_tier_report_that_does_not_check_out_changes_no_hardware_version(void)
+{
+    reset();
+    g_tier_send = true;
+    g_tier_hw = 4U;
+    g_tier_code = NP_TIER_T2;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U && np_safety_spi_get_tier() == NP_TIER_T2,
+          "hw version: (set-up) a valid report sets version 4, T2");
+
+    g_tier_hw = 6U; g_tier_sum_error = 1U;
+    check(beat() == NP_HUB_OK && np_safety_spi_get_hardware_version() == 4U,
+          "hw version: a report whose checksum is wrong is not believed");
+    g_tier_sum_error = 0U;
+
+    g_tier_magic = (uint8_t)(NP_SAFETY_TIER_REPORT_MAGIC ^ 0x01U);
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U, "hw version: a report with the wrong magic is not believed");
+    /* The magic is checked for itself: a wrong magic whose checksum was made to
+     * come out as the right magic's would is still not a tier report. */
+    g_tier_sum_error = 1U;          /* 0x7C + 1 = the sum a 0x7D report carries */
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U,
+          "hw version: a wrong magic is refused even when the checksum is made to match");
+    g_tier_sum_error = 0U;
+    g_tier_magic = NP_SAFETY_TIER_REPORT_MAGIC;
+
+    g_tier_hw = 0U;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U, "hw version: 0 is not a version and is not believed");
+    g_tier_hw = 16U;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U, "hw version: 16 is past the last version and is not believed");
+    g_tier_hw = 0xFFU;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U, "hw version: 255 is not believed");
+
+    g_tier_hw = 6U; g_tier_code = 0x03U;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U && np_safety_spi_get_tier() == NP_TIER_T2,
+          "hw version: a report naming no tier is refused whole, version and tier both");
+    g_tier_code = NP_TIER_T2;
+
+    /* The version byte is under the checksum: a sum over bytes 0 to 3 alone
+     * would pass a report whose version was changed on the wire. */
+    g_tier_hw = 6U; g_tier_sum_error = (uint16_t)(0U - 6U);
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U,
+          "hw version: a checksum over bytes 0 to 3 only (the version left out) is not accepted");
+    g_tier_sum_error = 0U;
+
+    g_corrupt_reply = true;
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 4U,
+          "hw version: a corrupt base reply does not let its tail set a version");
+    g_corrupt_reply = false;
+
+    (void)beat();
+    check(np_safety_spi_get_hardware_version() == 6U, "hw version: the next valid report is taken");
+}
+
 int main(void)
 {
     printf("Hub safety SPI host tests (REQ-FWHUB-11, -17, -18)\n");
@@ -347,6 +485,9 @@ int main(void)
     test_fault_and_cutoff_replies_are_safety_faults();
     test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_level_is_sent_as_the_validated_cutoff();
     test_the_withhold_report_is_parsed_and_a_bad_one_is_refused();
+    test_the_hardware_version_in_a_valid_tier_report_is_the_one_the_function_returns();
+    test_a_hub_that_has_no_valid_tier_report_reads_hardware_version_one();
+    test_a_tier_report_that_does_not_check_out_changes_no_hardware_version();
     printf("\n%s (%d failure%s)\n", g_failures ? "FAILED" : "PASSED",
            g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;
