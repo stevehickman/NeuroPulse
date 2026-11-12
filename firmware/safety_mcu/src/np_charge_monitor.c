@@ -316,15 +316,26 @@ void np_charge_monitor_set_channel_waveform(uint8_t  channel,
  */
 void np_charge_monitor_geom_gate(np_safety_state_t *state)
 {
+    uint16_t held = 0U;
+
     if (state->geom_required && !s_geom_applied_clin_stim) {
-        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CLIN_STIM;
+        held |= (uint16_t)NP_SAFETY_EN_CLIN_STIM;
     }
     if (state->geom_required_tdcs && !s_geom_applied_tdcs) {
-        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_TDCS;
+        held |= (uint16_t)NP_SAFETY_EN_TDCS;
     }
     if (state->geom_required_bes && !s_geom_applied_bes) {
-        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_BES_TACS;
+        held |= (uint16_t)NP_SAFETY_EN_BES_TACS;
     }
+    state->granted_mask &= (uint16_t)~held;
+
+    /* OI-SIMFW-61: the lines this gate holds off, for the withhold report: the
+     * lines the hub requested for which the gate's condition holds.  Taken from
+     * the request and the condition, not from the bits cleared on this run:
+     * the gate runs on every loop iteration but granted_mask is only re-granted
+     * when a heartbeat arrives, so after the first iteration the line is
+     * already clear and a diff would read as 'nothing withheld'. */
+    state->withheld_geom_mask = (uint16_t)(held & state->requested_mask);
 }
 
 /*
@@ -345,6 +356,7 @@ void np_charge_monitor_geom_gate(np_safety_state_t *state)
  */
 void np_charge_monitor_decl_gate(np_safety_state_t *state)
 {
+    uint16_t held = 0U;
     uint8_t ch;
     for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
         uint16_t bit = (uint16_t)(1U << ch);
@@ -352,9 +364,81 @@ void np_charge_monitor_decl_gate(np_safety_state_t *state)
             continue;   /* not an electrode channel */
         }
         if (s_wave_class[ch] == 0U) {
-            state->granted_mask &= (uint16_t)~bit;
+            held |= bit;
         }
     }
+    state->granted_mask &= (uint16_t)~held;
+
+    /* OI-SIMFW-61: the lines this gate holds off, for the withhold report, taken
+     * from the request and the condition as in np_charge_monitor_geom_gate().
+     * A line the geometry gate also holds is named here too: the condition mask
+     * says what is true of this gate, and the decided mask (below) says whether
+     * it is the only thing holding the line. */
+    state->withheld_decl_mask = (uint16_t)(held & state->requested_mask);
+}
+
+/*
+ * np_charge_monitor_withhold_decide — which of the two gates DECIDES a withheld
+ * line (OI-SIMFW-61, option 3).  `other_refusals` is the set of lines that
+ * something other than these two gates holds this beat: the caller
+ * (np_safety_main.c) builds it from the MCU's own checks read as conditions
+ * (fault-class status flags, the cardiac block, the impedance gate, the tier
+ * gate).  A line is decided by a gate when that gate's condition holds for it
+ * and nothing else does: not the other gate, not anything in `other_refusals`.
+ * So a line held by both gates is decided by neither, and a line held by one gate
+ * and, say, the tier gate is decided by neither.  Called after the two gates have
+ * run, on every loop iteration, from conditions only (never from bits already
+ * cleared: granted_mask is only re-granted on a heartbeat), so the result is
+ * steady across the 200 ms between heartbeats.
+ */
+void np_charge_monitor_withhold_decide(np_safety_state_t *state, uint16_t other_refusals)
+{
+    if (state == NULL) {
+        return;
+    }
+    state->withheld_decl_decided = (uint16_t)(state->withheld_decl_mask &
+        (uint16_t)~(uint16_t)(other_refusals | state->withheld_geom_mask));
+    state->withheld_geom_decided = (uint16_t)(state->withheld_geom_mask &
+        (uint16_t)~(uint16_t)(other_refusals | state->withheld_decl_mask));
+}
+
+/* Additive sum of the first n bytes of the report, wrapping uint16: the checksum
+ * the other reports use. */
+static uint16_t withhold_sum(const uint16_t *words, uint8_t n_words, uint8_t magic)
+{
+    uint16_t sum = (uint16_t)magic;
+    uint8_t  i;
+    for (i = 0U; i < n_words; i++) {
+        sum = (uint16_t)(sum + (uint16_t)(words[i] & 0xFFU) + (uint16_t)(words[i] >> 8));
+    }
+    return sum;
+}
+
+/*
+ * np_charge_monitor_build_withhold_report — the MISO withhold report for this
+ * beat (OI-SIMFW-61): the conditions the geometry gate and the declaration gate
+ * hold for requested lines, and which of them decides.  Fixed shape: every field
+ * is populated whatever the state.  The checksum is the additive sum of bytes
+ * [0..8], as the other reports' are.
+ */
+void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
+                                             np_safety_withhold_report_t *out)
+{
+    uint16_t words[4];
+
+    if ((state == NULL) || (out == NULL)) {
+        return;
+    }
+    out->magic        = NP_SAFETY_WITHHOLD_REPORT_MAGIC;
+    out->decl_mask    = state->withheld_decl_mask;
+    out->geom_mask    = state->withheld_geom_mask;
+    out->decl_decided = state->withheld_decl_decided;
+    out->geom_decided = state->withheld_geom_decided;
+    words[0] = out->decl_mask;
+    words[1] = out->geom_mask;
+    words[2] = out->decl_decided;
+    words[3] = out->geom_decided;
+    out->checksum = withhold_sum(words, 4U, out->magic);
 }
 
 /* ── DC: per-session accumulation ─────────────────────────────────────────── */
