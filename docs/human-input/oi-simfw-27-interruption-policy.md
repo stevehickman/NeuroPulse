@@ -1,6 +1,6 @@
 # OI-SIMFW-27 — a proposed interruption policy: outage length, flapping, ramps, and what is logged and delivered
 
-**Status:** ANSWERED 2026-11-10 by the principal, all eight questions: **Q1 A, Q2 A, Q3 C, Q4 A, Q5 A, Q6 B, Q7 A (widened), Q8 C** (recorded in §4 and in `docs/status/completed-decisions.md`). **The safety MCU owner's review is pending**, and every parameter value is still open. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
+**Status:** ANSWERED 2026-11-10 by the principal, all eight questions: **Q1 A, Q2 A, Q3 C, Q4 A, Q5 A, Q6 B, Q7 A (widened), Q8 C** (recorded in §4 and in `docs/status/completed-decisions.md`). **The safety MCU owner's review is pending**, and every parameter value is still open. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **Q9 (§8) added 2026-11-11, not answered.** **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
 **To:** the safety MCU's owner (not yet named), with Risk and Clinical/HFE where marked. **Owning item:** `OI-SIMFW-27`
 (`docs/np_sim_fw_001.md` §23); touches `OI-SIMFW-41` only where noted.
 
@@ -162,3 +162,33 @@ For each of Q1 to Q8: the option chosen, a short rationale (CLAUDE.md §18 wants
 ## 7. What follows once it is answered
 
 The owning files take the requirements (the safety MCU's firmware document and `NP-FMEA-001`; `NP-RISK-*` carries the hazard rows); `docs/status/completed-decisions.md` logs the ruling; the firmware changes in `np_spi_watchdog.c`, `np_safety_main.c` (the reply's spare bytes), `np_safety_config.h`, the two ramp drivers and `np_session_runner.c`; **`np_nv_state.c` is refactored so its log, commit and compaction code is a shared helper, and a new store (two more of the 64 flash pages) holds the `LATCH(line)` records and the reset counter (Q8 C)**; a new slope check (PR-4) in the safety MCU's sources; the app's notice text and its locale keys (PR-5, `T_notice`); a scenario in `np_sim_safety_tests.c` pins each ruling. **The simulator then follows the firmware** (`REQ-SIMFW-16` (b)), and its "Heartbeat lost" button gains a duration choice so both sides of `T_resume` can be run. Until then nothing in the simulator or the firmware changes.
+
+## 8. Added 2026-11-11: two design inputs already state a latch (Q9, not answered)
+
+Found while working GitHub #826 (a Claude Code session working for the principal). No firmware was changed.
+
+`NP-DT-001` holds two Safety-Critical design inputs that this draft did not cite:
+
+| Input | Text |
+|---|---|
+| `DI-SAFE-02` | "SPI heartbeat watchdog: safety MCU receives 200 ms heartbeat; 1.5 s timeout without heartbeat → all stimulation GPIO cutoff ≤50 ms; **fault latch requires explicit clear**" |
+| `DI-SAFE-09` | "Fault latch: **any safety cutoff latches the fault state**; explicit app confirmation + repeat impedance check required to re-enable" |
+
+Read as written, they require every heartbeat-loss cut to latch until an explicit clear. That is Q1's option B. The
+firmware does not do it (the first live beat grants again), and the principal's answer to Q1 is A (an outage below
+`T_resume` may restart). So the design inputs, the code and the answered policy are three different behaviours.
+
+**Q9. How should `DI-SAFE-02` and `DI-SAFE-09` read once the policy is accepted?**
+
+| Option | What it means | Cost |
+|---|---|---|
+| **A. Amend them to the policy** | Both are reworded so a latch follows PR-1 to PR-3 (time-qualified, counted), in the change that records the policy in its owning files | A design-input change, which the safety MCU's owner and Risk approve. Until it lands the code is short of the inputs as written |
+| **B. They stand, and Q1 becomes B** | Any heartbeat-loss cut latches | Reverses the principal's Q1 answer. A connector glitch ends the session |
+
+**Recommendation: A**, because the principal has already answered Q1 and the inputs predate that answer. It is still
+the owner's call, and it is the reason the narrow defect of `OI-SIMFW-27` (no reply reports the cut) was not fixed on
+its own: the only stated behaviour for a watchdog cut is the latch of `DI-SAFE-02`, which Q1 A sets aside, and the
+reporting format of PR-5 (a sticky flag and the outage length) is not accepted yet.
+
+The same two inputs bear on `OI-SIMFW-32` and `OI-SIMFW-33` (which faults clear, and how) and on the thermal re-arm
+(`np_thermal_interlock.c` clears its own cutoff at 55 °C with no confirmation). Those requests cite this section.
