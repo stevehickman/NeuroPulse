@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 158
-**Date:** 2026-11-12  
+**Revision:** 159
+**Date:** 2026-11-11  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -811,3 +811,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 156 | 2026-11-11 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-11` restated for the stream framing (a 4-byte little-endian length, then the blob, in writes of at most the link's write length: the negotiated MTU less 3, never above 512) in place of the START, CONT, END and SINGLE frames.** |
 | 157 | 2026-11-11 | NeurOne Software Engineering | **§6.3.2 status cells of `SWR-HV-06` and `SWR-HV-07`.** `SWR-HV-06`: the hub-parse host test is built (`np_safety_spi_tests`), and re-initialising the link now resets the hub's version to the default, as it already reset the tier. `SWR-HV-07`: the removal item is checked by the build, since the generated socket table is a compile error with a second hardware version while `NP_HW_VERSION_DEFAULT` is defined. Parts declared for both rows in `docs/status/requirement-parts.json` and every test tag names its part. No requirement text changed. Still open: the factory step, and the removal itself. |
 | 158 | 2026-11-12 | NeurOne Software Engineering | **§6.3: status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` updated for GitHub #569 package 2.** The shared Rust core reads a family as its releases (`major.minor`, latest first by number) with one variant for each hardware version (`familyTree`, `SWR-FM-02` parts a, b and e), and says which family an arriving protocol belongs to on import (`importFamilies`, `SWR-FM-01`); both are reached through the existing library entry point and wrapped for the Kotlin targets and the web app. The `SWR-HV-01` test now runs the compiler with different serials, wavelength-rules tables and flags and finds one hash, and a test finds the family id absent from the compiled bytes. The statuses that said no app calls the content hash are corrected: the Kotlin, Swift and web libraries do. The stores, the screens and the Swift wrapper are not built. Four rules the core reports and does not decide are asked of the principal in `docs/human-input/oi-ui-kmp-10-release-and-variant-rules.md`. No requirement text changed. |
+| 159 | 2026-11-11 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated from the health-limit survey for GitHub #563 (`docs/reference/health-limits.md`): which modalities have a per-session figure, which have none, that no per-day limit is enforced, and that the two decisions it waits on are `OI-HLIM-01` (the principal) and `OI-HLIM-02` (clinical). No requirement text changed and nothing is built by this change.** |
