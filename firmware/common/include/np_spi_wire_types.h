@@ -744,4 +744,67 @@ typedef char _np_spi_tier_report_fits_check[
         <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
 ];
 
+/* ── MCU→hub withhold report (OI-SIMFW-61, the safety MCU owner's approval 2026-11-11) ─
+ * Why a line the hub requested was not granted, for the two gates that clear a
+ * line with status OK and no fault slot.  Four masks, bit n = the NP_SAFETY_EN_*
+ * bit of the line, as in the granted mask:
+ *   decl_mask     lines the hub REQUESTED for which the waveform-declaration
+ *                 gate's condition holds: an electrical channel whose waveform
+ *                 class was never declared this session (OI-CHARGE-05);
+ *   geom_mask     lines the hub REQUESTED for which the electrode-geometry
+ *                 gate's condition holds: the session needs a geometry that no
+ *                 valid area command has set (OI-CHARGE-03/-04, OI-MMSOCK-02);
+ *   decl_decided  the lines in decl_mask for which that gate is the ONLY thing
+ *                 holding the line: nothing else the MCU evaluates refuses it,
+ *                 so fixing the declaration alone releases it;
+ *   geom_decided  the same for the geometry gate.
+ * A condition mask can name a line that something else also holds (the other
+ * gate, a failed contact check, the tier gate, a pending session signature, a
+ * cutoff).  The decided mask is how a reader tells the deciding cause from a
+ * cause that is true but not enough: a line in decl_mask and not in
+ * decl_decided is held by the declaration gate AND by something else.  A line
+ * held by both gates is in both condition masks and in neither decided mask.
+ * "Something else" is exactly what the MCU's own checks hold, read as conditions
+ * (np_safety_main.c: the heartbeat grant's fault, thermal, charge, pending
+ * signature and watchdog flags; the cardiac block; the impedance gate; the tier
+ * gate; the other charge gate).  Nothing the MCU does not evaluate is named.
+ * All four masks are recomputed on every loop iteration from the request and
+ * the conditions, so a line whose class or geometry arrives disappears on the
+ * next beat.  Conditions are read, not the bits cleared on a run: the gates run
+ * on every iteration while granted_mask is only re-granted when a heartbeat
+ * arrives.  Fixed shape: every field is populated on every beat, with zero
+ * masks when nothing was withheld.
+ *
+ * The report fills the spare window exactly: bytes [27..37] of the 38-byte
+ * frame.  Nothing is deployed, so no earlier layout (the 7-byte report built
+ * first on this branch carried only the two condition masks) is kept.
+ *
+ * Privacy: line masks of device geometry and declaration state say nothing
+ * about a person.  This report is NOT written to SHDR (the SHDR schema has no
+ * field for it); the hub keeps it for its own display and for the app.
+ *
+ * The magic continues the sequence of the other reports (0x5A, 0x6C, 0x7D);
+ * its value is a choice, recorded in docs/status/unjustified-choices.md. */
+#define NP_SAFETY_WITHHOLD_REPORT_MAGIC   0x8EU
+#define NP_SAFETY_WITHHOLD_REPORT_OFFSET  (NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN)
+
+typedef struct __attribute__((packed)) {
+    uint8_t  magic;            /* NP_SAFETY_WITHHOLD_REPORT_MAGIC                      */
+    uint16_t decl_mask;        /* requested lines the declaration gate's condition holds for */
+    uint16_t geom_mask;        /* requested lines the geometry gate's condition holds for    */
+    uint16_t decl_decided;     /* of decl_mask: lines no other check holds              */
+    uint16_t geom_decided;     /* of geom_mask: lines no other check holds              */
+    uint16_t checksum;         /* additive sum of bytes [0..8], wrapping uint16        */
+} np_safety_withhold_report_t; /* 11 bytes; window bytes [27..37]                      */
+
+#define NP_SAFETY_WITHHOLD_REPORT_LEN  11U
+
+typedef char _np_spi_withhold_report_size_check[
+    (sizeof(np_safety_withhold_report_t) == NP_SAFETY_WITHHOLD_REPORT_LEN) ? 1 : -1
+];
+typedef char _np_spi_withhold_report_fits_check[
+    ((NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN)
+        <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
+];
+
 #endif /* NP_SPI_WIRE_TYPES_H */

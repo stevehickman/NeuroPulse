@@ -319,6 +319,21 @@ uint8_t np_safety_spi_get_tier(void);
 bool    np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out);
 
 /*
+ * np_safety_spi_get_withhold_report — why the MCU did not grant lines the hub
+ * requested (OI-SIMFW-61): `decl_mask_out` and `geom_mask_out` are the
+ * NP_SAFETY_EN_* lines for which its waveform-declaration gate's and its
+ * electrode-geometry gate's conditions hold; `decl_decided_out` and
+ * `geom_decided_out` are the lines among those that no other check the MCU
+ * evaluates holds, so the gate alone decides them (a line held by a gate and by
+ * something else is in the condition mask and not in the decided mask).  Any
+ * output may be NULL.  Returns false (and every mask 0) when the last frame
+ * carried no valid report, so a stale cause is never reported.  About device
+ * geometry and declarations, not a person; never SHDR.
+ */
+bool    np_safety_spi_get_withhold_report(uint16_t *decl_mask_out, uint16_t *geom_mask_out,
+                                          uint16_t *decl_decided_out, uint16_t *geom_decided_out);
+
+/*
  * np_safety_spi_get_hardware_version — the helmet hardware version (1..15) the
  * safety MCU read from its verified tier record (SWR-HV-06).  The one
  * main-processor function that returns it.  1 until a valid report arrives and

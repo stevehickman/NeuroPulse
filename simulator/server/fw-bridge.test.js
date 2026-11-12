@@ -610,6 +610,43 @@ test('end to end: through the bridge the safety MCU grants a BES line, then the 
   assert.strictEqual(bridge.list().safety.lines, cut.lines, 'and MODULE_LIST carries that state');
 });
 
+// @verifies REQ-FWHUB-82#d
+test('end to end: the withhold report says the BES line is held for its undeclared waveform class, and drops it once declared', { skip: !BIN }, async () => {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const send = (m) => bridge.handle(m);
+  const states = () => seen.filter((m) => m.type === 'SAFETY_STATE').map((m) => m.event);
+  send({ type: 'FW_COMMAND', cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_imp', channel: 2, ohm: 5000 });
+  send({ type: 'MODULE_SET', kind: 'stim_pair', pair: 0, patch: { add: 5 } });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_sig', which: 'good' });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 400, state: 3 });
+  send({ type: 'FW_COMMAND', cmd: 'bes', pair: 0, waveform: 0, freq_mhz: 10000, amp_ua: 500 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
+  await wait(300);
+  const held = states().pop();
+  assert.strictEqual((held.requested >> 5) & 1, 1, 'the hub requests the BES line');
+  assert.strictEqual((held.lines >> 1) & 1, 0, 'and the MCU does not enable it (status OK, no fault slot)');
+  assert.strictEqual(held.status, 0, 'with status OK');
+  assert.strictEqual(held.withhold_valid, true, 'the reply carries a valid withhold report');
+  assert.strictEqual((held.withhold_decl >> 5) & 1, 1, 'which names the BES line (bit 5) as held by the waveform-declaration gate');
+  assert.strictEqual(held.withhold_geom, 0, 'and nothing as held by the geometry gate');
+  assert.strictEqual((held.withhold_decl_decided >> 5) & 1, 1, 'and the declaration gate DECIDES it: nothing else holds the line (signed, in contact)');
+  assert.strictEqual(held.withhold_geom_decided, 0, 'the geometry gate decides nothing');
+  send({ type: 'FW_COMMAND', cmd: 'safety_wave', channel: 5, class: 2, phase_us: 20000 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_limits', channel: 5, area_mcm2: 1000 });
+  send({ type: 'FW_COMMAND', cmd: 'safety_run', ms: 1000, state: 3 });
+  await wait(300);
+  bridge.stop();
+  const driven = states().pop();
+  assert.strictEqual((driven.lines >> 1) & 1, 1, 'declared, the line is enabled');
+  assert.strictEqual((driven.withhold_decl >> 5) & 1, 0, 'and the report no longer names it');
+  assert.strictEqual((driven.withhold_decl_decided >> 5) & 1, 0, 'in the decided mask either');
+});
+
 // ── the app's protocol upload, over the hub's own transport (NP-SIM-FW-001 §26, REQ-SIMFW-17) ──────────────────────────────────
 
 const nodeCrypto = require('node:crypto');
