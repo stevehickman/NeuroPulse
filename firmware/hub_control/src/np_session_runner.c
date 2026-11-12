@@ -36,6 +36,7 @@
 #include "np_session_log.h"
 #include "np_log_backend.h"   /* OI-NVRAM-19: np_log_backend_admits_sessions() */
 #include "np_layout_bind.h"   /* REQ-FWHUB-64: np_layout_admit() */
+#include "np_cmd_limits.h"    /* REQ-FWHUB-78: np_cmd_limits_admit() */
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
@@ -62,6 +63,7 @@ extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
 extern void     np_mod_cvns_suspend(void);
 extern void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out);
 extern uint32_t np_mod_cvns_ramp_up_ms(void);
+extern void     np_mod_cvns_set_block_ms(uint32_t block_ms);   /* REQ-FWHUB-78 (k) */
 
 /* tDCS ramp model (modules/np_mod_stim.c, SWR-SS-05): the driver models the ramp it commanded. */
 extern void     np_mod_stim_tick(uint32_t wall_ms);
@@ -208,6 +210,12 @@ static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms,
 
     const void *params     = (cmd->params_len > 0U) ? cmd->params : NULL;
     uint16_t    params_len = cmd->params_len;
+
+    /* REQ-FWHUB-78 (k): a cervical VNS block runs for the length the protocol authored.  The length is in the command
+     * header, which control() does not receive, so the driver is told it here; it used to assume 120 s. */
+    if (slot == NP_HUB_SLOT_CVNS && params != NULL) {
+        np_mod_cvns_set_block_ms(np_cmd_authored_ms(cmd, s_ctx.desc.duration_ms));
+    }
 
     np_hub_status_t rc = mod->control(slot, params, params_len);
     if (rc != NP_HUB_OK) {
@@ -805,6 +813,20 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
      * with a status of its own, so the person learns it when they send the protocol and not when the session runs.  The
      * goggles refuse the same drive at dispatch (REQ-FWHUB-65); this is the earlier of the two. */
     rc = np_protocol_photic_admit(&s_ctx.desc, np_ppx_zone_permitted());
+    if (rc != NP_HUB_OK) {
+        memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
+        s_ctx.state = NP_SESSION_IDLE;
+        np_lease_release();
+        return rc;
+    }
+
+    /* REQ-FWHUB-78 (g): a command whose value is outside a limit a hub driver holds (BES or tDCS current, the tDCS
+     * ramp, auricular VNS current, PBM or intranasal duty) refuses the protocol here, whole, so the person learns it
+     * when they send the protocol and not as a refused command mid-session.  The drivers refuse the same command at
+     * dispatch with the same predicate (np_cmd_limits_check); this is the earlier of the two.  The status is
+     * NP_HUB_ERR_OUTSIDE_LIMIT, reason 40, a status of its own (the principal, 2026-11-11): it was reason 2, which
+     * the apps can only call a descriptor built wrongly. */
+    rc = np_cmd_limits_admit(&s_ctx.desc);
     if (rc != NP_HUB_OK) {
         memset(&s_ctx.desc, 0, sizeof(s_ctx.desc));
         s_ctx.state = NP_SESSION_IDLE;

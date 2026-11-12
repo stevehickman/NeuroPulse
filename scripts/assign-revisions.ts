@@ -48,7 +48,10 @@ import {
   type Fragment,
 } from "./revision-lib";
 
-const INDEX_ROW = new RegExp(String.raw`^\| (${SERIAL})(?: \([^)]*\))? \|.*\| \d+ \| ${DATE} \| \[`);
+/* The serial cell may be bold (`| **NP-RISK-002** |`: the DHF index bolds some rows); the bold is matched and kept. */
+const INDEX_ROW = new RegExp(String.raw`^\| (?:\*\*)?(${SERIAL})(?:\*\*)?(?: \([^)]*\))? \|.*\| \d+ \| ${DATE} \| \[`);
+/** The serial in an index row's first cell, without the bold some rows carry. */
+const rowSerial = (l: string): string => l.split("|")[1].trim().replace(/^\*\*(.*)\*\*$/, "$1");
 const read = (root: string, f: string): string => readFileSync(join(root, f), "utf8");
 const write = (root: string, f: string, t: string): void => writeFileSync(join(root, f), t);
 
@@ -107,7 +110,7 @@ function setIndexRow(dhf: string, serial: string, rev: number, date: string): st
   const out = dhf.split("\n").map((l) => {
     if (!INDEX_ROW.test(l)) return l;
     const cells = l.split("|");
-    if (cells[1].trim() !== serial) return l;
+    if (rowSerial(l) !== serial) return l;
     hit++;
     const k = cells.findIndex((c, i) => i >= 2 && /^\s*\d+\s*$/.test(c) && new RegExp(`^\\s*${DATE}\\s*$`).test(cells[i + 1] ?? ""));
     cells[k] = ` ${rev} `;
@@ -211,7 +214,7 @@ export function convertBranch(root: string, base = "origin/main"): string {
   let dhf = get(DHF_FILE);
   const baseDhf = show(root, mb, DHF_FILE) as string;
   for (const serial of order) {
-    const row = baseDhf.split("\n").find((l) => INDEX_ROW.test(l) && l.split("|")[1].trim() === serial);
+    const row = baseDhf.split("\n").find((l) => INDEX_ROW.test(l) && rowSerial(l) === serial);
     if (row === undefined) continue;
     const cells = row.split("|");
     const k = cells.findIndex((c, i) => i >= 2 && /^\s*\d+\s*$/.test(c) && new RegExp(`^\\s*${DATE}\\s*$`).test(cells[i + 1] ?? ""));
@@ -255,6 +258,11 @@ function selfTest(): void {
   const commit = (r: string, m: string): void => { git(r, "add", "-A"); git(r, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", m); };
   const frag = (r: string, name: string, body: string): void => { mkdirSync(join(r, PENDING_DIR), { recursive: true }); writeFileSync(join(r, PENDING_DIR, name), body); };
 
+  {
+    const bold = "| **NP-RISK-002** | Risk File | 16 | 2026-10-08 | [r](./np_risk_002.md) | ACTIVE | RISK |";
+    check(setIndexRow(bold, "NP-RISK-002", 17, "2026-11-02") === "| **NP-RISK-002** | Risk File | 17 | 2026-11-02 | [r](./np_risk_002.md) | ACTIVE | RISK |",
+      "an index row whose serial cell is bold is found, its Rev and Date set, and its bold kept");
+  }
   const r = mk();
   try {
     commit(r, "base");

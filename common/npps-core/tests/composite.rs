@@ -87,10 +87,12 @@ fn a_composite_with_no_overlapping_modality_compiles_and_has_a_hash() {
 #[test]
 fn two_layers_driving_one_modality_at_once_are_refused_not_summed() {
     let lib = library();
-    for name in ["Full Multi-Modal RCT", "Calm to Focus"] {
-        let err = compile_json(&compile_req(&lib, &named(&lib, name))).unwrap_err();
-        assert!(err.contains("refused rather than summed or reduced"), "{name}: {err}");
-    }
+    // "Full Multi-Modal RCT" has the same overlap, but a layer of it is continuous-wave PBM, which the compiler refuses
+    // first now that a 100 % duty is no longer encoded as 25 % (REQ-NPPS-33 (a)); so it is refused for its duty.
+    let err = compile_json(&compile_req(&lib, &named(&lib, "Calm to Focus"))).unwrap_err();
+    assert!(err.contains("refused rather than summed or reduced"), "{err}");
+    let err = compile_json(&compile_req(&lib, &named(&lib, "Full Multi-Modal RCT"))).unwrap_err();
+    assert!(err.contains("exceeds firmware maximum of 25%"), "{err}");
 }
 
 // @verifies SWR-PL-01

@@ -83,6 +83,17 @@ Both predicates are Class II, 21 CFR 882.5800, Product Code GZF (non-invasive ne
 
 ### 3.2 Comparison table
 
+> **⚠ NOTE, Rev {NP-REG-CVNS-001 to} (2026-11-11): the "Session duration" row below no longer describes a hardware
+> bound, and this argument needs regulatory review.** The principal decided on 2026-11-11 that the length of a
+> cervical block is set by the protocol definition and that the firmware's hardcoded 60–120 s bounds are retired,
+> because they had no documented health or safety source, only this table's equivalence figure
+> (`NP-HW-CVNS-001` `REQ-CVNS-04`, session part retired; `NP-FW-HUB-001` `REQ-FWHUB-78` (k); `NP-RISK-002`
+> hazard 25-f, evaluation pending). The device no longer enforces a session of 60–120 s, so the row cannot be
+> read as "equal to or more conservative than gammaCore" as it stands. **The table and the argument are not
+> rewritten here.** What the submission should say about session length (a protocol-level limit, a labelled
+> dose, or a restored bound with a source), and whether gammaCore's labelling has been checked against the
+> source, is for Regulatory Affairs. §2's "session duration 60–120 seconds" has the same status.
+
 | Feature | NeurOne Pro Cervical VNS | gammaCore (K163334) | gammaCore (K173323) |
 |---------|----------------------------|---------------------|---------------------|
 | Stimulation site | Cervical vagus nerve, transcutaneous, carotid sheath | Cervical vagus nerve, transcutaneous, carotid sheath | Same as K163334 |

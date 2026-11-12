@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "../include/np_chan_decl.h"
+#include "../include/np_cmd_limits.h"   /* REQ-FWHUB-78 (j): the frequency floors */
 
 static int g_failures = 0;
 
@@ -235,10 +236,48 @@ static void test_half_period(void)
 {
     check(np_chan_decl_half_period_us(500U) == 1000000UL, "0.5 Hz -> 1,000,000 us");
     check(np_chan_decl_half_period_us(40000U) == 12500UL, "40 Hz -> 12,500 us");
-    check(np_chan_decl_half_period_us(0U) == (uint32_t)NP_CHARGE_MAX_PHASE_US,
-          "0 Hz -> clamp (strictest verdict)");
-    check(np_chan_decl_half_period_us(1U) == (uint32_t)NP_CHARGE_MAX_PHASE_US,
-          "1 mHz -> clamped");
+    check(np_chan_decl_half_period_us(0U) == UINT32_MAX,
+          "0 Hz -> the longest phase the field carries (the strictest verdict; the hub refuses 0 Hz first)");
+    check(np_chan_decl_half_period_us(1U) == 500000000UL,
+          "1 mHz -> 500,000,000 us, the true half period (it used to be clamped to 2 s)");
+    check(np_chan_decl_half_period_us(249U) == 2008032UL,
+          "0.249 Hz -> 2,008,032 us, the true half period above the old 2 s clamp");
+}
+
+/* REQ-FWHUB-78 (j).  The phase the hub declares to the safety MCU is the true half period for every frequency, and
+ * the hub refuses the frequencies outside the stated ranges (and 0 Hz, which has no half period).  The 2 s clamp
+ * both processors once applied is removed (the principal, 2026-11-11), so nothing declared is ever shortened.
+ * Exhaustive: every value the 16-bit milli-hertz field can carry, for both modalities that declare a half period. */
+/* @verifies REQ-FWHUB-78#j */
+static void test_every_frequency_declares_its_true_half_period_and_the_ranges_are_refused(void)
+{
+    unsigned bes_admitted = 0U, tacs_admitted = 0U, untrue = 0U, below_floor_admitted = 0U;
+
+    for (uint32_t f = 0U; f <= 0xFFFFU; f++) {
+        if (f != 0U && np_chan_decl_half_period_us((uint16_t)f) != 500000000UL / f) { untrue++; }
+
+        np_mod_bes_tacs_params_t b;
+        memset(&b, 0, sizeof b);
+        b.freq_mhz = (uint16_t)f; b.amplitude_ua = 500U;
+        const bool bes_ok = (np_cmd_limits_check(NP_MOD_BES_TACS, &b, sizeof b) == NP_HUB_OK);
+
+        np_mod_clin_tacs_params_t t;
+        memset(&t, 0, sizeof t);
+        t.freq_mhz = (uint16_t)f; t.amplitude_ua = 500U;
+        const bool tacs_ok = (np_cmd_limits_check(NP_MOD_CLIN_TACS, &t, sizeof t) == NP_HUB_OK);
+
+        if (bes_ok)  { bes_admitted++; }
+        if (tacs_ok) { tacs_admitted++; }
+        if (f < NP_BES_FREQ_MHZ_MIN && (bes_ok || tacs_ok)) { below_floor_admitted++; }
+    }
+    check(untrue == 0U, "every frequency above zero declares exactly 500e6 / f us: nothing is clamped");
+    check(bes_admitted == (NP_BES_FREQ_MHZ_MAX - NP_BES_FREQ_MHZ_MIN + 1U),
+          "BES/tACS: exactly the frequencies from 0.5 Hz to 40 Hz are admitted");
+    check(tacs_admitted == (0xFFFFU - NP_CLIN_TACS_FREQ_MHZ_MIN + 1U),
+          "clinical tACS: every frequency from 0.5 Hz up is admitted");
+    check(below_floor_admitted == 0U, "nothing below 0.5 Hz, 0 Hz included, is admitted for either modality");
+    check(np_chan_decl_half_period_us((uint16_t)NP_BES_FREQ_MHZ_MIN) == 1000000UL,
+          "the floor, 0.5 Hz, declares 1 s");
 }
 
 int main(void)
@@ -252,6 +291,7 @@ int main(void)
     test_mixed_session_arms_each_gate_independently();
     test_nothing_electrical();
     test_half_period();
+    test_every_frequency_declares_its_true_half_period_and_the_ranges_are_refused();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

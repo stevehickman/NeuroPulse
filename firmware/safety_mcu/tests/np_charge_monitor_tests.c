@@ -800,25 +800,82 @@ static void test_bes_geom_gate_independent_and_rearms(void)
           "bes geom gate: re-armed after reset_session (blocks until re-declared)");
 }
 
-/* The declared phase duration is clamped, so a malformed or hostile value
- * cannot overflow the per-phase arithmetic. */
+/* The declared phase is used as declared.  It used to be clamped to 2,000,000 us (NP_CHARGE_MAX_PHASE_US, removed:
+ * the principal, 2026-11-11), which could only shorten the declaration and so under-state the per-phase charge.  A
+ * 25 cm2 pad has a per-phase ceiling of 40 uC/cm2 x 25 cm2 = 1,000,000 nC, and the check trips at or above it. */
 /* @verifies DI-SAFE-01a */
-static void test_phase_clamped(void)
+static void test_a_phase_above_the_old_bound_is_checked_at_its_true_charge(void)
 {
     uint16_t cur[NP_SAFETY_MAX_CHANNELS];
 
+    /* 3 s rectangular phase.  At 333 uA the true charge is 999,000 nC (inside); at 334 uA it is 1,002,000 nC
+     * (over).  Clamped to 2 s these were 666,000 and 668,000 nC, and both passed. */
     np_charge_monitor_init();
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
-    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX,
-                                           NP_CHARGE_WAVE_PULSE, 0xFFFFFFFFUL);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_PULSE, 3000000UL);
+    np_safety_state_t s = fresh_state();
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 333U);
+    np_charge_monitor_phase_tick(&s, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) != 0U,
+          "3 s phase: 333 uA is 999,000 nC, inside the ceiling, and passes");
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 334U);
+    np_charge_monitor_phase_tick(&s, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "3 s phase: 334 uA is 1,002,000 nC and trips (clamped to 2 s it was 668,000 nC and passed)");
 
+    /* The same phase, sinusoidal: Q = I x T x 2000/3141.  523 uA gives 999,044 nC (inside), 524 uA 1,000,955 nC. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_SINE, 3000000UL);
+    np_safety_state_t s2 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 523U);
+    np_charge_monitor_phase_tick(&s2, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) != 0U, "3 s sine: 523 uA is inside the ceiling and passes");
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 524U);
+    np_charge_monitor_phase_tick(&s2, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U, "3 s sine: 524 uA is over the ceiling and trips");
+}
+
+/* The widest values the two fields can carry: a 32-bit phase and a 16-bit current.  The product, about 5.6e17 with
+ * the sine factor, stays inside uint64 (a compile-time assertion in np_charge_monitor.c), so the result is the true
+ * charge and the comparison is right at both ends of the range. */
+/* @verifies DI-SAFE-01a */
+static void test_the_longest_declarable_phase_is_stored_as_declared_and_does_not_wrap(void)
+{
+    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+
+    /* 4,294,967,295 us at 65,535 uA: 2.8e11 nC rectangular, far over the 1,000,000 nC ceiling.  It trips; a wrapped
+     * product could have passed. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_SINE, 0xFFFFFFFFUL);
     np_safety_state_t s = fresh_state();
     one_current(cur, NP_SAFETY_CH_BES_IDX, 65535U);
     np_charge_monitor_phase_tick(&s, cur, NP_SAFETY_MAX_CHANNELS);
-    /* Clamped to 2e6 µs: 65535 × 2e6 / 1000 = 131,070,000 nC, far over the
-     * 1,000,000 nC ceiling — so it trips, and did not overflow to a pass.   */
     check((s.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
-          "per-phase: an absurd phase_us clamps and still trips (no overflow wrap)");
+          "longest phase, largest current, sine: trips (the product did not wrap to a pass)");
+
+    /* The longest phase is not refused or shortened: at 1 uA its rectangular charge is 4,294,967 nC, over the
+     * ceiling, so even the smallest current trips.  Clamped to 2 s it was 2,000 nC and passed. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_PULSE, 0xFFFFFFFFUL);
+    np_safety_state_t s2 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 1U);
+    np_charge_monitor_phase_tick(&s2, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "longest phase, 1 uA: 4,294,967 nC is over the ceiling and trips (clamped it was 2,000 nC and passed)");
+
+    /* A longer declaration still wins over a shorter one, in either order, with no clamp between them. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_BES_IDX, 25000U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_PULSE, 3000000UL);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_BES_IDX, NP_CHARGE_WAVE_PULSE, 1000UL);
+    np_safety_state_t s3 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_BES_IDX, 334U);
+    np_charge_monitor_phase_tick(&s3, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s3.granted_mask & (1U << NP_SAFETY_CH_BES_IDX)) == 0U,
+          "longest declared phase wins: a later 1 ms declaration does not replace the 3 s one");
 }
 
 /* ── Main ───────────────────────────────────────────────────────────────────── */
@@ -1136,7 +1193,8 @@ int main(void)
     test_tdcs_geom_gate_rearms_each_session();
     test_bes_geom_gate_blocks_until_applied();
     test_bes_geom_gate_independent_and_rearms();
-    test_phase_clamped();
+    test_a_phase_above_the_old_bound_is_checked_at_its_true_charge();
+    test_the_longest_declarable_phase_is_stored_as_declared_and_does_not_wrap();
     test_withhold_decl_mask_names_the_undeclared_lines();
     test_withhold_geom_mask_names_the_missing_geometry();
     test_withhold_masks_are_per_beat_and_both_gates_report_a_shared_line();

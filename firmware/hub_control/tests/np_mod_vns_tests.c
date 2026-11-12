@@ -92,12 +92,14 @@ void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
     if (channel == NP_SAFETY_CH_VNS_HRV) { g_published_ua = current_ua; }
 }
 
+static uint16_t g_stim_amp_ua;          /* the amplitude the stimulator was last told */
 float np_mod_vns_hal_impedance_check(void) { return g_impedance; }
 np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz,
                                         uint16_t amp_ua, uint16_t pw_us)
 {
-    (void)side; (void)freq_mhz; (void)amp_ua; (void)pw_us;
+    (void)side; (void)freq_mhz; (void)pw_us;
     g_stim_set_calls++;
+    g_stim_amp_ua = amp_ua;
     return g_stim_set_rc;
 }
 np_hub_status_t np_mod_vns_hal_stim_stop(uint8_t side)
@@ -158,19 +160,21 @@ static void reset(float imp)
 }
 
 /* Everything the command can start: PPG, EEG routing, HRV session, stimulator. */
-static np_hub_status_t drive(void)
+static np_hub_status_t drive_at(uint16_t amplitude_ua)
 {
     np_mod_vns_hrv_params_t p;
     memset(&p, 0, sizeof(p));
     p.side = 0U;
     p.freq_mhz = 25000U;
-    p.amplitude_ua = 2000U;
+    p.amplitude_ua = amplitude_ua;
     p.pulse_width_us = 250U;
     p.ppg_enable = 1U;
     p.eeg_ref_enable = 1U;
     p.hrv_proto = 1U;
     return np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, &p, (uint16_t)sizeof(p));
 }
+
+static np_hub_status_t drive(void) { return drive_at(2000U); }
 
 static bool nothing_started(void)
 {
@@ -370,6 +374,37 @@ static void test_an_accepted_command_and_a_clean_stop_are_unchanged(void)
           "accepted: a stop with nothing running reports success without touching the stimulator");
 }
 
+/* The current ceiling refuses; it does not clamp.  60 mA used to reach the stimulator, and the safety MCU, as 40 mA. */
+/* @verifies REQ-FWHUB-78#c,f */
+static void test_an_amplitude_above_the_ceiling_is_refused_and_starts_nothing(void)
+{
+    reset(1200.0f);
+    check(drive_at((uint16_t)(NP_VNS_MAX_CURRENT_UA + 1U)) == NP_HUB_ERR_INVALID_ARG, "ceiling: 40001 uA is refused");
+    check(nothing_started(), "ceiling: no stimulator write, PPG, EEG routing, HRV session, enable or published current");
+    check(drive_at(60000U) == NP_HUB_ERR_INVALID_ARG && nothing_started(), "ceiling: 60 mA is refused, not driven as 40 mA");
+    check(np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, NULL, 0U) == NP_HUB_OK && g_stim_stops == 0,
+          "ceiling: the driver is still idle (a stop has nothing to stop)");
+
+    check(drive_at((uint16_t)NP_VNS_MAX_CURRENT_UA) == NP_HUB_OK && g_stim_amp_ua == NP_VNS_MAX_CURRENT_UA &&
+          g_published_ua == NP_VNS_MAX_CURRENT_UA && enable_requested(),
+          "ceiling: exactly 40 mA is accepted, and the stimulator and the safety MCU are told the same authored value");
+}
+
+/* A value refused before anything is touched is not REQ-VNSC-14 (a)'s case (a write that may have partly landed):
+ * nothing of the running session is in doubt, so it is left as it was. */
+/* @verifies REQ-FWHUB-78#f */
+static void test_a_refused_amplitude_leaves_a_running_session_as_it_was(void)
+{
+    reset(1200.0f);
+    check(drive() == NP_HUB_OK && g_published_ua == 2000U, "running: a 2 mA command is driving");
+    const int sets = g_stim_set_calls, routes = g_eeg_route_calls, creates = g_hrv_creates;
+    check(drive_at(50000U) == NP_HUB_ERR_INVALID_ARG, "running: a later command above the ceiling is refused");
+    check(g_stim_set_calls == sets && g_stim_stops == 0 && g_eeg_route_calls == routes && g_hrv_creates == creates &&
+          ppg_running() && g_eeg_route_on && hrv_running() && enable_requested() &&
+          g_published_ua == 2000U && g_stim_amp_ua == 2000U,
+          "running: the stimulator, PPG, routing, HRV session, enable and published current are exactly as they were");
+}
+
 int main(void)
 {
     test_a_non_finite_impedance_is_refused_and_starts_nothing();
@@ -383,6 +418,8 @@ int main(void)
     test_a_start_is_refused_while_a_stop_is_still_lost();
     test_a_refused_write_whose_stop_is_lost_stays_pending();
     test_an_accepted_command_and_a_clean_stop_are_unchanged();
+    test_an_amplitude_above_the_ceiling_is_refused_and_starts_nothing();
+    test_a_refused_amplitude_leaves_a_running_session_as_it_was();
     printf("%s (%d failures)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

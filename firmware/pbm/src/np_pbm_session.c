@@ -283,6 +283,16 @@ np_pbm_status_t np_pbm_session_start(
         return exp_rc;
     }
 
+    /* A preset whose duty is above the limit refuses the session, before any hardware is touched or any state is
+     * taken.  np_pbm_drive_set_duty() refuses such a write too, but the ramp calls it every tick and does not stop on
+     * its status: without this the ramp would hold at the last duty the driver accepted, which is a clamp by another
+     * route (NP-FW-HUB-001 REQ-FWHUB-78; CLAUDE.md §3: refuse, never reshape). */
+    for (uint8_t i = 0; i < active_socket_count; i++) {
+        if (active_preset[i].duty > NP_PBM_DUTY_MAX_REG) {
+            return NP_PBM_ERR_INVALID_ARG;
+        }
+    }
+
     ctx->stage = NP_PBM_STAGE_PREFLIGHT;
     ctx->desc  = *desc;
     ctx->active_socket_count = active_socket_count;

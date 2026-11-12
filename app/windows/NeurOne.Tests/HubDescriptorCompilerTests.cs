@@ -96,7 +96,10 @@ public class HubDescriptorCompilerTests
     {
         var e = Assert.Throws<HubCompileException>(() => Build(Cw(kind, 25)));
         Assert.Contains("no duty cycle", e.Message);
-        Build(Cw(kind, 100));
+        // CW states 100 % duty, which is above the 25 % limit: refused, where it used to be encoded as 25 %
+        // (REQ-NPPS-33 (a); interim until OI-HEXTILE-31).
+        var cw = Assert.Throws<HubCompileException>(() => Build(Cw(kind, 100)));
+        Assert.Contains("exceeds firmware maximum of 25%", cw.Message);
     }
 
     // @verifies REQ-FWHUB-08
@@ -107,7 +110,7 @@ public class HubDescriptorCompilerTests
     // @verifies REQ-FWHUB-31
     [Fact]
     public void ClinicianSelectedSockets()
-        => Check("pbmClin", Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 0, duty: 100)));
+        => Check("pbmClin", Def(600, Pbm("808nm", 100, new PbmTarget.ClinicianSelected(), hz: 10, duty: 25)));
 
     // @verifies REQ-FWHUB-08
     [Fact]

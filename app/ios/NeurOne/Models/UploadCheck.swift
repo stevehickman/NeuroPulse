@@ -88,6 +88,11 @@ struct UploadVerdict: Equatable {
 enum HelmetRefusalCause: Equatable {
     case tier, hardwareVersion, notReady, signature, wrongDevice, formatVersion, damaged, malformed, sessionActive
     case bootRefused, noLayout, photicZone, badAddress, tooManyCommands, other
+    /// A value in the protocol is outside a limit the hub holds (`NP_HUB_ERR_OUTSIDE_LIMIT`, reason 40; `REQ-FWHUB-78` (g)).
+    case outsideLimit
+    /// A cervical VNS block the hub cannot run: too short to hold its ramps (reason 41), or longer than it can run (reason 42).
+    /// Structural checks, not limits (`REQ-FWHUB-78` (k)).
+    case cervicalBlockTooShort, cervicalBlockTooLong
     /// Not a refusal: the hub's final answer is for other bytes than the ones just sent (`UploadVerdict.cause(forSentHash:)`).
     case unmatched
 }

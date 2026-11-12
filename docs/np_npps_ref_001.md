@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev {NP-NPPS-REF-001 to} (2026-11-11) — the compiler refuses a value it used to clamp, wrap or cut (`REQ-NPPS-33`; the principal: no silent clamping anywhere).** The hub stopped clamping on 2026-11-11 (`NP-FW-HUB-001` `REQ-FWHUB-78`); this is the shared core, `common/npps-core`. A PBM duty above 25 % is refused (it was signed as 25 %), so **a continuous-wave block, which is 100 % duty, no longer compiles** until `OI-HEXTILE-31` lifts the 25 % limit: nine shipped protocols, seven of which compiled until now (`OI-NPPS-CLAMP-01`). A tDCS ramp under 30 s is refused (it was lengthened). A TMS frequency, pulse count or inter-train interval, an audio beat or carrier, a visual frequency or EMDR cadence, a PBM frequency, a session time or a device serial that its descriptor field cannot carry is refused (each was capped at the field's largest value, reduced modulo its width, or cut). A value above zero that would be written as 0 is refused (an irradiance or audio level under half a step was raised to the first step). No limit value, range, grammar or wire format changes. §4.1, §4.2, §4.5, §4.7, §4.8, §4.10 and §4.11 say what the descriptor carries.
+
 > **Rev 34 (2026-11-03) — §6 states what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`; `SWR-PL-01`).** Until now §6 said only that `merge` runs layers "simultaneously", `sequential` runs them end to end, and `override` replaces "shared modality types", and no compiler turned a composite into helmet bytes. The core now does (`common/npps-core/src/composite.rs`, `compiler::compile_composite`), and §6 records the rules it applies. **Every rule refuses; none reshapes** (`CLAUDE.md` §3). **What changes for an author:** (i) two layers that drive one modality at the same time are refused, except transcranial PBM on sockets they do not share, so a `merge` of two audio layers, or of two PBM layers on one zone, no longer compiles (a relaxation that let shared sockets pass when window, frequency and duty matched was tried and withdrawn the same day, because the weighted-sum ceiling over the merged channels is not checked yet, `OI-HEXTILE-30`, `OI-HEXTILE-31`; the question is with Safety in `OI-NPPS-COMP-01`); (ii) `intensity_scale` is above 0 and at most 1, not 0.0 to 2.0 as this section said (the validator already enforced 0 to 1); (iii) a layer may not run longer than its protocol; (iv) a `sequential` composite ignores `start`. **Two shipped composites are refused by (i)** and stay refused until a decision (`OI-NPPS-COMP-01`): "Full Multi-Modal RCT" (two audio layers at once) and "Calm to Focus" (two layers overlap for two minutes on EEG neurofeedback, audio and PBM). The rules not derived from anything are `UC-120`. No grammar, no field and no shipped file changes.
 >
 > **Rev 33 (2026-10-30) — the threshold-relative intensity fields are retired: intensity is absolute only (principal decision; `OI-NPPS-VNS-01` (b) and (b2)).** `intensity_basis` (`perceptual_threshold`, `pain_threshold`, `titrated`) and `intensity_percent_of_threshold` are removed from the grammar, the validator, the compiler and the serializer, and are now unknown fields. The system has no a-priori mapping from a perceived intensity to a hardware setting, and one person perceives the same absolute intensity differently on different occasions, so a stored threshold would drift. Perceived-intensity programming is out of scope: it cannot run in Mode 3, needs the person's input at every cycle, and breaks the coordinated ramps of parallel modalities. No shipped protocol used the fields. `REQ-NPPS-07` is narrowed to `movement_cue`.
@@ -474,8 +476,8 @@ Photobiomodulation via scalp-facing LED zones.
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
 | `irradiance` | `irradiance_mw_cm2` | number, `mW_cm2` | **Required.** Peak irradiance at the scalp, for this block's wavelength alone (§4.1b). ≤ 400 (CLAUDE.md §3) |
-| `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator and the hub still refuse or clamp above 25 %** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces the clamp with a pre-signing check |
+| `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100. **The descriptor carries whole Hz** (one byte, 0 = CW), so the value is rounded to the nearest Hz; one that would round to 0, or above 255, is refused by the compiler (`REQ-NPPS-33`). Whether a frequency that is not a whole number should be refused instead of rounded is open (`OI-NPPS-CLAMP-01` (b)) |
+| `duty_cycle` | `duty_cycle_percent` | number | 0–100. The 25 % cap is retired (CLAUDE.md §3, Rev 59): duty is the protocol's. **The validator, the compiler and the hub still refuse above 25 %,** until `NP-HW-HEXTILE-001` `OI-HEXTILE-31` replaces them with a pre-signing check (the hub and the compiler clamped until 2026-11-11; they now refuse, `NP-FW-HUB-001` `REQ-FWHUB-78` and `REQ-NPPS-33` (a)). **So a CW block, 100 % duty, parses and is refused by all three.** The register is 0.5 % per step; a duty above 0 and under 0.25 % would be written as 0 and is refused |
 | `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
 | `wavelength` | `wavelength` | string | **Required.** **One wavelength**, e.g. `"810nm"` (§4.1a). The combined names `"660_808nm"` and `"660_808_1064nm"` are retired. **Quoted** (§2) |
 
@@ -617,7 +619,7 @@ Bilateral intranasal probe.
 | `wavelength` | `wavelength` | string | **Required.** One wavelength; the probe carries the 660 nm and 808 nm channels, so a value mapping to the 1064 nm channel is refused. Two wavelengths, two blocks |
 | `irradiance` | `irradiance_mw_cm2` | number, `mW_cm2` | **Required** (§4.1b) |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 1–25 |
+| `duty_cycle` | `duty_cycle_percent` | number | 1–25. Above 25 is refused by the validator, the compiler and the hub, never encoded as 25 (`REQ-NPPS-33` (a), `REQ-FWHUB-78` (d)); CW (100 %) is refused with it until `OI-HEXTILE-31` |
 
 ```
 pbm_intranasal {
@@ -685,7 +687,7 @@ Cortical Priming Stimulation (consumer name) / transcranial direct current stimu
 | `intensity` | `intensity_milliamps` | number | 0.1–2.0 |
 | `electrode_pairs` | `electrode_pairs` | array of `[anode, cathode]` pairs | 10-20 electrode labels |
 | `electrode_area_cm2` | `electrode_area_cm2` | number | 0 < A ≤ 65.535, area of **one** electrode |
-| `ramp` | `ramp_seconds` | number | 30 or more (default 30). A value under 30 is an error: 30 s is the hardware-enforced minimum |
+| `ramp` | `ramp_seconds` | number | 30 or more (default 30). A value under 30 is an error: 30 s is the hardware-enforced minimum. The compiler and the hub refuse it too; neither lengthens it (`REQ-NPPS-33` (a), `REQ-FWHUB-78` (b)). Whole seconds, at most 65535 |
 
 ```
 tdcs {
@@ -782,10 +784,10 @@ Over-ear planar magnetic + bone conduction.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `binaural_hz` | `binaural_beats_hz` | number (optional) | 0.5–100 |
-| `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100 |
+| `binaural_hz` | `binaural_beats_hz` | number (optional) | 0.5–100. **The descriptor carries at most 65.535 Hz** (16 bits of mHz); the compiler refuses above it, where it wrote 65.535 Hz (`REQ-NPPS-33` (a)). The validator's range still ends at 100 (`OI-NPPS-CLAMP-01` (c)) |
+| `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100, and the same 65.535 Hz on the wire |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
-| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats |
+| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses |
 | `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-19`) |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
 | `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |
@@ -823,9 +825,9 @@ audio_entrainment {
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
 | `intensity` | — | — | **Refused (Rev 18).** There is no percentage intensity and no absolute one yet (§4.1b) |
-| `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F) |
+| `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F). Whole Hz on the wire. Above 100 the compiler refuses, where it wrote 100 (`REQ-NPPS-33` (a)) |
 | `mode` | `mode` | string | `binocular` `emdr` `retinal_pbm` `mode_f` |
-| `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz |
+| `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz. 0.1 Hz steps in one byte, so at most 25.5 Hz; above it the compiler refuses, where it wrote 25.5 (`REQ-NPPS-33` (a)) |
 | `enable_mode_f` | `enable_mode_f` | bool | Enable invisible NIR retinal PBM |
 
 ```
@@ -898,7 +900,7 @@ T2 only. Focal figure-8 coil, rTMS and TBS.
 | `frequency` | `frequency_hz` | number | 1–50 |
 | `intensity_percent_mt` | `intensity_percent_mt` | number | % motor threshold, 80–120 typical |
 | `target` | `target` | string | `DLPFC_L` `DLPFC_R` `VLPFC_L` `ACC` `MPFC` `M1_L` `M1_R` |
-| `pulse_count` | `pulse_count` | int | total pulses per session |
+| `pulse_count` | `pulse_count` | int | total pulses per session. A whole number, at most 65535 (the descriptor field); above it, or not whole, the compiler refuses. The frequency travels as mHz in 16 bits (at most 65.535 Hz), and an `rTMS` frequency under 0.016 Hz gives an inter-train interval the field cannot carry and is refused (`REQ-NPPS-33` (a)) |
 
 ```
 tms {
@@ -920,7 +922,7 @@ T2 only. Laser diodes for subcortical depth (35–40 mm).
 |-------|------|--------|
 | `intensity_mw_cm2` | number | mW/cm², ≤1000 |
 | `frequency` | number | 0 (CW) or 0.5–100 Hz |
-| `duty_cycle` | number | 1–25 % |
+| `duty_cycle` | number | 1–25 %. Above 25 is refused, never encoded as 25 (`REQ-NPPS-33` (a)) |
 
 Note: use `intensity_mw_cm2:` directly (not `intensity:`) since the unit is mW/cm², not percent.
 
@@ -1964,6 +1966,7 @@ Where a row lists (a), (b), (c), a test claims a part with `@verifies REQ-NPPS-N
 | **`REQ-NPPS-22`** | **A session that cannot run is an error, not a warning.** A zero or negative duration, an `interval_count` protocol whose computed length is zero or has a block that never stops (Rev 27), and a protocol with no modality, are errors in every runtime, and a pulsed block is not reported as a CW duty error | A session of no length, or of nothing, is signed and uploaded | §4; `REQ-NPPS-02`, `REQ-NPPS-12` | Test, in each runtime |
 | **`REQ-NPPS-23`** | **An out-of-range value is refused where it is authored, the error names the valid range, and no runtime reshapes it.** (a) Every authorable range in §4 is checked when the protocol is edited or compiled, and a value outside it is an error. (b) The error states the range or maximum it was held to, not only the value entered. (c) A driver that receives a value outside the range its library accepts (`np_mod_cvns_build_config`, for a descriptor that did not come from the compiler) refuses the command and starts nothing; it does not clamp, round into range or substitute a default for a value that was given. The one default is an absent field (`pulse_width_us` 0 selects 250 µs) | A clamped value is a stimulus nobody authored: 5 mA requested on cervical VNS ran as 2 mA with no word, and an error that said only "exceeds hardware maximum" left the author to find the maximum. The hub clamped frequency, current, pulse width and side until Rev 24 | §4.14; CLAUDE.md §3 ("a PBM ceiling refuses a protocol; it never reshapes one"); `REQ-NPPS-04`, `REQ-NPPS-06`; `REQ-FWHUB-59` | Test: `common/npps-core/tests/validate_union.rs` (b, cervical VNS) and `firmware/hub_control/tests/np_mod_cvns_tests.c` (c). Parts (a) and (b) are tested for every range §4 states, in `common/npps-core/tests/validate_union.rs` |
 | **`REQ-NPPS-24`** | **A field a modality block does not have is an error, and the error names it.** A key in a modality block that is neither one of the modality's fields (or an alias of one) nor a block key (`interval_on`, `interval_off`, `start`, `repeat`, `enabled`) is a parse error at the line it is written, and the message lists the modality's fields | `build_params` reads only the field table, so a misspelt key such as `pulse_widht_us: 300` was accepted and ignored, and the study parameter ran as the default: a different stimulus from the one authored, with no sign in the file or the app | §4, `OI-NPPS-VNS-01` (d), principal decision 2026-10-30 | Test |
+| **`REQ-NPPS-33`** | **The compiler refuses a value its descriptor field cannot carry as authored. It never clamps, wraps, cuts or raises one.** (a) A value over a limit the compiler holds, or outside the range of its descriptor field, is refused and never written as the limit or as the field's largest value: a PBM duty above 25 % on `pbm_transcranial`, `pbm_intranasal` and `pbm_deep_1170nm` (so continuous wave, 100 %, is refused while that limit stands, `OI-HEXTILE-31`); a `tdcs` ramp under 30 s or missing; a `tms` frequency above 65.535 Hz, a pulse count above 65535 or not whole, or an `rTMS` frequency whose period is above 65535 ms; an audio beat above 65.535 Hz or carrier above 65535 Hz; a visual frequency above 100 Hz or EMDR cadence above 25.5 Hz. A parameter one of these fields needs and the block does not state is refused, not written as the field's largest value. (b) A value is never reduced modulo the width of its field or written with its sign dropped: a PBM frequency above 255 Hz or below 0, a negative duty, a session length above 2^32 − 1 ms, a negative start or duration. (c) A value above zero that would be written as 0 is refused, never raised to the first step and never written as 0: a PBM irradiance or audio level under half a register step, a PBM frequency that rounds to 0 (continuous wave), a duty under 0.25 %, a current under half a microamp, a time under 1 ms, an electrode area under 0.001 cm². Rounding to the nearest step above that is the resolution of the field and is not a refusal. (d) A device serial longer than the 32-byte field is refused, not cut; a shorter one is zero-filled. (e) Every value the hub's load-time check refuses (`NP-FW-HUB-001` `REQ-FWHUB-78` (g): BES/tACS above 1 mA, tDCS above 2 mA or a ramp under 30 s, auricular VNS above 40 mA, PBM and intranasal duty above `0x32`) is refused by the compiler first, at the same limit, so no descriptor the core signs is refused by the hub for a limit. Each refusal names the field, the value and the range | A clamped or wrapped value is a stimulus nobody authored, signed as if it were: a continuous-wave block was signed with a 25 % duty register, a 300 Hz PBM frequency as 44 Hz, a 20 s tDCS ramp as 30 s, a block with no TMS frequency as 65.535 Hz, a negative start offset as a start 49 days into the session, and a serial of 33 bytes as a different device's. Since the hub refuses instead of clamping (`REQ-FWHUB-78`), a value the core passed on would also be refused only after signing, at upload | CLAUDE.md §3 ("a PBM ceiling refuses a protocol; it never reshapes one"), stated as general by the principal on 2026-11-11 (`docs/status/completed-decisions.md`); `REQ-NPPS-04`, `REQ-NPPS-23` (c); `NP-FW-HUB-001` `REQ-FWHUB-78`; the field widths of `NP-FW-HUB-001` §4.6 (`np_hub_types.h`) | Test: `common/npps-core/tests/no_silent_clamp.rs` (every part; (e) reads the hub's constants from its headers); `app/web/src/lib/hubCompilerWavelength.test.ts` (a) and `app/web/src/lib/hubCompiler.test.ts` (d) |
 
 ## Revision history
 

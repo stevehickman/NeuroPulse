@@ -210,7 +210,7 @@ public class NppsCoreTests
         {
             (19, "tier"), (27, "hardware_version"), (20, "not_ready"), (28, "not_ready"), (6, "signature"), (7, "wrong_device"),
             (5, "format_version"), (4, "damaged"), (2, "malformed"), (9, "malformed"), (13, "session_active"),
-            (25, "boot_refused"), (29, "no_layout"), (8, "too_many_commands"), (30, "photic_zone"), (31, "bad_address"),
+            (25, "boot_refused"), (29, "no_layout"), (8, "too_many_commands"), (30, "photic_zone"), (31, "bad_address"), (40, "outside_limit"), (41, "cervical_block_too_short"), (42, "cervical_block_too_long"),
             (255, "other"), (99, "other"),
         })
         {

@@ -48,6 +48,9 @@ struct ProtocolUploadFlow {
         case .photicZone: return String(localized: "PROTOCOL_MENU_REFUSED_PHOTIC_ZONE")
         case .badAddress: return String(localized: "PROTOCOL_MENU_REFUSED_BAD_ADDRESS")
         case .tooManyCommands: return String(localized: "PROTOCOL_MENU_REFUSED_TOO_MANY_COMMANDS")
+        case .outsideLimit: return String(localized: "PROTOCOL_MENU_REFUSED_OUTSIDE_LIMIT")
+        case .cervicalBlockTooShort: return String(localized: "PROTOCOL_MENU_REFUSED_CERVICAL_BLOCK_TOO_SHORT")
+        case .cervicalBlockTooLong: return String(localized: "PROTOCOL_MENU_REFUSED_CERVICAL_BLOCK_TOO_LONG")
         case .other: return String(localized: "PROTOCOL_MENU_REFUSED_GENERIC")
         case .unmatched: return String(localized: "PROTOCOL_MENU_UPLOAD_UNMATCHED")
         }

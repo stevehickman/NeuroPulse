@@ -79,7 +79,8 @@ typedef struct {
     uint16_t freq_hz;           /* 1–25 Hz                                       */
     uint16_t current_ua;        /* 0–2000 µA                                     */
     uint16_t pulse_width_us;    /* 200–1000 µs                                   */
-    uint16_t duration_s;        /* 60–120 s                                      */
+    uint16_t duration_s;        /* the protocol's authored length; 0 (none) and a length
+                                 * no longer than the two ramps are refused      */
     uint8_t  electrode_config;  /* 0=bilateral, 1=unilateral_L, 2=unilateral_R   */
 } np_cvns_session_config_t;
 

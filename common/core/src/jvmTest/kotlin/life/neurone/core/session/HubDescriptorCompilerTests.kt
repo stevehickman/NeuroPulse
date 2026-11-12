@@ -107,7 +107,10 @@ class HubDescriptorCompilerTests {
         for (kind in 0..2) {
             val e = assertFailsWith<IllegalArgumentException> { compiler.build(cw(kind, 25), null, listOf(7, 3)) }
             assertTrue(e.message.orEmpty().contains("no duty cycle"), "modality $kind: ${e.message}")
-            compiler.build(cw(kind, 100), null, listOf(7, 3))
+            // CW states 100 % duty, which is above the 25 % limit: refused, where it used to be encoded as 25 %
+            // (REQ-NPPS-33 (a); interim until OI-HEXTILE-31).
+            val cwRefusal = assertFailsWith<IllegalArgumentException> { compiler.build(cw(kind, 100), null, listOf(7, 3)) }
+            assertTrue(cwRefusal.message.orEmpty().contains("exceeds firmware maximum of 25%"), "modality $kind: ${cwRefusal.message}")
         }
     }
 
@@ -117,7 +120,7 @@ class HubDescriptorCompilerTests {
     // @verifies REQ-FWHUB-08
     @Test fun clinicianSelectedSockets() = check("pbmClin", def(600, mod(NPModalityParams.PbmTranscranial(NPPBMTranscranialParams(
         target = NPPBMTarget.ClinicianSelected, wavelength = NPPBMTranscranialParams.Wavelength.NM_808,
-        irradianceMWcm2 = 100.0, frequencyHz = 0.0, dutyCyclePercent = 100)))))
+        irradianceMWcm2 = 100.0, frequencyHz = 10.0, dutyCyclePercent = 25)))))
 
     // @verifies REQ-FWHUB-08
     @Test fun t1Modalities() {

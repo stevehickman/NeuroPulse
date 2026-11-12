@@ -652,9 +652,11 @@ static void test_chan_wave_frame_offsets(void)
           "waveform cmd_type distinct from the other command types");
 
     /* phase_us must be 32-bit: the 0.5 Hz bottom of the tACS band is a
-     * 1,000,000 µs half-period, which does not fit a uint16.               */
-    check(NP_CHARGE_MAX_PHASE_US > 65535UL,
-          "phase_us range exceeds uint16 (0.5 Hz half-period is 1e6 µs)");
+     * 1,000,000 µs half-period, which does not fit a uint16.  (This used to
+     * be asked of NP_CHARGE_MAX_PHASE_US, the clamp, which is removed; the
+     * field's own width is the thing that matters.)                        */
+    check(sizeof(((const np_safety_chan_wave_cmd_t *)0)->phase_us[0]) == sizeof(uint32_t),
+          "phase_us is a 32-bit field (0.5 Hz half-period is 1e6 µs, beyond uint16)");
 }
 
 /* @verifies REQ-FWHUB-50 */
