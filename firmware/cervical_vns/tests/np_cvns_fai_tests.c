@@ -100,7 +100,8 @@ static int fai_safety_constants(void)
     ASSERT(NP_CVNS_FREQ_HZ_MAX <= 25u,               "SAFETY: freq max > 25 Hz");
     ASSERT(NP_CVNS_CURRENT_UA_MAX <= 2000u,           "SAFETY: current > 2 mA");
     ASSERT(NP_CVNS_PULSE_WIDTH_US_MAX <= 1000u,       "SAFETY: pulse width > 1000 µs");
-    ASSERT(NP_CVNS_SESSION_MAX_S <= 120u,             "SAFETY: session > 120 s (gammaCore protocol)");
+    /* The session-length bound (120 s) is RETIRED (the principal, 2026-11-11): it had no documented health or safety
+     * source.  The length is the protocol's; nothing is asserted about it here (NP-HW-CVNS-001 REQ-CVNS-04). */
 
     /* Cardiac interlock (CLAUDE.md §3 T2: HR change > 15 BPM within 5 s). */
     ASSERT_EQ(NP_CVNS_HR_CHANGE_LIMIT_BPM, 15u);
@@ -115,9 +116,10 @@ static int fai_safety_constants(void)
     ASSERT(NP_CVNS_IMPEDANCE_MAX_KOHM > 0.0f &&
            NP_CVNS_IMPEDANCE_MAX_KOHM <= 10.0f,      "SAFETY: impedance limit out of range");
 
-    /* Ramp durations must be positive and within session duration. */
+    /* Ramp durations must be positive.  That a session can hold them is checked per configuration (the library
+     * refuses a length no longer than the two ramps), since there is no fixed minimum session any more. */
     uint32_t ramp_total_s = NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S;
-    ASSERT(ramp_total_s < NP_CVNS_SESSION_MIN_S,     "SAFETY: ramp total >= session min");
+    ASSERT(NP_CVNS_RAMP_UP_S > 0u && NP_CVNS_RAMP_DOWN_S > 0u, "SAFETY: a ramp of zero length");
 
     /* Baseline minimum beats sufficient for stable HR estimate. */
     ASSERT(NP_CVNS_BASELINE_BEATS_MIN >= 3u,         "SAFETY: baseline < 3 beats");
@@ -126,11 +128,11 @@ static int fai_safety_constants(void)
     ASSERT_APPROX(60000U / NP_RR_MIN_MS, 200U, 5U); /* ~200 BPM */
     ASSERT_APPROX(60000U / NP_RR_MAX_MS,  30U, 2U); /* ~30 BPM  */
 
-    printf("  freq: %u–%u Hz  current: %u µA  pulse: %u–%u µs  session: %u–%u s\n",
+    printf("  freq: %u–%u Hz  current: %u µA  pulse: %u–%u µs  session: the protocol's (ramps total %u s)\n",
            NP_CVNS_FREQ_HZ_MIN, NP_CVNS_FREQ_HZ_MAX,
            NP_CVNS_CURRENT_UA_MAX,
            NP_CVNS_PULSE_WIDTH_US_MIN, NP_CVNS_PULSE_WIDTH_US_MAX,
-           NP_CVNS_SESSION_MIN_S, NP_CVNS_SESSION_MAX_S);
+           (unsigned)ramp_total_s);
     printf("  HR limit: %u BPM  window: %u s  cutoff spec: %u ms\n",
            NP_CVNS_HR_CHANGE_LIMIT_BPM, NP_CVNS_HR_WINDOW_S,
            NP_CVNS_CUTOFF_LATENCY_MAX_MS);
@@ -355,11 +357,10 @@ static int fai_cv03_procedure_doc(void)
     /* Software check: minimum protocol parameters are within safe operating range. */
     ASSERT(NP_CVNS_FREQ_HZ_MIN <= 1U,          "CV03: minimum freq > 1 Hz");
     ASSERT(NP_CVNS_CURRENT_UA_MAX >= 500U,      "CV03: max current < 500 µA minimum protocol");
-    ASSERT(NP_CVNS_SESSION_MIN_S <= 60U,        "CV03: minimum session > 60 s");
 
     printf("  Minimum protocol: %u Hz, 500 µA, 300 µs, 60 s\n",
            NP_CVNS_FREQ_HZ_MIN);
-    printf("  Maximum session: %u s (gammaCore protocol)\n", NP_CVNS_SESSION_MAX_S);
+    printf("  Session length: the protocol's (the 60-120 s firmware bounds are retired, 2026-11-11)\n");
 
     printf("\nNOTE: FAI-CV03 requires IRB approval before execution.\n");
     printf("  3 healthy adults screened for: no cardiac arrhythmia, no carotid stenosis,\n");
@@ -409,17 +410,23 @@ static int fai_stim_validation(void)
     cfg.pulse_width_us = NP_CVNS_PULSE_WIDTH_US_MAX + 1U;
     ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
-    /* Session too short. */
+    /* No length at all: refused, never defaulted. */
     cfg.pulse_width_us = 500U;
-    cfg.duration_s = NP_CVNS_SESSION_MIN_S - 1U;
+    cfg.duration_s = 0U;
     ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
-    /* Session too long. */
-    cfg.duration_s = NP_CVNS_SESSION_MAX_S + 1U;
+    /* A length that cannot hold the ramp up and the ramp down (geometry, not a health limit). */
+    cfg.duration_s = (uint16_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S);
     ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
+
+    /* The retired 60..120 s bounds no longer refuse: the length is the protocol's (the principal, 2026-11-11). */
+    cfg.duration_s = 30U;
+    ASSERT_OK(np_cvns_stim_init(&stim, &cfg, test_safety_cb));
+    cfg.duration_s = 600U;
+    ASSERT_OK(np_cvns_stim_init(&stim, &cfg, test_safety_cb));
 
     /* Valid configuration. */
-    cfg.duration_s = NP_CVNS_SESSION_MAX_S;
+    cfg.duration_s = 120U;
     ASSERT_OK(np_cvns_stim_init(&stim, &cfg, test_safety_cb));
     ASSERT_EQ(np_cvns_stim_phase(&stim), NP_CVNS_STIM_IDLE);
     ASSERT_EQ(np_cvns_stim_current_ua(&stim), 0U);
@@ -475,11 +482,10 @@ static int fai_ramp_arithmetic(void)
     printf("  Half ramp-down (%u ms): %.1f%% = %u µA (expected ~%u µA)\n",
            half_down, frac_down * 100.0f, expected_down, target / 2U);
 
-    /* Total ramp time must be less than minimum session. */
+    /* A session must be longer than its two ramps; the library refuses one that is not (checked in the parameter
+     * test), since there is no fixed minimum session any more. */
     uint32_t total_ramp_s = NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S;
-    ASSERT_LT(total_ramp_s, NP_CVNS_SESSION_MIN_S);
-    printf("  Total ramp: %u s < session_min: %u s (valid active window exists)\n",
-           total_ramp_s, NP_CVNS_SESSION_MIN_S);
+    printf("  Total ramp: %u s (a session must be longer; a shorter one is refused)\n", total_ramp_s);
 
     int result = g_fail_count - failures_before;
     printf("Ramp arithmetic: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);

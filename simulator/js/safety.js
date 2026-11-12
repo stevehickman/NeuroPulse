@@ -136,6 +136,30 @@ export class SafetyMcu {
     return { verdict: this.lineEnabled(line) ? VERDICT.GRANTED : VERDICT.WITHHELD, line };
   }
 
+  /**
+   * Why the MCU did not grant lines the hub requested, from its withhold report (OI-SIMFW-61): for each of its two gates, the
+   * lines whose CONDITION holds (the waveform class is undeclared; the electrode geometry is required and not applied), by name,
+   * and the lines the gate DECIDES, meaning nothing else the MCU checks holds them either, so fixing that gate alone releases
+   * them.  A line in `declaration` and not in `declarationDecided` is held by the declaration gate and by something else (the
+   * other gate, the tier gate, a failed contact check, a pending signature, a cardiac hold, a cutoff).  `valid` is false when the
+   * last reply carried no valid report (then every list is empty); an event that carries none of the fields, as one from an older
+   * process, reads as no report.  The masks are the firmware's, decoded here and nothing more.
+   * @returns {{ valid: boolean, declaration: string[], geometry: string[], declarationDecided: string[], geometryDecided: string[] }}
+   */
+  get withheld() {
+    const s = this.state;
+    const none = { valid: false, declaration: [], geometry: [], declarationDecided: [], geometryDecided: [] };
+    if (!this.inLoop || !s || s.withhold_valid !== true) return none;
+    const names = (mask) => LINES.filter((l) => (((mask >>> 0) >>> l.bit) & 1) === 1).map((l) => l.name);
+    return {
+      valid: true,
+      declaration: names(s.withhold_decl),
+      geometry: names(s.withhold_geom),
+      declarationDecided: names(s.withhold_decl_decided),
+      geometryDecided: names(s.withhold_geom_decided),
+    };
+  }
+
   /** Virtual milliseconds since the end of the last heartbeat run, by the firmware's clock; null if none has been sent. */
   heartbeatAgeMs() {
     if (!this.inLoop || this.lastBeatT === null) return null;
@@ -158,6 +182,7 @@ export class SafetyMcu {
       status: decodeStatus(s.status),
       slot: describeSlot(s.fault_slot),
       tier: s.tier,
+      withheld: this.withheld,
       lines: LINES.map((l) => ({
         name: l.name, label: l.label,
         requested: this.lineRequested(l.name), granted: this.lineGranted(l.name), enabled: this.lineEnabled(l.name),

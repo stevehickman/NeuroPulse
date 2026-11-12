@@ -990,6 +990,169 @@ static void test_the_thermal_interlock_re_arms_below_its_hysteresis_and_the_hub_
     check(np_sim_safety_line_enabled(LINE_PBM) && np_sim_safety_line_enabled(LINE_BES), "and both return when the hub's sensor is cold again");
 }
 
+/* ── The withhold report, from the MCU's own gates to the hub's getter (OI-SIMFW-61) ── */
+
+/* @verifies REQ-FWHUB-82#d */
+static void test_the_hub_learns_which_gate_withheld_a_line(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    boot(true, 0U);
+    np_sim_safety_set_impedance_ohm(1U, 5000U);
+    run("safety_run 1000 3");
+    run("safety_sig good");
+    np_safety_spi_request_enable(EN_TDCS);
+    np_safety_spi_set_channel_current(6U, 1000U);
+    run("safety_run 800 3");
+    check(!np_sim_safety_line_enabled(LINE_TDCS), "withhold report: the undeclared channel is held off (status OK, no fault slot)");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "withhold report: the hub reads a valid report off the MCU's own reply");
+    check((decl & EN_TDCS) != 0U && geom == 0U,
+          "withhold report: the declaration gate named the tDCS line and the geometry gate named nothing");
+    check((dd & EN_TDCS) != 0U && gd == 0U,
+          "withhold report: nothing else holds the line (signed, in contact, unit tier irrelevant for tDCS), so the declaration gate DECIDES it");
+    declare_dc(6U, 1000U);
+    run("safety_run 800 3");
+    check(np_sim_safety_line_enabled(LINE_TDCS), "withhold report: declared, the line is driven");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (decl & EN_TDCS) == 0U && geom == 0U &&
+          (dd & EN_TDCS) == 0U && gd == 0U,
+          "withhold report: the next beat's report no longer names the line, in either mask");
+}
+
+/* @verifies REQ-FWHUB-82#d */
+static void test_the_hub_learns_which_geometry_was_missing(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    boot(true, 2U);
+    np_sim_safety_set_impedance_ohm(1U, 5000U);
+    np_sim_safety_set_impedance_ohm(2U, 5000U);
+    np_safety_spi_request_enable(EN_TDCS | EN_BES);
+    np_safety_spi_set_channel_current(6U, 1000U);
+    np_safety_spi_set_channel_current(5U, 1000U);
+    run("safety_geom tdcs 1");
+    run("safety_geom bes 1");
+    start_session();
+    run("safety_wave 6 1 0");
+    settle();
+    run("safety_wave 5 2 20000");
+    run("safety_run 800 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "geometry report: a valid report arrives");
+    check(geom == (uint16_t)(EN_TDCS | EN_BES) && decl == 0U,
+          "geometry report: declared and in contact, the tDCS and BES/tACS lines are named by the geometry gate, not the declaration gate");
+    check(gd == (uint16_t)(EN_TDCS | EN_BES) && dd == 0U,
+          "geometry report: and the geometry gate DECIDES both lines (nothing else holds them)");
+    run("safety_limits 6 100");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && geom == EN_BES,
+          "geometry report: an area for tDCS takes tDCS out of the report and leaves BES/tACS");
+    run("safety_limits 5 1000");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && geom == 0U && decl == 0U,
+          "geometry report: an area for each line empties the report");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_a_true_condition_is_not_a_decision_when_another_check_holds_the_line(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    /* A signed T1 unit: the hub asks for the cervical VNS line (a T2 line) and no class is declared for channel 10.
+     * The declaration gate's condition holds; the tier gate also holds the line, so declaring the waveform would not
+     * release it, and the declaration gate does NOT decide it. */
+    boot(true, 1U);
+    np_sim_safety_set_impedance_ohm(3U, 2000U);
+    np_safety_spi_request_enable(EN_CVNS);
+    np_safety_spi_set_channel_current(10U, 1000U);
+    start_session();
+    run("safety_run 1000 3");
+    check(!np_sim_safety_line_enabled(LINE_CVNS), "decided: a T1 unit's cervical VNS line is withheld");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "decided: a valid report arrives");
+    check((decl & EN_CVNS) != 0U, "decided: the declaration gate's condition holds for the line (no class is declared for channel 10)");
+    check((dd & EN_CVNS) == 0U && gd == 0U,
+          "decided: and the declaration gate does NOT decide it, because the tier gate also holds it");
+
+}
+
+/* One MCU per scenario process: a second boot in the same process leaves the first MCU's statics behind.  The T2 half. */
+/* @verifies REQ-FWHUB-82#e */
+static void test_a_t2_unit_the_declaration_gate_decides_once_nothing_else_holds_the_line(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    /* A T2 unit.  The cardiac interlock holds the cervical VNS line silently until it has a baseline and the hub's
+     * own heart-rate estimate has agreed, so until then the declaration gate does not decide it either. */
+    boot(true, 2U);
+    np_sim_safety_set_impedance_ohm(3U, 2000U);
+    np_sim_safety_set_cvns_electrode_ohm(0U, 2000U);
+    np_sim_safety_set_cvns_electrode_ohm(1U, 2000U);
+    run("safety_hr 1 700 0");
+    np_safety_spi_request_enable(EN_CVNS);
+    np_safety_spi_set_channel_current(10U, 1000U);
+    run("safety_run 1000 3 70");
+    run("safety_sig good");
+    run("safety_run 1000 3 70");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "decided (T2): a valid report arrives");
+    check((decl & EN_CVNS) != 0U, "decided (T2): the declaration gate's condition holds for the line");
+    check((dd & EN_CVNS) == 0U,
+          "decided (T2): but before the cardiac baseline exists the interlock's pre-arm hold also holds the line, so no gate decides it");
+    for (int i = 0; i < 30; i++) { run("safety_hr 1 700 0"); run("safety_run 1000 3 70"); }
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (decl & EN_CVNS) != 0U && (dd & EN_CVNS) != 0U && gd == 0U,
+          "decided (T2): with the baseline in and the hub in agreement, nothing else holds the line and the declaration gate DECIDES it");
+    run("safety_wave 10 2 200");
+    run("safety_run 1000 3 70");
+    check(np_sim_safety_line_enabled(LINE_CVNS), "decided (T2): and declaring the class releases the line, which is what 'decided' promises");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (decl & EN_CVNS) == 0U && (dd & EN_CVNS) == 0U,
+          "decided (T2): the report then names nothing");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_a_line_held_by_both_gates_is_decided_by_neither(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    boot(true, 2U);
+    np_sim_safety_set_impedance_ohm(2U, 5000U);
+    np_safety_spi_request_enable(EN_BES);
+    np_safety_spi_set_channel_current(5U, 1000U);
+    run("safety_geom bes 1");
+    start_session();
+    run("safety_run 800 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "both gates: a valid report arrives");
+    check((decl & EN_BES) != 0U && (geom & EN_BES) != 0U,
+          "both gates: the BES/tACS line is in BOTH condition masks (no class declared, no geometry applied)");
+    check((dd & EN_BES) == 0U && (gd & EN_BES) == 0U, "both gates: and in neither decided mask, since fixing one leaves the other");
+    run("safety_wave 5 2 20000");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (decl & EN_BES) == 0U && (geom & EN_BES) != 0U &&
+          (gd & EN_BES) != 0U && (dd & EN_BES) == 0U,
+          "both gates: declaring the class leaves the geometry gate, which now DECIDES the line");
+    run("safety_limits 5 1000");
+    run("safety_run 400 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (geom & EN_BES) == 0U && (gd & EN_BES) == 0U,
+          "both gates: an area empties the geometry masks too");
+}
+
+/* @verifies REQ-FWHUB-82#e */
+static void test_a_pending_signature_holds_the_line_so_no_gate_decides_it(void)
+{
+    uint16_t decl = 0U, geom = 0U, dd = 0U, gd = 0U;
+
+    boot(true, 0U);
+    np_sim_safety_set_impedance_ohm(1U, 5000U);
+    run("safety_run 1000 3");                                   /* the session has begun and is unsigned */
+    np_safety_spi_request_enable(EN_TDCS);
+    np_safety_spi_set_channel_current(6U, 1000U);
+    run("safety_run 800 3");
+    check((status() & SIG_PENDING) != 0U && !np_sim_safety_line_enabled(LINE_TDCS), "signature pending: the line is not driven before the signature");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd), "signature pending: a valid report arrives");
+    check((decl & EN_TDCS) != 0U && (dd & EN_TDCS) == 0U,
+          "signature pending: the declaration condition holds but the pending signature holds the line too, so no gate decides it");
+    run("safety_sig good");
+    run("safety_run 800 3");
+    check(np_safety_spi_get_withhold_report(&decl, &geom, &dd, &gd) && (dd & EN_TDCS) != 0U,
+          "signature pending: signed, the declaration gate is the only thing left holding the line and decides it");
+}
+
 /* ── The geometry gates, and the commands the MCU takes as sent ── */
 
 /* @verifies REQ-SIMFW-14#c */
@@ -1127,6 +1290,7 @@ int main(void)
     in_child(test_the_dc_charge_ceiling_cuts_the_channel);
     in_child(test_the_per_phase_ceiling_cuts_a_pulsed_channel_and_passes_one_inside_it);
     in_child(test_an_undeclared_electrical_channel_is_held_off);
+    in_child(test_the_hub_learns_which_gate_withheld_a_line);
     in_child(test_the_impedance_gate_withholds_a_channel_until_the_contact_passes);
     in_child(test_the_thermal_interlock_cuts_at_its_cutoff_and_holds);
     in_child(test_a_t1_unit_withholds_the_cervical_vns_line);
@@ -1155,6 +1319,11 @@ int main(void)
     test_a_compaction_cut_short_loses_no_cutoff();
     alone(test_the_thermal_interlock_re_arms_below_its_hysteresis_and_the_hub_sensor_cuts_everything);
     alone(test_each_geometry_gate_holds_its_channel_until_an_area_arrives);
+    alone(test_the_hub_learns_which_geometry_was_missing);
+    alone(test_a_true_condition_is_not_a_decision_when_another_check_holds_the_line);
+    alone(test_a_t2_unit_the_declaration_gate_decides_once_nothing_else_holds_the_line);
+    alone(test_a_line_held_by_both_gates_is_decided_by_neither);
+    alone(test_a_pending_signature_holds_the_line_so_no_gate_decides_it);
     alone(test_the_charge_monitor_takes_the_hubs_area_and_phase_as_sent);
     alone(test_a_pulsed_channel_declared_with_no_phase_is_never_cut);
     alone(test_a_tier_record_of_an_unknown_format_leaves_the_unit_t1);

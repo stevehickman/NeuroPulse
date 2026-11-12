@@ -39,6 +39,10 @@
  *     the packed struct; the compiler's params_len and target against both.
  *  D. COVERAGE: every firmware mod type but NONE is a §4.6 row and is emitted
  *     by the compiler; no row names a code the firmware lacks.
+ *  E. LIMITS (REQ-FWHUB-78): the limits the hub refuses at (np_cmd_limits.h)
+ *     that restate a value of common/npps/constants.json are that value, in
+ *     the wire's unit. The hub does not take the JSON at build time, so
+ *     without this a change to either side is silent.
  *
  * ── Direction of authority ───────────────────────────────────────────────────
  *
@@ -49,7 +53,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-hub-wire-format.ts --self-test
  * CI-Scans: NP-FW-HUB-001 §4's wire format against np_hub_config.h, np_hub_types.h and the Rust NPPS core's compiled output
- * CI-Scan-Paths: docs/np_fw_hub_001.md firmware/hub_control/include/** common/npps-core/** app/web/src/lib/** scripts/check-hub-wire-format.ts
+ * CI-Scan-Paths: docs/np_fw_hub_001.md firmware/hub_control/include/** common/npps-core/** common/npps/constants.json app/web/src/lib/** scripts/check-hub-wire-format.ts
  * CI-Self-Test-Reads-Tree: its fixtures are the real §4, headers and compiler source with one perturbation each, and the real compiler's output with one byte tampered — the compiler is RUN, and a hand-written fixture compiler would only test itself
  */
 
@@ -70,6 +74,16 @@ const TYPES = "firmware/hub_control/include/np_hub_types.h";
 const WIRE = "firmware/common/include/np_app_wire_constants.h";
 /** The compiler: the Rust core, whose constants are read statically. */
 const COMPILER = "common/npps-core/src/compiler.rs";
+const LIMITS = "firmware/hub_control/include/np_cmd_limits.h";
+const CONSTANTS = "common/npps/constants.json";
+/** A hub limit that restates a shared constant: the firmware macro, the JSON constant, and the factor from the JSON's unit to the wire's. */
+const SHARED_LIMITS: [string, string, number][] = [
+  ["NP_BES_FREQ_MHZ_MIN", "BES_TACS_MIN_HZ", 1000],
+  ["NP_BES_FREQ_MHZ_MAX", "BES_TACS_MAX_HZ", 1000],
+  ["NP_CLIN_TACS_FREQ_MHZ_MIN", "CLINICAL_TACS_MIN_HZ", 1000],
+  ["STIM_MAX_AMP_BES_UA", "BES_TACS_MAX_MILLIAMPS", 1000],
+  ["STIM_MAX_AMP_TDCS_UA", "TDCS_MAX_MILLIAMPS", 1000],
+];
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
 const RUNNER = "app/web/src/lib/hubCompiler.ts";
 /** The names the gate speaks in, and the Rust constants that carry them. Null: not a constant in the core. */
@@ -503,6 +517,25 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     if (!emitted.has(r.code)) v.push(`${r.modType}: no compiled fixture emitted it — the compiler has no encoder for a §4.6 modality, or this check's fixtures are short`);
   }
 
+  // E. The limits the hub restates from the shared constants.
+  try {
+    const limitDefs = parseDefines(read(root, LIMITS));
+    const groups = (JSON.parse(read(root, CONSTANTS)) as { groups: { constants: { name: string; value: unknown }[] }[] }).groups;
+    const shared = new Map<string, unknown>();
+    for (const g of groups) for (const k of g.constants ?? []) shared.set(k.name, k.value);
+    for (const [macro, name, factor] of SHARED_LIMITS) {
+      const fwVal = limitDefs.get(macro);
+      const json = shared.get(name);
+      if (fwVal === undefined) { v.push(`${LIMITS}: ${macro} did not parse`); continue; }
+      if (typeof json !== "number") { v.push(`${CONSTANTS}: ${name} is not a number`); continue; }
+      if (fwVal !== Math.round(json * factor)) {
+        v.push(`${LIMITS}: ${macro} is ${fwVal}, but ${CONSTANTS} ${name} is ${json} (x ${factor} = ${Math.round(json * factor)}): the hub would refuse at a different limit from the one the validator holds (REQ-FWHUB-78)`);
+      }
+    }
+  } catch (e) {
+    v.push(`cannot read the hub limits or the shared constants: ${(e as Error).message}`);
+  }
+
   return { violations: v, scanned: spec.rows.length };
 }
 
@@ -512,7 +545,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
 // each, and must pass on the unperturbed copy.
 if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-wirefmt-"));
-  const FILES = [DOC, CONFIG, TYPES, WIRE, COMPILER];
+  const FILES = [DOC, CONFIG, TYPES, WIRE, COMPILER, LIMITS, CONSTANTS];
   let n = 0;
   const build = (edit?: { file: string; from: string | RegExp; to: string }): string => {
     const root = join(box, `t${n++}`);
@@ -555,6 +588,10 @@ if (process.argv.includes("--self-test")) {
     ["firmware: a mod type renumbered", { file: TYPES, from: "NP_MOD_TMS          = 0x0C", to: "NP_MOD_TMS          = 0x1C" }, "NP_MOD_TMS"],
     ["firmware: header fields reordered", { file: TYPES, from: /(uint8_t\s+flags;[^\n]*\n)(\s+uint8_t\s+cmd_count;[^\n]*\n)/, to: "$2$1" }, "cmd_count reads"],
     ["firmware: a params struct unpacked", { file: TYPES, from: /typedef struct __attribute__\(\(packed\)\) \{(\s+uint8_t  gain_reg)/, to: "typedef struct {$1" }, "is not packed"],
+    // LIMITS: a hub limit and the shared constant it restates.
+    ["limits: the hub's BES floor moved", { file: LIMITS, from: "#define NP_BES_FREQ_MHZ_MIN   500U", to: "#define NP_BES_FREQ_MHZ_MIN   250U" }, "NP_BES_FREQ_MHZ_MIN is 250"],
+    ["limits: the shared BES ceiling moved", { file: CONSTANTS, from: /("name": "BES_TACS_MAX_HZ",\s*"value": )40\.0/, to: "$1" + "45.0" }, "NP_BES_FREQ_MHZ_MAX is 40000"],
+    ["limits: the hub's tDCS ceiling moved", { file: LIMITS, from: "#define STIM_MAX_AMP_TDCS_UA  2000U", to: "#define STIM_MAX_AMP_TDCS_UA  2500U" }, "STIM_MAX_AMP_TDCS_UA is 2500"],
     // COMPILER corner, the Rust source, read statically.
     ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 2;", to: "const VERSION: u16 = 3;" }, "VERSION = 3"],
     ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS: u32 = 12;", to: "const SLOT_TMS: u32 = 13;" }, "SLOT_TMS = 13"],

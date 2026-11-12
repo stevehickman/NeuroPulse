@@ -340,6 +340,56 @@ np_st_green() {
   fi
 }
 
+# np_st_resolve <label> <expected sha> <expect-call yes|no> <mode ok|fail> <runs "repo sha" lines> <np_resolve_base args...>
+#
+# The `gh api` half of np_resolve_base (OI-SWCI-52), against a stub `gh` first on
+# PATH.  The stub does what the real one is asked to: it reads the head
+# repository out of the --jq filter and prints the head shas of the runs in
+# that repository, or fails.  It also records its arguments, so a case can say
+# whether the API was asked at all and what it was asked.
+np_st_resolve() {
+  label=$1 want=$2 call=$3 mode=$4 runs=$5
+  shift 5
+  printf '%s' "$runs" > "$np_st_stub/runs"
+  : > "$np_st_stub/calls"
+  got=$(NP_STUB_GH_MODE=$mode PATH="$np_st_stub:$PATH" np_resolve_base "$@" 2> "$np_st_stub/stderr")
+  if [ "$got" != "$want" ]; then
+    printf 'FAIL resolve-base-%s: expected [%s], got [%s]\n' "$label" "$want" "$got" >&2
+    np_st_fail=$((np_st_fail + 1))
+  fi
+  if [ -s "$np_st_stub/calls" ]; then made=yes; else made=no; fi
+  if [ "$made" != "$call" ]; then
+    printf 'FAIL resolve-base-%s: expected the API to be asked: %s, got: %s\n' "$label" "$call" "$made" >&2
+    np_st_fail=$((np_st_fail + 1))
+  fi
+}
+
+np_st_stub_gh() { # <dir>: write the stub `gh` there
+  np_st_stub=$1
+  mkdir -p "$np_st_stub"
+  cat > "$np_st_stub/gh" <<'STUB'
+#!/usr/bin/env bash
+# Stub `gh` for ci-changed-scope.sh --self-test.  Only `gh api ... --jq <filter>`.
+dir=$(cd "$(dirname "$0")" && pwd)
+printf '%s\n' "$*" >> "$dir/calls"
+if [ "${NP_STUB_GH_MODE:-ok}" = fail ]; then
+  printf 'gh: Resource not accessible by integration (HTTP 403)\n' >&2
+  exit 1
+fi
+want=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--jq" ]; then want=$(printf '%s' "$2" | sed -n 's/.*full_name == "\([^"]*\)".*/\1/p'); fi
+  shift
+done
+# No head-repository filter in the query means every run is returned, as the API would.
+while read -r repo sha; do
+  [ -n "$repo" ] || continue
+  if [ -z "$want" ] || [ "$repo" = "$want" ]; then printf '%s\n' "$sha"; fi
+done < "$dir/runs"
+STUB
+  chmod +x "$np_st_stub/gh"
+}
+
 # A real history, because the defect was in which revision gets diffed, and no
 # string fixture can show that.  main advances a web-relevant script while the
 # branch edits only a doc, then the branch merges main in.
@@ -399,6 +449,44 @@ np_self_test_diff_base() {
   # A descendant of the head is not a base: the head would then be diffed
   # BACKWARDS, and a force-push to an older commit would verify nothing.
   np_st_green descendant    NONE      "$before" "$merge"
+
+  # ── np_resolve_base: the API half (OI-SWCI-52) ──
+  # Arguments: <workflow> <merge-base> <event> <head> <branch> <default> <head-repo> <repo>.
+  # `main` stands for the merge base; any answer that is not a proven green
+  # ancestor must be exactly it.
+  np_st_stub_gh "$repo/../stub-gh"
+  nl='
+'
+  np_st_resolve found          "$before" yes ok   "o/r $before$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r
+  np_st_resolve nearest-of-two "$before" yes ok   "o/r $root${nl}o/r $before$nl" w.yml "$main" pull_request "$merge" feature main o/r o/r
+  np_st_resolve no-earlier-run "$main"   yes ok   ""                             w.yml "$main" pull_request "$merge" feature main o/r o/r
+  np_st_resolve failing-call   "$main"   yes fail "o/r $before$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r
+  # A fork can name its branch `feature` too.  Its green head is in this clone
+  # only if someone fetched it, and it verified the fork's tree, not this one.
+  np_st_resolve other-repo     "$main"   yes ok   "fork/r $before$nl"            w.yml "$main" pull_request "$merge" feature main o/r o/r
+  np_st_resolve fork-pr        "$before" yes ok   "o/r $root${nl}fork/r $before$nl" w.yml "$main" pull_request "$merge" feature main fork/r o/r
+  np_st_resolve only-this-head "$main"   yes ok   "o/r $merge$nl"                w.yml "$main" pull_request "$merge" feature main o/r o/r
+  np_st_resolve force-pushed   "$main"   yes ok   "o/r $orphan$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r
+  # Three cases where the API must not be asked at all: a wrong answer from it
+  # could only narrow the diff.
+  np_st_resolve default-branch "$root"   no  ok   "o/r $root$nl"                 w.yml "$root" push "$main" main main o/r o/r
+  np_st_resolve dispatch       "$main"   no  ok   "o/r $before$nl"               w.yml "$main" workflow_dispatch "$merge" feature main o/r o/r
+  np_st_resolve no-branch      "$main"   no  ok   "o/r $before$nl"               w.yml "$main" pull_request "$merge" "" main o/r o/r
+  # What was asked: this workflow's runs, on this branch, successful only.  A
+  # query without `status=success` would offer a FAILED head as a base.
+  np_st_resolve query-shape    "$before" yes ok   "o/r $before$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r
+  for needle in 'repos/o/r/actions/workflows/w.yml/runs' 'branch=feature' 'status=success'; do
+    grep -qF -- "$needle" "$np_st_stub/calls" || {
+      printf 'FAIL resolve-base-query-shape: the API call does not carry [%s]\n' "$needle" >&2
+      np_st_fail=$((np_st_fail + 1))
+    }
+  done
+  # A failing call is said, not swallowed.
+  np_st_resolve failing-said   "$main"   yes fail ""                             w.yml "$main" pull_request "$merge" feature main o/r o/r
+  grep -q '::warning::could not list earlier runs' "$np_st_stub/stderr" || {
+    printf 'FAIL resolve-base-failing-said: a failing API call printed no warning\n' >&2
+    np_st_fail=$((np_st_fail + 1))
+  }
   popd >/dev/null
 }
 

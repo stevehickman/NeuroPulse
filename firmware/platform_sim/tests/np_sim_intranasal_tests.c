@@ -78,12 +78,17 @@ static void test_each_side_selection_reaches_the_emitters(void)
     check(!ins()->ins_side_on[0] && ins()->ins_side_on[1], "sides: 2 drives the right only");
 }
 
-/* @verifies-none The duty ceiling is np_mod_intranasal.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
-static void test_duty_is_capped_before_the_emitters(void)
+/* @verifies-none The duty ceiling is np_mod_intranasal.c's; the hub suite verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
+static void test_duty_above_the_ceiling_is_refused_before_the_emitters(void)
 {
     setup();
     run("ins 0 40 200 60 70");
-    check(ins()->ins_duty[0] == 0x32U && ins()->ins_duty[1] == 0x32U, "duty: 200 reaches the emitters as the 0x32 ceiling");
+    check(!result_code_is(0), "duty: 200 is refused, not clamped to the 0x32 ceiling");
+    check(!ins()->ins_side_on[0] && !ins()->ins_side_on[1], "duty: neither emitter was driven");
+    g_cap_n = 0;
+    run("ins 0 40 50 60 70");
+    check(result_code_is(0) && ins()->ins_duty[0] == 0x32U && ins()->ins_duty[1] == 0x32U,
+          "duty: exactly 0x32 is accepted and reaches the emitters as authored");
 }
 
 /* @verifies-none Authentication gating is np_mod_intranasal.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
@@ -174,7 +179,7 @@ int main(void)
 {
     test_detect_and_authentication();
     test_each_side_selection_reaches_the_emitters();
-    test_duty_is_capped_before_the_emitters();
+    test_duty_above_the_ceiling_is_refused_before_the_emitters();
     test_an_unauthenticated_probe_is_never_driven();
     test_authentication_is_checked_once_at_init();
     test_a_bilateral_command_that_fails_on_the_second_side_leaves_nothing_driven();

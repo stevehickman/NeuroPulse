@@ -223,6 +223,17 @@ static void reset_mocks(void)
     g_imp_meas_kohm[1]     = 2.0f;
 }
 
+extern void np_mod_cvns_set_block_ms(uint32_t block_ms);
+
+/* A start as the runner makes it: the block's authored length from the command header first, then the command.
+ * 120 s is this file's test block (the one shipped cervical protocol's 2 minutes), not a limit of the driver. */
+#define TEST_BLOCK_MS 120000U
+static np_hub_status_t cvns_start(const np_mod_cvns_params_t *p)
+{
+    np_mod_cvns_set_block_ms(TEST_BLOCK_MS);
+    return np_mod_cvns_control(NP_HUB_SLOT_CVNS, p, (uint16_t)sizeof(*p));
+}
+
 static np_mod_cvns_params_t make_params(void)
 {
     np_mod_cvns_params_t p;
@@ -344,8 +355,50 @@ static void test_build_config_current_pw(void)
     p.pulse_width_us = 3000U; check(refused(&p), "config: pw 3000 is refused, not clamped to 1000 µs");
 
     p = make_params();
-    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.duration_s == NP_CVNS_SESSION_MAX_S,
-          "config: duration bounded to 120 s");
+    check(np_mod_cvns_build_config(&p, &c) == NP_HUB_OK && c.duration_s == 0U,
+          "config: no length is set from the parameter block; it is the command's (REQ-FWHUB-78 (k))");
+}
+
+/* The driver gave the library 120 s for every command, so a longer block was cut short with no word.  The block now
+ * runs for the length the protocol authored, and a start with no length is refused, never defaulted. */
+/* @verifies REQ-FWHUB-78#k */
+static void test_a_cervical_block_runs_for_its_authored_length_and_none_is_refused(void)
+{
+    reset_mocks();
+    (void)np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_ERR_INVALID_ARG && !np_mod_cvns_test_active() &&
+          np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IDLE,
+          "length: a start with no authored length is refused and starts nothing (it is not given 120 s)");
+
+    np_mod_cvns_set_block_ms(300000U);                 /* 5 minutes: above the retired 120 s */
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK &&
+          np_mod_cvns_test_session()->config.duration_s == 300U,
+          "length: a 5 minute block is accepted and the library is given 300 s, not 120 s");
+    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
+
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "length: the length is consumed by its start; the next start with none told is refused");
+
+    np_mod_cvns_set_block_ms(30000U);                  /* 30 s: below the retired 60 s */
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK &&
+          np_mod_cvns_test_session()->config.duration_s == 30U,
+          "length: a 30 s block is accepted and runs as 30 s (the 60 s minimum is retired)");
+    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
+
+    np_mod_cvns_set_block_ms(90500U);
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK &&
+          np_mod_cvns_test_session()->config.duration_s == 91U,
+          "length: a part second rounds up, so the library never ends before the runner's stop");
+    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
+
+    np_mod_cvns_set_block_ms((uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S) * 1000U);
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_ERR_INVALID_ARG && !np_mod_cvns_test_active(),
+          "length: a block no longer than the two ramps has no active time and is refused, not stretched");
+    np_mod_cvns_set_block_ms((uint32_t)(NP_CVNS_RAMP_UP_S + NP_CVNS_RAMP_DOWN_S + 1U) * 1000U);
+    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK, "length: one second more is accepted");
+    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
 }
 
 /* @verifies REQ-FWHUB-59, REQ-NPPS-23 */
@@ -375,7 +428,7 @@ static void test_control_refuses_out_of_range_descriptor(void)
 
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
-    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+    check(cvns_start(&p) == NP_HUB_ERR_INVALID_ARG,
           "control: an out-of-range command is refused with INVALID_ARG");
     for (uint32_t t = 0; t < 500U; t += 100U) {
         np_mod_cvns_tick(t, g_now_unix);
@@ -413,7 +466,7 @@ static void test_baseline_is_not_waivable_by_the_descriptor(void)
     for (int i = 0; i < 2; i++) {
         reset_mocks();
         np_mod_cvns_init(NP_HUB_SLOT_CVNS);
-        np_mod_cvns_control(NP_HUB_SLOT_CVNS, ps[i], sizeof(*ps[i]));
+        cvns_start(ps[i]);
         for (uint32_t t = 0; t < 500U; t += 100U) {
             np_mod_cvns_tick(t, g_now_unix);
         }
@@ -443,7 +496,7 @@ static void test_control_start_no_immediate_enable(void)
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
 
-    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK,
+    check(cvns_start(&p) == NP_HUB_OK,
           "control: start returns OK");
     check(np_mod_cvns_test_active(), "control: driver marked active");
     /* Library begins with impedance check, not stimulation. */
@@ -463,7 +516,7 @@ static void test_ramp_report_checks_then_ramp_then_steady(void)
     check(r.phase == NP_RAMP_NONE, "ramp report: nothing running reports no ramp");
 
     np_mod_cvns_params_t p = make_params();
-    (void)np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    (void)cvns_start(&p);
     np_mod_cvns_ramp(1000U, &r);
     check(r.phase == NP_RAMP_PRECHECK && r.remaining_ms == NP_RAMP_UNKNOWN_MS,
           "ramp report: the impedance and baseline checks report PRECHECK with an unknown time");
@@ -486,7 +539,7 @@ static void test_tick_pre_delivery_no_enable(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* Tick through pre-delivery stages (no impedance response injected → stays
      * in impedance/baseline).  Enable must remain un-requested. */
@@ -503,7 +556,7 @@ static void test_enable_asserted_when_delivering(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* White-box: place the library session in a delivery stage.  The library's
      * own tick (invoked inside np_mod_cvns_tick) leaves ACTIVE unchanged when
@@ -527,7 +580,7 @@ static void test_hr_report_paced_and_invalid_without_beats(void)
     g_hr_report_calls = 0;
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     np_mod_cvns_tick(0U, g_now_unix);
     check(g_hr_report_calls == 1, "hr report: sent at the first tick of the session");
@@ -549,7 +602,7 @@ static void test_the_report_carries_the_owners_cardiac_sensitivity_level(void)
     g_cardiac_sens = 2U;
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     np_mod_cvns_tick(0U, g_now_unix);
     check(g_hr_report_calls == 1 && g_hr_report_sens == 2U && !g_hr_report_valid,
           "sens: the first report carries the owner's level even with no heart rate yet");
@@ -564,7 +617,7 @@ static void test_terminal_stage_drops_enable(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
     np_mod_cvns_tick(10U, g_now_unix);          /* asserts enable */
@@ -584,7 +637,7 @@ static void test_stop_drops_enable(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
     np_mod_cvns_tick(10U, g_now_unix);          /* asserts enable */
@@ -602,7 +655,7 @@ static void test_fault_cb_disables_and_logs(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
     np_mod_cvns_tick(10U, g_now_unix);          /* asserts enable */
@@ -632,7 +685,7 @@ static void run_to_interlock_fault(np_cvns_fault_reason_t reason)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
     np_mod_cvns_test_interlock()->state        = NP_CVNS_INTERLOCK_FAULT;
     np_mod_cvns_test_interlock()->fault_reason = reason;
@@ -692,7 +745,7 @@ static void test_hb_impedance_advances_stage(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IMPEDANCE,
           "hb-imp: precondition — session at IMPEDANCE stage");
@@ -726,7 +779,7 @@ static void test_hb_impedance_out_of_window_holds(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     g_imp_meas_kohm[0] = 2.0f; g_imp_meas_kohm[1] = 9.0f;   /* right electrode bad */
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
@@ -754,7 +807,7 @@ static void test_hb_impedance_start_fail_fallback(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     g_imp_meas_start_rc = NP_HUB_ERR_MOD_FAULT;   /* no measurement path available */
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
@@ -776,7 +829,7 @@ static void test_hb_impedance_timeout_fallback(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     g_imp_meas_complete = false;   /* poll never completes */
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
@@ -826,7 +879,7 @@ static void test_hb_impedance_crossval_agrees(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     publish_mcu_impedance(3.4f, 4.0f);      /* MCU report */
     run_impedance_measurement(3.3f, 4.1f);  /* hub within 1.0 kΩ of MCU */
@@ -848,7 +901,7 @@ static void test_hb_impedance_crossval_diverges(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     publish_mcu_impedance(2.0f, 2.0f);      /* MCU says ~2 kΩ both */
     run_impedance_measurement(2.0f, 4.5f);  /* hub right electrode 2.5 kΩ higher */
@@ -874,7 +927,7 @@ static void test_hb_impedance_crossval_boundary(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     publish_mcu_impedance(4.0f, 4.0f);
     run_impedance_measurement(3.0f, 3.0f);   /* diff = 1.0 kΩ = tolerance */
     check(np_mod_cvns_test_stim()->impedance_ok &&
@@ -885,7 +938,7 @@ static void test_hb_impedance_crossval_boundary(void)
     /* Just over tolerance: fail-closed. */
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     publish_mcu_impedance(4.0f, 4.0f);
     run_impedance_measurement(3.0f, 2.99f);  /* right diff = 1.01 kΩ > tolerance */
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
@@ -904,7 +957,7 @@ static void test_hb_impedance_crossval_no_mcu_report(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* No publish_mcu_impedance() — s_hb_mcu_imp_valid stays false. */
     run_impedance_measurement(3.3f, 4.1f);
@@ -924,7 +977,7 @@ static void test_hb_enable_grant(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* White-box: library has requested enable and is waiting for the MCU grant. */
     np_mod_cvns_test_session()->stage    = NP_CVNS_STAGE_BASELINE;
@@ -948,7 +1001,7 @@ static void test_hb_enable_reject_impedance(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* Reach PRE_SESSION with the unified enable actually requested: one tick with
      * the interlock in PRE_SESSION makes the driver request NP_SAFETY_EN_CVNS. */
@@ -981,7 +1034,7 @@ static void test_hb_cardiac_left_to_reenable(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* White-box: stimulation is delivering and the MCU had granted the enable. */
     np_mod_cvns_test_session()->stage        = NP_CVNS_STAGE_ACTIVE;
@@ -1008,14 +1061,14 @@ static void test_hb_snapshot_reset_on_start(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
 
     /* Publish a grant, then stop — the snapshot must not survive into a restart. */
     np_mod_cvns_set_heartbeat_status(NP_SAFETY_EN_CVNS, NP_SAFETY_STATUS_OK);
     np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
 
     /* New session; place interlock in PRE_SESSION but publish NOTHING new. */
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     np_mod_cvns_test_session()->stage   = NP_CVNS_STAGE_BASELINE;
     np_mod_cvns_test_interlock()->state = NP_CVNS_INTERLOCK_PRE_SESSION;
     np_mod_cvns_test_apply_heartbeat(g_now_ms);   /* stale snapshot invalidated → no-op */
@@ -1056,7 +1109,7 @@ static void test_a_pause_leaves_one_cervical_session_not_several(void)
     reset_mocks();
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    cvns_start(&p);
     np_cvns_session_ctx_t *s = np_mod_cvns_test_session();
     const uint32_t first_unix = s->uhdr_record.session_start_unix;
     s->stage = NP_CVNS_STAGE_ACTIVE;
@@ -1071,7 +1124,7 @@ static void test_a_pause_leaves_one_cervical_session_not_several(void)
     check(g_disable_calls >= 1 && !np_mod_cvns_test_enable_requested(), "cervical pause: the enable is withdrawn");
 
     g_now_unix += 100U;
-    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK &&
+    check(cvns_start(&p) == NP_HUB_OK &&
           !np_cvns_session_suspended(s) && s->stage != NP_CVNS_STAGE_IDLE &&
           s->uhdr_record.session_start_unix == first_unix,
           "cervical resume: the same session continues (its start time is not renewed) and the checks run again");
@@ -1122,7 +1175,7 @@ static void start_flow(uint16_t granted_mask)
     g_ppg_ms_since_beat = 0.0;
     np_mod_cvns_init(NP_HUB_SLOT_CVNS);
     np_mod_cvns_params_t p = make_params();
-    check(np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p)) == NP_HUB_OK, "flow: the command is accepted");
+    check(cvns_start(&p) == NP_HUB_OK, "flow: the command is accepted");
     np_mod_cvns_set_heartbeat_status(granted_mask, NP_SAFETY_STATUS_OK);
 }
 
@@ -1201,6 +1254,7 @@ int main(void)
     test_uhdr_record_distinguishes_fault_kind();
     test_fault_reaches_offline_summary();
     test_the_real_flow_reaches_ramp_up_and_steady_stimulation();
+    test_a_cervical_block_runs_for_its_authored_length_and_none_is_refused();
     test_a_session_waiting_for_the_grant_is_not_faulted_by_waiting();
 
     if (g_failures == 0) {

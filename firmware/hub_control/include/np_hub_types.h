@@ -110,6 +110,20 @@ typedef enum {
     NP_HUB_ERR_MPE_CHECK            = -37,  /* goggles: the IEC 62471 exposure check failed */
     NP_HUB_ERR_SLEEVE_NOT_AUTH      = -38,  /* intranasal probe: the sleeve is not authenticated */
     NP_HUB_ERR_CONTACT_NOT_CONFIRMED = -39, /* auricular VNS clip: contact impedance not finite or outside the window */
+    /* REQ-FWHUB-78 (g) (the principal, 2026-11-11: the load-time refusal has a status of its own).  The protocol holds a
+     * command whose value is outside a limit the hub holds (a current, a ramp, a duty, a frequency, a level, a gain code),
+     * so np_runner_load() refuses the whole protocol and nothing is started.  One status for every such limit: it does not
+     * say which.  Was NP_HUB_ERR_INVALID_ARG, which the apps can only call a descriptor built wrongly.  Reason 40 in the
+     * upload-check frame.  A driver that meets the same value at dispatch still answers NP_HUB_ERR_INVALID_ARG. */
+    NP_HUB_ERR_OUTSIDE_LIMIT        = -40,
+    /* REQ-FWHUB-78 (k) (the principal, 2026-11-11: keep the two cervical refusals as STRUCTURAL checks, each with a clear
+     * message of its own).  Neither is a limit: each is a block the cervical VNS library cannot represent.
+     * TOO_SHORT: the block is no longer than the library's ramp-up plus ramp-down, so it has no time at the authored
+     * level (a block with no length at all is this too).  TOO_LONG: the block is longer than the library's 16-bit
+     * seconds field can carry (65,535 s).  np_runner_load() refuses the protocol with these, reasons 41 and 42 in the
+     * upload-check frame; nothing is started. */
+    NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT = -41,
+    NP_HUB_ERR_CVNS_BLOCK_TOO_LONG  = -42,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -284,7 +298,7 @@ typedef struct {
 
 typedef struct __attribute__((packed)) {
     uint8_t freq_code;     /* 0x00=CW 0x01=2Hz 0x06=6Hz 0x0A=10Hz 0x14=20Hz 0x28=40Hz */
-    uint8_t duty;          /* duty register value ≤ 0x32 (25%); firmware-enforced */
+    uint8_t duty;          /* duty register value ≤ 0x32 (25%); above it the command is refused (REQ-FWHUB-78, interim: OI-HEXTILE-31) */
     uint8_t cur_a;         /* 660nm LED current register */
     uint8_t cur_b;         /* 808nm LED current register */
 } np_mod_pbm_base_params_t;
@@ -293,7 +307,7 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 for all channels; firmware-enforced */
+    uint8_t duty;          /* ≤ 0x32 for all channels; above it the command is refused (REQ-FWHUB-78) */
     uint8_t cur_a;         /* 660nm */
     uint8_t cur_b;         /* 808nm */
     uint8_t cur_c;         /* 1064nm */
@@ -305,7 +319,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t side;          /* 0=bilateral, 1=left, 2=right */
     uint8_t freq_code;
-    uint8_t duty;          /* ≤ 0x32 */
+    uint8_t duty;          /* ≤ 0x32 (INS_DUTY_MAX); above it the command is refused (REQ-FWHUB-78) */
     uint8_t cur_660;       /* 660nm current register */
     uint8_t cur_808;       /* 808nm current register */
 } np_mod_intranasal_params_t;
@@ -314,7 +328,7 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t channel_mask;  /* bit n = 1 → enable channel n (n=0..7: Fp1/2 F3/4 C3/4 P3/4) */
-    uint8_t gain;          /* ADS1299 PGA: 0=1× 1=2× 2=4× 3=6× 4=8× 5=12× 6=24× */
+    uint8_t gain;          /* ADS1299 PGA: 0=1× 1=2× 2=4× 3=6× 4=8× 5=12× 6=24×; a code above 6 is refused (REQ-FWHUB-78) */
     uint8_t notch;         /* 0=none, 1=50Hz, 2=60Hz */
     uint8_t ref_mode;      /* 0=linked-ear (A1+A2), 1=CSD */
     uint8_t adaptive_out;  /* 0=none, 1→PBM freq, 2→audio freq, 3→both */
@@ -324,8 +338,8 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t  electrode_pair; /* 0=F3-F4 1=P3-P4 2=Fz-Pz (see pinout) */
-    uint16_t freq_mhz;       /* frequency in milli-Hz (1000=1Hz, 40000=40Hz) */
-    uint16_t amplitude_ua;   /* peak amplitude µA; firmware cap ≤ 1000 (1mA) */
+    uint16_t freq_mhz;       /* frequency in milli-Hz (1000=1Hz, 40000=40Hz); 500..40000, refused outside (REQ-FWHUB-78) */
+    uint16_t amplitude_ua;   /* peak amplitude µA; ≤ 1000 (1mA), refused above, never clamped (REQ-FWHUB-78) */
     uint8_t  waveform;       /* 0=sinusoidal, 1=biphasic square */
     uint8_t  phase_deg;      /* relative phase 0–359 */
 } np_mod_bes_tacs_params_t;
@@ -334,9 +348,9 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
     uint8_t  electrode_pair; /* channel pair — see tDCS montage table */
-    uint16_t current_ua;     /* DC current µA; firmware cap ≤ 2000 (2mA) */
+    uint16_t current_ua;     /* DC current µA; ≤ 2000 (2mA), refused above, never clamped (REQ-FWHUB-78) */
     uint8_t  polarity;       /* 0=anode at pair-A, 1=cathode at pair-A */
-    uint16_t ramp_s;         /* ramp duration; firmware minimum 30s enforced */
+    uint16_t ramp_s;         /* ramp duration; ≥ 30 s, refused below, never lengthened (REQ-FWHUB-78) */
     /* OI-CHARGE-04: area of ONE electrode, milli-cm² (1 unit = 0.001 cm²).
      * electrode_pair names 10-20 SITES (F3-F4, P3-P4, Fz-Pz) and says nothing
      * about pad size, so the geometry the 40µC/cm² limit divides by has to be
@@ -354,7 +368,7 @@ typedef struct __attribute__((packed)) {
     uint32_t freq_mhz;        /* stim freq mHz; 32 bits so no frequency the descriptor can author is cut off
                                * (a 16-bit field topped out at 65.535 Hz). The 25 Hz ceiling is removed:
                                * OI-VNSCLIP-08, the principal 2026-10-29. Not a safety limit of any kind. */
-    uint16_t amplitude_ua;    /* µA; firmware cap ≤ 40000 (NP_VNS_MAX_CURRENT_UA) */
+    uint16_t amplitude_ua;    /* µA; ≤ 40000 (NP_VNS_MAX_CURRENT_UA), refused above, never clamped (REQ-FWHUB-78) */
     uint16_t pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs. Authored range 50–500 µs
                                * (VNS_MIN/MAX_PULSE_WIDTH_US); widened from 8 bits so the 300 and 500 µs
                                * widths the taVNS studies use can be written. The safety MCU's per-phase
@@ -384,8 +398,13 @@ typedef struct __attribute__((packed)) {
     uint8_t  freq_hz;        /* photic drive Hz (0.5–100); 0 for EMDR/PBM only */
     uint8_t  duty_pct;       /* duty cycle 0–100 */
     uint8_t  wl_select;      /* 0=660nm, 1=808nm, 2=both */
-    uint8_t  zone_mask_lo;   /* zones 0–7 (lo byte of 12-bit per-eye zone mask) */
-    uint8_t  zone_mask_hi;   /* zones 8–11 (hi nibble) */
+    /* The zone mask is 12 bits.  zone_mask_lo carries bits 0–7.  Bits 0–3 of zone_mask_hi carry bits 8–11.  Bits 4–7
+     * of zone_mask_hi are RESERVED and must be zero: a descriptor that sets one is refused, at load and at dispatch
+     * (REQ-FWHUB-78 (l); the principal, 2026-11-11).  What the twelve bits mean per eye is NOT stated anywhere and is
+     * open (OI-FWHUB-35): CLAUDE.md section 3 gives 6 zones per eye, and this comment used to say "12-bit per-eye zone
+     * mask".  The driver passes all twelve to np_mod_visual_hal_led_set() and gives them no meaning of its own. */
+    uint8_t  zone_mask_lo;   /* mask bits 0–7 */
+    uint8_t  zone_mask_hi;   /* mask bits 8–11 in bits 0–3; bits 4–7 reserved, must be 0 (refused otherwise) */
     uint8_t  emdr_rate_mhz;  /* EMDR L/R alternation rate mHz */
     uint8_t  mode_f_enable;  /* 1=Mode F (NIR retinal walk, 808-830nm) */
     uint8_t  shade_req;      /* 0=none, 1=S1_opaque */
@@ -396,9 +415,9 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  side;            /* 0=right, 1=left, 2=bilateral */
     uint16_t freq_mhz;        /* mHz; safety MCU enforces cardiac interlock */
-    uint16_t amplitude_ua;    /* µA; firmware cap ≤ 2000 */
+    uint16_t amplitude_ua;    /* µA; ≤ 2000, refused above, never clamped */
     uint16_t pulse_width_us;  /* µs; refused outside 200–1000 (0 → 250 default) */
-    uint16_t ramp_s;          /* ramp; firmware minimum 10s enforced */
+    uint16_t ramp_s;          /* NOT USED: the library ramps at its fixed NP_CVNS_RAMP_UP_S (OI-FWHUB-35) */
     uint8_t  baseline_req;    /* 1=safety MCU must establish HR baseline before enable */
 } np_mod_cvns_params_t;
 
@@ -427,9 +446,10 @@ typedef struct __attribute__((packed)) {
 /* ── T2: 1170nm deep PBM laser (NP_MOD_PBM_1170NM) ────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint16_t intensity_mw_cm2;  /* mW/cm²; firmware cap ≤ 1000 */
+    uint16_t intensity_mw_cm2;  /* mW/cm²; limit 1000. No driver exists (np_mod_t2_stubs.c); when built it REFUSES above the
+                                 * limit and never clamps (REQ-FWHUB-78 (i)) */
     uint8_t  freq_code;         /* 0x00=CW; freq in Hz for pulsed modes */
-    uint8_t  duty;              /* ≤ 0x32 (25%); firmware-enforced */
+    uint8_t  duty;              /* ≤ 0x32 (25%), interim (OI-HEXTILE-31); to be refused above, never clamped, when built */
     uint8_t  tec_target_c;      /* TEC stabilization target °C; 0=auto (37°C) */
 } np_mod_pbm_1170nm_params_t;
 
@@ -455,8 +475,9 @@ typedef struct __attribute__((packed)) {
 #define NP_CLIN_TACS_MASK_EXT_BITS  (NP_CLIN_TACS_CHANNELS - 16U)  /* 5 */
 
 typedef struct __attribute__((packed)) {
-    uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU */
-    uint16_t amplitude_ua;      /* peak µA per channel; firmware cap ≤ 4000 */
+    uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU; below 500 refused at load (REQ-FWHUB-78) */
+    uint16_t amplitude_ua;      /* peak µA per channel; limit 4000. No driver exists (np_mod_t2_stubs.c); when built it
+                                 * REFUSES above the limit and never clamps (REQ-FWHUB-78 (i)) */
     uint8_t  channel_mask_lo;   /* channels 0–7 enable bitmask */
     uint8_t  channel_mask_hi;   /* channels 8–15 enable bitmask */
     uint8_t  channel_mask_ext;  /* channels 16–20 in bits 0–4; bits 5–7 reserved, must be 0 */
@@ -468,8 +489,10 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  target;            /* same 7-target enum as NP_MOD_TMS */
     uint8_t  montage;           /* 0=ring_4x1, 1=bilateral_4x1, 2=standard_2el */
-    uint16_t current_ua;        /* DC µA; cap ≤ 2000; safety MCU enforces 40µC/cm² */
-    uint16_t ramp_s;            /* ramp seconds; firmware minimum 30s enforced */
+    uint16_t current_ua;        /* DC µA; limit 2000 (np_hd_stim_start refuses above). No hub driver exists
+                                 * (np_mod_t2_stubs.c); when built it REFUSES above the limit and never clamps
+                                 * (REQ-FWHUB-78 (i)). The safety MCU holds the DC session charge ceiling. */
+    uint16_t ramp_s;            /* ramp seconds; minimum 30 s. To be refused below, never lengthened, when built */
 } np_mod_hd_tdcs_params_t;
 
 /* ── Accessory: mastoid LRA 40Hz vibrotactile (NP_MOD_VIBROTACTILE) ─────────── */

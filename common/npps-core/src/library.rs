@@ -300,6 +300,16 @@ const REASON_PHOTIC_ZONE: u64 = 30;
 /// `NP_HUB_ERR_BAD_ADDRESS` (REQ-FWHUB-64): the protocol names a socket this helmet does not have. It was reason 2 (`malformed`); the
 /// author can make the protocol again for this helmet, so it has a cause of its own, `bad_address`.
 const REASON_BAD_ADDRESS: u64 = 31;
+/// `NP_HUB_ERR_OUTSIDE_LIMIT` (REQ-FWHUB-78 (g), `OI-FWHUB-35` (a)): a command in the protocol holds a value outside a limit the helmet's
+/// drivers hold. It was reason 2 (`malformed`); the author can change the value, so it has a cause of its own, `outside_limit`
+/// (`PROTOCOL_MENU_REFUSED_OUTSIDE_LIMIT`). The compiler refuses the same values before signing (`REQ-NPPS-33` (e)), so a
+/// descriptor this core made does not meet it.
+const REASON_OUTSIDE_LIMIT: u64 = 40;
+/// `NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT` and `NP_HUB_ERR_CVNS_BLOCK_TOO_LONG` (REQ-FWHUB-78 (k)): a cervical VNS block the helmet's
+/// library cannot represent, no longer than its ramp-up plus ramp-down, or longer than its 16-bit seconds field. Structural
+/// checks, not limits; the author can change the block's length, so each has a cause of its own.
+const REASON_CVNS_BLOCK_TOO_SHORT: u64 = 41;
+const REASON_CVNS_BLOCK_TOO_LONG: u64 = 42;
 /// `NP_HUB_ERR_CMD_TOO_MANY`: more commands than the helmet can hold. The author can shorten the protocol or split it, so it has a
 /// cause of its own, `too_many_commands`, and no longer shares `malformed` with a descriptor the app built wrongly.
 const REASON_CMD_TOO_MANY: u64 = 8;
@@ -336,6 +346,9 @@ fn helmet_cause(req: &Value) -> R<Value> {
         REASON_CMD_TOO_MANY => "too_many_commands", // NP_HUB_ERR_CMD_TOO_MANY: more steps than the helmet holds
         REASON_PHOTIC_ZONE => "photic_zone",   // NP_HUB_ERR_PHOTIC_ZONE
         REASON_BAD_ADDRESS => "bad_address",   // NP_HUB_ERR_BAD_ADDRESS
+        REASON_OUTSIDE_LIMIT => "outside_limit", // NP_HUB_ERR_OUTSIDE_LIMIT
+        REASON_CVNS_BLOCK_TOO_SHORT => "cervical_block_too_short", // NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT
+        REASON_CVNS_BLOCK_TOO_LONG => "cervical_block_too_long",   // NP_HUB_ERR_CVNS_BLOCK_TOO_LONG
         13 => "session_active", // NP_HUB_ERR_SESSION_ACTIVE
         25 => "boot_refused",   // NP_HUB_ERR_BOOT_REFUSED
         REASON_NO_LAYOUT => "no_layout", // NP_HUB_ERR_NO_LAYOUT: the helmet does not know its own hardware version's sockets
@@ -525,6 +538,101 @@ fn map_variant(req: &Value) -> R<Value> {
     Ok(json!({ "status": "not_supported" }))
 }
 
+// ── Families, releases and variants (`SWR-FM-01`, `SWR-FM-02`) ──────────────────────────────────────
+
+/// `SWR-FM-02` part b: a release is `major.minor`, both whole numbers written in digits and nothing else
+/// (`NP-NPPS-REF-001` §3). Anything else is not a release: it is reported, never guessed at.
+fn release_of(e: &Value) -> Option<(u64, u64)> {
+    let (a, b) = e["version"].as_str()?.split_once('.')?;
+    let whole = |x: &str| if !x.is_empty() && x.bytes().all(|c| c.is_ascii_digit()) { x.parse::<u64>().ok() } else { None };
+    Some((whole(a)?, whole(b)?))
+}
+
+/// Every content hash an entry summary carries: `hashes` (`{"1": "…", "2": "…"}`, one per hardware version) and `hash`.
+fn hashes_of(e: &Value) -> BTreeSet<&str> {
+    let mut h: BTreeSet<&str> = e["hashes"].as_object().into_iter().flatten().filter_map(|(_, v)| v.as_str()).collect();
+    h.extend(e["hash"].as_str());
+    h
+}
+
+/// The content hash of an entry's variant for one hardware version: its `hashes` entry for that version, else `hash`
+/// when the entry supports that version alone. Null when the caller gave none.
+fn variant_hash(e: &Value, version: u64) -> Value {
+    if let Some(h) = e["hashes"].get(version.to_string()).filter(|h| h.is_string()) {
+        return h.clone();
+    }
+    if versions_of(e) == [version] && e["hash"].is_string() {
+        return e["hash"].clone();
+    }
+    Value::Null
+}
+
+/// `SWR-FM-02`: one family as its releases, latest first, and each release as its variants, one for each hardware
+/// version, in version order. A variant is `{hardwareVersion, id, hash}`: the entry that supplies the content for that
+/// version, and that content's own hash. The family id is the only link between variants: nothing in a variant names
+/// another, so a change to one changes that variant's node and no other. Two entries of one release that both supply a
+/// hardware version are a `conflict` and neither is listed as the variant, because the core never picks one silently.
+/// An entry whose `version` is not `major.minor` is in no release and is listed under `unreleased`.
+fn family_tree(req: &Value) -> R<Value> {
+    let es = entries(req)?;
+    let key = req["familyId"].as_str().filter(|s| !s.is_empty()).ok_or("familyId is required")?;
+    let ms = members(es, key);
+    if ms.is_empty() {
+        return Err(format!("no family '{key}'"));
+    }
+    let mut releases: BTreeMap<(u64, u64), BTreeMap<u64, Vec<&Value>>> = BTreeMap::new();
+    let mut unreleased = Vec::new();
+    for m in &ms {
+        match release_of(m) {
+            Some(r) => {
+                let by_hw = releases.entry(r).or_default();
+                for v in versions_of(m).into_iter().collect::<BTreeSet<u64>>() {
+                    by_hw.entry(v).or_default().push(m);
+                }
+            }
+            None => unreleased.push(id_of(m)),
+        }
+    }
+    let mut out = Vec::new();
+    let mut conflicts = Vec::new();
+    for ((major, minor), by_hw) in releases.iter().rev() {
+        let version = format!("{major}.{minor}");
+        let mut variants = Vec::new();
+        for (hw, holders) in by_hw {
+            if let [one] = holders.as_slice() {
+                variants.push(json!({ "hardwareVersion": hw, "id": id_of(one), "hash": variant_hash(one, *hw) }));
+            } else {
+                let ids: Vec<&str> = holders.iter().map(|h| id_of(h)).collect();
+                conflicts.push(json!({ "version": version, "hardwareVersion": hw, "ids": ids }));
+            }
+        }
+        out.push(json!({ "version": version, "major": major, "minor": minor, "variants": variants }));
+    }
+    Ok(json!({ "familyId": key, "releases": out, "unreleased": unreleased, "conflicts": conflicts }))
+}
+
+/// `SWR-FM-01`: an import merges by family id. An arriving entry whose family id the library already holds joins that
+/// family (`existing`); any other id is a family the library did not have (`new`). The id is taken as it arrives and is
+/// never rewritten, so it is stable across an export and an import. `sameContentAs` names the local members of that
+/// family whose content hash equals an arriving one: identical compiled content is the same version (`SWR-HV-01`), so
+/// the library can see it already holds it. An arriving entry with no family id is a family of one, keyed by its own id.
+/// What the library then stores is its own; this decides only which family each arriving entry belongs to.
+fn import_families(req: &Value) -> R<Value> {
+    let es = entries(req)?;
+    let incoming = req["incoming"].as_array().ok_or("incoming must be an array")?;
+    let out: Vec<Value> = incoming
+        .iter()
+        .map(|e| {
+            let key = family_of(e);
+            let ms = members(es, key);
+            let arriving = hashes_of(e);
+            let same: Vec<&str> = ms.iter().filter(|m| !arriving.is_disjoint(&hashes_of(m))).map(|m| id_of(m)).collect();
+            json!({ "id": id_of(e), "familyId": key, "family": if ms.is_empty() { "new" } else { "existing" }, "sameContentAs": same })
+        })
+        .collect();
+    Ok(json!({ "entries": out }))
+}
+
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.
 pub fn library_json(request: &str) -> R<String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("library request is not JSON: {e}"))?;
@@ -547,6 +655,8 @@ pub fn library_json(request: &str) -> R<String> {
         "propagationOffer" => propagation_offer(&req)?,
         "applyChanges" => apply_changes(&req)?,
         "mapVariant" => map_variant(&req)?,
+        "familyTree" => family_tree(&req)?,
+        "importFamilies" => import_families(&req)?,
         other => return Err(format!("unknown library operation '{other}'")),
     };
     Ok(out.to_string())

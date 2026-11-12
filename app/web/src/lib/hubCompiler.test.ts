@@ -527,3 +527,16 @@ describe('mixed-target protocols', () => {
     expect(eeg.params).toHaveLength(5);
   });
 });
+
+// The web entry hands the serial to the core whole. It used to cut one to 32 bytes before the core saw it, and the core
+// cut it again; a serial cut to fit names a different device (NP-NPPS-REF-001 REQ-NPPS-33 (d)).
+describe('device serial', () => {
+  // @verifies REQ-NPPS-33#d
+  it('refuses a serial longer than the 32-byte field and writes a 32-byte one whole', () => {
+    const proto = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    const full = new Uint8Array(32).fill(0x5a);
+    expect(Array.from(compileProtocol(proto, { zones, deviceSerial: full }).blob.slice(28, 60))).toEqual(Array.from(full));
+    expect(() => compileProtocol(proto, { zones, deviceSerial: new Uint8Array(33).fill(0x5a) }))
+      .toThrow(/device serial is 33 bytes and the descriptor carries at most 32/);
+  });
+});

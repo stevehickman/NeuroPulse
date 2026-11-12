@@ -27,6 +27,7 @@
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_session_log.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -127,13 +128,19 @@ np_hub_status_t np_mod_eeg_control(uint8_t slot, const void *params, uint16_t le
     }
 
     const np_mod_eeg_params_t *p = (const np_mod_eeg_params_t *)params;
+
+    /* REQ-FWHUB-78 (h): a gain code outside the wire definition's 0..6 is refused before any state or register
+     * changes.  It used to be masked into the 3-bit field, so code 8 was recorded as 1x. */
+    if (np_cmd_limits_check(NP_MOD_EEG, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
     s_ch_mask     = p->channel_mask;
     s_notch       = p->notch;
     s_gain        = p->gain;
     s_adaptive_out= p->adaptive_out;
 
     /* Apply gain to enabled channels; power down disabled ones. */
-    uint8_t gain_reg = (uint8_t)(p->gain << 4) & 0x70U; /* PGA[2:0] in CHnSET[6:4] */
+    uint8_t gain_reg = (uint8_t)(p->gain << 4);         /* PGA[2:0] in CHnSET[6:4]; gain <= 6 was checked above */
     for (uint8_t ch = 0U; ch < NP_EEG_CHANNELS; ch++) {
         if (s_ch_mask & (1U << ch)) {
             np_mod_eeg_hal_spi_write_reg(ADS_CH1SET + ch, gain_reg);

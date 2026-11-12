@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-NASAL-001
-**Revision:** 3
-**Date:** 2026-11-09
+**Revision:** 4
+**Date:** 2026-11-11
 **Status:** DRAFT — **requirements-grade. No probe geometry, no emitter selection and no mucosal exposure limit exist; §8 names each absence rather than supplying a value.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -153,7 +153,7 @@ document owes the hub the four values.
 | **REQ-NASAL-08** | Silicone over-mould at the Y-junction for impact protection | `docs/reference/modality-stack.md` |
 | **REQ-NASAL-09** | The probe stores in the hub dock, and the dock ships from day one in every configuration | `CLAUDE.md` §3 modality ②; `NP-TOOL-HUB-001` F-01 |
 | **REQ-NASAL-10** | Session admission requires **both** an authentication pass and a photodiode contact confirmation | `np_mod_intranasal_detect()`; `NP-FW-HUB-001` §8.7 |
-| **REQ-NASAL-11** | Duty ceiling **25 %** (`INS_DUTY_MAX` = `0x32`), and the protocol grammar bounds `duty_cycle` 1–25 % | `firmware/hub_control/modules/np_mod_intranasal.c`; `NP-NPPS-REF-001` §4.2 |
+| **REQ-NASAL-11** | Duty ceiling **25 %** (`INS_DUTY_MAX` = `0x32`), and the protocol grammar bounds `duty_cycle` 1–25 %. **The driver refuses a duty above the ceiling (`NP_HUB_ERR_INVALID_ARG`) and writes neither side; it does not clamp** (Rev 4, 2026-11-11; `NP-FW-HUB-001` `REQ-FWHUB-78` (d)). The value is unchanged, and the refusal is interim with the 25 % cap (`NP-HW-HEXTILE-001` `OI-HEXTILE-31`) | `firmware/hub_control/modules/np_mod_intranasal.c`; `firmware/hub_control/include/np_cmd_limits.h`; `NP-NPPS-REF-001` §4.2; CLAUDE.md §3 (a ceiling refuses, it never reshapes) |
 | **REQ-NASAL-12** | Ambient envelope: full dose ≤ +30 °C, derate +30 → +35 °C, block > +35 °C — **the probe carries the same band as every helmet module** | `NP-ENV-OPRANGE-001` |
 | **REQ-NASAL-15** | A drive command that does not fully apply **leaves nothing emitting**: if any side's write fails (the second side of a bilateral command included), the driver stops both sides, clears its active state, withdraws the enable request and reports the module fault. *Fails without it:* the side already written keeps emitting with no enable requested and no state for the stop path to act on (`OI-SIMFW-21`) | `CLAUDE.md` §4.2 (a fault leaves nothing driven); `np_mod_intranasal.c`; `NP-FW-HUB-001` §8.7 |
 
@@ -209,7 +209,8 @@ Three things follow, and they are separate:
    §4.2). **The probe has no NTC** (§2.4 lists a PD and a reference LED, and nothing else), so even
    if the 42 °C limit is read onto it, no sensor in the design can observe it.
 3. **The duty ceiling is inherited, not derived.** `INS_DUTY_MAX`'s own comment reads *"same ceiling
-   as zone modules."* That is a reasonable interim default and it is **not** a mucosal exposure
+   as zone modules."* (Since 2026-11-11 a duty above it is refused, not clamped, `REQ-NASAL-11`; that
+   changes what happens above the ceiling and derives nothing.) That is a reasonable interim default and it is **not** a mucosal exposure
    limit; it bounds duty, not irradiance, and 25 % duty at an unbounded drive current bounds
    nothing.
 
@@ -376,3 +377,4 @@ analysis is still owed. Inputs, unscored:
 | 2 | 2026-09-23 | NeurOne Systems Engineering | **`OI-NASAL-01` closed by its second branch: the baselined hub dock is recorded as gated, not given invented dimensions** (§2.2 resolution). The four values the dock needs cannot be supplied honestly — each follows from an emitter, PD/sleeve or cable selection not yet made — so `NP-TOOL-HUB-001` Rev 2 now marks F-01's probe-contact geometry, HUB-MDR-01…03 and FAI-HTOOL-01 as gated, and `NP-FAI-HUB-001` Rev 2 gates FAI-HUB-09, -10 and -20 and corrects its §0 claim that the saddle radius was dimensioned. **The hub mould is not released by this**: its steel cut stays blocked through `OI-HTOOL-06`, now visibly rather than silently. The values are carried forward as **`OI-NASAL-09`**; `NP-TOOL-HUB-001` raises **OI-HTOOL-07**, recommending (not executing) moving every probe-contact surface into the dock's bonded silicone inserts so the hard mould no longer depends on the probe. **No engineering value is set; no requirement, price or locked decision changes.** |
 | 1 | 2026-09-20 | NeurOne Systems Engineering | Initial release, against GitHub #332 / `NP-ART-001` OI-ART-04. **Gives artifact A12 an owning specification for the first time**, displacing `CLAUDE.md` §3 modality ② from that role, and treats the hygiene sleeve as a separately manufactured artifact rather than an accessory of the probe (`REQ-NASAL-01`). **Three findings, none of which existed as a written statement before.** (i) **`NP-TOOL-HUB-001` F-01 is BASELINED and dimensioned against features A12 does not specify** — saddle radius to a Y-junction OD nobody has stated, insert pads to a PD window with no location (`OI-NASAL-01`, and the one item here that gates a tool already at baseline). (ii) **The probe has no exposure ceiling of its own** — `CLAUDE.md` §3's hard-limits table has a scalp row and a deep-PBM row and no intranasal row; the duty ceiling is inherited from the cranial tiles by a firmware comment; the 42 °C limit is enforced by an NTC the probe does not have; and the tissue is mucosa (`OI-NASAL-02`, BLOCKING, routed to the existing `RISK-03` engagement rather than a parallel one). (iii) **The only authenticated consumable cannot be enforced as single-use** — the authentication interface of record is a `bool`, there is no per-unit identity, no consumed state and no counter, and a per-unit serial would itself raise a UHDR classification question (`OI-NASAL-04`). §5.3 additionally records that the probe's single-PD-plus-reference-LED topology does not reproduce the tile's dual-PD separation of window fouling from emitter ageing, and that a consumable sleeve of unstated transmittance sits in the optical path (`OI-NASAL-03`). §7 supplies the hazard-analysis input list `OI-RISK2-02` was blocked for. §8.1: **`NP-FAI-NASAL-001` still cannot be written** (F1, F2, F4 fail) — the absence is narrowed and re-owned, not closed. **No engineering value is set, no figure is invented, no price, interval, margin or locked decision changes.** Raises OI-NASAL-01…08. |
 | 3 | 2026-11-09 | NeurOne Firmware Engineering | **REQ-NASAL-15 added: a drive command that does not fully apply leaves nothing emitting (OI-SIMFW-21).** Clarifies behaviour already required by the fail-closed rule; no figure changes. |
+| 4 | 2026-11-11 | NeurOne Firmware Engineering | **§3 REQ-NASAL-11, §5 item 3: the driver refuses a duty above INS_DUTY_MAX and writes neither side; it no longer clamps (NP-FW-HUB-001 REQ-FWHUB-78 (d)). The 25 % value is unchanged, still inherited and not derived (UC-016), and the refusal is interim until OI-HEXTILE-31.** |

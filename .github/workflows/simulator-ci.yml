@@ -11,7 +11,11 @@ name: Simulator CI (firmware in the loop, host only)
 #      layer, the one entry in firmware/CMakeLists.txt is guarded, and a cross-toolchain configure with
 #      NP_BUILD_SIM=ON defines no np_sim_ target (with a host configure as the positive control).
 #   2. The eleven np_sim_* scenario suites, through the np_sim_run_tests target.
-#   3. `node --test` over simulator/server/fw-bridge.test.js and simulator/js/*.test.mjs, with
+#   3. scripts/check-sim-seam-routes.ts (REQ-SIMFW-02, OI-SIMFW-14): every seam of the SW-02 platform contract has
+#      exactly one row in firmware/platform_sim/np_sim_seam_routes.txt, each row matches the sim layer's sources
+#      and the twin's link line, and (--lib, after the build) the built library agrees. A seam added to or
+#      removed from the contract or the sim layer fails until its row is written.
+#   4. `node --test` over simulator/server/fw-bridge.test.js and simulator/js/*.test.mjs, with
 #      NP_SIM_FW_BIN set so the end-to-end tests run against the real firmware process and are not skipped.
 #
 # NOT in the host-test partition. The np_sim_* suites are opt-in custom-target executables, not add_test()
@@ -81,6 +85,7 @@ jobs:
         .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
         scripts/check-sim-host-only.ts
+        scripts/check-sim-seam-routes.ts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -117,6 +122,9 @@ jobs:
           assert true  simulator/server/fw-bridge.js
           assert true  simulator/js/simmodule.test.mjs
           assert true  scripts/check-sim-host-only.ts
+          assert true  scripts/check-sim-seam-routes.ts
+          assert true  firmware/platform_sim/np_sim_seam_routes.txt
+          assert true  firmware/platform/src/np_platform_stub.c
           assert true  .github/workflows/simulator-ci.yml
           assert false app/web/src/main.ts
           assert false docs/np_sim_fw_001.md
@@ -201,6 +209,15 @@ jobs:
       - name: Host-only guard (the sim layer never reaches a device target)
         run: bun scripts/check-sim-host-only.ts --cross-probe
 
+      # REQ-SIMFW-02 (OI-SIMFW-14). The route table against the sources, before the build: a seam added to or
+      # removed from the contract or the sim layer with no row fails here. The built library is compared
+      # after the build, below.
+      - name: Seam route table self-test
+        run: bun scripts/check-sim-seam-routes.ts --self-test
+
+      - name: Seam route table (every contract seam has one row, and the row is true)
+        run: bun scripts/check-sim-seam-routes.ts
+
       # Configured from the firmware super-project with the two opt-in options. NP_BUILD_SIM adds
       # firmware/platform_sim, which the device builds never see.
       - name: Configure (host build with the simulator)
@@ -230,6 +247,11 @@ jobs:
             echo "::error::a simulator suite printed a FAIL line"
             exit 1
           fi
+
+      # The same table against what was actually built: each defined seam is a text symbol in exactly one
+      # member of the library, the one its row names, and no absent seam is defined or referenced.
+      - name: Seam route table against the built library
+        run: bun scripts/check-sim-seam-routes.ts --lib build/sim/platform_sim/libnp_sim_pbm.a
 
       # node:test over the bridge and the page's modules. NP_SIM_FW_BIN makes the end-to-end tests run the
       # real np_sim_pbm_spike; without it they skip and still exit 0, so a skip is a failure here.

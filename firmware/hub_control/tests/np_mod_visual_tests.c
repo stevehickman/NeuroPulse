@@ -75,6 +75,7 @@ static uint16_t g_req_mask;      /* the requested-enable mask, modelled */
 static bool     g_in_isr;
 static bool     g_eye_open = true;   /* what the IR proximity sensor reads */
 static int      g_led_sets;          /* led_set() calls since reset */
+static uint16_t g_last_zone_mask;    /* the mask the last led_set() was given */
 static np_hub_status_t g_led_rc;     /* what led_set() answers (OI-SIMFW-20) */
 static int      g_emdr_sets;         /* emdr_set() calls since reset */
 static uint8_t  g_last_wl, g_last_freq, g_last_duty;
@@ -126,7 +127,7 @@ np_hub_status_t np_mod_visual_hal_hall_irq_register(np_mod_visual_unseated_isr_t
 np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_sel,
                                           uint8_t freq_hz, uint8_t duty_pct)
 {
-    (void)zone_mask;
+    g_last_zone_mask = zone_mask;
     g_led_sets++;
     g_last_wl = wl_sel; g_last_freq = freq_hz; g_last_duty = duty_pct;
     g_leds_on = true;
@@ -545,6 +546,39 @@ static void test_each_goggle_check_refuses_with_its_own_status(void)
     check(distinct, "own status: no two goggle checks share a code, and none is the shared -10");
 }
 
+/* The zone mask is 12 bits.  The upper four bits of zone_mask_hi used to be masked off, so a descriptor that set
+ * one lit a different set of zones from the one it named.  It is now refused (the principal, 2026-11-11). */
+/* @verifies REQ-FWHUB-78#l,f */
+static void test_a_reserved_zone_mask_bit_is_refused_and_nothing_is_lit(void)
+{
+    armed();
+    np_mod_visual_params_t p = photic();
+    const int sets = g_led_sets;
+    p.zone_mask_hi = 0x1FU;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "zone mask: bit 4 of zone_mask_hi is refused");
+    p.zone_mask_hi = 0x80U; p.zone_mask_lo = 0U;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "zone mask: bit 7 of zone_mask_hi is refused");
+    check(g_led_sets == sets && !emitting(), "zone mask: no LED was commanded and no enable requested");
+
+    p = photic();                                       /* 0xFF, 0x0F: what the shared core writes */
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g_last_zone_mask == 0x0FFFU,
+          "zone mask: 0xFF 0x0F is accepted and all twelve bits reach the LEDs as written");
+    (void)np_mod_visual_control(NP_HUB_SLOT_VISUAL, NULL, 0U);
+    p.zone_mask_lo = 0x21U; p.zone_mask_hi = 0x00U;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g_last_zone_mask == 0x0021U,
+          "zone mask: 0x00 in the hi byte is accepted, and the mask reaches the LEDs as written");
+
+    /* A refused command leaves a running one as it was. */
+    const int running = g_led_sets;
+    p.zone_mask_hi = 0x40U;
+    check(np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG &&
+          g_led_sets == running && emitting(),
+          "zone mask: a refused command leaves the goggles that were running exactly as they were");
+    (void)np_mod_visual_control(NP_HUB_SLOT_VISUAL, NULL, 0U);
+}
+
 int main(void)
 {
     test_init_arms_the_interrupt();
@@ -562,6 +596,7 @@ int main(void)
     test_losing_sight_during_a_zone_drive_halts_it();
     test_a_failed_led_command_is_not_a_running_session();
     test_each_goggle_check_refuses_with_its_own_status();
+    test_a_reserved_zone_mask_bit_is_refused_and_nothing_is_lit();
 
     if (g_failures != 0) {
         printf("\n%d check(s) FAILED\n", g_failures);

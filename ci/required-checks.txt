@@ -31,6 +31,13 @@
 #
 # Expect no output. Blank lines and `#` comments are ignored; a line is the
 # context verbatim, including spaces and punctuation.
+#
+# Since 2026-11-11 (NP-SW-CI-001 §6.17) the same comparison, in both directions
+# and with the rest of the ruleset (ci/main-ruleset.json), is
+#
+#   bun scripts/check-main-ruleset.ts --live
+#
+# which build-all.yml runs weekly. It reads GitHub and changes nothing.
 
 # firmware-cross-build.yml — Class B
 Class B scope

@@ -237,3 +237,74 @@ fn used_flag_round_trips_through_parse_and_write_and_is_not_content() {
     };
     assert!(q.get("isUsed").is_none());
 }
+
+fn rules_table(name: &str) -> Value {
+    json!({ "name": name, "channels": [
+        { "element": "led_660", "nominalNm": 660.0, "minNm": 650.0, "maxNm": 670.0 },
+        { "element": "led_808", "nominalNm": 808.0, "minNm": 798.0, "maxNm": 818.0 },
+    ] })
+}
+
+// `OI-UI-KMP-10` H1, the row's own test, with the compiler run and not only the hash: every compile below succeeds, the
+// descriptors that an input reaches differ from the base one, and the authored protocol still has one identity.
+// @verifies SWR-HV-01
+#[test]
+fn one_authored_protocol_compiled_with_different_serials_rules_versions_and_flags_has_one_hash() {
+    let base = req(def());
+    let base_hash = hash(&base);
+    let base_blob = compile_json(&base.to_string()).expect("the protocol compiles");
+
+    let with = |edit: &dyn Fn(&mut Value)| {
+        let mut r = req(def());
+        edit(&mut r);
+        (compile_json(&r.to_string()).expect("the protocol compiles with this input"), hash(&r))
+    };
+    // (what changed, the compile and the hash, whether the descriptor's bytes must differ from the base one)
+    let cases: Vec<(&str, (Vec<u8>, String), bool)> = vec![
+        ("another serial", with(&|r| r["deviceSerialHex"] = json!("0102030405060708")), true),
+        ("no serial", with(&|r| r["deviceSerialHex"] = Value::Null), true),
+        ("wavelength rules version 1", with(&|r| r["wavelengthRules"] = rules_table("rules 1")), false),
+        ("wavelength rules version 2", with(&|r| r["wavelengthRules"] = rules_table("rules 2")), false),
+        ("the Mode 3 flag", with(&|r| r["autonomous"] = json!(true)), true),
+        ("an acknowledged caution", with(&|r| r["acknowledgedCautions"] = json!(["a-caution"])), false),
+        ("another session and time", with(&|r| {
+            r["nowUnix"] = json!(2_000);
+            r["sessionUuidHex"] = json!("ffeeddccbbaa99887766554433221100");
+        }), true),
+        ("all of them at once", with(&|r| {
+            r["deviceSerialHex"] = json!("0102030405060708");
+            r["wavelengthRules"] = rules_table("rules 2");
+            r["autonomous"] = json!(true);
+            r["acknowledgedCautions"] = json!(["a-caution"]);
+        }), true),
+    ];
+    for (what, (blob, h), bytes_must_differ) in &cases {
+        assert_eq!(h, &base_hash, "{what}: the hash is the same");
+        if *bytes_must_differ {
+            assert_ne!(blob, &base_blob, "{what}: the compiled descriptor is different, so the input was really used");
+        }
+    }
+    // And the converse, so the equality above is not a hash that ignores everything: content moves it.
+    let (_, moved) = with(&|r| r["def"]["modalities"][0]["params"]["wavelength"] = json!("808nm"));
+    assert_ne!(moved, base_hash);
+}
+
+// @verifies SWR-FM-01
+#[test]
+fn the_family_id_is_not_in_the_uploaded_bytes() {
+    let family = "11111111-2222-3333-4444-555555555555";
+    assert_eq!(def()["familyId"], family);
+    let with_id = compile_json(&req(def()).to_string()).unwrap();
+    let mut other = def();
+    other["familyId"] = json!("99999999-8888-7777-6666-555555555555");
+    let mut none = def();
+    none.as_object_mut().unwrap().remove("familyId");
+    assert_eq!(with_id, compile_json(&req(other).to_string()).unwrap(), "another family id compiles to the same bytes");
+    assert_eq!(with_id, compile_json(&req(none).to_string()).unwrap(), "no family id compiles to the same bytes");
+    // Neither the text of the id nor its sixteen bytes is in the descriptor.
+    let hex = family.replace('-', "");
+    let raw: Vec<u8> = (0..16).map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap()).collect();
+    let contains = |hay: &[u8], needle: &[u8]| hay.windows(needle.len()).any(|w| w == needle);
+    assert!(!contains(&with_id, family.as_bytes()));
+    assert!(!contains(&with_id, &raw));
+}

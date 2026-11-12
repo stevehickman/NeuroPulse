@@ -39,15 +39,8 @@ pub fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 
-/// `DataView.setUint8`'s ToUint8: truncate, then wrap modulo 256.
-pub fn to_u8(x: f64) -> u8 {
-    if !x.is_finite() { 0 } else { (x.trunc() as i64).rem_euclid(256) as u8 }
-}
-
-pub fn to_u16(x: f64) -> u16 {
-    if !x.is_finite() { 0 } else { (x.trunc() as i64).rem_euclid(65536) as u16 }
-}
-
-pub fn to_u32(x: f64) -> u32 {
-    if !x.is_finite() { 0 } else { (x.trunc() as i64).rem_euclid(1i64 << 32) as u32 }
-}
+// The wrapping conversions that used to live here (`to_u8`, `to_u16`, `to_u32`: truncate, then reduce modulo 2^8, 2^16
+// or 2^32, as `DataView.setUint8` does) are removed. They mirrored the TypeScript compiler this crate replaced, and they
+// turned an out-of-range authored value into a different one without a word: 300 Hz became frequency code 44. A wire
+// field is now written through `compiler::uint`, which refuses what does not fit (NP-NPPS-REF-001 REQ-NPPS-33 (b)).
+// Do not add a wrapping conversion back.

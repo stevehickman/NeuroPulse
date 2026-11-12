@@ -4,7 +4,7 @@
 //! blob ends with a zeroed 64-byte slot for.
 
 use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN};
-use crate::js::{js_round, num_string, to_u16, to_u32, to_u8};
+use crate::js::{js_round, num_string};
 use crate::wavelength::{resolve_one_channel, Channel, WavelengthRules};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -150,21 +150,91 @@ fn scaled(v: &Value, k: &str, what: &str, scale: f64, max: f64, unit: &str) -> R
             num_string(max / scale)
         ));
     }
+    below_one_step(x, r, k, what, 1.0 / scale, unit)?;
     Ok(r)
 }
 
-fn freq_code(hz: f64) -> u8 {
-    if hz <= 0.0 { 0 } else { to_u8(js_round(hz)) }
+/// As [`scaled`], for a bound that is the width of the wire field and not a limit of the drive: `value × scale`, rounded,
+/// must fit `0..=max`. A value the field cannot carry is refused, never capped at the field's largest value and never
+/// wrapped modulo its width (REQ-NPPS-33).
+fn carried(v: &Value, k: &str, what: &str, scale: f64, max: f64, unit: &str) -> R<f64> {
+    let x = required(v, k, what)?;
+    let r = js_round(x * scale);
+    if x < 0.0 || r > max {
+        return Err(format!(
+            "{what}: {k} {} {unit} is outside what the descriptor can carry (0–{} {unit}). The protocol is refused, not reduced or wrapped to fit.",
+            num_string(x),
+            num_string(max / scale)
+        ));
+    }
+    below_one_step(x, r, k, what, 1.0 / scale, unit)?;
+    Ok(r)
 }
 
-fn duty_reg(hz: f64, pct: f64) -> R<u8> {
+/// A value above zero whose register would be 0. Zero on the wire means something else (off, continuous wave, a firmware
+/// default), so the value is refused: raising it to the first step, or dropping it to zero, would each deliver a stimulus
+/// nobody authored (REQ-NPPS-33 (c)). Rounding to the nearest step above that is the register's resolution, not a clamp.
+fn below_one_step(x: f64, register: f64, k: &str, what: &str, step: f64, unit: &str) -> R<()> {
+    if x > 0.0 && register < 1.0 {
+        return Err(format!(
+            "{what}: {k} {} {unit} is below the smallest step the descriptor can carry ({} {unit}). The protocol is refused, not raised to that step or dropped to zero.",
+            num_string(x),
+            num_string(step)
+        ));
+    }
+    Ok(())
+}
+
+/// The PBM pulse-frequency code: whole Hz in one byte, 0 for continuous wave. A missing or negative frequency used to
+/// become continuous wave and one above 255 Hz wrapped (300 Hz became 44); each is refused (REQ-NPPS-33).
+fn freq_code(hz: f64, what: &str) -> R<u8> {
+    if !hz.is_finite() {
+        return Err(format!("{what}: frequencyHz is required and must be a finite number. The protocol is refused, not given a default."));
+    }
+    let r = js_round(hz);
+    if hz < 0.0 || r > 255.0 {
+        return Err(format!(
+            "{what}: frequencyHz {} Hz is outside what the descriptor can carry (0 for continuous wave, or 1–255 Hz). The protocol is refused, not reduced or wrapped to fit.",
+            num_string(hz)
+        ));
+    }
+    if hz > 0.0 && r < 1.0 {
+        return Err(format!(
+            "{what}: frequencyHz {} Hz would be encoded as 0, which is continuous wave. The smallest pulse frequency the descriptor can carry is 1 Hz. The protocol is refused, not run as continuous wave.",
+            num_string(hz)
+        ));
+    }
+    Ok(r as u8)
+}
+
+/// The PBM duty register, 0.5 % per step. A duty above `PBM_DUTY_CYCLE_MAX_PERCENT` (25 %) is refused, as the validator
+/// and the hub refuse it (REQ-FWHUB-78 (d), (e)); it used to be encoded as 25 %. Continuous wave is 100 % duty and is
+/// refused with it. INTERIM: the limit goes with the pre-signing irradiance check of OI-HEXTILE-31, and not before.
+fn duty_reg(hz: f64, pct: f64, what: &str) -> R<u8> {
+    use crate::constants::hardware_limits as hw;
+    if !pct.is_finite() {
+        return Err(format!("{what}: dutyCyclePercent is required and must be a finite number. The protocol is refused, not given a default."));
+    }
     if hz <= 0.0 && pct != 100.0 {
         return Err(format!(
             "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is {}%. Set the duty to 100 % for CW, or give a pulse frequency above 0.",
             num_string(pct)
         ));
     }
-    Ok(to_u8(js_round(pct * 2.0).min(f64::from(0x32u8))))
+    if pct > hw::PBM_DUTY_CYCLE_MAX_PERCENT {
+        let cw = if hz <= 0.0 { " Continuous wave is 100 % duty, so it is refused until that limit is lifted (OI-HEXTILE-31)." } else { "" };
+        return Err(format!(
+            "{what}: duty cycle {}% exceeds firmware maximum of {}%.{cw} The protocol is refused, not reduced to fit.",
+            num_string(pct),
+            num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT)
+        ));
+    }
+    if pct < 0.0 {
+        return Err(format!("{what}: duty cycle {}% is below zero. The protocol is refused, not reshaped.", num_string(pct)));
+    }
+    let r = js_round(pct * 2.0);
+    below_one_step(pct, r, "dutyCyclePercent", what, 0.5, "%")?;
+    Ok(r as u8)
 }
 
 fn irradiance_to_register(irr: f64, full_scale: f64, channel: &str) -> R<u8> {
@@ -178,7 +248,18 @@ fn irradiance_to_register(irr: f64, full_scale: f64, channel: &str) -> R<u8> {
             num_string(full_scale)
         ));
     }
-    Ok(js_round(irr / full_scale * 255.0).clamp(1.0, 255.0) as u8)
+    // Register 0 is "channel not driven". An irradiance under half a step used to be raised to register 1, which at
+    // 403 mW/cm² full scale is 1.58 mW/cm² whatever was authored; it is refused (REQ-NPPS-33 (c)). The upper bound needs
+    // no clamp: the check above holds the register to 255.
+    let r = js_round(irr / full_scale * 255.0);
+    if r < 1.0 {
+        return Err(format!(
+            "PBM irradiance {} mW/cm² is below the smallest step {channel} delivers ({} mW/cm²). The protocol is refused, not raised to that step.",
+            num_string(irr),
+            num_string(js_round(full_scale / 255.0 * 100.0) / 100.0)
+        ));
+    }
+    Ok(r as u8)
 }
 
 /// dB SPL at the ear → the wire byte, 2 × dB (0.5 dB steps). Refuses a level that is not positive and finite, or
@@ -191,15 +272,62 @@ fn db_to_level_half_db(db: f64) -> R<u8> {
             num_string(AUDIO_MAX_DB_SPL)
         ));
     }
-    Ok(js_round(db * 2.0).clamp(1.0, AUDIO_MAX_DB_SPL * 2.0) as u8)
+    // Level byte 0 is "output off". A level under 0.25 dB used to be raised to 0.5 dB; it is refused (REQ-NPPS-33 (c)).
+    // The upper bound needs no clamp: the check above holds the byte to 2 × the ceiling.
+    let r = js_round(db * 2.0);
+    if r < 1.0 {
+        return Err(format!(
+            "Audio level {} dB SPL is below the smallest step the descriptor can carry (0.5 dB). The protocol is refused, not raised to that step.",
+            num_string(db)
+        ));
+    }
+    Ok(r as u8)
 }
 
-fn put16(buf: &mut [u8], at: usize, v: f64) {
-    buf[at..at + 2].copy_from_slice(&to_u16(v).to_le_bytes());
+/// `v` as an unsigned wire field of `max`: a whole number in range, or a refusal. The last check before a value is
+/// written, behind the per-field checks that name the authored value in its own unit. It replaces the wrapping
+/// conversions (`to_u8`, `to_u16`, `to_u32`) this file used to write with, which reduced a value modulo the field's width
+/// (REQ-NPPS-33 (b)).
+fn uint(v: f64, max: f64, what: &str) -> R<f64> {
+    if v.is_finite() && v >= 0.0 && v <= max && v.fract() == 0.0 {
+        Ok(v)
+    } else {
+        Err(format!(
+            "{what}: {} is not a whole number in 0–{}, which is what the descriptor field carries. The protocol is refused, not wrapped or cut to fit.",
+            num_string(v),
+            num_string(max)
+        ))
+    }
 }
 
-fn put32(buf: &mut [u8], at: usize, v: f64) {
-    buf[at..at + 4].copy_from_slice(&to_u32(v).to_le_bytes());
+fn put16(buf: &mut [u8], at: usize, v: f64, what: &str) -> R<()> {
+    buf[at..at + 2].copy_from_slice(&(uint(v, 65535.0, what)? as u16).to_le_bytes());
+    Ok(())
+}
+
+fn put32(buf: &mut [u8], at: usize, v: f64, what: &str) -> R<()> {
+    buf[at..at + 4].copy_from_slice(&(uint(v, f64::from(u32::MAX), what)? as u32).to_le_bytes());
+    Ok(())
+}
+
+/// A time on the session clock as the descriptor's 32-bit millisecond field. A negative time used to wrap to weeks, one
+/// past 2^32 ms wrapped to its remainder, and a time above zero and under 1 ms became 0, which in a command's duration
+/// means "until stopped" (REQ-NPPS-33 (b), (c)). Whole milliseconds are the field's resolution.
+fn wire_ms(v: f64, what: &str) -> R<u32> {
+    if !v.is_finite() || v < 0.0 || v > f64::from(u32::MAX) {
+        return Err(format!(
+            "{what} {} ms is outside what the descriptor can carry (0–{} ms). The protocol is refused, not wrapped or cut to fit.",
+            num_string(v),
+            u32::MAX
+        ));
+    }
+    if v > 0.0 && v < 1.0 {
+        return Err(format!(
+            "{what} {} ms is under the descriptor's 1 ms resolution and would be written as 0. The protocol is refused, not rounded to zero.",
+            num_string(v)
+        ));
+    }
+    Ok(v.trunc() as u32)
 }
 
 // ── targets ──────────────────────────────────────────────────────────────────
@@ -370,6 +498,16 @@ pub fn compile_protocol(proto: &Value, opts: &CompileOptions) -> R<Compiled> {
 /// The descriptor of `cmds`: header, commands and a zeroed signature slot. Shared by a protocol and a composite.
 fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOptions) -> R<Compiled> {
     let targets: Vec<SerializedTarget> = cmds.iter().map(|c| serialize_target(&c.target)).collect::<R<_>>()?;
+    let times: Vec<(u32, u32)> = cmds
+        .iter()
+        .map(|c| {
+            let n = c.block + 1;
+            Ok((
+                wire_ms(c.start_ms, &format!("Block {n}: a command's start (startOffsetSeconds and the interval)"))?,
+                wire_ms(c.duration_ms, &format!("Block {n}: a command's duration (intervalOnSeconds)"))?,
+            ))
+        })
+        .collect::<R<_>>()?;
     let payload: usize =
         cmds.iter().zip(&targets).map(|(c, t)| CMD_HDR_LEN + t.block.len() + c.params.len()).sum();
     let mut blob = vec![0u8; HEADER_LEN + payload + SIG_LEN];
@@ -388,19 +526,26 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
     blob[8..24].copy_from_slice(&opts.session_uuid);
     blob[24..28].copy_from_slice(&opts.now_unix.to_le_bytes());
     if let Some(serial) = opts.device_serial {
-        let n = serial.len().min(32);
-        blob[28..28 + n].copy_from_slice(&serial[..n]);
+        // The field is 32 bytes. A shorter serial is zero-filled (the field's padding); a longer one used to be cut to
+        // its first 32 bytes, which names a different device, and is refused (REQ-NPPS-33 (d)).
+        if serial.len() > 32 {
+            return Err(format!(
+                "The device serial is {} bytes and the descriptor carries at most 32. The protocol is refused, not signed for a serial cut to fit.",
+                serial.len()
+            ));
+        }
+        blob[28..28 + serial.len()].copy_from_slice(serial);
     }
-    blob[60..64].copy_from_slice(&to_u32(session_len_ms).to_le_bytes());
+    blob[60..64].copy_from_slice(&wire_ms(session_len_ms, "The session length")?.to_le_bytes());
     // The helmet hardware version, then three reserved bytes that stay zero (SWR-HV-08, NP-FW-HUB-001 §4.2).
     blob[64] = opts.hardware_version;
 
     let mut off = HEADER_LEN;
-    for (c, t) in cmds.iter().zip(&targets) {
+    for ((c, t), (start, duration)) in cmds.iter().zip(&targets).zip(&times) {
         blob[off] = c.mod_type;
         blob[off + 1] = t.slot_id;
-        blob[off + 2..off + 6].copy_from_slice(&to_u32(c.start_ms).to_le_bytes());
-        blob[off + 6..off + 10].copy_from_slice(&to_u32(c.duration_ms).to_le_bytes());
+        blob[off + 2..off + 6].copy_from_slice(&start.to_le_bytes());
+        blob[off + 6..off + 10].copy_from_slice(&duration.to_le_bytes());
         blob[off + 10..off + 12].copy_from_slice(&(c.params.len() as u16).to_le_bytes());
         blob[off + 12] = t.kind;
         blob[off + 13] = t.block.len() as u8;
@@ -671,7 +816,7 @@ fn encode(ty: &str, p: &Value, opts: &CompileOptions) -> R<Encoded> {
         "tdcs" => encode_tdcs(p),
         "vns_hrv" => encode_vns(p),
         "audio_entrainment" => encode_audio(p),
-        "visual_stimulation" => Ok(encode_visual(p)),
+        "visual_stimulation" => encode_visual(p),
         "qeeg_21ch" => Ok(encode_qeeg(p)),
         "tms" => encode_tms(p),
         "pbm_deep_1170nm" => encode_deep(p),
@@ -718,8 +863,8 @@ fn resolve_pbm_sockets(p: &Value, opts: &CompileOptions) -> R<Vec<u32>> {
 fn encode_pbm_transcranial(p: &Value, opts: &CompileOptions) -> R<Encoded> {
     let target = Target::Sockets(resolve_pbm_sockets(p, opts)?);
     let hz = f(p, "frequencyHz");
-    let duty = duty_reg(hz, f(p, "dutyCyclePercent"))?;
-    let fc = freq_code(hz);
+    let fc = freq_code(hz, "PBM")?;
+    let duty = duty_reg(hz, f(p, "dutyCyclePercent"), "PBM")?;
     let default_rules = WavelengthRules::default_rules();
     let rules = opts.wavelength_rules.unwrap_or(&default_rules);
     let ch = resolve_one_channel(s(p, "wavelength"), rules, &Channel::ALL, "PBM")?;
@@ -738,8 +883,8 @@ fn encode_pbm_intranasal(p: &Value, opts: &CompileOptions) -> R<Encoded> {
     let ch = resolve_one_channel(s(p, "wavelength"), rules, &[Channel::Led660, Channel::Led808], "Intranasal PBM")?;
     let cur = irradiance_to_register(f(p, "irradianceMWcm2"), INTRANASAL_FULL_SCALE, "the intranasal probe")?;
     let hz = f(p, "frequencyHz");
-    let duty = duty_reg(hz, f(p, "dutyCyclePercent"))?;
-    let fc = freq_code(hz);
+    let fc = freq_code(hz, "Intranasal PBM")?;
+    let duty = duty_reg(hz, f(p, "dutyCyclePercent"), "Intranasal PBM")?;
     Ok(slot(
         MOD_INTRANASAL,
         SLOT_INTRANASAL,
@@ -773,8 +918,8 @@ fn encode_bes(p: &Value) -> R<Encoded> {
     let amp_ua = scaled(p, "intensityMilliamps", "BES/tACS", 1000.0, 1000.0, "mA")?;
     let wf = if s(p, "waveform") == "square" { 1 } else { 0 };
     let mut buf = vec![0u8; 7];
-    put16(&mut buf, 1, freq_mhz);
-    put16(&mut buf, 3, amp_ua);
+    put16(&mut buf, 1, freq_mhz, "BES/tACS frequencyHz")?;
+    put16(&mut buf, 3, amp_ua, "BES/tACS intensityMilliamps")?;
     buf[5] = wf;
     Ok(slot(MOD_BES_TACS, SLOT_BES_TACS, buf))
 }
@@ -797,23 +942,36 @@ fn resolve_electrode_pair(p: &Value) -> u8 {
 }
 
 fn encode_tdcs(p: &Value) -> R<Encoded> {
+    use crate::constants::hardware_limits as hw;
     let cur_ua = scaled(p, "intensityMilliamps", "tDCS", 1000.0, 2000.0, "mA")?;
-    let ramp = f(p, "rampSeconds").max(30.0);
     // The area is the denominator of the safety MCU's charge-density ceiling: a missing or oversized one is refused.
     let area_cm2 = required(p, "electrodeAreaCm2", "tDCS")?;
     let area = (area_cm2 * 1000.0).floor();
-    if area_cm2 <= 0.0 || area > 65535.0 {
+    // Under 0.001 cm² the field would be 0, "not declared", which the safety MCU never grants.
+    if area_cm2 <= 0.0 || area < 1.0 || area > 65535.0 {
         return Err(format!(
-            "tDCS: electrodeAreaCm2 {} is outside what the descriptor can declare (above 0 and at most 65.535 cm²). The protocol is refused, not reduced to fit.",
+            "tDCS: electrodeAreaCm2 {} is outside what the descriptor can declare (0.001 to 65.535 cm²). The protocol is refused, not reduced to fit.",
             num_string(area_cm2)
         ));
     }
+    // The ramp travels as authored. One under the 30 s minimum (CLAUDE.md §3) used to be raised to 30 s, and a missing
+    // one became 30 s; the hub refuses a short ramp (REQ-FWHUB-78 (b)) and so does this, because a longer ramp is also a
+    // stimulus nobody authored.
+    let ramp_s = required(p, "rampSeconds", "tDCS")?;
+    if ramp_s < hw::TDCS_RAMP_SECONDS {
+        return Err(format!(
+            "tDCS: rampSeconds {} s is below the minimum of {} s. The protocol is refused, not lengthened to fit.",
+            num_string(ramp_s),
+            num_string(hw::TDCS_RAMP_SECONDS)
+        ));
+    }
+    let ramp = carried(p, "rampSeconds", "tDCS", 1.0, 65535.0, "s")?;
     let mut buf = vec![0u8; 8];
     buf[0] = resolve_electrode_pair(p);
-    put16(&mut buf, 1, cur_ua);
+    put16(&mut buf, 1, cur_ua, "tDCS intensityMilliamps")?;
     buf[3] = 0;
-    put16(&mut buf, 4, ramp);
-    put16(&mut buf, 6, area);
+    put16(&mut buf, 4, ramp, "tDCS rampSeconds")?;
+    put16(&mut buf, 6, area, "tDCS electrodeAreaCm2")?;
     Ok(slot(MOD_TDCS, SLOT_TDCS, buf))
 }
 
@@ -877,9 +1035,9 @@ fn encode_vns(p: &Value) -> R<Encoded> {
     };
     let mut buf = vec![0u8; 12];
     buf[0] = side;
-    put32(&mut buf, 1, freq_mhz);
-    put16(&mut buf, 5, amp_ua);
-    put16(&mut buf, 7, pulse_width_us);
+    put32(&mut buf, 1, freq_mhz, "VNS frequencyHz")?;
+    put16(&mut buf, 5, amp_ua, "VNS intensityMilliamps")?;
+    put16(&mut buf, 7, pulse_width_us, "VNS pulseWidthUs")?;
     buf[9] = 1;
     buf[10] = 1;
     buf[11] = proto;
@@ -887,31 +1045,35 @@ fn encode_vns(p: &Value) -> R<Encoded> {
 }
 
 fn encode_audio(p: &Value) -> R<Encoded> {
+    // The beat and the carrier travel as authored. A beat above 65.535 Hz or a carrier above 65535 Hz used to be capped
+    // at the field's largest value, and a missing carrier became 65535 Hz; each is refused (REQ-NPPS-33 (a)).
     let mut mode = 4u8;
     let mut beat_mhz = 0.0;
-    if let Some(bb) = p["binauralBeatsHz"].as_f64() {
+    if p["binauralBeatsHz"].as_f64().is_some() {
         mode = 0;
-        beat_mhz = js_round(bb * 1000.0);
-    } else if let Some(iso) = p["isochronicTonesHz"].as_f64() {
+        beat_mhz = carried(p, "binauralBeatsHz", "Audio", 1000.0, 65535.0, "Hz")?;
+    } else if p["isochronicTonesHz"].as_f64().is_some() {
         mode = 1;
-        beat_mhz = js_round(iso * 1000.0);
+        beat_mhz = carried(p, "isochronicTonesHz", "Audio", 1000.0, 65535.0, "Hz")?;
     } else if s(p, "noiseType") == "pink" {
         mode = 2;
     } else if s(p, "noiseType") == "brown" {
         mode = 3;
     }
     let vol = db_to_level_half_db(f(p, "volumeDb"))?;
+    let carrier = carried(p, "carrierHz", "Audio", 1.0, 65535.0, "Hz")?;
     let mut buf = vec![0u8; 8];
     buf[0] = mode;
-    put16(&mut buf, 1, f(p, "carrierHz").min(65535.0));
-    put16(&mut buf, 3, beat_mhz.min(65535.0));
+    put16(&mut buf, 1, carrier, "Audio carrierHz")?;
+    put16(&mut buf, 3, beat_mhz, "Audio beat")?;
     buf[5] = vol;
     buf[6] = b(p, "boneConductionPacer") as u8;
     buf[7] = b(p, "eegAdaptive") as u8;
     Ok(slot(MOD_AUDIO, SLOT_AUDIO, buf))
 }
 
-fn encode_visual(p: &Value) -> Encoded {
+fn encode_visual(p: &Value) -> R<Encoded> {
+    use crate::constants::hardware_limits as hw;
     let mode = match s(p, "mode") {
         "binocular" => Some(0u8),
         "emdr" => Some(1),
@@ -919,14 +1081,17 @@ fn encode_visual(p: &Value) -> Encoded {
         "mode_f" => Some(3),
         _ => None,
     };
-    let freq = js_round(f(p, "frequencyHz")).min(100.0);
-    let emdr = js_round(f(p, "emdrCadenceHz") * 10.0).min(255.0);
+    // The frequency and the EMDR cadence travel as authored. A frequency above 100 Hz used to be encoded as 100 Hz and a
+    // cadence above 25.5 Hz as 25.5 Hz, and a missing one became that largest value; each is refused (REQ-NPPS-33 (a)).
+    // 100 Hz is the validator's VISUAL_MAX_HZ; 25.5 Hz is the width of the cadence byte (0.1 Hz per step).
+    let freq = scaled(p, "frequencyHz", "Visual", 1.0, hw::VISUAL_MAX_HZ, "Hz")?;
+    let emdr = carried(p, "emdrCadenceHz", "Visual", 10.0, 255.0, "Hz")?;
     let shade = (mode == Some(0)) as u8;
-    slot(
+    Ok(slot(
         MOD_VISUAL,
         SLOT_VISUAL,
-        vec![mode.unwrap_or(0), to_u8(freq), 50, 0x02, 0xFF, 0x0F, to_u8(emdr), b(p, "enableModeF") as u8, shade],
-    )
+        vec![mode.unwrap_or(0), freq as u8, 50, 0x02, 0xFF, 0x0F, emdr as u8, b(p, "enableModeF") as u8, shade],
+    ))
 }
 
 fn encode_qeeg(p: &Value) -> Encoded {
@@ -963,18 +1128,40 @@ fn encode_tms(p: &Value) -> R<Encoded> {
         "iTBS" => 2,
         _ => 0,
     };
+    // The frequency, pulse count and inter-train interval travel as authored. Each used to be capped at 65535 (so a
+    // missing frequency or pulse count became 65535), and a frequency under 0.1 Hz was raised to 0.1 Hz for the
+    // interval; each is refused (REQ-NPPS-33 (a)).
+    let freq_mhz = carried(p, "frequencyHz", "TMS", 1000.0, 65535.0, "Hz")?;
     let hz = f(p, "frequencyHz");
-    let freq_mhz = js_round(hz * 1000.0).min(65535.0);
-    let pulses = f(p, "pulseCount").min(65535.0);
+    let intensity = scaled(p, "intensityPercentMT", "TMS", 1.0, 255.0, "% MT")?;
+    let pulses = required(p, "pulseCount", "TMS")?;
+    if pulses < 0.0 || pulses > 65535.0 || pulses.fract() != 0.0 {
+        return Err(format!(
+            "TMS: pulseCount {} is not a whole number the descriptor can carry (0–65535). The protocol is refused, not reduced or cut to fit.",
+            num_string(pulses)
+        ));
+    }
     let tbs = s(p, "tmsProtocol") != "rTMS";
-    let inter = if tbs { 200.0 } else { js_round(1000.0 / hz.max(0.1)) };
+    let inter = if tbs {
+        200.0
+    } else {
+        // rTMS: the interval is one period, 1000 / f ms, in a 16-bit field.
+        let inter = js_round(1000.0 / hz);
+        if !(hz > 0.0) || inter > 65535.0 {
+            return Err(format!(
+                "TMS: frequencyHz {} Hz gives rTMS an inter-train interval the descriptor cannot carry (1000 / frequency must be at most 65535 ms, so at least 0.016 Hz). The protocol is refused, not run at another interval.",
+                num_string(hz)
+            ));
+        }
+        inter
+    };
     let mut buf = vec![0u8; 10];
     buf[0] = proto;
     buf[1] = target_index(s(p, "target"));
-    put16(&mut buf, 2, freq_mhz);
-    buf[4] = to_u8(scaled(p, "intensityPercentMT", "TMS", 1.0, 255.0, "% MT")?);
-    put16(&mut buf, 5, pulses);
-    put16(&mut buf, 7, inter.min(65535.0));
+    put16(&mut buf, 2, freq_mhz, "TMS frequencyHz")?;
+    buf[4] = intensity as u8;
+    put16(&mut buf, 5, pulses, "TMS pulseCount")?;
+    put16(&mut buf, 7, inter, "TMS inter-train interval")?;
     buf[9] = if tbs { 50 } else { 0 };
     Ok(slot(MOD_TMS, SLOT_TMS, buf))
 }
@@ -982,10 +1169,10 @@ fn encode_tms(p: &Value) -> R<Encoded> {
 fn encode_deep(p: &Value) -> R<Encoded> {
     let intensity = scaled(p, "intensityMWcm2", "1170 nm PBM", 1.0, 1000.0, "mW/cm²")?;
     let hz = f(p, "frequencyHz");
-    let duty = duty_reg(hz, f(p, "dutyCyclePercent"))?;
-    let fc = freq_code(hz);
+    let fc = freq_code(hz, "1170 nm PBM")?;
+    let duty = duty_reg(hz, f(p, "dutyCyclePercent"), "1170 nm PBM")?;
     let mut buf = vec![0u8; 5];
-    put16(&mut buf, 0, intensity);
+    put16(&mut buf, 0, intensity, "1170 nm PBM intensityMWcm2")?;
     buf[2] = fc;
     buf[3] = duty;
     Ok(slot(MOD_PBM_1170NM, SLOT_PBM_1170NM, buf))
@@ -1010,8 +1197,8 @@ fn encode_clinical_tacs(p: &Value) -> R<Encoded> {
     }
     let mask: u32 = if n == 0.0 { 0 } else { (1u64 << (n as u64)) as u32 - 1 };
     let mut buf = vec![0u8; 8];
-    put16(&mut buf, 0, freq_mhz);
-    put16(&mut buf, 2, amp_ua);
+    put16(&mut buf, 0, freq_mhz, "Clinical tACS frequencyHz")?;
+    put16(&mut buf, 2, amp_ua, "Clinical tACS intensityMilliamps")?;
     buf[4] = (mask & 0xFF) as u8;
     buf[5] = ((mask >> 8) & 0xFF) as u8;
     buf[6] = ((mask >> 16) & 0x1F) as u8;
@@ -1029,8 +1216,8 @@ fn encode_hd_tdcs(p: &Value) -> R<Encoded> {
     let mut buf = vec![0u8; 6];
     buf[0] = target_index(s(p, "target"));
     buf[1] = montage;
-    put16(&mut buf, 2, cur);
-    put16(&mut buf, 4, 30.0);
+    put16(&mut buf, 2, cur, "HD-tDCS intensityMilliamps")?;
+    put16(&mut buf, 4, 30.0, "HD-tDCS ramp")?;
     Ok(slot(MOD_HD_TDCS, SLOT_HD_TDCS, buf))
 }
 
@@ -1038,10 +1225,10 @@ fn encode_cvns(p: &Value) -> R<Encoded> {
     let freq_mhz = scaled(p, "frequencyHz", "Cervical VNS", 1000.0, 25000.0, "Hz")?;
     let amp_ua = scaled(p, "intensityMilliamps", "Cervical VNS", 1000.0, 2000.0, "mA")?;
     let mut buf = vec![0u8; 10];
-    put16(&mut buf, 1, freq_mhz);
-    put16(&mut buf, 3, amp_ua);
-    put16(&mut buf, 5, 0.0);
-    put16(&mut buf, 7, 10.0);
+    put16(&mut buf, 1, freq_mhz, "Cervical VNS frequencyHz")?;
+    put16(&mut buf, 3, amp_ua, "Cervical VNS intensityMilliamps")?;
+    put16(&mut buf, 5, 0.0, "Cervical VNS pulse width")?;
+    put16(&mut buf, 7, 10.0, "Cervical VNS ramp")?;
     buf[9] = 1;
     Ok(slot(MOD_CVNS, SLOT_CVNS, buf))
 }
@@ -1057,8 +1244,8 @@ fn encode_vibro(p: &Value) -> R<Encoded> {
     let gain = js_round((g - 0.6) / 0.6 * f64::from(0x7Fu8));
     let sync = (b(p, "syncToAudio") as u8) | ((b(p, "syncToVisual") as u8) << 1);
     let mut buf = vec![0u8; 4];
-    buf[0] = to_u8(gain);
+    buf[0] = uint(gain, f64::from(0x7Fu8), "Vibrotactile intensityG")? as u8;
     buf[1] = sync;
-    put16(&mut buf, 2, 40000.0);
+    put16(&mut buf, 2, 40000.0, "Vibrotactile frequency")?;
     Ok(slot(MOD_VIBROTACTILE, SLOT_VIBROTACTILE, buf))
 }
