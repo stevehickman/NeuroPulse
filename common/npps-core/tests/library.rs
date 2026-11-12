@@ -240,6 +240,10 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         // 30 is NP_HUB_ERR_PHOTIC_ZONE and 31 NP_HUB_ERR_BAD_ADDRESS: what the author must change, each with a cause of its own. 8 is
         // NP_HUB_ERR_CMD_TOO_MANY, which was `malformed` and is now `too_many_commands`.
         (30, "photic_zone"), (31, "bad_address"), (8, "too_many_commands"),
+        // 40 is NP_HUB_ERR_OUTSIDE_LIMIT: a value outside a limit the helmet holds, refused at upload (REQ-FWHUB-78 (g)).
+        (40, "outside_limit"),
+        // 41 and 42 are NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT and _TOO_LONG: a cervical VNS block the helmet cannot represent (REQ-FWHUB-78 (k)).
+        (41, "cervical_block_too_short"), (42, "cervical_block_too_long"),
         (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");

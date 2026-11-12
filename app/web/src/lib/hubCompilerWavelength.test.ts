@@ -279,10 +279,24 @@ describe('the shipped library', () => {
   // Protocols the hardware or the default wavelength rules cannot deliver are
   // REFUSED with the reason, not reshaped to fit (CLAUDE.md §3). Each one is
   // named here so a new refusal is a deliberate act, not a drift.
+  const CW_REFUSED = /duty cycle 100% exceeds firmware maximum of 25%/;
   const REFUSED: Record<string, RegExp> = {
-    'Memory Boost': /exceeds what led_1064 delivers/,                         // Yao 2022: 250 mW/cm² vs CH_C's 28
-    "PBM — Alzheimer's 1064nm (deep-cortical channel)": /exceeds what led_1064 delivers/,
     'PBM — Autism (pediatric, 40Hz)': /No emitter channel delivers 850nm/,  // §7 says 850 nm; the 808 window ends at 840
+    // Continuous wave: 100 % duty, above the 25 % duty limit (interim, OI-HEXTILE-31). Until REQ-NPPS-33 the compiler
+    // wrote each of these with duty register 0x32 (25 %) and signed it; the validator already refused them
+    // (npps-predefined.test.ts). They are refused here now and NOT re-authored: whether a CW protocol is rewritten,
+    // waits for OI-HEXTILE-31, or is withdrawn is the principal's (docs/human-input/oi-npps-clamp-01-refused-library-and-resolution.md).
+    // The two 1064 nm protocols were refused before as well, for an irradiance CH_C cannot deliver (250 and 100 vs 28
+    // mW/cm²); the duty is checked first, so that is the refusal they report now.
+    'Memory Boost': CW_REFUSED,
+    "PBM — Alzheimer's 1064nm (deep-cortical channel)": CW_REFUSED,
+    'Vascular Baseline': CW_REFUSED,
+    'PBM — Depression (Cassano 2018, low-irradiance CW)': CW_REFUSED,
+    'PBM — Depression (Schiffer 2009, high-irradiance)': CW_REFUSED,
+    'PBM — Anxiety (Maiello 2019, low-irradiance CW)': CW_REFUSED,
+    'PBM — Anxiety (Wang 2023, high-irradiance)': CW_REFUSED,
+    'PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)': CW_REFUSED,
+    'PBM — Stroke (chronic rehab)': CW_REFUSED,
   };
 
   // Shipped protocols that sit in the zone model's caution band (docs/reference/safety-zones.md, placeholder
@@ -341,8 +355,12 @@ describe('CW with a duty cycle (OI-SESPWR-03)', () => {
       expect(() => commands(cw(kind, 25))).toThrow(/continuous wave, which has no duty cycle/);
     });
   }
-  // @verifies REQ-NPPS-02
-  it('compiles CW at 100 %', () => {
-    expect(commands(cw('pbm_transcranial', 100))[0].params[0]).toBe(0);
-  });
+  for (const kind of Object.keys(BODIES)) {
+    // CW at 100 % used to compile with the duty register at 0x32, which is 25 %: a pulsed-looking register for a
+    // stimulus authored as continuous. It is refused while the 25 % duty limit stands (interim, OI-HEXTILE-31).
+    // @verifies REQ-NPPS-33#a
+    it(`${kind}: refuses CW at 100 % and never encodes it as 25 %`, () => {
+      expect(() => commands(cw(kind, 100))).toThrow(/duty cycle 100% exceeds firmware maximum of 25%.*Continuous wave/);
+    });
+  }
 });

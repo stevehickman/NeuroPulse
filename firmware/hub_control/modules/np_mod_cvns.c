@@ -79,6 +79,7 @@
 #include "np_cardiac_sens.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 /* Cervical VNS safety library (firmware/cervical_vns/). */
@@ -207,6 +208,9 @@ static np_cvns_interlock_config_t cvns_interlock_config(void)
     return cfg;
 }
 
+/* The authored length of the block the next start begins; 0 = none told (np_mod_cvns_set_block_ms). */
+static uint32_t s_block_ms;
+
 /* ── Descriptor → validated session config ───────────────────────────────────── */
 
 /*
@@ -226,9 +230,11 @@ static np_cvns_interlock_config_t cvns_interlock_config(void)
  *                    clamp); otherwise refused outside 200..1000 µs
  *   side {0=right,1=left,2=bilateral} → electrode_config
  *        {0=bilateral,1=unilateral_L,2=unilateral_R}; any other value refused
- *   duration_s     → NP_CVNS_SESSION_MAX_S (120 s) upper safety bound; the
- *                    session-runner stop command normally ends it earlier, but
- *                    the library auto-ramps-down at this bound if stop is missed.
+ *   duration_s     → NOT set here (left 0).  The block's length is not in this
+ *                    parameter block: it is the command's authored length, which
+ *                    the runner gives np_mod_cvns_set_block_ms() and
+ *                    np_mod_cvns_control() applies.  There is no hardcoded
+ *                    maximum (retired: the principal, 2026-11-11).
  *
  * NB: the descriptor's baseline_req is deliberately NOT consulted — cardiac
  * baseline is mandatory (see file header).  ramp_s has no config field; the
@@ -239,18 +245,14 @@ np_hub_status_t np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
 {
     memset(out, 0, sizeof(*out));
 
+    /* The ranges are np_cmd_limits_check()'s (np_cmd_limits.h), the predicate np_runner_load() runs over the
+     * whole protocol at upload (REQ-FWHUB-78 (g)), so the two refusals cannot disagree: frequency, amplitude,
+     * pulse width (0 is the 250 us default) and side. */
+    if (np_cmd_limits_check(NP_MOD_CVNS, p, (uint16_t)sizeof(*p)) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
     const uint32_t freq_mhz = (uint32_t)p->freq_mhz;
-    if (freq_mhz < (NP_CVNS_FREQ_HZ_MIN * 1000U) ||
-        freq_mhz > (NP_CVNS_FREQ_HZ_MAX * 1000U)) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    if (p->amplitude_ua > NP_CVNS_CURRENT_UA_MAX) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
     const uint16_t pw = (p->pulse_width_us == 0U) ? 250U : p->pulse_width_us;
-    if (pw < NP_CVNS_PULSE_WIDTH_US_MIN || pw > NP_CVNS_PULSE_WIDTH_US_MAX) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
 
     uint8_t electrode_config;
     switch (p->side) {
@@ -264,8 +266,7 @@ np_hub_status_t np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
     out->current_ua       = p->amplitude_ua;
     out->pulse_width_us   = pw;
     out->electrode_config = electrode_config;
-    /* Runner controls session end; bound the library's auto-complete timer. */
-    out->duration_s       = NP_CVNS_SESSION_MAX_S;
+    out->duration_s       = 0U;   /* the authored length: np_mod_cvns_control() */
     return NP_HUB_OK;
 }
 
@@ -742,6 +743,20 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
         return NP_HUB_ERR_INVALID_ARG;
     }
 
+    /* REQ-FWHUB-78 (k): the block runs for the length the protocol authored.  The driver used to give the library
+     * 120 s for every command, so a longer block was cut short without a word.  The length is consumed here, so
+     * one told for an earlier command is never reused.  A start with no length told is refused: it is never
+     * defaulted.  So is a block the library cannot represent, which is a STRUCTURAL check and not a limit: one no
+     * longer than the ramp-up plus the ramp-down (no time at the authored level), or one beyond the library's 16-bit
+     * seconds field.  Refused before any state is touched; never shortened or stretched.  np_runner_load() makes
+     * the same two checks first, with a status of its own for each (NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT, _TOO_LONG). */
+    const uint32_t block_ms = s_block_ms;
+    s_block_ms = 0U;
+    if (!np_cvns_block_ms_ok(block_ms)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    cfg.duration_s = (uint16_t)np_cvns_block_s(block_ms);
+
     /* Fresh session: discard any snapshot published before this start so the
      * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08), and
      * re-arm the advisory impedance measurement (OI-CVNS-HUB-09). */
@@ -859,6 +874,13 @@ void np_mod_cvns_suspend(void)
  * ramp-up then reports a percent and the time left; steady, stopped and faulted report NONE.
  */
 uint32_t np_mod_cvns_ramp_up_ms(void) { return (uint32_t)NP_CVNS_RAMP_UP_S * 1000U; }
+
+/*
+ * np_mod_cvns_set_block_ms — the authored length of the block the next start command begins (REQ-FWHUB-78 (k)).  The
+ * length is in the signed descriptor's command header, not in np_mod_cvns_params_t, and control() does not receive the
+ * header, so the runner tells the driver here immediately before it dispatches the start.  Consumed by that start.
+ */
+void np_mod_cvns_set_block_ms(uint32_t block_ms) { s_block_ms = block_ms; }
 
 void np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out)
 {

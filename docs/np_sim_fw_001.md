@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 37
+**Revision:** 38
 **Date:** 2026-11-11
 **Status:** DRAFT
 **Effective Date:** —
@@ -454,7 +454,7 @@ socket may share an index without meeting (`NP_SIM_KIND_STIM_PAIR`; the isolatio
 | Harness | `platform_sim/src/np_sim_stim_harness.c` | Text commands that call the driver's every entry point (`control`, `telemetry`, `tick`, `tdcs_pause`, `tdcs_ramp`, `tdcs_ramp_up_ms`, `detect`, `shutdown`) and the runner's two call sites around the cross-check. |
 | Firmware it runs | the device's own files | `np_mod_stim.c`, `np_stim_xcheck.c`, `np_ramp_plan.c` and the stimulation half of `np_safety_spi.c` (`request_enable`, `request_disable`, `set_channel_current`). No firmware file changed. |
 | Bridge | `fw-bridge.js` | `kind: "stim_pair"` in `MODULE_SET`, `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `bes`, `tdcs`, `stim_stop`, `stim_shutdown`, `sample`, `tdcs_pause`, `stim_session_start`, `advance`. Built from validated integers and whitelisted names (`REQ-SIMFW-12`); the hostile-input test covers them. |
-| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 66 checks: drive and stop, the 1 mA cap reaching the DAC, a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), the 30 s floor and the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
+| Tests | `platform_sim/tests/np_sim_stim_tests.c` | Seventeen scenarios, 68 checks: drive and stop, a BES amplitude above 1 mA refused before the DAC (`NP-FW-HUB-001` `REQ-FWHUB-78`; it was a cap reaching the DAC until Rev 38), a failed DAC write, an absent pair, over-delivery flagged once, a failed read counted against the bound, the tDCS ramp and its charge (0.5 x 1000 uA x 30 s = 15000 uC), a ramp below the 30 s floor and a current above 2 mA refused, the undeclared pad area, stop and its hold, pause and resume, the pause edges, the cross-check's envelope across commands and sessions, malformed commands, the probe, and the isolation and marking properties. |
 
 **Line coverage** (`firmware/platform_sim/tools/sim-coverage.sh`, gcov, the scenario tests only):
 
@@ -528,7 +528,7 @@ The ear clip, `REQ-SIMFW-13`. One clip, so one module (`NP_SIM_KIND_VNS`, index 
 | Firmware it runs | the device's own files | `np_mod_vns.c` **and the real HRV session library** (`hrv_biofeedback/`: session, PPG, coherence, pacer, taVNS sync, EEG biofeedback). The library is pure C with no kernel and no seam, so it runs as it is: the driver creates and starts a real session on `hrv_proto > 0`, and stopping the module ends it and hands the library's finished record to the logger once. No firmware file changed. |
 | Harness | `platform_sim/src/np_sim_vns_harness.c` | `vns_detect`, `vns_init`, `vns`, `vns_stop`, `vns_shutdown`, `vns_sample`, `vns_raw`, and scenario state `vns_readouts`. |
 | Bridge | `fw-bridge.js` | `kind: "vns"` in `MODULE_SET` (`add`, `present`, `readouts`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `vns`, `vns_init`, `vns_detect`, `vns_stop`, `vns_shutdown`, `vns_sample`. |
-| Tests | `platform_sim/tests/np_sim_vns_tests.c` | Twelve scenarios, 34 checks: the contact-range probe, drive and stop on either or both ears, the 40 mA cap reaching the stimulator and the safety channel, no contact meaning no stimulation, a non-finite impedance, a failed stimulator write, a lost stop that is reported and retried, the real HRV session's lifecycle, telemetry, a malformed command, shutdown, and the marking and isolation properties. |
+| Tests | `platform_sim/tests/np_sim_vns_tests.c` | Twelve scenarios, 37 checks: the contact-range probe, drive and stop on either or both ears, an amplitude above 40 mA refused with nothing started and nothing published to the safety channel (`REQ-FWHUB-78`; it was a 40 mA cap until Rev 38), no contact meaning no stimulation, a non-finite impedance, a failed stimulator write, a lost stop that is reported and retried, the real HRV session's lifecycle, telemetry, a malformed command, shutdown, and the marking and isolation properties. |
 
 **Line coverage.**
 
@@ -631,7 +631,7 @@ The probe, `REQ-SIMFW-13`. One probe, so one module (`NP_SIM_KIND_INTRANASAL`, i
 | Firmware it runs | the device's own file | `np_mod_intranasal.c`. No firmware file changed. `np_log_shdr_zone_auth` is a logging sink in `np_sim_spike_link.c` that reports the authentication record as it is written. |
 | Harness | `platform_sim/src/np_sim_intranasal_harness.c` | `ins_detect`, `ins_init`, `ins`, `ins_stop`, `ins_shutdown`, `ins_sample`, `ins_raw`, and scenario state `ins_sensor`, `ins_pd`. |
 | Bridge | `fw-bridge.js` | `kind: "intranasal"` in `MODULE_SET` (`add`, `present`, `sensor`, `pd`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `ins`, `ins_init`, `ins_detect`, `ins_stop`, `ins_shutdown`, `ins_sample`. |
-| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 25 checks. |
+| Tests | `platform_sim/tests/np_sim_intranasal_tests.c` | Ten scenarios, 26 checks. A duty above `0x32` is refused before the emitters (`REQ-FWHUB-78`; it was written as `0x32` until Rev 38). |
 
 **Line coverage:** `hub_control/modules/np_mod_intranasal.c` 100 % of 47.
 
@@ -1083,3 +1083,4 @@ A study for the principal, not a decision: it builds nothing and changes no firm
 | 35 | 2026-11-12 | NeurOne Software Engineering | **§7: rows OI-SIMFW-15, -21, -24, -27, -30, -32, -33, -34, -35 and -41 each record what was checked on 2026-11-11 and point to the request drafted in docs/human-input/. Findings added: FMEA-M04-02 and REQ-SW01-05 disagree on an open NTC (-41); DI-SAFE-02 and DI-SAFE-09 state a latch the code and the answered interruption policy do not (-27); the seam's 16-bit charge total cannot hold a session (-15); the simulator now links np_cardiac_sens.c and is a required check (-30). No firmware behaviour changed.** |
 | 36 | 2026-11-11 | NeurOne Software Engineering | **New §29: a study of the crates, the hub's pairing options and the audit position for end-to-end encryption (CLAUDE.md §23); it builds nothing and decides nothing.** |
 | 37 | 2026-11-11 | NeurOne Firmware Engineering | **§7, §25: `OI-SIMFW-61` built to the extent run here (the owner approved it as proposed, allowed the frame to change, which was not needed, then chose option 3, every condition that holds plus the gate that decides; the gates record the lines they hold from the request and the condition, not the bits cleared, a departure found by the scenario; the cardiac interlock's silent holds were found by the T2 scenario); the helmet view's `UNREPORTED` splits into `UNDECLARED_WAVEFORM` and `MISSING_GEOMETRY`, named only when that gate decides the line; `UC-154` records the magic byte.** |
+| 38 | 2026-11-11 | NeurOne Firmware Engineering | **§6 test rows: the stimulation, VNS and intranasal scenario suites now show a value above a driver limit refused where they showed it capped (NP-FW-HUB-001 REQ-FWHUB-78); check counts 66 to 68, 34 to 37 and 25 to 26. No simulator requirement changes.** |

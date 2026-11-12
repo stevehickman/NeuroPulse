@@ -50,6 +50,7 @@
 #include "np_ppx_policy.h"
 #include "np_safety_spi.h"
 #include "np_session_runner.h"
+#include "np_cmd_limits.h"
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
@@ -170,6 +171,14 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
 
     const np_mod_visual_params_t *p = (const np_mod_visual_params_t *)params;
 
+    /* REQ-FWHUB-78 (l) (the principal, 2026-11-11): the zone mask is 12 bits, and the upper four bits of zone_mask_hi
+     * are reserved and must be zero.  A descriptor that sets one is refused; the bits used to be masked off, so such
+     * a descriptor lit a different set of zones from the one it named.  Before every other check, so nothing is
+     * driven, no enable is requested and a running command is left as it was. */
+    if (np_cmd_limits_check(NP_MOD_VISUAL, params, len) != NP_HUB_OK) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     /* Safety check 0 (OI-FWHUB-29, REQ-FWHUB-65): photic driving inside the photoparoxysmal zone is refused outright.  The
      * Oz detector that would halt a seizure-provoking drive is not built, so the zone is not driven at all; the protocol
      * validator's check is a warning the author can dismiss, and the hub is the control.  Modes 0 (photic) and 3 (combined)
@@ -214,8 +223,8 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
         return NP_HUB_ERR_MPE_CHECK;
     }
 
-    uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo |
-                                    ((uint16_t)(p->zone_mask_hi & 0x0FU) << 8));
+    /* The mask is 12 bits; a set reserved bit was refused above (REQ-FWHUB-78 (l)), so nothing is masked off here. */
+    uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo | ((uint16_t)p->zone_mask_hi << 8));
 
     /* OI-SIMFW-20: the status of every LED command is checked.  A command that did not land leaves the LEDs in a state the
      * session did not author, so the call fails closed: everything the call may have started is stopped, no enable is

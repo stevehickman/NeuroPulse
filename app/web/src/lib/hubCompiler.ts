@@ -120,9 +120,10 @@ export function compileProtocol(
   const sessionUuid = new Uint8Array(PROTO_UUID_LEN);
   crypto.getRandomValues(sessionUuid);
 
-  // Device serial — 32 bytes (zeroed if absent, cut or padded to length otherwise).
-  const serial = new Uint8Array(PROTO_SERIAL_LEN);
-  if (opts.deviceSerial) serial.set(opts.deviceSerial.slice(0, PROTO_SERIAL_LEN));
+  // Device serial — 32 bytes: zeros if absent, and passed whole otherwise. The core zero-fills a shorter one and
+  // REFUSES a longer one; it is not cut to length here, because a serial cut to 32 bytes names a different device
+  // (NP-NPPS-REF-001 REQ-NPPS-33 (d)).
+  const serial = opts.deviceSerial ?? new Uint8Array(PROTO_SERIAL_LEN);
 
   let zones: Record<string, number[]> | null = null;
   if (opts.zones) {

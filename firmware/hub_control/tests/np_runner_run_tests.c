@@ -476,6 +476,9 @@ bool     np_mod_cvns_active(void)                                 { return false
 void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)        { (void)now_ms; (void)now_s; }
 void     np_mod_cvns_suspend(void)                                {}
 void     np_mod_cvns_ramp(uint32_t now_ms, np_ramp_report_t *out) { (void)now_ms; memset(out, 0, sizeof *out); }
+static uint32_t g_cvns_block_ms;       /* what the runner last told the cervical driver the block's length is */
+static unsigned g_cvns_block_calls;
+void     np_mod_cvns_set_block_ms(uint32_t block_ms)             { g_cvns_block_ms = block_ms; g_cvns_block_calls++; }
 uint32_t np_mod_cvns_ramp_up_ms(void)                             { return 0U; }
 uint32_t np_mod_cvns_hal_now_ms(void)                             { return 0U; }
 uint32_t np_mod_cvns_hal_now_unix(void)                           { return 0U; }
@@ -1332,6 +1335,38 @@ static void test_panic_is_refused_only_with_no_session(void)
     check(np_runner_panic() == NP_HUB_ERR_NO_SESSION, "panic: refused with no session");
 }
 
+/* The cervical driver assumed 120 s for every command.  The runner now tells it the length the signed command authored,
+ * before the start reaches it: the command's own duration, or the rest of the session when the command states none. */
+/* @verifies REQ-FWHUB-78#k */
+static void test_the_runner_tells_the_cervical_driver_the_authored_block_length(void)
+{
+    np_mod_cvns_params_t p;
+    memset(&p, 0, sizeof p);
+    p.freq_mhz = 25000U; p.amplitude_ua = 1500U; p.ramp_s = 10U; p.baseline_req = 1U;
+
+    fresh();
+    g_tier = NP_TIER_T2;
+    g_cvns_block_ms = 0U; g_cvns_block_calls = 0U;
+    blob_t b;
+    blob_begin(&b, 400000U);
+    blob_slot(&b, NP_MOD_CVNS, NP_HUB_SLOT_CVNS, 1000U, 300000U, (const uint8_t *)&p, (uint16_t)sizeof p);
+    module_present(NP_HUB_SLOT_CVNS);
+    (void)load_and_run(&b);
+    check(g_cvns_block_calls >= 1U && g_cvns_block_ms == 300000U,
+          "cervical length: a 5 minute block is given to the driver as 300000 ms, not 120 s");
+    check(find_a(RUN_EV_CONTROL, NP_HUB_SLOT_CVNS, 0) >= 0, "cervical length: and the start is dispatched");
+
+    fresh();
+    g_tier = NP_TIER_T2;
+    g_cvns_block_ms = 0U; g_cvns_block_calls = 0U;
+    blob_begin(&b, 400000U);
+    blob_slot(&b, NP_MOD_CVNS, NP_HUB_SLOT_CVNS, 1000U, 0U, (const uint8_t *)&p, (uint16_t)sizeof p);
+    module_present(NP_HUB_SLOT_CVNS);
+    (void)load_and_run(&b);
+    check(g_cvns_block_ms == 399000U,
+          "cervical length: a command with no duration of its own runs to the session's end, and that length is the one given");
+}
+
 int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
@@ -1359,6 +1394,7 @@ int main(void)
     test_a_delivery_divergence_is_flagged_once_to_shdr_with_its_own_code();
     test_electrode_geometry_reaches_the_safety_mcu_before_any_enable();
     test_a_socket_command_never_reaches_a_slot_module_and_a_slot_command_never_reaches_the_sockets();
+    test_the_runner_tells_the_cervical_driver_the_authored_block_length();
     test_a_refused_socket_command_is_logged_against_no_slot_and_is_not_delivered();
 
     printf("\n%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");

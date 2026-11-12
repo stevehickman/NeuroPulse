@@ -31,7 +31,7 @@ that stops the harm?
 ## 3. What each app or core refusal depends on
 
 **This table is the sender's preliminary reading of the documents and a few source files. It is not verified, and establishing it is the point of
-the item.** For each function the app or core performs, the question is whether something else independently
+the item.** **A fuller code reading, 31 rows with the lower-level control found for each and the gaps, is in `oi-sw03-01-refusal-independence-table.md`; where the two differ, that file is the later reading (still unverified, and nothing in it was run).** For each function the app or core performs, the question is whether something else independently
 enforces the same limit.
 
 | Function | What the app or core does | What may enforce it independently | Sender's reading |

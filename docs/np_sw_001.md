@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 159
+**Revision:** 160
 **Date:** 2026-11-11  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -170,6 +170,20 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW01-M07 | Session protocol signature verification | `np_session_sig.c/.h` | Ed25519 verify on session descriptor before enabling any stimulation |
 | SW01-M08 | Fault latch and fault log | `np_fault.c/.h` | Latches fault state; logs to SHDR via SPI to SW-02; requires explicit app clear |
 
+> **SW01-M03, Rev 160 (2026-11-11): the declared phase is used as declared; the 2 s clamp is removed (the
+> principal: "On phase clamp: remove it and add the compile time check").** `np_charge_monitor_set_channel_waveform()`
+> clamped a declared phase to `NP_CHARGE_MAX_PHASE_US` (2,000,000 µs). A clamp shortens the declaration and so can only
+> under-state the per-phase charge; its stated purpose was to bound the 64-bit arithmetic. The phase is now stored as
+> sent (the longest declared phase still wins), the constant is deleted, and the bound is a compile-time proof:
+> `_Static_assert`s in `np_charge_monitor.c` take the maxima from the types in use (the heartbeat's 16-bit commanded
+> current, the wire's 32-bit `phase_us`) and fail the build if current × phase × 2000 could exceed `uint64_t`
+> (65,535 × 4,294,967,295 × 2,000 ≈ 5.6 × 10^17 against ≈ 1.8 × 10^19), or if either field is widened. The per-phase
+> comparison itself is unchanged. *What fails without it:* a phase longer than 2 s is checked at 2 s and a command over
+> the ceiling passes. *Trace:* `DI-SAFE-01a`; CLAUDE.md §3 (a ceiling refuses, it never reshapes). *Tested in:*
+> `np_charge_monitor_tests` (a 3 s phase and the longest phase the field carries are checked at their true charge).
+> **This is a change to Class C code made on the principal's decision. It has not had SW-01's independent review and
+> is not marked approved here** (`NP-FW-HUB-001` `OI-FWHUB-35` (d) lists the change-control steps owed).
+>
 > **SW01-M03 notes (OI-CHARGE-05, OI-FMEA-07 — corrected 2026-09-15).**
 >
 > **The file name was wrong for as long as this document existed.** `np_charge_density.c/.h` has
@@ -812,3 +826,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 157 | 2026-11-11 | NeurOne Software Engineering | **§6.3.2 status cells of `SWR-HV-06` and `SWR-HV-07`.** `SWR-HV-06`: the hub-parse host test is built (`np_safety_spi_tests`), and re-initialising the link now resets the hub's version to the default, as it already reset the tier. `SWR-HV-07`: the removal item is checked by the build, since the generated socket table is a compile error with a second hardware version while `NP_HW_VERSION_DEFAULT` is defined. Parts declared for both rows in `docs/status/requirement-parts.json` and every test tag names its part. No requirement text changed. Still open: the factory step, and the removal itself. |
 | 158 | 2026-11-12 | NeurOne Software Engineering | **§6.3: status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` updated for GitHub #569 package 2.** The shared Rust core reads a family as its releases (`major.minor`, latest first by number) with one variant for each hardware version (`familyTree`, `SWR-FM-02` parts a, b and e), and says which family an arriving protocol belongs to on import (`importFamilies`, `SWR-FM-01`); both are reached through the existing library entry point and wrapped for the Kotlin targets and the web app. The `SWR-HV-01` test now runs the compiler with different serials, wavelength-rules tables and flags and finds one hash, and a test finds the family id absent from the compiled bytes. The statuses that said no app calls the content hash are corrected: the Kotlin, Swift and web libraries do. The stores, the screens and the Swift wrapper are not built. Four rules the core reports and does not decide are asked of the principal in `docs/human-input/oi-ui-kmp-10-release-and-variant-rules.md`. No requirement text changed. |
 | 159 | 2026-11-11 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated from the health-limit survey for GitHub #563 (`docs/reference/health-limits.md`): which modalities have a per-session figure, which have none, that no per-day limit is enforced, and that the two decisions it waits on are `OI-HLIM-01` (the principal) and `OI-HLIM-02` (clinical). No requirement text changed and nothing is built by this change.** |
+| 160 | 2026-11-11 | NeurOne Firmware Engineering | **§5.1 SW01-M03: a note that the charge monitor stores a declared phase as sent; the 2 s clamp (NP_CHARGE_MAX_PHASE_US) is removed on the principal's decision of 2026-11-11 and replaced by compile-time assertions that the per-phase arithmetic fits 64 bits for the types in use. The per-phase comparison is unchanged. Class C code changed without SW-01's independent review; not marked approved.** |

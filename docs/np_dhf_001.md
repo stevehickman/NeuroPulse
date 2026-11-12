@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 293
+**Revision:** 294
 **Date:** 2026-11-11
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,13 +79,13 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 293 | 2026-11-11 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 294 | 2026-11-11 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 2 | 2026-11-05 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 159 | 2026-11-11 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 160 | 2026-11-11 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
-| NP-DT-001 | Design Input/Output Traceability Matrix | 8 | 2026-10-21 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
+| NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
 | NP-HFE-001 | Human Factors Engineering Plan | 1 | 2026-07-27 | [np_hfe_001.md](./np_hfe_001.md) | ACTIVE | QMS |
 | NP-HFE-002 | Accessible Zone-Module Position Identification and Guided Placement | 2 | 2026-08-20 | [np_hfe_002.md](./np_hfe_002.md) | DRAFT | QMS |
 | NP-PMS-001 | Post-Market Surveillance Plan | 2 | 2026-07-27 | [np_pms_001.md](./np_pms_001.md) | ACTIVE | QMS |
@@ -112,12 +112,12 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | 4 (written as Rev D) | 2026-05-09 | [np_hw_fpc_001.docx](./superseded/np_hw_fpc_001.docx) | SUPERSEDED 2026-07-28 by NP-HEX-ZM-001 | SPEC-HW |
 | NP-HW-FPC-001 (variant) | 1064nm Smart Zone Module FPC Layout Variant | 5 | 2026-05-13 | [np_hw_fpc_001.md](./superseded/np_hw_fpc_001.md) | SUPERSEDED 2026-07-28 — see in-doc note | SPEC-HW |
 | NP-HW-HUB-001 | Hub PCB — Cranial Socket Interface, I2C Fan-Out and PD Analog Front End | 9 | 2026-11-03 | [np_hw_hub_001.md](./np_hw_hub_001.md) | DRAFT | SPEC-HW |
-| NP-HW-HEXTILE-001 | Hex-Tile Module — Electrical / FPC Specification (T1-A, T1-C) | 27 | 2026-11-03 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DRAFT | SPEC-HW |
+| NP-HW-HEXTILE-001 | Hex-Tile Module — Electrical / FPC Specification (T1-A, T1-C) | 28 | 2026-11-11 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TCAP-001 | T2 Clinical Electrode Cap — Wiring and Driver Channel Assignment | 2 | 2026-09-20 | [np_hw_tcap_001.md](./np_hw_tcap_001.md) | DRAFT | SPEC-HW |
 | NP-HW-AUDIO-001 | Audio Cup Assembly — Hardware Specification | 10 | 2026-11-10 | [np_hw_audio_001.md](./np_hw_audio_001.md) | DRAFT | SPEC-HW |
-| NP-HW-NASAL-001 | Intranasal Bilateral Y-Probe and Hygiene Sleeve — Hardware Specification | 3 | 2026-11-09 | [np_hw_nasal_001.md](./np_hw_nasal_001.md) | DRAFT | SPEC-HW |
+| NP-HW-NASAL-001 | Intranasal Bilateral Y-Probe and Hygiene Sleeve — Hardware Specification | 4 | 2026-11-11 | [np_hw_nasal_001.md](./np_hw_nasal_001.md) | DRAFT | SPEC-HW |
 | NP-HW-VNSCLIP-001 | Auricular VNS / HRV Clip — Hardware Specification | 4 | 2026-11-09 | [np_hw_vnsclip_001.md](./np_hw_vnsclip_001.md) | DRAFT | SPEC-HW |
-| NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 4 | 2026-11-08 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |
+| NP-HW-CVNS-001 | Cervical VNS Accessory — Electrode Assembly, Cable and Connector Hardware Specification | 5 | 2026-11-11 | [np_hw_cvns_001.md](./np_hw_cvns_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TMS-001 | TMS Focal Figure-8 Coil Applicator (T2) — Hardware Specification | 1 | 2026-09-20 | [np_hw_tms_001.md](./np_hw_tms_001.md) | DRAFT | SPEC-HW |
 | NP-HW-TACSDRV-001 | 21-Channel Clinical tACS Driver Stage (T2) — Hardware Specification | 4 | 2026-09-23 | [np_hw_tacsdrv_001.md](./np_hw_tacsdrv_001.md) | DRAFT | SPEC-HW |
 | NP-PROC-FPC-001 | Emitter Supply, Flex Laminate and Optical Window — Procurement Requirements | 9 | 2026-09-28 | [np_proc_fpc_001.docx](./np_proc_fpc_001.docx) | ACTIVE | PROC |
@@ -142,16 +142,16 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 5 | 2026-09-27 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 57 | 2026-11-11 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 58 | 2026-11-11 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 4 | 2026-10-30 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
-| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 18 | 2026-11-08 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
-| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 6 | 2026-11-03 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
+| NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 19 | 2026-11-11 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
+| NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 7 | 2026-11-11 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
 | NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 12 | 2026-11-03 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
-| NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 3 | 2026-09-29 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
+| NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 4 | 2026-11-11 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
 | NP-FW-REQ-001 | Zone Module Firmware Requirements | 1 | 2026-05-10 | [np_fw_req_001.docx](./superseded/np_fw_req_001.docx) | SUPERSEDED by individual firmware specs | REQ |
 
 **Note on NP-FW-EMMC-002:** Delta specification created by the privacy analysis programme. All sections take precedence over NP-FW-EMMC-001 Rev 1. §G (SHDR accelerometer reclassification) was added 2026-06-03 by NP-PRIV-001 Rev 2 finding MEDIUM-06; it is BLOCKING for SHDR fleet DB schema freeze (OI-EMMC2-07 CI test must pass before schema is frozen). NP-FW-EMMC-001 Rev 2 will incorporate all delta sections and this document will then be marked INCORPORATED.
@@ -167,10 +167,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 10 | 2026-10-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 4 | 2026-10-18 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
 | NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 9 | 2026-10-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
-| NP-NPPS-REF-001 | NPPS Language Reference | 35 | 2026-11-09 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
+| NP-NPPS-REF-001 | NPPS Language Reference | 36 | 2026-11-11 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
-| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 37 | 2026-11-11 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 38 | 2026-11-11 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 
@@ -193,7 +193,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
-| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 16 | 2026-10-08 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
+| **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 17 | 2026-11-11 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
 | NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 23 | 2026-10-04 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
@@ -234,7 +234,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 3 | 2026-10-01 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
+| NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 4 | 2026-11-11 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 3 | 2026-09-23 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
 | NP-IFU-001 | Instructions for Use — Working Text | 10 | 2026-11-03 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
@@ -318,10 +318,10 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
-| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 2 | 2026-10-04 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
+| NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 3 | 2026-11-11 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
 | NP-SOUP-BTLE-001 | btleplug SOUP Inventory — Desktop Hub Link (Companion App) | 2 | 2026-10-08 | [np_soup_btle_001.md](./np_soup_btle_001.md) | DRAFT | APP |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
-| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 15 | 2026-09-28 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
+| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 16 | 2026-11-11 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 9 | 2026-10-28 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 4 | 2026-10-30 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 13 | 2026-10-28 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
