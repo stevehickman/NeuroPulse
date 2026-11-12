@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 18
-**Date:** 2026-11-08
+**Revision:** 19
+**Date:** 2026-11-11
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -170,8 +170,8 @@ The safety MCU (STM32G071, bare-metal, IEC 62304 Class C) must own the cervical 
 | `NP_CVNS_CURRENT_UA_MAX` | 2000 | Maximum current: 2 mA (CLAUDE.md §3 T2 spec) |
 | `NP_CVNS_PULSE_WIDTH_US_MIN` | 200 | Minimum pulse width (µs) |
 | `NP_CVNS_PULSE_WIDTH_US_MAX` | 1000 | Maximum pulse width (µs) |
-| ~~`NP_CVNS_SESSION_MIN_S`~~ | ~~60~~ | **RETIRED (Rev {NP-FW-CVNS-001 to}, 2026-11-11; the principal).** Was: minimum session duration (s). Removed from `np_cvns_config.h`. No stated basis beyond the "60–120 s" of `NP-REG-CVNS-001` §3.2 |
-| ~~`NP_CVNS_SESSION_MAX_S`~~ | ~~120~~ | **RETIRED (Rev {NP-FW-CVNS-001 to}, 2026-11-11; the principal: "move the limit to the protocol definition and the hardcode be retired with a risk-file entry").** Was: maximum session duration (s), "gammaCore protocol: 2 min". It had no documented health or safety source. The session's length is the protocol's: the hub gives the library the length the signed descriptor authored (`NP-FW-HUB-001` `REQ-FWHUB-78` (k)). `np_cvns_stim_init()` still refuses a configuration with no length (0) and one no longer than `NP_CVNS_RAMP_UP_S` + `NP_CVNS_RAMP_DOWN_S`, which has no active time; neither is a health limit. Risk: `NP-RISK-002` hazard 25-f, evaluation pending |
+| ~~`NP_CVNS_SESSION_MIN_S`~~ | ~~60~~ | **RETIRED (Rev 19, 2026-11-11; the principal).** Was: minimum session duration (s). Removed from `np_cvns_config.h`. No stated basis beyond the "60–120 s" of `NP-REG-CVNS-001` §3.2 |
+| ~~`NP_CVNS_SESSION_MAX_S`~~ | ~~120~~ | **RETIRED (Rev 19, 2026-11-11; the principal: "move the limit to the protocol definition and the hardcode be retired with a risk-file entry").** Was: maximum session duration (s), "gammaCore protocol: 2 min". It had no documented health or safety source. The session's length is the protocol's: the hub gives the library the length the signed descriptor authored (`NP-FW-HUB-001` `REQ-FWHUB-78` (k)). `np_cvns_stim_init()` still refuses a configuration with no length (0) and one no longer than `NP_CVNS_RAMP_UP_S` + `NP_CVNS_RAMP_DOWN_S`, which has no active time; neither is a health limit. Risk: `NP-RISK-002` hazard 25-f, evaluation pending |
 
 ### 3.2 Electrode and contact
 
@@ -662,7 +662,7 @@ typedef struct {
     uint16_t freq_hz;              /* 1–25 Hz                                   */
     uint16_t current_ua;           /* 0–2000 µA                                 */
     uint16_t pulse_width_us;       /* 200–1000 µs                               */
-    uint16_t duration_s;           /* the protocol's authored length (Rev {NP-FW-CVNS-001 to}; was 60–120 s) */
+    uint16_t duration_s;           /* the protocol's authored length (Rev 19; was 60–120 s) */
     uint8_t  electrode_config;     /* 0=bilateral, 1=unilateral_L, 2=unilateral_R */
 } np_cvns_session_config_t;
 ```
@@ -1252,3 +1252,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 16 | 2026-11-05 | NeurOne Firmware Engineering | **§8.1: the BASELINE stage requests the enable once and holds, rather than asking again every tick (`np_cvns_session.c`).** Before this, a session faulted one tick after its baseline completed with `NP_CVNS_ERR_SESSION_ACTIVE`, grant or no grant (`NP-SIM-FW-001` `OI-SIMFW-22`). No constant, limit, criterion or interlock threshold changed. IEC 62304 SW-01 Class C / SW-02 Class B: the Class B session logic changes; no Class C code is affected. |
 | 17 | 2026-11-06 | NeurOne Firmware Engineering | **§5.3: re-arm after a session fault recorded (principal, 2026-11-06, `OI-SIMFW-23`): the interlock FAULT stays latched, the baseline re-forms from fresh PPG, the lockout runs from the tick that saw the fault; a re-enable is permission to start a new session (option 2); resuming the same session (option 1) is recorded as a possibility for later; keeping the latch through a stop (closing the stop-then-start lockout bypass) is also recorded as a possible future change and not made.** |
 | 18 | 2026-11-08 | NeurOne Firmware Engineering | **§14.8 added: cardiac cutoff sensitivity (`REQ-CVNS-14`).** Levels 1 and 2 cut at over 14 and 13 BPM; a higher level acts at once and a lower one at the next CVNS request; carried in the HR report's reserved word. Synthetic detection and false-trip costs per level are tabulated. The 15 BPM threshold of `REQ-CVNS-09` is unchanged at level 0. IEC 62304 SW-01 Class C: `np_cardiac_interlock.c` and `np_safety_main.c` change; verification is host tests only, with the ARM build and silicon timing not run. |
+| 19 | 2026-11-11 | NeurOne Firmware Engineering | **§3, §8: NP_CVNS_SESSION_MIN_S and NP_CVNS_SESSION_MAX_S are retired and removed from the firmware (the principal, 2026-11-11). np_cvns_stim_init refuses a configuration with no length and one no longer than the two ramps, which is geometry and not a health limit; any other length is the protocol's.** |

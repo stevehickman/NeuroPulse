@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-CVNS-001
-**Revision:** 3
-**Date:** 2026-10-01
+**Revision:** 4
+**Date:** 2026-11-11
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -83,7 +83,7 @@ Both predicates are Class II, 21 CFR 882.5800, Product Code GZF (non-invasive ne
 
 ### 3.2 Comparison table
 
-> **⚠ NOTE, Rev {NP-REG-CVNS-001 to} (2026-11-11): the "Session duration" row below no longer describes a hardware
+> **⚠ NOTE, Rev 4 (2026-11-11): the "Session duration" row below no longer describes a hardware
 > bound, and this argument needs regulatory review.** The principal decided on 2026-11-11 that the length of a
 > cervical block is set by the protocol definition and that the firmware's hardcoded 60–120 s bounds are retired,
 > because they had no documented health or safety source, only this table's equivalence figure
@@ -303,3 +303,11 @@ NeurOne will request that FDA consider bundling the Q-Sub for all three modaliti
 | Rev 1 | 2026-05-11 | NeurOne Regulatory Affairs | Initial baseline; Issue #24 |
 | Rev 2 | 2026-09-22 | NeurOne Regulatory Affairs | §2.4 consumable row: *"single-use"* restated as a performance guarantee with reuse permitted, by principal decision (`OI-ACC-03`, `NP-HW-CVNS-001` `OI-CVNSHW-05`). *"Single-use"* on a medical device reads as *"do not reuse"*, which was not the intent. Consequences for the submission: the biocompatibility basis must cover repeat application (`OI-CVNSHW-07`), and the IFU must tell the user to replace a pad the device refuses (`OI-ACC-07`) — §7.4 added with that text. Predicate comparison (§3.2 electrode row) unaffected. |
 | Rev 3 | 2026-10-01 | NeurOne Firmware Engineering | §7.3's proposed cardiac-monitoring warning no longer cites a "5-second observation window". That window was the safety MCU's baseline refresh, retired by principal decision (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12). The warning now states the detection time and the stop time separately (CLAUDE.md Rev 61 §4.2). Proposed text only; nothing filed. |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 4 | 2026-11-11 | NeurOne Firmware Engineering | **§3.2: a marked note that the session-duration row (60-120 s against gammaCore's 120 s) no longer describes a hardware bound after the principal's decision of 2026-11-11, and that the equivalence argument needs regulatory review. The table and the argument are not rewritten.** |

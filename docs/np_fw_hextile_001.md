@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HEXTILE-001
-**Revision:** 3
-**Date:** 2026-09-29
+**Revision:** 4
+**Date:** 2026-11-11
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
@@ -600,3 +600,4 @@ Nothing below has been run, because no tile firmware exists.
 | 1 | 2026-09-28 | NeurOne Firmware Engineering | First issue; closes `NP-HW-HEXTILE-001` `OI-HEXTILE-07` as a specification item. It extends the `NP-FW-PBM1064-001` §5.1 map without moving an address. Added: FW_VERSION, CMD, CMD_STATUS, the identity window at `0x40` and the odometer window at `0xE0`. No PD readback registers are defined, because D-4 was not adopted. It defines the six-condition gate rule, under which `CUR` = 0 holds the gate off (`OI-PBMCH-01`, firmware half). The tile clamps duty to 25 % in every mode, CW included (`OI-HEXTILE-25`(c) decided for the tile). `CUR` above `I_cap` saturates in U3 (`OI-HEXTILE-25`(d)). Also specified: the local over-temperature response, latch and `ALERT#` semantics, identity storage and the boot self-check, the odometer write rules, and the MODID-4a mate latch. Modes S and D addressing, the power states and the reset rules round it out. The firmware is registered as SW-04, Class B. Nine open items are raised, `OI-FWTILE-01`…`-09`. No code, no part, nothing measured |
 | 2 | 2026-09-28 | NeurOne Firmware Engineering | **Duty and CW are delivered as commanded (principal direction, CLAUDE.md Rev 59).** Rev 1's 25 % clamp is withdrawn: it applied to CW, so CW protocols were delivered as a pulse train or not at all. DUTY is stored as written, 0–100 %, and a value above 100 % is refused. Code `0x00` is the gate held on, with `DUTY` not applied. U1 enforces no duty ceiling, because legality depends on emitter data it does not hold, and a clamp reshapes the stimulus. §5.5 records where refusal happens instead, and what is not yet built (`OI-HEXTILE-30`, `-31`). `OI-HEXTILE-25`(c) re-answered. REQ-FWTILE-03, -09 and -15 rewritten. `OI-FWTILE-06` retired. No code |
 | 3 | 2026-09-29 | NeurOne Firmware Engineering | **R-4's average term restated after `NP-HW-HEXTILE-001` D-10 (`OI-HEXTILE-32` closed, principal).** The per-channel 200 mW/cm² is removed from §2 and §5.5 (the Rev 2 banner keeps it as history); the weighted sum is the whole average term. No register, behaviour or requirement of U1 changes |
+| 4 | 2026-11-11 | NeurOne Firmware Engineering, NeurOne Software Engineering | **§5.5: the hub row of the duty table and the paragraph under it say the hub refuses a duty above 25 % (it clamped until 2026-11-11, NP-FW-HUB-001 REQ-FWHUB-78); the compiler still clamps. No tile requirement changes. Shared core (#843): §5.5: the compiler refuses a duty above 25 % where it clamped, and so refuses a CW block, which it used to sign with the duty register at 0x32. The paragraph on what can reach a tile is corrected to say so. No tile requirement changes.** |

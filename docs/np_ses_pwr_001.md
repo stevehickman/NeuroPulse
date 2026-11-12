@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SES-PWR-001
-**Revision:** 2
-**Date:** 2026-10-04
+**Revision:** 3
+**Date:** 2026-11-11
 **Status:** DRAFT — design study; not a tooling or release baseline. Every figure is derived from the cited specifications and from the authored protocol files; none is measured. See §7 (Decisions) and §8 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -240,3 +240,11 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-SESPWR-04** | **A cascade primitive needs a per-protocol admissibility declaration, defaulting to *not admissible*.** Cascading preserves dose but destroys the network-wide rhythmic drive that every 40 Hz entrainment protocol claims (§4.3), including the Grade A Alzheimer's protocol; it also breaks closed-loop adaptation and the cross-modal 40 Hz phase-lock in `15-full-t1-immersive`. **A zone-rotation primitive without this field is a mechanism for silently invalidating the strongest protocols in the library.** Zone rotation inside `pbm_transcranial` does not exist today; `composite` + `sequential` can emulate it at N× the authoring cost (§4.4) | NPPS spec + session runner. **Sequence after `OI-SESPWR-01`** — most of the residue disappears once scope is corrected |
 | **OI-SESPWR-05** | **Wire `--strict` into CI once `OI-SESPWR-01..03` land**, and decide what the gate does about protocols that are legitimately operator-scoped (`clinician_selected`), which the audit can only mark indeterminate | Systems + CI. Follows D-2 |
 | **OI-SESPWR-06** | **`clinical-03-pbm-alzheimers-1064.npps` states an irradiance its hardware does not produce.** Since Rev 18 it states 100 mW/cm² (the low end of §1's band), and the compiler refuses it; before that its comment claimed *"~0.10 W/cm² average"*. `NP-HW-HEXTILE-001` §4.3.2 gives CH_C **28 mW/cm² peak** on a T1-C tile — ~7 mW/cm² at the 25 % firmware duty cap, a ~14× discrepancy with the old comment and 3.6× short of today's 100 mW/cm² peak. The 0.10 W/cm² figure may be inherited from the **retired** 5-zone-module design (150 × 1064 nm emitters per module) rather than from the hex tile. **Reconcile with `OI-HEXTILE-21`**, which establishes the underlying η_wp ≈ 4.8 % wall | Protocol authoring + `NP-FW-PBM1064-001`. **Do not make 1064 nm dose claims until reconciled** |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 3 | 2026-11-11 | NeurOne Software Engineering | **§2.3: a dated note that the compiler refuses a duty above 25 % and no longer caps it, so the CW preset the paragraph discusses does not compile until OI-HEXTILE-31. No table or figure changes.** |
