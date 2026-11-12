@@ -162,7 +162,7 @@ np_pbm_fai_result_t np_pbm_fai_sm04(void)
         "(CH_A 660nm, CH_B 808nm, CH_C 1064nm)");
 }
 
-/* ── FAI-SM-05: Duty cycle ceiling clamped at 25% ───────────────────────────── */
+/* ── FAI-SM-05: Duty cycle ceiling 25% — a write above it is refused ────────── */
 
 np_pbm_fai_result_t np_pbm_fai_sm05(void)
 {
@@ -170,41 +170,50 @@ np_pbm_fai_result_t np_pbm_fai_sm05(void)
     memset(&drv, 0, sizeof(drv));
     drv.ch_enable = NP_PBM_CH_ALL_EN;
 
-    /* Test values: all above and at the 25% ceiling. */
+    /* At or below the ceiling the value is written as commanded.  Above it the
+     * write is REFUSED and every channel keeps the duty it had (0x32, from the
+     * second vector): never clamped, because a clamped duty is a pulse train
+     * nobody authored (NP-FW-PBM1064-001 §5.5). */
     static const uint8_t TEST_DUTIES[] = {
-        0x00U,   /* 0% — must write 0x00                               */
-        0x32U,   /* exactly 25% — must write 0x32                      */
-        0x33U,   /* one above — must clamp to 0x32                     */
-        0x64U,   /* 50% — must clamp to 0x32                           */
-        0xC8U,   /* 100% — must clamp to 0x32                          */
-        0xFFU,   /* 255 — must clamp to 0x32                           */
+        0x00U,   /* 0% — written                                       */
+        0x32U,   /* exactly 25% — written                              */
+        0x33U,   /* one above — refused, registers keep 0x32           */
+        0x64U,   /* 50% — refused                                      */
+        0xC8U,   /* 100% — refused                                     */
+        0xFFU,   /* 255 — refused                                      */
     };
     static const uint8_t EXPECTED[] = {
         0x00U, 0x32U, 0x32U, 0x32U, 0x32U, 0x32U
     };
 
     for (size_t i = 0; i < sizeof(TEST_DUTIES); i++) {
+        const bool over = (TEST_DUTIES[i] > NP_PBM_DUTY_MAX_REG);
         np_pbm_status_t rc = np_pbm_drive_set_duty(
             0U, &drv, NP_PBM_CH_ALL_EN, TEST_DUTIES[i]);
-        if (rc != NP_PBM_OK) {
+        if (!over && rc != NP_PBM_OK) {
             return fai_fail("FAI-SM-05",
-                "Duty cycle ceiling clamped at 25%",
-                "np_pbm_drive_set_duty returned error");
+                "Duty cycle ceiling 25%: a write above it is refused",
+                "np_pbm_drive_set_duty returned error for a duty at or below 0x32");
+        }
+        if (over && rc != NP_PBM_ERR_INVALID_ARG) {
+            return fai_fail("FAI-SM-05",
+                "Duty cycle ceiling 25%: a write above it is refused",
+                "np_pbm_drive_set_duty accepted a duty above 0x32 (25%)");
         }
         /* Check actual duty written to register shadow (via HAL stub). */
         if (drv.duty[0] != EXPECTED[i] ||
             drv.duty[1] != EXPECTED[i] ||
             drv.duty[2] != EXPECTED[i]) {
             return fai_fail("FAI-SM-05",
-                "Duty cycle ceiling clamped at 25%",
-                "Duty register value exceeds 0x32 (25%) after set_duty call");
+                "Duty cycle ceiling 25%: a write above it is refused",
+                "A refused duty write changed a duty register, or an accepted one was not written as commanded");
         }
     }
 
     return fai_pass("FAI-SM-05",
-        "Duty cycle ceiling clamped at 25%",
-        "All 6 duty test vectors correctly clamped to ≤ 0x32; "
-        "np_pbm_drive_set_duty enforces ceiling unconditionally");
+        "Duty cycle ceiling 25%: a write above it is refused",
+        "2 duty vectors at or below 0x32 written as commanded; 4 above it refused "
+        "with the registers unchanged; np_pbm_drive_set_duty never clamps");
 }
 
 /* ── FAI-SM-06/07/08: Hardware bench — PENDING ───────────────────────────────── */

@@ -35,13 +35,10 @@
  *
  * ── What it does NOT check, and why ──────────────────────────────────────────────────────────────
  *
- * REQ-SIMFW-02's count. NP_SW02_PLATFORM_SYMBOL_COUNT (119) counts the seams the device's trap layer
- * must answer. The sim layer defines only the seams its compiled sources reference, plus the
- * `unrouted` ones, and OI-SIMFW-02 (reconcile the seam counts) is open: the scan found about 94
- * seam-shaped names against the census's 119 and the difference is unexplained. A check that asserted
- * "routed == 119" would fail on the tree as it is, and one that asserted "routed == today's number"
- * would be a constant with no derivation (CLAUDE.md §18, §19). So the seam count check waits for
- * OI-SIMFW-02 and is not built here.
+ * REQ-SIMFW-02's seam accounting. That is scripts/check-sim-seam-routes.ts, which compares the SW-02
+ * platform contract with firmware/platform_sim/np_sim_seam_routes.txt and the sim layer (NP-SIM-FW-001
+ * §30; OI-SIMFW-02 and OI-SIMFW-14, closed). It asserts no count: the census constant counts the
+ * contract, and the split by disposition is printed, not fixed.
  *
  * Usage: bun scripts/check-sim-host-only.ts [--cross-probe] [--self-test]
  */

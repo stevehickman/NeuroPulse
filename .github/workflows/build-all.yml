@@ -221,6 +221,33 @@ jobs:
           path: build/host-tests/
           retention-days: 7
 
+  # Rot from outside the repository, the settings kind (NP-SW-CI-001 §6.17, OI-SWCI-54).
+  # The ruleset on main is edited in GitHub's settings and no pull request shows the edit.
+  # This compares it with ci/main-ruleset.json and ci/required-checks.txt in both
+  # directions: a required context the tree does not list (it may block every merge), a
+  # listed context GitHub no longer requires, a rule switched off, a parameter changed.
+  # It reads and changes nothing. The job token may not see the bypass list (GitHub
+  # returns it only to a token that may edit the ruleset); the script then says so and
+  # compares the rest. Run it from an admin workstation with --require-bypass for that.
+  # ⚠ This job must never be a required context: this workflow does not run on a pull
+  # request (OI-SWCI-23), and check-ci-scope.ts correspondence C refuses it.
+  main-ruleset-live:
+    name: The ruleset on main matches the tree (read-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      - name: Compare GitHub's ruleset with ci/main-ruleset.json and ci/required-checks.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/check-main-ruleset.ts --live
+
   safety-mcu-cross:
     name: Safety MCU cross-compile (STM32G071, Class C)
     runs-on: ubuntu-latest

@@ -214,6 +214,24 @@ void np_impedance_check_gate(np_safety_state_t *state)
 }
 
 /*
+ * np_impedance_check_held_mask — the lines np_impedance_check_gate() holds
+ * back, read as a condition and with no side effect (it starts no test and
+ * clears nothing): every impedance-checked channel that has not passed this
+ * session.  The withhold report (OI-SIMFW-61) asks it whether something other
+ * than the two charge gates holds a line.
+ */
+uint16_t np_impedance_check_held_mask(void)
+{
+    uint16_t held = 0U;
+    for (uint8_t i = 0U; i < NP_IMP_CHANNELS; i++) {
+        if (!s_passed[i]) {
+            held |= (uint16_t)IMP_EN_BIT[i];
+        }
+    }
+    return held;
+}
+
+/*
  * np_impedance_check_build_cvns_report — populate the extended MCU→hub impedance
  * report (OI-CVNS-HUB-11) carried in the spare bytes of the heartbeat window.
  *

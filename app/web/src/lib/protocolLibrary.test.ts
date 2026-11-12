@@ -7,6 +7,7 @@ import { initNppsCore } from '../../../../common/lib/nppsCore';
 import { entryId, entryName, defaultParams } from '../../../../common/types/protocol';
 import type { NPProtocolEntry, NPProtocolDefinition } from '../../../../common/types/protocol';
 import { ProtocolLibrary, type KeyValueStorage } from './protocolLibrary';
+import { rules, summaries, contentHash } from './libraryRules';
 
 class MemoryStorage implements KeyValueStorage {
   private m = new Map<string, string>();
@@ -181,5 +182,44 @@ describe('persistence and export (SWR-WO-02)', () => {
     const other = new ProtocolLibrary(new MemoryStorage());
     const [imported] = other.importScript(text);
     expect(other.isUsed(imported)).toBe(true);
+  });
+});
+
+describe('families, releases and variants, asked of the core (SWR-FM-01, SWR-FM-02)', () => {
+  const FAMILY = '0123abcd-4567-4def-8901-23456789abcd';
+  const released = (id: string, version: string, seconds: number): NPProtocolEntry => {
+    const e = entry(id, seconds, FAMILY);
+    if (e.kind === 'single') e.protocol.version = version;
+    return e;
+  };
+  // The summaries the web library gives the core, each with the content hash the core itself computed.
+  const withHashes = (entries: NPProtocolEntry[]) =>
+    summaries(entries, new Set(), true).map((s, i) => ({ ...s, hash: contentHash(entries[i], entries) }));
+
+  // @verifies SWR-FM-02#a
+  // @verifies SWR-FM-02#b
+  it('reads a family as releases, latest first, with one variant for each hardware version', () => {
+    const entries = [released('r1-0', '1.0', 600), released('r1-10', '1.10', 700), released('r1-9', '1.9', 800)];
+    const tree = rules.familyTree(withHashes(entries), FAMILY);
+    expect(tree.releases.map(r => r.version)).toEqual(['1.10', '1.9', '1.0']);
+    expect(tree.conflicts).toEqual([]);
+    expect(tree.unreleased).toEqual([]);
+    for (const [i, id] of (['r1-10', 'r1-9', 'r1-0'] as const).entries()) {
+      const source = entries.find(e => entryId(e) === id)!;
+      expect(tree.releases[i].variants).toEqual([{ hardwareVersion: 1, id, hash: contentHash(source, entries) }]);
+    }
+    // The three releases differ in content, so each variant has its own hash.
+    expect(new Set(tree.releases.map(r => r.variants[0].hash)).size).toBe(3);
+  });
+
+  // @verifies SWR-FM-01
+  it('joins an arriving protocol to the family that has its id, and starts a family for any other id', () => {
+    const local = [released('here', '1.0', 600)];
+    const sameContent = released('arrives', '1.0', 600);
+    const stranger = entry('stranger', 600, '99999999-4567-4def-8901-23456789abcd');
+    const answer = rules.importFamilies(withHashes(local), withHashes([sameContent, stranger]));
+    expect(answer[0]).toEqual({ id: 'arrives', familyId: FAMILY, family: 'existing', sameContentAs: ['here'] });
+    expect(answer[1].family).toBe('new');
+    expect(answer[1].sameContentAs).toEqual([]);
   });
 });

@@ -240,6 +240,10 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         // 30 is NP_HUB_ERR_PHOTIC_ZONE and 31 NP_HUB_ERR_BAD_ADDRESS: what the author must change, each with a cause of its own. 8 is
         // NP_HUB_ERR_CMD_TOO_MANY, which was `malformed` and is now `too_many_commands`.
         (30, "photic_zone"), (31, "bad_address"), (8, "too_many_commands"),
+        // 40 is NP_HUB_ERR_OUTSIDE_LIMIT: a value outside a limit the helmet holds, refused at upload (REQ-FWHUB-78 (g)).
+        (40, "outside_limit"),
+        // 41 and 42 are NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT and _TOO_LONG: a cervical VNS block the helmet cannot represent (REQ-FWHUB-78 (k)).
+        (41, "cervical_block_too_short"), (42, "cervical_block_too_long"),
         (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");
@@ -381,4 +385,127 @@ fn with_one_layout_there_is_nothing_to_map() {
     // Version 2 has no layout yet, so a retarget to it has nothing to map onto either; the mapping is built with version 2.
     let to_two = call(json!({ "op": "mapVariant", "sourceVersion": 1, "targetVersion": 2 }));
     assert_eq!(to_two["status"], "nothing_to_map");
+}
+
+// ── Families, releases and variants ─────────────────────────────────────────────────────────────
+
+fn v(id: &str, family: &str, version: &str, hw: &[u32], hash: &str) -> Value {
+    json!({ "id": id, "familyId": family, "used": false, "version": version, "hardwareVersions": hw, "hash": hash })
+}
+
+// @verifies SWR-FM-02#a
+#[test]
+fn a_family_is_its_releases_and_a_release_has_one_variant_for_each_hardware_version() {
+    let lib = json!([
+        v("r10-hw1", "FAM", "1.0", &[1], "h10-1"),
+        v("r10-hw2", "FAM", "1.0", &[2], "h10-2"),
+        v("r11-hw1", "FAM", "1.1", &[1], "h11-1"),
+        v("other", "OTHER", "1.0", &[1], "x"),
+    ]);
+    let t = call(json!({ "op": "familyTree", "entries": lib, "familyId": "FAM" }));
+    assert_eq!(t["familyId"], "FAM");
+    assert_eq!(
+        t["releases"],
+        json!([
+            { "version": "1.1", "major": 1, "minor": 1, "variants": [{ "hardwareVersion": 1, "id": "r11-hw1", "hash": "h11-1" }] },
+            { "version": "1.0", "major": 1, "minor": 0, "variants": [
+                { "hardwareVersion": 1, "id": "r10-hw1", "hash": "h10-1" },
+                { "hardwareVersion": 2, "id": "r10-hw2", "hash": "h10-2" },
+            ] },
+        ]),
+        "latest release first, one variant for each hardware version, and no entry of another family"
+    );
+    assert_eq!(t["conflicts"], json!([]));
+    assert_eq!(t["unreleased"], json!([]));
+
+    // One entry whose zones have a list on two layouts supplies both variants, each with its own hash.
+    let both = json!([{ "id": "p", "familyId": "FAM", "version": "1.0", "hardwareVersions": [2, 1], "hashes": { "1": "ha", "2": "hb" } }]);
+    let t = call(json!({ "op": "familyTree", "entries": both, "familyId": "FAM" }));
+    assert_eq!(t["releases"][0]["variants"], json!([{ "hardwareVersion": 1, "id": "p", "hash": "ha" }, { "hardwareVersion": 2, "id": "p", "hash": "hb" }]));
+
+    // Two entries of one release for one hardware version: reported, and neither is chosen as the variant.
+    let twice = json!([v("x", "FAM", "1.0", &[1], "hx"), v("y", "FAM", "1.0", &[1], "hy"), v("z", "FAM", "1.0", &[2], "hz")]);
+    let t = call(json!({ "op": "familyTree", "entries": twice, "familyId": "FAM" }));
+    assert_eq!(t["conflicts"], json!([{ "version": "1.0", "hardwareVersion": 1, "ids": ["x", "y"] }]));
+    assert_eq!(t["releases"][0]["variants"], json!([{ "hardwareVersion": 2, "id": "z", "hash": "hz" }]));
+
+    assert!(refused(json!({ "op": "familyTree", "entries": twice, "familyId": "NOPE" })).contains("no family 'NOPE'"));
+}
+
+// @verifies SWR-FM-02#b
+#[test]
+fn a_release_is_major_dot_minor_in_whole_numbers_and_orders_by_number_not_by_text() {
+    let lib = json!([v("a", "FAM", "1.9", &[1], "h1"), v("b", "FAM", "1.10", &[1], "h2"), v("c", "FAM", "2.0", &[1], "h3"), v("d", "FAM", "10.0", &[1], "h4")]);
+    let t = call(json!({ "op": "familyTree", "entries": lib, "familyId": "FAM" }));
+    let order: Vec<&str> = t["releases"].as_array().unwrap().iter().map(|r| r["version"].as_str().unwrap()).collect();
+    assert_eq!(order, ["10.0", "2.0", "1.10", "1.9"], "1.10 is later than 1.9, and 10.0 later than 2.0");
+    assert_eq!(t["releases"][2]["major"], 1);
+    assert_eq!(t["releases"][2]["minor"], 10);
+
+    // Anything that is not two whole numbers joined by one dot is not a release, and is listed, never guessed at.
+    for bad in ["", "1", "1.", ".1", "1.0.0", "v1.0", "1.0-beta", "1.x", "+1.0", "1. 0", "-1.0"] {
+        let one = json!([v("odd", "FAM", bad, &[1], "h")]);
+        let t = call(json!({ "op": "familyTree", "entries": one, "familyId": "FAM" }));
+        assert_eq!(t["releases"], json!([]), "'{bad}' is not a release");
+        assert_eq!(t["unreleased"], json!(["odd"]), "'{bad}' is listed as unreleased");
+    }
+}
+
+// @verifies SWR-FM-02#e
+#[test]
+fn variants_are_independent_after_creation_and_linked_only_by_the_family_id() {
+    let before = json!([v("hw1", "FAM", "1.0", &[1], "h-one"), v("hw2", "FAM", "1.0", &[2], "h-two")]);
+    let tree = |lib: &Value| call(json!({ "op": "familyTree", "entries": lib, "familyId": "FAM" }));
+    let node = |t: &Value, hw: u64| {
+        t["releases"][0]["variants"].as_array().unwrap().iter().find(|x| x["hardwareVersion"] == hw).cloned().expect("the variant is listed")
+    };
+    let t0 = tree(&before);
+
+    // The version 1 variant is edited: its content, so its hash, changes. The version 2 variant's node is what it was.
+    let after = json!([v("hw1", "FAM", "1.0", &[1], "h-one-edited"), v("hw2", "FAM", "1.0", &[2], "h-two")]);
+    let t1 = tree(&after);
+    assert_ne!(node(&t0, 1), node(&t1, 1));
+    assert_eq!(node(&t0, 2), node(&t1, 2), "an edit to one variant leaves the other as it was");
+
+    // A variant's node names itself and nothing else: no field of it refers to a sibling.
+    let n2 = node(&t0, 2);
+    let keys: Vec<&str> = n2.as_object().unwrap().keys().map(String::as_str).collect();
+    assert_eq!(keys, ["hardwareVersion", "hash", "id"]);
+
+    // The family id is the whole link. With another family id the same entry is not found from this family.
+    let unlinked = json!([v("hw1", "FAM", "1.0", &[1], "h-one"), v("hw2", "ELSEWHERE", "1.0", &[2], "h-two")]);
+    assert_eq!(tree(&unlinked)["releases"][0]["variants"], json!([{ "hardwareVersion": 1, "id": "hw1", "hash": "h-one" }]));
+
+    // An edit is offered to a sibling (SWR-FM-04) and reaches it only if accepted: with nothing accepted, the sibling's
+    // definition is byte for byte what it was.
+    let sib = variant_def(40, "Occipital");
+    let offer = call(json!({ "op": "propagationOffer", "scope": "owner", "old": variant_def(40, "Frontal"), "new": variant_def(10, "Frontal"),
+        "siblings": [{ "id": "hw2", "scope": "owner", "def": sib }] }));
+    assert_eq!(offer["offers"].as_array().unwrap().len(), 1, "the edit is offered");
+    let untouched = call(json!({ "op": "applyChanges", "def": sib, "changes": [] }));
+    assert_eq!(untouched["def"].to_string(), sib.to_string());
+}
+
+// @verifies SWR-FM-01
+#[test]
+fn an_import_merges_by_family_id() {
+    let fam = "0123abcd-4567-4def-8901-23456789abcd";
+    let local = json!([v("local-hw1", fam, "1.0", &[1], "h-local"), v("b1", "FAM-B", "1.0", &[1], "h-b")]);
+    let r = call(json!({ "op": "importFamilies", "entries": local, "incoming": [
+        v("arrives-hw2", fam, "1.0", &[2], "h-new"),
+        v("arrives-same", fam, "1.0", &[1], "h-local"),
+        v("stranger", "99999999-4567-4def-8901-23456789abcd", "1.0", &[1], "h-local"),
+        { "id": "no-family", "version": "1.0", "hardwareVersions": [1], "hash": "h-b" },
+    ] }));
+    let got = r["entries"].as_array().unwrap();
+    // The same id joins the family the library holds, and the id is the one that arrived.
+    assert_eq!(got[0], json!({ "id": "arrives-hw2", "familyId": fam, "family": "existing", "sameContentAs": [] }));
+    // Identical content in that family is the same version, so the library can see it already holds it.
+    assert_eq!(got[1], json!({ "id": "arrives-same", "familyId": fam, "family": "existing", "sameContentAs": ["local-hw1"] }));
+    // Another id is another family, even with identical content: the merge is by id, never by content.
+    assert_eq!(got[2]["family"], "new");
+    assert_eq!(got[2]["sameContentAs"], json!([]));
+    // No family id: a family of one, keyed by the entry's own id.
+    assert_eq!(got[3], json!({ "id": "no-family", "familyId": "no-family", "family": "new", "sameContentAs": [] }));
+    assert!(refused(json!({ "op": "importFamilies", "entries": local })).contains("incoming must be an array"));
 }

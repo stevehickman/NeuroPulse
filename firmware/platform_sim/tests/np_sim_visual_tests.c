@@ -13,6 +13,8 @@
 #include "np_sim_bus.h"
 #include "np_sim_pbm_harness.h"
 #include "np_sim_test_util.h"
+#include "np_sim_port_shim.h"
+#include "np_sw02_platform_hal.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -260,6 +262,24 @@ static void test_a_module_answers_only_for_itself(void)
     check(!result_code_is(0), "isolation: and the goggles see their own armed fault");
 }
 
+/* What xPortIsInsideInterrupt() said while the handler below ran. */
+static int g_seen_in_isr = -1;
+static void recording_handler(void) { g_seen_in_isr = (xPortIsInsideInterrupt() != pdFALSE) ? 1 : 0; }
+
+/* @verifies-none Harness self-check: the twin's interrupt-context flag (np_sim_port_shim.c, OI-SIMFW-03) is set only while the sim layer delivers a registered handler. No firmware behaviour is asserted. */
+static void test_the_interrupt_context_flag_is_set_only_inside_a_delivered_handler(void)
+{
+    setup();
+    check(xPortIsInsideInterrupt() == pdFALSE, "isr flag: clear in task context");
+    check(np_mod_visual_hal_hall_irq_register(recording_handler) == NP_HUB_OK, "isr flag: a recording handler is registered through the seam");
+    g_seen_in_isr = -1;
+    run("vis_lift");
+    check(g_seen_in_isr == 1, "isr flag: set while the delivered handler runs");
+    check(xPortIsInsideInterrupt() == pdFALSE, "isr flag: clear again after the handler returns");
+    np_sim_isr_exit();
+    check(xPortIsInsideInterrupt() == pdFALSE, "isr flag: an unmatched exit does not underflow it");
+}
+
 int main(void)
 {
     test_detect_and_arming();
@@ -277,6 +297,7 @@ int main(void)
     test_malformed_command_and_shutdown();
     test_default_and_injected_answers_are_marked();
     test_a_module_answers_only_for_itself();
+    test_the_interrupt_context_flag_is_set_only_inside_a_delivered_handler();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

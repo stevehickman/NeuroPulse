@@ -534,8 +534,8 @@
        "zones": "clinician_selected",
        "wavelength": "808nm",
        "irradianceMWcm2": 100,
-       "frequencyHz": 0,
-       "dutyCyclePercent": 100
+       "frequencyHz": 10,
+       "dutyCyclePercent": 25
       },
       "interval": {
        "intervalOnSeconds": 0,
@@ -544,7 +544,7 @@
      }
     ]
    },
-   "hex": "5048504e02000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000100000001ff000000000000000004000110440000000000000000000000000000000032003f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   "hex": "5048504e02000001abababababababababababababababab00f153650000000000000000000000000000000000000000000000000000000000000000c02709000100000001ff000000000000000004000110440000000000000000000000000000000a32003f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
   },
   "nasal": {
    "def": {
@@ -1073,6 +1073,505 @@
    },
    "noClinicianSockets": false,
    "message": "frequency 0 selects continuous wave, which has no duty cycle, but the block's duty is 25%. Set the duty to 100 % for CW, or give a pulse frequency above 0."
+  },
+  "cwTranscranial": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "clinician_selected",
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 100
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM: duty cycle 100% exceeds firmware maximum of 25%. Continuous wave is 100 % duty, so it is refused until that limit is lifted (OI-HEXTILE-31). The protocol is refused, not reduced to fit."
+  },
+  "cwIntranasal": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_intranasal",
+      "enabled": true,
+      "params": {
+       "wavelength": "660nm",
+       "irradianceMWcm2": 30,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 100
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Intranasal PBM: duty cycle 100% exceeds firmware maximum of 25%. Continuous wave is 100 % duty, so it is refused until that limit is lifted (OI-HEXTILE-31). The protocol is refused, not reduced to fit."
+  },
+  "cwDeep": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_deep_1170nm",
+      "enabled": true,
+      "params": {
+       "intensityMWcm2": 500,
+       "frequencyHz": 0,
+       "dutyCyclePercent": 100
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "1170 nm PBM: duty cycle 100% exceeds firmware maximum of 25%. Continuous wave is 100 % duty, so it is refused until that limit is lifted (OI-HEXTILE-31). The protocol is refused, not reduced to fit."
+  },
+  "dutyAboveLimit": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25.5
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM: duty cycle 25.5% exceeds firmware maximum of 25%. The protocol is refused, not reduced to fit."
+  },
+  "pbmFrequencyWraps": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 300,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM: frequencyHz 300 Hz is outside what the descriptor can carry (0 for continuous wave, or 1–255 Hz). The protocol is refused, not reduced or wrapped to fit."
+  },
+  "pbmFrequencyRoundsToCw": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 100,
+       "frequencyHz": 0.4,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM: frequencyHz 0.4 Hz would be encoded as 0, which is continuous wave. The smallest pulse frequency the descriptor can carry is 1 Hz. The protocol is refused, not run as continuous wave."
+  },
+  "irradianceBelowOneStep": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "pbm_transcranial",
+      "enabled": true,
+      "params": {
+       "zones": "named",
+       "zoneRefs": [
+        "Frontal"
+       ],
+       "wavelength": "808nm",
+       "irradianceMWcm2": 0.5,
+       "frequencyHz": 40,
+       "dutyCyclePercent": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "PBM irradiance 0.5 mW/cm² is below the smallest step led_808 delivers (1.58 mW/cm²). The protocol is refused, not raised to that step."
+  },
+  "tdcsRampShort": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tdcs",
+      "enabled": true,
+      "params": {
+       "intensityMilliamps": 1,
+       "electrodePairs": [
+        [
+         "P3",
+         "P4"
+        ]
+       ],
+       "rampSeconds": 29,
+       "electrodeAreaCm2": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "tDCS: rampSeconds 29 s is below the minimum of 30 s. The protocol is refused, not lengthened to fit."
+  },
+  "tdcsRampMissing": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tdcs",
+      "enabled": true,
+      "params": {
+       "intensityMilliamps": 1,
+       "electrodePairs": [
+        [
+         "P3",
+         "P4"
+        ]
+       ],
+       "electrodeAreaCm2": 25
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "tDCS: rampSeconds is required and must be a finite number. The protocol is refused, not given a default."
+  },
+  "tmsFrequencyTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tms",
+      "enabled": true,
+      "params": {
+       "tmsProtocol": "rTMS",
+       "frequencyHz": 66,
+       "intensityPercentMT": 80,
+       "target": "M1_R",
+       "pulseCount": 600
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "TMS: frequencyHz 66 Hz is outside what the descriptor can carry (0–65.535 Hz). The protocol is refused, not reduced or wrapped to fit."
+  },
+  "tmsPulseCountTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tms",
+      "enabled": true,
+      "params": {
+       "tmsProtocol": "rTMS",
+       "frequencyHz": 10,
+       "intensityPercentMT": 80,
+       "target": "M1_R",
+       "pulseCount": 65536
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "TMS: pulseCount 65536 is not a whole number the descriptor can carry (0–65535). The protocol is refused, not reduced or cut to fit."
+  },
+  "tmsIntervalTooLong": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "tms",
+      "enabled": true,
+      "params": {
+       "tmsProtocol": "rTMS",
+       "frequencyHz": 0.01,
+       "intensityPercentMT": 80,
+       "target": "M1_R",
+       "pulseCount": 600
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "TMS: frequencyHz 0.01 Hz gives rTMS an inter-train interval the descriptor cannot carry (1000 / frequency must be at most 65535 ms, so at least 0.016 Hz). The protocol is refused, not run at another interval."
+  },
+  "audioBeatTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "binauralBeatsHz": 66,
+       "carrierHz": 440,
+       "volumeDb": 60,
+       "eegAdaptive": true,
+       "boneConductionPacer": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Audio: binauralBeatsHz 66 Hz is outside what the descriptor can carry (0–65.535 Hz). The protocol is refused, not reduced or wrapped to fit."
+  },
+  "audioCarrierTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "noiseType": "pink",
+       "carrierHz": 65536,
+       "volumeDb": 60,
+       "eegAdaptive": false,
+       "boneConductionPacer": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Audio: carrierHz 65536 Hz is outside what the descriptor can carry (0–65535 Hz). The protocol is refused, not reduced or wrapped to fit."
+  },
+  "audioLevelBelowOneStep": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "audio_entrainment",
+      "enabled": true,
+      "params": {
+       "noiseType": "pink",
+       "carrierHz": 440,
+       "volumeDb": 0.2,
+       "eegAdaptive": false,
+       "boneConductionPacer": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Audio level 0.2 dB SPL is below the smallest step the descriptor can carry (0.5 dB). The protocol is refused, not raised to that step."
+  },
+  "visualFrequencyTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "visual_stimulation",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 101,
+       "mode": "binocular",
+       "emdrCadenceHz": 1.5,
+       "enableModeF": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Visual: frequencyHz 101 Hz is outside what the drive can deliver (0–100 Hz). The protocol is refused, not reduced to fit."
+  },
+  "visualCadenceTooHigh": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "visual_stimulation",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 40,
+       "mode": "emdr",
+       "emdrCadenceHz": 25.6,
+       "enableModeF": false
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Visual: emdrCadenceHz 25.6 Hz is outside what the descriptor can carry (0–25.5 Hz). The protocol is refused, not reduced or wrapped to fit."
+  },
+  "negativeStartOffset": {
+   "def": {
+    "timingMode": {
+     "type": "duration",
+     "seconds": 600
+    },
+    "modalities": [
+     {
+      "type": "bes_tacs",
+      "enabled": true,
+      "params": {
+       "frequencyHz": 10,
+       "intensityMilliamps": 0.8,
+       "waveform": "sinusoidal"
+      },
+      "interval": {
+       "intervalOnSeconds": 0,
+       "intervalOffSeconds": 0,
+       "startOffsetSeconds": -5
+      }
+     }
+    ]
+   },
+   "noClinicianSockets": false,
+   "message": "Block 1: a command's start (startOffsetSeconds and the interval) -5000 ms is outside what the descriptor can carry (0–4294967295 ms). The protocol is refused, not wrapped or cut to fit."
   },
   "irradianceAboveFullScale": {
    "def": {

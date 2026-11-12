@@ -70,14 +70,19 @@ static void test_bes_drive_and_stop(void)
     check(c[NP_SAFETY_CH_BES_TACS] == 0U, "bes: stop clears the published current");
 }
 
-/* @verifies-none The amplitude cap is np_mod_stim.c's; np_mod_stim_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
-static void test_bes_amplitude_is_capped_before_the_dac(void)
+/* @verifies-none The amplitude limit is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
+static void test_bes_amplitude_above_the_limit_is_refused_before_the_dac(void)
 {
     setup();
     run("bes 0 0 10000 1500");
-    check(pair(0)->stim_amp_ua == 1000U, "bes cap: the DAC was commanded 1 mA, not the 1.5 mA authored");
+    check(!result_code_is(0), "bes limit: 1.5 mA is refused, not clamped to 1 mA");
+    check(!pair(0)->driven && pair(0)->stim_amp_ua == 0U, "bes limit: the DAC was never commanded");
     uint16_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
-    check(c[NP_SAFETY_CH_BES_TACS] == 1000U, "bes cap: the safety channel was told the capped value");
+    check(c[NP_SAFETY_CH_BES_TACS] == 0U && (requested() & NP_SAFETY_EN_BES_TACS) == 0U,
+          "bes limit: no current was published to the safety channel and no enable requested");
+    g_cap_n = 0;
+    run("bes 0 0 10000 1000");
+    check(result_code_is(0) && pair(0)->stim_amp_ua == 1000U, "bes limit: exactly 1 mA is accepted and driven as authored");
 }
 
 /* @verifies-none Scenario: the DAC write fails; the driver's refusal is np_mod_stim_tests's. Simulator evidence only (REQ-SIMFW-06). */
@@ -154,13 +159,17 @@ static void test_tdcs_ramp_up_and_charge(void)
     check(field("\"ev\":\"stim_sample\"", "\"charge_uc\":") == 25000.0, "tdcs: and 1000 uA for a further 10 s adds 10000 uC");
 }
 
-/* @verifies-none The 30 s floor is np_mod_stim.c's; np_mod_stim_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The 30 s floor is np_mod_stim.c's; np_mod_stim_tests verifies it (REQ-FWHUB-78). Simulator evidence only (REQ-SIMFW-06). */
 static void test_tdcs_ramp_floor_and_area_are_enforced(void)
 {
     setup();
     run("tdcs 0 1000 0 5 25000");
-    check(pair(0)->stim_ramp_s == 30U, "tdcs floor: a 5 s ramp is commanded as 30 s");
-    run("stim_stop tdcs");
+    check(!result_code_is(0) && !pair(0)->driven && (requested() & NP_SAFETY_EN_TDCS) == 0U,
+          "tdcs floor: a 5 s ramp is refused, not lengthened to 30 s, and nothing is driven or enabled");
+    g_cap_n = 0;
+    run("tdcs 0 2500 0 30 25000");
+    check(!result_code_is(0) && !pair(0)->driven && (requested() & NP_SAFETY_EN_TDCS) == 0U,
+          "tdcs limit: 2.5 mA is refused, not clamped to 2 mA, and nothing is driven or enabled");
     g_cap_n = 0;
     run("tdcs 0 1000 0 30 0");
     check(!result_code_is(0) && (requested() & NP_SAFETY_EN_TDCS) == 0U,
@@ -344,7 +353,7 @@ static void test_a_module_answers_only_for_itself(void)
 int main(void)
 {
     test_bes_drive_and_stop();
-    test_bes_amplitude_is_capped_before_the_dac();
+    test_bes_amplitude_above_the_limit_is_refused_before_the_dac();
     test_bes_dac_fault_leaves_nothing_enabled();
     test_an_absent_pair_is_refused();
     test_over_delivery_is_flagged_once();

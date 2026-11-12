@@ -1,5 +1,9 @@
 package life.neurone.core.protocol
 
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import life.neurone.core.common.InMemoryKeyValueStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -169,6 +173,44 @@ class NPProtocolFamilyTests {
         assertEquals(DeleteResult.Deleted, lib.delete(copy.id))
         assertTrue(lib.userProtocols.none { it.id == copy.id })
         assertEquals(DeleteResult.NotFound, lib.delete(copy.id))
+    }
+
+    // @verifies SWR-FM-02#a
+    // @verifies SWR-FM-02#b
+    @Test
+    fun aShippedFamilyReadsAsOneReleaseWithOneVariantForTheOneLayout() {
+        val lib = library()
+        val source = gamma(lib)
+        val copy = clone(lib)
+        val entries = NPLibraryRules.summaries(listOf(source, copy), emptySet(), withVersions = true)
+        val tree = NPLibraryRules.familyTree(entries, source.familyKey())
+        val releases = tree["releases"]!!.jsonArray
+        assertEquals(1, releases.size, "one release: the clone is another family and is not listed")
+        val release = releases[0].jsonObject
+        assertEquals("1.0", release["version"]!!.jsonPrimitive.content, "every shipped protocol is at 1.0 until a release is done")
+        assertEquals(1, release["major"]!!.jsonPrimitive.int)
+        assertEquals(0, release["minor"]!!.jsonPrimitive.int)
+        val variants = release["variants"]!!.jsonArray
+        assertEquals(1, variants.size, "one layout exists, so one variant")
+        assertEquals(1, variants[0].jsonObject["hardwareVersion"]!!.jsonPrimitive.int)
+        assertEquals(source.id.toString(), variants[0].jsonObject["id"]!!.jsonPrimitive.content)
+        assertTrue(tree["conflicts"]!!.jsonArray.isEmpty())
+        assertTrue(tree["unreleased"]!!.jsonArray.isEmpty())
+    }
+
+    // @verifies SWR-FM-01
+    @Test
+    fun anArrivingProtocolJoinsTheFamilyThatHasItsId() {
+        val lib = library()
+        val source = gamma(lib)
+        val copy = clone(lib)
+        val local = NPLibraryRules.summaries(listOf(source), emptySet(), withVersions = false)
+        val incoming = NPLibraryRules.summaries(listOf(source, copy), emptySet(), withVersions = false)
+        val answer = NPLibraryRules.importFamilies(local, incoming).map { it.jsonObject }
+        assertEquals("existing", answer[0]["family"]!!.jsonPrimitive.content)
+        assertEquals(source.familyKey(), answer[0]["familyId"]!!.jsonPrimitive.content, "the id that arrived is the id that is kept")
+        assertEquals("new", answer[1]["family"]!!.jsonPrimitive.content, "another family id is another family")
+        assertEquals(copy.familyKey(), answer[1]["familyId"]!!.jsonPrimitive.content)
     }
 
     // @verifies SWR-WO-02

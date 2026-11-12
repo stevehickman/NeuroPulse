@@ -52,6 +52,17 @@ static volatile uint8_t  s_tier_reason  = NP_TIER_REASON_OK;
 static volatile bool     s_tier_refused = false;
 static volatile uint8_t  s_hw_version   = NP_HW_VERSION_DEFAULT; /* SWR-HV-07 */
 
+/* Withhold report (np_safety_withhold_report_t, OI-SIMFW-61): which requested
+ * lines the MCU's declaration gate and geometry gate cleared on the last beat.
+ * Per beat: a frame that does not carry a valid report drops it to invalid, so
+ * a stale cause is never shown.  About device geometry and declarations, not a
+ * person; never written to SHDR. */
+static volatile uint16_t s_withhold_decl  = 0U;
+static volatile uint16_t s_withhold_geom  = 0U;
+static volatile uint16_t s_withhold_decl_decided = 0U;
+static volatile uint16_t s_withhold_geom_decided = 0U;
+static volatile bool     s_withhold_valid = false;
+
 /* ── Per-channel commanded current (OI-CHARGE-01 hub half, OI-CHARGE-05 (c)) ──
  *
  * Published by the modality modules as they apply each command, consumed by the
@@ -114,6 +125,7 @@ np_hub_status_t np_safety_spi_init(void)
     s_tier           = NP_TIER_UNKNOWN;
     s_tier_reason    = NP_TIER_REASON_OK;
     s_tier_refused   = false;
+    s_hw_version     = NP_HW_VERSION_DEFAULT;   /* SWR-HV-07: no report yet reads as 1 */
     for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
         s_cvns_imp_kohm[e] = 0.0f;
     }
@@ -195,6 +207,40 @@ static void parse_tier_report(const uint8_t *rx_raw)
     s_tier_reason  = rep.reason;
     s_hw_version   = rep.hw_version;
     s_tier_refused = (rep.flags & NP_SAFETY_TIER_FLAG_REFUSED) != 0U;
+}
+
+/*
+ * parse_withhold_report — the safety MCU's withhold report
+ * (np_safety_withhold_report_t) from window bytes [27..37].  Magic and the
+ * additive checksum of bytes [0..8] are validated; a bad report marks the
+ * withhold report invalid for this beat and leaves nothing stale behind.
+ */
+static void parse_withhold_report(const uint8_t *rx_raw)
+{
+    np_safety_withhold_report_t rep;
+    memcpy(&rep, rx_raw + NP_SAFETY_WITHHOLD_REPORT_OFFSET, sizeof(rep));
+    const uint16_t sum = (uint16_t)((uint16_t)rep.magic +
+                                    (uint16_t)(rep.decl_mask & 0xFFU)    + (uint16_t)(rep.decl_mask >> 8) +
+                                    (uint16_t)(rep.geom_mask & 0xFFU)    + (uint16_t)(rep.geom_mask >> 8) +
+                                    (uint16_t)(rep.decl_decided & 0xFFU) + (uint16_t)(rep.decl_decided >> 8) +
+                                    (uint16_t)(rep.geom_decided & 0xFFU) + (uint16_t)(rep.geom_decided >> 8));
+    /* A decided line is by definition a condition line: a report that names a
+     * decided line its condition mask does not hold is inconsistent, so invalid. */
+    const bool consistent = ((rep.decl_decided & (uint16_t)~rep.decl_mask) == 0U) &&
+                            ((rep.geom_decided & (uint16_t)~rep.geom_mask) == 0U);
+    if ((rep.magic != NP_SAFETY_WITHHOLD_REPORT_MAGIC) || (rep.checksum != sum) || !consistent) {
+        s_withhold_valid = false;
+        s_withhold_decl  = 0U;
+        s_withhold_geom  = 0U;
+        s_withhold_decl_decided = 0U;
+        s_withhold_geom_decided = 0U;
+        return;
+    }
+    s_withhold_decl  = rep.decl_mask;
+    s_withhold_geom  = rep.geom_mask;
+    s_withhold_decl_decided = rep.decl_decided;
+    s_withhold_geom_decided = rep.geom_decided;
+    s_withhold_valid = true;
 }
 
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
@@ -286,6 +332,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     parse_cvns_impedance_report(rx_raw);
     parse_nv_report(rx_raw);
     parse_tier_report(rx_raw);
+    parse_withhold_report(rx_raw);
 
     s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
                                  ((uint16_t)mcu_reply.granted_hi << 8));
@@ -535,6 +582,25 @@ bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
         *refused_out = s_tier_refused;
     }
     return tier != NP_TIER_UNKNOWN;
+}
+
+bool np_safety_spi_get_withhold_report(uint16_t *decl_mask_out, uint16_t *geom_mask_out,
+                                       uint16_t *decl_decided_out, uint16_t *geom_decided_out)
+{
+    const bool valid = s_withhold_valid;
+    if (decl_mask_out != NULL) {
+        *decl_mask_out = valid ? s_withhold_decl : 0U;
+    }
+    if (geom_mask_out != NULL) {
+        *geom_mask_out = valid ? s_withhold_geom : 0U;
+    }
+    if (decl_decided_out != NULL) {
+        *decl_decided_out = valid ? s_withhold_decl_decided : 0U;
+    }
+    if (geom_decided_out != NULL) {
+        *geom_decided_out = valid ? s_withhold_geom_decided : 0U;
+    }
+    return valid;
 }
 
 np_hub_status_t np_safety_spi_send_active_user(uint32_t user_tag)

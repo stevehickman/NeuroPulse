@@ -10,6 +10,7 @@
 #include "np_socket_dispatch.h"
 #include "np_protocol.h"
 #include "np_safety_spi.h"
+#include "np_cmd_limits.h"   /* REQ-FWHUB-78 */
 #include <string.h>
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
@@ -180,6 +181,14 @@ np_hub_status_t np_sock_disp_command(const np_session_cmd_t *cmd)
      *    would be read past its end; a long one means the producer and this
      *    firmware disagree about the struct. */
     if (cmd->params_len != params_size_for(cmd->mod_type)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    /* 4a. REQ-FWHUB-78: a value outside a limit the hub holds (today the interim 25 % duty) refuses the whole
+     *     command, before placement, power or any socket is touched.  Refused here, not clamped in the driver, and
+     *     not left to the driver either: a refusal from the drive loop below is rolled back as a module fault, which
+     *     would stop sockets an earlier command lit. */
+    if (np_cmd_limits_check(cmd->mod_type, cmd->params, cmd->params_len) != NP_HUB_OK) {
         return NP_HUB_ERR_INVALID_ARG;
     }
 
