@@ -76,6 +76,12 @@ above it and now refuses. So 66 to 100 Hz validates and then does not compile.
 - **B. Widen `beat_mhz` to 32 bits** (a wire-format change, as for VNS).
 - **C. Leave it:** the compiler's refusal names the field and the range.
 
+## Not a question: the core does not refuse the two cervical block lengths (OI-NPPS-CLAMP-01 (h))
+
+Recorded 2026-11-12 at the principal's request; it needs no ruling now.
+
+The hub refuses at upload a cervical VNS block that is no longer than the library's ramp-up plus ramp-down (10 s + 5 s) and a block over 65,535 whole seconds (hub reasons 41 and 42; `NP-FW-HUB-001` `REQ-FWHUB-78` (k)). They are structural checks, not limits. The core only names those refusals after the hub makes them, so a descriptor the core signs can still be refused at upload for either length. Closing the gap means the compiler refuses both by name before signing, which needs the cervical library's ramp lengths (carried as shared constants or read from one source). Not built; the full text is `docs/status/pending-decisions.md` `OI-NPPS-CLAMP-01` (h).
+
 ## What I need back
 
 For each question: the option, a sentence of rationale (CLAUDE.md §18), any condition that would reopen it, and
