@@ -140,7 +140,7 @@ Against the options drafted under Q3, point 1 is nearest to "(2) a directory nam
 
 **The principal, 2026-11-11, verbatim, on the retention part of Q3:** "Q3: keep the saved file default to 1 week but allow it to be configured."
 
-**Decided (part of Q3, "how long is a saved copy kept"):** a saved copy is kept for one week by default, and the period can be configured. No rationale was given beyond the sentence. Recorded as `REQ-SIMFW-21` part (f). Not built. The default of one week is the principal's choice and has no derivation, measurement or citation behind it, so it has a row in `docs/status/unjustified-choices.md` (`UC-154`); a value a person configures is theirs and is not a register row.
+**Decided (part of Q3, "how long is a saved copy kept"):** a saved copy is kept for one week by default, and the period can be configured. No rationale was given beyond the sentence. Recorded as `REQ-SIMFW-21` part (f). Not built. The default of one week is the principal's choice and has no derivation, measurement or citation behind it, so it has a row in `docs/status/unjustified-choices.md` (`UC-155`); a value a person configures is theirs and is not a register row.
 
 **The principal, 2026-11-11, verbatim, on who deletes at expiry:** "Q3: Who deletes: option B: The twin lists expired copies and offers to delete them."
 

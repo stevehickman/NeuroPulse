@@ -284,6 +284,27 @@ void np_cardiac_interlock_user_changed(np_safety_state_t *state, bool new_user_b
  * request simply replaces an unwritten older one: only the latest value
  * matters.
  */
+/*
+ * np_cardiac_interlock_held_mask — the line np_cardiac_interlock_tick() holds
+ * back this beat, read as a condition with no side effect (OI-SIMFW-61, the
+ * withhold report asks whether something other than the two charge gates holds
+ * a line).  The cervical VNS line is held, while a cervical session is active,
+ * by a lockout (a cutoff's lockout, or a cutoff restored across a power cycle),
+ * by the PRE-ARM HOLD (no Class C baseline yet, OI-RISK2-05) and by the hub
+ * cross-check's silent hold (no agreement with the hub's own estimate yet,
+ * OI-CVNS-14).  The last two raise no status flag, which is why the report
+ * cannot read them from the status byte.  Mirrors the tick's own guards.
+ */
+uint16_t np_cardiac_interlock_held_mask(const np_safety_state_t *state)
+{
+    uint16_t held = 0U;
+    if ((state != NULL) && state->cvns_active &&
+        (s_lockout_active || !s_baseline_valid || !s_xchk_confirmed)) {
+        held = (uint16_t)NP_SAFETY_EN_CVNS;
+    }
+    return held;
+}
+
 bool np_cardiac_interlock_nv_request(bool *pending_out)
 {
     if (s_nv_request && (pending_out != NULL)) {
