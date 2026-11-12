@@ -251,6 +251,11 @@ static void test_a_non_finite_reading_is_reported_as_zero_ohm(void)
     check(np_mod_vns_telemetry(NP_HUB_SLOT_VNS_HRV, &rec) == NP_HUB_OK &&
           rec.data.vns_hrv.impedance_ohm == 1200U && rec.data.vns_hrv.contact_confirmed,
           "telemetry: a finite read is reported as read");
+    reset(70000.0f);   /* above 65535: the telemetry field is 32-bit, so it is not wrapped or cut (OI-UINT16-01) */
+    (void)drive();
+    check(np_mod_vns_telemetry(NP_HUB_SLOT_VNS_HRV, &rec) == NP_HUB_OK &&
+          rec.data.vns_hrv.impedance_ohm == 70000U,
+          "telemetry: 70000 ohm is reported as 70000, not wrapped to 4464");
 }
 
 /* @verifies REQ-VNSC-07 */

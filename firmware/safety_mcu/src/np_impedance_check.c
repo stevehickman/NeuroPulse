@@ -76,15 +76,15 @@ static bool     s_passed[NP_IMP_CHANNELS];   /* passed since the session began  
 static bool     s_failed[NP_IMP_CHANNELS];   /* last result failed; no auto-retry */
 
 /* OI-CVNS-HUB-11: latest per-electrode CVNS impedance for the hub cross-check. */
-static uint16_t s_cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES];
+static uint32_t s_cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES];
 static bool     s_cvns_report_valid;   /* a CVNS measurement completed this session */
 
-/* ohm → kΩ×100 with round-to-nearest, clamped to uint16 range. */
-static uint16_t ohm_to_kohm_x100(uint32_t ohm)
+/* ohm → kΩ×100 with round-to-nearest.  Done in 64 bits, so no uint32 ohm value wraps in the product
+ * (ohm × 100 overflows 32 bits above 42,949,672 Ω) and the result, at most 429,496,730, fits uint32:
+ * nothing is clamped (OI-UINT16-01). */
+static uint32_t ohm_to_kohm_x100(uint32_t ohm)
 {
-    uint32_t v = (ohm * 100U + 500U) / 1000U;   /* ohm → kΩ×100, rounded */
-    if (v > 0xFFFFU) { v = 0xFFFFU; }
-    return (uint16_t)v;
+    return (uint32_t)((((uint64_t)ohm * 100ULL) + 500ULL) / 1000ULL);
 }
 
 np_safe_status_t np_impedance_check_init(void)
@@ -264,7 +264,7 @@ bool np_impedance_check_build_cvns_report(np_safety_imp_report_t *out)
         out->cvns_kohm_x100[i] = s_cvns_kohm_x100[i];
     }
 
-    /* Checksum over bytes [0..5] (all fields except the trailing checksum). */
+    /* Checksum over bytes [0..9] (all fields except the trailing checksum). */
     b = (const uint8_t *)out;
     for (i = 0U; i < (NP_SAFETY_IMP_REPORT_LEN - 2U); i++) {
         sum += b[i];

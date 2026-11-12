@@ -103,7 +103,7 @@ np_hub_status_t np_mod_stim_hal_dc_ramp(uint8_t pair, uint16_t target_ua,
 
 float    np_mod_stim_hal_read_impedance(uint8_t pair) { (void)pair; return 5.0f; }
 float    np_mod_stim_hal_read_current(uint8_t pair)   { (void)pair; return 500.0f; }
-uint16_t np_mod_stim_hal_read_charge(uint8_t pair)    { (void)pair; return 10U; }
+uint32_t np_mod_stim_hal_read_charge(uint8_t pair)    { (void)pair; return 10U; }
 
 void np_safety_spi_request_enable(uint16_t bits)  { g_enabled_bits  |= bits; }
 void np_safety_spi_request_disable(uint16_t bits) { g_disabled_bits |= bits; }

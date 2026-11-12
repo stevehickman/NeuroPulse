@@ -924,7 +924,7 @@ the stop command. Each modality has exactly one target form.
 | `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
 | `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |
 | `0x0B` | `NP_MOD_QEEG_21CH` | `np_mod_qeeg_21ch_params_t` | 8 | `NP_HUB_SLOT_QEEG` (11) |
-| `0x0C` | `NP_MOD_TMS` | `np_mod_tms_params_t` | 10 | `NP_HUB_SLOT_TMS` (12) |
+| `0x0C` | `NP_MOD_TMS` | `np_mod_tms_params_t` | 12 | `NP_HUB_SLOT_TMS` (12) |
 | `0x0D` | `NP_MOD_PBM_1170NM` | `np_mod_pbm_1170nm_params_t` | 5 | `NP_HUB_SLOT_PBM_1170NM` (13) |
 | `0x0E` | `NP_MOD_CLIN_TACS` | `np_mod_clin_tacs_params_t` | 8 | `NP_HUB_SLOT_CLIN_TACS` (14) |
 | `0x0F` | `NP_MOD_HD_TDCS` | `np_mod_hd_tdcs_params_t` | 6 | `NP_HUB_SLOT_HD_TDCS` (15) |
@@ -1601,11 +1601,11 @@ cover:
 
 The hub is always SPI master; the STM32G071 is slave. Two frame types.
 
-### 7.1 Extended heartbeat — 38 bytes, every 200 ms
+### 7.1 Extended heartbeat — 42 bytes, every 200 ms
 
 Hub sends `np_safety_tx_ext_frame_t`: magic (`0xBE`, `0xA7`), enable mask, `session_status` bits,
 `channel_count`, checksum, `current_ua[14]`, extended checksum. The MCU simultaneously returns its
-8-byte reply; the hub reads the first 8 bytes and discards the remaining 30 slave zero bytes.
+8-byte reply; the hub reads the first 8 bytes and discards the remaining 34 slave zero bytes. The frame grew from 38 to 42 bytes (`OI-UINT16-01`, the principal, 2026-11-12): a 4-byte zero tail, sent as zero and outside the extended checksum, widens the reply window because the cervical impedance report now carries two 32-bit values (12 bytes, was 8), which moves the cardiac-status, tier and withhold reports 4 bytes later.
 
 **Heartbeat sequence counter (Rev 11, `NP-FMEA-001` OI-FMEA-12 (a)).** Bits 5–7 of `session_status`
 carry a 3-bit counter (`NP_SESSION_STATUS_SEQ_*`, `np_spi_wire_types.h`) that
@@ -1664,8 +1664,8 @@ therefore fails **closed**. All three are cleared on session end/abort and by
 **Withhold report — why a gate held a line (`REQ-FWHUB-82`, `OI-SIMFW-61`).** A gate that holds a
 requested line clears it from `granted_mask` with status `OK` and no fault slot, so the hub could not tell
 an undeclared waveform class or a missing electrode geometry from any other withhold. The MCU now says,
-in the spare bytes of its 38-byte reply (`np_safety_withhold_report_t`, `np_spi_wire_types.h`): window
-bytes 27 to 37, straight after the tier report (20 to 26) and filling the window exactly, are a magic byte
+in the spare bytes of its 42-byte reply (`np_safety_withhold_report_t`, `np_spi_wire_types.h`): window
+bytes 31 to 41, straight after the tier report (24 to 30) and filling the window exactly, are a magic byte
 `0x8E` and four 16-bit masks, then the additive 16-bit checksum of bytes 0 to 8 that the other reports
 use. Bit *n* is the line's `NP_SAFETY_EN_*` bit. Two masks are **conditions**: the lines the hub
 **requested** for which the **waveform-declaration gate**'s condition holds (`np_charge_monitor_decl_gate`:
@@ -2144,7 +2144,7 @@ The argument, in the four steps that carry it:
 
 1. **No electrical path.** Every stimulation enable line is a GPIO physically owned by the STM32G071
    safety MCU (CLAUDE.md §4.2, `NP-HW-HUB-001` Rev 4 §7.2). The hub's only influence is the
-   *requested* mask in a 38-byte SPI frame. A hub that requests everything gets what the MCU grants.
+   *requested* mask in a 42-byte SPI frame. A hub that requests everything gets what the MCU grants.
 2. **No stored value widens a grant.** Nothing the hub persists — calibration, the module map, the
    log — is read by the safety MCU. Its limits are resident constants (both charge-density ceilings, HR-change
    cutoff, lockout duration) and the hub supplies *inputs* to them (electrode **area**, §5.4), never

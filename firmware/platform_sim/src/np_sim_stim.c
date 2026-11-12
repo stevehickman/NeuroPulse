@@ -188,7 +188,7 @@ float np_mod_stim_hal_read_current(uint8_t pair)
     return v;
 }
 
-uint16_t np_mod_stim_hal_read_charge(uint8_t pair)
+uint32_t np_mod_stim_hal_read_charge(uint8_t pair)
 {
     np_sim_module_t *m = resolve(pair, "stim_read_charge");
     if (m == NULL) { return 0U; }
@@ -200,7 +200,6 @@ uint16_t np_mod_stim_hal_read_charge(uint8_t pair)
     charge_update(m);
     const np_sim_override_t *o = &m->ov[NP_SIM_OP_STIM_READ_CHARGE];
     double uc = o->has_reading ? (double)o->reading : m->stim_charge_uc;
-    if (uc > 65535.0) { uc = 65535.0; }
     if (uc < 0.0)     { uc = 0.0; }
     char args[32];
     (void)snprintf(args, sizeof args, "[%u]", (unsigned)uc);

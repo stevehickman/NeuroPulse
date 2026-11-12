@@ -466,7 +466,7 @@ float np_mod_stim_hal_read_current(uint8_t pair)
     NP_PLATFORM_TRAP();
 }
 
-uint16_t np_mod_stim_hal_read_charge(uint8_t pair)
+uint32_t np_mod_stim_hal_read_charge(uint8_t pair)
 {
     (void)pair;
     NP_PLATFORM_TRAP();

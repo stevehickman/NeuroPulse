@@ -562,7 +562,7 @@ version (`SWR-HV-01`, `SWR-HV-05`). How the app reads it from the helmet (a GATT
 **Not decided, and not built:**
 
 1. **The wire layout: settled when the code was built (issue #569 package 1).** The window had room. The
-   report grew from six bytes to seven, at window bytes 20 to 26 of the 38-byte reply the hub already clocks,
+   report grew from six bytes to seven, at window bytes 20 to 26 of the 38-byte reply (now bytes 24 to 30 of a 42-byte reply, `OI-UINT16-01`) the hub already clocks,
    and its checksum now covers bytes 0 to 4, the version included. No transfer and no frame length changed.
    Bytes 27 to 37 stay spare. The text this replaces said the room had not been checked.
 2. **The hub-side refusal** of a protocol compiled for another hardware version is **decided** (principal,

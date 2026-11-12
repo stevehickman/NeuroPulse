@@ -581,7 +581,7 @@ static void test_count_committed_before_file(void)
 
 /* Serialized record sizes, as np_session_log.c writes them. */
 #define START_REC_BYTES (1U + NP_HUB_PROTO_UUID_LEN + sizeof(uint32_t) + sizeof(uint32_t))
-#define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint16_t))
+#define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint32_t))   /* impedance_ohm is 32-bit (OI-UINT16-01) */
 #define ADAPT_REC_BYTES (1U + sizeof(np_adaptation_event_t))
 #define ZONE_REC_BYTES  (1U + sizeof(uint32_t) + 3U)
 #define EEG_HDR_BYTES   7U
