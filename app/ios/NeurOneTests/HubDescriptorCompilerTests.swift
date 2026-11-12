@@ -98,7 +98,11 @@ final class HubDescriptorCompilerTests: XCTestCase {
             XCTAssertThrowsError(try build(cw(kind, 25))) { error in
                 XCTAssertTrue("\(error)".contains("no duty cycle"), "modality \(kind): \(error)")
             }
-            XCTAssertNoThrow(try build(cw(kind, 100)))
+            // CW states 100 % duty, which is above the 25 % limit: refused, where it used to be encoded as 25 %
+            // (REQ-NPPS-33 (a); interim until OI-HEXTILE-31).
+            XCTAssertThrowsError(try build(cw(kind, 100))) { error in
+                XCTAssertTrue("\(error)".contains("exceeds firmware maximum of 25%"), "modality \(kind): \(error)")
+            }
         }
     }
 
@@ -113,8 +117,8 @@ final class HubDescriptorCompilerTests: XCTestCase {
         p.target = .clinicianSelected
         p.wavelength = .NM_808
         p.irradianceMWcm2 = 100
-        p.frequencyHz = 0
-        p.dutyCyclePercent = 100
+        p.frequencyHz = 10
+        p.dutyCyclePercent = 25
         try check("pbmClin", def(600, mod(.pbmTranscranial(p))))
     }
 
