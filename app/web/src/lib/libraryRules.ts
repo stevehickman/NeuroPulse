@@ -123,7 +123,36 @@ export const rules = {
   /** The record a used family is stored as: the family id and nothing else (SWR-WO-02). */
   usedRecord: (familyId: string): { familyId: string } => nppsLibrary({ op: 'usedRecord', familyId }).record,
   isValidUsedRecord: (record: unknown): boolean => nppsLibrary({ op: 'usedRecord', check: record }).valid,
+  /** One family as its releases, latest first, each with one variant for each hardware version (SWR-FM-02). */
+  familyTree: (entries: object[], familyId: string): FamilyTree => nppsLibrary({ op: 'familyTree', entries, familyId }),
+  /** Which family each arriving entry belongs to: an import merges by family id (SWR-FM-01). */
+  importFamilies: (entries: object[], incoming: object[]): ImportedFamily[] =>
+    nppsLibrary({ op: 'importFamilies', entries, incoming }).entries,
 };
+
+/** A variant: the entry that supplies a release's content for one hardware version, and that content's own hash. */
+export interface FamilyVariant {
+  hardwareVersion: number;
+  id: string;
+  hash: string | null;
+}
+
+/** The core's answer to `familyTree` (SWR-FM-02). `unreleased` holds entries whose version is not major.minor. */
+export interface FamilyTree {
+  familyId: string;
+  releases: Array<{ version: string; major: number; minor: number; variants: FamilyVariant[] }>;
+  unreleased: string[];
+  /** Two entries of one release that both supply a hardware version: the core lists them and chooses neither. */
+  conflicts: Array<{ version: string; hardwareVersion: number; ids: string[] }>;
+}
+
+/** The core's answer for one arriving entry (SWR-FM-01). */
+export interface ImportedFamily {
+  id: string;
+  familyId: string;
+  family: 'existing' | 'new';
+  sameContentAs: string[];
+}
 
 /** The part of a composite the core reads for its identity: how the layers combine, and each layer's timing and scale. */
 function compositeCoreDef(c: NPCompositeProtocol): object {

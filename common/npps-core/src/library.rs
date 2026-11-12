@@ -538,6 +538,101 @@ fn map_variant(req: &Value) -> R<Value> {
     Ok(json!({ "status": "not_supported" }))
 }
 
+// ── Families, releases and variants (`SWR-FM-01`, `SWR-FM-02`) ──────────────────────────────────────
+
+/// `SWR-FM-02` part b: a release is `major.minor`, both whole numbers written in digits and nothing else
+/// (`NP-NPPS-REF-001` §3). Anything else is not a release: it is reported, never guessed at.
+fn release_of(e: &Value) -> Option<(u64, u64)> {
+    let (a, b) = e["version"].as_str()?.split_once('.')?;
+    let whole = |x: &str| if !x.is_empty() && x.bytes().all(|c| c.is_ascii_digit()) { x.parse::<u64>().ok() } else { None };
+    Some((whole(a)?, whole(b)?))
+}
+
+/// Every content hash an entry summary carries: `hashes` (`{"1": "…", "2": "…"}`, one per hardware version) and `hash`.
+fn hashes_of(e: &Value) -> BTreeSet<&str> {
+    let mut h: BTreeSet<&str> = e["hashes"].as_object().into_iter().flatten().filter_map(|(_, v)| v.as_str()).collect();
+    h.extend(e["hash"].as_str());
+    h
+}
+
+/// The content hash of an entry's variant for one hardware version: its `hashes` entry for that version, else `hash`
+/// when the entry supports that version alone. Null when the caller gave none.
+fn variant_hash(e: &Value, version: u64) -> Value {
+    if let Some(h) = e["hashes"].get(version.to_string()).filter(|h| h.is_string()) {
+        return h.clone();
+    }
+    if versions_of(e) == [version] && e["hash"].is_string() {
+        return e["hash"].clone();
+    }
+    Value::Null
+}
+
+/// `SWR-FM-02`: one family as its releases, latest first, and each release as its variants, one for each hardware
+/// version, in version order. A variant is `{hardwareVersion, id, hash}`: the entry that supplies the content for that
+/// version, and that content's own hash. The family id is the only link between variants: nothing in a variant names
+/// another, so a change to one changes that variant's node and no other. Two entries of one release that both supply a
+/// hardware version are a `conflict` and neither is listed as the variant, because the core never picks one silently.
+/// An entry whose `version` is not `major.minor` is in no release and is listed under `unreleased`.
+fn family_tree(req: &Value) -> R<Value> {
+    let es = entries(req)?;
+    let key = req["familyId"].as_str().filter(|s| !s.is_empty()).ok_or("familyId is required")?;
+    let ms = members(es, key);
+    if ms.is_empty() {
+        return Err(format!("no family '{key}'"));
+    }
+    let mut releases: BTreeMap<(u64, u64), BTreeMap<u64, Vec<&Value>>> = BTreeMap::new();
+    let mut unreleased = Vec::new();
+    for m in &ms {
+        match release_of(m) {
+            Some(r) => {
+                let by_hw = releases.entry(r).or_default();
+                for v in versions_of(m).into_iter().collect::<BTreeSet<u64>>() {
+                    by_hw.entry(v).or_default().push(m);
+                }
+            }
+            None => unreleased.push(id_of(m)),
+        }
+    }
+    let mut out = Vec::new();
+    let mut conflicts = Vec::new();
+    for ((major, minor), by_hw) in releases.iter().rev() {
+        let version = format!("{major}.{minor}");
+        let mut variants = Vec::new();
+        for (hw, holders) in by_hw {
+            if let [one] = holders.as_slice() {
+                variants.push(json!({ "hardwareVersion": hw, "id": id_of(one), "hash": variant_hash(one, *hw) }));
+            } else {
+                let ids: Vec<&str> = holders.iter().map(|h| id_of(h)).collect();
+                conflicts.push(json!({ "version": version, "hardwareVersion": hw, "ids": ids }));
+            }
+        }
+        out.push(json!({ "version": version, "major": major, "minor": minor, "variants": variants }));
+    }
+    Ok(json!({ "familyId": key, "releases": out, "unreleased": unreleased, "conflicts": conflicts }))
+}
+
+/// `SWR-FM-01`: an import merges by family id. An arriving entry whose family id the library already holds joins that
+/// family (`existing`); any other id is a family the library did not have (`new`). The id is taken as it arrives and is
+/// never rewritten, so it is stable across an export and an import. `sameContentAs` names the local members of that
+/// family whose content hash equals an arriving one: identical compiled content is the same version (`SWR-HV-01`), so
+/// the library can see it already holds it. An arriving entry with no family id is a family of one, keyed by its own id.
+/// What the library then stores is its own; this decides only which family each arriving entry belongs to.
+fn import_families(req: &Value) -> R<Value> {
+    let es = entries(req)?;
+    let incoming = req["incoming"].as_array().ok_or("incoming must be an array")?;
+    let out: Vec<Value> = incoming
+        .iter()
+        .map(|e| {
+            let key = family_of(e);
+            let ms = members(es, key);
+            let arriving = hashes_of(e);
+            let same: Vec<&str> = ms.iter().filter(|m| !arriving.is_disjoint(&hashes_of(m))).map(|m| id_of(m)).collect();
+            json!({ "id": id_of(e), "familyId": key, "family": if ms.is_empty() { "new" } else { "existing" }, "sameContentAs": same })
+        })
+        .collect();
+    Ok(json!({ "entries": out }))
+}
+
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.
 pub fn library_json(request: &str) -> R<String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("library request is not JSON: {e}"))?;
@@ -560,6 +655,8 @@ pub fn library_json(request: &str) -> R<String> {
         "propagationOffer" => propagation_offer(&req)?,
         "applyChanges" => apply_changes(&req)?,
         "mapVariant" => map_variant(&req)?,
+        "familyTree" => family_tree(&req)?,
+        "importFamilies" => import_families(&req)?,
         other => return Err(format!("unknown library operation '{other}'")),
     };
     Ok(out.to_string())
