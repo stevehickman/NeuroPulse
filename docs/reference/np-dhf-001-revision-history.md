@@ -325,3 +325,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 289 | 2026-11-12 | NeurOne Software Engineering | **157 → 158: §6.3 status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` for GitHub #569 package 2 (families read as releases and variants, and import by family id, in the shared core).** |
 | 290 | 2026-11-12 | NeurOne Software Engineering | **34 → 35: ten firmware behaviours found by simulator runs (GitHub #826) are each drafted for their owner, with options and a recommendation; no firmware behaviour changed.** |
 | 291 | 2026-11-11 | NeurOne Software Engineering | **158 → 159: the status of `SWR-SS-02` points at the health-limit survey for GitHub #563 (`docs/reference/health-limits.md`) and at `OI-HLIM-01` and `OI-HLIM-02`. No requirement text changes.** |
+| 292 | 2026-11-11 | NeurOne Software Engineering | **35 → 36: a feasibility study of end-to-end encryption options for the headset transfers (CLAUDE.md §23).** |

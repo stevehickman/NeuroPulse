@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 35
-**Date:** 2026-11-12
+**Revision:** 36
+**Date:** 2026-11-11
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1042,3 +1042,4 @@ A study for the principal, not a decision: it builds nothing and changes no firm
 | 33 | 2026-11-11 | NeurOne Software Engineering | **§28: the order in which the parts without a twin are taken (run loop and task set, HRV scenarios, storage and data services, cluster and tile firmware, boot and update, 1064 nm and T2, register drivers, active EMF) is approved by the principal; no item is started by this.** |
 | 34 | 2026-11-11 | NeurOne Software Engineering | **§5, §7, §26, §27: `OI-SIMFW-49` closed (the twin takes the apps' writes and accepts a TEST-key-signed golden over GATT); `REQ-SIMFW-19` updated; `OI-SIMFW-62` and `OI-SIMFW-64` closed, `OI-SIMFW-63` closed as run (the apps cut the upload at the negotiated MTU less 3), `OI-SIMFW-70` to `OI-SIMFW-73` raised (the layer, end-to-end payload encryption including USB-C, authenticated pairing, the two unencrypted control writes); `UC-150` moved to justified, `UC-151` and `UC-152` registered.** |
 | 35 | 2026-11-12 | NeurOne Software Engineering | **§7: rows OI-SIMFW-15, -21, -24, -27, -30, -32, -33, -34, -35 and -41 each record what was checked on 2026-11-11 and point to the request drafted in docs/human-input/. Findings added: FMEA-M04-02 and REQ-SW01-05 disagree on an open NTC (-41); DI-SAFE-02 and DI-SAFE-09 state a latch the code and the answered interruption policy do not (-27); the seam's 16-bit charge total cannot hold a session (-15); the simulator now links np_cardiac_sens.c and is a required check (-30). No firmware behaviour changed.** |
+| 36 | 2026-11-11 | NeurOne Software Engineering | **New §29: a study of the crates, the hub's pairing options and the audit position for end-to-end encryption (CLAUDE.md §23); it builds nothing and decides nothing.** |
