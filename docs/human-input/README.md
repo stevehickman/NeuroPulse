@@ -20,7 +20,8 @@ logged in `docs/status/completed-decisions.md`. Never quote a draft here as a de
 5. **State what you need back**: the ruling, a short rationale (CLAUDE.md §18 wants a derivation),
    conditions that would reopen it, and the reviewer's name, role and date.
 6. **Never include UHDR content or personal data** (CLAUDE.md §5).
-7. **When answered**, record the answer in the owning file and in the decisions log, set the status
+7. **Every file links its GitHub issue** on a `**GitHub issue:**` line under the status line, so the open question is tracked where work is planned. Several files may share one issue when they belong to one decision. Close the link's issue only when every question in its files is answered or retired.
+8. **When answered**, record the answer in the owning file and in the decisions log, set the status
    line to `ANSWERED`, and leave the file in place as the trail.
 
 ## Index

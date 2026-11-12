@@ -1,6 +1,7 @@
 # Owner request: OI-RISK2-01 (re-score the carried risks at the new architecture's numbers)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#395](https://github.com/stevehickman/NeuroPulse/issues/395)
 **From:** NeurOne Quality (`NP-RISK-002` §2, §6 `OI-RISK2-01`)
 **To:** Quality and Mechanical Engineering owners (the item's owner column reads "Quality + ME"). The Quality Lead approves any re-score (`NP-RM-001` §8.2).
 **Response needed:** the decisions in section 4, named owners, and a date for the first scored batch.

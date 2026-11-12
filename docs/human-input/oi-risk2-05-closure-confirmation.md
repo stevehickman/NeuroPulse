@@ -1,6 +1,7 @@
 # Quality Lead request: OI-RISK2-05 (confirm the closure and approve the re-derived residuals)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#395](https://github.com/stevehickman/NeuroPulse/issues/395)
 **From:** NeurOne Quality (`NP-RISK-002` §6 `OI-RISK2-05`, closed 2026-09-25)
 **To:** Quality Lead (interim: Steve Hickman, CEO), with Firmware.
 **Response needed:** the confirmations in section 4, and a name and date for each.

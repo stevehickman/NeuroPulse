@@ -1,6 +1,7 @@
 # Risk question for review: OI-NPPS-VNS-01 (f), right-ear and bilateral auricular VNS
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#847](https://github.com/stevehickman/NeuroPulse/issues/847)
 **From:** NeurOne Software / Safety (`OI-NPPS-VNS-01` in `docs/status/pending-decisions.md`, item (f))
 **To:** Risk reviewer, with a clinical adviser (names to be assigned; the item's owner column reads "FW Hub + App + Clinical")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.

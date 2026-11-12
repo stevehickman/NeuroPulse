@@ -1,6 +1,7 @@
 # Clinical and engineering request: OI-CVNS-13 (what nuisance-cutoff rate is acceptable?)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#847](https://github.com/stevehickman/NeuroPulse/issues/847)
 **From:** NeurOne Safety / Quality (`NP-FW-CVNS-001` §14.6, `OI-CVNS-13`; `NP-RISK-002` hazards 25-c, 25-e)
 **To:** (1) A clinical reviewer, for the acceptable rate. (2) The embedded safety team, for the measurement. The item's owner column reads "Embedded safety team + Clinical". No names are assigned.
 **Response needed:** the rate, the measurement plan and its owner, and the choice in section 5, each with a name and date.

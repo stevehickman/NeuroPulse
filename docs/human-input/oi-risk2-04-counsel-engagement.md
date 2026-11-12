@@ -1,6 +1,7 @@
 # Counsel engagement request: OI-RISK2-04 (RISK-03, PBM irradiance ceilings)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#101](https://github.com/stevehickman/NeuroPulse/issues/101)
 **From:** NeurOne Safety / Quality (`NP-RISK-002` §6 `OI-RISK2-04`; `NP-RISK-003` RISK-03)
 **To:** CEO (the item's owner), who commissions outside regulatory counsel. No counsel is named.
 **Response needed:** a decision to commission counsel (or a stated reason not to), the counsel's name and date engaged, and a go/no-go on the open choices in section 5.

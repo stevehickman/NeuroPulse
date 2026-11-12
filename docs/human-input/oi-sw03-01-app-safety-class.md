@@ -1,6 +1,7 @@
 # Quality and safety request: OI-SW03-01, the companion app's software safety class
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#823](https://github.com/stevehickman/NeuroPulse/issues/823)
 **From:** NeurOne Software (`OI-SW03-01` in `docs/status/pending-decisions.md`; `NP-SW-001` §3.1)
 **To:** Quality and Safety (names to be assigned; the item's owner column reads "Quality + Safety")
 **Response needed:** a ruling on each of Q1 to Q4, with rationale, the reviewers' names and roles, and the date.

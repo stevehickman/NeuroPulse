@@ -1,6 +1,7 @@
 # OI-PRES-06 — run the presence gate on Android devices
 
 **Status:** DRAFT, not sent. **From:** Software (Claude Code session, 2026-10-22). **To:** whoever holds the device; unnamed.
+**GitHub issue:** [#824](https://github.com/stevehickman/NeuroPulse/issues/824)
 
 **What is asked.** Run the Android presence-gate binding on a device at API 29, 30 and 36 and report each result. A pass or a fail with the device, OS version and log line for each box. Nothing here is a decision, and nothing in the repo may act as if it has passed: `OFFER_PRESENCE_GATE` stays `false` until it has (`docs/np_app_presence_001.md` §7).
 

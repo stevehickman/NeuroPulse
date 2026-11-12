@@ -1,6 +1,7 @@
 # Request to run a test: OI-UI-KMP-11 (GitHub #566), can a pre-generated file ID serve as an atomic claim on Google Drive?
 
 **Status:** DRAFT, not sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#566](https://github.com/stevehickman/NeuroPulse/issues/566)
 **From:** NeurOne Software Engineering (`OI-UI-KMP-11` M9; GitHub #566; `NP-SW-CLOUDSTORE-001` §7.4 and §7.6 item 5)
 **To:** Whoever holds, or will open, the Google test account. **Unnamed:** who opens test accounts is Q3 of `oi-ui-kmp-11-cloud-storage-build-or-adopt.md`, which is open.
 **Response needed:** the filled results table of section 6, with the runner's name, role, the date of the run and the kind of Google Cloud project used.
