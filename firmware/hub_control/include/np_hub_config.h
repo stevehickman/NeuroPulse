@@ -150,8 +150,7 @@
 #define NP_AUDIO_MAX_LEVEL_HALF_DB  170U
 
 /* Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz plus the
- * beat or pulse rate.  The interim form of the frequency-dependent ceiling of NP-HW-AUDIO-001 REQ-AUDIO-25,
- * in force until the A-weighting constants are checked (OI-AUDIOHW-12).  A command above it is REFUSED,
+ * beat or pulse rate.  The flat bound of NP-HW-AUDIO-001 REQ-AUDIO-25.  A command above it is REFUSED,
  * never clamped.  Equals AUDIO_MAX_TONE_HZ in common/npps-core/src/compiler.rs. */
 #define NP_AUDIO_MAX_TONE_HZ        1000U
 

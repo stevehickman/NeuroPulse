@@ -119,7 +119,7 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
     /* The level is absolute (dB SPL x 2), and above the 85 dB SPL ceiling it is outside the contract: refuse
      * before any state changes or any output is commanded, so neither the planar drivers nor the bone
      * transducer receive it and a running command is left as it was (REQ-AUDIO-19).  The same check refuses a
-     * planar tone above NP_AUDIO_MAX_TONE_HZ (REQ-AUDIO-25 (c)).  Refused, not clamped:
+     * planar tone above NP_AUDIO_MAX_TONE_HZ (REQ-AUDIO-25).  Refused, not clamped:
      * a clamped command plays something other than what was authored. */
     if (np_cmd_limits_check(NP_MOD_AUDIO, params, len) != NP_HUB_OK) {   /* the predicate the load-time check runs */
         return NP_HUB_ERR_INVALID_ARG;

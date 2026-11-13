@@ -343,7 +343,7 @@ fn the_cores_limits_are_the_hubs_limits() {
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);
 }
 
-// @verifies REQ-AUDIO-25#c
+// @verifies REQ-AUDIO-25
 #[test]
 fn a_planar_tone_above_1000_hz_is_refused_not_reduced() {
     let msg = &["Audio", "tone frequency", "1000 Hz", "REQ-AUDIO-25"];

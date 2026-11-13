@@ -829,7 +829,7 @@ static void expect_loads(blob_t *b, bool t2, const char *name)
     check(np_runner_load(b->buf, b->len) == NP_HUB_OK, msg);
 }
 
-/* @verifies REQ-FWHUB-78#g REQ-AUDIO-25#c */
+/* @verifies REQ-FWHUB-78#g REQ-AUDIO-25 */
 static void test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload(void)
 {
     blob_t b;
