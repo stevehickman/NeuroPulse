@@ -124,6 +124,7 @@ void np_simh_init(void)
     np_simh_stim_init();
     np_simh_eeg_init();
     np_simh_vns_init();
+    np_simh_hrv_init();
     np_simh_audio_init();
     np_simh_visual_init();
     np_simh_ins_init();
@@ -146,6 +147,7 @@ void np_simh_line(char *line)
     if (np_simh_stim_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_eeg_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_vns_line(cmd, a, b, c, d, e)) { return; }
+    if (np_simh_hrv_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_audio_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_visual_line(cmd, a, b, c, d, e)) { return; }
     if (np_simh_ins_line(cmd, a, b, c, d, e)) { return; }
