@@ -64,8 +64,8 @@ void np_simh_hrv_init(void) { g_phase_set = false; g_beats = 0.0; }
 
 static np_hrv_session_t *session(void)
 {
-    static const np_hrv_session_config_t none;   /* never read: only an allocated session is returned without an end callback */
-    return np_hrv_session_create(&none, NULL, NULL, 0U);
+    static const np_hrv_session_config_t NO_CONFIG;   /* never read: only an allocated session is returned without an end callback */
+    return np_hrv_session_create(&NO_CONFIG, NULL, NULL, 0U);
 }
 
 /* A period is never shorter than 250 ms: a drift that ran on for long enough would make it zero and the beat loop would not end. */
