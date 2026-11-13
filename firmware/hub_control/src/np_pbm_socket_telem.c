@@ -124,12 +124,12 @@ void np_pst_untrack_driving(uint16_t socket_id)
 
 void np_pst_note_predrive_refusal(void)
 {
-    if (s_counts.predrive_refusals < UINT16_MAX) { s_counts.predrive_refusals++; }
+    s_counts.predrive_refusals++;
 }
 
 void np_pst_note_drive_fault(void)
 {
-    if (s_counts.drive_faults < UINT16_MAX) { s_counts.drive_faults++; }
+    s_counts.drive_faults++;
 }
 
 /* One dose tick for one driven socket. */
@@ -150,7 +150,7 @@ static void tick_one(pst_entry_t *e)
     if (!e->ntc_valid || e->ntc_c >= (float)NP_PBM_THERMAL_FAULT_C) {
         if (!e->throttled) {
             e->throttled = true;
-            if (s_counts.throttle_events < UINT16_MAX) { s_counts.throttle_events++; }
+            s_counts.throttle_events++;
         }
         (void)np_mod_pbm_socket_disable_channel(e->socket_id, NP_PBM_CH_ALL_EN);
         e->driving = false;

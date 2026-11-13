@@ -35,7 +35,10 @@ typedef struct {
     uint16_t intervals_ms[NP_RR_BUFFER_SIZE]; /* R-R intervals in milliseconds   */
     uint32_t timestamps_ms[NP_RR_BUFFER_SIZE]; /* system time of each R peak     */
     uint16_t head;           /* next write index                                  */
-    uint16_t count;          /* valid entries (saturates at NP_RR_BUFFER_SIZE)   */
+    uint16_t count;          /* valid entries in the ring.  It saturates at NP_RR_BUFFER_SIZE on purpose: it is the
+                              * ring's occupancy, bounded by the ring, and not a count of events (OI-UINT16-01).   */
+    uint32_t total_pushed;   /* every R-R interval accepted since the buffer was cleared; a count, 32-bit, never
+                              * saturates or wraps (OI-UINT16-01)                                                   */
 } np_rr_buffer_t;
 
 /* ── PPG peak detector state ────────────────────────────────────────────────── */
@@ -51,7 +54,7 @@ typedef struct {
 /* ── HRV power spectral density ────────────────────────────────────────────── */
 typedef struct {
     float    psd[NP_HRV_FFT_SIZE / 2U]; /* one-sided PSD (ms²/Hz), bins 0–127   */
-    uint16_t num_averages;               /* Welch averages accumulated             */
+    uint32_t num_averages;               /* Welch averages accumulated; a count, 32-bit, never saturates (OI-UINT16-01) */
     bool     valid;                      /* true when ≥ 1 average is ready        */
 } np_hrv_psd_t;
 
@@ -134,8 +137,8 @@ typedef struct {
     float    min_coherence;
     float    max_coherence;
     float    mean_rmssd_ms;
-    uint16_t rr_sample_count;      /* total R-R intervals recorded               */
-    uint16_t tavns_stim_count;     /* taVNS inspiration events (protocol 1 only) */
+    uint32_t rr_sample_count;      /* total R-R intervals recorded (every accepted one, not the ring occupancy) */
+    uint32_t tavns_stim_count;     /* taVNS inspiration events (protocol 1 only); never clamped (OI-UINT16-01) */
     uint8_t  reserved[8];
 } np_hrv_session_record_t;
 

@@ -370,7 +370,7 @@
 #define NP_IMP_CVNS_R_ADC_CH    9U      /* CVNS electrode 1 = right */
 
 /* ── Fault latch (SW01-M08) ─────────────────────────────────────────────── */
-#define NP_FAULT_LATCH_MAGIC    0xDEADBEEFUL  /* sentinel for latch validity */
+#define NP_FAULT_LATCH_MAGIC    0xDEADBEF0UL  /* sentinel for latch validity; changed from 0xDEADBEEF with the 32-bit count layout (OI-UINT16-01) */
 
 /* ── Session signature (SW01-M07) ───────────────────────────────────────── */
 /* Manufacturing root public key (OTP): NP_ED25519_PUBKEY_SIZE bytes.         */

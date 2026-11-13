@@ -482,7 +482,7 @@ np_hd_status_t np_sloreta_band_power(np_sloreta_ctx_t    *ctx,
 
 /* ── Diagnostics ─────────────────────────────────────────────────────────────── */
 
-uint16_t np_sloreta_epoch_count(const np_sloreta_ctx_t *ctx)
+uint32_t np_sloreta_epoch_count(const np_sloreta_ctx_t *ctx)
 {
     return ctx ? ctx->epoch_count : 0U;
 }

@@ -52,7 +52,7 @@ typedef struct {
     bool     latch_kept;
     uint8_t  latch_status;
     uint8_t  latch_slot;
-    uint16_t latch_count;
+    uint32_t latch_count;   /* 32-bit like the firmware's fault count (OI-UINT16-01) */
 } silicon_t;
 
 static silicon_t *g_si;
@@ -384,7 +384,7 @@ static void restore_latch(void)
     if (g_si == NULL || !g_si->latch_kept) { return; }
     np_safety_state_t s;
     memset(&s, 0, sizeof s);
-    for (uint16_t k = 1U; k <= g_si->latch_count; k++) {
+    for (uint32_t k = 1U; k <= g_si->latch_count; k++) {
         if (k == g_si->latch_count) { s.status = g_si->latch_status; s.fault_slot = g_si->latch_slot; }
         else                        { s.status = (uint8_t)(g_si->latch_status ^ ((k & 1U) != 0U ? 0x80U : 0x40U)); s.fault_slot = 0U; }
         np_fault_latch_commit(&s);

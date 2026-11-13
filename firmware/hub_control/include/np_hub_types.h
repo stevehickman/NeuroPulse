@@ -551,7 +551,7 @@ typedef struct {
     /* Aggregate irradiance mW/cm² — UHDR. */
     float   irradiance_mW_cm2;
     /* Throttle event count since session start — SHDR. */
-    uint16_t throttle_events;
+    uint32_t throttle_events;   /* a count: 32-bit, never saturates (OI-UINT16-01) */
     uint8_t  fault_mask;   /* bit n = 1 → slot n has active fault (SHDR) */
 } np_telem_pbm_t;
 

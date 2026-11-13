@@ -1135,7 +1135,7 @@ the person received ("protocol parameters used", `data-architecture-detail.md` �
 
 **`0x1B` HRV session (Rev 19, `OI-HRV-03`).** `np_mod_vns.c`'s HRV `end_cb` writes one record when
 the HRV library ends its session: the library's `np_hrv_session_record_t`, serialized field by field
-in 31 bytes with the tag. Its layout and reader rules are `NP-FW-HRV-001` §8.1.1. The library does not
+in 35 bytes with the tag (`OI-UINT16-01`). Its layout and reader rules are `NP-FW-HRV-001` §8.1.1. The library does not
 set `session_start_unix`, so that field is not written. UHDR only: coherence, RMSSD and the R-R count
 describe the person. The tag is defined with the others in `np_session_log.h`. The declaration is in
 `np_log_hrv.h`, so the logger's main header does not depend on the HRV library's types.
@@ -1488,7 +1488,7 @@ format. The rulings are also recorded in `data-architecture-detail.md` §5.1.
   ×3, throttled, NTC valid), NTC (4), NTC peak (4), dose ×3 (12), irradiance ×3 (12). That is
   40 B with the tag.
 - **`0x88` PBM session counts (SHDR)**, at **every** session end, PBM or not: session count (4),
-  throttle events (2), pre-drive refusals (2), drive faults (2). Written unconditionally so that
+  throttle events (4), pre-drive refusals (4), drive faults (4), 17 bytes with the tag (each count was 2 bytes: `OI-UINT16-01`, no count saturates). Written unconditionally so that
   its presence is not a function of the modality (CLAUDE.md §5.1 rule 2).
 - **A driving fault** reaches SHDR through `np_log_shdr_fault()` as `NP_HUB_SLOT_NONE`, the
   modality and `NP_PBM_SHDR_EV_DRIVE_FAULT` (`0x02`). The PBM library's own fault seam
