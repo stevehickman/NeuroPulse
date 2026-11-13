@@ -511,6 +511,14 @@ fault_flags   1 B      reserved       1 B      crc32(uid ‖ payload) 4 B
 > is what lets a reader step by the row's own length, so a longer row written by newer firmware
 > neither shifts every row after it nor ends the scan. `np_map3_record.h` holds the byte map.
 
+> **Version 2 is a 64-byte row (D-33, `OI-UINT16-01`, the principal, 2026-11-13).** The two counts were 16 bits,
+> and version 1's offsets are fixed for ever, so version 2 carries `session_count` and `throttle_count` again as
+> 32-bit values in a tail at offsets 28 and 32, then 24 reserved bytes, then the CRC: 64 bytes in all, four to a
+> program unit, so **no row straddles one** and requirement 1 of §4.2(b) holds. A 40-byte row would straddle.
+> In a version-2 row the version-1 fields hold the count or 0xFFFF above it, for a reader that knows only version 1
+> (D-25 rollback); every version-2 reader uses the tail. The file holds **768** version-2 rows, or 1,536 version-1
+> rows; the bound is unchanged, and the margin below is for version 2 about half the 19 rows per socket.
+
 **File bound: 49,152 B (48 KiB) = 1,536 rows.** Not `file_max`, deliberately: 16,384 B of headroom
 means a future version that grows the row to 40 B still fits (1,536 × 40 = 61,440 < 65,536) without
 re-deciding the bound, and §7.2's rule is that a **record's** version policy is tail-additive forever
@@ -1269,6 +1277,7 @@ five scenarios:
 | S3 | S2, read by a reader that knows only v1 | Boot-bank rollback after an update |
 | S4 | S2 with a partial last row | A torn append costs that row and no earlier one (L-4) |
 | S5 | 1,536 v1 rows, exactly 49,152 bytes | D-24's bound, all rows back |
+| S6 | 768 v2 rows (64 bytes), exactly 49,152 bytes | The same bound at version 2 (D-33), all rows back |
 
 The future rows are built only as §7.2 allows. The real v1 encoder writes the row, the tail goes
 between the v1 fields and the CRC, and the header and CRC are rewritten. The check is **falsified in
@@ -1293,7 +1302,7 @@ the store needs a variable-length journal read, or the file needs a converter pe
 > `np_cfg_store_journal_read()` stays for journals whose records are all one length. **Map 3 must not
 > use it**, because it is exactly the reader this paragraph describes as losing rows.
 >
-> `np_cfg_store_tests` case 9 is the check. It appends four v1 rows, one v2 row of 40 bytes and five
+> `np_cfg_store_tests` case 9 is the check. It appends four v1 rows, one grown row (the 64-byte version-2 row plus an 8-byte tail, as version 3) and five
 > more v1 rows **through the store**, then reads all ten back, in order, with the prefix ending at
 > the journal's last byte. It is falsified in both directions:
 >
@@ -1654,6 +1663,7 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
 | **D-30** *(Rev 8)* | **`NP-MOD-ID-001` §7.4's fit carries presence (`module_session_count`) and calendar age (`last_seen_month` − `module_manufacture_date`, months, same `module_life` row) as covariates beside exposure.** Without them, idle aging in a rarely-driven socket reads as a socket effect, the false positive §7.4's decision rule turns on. Both are already in SHDR: **no field, no clock finer than `TIME-01`'s month and no Map 3 change** is added, and sub-month cadence stays unrecoverable (D-18). The gate states the assumption it cannot test: cadence acts only through the measured thermal fields. §5.3.1 |
 | **D-32** *(Rev 11)* | **`REQ-LFS-02` is a property of `np_module_map`, not of the boot sequence.** Every socket record carries a RAM-only `confirmed` flag. `load()` leaves it false, and it is set only when `apply_poll()` sees the record's UID in that socket or inventories a new module there. Every reader (resolve, resolve_group, check_placement, get_cal, set_cal, socket_uid) answers only from a record that is present **and** confirmed. The alternative, an ordering rule on the boot integration ("poll before anything reads the map"), was rejected. Nothing enforces an ordering but its callers, and the failure it guards against, a valid old blob, is invisible to every check below it. §4.2.1 |
+| **D-33** *(Rev {NP-FW-NVRAM-001 to}, `OI-UINT16-01`)* | **Map 3 version 2 is a 64-byte row, so its counts can be 32-bit and no row straddles a program unit.** Version 1's `session_count` and `throttle_count` are 16 bits at offsets that are fixed for ever, so version 2 adds each count whole as a tail (offsets 28 and 32), reserves 24 bytes and ends in the CRC. 64 B because four rows fill a 256-byte program unit and a 40-byte row would straddle one, against §4.2(b) requirement 1. A version-2 row's version-1 fields hold the count or 0xFFFF above it, for a version-1 reader after a rollback; that is the one ceiling, kept for compatibility. File bound unchanged: 768 version-2 rows. Nothing wrote Map 3 rows before this, so no stored row is at risk. §3.3.1.5 |
 | **D-31** *(Rev 10)* | **A mate is decided by the hub and applied by `U1`, and is written when it happens, not at session end.** The hub counts a mate when a poll returns a UID and its previous observation of that socket (this power-on, or the valid inventory cache at boot) was empty or a different UID. It never counts a first observation. `U1` honours the increment at most once per power-up, because every genuine mate power-cycles it (`VCC_3V3` is in contact group 3). A count of `U1` power-ups alone was rejected, because every hub power cycle would add a mate to every seated tile. The count is a lower bound, and it adds no field. **D-20** holds: nothing about the event is stored. `NP-MOD-ID-001` §5.3.1 |
 
 ---
