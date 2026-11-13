@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 160
-**Date:** 2026-11-11  
+**Revision:** 161
+**Date:** 2026-11-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -827,3 +827,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 158 | 2026-11-12 | NeurOne Software Engineering | **§6.3: status of `SWR-FM-01`, `SWR-FM-02`, `SWR-HV-01` and `SWR-HV-05` updated for GitHub #569 package 2.** The shared Rust core reads a family as its releases (`major.minor`, latest first by number) with one variant for each hardware version (`familyTree`, `SWR-FM-02` parts a, b and e), and says which family an arriving protocol belongs to on import (`importFamilies`, `SWR-FM-01`); both are reached through the existing library entry point and wrapped for the Kotlin targets and the web app. The `SWR-HV-01` test now runs the compiler with different serials, wavelength-rules tables and flags and finds one hash, and a test finds the family id absent from the compiled bytes. The statuses that said no app calls the content hash are corrected: the Kotlin, Swift and web libraries do. The stores, the screens and the Swift wrapper are not built. Four rules the core reports and does not decide are asked of the principal in `docs/human-input/oi-ui-kmp-10-release-and-variant-rules.md`. No requirement text changed. |
 | 159 | 2026-11-11 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated from the health-limit survey for GitHub #563 (`docs/reference/health-limits.md`): which modalities have a per-session figure, which have none, that no per-day limit is enforced, and that the two decisions it waits on are `OI-HLIM-01` (the principal) and `OI-HLIM-02` (clinical). No requirement text changed and nothing is built by this change.** |
 | 160 | 2026-11-11 | NeurOne Firmware Engineering | **§5.1 SW01-M03: a note that the charge monitor stores a declared phase as sent; the 2 s clamp (NP_CHARGE_MAX_PHASE_US) is removed on the principal's decision of 2026-11-11 and replaced by compile-time assertions that the per-phase arithmetic fits 64 bits for the types in use. The per-phase comparison is unchanged. Class C code changed without SW-01's independent review; not marked approved.** |
+| 161 | 2026-11-13 | NeurOne Software Engineering | **§6.3: `SWR-SS-04` moves to partly built.** The caution acknowledgement dialog offers a way back to the editor: in place for an unused protocol, on a clone of the family for a used or predefined one. No requirement text changed. |
