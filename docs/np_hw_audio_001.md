@@ -334,7 +334,7 @@ Computed from it (not measured, and not read from a table):
 
 So a 440 Hz carrier at 85 dB SPL is **80.9 dB(A)**, and a tone near 2.5 kHz at 85 dB SPL is **86.3 dB(A)**,
 above the 85 dB(A) action level §5.1 cites. For an ideal 1/f (pink) and 1/f² (brown) spectrum over 20 Hz to
-20 kHz the same formula gives −12.8 and −23.7 dB, which shows the sign only: **no noise spectrum is specified**
+20 kHz the same formula gives −2.9 and −12.8 dB (recomputed 2026-11-13; this line read −12.8 and −23.7 before, which disagreed with §8.2.7 B), which shows the sign only: **no noise spectrum is specified**
 (`OI-AUDIOHW-04`), so the noise commands are measured at both weightings (`REQ-AUDIO-22`(b)).
 
 **Does something real fail without a bound? Yes, narrowly.** `carrier_hz` is a 16-bit field. The compiler only
