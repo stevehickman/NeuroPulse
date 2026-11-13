@@ -1378,8 +1378,8 @@ the eligibility check and the compiler read the same resolved set.
 
 ### 7a.1 Version of the rules (PROPOSED: not in force, awaiting the principal; `OI-WRV-01`, GitHub #564)
 
-**Q1 (option D) and Q2 (identity over the resolved set) are ruled, 2026-11-13; Q3 to Q8 are open; nothing is built.** It records the scheme `SWR-HV-03` needs before the shipped rules are first
-modified, so the options are written once. **Ruled 2026-11-13 (Q1, the principal, in chat): the version is option D** (release version, origin and the windows themselves; the hash is computed from the windows). The rest of the table is still a proposal. **Q2 ruled the same day: yes, the identity is the hash of the resolved set, leaving out name, level and description.** The remaining rulings are the principal's (`OI-WRV-01` Q3 to Q8; derivation and six hand-checkable
+**Q1 (option D), Q2 (identity over the resolved set) and Q3 (release versions and the register) are ruled, 2026-11-13; Q4 to Q8 are open; nothing is built.** It records the scheme `SWR-HV-03` needs before the shipped rules are first
+modified, so the options are written once. **Ruled 2026-11-13 (Q1, the principal, in chat): the version is option D** (release version, origin and the windows themselves; the hash is computed from the windows). The rest of the table is still a proposal. **Q2 ruled the same day: yes, the identity is the hash of the resolved set, leaving out name, level and description.** **Q3 ruled the same day: yes, NeurOne assigns `major.minor` to each shipped set by the protocol rule, the present defaults are `1.0`, and an append-only register lists each released (version, hash).** The remaining rulings are the principal's (`OI-WRV-01` Q4 to Q8; derivation and six hand-checkable
 vectors in `docs/human-input/oi-ui-kmp-10-wavelength-rules-versioning.md`). Until it is ruled, **do not change a shipped window**:
 no version exists to record the change under.
 
@@ -1399,7 +1399,7 @@ The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FIT
 socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
 the channel the app chose, so it can only record a version the upload states.
 
-**Open items for the principal (`OI-WRV-01`):** Q1 (option D) and Q2 (identity over the resolved set) are ruled, 2026-11-13. Q3 NeurOne-assigned `major.minor` and an append-only register; Q4 the major/minor
+**Open items for the principal (`OI-WRV-01`):** Q1 (option D), Q2 (identity over the resolved set) and Q3 (NeurOne-assigned `major.minor` and an append-only register) are ruled, 2026-11-13. Q4 the major/minor
 floor above; Q5 the 0.001 nm grid for rule values (the choice is in the unjustified-choices register, `UC-175`); Q6 an upload with no stamp
 (record "not stated", or refuse); Q7 whether edited rules stay on one install or travel with the user (`OI-UI-KMP-11`);
 Q8 that the stamp is UHDR only. **Builds that wait on the ruling:** the core's canonical form, hash and comparison; the stamp in
