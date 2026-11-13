@@ -1,6 +1,7 @@
 # Principal question for review: OI-SIMFW-04 (a), what the clock-domain time model still needs decided
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, `REQ-SIMFW-22`)
 **To:** The principal (with the safety MCU's owner for Q2, Quality for Q5, and whoever owns bench and first-article test, not yet named, for Q4 and Q5)
 **Response needed:** an option for each of Q1 to Q5, with a short rationale, name, role and date.
@@ -26,7 +27,7 @@
 
 ## 3. Questions
 
-**Q1. How do the hub's FreeRTOS tasks get virtual time?** (This binds only if `OI-SIMFW-50` puts the hub's own tasks in the twin.)
+**Q1. How do the hub's FreeRTOS tasks get virtual time?** (This binds only if `OI-SIMFW-50` puts the hub's own tasks in the twin.) **Status 2026-11-13:** `OI-SIMFW-45` and `OI-SIMFW-50` were started on the principal's approval of their order, and option A was built as a cooperative scheduler on host threads (`NP-SIM-FW-001` §31), with the reasons B and C were not taken written there. It stands until the principal answers; `OI-SIMFW-75` asks whether it does.
 
 - **(A) Keep the one-thread kernel model the twin has today, and extend it.** The hub's task bodies are called by the twin in an order it chooses, on the hub's domain. Costs: it is a model of the kernel and not the kernel, so pre-emption, priorities and blocking are the twin's and not FreeRTOS's; what `OI-SIMFW-50` exists to show (the five tasks interacting) is shown only as far as the model is right. Gains: fully deterministic; nothing in the port is touched.
 - **(B) Link the vendored kernel with the POSIX port, and replace only the port's tick source** with one the virtual timeline calls, from `firmware/platform_sim/`. Costs: the port expects its timer signal at host-time intervals; whether it schedules the same way when ticks arrive as fast as the twin issues them is unknown and has to be shown; host threads still run between ticks, so two runs can interleave differently inside one tick unless that is also controlled. Gains: the kernel's own scheduler decides.

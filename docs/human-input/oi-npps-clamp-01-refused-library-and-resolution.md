@@ -1,6 +1,7 @@
 # OI-NPPS-CLAMP-01: the protocols that no longer compile, and what the compiler still rounds
 
 **Status:** DRAFT, not sent
+**GitHub issue:** [#845](https://github.com/stevehickman/NeuroPulse/issues/845)
 **From:** App + Firmware engineering
 **To:** the principal (questions 1 to 3). No clinical or regulatory addressee is named; question 1 may need one.
 **Open item:** `OI-NPPS-CLAMP-01` in `docs/status/pending-decisions.md`; `NP-NPPS-REF-001` `REQ-NPPS-33`.

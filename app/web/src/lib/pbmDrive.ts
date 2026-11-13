@@ -14,32 +14,24 @@
 // the one authored (CLAUDE.md §3).
 
 import type { NPPBMChannelElement } from '../../../../common/lib/wavelengthRules';
+import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 
 /**
  * Peak irradiance at the scalp that each emitter channel delivers at full drive
- * (the 255 register value), mW/cm².
- *
- * led_660 / led_808: NP-HW-HEXTILE-001 §4.3.1, T1-A: 45 emitters × 95 mW over
- *   10.61 cm² = 403 mW/cm² at 150 mA. A DESIGN TARGET: OI-HEXTILE-02 has
- *   selected no emitter (register row UC-064).
- * led_1064: §4.3.2, T1-C CH_C = 28 mW/cm². The emitter-efficiency wall of
- *   OI-HEXTILE-21: no protocol that asks for more can run on this channel.
+ * (the 255 register value), mW/cm². The figures are common/npps/constants.json's
+ * (`NPHardwareLimits.PBM_FULL_SCALE_*`, `INTRANASAL_FULL_SCALE_MW_CM2`,
+ * `AUDIO_MAX_DB_SPL`), the same ones the Rust compiler reads at build time, so
+ * the two cannot drift (OI-NPPS-ABS-02). Their derivation and status are on
+ * the constants' notes there (register rows UC-064, UC-065).
  */
 export const PBM_FULL_SCALE_MW_CM2: Readonly<Record<NPPBMChannelElement, number>> = {
-  led_660: 403,
-  led_808: 403,
-  led_1064: 28,
+  led_660: NPHardwareLimits.PBM_FULL_SCALE_660_MW_CM2,
+  led_808: NPHardwareLimits.PBM_FULL_SCALE_808_MW_CM2,
+  led_1064: NPHardwareLimits.PBM_FULL_SCALE_1064_MW_CM2,
 };
 
-/**
- * Irradiance the intranasal probe delivers at full drive, mW/cm².
- * PROVISIONAL PLACEHOLDER (register row UC-065): the probe has no owning
- * specification (OI-ART-04), so no document states what it can emit. 100 is the
- * value that keeps every shipped intranasal protocol's drive register where it
- * was when it was written as a percentage. It is a stand-in for a measurement,
- * not a capability claim.
- */
-export const INTRANASAL_FULL_SCALE_MW_CM2 = 100;
+/** Irradiance the intranasal probe delivers at full drive, mW/cm². A provisional placeholder (UC-065). */
+export const INTRANASAL_FULL_SCALE_MW_CM2 = NPHardwareLimits.INTRANASAL_FULL_SCALE_MW_CM2;
 
 const EPS = 1e-9;
 
@@ -60,7 +52,7 @@ export function irradianceToRegister(
 }
 
 /** Acoustic output ceiling, dB SPL at the ear. Absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). */
-export const AUDIO_MAX_DB_SPL = 85;
+export const AUDIO_MAX_DB_SPL = NPHardwareLimits.AUDIO_MAX_DB_SPL;
 
 /** dB SPL at the ear → the wire byte (2 × dB), or throw above the ceiling. Never reduces a level to fit. */
 export function dbToLevelHalfDb(db: number): number {

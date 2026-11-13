@@ -1,6 +1,7 @@
 # OI-SIMFW-21 (point 1): when must the intranasal driver re-read the sleeve?
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** the
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 principal, with Firmware (hub drivers) and Risk. **Owning item:** `OI-SIMFW-21` point 1 (`docs/np_sim_fw_001.md` §18).
 Related: `REQ-NASAL-10`, `REQ-FWHUB-38`, GitHub #826.
 

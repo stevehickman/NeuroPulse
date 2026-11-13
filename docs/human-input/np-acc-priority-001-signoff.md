@@ -1,6 +1,7 @@
 # Principal and product sign-off for review: NP-ACC-PRIORITY-001, the accessory priority set
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#344](https://github.com/stevehickman/NeuroPulse/issues/344)
 **From:** NeurOne Systems Engineering (`docs/np_acc_priority_001.md` Rev 5, GitHub #344; the row in `docs/status/pending-decisions.md` closes on this sign-off)
 **To:** The principal and product (the document's Approved By line reads "pending principal + product review"). This item has no open-item ID of its own.
 **Response needed:** a sign-off, a sign-off with changes, or a rejection of **section 3**, plus an answer on the one flagged placement; name, role and date.

@@ -1,6 +1,7 @@
 # Revision numbers assigned at merge, not by hand — decision request
 
 **Status:** ANSWERED 2026-11-02 (§7): option A chosen; built in mode `hand`, switched on when the App's secrets exist. **From:** a Claude Code session working for the principal. **To:** the principal
+**GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (owner of `NP-QMS-DC-001`; the Quality Lead role is interim the CEO). No open-item ID exists for this; it is a
 process question, and one is raised if the answer is "build it".
 

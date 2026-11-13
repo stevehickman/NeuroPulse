@@ -1,6 +1,7 @@
 # Bench and first-article question for review: OI-SIMFW-10, is there a bench rig, and what runs on it
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-10`, `NP-SIM-FW-001` §11)
 **To:** Whoever owns bench and first-article test (name and role to be assigned)
 **Response needed:** an answer to each of the four questions in section 3, with name, role and date.

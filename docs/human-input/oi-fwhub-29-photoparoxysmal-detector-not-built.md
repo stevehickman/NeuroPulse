@@ -1,6 +1,7 @@
 # OI-FWHUB-29: the Oz photoparoxysmal detector is listed as an ocular interlock and is not built
 
 **Status:** ANSWERED 2026-11-05 (the principal): option A, then option C. **From:** a Claude Code session working for the principal. **To:** Risk, with Clinical (the detection
+**GitHub issue:** [#848](https://github.com/stevehickman/NeuroPulse/issues/848)
 criterion) and FW Hub / Safety. No addressee is named.
 
 ## 1. The question

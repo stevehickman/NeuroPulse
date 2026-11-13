@@ -1,6 +1,7 @@
 # Clinical and risk question for review: OI-VNSCLIP-09, does the auricular VNS clip need a current ceiling?
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#554](https://github.com/stevehickman/NeuroPulse/issues/554)
 **From:** NeurOne Software / Safety (`OI-VNSCLIP-09` in `docs/status/pending-decisions.md`; register rows `UC-072` (retired) and `UC-079`; GitHub #554 and #559)
 **To:** Clinical reviewer and Risk reviewer (names to be assigned; the item's owner column reads "Clinical + Risk")
 **Response needed:** a ruling on each of Q1 to Q4, with rationale, the reviewer's name and role, and the date.

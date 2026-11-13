@@ -1,6 +1,7 @@
 # OI-SIMFW-33: which faults a new session may clear, and what ends the signature "hard lock"
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** the safety
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 MCU's owner (not yet named), with Risk. **Owning item:** `OI-SIMFW-33` (`docs/np_sim_fw_001.md` §22). Related:
 `OI-SIMFW-32`, GitHub #826, #467.
 

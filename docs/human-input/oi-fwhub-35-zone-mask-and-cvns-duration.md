@@ -1,6 +1,7 @@
 # OI-FWHUB-35: two commanded fields the hub reshapes, with no stated range to refuse at
 
 **Status:** ANSWERED 2026-11-11 by the principal for Q1 (the reserved bits) and Q2 (the block length); still open: what the twelve mask bits mean per eye (findings below, DRAFT), and the unused `ramp_s` and `baseline_req`. *Was:* DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** FW Hub + Software (Q1);
+**GitHub issue:** [#845](https://github.com/stevehickman/NeuroPulse/issues/845)
 Clinical with FW Hub (Q2). No addressee is named.
 
 The principal's rule (2026-11-11): no silent clamping anywhere. A value outside a limit is refused, never reshaped

@@ -1,6 +1,7 @@
 # Question for the principal: OI-HLIM-01, what the acknowledgement rule does where no health limit exists
 
 **Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#563](https://github.com/stevehickman/NeuroPulse/issues/563)
 **From:** NeurOne Software Engineering (`OI-HLIM-01` in `docs/status/pending-decisions.md`; GitHub #563; `NP-SW-001` §6.3.6 `SWR-SS-02`)
 **To:** the principal
 **Response needed:** an option for each of Q1 to Q3, a short rationale, anything that would reopen it, and the date.

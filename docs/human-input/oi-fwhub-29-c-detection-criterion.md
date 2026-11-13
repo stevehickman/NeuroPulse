@@ -1,6 +1,7 @@
 # OI-FWHUB-29 (C): what is a photoparoxysmal response at Oz, for a detector that must halt the goggles in under 200 ms?
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** Clinical (an epileptologist or a
+**GitHub issue:** [#848](https://github.com/stevehickman/NeuroPulse/issues/848)
 clinical neurophysiologist is the right reader), with Risk and FW Hub / Safety. No addressee is named.
 
 ## 0. Answered by the principal (2026-11-05)

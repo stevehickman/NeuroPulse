@@ -190,6 +190,10 @@ uint32_t np_sim_now_ms(void);
 /* The clock.  Real (CLOCK_MONOTONIC) until a scenario advances it; after the first np_sim_advance_ms() it is virtual
  * and moves only when advanced, so a ramp or a hold that the firmware times is deterministic. */
 void     np_sim_advance_ms(uint32_t ms);
+/* The clock's own step, which never runs a task.  Only the hub's kernel model calls it (np_sim_kernel.c); a scenario calls np_sim_advance_ms. */
+void     np_sim_advance_ms_raw(uint32_t ms);
+/* Route np_sim_advance_ms through `fn` (the kernel's run loop) once a scheduler runs; NULL restores the plain step. */
+void     np_sim_set_advance_override(uint32_t (*fn)(uint32_t));
 
 /* A per-millisecond hook.  While one is set, np_sim_advance_ms() moves the virtual clock one millisecond at a time and calls it
  * after each, so a part that runs on its own clock in the device (the safety MCU's polling loop, np_sim_safety.c) sees every

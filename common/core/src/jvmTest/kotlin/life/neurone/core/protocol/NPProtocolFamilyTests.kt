@@ -89,6 +89,34 @@ class NPProtocolFamilyTests {
         assertEquals(hashBefore, lib.contentHash(gamma(lib)), "and byte-identical after the clone was edited")
     }
 
+    // @verifies SWR-SS-04
+    @Test
+    fun theWayBackToEditIsInPlaceForAnUnusedProtocol() {
+        val lib = library()
+        val copy = clone(lib)
+        val before = lib.userProtocols.size
+        assertEquals(copy.id, lib.entryToEdit(copy)?.id, "an unused protocol is edited where it is")
+        assertEquals(before, lib.userProtocols.size, "and nothing is cloned")
+    }
+
+    // @verifies SWR-SS-04
+    @Test
+    fun theWayBackToEditIsACloneOfTheFamilyForAUsedOrPredefinedProtocol() {
+        val lib = library()
+        val copy = clone(lib)
+        val hash = assertNotNull(lib.contentHash(copy))
+        lib.recordUploadResult(copy, hash, "accepted", hash)
+        val used = assertNotNull(lib.entryToEdit(copy))
+        assertNotEquals(copy.id, used.id, "a used protocol opens on a clone")
+        assertNotEquals(copy.familyKey(), used.familyKey())
+        assertFalse(lib.isUsed(used))
+        assertTrue(lib.canEdit(used))
+        assertTrue(lib.isUsed(copy), "the used family is untouched")
+
+        val fromPredefined = assertNotNull(lib.entryToEdit(gamma(lib)))
+        assertTrue(lib.canEdit(fromPredefined), "a predefined protocol opens on an editable clone")
+    }
+
     // @verifies SWR-UP-02
     @Test
     fun aConfirmedUploadMarksTheFamilyUsed() {

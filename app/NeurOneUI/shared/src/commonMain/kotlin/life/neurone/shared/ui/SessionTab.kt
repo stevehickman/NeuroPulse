@@ -66,6 +66,9 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // A protocol held back until its author acknowledges each zone-model caution (docs/reference/safety-zones.md).
     var awaitingCautions by remember { mutableStateOf<Pair<NPProtocolEntry.Single, List<NPZoneCaution>>?>(null) }
 
+    // A protocol the person went back to edit from the acknowledgement request (SWR-SS-04); the menu opens its editor.
+    var editRequest by remember { mutableStateOf<NPProtocolEntry?>(null) }
+
     // Mode 3: the next protocol chosen is programmed for use without a phone (the iOS `programAutonomous`).
     var programMode by remember { mutableStateOf(false) }
 
@@ -158,6 +161,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 uploadAndReport(held, ids)
             },
             onCancel = { awaitingCautions = null },
+            // The menu opens the editor on the protocol itself when it is unused, else on a clone of its family (SWR-SS-04).
+            onEdit = { awaitingCautions = null; editRequest = held },
         )
     }
 
@@ -188,6 +193,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             eegUnavailableMessage = eegMessage,
             limits = services.limitsStore.resolvedLimits,
             onSelect = { entry -> uploadAndReport(entry) },
+            editRequest = editRequest,
+            onEditRequestHandled = { editRequest = null },
             onBack = { showMenu = false; programMode = false },
             helmetHardwareVersion = hardwareVersion,
             fileTransfer = fileTransfer,
