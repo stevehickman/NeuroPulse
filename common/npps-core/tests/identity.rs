@@ -43,7 +43,7 @@ fn hash_is_64_lowercase_hex() {
     assert!(h.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
 }
 
-// @verifies SWR-HV-01
+// @verifies SWR-HV-01 SWR-HV-03#b
 #[test]
 fn excluded_inputs_do_not_move_the_hash() {
     let base = hash(&req(def()));

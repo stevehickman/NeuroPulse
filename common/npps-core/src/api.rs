@@ -53,7 +53,8 @@ fn sockets(v: &Value) -> Result<Vec<u32>, String> {
         .collect()
 }
 
-fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
+/// The rules table a request or a parsed `wavelength_rules` block carries (`{name, channels:[{element,nominalNm,minNm,maxNm}]}`).
+pub fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
     if v.is_null() {
         return Ok(None);
     }

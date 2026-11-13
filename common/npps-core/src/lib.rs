@@ -37,6 +37,7 @@ pub mod serialize;
 pub mod table;
 pub mod validate;
 pub mod wavelength;
+pub mod wavelength_version;
 pub mod zones;
 
 pub use error::ParseError;
