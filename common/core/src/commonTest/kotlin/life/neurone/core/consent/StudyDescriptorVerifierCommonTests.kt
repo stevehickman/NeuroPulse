@@ -7,10 +7,12 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.coroutines.test.runTest
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.StudyDescriptor
 import life.neurone.core.models.StudyDescriptorVerification
 import life.neurone.core.models.UHDRElement
+import life.neurone.core.npps.prepareNppsCore
 import life.neurone.core.platform.Ed25519
 
 /**
@@ -22,7 +24,8 @@ import life.neurone.core.platform.Ed25519
 class StudyDescriptorVerifierCommonTests {
 
     private val seed = ByteArray(32) { (it + 1).toByte() }
-    private val publicKey = Ed25519.publicKey(seed)
+    // Not a field: the browser loads the NPPS core asynchronously, so nothing may call it before `prepareNppsCore()`.
+    private fun publicKey() = Ed25519.publicKey(seed)
 
     private fun descriptor() = StudyDescriptor(
         studyId = "NP-STUDY-2026-014",
@@ -40,42 +43,47 @@ class StudyDescriptorVerifierCommonTests {
 
     // @verifies REQ-CONSENT-10
     @Test
-    fun aGenuinelySignedDescriptorVerifiesAndCarriesItsHash() {
+    fun aGenuinelySignedDescriptorVerifiesAndCarriesItsHash() = runTest {
+        prepareNppsCore()
         val d = sign(descriptor())
         assertEquals(
             StudyDescriptorVerification.Verified(StudyDescriptorCanonicalForm.descriptorHash(d)),
-            Ed25519StudyDescriptorVerifier(publicKey).verify(d),
+            Ed25519StudyDescriptorVerifier(publicKey()).verify(d),
         )
     }
 
     // @verifies REQ-CONSENT-10#a
     @Test
-    fun aChangedFieldIsRejected() {
+    fun aChangedFieldIsRejected() = runTest {
+        prepareNppsCore()
         val signed = sign(descriptor())
         assertEquals(
             StudyDescriptorVerification.Rejected,
-            Ed25519StudyDescriptorVerifier(publicKey).verify(signed.copy(kAnonymity = 2)),
+            Ed25519StudyDescriptorVerifier(publicKey()).verify(signed.copy(kAnonymity = 2)),
         )
     }
 
     // @verifies REQ-CONSENT-10
     @Test
-    fun aDescriptorSignedByAnotherKeyIsRejected() {
+    fun aDescriptorSignedByAnotherKeyIsRejected() = runTest {
+        prepareNppsCore()
         val other = sign(descriptor(), ByteArray(32) { 0x55 })
-        assertEquals(StudyDescriptorVerification.Rejected, Ed25519StudyDescriptorVerifier(publicKey).verify(other))
+        assertEquals(StudyDescriptorVerification.Rejected, Ed25519StudyDescriptorVerifier(publicKey()).verify(other))
     }
 
     // @verifies REQ-CONSENT-10
     @Test
-    fun aMalformedSignatureIsRejectedNotUnavailable() {
-        val verifier = Ed25519StudyDescriptorVerifier(publicKey)
+    fun aMalformedSignatureIsRejectedNotUnavailable() = runTest {
+        prepareNppsCore()
+        val verifier = Ed25519StudyDescriptorVerifier(publicKey())
         assertEquals(StudyDescriptorVerification.Rejected, verifier.verify(descriptor().copy(signature = "!!not base64!!")))
         assertEquals(StudyDescriptorVerification.Rejected, verifier.verify(descriptor().copy(signature = Base64.encode(ByteArray(10)))))
     }
 
     // @verifies REQ-CONSENT-10
     @Test
-    fun anAbsentKeyYieldsNoVerifier() {
+    fun anAbsentKeyYieldsNoVerifier() = runTest {
+        prepareNppsCore()
         assertNull(Ed25519StudyDescriptorVerifier.fromBase64(null))
     }
 }
