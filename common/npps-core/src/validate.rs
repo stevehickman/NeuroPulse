@@ -674,7 +674,10 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
             out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}s", num_string(dur))), s(format!("{}s", threshold::SESSION_SHORT_WARNING_SECONDS)), "hardware",
                 msg("VALIDATE_MSG_GENERAL_DURATION", vec![]));
         }
-        if dur > threshold::SESSION_LONG_WARNING_SECONDS as f64 {
+        // A session with a non-audio block that is past the boundary is a caution to acknowledge instead (`SWR-SS-02`,
+        // the zone loop below). The advisory stays for what that rule leaves out: a session of audio alone.
+        let acknowledged_instead = enabled.iter().any(|m| kind_of(m) != crate::zones::AUDIO_KIND);
+        if dur > threshold::SESSION_LONG_WARNING_SECONDS as f64 && !acknowledged_instead {
             out.push(Warning, None, "duration", "VALIDATE_PARAM_DURATION", s(format!("{}m", num_string((dur / 60.0).floor()))), s(format!("{}m", threshold::SESSION_LONG_WARNING_SECONDS / 60)), "hardware",
                 msg("VALIDATE_MSG_GENERAL_DURATION_2", vec![]));
         }
@@ -757,6 +760,9 @@ fn protocol(def: &Value, limits: &Value, ctx: &Context) -> Vec<Value> {
         for a in &b.axes {
             let shown = |x: f64| s(format!("{}{}{}", fixed2(x), if a.unit.is_empty() { "" } else { " " }, a.unit));
             match a.zone() {
+                // The session-length caution names the level and the amount over it, and says no health limit is defined.
+                crate::zones::Zone::Caution if a.id == crate::zones::SESSION_DURATION_AXIS => out.push(Warning, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(a.caution), "hardware",
+                    msg("VALIDATE_MSG_LONG_SESSION_CAUTION", vec![shown(a.value), shown(a.caution), shown(a.value - a.caution), s(b.ack_id(a))])),
                 crate::zones::Zone::Caution => out.push(Warning, Some(&b.kind), a.id, "VALIDATE_PARAM_ZONE", shown(a.value), shown(a.caution), "hardware",
                     msg("VALIDATE_MSG_ZONE_CAUTION", vec![msg(&modality_name_key(&b.kind), vec![]), msg(a.name_key, vec![]), shown(a.value), shown(a.caution), s(b.ack_id(a))])),
                 crate::zones::Zone::Danger if !a.danger_is_hardware_ceiling() => {
