@@ -1424,7 +1424,7 @@ function selfTest(): void {
     // The goldens must differ from Intl when one cell is wrong, and the generated text must carry the
     // categories the CLDR gives (Russian few, Arabic two), so the comparison can fail and is not vacuous.
     const good = pluralGoldensSource(["ru", "ar"]);
-    const bad1 = good.replace('"2" ', '"2" ').replace('2 to "few"', '2 to "other"');
+    const bad1 = good.replace('2 to "few"', '2 to "other"');
     if (bad1 === good || !good.includes('2 to "few"') || !good.includes('2 to "two"')) {
       console.error("self-test FAILED: plural goldens are vacuous or cannot be perturbed");
       bad++;
