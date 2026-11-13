@@ -1399,8 +1399,7 @@ The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FIT
 socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
 the channel the app chose, so it can only record a version the upload states.
 
-**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Builds that remain:** the core's canonical form, hash and comparison; the stamp in
-the descriptor and the fitting frame; the `version` field and its grammar row; the register and its check; the app notice; the
+**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Built (issue #569):** the core's canonical form, hash and comparison; the stamp in the descriptor and the fitting frame; the register (`common/npps/wavelength-rules-register.json`, compiled into the core) and its check (`common/npps-core/tests/rules_register.rs`: the shipped file and the core's defaults are the last row, versions rise, no set is released twice, release 1.0 is pinned). **Builds that remain:** the `version` field and its grammar row; the check against the merge base for an edited released row; the app notice; the
 requirement rows that `SWR-HV-03` will need.
 
 **Eligibility.** A protocol is offered only when every block can be delivered by the fitted

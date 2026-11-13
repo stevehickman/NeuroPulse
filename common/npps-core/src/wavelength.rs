@@ -353,21 +353,69 @@ pub fn classify_change(old: &[Window; 3], new: &[Window; 3]) -> RulesChange {
     RulesChange::Minor
 }
 
-/// The released rule sets, (major, minor, hash), oldest first. The seed of the append-only register
-/// (`OI-WRV-01`): the register file and its build check are not built, so this holds the one release.
-pub const RELEASES: [(u8, u8, &str); 1] =
-    [(1, 0, "316654aa4924a962a5e3501f80aeff3d0289498e513ac4a8572581c0f8828aa1")];
+/// One row of the register of released rule sets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Release {
+    pub major: u8,
+    pub minor: u8,
+    pub hash: String,
+}
 
-/// The stamp a compile states for the rules it used: a release when the hash is in [`RELEASES`], whatever
+/// The register of released rule sets, oldest first: `common/npps/wavelength-rules-register.json`, compiled in so
+/// every platform that reaches the core has the same list (`SWR-HV-03`, `OI-WRV-01`). It is append-only.
+pub const REGISTER_JSON: &str = include_str!("../../npps/wavelength-rules-register.json");
+
+pub fn parse_register(text: &str) -> Result<Vec<Release>, String> {
+    let v: serde_json::Value = serde_json::from_str(text).map_err(|e| format!("the register is not JSON: {e}"))?;
+    let rows = v["releases"].as_array().ok_or("the register has no `releases` array")?;
+    let mut out = Vec::new();
+    for (i, r) in rows.iter().enumerate() {
+        let n = |k: &str| {
+            r[k].as_u64().and_then(|x| u8::try_from(x).ok()).ok_or_else(|| format!("register row {}: {k} must be a whole number 0 to 255", i + 1))
+        };
+        let hash = r["hash"].as_str().ok_or_else(|| format!("register row {}: hash is missing", i + 1))?;
+        if hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)) {
+            return Err(format!("register row {}: hash is not 64 lowercase hex digits", i + 1));
+        }
+        out.push(Release { major: n("major")?, minor: n("minor")?, hash: hash.to_string() });
+    }
+    if out.is_empty() {
+        return Err("the register lists no release".into());
+    }
+    // A version never goes down and is never reused; a set is released once (append-only, §7a.1).
+    for (i, w) in out.windows(2).enumerate() {
+        if (w[1].major, w[1].minor) <= (w[0].major, w[0].minor) {
+            return Err(format!(
+                "register row {}: version {}.{} does not come after {}.{}: a version never goes down and is never reused",
+                i + 2, w[1].major, w[1].minor, w[0].major, w[0].minor
+            ));
+        }
+    }
+    for (i, r) in out.iter().enumerate() {
+        if out[..i].iter().any(|o| o.hash == r.hash) {
+            return Err(format!("register row {}: the set was already released under an earlier version", i + 1));
+        }
+    }
+    Ok(out)
+}
+
+/// The compiled-in register.
+pub fn releases() -> &'static [Release] {
+    static R: std::sync::OnceLock<Vec<Release>> = std::sync::OnceLock::new();
+    R.get_or_init(|| parse_register(REGISTER_JSON).expect("the compiled-in wavelength-rules register is well formed"))
+}
+
+/// The stamp a compile states for the rules it used: a release when the hash is in [`releases`], whatever
 /// the block's level says; otherwise an owner set over the latest release. Refuses a value off the grid.
 pub fn stamp_for(rules: &WavelengthRules) -> Result<RulesStamp, String> {
     let w = windows_of(rules)?;
     let hash = rules_hash_hex(&w);
-    let (origin, major, minor) = match RELEASES.iter().find(|r| r.2 == hash) {
-        Some(r) => (ORIGIN_RELEASE, r.0, r.1),
+    let reg = releases();
+    let (origin, major, minor) = match reg.iter().find(|r| r.hash == hash) {
+        Some(r) => (ORIGIN_RELEASE, r.major, r.minor),
         None => {
-            let last = RELEASES[RELEASES.len() - 1];
-            (ORIGIN_OWNER_SET, last.0, last.1)
+            let last = &reg[reg.len() - 1];
+            (ORIGIN_OWNER_SET, last.major, last.minor)
         }
     };
     Ok(RulesStamp { origin, major, minor, windows: windows_bytes(&w) })
