@@ -121,7 +121,8 @@ final class OTAManager: ObservableObject {
     private func requireChunkIndexFits(_ imageData: Data) throws {
         let chunks = (imageData.count + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
         guard chunks <= OTAManager.maxChunks else {
-            let wrapped = OTAError.imageLoadFailed("the image needs \(chunks) chunks and the transfer numbers at most \(OTAManager.maxChunks)")
+            let reason = "the image needs \(chunks) chunks and the transfer numbers at most \(OTAManager.maxChunks)"
+            let wrapped = OTAError.imageLoadFailed(reason)
             lastError = wrapped
             throw wrapped
         }
