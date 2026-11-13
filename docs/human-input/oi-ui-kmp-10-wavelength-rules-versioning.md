@@ -5,7 +5,7 @@
 **From:** NeurOne Software Engineering (`OI-UI-KMP-10` open question (3) in `docs/status/pending-decisions.md`; GitHub #564)
 **To:** the principal
 **Response needed:** a ruling on each of Q1 to Q8 (§8), with a short rationale, any condition that would reopen it, and the date.
-**Rulings so far (the principal, in chat, 2026-11-13):** Q1 option D, Q2 yes, Q3 yes, Q4 yes, Q5 a 0.1 pm grid (this document was first written for 1 pm; the form, windows and vectors of §4.8 and §5 are recomputed for 0.1 pm, and the hashes differ from the 1 pm ones), Q6 the staged option, Q7 edited rules travel with the user. Q8 is open; the live record is `OI-WRV-01` in `docs/status/pending-decisions.md`. **The rest is a proposal.** §4 to §7 are a proposal. No code, firmware or controlled document acts on it: the session
+**Rulings so far (the principal, in chat, 2026-11-13):** Q1 option D, Q2 yes, Q3 yes, Q4 yes, Q5 a 0.1 pm grid (this document was first written for 1 pm; the form, windows and vectors of §4.8 and §5 are recomputed for 0.1 pm, and the hashes differ from the 1 pm ones), Q6 the staged option, Q7 edited rules travel with the warranty owner (first answered as "with the user", corrected the same day: the rules belong to the warranty owner, so a clinic's set covers all its patients). Q8 is open; the live record is `OI-WRV-01` in `docs/status/pending-decisions.md`. **The rest is a proposal.** §4 to §7 are a proposal. No code, firmware or controlled document acts on it: the session
 record still carries no rules version (`SWR-HV-02`, `np_session_fitting.h`), and nothing computes one.
 
 ## 1. The question
@@ -102,7 +102,7 @@ yesterday is refused today, or drives a different emitter.
 
 - A resolved set whose hash is in the register **is** that release, whatever its `level` says. A user who edits a
   window and then puts it back is on the release again.
-- Any other set is a **user set**. It has no release version of its own. It is named by its hash, and it also states
+- Any other set is a **owner set**. It has no release version of its own. It is named by its hash, and it also states
   the release it was merged over (its base).
 - The `level` field stays what it is: where the block came from. It is not evidence of what the set contains.
 
@@ -111,7 +111,7 @@ yesterday is refused today, or drives a different emitter.
 | Event | Hash | Release version |
 |---|---|---|
 | NeurOne changes a shipped window, nominal or channel | changes | moves at the next release (§4.2) |
-| A user edits a window | changes | none (user set); the base is unchanged |
+| A user edits a window | changes | none (owner set); the base is unchanged |
 | A user restores the defaults | back to the release's hash | the release |
 | A new release arrives under a user's overrides | changes when an untouched channel changed | the base moves to the new release |
 | Name or description edited | unchanged | unchanged |
@@ -151,13 +151,13 @@ Fixed length, so the record's shape says nothing about the rules (`CLAUDE.md` §
 
 | Bytes | Field | Values |
 |---|---|---|
-| 1 | origin | `0` not stated · `1` NeurOne release · `2` user set |
+| 1 | origin | `0` not stated · `1` NeurOne release · `2` owner set |
 | 1 | release major | for origin 1 the release; for origin 2 the base; `0` for origin 0 |
 | 1 | release minor | as above |
 | 36 | the windows | three channels in the order 660, 808, 1064; each is nominal, minimum, maximum as unsigned 32-bit little-endian counts of 0.1 pm (10⁻⁴ nm, so 808 nm is 8,080,000); a channel with no rule is twelve zero bytes |
 
 **The windows themselves are carried, and the hash is not.** Any reader computes the hash from the 36 bytes (§5).
-The reason is the issue's fifth point: history must stay readable. A hash of a user set can be resolved only by an
+The reason is the issue's fifth point: history must stay readable. A hash of an owner set can be resolved only by an
 app that still holds that set. Carrying the windows lets any reader say how 810 nm was mapped in a session from two
 years ago, with no lookup and no dependence on a store that may be gone.
 
@@ -169,14 +169,14 @@ years ago, with no lookup and no dependence on a store that may be gone.
   0.0001 nm. Every shipped and fixture value is. A stored user value that is not would be shown to the user as needing
   correction and would not be rounded for them, because a rounded window is not the window they set.
 - The six copies of the defaults are a separate defect. The stamp makes it visible: a platform compiling under a
-  drifted copy would report a user set.
+  drifted copy would report an owner set.
 
 ### 4.10 Failure cases
 
 | Case | Proposed behaviour |
 |---|---|
 | The descriptor states no stamp (an app built before this) | The hub records origin `0` and zero bytes. It does not invent a version. Whether it should refuse instead is Q6 |
-| A stamp claims a release, and the windows do not hash to that release | The reader trusts the windows. It shows them as a user set and notes the mismatch. The hub does not check, because it holds no register |
+| A stamp claims a release, and the windows do not hash to that release | The reader trusts the windows. It shows them as an owner set and notes the mismatch. The hub does not check, because it holds no register |
 | A reader meets a release it does not know (a record from a newer app) | It shows the release version as stated and the windows, and says the release is not known to this app. It does not guess |
 | The rules are edited after a descriptor was signed | The descriptor stays valid and keeps its stamp. The app's comparison of §4.6 applies |
 | Two devices or two app installs with different rules | The same protocol hash, and a different stamp in each session record. History shows both. Nothing synchronises rules between installs (Q7) |
@@ -277,7 +277,7 @@ with the `printf` line of §5.2. No implementation exists in the repository to c
 | | Version is | Cost | Answers "how was 810 nm mapped?" |
 |---|---|---|---|
 | **A** | A release counter `major.minor` only | Smallest record (2 bytes). Cannot name a user's edited set, so either editing is removed (it is in §7a) or every edited session records "unknown" | Only for shipped sets, and only with the register |
-| **B** | A content hash only | 32 bytes. Names every set. No readable name, and a user set's hash means nothing once the store that held it is gone | Only while some app still holds the set |
+| **B** | A content hash only | 32 bytes. Names every set. No readable name, and an owner set's hash means nothing once the store that held it is gone | Only while some app still holds the set |
 | **C** | Release version plus hash | 35 bytes. As B with a readable name for shipped sets | As B |
 | **D (recommended)** | Release version, origin, and the windows themselves; the hash is computed from the windows (§4.8) | 39 bytes, once per session. One descriptor field and one fitting-frame field | Always, from the record alone |
 
