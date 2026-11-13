@@ -1376,6 +1376,37 @@ and 830 nm deliver on the 808 nm channel; 850, 633 and 640 nm do not; 1060 and 1
 them. The web app edits, restores and exports them (Helmet configuration → Wavelength rules), and
 the eligibility check and the compiler read the same resolved set.
 
+### 7a.1 Version of the rules (PROPOSED: not in force, awaiting the principal; `OI-WRV-01`, GitHub #564)
+
+**Nothing in this subsection is decided or built.** It records the scheme `SWR-HV-03` needs before the shipped rules are first
+modified, so the options are written once. The ruling is the principal's (`OI-WRV-01` Q1 to Q8; derivation and six hand-checkable
+vectors in `docs/human-input/oi-ui-kmp-10-wavelength-rules-versioning.md`). Until it is ruled, **do not change a shipped window**:
+no version exists to record the change under.
+
+| Point | Proposed scheme |
+|-------|-----------------|
+| Identity | SHA-256 of the **resolved** set (shipped defaults with the user's per-channel overrides merged in) over a canonical form: domain line `NeurOne.WavelengthRules.1`, then JSON with sorted keys, no whitespace, three channels in the order 660, 808, 1064, each value in whole picometres. Name, level and description are left out. Computed by the shared core only (`CLAUDE.md` §22) |
+| Release version | `major.minor`, assigned by NeurOne to each set it ships, by the protocol rule above (at `1.0` until a release; once per release; never down, never reused). Stated as a `version` field of the block. An append-only register lists each released (version, hash), and a build check fails when the shipped file is not the last row. The defaults today would be `1.0` |
+| Who bumps, and when | NeurOne, in the release that ships the change. A user edit never bumps it: an edited set is a **user set**, named by its hash and by the release it was merged over. A set whose hash is in the register is that release, whatever its `level` says |
+| Major or minor | **Minor:** every wavelength the old set delivered is delivered on the same channel by the new one (it may accept more). **Major:** a wavelength once delivered is now refused or moves channel, or the mapping algorithm changes (the domain line then changes). A change to name or description only is no change. Stated as a floor: NeurOne may still call a release major |
+| Compared by | **Content, never by the order of two numbers.** App and hub test equality of the 36 window bytes. The app computes the hash, since the hub holds no register. Release numbers order releases for a reader and decide nothing at run time |
+| Session record | A fixed-length stamp (39 bytes: origin, release major, release minor, 36 bytes of windows) copied by the hub from the signed descriptor into the UHDR fitting frame, with a bump of `NP_FITTING_FORMAT`. It carries the windows, not only a hash, so history stays readable with no store to look up. **UHDR only: never SHDR or a fleet upload** (a user's edited windows would follow a person across devices; `CLAUDE.md` §5.1) |
+| Unknown or missing version | The hub never checks a version against a list: it records what the descriptor states. A descriptor with no stamp is recorded as origin `0` with zero bytes, never an invented version (whether it is refused instead is Q6). A reader that meets a release it does not know shows the stated version and the windows and says it is not known; a stamp whose windows do not hash to its stated release is shown as a user set. A rule value off the picometre grid, or a set the validator refuses, is never stamped and the compile is refused |
+| Used protocols | A protocol's identity excludes the rules (`SWR-HV-01`), so a rules release cannot change a used protocol or its history. A **compiled descriptor** states the set it was compiled under. The app marks a stored descriptor out of date when the rules in force would now map one of its wavelengths differently, and offers a new upload. It never re-uploads silently |
+
+**How the hub records it today.** It does not. `np_log_backend_session_begin(session_counter)` only opens the UHDR session file.
+The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FITTING`) holds the hardware version and one byte per
+socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
+the channel the app chose, so it can only record a version the upload states.
+
+**Open items for the principal (`OI-WRV-01`):** Q1 what the version is (release counter, hash, both, or release plus the
+windows); Q2 identity over the resolved set; Q3 NeurOne-assigned `major.minor` and an append-only register; Q4 the major/minor
+floor above; Q5 the 0.001 nm grid for rule values (the choice is in the unjustified-choices register, `UC-175`); Q6 an upload with no stamp
+(record "not stated", or refuse); Q7 whether edited rules stay on one install or travel with the user (`OI-UI-KMP-11`);
+Q8 that the stamp is UHDR only. **Builds that wait on the ruling:** the core's canonical form, hash and comparison; the stamp in
+the descriptor and the fitting frame; the `version` field and its grammar row; the register and its check; the app notice; the
+requirement rows that `SWR-HV-03` will need.
+
 **Eligibility.** A protocol is offered only when every block can be delivered by the fitted
 modules under the rules in force. When a module swap would fix it, the shortfall names each socket
 and the parts that would. When no module can deliver the wavelength, it says so, and it names the
