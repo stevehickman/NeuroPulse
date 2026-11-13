@@ -308,3 +308,48 @@ fn the_family_id_is_not_in_the_uploaded_bytes() {
     assert!(!contains(&with_id, family.as_bytes()));
     assert!(!contains(&with_id, &raw));
 }
+
+// ---- SWR-HV-03: the rules stamp in the descriptor ------------------------------------------------------------------
+
+fn blob(r: &Value) -> Vec<u8> {
+    compile_json(&r.to_string()).unwrap()
+}
+
+// @verifies SWR-HV-03
+#[test]
+fn the_descriptor_states_the_rules_it_was_compiled_under() {
+    let b = blob(&req(def()));
+    assert_eq!(u16::from_le_bytes([b[4], b[5]]), 3, "descriptor version 3 carries the stamp");
+    // The shipped defaults are release 1.0: origin 1, major 1, minor 0, then V1's 36 window bytes.
+    assert_eq!(&b[68..71], &[1, 1, 0]);
+    let hex: String = b[71..107].iter().map(|x| format!("{x:02x}")).collect();
+    assert_eq!(hex, "40b56400a02e630080c26700804a7b00e0c37900802c8000805aa200e0d3a00020e1a300");
+    // Edited rules (808 maximum raised to 860 nm) are an owner set over release 1.0.
+    let mut r = req(def());
+    r["wavelengthRules"] = json!({ "name": "Lab A", "channels": [
+        { "element": "led_660", "nominalNm": 660.0, "minNm": 650.0, "maxNm": 680.0 },
+        { "element": "led_808", "nominalNm": 808.0, "minNm": 798.0, "maxNm": 860.0 },
+        { "element": "led_1064", "nominalNm": 1064.0, "minNm": 1054.0, "maxNm": 1074.0 } ] });
+    let e = blob(&r);
+    assert_eq!(&e[68..71], &[2, 1, 0]);
+    assert_ne!(&e[71..107], &b[71..107]);
+    // Putting the shipped values back is the release again, whatever the block is called.
+    r["wavelengthRules"]["channels"][1]["maxNm"] = json!(840.0);
+    r["wavelengthRules"]["name"] = json!("renamed");
+    assert_eq!(&blob(&r)[68..71], &[1, 1, 0]);
+}
+
+// @verifies SWR-HV-03
+#[test]
+fn a_rules_change_does_not_change_the_protocol_hash_but_a_value_off_the_grid_refuses_the_compile() {
+    let base = hash(&req(def()));
+    let mut r = req(def());
+    r["wavelengthRules"] = json!({ "name": "Lab A", "channels": [
+        { "element": "led_660", "nominalNm": 660.0, "minNm": 650.0, "maxNm": 680.0 },
+        { "element": "led_808", "nominalNm": 808.0, "minNm": 798.0, "maxNm": 860.0 },
+        { "element": "led_1064", "nominalNm": 1064.0, "minNm": 1054.0, "maxNm": 1074.0 } ] });
+    assert_eq!(hash(&r), base, "the rules are not part of the protocol's identity");
+    r["wavelengthRules"]["channels"][0]["minNm"] = json!(650.00004);
+    let err = compile_json(&r.to_string()).unwrap_err();
+    assert!(err.contains("0.1 pm grid"), "{err}");
+}

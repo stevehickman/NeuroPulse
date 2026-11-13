@@ -12,8 +12,10 @@ use std::collections::HashMap;
 
 pub const SIG_LEN: usize = 64;
 const MAGIC: u32 = 0x4E50_4850;
-const VERSION: u16 = 2;
-const HEADER_LEN: usize = 68;
+const VERSION: u16 = 3;
+/// 68 bytes of fields, then the 39-byte rules stamp (`SWR-HV-03`, NP-FW-HUB-001 §4.2), under the signature.
+const HEADER_LEN: usize = 107;
+const STAMP_OFF: usize = 68;
 const CMD_HDR_LEN: usize = 14;
 const CMD_MAX: usize = 64;
 const SOCKET_MASK_BYTES: usize = 16;
@@ -543,6 +545,11 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
     blob[60..64].copy_from_slice(&wire_ms(session_len_ms, "The session length")?.to_le_bytes());
     // The helmet hardware version, then three reserved bytes that stay zero (SWR-HV-08, NP-FW-HUB-001 §4.2).
     blob[64] = opts.hardware_version;
+    // The wavelength-rules stamp of the rules this compile used (SWR-HV-03). A set the stamp cannot name (a value off
+    // the 0.1 pm grid) refuses the compile, never a stamp of rounded windows.
+    let default_rules = WavelengthRules::default_rules();
+    let stamp = crate::wavelength::stamp_for(opts.wavelength_rules.unwrap_or(&default_rules))?;
+    blob[STAMP_OFF..STAMP_OFF + crate::wavelength::STAMP_LEN].copy_from_slice(&stamp.to_bytes());
 
     let mut off = HEADER_LEN;
     for ((c, t), (start, duration)) in cmds.iter().zip(&targets).zip(&times) {

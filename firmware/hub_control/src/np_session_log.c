@@ -27,6 +27,7 @@
  */
 
 #include "np_session_log.h"
+#include "np_session_fitting.h"
 #include "np_adaptation_log.h"
 #include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
 #include "np_log_hrv.h"        /* HRV session record (OI-HRV-03) */
@@ -435,8 +436,10 @@ void np_log_hrv_session(const np_hrv_session_record_t *rec,
 
 void np_log_session_fitting(const uint8_t *frame, size_t len)
 {
-    /* hardware version (1), n (1), n bytes: a frame that disagrees with its own count is not a record. */
-    if (frame == NULL || len < 2U || (size_t)frame[1] + 2U != len || frame[1] == 0U) { return; }
+    /* format (1), hardware version (1), n (1), n bytes, the rules stamp: a frame that disagrees with its own
+     * format or count is not a record. */
+    if (frame == NULL || len < 3U || frame[0] != NP_FITTING_FORMAT ||
+        (size_t)frame[2] + 3U + NP_HUB_RULES_STAMP_LEN != len || frame[2] == 0U) { return; }
     take();
     uhdr_u8(NP_LOG_TAG_UHDR_FITTING);
     uhdr_write(frame, len);

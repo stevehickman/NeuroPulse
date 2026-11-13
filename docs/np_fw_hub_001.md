@@ -793,16 +793,24 @@ Each command in the body is:
 ```
 
 Constants (`np_hub_config.h`): magic `NP_HUB_PROTO_MAGIC` = `0x4E504850` (`"NPHP"`); version
-`NP_HUB_PROTO_VERSION` = 2; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
+`NP_HUB_PROTO_VERSION` = 3; UUID 16 B; serial 32 B ASCII; signature 64 B; at most
 `NP_HUB_PROTO_CMD_MAX` = 64 commands; at most `NP_HUB_PROTO_PARAMS_MAX` = 64 params bytes per
 command; target block at most `NP_HUB_PROTO_TARGET_MAX` = 16 B.
 
 ### 4.2 Header
 
 The header carries the magic, the version, the 16-byte session UUID (which is the UHDR key for this
-session's records), the 32-byte device serial, `compiled_at_unix`, and `cmd_count`. It is 68 bytes: the
-last four are `hardware_version` (offset 64, one byte, 1 to 15) and three reserved bytes (offsets 65 to 67)
-that are zero.
+session's records), the 32-byte device serial, `compiled_at_unix`, and `cmd_count`. It is 107 bytes:
+`hardware_version` (offset 64, one byte, 1 to 15), three reserved bytes (offsets 65 to 67) that are zero, and the
+39-byte wavelength-rules stamp (offsets 68 to 106).
+
+**The rules stamp is the version of the wavelength rules the descriptor was compiled under** (`SWR-HV-03`,
+`NP-NPPS-REF-001` §7a.1, `OI-WRV-01`). It is origin (1 byte: 0 not stated, 1 a NeurOne release, 2 an owner set),
+release major, release minor, then the 36 bytes of the three channels' windows. It is in the signed region. **The hub
+reads nothing inside it**: it copies the 39 bytes into the descriptor and from there into the session's fitting frame
+(`np_session_fitting.h`, format 2), holds no register and checks no version. A descriptor with an all-zero stamp is
+accepted and recorded as not stated (the staged rule of Q6, until every shipped app states a stamp). The stamp is
+UHDR once in the session record; it is not SHDR and not in any fleet upload or diagnostic log.
 
 **The hardware version is the layout the descriptor was compiled for** (`SWR-HV-08`). The compiler stamps
 the version of the helmet the protocol is authored for, and the stamp is in the signed region, so an edit
@@ -891,12 +899,13 @@ parser does not partially populate.
 reshapes in the v1 row were numbered v2 and v3 while in development and are **part of v1**. Version 2 is
 the header change for the hardware version (*Rev 25*): the principal chose a new explicit field and a bump
 over reusing header bytes, so a v1 blob is refused as `NP_HUB_ERR_BAD_VERSION` like any other value. A hub
-that sees 3 refuses it too.
+that sees 2 refuses it too, and so does one that sees 1.
 
 | Version | Content |
 |---|---|
 | 1 | `slot_id` + variable target block with socket-mask targeting (was pre-release v2: 80 sockets do not fit in five bits, and are not slots); `np_mod_tdcs_params_t` with `electrode_area_mcm2`, 8 B (was pre-release v3, `OI-CHARGE-04`). The original `slot_mask` byte addressing never shipped and has no number |
-| **2** | The header gains `hardware_version` (one byte) and three reserved zero bytes after `session_duration_ms`: 64 → 68 bytes (`SWR-HV-08`). Nothing else in the layout changes. A v1 blob is refused as `NP_HUB_ERR_BAD_VERSION`. |
+| 2 | The header gains `hardware_version` (one byte) and three reserved zero bytes after `session_duration_ms`: 64 → 68 bytes (`SWR-HV-08`). Nothing else in the layout changes. A v1 blob is refused as `NP_HUB_ERR_BAD_VERSION`. |
+| **3** | The header gains the 39-byte wavelength-rules stamp after the reserved bytes: 68 → 107 bytes (`SWR-HV-03`). Nothing else in the layout changes. A v2 blob is refused as `NP_HUB_ERR_BAD_VERSION`. |
 
 `REQ-FWHUB-10`: **from the first shipped descriptor on, any change to a per-modality parameter
 struct's length bumps `NP_HUB_PROTO_VERSION`.** Before that, a length change keeps the version at 1,

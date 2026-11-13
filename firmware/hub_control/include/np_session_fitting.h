@@ -14,15 +14,19 @@
  * say nothing about the fitting (§5.1 rule 2).
  *
  * Frame (NP_LOG_TAG_UHDR_FITTING, then):
- *   [0]    hardware version  1..15 (np_safety_spi_get_hardware_version; 1 when the safety MCU holds no
+ *   [0]    format            NP_FITTING_FORMAT
+ *   [1]    hardware version  1..15 (np_safety_spi_get_hardware_version; 1 when the safety MCU holds no
  *          verified version, SWR-HV-07)
- *   [1]    n                 wired sockets (np_module_map_socket_count)
- *   [2..]  n bytes, index = hub socket index (0-based): NP_FITTING_EMPTY, NP_MOD_PBM_BASE, NP_MOD_PBM_SMART,
+ *   [2]    n                 wired sockets (np_module_map_socket_count)
+ *   [3..]  n bytes, index = hub socket index (0-based): NP_FITTING_EMPTY, NP_MOD_PBM_BASE, NP_MOD_PBM_SMART,
  *          or NP_FITTING_OTHER for a module that is not a PBM tile (an electrode tile)
+ *   [3+n..] the 39-byte rules stamp (NP_HUB_RULES_STAMP_LEN)
  *
- * The wavelength-rules version is NOT in this record yet: the versioning scheme for the rules is undecided
- * (GitHub #564), so there is no version to write and the record does not invent one.  The field joins the
- * frame, with a bump of NP_FITTING_FORMAT, when #564 is decided.
+ * Format 2 (SWR-HV-03, GitHub #564) leads with the format byte and ends with the 39-byte wavelength-rules
+ * stamp, copied verbatim from the signed descriptor: the hub holds no rules and no register, so it records
+ * what the descriptor states and never a version of its own.  A descriptor with no stamp is all zero bytes
+ * (origin 0, "not stated").  The stamp carries the windows, so the record reads with no store to look up.
+ * It is UHDR with the rest of the frame and never reaches SHDR, a fleet upload or the diagnostic log.
  */
 
 #ifndef NP_SESSION_FITTING_H
@@ -35,13 +39,15 @@
 
 #define NP_FITTING_EMPTY      0x00U
 #define NP_FITTING_OTHER      0xFFU
-#define NP_FITTING_HDR_LEN    2U
-#define NP_FITTING_MAX_LEN    (NP_FITTING_HDR_LEN + 128U)   /* NP_HEXMAP_MAX_SOCKETS */
+#define NP_FITTING_FORMAT     2U
+#define NP_FITTING_HDR_LEN    3U
+#define NP_FITTING_MAX_LEN    (NP_FITTING_HDR_LEN + 128U + NP_HUB_RULES_STAMP_LEN)   /* NP_HEXMAP_MAX_SOCKETS */
 
 /*
- * np_fitting_build — fill `out` with the frame for the helmet as it is now.  Returns the length, or 0 when
+ * np_fitting_build — fill `out` with the frame for the helmet as it is now.  `rules_stamp` is the descriptor's
+ * NP_HUB_RULES_STAMP_LEN bytes (NULL writes the not-stated stamp, all zero).  Returns the length, or 0 when
  * the buffer is too small or the module map is not bound (a session is not run on an unbound map).
  */
-size_t np_fitting_build(uint8_t hw_version, uint8_t *out, size_t cap);
+size_t np_fitting_build(uint8_t hw_version, const uint8_t *rules_stamp, uint8_t *out, size_t cap);
 
 #endif /* NP_SESSION_FITTING_H */

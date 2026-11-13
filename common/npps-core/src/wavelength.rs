@@ -352,3 +352,23 @@ pub fn classify_change(old: &[Window; 3], new: &[Window; 3]) -> RulesChange {
     }
     RulesChange::Minor
 }
+
+/// The released rule sets, (major, minor, hash), oldest first. The seed of the append-only register
+/// (`OI-WRV-01`): the register file and its build check are not built, so this holds the one release.
+pub const RELEASES: [(u8, u8, &str); 1] =
+    [(1, 0, "316654aa4924a962a5e3501f80aeff3d0289498e513ac4a8572581c0f8828aa1")];
+
+/// The stamp a compile states for the rules it used: a release when the hash is in [`RELEASES`], whatever
+/// the block's level says; otherwise an owner set over the latest release. Refuses a value off the grid.
+pub fn stamp_for(rules: &WavelengthRules) -> Result<RulesStamp, String> {
+    let w = windows_of(rules)?;
+    let hash = rules_hash_hex(&w);
+    let (origin, major, minor) = match RELEASES.iter().find(|r| r.2 == hash) {
+        Some(r) => (ORIGIN_RELEASE, r.0, r.1),
+        None => {
+            let last = RELEASES[RELEASES.len() - 1];
+            (ORIGIN_OWNER_SET, last.0, last.1)
+        }
+    };
+    Ok(RulesStamp { origin, major, minor, windows: windows_bytes(&w) })
+}

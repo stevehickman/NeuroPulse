@@ -106,7 +106,7 @@ static void blob_begin(blob_t *b, uint16_t version)
     const uint32_t duration = 60000UL;
     memcpy(b->buf + 60, &duration, 4);
     b->buf[64] = 1;                     /* hardware_version; 65..67 reserved, zero */
-    b->len = 68U;
+    b->len = 107U;
 }
 
 static void blob_add_cmd(blob_t *b,
@@ -159,7 +159,9 @@ static void mask_set(uint8_t mask[NP_HUB_SOCKET_MASK_BYTES], unsigned socket)
 /* @verifies REQ-FWHUB-08 */
 static void test_wire_layout(void)
 {
-    check(sizeof(np_proto_header_t) == 68U, "layout: header is 68 bytes");
+    check(sizeof(np_proto_header_t) == 107U, "layout: header is 107 bytes");
+    check(offsetof(np_proto_header_t, rules_stamp) == 68U && NP_HUB_RULES_STAMP_LEN == 39U,
+          "layout: the 39-byte rules stamp follows the reserved bytes");
     check(offsetof(np_proto_header_t, hardware_version) == 64U &&
           offsetof(np_proto_header_t, reserved) == 65U,
           "layout: the hardware version is the byte after the session length, then three reserved");
@@ -169,7 +171,7 @@ static void test_wire_layout(void)
           "layout: socket bitmap covers the full 7-bit socket domain");
     /* 2: the header gained the hardware version (SWR-HV-08, NP-FW-HUB-001 §4.5).  The core's
      * VERSION must move with this constant or every descriptor is rejected as BAD_VERSION. */
-    check(NP_HUB_PROTO_VERSION == 0x0002U, "layout: protocol version is v2");
+    check(NP_HUB_PROTO_VERSION == 0x0003U, "layout: protocol version is v3");
 }
 
 /* ── The hardware version stamp (SWR-HV-08) ───────────────────────────────────── */
@@ -191,6 +193,30 @@ static void test_signature_check_arguments(void)
     check(g_vf_msg == b.buf, "verify args: the message is the start of the blob");
     check(g_vf_len == (uint32_t)(len - NP_HUB_PROTO_SIG_LEN), "verify args: the message is every byte but the trailing signature");
     check(g_vf_sig == b.buf + len - NP_HUB_PROTO_SIG_LEN, "verify args: the signature is the trailing 64 bytes");
+}
+
+/* @verifies SWR-HV-03 */
+static void test_rules_stamp_is_copied_from_the_signed_header(void)
+{
+    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
+    blob_t b;
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    for (unsigned i = 0U; i < NP_HUB_RULES_STAMP_LEN; i++) { b.buf[68U + i] = (uint8_t)(0x30U + i); }
+    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+    size_t len = blob_finish(&b);
+    np_session_desc_t desc;
+    g_vf_len = 0U;
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "rules stamp: parses");
+    check(memcmp(desc.rules_stamp, &b.buf[68], NP_HUB_RULES_STAMP_LEN) == 0,
+          "rules stamp: the 39 bytes reach the descriptor unchanged, with no check of a version");
+    check(g_vf_len >= 107U, "rules stamp: the signed message covers the stamp (it is inside the header)");
+
+    /* A descriptor whose stamp is all zero is accepted: the hub records \"not stated\", the staged rule of Q6. */
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+    len = blob_finish(&b);
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK && desc.rules_stamp[0] == 0U,
+          "rules stamp: no stamp parses, and reads origin 0 (not stated)");
 }
 
 /* @verifies SWR-HV-08 */
@@ -570,12 +596,12 @@ static void test_expected_len_accounts_for_target(void)
 
     const np_proto_header_t *hdr = (const np_proto_header_t *)b.buf;
     size_t expected = np_protocol_compute_expected_len(
-        hdr, b.buf + 68, len - 68U - NP_HUB_PROTO_SIG_LEN);
+        hdr, b.buf + 107, len - 107U - NP_HUB_PROTO_SIG_LEN);
 
     check(expected == len,
           "expected-len: counts header + target + params + signature");
-    check(expected == 68U + 14U + NP_HUB_SOCKET_MASK_BYTES + 4U + NP_HUB_PROTO_SIG_LEN,
-          "expected-len: matches the hand-computed v2 layout");
+    check(expected == 107U + 14U + NP_HUB_SOCKET_MASK_BYTES + 4U + NP_HUB_PROTO_SIG_LEN,
+          "expected-len: matches the hand-computed v3 layout");
 }
 
 /* ── Rejections ───────────────────────────────────────────────────────────────── */
@@ -583,9 +609,9 @@ static void test_expected_len_accounts_for_target(void)
 /* @verifies REQ-FWHUB-10 */
 static void test_rejects_other_versions(void)
 {
-    /* 0 was never issued; 2 and 3 were pre-release numbers for layouts now
-     * folded into v1.  Any of them is refused, not reinterpreted. */
-    static const uint16_t VERSIONS[] = { 0x0000U, 0x0001U, 0x0003U };
+    /* 0 was never issued; 1 is the 64-byte header; 2 is the 68-byte header without the rules stamp (SWR-HV-03).
+     * Any of them is refused, not reinterpreted. */
+    static const uint16_t VERSIONS[] = { 0x0000U, 0x0001U, 0x0002U };
     for (size_t i = 0; i < sizeof VERSIONS / sizeof VERSIONS[0]; i++) {
         blob_t b;
         blob_begin(&b, VERSIONS[i]);
@@ -595,7 +621,7 @@ static void test_rejects_other_versions(void)
 
         np_session_desc_t desc;
         check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_BAD_VERSION,
-              "reject: a blob of any version but v2 is refused (v1 has the 64-byte header)");
+              "reject: a blob of any version but v3 is refused (v1 and v2 have shorter headers)");
     }
 }
 
@@ -1057,6 +1083,7 @@ int main(void)
     test_wire_layout();
     test_signature_check_arguments();
     test_hardware_version_stamp();
+    test_rules_stamp_is_copied_from_the_signed_header();
 
     test_slot_target_roundtrip();
     test_slot_command_has_no_sockets();

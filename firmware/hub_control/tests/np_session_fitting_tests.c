@@ -67,13 +67,13 @@ static void test_frame_has_a_byte_per_wired_socket_whatever_is_fitted(void)
     uint8_t f[NP_FITTING_MAX_LEN];
     size_t  n;
 
-    check(np_fitting_build(1U, f, sizeof f) == 0U, "fitting: an unbound map writes no frame");
+    check(np_fitting_build(1U, NULL, f, sizeof f) == 0U, "fitting: an unbound map writes no frame");
 
     (void)np_module_map_init(GEOM, N_WIRED + 1U);   /* the unwired entry still counts toward the bound geometry */
     const uint16_t wired = np_module_map_socket_count();
 
-    n = np_fitting_build(1U, f, sizeof f);
-    check(n == NP_FITTING_HDR_LEN + wired && f[0] == 1U && f[1] == wired,
+    n = np_fitting_build(1U, NULL, f, sizeof f);
+    check(n == NP_FITTING_HDR_LEN + wired + NP_HUB_RULES_STAMP_LEN && f[0] == NP_FITTING_FORMAT && f[1] == 1U && f[2] == wired,
           "fitting: the frame is the header plus one byte for every socket the map was bound to");
     bool all_empty = true;
     for (size_t i = 0U; i < wired; i++) { if (f[NP_FITTING_HDR_LEN + i] != NP_FITTING_EMPTY) { all_empty = false; } }
@@ -82,7 +82,7 @@ static void test_frame_has_a_byte_per_wired_socket_whatever_is_fitted(void)
     plug(0U, 0x10U, BASE_TILE, 3U);
     plug(2U, 0x20U, SMART_TILE, 4U);
     plug(3U, 0x30U, ELECTRODE, 1U);
-    const size_t n2 = np_fitting_build(1U, f, sizeof f);
+    const size_t n2 = np_fitting_build(1U, NULL, f, sizeof f);
     check(n2 == n, "fitting: the length does not depend on what is fitted");
     check(f[NP_FITTING_HDR_LEN + 0U] == (uint8_t)NP_MOD_PBM_BASE, "fitting: a 660/808 tile is a base tile");
     check(f[NP_FITTING_HDR_LEN + 1U] == NP_FITTING_EMPTY, "fitting: an empty socket is null (0)");
@@ -97,10 +97,10 @@ static void test_hardware_version_is_carried_and_bounds_are_checked(void)
     (void)np_module_map_init(GEOM, N_WIRED + 1U);
     const uint16_t wired = np_module_map_socket_count();
 
-    check(np_fitting_build(7U, f, sizeof f) != 0U && f[0] == 7U, "fitting: the helmet hardware version is in the frame");
-    check(np_fitting_build(1U, f, (size_t)NP_FITTING_HDR_LEN + wired - 1U) == 0U,
+    check(np_fitting_build(7U, NULL, f, sizeof f) != 0U && f[1] == 7U, "fitting: the helmet hardware version is in the frame");
+    check(np_fitting_build(1U, NULL, f, (size_t)NP_FITTING_HDR_LEN + wired + NP_HUB_RULES_STAMP_LEN - 1U) == 0U,
           "fitting: a buffer one byte short writes nothing, never a truncated frame");
-    check(np_fitting_build(1U, NULL, 100U) == 0U, "fitting: no buffer writes nothing");
+    check(np_fitting_build(1U, NULL, NULL, 100U) == 0U, "fitting: no buffer writes nothing");
 }
 
 /* @verifies SWR-HV-02 */
@@ -110,11 +110,32 @@ static void test_a_swapped_module_changes_the_record_not_the_protocol(void)
     uint8_t b[NP_FITTING_MAX_LEN];
     (void)np_module_map_init(GEOM, N_WIRED + 1U);
     plug(1U, 0x40U, BASE_TILE, 3U);
-    (void)np_fitting_build(1U, a, sizeof a);
+    (void)np_fitting_build(1U, NULL, a, sizeof a);
     plug(1U, 0x50U, SMART_TILE, 4U);   /* a different tile in the same socket */
-    (void)np_fitting_build(1U, b, sizeof b);
+    (void)np_fitting_build(1U, NULL, b, sizeof b);
     check(a[NP_FITTING_HDR_LEN + 1U] == (uint8_t)NP_MOD_PBM_BASE && b[NP_FITTING_HDR_LEN + 1U] == (uint8_t)NP_MOD_PBM_SMART,
           "fitting: the record states what is fitted now, not what was fitted before");
+}
+
+/* @verifies SWR-HV-03 */
+static void test_the_rules_stamp_is_copied_verbatim_and_absent_is_not_stated(void)
+{
+    uint8_t f[NP_FITTING_MAX_LEN];
+    uint8_t stamp[NP_HUB_RULES_STAMP_LEN];
+    for (unsigned i = 0U; i < sizeof stamp; i++) { stamp[i] = (uint8_t)(0xA0U + i); }   /* the hub reads inside none of it */
+    (void)np_module_map_init(GEOM, N_WIRED + 1U);
+    const uint16_t wired = np_module_map_socket_count();
+
+    const size_t n = np_fitting_build(1U, stamp, f, sizeof f);
+    check(n == NP_FITTING_HDR_LEN + wired + NP_HUB_RULES_STAMP_LEN &&
+          memcmp(&f[NP_FITTING_HDR_LEN + wired], stamp, sizeof stamp) == 0,
+          "rules stamp: the 39 bytes the descriptor stated end the frame, unchanged");
+    check(f[0] == NP_FITTING_FORMAT, "rules stamp: the format byte leads the frame");
+    uint8_t zero[NP_HUB_RULES_STAMP_LEN] = { 0 };
+    (void)np_fitting_build(1U, NULL, f, sizeof f);
+    check(memcmp(&f[NP_FITTING_HDR_LEN + wired], zero, sizeof zero) == 0,
+          "rules stamp: no stamp is recorded as not stated (all zero), never an invented version");
+    check(np_fitting_build(1U, stamp, f, n - 1U) == 0U, "rules stamp: a buffer one byte short writes nothing");
 }
 
 int main(void)
@@ -122,6 +143,7 @@ int main(void)
     test_frame_has_a_byte_per_wired_socket_whatever_is_fitted();
     test_hardware_version_is_carried_and_bounds_are_checked();
     test_a_swapped_module_changes_the_record_not_the_protocol();
+    test_the_rules_stamp_is_copied_verbatim_and_absent_is_not_stated();
     if (g_failures != 0) { printf("\n%d FAILURE(S)\n", g_failures); return 1; }
     printf("\nAll np_session_fitting tests passed.\n");
     return 0;

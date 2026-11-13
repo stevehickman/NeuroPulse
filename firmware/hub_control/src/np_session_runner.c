@@ -877,7 +877,7 @@ np_hub_status_t np_runner_run(void)
      * record states the hardware that carried the session out and not what the protocol assumed. */
     {
         uint8_t fitting[NP_FITTING_MAX_LEN];
-        const size_t n = np_fitting_build(np_safety_spi_get_hardware_version(), fitting, sizeof fitting);
+        const size_t n = np_fitting_build(np_safety_spi_get_hardware_version(), s_ctx.desc.rules_stamp, fitting, sizeof fitting);
         np_log_session_fitting(fitting, n);
     }
 

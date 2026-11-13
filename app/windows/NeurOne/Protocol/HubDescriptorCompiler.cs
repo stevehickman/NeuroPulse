@@ -13,7 +13,7 @@
 // A refusal is a HubCompileException carrying the core's message.
 //
 // Layout (little-endian, packed):
-//   [68]  header   magic u32 | version u16 | flags u8 | cmd_count u8 | uuid[16] |
+//   [107] header   magic u32 | version u16 | flags u8 | cmd_count u8 | uuid[16] |
 //                  compiled_at_unix u32 | serial[32] | session_duration_ms u32 |
 //                  hardware_version u8 | reserved[3] (SWR-HV-08)
 //   [N]   commands cmd_hdr(14) + target[target_len] + params[params_len]

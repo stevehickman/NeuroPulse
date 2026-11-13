@@ -380,7 +380,7 @@ static void module_present(uint8_t slot)
 
 void np_log_session_start(const np_session_uhdr_record_t *rec) { (void)rec; note(RUN_EV_LOG_START, 0U, 0U); }
 void np_log_session_fitting(const uint8_t *frame, size_t len)  { (void)frame; (void)len; note(RUN_EV_LOG_FITTING, 0U, 0U); }
-size_t np_fitting_build(uint8_t hw, uint8_t *out, size_t cap)  { (void)hw; (void)out; (void)cap; return 0U; }
+size_t np_fitting_build(uint8_t hw, const uint8_t *st, uint8_t *out, size_t cap)  { (void)hw; (void)st; (void)out; (void)cap; return 0U; }
 
 void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)
 {
@@ -521,7 +521,7 @@ static void blob_begin(blob_t *b, uint32_t duration_ms)
     memcpy(b->buf + 24, &compiled_at, 4);
     memcpy(b->buf + 60, &duration_ms, 4);
     b->buf[64] = 1U;                            /* hardware_version */
-    b->len = 68U;
+    b->len = 107U;
 }
 
 static void blob_cmd(blob_t *b, uint8_t mod_type, uint8_t slot_id, uint32_t start_ms, uint32_t duration_ms,

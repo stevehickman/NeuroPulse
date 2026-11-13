@@ -40,6 +40,7 @@
 
 #include "../include/np_log_backend.h"
 #include "../include/np_session_log.h"
+#include "../include/np_session_fitting.h"
 #include "../include/np_log_hrv.h"
 
 static int g_failures = 0;
@@ -412,8 +413,12 @@ static np_session_uhdr_record_t g_rec;
 /* @verifies SWR-HV-02 */
 static void test_fitting_record_is_written_to_uhdr_and_durable(void)
 {
-    static const uint8_t FRAME[] = { 1U, 3U, 0x01U, 0x00U, 0x02U };   /* hw 1, three sockets */
-    static const uint8_t BAD_COUNT[] = { 1U, 4U, 0x01U, 0x00U, 0x02U };
+    static uint8_t FRAME[3U + 3U + NP_HUB_RULES_STAMP_LEN];   /* format, hw 1, three sockets, the stamp */
+    static uint8_t BAD_COUNT[3U + 3U + NP_HUB_RULES_STAMP_LEN];
+    FRAME[0] = NP_FITTING_FORMAT; FRAME[1] = 1U; FRAME[2] = 3U; FRAME[3] = 0x01U; FRAME[4] = 0x00U; FRAME[5] = 0x02U;
+    for (unsigned k = 0U; k < NP_HUB_RULES_STAMP_LEN; k++) { FRAME[6U + k] = (uint8_t)(0x40U + k); }
+    memcpy(BAD_COUNT, FRAME, sizeof FRAME);
+    BAD_COUNT[2] = 4U;
     np_log_test_reset();
     (void)np_log_backend_init();
     np_log_init(0U);

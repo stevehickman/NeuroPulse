@@ -11,11 +11,12 @@
 
 #define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeurOne Hub Protocol */
 /* 2.  v1 was the descriptor with the socket-mask target block and np_mod_tdcs_params_t's
- * electrode_area_mcm2 (OI-CHARGE-04).  v2 adds the hardware version to the header (SWR-HV-08), which
+ * electrode_area_mcm2 (OI-CHARGE-04).  v2 adds the hardware version to the header (SWR-HV-08); v3 adds the 39-byte wavelength-rules stamp (SWR-HV-03), which
  * lengthens it from 64 to 68 bytes.  No descriptor has shipped; the version is bumped all the same
  * because the principal chose an explicit new field and a bump (#569), so a v1 blob is refused as
- * BAD_VERSION (NP-FW-HUB-001 §4.5).                                          */
-#define NP_HUB_PROTO_VERSION        0x0002U
+ * BAD_VERSION (NP-FW-HUB-001 §4.5).  v3 adds the 39-byte wavelength-rules stamp after the reserved
+ * bytes (SWR-HV-03), 68 to 107 bytes, under the signature; v2 blobs are refused the same way.        */
+#define NP_HUB_PROTO_VERSION        0x0003U
 /* NP_HUB_PROTO_UUID_LEN and NP_HUB_PROTO_SIG_LEN come from np_app_wire_constants.h, generated from
  * common/npps/constants.json (group HubDescriptorWire), the one source the apps size the blob from. */
 #define NP_HUB_PROTO_CMD_MAX        64U            /* max commands per session */

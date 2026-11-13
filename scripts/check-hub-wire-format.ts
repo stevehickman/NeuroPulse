@@ -481,8 +481,15 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     // after it, to the end of the header, are reserved and zero.
     const hw = readField(dv, 0, hf("hardware_version")!);
     if (hw !== 1) v.push(`${at} hardware_version reads ${hw} at the firmware's offset, expected 1 (the default, SWR-HV-07)`);
-    for (let i = hf("hardware_version")!.offset + 1; i < H.size; i++) {
+    // The three reserved bytes only: the 39 bytes after them are the rules stamp (SWR-HV-03), checked below.
+    for (let i = hf("hardware_version")!.offset + 1; i < hf("hardware_version")!.offset + 4; i++) {
       if (blob[i] !== 0) v.push(`${at} reserved header byte ${i} is ${blob[i]}, expected 0`);
+    }
+    // SWR-HV-03: the golden protocols are compiled under the shipped defaults, release 1.0 (origin 1), at the firmware's offset.
+    const rs = hf("rules_stamp");
+    if (!rs) v.push(`${at} np_proto_header_t has no rules_stamp field`);
+    else if (blob[rs.offset] !== 1 || blob[rs.offset + 1] !== 1 || blob[rs.offset + 2] !== 0) {
+      v.push(`${at} rules stamp reads origin ${blob[rs.offset]}, release ${blob[rs.offset + 1]}.${blob[rs.offset + 2]} at the firmware's offset, expected 1, 1.0`);
     }
     if (dur !== DURATION_S * 1000) v.push(`${at} session_duration_ms reads ${dur} at the firmware's offset, expected ${DURATION_S * 1000}`);
     if (count < 1) { v.push(`${at} cmd_count reads ${count}`); continue; }
@@ -607,7 +614,7 @@ if (process.argv.includes("--self-test")) {
   // output is tampered the way a miscompiling core would write it, and the decode must catch it.
   const cmdHeaderAt = (blob: Uint8Array, modType: number): number => {
     const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
-    let p = 68;
+    let p = 107;
     for (let i = 0; i < blob[7]!; i++) {
       if (blob[p] === modType && dv.getUint16(p + 10, true) > 0) return p;
       p += 14 + blob[p + 13]! + dv.getUint16(p + 10, true);

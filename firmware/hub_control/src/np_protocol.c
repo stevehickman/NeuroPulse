@@ -203,6 +203,8 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     desc_out->flags            = hdr->flags;
     desc_out->cmd_count        = hdr->cmd_count;
     desc_out->hardware_version = hdr->hardware_version;
+    /* SWR-HV-03: under the signature now; kept verbatim, an all-zero stamp is "not stated". */
+    memcpy(desc_out->rules_stamp, hdr->rules_stamp, NP_HUB_RULES_STAMP_LEN);
 
     size_t offset = 0U;
     for (uint8_t i = 0U; i < hdr->cmd_count; i++) {

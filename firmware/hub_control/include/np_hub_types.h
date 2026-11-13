@@ -169,6 +169,10 @@ typedef enum {
  * NP-HEX-ZM-001 §4 and the target-block note in np_hub_config.h.
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
+/* The wavelength-rules stamp (SWR-HV-03, NP-NPPS-REF-001 §7a.1): origin, release major, release minor, then
+ * 36 bytes of windows.  The hub never reads inside it: it holds no register and checks no version. */
+#define NP_HUB_RULES_STAMP_LEN 39U
+
 typedef struct __attribute__((packed)) {
     uint32_t magic;                              /* NP_HUB_PROTO_MAGIC             */
     uint16_t version;                            /* NP_HUB_PROTO_VERSION           */
@@ -180,11 +184,12 @@ typedef struct __attribute__((packed)) {
     uint32_t session_duration_ms;                /* total session length            */
     uint8_t  hardware_version;                   /* helmet layout it was compiled for, 1..15 (SWR-HV-08) */
     uint8_t  reserved[3];                        /* zero; refused if not            */
+    uint8_t  rules_stamp[NP_HUB_RULES_STAMP_LEN];/* wavelength-rules stamp (SWR-HV-03); copied, never checked */
 } np_proto_header_t;
 
-/* compile-time check: header is exactly 68 bytes
- * Layout: 4+2+1+1+16+4+32+4+1+3 = 68 bytes (packed). */
-typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 68U) ? 1 : -1];
+/* compile-time check: header is exactly 107 bytes
+ * Layout: 4+2+1+1+16+4+32+4+1+3+39 = 107 bytes (packed). */
+typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 107U) ? 1 : -1];
 
 /* ── Command target kind ─────────────────────────────────────────────────────
  * How to read a command's target block. Values are wire constants: frozen once
@@ -274,6 +279,7 @@ typedef struct {
     uint8_t           flags;
     uint8_t           cmd_count;
     uint8_t           hardware_version; /* from the signed header; compared with the helmet's at load (SWR-HV-08) */
+    uint8_t           rules_stamp[NP_HUB_RULES_STAMP_LEN]; /* from the signed header, copied to the session record (SWR-HV-03) */
     np_session_cmd_t  cmds[NP_HUB_PROTO_CMD_MAX];
 } np_session_desc_t;
 
