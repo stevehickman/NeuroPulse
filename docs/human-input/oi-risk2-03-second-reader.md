@@ -1,6 +1,7 @@
 # Second-reader request: OI-RISK2-03 (RETIRED dispositions in NP-RISK-002)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#395](https://github.com/stevehickman/NeuroPulse/issues/395)
 **From:** NeurOne Quality (`NP-RISK-002` §3, §6 `OI-RISK2-03`)
 **To:** A second reader who did **not** write or approve the dispositions. Quality owns the item. No reader is named, and the choice is yours.
 **Response needed:** for each row in section 2, **confirm**, **challenge** or **cannot tell**, with the evidence you checked. Then your name, role and date.

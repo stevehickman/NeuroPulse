@@ -1,6 +1,7 @@
 # Principal question for review: OI-SIMFW-05, what the twin's storage sits on
 
 **Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-05-temporary-file.md`. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, §30)
 **To:** The principal (with the owner of `NP-FW-NVRAM-001` for Q2)
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.

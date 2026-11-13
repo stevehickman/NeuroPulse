@@ -1,6 +1,7 @@
 # Principal review: OI-CONSENT-08, the clinician tiers and what each one reaches
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#727](https://github.com/stevehickman/NeuroPulse/issues/727)
 **From:** NeurOne Software (`OI-CONSENT-08` in `docs/status/pending-decisions.md`; register row `UC-069`)
 **To:** The principal, with a clinical adviser (name to be assigned; the item's owner column reads "principal, with clinical advisor input")
 **Response needed:** a ruling on each of Q1 to Q5, a sign-off of the two tables (or the changes), and the date.

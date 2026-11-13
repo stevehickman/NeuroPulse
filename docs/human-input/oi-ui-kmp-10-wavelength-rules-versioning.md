@@ -1,6 +1,7 @@
 # Principal decision for review: OI-UI-KMP-10 (H3), a versioning scheme for the wavelength rules
 
 **Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#564](https://github.com/stevehickman/NeuroPulse/issues/564)
 **From:** NeurOne Software Engineering (`OI-UI-KMP-10` open question (3) in `docs/status/pending-decisions.md`; GitHub #564)
 **To:** the principal
 **Response needed:** a ruling on each of Q1 to Q8 (§8), with a short rationale, any condition that would reopen it, and the date.

@@ -1,6 +1,7 @@
 # OI-SIMFW-35: after a compaction that lost its COMMIT, is withholding cervical VNS from everyone intended?
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** the safety
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 MCU's owner (not yet named), with Risk and Clinical/HFE for §2 Q2. **Owning item:** `OI-SIMFW-35`
 (`docs/np_sim_fw_001.md` §22). Related: `OI-SIMFW-27` (Q8: the new latch store shares this code), `OI-FMEA-10`,
 `OI-RISK2-07`, GitHub #826, #467.

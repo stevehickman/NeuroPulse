@@ -1,6 +1,7 @@
 # Owner request: OI-RISK2-07 (verification owed by the first safety-MCU update path)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#467](https://github.com/stevehickman/NeuroPulse/issues/467)
 **From:** NeurOne Quality (`NP-RISK-002` §4.3.3 hazard 25-b, §6 `OI-RISK2-07`)
 **To:** Quality and Firmware owners (the item's owner column reads "Quality + FW"). No names are assigned.
 **Response needed:** the confirmations and choices in section 4, plus names and a date.

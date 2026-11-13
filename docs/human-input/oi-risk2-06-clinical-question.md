@@ -1,6 +1,7 @@
 # Clinical question for review: OI-RISK2-06 (hazard 25-d)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#847](https://github.com/stevehickman/NeuroPulse/issues/847)
 **From:** NeurOne Safety / Quality (`NP-RISK-002`, `docs/np_risk_002.md` §4.3.3, §4.3.4, §6)
 **To:** Clinical reviewer (name to be assigned; the item's owner column reads only "Clinical + Safety")
 **Response needed:** a yes/no ruling with rationale, the reviewer's name and role, and the date.

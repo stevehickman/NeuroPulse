@@ -1,6 +1,7 @@
 # Regulatory and risk question for review: OI-IFU-09, cleaning and disinfection of the parts that touch the person
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#849](https://github.com/stevehickman/NeuroPulse/issues/849)
 **From:** NeurOne Systems Engineering (`OI-IFU-09` in `docs/np_ifu_001.md` §2.13)
 **To:** Regulatory lead and risk lead, with the principal for question 1 (names to be assigned; the item's owner column reads "Regulatory + Systems Engineering")
 **Response needed:** a ruling on each of the four questions in section 4, a short rationale for each, conditions that would reopen it, and the reviewer's name, role and date.

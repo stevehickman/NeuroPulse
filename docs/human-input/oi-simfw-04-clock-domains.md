@@ -1,6 +1,7 @@
 # Principal question for review: OI-SIMFW-04 (a), what the clock-domain time model still needs decided
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, `REQ-SIMFW-22`)
 **To:** The principal (with the safety MCU's owner for Q2, Quality for Q5, and whoever owns bench and first-article test, not yet named, for Q4 and Q5)
 **Response needed:** an option for each of Q1 to Q5, with a short rationale, name, role and date.
