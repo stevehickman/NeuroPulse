@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 161
+**Revision:** 162
 **Date:** 2026-11-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -828,3 +828,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 159 | 2026-11-11 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated from the health-limit survey for GitHub #563 (`docs/reference/health-limits.md`): which modalities have a per-session figure, which have none, that no per-day limit is enforced, and that the two decisions it waits on are `OI-HLIM-01` (the principal) and `OI-HLIM-02` (clinical). No requirement text changed and nothing is built by this change.** |
 | 160 | 2026-11-11 | NeurOne Firmware Engineering | **§5.1 SW01-M03: a note that the charge monitor stores a declared phase as sent; the 2 s clamp (NP_CHARGE_MAX_PHASE_US) is removed on the principal's decision of 2026-11-11 and replaced by compile-time assertions that the per-phase arithmetic fits 64 bits for the types in use. The per-phase comparison is unchanged. Class C code changed without SW-01's independent review; not marked approved.** |
 | 161 | 2026-11-13 | NeurOne Software Engineering | **§6.3: `SWR-SS-04` moves to partly built.** The caution acknowledgement dialog offers a way back to the editor: in place for an unused protocol, on a clone of the family for a used or predefined one. No requirement text changed. |
+| 162 | 2026-11-13 | NeurOne Software Engineering | **§6.3: status of `SWR-HV-03` points to the ruled scheme in `NP-NPPS-REF-001` §7a.1 and `OI-WRV-01`.** Still not built. No requirement text changed. |
