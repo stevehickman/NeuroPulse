@@ -77,12 +77,14 @@ const COMPILER = "common/npps-core/src/compiler.rs";
 const LIMITS = "firmware/hub_control/include/np_cmd_limits.h";
 const CONSTANTS = "common/npps/constants.json";
 /** A hub limit that restates a shared constant: the firmware macro, the JSON constant, and the factor from the JSON's unit to the wire's. */
-const SHARED_LIMITS: [string, string, number][] = [
+const SHARED_LIMITS: [string, string, number, string?][] = [
   ["NP_BES_FREQ_MHZ_MIN", "BES_TACS_MIN_HZ", 1000],
   ["NP_BES_FREQ_MHZ_MAX", "BES_TACS_MAX_HZ", 1000],
   ["NP_CLIN_TACS_FREQ_MHZ_MIN", "CLINICAL_TACS_MIN_HZ", 1000],
   ["STIM_MAX_AMP_BES_UA", "BES_TACS_MAX_MILLIAMPS", 1000],
   ["STIM_MAX_AMP_TDCS_UA", "TDCS_MAX_MILLIAMPS", 1000],
+  // The acoustic ceiling is in np_hub_config.h, not np_cmd_limits.h; the wire carries half-dB (OI-NPPS-ABS-02).
+  ["NP_AUDIO_MAX_LEVEL_HALF_DB", "AUDIO_MAX_DB_SPL", 2, CONFIG],
 ];
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
 const RUNNER = "app/web/src/lib/hubCompiler.ts";
@@ -523,13 +525,14 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     const groups = (JSON.parse(read(root, CONSTANTS)) as { groups: { constants: { name: string; value: unknown }[] }[] }).groups;
     const shared = new Map<string, unknown>();
     for (const g of groups) for (const k of g.constants ?? []) shared.set(k.name, k.value);
-    for (const [macro, name, factor] of SHARED_LIMITS) {
-      const fwVal = limitDefs.get(macro);
+    const configDefs = parseDefines(read(root, CONFIG));
+    for (const [macro, name, factor, file] of SHARED_LIMITS) {
+      const fwVal = (file === CONFIG ? configDefs : limitDefs).get(macro);
       const json = shared.get(name);
-      if (fwVal === undefined) { v.push(`${LIMITS}: ${macro} did not parse`); continue; }
+      if (fwVal === undefined) { v.push(`${file ?? LIMITS}: ${macro} did not parse`); continue; }
       if (typeof json !== "number") { v.push(`${CONSTANTS}: ${name} is not a number`); continue; }
       if (fwVal !== Math.round(json * factor)) {
-        v.push(`${LIMITS}: ${macro} is ${fwVal}, but ${CONSTANTS} ${name} is ${json} (x ${factor} = ${Math.round(json * factor)}): the hub would refuse at a different limit from the one the validator holds (REQ-FWHUB-78)`);
+        v.push(`${file ?? LIMITS}: ${macro} is ${fwVal}, but ${CONSTANTS} ${name} is ${json} (x ${factor} = ${Math.round(json * factor)}): the hub would refuse at a different limit from the one the validator holds (REQ-FWHUB-78)`);
       }
     }
   } catch (e) {
@@ -591,6 +594,7 @@ if (process.argv.includes("--self-test")) {
     // LIMITS: a hub limit and the shared constant it restates.
     ["limits: the hub's BES floor moved", { file: LIMITS, from: "#define NP_BES_FREQ_MHZ_MIN   500U", to: "#define NP_BES_FREQ_MHZ_MIN   250U" }, "NP_BES_FREQ_MHZ_MIN is 250"],
     ["limits: the shared BES ceiling moved", { file: CONSTANTS, from: /("name": "BES_TACS_MAX_HZ",\s*"value": )40\.0/, to: "$1" + "45.0" }, "NP_BES_FREQ_MHZ_MAX is 40000"],
+    ["limits: the shared audio ceiling moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_DB_SPL",\s*"value": )85\.0/, to: "$1" + "90.0" }, "NP_AUDIO_MAX_LEVEL_HALF_DB is 170"],
     ["limits: the hub's tDCS ceiling moved", { file: LIMITS, from: "#define STIM_MAX_AMP_TDCS_UA  2000U", to: "#define STIM_MAX_AMP_TDCS_UA  2500U" }, "STIM_MAX_AMP_TDCS_UA is 2500"],
     // COMPILER corner, the Rust source, read statically.
     ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 2;", to: "const VERSION: u16 = 3;" }, "VERSION = 3"],
