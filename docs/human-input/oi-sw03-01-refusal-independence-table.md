@@ -1,6 +1,7 @@
 # Evidence for OI-SW03-01: what, below the app, independently enforces each app and core refusal
 
 **Status:** DRAFT, evidence for the request in `oi-sw03-01-app-safety-class.md`; not sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#823](https://github.com/stevehickman/NeuroPulse/issues/823)
 **From:** NeurOne Software (`OI-SW03-01` in `docs/status/pending-decisions.md`; GitHub #823)
 **To:** Quality and Safety (the item's owner), as an attachment to the request above.
 **Response needed:** the corrections to the table in section 3 (a row that is wrong, a control that exists and was missed, a gap that is accepted), with the reviewer's name, role and date.

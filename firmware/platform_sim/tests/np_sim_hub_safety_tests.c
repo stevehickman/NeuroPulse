@@ -48,7 +48,6 @@ static void in_child(void (*scenario)(void))
     if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) { g_failures++; printf("FAIL: scenario child did not finish cleanly\n"); }
 }
 
-#define LINE_VIS  4
 #define NTC_HOT   600U           /* hotter than the 62 C row (650) of the firmware's table (np_thermal_interlock.c): a test input */
 
 static void boot(void)

@@ -466,6 +466,25 @@ function generateAndroidXml(
     ];
 
     const pluralBases = new Set<string>();
+    if (flatPlurals) {
+      // Compose generates its `Res.string` accessors from the DEFAULT values only, so a category English lacks
+      // (few, many, two, zero) has no accessor unless the default file declares it. The default declares the
+      // union of every locale's CLDR categories, each reading as the family's `_OTHER`; a locale declares its own
+      // categories, each falling back to ITS `_other` when untranslated (localization.md §17.2). OI-UI-KMP-08.
+      const cats = locale === SOURCE_LANGUAGE
+        ? new Set([...locales.keys()].flatMap((l) => cldrCategories(l)))
+        : new Set(cldrCategories(locale));
+      for (const key of Object.keys(en).sort()) {
+        if (!key.endsWith("_OTHER")) continue;
+        const base = key.slice(0, -"_OTHER".length);
+        for (const c of [...cats].sort()) {
+          const k = `${base}_${c}`;
+          if (en[k] !== undefined) continue; // the loop below writes the keys English carries
+          const text = data[k] ?? data[key] ?? en[key];
+          lines.push(`    <string name="${androidName(k)}">${canonicalToAndroid(text, escape, percent)}</string>`);
+        }
+      }
+    }
     for (const key of Object.keys(en).sort()) {
       if (isPluralSuffix(key)) {
         if (flatPlurals) {
@@ -494,6 +513,11 @@ function generateAndroidXml(
     outputs.push([join(resOut, valuesDir(locale), "strings.xml"), lines.join("\n")]);
   }
   return outputs;
+}
+
+/** A locale's CLDR plural categories, upper-case (`Intl.PluralRules`, as check-locale-strings.ts reads them). */
+function cldrCategories(locale: string): string[] {
+  return new Intl.PluralRules(locale).resolvedOptions().pluralCategories.map((c) => c.toUpperCase());
 }
 
 function generateComposeXml(locales: Map<string, LocaleData>, composeOut: string): Array<[string, string]> {

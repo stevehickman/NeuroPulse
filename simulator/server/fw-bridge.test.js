@@ -1023,3 +1023,118 @@ test('end to end: with the link not encrypted the hub refuses to carry data (ATT
   assert.strictEqual(rd[3].att, 0, 'and the upload check is read');
   assert.strictEqual(rd[4].att, 0x0f, 'after a disconnect the link is unencrypted again until the stack says otherwise');
 });
+
+// ── the hub's own tasks running a session (NP-SIM-FW-001 §31, REQ-SIMFW-23) ─────────────────────────────────────────────────────────
+
+// @verifies REQ-SIMFW-12
+test('the hub commands take validated integers and a whitelisted boot mode, and no client string reaches a command line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'hub_boot' }), ['hub_boot admit']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'hub_boot', mode: 'refuse' }), ['hub_boot refuse']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'hub_run', ms: 250 }), ['hub_run 250']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'hub_run', ms: 60000 }), ['hub_run 60000']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'hub_status' }), ['hub_status']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'hub_boot', mode: 'admit\nquit' },
+    { type: 'FW_COMMAND', cmd: 'hub_boot', mode: 'maybe' },
+    { type: 'FW_COMMAND', cmd: 'hub_run', ms: '250\nquit' },
+    { type: 'FW_COMMAND', cmd: 'hub_run', ms: 60001 },
+    { type: 'FW_COMMAND', cmd: 'hub_run', ms: -1 },
+    { type: 'FW_COMMAND', cmd: 'hub_run', ms: 1.5 },
+    { type: 'FW_COMMAND', cmd: 'hub_run' },
+    { type: 'FW_COMMAND', cmd: 'hub_start' },                 // no command starts, paces or names a driver for a session
+    { type: 'FW_COMMAND', cmd: 'hub_stop' },
+    { type: 'FW_COMMAND', cmd: 'hub_session' },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+});
+
+// @verifies REQ-SIMFW-23#g
+test('the hub\'s state reaches the page as HUB_STATE, and a late-joining page is given the last one', () => {
+  for (const ev of ['hub_state', 'hub_status', 'hub_task', 'hub_led']) assert.strictEqual(eventToMessage({ ev }).type, 'HUB_STATE', ev);
+  const proc = new EventEmitter();
+  proc.stdout = new EventEmitter();
+  proc.stdout.setEncoding = () => {};
+  proc.stdin = { write() {} };
+  proc.kill = () => {};
+  const bridge = new FwBridge({ bin: 'x', spawnFn: () => proc }).start();
+  assert.strictEqual(bridge.list().hub, null, 'null before the hub has run');
+  proc.stdout.emit('data', '{"ev":"hub_state","t":5,"runner":"running","elapsed_ms":250}\n');
+  assert.strictEqual(bridge.list().hub.runner, 'running');
+});
+
+/** One firmware process, the hub booted, a signed protocol written to 0x0008 in the chunker's 20-byte writes, then `steps` (each a message or a number of virtual ms to run). */
+async function hubSession(unsignedHex, steps, { modules = [], boot = { cmd: 'hub_boot' } } = {}) {
+  const bridge = new FwBridge({ bin: BIN }).start();
+  try {
+  const seen = [];
+  bridge.on('message', (m) => seen.push(m));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const send = (m) => bridge.handle({ type: 'FW_COMMAND', ...m });
+  await wait(300);
+  send({ cmd: 'safety_attach', seed: 7, tier: 1, uid: 9, hw_version: 1 });
+  for (let ch = 0; ch < 4; ch++) send({ cmd: 'safety_imp', channel: ch, ohm: 5000 });
+  for (const m of modules) bridge.handle(m);
+  send(boot);
+  await wait(500);
+  send({ cmd: 'proto_sign', hex: unsignedHex });
+  await wait(300);
+  const signed = seen.find((m) => m.type === 'FW_LOG' && m.event.ev === 'proto_signed').event;
+  const bytes = framed(Buffer.from(signed.hex, 'hex'));
+  for (let i = 0; i < bytes.length; i += 20) send({ cmd: 'gatt_write', id: 8, hex: bytes.subarray(i, i + 20).toString('hex') });
+  for (const s of steps) {
+    if (typeof s === 'number') send({ cmd: 'hub_run', ms: s }); else send(s);
+    await wait(typeof s === 'number' ? Math.max(300, s / 8) : 150);
+  }
+  await wait(300);
+  return {
+    seen,
+    hub: seen.filter((m) => m.type === 'HUB_STATE' && m.event.ev === 'hub_state').map((m) => m.event),
+    gatt: seen.filter((m) => m.type === 'GATT_EVENT').map((m) => m.event),
+    log: seen.filter((m) => m.type === 'FW_LOG').map((m) => m.event),
+    safety: seen.filter((m) => m.type === 'SAFETY_STATE').map((m) => m.event),
+  };
+  } finally {
+    bridge.stop();   // a failed step must not leave the firmware process holding the test open
+  }
+}
+
+const VISUAL_MODULE = { type: 'MODULE_SET', kind: 'visual', patch: { add: { seated: true, eye_open: true, mpe_ok: true } } };
+
+// @verifies REQ-SIMFW-23#b,d
+test('end to end: a signed golden protocol written to the hub over GATT starts a session in the hub\'s own tasks, which pause, stop and release', { skip: !BIN }, async () => {
+  const r = await hubSession(GOLDEN.visual, [1500, { cmd: 'gatt_write', id: 26, hex: '01' }, 1000, { cmd: 'gatt_write', id: 26, hex: '02' }, 1000,
+    { cmd: 'gatt_write', id: 15, hex: '01' }, 7000], { modules: [VISUAL_MODULE] });
+  const frame = r.gatt.filter((e) => e.ev === 'gatt_notify' && e.id === 24).pop();
+  assert.ok(frame && frame.hex.slice(0, 2) === '01', 'the hub accepted the protocol: UPLOAD_CHECK says ACCEPTED');
+  const states = r.hub.map((h) => h.runner);
+  const order = states.filter((s, i) => i === 0 || s !== states[i - 1]);
+  assert.deepStrictEqual(order, ['idle', 'running', 'paused', 'running', 'stopping', 'fault'].filter((s) => order.includes(s)),
+    `the runner's states are the device's, in order: ${order.join(', ')}`);
+  assert.ok(order.includes('running') && order.includes('paused') && order.includes('stopping'), 'it ran, paused and stopped');
+  const running = r.hub.filter((h) => h.runner === 'running');
+  assert.ok(running.some((h) => h.elapsed_ms > 1000 && h.led === 'session' && (h.active_mask & 512) !== 0), 'the progress frame names the visual command, and the LED says session');
+  const paused = r.hub.filter((h) => h.runner === 'paused');
+  assert.ok(paused.length >= 2 && paused.every((h) => h.elapsed_ms === paused[0].elapsed_ms), 'session time stood still while paused');
+  assert.ok(r.log.some((e) => e.ev === 'hal' && e.id === 'visual:0' && e.op === 'vis_led_set'), 'the hub\'s own visual driver commanded the goggles');
+  assert.ok(r.gatt.filter((e) => e.ev === 'gatt_notify' && e.id === 25).length >= 2, 'the runner notified SESSION_PROGRESS on GATT, as to the app');
+  assert.strictEqual(r.hub[r.hub.length - 1].led, 'fault', 'a stop ends as the device\'s runner ends any abort');
+  assert.ok(r.safety.length > 0 && r.safety[r.safety.length - 1].safety_mcu === 'in_loop', 'the safety MCU is in the loop for the run');
+});
+
+// @verifies REQ-SIMFW-23#d
+test('end to end: a protocol that reaches its length completes', { skip: !BIN }, async () => {
+  const b = Buffer.from(GOLDEN.visual, 'hex');
+  b.writeUInt32LE(3000, 60);                                  // the session length: the one header field this test changes before signing
+  const r = await hubSession(b.toString('hex'), [1500, 8000], { modules: [VISUAL_MODULE] });
+  assert.strictEqual(r.hub[r.hub.length - 1].runner, 'complete', 'the runner reports complete');
+  assert.strictEqual(r.hub[r.hub.length - 1].led, 'idle');
+  assert.ok(r.hub[r.hub.length - 1].elapsed_ms >= 2990 && r.hub[r.hub.length - 1].elapsed_ms <= 3010, 'with the length it ran');
+});
+
+// @verifies REQ-SIMFW-23#e
+test('end to end: a boot that refused data refuses a protocol the key signed, and no session starts', { skip: !BIN }, async () => {
+  const r = await hubSession(GOLDEN.visual, [1500], { modules: [VISUAL_MODULE], boot: { cmd: 'hub_boot', mode: 'refuse' } });
+  const frame = r.gatt.filter((e) => e.ev === 'gatt_notify' && e.id === 24).pop();
+  assert.ok(frame && frame.hex.slice(0, 2) === '02' && parseInt(frame.hex.slice(2, 4), 16) === 25, 'REFUSED, reason 25 (BOOT_REFUSED)');
+  assert.ok(r.hub.length > 0 && r.hub.every((h) => h.runner === 'idle'), 'the runner never left idle');
+});

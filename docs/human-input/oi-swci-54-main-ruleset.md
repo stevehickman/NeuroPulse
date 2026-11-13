@@ -1,6 +1,7 @@
 # The ruleset on `main`: what it holds today, and five settings nobody has decided
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working on GitHub #446. **To:** the principal
+**GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (repository admin; interim Quality authority). Open item: `OI-SWCI-54` (`docs/np_sw_ci_001.md` §7).
 
 **Nothing in this file has been applied.** The session that wrote it read the settings and changed none. Every

@@ -1,6 +1,7 @@
 # Risk, clinical and device-run request: OI-ZONE-01, the safe / caution / danger zones
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#823](https://github.com/stevehickman/NeuroPulse/issues/823)
 **From:** NeurOne Software (`OI-ZONE-01` in `docs/status/pending-decisions.md`; `docs/reference/safety-zones.md`; register rows `UC-073` to `UC-077`)
 **To:** Risk and Clinical reviewers for Part A; whoever holds the devices for Part B (names to be assigned; the item's owner column reads "Risk + Clinical + App")
 **Response needed:** Part A, a ruling on each of Q1 to Q3 with rationale; Part B, pass or fail for each box, with the device, OS version and any log line for a failure; names, roles and a date.

@@ -1,6 +1,7 @@
 # OI-UI-KMP-05 — retire the SwiftUI iOS app: the plan, and the decisions it needs
 
 **Status:** PARTLY ANSWERED 2026-11-04 (questions 1 to 4; question 5 open). **From:** Software (Claude Code session, 2026-11-03). **To:** the principal.
+**GitHub issue:** [#824](https://github.com/stevehickman/NeuroPulse/issues/824)
 
 **What is asked.** Whether to delete `app/ios` (the SwiftUI app), when, and the five rulings in §6. Nothing here is a decision, and nothing in the repo may act as if the app is retired: `OI-UI-KMP-05` stays open and every Swift file stays until you answer. The inventory below was taken from the tree on 2026-11-03 (`main` at `0e9c0141`); counts are what a search found, not a guarantee.
 

@@ -1,6 +1,7 @@
 # Clinical and regulatory question for review: OI-IFU-07, who must not use NeurOne Home, and what the warnings say
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#849](https://github.com/stevehickman/NeuroPulse/issues/849)
 **From:** NeurOne Systems Engineering (`OI-IFU-07` and `IFU-33` in `docs/np_ifu_001.md`)
 **To:** Clinical adviser and Regulatory lead (names to be assigned; the item's owner column reads "Clinical + Regulatory")
 **Response needed:** for each of the five questions in section 4, a ruling or the list to use, a short rationale, conditions that would reopen it, and the reviewer's name, role and date.

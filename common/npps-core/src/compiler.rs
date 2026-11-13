@@ -3,6 +3,7 @@
 //! what is not deterministic (the clock, the session UUID) and signs the raw region the
 //! blob ends with a zeroed 64-byte slot for.
 
+use crate::constants::hardware_limits as hw;
 use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN};
 use crate::js::{js_round, num_string};
 use crate::wavelength::{resolve_one_channel, Channel, WavelengthRules};
@@ -57,13 +58,17 @@ const MOD_VIBROTACTILE: u8 = 0x10;
 const FLAG_T2_TIER: u8 = 1;
 const FLAG_AUTONOMOUS: u8 = 1 << 1;
 
-/// Full-scale irradiance per channel, mW/cm² (NP-HW-HEXTILE-001 §4.3; register rows UC-064..066).
-const PBM_FULL_SCALE: [(Channel, f64); 3] =
-    [(Channel::Led660, 403.0), (Channel::Led808, 403.0), (Channel::Led1064, 28.0)];
-const INTRANASAL_FULL_SCALE: f64 = 100.0;
+/// Full-scale irradiance per channel, mW/cm² (NP-HW-HEXTILE-001 §4.3; register rows UC-064, UC-065). The figures
+/// are `common/npps/constants.json`'s, shared with the web's `pbmDrive.ts` (OI-NPPS-ABS-02): this file holds none.
+const PBM_FULL_SCALE: [(Channel, f64); 3] = [
+    (Channel::Led660, hw::PBM_FULL_SCALE_660_MW_CM2),
+    (Channel::Led808, hw::PBM_FULL_SCALE_808_MW_CM2),
+    (Channel::Led1064, hw::PBM_FULL_SCALE_1064_MW_CM2),
+];
+const INTRANASAL_FULL_SCALE: f64 = hw::INTRANASAL_FULL_SCALE_MW_CM2;
 /// Acoustic output ceiling, dB SPL at the ear: absolute, not a fraction of any driver's range
 /// (NP-HW-AUDIO-001 REQ-AUDIO-19). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
-const AUDIO_MAX_DB_SPL: f64 = 85.0;
+const AUDIO_MAX_DB_SPL: f64 = hw::AUDIO_MAX_DB_SPL;
 const EPS: f64 = 1e-9;
 const CLINICAL_TACS_MAX_CHANNELS: f64 = 21.0;
 
@@ -211,7 +216,6 @@ fn freq_code(hz: f64, what: &str) -> R<u8> {
 /// and the hub refuse it (REQ-FWHUB-78 (d), (e)); it used to be encoded as 25 %. Continuous wave is 100 % duty and is
 /// refused with it. INTERIM: the limit goes with the pre-signing irradiance check of OI-HEXTILE-31, and not before.
 fn duty_reg(hz: f64, pct: f64, what: &str) -> R<u8> {
-    use crate::constants::hardware_limits as hw;
     if !pct.is_finite() {
         return Err(format!("{what}: dutyCyclePercent is required and must be a finite number. The protocol is refused, not given a default."));
     }
@@ -942,7 +946,6 @@ fn resolve_electrode_pair(p: &Value) -> u8 {
 }
 
 fn encode_tdcs(p: &Value) -> R<Encoded> {
-    use crate::constants::hardware_limits as hw;
     let cur_ua = scaled(p, "intensityMilliamps", "tDCS", 1000.0, 2000.0, "mA")?;
     // The area is the denominator of the safety MCU's charge-density ceiling: a missing or oversized one is refused.
     let area_cm2 = required(p, "electrodeAreaCm2", "tDCS")?;
@@ -976,7 +979,6 @@ fn encode_tdcs(p: &Value) -> R<Encoded> {
 }
 
 fn encode_vns(p: &Value) -> R<Encoded> {
-    use crate::constants::hardware_limits as hw;
     // The upper bound is the wire field's width (32-bit mHz), not a safety limit: the 25 Hz ceiling was an equivalence
     // bound and is removed (OI-VNSCLIP-08, the principal, 2026-10-29). The 1 Hz floor is the validator's.
     let freq_mhz = scaled(p, "frequencyHz", "VNS", 1000.0, u32::MAX as f64, "Hz")?;
@@ -1073,7 +1075,6 @@ fn encode_audio(p: &Value) -> R<Encoded> {
 }
 
 fn encode_visual(p: &Value) -> R<Encoded> {
-    use crate::constants::hardware_limits as hw;
     let mode = match s(p, "mode") {
         "binocular" => Some(0u8),
         "emdr" => Some(1),

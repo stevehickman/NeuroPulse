@@ -20,7 +20,8 @@ logged in `docs/status/completed-decisions.md`. Never quote a draft here as a de
 5. **State what you need back**: the ruling, a short rationale (CLAUDE.md §18 wants a derivation),
    conditions that would reopen it, and the reviewer's name, role and date.
 6. **Never include UHDR content or personal data** (CLAUDE.md §5).
-7. **When answered**, record the answer in the owning file and in the decisions log, set the status
+7. **Every file links its GitHub issue** on a `**GitHub issue:**` line under the status line, so the open question is tracked where work is planned. Several files may share one issue when they belong to one decision. Close the link's issue only when every question in its files is answered or retired.
+8. **When answered**, record the answer in the owning file and in the decisions log, set the status
    line to `ANSWERED`, and leave the file in place as the trail.
 
 ## Index
@@ -52,6 +53,7 @@ Sorted by open item.
 | `OI-SIMFW-34` | `oi-simfw-34-charge-monitor-trust.md` | Safety MCU owner and principal: is the hub trusted for the electrode area and phase the charge monitor uses? Options: trusted and stated, monotonic checks at the MCU, bound to the signed hash, or both in turn. | DRAFT, not sent; recommends option D |
 | `OI-SIMFW-35` | `oi-simfw-35-uncommitted-compaction.md` | Safety MCU owner: is withholding cervical VNS from every user after a compaction that lost its COMMIT intended? Three documents say yes, and an exit exists. | DRAFT, not sent; recommends option A |
 | `OI-SIMFW-41` | `oi-simfw-41-open-ntc.md` | Safety MCU owner with Risk: must an open NTC be detected? FMEA-M04-02 claims the control; `REQ-SW01-05` and a passing test pin its absence. | DRAFT, not sent; recommends option B |
+| `OI-SIMFW-71` | `oi-simfw-71-secure-channel-design.md` | Principal: a combined secure-channel design for `CLAUDE.md` §23 (printed code, long-term keys, per-session keys, a record layer under the settled upload framing) checked against how HomeKit, Matter and others do it; nine questions (factory knowledge of the code, layer, pairing action, audit, PAKE, Noise, presence-gate tier, clinic hubs, attestation). Claims about Apple's Secure Enclave, Bluetooth and Yubico could not be checked (hosts blocked). | DRAFT, not sent |
 | `OI-IFU-07` | `oi-ifu-07-t1-contraindications.md` | Clinical + Regulatory: is the five-line T1 "not intended for" list in `NP-RM-001` §6.1 right and complete; what must be said per modality; a safe listening level; skin type. Five questions. | DRAFT, ready to send |
 | `OI-IFU-09` | `oi-ifu-09-body-contact-cleaning.md` | Regulatory + risk, with the principal for Q1: is a headset a single-person device; if shared use is allowed, which disinfection levels and agents; the nasal probe; the cervical gel pad's reuse. | DRAFT, ready to send; leans to option B on Q1 |
 | `OI-NPPS-LIMITS-01` | `oi-npps-limits-01-stroke-protocol-30hz.md` | Clinical: the shipped taVNS stroke protocol authors 30 Hz against a 25 Hz ceiling. Re-cite to ≤25 Hz evidence, withdraw, or rule 25 Hz adequate? Waits on `OI-VNSCLIP-08`. | DRAFT, ready to send; recommends option A |

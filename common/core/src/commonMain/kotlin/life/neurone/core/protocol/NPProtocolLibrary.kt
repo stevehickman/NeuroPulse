@@ -452,6 +452,18 @@ class NPProtocolLibrary(
         return merged
     }
 
+    /**
+     * The entry the editor opens on when a person goes back to edit from an acknowledgement request (SWR-SS-04).
+     * An unused, editable protocol is edited in place (SWR-PL-03): the entry itself. A used family, or a read-only one
+     * (a predefined protocol), is edited as a clone of the whole family (SWR-FM-03), and the clone's copy of [entry] is
+     * returned. Null when [entry] is not in the library or cannot be cloned. Nothing is marked used or cleared.
+     */
+    fun entryToEdit(entry: NPProtocolEntry): NPProtocolEntry? {
+        if (canEdit(entry) && !isUsed(entry)) return entry
+        val copies = cloneFamily(entry.id)
+        return copies.firstOrNull { cloneSources[it.id.toString()] == entry.id.toString() }
+    }
+
     /** An edit that is not in the library yet and joined a used family's line: kept as a new family of its own, never as a variant of the used one. */
     private fun saveAsNewFamily(edited: NPProtocolEntry): NPProtocolEntry? {
         val taken = allProtocols.map { it.name }.toSet()
