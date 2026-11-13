@@ -2,6 +2,8 @@ package life.neurone.shared.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.intl.Locale
+import life.neurone.shared.i18n.PluralCategory
+import life.neurone.shared.i18n.pluralCategory
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 

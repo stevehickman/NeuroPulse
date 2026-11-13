@@ -1,7 +1,7 @@
 package life.neurone.shared
 
-import life.neurone.shared.ui.PluralCategory
-import life.neurone.shared.ui.pluralCategory
+import life.neurone.shared.i18n.PluralCategory
+import life.neurone.shared.i18n.pluralCategory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

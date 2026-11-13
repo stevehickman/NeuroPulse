@@ -1,4 +1,4 @@
-package life.neurone.shared.ui
+package life.neurone.shared.i18n
 
 /** A CLDR plural category (`OI-UI-KMP-08`). */
 enum class PluralCategory { ZERO, ONE, TWO, FEW, MANY, OTHER }

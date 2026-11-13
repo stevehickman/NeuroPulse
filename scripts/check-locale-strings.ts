@@ -1440,7 +1440,7 @@ function selfTest(): void {
 
 // ─── Kotlin plural-rule goldens (OI-UI-KMP-08) ────────────────────────────────
 //
-// The shared UI (`pluralCategory`, app/NeurOneUI/shared/.../ui/PluralRules.kt) chooses a plural
+// The shared UI (`pluralCategory`, app/NeurOneUI/shared/.../i18n/PluralRules.kt) chooses a plural
 // resource by hand-written CLDR rules, because Compose Multiplatform 1.7 has no plural
 // resources. The rules are checked in two halves that meet at one committed file: the
 // Kotlin test asserts the Kotlin function against it, and this gate asserts it against the
