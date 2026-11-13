@@ -25,6 +25,7 @@ internal fun migrationText(key: String): StringResource? = when (key) {
         "MIGRATION_ITEM_WITHDRAWAL_STATE" -> Res.string.migration_item_withdrawal_state
         "MIGRATION_PROBE_BACKUP_ONLY" -> Res.string.migration_probe_backup_only
         "MIGRATION_PROBE_INSUFFICIENT" -> Res.string.migration_probe_insufficient
+        "MIGRATION_PROBE_SPACE_UNCONFIRMED" -> Res.string.migration_probe_space_unconfirmed
         "MIGRATION_PROBE_SUFFICIENT" -> Res.string.migration_probe_sufficient
         "MIGRATION_REASON_AUTHENTICATION_FAILED" -> Res.string.migration_reason_authentication_failed
         "MIGRATION_REASON_CLAIMED" -> Res.string.migration_reason_claimed

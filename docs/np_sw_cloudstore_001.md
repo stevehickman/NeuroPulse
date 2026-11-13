@@ -973,17 +973,17 @@ list, create-if-absent twice, release, delete and space on throwaway objects nam
 `S3ObjectStore`, signed by the Rust core, at an Oracle-style path-style endpoint, against a stand-in that is **not Oracle**.
 Results, run on 2026-11-13: (1) a stand-in that **ignores `If-None-Match`** is read as `backup_only`, failing at
 `createIfAbsentSecondRefused`, and leaves no object behind, so the in-app check does catch the case §7.5 feared; (2) one that
-answers 412 is `sufficient`; (3) **the same store with no override reads `insufficient`, failed operation `space`**.
+answers 412 is `sufficient`; (3) **the same store with no override first read `insufficient`, failed operation `space`; after the decision of 2026-11-13 it reads `sufficient` with `spaceConfirmed: false`**.
 
-**Finding (3) is a decision, not a fix made here.** `freeSpace()` is `null` for the S3 form (and so Oracle through it), Azure
-Blob, Google Cloud Storage and CloudKit: a bucket has no quota the credentials can read. The core treats `null` as "not assumed to
-have room" (its own test says so), so **every bucket route and CloudKit would read "not sufficient" at the space step, before
-the claim steps are judged**. A person with a working S3 or Oracle bucket would be told it cannot hold even a backup, which
-contradicts the principal's 2026-10-09 ruling that a provider failing only the migration check stays listed for UHDR-only
-backup. Options, for the principal: (a) unknown space does not fail the check, and the result says the room was not
-confirmed; (b) the probe writes a throwaway object of the bundle's size, which shows room by doing it and costs that
-bandwidth; (c) leave it, and bucket routes are not offered. Nothing was changed; no screen calls the check yet, so no user
-has seen it. Open item: `OI-UI-KMP-11` M12 space.
+**Finding (3) was a decision, and it is made (the principal, 2026-11-13: option (a)).** `freeSpace()` is `null` for the S3 form (and so
+Oracle through it), Azure Blob, Google Cloud Storage and CloudKit: a bucket has no quota the credentials can read. The core used to read
+`null` as "no room", so every bucket route read "not sufficient" at the space step, against the 2026-10-09 ruling that a provider failing only
+the migration check stays listed for UHDR-only backup. **Now: a store that answers but cannot say how much room it has passes the space step,
+the claim steps are still judged, and the result carries `spaceConfirmed: false`**, worded by `MIGRATION_PROBE_SPACE_UNCONFIRMED` (eleven
+locales; the non-English files hold the English text, as the neighbouring probe keys do). A store that says it has too little, or whose space
+call fails, still fails `space`. **The cost, stated:** a backup to such a store can still fail for want of room after the check passed; the
+message says the room was not confirmed. Options (b), writing a bundle-sized throwaway object, and (c), were not chosen. `OI-UI-KMP-11` M12 space
+is closed. Test 3 above now asserts the new behaviour (the pre-change result was `insufficient`, `space`).
 
 **Re-run before a migration begins** (comment of 2026-10-09, item 3): **not enforced by the core.** `migration.rs` refuses a
 migration only on a route whose declared `atomicClaim` is false, and every cloud route declares false (`CloudStores.routeFor`),

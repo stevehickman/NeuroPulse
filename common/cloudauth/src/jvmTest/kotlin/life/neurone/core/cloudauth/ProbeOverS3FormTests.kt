@@ -109,14 +109,20 @@ class ProbeOverS3FormTests {
 
     // @verifies SWR-MG-12
     @Test
-    fun aBucketStoreThatCannotReadItsFreeSpaceIsNotSufficientOnSpaceBeforeTheClaimStepsAreJudged() = runBlocking {
-        // Pins what the check does today with the S3 form as built: freeSpace() is null for a bucket, and the core does not assume room
-        // ("a provider that cannot say is not assumed to have room"). So even a store that honours the condition reads as not sufficient.
-        // Whether that is wanted is an open decision (docs/np_sw_cloudstore_001.md §7.11), not something this test decides.
-        val fake = FakeCompatStore(honorsCreateCondition = true)
-        val done = MigrationFlow.probe(s3At(fake), 1_000, NO_EFFECTS)
-        assertEquals("insufficient", done.text("result"))
-        assertEquals("space", done.text("failedOperation"))
-        assertTrue(fake.objects.isEmpty())
+    fun aBucketStoreThatCannotReadItsFreeSpaceIsNotFailedForItButTheResultSaysTheRoomWasNotConfirmed() = runBlocking {
+        // freeSpace() is null for a bucket (no quota the credentials can read). The principal ruled on 2026-11-13 (OI-UI-KMP-11 M12 space, option a)
+        // that unknown room does not fail the check; the claim steps are still judged, and the result carries spaceConfirmed = false.
+        val honoring = FakeCompatStore(honorsCreateCondition = true)
+        val ok = MigrationFlow.probe(s3At(honoring), 1_000, NO_EFFECTS)
+        assertEquals("sufficient", ok.text("result"))
+        assertEquals("false", ok.text("spaceConfirmed"))
+        assertTrue(honoring.objects.isEmpty())
+        val ignoring = FakeCompatStore(honorsCreateCondition = false)
+        val caught = MigrationFlow.probe(s3At(ignoring), 1_000, NO_EFFECTS)
+        assertEquals("backup_only", caught.text("result"))
+        assertEquals("createIfAbsentSecondRefused", caught.text("failedOperation"))
+        assertTrue(ignoring.objects.isEmpty())
+        // A store that does report its room still confirms it.
+        assertEquals("true", MigrationFlow.probe(WithRoom(s3At(FakeCompatStore(true)), 1L shl 30), 1_000, NO_EFFECTS).text("spaceConfirmed"))
     }
 }
