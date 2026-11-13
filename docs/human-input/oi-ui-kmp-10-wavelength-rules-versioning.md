@@ -5,7 +5,7 @@
 **From:** NeurOne Software Engineering (`OI-UI-KMP-10` open question (3) in `docs/status/pending-decisions.md`; GitHub #564)
 **To:** the principal
 **Response needed:** a ruling on each of Q1 to Q8 (§8), with a short rationale, any condition that would reopen it, and the date.
-**Nothing here is decided.** §4 to §7 are a proposal. No code, firmware or controlled document acts on it: the session
+**Rulings so far (the principal, in chat, 2026-11-13):** Q1 option D, Q2 yes, Q3 yes, Q4 yes, Q5 a 0.1 pm grid (this document was first written for 1 pm; the form, windows and vectors of §4.8 and §5 are recomputed for 0.1 pm, and the hashes differ from the 1 pm ones), Q6 the staged option, Q7 edited rules travel with the warranty owner (first answered as "with the user", corrected the same day: the rules belong to the warranty owner, so a clinic's set covers all its patients). Q8 confirmed in three parts (the definition is owner configuration, neither UHDR nor SHDR; the stamp in the session record is UHDR; NeurOne never receives the definition). All eight are ruled; the live record is `OI-WRV-01` in `docs/status/pending-decisions.md`. **The rest is a proposal.** §4 to §7 are a proposal. No code, firmware or controlled document acts on it: the session
 record still carries no rules version (`SWR-HV-02`, `np_session_fitting.h`), and nothing computes one.
 
 ## 1. The question
@@ -102,7 +102,7 @@ yesterday is refused today, or drives a different emitter.
 
 - A resolved set whose hash is in the register **is** that release, whatever its `level` says. A user who edits a
   window and then puts it back is on the release again.
-- Any other set is a **user set**. It has no release version of its own. It is named by its hash, and it also states
+- Any other set is a **owner set**. It has no release version of its own. It is named by its hash, and it also states
   the release it was merged over (its base).
 - The `level` field stays what it is: where the block came from. It is not evidence of what the set contains.
 
@@ -111,7 +111,7 @@ yesterday is refused today, or drives a different emitter.
 | Event | Hash | Release version |
 |---|---|---|
 | NeurOne changes a shipped window, nominal or channel | changes | moves at the next release (§4.2) |
-| A user edits a window | changes | none (user set); the base is unchanged |
+| A user edits a window | changes | none (owner set); the base is unchanged |
 | A user restores the defaults | back to the release's hash | the release |
 | A new release arrives under a user's overrides | changes when an untouched channel changed | the base moves to the new release |
 | Name or description edited | unchanged | unchanged |
@@ -151,13 +151,13 @@ Fixed length, so the record's shape says nothing about the rules (`CLAUDE.md` §
 
 | Bytes | Field | Values |
 |---|---|---|
-| 1 | origin | `0` not stated · `1` NeurOne release · `2` user set |
+| 1 | origin | `0` not stated · `1` NeurOne release · `2` owner set |
 | 1 | release major | for origin 1 the release; for origin 2 the base; `0` for origin 0 |
 | 1 | release minor | as above |
-| 36 | the windows | three channels in the order 660, 808, 1064; each is nominal, minimum, maximum as unsigned 32-bit little-endian picometres; a channel with no rule is twelve zero bytes |
+| 36 | the windows | three channels in the order 660, 808, 1064; each is nominal, minimum, maximum as unsigned 32-bit little-endian counts of 0.1 pm (10⁻⁴ nm, so 808 nm is 8,080,000); a channel with no rule is twelve zero bytes |
 
 **The windows themselves are carried, and the hash is not.** Any reader computes the hash from the 36 bytes (§5).
-The reason is the issue's fifth point: history must stay readable. A hash of a user set can be resolved only by an
+The reason is the issue's fifth point: history must stay readable. A hash of an owner set can be resolved only by an
 app that still holds that set. Carrying the windows lets any reader say how 810 nm was mapped in a session from two
 years ago, with no lookup and no dependence on a store that may be gone.
 
@@ -165,22 +165,22 @@ years ago, with no lookup and no dependence on a store that may be gone.
 
 - **Nothing stored needs rewriting.** Neither store holds a version, and under this scheme neither will: the identity
   is computed from the content each time it is needed.
-- **One new constraint.** The canonical form (§5) holds whole picometres, so a rule value must be a multiple of
-  0.001 nm. Every shipped and fixture value is. A stored user value that is not would be shown to the user as needing
+- **One new constraint.** The canonical form (§5) holds whole counts of 0.1 pm, so a rule value must be a multiple of
+  0.0001 nm. Every shipped and fixture value is. A stored user value that is not would be shown to the user as needing
   correction and would not be rounded for them, because a rounded window is not the window they set.
 - The six copies of the defaults are a separate defect. The stamp makes it visible: a platform compiling under a
-  drifted copy would report a user set.
+  drifted copy would report an owner set.
 
 ### 4.10 Failure cases
 
 | Case | Proposed behaviour |
 |---|---|
 | The descriptor states no stamp (an app built before this) | The hub records origin `0` and zero bytes. It does not invent a version. Whether it should refuse instead is Q6 |
-| A stamp claims a release, and the windows do not hash to that release | The reader trusts the windows. It shows them as a user set and notes the mismatch. The hub does not check, because it holds no register |
+| A stamp claims a release, and the windows do not hash to that release | The reader trusts the windows. It shows them as an owner set and notes the mismatch. The hub does not check, because it holds no register |
 | A reader meets a release it does not know (a record from a newer app) | It shows the release version as stated and the windows, and says the release is not known to this app. It does not guess |
 | The rules are edited after a descriptor was signed | The descriptor stays valid and keeps its stamp. The app's comparison of §4.6 applies |
 | Two devices or two app installs with different rules | The same protocol hash, and a different stamp in each session record. History shows both. Nothing synchronises rules between installs (Q7) |
-| A rule value not on the picometre grid | The set has no canonical form. The compile is refused with the value named |
+| A rule value not on the 0.1 pm grid | The set has no canonical form. The compile is refused with the value named |
 | A rule set the validator refuses | As today: a parse error, never a silent default. It is never stamped |
 
 ## 5. The canonical form, with vectors to check by hand
@@ -196,9 +196,9 @@ NeurOne.WavelengthRules.1\n{"channels":[C660,C808,C1064]}
 - `\n` is one line-feed byte.
 - The array always has three members, in the order `led_660`, `led_808`, `led_1064`, whatever order the rules were
   written in.
-- Each member has four keys in sorted order: `element`, `max_pm`, `min_pm`, `nominal_pm`.
-- A value is the wavelength in whole picometres, as a decimal integer with no sign, no leading zero, no point and no
-  exponent. 808 nm is `808000`; 632.8 nm is `632800`.
+- Each member has four keys in sorted order: `element`, `max_pm_x10`, `min_pm_x10`, `nominal_pm_x10`.
+- A value is the wavelength in whole counts of 0.1 pm (a field named `_pm_x10`), as a decimal integer with no sign, no leading zero, no point and no
+  exponent. 808 nm is `8080000`; 632.8 nm is `6328000`.
 - A channel with no rule keeps its `element` and has `null` for the other three.
 - The digest is SHA-256, written as 64 lowercase hex digits.
 
@@ -214,46 +214,46 @@ printf 'NeurOne.WavelengthRules.1\n<the JSON line>' | sha256sum
 
 ### 5.3 Vectors
 
-**V1, the shipped defaults** (266 bytes):
+**V1, the shipped defaults** (285 bytes):
 
 ```
-{"channels":[{"element":"led_660","max_pm":680000,"min_pm":650000,"nominal_pm":660000},{"element":"led_808","max_pm":840000,"min_pm":798000,"nominal_pm":808000},{"element":"led_1064","max_pm":1074000,"min_pm":1054000,"nominal_pm":1064000}]}
+{"channels":[{"element":"led_660","max_pm_x10":6800000,"min_pm_x10":6500000,"nominal_pm_x10":6600000},{"element":"led_808","max_pm_x10":8400000,"min_pm_x10":7980000,"nominal_pm_x10":8080000},{"element":"led_1064","max_pm_x10":10740000,"min_pm_x10":10540000,"nominal_pm_x10":10640000}]}
 ```
 
-SHA-256: `fdedc5e8a0fb39d53eb73bed210a6ae7a2d29db742e4ea5acde439e4291d14e3`
-Windows, 36 bytes: `20120a00 10eb0900 40600a00 40540c00 302d0c00 40d10c00 403c1000 30151000 50631000`
+SHA-256: `316654aa4924a962a5e3501f80aeff3d0289498e513ac4a8572581c0f8828aa1`
+Windows, 36 bytes: `40b56400 a02e6300 80c26700 804a7b00 e0c37900 802c8000 805aa200 e0d3a000 20e1a300`
 
-**V2, the fixture `npps/fixtures/wavelength_rules.npps` ("Lab A", 808 nm maximum raised to 860) merged over V1** (266 bytes):
-
-```
-{"channels":[{"element":"led_660","max_pm":680000,"min_pm":650000,"nominal_pm":660000},{"element":"led_808","max_pm":860000,"min_pm":798000,"nominal_pm":808000},{"element":"led_1064","max_pm":1074000,"min_pm":1054000,"nominal_pm":1064000}]}
-```
-
-SHA-256: `114d2dc02374dfa0ba875539e60254993dd0a917871e7cf08c5efca7a8666e1d`
-
-**V3, V1 with no rule for the 1064 nm channel** (257 bytes):
+**V2, the fixture `npps/fixtures/wavelength_rules.npps` ("Lab A", 808 nm maximum raised to 860) merged over V1** (285 bytes):
 
 ```
-{"channels":[{"element":"led_660","max_pm":680000,"min_pm":650000,"nominal_pm":660000},{"element":"led_808","max_pm":840000,"min_pm":798000,"nominal_pm":808000},{"element":"led_1064","max_pm":null,"min_pm":null,"nominal_pm":null}]}
+{"channels":[{"element":"led_660","max_pm_x10":6800000,"min_pm_x10":6500000,"nominal_pm_x10":6600000},{"element":"led_808","max_pm_x10":8600000,"min_pm_x10":7980000,"nominal_pm_x10":8080000},{"element":"led_1064","max_pm_x10":10740000,"min_pm_x10":10540000,"nominal_pm_x10":10640000}]}
 ```
 
-SHA-256: `157054921f38ece592ec4626e9c18f064bea3203ae4e7f8750c64c5859003908`
+SHA-256: `eadab368297cb7a38b3e388b046ebdce52c47ca2a9032d471ed4e19d1ef54181`
 
-**V4, V1 with the 660 nm minimum lowered to 632.8 nm** (266 bytes):
-
-```
-{"channels":[{"element":"led_660","max_pm":680000,"min_pm":632800,"nominal_pm":660000},{"element":"led_808","max_pm":840000,"min_pm":798000,"nominal_pm":808000},{"element":"led_1064","max_pm":1074000,"min_pm":1054000,"nominal_pm":1064000}]}
-```
-
-SHA-256: `4f440bfef328cd768e5f615a6a58e7aba3df0755ca169f3289e2b0b6ba2fdfe4`
-
-**V5, V1 with the 808 nm channel's nominal moved to 810 nm** (266 bytes):
+**V3, V1 with no rule for the 1064 nm channel** (273 bytes):
 
 ```
-{"channels":[{"element":"led_660","max_pm":680000,"min_pm":650000,"nominal_pm":660000},{"element":"led_808","max_pm":840000,"min_pm":798000,"nominal_pm":810000},{"element":"led_1064","max_pm":1074000,"min_pm":1054000,"nominal_pm":1064000}]}
+{"channels":[{"element":"led_660","max_pm_x10":6800000,"min_pm_x10":6500000,"nominal_pm_x10":6600000},{"element":"led_808","max_pm_x10":8400000,"min_pm_x10":7980000,"nominal_pm_x10":8080000},{"element":"led_1064","max_pm_x10":null,"min_pm_x10":null,"nominal_pm_x10":null}]}
 ```
 
-SHA-256: `fb19267c2230b9381b55c523b805d48f670bf9a4cbec5aa657e48595483605cf`
+SHA-256: `76e7758b90e3bcecf629095f1ab09d904a73f526485dcc6d4e51ffdcc30ba409`
+
+**V4, V1 with the 660 nm minimum lowered to 632.8 nm** (285 bytes):
+
+```
+{"channels":[{"element":"led_660","max_pm_x10":6800000,"min_pm_x10":6328000,"nominal_pm_x10":6600000},{"element":"led_808","max_pm_x10":8400000,"min_pm_x10":7980000,"nominal_pm_x10":8080000},{"element":"led_1064","max_pm_x10":10740000,"min_pm_x10":10540000,"nominal_pm_x10":10640000}]}
+```
+
+SHA-256: `4811556ec25483355af53ea41d7f613f2d1e3a5c80245a769ad4978092e74e9b`
+
+**V5, V1 with the 808 nm channel's nominal moved to 810 nm** (285 bytes):
+
+```
+{"channels":[{"element":"led_660","max_pm_x10":6800000,"min_pm_x10":6500000,"nominal_pm_x10":6600000},{"element":"led_808","max_pm_x10":8400000,"min_pm_x10":7980000,"nominal_pm_x10":8100000},{"element":"led_1064","max_pm_x10":10740000,"min_pm_x10":10540000,"nominal_pm_x10":10640000}]}
+```
+
+SHA-256: `738b238a651d050a5d11e925a59f9f05d02c32c118caa0011ee781b0a15b337f`
 
 **V6, V1 renamed, with a new description, `level: user`, and its channels written in the order 1064, 660, 808.** The
 bytes are V1's, so the hash is V1's. This set is release `1.0`.
@@ -277,7 +277,7 @@ with the `printf` line of §5.2. No implementation exists in the repository to c
 | | Version is | Cost | Answers "how was 810 nm mapped?" |
 |---|---|---|---|
 | **A** | A release counter `major.minor` only | Smallest record (2 bytes). Cannot name a user's edited set, so either editing is removed (it is in §7a) or every edited session records "unknown" | Only for shipped sets, and only with the register |
-| **B** | A content hash only | 32 bytes. Names every set. No readable name, and a user set's hash means nothing once the store that held it is gone | Only while some app still holds the set |
+| **B** | A content hash only | 32 bytes. Names every set. No readable name, and an owner set's hash means nothing once the store that held it is gone | Only while some app still holds the set |
 | **C** | Release version plus hash | 35 bytes. As B with a readable name for shipped sets | As B |
 | **D (recommended)** | Release version, origin, and the windows themselves; the hash is computed from the windows (§4.8) | 39 bytes, once per session. One descriptor field and one fitting-frame field | Always, from the record alone |
 
@@ -289,7 +289,7 @@ case A cannot name and B and C cannot explain later. Its extra cost over C is fo
 Nothing below is started.
 
 1. **Core** (`common/npps-core/src/wavelength.rs`): the canonical form, the hash, the vectors of §5.3 as tests, the
-   major/minor comparison, the picometre check. `api.rs` returns the stamp with a compile.
+   major/minor comparison, the 0.1 pm grid check. `api.rs` returns the stamp with a compile.
 2. **Core, compiler** (`compiler.rs`): the stamp in the descriptor, under the signature. A descriptor format change,
    so the hub's parser changes with it. The protocol content hash (`identity.rs`) does not change.
 3. **Hub** (`np_session_fitting`): the stamp joins the fitting frame, with the format bump its header already
@@ -299,7 +299,7 @@ Nothing below is started.
 6. **Requirements** (`NP-SW-001` §6.3): `SWR-HV-02` gains the definition of "the version", and new rows cover the
    stamp in the descriptor, the stale-descriptor notice and the register. Each to `CLAUDE.md` §18's standard.
 7. **Apps:** show the stamp in history, and the notice of §4.6. Every platform reaches the core for the hash.
-8. **Unjustified-choices register** (`CLAUDE.md` §19): the 1 pm resolution has no derivation and needs a row when it
+8. **Unjustified-choices register** (`CLAUDE.md` §19): the 0.1 pm resolution has no derivation (`UC-175`) and needs a row when it
    enters a controlled document or code.
 
 ## 8. What the principal needs to answer
@@ -312,7 +312,7 @@ Nothing below is started.
 - **Q4. Major and minor.** Is the line of §4.3 right as a floor: major when a wavelength that was delivered is
   refused or moves channel, minor otherwise? Or does the case-by-case practice of `OI-UI-KMP-10` P5 stand alone?
   *Recommended: the §4.3 floor.*
-- **Q5. Resolution.** Is a 0.001 nm grid acceptable for rule values (§4.9)? The alternative is to hash the shortest
+- **Q5. Resolution.** Is a fixed grid acceptable for rule values (§4.9)? First asked as 0.001 nm; ruled as 0.1 pm, see the status line. The alternative is to hash the shortest
   decimal form of each number, which needs no grid and makes the hash depend on a number-printing routine.
   *Recommended: the grid.*
 - **Q6. No stamp.** When an upload states no stamp, does the helmet record "not stated" and run, or refuse the
