@@ -58,10 +58,10 @@ np_gatt_hal_notify                          infra          src/np_sim_gatt.c    
 np_gatt_hal_register                        infra          src/np_sim_gatt.c                    none          -
 np_hal_status_led_set                       infra          src/np_sim_hub.c                     none          -
 np_imu_read_gap_resultants                  absent         -                                    none          OI-SIMFW-52
-np_log_hal_part_append                      firmware-host  ../hub_control/src/np_log_backend.c  partition     -
-np_log_hal_part_close                       firmware-host  ../hub_control/src/np_log_backend.c  partition     -
-np_log_hal_part_open                        firmware-host  ../hub_control/src/np_log_backend.c  partition     -
-np_log_hal_part_sync                        firmware-host  ../hub_control/src/np_log_backend.c  partition     -
+np_log_hal_part_append                      infra          src/np_sim_storage.c                 partition     -
+np_log_hal_part_close                       infra          src/np_sim_storage.c                 partition     -
+np_log_hal_part_open                        infra          src/np_sim_storage.c                 partition     -
+np_log_hal_part_sync                        infra          src/np_sim_storage.c                 partition     -
 np_mod_audio_hal_bone_set                   model          src/np_sim_audio.c                   none          -
 np_mod_audio_hal_bone_stop                  model          src/np_sim_audio.c                   none          -
 np_mod_audio_hal_codec_init                 model          src/np_sim_audio.c                   none          -

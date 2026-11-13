@@ -69,10 +69,7 @@ np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
 void np_pbm_session_set_uid_resolver(np_pbm_socket_uid_fn fn, void *ctx) { (void)fn; (void)ctx; }
 void np_pbm_session_set_address_validator(np_pbm_socket_valid_fn fn, void *ctx) { (void)fn; (void)ctx; }
 
-np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
-{ (void)buf; (void)len; if (read_len != NULL) { *read_len = 0; } return NP_HUB_ERR_NOT_PRESENT; }
-np_hub_status_t np_hexmap_nvram_write(const uint8_t *buf, size_t len)
-{ (void)buf; (void)len; return NP_HUB_OK; }
+/* np_hexmap_nvram_read and _write are the device's own now (np_hexmap_nvram.c, over the Config store: OI-SIMFW-51). */
 
 /* ── protocol identity: not exercised by a socket command ────────────────────── */
 
