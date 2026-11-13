@@ -42,6 +42,8 @@ fun CautionAcknowledgementDialog(
     cautions: List<NPZoneCaution>,
     onAcknowledge: (List<String>) -> Unit,
     onCancel: () -> Unit,
+    // The way back to the editor with the entries kept (SWR-SS-04): a long or over-limit session may be a typo.
+    onEdit: (() -> Unit)? = null,
 ) {
     // Ticks survive rotation but not a different set of cautions, whose ids differ.
     val ticked = rememberSaveable(cautions.map { it.ackId }, saver = androidx.compose.runtime.saveable.listSaver(
@@ -90,7 +92,12 @@ fun CautionAcknowledgementDialog(
                 Text(stringResource(Res.string.zone_ack_confirm))
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(Res.string.zone_ack_cancel)) } },
+        dismissButton = {
+            Row {
+                onEdit?.let { TextButton(onClick = it) { Text(stringResource(Res.string.zone_ack_edit)) } }
+                TextButton(onClick = onCancel) { Text(stringResource(Res.string.zone_ack_cancel)) }
+            }
+        },
     )
 }
 

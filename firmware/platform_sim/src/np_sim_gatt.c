@@ -121,8 +121,9 @@ static void bad(const char *cmd, const char *why)
     np_sim_emit("{\"ev\":\"error\",\"what\":\"%s: %s\"}", cmd, why);
 }
 
-/* A new part: the RAM medium wiped, the Config instance formatted and mounted through the store, then the service registered. */
-static np_hub_status_t bring_up(void)
+/* A new part: the RAM medium wiped and the Config instance formatted and mounted through the store.  The hub's own boot path
+ * (np_hub_control_app_main) needs this bound before it reads the config store, as the device's board layer binds its block device first. */
+np_hub_status_t np_sim_storage_up(void)
 {
     memset(&g_cfg, 0, sizeof g_cfg);
     np_hub_status_t rc = np_lfs_config_apply(&g_cfg);
@@ -142,6 +143,17 @@ static np_hub_status_t bring_up(void)
     rc = np_cfg_store_mount();
     if (rc != NP_HUB_OK) { return rc; }
     np_gatt_set_link_encrypted(true);   /* the twin's link is bonded, so encrypted (UC-139); a pairing that failed is OI-SIMFW-48 */
+    return NP_HUB_OK;
+}
+
+void np_sim_gatt_mark_up(void) { g_up = true; }
+
+/* The storage, then the service registered. */
+static np_hub_status_t bring_up(void)
+{
+    np_hub_status_t rc = np_sim_storage_up();
+    if (rc != NP_HUB_OK) { return rc; }
+    np_sim_transport_up();   /* the hub's boot calls np_transport_init() before np_gatt_init() */
     return np_gatt_init();
 }
 

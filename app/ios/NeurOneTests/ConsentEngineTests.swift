@@ -205,6 +205,19 @@ final class ConsentEngineTests: XCTestCase {
         }
     }
 
+    // OI-CONSENT-08: the check above only stops an over-grant; this one stops an element no tier reaches.
+    // @verifies REQ-CONSENT-15#e
+    func testEveryUHDRElementIsHeldByAtLeastOneNonResearchTier() {
+        let reachable = ClinicianUseCaseTier.allCases
+            .filter { $0 != .research }
+            .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.uhdrElements) }
+        let unreachable = UHDRElement.allCases.filter { !reachable.contains($0) }
+        XCTAssertTrue(
+            unreachable.isEmpty,
+            "No clinician tier holds \(unreachable.map(\.rawValue)); its minimumTier cannot be reached."
+        )
+    }
+
     // ISC-82 anti-pattern: minimumNecessaryElements never returns elements absent from selected use cases.
     // @verifies REQ-CONSENT-15#a
     func testISC82_minimumNecessaryNeverOverGrants() {

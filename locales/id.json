@@ -1966,6 +1966,7 @@
   "ZONE_ACK_CANCEL": "Cancel",
   "ZONE_ACK_CHECK_LABEL": "I understand this dose and want to run it",
   "ZONE_ACK_CONFIRM": "Acknowledge and continue",
+  "ZONE_ACK_EDIT": "Edit the session",
   "ZONE_ACK_INTRO": "{0} delivers more than the usual range on the items below. It is not blocked, and it runs only after you acknowledge each one.",
   "ZONE_ACK_ITEM_DOSE": "{0} {1}, above the caution level of {2} {1}",
   "ZONE_ACK_ITEM_HEADING": "{0}: {1}",
