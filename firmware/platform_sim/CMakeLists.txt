@@ -29,6 +29,7 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../pbm/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../factory_reset/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     # the storage the GATT producers keep settings in: LittleFS (SW-02 SOUP) and the hub's RAM block device header (np_sim_gatt.c)
@@ -52,7 +53,7 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_module_map.c
     ../hub_control/src/np_protocol.c
     # the app's upload path: the transport that reassembles the framed bytes and the upload check that hashes them (OI-SIMFW-38)
-    ../hub_control/src/np_transport.c   # built with -DNPTEST_HOST like the rest of this library: its own single-threaded model
+    ../hub_control/src/np_transport.c   # built WITHOUT -DNPTEST_HOST (below): the device's own FreeRTOS semaphore branch, over the twin's kernel (np_sim_kernel.c)
     ../hub_control/src/np_upload_check.c
     ../hub_control/src/np_proto_verify.c
     ../hub_control/src/np_pbm_power_gov.c
@@ -108,10 +109,34 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_cfg_store.c
     ../hub_control/src/np_lfs_instance.c
     ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse)
+    # the hub's own task set and boot path (OI-SIMFW-45, OI-SIMFW-50): the five tasks and np_hub_control_app_main, the freertos hooks, the module
+    # registry np_runner_run dispatches through, the session log and count, the photic roles, and the factory-reset boot check np_hub_control_app_main calls
+    ../hub_control/src/np_hub_control_main.c
+    ../hub_control/src/np_hub_freertos_hooks.c
+    ../hub_control/src/np_module_registry.c
+    ../hub_control/src/np_session_log.c
+    ../hub_control/src/np_session_count.c
+    ../hub_control/src/np_ppx_roles.c
+    ../hub_control/src/np_adaptation_log.c     # np_session_log.c flushes the adaptation ring
+    ../hub_control/src/np_pbm_cal_bridge.c     # np_hub_control_app_main installs it before any session
+    ../factory_reset/src/np_factory_reset.c     # built with -DNPTEST_HOST: its own host model of the marker and the wipe steps (np_reset_marker.c defines the same seams on the device, so it is not linked)
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
 )
+
+# np_hub_control_main.c calls xPortIsInsideInterrupt, which the vendored POSIX port lacks (OI-SIMFW-03): the shim header declares the one np_sim_port_shim.c
+# defines, force-included on this one file as np_sim_port_shim.h's own comment says.
+set_source_files_properties(../hub_control/src/np_hub_control_main.c PROPERTIES COMPILE_OPTIONS "-include;${CMAKE_CURRENT_SOURCE_DIR}/include/np_sim_port_shim.h")
+
+# np_transport.c has two branches: a host model (NPTEST_HOST: a wait that returns at once) and the device's (a FreeRTOS binary semaphore and a
+# critical section).  The task layer needs the device's, because task_protocol_rx blocks in it until a blob arrives; np_sim_kernel.c provides the
+# semaphore.  Only this file is built that way, so every other file keeps its host model.
+set_source_files_properties(../hub_control/src/np_transport.c PROPERTIES COMPILE_OPTIONS "-UNPTEST_HOST")
+
+# The device's own logger now runs, and the scenario suites still read what it was asked to log: the five calls the sim layer used to
+# define as reporters are wrapped.  --wrap lets np_sim_log_wrap.c emit the fw_log event and then call the device's own function.
+set(NP_SIM_WRAPPED_LOGS np_log_shdr_fault np_log_shdr_zone_auth np_log_hrv_session np_log_pbm_socket np_log_shdr_pbm_socket_health)
 
 # The HRV library's own -Wextra finding (an unused parameter in np_hrv_eeg_biofeedback.c) is not this layer's to fix
 # and does not belong in this layer's build output.
@@ -162,7 +187,9 @@ set_source_files_properties(../hub_control/src/np_proto_verify.c PROPERTIES
 
 add_library(np_sim_pbm STATIC
     src/np_sim_bus.c
-    src/np_sim_runner_seams.c
+    src/np_sim_kernel.c               # the hub's task layer on a virtual clock (OI-SIMFW-45, OI-SIMFW-50)
+    src/np_sim_log_wrap.c             # fw_log events for the logger calls, then the device's own logger
+    src/np_sim_hub.c                  # hub_boot, hub_run, hub_status: the hub's own boot path and task set
     src/np_sim_port_shim.c            # xPortIsInsideInterrupt, which the POSIX port lacks (OI-SIMFW-03)
     src/np_sim_safety_hal.c
     src/np_sim_safety_link.c
@@ -196,6 +223,9 @@ target_include_directories(np_sim_pbm PUBLIC ${NP_SIM_INCLUDES})
 target_compile_definitions(np_sim_pbm PUBLIC NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
 target_compile_options(np_sim_pbm PRIVATE -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 target_link_libraries(np_sim_pbm PUBLIC np_crypto np_littlefs m pthread)
+foreach(w ${NP_SIM_WRAPPED_LOGS})
+    target_link_options(np_sim_pbm PUBLIC "LINKER:--wrap=${w}")
+endforeach()
 
 # The spike process: stdin text commands in, JSON lines out.
 add_executable(np_sim_pbm_spike spike/np_sim_pbm_spike.c)
@@ -240,6 +270,11 @@ target_compile_options(np_sim_stubs_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -
 add_executable(np_sim_cvns_tests tests/np_sim_cvns_tests.c)
 target_link_libraries(np_sim_cvns_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_cvns_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+add_executable(np_sim_hub_run_tests tests/np_sim_hub_run_tests.c)
+target_link_libraries(np_sim_hub_run_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_hub_run_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
+# The app compiler's own golden descriptors: one file in common/testdata, read by every consumer (CLAUDE.md §20), never copied here.
+target_compile_definitions(np_sim_hub_run_tests PRIVATE NP_SIM_GOLDEN_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../common/testdata/hub-descriptor-golden.json")
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
@@ -252,5 +287,6 @@ add_custom_target(np_sim_run_tests
     COMMAND np_sim_cvns_tests
     COMMAND np_sim_safety_tests
     COMMAND np_sim_hub_safety_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests np_sim_hub_safety_tests
+    COMMAND np_sim_hub_run_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests np_sim_hub_safety_tests np_sim_hub_run_tests
     COMMENT "Running the simulator scenario tests")

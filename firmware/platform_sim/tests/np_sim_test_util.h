@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef CAP_MAX
 #define CAP_MAX   512
+#endif
 #define CAP_LINE  512
 static char g_cap[CAP_MAX][CAP_LINE];
 static int  g_cap_n;
