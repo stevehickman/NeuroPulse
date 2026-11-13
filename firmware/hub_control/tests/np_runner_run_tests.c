@@ -520,8 +520,8 @@ static void blob_begin(blob_t *b, uint32_t duration_ms)
     memcpy(b->buf + 4, &version, 2);
     memcpy(b->buf + 24, &compiled_at, 4);
     memcpy(b->buf + 60, &duration_ms, 4);
-    b->buf[64] = 1U;                            /* hardware_version */
-    b->len = 68U;
+    b->buf[64] = 1U;                            /* hardware_version; the rules stamp (68..106) is zero: not stated */
+    b->len = 107U;
 }
 
 static void blob_cmd(blob_t *b, uint8_t mod_type, uint8_t slot_id, uint32_t start_ms, uint32_t duration_ms,

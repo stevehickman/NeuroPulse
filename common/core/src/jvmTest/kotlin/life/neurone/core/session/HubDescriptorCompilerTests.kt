@@ -76,9 +76,9 @@ class HubDescriptorCompilerTests {
             target = NPPBMTarget.Named(listOf("Occipital Left")), wavelength = NPPBMTranscranialParams.Wavelength("808nm"),
             irradianceMWcm2 = 100.0, frequencyHz = 40.0, dutyCyclePercent = 25)))
         val blob = compiler.build(def(600, occipital), null, null).blob
-        // header(68) + cmd_hdr(14) -> target[16]
-        assertEquals(1, blob[68 + 12].toInt(), "target_kind = socket mask")
-        assertEquals(16, blob[68 + 13].toInt(), "target_len")
+        // header(107: 68 + the 39-byte rules stamp) + cmd_hdr(14) -> target[16]
+        assertEquals(1, blob[107 + 12].toInt(), "target_kind = socket mask")
+        assertEquals(16, blob[107 + 13].toInt(), "target_len")
         val ids = mutableListOf<Int>()
         for (i in 0 until 16) for (bit in 0 until 8) if ((blob[82 + i].toInt() and (1 shl bit)) != 0) ids += i * 8 + bit + 1
         assertEquals(listOf(72, 73, 74, 77, 78), ids)

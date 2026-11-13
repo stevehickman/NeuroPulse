@@ -285,8 +285,8 @@ static void blob_make(blob_t *b, uint8_t hw_version, uint32_t duration_ms, uint8
     b->buf[7] = 1U;                              /* cmd_count */
     memcpy(b->buf + 24, &compiled_at, 4);
     memcpy(b->buf + 60, &duration_ms, 4);
-    b->buf[64] = hw_version;                     /* 65..67 reserved, zero */
-    b->len = 68U;
+    b->buf[64] = hw_version;                     /* 65..67 reserved, zero; 68..106 the rules stamp, zero (not stated) */
+    b->len = 107U;
 
     uint8_t *p = b->buf + b->len;
     const uint32_t start_ms = 0U;
@@ -899,7 +899,7 @@ static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(vo
 static void set_cmd_and_session_ms(blob_t *b, uint32_t cmd_ms, uint32_t session_ms)
 {
     memcpy(b->buf + 60, &session_ms, 4);        /* header: session_duration_ms */
-    memcpy(b->buf + 68 + 6, &cmd_ms, 4);        /* first command header: duration_ms */
+    memcpy(b->buf + 107 + 6, &cmd_ms, 4);        /* first command header: duration_ms */
 }
 
 /* @verifies REQ-FWHUB-78#k */

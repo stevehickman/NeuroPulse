@@ -931,6 +931,12 @@
           "note": "The Ed25519 signature at the end of the blob."
         },
         {
+          "name": "RULES_STAMP_LEN",
+          "value": 39,
+          "int": true,
+          "note": "The wavelength-rules stamp in the header (SWR-HV-03, NP-NPPS-REF-001 7a.1): origin, release major, release minor, then the 36 bytes of windows. The same length as common/npps-core wavelength_version::STAMP_LEN, which a test pins."
+        },
+        {
           "name": "FLAG_T2_TIER",
           "value": 1,
           "int": true,

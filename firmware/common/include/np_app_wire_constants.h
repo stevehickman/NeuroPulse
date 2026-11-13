@@ -261,6 +261,12 @@
  */
 #define NP_HUB_PROTO_SIG_LEN 64U
 /*
+ * The wavelength-rules stamp in the header (SWR-HV-03, NP-NPPS-REF-001 7a.1): origin, release major,
+ * release minor, then the 36 bytes of windows. The same length as common/npps-core
+ * wavelength_version::STAMP_LEN, which a test pins.
+ */
+#define NP_HUB_PROTO_RULES_STAMP_LEN 39U
+/*
  * Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it,
  * because whether a protocol is T2 comes from its modality set and whether this unit may run one is
  * the safety MCU's signed tier identity (RISK-PWRSRC-10).

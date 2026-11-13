@@ -13,9 +13,10 @@
  * refuses it, is decided in the core and is the same on every runtime.
  *
  * Binary layout (NP-FW-HUB-001 §4; little-endian, packed):
- *   [68]  header   magic u32 | version u16 | flags u8 (bit0 T2 tier, bit1 autonomous) | cmd_count u8 |
+ *   [107] header   magic u32 | version u16 | flags u8 (bit0 T2 tier, bit1 autonomous) | cmd_count u8 |
  *                  session_uuid[16] | compiled_at_unix u32 | device_serial[32] | session_duration_ms u32 |
- *                  hardware_version u8 (1..15) | reserved[3] (zero)
+ *                  hardware_version u8 (1..15) | reserved[3] (zero) |
+ *                  rules_stamp[39] (the wavelength rules it was compiled under: origin, release major and minor, 36 B of windows)
  *   [N]   commands cmd_hdr(14) + target[target_len] + params[params_len]
  *   [64]  Ed25519 signature slot, zeroed: signing is the caller's
  *

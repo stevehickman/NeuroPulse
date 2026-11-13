@@ -253,3 +253,114 @@ fn an_owners_rules_state_no_version() {
     assert!(e.contains("owner") && e.contains("no version"), "{e}");
     assert!(parse_file(&block("user", "")).is_ok());
 }
+
+// ── The stamp in the signed descriptor (NP-FW-HUB-001 §4.2, SWR-HV-03) ──
+
+fn pbm_def(wavelength: &str) -> serde_json::Value {
+    serde_json::json!({
+        "name": "Test", "timingMode": { "type": "duration", "seconds": 600 },
+        "modalities": [{
+            "type": "pbm_transcranial", "enabled": true,
+            "params": { "zones": "named", "zoneRefs": ["Frontal"], "wavelength": wavelength,
+                        "irradianceMWcm2": 200, "frequencyHz": 40, "dutyCyclePercent": 25 },
+            "interval": { "intervalOnSeconds": 0, "intervalOffSeconds": 0 }
+        }]
+    })
+}
+
+fn compile_with(rules: Option<&WavelengthRules>, hw: u8) -> neurone_npps_core::compiler::Compiled {
+    use neurone_npps_core::compiler::{compile_protocol, CompileOptions};
+    use std::collections::HashMap;
+    let zones: HashMap<String, Vec<u32>> = HashMap::from([("Frontal".to_string(), vec![1, 2, 3])]);
+    let def = pbm_def("810nm");
+    let opts = CompileOptions {
+        device_serial: None,
+        zones: Some(&zones),
+        clinician_sockets: None,
+        wavelength_rules: rules,
+        autonomous: false,
+        now_unix: 1_700_000_000,
+        session_uuid: [0xAB; 16],
+        hardware_version: hw,
+        acknowledged_cautions: &[],
+    };
+    compile_protocol(&def, &opts).unwrap_or_else(|e| panic!("{e}"))
+}
+
+// @verifies SWR-HV-03#a REQ-FWHUB-83#a
+#[test]
+fn a_descriptor_states_the_rules_it_was_compiled_under_in_the_signed_header() {
+    use neurone_npps_core::compiler::{descriptor_rules_stamp, RULES_STAMP_OFFSET, SIG_LEN};
+    let d = compile_with(None, 1);
+    // No rules supplied: the shipped defaults, which are release 1.0.
+    assert_eq!((d.rules_stamp.origin, d.rules_stamp.major, d.rules_stamp.minor), (Origin::Release, 1, 0));
+    assert_eq!(&d.blob[RULES_STAMP_OFFSET..RULES_STAMP_OFFSET + STAMP_LEN], &d.rules_stamp.encode());
+    assert_eq!(descriptor_rules_stamp(&d.blob).unwrap(), d.rules_stamp);
+    // It lies inside the region the caller signs (everything but the trailing signature slot).
+    assert!(RULES_STAMP_OFFSET + STAMP_LEN <= d.blob.len() - SIG_LEN);
+    // An owner's windows: an owner set merged over release 1.0, carrying the windows themselves.
+    let lab = v1_with_808_max(860.0);
+    let o = compile_with(Some(&lab), 1);
+    assert_eq!((o.rules_stamp.origin, o.rules_stamp.major, o.rules_stamp.minor), (Origin::Owner, 1, 0));
+    assert_eq!(o.rules_stamp.set().unwrap().unwrap(), set(&lab));
+    assert_eq!(read_stamp(&o.rules_stamp).unwrap(), Reading::OwnerSet { base_major: 1, base_minor: 0 });
+}
+
+fn v1_with_808_max(max: f64) -> WavelengthRules {
+    let mut r = v1();
+    r.channels[1].max_nm = max;
+    r
+}
+
+// @verifies SWR-HV-03#b REQ-FWHUB-83#a
+#[test]
+fn the_stamp_is_the_only_thing_the_rules_change_in_a_descriptor_that_maps_the_same() {
+    // 810 nm goes to the 808 channel under both sets, so the commands are identical and only the stamp differs.
+    let a = compile_with(None, 1).blob;
+    let b = compile_with(Some(&v1_with_808_max(860.0)), 1).blob;
+    use neurone_npps_core::compiler::RULES_STAMP_OFFSET;
+    let r = RULES_STAMP_OFFSET..RULES_STAMP_OFFSET + STAMP_LEN;
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a[..r.start], b[..r.start]);
+    assert_eq!(a[r.end..a.len() - 64], b[r.end..b.len() - 64]);
+    assert_ne!(a[r.clone()], b[r]);
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn a_rules_table_with_a_value_off_the_grid_is_never_stamped_and_the_compile_is_refused() {
+    use neurone_npps_core::compiler::{compile_protocol, CompileOptions};
+    let zones = std::collections::HashMap::from([("Frontal".to_string(), vec![1u32, 2, 3])]);
+    let try_compile = |rules: &WavelengthRules| {
+        let opts = CompileOptions {
+            device_serial: None, zones: Some(&zones), clinician_sockets: None, wavelength_rules: Some(rules), autonomous: false,
+            now_unix: 1, session_uuid: [0; 16], hardware_version: 1, acknowledged_cautions: &[],
+        };
+        compile_protocol(&pbm_def("810nm"), &opts)
+    };
+    // The same protocol compiles under an on-grid table, so the refusal below is the table's and nothing else's.
+    assert!(try_compile(&v1()).is_ok());
+    let mut bad = v1();
+    bad.channels[0].min_nm = 632.80001;
+    let e = try_compile(&bad).err().expect("a table off the grid must not compile");
+    assert!(e.contains("632.80001") && e.contains("not rounded"), "{e}");
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn a_blob_that_is_not_a_version_3_descriptor_has_no_stamp_to_read() {
+    use neurone_npps_core::compiler::descriptor_rules_stamp;
+    let mut d = compile_with(None, 1).blob;
+    assert!(descriptor_rules_stamp(&d[..100]).is_err());
+    d[4] = 2;
+    assert!(descriptor_rules_stamp(&d).is_err(), "a v2 blob is refused, not read at the wrong offset");
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn the_stamp_length_is_the_wire_constant_the_apps_and_the_hub_size_the_descriptor_from() {
+    let c: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../npps/constants.json")).unwrap()).unwrap();
+    let group = c["groups"].as_array().unwrap().iter().find(|g| g["name"] == "HubDescriptorWire").unwrap();
+    let k = group["constants"].as_array().unwrap().iter().find(|k| k["name"] == "RULES_STAMP_LEN").unwrap();
+    assert_eq!(k["value"].as_u64().unwrap() as usize, STAMP_LEN);
+}

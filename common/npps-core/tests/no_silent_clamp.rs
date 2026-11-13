@@ -10,7 +10,7 @@ use neurone_npps_core::api::compile_json;
 use serde_json::{json, Value};
 
 const UUID: &str = "00112233445566778899aabbccddeeff";
-const HEADER: usize = 68;
+const HEADER: usize = 68 + 39; // through the hardware version, then the 39-byte rules stamp
 const CMD_HDR: usize = 14;
 
 fn request(ty: &str, params: Value, interval: Value, seconds: f64) -> Value {

@@ -7,13 +7,19 @@ use crate::constants::hardware_limits as hw;
 use crate::constants::socket_lattice::{NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN};
 use crate::js::{js_round, num_string};
 use crate::wavelength::{resolve_one_channel, Channel, WavelengthRules};
+use crate::wavelength_version::{stamp_for, ResolvedSet, Stamp, STAMP_LEN};
 use serde_json::Value;
 use std::collections::HashMap;
 
 pub const SIG_LEN: usize = 64;
 const MAGIC: u32 = 0x4E50_4850;
-const VERSION: u16 = 2;
-const HEADER_LEN: usize = 68;
+const VERSION: u16 = 3;
+/// 68 bytes through the hardware version and its three reserved bytes, then the 39-byte rules stamp. A literal, because
+/// `scripts/check-hub-wire-format.ts` reads it; the assertion below keeps it equal to its parts.
+const HEADER_LEN: usize = 107;
+/// Where the wavelength-rules stamp sits in the header (inside the signed region, `NP-FW-HUB-001` §4.2).
+pub const RULES_STAMP_OFFSET: usize = 68;
+const _: () = assert!(HEADER_LEN == RULES_STAMP_OFFSET + STAMP_LEN);
 const CMD_HDR_LEN: usize = 14;
 const CMD_MAX: usize = 64;
 const SOCKET_MASK_BYTES: usize = 16;
@@ -98,6 +104,21 @@ pub struct Compiled {
     pub blob: Vec<u8>,
     pub is_t2: bool,
     pub cmd_count: usize,
+    /// The wavelength-rules stamp written into the header (`SWR-HV-03`): the set the compiler used, as its release when
+    /// the hash is in the register and otherwise as an owner set over the newest release.
+    pub rules_stamp: Stamp,
+}
+
+/// The wavelength-rules stamp a descriptor carries (`SWR-HV-03`, `NP-FW-HUB-001` §4.2). The app reads it from a stored
+/// descriptor to say whether the rules in force still map that protocol the way it was compiled.
+pub fn descriptor_rules_stamp(blob: &[u8]) -> R<Stamp> {
+    if blob.len() < HEADER_LEN + SIG_LEN {
+        return Err("a descriptor is at least its header and signature".into());
+    }
+    if blob[0..4] != MAGIC.to_le_bytes() || blob[4..6] != VERSION.to_le_bytes() {
+        return Err("not a version 3 session descriptor".into());
+    }
+    Stamp::decode(&blob[RULES_STAMP_OFFSET..RULES_STAMP_OFFSET + STAMP_LEN])
 }
 
 #[derive(Clone, PartialEq)]
@@ -516,6 +537,11 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
         cmds.iter().zip(&targets).map(|(c, t)| CMD_HDR_LEN + t.block.len() + c.params.len()).sum();
     let mut blob = vec![0u8; HEADER_LEN + payload + SIG_LEN];
 
+    // The rules this descriptor was compiled under (SWR-HV-03). A set with a value off the 0.1 pm grid has no canonical
+    // form and is never stamped, so the compile is refused with the value named (NP-NPPS-REF-001 §7a.1).
+    let default_rules = WavelengthRules::default_rules();
+    let rules_stamp = stamp_for(&ResolvedSet::from_rules(opts.wavelength_rules.unwrap_or(&default_rules))?)?;
+
     let mut flags = 0u8;
     if is_t2 {
         flags |= FLAG_T2_TIER;
@@ -543,6 +569,8 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
     blob[60..64].copy_from_slice(&wire_ms(session_len_ms, "The session length")?.to_le_bytes());
     // The helmet hardware version, then three reserved bytes that stay zero (SWR-HV-08, NP-FW-HUB-001 §4.2).
     blob[64] = opts.hardware_version;
+    // The wavelength-rules stamp, inside the signed region, and not in the protocol's content hash (`SWR-HV-01`).
+    blob[RULES_STAMP_OFFSET..RULES_STAMP_OFFSET + STAMP_LEN].copy_from_slice(&rules_stamp.encode());
 
     let mut off = HEADER_LEN;
     for ((c, t), (start, duration)) in cmds.iter().zip(&targets).zip(&times) {
@@ -559,7 +587,7 @@ fn finish(cmds: Vec<Cmd>, session_len_ms: f64, is_t2: bool, opts: &CompileOption
         blob[off..off + c.params.len()].copy_from_slice(&c.params);
         off += c.params.len();
     }
-    Ok(Compiled { blob, is_t2, cmd_count: cmds.len() })
+    Ok(Compiled { blob, is_t2, cmd_count: cmds.len(), rules_stamp })
 }
 
 /// Compile a composite (`OI-NPPS-COMP-01`): its layers are laid on one timeline by `composite::plan`, and the descriptor
