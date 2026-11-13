@@ -25,6 +25,14 @@ internal fun migrationText(key: String): StringResource? = when (key) {
         "MIGRATION_ITEM_WITHDRAWAL_STATE" -> Res.string.migration_item_withdrawal_state
         "MIGRATION_PROBE_BACKUP_ONLY" -> Res.string.migration_probe_backup_only
         "MIGRATION_PROBE_INSUFFICIENT" -> Res.string.migration_probe_insufficient
+        "MIGRATION_PROBE_OP_CREATE_IF_ABSENT_FIRST" -> Res.string.migration_probe_op_create_if_absent_first
+        "MIGRATION_PROBE_OP_CREATE_IF_ABSENT_SECOND_REFUSED" -> Res.string.migration_probe_op_create_if_absent_second_refused
+        "MIGRATION_PROBE_OP_DELETE" -> Res.string.migration_probe_op_delete
+        "MIGRATION_PROBE_OP_LIST" -> Res.string.migration_probe_op_list
+        "MIGRATION_PROBE_OP_READ" -> Res.string.migration_probe_op_read
+        "MIGRATION_PROBE_OP_RELEASE" -> Res.string.migration_probe_op_release
+        "MIGRATION_PROBE_OP_SPACE" -> Res.string.migration_probe_op_space
+        "MIGRATION_PROBE_OP_WRITE" -> Res.string.migration_probe_op_write
         "MIGRATION_PROBE_SUFFICIENT" -> Res.string.migration_probe_sufficient
         "MIGRATION_REASON_AUTHENTICATION_FAILED" -> Res.string.migration_reason_authentication_failed
         "MIGRATION_REASON_CLAIMED" -> Res.string.migration_reason_claimed

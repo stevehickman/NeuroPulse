@@ -44,6 +44,7 @@ import life.neurone.shared.migration.MessageGroup
 import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.PortableFilePlace
 import life.neurone.shared.migration.ScheduledBackup
+import life.neurone.shared.migration.StorageCheck
 import life.neurone.shared.migration.WaveformBackupResult
 import life.neurone.shared.migration.SecretProblem
 import life.neurone.shared.resources.*
@@ -78,9 +79,14 @@ fun MigrationBackupScreen(
             scheduled = if (unattended) app.scheduledBackup else null,
             // A folder can hold the recordings beside the bundle; a saved file or a direct move holds the bundle alone.
             waveforms = if (unattended) app.waveformBackup else null,
+            // A folder or a cloud account is an object store the check can probe; a saved file and a direct move are not.
+            storageChecks = unattended,
         )
     }
     val step by model.step.collectAsState()
+    val storage by model.storage.collectAsState()
+    // Check the place when it is picked (and so again when the person picks another folder or account).
+    LaunchedEffect(model) { model.checkStorage() }
     val scope = rememberCoroutineScope()
     // A move to another phone is a migration and nothing else: there is no kind to choose.
     LaunchedEffect(model) { if (linkPlace != null) model.chooseKind(BackupKind.MIGRATE) }
@@ -95,6 +101,7 @@ fun MigrationBackupScreen(
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, place.label), style = MaterialTheme.typography.bodySmall)
             BackupFolderRow(app)
+            storage?.let { StorageCheckNote(it) }
             AutomaticBackupStatus(app)
         }
         Spacer(Modifier.height(16.dp))
@@ -307,4 +314,17 @@ internal fun LoginItemRow(item: life.neurone.shared.LoginItem) {
         Text(stringResource(Res.string.login_item_option), style = MaterialTheme.typography.bodySmall)
     }
     if (refused) Text(stringResource(Res.string.login_item_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+}
+
+/** What the check of the place found: the verdict, and for a failure the operation and what to do (SWR-MG-12). */
+@Composable
+private fun StorageCheckNote(check: StorageCheck) {
+    Spacer(Modifier.height(4.dp))
+    val bad = !check.canMigrate
+    Text(
+        words(MessageGroup.PROBE, check.verdict.wire),
+        style = MaterialTheme.typography.bodySmall,
+        color = if (bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+    )
+    check.failedOperation?.let { Text(words(MessageGroup.PROBE_OPS, it), style = MaterialTheme.typography.bodySmall) }
 }
