@@ -39,8 +39,18 @@ void __wrap_np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type, uint8_t faul
 
 void __wrap_np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reason)
 {
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":%s,\"reason\":%d}",
-                (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
+    if (rec != NULL) {
+        /* The record the HRV library finalised at the session's end (synthetic data in the twin): its length, protocol and counts. */
+        np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":true,\"reason\":%d,\"duration_s\":%u,"
+                    "\"protocol\":%u,\"target_rate_bpm\":%.2f,\"rr_count\":%u,\"tavns_stim_count\":%u,\"mean_coherence\":%.3f,"
+                    "\"min_coherence\":%.3f,\"max_coherence\":%.3f,\"mean_rmssd_ms\":%.2f}",
+                    (unsigned)np_sim_now_ms(), (int)reason, (unsigned)rec->duration_s, (unsigned)rec->protocol, (double)rec->target_rate_bpm,
+                    (unsigned)rec->rr_sample_count, (unsigned)rec->tavns_stim_count, (double)rec->mean_coherence, (double)rec->min_coherence,
+                    (double)rec->max_coherence, (double)rec->mean_rmssd_ms);
+    } else {
+        np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":false,\"reason\":%d}",
+                    (unsigned)np_sim_now_ms(), (int)reason);
+    }
     __real_np_log_hrv_session(rec, reason);
 }
 
