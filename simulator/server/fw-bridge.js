@@ -476,6 +476,30 @@ function protoCommandLines(msg) {
 }
 
 /**
+ * FW_COMMANDs for the hub's own tasks (NP-SIM-FW-001 §31, REQ-SIMFW-23).  `hub_boot` runs the device's boot path and starts its five tasks;
+ * `hub_run` moves virtual time, which is the only thing that moves it once they run.  A session starts by the app's own path (an upload to
+ * 0x0008, then the runner), and a stop, pause or resume are the app's writes to the hub's characteristics (`gatt_write`): there is no command
+ * here that starts, stops or paces a session, and none that names a driver.  Integers are range-checked and the boot mode is a whitelist.
+ */
+const HUB_RUN_MAX_MS = 60000;   // the cap safety_run has (UC-127): a client loops for more
+
+function hubCommandLines(msg) {
+  switch (msg.cmd) {
+    case 'hub_boot': {
+      const mode = msg.mode === undefined ? 'admit' : msg.mode;
+      if (mode !== 'admit' && mode !== 'refuse') throw new BridgeError('mode must be admit or refuse');
+      return [`hub_boot ${mode}`];                    // a member of the whitelist, never the client's string
+    }
+    case 'hub_run':
+      return [`hub_run ${int(msg.ms, 0, HUB_RUN_MAX_MS, 'ms')}`];
+    case 'hub_status':
+      return ['hub_status'];
+    default:
+      return null;
+  }
+}
+
+/**
  * FW_COMMANDs for the hub's GATT service (NP-SIM-FW-001 §27, REQ-SIMFW-19).  The app is a GATT central: it reads and writes characteristics by
  * id.  The bridge relays validated decimal ids and hex, and the device's own np_gatt_server.c answers (a characteristic it does not publish is
  * not found).  The write is capped at one ATT write (512 bytes); the hub refuses a length it does not take.
@@ -654,7 +678,7 @@ function messageToLines(msg) {
   if (msg.kind === 'intranasal') return insModuleLines(msg);
   if (msg.kind === 'cvns') return cvnsModuleLines(msg);
   if (msg.type === 'FW_COMMAND') {
-    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg) ?? protoCommandLines(msg) ?? gattCommandLines(msg);
+    const stim = stimCommandLines(msg) ?? eegCommandLines(msg) ?? vnsCommandLines(msg) ?? audioCommandLines(msg) ?? visCommandLines(msg) ?? insCommandLines(msg) ?? cvnsCommandLines(msg) ?? safetyCommandLines(msg) ?? hubCommandLines(msg) ?? protoCommandLines(msg) ?? gattCommandLines(msg);
     if (stim !== null) return stim;
   }
   switch (msg.type) {
@@ -721,6 +745,11 @@ function eventToMessage(ev) {
     case 'gatt_disconnect':
     case 'gatt_link':
       return { type: 'GATT_EVENT', event: ev };
+    case 'hub_state':                          // the hub's own runner, from its own progress frame, the LED and the boot decision (NP-SIM-FW-001 §31)
+    case 'hub_status':
+    case 'hub_task':
+    case 'hub_led':
+      return { type: 'HUB_STATE', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for
       return { type: 'SAFETY_EVENT', event: ev };
@@ -746,6 +775,7 @@ class FwBridge extends EventEmitter {
     this._buf = '';
     this._modules = new Map();   // id -> last module/module_state event, for MODULE_LIST
     this._safety = null;         // the last safety_state event; null while no safety MCU has been attached
+    this._hub = null;            // the last hub_state event; null until the hub's tasks have run
     this._safetyRequested = false;   // an attach has been accepted: the OTP is no longer programmable from a client
   }
 
@@ -787,7 +817,7 @@ class FwBridge extends EventEmitter {
   }
 
   list() {
-    return { type: 'MODULE_LIST', modules: [...this._modules.values()], safety: this._safety };
+    return { type: 'MODULE_LIST', modules: [...this._modules.values()], safety: this._safety, hub: this._hub };
   }
 
   _onData(chunk) {
@@ -800,6 +830,7 @@ class FwBridge extends EventEmitter {
       try { ev = JSON.parse(line); } catch { continue; }   // not an event
       if (ev.ev === 'module' || ev.ev === 'module_state') this._modules.set(ev.id, ev);
       if (ev.ev === 'safety_state') this._safety = ev;
+      if (ev.ev === 'hub_state') this._hub = ev;
       this.emit('message', eventToMessage(ev));
     }
   }

@@ -161,6 +161,7 @@ export class DeviceAPI {
       case 'FW_LOG':
       case 'SAFETY_STATE':      // the safety MCU in the loop: status, fault slot, enable lines (NP-SIM-FW-001 §23)
       case 'SAFETY_EVENT':
+      case 'HUB_STATE':         // the hub's own tasks: the runner's state from its progress frame, the LED, the tasks (NP-SIM-FW-001 §31)
         this._cb.onFirmwareMessage?.(msg);
         break;
 

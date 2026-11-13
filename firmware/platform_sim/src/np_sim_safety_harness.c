@@ -101,6 +101,11 @@ static bool parse_seed(const char *a, uint8_t seed[32])
 bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
 {
     if (strncmp(cmd, "safety_", 7) != 0) { return false; }
+    if (np_sim_hub_booted() && (strcmp(cmd, "safety_beat") == 0 || strcmp(cmd, "safety_run") == 0)) {
+        /* The hub's own heartbeat task is beating (hub_boot): a second source of heartbeats would not be the device's. */
+        np_sim_emit("{\"ev\":\"error\",\"what\":\"%s: the hub's own heartbeat task is running (use hub_run)\"}", cmd);
+        return true;
+    }
     if (strcmp(cmd, "safety_root") == 0 && a) {
         uint8_t seed[32];
         if (!parse_seed(a, seed)) { return true; }

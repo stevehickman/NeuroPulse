@@ -14,6 +14,7 @@
  * SimModuleRegistry.banner).
  */
 import { SafetyMcu, VERDICT } from './safety.js';
+import { HubModel } from './hub.js';
 
 export const FAULT_FLASH_S = 1.5;
 
@@ -150,6 +151,7 @@ export class SimModuleRegistry {
     this._byKey = new Map();
     this.log = [];                    // recent FW_LOG events, newest last
     this.safety = new SafetyMcu();    // the safety MCU as the page knows it; not in the loop until a safety_state says attached
+    this.hub = new HubModel();        // the hub's own tasks as the page knows them (NP-SIM-FW-001 §31); not running until a hub_state arrives
     this.sawFirmware = false;         // the bridge has said anything: the page is talking to a firmware process
   }
 
@@ -169,7 +171,11 @@ export class SimModuleRegistry {
     if (msg.type === 'MODULE_LIST') {
       this.sawFirmware = true;
       this.safety.restore(msg.safety);
+      this.hub.onMessage(msg);
       for (const ev of msg.modules) this._applyTo(ev, nowS);
+    } else if (msg.type === 'HUB_STATE') {
+      this.sawFirmware = true;
+      this.hub.onMessage(msg);
     } else if (msg.type === 'SAFETY_STATE' || msg.type === 'SAFETY_EVENT') {
       this.sawFirmware = true;
       this.safety.apply(msg.event);

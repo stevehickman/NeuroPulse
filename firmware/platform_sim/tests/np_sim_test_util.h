@@ -10,7 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 
+/* A suite that captures a long run (a session reports a state every 250 virtual ms) defines NP_SIM_CAP_LONG before this header. */
+#ifdef NP_SIM_CAP_LONG
+#define CAP_MAX   24000
+#else
 #define CAP_MAX   512
+#endif
 #define CAP_LINE  512
 static char g_cap[CAP_MAX][CAP_LINE];
 static int  g_cap_n;
