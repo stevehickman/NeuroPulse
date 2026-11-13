@@ -93,14 +93,30 @@ class GattParserTests {
             GattUuidStrings.SESSION_STATE_ID, GattUuidStrings.SESSION_STATUS_ID, GattUuidStrings.HRV_COHERENCE_ID,
             GattUuidStrings.PACER_PHASE_ID, GattUuidStrings.IMPEDANCE_RESULT_ID,
         ).forEach { assertTrue(consumable != UUID.fromString(it), "consumable status must differ from $it") }
-        assertEquals(listOf(1, 30, 10, 100), GattParser.parseConsumableStatus(byteArrayOf(1, 0, 0x1E, 0, 0x0A, 0, 0x64, 0)))
+        assertEquals(
+            listOf(1, 30, 10, 100),
+            GattParser.parseConsumableStatus(byteArrayOf(1, 0, 0, 0, 0x1E, 0, 0, 0, 0x0A, 0, 0, 0, 0x64, 0, 0, 0)),
+        )
     }
 
     // @verifies REQ-SW03-04
     @Test
     fun parseConsumableStatusDecodesFourCounts() {
-        val data = byteArrayOf(1, 0, 2, 0, 3, 0, 0x2C, 0x01) // 1, 2, 3, 300
+        val data = byteArrayOf(1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0x2C, 0x01, 0, 0) // 1, 2, 3, 300
         assertEquals(listOf(1, 2, 3, 300), GattParser.parseConsumableStatus(data))
+    }
+
+    // @verifies REQ-SW03-04
+    @Test
+    fun parseConsumableStatusCarriesACountAbove16BitsAndRefusesTheOldEightByteFrame() {
+        // 70000 = 0x00011170: above the 16-bit ceiling the count used to be held at (OI-UINT16-01).
+        val wide = byteArrayOf(0x70, 0x11, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        assertEquals(listOf(70000, 0, 0, 0), GattParser.parseConsumableStatus(wide))
+        // The previous 8-byte frame (4 × uint16) is not a valid frame now.
+        assertNull(GattParser.parseConsumableStatus(byteArrayOf(1, 0, 2, 0, 3, 0, 4, 0)))
+        // A count the app's Int cannot hold is refused, not clamped.
+        val huge = byteArrayOf(0, 0, 0, 0x80.toByte(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        assertNull(GattParser.parseConsumableStatus(huge))
     }
 
     // @verifies REQ-SW03-02

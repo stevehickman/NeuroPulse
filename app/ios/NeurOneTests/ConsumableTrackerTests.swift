@@ -24,17 +24,17 @@ import Combine
 /// is already fully computed by the time ConsumableTracker.init(_:) returns.
 private final class MockCountsProvider: ConsumableCountsProviding {
 
-    private let subject: CurrentValueSubject<[UInt16], Never>
+    private let subject: CurrentValueSubject<[UInt32], Never>
 
-    var consumableCountsPublisher: AnyPublisher<[UInt16], Never> {
+    var consumableCountsPublisher: AnyPublisher<[UInt32], Never> {
         subject.eraseToAnyPublisher()
     }
 
-    init(counts: [UInt16] = [0, 0, 0, 0]) {
+    init(counts: [UInt32] = [0, 0, 0, 0]) {
         subject = CurrentValueSubject(counts)
     }
 
-    func push(_ counts: [UInt16]) {
+    func push(_ counts: [UInt32]) {
         subject.send(counts)
     }
 }
@@ -43,8 +43,8 @@ private final class MockCountsProvider: ConsumableCountsProviding {
 
 final class ConsumableInventoryTests: XCTestCase {
 
-    private func inventory(intranasal: UInt16 = 0, hydrogel: UInt16 = 0,
-                           vns: UInt16 = 0, audio: UInt16 = 0) -> ConsumableInventory {
+    private func inventory(intranasal: UInt32 = 0, hydrogel: UInt32 = 0,
+                           vns: UInt32 = 0, audio: UInt32 = 0) -> ConsumableInventory {
         var inv = ConsumableInventory()
         inv.update(fromGATTCounts: [intranasal, hydrogel, vns, audio])
         return inv
@@ -161,7 +161,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         super.tearDown()
     }
 
-    private func makeTracker(counts: [UInt16] = [0, 0, 0, 0]) -> ConsumableTracker {
+    private func makeTracker(counts: [UInt32] = [0, 0, 0, 0]) -> ConsumableTracker {
         ConsumableTracker(countsProvider: MockCountsProvider(counts: counts), defaults: testDefaults)
     }
 

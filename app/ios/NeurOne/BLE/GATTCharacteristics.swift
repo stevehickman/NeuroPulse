@@ -83,11 +83,12 @@ struct GATTParser {
         CervicalFaultStatus(wire: data)
     }
 
-    /// CONSUMABLE_STATUS: 4 × uint16 session counts (intranasal, hydrogel, VNS, audio)
-    static func parseConsumableStatus(_ data: Data) -> [UInt16]? {
-        guard data.count >= 8 else { return nil }
+    /// CONSUMABLE_STATUS: 4 × uint32 session counts (intranasal, hydrogel, VNS, audio), 16 bytes. The counts were
+    /// 4 × uint16 (8 bytes) until OI-UINT16-01; an 8-byte frame is refused, not read as eight 16-bit halves.
+    static func parseConsumableStatus(_ data: Data) -> [UInt32]? {
+        guard data.count >= 16 else { return nil }
         return (0..<4).map { i in
-            data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: i * 2, as: UInt16.self) }
+            UInt32(littleEndian: data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: i * 4, as: UInt32.self) })
         }
     }
 

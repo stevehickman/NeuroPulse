@@ -68,6 +68,7 @@ void np_gatt_hal_notify(uint16_t id, const uint8_t *data, size_t len)
 
 /* The replicated record. */
 static uint8_t         g_rec[NP_CONS_RECORD_LEN];
+static size_t          g_rec_len = NP_CONS_RECORD_LEN;   /* the length the record was stored at (v1: 9) */
 static bool            g_rec_present;
 static np_hub_status_t g_read_rc;
 static np_hub_status_t g_write_rc;
@@ -77,7 +78,7 @@ static void          (*g_during_write)(void);   /* runs inside the next write */
 np_hub_status_t np_cfg_store_replicated_read(np_cfg_file_t file,
                                              uint8_t *payload, size_t len)
 {
-    if (file != NP_CFG_FILE_CONSUMABLES || len != NP_CONS_RECORD_LEN) {
+    if (file != NP_CFG_FILE_CONSUMABLES) {
         return NP_HUB_ERR_INVALID_ARG;
     }
     if (g_read_rc != NP_HUB_OK) {
@@ -85,6 +86,9 @@ np_hub_status_t np_cfg_store_replicated_read(np_cfg_file_t file,
     }
     if (!g_rec_present) {
         return NP_HUB_ERR_NOT_PRESENT;
+    }
+    if (len != g_rec_len) {
+        return NP_HUB_ERR_STORE_INTEGRITY;   /* the real store hands a record over at the length it was written at */
     }
     memcpy(payload, g_rec, len);
     return NP_HUB_OK;
@@ -106,6 +110,7 @@ np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
         return g_write_rc;
     }
     memcpy(g_rec, payload, len);
+    g_rec_len = len;
     g_rec_present = true;
     return NP_HUB_OK;
 }
@@ -162,46 +167,64 @@ static void new_device(void)
     boot();
 }
 
-static void store_counts(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+static void store_counts(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+{
+    const uint32_t v[4] = { a, b, c, d };
+    g_rec[0] = NP_CONS_RECORD_VERSION;
+    for (unsigned k = 0U; k < 4U; k++) {
+        for (unsigned i = 0U; i < 4U; i++) {
+            g_rec[1U + 4U * k + i] = (uint8_t)(v[k] >> (8U * i));
+        }
+    }
+    g_rec_len = NP_CONS_RECORD_LEN;
+    g_rec_present = true;
+}
+
+/* A record as the previous firmware wrote it: version 1, 4 x u16, 9 bytes. */
+static void store_counts_v1(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
 {
     const uint16_t v[4] = { a, b, c, d };
-    g_rec[0] = NP_CONS_RECORD_VERSION;
+    memset(g_rec, 0, sizeof g_rec);
+    g_rec[0] = NP_CONS_RECORD_V1_VERSION;
     for (unsigned k = 0U; k < 4U; k++) {
         g_rec[1U + 2U * k] = (uint8_t)(v[k] & 0xFFU);
         g_rec[2U + 2U * k] = (uint8_t)(v[k] >> 8);
     }
+    g_rec_len = NP_CONS_RECORD_V1_LEN;
     g_rec_present = true;
 }
 
 /* Read 0x0007 through the server as the app does; false if the READ failed. */
-static bool read_counts(uint16_t out[4])
+static bool read_counts(uint32_t out[4])
 {
-    uint8_t buf[16];
+    uint8_t buf[32];
     size_t  len = 0U;
     if (np_gatt_on_read(NP_GATT_CONSUMABLE_STATUS_ID, 0U, buf, sizeof buf, &len) != NP_ATT_OK ||
         len != NP_CONS_WIRE_LEN) {
         return false;
     }
     for (unsigned k = 0U; k < 4U; k++) {
-        out[k] = (uint16_t)buf[2U * k] | (uint16_t)((uint16_t)buf[2U * k + 1U] << 8);
+        out[k] = (uint32_t)buf[4U * k] | ((uint32_t)buf[4U * k + 1U] << 8) |
+                 ((uint32_t)buf[4U * k + 2U] << 16) | ((uint32_t)buf[4U * k + 3U] << 24);
     }
     return true;
 }
 
-static bool counts_are(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+static bool counts_are(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 {
-    uint16_t v[4];
+    uint32_t v[4];
     return read_counts(v) && v[0] == a && v[1] == b && v[2] == c && v[3] == d;
 }
 
-static bool stored_are(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+static bool stored_are(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 {
-    const uint16_t v[4] = { a, b, c, d };
-    if (!g_rec_present || g_rec[0] != NP_CONS_RECORD_VERSION) {
+    const uint32_t v[4] = { a, b, c, d };
+    if (!g_rec_present || g_rec[0] != NP_CONS_RECORD_VERSION || g_rec_len != NP_CONS_RECORD_LEN) {
         return false;
     }
     for (unsigned k = 0U; k < 4U; k++) {
-        uint16_t s = (uint16_t)g_rec[1U + 2U * k] | (uint16_t)((uint16_t)g_rec[2U + 2U * k] << 8);
+        uint32_t s = (uint32_t)g_rec[1U + 4U * k] | ((uint32_t)g_rec[2U + 4U * k] << 8) |
+                     ((uint32_t)g_rec[3U + 4U * k] << 16) | ((uint32_t)g_rec[4U + 4U * k] << 24);
         if (s != v[k]) {
             return false;
         }
@@ -271,7 +294,7 @@ static void test_replacement_reset(void)
     check(stored_are(3U, 40U, 7U, 150U), "reset: not yet persisted before the poll");
     np_cons_poll();
     check(stored_are(3U, 0U, 7U, 150U), "reset: the next poll persists it");
-    check(g_notifies == 2 && g_ntf_len == 8U && g_ntf[2] == 0U && g_ntf[3] == 0U,
+    check(g_notifies == 2 && g_ntf_len == 16U && g_ntf[4] == 0U && g_ntf[5] == 0U && g_ntf[6] == 0U && g_ntf[7] == 0U,
           "reset: and notifies the zero, so the app's overwrite agrees with it");
 
     np_cons_on_session_end(BIT(NP_MOD_EEG));
@@ -300,7 +323,7 @@ static void test_unreadable_store_is_not_zero(void)
         store_counts(1U, 10U, 0U, 0U);   /* a sleeve prompt is pending */
         g_read_rc = bad[i];
         boot();
-        uint16_t v[4];
+        uint32_t v[4];
         uint8_t  buf[16];
         size_t   len = 0U;
         check(!read_counts(v) &&
@@ -324,19 +347,33 @@ static void test_unreadable_store_is_not_zero(void)
     store_counts(1U, 1U, 1U, 1U);
     g_rec[0] = 0x7EU;   /* a record this firmware did not write */
     boot();
-    uint16_t v[4];
+    uint32_t v[4];
     check(!read_counts(v), "unreadable: a wrong record version is not believed");
 }
 
 /* @verifies REQ-FWHUB-54 */
-static void test_saturates(void)
+static void test_counts_do_not_saturate_at_16_bits(void)
 {
     new_device();
     store_counts(0xFFFEU, 0U, 0U, 0U);
     boot();
     np_cons_on_session_end(BIT(NP_MOD_INTRANASAL));
     np_cons_on_session_end(BIT(NP_MOD_INTRANASAL));
-    check(counts_are(0xFFFFU, 0U, 0U, 0U), "saturation: a count stops at 65535, never wraps to 0");
+    check(counts_are(0x10000U, 0U, 0U, 0U) && stored_are(0x10000U, 0U, 0U, 0U),
+          "no ceiling: a count passes 65535 and is persisted whole (OI-UINT16-01)");
+}
+
+/* @verifies REQ-FWHUB-54 */
+static void test_version_1_record_is_carried_over(void)
+{
+    new_device();
+    store_counts_v1(5U, 40U, 0xFFFFU, 7U);     /* what the previous firmware stored, including a count at its old ceiling */
+    boot();
+    check(counts_are(5U, 40U, 0xFFFFU, 7U), "migration: a version 1 record's counts are kept");
+    np_cons_poll();
+    check(stored_are(5U, 40U, 0xFFFFU, 7U), "migration: the next persist rewrites it as version 2");
+    np_cons_on_session_end(BIT(NP_MOD_VNS_HRV));
+    check(counts_are(5U, 40U, 0x10000U, 7U), "migration: the migrated count then passes 65535");
 }
 
 /* @verifies REQ-FWHUB-54 */
@@ -382,7 +419,7 @@ static void test_notify_on_change_only(void)
     check(g_notifies == 1, "notify: the first frame once, then nothing while unchanged");
     np_cons_on_session_end(BIT(NP_MOD_AUDIO));
     np_cons_poll();
-    check(g_notifies == 2 && g_ntf[6] == 1U && g_ntf[7] == 0U,
+    check(g_notifies == 2 && g_ntf[12] == 1U && g_ntf[13] == 0U && g_ntf[14] == 0U && g_ntf[15] == 0U,
           "notify: a change is notified, little-endian, in kind order");
 }
 
@@ -393,7 +430,8 @@ int main(void)
     test_counts_survive_a_reboot();
     test_replacement_reset();
     test_unreadable_store_is_not_zero();
-    test_saturates();
+    test_counts_do_not_saturate_at_16_bits();
+    test_version_1_record_is_carried_over();
     test_failed_write_is_retried();
     test_no_stale_overwrite();
     test_notify_on_change_only();

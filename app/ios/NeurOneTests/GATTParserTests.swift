@@ -87,15 +87,15 @@ final class GATTParserTests: XCTestCase {
 
     // @verifies REQ-SW03-04
     func testParseConsumableStatus() {
-        // intranasal 1, hydrogel 30 (0x1E), VNS 256 (0x0100), audio 1000 (0x03E8)
+        // intranasal 1, hydrogel 30 (0x1E), VNS 70000 (0x00011170, above 16 bits), audio 1000 (0x03E8)
         let data = Data([
-            0x01, 0x00,   // 1
-            0x1E, 0x00,   // 30
-            0x00, 0x01,   // 256
-            0xE8, 0x03    // 1000
+            0x01, 0x00, 0x00, 0x00,   // 1
+            0x1E, 0x00, 0x00, 0x00,   // 30
+            0x70, 0x11, 0x01, 0x00,   // 70000
+            0xE8, 0x03, 0x00, 0x00    // 1000
         ])
         let counts = GATTParser.parseConsumableStatus(data)
-        XCTAssertEqual(counts, [1, 30, 256, 1000])
+        XCTAssertEqual(counts, [1, 30, 70000, 1000])
     }
 
     // MARK: - CVNS_PAD_STATUS (mask + check + per-electrode side) — OI-ACC-07
@@ -701,10 +701,10 @@ final class GATTParserTests: XCTestCase {
         var pending = SessionState.empty
         XCTAssertEqual(pending.consumableSessionCounts, [0, 0, 0, 0])
 
-        let wire = Data([0x01, 0x00,   // intranasal: 1
-                         0x1E, 0x00,   // hydrogel:   30
-                         0x0A, 0x00,   // VNS:        10
-                         0x64, 0x00])  // audio:      100
+        let wire = Data([0x01, 0x00, 0x00, 0x00,   // intranasal: 1
+                         0x1E, 0x00, 0x00, 0x00,   // hydrogel:   30
+                         0x0A, 0x00, 0x00, 0x00,   // VNS:        10
+                         0x64, 0x00, 0x00, 0x00])  // audio:      100
         if let counts = GATTParser.parseConsumableStatus(wire) {
             pending.consumableSessionCounts = counts
         }
@@ -763,10 +763,11 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNotNil(GATTParser.parseImpedanceResult(Data([0xFF, 0x00])),
                         "parseImpedanceResult must return non-nil for a valid 2-byte payload.")
 
-        // parseConsumableStatus: 4 × uint16 LE (5, 10, 15, 20)
+        // parseConsumableStatus: 4 × uint32 LE (5, 10, 15, 20)
         XCTAssertNotNil(GATTParser.parseConsumableStatus(
-            Data([0x05, 0x00, 0x0A, 0x00, 0x0F, 0x00, 0x14, 0x00])),
-                        "parseConsumableStatus must return non-nil for a valid 8-byte payload.")
+            Data([0x05, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00,
+                  0x0F, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00])),
+                        "parseConsumableStatus must return non-nil for a valid 16-byte payload.")
 
         // parseOTAStatus: phase 1, progress 25%, no error
         XCTAssertNotNil(GATTParser.parseOTAStatus(Data([0x01, 0x19, 0x00, 0x00])),
@@ -798,7 +799,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(GATTParser.parseHRVCoherence(Data([0x00, 0x00, 0x00])))     // needs 4
         XCTAssertNil(GATTParser.parsePacerPhase(Data([0x00])))                   // needs 2
         XCTAssertNil(GATTParser.parseImpedanceResult(Data([0x00])))             // needs 2
-        XCTAssertNil(GATTParser.parseConsumableStatus(Data(repeating: 0, count: 7)))  // needs 8
+        XCTAssertNil(GATTParser.parseConsumableStatus(Data(repeating: 0, count: 15)))  // needs 16; the old 8-byte frame is refused
         XCTAssertNil(GATTParser.parseOTAStatus(Data([0x00, 0x00, 0x00])))        // needs 4
         XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x02, 0x02, 0x00]))) // needs 4B header
     }

@@ -33,7 +33,7 @@ public struct SessionState: Sendable {
     public var pacerPhase: PacerPhase
     public var pacerElapsedPercent: UInt8   // 0–100, fraction of current breath phase elapsed
     public var impedancePassFlags: UInt16   // bitmask, bit n = electrode n passed
-    public var consumableSessionCounts: [UInt16] // 4 values: intranasal/hydrogel/VNS/audio
+    public var consumableSessionCounts: [UInt32] // 4 values: intranasal/hydrogel/VNS/audio
 
     public init(
         epoch: UInt32,
@@ -43,7 +43,7 @@ public struct SessionState: Sendable {
         pacerPhase: PacerPhase,
         pacerElapsedPercent: UInt8,
         impedancePassFlags: UInt16,
-        consumableSessionCounts: [UInt16]
+        consumableSessionCounts: [UInt32]
     ) {
         self.epoch = epoch
         self.protocolID = protocolID

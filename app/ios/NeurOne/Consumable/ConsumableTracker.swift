@@ -48,7 +48,7 @@ final class ConsumableTracker: ObservableObject {
             }
     }
 
-    private func handleUpdatedCounts(_ counts: [UInt16]) {
+    private func handleUpdatedCounts(_ counts: [UInt32]) {
         inventory.update(fromGATTCounts: counts)
         persistSnooze()
         recomputeReminders()
