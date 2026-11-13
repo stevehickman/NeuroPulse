@@ -85,7 +85,7 @@ sealed interface BackupStep {
 }
 
 /** The groups of the core's table of locale keys (`messageKeys`). */
-enum class MessageGroup(val wire: String) { REASONS("reasons"), SECRET("secret"), PROBE("probe"), ITEMS("items") }
+enum class MessageGroup(val wire: String) { REASONS("reasons"), SECRET("secret"), PROBE("probe"), PROBE_OPS("probeOps"), ITEMS("items") }
 
 /** The mark in front of a listed item. */
 const val LIST_MARK = "\u2022"
