@@ -318,7 +318,7 @@ internal fun LoginItemRow(item: life.neurone.shared.LoginItem) {
 
 /** What the check of the place found: the verdict, and for a failure the operation and what to do (SWR-MG-12). */
 @Composable
-private fun StorageCheckNote(check: StorageCheck) {
+internal fun StorageCheckNote(check: StorageCheck) {
     Spacer(Modifier.height(4.dp))
     val bad = !check.canMigrate
     Text(

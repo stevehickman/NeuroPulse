@@ -202,4 +202,59 @@ class MigrationRestoreClearTest {
         assertEquals("value-of-np.session.history", old.getString("np.session.history"))
         assertTrue(actions.ran.isEmpty())
     }
+
+    /** A place whose backup is there to read but that takes no write: a read-only folder or an account with no write right. */
+    private class ReadOnly(val inner: MemoryStore, var on: Boolean = true) : ObjectStore {
+        override suspend fun get(name: String) = inner.get(name)
+        override suspend fun put(name: String, bytes: ByteArray) { if (on) error("read-only") else inner.put(name, bytes) }
+        override suspend fun createIfAbsent(name: String, bytes: ByteArray): Boolean { if (on) error("read-only"); return inner.createIfAbsent(name, bytes) }
+        override suspend fun delete(name: String) { if (on) error("read-only") else inner.delete(name) }
+        override suspend fun list(prefix: String) = inner.list(prefix)
+        override suspend fun freeSpace(): Long? = inner.freeSpace()
+    }
+
+    // @verifies SWR-MG-12
+    @Test fun the_place_is_checked_when_the_restore_screen_opens_and_not_where_checks_are_off() = runTest {
+        val store = MemoryStore()
+        val m = MigrationRestoreModel(place(store), InMemoryKeyValueStore(), storageChecks = true)
+        assertNull(m.storage.value)
+        assertTrue(m.checkStorage()!!.canMigrate)
+        assertTrue(m.storage.value!!.canMigrate)
+        assertNull(MigrationRestoreModel(place(store), InMemoryKeyValueStore()).checkStorage())
+        val ro = MigrationRestoreModel(place(ReadOnly(store)), InMemoryKeyValueStore(), storageChecks = true)
+        assertEquals("write", ro.checkStorage()!!.failedOperation)
+    }
+
+    // @verifies SWR-MG-12
+    // @verifies SWR-MG-07
+    @Test fun a_migration_is_not_restored_from_a_place_that_cannot_take_the_claim_and_leaves_no_claim() = runTest {
+        val store = MemoryStore()
+        backUp(store, filled())
+        val ro = ReadOnly(store)
+        val fresh = InMemoryKeyValueStore()
+        val m = MigrationRestoreModel(place(ro), fresh, storageChecks = true)
+        m.look()
+        m.submitSecret(passphrase)
+        assertEquals("route_unavailable", (m.step.value as RestoreStep.Failed).reason)
+        assertNull(fresh.getString("np.session.history"))
+        ro.on = false
+        m.retry()
+        m.submitSecret(passphrase)
+        assertTrue(m.step.value is RestoreStep.Done, "the refused restore took a claim")
+    }
+
+    // @verifies SWR-MG-12
+    @Test fun a_health_data_backup_is_still_restored_from_a_place_that_takes_no_write() = runTest {
+        val store = MemoryStore()
+        val b = MigrationBackupModel(place(store), filled())
+        b.chooseKind(BackupKind.UHDR)
+        b.continueToMethod()
+        b.usePassphrase()
+        b.submitPassphrase(passphrase)
+        assertTrue(b.step.value is BackupStep.Done)
+        val m = MigrationRestoreModel(place(ReadOnly(store)), InMemoryKeyValueStore(), storageChecks = true)
+        m.look()
+        m.submitSecret(passphrase)
+        assertTrue(m.step.value is RestoreStep.Done)
+    }
 }
