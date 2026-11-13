@@ -86,7 +86,7 @@ fun ZoneEditorScreen(
                     Column(Modifier.weight(1f)) {
                         Text(zone.name, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            pluralString(Res.string.zones_socket_count_one, Res.string.zones_socket_count_other, zone.sockets.size) +
+                            pluralString(PluralForms(Res.string.zones_socket_count_one, Res.string.zones_socket_count_other, Res.string.zones_socket_count_zero, Res.string.zones_socket_count_two, Res.string.zones_socket_count_few, Res.string.zones_socket_count_many), zone.sockets.size) +
                                 if (zone.name in mine) " · " + stringResource(Res.string.zones_user_defined_tag) else "",
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -166,7 +166,7 @@ private fun NewZoneForm(library: NPProtocolLibrary, onSaved: () -> Unit) {
         },
     )
     Text(
-        pluralString(Res.string.web_sockets_selected_one, Res.string.web_sockets_selected_other, sockets.size),
+        pluralString(PluralForms(Res.string.web_sockets_selected_one, Res.string.web_sockets_selected_other, Res.string.web_sockets_selected_zero, Res.string.web_sockets_selected_two, Res.string.web_sockets_selected_few, Res.string.web_sockets_selected_many), sockets.size),
         style = MaterialTheme.typography.bodySmall,
     )
 

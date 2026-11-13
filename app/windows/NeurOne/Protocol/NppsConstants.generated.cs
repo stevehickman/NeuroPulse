@@ -16,6 +16,22 @@ static class NPHardwareLimits
     /// Aggregate PBM irradiance ceiling (OI-PBM-05, three-channel combined). Pending RISK-03 regulatory
     /// opinion scope expansion (Q4–Q6).
     public const double PBM_AGGREGATE_MAX_MW_CM2 = 600.0;
+    /// Peak scalp irradiance one 660 nm channel delivers at full drive (register 255): NP-HW-HEXTILE-001
+    /// §4.3.1, T1-A, 45 emitters × 95 mW over 10.61 cm² at 150 mA. A DESIGN TARGET: OI-HEXTILE-02 has
+    /// selected no emitter (UC-064). The one copy of the table that turns an absolute irradiance into a
+    /// register (OI-NPPS-ABS-02).
+    public const double PBM_FULL_SCALE_660_MW_CM2 = 403.0;
+    /// As PBM_FULL_SCALE_660_MW_CM2, for an 808 nm channel (UC-064).
+    public const double PBM_FULL_SCALE_808_MW_CM2 = 403.0;
+    /// As PBM_FULL_SCALE_660_MW_CM2, for the 1064 nm smart-module channel: NP-HW-HEXTILE-001 §4.3.2, T1-C
+    /// CH_C = 28 mW/cm², the emitter-efficiency wall of OI-HEXTILE-21 (UC-064).
+    public const double PBM_FULL_SCALE_1064_MW_CM2 = 28.0;
+    /// PROVISIONAL PLACEHOLDER (UC-065): the intranasal probe has no owning specification (OI-ART-04), so
+    /// 100 stands in for a measurement. It is not a capability claim.
+    public const double INTRANASAL_FULL_SCALE_MW_CM2 = 100.0;
+    /// Acoustic output ceiling, dB SPL at the ear, absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). The hub's
+    /// NP_AUDIO_MAX_LEVEL_HALF_DB is twice it; scripts/check-hub-wire-format.ts holds the two together.
+    public const double AUDIO_MAX_DB_SPL = 85.0;
     /// BES / tACS (consumer: Brainwave Entrainment Stimulation)
     public const double BES_TACS_MAX_MILLIAMPS = 1.0;
     public const double BES_TACS_MIN_HZ = 0.5;

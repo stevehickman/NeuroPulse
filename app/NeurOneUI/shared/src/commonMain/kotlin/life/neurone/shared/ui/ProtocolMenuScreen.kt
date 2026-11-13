@@ -319,11 +319,11 @@ private fun ProtocolRow(
                     if (archived) Badge(stringResource(Res.string.protocol_library_archived_badge), Color(0xFF616161))
                     if (entry.isComposite) Badge(stringResource(Res.string.protocol_menu_composite), Color(0xFF5E35B1))
                     if (errorCount > 0) Badge(
-                        pluralString(Res.string.web_validation_error_count_one, Res.string.web_validation_error_count_other, errorCount, errorCount),
+                        pluralString(PluralForms(Res.string.web_validation_error_count_one, Res.string.web_validation_error_count_other, Res.string.web_validation_error_count_zero, Res.string.web_validation_error_count_two, Res.string.web_validation_error_count_few, Res.string.web_validation_error_count_many), errorCount, errorCount),
                         Color(0xFFD32F2F),
                     )
                     if (warningCount > 0) Badge(
-                        pluralString(Res.string.web_validation_warning_count_one, Res.string.web_validation_warning_count_other, warningCount, warningCount),
+                        pluralString(PluralForms(Res.string.web_validation_warning_count_one, Res.string.web_validation_warning_count_other, Res.string.web_validation_warning_count_zero, Res.string.web_validation_warning_count_two, Res.string.web_validation_warning_count_few, Res.string.web_validation_warning_count_many), warningCount, warningCount),
                         Color(0xFFF9A825),
                     )
                 }
