@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-KOTLIN-001
-**Revision:** 9
-**Date:** 2026-10-28
+**Revision:** 10
+**Date:** 2026-11-11
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -390,3 +390,11 @@ Skia, the icon set) can draw a wrong screen and no more.
 - This record does not extend `NP-SW-001` §9.4, which is the firmware register for SW-01 and SW-02, as `NP-SOUP-RUST-001` §8
   says of itself. If the app SOUP is to be registered in the software development plan, that is a change to the plan.
 - The native apps (Swift package, NuGet) are `NP-SOUP-NATIVE-001`.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 10 | 2026-11-11 | NeurOne Software Engineering | **§2a, point 4: the sentence that the hub firmware is C is changed to say the main processor may also include `no_std` Rust (CLAUDE.md §22, Rev 81) and the safety MCU stays C; no Kotlin library, version or finding changed.** |
