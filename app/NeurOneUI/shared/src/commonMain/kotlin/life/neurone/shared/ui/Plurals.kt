@@ -1,15 +1,43 @@
 package life.neurone.shared.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.intl.Locale
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * A count with its noun. Compose Multiplatform 1.7 has no plural resources, so `sync-locales --compose-res` writes
- * each plural family as flat `<name>_one` / `<name>_other` strings, and this picks between them. Every locale's
- * plural text is English today, whose rule is "one, else other"; when a locale gets real plural forms
- * (Arabic, Russian) this is where its category rule goes (OI-UI-KMP-08). The count is the first argument.
+ * One plural family: the resource for each CLDR category. Compose Multiplatform 1.7 has no plural resources, so
+ * `sync-locales --compose-res` writes each family as flat `<name>_one` ... `<name>_other` strings, and every locale
+ * declares every category it has (an untranslated one reads as that locale's `_other`). `zero`, `two`, `few` and
+ * `many` are null where a caller has no resource for them; the category then reads as `other`.
+ */
+class PluralForms(
+    val one: StringResource,
+    val other: StringResource,
+    val zero: StringResource? = null,
+    val two: StringResource? = null,
+    val few: StringResource? = null,
+    val many: StringResource? = null,
+) {
+    fun resourceFor(category: PluralCategory): StringResource = when (category) {
+        PluralCategory.ZERO -> zero
+        PluralCategory.ONE -> one
+        PluralCategory.TWO -> two
+        PluralCategory.FEW -> few
+        PluralCategory.MANY -> many
+        PluralCategory.OTHER -> other
+    } ?: other
+}
+
+/**
+ * A count with its noun, in the current locale's CLDR category (`OI-UI-KMP-08`, rules in [pluralCategory]).
+ * The count is the first format argument.
  */
 @Composable
+fun pluralString(forms: PluralForms, count: Int, vararg args: Any): String =
+    stringResource(forms.resourceFor(pluralCategory(Locale.current.language, count)), count, *args)
+
+/** The English-shaped call, kept for families whose callers pass only `one` and `other`. */
+@Composable
 fun pluralString(one: StringResource, other: StringResource, count: Int, vararg args: Any): String =
-    stringResource(if (count == 1) one else other, count, *args)
+    pluralString(PluralForms(one, other), count, *args)
