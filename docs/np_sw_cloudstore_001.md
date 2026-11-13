@@ -944,7 +944,7 @@ tagged to `SWR-MG-11#contract` when written (`CLAUDE.md` §21).
 | The promotion rule, test accounts and registrations | **Wait on the principal** (Q3) |
 | Google Drive | Backup-only, decided for now (the principal, 2026-11-11). The ID-based claim is not built. **Left only if it is to be looked at again:** the test in `docs/human-input/oi-ui-kmp-11-google-drive-claim-experiment.md`, which needs a Google test account and has not been run |
 | A contract run against any provider | **Not done; needs accounts** (§7.8) |
-| The account check wired to a chosen cloud account | **Not built** (§7.2; `SWR-MG-12`) |
+| The account check wired to a chosen cloud account | **Not built** (§7.2; `SWR-MG-12`). Run through the real S3 adapter on a stand-in (§7.11); **bucket routes read "not sufficient" at space (§7.11, open); re-run before a migration not enforced, dormant** |
 | Large bundles (Gap 1), and the reason for a failure reaching the probe (Gap 2) | Open (§2.2) |
 | Provider terms and store review | Unchecked (§7.6 item 9) |
 
@@ -961,6 +961,50 @@ tagged to `SWR-MG-11#contract` when written (`CLAUDE.md` §21).
 Apple's current pages were read through the JSON the documentation site itself serves for each page
 (`developer.apple.com/tutorials/data/documentation/...`), because the pages are script-rendered. **Not reached:**
 `amazon.com` consumer pages (refused by the proxy) and Oracle's script-built API reference for PutObject.
+
+### 7.11 Account check over the real adapters, and Oracle re-read (2026-11-13)
+
+**What already existed.** `SWR-MG-12` is built in the Rust core: `probeResult` classifies, `flow: "probe"` runs write, read back,
+list, create-if-absent twice, release, delete and space on throwaway objects named `np-probe-…`, always deletes both, and ends
+`sufficient`, `backup_only` or `insufficient` with the failed operation named; the four drivers carry it
+(`MigrationFlow.probe`), and the locale keys `MIGRATION_PROBE_*` exist. It had been run only against in-memory providers.
+
+**What was added** (`ProbeOverS3FormTests`, `:cloudauth` `jvmTest`, tagged `SWR-MG-12`): the probe run through the real
+`S3ObjectStore`, signed by the Rust core, at an Oracle-style path-style endpoint, against a stand-in that is **not Oracle**.
+Results, run on 2026-11-13: (1) a stand-in that **ignores `If-None-Match`** is read as `backup_only`, failing at
+`createIfAbsentSecondRefused`, and leaves no object behind, so the in-app check does catch the case §7.5 feared; (2) one that
+answers 412 is `sufficient`; (3) **the same store with no override reads `insufficient`, failed operation `space`**.
+
+**Finding (3) is a decision, not a fix made here.** `freeSpace()` is `null` for the S3 form (and so Oracle through it), Azure
+Blob, Google Cloud Storage and CloudKit: a bucket has no quota the credentials can read. The core treats `null` as "not assumed to
+have room" (its own test says so), so **every bucket route and CloudKit would read "not sufficient" at the space step, before
+the claim steps are judged**. A person with a working S3 or Oracle bucket would be told it cannot hold even a backup, which
+contradicts the principal's 2026-10-09 ruling that a provider failing only the migration check stays listed for UHDR-only
+backup. Options, for the principal: (a) unknown space does not fail the check, and the result says the room was not
+confirmed; (b) the probe writes a throwaway object of the bundle's size, which shows room by doing it and costs that
+bandwidth; (c) leave it, and bucket routes are not offered. Nothing was changed; no screen calls the check yet, so no user
+has seen it. Open item: `OI-UI-KMP-11` M12 space.
+
+**Re-run before a migration begins** (comment of 2026-10-09, item 3): **not enforced by the core.** `migration.rs` refuses a
+migration only on a route whose declared `atomicClaim` is false, and every cloud route declares false (`CloudStores.routeFor`),
+so **no migration can begin on a cloud route today and the gap is dormant.** It becomes live the moment the promotion rule
+(Q3) lets a route declare an exclusive create; the change that flips the flag must also make the flow require a probe result
+from the same session and account. Not built.
+
+**Oracle, re-read on 2026-11-13** (pages show no version or date, only "Copyright © 2026, Oracle and/or its affiliates"):
+the Amazon S3 Compatibility API overview, its supported-operations page and "Managing objects" were read. **Unchanged from
+§7.4: none mentions `If-None-Match`, any precondition, a 412 or 409, `ListObjectsV2` (only "ListObjects" is named),
+or plain `UNSIGNED-PAYLOAD` (only `STREAMING-UNSIGNED-PAYLOAD-TRAILER`); no bucket-name rules are stated.** The native PutObject
+reference is script-built and was not readable. **Answer to "can `S3ObjectStore` be reused?": mechanically yes** (it already
+sends the header, signed, path-style, as the test shows), **but the conditional write is undocumented there, so it cannot be
+relied on for a claim.** The probe would catch an endpoint that ignores it, per above. What a migration route through Oracle
+needs: a run against an Oracle account showing a refused second create and two-client arbitration (§7.8), or the native
+adapter with Oracle's RSA request signature (new Rust-core cryptography and crate, `CLAUDE.md` §22, and a decision of the
+principal, §7.5). Unchanged: health-data backup only.
+
+**Contract-test plan:** §7.8 stands; this adds nothing to it except that step 6 now has a real-adapter test to extend.
+**SOUP / decision record:** nothing was adopted or added (no dependency or lockfile change), so no SOUP record; §7.7 stands.
+**Register (§19):** no new constant or marker was introduced, so no row.
 
 ## Revision history
 
