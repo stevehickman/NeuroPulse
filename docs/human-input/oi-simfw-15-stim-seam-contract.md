@@ -1,6 +1,7 @@
 # OI-SIMFW-15: what the stimulation seam's charge total and current sign mean
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** Firmware
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 (hub drivers), with EE (the stimulation DAC board, which does not exist yet). No addressee is named. **Owning item:**
 `OI-SIMFW-15` (`docs/np_sim_fw_001.md` §13). Related: `OI-FMEA-09`, GitHub #826.
 

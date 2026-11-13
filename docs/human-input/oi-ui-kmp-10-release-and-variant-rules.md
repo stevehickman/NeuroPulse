@@ -1,6 +1,7 @@
 # Principal decision for review: OI-UI-KMP-10, four rules about releases and variants that the shared core now reports and does not decide
 
 **Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#569](https://github.com/stevehickman/NeuroPulse/issues/569)
 **From:** NeurOne Software Engineering (`OI-UI-KMP-10` F1, F2, F4, F6; `SWR-FM-01`, `SWR-FM-02` in `docs/np_sw_001.md` §6.3; GitHub #569 package 2)
 **To:** The principal
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.

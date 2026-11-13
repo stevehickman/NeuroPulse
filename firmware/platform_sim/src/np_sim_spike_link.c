@@ -33,42 +33,15 @@
 
 #include <string.h>
 
-/* ── log sinks: what the firmware logs, reported as it is logged ─────────────── */
-
-void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms)
-{
-    (void)rec;
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_pbm_socket\",\"session_ms\":%u}",
-                (unsigned)np_sim_now_ms(), (unsigned)session_ms);
-}
-
-void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec)
-{
-    (void)rec;
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_pbm_socket_health\"}",
-                (unsigned)np_sim_now_ms());
-}
-
-void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type, uint8_t fault_code, uint32_t session_ms)
-{
-    (void)session_ms;
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_fault\",\"slot\":%u,"
-                "\"mod_type\":%d,\"fault_code\":%u}",
-                (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, (unsigned)fault_code);
-}
-
-/* The HRV session's finalised record, which the real library hands to the driver's end-of-session callback. */
-void np_log_hrv_session(const np_hrv_session_record_t *rec, np_hrv_status_t reason)
-{
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_hrv_session\",\"has_record\":%s,\"reason\":%d}",
-                (unsigned)np_sim_now_ms(), rec != NULL ? "true" : "false", (int)reason);
-}
+/* ── log sinks ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ * The device's own logger (np_session_log.c) is linked (OI-SIMFW-45); the fw_log events the scenario suites read for np_log_shdr_fault,
+ * np_log_shdr_zone_auth, np_log_hrv_session, np_log_pbm_socket and np_log_shdr_pbm_socket_health come from np_sim_log_wrap.c, which
+ * emits the event and then calls the device's function. */
 
 /* ── cervical VNS fillers ────────────────────────────────────────────────────────
  * The fault summary's persisted blob is RAM (a real device writes the UHDR partition); notifying a central is reported.
- * np_hub_cvns_reenable_confirm and np_hub_set_active_user are np_hub_control_main.c's, which cannot be linked: the first calls
- * the real re-enable manager as the hub's does, the second records the tag.  np_log_session_count is the session counter the
- * fault record is ordered by; the simulator runs one session, so it is 1. */
+ * np_hub_cvns_reenable_confirm, np_hub_set_active_user and the session counter are the device's own now (np_hub_control_main.c,
+ * np_session_log.c). */
 static uint8_t g_cvfs_blob[256];
 static size_t  g_cvfs_len;
 
@@ -86,27 +59,15 @@ np_hub_status_t np_cvfs_hal_save(const uint8_t *buf, size_t len)
     g_cvfs_len = len;
     return NP_HUB_OK;
 }
-np_hub_status_t np_hub_cvns_reenable_confirm(void) { return np_cvns_reenable_confirm(); }
-np_hub_status_t np_hub_set_active_user(uint32_t user_tag)
-{
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_hub_set_active_user\"}", (unsigned)np_sim_now_ms());
-    (void)user_tag;
-    return NP_HUB_OK;
-}
-uint32_t np_log_session_count(void) { return 1U; }
 /* np_transport_hal_enter/exit_critical: np_transport.c's own host model, built with NPTEST_HOST (CMakeLists.txt). */
-
-/* The SHDR accessory-authentication record the intranasal driver writes at init: reported as it is logged. */
-void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
-{
-    np_sim_emit("{\"ev\":\"fw_log\",\"t\":%u,\"fn\":\"np_log_shdr_zone_auth\",\"slot\":%u,\"mod_type\":%d,\"pass\":%s}",
-                (unsigned)np_sim_now_ms(), (unsigned)slot, (int)type, pass ? "true" : "false");
-}
 
 /* The runner is linked (np_session_runner.c, OI-SIMFW-43), so np_runner_halt, np_runner_panic and the session lease are the device's own.
  * Without a loaded session np_runner_halt answers NP_HUB_ERR_NO_SESSION, as it did here. */
 
+/* np_pbm_session.c (the smart-module session expander) is not linked (OI-SIMFW-53), so the two hooks np_hub_pbm_cal_bridge_install() gives it are taken
+ * and dropped: the hub installs them at boot, and nothing in the twin asks the validator or the resolver a question. */
 void np_pbm_session_set_uid_resolver(np_pbm_socket_uid_fn fn, void *ctx) { (void)fn; (void)ctx; }
+void np_pbm_session_set_address_validator(np_pbm_socket_valid_fn fn, void *ctx) { (void)fn; (void)ctx; }
 
 np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
 { (void)buf; (void)len; if (read_len != NULL) { *read_len = 0; } return NP_HUB_ERR_NOT_PRESENT; }

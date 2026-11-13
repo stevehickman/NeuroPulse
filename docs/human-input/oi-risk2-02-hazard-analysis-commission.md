@@ -1,6 +1,7 @@
 # Owner request: OI-RISK2-02 (commission the hazard analysis for A11, A12, A13 and A15)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#395](https://github.com/stevehickman/NeuroPulse/issues/395)
 **From:** NeurOne Quality (`NP-RISK-002` §4, §4.1, §6 `OI-RISK2-02`)
 **To:** Quality and Systems owners (the item's owner column reads "Quality + Systems"). No names are assigned.
 **Response needed:** the decisions in section 4, named owners, and a date for the first scored draft.

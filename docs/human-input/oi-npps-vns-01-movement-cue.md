@@ -1,6 +1,7 @@
 # Firmware, safety and clinical question for review: OI-NPPS-VNS-01 (a), where does the movement cue come from?
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#847](https://github.com/stevehickman/NeuroPulse/issues/847)
 **From:** NeurOne Software (`OI-NPPS-VNS-01` (a) in `docs/status/pending-decisions.md`; `NP-NPPS-REF-001` §4.6)
 **To:** Firmware (hub), Safety and a clinical adviser (names to be assigned; the item's owner column reads "FW Hub + App + Clinical")
 **Response needed:** a ruling on each of Q1 to Q4, with rationale, the reviewers' names and roles, and the date.

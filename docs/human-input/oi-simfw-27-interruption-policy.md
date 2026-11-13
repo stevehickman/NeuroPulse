@@ -1,6 +1,7 @@
 # OI-SIMFW-27 — a proposed interruption policy: outage length, flapping, ramps, and what is logged and delivered
 
 **Status:** ANSWERED 2026-11-10 by the principal, all eight questions: **Q1 A, Q2 A, Q3 C, Q4 A, Q5 A, Q6 B, Q7 A (widened), Q8 C** (recorded in §4 and in `docs/status/completed-decisions.md`). **The safety MCU owner's review is pending**, and every parameter value is still open. Not yet sent to the safety MCU's owner; the owner may still object to any answer. **Q9 (§8) added 2026-11-11, not answered.** **From:** NeurOne Software Engineering (drafted with the principal's direction, 2026-11-09).
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 **To:** the safety MCU's owner (not yet named), with Risk and Clinical/HFE where marked. **Owning item:** `OI-SIMFW-27`
 (`docs/np_sim_fw_001.md` §23); touches `OI-SIMFW-41` only where noted.
 

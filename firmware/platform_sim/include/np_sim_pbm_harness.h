@@ -28,6 +28,10 @@ void np_simh_vns_init(void);
 void np_simh_vns_status(void);
 bool np_simh_vns_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The HRV session's missing feeders: PPG, EEG and the HRV task (np_sim_hrv_harness.c, OI-SIMFW-60). */
+void np_simh_hrv_init(void);
+bool np_simh_hrv_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 /* The audio commands (np_sim_audio_harness.c). */
 void np_simh_audio_init(void);
 void np_simh_audio_status(void);
@@ -62,5 +66,12 @@ void np_sim_proto_pubkey(uint8_t pub[32]);
 np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len);   /* the TEST device serial, for np_proto_hal_get_device_serial */
 bool np_simh_proto_line(const char *cmd, char *a);
 bool np_simh_gatt_line(const char *cmd, char *a, char *b);   /* np_sim_gatt.c */
+
+/* The hub's own boot path and task set (np_sim_hub.c, OI-SIMFW-45, OI-SIMFW-50). */
+bool np_simh_hub_line(const char *cmd, char *a);
+bool np_sim_hub_booted(void);                 /* hub_boot ran: the hub's tasks beat the safety MCU and take the protocol */
+np_hub_status_t np_sim_storage_up(void);      /* the part's storage, formatted new and mounted: what the boot path needs bound first (np_sim_gatt.c) */
+void np_sim_transport_up(void);               /* np_transport_init() once, unless the hub's own boot has run it (np_sim_proto.c) */
+void np_sim_gatt_mark_up(void);               /* the hub's own boot brought the service up, so gatt_init has nothing to do */
 
 #endif

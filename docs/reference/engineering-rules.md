@@ -76,8 +76,8 @@ written again in Kotlin, Swift, C# or TypeScript, and not taken from a platform 
   key agreement, message authentication, AEAD sealing, and the generation of keys and nonces. The
   platform keeps only what only it can do: hold a key in its keystore or secure enclave, supply entropy,
   and move bytes. A non-security use (an RFC 4122 name-based UUID) is the one exception, and the code says so.
-- **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU and the main processor (§4.1,
-  §4.2) and meets its real-time constraints there. Kotlin, Java and any other managed-runtime code is
+- **No JVM code runs on the helmet.** The hub firmware is C on the safety MCU, and C on the main processor (§4.1,
+  §4.2) with `no_std` Rust permitted there (the principal, 2026-11-11; the safety MCU stays C), and meets its real-time constraints there. Kotlin, Java and any other managed-runtime code is
   companion-app code on a phone, a computer or a browser, and is never moved onto the headset.
 - **Library selection.** A declared dependency that nothing imports is removed. An alpha, beta, release
   candidate or snapshot is not used where a stable version exists. A copyleft licence is allowed only if

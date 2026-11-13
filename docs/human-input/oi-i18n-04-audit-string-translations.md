@@ -1,6 +1,7 @@
 # OI-I18N-04 — verify the draft translations of the privacy-review strings
 
 **Status:** DRAFT, not sent. **From:** NeurOne Software Engineering. **To:** not yet named — one native-speaking
+**GitHub issue:** [#191](https://github.com/stevehickman/NeuroPulse/issues/191)
 reviewer per locale (ar, bn, ca, es-419, fr, hi, id, ru, zh-Hans; en-GB needs only a read-through).
 
 ## What is being asked

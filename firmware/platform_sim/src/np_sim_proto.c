@@ -32,6 +32,9 @@
 #include "np_safety_spi.h"
 #include "np_session_runner.h"
 #include "np_transport.h"
+
+#include "FreeRTOS.h"
+#include "event_groups.h"
 #include "np_upload_check.h"
 
 #include "monocypher-ed25519.h"
@@ -63,14 +66,15 @@ void np_sim_proto_pubkey(uint8_t pub[32])
     memcpy(pub, g_pk, 32);
 }
 
-/* The hub's own bring-up gives the runner an event group; here it is a token, and what the runner posts to it is reported (see
- * xEventGroupSetBits in np_sim_spike_link.c). */
-static int  g_ev_token;
+/* Without hub_boot the harness is the hub's protocol task, and the runner is given an event group of the kernel model (np_sim_kernel.c); what
+ * the runner posts to it is reported (xEventGroupSetBits), and no task consumes it, so a load holds the lease (the pre-boot path, UC-137).
+ * After hub_boot the device's own task_protocol_rx takes the blob, and proto_pump and proto_boot are refused. */
 static bool g_runner_inited;
 static bool g_boot_decided;
+static bool g_transport_inited;
 static void np_runner_init_once(void)
 {
-    if (!g_runner_inited) { np_runner_init((EventGroupHandle_t)&g_ev_token); g_runner_inited = true; }
+    if (!g_runner_inited) { np_runner_init(xEventGroupCreate()); g_runner_inited = true; }
     if (!g_boot_decided) {      /* a boot nothing has decided: the simulator's default is a bound block device (UC-137) */
         (void)np_log_backend_init();
         g_boot_decided = true;
@@ -118,8 +122,21 @@ static void bad(const char *cmd, const char *why)
     np_sim_emit("{\"ev\":\"error\",\"what\":\"%s: %s\"}", cmd, why);
 }
 
+static void transport_init_once(void)
+{
+    if (!g_transport_inited && !np_sim_hub_booted()) { np_transport_init(); g_transport_inited = true; }   /* the hub's own boot did it otherwise */
+}
+
+/* The device's np_transport_init() creates the blob-ready semaphore the transport waits on; the hub's boot calls it before the GATT service.  Without
+ * hub_boot the harness does, once, and the GATT bring-up (np_sim_gatt.c) does it first so a write to 0x0008 can signal the waiting reader. */
+void np_sim_transport_up(void) { transport_init_once(); }
+
 bool np_simh_proto_line(const char *cmd, char *a)
 {
+    if (np_sim_hub_booted() && (strcmp(cmd, "proto_pump") == 0 || strcmp(cmd, "proto_boot") == 0)) {
+        bad(cmd, "the hub's own tasks are running (task_protocol_rx takes the blob; the boot decided admission): use hub_run");
+        return true;
+    }
     if (strcmp(cmd, "proto_sign") == 0) {
         int n = (a != NULL) ? unhex(a, g_buf, NP_HUB_PROTO_BLOB_MAX) : -1;
         if (n < (int)(sizeof(np_proto_header_t) + NP_HUB_PROTO_SIG_LEN)) { bad(cmd, "needs the blob as hex, header and signature slot included"); return true; }
@@ -136,6 +153,7 @@ bool np_simh_proto_line(const char *cmd, char *a)
     if (strcmp(cmd, "proto_feed") == 0) {
         int n = (a != NULL) ? unhex(a, g_buf, sizeof g_buf) : -1;
         if (n < 0) { bad(cmd, "needs bytes as hex"); return true; }
+        transport_init_once();
         np_hub_status_t rc = np_transport_feed(g_buf, (size_t)n);
         np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_feed\",\"code\":%d,\"bytes\":%d}", (int)rc, n);
         return true;
@@ -160,6 +178,7 @@ bool np_simh_proto_line(const char *cmd, char *a)
     }
     if (strcmp(cmd, "proto_pump") == 0) {
         size_t len = 0U;
+        transport_init_once();
         np_hub_status_t rc = np_hal_proto_queue_receive(g_rx, sizeof g_rx, &len, 0U);
         if (rc != NP_HUB_OK || len == 0U) {
             np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_pump\",\"code\":%d,\"blob\":false}", (int)rc);

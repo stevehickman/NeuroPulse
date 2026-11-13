@@ -1,6 +1,7 @@
 # OI-FWHUB-28: does the app's stop or pause need a latency bound, and from what?
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** Risk, with Clinical/HFE and
+**GitHub issue:** [#848](https://github.com/stevehickman/NeuroPulse/issues/848)
 the safety MCU's owner. No addressee is named.
 
 ## 1. The question

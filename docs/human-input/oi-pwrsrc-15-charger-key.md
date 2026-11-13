@@ -1,6 +1,7 @@
 # Principal decision for review: OI-PWRSRC-15, the charger policy is keyed to configuration and the power study keys it to protocol set
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#442](https://github.com/stevehickman/NeuroPulse/issues/442)
 **From:** NeurOne Systems Engineering (`OI-PWRSRC-15` and decision D-12 in `docs/np_pwrsrc_001.md` §14; related D-6 and D-9)
 **To:** The principal (the item's owner column reads "Principal"; D-6 is "principal / safety")
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.
