@@ -413,7 +413,9 @@ describe('MigrationFlow.run', () => {
     expect(noConditional.objects.size).toBe(0);
 
     expect(await MigrationFlow.probe(new MemoryStore({ space: 10 }), 1000, host())).toMatchObject({ result: 'insufficient', failedOperation: 'space' });
-    expect(await MigrationFlow.probe(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ failedOperation: 'space' });
+    // A store that cannot say how much room it has is not failed for it (the principal, 2026-11-13, OI-UI-KMP-11 M12 space): the result says the room was not confirmed.
+    expect(await MigrationFlow.probe(new MemoryStore({ space: null }), 1000, host())).toMatchObject({ result: 'sufficient', spaceConfirmed: false });
+    expect(await MigrationFlow.probe(new MemoryStore(), 1000, host())).toMatchObject({ result: 'sufficient', spaceConfirmed: true });
   }, 60_000);
 
   // @verifies SWR-MG-07
