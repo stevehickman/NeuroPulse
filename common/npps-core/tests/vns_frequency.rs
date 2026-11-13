@@ -45,12 +45,12 @@ fn an_auricular_frequency_above_the_old_ceiling_validates_and_compiles() {
 // @verifies REQ-VNSC-03
 #[test]
 fn the_frequency_travels_in_a_32_bit_field() {
-    // 68-byte header + 14-byte command header, then side (1 byte) and the frequency in mHz (LE32).
+    // 107-byte header + 14-byte command header, then side (1 byte) and the frequency in mHz (LE32).
     let b = compile(&auricular("100Hz")).unwrap();
-    assert_eq!(b[83..87], 100_000u32.to_le_bytes(), "100 Hz = 100,000 mHz");
+    assert_eq!(b[122..126], 100_000u32.to_le_bytes(), "100 Hz = 100,000 mHz");
     // 70 Hz is 70,000 mHz, which a 16-bit field (65,535 max) could not hold: the case that made the widening necessary.
     let b = compile(&auricular("70Hz")).unwrap();
-    assert_eq!(b[83..87], 70_000u32.to_le_bytes());
+    assert_eq!(b[122..126], 70_000u32.to_le_bytes());
 }
 
 // @verifies REQ-VNSC-03
@@ -61,7 +61,7 @@ fn any_positive_frequency_is_accepted_and_zero_is_refused() {
     }
     assert!(keys(&auricular("0Hz")).iter().any(|k| k == "VALIDATE_MSG_VNS_HRV_FREQUENCYHZ"));
     // Sub-hertz travels in the 32-bit millihertz field: 0.5 Hz = 500 mHz.
-    assert_eq!(compile(&auricular("0.5Hz")).unwrap()[83..87], 500u32.to_le_bytes());
+    assert_eq!(compile(&auricular("0.5Hz")).unwrap()[122..126], 500u32.to_le_bytes());
 }
 
 // @verifies REQ-VNSC-03
