@@ -30,6 +30,7 @@
 #include "np_adaptation_log.h"
 #include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
 #include "np_log_hrv.h"        /* HRV session record (OI-HRV-03) */
+#include "np_session_fitting.h"   /* the fitting frame layout (SWR-HV-02, SWR-HV-03) */
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -435,8 +436,17 @@ void np_log_hrv_session(const np_hrv_session_record_t *rec,
 
 void np_log_session_fitting(const uint8_t *frame, size_t len)
 {
-    /* hardware version (1), n (1), n bytes: a frame that disagrees with its own count is not a record. */
-    if (frame == NULL || len < 2U || (size_t)frame[1] + 2U != len || frame[1] == 0U) { return; }
+    /* format (1), hardware version (1), rules stamp (39), n (1), n bytes (np_session_fitting.h): a frame that is not
+     * this format, disagrees with its own count, or carries a stamp no writer produces (an origin above 2, or origin 0
+     * with anything after it) is not a record. */
+    if (frame == NULL || len < NP_FITTING_HDR_LEN || frame[0] != NP_FITTING_FORMAT ||
+        (size_t)frame[NP_FITTING_IDX_COUNT] + NP_FITTING_HDR_LEN != len || frame[NP_FITTING_IDX_COUNT] == 0U) { return; }
+    if (frame[NP_FITTING_IDX_STAMP] > 2U) { return; }
+    if (frame[NP_FITTING_IDX_STAMP] == 0U) {
+        for (size_t k = 1U; k < NP_HUB_PROTO_RULES_STAMP_LEN; k++) {
+            if (frame[NP_FITTING_IDX_STAMP + k] != 0U) { return; }
+        }
+    }
     take();
     uhdr_u8(NP_LOG_TAG_UHDR_FITTING);
     uhdr_write(frame, len);

@@ -380,7 +380,15 @@ static void module_present(uint8_t slot)
 
 void np_log_session_start(const np_session_uhdr_record_t *rec) { (void)rec; note(RUN_EV_LOG_START, 0U, 0U); }
 void np_log_session_fitting(const uint8_t *frame, size_t len)  { (void)frame; (void)len; note(RUN_EV_LOG_FITTING, 0U, 0U); }
-size_t np_fitting_build(uint8_t hw, uint8_t *out, size_t cap)  { (void)hw; (void)out; (void)cap; return 0U; }
+static uint8_t g_fitting_stamp[NP_HUB_PROTO_RULES_STAMP_LEN];   /* what the runner passed to np_fitting_build */
+static unsigned g_fitting_stamp_calls;
+size_t np_fitting_build(uint8_t hw, const uint8_t *stamp, uint8_t *out, size_t cap)
+{
+    (void)hw; (void)out; (void)cap;
+    if (stamp != NULL) { memcpy(g_fitting_stamp, stamp, sizeof g_fitting_stamp); }
+    g_fitting_stamp_calls++;
+    return 0U;
+}
 
 void np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)
 {
@@ -575,6 +583,8 @@ static unsigned       g_mid_n;
 
 static void fresh(void)
 {
+    memset(g_fitting_stamp, 0xEE, sizeof g_fitting_stamp);
+    g_fitting_stamp_calls = 0U;
     g_waits = g_waits_instant = 0U;
     g_mid_n = 0U;
     g_mid_lease = false;
@@ -641,6 +651,30 @@ static void two_command_session(blob_t *b)
 }
 
 /* ── Tests ────────────────────────────────────────────────────────────────────── */
+
+/* @verifies SWR-HV-03#c */
+static void test_the_fitting_is_given_the_stamp_of_the_descriptor_being_run(void)
+{
+    /* An owner set over release 1.0: whatever bytes the signed descriptor carries are what the record is built from. */
+    fresh();
+    blob_t b;
+    two_command_session(&b);
+    uint8_t want[NP_HUB_PROTO_RULES_STAMP_LEN];
+    want[0] = 2U; want[1] = 1U; want[2] = 0U;
+    for (size_t k = 3U; k < sizeof want; k++) { want[k] = (uint8_t)(0x40U + k); }
+    memcpy(b.buf + 68, want, sizeof want);
+    (void)load_and_run(&b);
+    check(g_fitting_stamp_calls == 1U && memcmp(g_fitting_stamp, want, sizeof want) == 0,
+          "stamp: the fitting is built from the stamp of the descriptor being run, unchanged");
+
+    /* A descriptor that states nothing: the record gets zeros, origin 0, never an invented version. */
+    fresh();
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    uint8_t zeros[NP_HUB_PROTO_RULES_STAMP_LEN] = { 0 };
+    check(g_fitting_stamp_calls == 1U && memcmp(g_fitting_stamp, zeros, sizeof zeros) == 0,
+          "stamp: a descriptor that states no rules reaches the record as not stated (origin 0, zeros)");
+}
 
 /* @verifies REQ-FWHUB-39 */
 static void test_a_session_runs_to_its_duration_and_completes(void)
@@ -1371,6 +1405,7 @@ int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
     test_the_session_start_record_and_the_fitting_come_before_any_command();
+    test_the_fitting_is_given_the_stamp_of_the_descriptor_being_run();
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
     test_a_device_local_driver_status_is_never_written_to_the_shdr_fault_log();
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();

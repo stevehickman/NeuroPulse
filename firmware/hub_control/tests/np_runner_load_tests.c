@@ -214,7 +214,7 @@ static unsigned g_unexpected;
 #define UNEXPECTED() (g_unexpected++)
 
 void   np_cons_on_session_end(uint32_t mods_active_mask)            { (void)mods_active_mask; UNEXPECTED(); }
-size_t np_fitting_build(uint8_t hw, uint8_t *out, size_t cap)       { (void)hw; (void)out; (void)cap; UNEXPECTED(); return 0U; }
+size_t np_fitting_build(uint8_t hw, const uint8_t *stamp, uint8_t *out, size_t cap) { (void)hw; (void)stamp; (void)out; (void)cap; UNEXPECTED(); return 0U; }
 void   np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)
                                                                     { (void)cmd; (void)session_ms; (void)accepted; UNEXPECTED(); }
 void   np_log_flush(void)                                           { UNEXPECTED(); }

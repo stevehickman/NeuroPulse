@@ -873,11 +873,12 @@ np_hub_status_t np_runner_run(void)
 
     np_log_session_start(&s_ctx.uhdr);
 
-    /* SWR-HV-02: what is actually fitted, and the helmet hardware version, written on the helmet so the
-     * record states the hardware that carried the session out and not what the protocol assumed. */
+    /* SWR-HV-02, SWR-HV-03: what is actually fitted, the helmet hardware version, and the wavelength rules this
+     * descriptor was compiled under, written on the helmet so the record states the hardware that carried the
+     * session out and not what the protocol assumed, and how a requested wavelength was mapped to an emitter. */
     {
         uint8_t fitting[NP_FITTING_MAX_LEN];
-        const size_t n = np_fitting_build(np_safety_spi_get_hardware_version(), fitting, sizeof fitting);
+        const size_t n = np_fitting_build(np_safety_spi_get_hardware_version(), s_ctx.desc.rules_stamp, fitting, sizeof fitting);
         np_log_session_fitting(fitting, n);
     }
 
