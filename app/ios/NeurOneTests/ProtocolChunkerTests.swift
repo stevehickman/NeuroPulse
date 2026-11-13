@@ -64,7 +64,7 @@ struct ProtocolChunkerTests {
 
     // @verifies REQ-FWHUB-80#d
     @Test func theStreamIsTheLittleEndianLengthThenTheBlobAndNothingElse() {
-        for size in [1, 100, 508, 509, 510, 1020, 4096, 6148] {
+        for size in [1, 100, 508, 509, 510, 1020, 4096, 6187] {
             let data = pattern(size)
             let s = stream(ProtocolChunker.chunk(data))
             #expect(s.count == BleTransfer.PROTOCOL_LEN_PREFIX + size, "size \(size)")
@@ -76,7 +76,7 @@ struct ProtocolChunkerTests {
 
     // @verifies REQ-FWHUB-80#d
     @Test func noWriteExceedsTheWriteSizeAndEveryWriteButTheLastIsFull() {
-        for size in [0, 1, 507, 508, 509, 1020, 6148] {
+        for size in [0, 1, 507, 508, 509, 1020, 6187] {
             let chunks = ProtocolChunker.chunk(pattern(size))
             #expect(chunks.allSatisfy { $0.count >= 1 && $0.count <= BleTransfer.MAX_WRITE_SIZE }, "size \(size)")
             #expect(chunks.dropLast().allSatisfy { $0.count == BleTransfer.MAX_WRITE_SIZE }, "size \(size)")
@@ -119,8 +119,8 @@ struct ProtocolChunkerTests {
 
     // @verifies REQ-FWHUB-80#d
     @Test func theLargestBlobTheHubTakesIsThirteenWrites() {
-        let chunks = ProtocolChunker.chunk(pattern(6148))
-        #expect(chunks.count == 13)   // (4 + 6148) / 512 rounded up
-        #expect(chunks.last?.count == 6152 - 12 * BleTransfer.MAX_WRITE_SIZE)
+        let chunks = ProtocolChunker.chunk(pattern(6187))
+        #expect(chunks.count == 13)   // (4 + 6187) / 512 rounded up
+        #expect(chunks.last?.count == 6191 - 12 * BleTransfer.MAX_WRITE_SIZE)
     }
 }

@@ -665,8 +665,8 @@ test('the bridge relays a protocol upload as validated hex and nothing else', ()
     { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '' },
     { type: 'FW_COMMAND', cmd: 'proto_feed', hex: 12 },
     { type: 'FW_COMMAND', cmd: 'proto_feed' },
-    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00'.repeat(6153) },           // more than one whole frame
-    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: '00'.repeat(6149) },           // more than one whole blob
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00'.repeat(6192) },           // more than one whole frame
+    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: '00'.repeat(6188) },           // more than one whole blob
     { type: 'FW_COMMAND', cmd: 'proto_sign', hex: ['00'] },
   ];
   for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m).slice(0, 80));
