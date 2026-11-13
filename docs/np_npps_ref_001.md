@@ -19,6 +19,8 @@
 
 > **Rev 34 (2026-11-03) — §6 states what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`; `SWR-PL-01`).** Until now §6 said only that `merge` runs layers "simultaneously", `sequential` runs them end to end, and `override` replaces "shared modality types", and no compiler turned a composite into helmet bytes. The core now does (`common/npps-core/src/composite.rs`, `compiler::compile_composite`), and §6 records the rules it applies. **Every rule refuses; none reshapes** (`CLAUDE.md` §3). **What changes for an author:** (i) two layers that drive one modality at the same time are refused, except transcranial PBM on sockets they do not share, so a `merge` of two audio layers, or of two PBM layers on one zone, no longer compiles (a relaxation that let shared sockets pass when window, frequency and duty matched was tried and withdrawn the same day, because the weighted-sum ceiling over the merged channels is not checked yet, `OI-HEXTILE-30`, `OI-HEXTILE-31`; the question is with Safety in `OI-NPPS-COMP-01`); (ii) `intensity_scale` is above 0 and at most 1, not 0.0 to 2.0 as this section said (the validator already enforced 0 to 1); (iii) a layer may not run longer than its protocol; (iv) a `sequential` composite ignores `start`. **Two shipped composites are refused by (i)** and stay refused until a decision (`OI-NPPS-COMP-01`): "Full Multi-Modal RCT" (two audio layers at once) and "Calm to Focus" (two layers overlap for two minutes on EEG neurofeedback, audio and PBM). The rules not derived from anything are `UC-120`. No grammar, no field and no shipped file changes.
 >
+> **Rev {NP-NPPS-REF-001 to} (2026-11-13) — a `wavelength_rules` block may state a release `version` (principal rulings 2026-11-13, `OI-WRV-01`, `SWR-HV-03`; GitHub #564).** `version: "1.0"` is optional, a `major.minor` string of two whole numbers of at most 255, and only a `level: global` block may state one: an owner's set that does is a parse error. Until now an unknown key in the block was skipped silently, so a `version` line would have been dropped. The shipped file states `"1.0"`. The grammar (`npps.peggy`) needs no change: the field is a generic `Field`, checked by the core, as the level and the numbers are. No descriptor byte changes, and the protocol content hash is unchanged.
+>
 > **Rev 33 (2026-10-30) — the threshold-relative intensity fields are retired: intensity is absolute only (principal decision; `OI-NPPS-VNS-01` (b) and (b2)).** `intensity_basis` (`perceptual_threshold`, `pain_threshold`, `titrated`) and `intensity_percent_of_threshold` are removed from the grammar, the validator, the compiler and the serializer, and are now unknown fields. The system has no a-priori mapping from a perceived intensity to a hardware setting, and one person perceives the same absolute intensity differently on different occasions, so a stored threshold would drift. Perceived-intensity programming is out of scope: it cannot run in Mode 3, needs the person's input at every cycle, and breaks the coordinated ramps of parallel modalities. No shipped protocol used the fields. `REQ-NPPS-07` is narrowed to `movement_cue`.
 >
 > **Rev 32 (2026-10-30) — an unknown key in a modality block is a parse error (principal decision; `REQ-NPPS-24`, `OI-NPPS-VNS-01` (d)).** Until now a key a modality's field table did not carry was accepted and dropped, so a misspelt parameter (`pulse_widht_us: 300`) ran as the default. The block now fails to parse at that line, naming the key and listing the modality's fields. Aliases (`frequency`, `pulse_width`, `burst` and the rest) and the block keys are unaffected, and no shipped protocol carried an unknown key. Nothing else in the grammar changes.
@@ -1347,6 +1349,7 @@ limits "T1 Home Defaults" {
 ```
 wavelength_rules "NeurOne default wavelength mapping" {
     level: global
+    version: "1.0"
     description: "Channel band from CLAUDE.md §3 widened 10 nm each side."
     channel "led_660"  { nominal_nm: 660   min_nm: 650   max_nm: 680 }
     channel "led_808"  { nominal_nm: 808   min_nm: 798   max_nm: 840 }
@@ -1357,6 +1360,7 @@ wavelength_rules "NeurOne default wavelength mapping" {
 | Field | Type | Meaning |
 |-------|------|---------|
 | `level` | `global` \| `user` | `global` is the shipped defaults (`protocols/predefined/00-wavelength-rules.npps`); `user` is a user's override |
+| `version` | string | Optional. The release version `major.minor`, two whole numbers of at most 255 each (they are two bytes of the rules stamp), that NeurOne assigns to a set it ships (§7a.1, `OI-WRV-01`). **Only a `level: global` block states one**: an owner's set (`level: user`) that states one is a parse error, because an edited set is named by its windows and the release it was merged over, never by a release of its own. A value that is not `major.minor`, or not a string, is a parse error. The shipped file states `"1.0"`, which `common/npps/wavelength-rules-register.json` records |
 | `description` | string | Optional |
 | `channel "<element>" { … }` | block | One per channel: `"led_660"`, `"led_808"` or `"led_1064"`. A channel with no rule accepts nothing |
 | `nominal_nm` | number | The channel's nominal emission. Used only to choose between two accepting channels, nearest first |
@@ -1399,7 +1403,7 @@ The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FIT
 socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
 the channel the app chose, so it can only record a version the upload states.
 
-**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Builds that remain:** the stamp in the descriptor and the fitting frame; the `version` field and its grammar row; the check that a released register row never changes (the core's tests already fail when the shipped file is not the last row); the app notice; the requirement rows `SWR-HV-03` still needs; and the other platforms' calls into the core.
+**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Builds that remain:** the stamp in the compile result, the descriptor and the fitting frame; the check that a released register row never changes (the core's tests already fail when the shipped file is not the last row, or names a different release); the app notice; the requirement rows `SWR-HV-03` still needs; and the other platforms' calls into the core. The `version` field of the block is built (slice 2).
 
 **Eligibility.** A protocol is offered only when every block can be delivered by the fitted
 modules under the rules in force. When a module swap would fix it, the shortfall names each socket
@@ -1623,7 +1627,7 @@ ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
 
 # ── Wavelength rules (§7a) ─────────────────────────────────────────────────
 wavelength_rules := 'wavelength_rules' STRING '{' wl_member* '}'
-wl_member   := 'level' ':' ('global' | 'user') | 'description' ':' STRING
+wl_member   := 'level' ':' ('global' | 'user') | 'version' ':' STRING | 'description' ':' STRING
              | 'channel' STRING '{' channel_field* '}'
 channel_field := 'nominal_nm' ':' NUMBER | 'min_nm' ':' NUMBER | 'max_nm' ':' NUMBER
 # channel STRING is "led_660" | "led_808" | "led_1064"; all three fields required
@@ -1894,7 +1898,7 @@ Reading the table:
 | `types` | Zone field | `zone` | Optional element-type array restricting the zone to certain element types within the listed sockets. Mirrors firmware `np_elem_type_t`. |
 | `until_end` | Enum value | any modality block → `repeat` | Cycle the interval for the remainder of the session. |
 | `user` | Enum value | `wavelength_rules` → `level` | *(Rev 17)* A user's override of the shipped wavelength rules (§7a). |
-| `version` | Metadata field | `protocol`, `composite` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. |
+| `version` | Metadata field | `protocol`, `composite`; `wavelength_rules` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. For `wavelength_rules` it is the rules' release version, stated by a `level: global` block only (§7a, §7a.1). |
 | `vibrotactile_40hz` | Modality block | `protocol`, `limits` | Provisional — mastoid-placement LRA vibrotactile pad (§4.15). |
 | `visual_stimulation` | Modality block | `protocol`, `limits` | 108 micro-LEDs per lens with EMDR and Mode F support (§4.8). |
 | `VLPFC_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left ventrolateral prefrontal cortex. |

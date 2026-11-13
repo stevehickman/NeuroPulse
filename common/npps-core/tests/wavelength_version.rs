@@ -205,3 +205,51 @@ fn the_register_is_well_formed_and_its_last_row_is_the_shipped_file() {
     // The Rust copy the compiler falls back to is the shipped file (the drift no test covered before).
     assert_eq!(set(&WavelengthRules::default_rules()).hash(), set(&shipped).hash(), "default_rules() has drifted from the shipped file");
 }
+
+// ── The `version` field of the wavelength_rules block (NP-NPPS-REF-001 §7a) ──
+
+fn block(level: &str, version_line: &str) -> String {
+    format!(
+        "wavelength_rules \"x\" {{\n  level: {level}\n{version_line}\n  channel \"led_808\" {{ nominal_nm: 808 min_nm: 798 max_nm: 840 }}\n}}\n"
+    )
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn the_shipped_file_states_the_version_of_the_last_register_row() {
+    let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../protocols/predefined/00-wavelength-rules.npps")).unwrap();
+    let parsed = parse_file(&src).unwrap();
+    let last = releases().unwrap().pop().unwrap();
+    assert_eq!(parsed.wavelength_rules[0]["version"], format!("{}.{}", last.major, last.minor), "the file and the register name different releases");
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn a_global_block_may_state_a_release_version_and_it_round_trips() {
+    let parsed = parse_file(&block("global", "  version: \"2.13\"")).unwrap();
+    assert_eq!(parsed.wavelength_rules[0]["version"], "2.13");
+    let text = neurone_npps_core::serialize::serialize_item(&serde_json::json!({ "kind": "wavelengthRules", "wavelengthRules": parsed.wavelength_rules[0] })).unwrap();
+    assert!(text.contains("version: \"2.13\""), "{text}");
+    assert_eq!(parse_file(&text).unwrap().wavelength_rules[0], parsed.wavelength_rules[0]);
+    // The version is optional: a block that states none has none.
+    assert!(parse_file(&block("global", "")).unwrap().wavelength_rules[0].get("version").is_none());
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn a_version_that_is_not_major_dot_minor_is_a_parse_error_never_a_silent_default() {
+    for bad in ["\"1\"", "\"1.0.1\"", "\"v1.0\"", "\"1.x\"", "\"01.0\"", "\"1.256\"", "\"\"", "\"-1.0\""] {
+        let e = parse_file(&block("global", &format!("  version: {bad}"))).unwrap_err().to_string();
+        assert!(e.contains("major.minor"), "{bad}: {e}");
+    }
+    // A number is not a string.
+    assert!(parse_file(&block("global", "  version: 1.0")).is_err());
+}
+
+// @verifies SWR-HV-03#a
+#[test]
+fn an_owners_rules_state_no_version() {
+    let e = parse_file(&block("user", "  version: \"1.0\"")).unwrap_err().to_string();
+    assert!(e.contains("owner") && e.contains("no version"), "{e}");
+    assert!(parse_file(&block("user", "")).is_ok());
+}

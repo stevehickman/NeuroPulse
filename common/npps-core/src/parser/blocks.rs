@@ -567,6 +567,7 @@ impl Parser {
         self.open_block()?;
         let mut level = "global".to_string();
         let mut description: Option<String> = None;
+        let mut version: Option<(String, u32)> = None;
         let mut channels: Vec<(String, f64, f64, f64)> = Vec::new();
         while !self.try_brace() {
             self.skip_newlines();
@@ -593,9 +594,29 @@ impl Parser {
                     level = v;
                 }
                 "description" => description = Some(self.read_string()?),
+                "version" => {
+                    let line = self.cur().line;
+                    version = Some((self.read_string()?, line));
+                }
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
+        }
+        // The release version is NeurOne's (NP-NPPS-REF-001 §7a.1, OI-WRV-01): it is stated by a shipped set and
+        // never by an owner's, whose set is named by its windows and the release it was merged over.
+        if let Some((v, line)) = &version {
+            if crate::wavelength_version::parse_release_version(v).is_err() {
+                return Err(ParseError::at(
+                    format!("wavelength_rules \"{name}\": version must be \"major.minor\", two whole numbers of at most 255 each, got '{v}'"),
+                    *line,
+                ));
+            }
+            if level == "user" {
+                return Err(ParseError::at(
+                    format!("wavelength_rules \"{name}\": an owner's rules state no version (level: user): the release version is NeurOne's, and an edited set is named by its windows"),
+                    *line,
+                ));
+            }
         }
         let errors = validate_wavelength_rules(&channels);
         if !errors.is_empty() {
@@ -620,6 +641,9 @@ impl Parser {
         );
         if let Some(d) = description {
             rules.insert("description".into(), json!(d));
+        }
+        if let Some((v, _)) = version {
+            rules.insert("version".into(), json!(v));
         }
         Ok(Value::Object(rules))
     }

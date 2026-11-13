@@ -191,7 +191,8 @@
      ],
      "description": "Channel band from CLAUDE.md §3 widened 10 nm each side. Unvalidated default; user-editable.",
      "level": "global",
-     "name": "NeurOne default wavelength mapping"
+     "name": "NeurOne default wavelength mapping",
+     "version": "1.0"
     }
    ],
    "limits": null

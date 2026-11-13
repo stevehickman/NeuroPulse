@@ -26,6 +26,7 @@
 
 wavelength_rules "NeurOne default wavelength mapping" {
     level: global
+    version: "1.0"
     description: "Channel band from CLAUDE.md §3 widened 10 nm each side. Unvalidated default; user-editable."
 
     channel "led_660" {

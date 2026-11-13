@@ -209,7 +209,8 @@ pub struct Release {
     pub hash: String,
 }
 
-fn parse_version(v: &str) -> Result<(u8, u8), String> {
+/// A release version `major.minor`, both whole numbers that fit a release byte (the stamp's two bytes).
+pub fn parse_release_version(v: &str) -> Result<(u8, u8), String> {
     let (a, b) = v.split_once('.').ok_or_else(|| format!("version '{v}' is not major.minor"))?;
     let n = |s: &str| {
         if s.is_empty() || !s.chars().all(|c| c.is_ascii_digit()) || (s.len() > 1 && s.starts_with('0')) {
@@ -228,7 +229,7 @@ pub fn releases() -> Result<Vec<Release>, String> {
         .ok_or("the register has no releases array")?
         .iter()
         .map(|r| {
-            let (major, minor) = parse_version(r["version"].as_str().ok_or("a register row has no version")?)?;
+            let (major, minor) = parse_release_version(r["version"].as_str().ok_or("a register row has no version")?)?;
             let hash = r["hash"].as_str().ok_or("a register row has no hash")?.to_string();
             Ok(Release { major, minor, hash })
         })
