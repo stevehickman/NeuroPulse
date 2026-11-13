@@ -1,6 +1,7 @@
 # OI-SIMFW-34: is the hub trusted for the electrode area and the phase the charge monitor uses?
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** the safety
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 MCU's owner (not yet named) and the principal, with Risk. **Owning item:** `OI-SIMFW-34` (`docs/np_sim_fw_001.md` §22).
 Related: GitHub #386 (electrode areas are unmeasured constants, `OI-CHARGE-07`), #826, #467; `OI-SIMFW-61`.
 

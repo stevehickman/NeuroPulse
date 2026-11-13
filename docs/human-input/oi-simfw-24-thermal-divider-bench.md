@@ -1,6 +1,7 @@
 # OI-SIMFW-24: bench measurement of the NTC sense circuit, to settle the thermal table
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-11). **To:** the bench and
+**GitHub issue:** [#826](https://github.com/stevehickman/NeuroPulse/issues/826)
 first-article owner, with EE (hub schematic) and the safety MCU's owner. No addressee is named. **Owning item:**
 `OI-SIMFW-24` (`docs/np_sim_fw_001.md` §22). Related: `OI-SIMFW-41`, `OI-FMEA-06`, GitHub #826, #467, #440.
 

@@ -1,6 +1,7 @@
 # Principal decision for review: OI-UI-KMP-11 (GitHub #566), build or adopt for the cloud storage API, and three choices that follow
 
 **Status:** PARTLY ANSWERED 2026-11-11 (Q1, Q2 and Q4 answered by the principal; Q3 open). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#566](https://github.com/stevehickman/NeuroPulse/issues/566)
 **From:** NeurOne Software Engineering (`OI-UI-KMP-11` M9 to M12; GitHub #566; `NP-SW-CLOUDSTORE-001` §7)
 **To:** The principal
 **Response needed:** a ruling on each question in section 3, a short rationale, conditions that would reopen it, name, role and date.

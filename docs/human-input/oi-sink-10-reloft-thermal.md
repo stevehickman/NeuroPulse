@@ -1,6 +1,7 @@
 # Principal decision for review: OI-SINK-10, the 3 mm re-loft makes the one scalp-side thermal figure slightly worse
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#393](https://github.com/stevehickman/NeuroPulse/issues/393)
 **From:** NeurOne Systems Engineering (`OI-SINK-10`, raised 2026-09-23 by `OI-THCOOL-21`, GitHub #407; `docs/status/pending-decisions.md`)
 **To:** The principal, with Thermal and Mechanical Engineering (the item's owner column reads "Principal (Thermal + ME)")
 **Response needed:** a choice among the options in section 3, a short rationale, conditions that would reopen it, name, role and date.

@@ -1,6 +1,7 @@
 # Principal question for review: OI-SIMFW-04, which clock the twin runs on
 
 **Status:** ANSWERED 2026-11-11 (the principal). Build open; the sub-decisions the answer leaves open are drafted in `oi-simfw-04-clock-domains.md`. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-04`, `NP-SIM-FW-001` §7, §30)
 **To:** The principal
 **Response needed:** an option for Q1 and an answer to Q2, with a short rationale, name, role and date.

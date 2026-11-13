@@ -1,6 +1,7 @@
 # Safety and electrical question for review: OI-PWRSRC-11, what the outputs do when the last power source goes
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#442](https://github.com/stevehickman/NeuroPulse/issues/442)
 **From:** NeurOne Systems Engineering (`OI-PWRSRC-11` and `RISK-PWRSRC-01` in `docs/np_pwrsrc_001.md`; `OI-IFU-02` in `docs/np_ifu_001.md`)
 **To:** Safety lead and EE lead (names to be assigned; the item's owner column reads "Safety + EE")
 **Response needed:** a ruling on each of the four questions in section 4, a measurement plan or its result, names, roles and a date.

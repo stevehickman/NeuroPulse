@@ -1,6 +1,7 @@
 # Principal question for review: OI-SIMFW-05 (b), the saved file's name, extension, opening and association
 
 **Status:** ANSWERED 2026-11-11 (the principal): question A (a pseudonymous id the person picks); question G (uniqueness is not needed); the first half of question L (a save never overwrites a closed file, and may update a file the same session created; a 'save as' closes the file that was open); question M2 (a 'save' appends, and a 'save as' creates a new file with the content since the last 'save'; two readings, to confirm). Answered in part: question D (a host-side launcher exists and creates a default host directory; the rest of D is open). OPEN (DRAFT, not sent): B, C, the rest of D, E, F, H to K, the second half of L, M1, M3 to M7, and P1 to P8. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#825](https://github.com/stevehickman/NeuroPulse/issues/825)
 **From:** NeurOne Software Engineering (`OI-SIMFW-05`, `NP-SIM-FW-001` §7, `REQ-SIMFW-21`)
 **To:** The principal (with Quality for Q5 of `oi-simfw-05-temporary-file.md`, which question E here touches)
 **Response needed:** an option for each of B to F, H to K, the second half of L, M1, M3 to M7, and P1 to P8, with a short rationale, name, role and date.

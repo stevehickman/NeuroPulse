@@ -1,6 +1,7 @@
 # Principal review: OI-CONSENT-08, the clinician tiers and what each one reaches
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#727](https://github.com/stevehickman/NeuroPulse/issues/727)
 **From:** NeurOne Software (`OI-CONSENT-08` in `docs/status/pending-decisions.md`; register row `UC-069`)
 **To:** The principal, with a clinical adviser (name to be assigned; the item's owner column reads "principal, with clinical advisor input")
 **Response needed:** a ruling on each of Q1 to Q5, a sign-off of the two tables (or the changes), and the date.
@@ -32,6 +33,29 @@ element whose `minimumTier` ranks at or below it, less any `withheldElements` (n
 | EEG_WAVEFORMS, NEUROFEEDBACK_SCORES, PBM_DOSE_LOGS | Assess | `eeg_review` (Assess) and `hrv_outcomes` |
 | HRV_TIME_SERIES, PPG_OPTICAL_SIGNAL, CLOSED_LOOP_EVENTS, OUTCOME_LOGS | Full Clinical | `hrv_outcomes` only |
 | EYE_STATE_LOGS | Full Clinical | **none** |
+
+**Review table: tier by element** (generated from the two JSON tables on 2026-11-13; "held" means the tier's set
+contains the element, which is exactly "its `minimumTier` ranks at or below the tier" because `withheldElements`
+is empty. Research holds none: its elements come from each signed study descriptor, §6.3). Fill the last column
+and return it with Q1.
+
+| Element | `minimumTier` | Monitor | Assess | Full Clinical | Your ruling (Monitor / Assess / Full Clinical / withheld) |
+|---|---|---|---|---|---|
+| EEG_WAVEFORMS | Assess | — | held | held | |
+| HRV_TIME_SERIES | Full Clinical | — | — | held | |
+| PPG_OPTICAL_SIGNAL | Full Clinical | — | — | held | |
+| NEUROFEEDBACK_SCORES | Assess | — | held | held | |
+| SESSION_TIMESTAMPS | Monitor | held | held | held | |
+| SESSION_DURATION | Monitor | held | held | held | |
+| PROTOCOL_PARAMETERS | Monitor | held | held | held | |
+| CLOSED_LOOP_EVENTS | Full Clinical | — | — | held | |
+| PBM_DOSE_LOGS | Assess | — | held | held | |
+| OUTCOME_LOGS | Full Clinical | — | — | held | |
+| EYE_STATE_LOGS | Full Clinical | — | — | held | |
+| *Elements held* | | 3 | 6 | 11 | |
+
+Every element is held by at least one tier, which a test now checks on both apps (`REQ-CONSENT-15#e`). That
+test shows the tables agree with each other. It does not show any row is right.
 
 **What prompted the review.** `EYE_STATE_LOGS` was marked Full Clinical but was in no tier's set, so no
 grant could ever reach it. Nothing in the history says that was a decision. It was added to Full Clinical on

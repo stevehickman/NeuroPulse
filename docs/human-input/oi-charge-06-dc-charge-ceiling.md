@@ -1,6 +1,7 @@
 # Regulatory question for review: OI-CHARGE-06, the 150 mC/cm² DC charge ceiling
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#386](https://github.com/stevehickman/NeuroPulse/issues/386)
 **From:** NeurOne Systems Engineering (`OI-CHARGE-06` in `docs/status/pending-decisions.md`; `NP-DT-001` §3.2.1, `DI-SAFE-01`)
 **To:** Regulatory reviewer, with a clinical reviewer for the T2 question (names to be assigned; the item's owner column reads "Regulatory")
 **Response needed:** a ruling on each of Q1 to Q4, with rationale, the reviewer's name and role, and the date.

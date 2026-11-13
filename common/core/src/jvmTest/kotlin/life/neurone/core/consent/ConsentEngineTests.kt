@@ -96,6 +96,18 @@ class ConsentEngineTests {
         }
     }
 
+    // OI-CONSENT-08: the existing check above only stops an over-grant; this one stops an element no tier reaches.
+    // @verifies REQ-CONSENT-15#e
+    @Test
+    fun everyUhdrElementIsHeldByAtLeastOneNonResearchTier() {
+        val reachable = ClinicianUseCaseTier.values()
+            .filter { it != ClinicianUseCaseTier.RESEARCH }
+            .flatMap { it.uhdrElements }
+            .toSet()
+        val unreachable = UHDRElement.values().filter { it !in reachable }
+        assertTrue(unreachable.isEmpty(), "No clinician tier holds $unreachable; its minimumTier cannot be reached.")
+    }
+
     // @verifies REQ-SW03-09
     @Test
     fun aTierRendersItsDisplayNameAndPriceAndTheStoredFormIsNotTheDisplayedOne() {

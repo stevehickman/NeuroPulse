@@ -1,6 +1,7 @@
 # Clinical question for review: OI-RISK2-09 (is the cVNS cardiac detection requirement adequate?)
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#847](https://github.com/stevehickman/NeuroPulse/issues/847)
 **From:** NeurOne Safety / Quality (`NP-RISK-002`, `docs/np_risk_002.md` §4.3.5, §6 `OI-RISK2-09`)
 **To:** Clinical reviewer (name to be assigned; the item's owner column reads "Clinical + Quality Lead")
 **Response needed:** an answer to each of (a)–(e) in section 1, with rationale, the reviewer's name and role, and the date.

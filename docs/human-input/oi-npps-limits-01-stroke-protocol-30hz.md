@@ -1,6 +1,7 @@
 # Clinical question for review: OI-NPPS-LIMITS-01, the shipped stroke protocol authors 30 Hz
 
 **Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**GitHub issue:** [#554](https://github.com/stevehickman/NeuroPulse/issues/554)
 **From:** NeurOne Software (`OI-NPPS-LIMITS-01` in `docs/status/pending-decisions.md`)
 **To:** Clinical reviewer (name to be assigned; the item's owner column reads "Clinical")
 **Response needed:** a ruling (A, B or C below) with rationale, the reviewer's name and role, and the date.

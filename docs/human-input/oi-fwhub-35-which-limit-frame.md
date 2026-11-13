@@ -1,6 +1,7 @@
 # OI-FWHUB-35: how a refused upload can say which limit, and what "no limits in the language" would mean
 
 **Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal. **To:** the principal, with
+**GitHub issue:** [#845](https://github.com/stevehickman/NeuroPulse/issues/845)
 Software (the shared core and the apps) and FW Hub. No addressee is named.
 
 **Nothing here is built and nothing here is decided.** Two things the principal has said on PR #840 need a design

@@ -1,6 +1,7 @@
 # OI-FWHUB-35 (d): the safety MCU's declared-phase clamp. Why it exists, and a proposal to refuse instead
 
 **Status:** DECIDED 2026-11-11 by the principal: option C, removal, with a compile-time check ("On phase clamp: remove
+**GitHub issue:** [#846](https://github.com/stevehickman/NeuroPulse/issues/846)
 it and add the compile time check"). This replaces the recommendation of option B below. Built in the same change:
 the clamp is removed from `np_charge_monitor.c` and `np_chan_decl.c`, `NP_CHARGE_MAX_PHASE_US` is deleted, and
 `_Static_assert`s prove the arithmetic from the types. **The safety owner's review and the rest of the Class C change
