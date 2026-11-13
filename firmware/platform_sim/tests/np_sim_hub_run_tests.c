@@ -14,12 +14,13 @@
  * calls, and time is a virtual clock (UC-124); a pass is NOT verification evidence (REQ-SIMFW-06).  Each scenario runs in a forked child
  * (the safety MCU and the hub keep file-scope state a session latches).
  */
-#define CAP_MAX 24000   /* a session reports a state every 250 virtual ms and a hal event per driver call */
+#define NP_SIM_CAP_LONG   /* a session reports a state every 250 virtual ms and a hal event per driver call */
 #include "np_sim_bus.h"
 #include "np_sim_kernel.h"
 #include "np_sim_pbm_harness.h"
 #include "np_sim_safety.h"
 #include "np_sim_test_util.h"
+#include "np_sim_safety_test_consts.h"
 
 #include "np_hub_types.h"
 #include "np_safety_spi.h"
@@ -35,7 +36,6 @@
 #define GATT_STOP   15
 #define GATT_PAUSE  26
 #define GATT_CHECK  24
-#define LINE_VIS    4
 
 static int g_failures;
 
