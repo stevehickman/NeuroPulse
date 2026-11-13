@@ -11,5 +11,6 @@
 
 #define LINE_PBM  0
 #define LINE_TDCS 2
+#define LINE_VIS  4
 
 #endif /* NP_SIM_SAFETY_TEST_CONSTS_H */

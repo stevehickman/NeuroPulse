@@ -74,7 +74,7 @@ static np_sim_tick_fn g_tick_hook;
 
 void np_sim_set_tick_hook(np_sim_tick_fn fn) { g_tick_hook = fn; }
 
-void np_sim_advance_ms(uint32_t ms)
+void np_sim_advance_ms_raw(uint32_t ms)
 {
     if (!g_virtual) { g_virtual = true; g_vnow_ms = real_now_ms(); }
     if (g_tick_hook == NULL) { g_vnow_ms += ms; return; }
@@ -82,6 +82,18 @@ void np_sim_advance_ms(uint32_t ms)
         g_vnow_ms += 1U;
         g_tick_hook();
     }
+}
+
+/* Once the hub's scheduler runs (np_sim_kernel.c), time moves only through it, so a caller that asks the clock to advance runs the tasks
+ * that fall due on the way.  The override is that one function; the kernel moves the clock itself through np_sim_advance_ms_raw. */
+static uint32_t (*g_advance_override)(uint32_t);
+
+void np_sim_set_advance_override(uint32_t (*fn)(uint32_t)) { g_advance_override = fn; }
+
+void np_sim_advance_ms(uint32_t ms)
+{
+    if (g_advance_override != NULL) { (void)g_advance_override(ms); return; }
+    np_sim_advance_ms_raw(ms);
 }
 
 void np_sim_use_real_clock(void) { g_virtual = false; }

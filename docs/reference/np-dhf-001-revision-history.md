@@ -332,3 +332,5 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 296 | 2026-11-11 | NeurOne Software Engineering | **39 → 40, 9 → 10: the hub's main processor may include `no_std` Rust (CLAUDE.md Rev 81); a printed code is an acceptable pairing secret.** |
 | 297 | 2026-11-13 | NeurOne Software Engineering | **160 → 161: the way back to edit from an acknowledgement request (`SWR-SS-04`, GitHub #569).** |
 | 298 | 2026-11-13 | NeurOne Software Engineering | **36 → 37, 161 → 162: the wavelength-rules versioning scheme recorded as ruled by the principal, not built (GitHub #564, `OI-WRV-01`).** |
+| 299 | 2026-11-12 | NeurOne Systems Engineering | **10 → 11: OI-AUDIOHW-04 selection package decision recorded (vendor search first; EM or balanced-armature bone vibrator evaluated in parallel with the piezo); no part, class or figure selected.** |
+| 300 | 2026-11-13 | NeurOne Software Engineering | **40 → 41: the simulator's twin runs the hub's own boot path and five tasks on a virtual-time scheduler, so a protocol it accepts starts a session; development tool only, no device document changed.** |
