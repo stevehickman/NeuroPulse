@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,9 @@ fun ProtocolMenuScreen(
     helmetHardwareVersion: Int = 1,
     // How the person keeps their protocols as a file (a host without save and open dialogs passes null, and the two buttons are not shown).
     fileTransfer: FileTransfer? = null,
+    // A protocol to open the editor on, from the acknowledgement request's way back (SWR-SS-04).
+    editRequest: NPProtocolEntry? = null,
+    onEditRequestHandled: () -> Unit = {},
 ) {
     // Reflect the current BIPA consent into the library so EEG-adaptive rows gate live.
     library.updateEEGConsent(consentGranted)
@@ -92,6 +96,20 @@ fun ProtocolMenuScreen(
     var fileCounts by remember { mutableStateOf<NPProtocolLibrary.OpenResult?>(null) }
     val scope = rememberCoroutineScope()
     var refusedUpload by remember { mutableStateOf<Pair<NPProtocolEntry, UploadGate>?>(null) }
+
+    // SWR-SS-04: an unused protocol is edited in place, a used one (or a predefined one) on a clone of its family.
+    LaunchedEffect(editRequest) {
+        editRequest?.let { req ->
+            library.entryToEdit(req)?.let { target ->
+                editor = when (target) {
+                    is NPProtocolEntry.Single -> ProtocolEditor.Form(target.protocol)
+                    else -> ProtocolEditor.Script(library.exportScript(target))
+                }
+                version++
+            }
+            onEditRequestHandled()
+        }
+    }
 
     // What an upload meets before any byte is sent (SWR-PL-06, SWR-HV-04): the core's gate, then the caller's upload.
     fun tryUpload(entry: NPProtocolEntry) {
