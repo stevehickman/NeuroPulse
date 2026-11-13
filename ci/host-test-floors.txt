@@ -46,6 +46,7 @@ np_app_cache_agreement_tests 84
 np_app_clock_agreement_tests 84
 np_app_link_agreement_tests 202
 np_bootloader_app_image_tests 968
+np_bootloader_dfu_block_tests 8
 np_bootloader_flexram_tests 84
 np_bootloader_mem_tests 139
 np_cfg_store_tests 2816

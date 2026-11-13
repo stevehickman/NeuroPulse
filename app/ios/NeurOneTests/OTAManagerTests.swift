@@ -364,6 +364,33 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertEqual(service.downloadCallCount, 1, "download must be called when hub connected")
     }
 
+    // @verifies DI-PERF-21
+    func testAnImageWithMoreChunksThanTheIndexCanNumberIsRefusedBeforeTheHubIsTold() async {
+        let mock = MockBLECentral()
+        let gatt = NeurOneGATTManager(mockCentral: mock)
+        gatt.applyConnected()
+
+        // One byte past 65536 chunks: the 16-bit chunk index would trap on UInt16(65536) mid-transfer (OI-UINT16-01).
+        let size = OTAManager.maxChunks * BleTransfer.OTA_CHUNK_SIZE + 1
+        let service = MockFirmwareUpdateService()
+        service.firmwareDataToReturn = Data(count: size)
+        let ota = OTAManager(gatt: gatt, updateService: service)
+        let image = FirmwareImage(
+            version: "1.0.0", buildDate: Date(), imageSizeBytes: size,
+            ed25519PublicKeyFingerprint: "4e455550deadbeef",
+            isSafetyMCUFirmware: false, releaseNotes: "")
+
+        do {
+            try await ota.beginUpdate(image: image)
+            XCTFail("Expected OTAError.imageLoadFailed")
+        } catch OTAError.imageLoadFailed {
+            // Expected: refused before INITIATE, so nothing was sent and the hub was not told to clear its scratch area.
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertNil(ota.currentSession, "no session starts for an image that cannot be numbered")
+    }
+
     // MARK: - checkForUpdates / manifest availability (ISC-107)
 
     // @verifies DI-PERF-21

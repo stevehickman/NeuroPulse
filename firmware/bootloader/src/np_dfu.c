@@ -34,6 +34,7 @@
 #include "np_signature.h"
 #include "np_ota.h"
 #include "np_config.h"
+#include "np_dfu_block.h"
 #include <string.h>
 
 /* ── USB1 register map (subset) ──────────────────────────────────────────── */
@@ -119,6 +120,7 @@ typedef struct {
 #define DFU_STATUS_errUSBR      0x0BU
 #define DFU_STATUS_errPOR       0x0CU
 #define DFU_STATUS_errUNKNOWN   0x0DU
+#define DFU_STATUS_errSTALLEDPKT 0x0FU   /* DFU 1.1: the device stalled an unexpected request */
 
 /* ── USB setup packet ─────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
@@ -145,6 +147,7 @@ typedef struct {
 /* sector.  The SRAM buffer holds one transfer block at a time.               */
 static uint8_t  s_dfu_block[NP_DFU_TRANSFER_SIZE];
 static dfu_state_t s_dfu;
+static uint32_t    s_dfu_block_len;     /* the wLength of the block now being received; at most NP_DFU_TRANSFER_SIZE */
 static bool        s_usb_reset_seen;
 static uint32_t    s_dfu_timer_ticks;   /* incremented by SysTick            */
 
@@ -246,10 +249,17 @@ static void dfu_handle_setup(const usb_setup_t *setup)
             s_dfu.download_complete = true;
             s_dfu.state             = DFU_STATE_MANIFEST_SYNC;
             usb_ep0_send(NULL, 0U);
+        } else if (!np_dfu_block_len_ok(setup->wLength)) {
+            /* A block longer than the receive buffer: refused before anything is queued, so the controller is never
+             * given a length it could write past s_dfu_block with (OI-UINT16-01). */
+            s_dfu.status = DFU_STATUS_errSTALLEDPKT;
+            s_dfu.state  = DFU_STATE_ERROR;
+            usb_ep0_stall();
         } else {
             /* Queue receive of one block into s_dfu_block */
+            s_dfu_block_len = setup->wLength;
             s_dtd.next   = 0x00000001U;
-            s_dtd.token  = (setup->wLength << 16U) | (1U << 7U);
+            s_dtd.token  = np_dfu_dtd_token(setup->wLength);
             s_dtd.buf[0] = (uint32_t)(uintptr_t)s_dfu_block;
             s_qh[0].next_dtd = (uint32_t)(uintptr_t)&s_dtd;
             s_qh[0].token    = 0U;
@@ -270,13 +280,6 @@ static void dfu_handle_setup(const usb_setup_t *setup)
 
         if (s_dfu.state == DFU_STATE_DNLOAD_SYNC) {
             /* Process the block that was just received */
-            uint32_t block_len = (s_dtd.token >> 16U) & 0xFFFFU;
-            /* block_len may have been decremented by the controller */
-            uint32_t expected = (setup->wLength > NP_DFU_TRANSFER_SIZE)
-                                  ? NP_DFU_TRANSFER_SIZE : setup->wLength;
-            (void)block_len;
-            (void)expected;
-
             /* Write this block to the Scratch partition (base = partition start;
              * NP_SCRATCH_HDR_LBA is np_ota.c-local, so use the shared config macro). */
             uint32_t scratch_lba = NP_SCRATCH_LBA_START
@@ -284,7 +287,7 @@ static void dfu_handle_setup(const usb_setup_t *setup)
             uint32_t sectors = NP_DFU_TRANSFER_SIZE / NP_EMMC_SECTOR_SIZE;
             np_emmc_write(scratch_lba, s_dfu_block, sectors);
 
-            s_dfu.bytes_received += NP_DFU_TRANSFER_SIZE;
+            s_dfu.bytes_received += s_dfu_block_len;   /* what was requested for this block, not the buffer size */
             s_dfu.block_num++;
             s_dfu.state   = DFU_STATE_DNLOAD_IDLE;
             status_resp.bState = DFU_STATE_DNLOAD_IDLE;
