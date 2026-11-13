@@ -147,3 +147,208 @@ pub fn resolve_one_channel(
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Version of the rules (`SWR-HV-03`; NP-NPPS-REF-001 §7a.1, `OI-WRV-01`, GitHub #564).
+//
+// The identity of a rule set is the SHA-256 of its canonical form over whole counts of 0.1 pm.
+// The stamp carries the windows themselves, so a reader needs no store to say how a wavelength
+// was mapped. Computed here only (`CLAUDE.md` §22).
+// ---------------------------------------------------------------------------------------------
+
+/// Domain line of the canonical form. It changes if the mapping algorithm ever changes.
+pub const RULES_DOMAIN: &str = "NeurOne.WavelengthRules.1";
+/// Counts of the 0.1 pm grid in one nanometre (Q5, ruled 2026-11-13; `UC-175`).
+pub const COUNTS_PER_NM: f64 = 10_000.0;
+pub const STAMP_LEN: usize = 39;
+pub const WINDOWS_LEN: usize = 36;
+
+/// `(nominal, min, max)` in 0.1 pm counts; `None` is a channel with no rule.
+pub type Window = Option<(u32, u32, u32)>;
+
+fn to_counts(nm: f64, what: &str) -> Result<u32, String> {
+    let c = (nm * COUNTS_PER_NM).round();
+    if !nm.is_finite() || nm < 0.0 || c > u32::MAX as f64 || (nm * COUNTS_PER_NM - c).abs() > 1e-6 {
+        return Err(format!(
+            "{what} {nm} nm is not on the 0.1 pm grid (a multiple of 0.0001 nm): the rules have no canonical form and are not stamped."
+        ));
+    }
+    Ok(c as u32)
+}
+
+/// The three windows of a rule set in the order 660, 808, 1064. A value off the grid refuses.
+pub fn windows_of(rules: &WavelengthRules) -> Result<[Window; 3], String> {
+    let mut out: [Window; 3] = [None, None, None];
+    for (i, ch) in Channel::ALL.iter().enumerate() {
+        if let Some(r) = rules.channels.iter().find(|c| c.element == *ch) {
+            let n = ch.name();
+            out[i] = Some((
+                to_counts(r.nominal_nm, &format!("{n} nominal"))?,
+                to_counts(r.min_nm, &format!("{n} minimum"))?,
+                to_counts(r.max_nm, &format!("{n} maximum"))?,
+            ));
+        }
+    }
+    Ok(out)
+}
+
+/// The 36 window bytes: per channel nominal, minimum, maximum as u32 little-endian; no rule is zeros.
+pub fn windows_bytes(w: &[Window; 3]) -> [u8; WINDOWS_LEN] {
+    let mut b = [0u8; WINDOWS_LEN];
+    for (i, win) in w.iter().enumerate() {
+        if let Some((nom, min, max)) = win {
+            for (j, v) in [nom, min, max].iter().enumerate() {
+                b[i * 12 + j * 4..i * 12 + j * 4 + 4].copy_from_slice(&v.to_le_bytes());
+            }
+        }
+    }
+    b
+}
+
+/// Inverse of [`windows_bytes`]. Twelve zero bytes read as a channel with no rule.
+pub fn windows_from_bytes(b: &[u8; WINDOWS_LEN]) -> [Window; 3] {
+    let mut out: [Window; 3] = [None, None, None];
+    for (i, o) in out.iter_mut().enumerate() {
+        let v = |j: usize| u32::from_le_bytes(b[i * 12 + j * 4..i * 12 + j * 4 + 4].try_into().unwrap());
+        if b[i * 12..i * 12 + 12].iter().any(|x| *x != 0) {
+            *o = Some((v(0), v(1), v(2)));
+        }
+    }
+    out
+}
+
+/// The canonical bytes that are hashed.
+pub fn canonical_bytes(w: &[Window; 3]) -> Vec<u8> {
+    let mut s = format!("{RULES_DOMAIN}\n{{\"channels\":[");
+    for (i, ch) in Channel::ALL.iter().enumerate() {
+        if i > 0 {
+            s.push(',');
+        }
+        let f = |x: Option<u32>| x.map_or("null".to_string(), |v| v.to_string());
+        let (nom, min, max) = match w[i] {
+            Some((n, lo, hi)) => (Some(n), Some(lo), Some(hi)),
+            None => (None, None, None),
+        };
+        s.push_str(&format!(
+            "{{\"element\":\"{}\",\"max_pm_x10\":{},\"min_pm_x10\":{},\"nominal_pm_x10\":{}}}",
+            ch.name(),
+            f(max),
+            f(min),
+            f(nom)
+        ));
+    }
+    s.push_str("]}");
+    s.into_bytes()
+}
+
+/// SHA-256 of the canonical form, 64 lowercase hex digits.
+pub fn rules_hash_hex(w: &[Window; 3]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(canonical_bytes(w)).iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// The hash of a rule set; refuses a value off the grid.
+pub fn rules_hash(rules: &WavelengthRules) -> Result<String, String> {
+    Ok(rules_hash_hex(&windows_of(rules)?))
+}
+
+pub const ORIGIN_NOT_STATED: u8 = 0;
+pub const ORIGIN_RELEASE: u8 = 1;
+pub const ORIGIN_OWNER_SET: u8 = 2;
+
+/// The 39-byte stamp: origin, release major, release minor, 36 window bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RulesStamp {
+    pub origin: u8,
+    pub major: u8,
+    pub minor: u8,
+    pub windows: [u8; WINDOWS_LEN],
+}
+
+impl RulesStamp {
+    /// What the hub records for a descriptor that states none: origin 0, zero bytes, no invented version.
+    pub fn not_stated() -> RulesStamp {
+        RulesStamp { origin: ORIGIN_NOT_STATED, major: 0, minor: 0, windows: [0; WINDOWS_LEN] }
+    }
+    /// `origin` is [`ORIGIN_RELEASE`] or [`ORIGIN_OWNER_SET`] (then `major.minor` is the base release).
+    pub fn for_rules(origin: u8, major: u8, minor: u8, rules: &WavelengthRules) -> Result<RulesStamp, String> {
+        if origin != ORIGIN_RELEASE && origin != ORIGIN_OWNER_SET {
+            return Err(format!("stamp origin {origin} is not a release (1) or an owner set (2)"));
+        }
+        Ok(RulesStamp { origin, major, minor, windows: windows_bytes(&windows_of(rules)?) })
+    }
+    pub fn to_bytes(&self) -> [u8; STAMP_LEN] {
+        let mut b = [0u8; STAMP_LEN];
+        b[0] = self.origin;
+        b[1] = self.major;
+        b[2] = self.minor;
+        b[3..].copy_from_slice(&self.windows);
+        b
+    }
+    pub fn from_bytes(b: &[u8; STAMP_LEN]) -> RulesStamp {
+        RulesStamp { origin: b[0], major: b[1], minor: b[2], windows: b[3..].try_into().unwrap() }
+    }
+    /// A reader's hash, computed from the carried windows alone (none for origin 0).
+    pub fn hash_hex(&self) -> Option<String> {
+        (self.origin != ORIGIN_NOT_STATED).then(|| rules_hash_hex(&windows_from_bytes(&self.windows)))
+    }
+}
+
+/// How a new rule set differs from an old one (§7a.1 major or minor line, as a floor).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RulesChange {
+    None,
+    Minor,
+    Major,
+}
+
+/// Channel delivering `x2` (a wavelength in half-counts), nearest nominal, a tie to the earlier channel.
+fn deliver_x2(w: &[Window; 3], x2: i64) -> Option<usize> {
+    let mut best: Option<(usize, i64)> = None;
+    for (i, win) in w.iter().enumerate() {
+        let Some((nom, min, max)) = win else { continue };
+        if x2 < 2 * *min as i64 || x2 > 2 * *max as i64 {
+            continue;
+        }
+        let d = (x2 - 2 * *nom as i64).abs();
+        if best.map_or(true, |(_, bd)| d < bd) {
+            best = Some((i, d));
+        }
+    }
+    best.map(|(i, _)| i)
+}
+
+/// Major when a wavelength once delivered is refused or moves channel; minor when the hash moves
+/// and none does; none when the hash is the same.
+pub fn classify_change(old: &[Window; 3], new: &[Window; 3]) -> RulesChange {
+    if canonical_bytes(old) == canonical_bytes(new) {
+        return RulesChange::None;
+    }
+    // The mapping is constant between breakpoints (edges and nominal midpoints), so testing each
+    // breakpoint and its neighbours in half-counts covers every wavelength.
+    let mut pts: Vec<i64> = Vec::new();
+    for w in [old, new] {
+        for win in w.iter().flatten() {
+            let (n, lo, hi) = *win;
+            for v in [n, lo, hi] {
+                pts.push(2 * v as i64);
+            }
+        }
+        let noms: Vec<i64> = w.iter().flatten().map(|x| x.0 as i64).collect();
+        for a in &noms {
+            for b in &noms {
+                pts.push(a + b);
+            }
+        }
+    }
+    for p in pts {
+        for x2 in [p - 1, p, p + 1] {
+            if let Some(ch) = deliver_x2(old, x2) {
+                if deliver_x2(new, x2) != Some(ch) {
+                    return RulesChange::Major;
+                }
+            }
+        }
+    }
+    RulesChange::Minor
+}
