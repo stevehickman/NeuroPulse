@@ -265,7 +265,9 @@ jobs:
         run: |
           set -euo pipefail
           test -x "$NP_SIM_FW_BIN"
-          node --test server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
+          # The gate below reads the TAP summary lines. Node 22 prints TAP when piped, Node 24 prints the spec reporter
+          # ("ℹ fail 0"), and this job does not pin Node, so a runner image bump made every run fail. Ask for TAP.
+          node --test --test-reporter=tap server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
           if ! grep -q '^# fail 0$' ../node-test.log; then
             echo "::error::node --test reported a failure"
             exit 1
