@@ -71,6 +71,9 @@ const INTRANASAL_FULL_SCALE: f64 = hw::INTRANASAL_FULL_SCALE_MW_CM2;
 /// Acoustic output ceiling, dB SPL at the ear: absolute, not a fraction of any driver's range
 /// (NP-HW-AUDIO-001 REQ-AUDIO-19). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
 const AUDIO_MAX_DB_SPL: f64 = hw::AUDIO_MAX_DB_SPL;
+/// Highest tone frequency the planar path may be commanded to produce, Hz (NP-HW-AUDIO-001 REQ-AUDIO-25): a flat
+/// bound, because A-weighting is positive between about 1 kHz and 6.1 kHz. Equals `NP_AUDIO_MAX_TONE_HZ` in `np_hub_config.h`.
+const AUDIO_MAX_TONE_HZ: f64 = 1000.0;
 const EPS: f64 = 1e-9;
 const CLINICAL_TACS_MAX_CHANNELS: f64 = 21.0;
 
@@ -1071,6 +1074,18 @@ fn encode_audio(p: &Value) -> R<Encoded> {
     }
     let vol = db_to_level_half_db(f(p, "volumeDb"))?;
     let carrier = carried(p, "carrierHz", "Audio", 1.0, 65535.0, "Hz")?;
+    // REQ-AUDIO-25: every tone the planar path produces is checked, the carrier and, for a binaural or isochronic
+    // command, the carrier plus the beat or pulse rate. A noise command produces no tone. Refused, never clamped.
+    if mode <= 1 {
+        let highest = carrier.max(carrier + beat_mhz / 1000.0);
+        if highest > AUDIO_MAX_TONE_HZ + EPS {
+            return Err(format!(
+                "Audio: tone frequency {} Hz is above {} Hz, the highest the planar path may be commanded to produce (REQ-AUDIO-25). The protocol is refused, not reduced to fit.",
+                num_string(highest),
+                num_string(AUDIO_MAX_TONE_HZ)
+            ));
+        }
+    }
     let mut buf = vec![0u8; 8];
     buf[0] = mode;
     put16(&mut buf, 1, carrier, "Audio carrierHz")?;
