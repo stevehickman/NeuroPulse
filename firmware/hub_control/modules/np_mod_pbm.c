@@ -42,7 +42,7 @@ typedef struct {
     np_hub_mod_type_t       type;         /* BASE or SMART */
     bool                    active;
     float                   ntc_peak_c;
-    uint16_t                throttle_count;
+    uint32_t                throttle_count;      /* a count: 32-bit, never saturates or wraps (OI-UINT16-01) */
     np_pbm_drv_slot_t   drv;          /* smart-module I2C driver state */
     np_pbm_dose_state_t dose;
 } np_mod_pbm_state_t;

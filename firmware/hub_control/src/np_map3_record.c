@@ -54,23 +54,27 @@ static uint32_t get_u32(const uint8_t *p)
 
 size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap)
 {
-    if (rec == NULL || out == NULL || cap < NP_MAP3_V1_BYTES) {
+    if (rec == NULL || out == NULL || cap < NP_MAP3_V2_BYTES) {
         return 0U;
     }
-    memset(out, 0, NP_MAP3_V1_BYTES);
-    out[0] = (uint8_t)NP_MAP3_V1_BYTES;
+    memset(out, 0, NP_MAP3_V2_BYTES);
+    out[0] = (uint8_t)NP_MAP3_V2_BYTES;
     out[1] = (uint8_t)NP_MAP3_VERSION;
     memcpy(&out[2], rec->uid, NP_MAP3_UID_LEN);
     put_u32(&out[10], rec->seq);
     put_u32(&out[14], rec->ordinal);
-    put_u16(&out[18], rec->session_count);
+    /* The version-1 fields: the count, or 0xFFFF above it, for a version-1 reader (np_map3_record.h). */
+    put_u16(&out[18], (rec->session_count > 0xFFFFU) ? 0xFFFFU : (uint16_t)rec->session_count);
     put_u32(&out[20], rec->dose_accum);
-    put_u16(&out[24], rec->throttle_count);
+    put_u16(&out[24], (rec->throttle_count > 0xFFFFU) ? 0xFFFFU : (uint16_t)rec->throttle_count);
     out[26] = rec->fault_flags;
     out[27] = 0U;   /* reserved: written 0, never reused (§7.2 rule 1) */
-    put_u32(&out[NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES],
-            crc32_le(out, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES));
-    return NP_MAP3_V1_BYTES;
+    put_u32(&out[28], rec->session_count);     /* version 2 tail: the counts, whole */
+    put_u32(&out[32], rec->throttle_count);
+    /* [36, 60) reserved, written 0 by the memset above and never reused (§7.2 rule 1). */
+    put_u32(&out[NP_MAP3_V2_BYTES - NP_MAP3_CRC_BYTES],
+            crc32_le(out, NP_MAP3_V2_BYTES - NP_MAP3_CRC_BYTES));
+    return NP_MAP3_V2_BYTES;
 }
 
 /*
@@ -105,6 +109,11 @@ static size_t row_check(const uint8_t *p, size_t left, np_map3_end_t *end)
         *end = NP_MAP3_END_BAD_VER;
         return 0U;
     }
+    if (p[1] >= 2U && rl < NP_MAP3_V2_BYTES) {
+        /* A row that says it is version 2 or later carries the version-2 tail; no firmware writes one without it. */
+        *end = NP_MAP3_END_BAD_LEN;
+        return 0U;
+    }
     return rl;
 }
 
@@ -135,13 +144,18 @@ void np_map3_scan(const uint8_t *buf, size_t len, np_map3_row_fn cb, void *ctx,
         memcpy(row.rec.uid, &p[2], NP_MAP3_UID_LEN);
         row.rec.seq            = get_u32(&p[10]);
         row.rec.ordinal        = get_u32(&p[14]);
-        row.rec.session_count  = get_u16(&p[18]);
         row.rec.dose_accum     = get_u32(&p[20]);
-        row.rec.throttle_count = get_u16(&p[24]);
         row.rec.fault_flags    = p[26];
+        if (p[1] >= 2U) {
+            row.rec.session_count  = get_u32(&p[28]);   /* version 2 tail: whole */
+            row.rec.throttle_count = get_u32(&p[32]);
+        } else {
+            row.rec.session_count  = get_u16(&p[18]);
+            row.rec.throttle_count = get_u16(&p[24]);
+        }
         row.ver      = p[1];
         row.len      = (uint8_t)rl;
-        row.tail_len = (uint8_t)(rl - NP_MAP3_V1_BYTES);
+        row.tail_len = (uint8_t)(rl - ((p[1] >= 2U) ? NP_MAP3_V2_BYTES : NP_MAP3_V1_BYTES));
         row.offset   = (uint32_t)off;
 
         s.rows++;

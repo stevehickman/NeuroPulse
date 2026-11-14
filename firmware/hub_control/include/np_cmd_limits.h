@@ -149,7 +149,14 @@ static inline np_hub_status_t np_cmd_limits_check(np_hub_mod_type_t mod_type,
         np_mod_audio_params_t p;
         if (len < sizeof p) { return NP_HUB_OK; }
         memcpy(&p, params, sizeof p);
-        return (p.level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) ? NP_HUB_ERR_INVALID_ARG : NP_HUB_OK;
+        if (p.level_half_db > NP_AUDIO_MAX_LEVEL_HALF_DB) { return NP_HUB_ERR_INVALID_ARG; }
+        /* REQ-AUDIO-25: the carrier and, for binaural (0) and isochronic (1), carrier plus beat, in mHz so no
+         * rounding is involved.  Noise and off produce no tone. */
+        if (p.mode <= 1U &&
+            ((uint32_t)p.carrier_hz * 1000U + (uint32_t)p.beat_mhz) > (NP_AUDIO_MAX_TONE_HZ * 1000U)) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        return NP_HUB_OK;
     }
     case NP_MOD_CVNS: {
         /* The ranges np_mod_cvns_build_config() holds; it calls this, so there is one definition.  A pulse

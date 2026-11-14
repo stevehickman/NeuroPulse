@@ -10,12 +10,15 @@
 /* ── Protocol binary format ───────────────────────────────────────────────────── */
 
 #define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeurOne Hub Protocol */
-/* 2.  v1 was the descriptor with the socket-mask target block and np_mod_tdcs_params_t's
+/* 3.  v3 adds the wavelength-rules stamp to the header (SWR-HV-03, OI-WRV-01), which lengthens it from 68 to 107
+ * bytes.  Following the v2 precedent below (an explicit new field and a bump over reusing header bytes, the principal,
+ * #569), a v2 blob is refused as BAD_VERSION; no descriptor has shipped (NP-FW-HUB-001 §4.5).
+ * 2.  v1 was the descriptor with the socket-mask target block and np_mod_tdcs_params_t's
  * electrode_area_mcm2 (OI-CHARGE-04).  v2 adds the hardware version to the header (SWR-HV-08), which
  * lengthens it from 64 to 68 bytes.  No descriptor has shipped; the version is bumped all the same
  * because the principal chose an explicit new field and a bump (#569), so a v1 blob is refused as
  * BAD_VERSION (NP-FW-HUB-001 §4.5).                                          */
-#define NP_HUB_PROTO_VERSION        0x0002U
+#define NP_HUB_PROTO_VERSION        0x0003U
 /* NP_HUB_PROTO_UUID_LEN and NP_HUB_PROTO_SIG_LEN come from np_app_wire_constants.h, generated from
  * common/npps/constants.json (group HubDescriptorWire), the one source the apps size the blob from. */
 #define NP_HUB_PROTO_CMD_MAX        64U            /* max commands per session */
@@ -148,6 +151,11 @@
  * np_mod_audio_params_t.level_half_db (85 x 2 = 170).  NP-HW-AUDIO-001 REQ-AUDIO-19 (OI-AUDIOHW-01).
  * A command above it is REFUSED, never clamped.  Class B code only; audio has no safety-MCU line. */
 #define NP_AUDIO_MAX_LEVEL_HALF_DB  170U
+
+/* Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz plus the
+ * beat or pulse rate.  The flat bound of NP-HW-AUDIO-001 REQ-AUDIO-25.  A command above it is REFUSED,
+ * never clamped.  Equals AUDIO_MAX_TONE_HZ in common/npps-core/src/compiler.rs. */
+#define NP_AUDIO_MAX_TONE_HZ        1000U
 
 /* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
  * 3.5mm Ag/AgCl sintered electrode area = 0.0962 cm² (NP_HD_ELECTRODE_AREA_CM2

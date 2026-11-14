@@ -26,6 +26,7 @@
 #include "np_sim_bus.h"
 #include "np_sim_kernel.h"
 #include "np_sim_pbm_harness.h"
+#include "np_sim_storage.h"
 #include "np_sim_safety.h"
 
 #include "np_factory_reset_test_hal.h"
@@ -87,6 +88,24 @@ static void emit_state(const char *why)
                 np_sim_safety_label());
 }
 
+/* What each partition is backed by (REQ-SIMFW-25): a file with no name, its owner's only, and what the host allocated for it. */
+static void emit_storage(void)
+{
+    static const char *const NAME[NP_SIM_STORE_COUNT] = { "config", "uhdr", "shdr" };
+    for (unsigned i = 0U; i < (unsigned)NP_SIM_STORE_COUNT; i++) {
+        np_sim_store_info_t in;
+        if (!np_sim_storage_info((np_sim_store_t)i, &in)) { continue; }
+        unsigned files = 0U;
+        if (i == (unsigned)NP_SIM_STORE_UHDR) { files = np_sim_storage_uhdr_sessions(NULL, NULL, 0U); }
+        uint32_t shdr = 0U;
+        if (i == (unsigned)NP_SIM_STORE_SHDR && np_sim_storage_shdr_size(&shdr)) { files = 1U; }
+        np_sim_emit("{\"ev\":\"hub_storage\",\"part\":\"%s\",\"up\":%s,\"apparent_bytes\":%llu,\"allocated_bytes\":%llu,\"unlinked\":%s,\"mode\":%u,"
+                    "\"files\":%u,\"shdr_bytes\":%u}",
+                    NAME[i], in.up ? "true" : "false", (unsigned long long)in.apparent_bytes, (unsigned long long)in.allocated_bytes,
+                    in.nlink == 0U ? "true" : "false", in.mode, files, (unsigned)shdr);
+    }
+}
+
 static void emit_status(void)
 {
     np_sim_emit("{\"ev\":\"hub_status\",\"booted\":%s,\"admits\":%s,\"switches\":%u,\"tasks\":%u}", g_booted ? "true" : "false",
@@ -95,7 +114,7 @@ static void emit_status(void)
         np_sim_emit("{\"ev\":\"hub_task\",\"name\":\"%s\",\"prio\":%u,\"state\":\"%s\"}", np_sim_kernel_task_name(i), np_sim_kernel_task_prio(i),
                     np_sim_kernel_task_state(i));
     }
-    if (g_booted) { emit_state("status"); }
+    if (g_booted) { emit_state("status"); emit_storage(); }
 }
 
 static void result(const char *cmd, int code)
