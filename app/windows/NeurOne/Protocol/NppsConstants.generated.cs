@@ -440,6 +440,10 @@ static class HubDescriptorWire
     public const int UUID_LEN = 16;
     /// The Ed25519 signature at the end of the blob.
     public const int SIG_LEN = 64;
+    /// The wavelength-rules stamp in the header (SWR-HV-03, NP-NPPS-REF-001 7a.1): origin, release major,
+    /// release minor, then the 36 bytes of windows. The same length as common/npps-core
+    /// wavelength_version::STAMP_LEN, which a test pins.
+    public const int RULES_STAMP_LEN = 39;
     /// Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it,
     /// because whether a protocol is T2 comes from its modality set and whether this unit may run one is
     /// the safety MCU's signed tier identity (RISK-PWRSRC-10).

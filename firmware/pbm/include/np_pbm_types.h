@@ -271,7 +271,7 @@ typedef struct {
     uint8_t  abort_reason;           /* 0=normal; else np_pbm_status_t        */
     uint8_t  reserved;
     np_pbm_socket_dose_record_t sockets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
-    uint16_t eeg_adapt_event_count;  /* number of freq code changes during session */
+    uint32_t eeg_adapt_event_count;  /* number of freq code changes during session; 32-bit, never saturates (OI-UINT16-01) */
 } np_pbm_session_record_t;
 
 /* ── Session summary — NOT SHDR-WRITABLE AS SHAPED (OI-FWHUB-21) ─────────────────

@@ -4,8 +4,8 @@
  *
  * Two SPI frame types (hub is always SPI master):
  *
- *   Extended heartbeat (38 bytes, every 200ms):
- *     np_safety_spi_heartbeat() → np_safety_hal_spi_transfer(len=38)
+ *   Extended heartbeat (42 bytes, every 200ms):
+ *     np_safety_spi_heartbeat() → np_safety_hal_spi_transfer(len=42)
  *     Hub sends np_safety_tx_ext_frame_t (magic + enables + channel_count +
  *     checksum + current_ua[14] + ext_checksum); MCU simultaneously sends back
  *     the 8-byte MCU reply frame; hub reads the first 8 bytes and discards the
@@ -22,7 +22,7 @@
  * HAL stub OI-SAF-01: np_safety_hal_spi_transfer(tx, rx, len)
  *   Full-duplex SPI3 transfer; chip-select managed by HAL.
  *   STM32G071 is SPI slave, i.MX RT1062 is SPI master.
- *   len = NP_SAFETY_RX_EXT_FRAME_LEN (38) for heartbeat;
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (42) for heartbeat;
  *   len = NP_SAFETY_CMD_FRAME_LEN (102) for sig command.
  *
  * OI-SW01-M07-01 CLOSED.
@@ -107,7 +107,7 @@ static inline uint8_t np_safety_session_status_with_seq(uint8_t bits, uint8_t se
 np_hub_status_t np_safety_spi_init(void);
 
 /*
- * np_safety_spi_heartbeat — send one 38-byte extended heartbeat frame and
+ * np_safety_spi_heartbeat — send one 42-byte extended heartbeat frame and
  * receive the 8-byte safety MCU reply.  Updates the internal granted-enable
  * bitmask and status flags.
  * Called from the dedicated heartbeat task every NP_SAFETY_HEARTBEAT_MS.
@@ -426,7 +426,7 @@ void np_safety_spi_get_channel_currents(uint16_t out_ua[]);
 /* ── HAL stub ─────────────────────────────────────────────────────────────────── */
 
 /* OI-SAF-01: full-duplex SPI exchange.
- *   len = NP_SAFETY_RX_EXT_FRAME_LEN (38) → extended heartbeat exchange
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (42) → extended heartbeat exchange
  *   len = NP_SAFETY_CMD_FRAME_LEN (102)   → session sig command
  * Hub is SPI master; chip-select managed by HAL.                             */
 extern np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx,
