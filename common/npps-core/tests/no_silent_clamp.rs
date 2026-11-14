@@ -146,8 +146,8 @@ fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not
 // @verifies REQ-NPPS-33#a
 #[test]
 fn an_audio_beat_or_carrier_the_field_cannot_carry_is_refused_not_capped() {
-    let p = ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.535, "carrierHz": 65535 })));
-    assert_eq!(u16_at(&p, 1), 65535);
+    let p = ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.535, "carrierHz": 440 })));
+    assert_eq!(u16_at(&p, 1), 440);
     assert_eq!(u16_at(&p, 3), 65535);
     assert_eq!(u16_at(&ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 65.535 }))), 3), 65535);
     refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.536 }))), &["Audio", "binauralBeatsHz 65.536 Hz", "0–65.535 Hz"]);
@@ -344,7 +344,25 @@ fn the_cores_limits_are_the_hubs_limits() {
     assert_eq!(hw::TDCS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA")));
     assert_eq!(hw::VNS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const("common/include/np_shared_constants.h", "NP_VNS_MAX_CURRENT_UA")));
     assert_eq!(170, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_LEVEL_HALF_DB"));
+    assert_eq!(1000, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_TONE_HZ"));
     // The audio level at the ceiling compiles to the hub's ceiling byte, and above it is refused.
     assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85 })))[5], 170);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);
+}
+
+// @verifies REQ-AUDIO-25
+#[test]
+fn a_planar_tone_above_1000_hz_is_refused_not_reduced() {
+    let msg = &["Audio", "tone frequency", "1000 Hz", "REQ-AUDIO-25"];
+    // The carrier alone.
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 40, "carrierHz": 10000 }))), msg);
+    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 10, "carrierHz": 1001 }))), msg);
+    // The carrier plus the beat or pulse rate: 990 + 10.001 Hz is above the bound.
+    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 10.001, "carrierHz": 990 }))), msg);
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 10.001, "carrierHz": 990 }))), msg);
+    // Exactly at the bound is allowed, in both modes.
+    ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 10, "carrierHz": 990 })));
+    ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 40, "carrierHz": 960 })));
+    // A noise command produces no tone, so its carrier field is not a tone frequency.
+    ok("audio_entrainment", audio(json!({ "noiseType": "pink", "carrierHz": 5000 })));
 }
