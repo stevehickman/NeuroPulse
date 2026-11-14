@@ -567,6 +567,7 @@ impl Parser {
         self.open_block()?;
         let mut level = "global".to_string();
         let mut description: Option<String> = None;
+        let mut version: Option<String> = None;
         let mut channels: Vec<(String, f64, f64, f64)> = Vec::new();
         while !self.try_brace() {
             self.skip_newlines();
@@ -593,6 +594,14 @@ impl Parser {
                     level = v;
                 }
                 "description" => description = Some(self.read_string()?),
+                "version" => {
+                    let line = self.cur().line;
+                    let v = value_string(&self.read_any_value()?);
+                    if let Err(e) = crate::wavelength::parse_release_version(&v) {
+                        return Err(ParseError::at(format!("wavelength_rules \"{name}\": {e}"), line));
+                    }
+                    version = Some(v);
+                }
                 _ => self.skip_value()?,
             }
             self.skip_newlines();
@@ -620,6 +629,9 @@ impl Parser {
         );
         if let Some(d) = description {
             rules.insert("description".into(), json!(d));
+        }
+        if let Some(v) = version {
+            rules.insert("version".into(), json!(v));
         }
         Ok(Value::Object(rules))
     }

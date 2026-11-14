@@ -10,4 +10,4 @@ author: NeurOne Firmware Engineering
 text: **§4.1, §4.2, §4.5: descriptor version 3 (`SWR-HV-03`).** The header grows from 68 to 107 bytes: a 39-byte wavelength-rules stamp after the reserved bytes, under the signature. The hub copies it unread into the UHDR fitting frame (format 2) and records an all-zero stamp as not stated. A v2 blob is refused as `NP_HUB_ERR_BAD_VERSION`. No requirement text changed.
 ## NP-NPPS-REF-001
 author: NeurOne Software Engineering
-text: **§7a.1: the register of released wavelength rule sets is built (`SWR-HV-03`, `OI-WRV-01`).** `common/npps/wavelength-rules-register.json` holds release 1.0; a core test fails when the shipped file is not its last row. The grammar `version` field, the merge-base check and the app notice remain.
+text: **§7a.1: the register of released wavelength rule sets is built (`SWR-HV-03`, `OI-WRV-01`).** `common/npps/wavelength-rules-register.json` holds release 1.0; a core test fails when the shipped file is not its last row. The `version` field of the `wavelength_rules` block is parsed and validated, and the shipped file states `"1.0"` (field table of §7a). The merge-base check and the app notice remain.

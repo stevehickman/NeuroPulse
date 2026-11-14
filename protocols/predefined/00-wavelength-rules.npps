@@ -21,11 +21,15 @@
 # on the 808 nm channel. 850 nm, 633 nm and 640 nm are unsupported. 1060 and
 # 1070 nm deliver on the 1064 nm channel; 1080 nm is unsupported.
 #
+# `version` is the release NeurOne ships this set as (NP-NPPS-REF-001 §7a.1). It is bumped only in a release that
+# changes a window, together with a new row in common/npps/wavelength-rules-register.json; a user edit never bumps it.
+#
 # common/lib/wavelengthRules.ts carries the same values as
 # DEFAULT_WAVELENGTH_RULES; wavelengthRules.test.ts fails if the two differ.
 
 wavelength_rules "NeurOne default wavelength mapping" {
     level: global
+    version: "1.0"
     description: "Channel band from CLAUDE.md §3 widened 10 nm each side. Unvalidated default; user-editable."
 
     channel "led_660" {

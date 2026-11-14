@@ -69,7 +69,12 @@ fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
         let n = |k: &str| c[k].as_f64().ok_or_else(|| format!("wavelengthRules {k} must be a number"));
         channels.push(ChannelRule { element, nominal_nm: n("nominalNm")?, min_nm: n("minNm")?, max_nm: n("maxNm")? });
     }
-    Ok(Some(WavelengthRules { name, channels }))
+    let version = match v["version"].as_str() {
+        Some(t) => Some(crate::wavelength::parse_release_version(t).map_err(|e| format!("wavelengthRules {e}"))?),
+        None if v["version"].is_null() => None,
+        None => return Err("wavelengthRules version must be a string such as \"1.0\"".into()),
+    };
+    Ok(Some(WavelengthRules { name, version, channels }))
 }
 
 /// The zone namespace a request carries, resolved for the protocol. `zonesByVersion` (`{name:{"1":[…],"2":[…]}}`) is

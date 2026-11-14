@@ -1347,6 +1347,7 @@ limits "T1 Home Defaults" {
 ```
 wavelength_rules "NeurOne default wavelength mapping" {
     level: global
+    version: "1.0"
     description: "Channel band from CLAUDE.md §3 widened 10 nm each side."
     channel "led_660"  { nominal_nm: 660   min_nm: 650   max_nm: 680 }
     channel "led_808"  { nominal_nm: 808   min_nm: 798   max_nm: 840 }
@@ -1357,6 +1358,7 @@ wavelength_rules "NeurOne default wavelength mapping" {
 | Field | Type | Meaning |
 |-------|------|---------|
 | `level` | `global` \| `user` | `global` is the shipped defaults (`protocols/predefined/00-wavelength-rules.npps`); `user` is a user's override |
+| `version` | string `"major.minor"` | Optional. The release (§7a.1): in the shipped file the release NeurOne ships the set as, which must be the last row of `common/npps/wavelength-rules-register.json`; in an edited set the release it was merged over. Two whole numbers from 0 to 255. It never decides what a set delivers: the set's identity is the hash of its windows, so a block that states a release its windows do not match is an owner set. A value that is not `major.minor` is a parse error |
 | `description` | string | Optional |
 | `channel "<element>" { … }` | block | One per channel: `"led_660"`, `"led_808"` or `"led_1064"`. A channel with no rule accepts nothing |
 | `nominal_nm` | number | The channel's nominal emission. Used only to choose between two accepting channels, nearest first |
@@ -1399,7 +1401,7 @@ The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FIT
 socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
 the channel the app chose, so it can only record a version the upload states.
 
-**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Built (issue #569):** the core's canonical form, hash and comparison; the stamp in the descriptor and the fitting frame; the register (`common/npps/wavelength-rules-register.json`, compiled into the core) and its check (`common/npps-core/tests/rules_register.rs`: the shipped file and the core's defaults are the last row, versions rise, no set is released twice, release 1.0 is pinned). **Builds that remain:** the `version` field and its grammar row; the check against the merge base for an edited released row; the app notice; the
+**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Built (issue #569):** the core's canonical form, hash and comparison; the stamp in the descriptor and the fitting frame; the register (`common/npps/wavelength-rules-register.json`, compiled into the core) and its check (`common/npps-core/tests/rules_register.rs`: the shipped file and the core's defaults are the last row, versions rise, no set is released twice, release 1.0 is pinned). **Also built:** the `version` field of the block (a parse error when it is not `major.minor`; the Peggy grammar reads it as an ordinary field, so it has no rule of its own; the shipped file states `"1.0"` and the register check requires that to be the last row; an edited set's stated release is stamped as its base). **Builds that remain:** the check against the merge base for an edited released row; the app notice; the
 requirement rows that `SWR-HV-03` will need.
 
 **Eligibility.** A protocol is offered only when every block can be delivered by the fitted

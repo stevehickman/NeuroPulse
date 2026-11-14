@@ -139,7 +139,7 @@ export function compileProtocol(
     nowUnix: Math.floor(Date.now() / 1000),
     sessionUuidHex: hex(sessionUuid),
     wavelengthRules: opts.wavelengthRules
-      ? { name: opts.wavelengthRules.name, channels: opts.wavelengthRules.channels }
+      ? { name: opts.wavelengthRules.name, version: opts.wavelengthRules.version, channels: opts.wavelengthRules.channels }
       : null,
     acknowledgedCautions: opts.acknowledgedCautions ? [...opts.acknowledgedCautions] : [],
     ...(opts.hardwareVersion === undefined ? {} : { hardwareVersion: opts.hardwareVersion }),

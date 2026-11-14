@@ -6,6 +6,7 @@ use neurone_npps_core::wavelength::*;
 fn rules(ch: &[(Channel, f64, f64, f64)]) -> WavelengthRules {
     WavelengthRules {
         name: "t".into(),
+        version: None,
         channels: ch
             .iter()
             .map(|&(element, nominal_nm, min_nm, max_nm)| ChannelRule { element, nominal_nm, min_nm, max_nm })

@@ -172,6 +172,11 @@ describe('hub protocol v2 wire format', () => {
         { element: 'led_1064', nominalNm: 1064, minNm: 1054, maxNm: 1074 },
       ] } as any }).blob;
     expect([...edited.slice(68, 71)]).toEqual([2, 1, 0]);
+    // An edited set states the release it was merged over, and the descriptor records it as stated (SWR-HV-03).
+    const based = compileProtocol(p, { zones, wavelengthRules: { name: 'Lab A', level: 'user', version: '2.3', channels: [
+      { element: 'led_808', nominalNm: 808, minNm: 798, maxNm: 860 },
+    ] } as any }).blob;
+    expect([...based.slice(68, 71)]).toEqual([2, 2, 3]);
   });
 
   // @verifies SWR-HV-08

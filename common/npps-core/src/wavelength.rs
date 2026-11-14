@@ -32,7 +32,24 @@ pub struct ChannelRule {
 #[derive(Debug, Clone)]
 pub struct WavelengthRules {
     pub name: String,
+    /// The release (`major.minor`) the block states (`version:` in a `wavelength_rules` block, §7a.1). For the
+    /// shipped file it is the release; for an edited set it names the release it was merged over. Never read to decide
+    /// what a set delivers.
+    pub version: Option<(u8, u8)>,
     pub channels: Vec<ChannelRule>,
+}
+
+/// `"1.0"` as (1, 0): two whole numbers, each 0 to 255, no sign, space or third part.
+pub fn parse_release_version(text: &str) -> Result<(u8, u8), String> {
+    let bad = || format!("version \"{text}\" is not a release such as \"1.0\": write major.minor, two whole numbers from 0 to 255");
+    let (a, b) = text.split_once('.').ok_or_else(bad)?;
+    let num = |s: &str| {
+        if s.is_empty() || !s.chars().all(|c| c.is_ascii_digit()) {
+            return Err(bad());
+        }
+        s.parse::<u8>().map_err(|_| bad())
+    };
+    Ok((num(a)?, num(b)?))
 }
 
 impl WavelengthRules {
@@ -40,6 +57,7 @@ impl WavelengthRules {
     pub fn default_rules() -> WavelengthRules {
         WavelengthRules {
             name: "NeurOne default wavelength mapping".into(),
+            version: Some((1, 0)),
             channels: vec![
                 ChannelRule { element: Channel::Led660, nominal_nm: 660.0, min_nm: 650.0, max_nm: 680.0 },
                 ChannelRule { element: Channel::Led808, nominal_nm: 808.0, min_nm: 798.0, max_nm: 840.0 },
@@ -414,8 +432,12 @@ pub fn stamp_for(rules: &WavelengthRules) -> Result<RulesStamp, String> {
     let (origin, major, minor) = match reg.iter().find(|r| r.hash == hash) {
         Some(r) => (ORIGIN_RELEASE, r.major, r.minor),
         None => {
-            let last = &reg[reg.len() - 1];
-            (ORIGIN_OWNER_SET, last.major, last.minor)
+            // The base is the release the block says it was merged over; with none stated, the latest.
+            let (major, minor) = rules.version.unwrap_or_else(|| {
+                let last = &reg[reg.len() - 1];
+                (last.major, last.minor)
+            });
+            (ORIGIN_OWNER_SET, major, minor)
         }
     };
     Ok(RulesStamp { origin, major, minor, windows: windows_bytes(&w) })

@@ -19,6 +19,7 @@ fn rules_of(v: &Value) -> WavelengthRules {
     };
     WavelengthRules {
         name: v["name"].as_str().unwrap().into(),
+        version: v["version"].as_str().map(|t| parse_release_version(t).unwrap()),
         channels: v["channels"].as_array().unwrap().iter().map(ch).collect(),
     }
 }
@@ -89,4 +90,50 @@ fn the_register_refuses_what_append_only_forbids() {
         assert!(e.contains(needle), "{what}: {e}");
     }
     let _ = third;
+}
+
+// @verifies SWR-HV-03
+#[test]
+fn the_shipped_file_states_the_release_the_register_ends_with() {
+    let last = releases().last().unwrap();
+    let shipped = file_rules("protocols/predefined/00-wavelength-rules.npps");
+    assert_eq!(shipped.version, Some((last.major, last.minor)),
+        "00-wavelength-rules.npps states a version that is not the register's last release");
+    assert_eq!(WavelengthRules::default_rules().version, Some((last.major, last.minor)));
+}
+
+// @verifies SWR-HV-03
+#[test]
+fn the_version_field_parses_round_trips_and_is_refused_when_malformed() {
+    let src = |v: &str| format!(
+        "wavelength_rules \"t\" {{\n  level: user\n  {v}\n  channel \"led_808\" {{ nominal_nm: 808 min_nm: 798 max_nm: 840 }}\n}}\n");
+    let ok = parse_file(&src("version: \"1.0\"")).unwrap();
+    assert_eq!(ok.wavelength_rules[0]["version"], "1.0");
+    assert!(parse_file(&src("")).unwrap().wavelength_rules[0].get("version").is_none(), "optional");
+    for bad in ["\"1\"", "\"1.0.0\"", "\"1.x\"", "\"-1.0\"", "\"1.256\"", "\"\"", "\" 1.0\""] {
+        let e = parse_file(&src(&format!("version: {bad}"))).unwrap_err();
+        assert!(e.to_string().contains("is not a release"), "{bad}: {e}");
+    }
+    // The serializer writes it back, and the file reads the same.
+    let text = neurone_npps_core::serialize::serialize_item(
+        &serde_json::json!({ "kind": "wavelengthRules", "wavelengthRules": ok.wavelength_rules[0] })).unwrap();
+    assert!(text.contains("version: \"1.0\""), "{text}");
+    assert_eq!(parse_file(&text).unwrap().wavelength_rules[0], ok.wavelength_rules[0]);
+}
+
+// @verifies SWR-HV-03
+#[test]
+fn an_owner_set_states_the_release_it_was_merged_over() {
+    let mut r = WavelengthRules::default_rules();
+    r.channels[1].max_nm = 860.0;
+    r.version = Some((1, 0));
+    let s = stamp_for(&r).unwrap();
+    assert_eq!((s.origin, s.major, s.minor), (ORIGIN_OWNER_SET, 1, 0));
+    r.version = Some((2, 3));
+    let s = stamp_for(&r).unwrap();
+    assert_eq!((s.origin, s.major, s.minor), (ORIGIN_OWNER_SET, 2, 3), "the stated base is recorded as stated, not replaced");
+    // Stating a version never turns an edited set into a release: the hash decides.
+    r.version = Some((1, 0));
+    r.channels[1].max_nm = 840.0;
+    assert_eq!(stamp_for(&r).unwrap().origin, ORIGIN_RELEASE);
 }

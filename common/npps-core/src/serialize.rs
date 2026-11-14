@@ -468,6 +468,11 @@ fn condition(c: &Value) -> R<String> {
 fn wavelength_rules(w: &Value) -> R<String> {
     let mut lines = vec![format!("wavelength_rules {} {{", q(text(w, "name")))];
     lines.push(format!("{INDENT}level: {}", text(w, "level")));
+    if !text(w, "version").is_empty() {
+        let v = text(w, "version");
+        crate::wavelength::parse_release_version(&v).map_err(|e| format!("wavelengthRules {e}"))?;
+        lines.push(format!("{INDENT}version: {}", q(&v)));
+    }
     if !text(w, "description").is_empty() {
         lines.push(format!("{INDENT}description: {}", q(text(w, "description"))));
     }
