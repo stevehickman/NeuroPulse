@@ -113,6 +113,21 @@ final class OTAManager: ObservableObject {
             }
     }
 
+    /// The chunk payload numbers a chunk in 16 bits (indices 0...65535), so an image of more chunks than that cannot be
+    /// sent: `UInt16(chunkIndex)` would trap mid-transfer with the hub half-written. Refused before the hub is told to
+    /// begin, never truncated (OI-UINT16-01).
+    static let maxChunks = Int(UInt16.max) + 1
+
+    private func requireChunkIndexFits(_ imageData: Data) throws {
+        let chunks = (imageData.count + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
+        guard chunks <= OTAManager.maxChunks else {
+            let reason = "the image needs \(chunks) chunks and the transfer numbers at most \(OTAManager.maxChunks)"
+            let wrapped = OTAError.imageLoadFailed(reason)
+            lastError = wrapped
+            throw wrapped
+        }
+    }
+
     // MARK: - Main OTA flow (ISC-109)
 
     func beginUpdate(image: FirmwareImage) async throws {
@@ -132,6 +147,8 @@ final class OTAManager: ObservableObject {
             lastError = wrapped
             throw wrapped
         }
+
+        try requireChunkIndexFits(imageData)
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count
@@ -196,6 +213,8 @@ final class OTAManager: ObservableObject {
             lastError = wrapped
             throw wrapped
         }
+
+        try requireChunkIndexFits(imageData)
 
         var session = OTASession(image: image)
         session.totalBytes = imageData.count

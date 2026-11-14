@@ -619,6 +619,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_flexram_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-UINT16-01.  The DFU download length bound and the dTD token (np_dfu_block.h).
+    # Moves the Class B count 63 -> 64 and the repo total 74 -> 75.
+    add_test(NAME np_bootloader_dfu_block_tests
+        COMMAND np_bootloader_dfu_block_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates
     # two numbers the bootloader linker script owns; a linker script cannot
     # include another, so this test is what makes the duplication safe.  Moves
