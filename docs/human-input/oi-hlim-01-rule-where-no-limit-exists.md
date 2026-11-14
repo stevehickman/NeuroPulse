@@ -1,6 +1,8 @@
 # Question for the principal: OI-HLIM-01, what the acknowledgement rule does where no health limit exists
 
-**Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-13 by the principal: **Q1 B, Q2 A, Q3 A**. Recorded in `NP-SW-001` §6.3.6 `SWR-SS-02`, `docs/status/completed-decisions.md` and `docs/reference/health-limits.md` §8.1. Not a controlled document; see `docs/human-input/README.md`.
+
+> **Answer, 2026-11-13 (the principal):** Q1: B. Q2: A. Q3: A. The principal also directed that which limits are which comes from the documents, and that whether a limit exists for a modality, per day or per session, and whether doses combine across sites, comes from the research: a limit is added where the research states one, and where it states none or the matter is unknown there is none, with the rationale that no research-established limit was found.
 **GitHub issue:** [#563](https://github.com/stevehickman/NeuroPulse/issues/563)
 **From:** NeurOne Software Engineering (`OI-HLIM-01` in `docs/status/pending-decisions.md`; GitHub #563; `NP-SW-001` §6.3.6 `SWR-SS-02`)
 **To:** the principal

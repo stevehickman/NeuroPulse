@@ -108,6 +108,8 @@ internal fun axisNameRes(key: String): StringResource = when (key) {
     "ZONE_AXIS_RMS_CURRENT_DENSITY" -> Res.string.zone_axis_rms_current_density
     "ZONE_AXIS_MEAN_CURRENT_DENSITY" -> Res.string.zone_axis_mean_current_density
     "ZONE_AXIS_SESSION_CHARGE_DENSITY" -> Res.string.zone_axis_session_charge_density
+    // SWR-SS-02: the session-length level, carried by the core like the electrical axes (not a health limit).
+    "ZONE_AXIS_SESSION_DURATION" -> Res.string.zone_axis_session_duration
     else -> throw IllegalArgumentException(key)
 }
 

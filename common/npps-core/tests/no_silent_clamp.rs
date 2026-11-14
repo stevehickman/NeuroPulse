@@ -191,7 +191,13 @@ fn a_pbm_frequency_the_code_byte_cannot_carry_is_refused_not_wrapped() {
 #[test]
 fn a_time_the_millisecond_field_cannot_carry_is_refused_not_wrapped() {
     let bes = json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" });
-    let run = |interval: Value, seconds: f64| compile_json(&request("bes_tacs", bes.clone(), interval, seconds).to_string());
+    // These sessions are longer than the long-session level, so each carries that acknowledgement (`SWR-SS-02`); the test is
+    // about the width of the field, not about the gate.
+    let run = |interval: Value, seconds: f64| {
+        let mut req = request("bes_tacs", bes.clone(), interval, seconds);
+        req["acknowledgedCautions"] = json!([format!("0:bes_tacs:sessionDuration={:.3}", seconds / 60.0)]);
+        compile_json(&req.to_string())
+    };
     // The largest session the field carries is 2^32 - 1 ms; one millisecond more used to wrap to 0.
     let max_s = 4_294_967_295.0 / 1000.0;
     let blob = run(json!({ "intervalOnSeconds": 0 }), max_s).unwrap();

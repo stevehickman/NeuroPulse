@@ -1,6 +1,6 @@
 # Clinical question for review: OI-HLIM-02, which limits are health limits, and which modalities need a limit on session length or daily dose
 
-**Status:** DRAFT, ready to send; not yet sent (no addressee named). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** DRAFT, ready to send; not yet sent (no addressee named). **Partly answered 2026-11-13 by the principal's direction, not by a reviewer:** Table A was filled from the documents and Table B and Q-C from the research (`docs/reference/health-limits.md` §8); a clinical reviewer is still needed to confirm the classes. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#563](https://github.com/stevehickman/NeuroPulse/issues/563)
 **From:** NeurOne Systems Engineering (`OI-HLIM-02` in `docs/status/pending-decisions.md`; GitHub #563; survey in `docs/reference/health-limits.md`)
 **To:** a clinical reviewer, with Risk and Regulatory (names to be assigned)

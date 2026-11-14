@@ -164,7 +164,7 @@ NeurOne Pro is a prescription-use medical device intended for use under clinicia
 The following misuse scenarios must be addressed in hazard identification:
 - Using device while driving or operating heavy machinery
 - Ignoring electrode impedance warnings and using with compromised contact
-- Circumventing the 3-session tDCS daily limit via device reset
+- Running tDCS sessions back to back, including after a device reset (no per-day limit exists to circumvent: the research read for GitHub #563 states none, `docs/reference/health-limits.md` §8, and the per-session charge accumulator restarts with each session; the earlier line named a "3-session daily limit" that no requirement, constant or source states, `OI-HLIM-08`)
 - Using intranasal probe without hygiene sleeve
 - Attempting to modify firmware to exceed stimulation limits
 - Using cervical VNS without clinician qualification (T2)
