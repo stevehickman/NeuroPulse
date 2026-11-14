@@ -28,12 +28,12 @@ typedef struct np_sloreta_ctx {
     const float       *W;          /* weight matrix [n_voxels × NP_HD_SLORETA_N_CH] */
     const np_hd_mni_t *voxel_mni;  /* MNI coordinate lookup table                   */
     uint16_t           n_voxels;
-    uint16_t           epoch_count;
+    uint32_t           epoch_count;      /* a count of epochs: 32-bit, never wraps, so alpha = 1/(n+1) never resets (OI-UINT16-01) */
 
     /* Epochs folded into cov_band[].  Tracked separately from epoch_count       */
     /* because the spectral path requires a full NP_HD_SLORETA_FFT_SIZE epoch     */
     /* and skips short ones, which the time-domain covariance still accepts.      */
-    uint16_t           spectral_epochs;
+    uint32_t           spectral_epochs;  /* same: 32-bit, never wraps (OI-UINT16-01) */
 
     /* Running 21×21 broadband sample covariance (time domain, unwindowed).      */
     float cov[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_N_CH];
@@ -156,7 +156,7 @@ np_hd_status_t np_sloreta_band_power(np_sloreta_ctx_t    *ctx,
 /* ── Diagnostics ─────────────────────────────────────────────────────────────── */
 
 /* Number of complete epochs accumulated since last reset. */
-uint16_t np_sloreta_epoch_count(const np_sloreta_ctx_t *ctx);
+uint32_t np_sloreta_epoch_count(const np_sloreta_ctx_t *ctx);
 
 /* Frobenius norm of the current covariance matrix (quality indicator). */
 float np_sloreta_covariance_norm(const np_sloreta_ctx_t *ctx);

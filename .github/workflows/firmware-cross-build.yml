@@ -238,7 +238,7 @@ env:
   # 60 → 61: np_mod_audio_tests (OI-SIMFW-19, REQ-AUDIO-17, REQ-AUDIO-18).
   # 61 → 62: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
   # 62 → 63: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
-  NP_CLASS_B_TEST_COUNT: '63'
+  NP_CLASS_B_TEST_COUNT: '64'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.

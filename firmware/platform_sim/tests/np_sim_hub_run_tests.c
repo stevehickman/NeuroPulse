@@ -520,7 +520,7 @@ static bool count_row(const np_map3_row_t *row, void *ctx) { (void)row; (*(unsig
 /* @verifies REQ-SIMFW-25#e */
 static void test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix(void)
 {
-    uint8_t journal[3U * NP_MAP3_V1_BYTES];
+    uint8_t journal[3U * NP_MAP3_V2_BYTES];
     for (unsigned i = 0U; i < 3U; i++) {
         np_map3_rec_t r;
         memset(&r, 0, sizeof r);
@@ -529,18 +529,18 @@ static void test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix(vo
         r.ordinal = i;
         r.session_count = 1U;
         r.dose_accum = 1000U * (i + 1U);
-        check(np_map3_encode(&r, &journal[i * NP_MAP3_V1_BYTES], NP_MAP3_V1_BYTES) == NP_MAP3_V1_BYTES, "a row encodes to the version 1 length");
+        check(np_map3_encode(&r, &journal[i * NP_MAP3_V2_BYTES], NP_MAP3_V2_BYTES) == NP_MAP3_V2_BYTES, "a row encodes to the current (version 2) length");
     }
     np_map3_scan_t sc;
     unsigned seen = 0U;
     np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
     check(seen == 3U && sc.rows == 3U && sc.end == NP_MAP3_END_CLEAN, "three rows scan back, and the scan ends clean");
-    journal[NP_MAP3_V1_BYTES + 5U] ^= 0x01U;           /* a bit of the second row */
+    journal[NP_MAP3_V2_BYTES + 5U] ^= 0x01U;           /* a bit of the second row */
     seen = 0U;
     np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
     check(seen == 1U && sc.end == NP_MAP3_END_BAD_CRC, "a damaged second row ends the valid prefix at the first: nothing after it is trusted");
     seen = 0U;
-    np_map3_scan(journal, NP_MAP3_V1_BYTES - 4U, count_row, &seen, &sc);
+    np_map3_scan(journal, NP_MAP3_V2_BYTES - 4U, count_row, &seen, &sc);
     check(seen == 0U && sc.end == NP_MAP3_END_TORN, "a journal cut short in its first row is a torn tail");
 }
 
