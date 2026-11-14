@@ -165,11 +165,27 @@ describe('hub protocol v2 wire format', () => {
     const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
     const dflt = compileProtocol(p, { zones }).blob;
     expect([...dflt.slice(64, 68)]).toEqual([1, 0, 0, 0]);
-    const three = compileProtocol(p, { zones, hardwareVersion: 3 }).blob;
+    // A zone must have a list for the version stamped (SWR-HV-05), so the zones used here carry one for 3 as well.
+    const zones3 = new Map([...zones].map(([n, z]) => [n, { ...z, socketsByVersion: { '1': z.sockets, '3': z.sockets } }]));
+    const three = compileProtocol(p, { zones: zones3, hardwareVersion: 3 }).blob;
     expect([...three.slice(64, 68)]).toEqual([3, 0, 0, 0]);
     // Nothing else in the header moves with it (uuid and clock are random and the time moves, so compare the rest).
     expect(three.length).toBe(dflt.length);
     expect([...three.slice(68)]).toEqual([...dflt.slice(68)]);
+  });
+
+  // @verifies SWR-HV-05
+  it('compiles a zone against the list for the descriptor\'s version, and refuses a zone with none for it', () => {
+    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    const fl = zones.get('Frontal Left')!;
+    const other = fl.sockets.slice(0, 2);
+    const both = new Map(zones).set('Frontal Left', { ...fl, socketsByVersion: { '1': fl.sockets, '2': other } });
+    const sockets = (v?: number) =>
+      socketsInMask(readBlob(compileProtocol(p, { zones: both, hardwareVersion: v }).blob).cmds[0].socketMask);
+    // The two descriptors address different sockets: the list is the one for the version, never version 1's.
+    expect(sockets()).toEqual(fl.sockets);
+    expect(sockets(2)).toEqual(other);
+    expect(() => compileProtocol(p, { zones, hardwareVersion: 2 })).toThrow(/hardware version 2/);
   });
 
   // @verifies SWR-HV-08
