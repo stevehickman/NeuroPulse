@@ -265,7 +265,10 @@ jobs:
         run: |
           set -euo pipefail
           test -x "$NP_SIM_FW_BIN"
-          node --test server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
+          # The reporter is named because the greps below read the TAP summary (`# fail 0`). Node's default
+          # reporter changed with the runner's version (Node 24 prints `ℹ fail 0`, which matched nothing), so a
+          # passing run failed this step.
+          node --test --test-reporter=tap server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
           if ! grep -q '^# fail 0$' ../node-test.log; then
             echo "::error::node --test reported a failure"
             exit 1
