@@ -131,6 +131,10 @@ set(NP_SIM_PBM_FIRMWARE
     ../pbm/src/np_pbm_dose.c
 )
 
+# np_uhdr_key.c defines a static memset_explicit that a C library with C23's declares too (the twin compiles with _GNU_SOURCE); the shim header includes <string.h> and
+# renames the device's definition for this one file, so the device source is not edited (np_sim_memset_shim.h).
+set_source_files_properties(../uhdr_key/src/np_uhdr_key.c PROPERTIES COMPILE_OPTIONS "-include;${CMAKE_CURRENT_SOURCE_DIR}/include/np_sim_memset_shim.h")
+
 # np_hub_control_main.c calls xPortIsInsideInterrupt, which the vendored POSIX port lacks (OI-SIMFW-03): the shim header declares the one np_sim_port_shim.c
 # defines, force-included on this one file as np_sim_port_shim.h's own comment says.
 set_source_files_properties(../hub_control/src/np_hub_control_main.c PROPERTIES COMPILE_OPTIONS "-include;${CMAKE_CURRENT_SOURCE_DIR}/include/np_sim_port_shim.h")
