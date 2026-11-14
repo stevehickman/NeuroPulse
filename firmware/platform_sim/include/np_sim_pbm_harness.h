@@ -67,6 +67,9 @@ np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len);   /* the TEST dev
 bool np_simh_proto_line(const char *cmd, char *a);
 bool np_simh_gatt_line(const char *cmd, char *a, char *b);   /* np_sim_gatt.c */
 
+/* The UHDR key scheme, on synthetic credentials (np_sim_uhdr_key.c, OI-SIMFW-52). */
+bool np_simh_uhdr_line(const char *cmd, char *a, char *b);
+
 /* The hub's own boot path and task set (np_sim_hub.c, OI-SIMFW-45, OI-SIMFW-50). */
 bool np_simh_hub_line(const char *cmd, char *a);
 bool np_sim_hub_booted(void);                 /* hub_boot ran: the hub's tasks beat the safety MCU and take the protocol */
