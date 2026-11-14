@@ -75,9 +75,7 @@ const INTRANASAL_FULL_SCALE: f64 = hw::INTRANASAL_FULL_SCALE_MW_CM2;
 /// Acoustic output ceiling, dB SPL at the ear: absolute, not a fraction of any driver's range
 /// (NP-HW-AUDIO-001 REQ-AUDIO-19). Equals `NP_AUDIO_MAX_LEVEL_HALF_DB` / 2 in `np_hub_config.h`.
 const AUDIO_MAX_DB_SPL: f64 = hw::AUDIO_MAX_DB_SPL;
-/// Highest tone frequency the planar path may be commanded to produce, Hz (NP-HW-AUDIO-001 REQ-AUDIO-25): a flat
-/// bound, because A-weighting is positive between about 1 kHz and 6.1 kHz. Equals `NP_AUDIO_MAX_TONE_HZ` in `np_hub_config.h`.
-const AUDIO_MAX_TONE_HZ: f64 = 1000.0;
+const AUDIO_MAX_TONE_HZ: f64 = hw::AUDIO_MAX_TONE_HZ;
 const EPS: f64 = 1e-9;
 const CLINICAL_TACS_MAX_CHANNELS: f64 = 21.0;
 

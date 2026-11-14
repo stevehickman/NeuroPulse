@@ -32,6 +32,11 @@ static class NPHardwareLimits
     /// Acoustic output ceiling, dB SPL at the ear, absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). The hub's
     /// NP_AUDIO_MAX_LEVEL_HALF_DB is twice it; scripts/check-hub-wire-format.ts holds the two together.
     public const double AUDIO_MAX_DB_SPL = 85.0;
+    /// Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz
+    /// plus the beat or pulse rate (NP-HW-AUDIO-001 REQ-AUDIO-25). A-weighting is positive between about 1
+    /// kHz and 6.1 kHz, so an unweighted 85 dB SPL tone there is above 85 dB(A). The hub's
+    /// NP_AUDIO_MAX_TONE_HZ is the same figure; scripts/check-hub-wire-format.ts holds the two together.
+    public const double AUDIO_MAX_TONE_HZ = 1000.0;
     /// BES / tACS (consumer: Brainwave Entrainment Stimulation)
     public const double BES_TACS_MAX_MILLIAMPS = 1.0;
     public const double BES_TACS_MIN_HZ = 0.5;

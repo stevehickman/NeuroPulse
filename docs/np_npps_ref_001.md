@@ -789,7 +789,7 @@ Over-ear planar magnetic + bone conduction.
 | `binaural_hz` | `binaural_beats_hz` | number (optional) | 0.5–100. **The descriptor carries at most 65.535 Hz** (16 bits of mHz); the compiler refuses above it, where it wrote 65.535 Hz (`REQ-NPPS-33` (a)). The validator's range still ends at 100 (`OI-NPPS-CLAMP-01` (c)) |
 | `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100, and the same 65.535 Hz on the wire |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
-| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses |
+| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses. For a binaural or isochronic block the carrier, and the carrier plus the beat or pulse rate, are at most 1000 Hz (`REQ-AUDIO-25`): the validator reports it and the compiler and the hub refuse it |
 | `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-19`) |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
 | `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |

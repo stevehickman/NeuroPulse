@@ -85,6 +85,7 @@ const SHARED_LIMITS: [string, string, number, string?][] = [
   ["STIM_MAX_AMP_TDCS_UA", "TDCS_MAX_MILLIAMPS", 1000],
   // The acoustic ceiling is in np_hub_config.h, not np_cmd_limits.h; the wire carries half-dB (OI-NPPS-ABS-02).
   ["NP_AUDIO_MAX_LEVEL_HALF_DB", "AUDIO_MAX_DB_SPL", 2, CONFIG],
+  ["NP_AUDIO_MAX_TONE_HZ", "AUDIO_MAX_TONE_HZ", 1, CONFIG],
 ];
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
 const RUNNER = "app/web/src/lib/hubCompiler.ts";
@@ -607,6 +608,7 @@ if (process.argv.includes("--self-test")) {
     ["limits: the hub's BES floor moved", { file: LIMITS, from: "#define NP_BES_FREQ_MHZ_MIN   500U", to: "#define NP_BES_FREQ_MHZ_MIN   250U" }, "NP_BES_FREQ_MHZ_MIN is 250"],
     ["limits: the shared BES ceiling moved", { file: CONSTANTS, from: /("name": "BES_TACS_MAX_HZ",\s*"value": )40\.0/, to: "$1" + "45.0" }, "NP_BES_FREQ_MHZ_MAX is 40000"],
     ["limits: the shared audio ceiling moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_DB_SPL",\s*"value": )85\.0/, to: "$1" + "90.0" }, "NP_AUDIO_MAX_LEVEL_HALF_DB is 170"],
+    ["limits: the shared audio tone bound moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_TONE_HZ",\s*"value": )1000\.0/, to: "$1" + "1200.0" }, "NP_AUDIO_MAX_TONE_HZ is 1000"],
     ["limits: the hub's tDCS ceiling moved", { file: LIMITS, from: "#define STIM_MAX_AMP_TDCS_UA  2000U", to: "#define STIM_MAX_AMP_TDCS_UA  2500U" }, "STIM_MAX_AMP_TDCS_UA is 2500"],
     // COMPILER corner, the Rust source, read statically.
     ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 3;", to: "const VERSION: u16 = 4;" }, "VERSION = 4"],

@@ -365,7 +365,10 @@ restricts a field an author could set before, so the principal confirms it** (`O
 **Built (2026-11-13):** `REQ-AUDIO-25`. The compiler (`AUDIO_MAX_TONE_HZ` in `common/npps-core/src/compiler.rs`) and the
 hub (`NP_AUDIO_MAX_TONE_HZ`, checked by `np_cmd_limits_check()` for both the load-time check and the dispatch
 driver) refuse a binaural or isochronic command whose carrier, or carrier plus beat or pulse rate, is above 1,000 Hz,
-and a parity test holds the two constants equal. A noise command has no tone and is not checked.
+and a parity test holds the two constants equal. The shared validator (`common/npps-core/src/validate.rs`) reports the same
+tone, as an error on `carrierHz`, before the protocol is compiled and signed, so every app's editor sees it. The bound
+is one constant for the compiler and the validator (`AUDIO_MAX_TONE_HZ` in `common/npps/constants.json`), and
+`scripts/check-hub-wire-format.ts` holds the hub's copy to it. A noise command has no tone and is not checked.
 **Not built:** no calibration record, no table. `REQ-AUDIO-22` to `-24` are untested by design (`CLAUDE.md` §21: a
 requirement for an unbuilt feature stays untested until the code that meets it is written).
 
