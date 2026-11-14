@@ -494,6 +494,13 @@ function hubCommandLines(msg) {
       return [`hub_run ${int(msg.ms, 0, HUB_RUN_MAX_MS, 'ms')}`];
     case 'hub_status':
       return ['hub_status'];
+    case 'uhdr_key': {
+      // the UHDR key scheme on SYNTHETIC credentials (NP-SIM-FW-001 §34): a whitelisted operation and a small number; the client supplies no bytes
+      const ops = ['provision', 'unlock', 'background', 'change', 'status'];
+      if (!ops.includes(msg.op)) throw new BridgeError('op must be provision, unlock, background, change or status');
+      if (msg.op === 'background' || msg.op === 'status') return [`uhdr_key ${msg.op}`];
+      return [`uhdr_key ${msg.op} ${int(msg.credential, 0, 15, 'credential')}`];
+    }
     default:
       return null;
   }

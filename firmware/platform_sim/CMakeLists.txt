@@ -30,6 +30,7 @@ set(NP_SIM_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/../hrv_biofeedback/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../factory_reset/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../uhdr_key/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     # the storage the GATT producers keep settings in: LittleFS (SW-02 SOUP) and the hub's RAM block device header (np_sim_gatt.c)
@@ -124,6 +125,7 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_adaptation_log.c     # np_session_log.c flushes the adaptation ring
     ../hub_control/src/np_pbm_cal_bridge.c     # np_hub_control_app_main installs it before any session
     ../factory_reset/src/np_factory_reset.c     # built with -DNPTEST_HOST: its own host model of the marker and the wipe steps (np_reset_marker.c defines the same seams on the device, so it is not linked)
+    ../uhdr_key/src/np_uhdr_key.c               # built with -DNPTEST_HOST: its own host model of the TRNG, KDF, AEAD, Config record and mount, NOT cryptography (np_sim_uhdr_key.c, OI-SIMFW-52)
     ../pbm/src/np_pbm_detect.c
     ../pbm/src/np_pbm_drive.c
     ../pbm/src/np_pbm_dose.c
@@ -212,6 +214,7 @@ add_library(np_sim_pbm STATIC
     src/np_sim_eeg_harness.c
     src/np_sim_vns.c
     src/np_sim_vns_harness.c
+    src/np_sim_uhdr_key.c             # the UHDR key lifecycle's command, on synthetic credentials (OI-SIMFW-52)
     src/np_sim_hrv_harness.c          # the HRV session's missing feeders: PPG, EEG and the HRV task (OI-SIMFW-60)
     src/np_sim_audio.c
     src/np_sim_audio_harness.c
