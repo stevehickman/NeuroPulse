@@ -9,9 +9,8 @@
  *   np_gatt_hal_notify     a notification: reported as a gatt_notify event, to every subscribed central (the central filters)
  *
  * The producers keep their settings through np_cfg_store.c over LittleFS, so the storage is here too: the device's own Config-instance
- * geometry (np_lfs_instance.c) over a RAM medium, which is the block device the hub's own storage tests use (tests/np_lfs_powerbd.c).
- * It is formatted at the first gatt_init, as a new part would be.  A RAM medium is not the eMMC: no wear, no timing, no power loss
- * unless a test injects one (UC-139).
+ * geometry (np_lfs_instance.c) over a file nobody can name (np_sim_storage.c, REQ-SIMFW-25).
+ * It is formatted at the first gatt_init, as a new part would be.  The file is not the eMMC: no wear, no timing, no power loss (UC-139).
  *
  * Commands (decimal ids, hex bytes; the bridge validates both, REQ-SIMFW-12):
  *   gatt_init                 bring up the storage and the service (np_gatt_init), once
@@ -37,24 +36,19 @@
 #include "np_cfg_store.h"
 #include "np_gatt_server.h"
 #include "np_lfs_instance.h"
-#include "np_lfs_powerbd.h"
+#include "np_sim_storage.h"
 #include "np_sim_bus.h"
 #include "np_sim_pbm_harness.h"
 #include "np_warranty_token.h"
 
-#define SIM_MEDIA_BYTES ((size_t)NP_LFS_CFG_BLOCK_SIZE * (size_t)NP_LFS_CFG_BLOCK_COUNT)
+#define SIM_CONFIG_BYTES ((uint64_t)NP_LFS_CFG_BLOCK_SIZE * (uint64_t)NP_LFS_CFG_BLOCK_COUNT)
 
-static uint8_t           g_media[SIM_MEDIA_BYTES];
-static uint8_t           g_dirty[(NP_LFS_CFG_BLOCK_COUNT + 7U) / 8U];
 static lfs_t             g_lfs;
 static struct lfs_config g_cfg;
-static np_powerbd_t      g_bd;
 static bool              g_up;
 static const np_gatt_char_t *g_registered;
 static size_t            g_registered_count;
 
-static int  sim_lock(const struct lfs_config *c)   { (void)c; return 0; }
-static int  sim_unlock(const struct lfs_config *c) { (void)c; return 0; }
 static void store_lock(void)   { }
 static void store_unlock(void) { }
 
@@ -121,20 +115,17 @@ static void bad(const char *cmd, const char *why)
     np_sim_emit("{\"ev\":\"error\",\"what\":\"%s: %s\"}", cmd, why);
 }
 
-/* A new part: the RAM medium wiped and the Config instance formatted and mounted through the store.  The hub's own boot path
+/* A new part: the Config instance's file made and the instance formatted and mounted through the store.  The hub's own boot path
  * (np_hub_control_app_main) needs this bound before it reads the config store, as the device's board layer binds its block device first. */
 np_hub_status_t np_sim_storage_up(void)
 {
     memset(&g_cfg, 0, sizeof g_cfg);
     np_hub_status_t rc = np_lfs_config_apply(&g_cfg);
     if (rc != NP_HUB_OK) { return rc; }
-    np_powerbd_bind(&g_bd, &g_cfg, g_media, NP_LFS_CFG_BLOCK_SIZE, NP_LFS_CFG_BLOCK_COUNT, NP_LFS_CFG_PROG_SIZE, g_dirty, sizeof g_dirty);
-    g_cfg.lock = sim_lock;
-    g_cfg.unlock = sim_unlock;
+    rc = np_sim_storage_config_device(&g_cfg, SIM_CONFIG_BYTES);   /* the medium is a file nobody can name (REQ-SIMFW-21) */
+    if (rc != NP_HUB_OK) { return rc; }
     rc = np_lfs_config_validate(&g_cfg);
     if (rc != NP_HUB_OK) { return rc; }
-    np_powerbd_wipe(&g_bd);
-    np_powerbd_power_cycle(&g_bd);
     memset(&g_lfs, 0, sizeof g_lfs);
     rc = np_cfg_store_bind(&g_lfs, &g_cfg, store_lock, store_unlock);
     if (rc != NP_HUB_OK) { return rc; }
