@@ -134,7 +134,7 @@ np_hub_status_t np_safety_spi_init(void)
 
 /*
  * parse_cvns_impedance_report — OI-CVNS-HUB-11.  Extract the safety MCU's
- * per-electrode CVNS impedance from the spare bytes of the 38-byte heartbeat
+ * per-electrode CVNS impedance from the spare bytes of the 42-byte heartbeat
  * receive buffer.  Validates the report magic, checksum, and valid flag; on a
  * good report stores per-electrode kΩ and sets s_cvns_imp_valid, otherwise
  * clears s_cvns_imp_valid (so a corrupt/absent report never cross-validates).
@@ -168,7 +168,7 @@ static void parse_cvns_impedance_report(const uint8_t *rx_raw)
 
 /*
  * parse_nv_report — the safety MCU's cardiac-status flags (np_safety_nv_report_t)
- * from window bytes [16..19].  Magic + checksum validated; a bad report leaves
+ * from window bytes [20..23].  Magic + checksum validated; a bad report leaves
  * s_nv_valid false, so the app shows nothing rather than a guess.
  */
 static void parse_nv_report(const uint8_t *rx_raw)
@@ -186,7 +186,7 @@ static void parse_nv_report(const uint8_t *rx_raw)
 
 /*
  * parse_tier_report — the safety MCU's tier-identity report
- * (np_safety_tier_report_t) from window bytes [20..26].  Magic, checksum and
+ * (np_safety_tier_report_t) from window bytes [24..30].  Magic, checksum and
  * tier code validated; a bad report leaves the last valid tier in place and
  * clears REFUSED.
  */
@@ -248,7 +248,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                           const uint16_t     *current_ua,
                                           uint8_t             channel_count)
 {
-    /* Extended 38-byte frame (hub→MCU).  MCU simultaneously sends back 8 bytes
+    /* Extended 42-byte frame (hub→MCU).  MCU simultaneously sends back 8 bytes
      * of reply; hub receives NP_SAFETY_RX_EXT_FRAME_LEN bytes total, of which
      * the first sizeof(np_safety_rx_frame_t) (8) are meaningful MCU reply.    */
     np_safety_tx_ext_frame_t tx;
@@ -327,7 +327,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     }
 
     /* OI-CVNS-HUB-11: the base reply is good — parse the per-electrode CVNS
-     * impedance report the MCU clocks out in the spare window bytes [8..15]
+     * impedance report the MCU clocks out in the spare window bytes [8..19]
      * (independently magic + checksum validated inside). */
     parse_cvns_impedance_report(rx_raw);
     parse_nv_report(rx_raw);

@@ -41,6 +41,10 @@ fn u16_at(p: &[u8], at: usize) -> u16 {
     u16::from_le_bytes([p[at], p[at + 1]])
 }
 
+fn u32_at(p: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([p[at], p[at + 1], p[at + 2], p[at + 3]])
+}
+
 /// Refused, and the message carries every needle (the field, the value, the range).
 fn refused(r: Result<Vec<u8>, String>, needles: &[&str]) {
     let e = r.expect_err("must be refused");
@@ -118,17 +122,20 @@ fn a_tdcs_ramp_under_30_seconds_or_missing_is_refused_not_lengthened() {
 fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not_capped() {
     let p = ok("tms", tms("rTMS", 65.535, 65535.0));
     assert_eq!(u16_at(&p, 2), 65535);
-    assert_eq!(u16_at(&p, 5), 65535);
-    assert_eq!(u16_at(&p, 7), 15); // 1000 / 65.535 Hz
+    assert_eq!(u32_at(&p, 5), 65535);
+    assert_eq!(u16_at(&p, 9), 15); // 1000 / 65.535 Hz
     refused(compile("tms", tms("rTMS", 65.536, 600.0)), &["TMS", "frequencyHz 65.536 Hz", "0–65.535 Hz"]);
     refused(compile("tms", tms("iTBS", 66.0, 600.0)), &["frequencyHz 66 Hz", "0–65.535 Hz"]);
-    refused(compile("tms", tms("rTMS", 10.0, 65536.0)), &["TMS", "pulseCount 65536", "0–65535"]);
+    // pulse_count is 32 bits (OI-UINT16-01): 65536 is carried, and only a value past 32 bits is refused.
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 65536.0)), 5), 65536);
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 4294967295.0)), 5), 4294967295);
+    refused(compile("tms", tms("rTMS", 10.0, 4294967296.0)), &["TMS", "pulseCount 4294967296", "0–4294967295"]);
     refused(compile("tms", tms("rTMS", 10.0, 10.5)), &["pulseCount 10.5"]);
     refused(compile("tms", tms("rTMS", 10.0, -1.0)), &["pulseCount -1"]);
     // rTMS: the interval is one period. 0.016 Hz is 62500 ms and fits; 0.015 Hz is 66667 ms and does not; it used to be
     // computed at 0.1 Hz whatever was authored below that.
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 7), 62500);
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 7), 20000);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 9), 62500);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 9), 20000);
     refused(compile("tms", tms("rTMS", 0.015, 600.0)), &["TMS", "frequencyHz 0.015 Hz", "inter-train interval", "65535 ms"]);
     refused(compile("tms", tms("rTMS", 0.0, 600.0)), &["frequencyHz 0 Hz", "inter-train interval"]);
     // A missing frequency or pulse count used to be written as 65535.

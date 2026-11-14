@@ -40,12 +40,13 @@ np_safety_spi_proto_tests 336  # lowered from 355: the hub-vs-safety enable-word
 np_thermal_interlock_tests 138
 np_tier_identity_nokey_tests 586
 np_tier_identity_tests 876
-np_accel_shdr_tests 335
+np_accel_shdr_tests 333   # 335 -> 333 (OI-UINT16-01): the two `< UINT16_MAX` saturation guards on the bin and event counts were removed, so those two executed lines no longer exist; nothing else stopped running
 np_anon_tests 302
 np_app_cache_agreement_tests 84
 np_app_clock_agreement_tests 84
 np_app_link_agreement_tests 202
 np_bootloader_app_image_tests 968
+np_bootloader_dfu_block_tests 8
 np_bootloader_flexram_tests 84
 np_bootloader_mem_tests 139
 np_cfg_store_tests 2816

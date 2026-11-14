@@ -190,7 +190,7 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot, np_pbm_drv_slot_t *drv,
 
 #define SOCK_REC_BYTES    40U
 #define HEALTH_REC_BYTES  12U
-#define COUNTS_REC_BYTES  11U
+#define COUNTS_REC_BYTES  17U   /* tag + session_count 4 + three 4-byte counts (OI-UINT16-01) */
 
 static np_session_uhdr_record_t g_rec;
 static size_t g_u0, g_s0;
@@ -375,6 +375,20 @@ static void test_no_socket_driven_unmetered(void)
 }
 
 /* @verifies REQ-FWHUB-48 */
+static void test_counts_do_not_saturate_at_16_bits(void)
+{
+    fresh();
+    for (uint32_t i = 0U; i < 70000U; i++) {
+        np_pst_note_predrive_refusal();
+        np_pst_note_drive_fault();
+    }
+    np_pst_counts_t c;
+    np_pst_get_counts(&c);
+    check(c.predrive_refusals == 70000U && c.drive_faults == 70000U,
+          "counts: 70000 events are counted as 70000, not held at 65535 (OI-UINT16-01)");
+}
+
+/* @verifies REQ-FWHUB-48 */
 static void test_session_counts_shdr(void)
 {
     fresh();
@@ -386,12 +400,12 @@ static void test_session_counts_shdr(void)
     np_log_shdr_pbm_session_counts(&c);
     np_log_flush();
     const uint8_t *s = shdr_at();
-    uint32_t cnt; uint16_t thr, pre, flt;
-    memcpy(&cnt, s + 1U, 4U); memcpy(&thr, s + 5U, 2U);
-    memcpy(&pre, s + 7U, 2U); memcpy(&flt, s + 9U, 2U);
+    uint32_t cnt, thr, pre, flt;
+    memcpy(&cnt, s + 1U, 4U); memcpy(&thr, s + 5U, 4U);
+    memcpy(&pre, s + 9U, 4U); memcpy(&flt, s + 13U, 4U);
     check(shdr_new() == COUNTS_REC_BYTES && s[0] == NP_LOG_TAG_SHDR_PBM_COUNTS &&
           cnt == 1U && thr == 0U && pre == 1U && flt == 2U && uhdr_new() == 0U,
-          "shdr 0x88: counts with the session count and no location, 11 bytes (F13)");
+          "shdr 0x88: counts with the session count and no location, 17 bytes (F13, OI-UINT16-01)");
 
     fresh();
     np_log_shdr_pbm_session_counts(NULL);                /* a session with no PBM */
@@ -578,6 +592,7 @@ int main(void)
     test_thermal_throttle();
     test_stopped_socket_not_ticked();
     test_no_socket_driven_unmetered();
+    test_counts_do_not_saturate_at_16_bits();
     test_session_counts_shdr();
     test_health_pass();
     test_maint_run();

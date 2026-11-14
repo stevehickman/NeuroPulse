@@ -100,6 +100,16 @@ int main(void)
     check(r0.slot   == 0xFFU,                 "init: reported slot is 0xFF");
     check(r0.status == NP_SAFETY_STATUS_OK,   "init: reported status is OK");
 
+    /* ── The count is 32 bits and never saturates (OI-UINT16-01) ──────────── */
+    np_fault_latch_clear();
+    for (uint32_t i = 0U; i < 70000U; i++) {
+        np_safety_state_t t = make_state((uint8_t)((i & 1U) ? NP_SAFETY_STATUS_THERMAL : NP_SAFETY_STATUS_IMPEDANCE), 2U);
+        np_fault_latch_commit(&t);          /* the status alternates, so every commit is a distinct transition */
+    }
+    check(report().count == 70000U,           "count: 70000 transitions are counted as 70000, not held at 65535");
+    np_fault_latch_clear();
+    np_fault_latch_init(&prior);
+
     /* ── Non-cardiac fault: count == 1, status + slot surfaced ─────────────── */
     g_tick_ms = 123456U;
     np_safety_state_t thermal = make_state(NP_SAFETY_STATUS_THERMAL, 2U);
