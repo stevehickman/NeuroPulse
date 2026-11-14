@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 13
-**Date:** 2026-11-13
+**Revision:** 14
+**Date:** 2026-11-14
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1223,3 +1223,4 @@ Sources: Radioear B81 spec sheet (oaktreeproducts.com, "8506737 Spec Sheet"); Ch
 | 11 | 2026-11-12 | NeurOne Systems Engineering | **§8.2.5, §8.2.7 G, §9: principal decision recorded for OI-AUDIOHW-04 (no candidate named, vendor search first; an electromagnetic or balanced-armature-type bone vibrator evaluated in parallel with the bound piezo; no other decision gates the work). New OI-AUDIOHW-15 reopens REQ-AUDIO-03 as a pending item with the row unchanged. New §8.2.7 G records the vendor search (no planar or piezo candidate found; Radioear B81 a lead). No part, figure or constant set.** |
 | 12 | 2026-11-13 | NeurOne Systems Engineering | **§5.3, §5.3.1, §8.2.1, §8.2.7, §9: REQ-AUDIO-26 decided: noise band 20 Hz to 20 kHz, unweighted level, 12 dB crest factor (97 dB SPL equivalent peak at the ceiling, computed); new §8.2.7 G gives the reasoning and what stays open (brown noise taken as pink, secondary-source standards, hub headroom is OI-AUDIOHW-14). Also the principal kept REQ-AUDIO-25 unchanged: the one human 40 Hz auditory study whose Methods were read (Clements-Cortes and Bartel 2022) used a 160 Hz carrier and states no sound level, the 10 kHz carrier stays known only from a patent summary of a mouse study whose Methods could not be read, and the Martorell 2019 and Clements-Cortes 2016 Methods join the OI-AUDIOHW-12 check list. No code, constant or limit changed.** |
 | 13 | 2026-11-13 | NeurOne Systems Engineering | **§5.3.1: the 20 Hz to 20 kHz A-weighting offsets for pink and brown noise corrected from −12.8 and −23.7 dB to −2.9 and −12.8 dB, agreeing with §8.2.7 B; the REQ-AUDIO-26 band and crest figures are carried as an unjustified choice.** |
+| 14 | 2026-11-14 | NeurOne Systems Engineering | **§5.3, §9: REQ-AUDIO-25 built: the compiler and the hub driver refuse a binaural or isochronic tone, carrier or carrier plus beat or pulse rate, above 1,000 Hz, with a parity test between the two constants; the requirement text is unchanged.** |
