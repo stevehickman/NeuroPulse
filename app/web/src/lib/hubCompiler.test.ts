@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
+import { DEFAULT_WAVELENGTH_RULES } from '../../../../common/lib/wavelengthRules';
 import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
 import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 import { defaultParams, MODALITY_META } from '../../../../common/types/protocol';
@@ -29,7 +30,7 @@ const zones: ReadonlyMap<string, NPZoneDefinition> = new Map(
 
 // ─── Wire layout constants (mirror np_hub_config.h / np_hub_types.h) ───────────
 
-const HEADER_LEN = 68;
+const HEADER_LEN = 107;   // 68 bytes through the hardware version, then the 39-byte wavelength-rules stamp
 const CMD_HDR_LEN = 14;
 const SIG_LEN = 64;
 const SOCKET_MASK_BYTES = 16;
@@ -149,15 +150,15 @@ function eegProtocol(): NPProtocolDefinition {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('hub protocol v2 wire format', () => {
+describe('hub protocol v3 wire format', () => {
   // @verifies REQ-FWHUB-10
-  it('emits protocol version 2', () => {
-    // v2 added the hardware version to the header (NP-FW-HUB-001 §4.5). Must match NP_HUB_PROTO_VERSION in
+  it('emits protocol version 3', () => {
+    // v3 added the wavelength-rules stamp to the header, v2 the hardware version (NP-FW-HUB-001 §4.5). Must match NP_HUB_PROTO_VERSION in
     // firmware/hub_control/include/np_hub_config.h, which np_protocol_tests.c
     // pins from the other side — the hub rejects anything else as
     // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    expect(readBlob(blob).version).toBe(2);
+    expect(readBlob(blob).version).toBe(3);
   });
 
   // @verifies SWR-HV-08
@@ -170,6 +171,20 @@ describe('hub protocol v2 wire format', () => {
     // Nothing else in the header moves with it (uuid and clock are random and the time moves, so compare the rest).
     expect(three.length).toBe(dflt.length);
     expect([...three.slice(68)]).toEqual([...dflt.slice(68)]);
+  });
+
+  // @verifies SWR-HV-03#a
+  it('states the wavelength rules it was compiled under in the header: the shipped release by default, an owner set otherwise', () => {
+    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    const stampOf = (b: Uint8Array) => b.slice(68, 68 + 39);
+    const dflt = stampOf(compileProtocol(p, { zones }).blob);
+    expect([dflt[0], dflt[1], dflt[2]]).toEqual([1, 1, 0]);                                // origin 1 (a release), release 1.0
+    expect(dflt.slice(3).some(x => x !== 0)).toBe(true);                                   // the windows are carried
+    const lab = { ...DEFAULT_WAVELENGTH_RULES, level: 'user' as const, version: undefined,
+      channels: DEFAULT_WAVELENGTH_RULES.channels.map(c => c.element === 'led_808' ? { ...c, maxNm: 860 } : c) };
+    const owner = stampOf(compileProtocol(p, { zones, wavelengthRules: lab }).blob);
+    expect([owner[0], owner[1], owner[2]]).toEqual([2, 1, 0]);                             // origin 2 (an owner set), over 1.0
+    expect([...owner.slice(3)]).not.toEqual([...dflt.slice(3)]);
   });
 
   // @verifies SWR-HV-08

@@ -147,12 +147,13 @@ void np_log_telemetry(const np_telem_record_t *rec);
 void np_log_pbm_socket(const np_pst_socket_record_t *rec, uint32_t session_ms);
 
 /*
- * np_log_session_fitting — the hardware fitted at session start to UHDR (SWR-HV-02): the hardware version
- * and the module in each socket.  UHDR ONLY (where on a person's head light can be applied).  Written right
+ * np_log_session_fitting — the hardware fitted at session start to UHDR (SWR-HV-02): the hardware version,
+ * the wavelength-rules stamp of the descriptor being run (SWR-HV-03) and the module in each socket.  UHDR ONLY (where on a person's head light can be applied).  Written right
  * after the session-start record and made durable before the caller starts stimulating.  `frame` is the
  * np_fitting_build() frame, its length checked against its own socket count; a malformed frame is not written.
  *
- * Layout after NP_LOG_TAG_UHDR_FITTING: the frame — hardware version (1), n (1), n module bytes.
+ * Layout after NP_LOG_TAG_UHDR_FITTING: the frame (np_session_fitting.h) — format (1), hardware version (1), rules
+ * stamp (39), n (1), n module bytes.
  */
 void np_log_session_fitting(const uint8_t *frame, size_t len);
 
