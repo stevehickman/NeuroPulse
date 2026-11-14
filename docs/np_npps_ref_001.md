@@ -900,7 +900,7 @@ T2 only. Focal figure-8 coil, rTMS and TBS.
 | `frequency` | `frequency_hz` | number | 1–50 |
 | `intensity_percent_mt` | `intensity_percent_mt` | number | % motor threshold, 80–120 typical |
 | `target` | `target` | string | `DLPFC_L` `DLPFC_R` `VLPFC_L` `ACC` `MPFC` `M1_L` `M1_R` |
-| `pulse_count` | `pulse_count` | int | total pulses per session. A whole number, at most 65535 (the descriptor field); above it, or not whole, the compiler refuses. The frequency travels as mHz in 16 bits (at most 65.535 Hz), and an `rTMS` frequency under 0.016 Hz gives an inter-train interval the field cannot carry and is refused (`REQ-NPPS-33` (a)) |
+| `pulse_count` | `pulse_count` | int | total pulses per session. A whole number, at most 4294967295 (the 32-bit descriptor field, widened from 65535 by `OI-UINT16-01`); above it, or not whole, the compiler refuses. The frequency travels as mHz in 16 bits (at most 65.535 Hz), and an `rTMS` frequency under 0.016 Hz gives an inter-train interval the field cannot carry and is refused (`REQ-NPPS-33` (a)) |
 
 ```
 tms {
