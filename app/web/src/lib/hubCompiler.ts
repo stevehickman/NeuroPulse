@@ -126,15 +126,22 @@ export function compileProtocol(
   // (NP-NPPS-REF-001 REQ-NPPS-33 (d)).
   const serial = opts.deviceSerial ?? new Uint8Array(PROTO_SERIAL_LEN);
 
-  let zones: Record<string, number[]> | null = null;
+  // The zone namespace as the core takes it for a helmet version: every zone's socket list per hardware version, read
+  // from the parsed zone (its `socketsByVersion`; a zone that states only a flat list is version 1). The core then
+  // uses the list for the descriptor's version and REFUSES a named zone that has none for it (SWR-HV-05), so a
+  // protocol for hardware version N is never compiled against version 1's sockets.
+  let zonesByVersion: Record<string, Record<string, number[]>> | null = null;
   if (opts.zones) {
-    zones = {};
-    for (const [name, zone] of opts.zones) zones[name] = [...zone.sockets];
+    zonesByVersion = {};
+    for (const [name, zone] of opts.zones) {
+      const lists = zone.socketsByVersion ?? { '1': zone.sockets };
+      zonesByVersion[name] = Object.fromEntries(Object.entries(lists).map(([v, ids]) => [v, [...ids]]));
+    }
   }
 
   const blob = nppsCompile({
     def: protocolCoreDef(proto),
-    zones,
+    ...(zonesByVersion ? { zonesByVersion, hardwareVersion: opts.hardwareVersion ?? 1 } : {}),
     clinicianSockets: opts.clinicianSockets ? [...opts.clinicianSockets] : null,
     deviceSerialHex: hex(serial),
     nowUnix: Math.floor(Date.now() / 1000),
@@ -143,7 +150,7 @@ export function compileProtocol(
       ? { name: opts.wavelengthRules.name, channels: opts.wavelengthRules.channels }
       : null,
     acknowledgedCautions: opts.acknowledgedCautions ? [...opts.acknowledgedCautions] : [],
-    ...(opts.hardwareVersion === undefined ? {} : { hardwareVersion: opts.hardwareVersion }),
+    ...(opts.hardwareVersion === undefined || zonesByVersion ? {} : { hardwareVersion: opts.hardwareVersion }),
   });
 
   return {
