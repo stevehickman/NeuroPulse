@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 13
-**Date:** 2026-11-13
+**Revision:** 14
+**Date:** 2026-11-14
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -363,10 +363,12 @@ restricts a field an author could set before, so the principal confirms it** (`O
 | **REQ-AUDIO-25** | **CONFIRMED 2026-11-09 (principal), for now; open to revisit (§5.3.1).** **Every tone frequency the planar path is commanded to produce is at most 1,000 Hz: `carrier_hz`, and for a binaural or isochronic command `carrier_hz` plus the beat or pulse rate.** The compiler refuses a protocol above it before signing and the hub driver refuses the command before any state or output changes. Refused, never clamped | A-weighting adds up to 1.27 dB between about 1 kHz and 6.1 kHz, so an unweighted 85 dB SPL tone there is up to 86.3 dB(A), above the 85 dB(A) action level §5.1 gives as the reason for 85. The field is otherwise unbounded to 65,535 Hz | §5.1 (85 chosen at the action level in dB(A)); NIOSH Pub. 98-126 and Directive 2003/10/EC (dB(A)); the IEC 61672-1 weighting, computed above (`OI-AUDIOHW-12` checks it); `CLAUDE.md` §3 (a ceiling refuses, never reshapes). The 1,000 Hz is not chosen: it is where the nominal weighting is zero |
 | **REQ-AUDIO-26** | **DECIDED 2026-11-13 (principal): the pink and brown noise modes are defined over 20 Hz to 20 kHz, the 85 dB SPL ceiling applies to their unweighted level over that band, and they are generated to a crest factor of 12 dB.** (a) The noise is band-limited to 20 Hz to 20 kHz; (b) the level `REQ-AUDIO-19` bounds, and the level `REQ-AUDIO-22` verifies at the ear simulator, is the unweighted sound pressure level over that band (not an A-weighted level, and not a level over a wider or narrower band); (c) the noise is generated to a peak-to-rms ratio of 12 dB, and the hub output stage passes the resulting peaks, 12 dB above the commanded rms level, without clipping at every level up to the ceiling, since clipping changes both the spectrum and the measured level. | "85 dB SPL" of noise is not a defined quantity, so the ceiling cannot be verified for the two noise modes and the headroom terms (`H_crest` of relation D1, `SEL-P06`) cannot be sized. *Computed, not a limit:* a 12 dB crest at the ceiling is a peak of 97 dB SPL equivalent; over this band the A-weighted level is about 2.9 dB (pink) and 12.8 dB (brown) below the unweighted level, so the ceiling never exceeds 85 dB(A) for either (the property §5.1 gives for 85) | §5.1; `REQ-AUDIO-19`, `-20`, `-22`; the 20 Hz to 20 kHz band of an IEC 60268-1 band-limited pink noise test signal and the 11.5 to 12 dB crest of an SMPTE ST 2095-1 pink noise signal (§8.2.7 B, **both from secondary sources, the texts not read**, checked by `OI-AUDIOHW-12`); principal decision 2026-11-13. The brown-noise band and crest are taken as the pink-noise ones, since no source gives them |
 
-**Not built:** no compiler or driver check, no calibration record, no table. `REQ-AUDIO-22` to `-25` are
-untested by design (`CLAUDE.md` §21: a requirement for an unbuilt feature stays untested until the code that
-meets it is written). The `carrier_hz` row of `NP-NPPS-REF-001` §4.7 and `common/npps-core` carry
-`REQ-AUDIO-25` when it is implemented.
+**Built (2026-11-13):** `REQ-AUDIO-25`. The compiler (`AUDIO_MAX_TONE_HZ` in `common/npps-core/src/compiler.rs`) and the
+hub (`NP_AUDIO_MAX_TONE_HZ`, checked by `np_cmd_limits_check()` for both the load-time check and the dispatch
+driver) refuse a binaural or isochronic command whose carrier, or carrier plus beat or pulse rate, is above 1,000 Hz,
+and a parity test holds the two constants equal. A noise command has no tone and is not checked.
+**Not built:** no calibration record, no table. `REQ-AUDIO-22` to `-24` are untested by design (`CLAUDE.md` §21: a
+requirement for an unbuilt feature stays untested until the code that meets it is written).
 
 #### 5.3.1 `REQ-AUDIO-25` confirmed for now, and why (principal, 2026-11-09)
 
@@ -1221,3 +1223,4 @@ Sources: Radioear B81 spec sheet (oaktreeproducts.com, "8506737 Spec Sheet"); Ch
 | 11 | 2026-11-12 | NeurOne Systems Engineering | **§8.2.5, §8.2.7 G, §9: principal decision recorded for OI-AUDIOHW-04 (no candidate named, vendor search first; an electromagnetic or balanced-armature-type bone vibrator evaluated in parallel with the bound piezo; no other decision gates the work). New OI-AUDIOHW-15 reopens REQ-AUDIO-03 as a pending item with the row unchanged. New §8.2.7 G records the vendor search (no planar or piezo candidate found; Radioear B81 a lead). No part, figure or constant set.** |
 | 12 | 2026-11-13 | NeurOne Systems Engineering | **§5.3, §5.3.1, §8.2.1, §8.2.7, §9: REQ-AUDIO-26 decided: noise band 20 Hz to 20 kHz, unweighted level, 12 dB crest factor (97 dB SPL equivalent peak at the ceiling, computed); new §8.2.7 G gives the reasoning and what stays open (brown noise taken as pink, secondary-source standards, hub headroom is OI-AUDIOHW-14). Also the principal kept REQ-AUDIO-25 unchanged: the one human 40 Hz auditory study whose Methods were read (Clements-Cortes and Bartel 2022) used a 160 Hz carrier and states no sound level, the 10 kHz carrier stays known only from a patent summary of a mouse study whose Methods could not be read, and the Martorell 2019 and Clements-Cortes 2016 Methods join the OI-AUDIOHW-12 check list. No code, constant or limit changed.** |
 | 13 | 2026-11-13 | NeurOne Systems Engineering | **§5.3.1: the 20 Hz to 20 kHz A-weighting offsets for pink and brown noise corrected from −12.8 and −23.7 dB to −2.9 and −12.8 dB, agreeing with §8.2.7 B; the REQ-AUDIO-26 band and crest figures are carried as an unjustified choice.** |
+| 14 | 2026-11-14 | NeurOne Systems Engineering | **§5.3, §9: REQ-AUDIO-25 built: the compiler and the hub driver refuse a binaural or isochronic tone, carrier or carrier plus beat or pulse rate, above 1,000 Hz, with a parity test between the two constants; the requirement text is unchanged.** |
