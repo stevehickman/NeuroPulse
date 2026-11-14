@@ -13,6 +13,18 @@ void np_sim_governor_open_for_test(bool open);
 void np_simh_init(void);          /* reset the bus, bind the hardware version 1 layout, clear dispatch */
 void np_simh_line(char *line);    /* run one command line (modified in place) */
 
+/*
+ * A number from a command line that goes into a field narrower than a long (OI-UINT16-01).  It must be a whole,
+ * unsigned decimal number (or 0x hex, for masks) in 0..max.  Anything else REFUSES the command: an error event is
+ * emitted and the line is abandoned before it acts, never wrapped or cut to fit (65537 for a 16-bit field used to
+ * become 1).  Only np_simh_line may be on the stack: it holds the jump this takes.
+ */
+unsigned long np_simh_arg(const char *s, unsigned long max);
+_Noreturn void np_simh_refuse(unsigned long max);   /* the refusal itself, for a value parsed another way */
+#define NP_SIMH_U8(s)   ((uint8_t)np_simh_arg((s), 0xFFUL))
+#define NP_SIMH_U16(s)  ((uint16_t)np_simh_arg((s), 0xFFFFUL))
+#define NP_SIMH_U32(s)  ((uint32_t)np_simh_arg((s), 0xFFFFFFFFUL))
+
 /* The stimulation commands (np_sim_stim_harness.c).  np_simh_stim_line returns false if it does not own the command. */
 void np_simh_stim_init(void);
 void np_simh_stim_status(void);

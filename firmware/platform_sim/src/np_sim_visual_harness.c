@@ -88,7 +88,7 @@ bool np_simh_visual_line(const char *cmd, char *a, char *b, char *c, char *d, ch
         /* a=mode b=freq c=duty d=wl then zone_lo zone_hi emdr mode_f shade; the params struct's order is its own */
         np_mod_visual_params_t p;
         memset(&p, 0, sizeof p);
-        p.mode = (uint8_t)atoi(a); p.freq_hz = (uint8_t)atoi(b); p.duty_pct = (uint8_t)atoi(c); p.wl_select = (uint8_t)atoi(d);
+        p.mode = NP_SIMH_U8(a); p.freq_hz = NP_SIMH_U8(b); p.duty_pct = NP_SIMH_U8(c); p.wl_select = NP_SIMH_U8(d);
         p.zone_mask_lo = (uint8_t)zlo; p.zone_mask_hi = (uint8_t)zhi; p.emdr_rate_mhz = (uint8_t)emdr;
         p.mode_f_enable = (uint8_t)modef; p.shade_req = (uint8_t)shade;
         vis_result(cmd, (int)np_mod_visual_control(NP_HUB_SLOT_VISUAL, &p, (uint16_t)sizeof p));

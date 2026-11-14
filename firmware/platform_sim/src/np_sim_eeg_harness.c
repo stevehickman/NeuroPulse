@@ -55,7 +55,7 @@ bool np_simh_eeg_line(const char *cmd, char *a, char *b, char *c, char *d, char 
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_EEG, 0U);
     if (strcmp(cmd, "eeg_add") == 0) {
         m = np_sim_add(NP_SIM_KIND_EEG, 0U, 0.0f);
-        if (m != NULL) { m->eeg_regs[0] = (a != NULL) ? (uint8_t)strtol(a, NULL, 0) : 0x3EU; }
+        if (m != NULL) { m->eeg_regs[0] = (a != NULL) ? NP_SIMH_U8(a) : 0x3EU; }
     } else if (strcmp(cmd, "eeg_absent") == 0) {
         (void)np_sim_set_present(NP_SIM_KIND_EEG, 0U, false);
     } else if (strcmp(cmd, "eeg_present") == 0) {
@@ -69,9 +69,9 @@ bool np_simh_eeg_line(const char *cmd, char *a, char *b, char *c, char *d, char 
     } else if (strcmp(cmd, "eeg_init") == 0) {
         eeg_result(cmd, (int)np_mod_eeg_init(NP_HUB_SLOT_EEG));
     } else if (strcmp(cmd, "eeg") == 0 && a && b && c && d && e) {
-        const np_mod_eeg_params_t p = { .channel_mask = (uint8_t)strtol(a, NULL, 0), .gain = (uint8_t)atoi(b),
-                                        .notch = (uint8_t)atoi(c), .ref_mode = (uint8_t)atoi(d),
-                                        .adaptive_out = (uint8_t)atoi(e) };
+        const np_mod_eeg_params_t p = { .channel_mask = NP_SIMH_U8(a), .gain = NP_SIMH_U8(b),
+                                        .notch = NP_SIMH_U8(c), .ref_mode = NP_SIMH_U8(d),
+                                        .adaptive_out = NP_SIMH_U8(e) };
         eeg_result(cmd, (int)np_mod_eeg_control(NP_HUB_SLOT_EEG, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "eeg_stop") == 0) {
         eeg_result(cmd, (int)np_mod_eeg_control(NP_HUB_SLOT_EEG, NULL, 0U));
