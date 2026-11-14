@@ -22,8 +22,8 @@ static const uint8_t KIND_MOD[NP_CONS_KIND_COUNT] = {
     (uint8_t)NP_MOD_AUDIO,
 };
 
-static uint16_t s_count[NP_CONS_KIND_COUNT];
-static uint16_t s_held[NP_CONS_KIND_COUNT];   /* increments while unloaded */
+static uint32_t s_count[NP_CONS_KIND_COUNT];
+static uint32_t s_held[NP_CONS_KIND_COUNT];   /* increments while unloaded */
 static bool     s_loaded;
 static bool     s_dirty;
 static bool     s_busy;        /* a store write is in flight */
@@ -32,17 +32,13 @@ static uint32_t s_seq;         /* bumps on every change to s_count */
 static uint8_t  s_published[NP_CONS_WIRE_LEN];
 static bool     s_have_published;
 
-static uint16_t sat_add(uint16_t a, uint16_t b)
-{
-    uint32_t s = (uint32_t)a + (uint32_t)b;
-    return (s > NP_CONS_COUNT_MAX) ? (uint16_t)NP_CONS_COUNT_MAX : (uint16_t)s;
-}
-
-static void encode(const uint16_t c[NP_CONS_KIND_COUNT], uint8_t *out)
+static void encode(const uint32_t c[NP_CONS_KIND_COUNT], uint8_t *out)
 {
     for (unsigned k = 0U; k < NP_CONS_KIND_COUNT; k++) {
-        out[2U * k]      = (uint8_t)(c[k] & 0xFFU);
-        out[2U * k + 1U] = (uint8_t)(c[k] >> 8);
+        out[4U * k]      = (uint8_t)(c[k] & 0xFFU);
+        out[4U * k + 1U] = (uint8_t)((c[k] >> 8) & 0xFFU);
+        out[4U * k + 2U] = (uint8_t)((c[k] >> 16) & 0xFFU);
+        out[4U * k + 3U] = (uint8_t)(c[k] >> 24);
     }
 }
 
@@ -50,7 +46,8 @@ static void encode(const uint16_t c[NP_CONS_KIND_COUNT], uint8_t *out)
 static void try_load(void)
 {
     uint8_t rec[NP_CONS_RECORD_LEN];
-    uint16_t loaded[NP_CONS_KIND_COUNT] = { 0U, 0U, 0U, 0U };
+    uint32_t loaded[NP_CONS_KIND_COUNT] = { 0U, 0U, 0U, 0U };
+    bool migrated = false;
 
     np_hub_status_t st = np_cfg_store_replicated_read(NP_CFG_FILE_CONSUMABLES,
                                                       rec, sizeof(rec));
@@ -59,9 +56,24 @@ static void try_load(void)
             return;   /* not a record this firmware wrote: stay unloaded */
         }
         for (unsigned k = 0U; k < NP_CONS_KIND_COUNT; k++) {
-            loaded[k] = (uint16_t)rec[1U + 2U * k] |
-                        (uint16_t)((uint16_t)rec[2U + 2U * k] << 8);
+            loaded[k] = (uint32_t)rec[1U + 4U * k] |
+                        ((uint32_t)rec[2U + 4U * k] << 8) |
+                        ((uint32_t)rec[3U + 4U * k] << 16) |
+                        ((uint32_t)rec[4U + 4U * k] << 24);
         }
+    } else if (st == NP_HUB_ERR_STORE_INTEGRITY) {
+        /* The store hands over a record only at the length it was written at, so a version 1 record (4 x u16)
+         * refuses a version 2 read.  Read it at its own length and carry its counts over; it is rewritten as
+         * version 2 by the next persist.  Anything else stays unloaded, as before. */
+        uint8_t old[NP_CONS_RECORD_V1_LEN];
+        if (np_cfg_store_replicated_read(NP_CFG_FILE_CONSUMABLES, old, sizeof(old)) != NP_HUB_OK ||
+            old[0] != NP_CONS_RECORD_V1_VERSION) {
+            return;
+        }
+        for (unsigned k = 0U; k < NP_CONS_KIND_COUNT; k++) {
+            loaded[k] = (uint32_t)old[1U + 2U * k] | ((uint32_t)old[2U + 2U * k] << 8);
+        }
+        migrated = true;
     } else if (st != NP_HUB_ERR_NOT_PRESENT) {
         return;       /* present but unreadable: NOT zero */
     }
@@ -69,8 +81,8 @@ static void try_load(void)
     np_transport_hal_enter_critical();
     bool held = false;
     for (unsigned k = 0U; k < NP_CONS_KIND_COUNT; k++) {
-        s_count[k] = sat_add(loaded[k], s_held[k]);
-        held = held || (s_held[k] != 0U);
+        s_count[k] = loaded[k] + s_held[k];
+        held = held || migrated || (s_held[k] != 0U);
         s_held[k] = 0U;
     }
     s_loaded = true;
@@ -87,7 +99,7 @@ static void try_load(void)
 static void persist(void)
 {
     uint8_t  rec[NP_CONS_RECORD_LEN];
-    uint16_t snap[NP_CONS_KIND_COUNT];
+    uint32_t snap[NP_CONS_KIND_COUNT];
     uint32_t seq;
 
     np_transport_hal_enter_critical();
@@ -127,10 +139,10 @@ void np_cons_on_session_end(uint32_t mods_active_mask)
             continue;
         }
         if (s_loaded) {
-            s_count[k] = sat_add(s_count[k], 1U);
+            s_count[k]++;
             changed = true;
         } else {
-            s_held[k] = sat_add(s_held[k], 1U);
+            s_held[k]++;
         }
     }
     if (changed) {

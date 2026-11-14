@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import type { NPWavelengthRules } from '../../../../common/lib/wavelengthRules';
 import { parseNPPS, parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { serializeNPPS, serializeWavelengthRules } from '../../../../common/lib/nppsSerializer';
+import { DEFAULT_WAVELENGTH_RULES } from '../../../../common/lib/wavelengthRules';
+import { wavelengthRulesStore } from './wavelengthRulesStore';
 
 describe('the wavelength_rules block', () => {
   // @verifies REQ-NPPS-03
@@ -16,6 +18,18 @@ describe('the wavelength_rules block', () => {
     };
     const back = parseNPPSFile(serializeWavelengthRules(r)).wavelengthRules[0];
     expect(back).toEqual(r);
+  });
+
+  // @verifies SWR-HV-03#a
+  it('writes the release version of a shipped set, and an owner set states none (OI-WRV-01)', () => {
+    const shipped = serializeWavelengthRules(DEFAULT_WAVELENGTH_RULES);
+    expect(shipped).toContain('version: "1.0"');
+    expect(parseNPPSFile(shipped).wavelengthRules[0]).toEqual(DEFAULT_WAVELENGTH_RULES);
+    // Exporting the defaults as an owner's set must not carry the release: the core refuses an owner set that states one.
+    const exported = wavelengthRulesStore.exportUserRules();
+    expect(exported).toContain('level: user');
+    expect(exported).not.toContain('version:');
+    expect(parseNPPSFile(exported).wavelengthRules[0].version).toBeUndefined();
   });
 });
 

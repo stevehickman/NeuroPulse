@@ -151,6 +151,10 @@ np_hal_frame_kind_t np_hal_spi_classify(uint16_t len)
 
 /* In-flight transfer, written by the RXNE interrupt. */
 static volatile uint8_t  s_rx[NP_HAL_SPI_RX_MAX];
+/* A byte position in the receive buffer, not an event count.  It saturates on purpose, and that is the one place in
+ * this file a value is held at a ceiling (OI-UINT16-01): an overrun sets it to RX_MAX + 1, which classify() rejects,
+ * and nothing may advance it past that, because a wrap back to a valid frame length would let an overlong
+ * transfer be accepted as a short one. */
 static volatile uint16_t s_rx_len = 0U;
 
 /* One holding buffer per frame type — see ARRIVAL SEMANTICS above. */

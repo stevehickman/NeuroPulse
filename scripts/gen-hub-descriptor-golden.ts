@@ -83,7 +83,7 @@ const errorDefs: Record<string, any> = {
   tdcsRampShort: def(600, mod('tdcs', { intensityMilliamps: 1, electrodePairs: [['P3','P4']], rampSeconds: 29, electrodeAreaCm2: 25 })),
   tdcsRampMissing: def(600, mod('tdcs', { intensityMilliamps: 1, electrodePairs: [['P3','P4']], electrodeAreaCm2: 25 })),
   tmsFrequencyTooHigh: def(600, mod('tms', { tmsProtocol: 'rTMS', frequencyHz: 66, intensityPercentMT: 80, target: 'M1_R', pulseCount: 600 })),
-  tmsPulseCountTooHigh: def(600, mod('tms', { tmsProtocol: 'rTMS', frequencyHz: 10, intensityPercentMT: 80, target: 'M1_R', pulseCount: 65536 })),
+  tmsPulseCountTooHigh: def(600, mod('tms', { tmsProtocol: 'rTMS', frequencyHz: 10, intensityPercentMT: 80, target: 'M1_R', pulseCount: 4294967296 })),
   tmsIntervalTooLong: def(600, mod('tms', { tmsProtocol: 'rTMS', frequencyHz: 0.01, intensityPercentMT: 80, target: 'M1_R', pulseCount: 600 })),
   audioBeatTooHigh: def(600, mod('audio_entrainment', { binauralBeatsHz: 66, carrierHz: 440, volumeDb: 60, eegAdaptive: true, boneConductionPacer: false })),
   audioCarrierTooHigh: def(600, mod('audio_entrainment', { noiseType: 'pink', carrierHz: 65536, volumeDb: 60, eegAdaptive: false, boneConductionPacer: false })),

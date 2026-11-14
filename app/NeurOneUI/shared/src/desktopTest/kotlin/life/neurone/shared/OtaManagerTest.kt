@@ -112,6 +112,17 @@ class OtaManagerTest {
     }
 
     // @verifies DI-PERF-21
+    @Test fun an_image_with_more_chunks_than_the_16_bit_index_can_number_is_refused_before_initiate() = runTest {
+        val link = Link()
+        // One byte past 65536 chunks of 496: the index used to wrap to 0, so the hub received duplicate indexes (OI-UINT16-01).
+        val size = 65536 * 496 + 1
+        val ota = OtaManager(link, Source(image = ByteArray(size)), scope(), setOf(trusted))
+        val e = assertFailsWith<OtaException> { ota.beginUpdate(image(size = size)) }
+        assertEquals(OtaError.ImageLoadFailed, e.error)
+        assertTrue(link.sent.isEmpty())
+    }
+
+    // @verifies DI-PERF-21
     @Test fun the_transfer_reports_its_bytes_and_reserves_the_last_fifth_of_the_bar() = runTest {
         val link = Link()
         val ota = OtaManager(link, Source(image = bytes(1200)), scope(), setOf(trusted))

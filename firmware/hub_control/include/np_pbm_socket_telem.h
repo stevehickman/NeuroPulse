@@ -124,9 +124,11 @@ typedef struct {
 
 /* Per-session counts, no location (F13). */
 typedef struct {
-    uint16_t throttle_events;          /* NTC over NP_PBM_THERMAL_FAULT_C mid-run */
-    uint16_t predrive_refusals;        /* drive refused: NTC hot or unreadable    */
-    uint16_t drive_faults;             /* driver could not complete a drive       */
+    /* 32-bit counts that never saturate and never wrap: a count that stops at a ceiling reports a smaller number than
+     * happened and hides that it stopped (OI-UINT16-01).  No positive reason to saturate any of them. */
+    uint32_t throttle_events;          /* NTC over NP_PBM_THERMAL_FAULT_C mid-run */
+    uint32_t predrive_refusals;        /* drive refused: NTC hot or unreadable    */
+    uint32_t drive_faults;             /* driver could not complete a drive       */
 } np_pst_counts_t;
 
 /* ── Session side (runner) ───────────────────────────────────────────────── */
