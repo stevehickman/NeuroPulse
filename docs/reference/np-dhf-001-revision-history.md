@@ -338,3 +338,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 302 | 2026-11-13 | NeurOne Software Engineering | **41 → 42: the simulator's scenarios reach the HRV biofeedback library through the driver's session with synthetic feeders; development tool only, no device document changed.** |
 | 303 | 2026-11-13 | NeurOne Systems Engineering | **12 → 13: §5.3.1 A-weighting offsets for pink and brown noise corrected; register row for the REQ-AUDIO-26 noise figures.** |
 | 304 | 2026-11-14 | NeurOne Systems Engineering | **13 → 14: REQ-AUDIO-25 (the flat 1,000 Hz planar tone bound, kept by the principal) is built in the compiler and the hub driver; section 5.3 records it as built.** |
+| 305 | 2026-11-13 | NeurOne Software Engineering | **42 → 43: the simulator stores the hub's Config, UHDR and SHDR partitions in unlinked owner-only files and the hub's own logger and persistence write to them; development tool only, no device document changed.** |
