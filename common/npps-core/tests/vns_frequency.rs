@@ -45,7 +45,7 @@ fn an_auricular_frequency_above_the_old_ceiling_validates_and_compiles() {
 // @verifies REQ-VNSC-03
 #[test]
 fn the_frequency_travels_in_a_32_bit_field() {
-    // 107-byte header + 14-byte command header, then side (1 byte) and the frequency in mHz (LE32).
+    // 107-byte header (68 + the 39-byte rules stamp) + 14-byte command header, then side (1 byte) and the frequency in mHz (LE32).
     let b = compile(&auricular("100Hz")).unwrap();
     assert_eq!(b[122..126], 100_000u32.to_le_bytes(), "100 Hz = 100,000 mHz");
     // 70 Hz is 70,000 mHz, which a 16-bit field (65,535 max) could not hold: the case that made the widening necessary.

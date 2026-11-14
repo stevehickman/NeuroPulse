@@ -291,8 +291,8 @@ final class HubDescriptorCompilerTests: XCTestCase {
         var p = NPPBMTranscranialParams()
         p.target = .named(["Occipital Left"])
         let blob = try build(def(600, mod(.pbmTranscranial(p)))).blob
-        // header(107) + cmd_hdr(14) → target[16]
-        let mask = Array(blob.subdata(in: 82..<98))
+        // header(107: 68 + the 39-byte rules stamp) + cmd_hdr(14) → target[16]
+        let mask = Array(blob.subdata(in: 121..<137))
         XCTAssertEqual(blob[107 + 12], 0x01, "target_kind = socket mask")
         XCTAssertEqual(blob[107 + 13], 16, "target_len")
         var ids: [Int] = []

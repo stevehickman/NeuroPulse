@@ -1,10 +1,6 @@
 {
-  "$comment": "The append-only register of released wavelength rule sets (SWR-HV-03, NP-NPPS-REF-001 7a.1, OI-WRV-01). One row per release NeurOne has shipped: its major.minor and the SHA-256 identity of the resolved set (the canonical form of common/npps-core/src/wavelength.rs). Rows are only ever appended: a released row is never edited, reordered or removed, and a version is never reused or lowered. The last row is the set protocols/predefined/00-wavelength-rules.npps and the core's default_rules() carry; common/npps-core/tests/rules_register.rs fails when they differ. Changing a shipped window means appending a row, in the release that ships it, with the major/minor line of 7a.1.",
+  "$comment": "The register of released wavelength-rules sets (NP-NPPS-REF-001 §7a.1, OI-WRV-01, SWR-HV-03): one row per released set, append-only, newest last. `hash` is the SHA-256 of the set's canonical form (common/npps-core/src/wavelength_version.rs), which the core computes and nobody assigns. NeurOne assigns `version` (major.minor) when it ships a set. A row is never edited, removed or reused, and a version never goes down. The last row is the shipped file protocols/predefined/00-wavelength-rules.npps; common/npps-core/tests/wavelength_version.rs fails when it is not, and scripts/check-wavelength-register.ts fails a pull request that edits, removes or reorders a row the base already had.",
   "releases": [
-    {
-      "major": 1,
-      "minor": 0,
-      "hash": "316654aa4924a962a5e3501f80aeff3d0289498e513ac4a8572581c0f8828aa1"
-    }
+    { "version": "1.0", "hash": "316654aa4924a962a5e3501f80aeff3d0289498e513ac4a8572581c0f8828aa1" }
   ]
 }

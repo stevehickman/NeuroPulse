@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseNPPSFile } from '../../../../common/lib/nppsParser';
 import { compileProtocol } from './hubCompiler';
+import { DEFAULT_WAVELENGTH_RULES } from '../../../../common/lib/wavelengthRules';
 import { NP_SOCKETS } from '../../../../common/lib/socketMap.generated';
 import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
 import { defaultParams, MODALITY_META } from '../../../../common/types/protocol';
@@ -29,7 +30,7 @@ const zones: ReadonlyMap<string, NPZoneDefinition> = new Map(
 
 // ─── Wire layout constants (mirror np_hub_config.h / np_hub_types.h) ───────────
 
-const HEADER_LEN = 107;
+const HEADER_LEN = 107;   // 68 bytes through the hardware version, then the 39-byte wavelength-rules stamp
 const CMD_HDR_LEN = 14;
 const SIG_LEN = 64;
 const SOCKET_MASK_BYTES = 16;
@@ -149,34 +150,15 @@ function eegProtocol(): NPProtocolDefinition {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('hub protocol v2 wire format', () => {
+describe('hub protocol v3 wire format', () => {
   // @verifies REQ-FWHUB-10
   it('emits protocol version 3', () => {
-    // v3 added the 39-byte wavelength-rules stamp to the header, v2 the hardware version (NP-FW-HUB-001 §4.5). Must match NP_HUB_PROTO_VERSION in
+    // v3 added the wavelength-rules stamp to the header, v2 the hardware version (NP-FW-HUB-001 §4.5). Must match NP_HUB_PROTO_VERSION in
     // firmware/hub_control/include/np_hub_config.h, which np_protocol_tests.c
     // pins from the other side — the hub rejects anything else as
     // NP_HUB_ERR_BAD_VERSION before it reads a single command.
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
     expect(readBlob(blob).version).toBe(3);
-  });
-
-  // @verifies SWR-HV-03
-  it('states the rules the descriptor was compiled under: release 1.0 by default, an owner set for edited windows', () => {
-    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
-    const dflt = compileProtocol(p, { zones }).blob;
-    expect([...dflt.slice(68, 71)]).toEqual([1, 1, 0]);
-    const edited = compileProtocol(p, { zones, wavelengthRules: {
-      name: 'Lab A', level: 'user', channels: [
-        { element: 'led_660', nominalNm: 660, minNm: 650, maxNm: 680 },
-        { element: 'led_808', nominalNm: 808, minNm: 798, maxNm: 860 },
-        { element: 'led_1064', nominalNm: 1064, minNm: 1054, maxNm: 1074 },
-      ] } as any }).blob;
-    expect([...edited.slice(68, 71)]).toEqual([2, 1, 0]);
-    // An edited set states the release it was merged over, and the descriptor records it as stated (SWR-HV-03).
-    const based = compileProtocol(p, { zones, wavelengthRules: { name: 'Lab A', level: 'user', version: '2.3', channels: [
-      { element: 'led_808', nominalNm: 808, minNm: 798, maxNm: 860 },
-    ] } as any }).blob;
-    expect([...based.slice(68, 71)]).toEqual([2, 2, 3]);
   });
 
   // @verifies SWR-HV-08
@@ -189,6 +171,20 @@ describe('hub protocol v2 wire format', () => {
     // Nothing else in the header moves with it (uuid and clock are random and the time moves, so compare the rest).
     expect(three.length).toBe(dflt.length);
     expect([...three.slice(68)]).toEqual([...dflt.slice(68)]);
+  });
+
+  // @verifies SWR-HV-03#a
+  it('states the wavelength rules it was compiled under in the header: the shipped release by default, an owner set otherwise', () => {
+    const p = pbmProtocol({ zoneRefs: ['Frontal Left'] });
+    const stampOf = (b: Uint8Array) => b.slice(68, 68 + 39);
+    const dflt = stampOf(compileProtocol(p, { zones }).blob);
+    expect([dflt[0], dflt[1], dflt[2]]).toEqual([1, 1, 0]);                                // origin 1 (a release), release 1.0
+    expect(dflt.slice(3).some(x => x !== 0)).toBe(true);                                   // the windows are carried
+    const lab = { ...DEFAULT_WAVELENGTH_RULES, level: 'user' as const, version: undefined,
+      channels: DEFAULT_WAVELENGTH_RULES.channels.map(c => c.element === 'led_808' ? { ...c, maxNm: 860 } : c) };
+    const owner = stampOf(compileProtocol(p, { zones, wavelengthRules: lab }).blob);
+    expect([owner[0], owner[1], owner[2]]).toEqual([2, 1, 0]);                             // origin 2 (an owner set), over 1.0
+    expect([...owner.slice(3)]).not.toEqual([...dflt.slice(3)]);
   });
 
   // @verifies SWR-HV-08

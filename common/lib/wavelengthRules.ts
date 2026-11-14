@@ -40,8 +40,11 @@ export interface NPWavelengthRules {
   name: string;
   level: NPWavelengthRulesLevel;
   description?: string;
-  /** The release (`major.minor`) the block states (NP-NPPS-REF-001 §7a.1): for the shipped file the release itself, for an
-   *  edited set the release it was merged over. Never read to decide what a set delivers. */
+  /**
+   * The release version `major.minor` of a set NeurOne ships (NP-NPPS-REF-001 §7a.1, OI-WRV-01). Only a
+   * `level: global` block states one: an owner's edited set states none, and is named by its windows and the release
+   * it was merged over.
+   */
   version?: string;
   /** At most one rule per element. A channel with no rule accepts nothing. */
   channels: NPWavelengthChannelRule[];

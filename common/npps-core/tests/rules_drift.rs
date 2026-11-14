@@ -4,11 +4,11 @@
 
 use neurone_npps_core::library::library_json;
 use neurone_npps_core::wavelength::*;
+use neurone_npps_core::wavelength_version::{stamp_for, ResolvedSet};
 use serde_json::{json, Value};
 
 fn stamp_hex(r: &WavelengthRules) -> String {
-    let s = RulesStamp::for_rules(ORIGIN_OWNER_SET, 1, 0, r).unwrap();
-    s.to_bytes().iter().map(|b| format!("{b:02x}")).collect()
+    stamp_for(&ResolvedSet::from_rules(r).unwrap()).unwrap().encode().iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn defaults_edit(f: impl Fn(&mut WavelengthRules)) -> WavelengthRules {
@@ -113,5 +113,5 @@ fn a_descriptor_that_states_no_rules_is_not_judged_and_a_malformed_stamp_is_refu
     let mut bad = rules_json(&WavelengthRules::default_rules());
     bad["channels"][0]["minNm"] = json!(650.00004);
     let e = library_json(&json!({ "op": "rulesDrift", "stampHex": stamp_hex(&WavelengthRules::default_rules()), "wavelengths": [], "rules": bad }).to_string()).unwrap_err();
-    assert!(e.contains("0.1 pm grid"), "{e}");
+    assert!(e.contains("0.1 pm"), "{e}");
 }

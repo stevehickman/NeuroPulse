@@ -169,10 +169,6 @@ typedef enum {
  * NP-HEX-ZM-001 §4 and the target-block note in np_hub_config.h.
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* The wavelength-rules stamp (SWR-HV-03, NP-NPPS-REF-001 §7a.1): origin, release major, release minor, then
- * 36 bytes of windows.  The hub never reads inside it: it holds no register and checks no version. */
-#define NP_HUB_RULES_STAMP_LEN 39U
-
 typedef struct __attribute__((packed)) {
     uint32_t magic;                              /* NP_HUB_PROTO_MAGIC             */
     uint16_t version;                            /* NP_HUB_PROTO_VERSION           */
@@ -184,7 +180,11 @@ typedef struct __attribute__((packed)) {
     uint32_t session_duration_ms;                /* total session length            */
     uint8_t  hardware_version;                   /* helmet layout it was compiled for, 1..15 (SWR-HV-08) */
     uint8_t  reserved[3];                        /* zero; refused if not            */
-    uint8_t  rules_stamp[NP_HUB_RULES_STAMP_LEN];/* wavelength-rules stamp (SWR-HV-03); copied, never checked */
+    /* The wavelength rules the descriptor was compiled under (SWR-HV-03, NP-NPPS-REF-001 7a.1): origin (0 not
+     * stated, 1 NeurOne release, 2 owner set), release major, release minor, then 36 bytes of windows.  The hub does
+     * not read the windows or check the release against a list: it keeps the bytes for the session record, and
+     * refuses only a stamp whose shape is wrong (np_protocol_verify_and_parse). */
+    uint8_t  rules_stamp[NP_HUB_PROTO_RULES_STAMP_LEN];
 } np_proto_header_t;
 
 /* compile-time check: header is exactly 107 bytes
@@ -279,7 +279,7 @@ typedef struct {
     uint8_t           flags;
     uint8_t           cmd_count;
     uint8_t           hardware_version; /* from the signed header; compared with the helmet's at load (SWR-HV-08) */
-    uint8_t           rules_stamp[NP_HUB_RULES_STAMP_LEN]; /* from the signed header, copied to the session record (SWR-HV-03) */
+    uint8_t           rules_stamp[NP_HUB_PROTO_RULES_STAMP_LEN]; /* the wavelength-rules stamp, for the session record (SWR-HV-03) */
     np_session_cmd_t  cmds[NP_HUB_PROTO_CMD_MAX];
 } np_session_desc_t;
 

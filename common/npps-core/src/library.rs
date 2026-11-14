@@ -660,19 +660,14 @@ fn pbm_wavelengths(def: &Value) -> Vec<String> {
 /// refused, or was refused and is now delivered, makes it `stale` and lists each change. A stamp with origin 0 states no
 /// rules, so nothing is compared (`notStated`). The core never offers a re-upload: the app offers one, and the person chooses.
 fn rules_drift(req: &Value) -> R<Value> {
-    use crate::wavelength::{resolve, windows_bytes, windows_from_bytes, windows_of, Channel, ChannelRule, Resolution, RulesStamp, STAMP_LEN};
+    use crate::wavelength::{resolve, Channel, ChannelRule, Resolution, WavelengthRules};
+    use crate::wavelength_version::{Origin, ResolvedSet, Stamp, STAMP_LEN, UNITS_PER_NM};
     let hex = req["stampHex"].as_str().ok_or("stampHex is required")?;
     if hex.len() != STAMP_LEN * 2 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(format!("stampHex must be {} hex digits", STAMP_LEN * 2));
     }
-    let mut raw = [0u8; STAMP_LEN];
-    for (i, b) in raw.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| e.to_string())?;
-    }
-    let stamp = RulesStamp::from_bytes(&raw);
-    if stamp.origin > crate::wavelength::ORIGIN_OWNER_SET {
-        return Err(format!("stamp origin {} is not 0, 1 or 2", stamp.origin));
-    }
+    let raw: Vec<u8> = (0..STAMP_LEN).map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| e.to_string())).collect::<R<_>>()?;
+    let stamp = Stamp::decode(&raw)?;
     let wavelengths: Vec<String> = if req["def"].is_object() {
         pbm_wavelengths(&req["def"])
     } else {
@@ -683,38 +678,37 @@ fn rules_drift(req: &Value) -> R<Value> {
             .map(|w| w.as_str().map(str::to_string).ok_or_else(|| "a wavelength must be a string such as \"810nm\"".to_string()))
             .collect::<R<_>>()?
     };
-    let in_force = crate::api::rules(&req["rules"])?.unwrap_or_else(crate::wavelength::WavelengthRules::default_rules);
-    let now_windows = windows_of(&in_force)?;
-    let now_hex = crate::wavelength::rules_hash_hex(&now_windows);
+    let in_force = crate::api::rules(&req["rules"])?.unwrap_or_else(WavelengthRules::default_rules);
+    let now_set = ResolvedSet::from_rules(&in_force)?;
     let state_json = |state: &str, changes: Vec<Value>| {
-        json!({ "state": state, "origin": stamp.origin, "release": [stamp.major, stamp.minor], "changes": changes, "rulesHash": now_hex,
-                "storedHash": stamp.hash_hex() })
+        json!({ "state": state, "origin": stamp.origin as u8, "release": [stamp.major, stamp.minor], "changes": changes,
+                "rulesHash": now_set.hash(), "storedHash": stamp.set().ok().flatten().map(|s| s.hash()) })
     };
-    if stamp.origin == crate::wavelength::ORIGIN_NOT_STATED {
+    let Some(then_set) = stamp.set()? else {
         return Ok(state_json("notStated", vec![]));
-    }
-    if windows_bytes(&now_windows) == stamp.windows {
+    };
+    debug_assert!(stamp.origin != Origin::NotStated);
+    if then_set == now_set {
         return Ok(state_json("current", vec![]));
     }
     // The set the descriptor was compiled under, rebuilt from the windows it carries.
-    let then_w = windows_from_bytes(&stamp.windows);
-    let then = crate::wavelength::WavelengthRules {
+    let as_rules = |s: &ResolvedSet| WavelengthRules {
         name: "stored".into(),
-        version: None,
         channels: Channel::ALL
             .iter()
             .enumerate()
             .filter_map(|(i, ch)| {
-                then_w[i].map(|(n, lo, hi)| ChannelRule {
+                s.channels[i].map(|w| ChannelRule {
                     element: *ch,
-                    nominal_nm: n as f64 / crate::wavelength::COUNTS_PER_NM,
-                    min_nm: lo as f64 / crate::wavelength::COUNTS_PER_NM,
-                    max_nm: hi as f64 / crate::wavelength::COUNTS_PER_NM,
+                    nominal_nm: f64::from(w.nominal) / f64::from(UNITS_PER_NM),
+                    min_nm: f64::from(w.min) / f64::from(UNITS_PER_NM),
+                    max_nm: f64::from(w.max) / f64::from(UNITS_PER_NM),
                 })
             })
             .collect(),
     };
-    let channel_of = |r: &crate::wavelength::WavelengthRules, w: &str| match resolve(w, r) {
+    let then = as_rules(&then_set);
+    let channel_of = |r: &WavelengthRules, w: &str| match resolve(w, r) {
         Resolution::Ok(c) => Some(c.name()),
         _ => None,
     };

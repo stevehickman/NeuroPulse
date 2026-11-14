@@ -106,7 +106,7 @@ static void blob_begin(blob_t *b, uint16_t version)
     const uint32_t duration = 60000UL;
     memcpy(b->buf + 60, &duration, 4);
     b->buf[64] = 1;                     /* hardware_version; 65..67 reserved, zero */
-    b->len = 107U;
+    b->len = 107U;                      /* 68 + the 39-byte rules stamp, zero: origin 0, not stated */
 }
 
 static void blob_add_cmd(blob_t *b,
@@ -160,8 +160,8 @@ static void mask_set(uint8_t mask[NP_HUB_SOCKET_MASK_BYTES], unsigned socket)
 static void test_wire_layout(void)
 {
     check(sizeof(np_proto_header_t) == 107U, "layout: header is 107 bytes");
-    check(offsetof(np_proto_header_t, rules_stamp) == 68U && NP_HUB_RULES_STAMP_LEN == 39U,
-          "layout: the 39-byte rules stamp follows the reserved bytes");
+    check(offsetof(np_proto_header_t, rules_stamp) == 68U && NP_HUB_PROTO_RULES_STAMP_LEN == 39U,
+          "layout: the 39-byte rules stamp follows the three reserved bytes (SWR-HV-03)");
     check(offsetof(np_proto_header_t, hardware_version) == 64U &&
           offsetof(np_proto_header_t, reserved) == 65U,
           "layout: the hardware version is the byte after the session length, then three reserved");
@@ -169,8 +169,8 @@ static void test_wire_layout(void)
           "layout: v2 command header is 14 bytes (12 + target_kind + target_len)");
     check(NP_HUB_SOCKET_MASK_BYTES * 8U == 128U,
           "layout: socket bitmap covers the full 7-bit socket domain");
-    /* 2: the header gained the hardware version (SWR-HV-08, NP-FW-HUB-001 §4.5).  The core's
-     * VERSION must move with this constant or every descriptor is rejected as BAD_VERSION. */
+    /* 3: the header gained the wavelength-rules stamp (SWR-HV-03, NP-FW-HUB-001 §4.5); 2 added the hardware version
+     * (SWR-HV-08).  The core's VERSION must move with this constant or every descriptor is rejected as BAD_VERSION. */
     check(NP_HUB_PROTO_VERSION == 0x0003U, "layout: protocol version is v3");
 }
 
@@ -193,30 +193,6 @@ static void test_signature_check_arguments(void)
     check(g_vf_msg == b.buf, "verify args: the message is the start of the blob");
     check(g_vf_len == (uint32_t)(len - NP_HUB_PROTO_SIG_LEN), "verify args: the message is every byte but the trailing signature");
     check(g_vf_sig == b.buf + len - NP_HUB_PROTO_SIG_LEN, "verify args: the signature is the trailing 64 bytes");
-}
-
-/* @verifies SWR-HV-03 */
-static void test_rules_stamp_is_copied_from_the_signed_header(void)
-{
-    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
-    blob_t b;
-    blob_begin(&b, NP_HUB_PROTO_VERSION);
-    for (unsigned i = 0U; i < NP_HUB_RULES_STAMP_LEN; i++) { b.buf[68U + i] = (uint8_t)(0x30U + i); }
-    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
-    size_t len = blob_finish(&b);
-    np_session_desc_t desc;
-    g_vf_len = 0U;
-    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "rules stamp: parses");
-    check(memcmp(desc.rules_stamp, &b.buf[68], NP_HUB_RULES_STAMP_LEN) == 0,
-          "rules stamp: the 39 bytes reach the descriptor unchanged, with no check of a version");
-    check(g_vf_len >= 107U, "rules stamp: the signed message covers the stamp (it is inside the header)");
-
-    /* A descriptor whose stamp is all zero is accepted: the hub records \"not stated\", the staged rule of Q6. */
-    blob_begin(&b, NP_HUB_PROTO_VERSION);
-    blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
-    len = blob_finish(&b);
-    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK && desc.rules_stamp[0] == 0U,
-          "rules stamp: no stamp parses, and reads origin 0 (not stated)");
 }
 
 /* @verifies SWR-HV-08 */
@@ -247,6 +223,66 @@ static void test_hardware_version_stamp(void)
         np_session_desc_t desc;
         check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_INVALID_ARG,
               "hwver: an impossible stamp or a non-zero reserved byte is refused");
+    }
+}
+
+/* ── The wavelength-rules stamp (SWR-HV-03, REQ-FWHUB-83) ─────────────────────── */
+
+/* @verifies REQ-FWHUB-83#b,c,d */
+static void test_rules_stamp(void)
+{
+    const uint8_t params[5] = { 0xFF, 6, 2, 0, 3 };
+    /* A release (1), an owner set (2) and a release the hub has never heard of (200.7): all are recorded, none is
+     * looked up.  The windows are not read. */
+    const uint8_t good[][3] = { { 1, 1, 0 }, { 2, 1, 0 }, { 1, 200, 7 } };
+    for (size_t i = 0U; i < sizeof good / sizeof good[0]; i++) {
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        b.buf[68] = good[i][0]; b.buf[69] = good[i][1]; b.buf[70] = good[i][2];
+        for (size_t k = 0U; k < 36U; k++) { b.buf[71 + k] = (uint8_t)(0x40U + k); }
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "stamp: a stated stamp parses");
+        check(memcmp(desc.rules_stamp, b.buf + 68, NP_HUB_PROTO_RULES_STAMP_LEN) == 0,
+              "stamp: the 39 bytes reach the descriptor unchanged, for the session record");
+    }
+    /* Origin 0 (not stated) with zeros after it parses and is kept as zeros. */
+    {
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        memset(desc.rules_stamp, 0xEE, sizeof desc.rules_stamp);
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK, "stamp: not stated parses");
+        uint8_t zeros[NP_HUB_PROTO_RULES_STAMP_LEN] = { 0 };
+        check(memcmp(desc.rules_stamp, zeros, sizeof zeros) == 0, "stamp: not stated is recorded as zeros, never a version");
+    }
+    /* An origin that is not 0, 1 or 2, or "not stated" with anything after it, is a shape no writer produces. */
+    const uint8_t bad[][2] = { { 68, 3 }, { 68, 255 }, { 69, 1 }, { 70, 1 }, { 71, 1 }, { 106, 0x80 } };
+    for (size_t i = 0U; i < sizeof bad / sizeof bad[0]; i++) {
+        blob_t b;
+        blob_begin(&b, NP_HUB_PROTO_VERSION);
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        b.buf[bad[i][0]] = bad[i][1];
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_INVALID_ARG,
+              "stamp: an unknown origin, or a stamp that states nothing but is not zero, is refused");
+    }
+    /* A v2 descriptor (no stamp, 68-byte header) is refused as a version, not read at the wrong offset. */
+    {
+        blob_t b;
+        blob_begin(&b, 2U);
+        blob_add_cmd(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG,
+                     0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, params, sizeof params);
+        size_t len = blob_finish(&b);
+        np_session_desc_t desc;
+        check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_ERR_BAD_VERSION, "stamp: a v2 descriptor is BAD_VERSION");
     }
 }
 
@@ -609,9 +645,9 @@ static void test_expected_len_accounts_for_target(void)
 /* @verifies REQ-FWHUB-10 */
 static void test_rejects_other_versions(void)
 {
-    /* 0 was never issued; 1 is the 64-byte header; 2 is the 68-byte header without the rules stamp (SWR-HV-03).
-     * Any of them is refused, not reinterpreted. */
-    static const uint16_t VERSIONS[] = { 0x0000U, 0x0001U, 0x0002U };
+    /* 0 was never issued; 1 and 2 are the header shapes before the wavelength-rules stamp (64 and 68 bytes), and 4 is
+     * a later one.  Any of them is refused, not reinterpreted. */
+    static const uint16_t VERSIONS[] = { 0x0000U, 0x0001U, 0x0002U, 0x0004U };
     for (size_t i = 0; i < sizeof VERSIONS / sizeof VERSIONS[0]; i++) {
         blob_t b;
         blob_begin(&b, VERSIONS[i]);
@@ -1083,7 +1119,7 @@ int main(void)
     test_wire_layout();
     test_signature_check_arguments();
     test_hardware_version_stamp();
-    test_rules_stamp_is_copied_from_the_signed_header();
+    test_rules_stamp();
 
     test_slot_target_roundtrip();
     test_slot_command_has_no_sockets();
