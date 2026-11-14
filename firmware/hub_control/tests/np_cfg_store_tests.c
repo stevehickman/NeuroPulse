@@ -1192,10 +1192,11 @@ static void test_reset_marker_is_durable(void)
 
 /* ── 9. OI-NVRAM-16 — a journal whose rows differ in length ─────────────────
  *
- * NP-FW-NVRAM-001 D-24 budgets a later Map 3 row of 40 bytes, and D-25 makes
- * each row carry its own length.  Here a version-2 row (the v1 row with an
- * 8-byte tail before the CRC, built as §7.2 rule 1 permits) is appended
- * between version-1 rows, through the store, and read back two ways.
+ * D-25 makes each Map 3 row carry its own length.  Here a grown row (the version-2 row,
+ * which is 64 bytes since OI-UINT16-01, with an 8-byte tail before the CRC and
+ * version 3 in its header, built as §7.2 rule 1 permits) is appended between
+ * 32-byte version-1 rows, through the store, and read back two ways.  The
+ * version-1 rows are built here, because the production writer writes version 2.
  */
 
 static void put_le32(uint8_t *p, uint32_t v)
@@ -1206,6 +1207,7 @@ static void put_le32(uint8_t *p, uint32_t v)
     p[3] = (uint8_t)(v >> 24);
 }
 
+/* tail == 0: the 32-byte version-1 row; tail > 0: the 64-byte version-2 row with `tail` bytes more, as version 3. */
 static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
 {
     np_map3_rec_t r;
@@ -1214,19 +1216,28 @@ static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
         r.uid[k] = (uint8_t)(0x30U + i + k);
     }
     r.seq = 100U + i;
-    r.session_count = (uint16_t)i;
-    if (np_map3_encode(&r, out, NP_MAP3_V1_BYTES) != NP_MAP3_V1_BYTES) {
-        return 0U;
-    }
+    r.session_count = i;
     if (tail == 0U) {
+        /* The version-1 layout, written out: the production writer no longer writes it. */
+        memset(out, 0, NP_MAP3_V1_BYTES);
+        out[0] = (uint8_t)NP_MAP3_V1_BYTES;
+        out[1] = 1U;
+        memcpy(&out[2], r.uid, NP_MAP3_UID_LEN);
+        put_le32(&out[10], r.seq);
+        out[18] = (uint8_t)r.session_count;
+        put_le32(&out[NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES],
+                 np_crc32(out, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES));
         return NP_MAP3_V1_BYTES;
     }
-    size_t len = NP_MAP3_V1_BYTES + tail;
+    if (np_map3_encode(&r, out, NP_MAP3_V2_BYTES) != NP_MAP3_V2_BYTES) {
+        return 0U;
+    }
+    size_t len = NP_MAP3_V2_BYTES + tail;
     for (size_t k = 0U; k < tail; k++) {
-        out[NP_MAP3_V1_FIELDS_END + k] = (uint8_t)(0xC0U + k);
+        out[NP_MAP3_V2_FIELDS_END + k] = (uint8_t)(0xC0U + k);
     }
     out[0] = (uint8_t)len;
-    out[1] = 2U;
+    out[1] = 3U;
     put_le32(&out[len - NP_MAP3_CRC_BYTES],
              np_crc32(out, (uint32_t)(len - NP_MAP3_CRC_BYTES)));
     return len;
@@ -1289,7 +1300,7 @@ static void test_journal_rows_of_differing_length(void)
                "append");
         want_bytes += n;
     }
-    ASSERT(want_bytes == ROWS * NP_MAP3_V1_BYTES + TAIL, "the fixture has one grown row");
+    ASSERT(want_bytes == (ROWS - 1U) * NP_MAP3_V1_BYTES + NP_MAP3_V2_BYTES + TAIL, "the fixture has one grown row");
 
     /* The reader stepping by each row's own length gets every row back. */
     uint32_t count = 0U;

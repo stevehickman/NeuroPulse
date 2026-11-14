@@ -1319,7 +1319,7 @@ There is no fourth case. **Per-cluster policy is needed only when Class B is unt
 
 > **⚠ But the reservation rule survives the rationale it was given, and §7.2 does not say so.** Enable-bit positions have a **second consumer inside the firmware**: they are identical to charge-monitor channel indices. `NP_SAFETY_MAX_CHANNELS` (14) is specified as *"must match the `s_charge_nc[]` array size in `np_charge_monitor.c` **and the number of `NP_SAFETY_EN_* ` bits**"*; `NP_SAFETY_CH_CLIN_STIM` is defined as *"charge-monitor channel INDEX for CLIN_STIM (**= bit position of the enable bit**)"*; and the test suite shifts the index straight into the mask (`granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)`). **Enable-bit position ≡ `current_ua[]` slot ≡ charge accumulator index — a three-way identity, and it is Class C** (the 40 µC/cm² charge-density limit rests on it). A reader combining §7.2 with the no-SHDR-records finding would reasonably conclude that recycling bits 1–4 is now safe. **It is not.** NP-HW-HUB-001 should record this second rationale — raised as part of **OI-HEXTILE-14**.
 
-**Frame capacity: there is none.** The active heartbeat `np_safety_rx_ext_frame_t` (`firmware/common/include/np_spi_wire_types.h`) allocates all 38 bytes:
+**Frame capacity: there is none.** The active heartbeat `np_safety_rx_ext_frame_t` (`firmware/common/include/np_spi_wire_types.h`) allocates all 42 bytes (the last 4, a zero tail, were added by `OI-UINT16-01` to widen the MISO reply window and are not channel data):
 
 | Offset | Field | Bytes |
 |---|---|---|
@@ -1330,7 +1330,8 @@ There is no fourth case. **Per-cluster policy is needed only when Class B is unt
 | 6 | `checksum` (over bytes 0–5) | 2 |
 | 8 | `current_ua[NP_SAFETY_MAX_CHANNELS]` | 28 |
 | 36 | `ext_checksum` (over bytes 8–35) | 2 |
-| | **total** | **38 — no reserved field** |
+| 38 | `window_tail[4]`, sent as zero, outside both checksums | 4 |
+| | **total** | **42; the 38 bytes before the tail have no reserved field** |
 
 *(The single reserved byte in `np_safety_rx_frame_t` is not available: that is the legacy 8-byte base retained only for the test suite and to document layout origin. The active heartbeat is the extended frame.)*
 

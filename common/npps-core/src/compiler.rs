@@ -1151,9 +1151,9 @@ fn encode_tms(p: &Value) -> R<Encoded> {
     let hz = f(p, "frequencyHz");
     let intensity = scaled(p, "intensityPercentMT", "TMS", 1.0, 255.0, "% MT")?;
     let pulses = required(p, "pulseCount", "TMS")?;
-    if pulses < 0.0 || pulses > 65535.0 || pulses.fract() != 0.0 {
+    if pulses < 0.0 || pulses > 4294967295.0 || pulses.fract() != 0.0 {
         return Err(format!(
-            "TMS: pulseCount {} is not a whole number the descriptor can carry (0–65535). The protocol is refused, not reduced or cut to fit.",
+            "TMS: pulseCount {} is not a whole number the descriptor can carry (0–4294967295). The protocol is refused, not reduced or cut to fit.",
             num_string(pulses)
         ));
     }
@@ -1171,14 +1171,15 @@ fn encode_tms(p: &Value) -> R<Encoded> {
         }
         inter
     };
-    let mut buf = vec![0u8; 10];
+    // pulse_count is 32 bits (OI-UINT16-01), so the inter-train interval and the burst frequency follow it.
+    let mut buf = vec![0u8; 12];
     buf[0] = proto;
     buf[1] = target_index(s(p, "target"));
     put16(&mut buf, 2, freq_mhz, "TMS frequencyHz")?;
     buf[4] = intensity as u8;
-    put16(&mut buf, 5, pulses, "TMS pulseCount")?;
-    put16(&mut buf, 7, inter, "TMS inter-train interval")?;
-    buf[9] = if tbs { 50 } else { 0 };
+    put32(&mut buf, 5, pulses, "TMS pulseCount")?;
+    put16(&mut buf, 9, inter, "TMS inter-train interval")?;
+    buf[11] = if tbs { 50 } else { 0 };
     Ok(slot(MOD_TMS, SLOT_TMS, buf))
 }
 

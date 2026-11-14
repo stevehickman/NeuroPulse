@@ -450,8 +450,8 @@ static void test_ext_frame_sizes(void)
 {
     check(sizeof(np_safety_rx_ext_frame_t) == NP_SAFETY_RX_EXT_FRAME_LEN,
           "ext_frame size == NP_SAFETY_RX_EXT_FRAME_LEN (38)");
-    check(NP_SAFETY_RX_EXT_FRAME_LEN == 38U,
-          "NP_SAFETY_RX_EXT_FRAME_LEN == 38");
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 42U,
+          "NP_SAFETY_RX_EXT_FRAME_LEN == 42");
     check(NP_SAFETY_MAX_CHANNELS == 14U,
           "NP_SAFETY_MAX_CHANNELS == 14");
 }

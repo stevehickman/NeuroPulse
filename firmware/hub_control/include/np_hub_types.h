@@ -438,7 +438,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  target;            /* 0=DLPFC_L 1=DLPFC_R 2=VLPFC_L 3=ACC 4=MPFC 5=M1_L 6=M1_R */
     uint16_t freq_mhz;          /* stim freq mHz (10000=10Hz, 50000=50Hz for TBS) */
     uint8_t  intensity_pct_mt;  /* % motor threshold; safety MCU enforces ceiling */
-    uint16_t pulse_count;       /* total pulses this command */
+    uint32_t pulse_count;       /* total pulses this command; 32-bit so no count can overflow (OI-UINT16-01) */
     uint16_t inter_train_ms;    /* inter-train interval ms */
     uint8_t  tbs_burst_hz;      /* burst freq for TBS/iTBS (50); 0 for rTMS */
 } np_mod_tms_params_t;
@@ -551,7 +551,7 @@ typedef struct {
     /* Aggregate irradiance mW/cm² — UHDR. */
     float   irradiance_mW_cm2;
     /* Throttle event count since session start — SHDR. */
-    uint16_t throttle_events;
+    uint32_t throttle_events;   /* a count: 32-bit, never saturates (OI-UINT16-01) */
     uint8_t  fault_mask;   /* bit n = 1 → slot n has active fault (SHDR) */
 } np_telem_pbm_t;
 
@@ -568,14 +568,14 @@ typedef struct {
     float    rmssd_ms;          /* HRV RMSSD — UHDR */
     float    coherence_score;   /* LF/(LF+HF)×10 — UHDR */
     float    hr_bpm;            /* instantaneous HR — UHDR */
-    uint16_t impedance_ohm;     /* electrode contact impedance — UHDR */
+    uint32_t impedance_ohm;     /* electrode contact impedance — UHDR; 32-bit, never narrowed (OI-UINT16-01) */
     bool     contact_confirmed; /* SHDR-safe: bool only */
 } np_telem_vns_hrv_t;
 
 typedef struct {
     float    current_ua;        /* actual delivered current — UHDR */
     float    impedance_kohm;    /* electrode impedance — UHDR */
-    uint16_t charge_uC;         /* cumulative charge this session — UHDR */
+    uint32_t charge_uC;         /* cumulative charge this session, µC — UHDR; 32-bit, never saturates (OI-UINT16-01) */
     bool     ramp_active;       /* SHDR */
 } np_telem_stim_t;
 
@@ -594,7 +594,7 @@ typedef struct {
 } np_telem_qeeg_t;
 
 typedef struct {
-    uint16_t pulse_count;       /* pulses delivered this command — SHDR */
+    uint32_t pulse_count;       /* pulses delivered this command — SHDR; 32-bit (OI-UINT16-01) */
     uint8_t  coil_temp_c;       /* coil temperature °C — SHDR */
     bool     emf_gate_active;   /* Helmholtz cancellation gate state — SHDR */
 } np_telem_tms_t;
