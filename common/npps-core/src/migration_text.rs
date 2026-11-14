@@ -11,6 +11,7 @@
 //! | `reasons` | a flow's `done.reason` | `MIGRATION_REASON_<CODE>` |
 //! | `secret` | a rejected recovery code or passphrase | `MIGRATION_SECRET_<CODE>` |
 //! | `probe` | a storage check's result | `MIGRATION_PROBE_<CODE>` |
+//! | `probeOps` | the operation a storage check failed on | `MIGRATION_PROBE_OP_<NAME>` |
 //! | `items` | an item a kind carries, leaves out or never moves | `MIGRATION_ITEM_<NAME>` |
 //!
 //! The keys are written out in full, so that a search for one finds the table that names it and the locale gate sees it used.
@@ -59,6 +60,18 @@ const PROBE: [(&str, &str); 3] = [
     ("insufficient", "MIGRATION_PROBE_INSUFFICIENT"),
 ];
 
+/// The operation a storage check names when it fails (`probeResult.failedOperation`): each says what failed and what to do.
+const PROBE_OPS: [(&str, &str); 8] = [
+    ("write", "MIGRATION_PROBE_OP_WRITE"),
+    ("read", "MIGRATION_PROBE_OP_READ"),
+    ("list", "MIGRATION_PROBE_OP_LIST"),
+    ("createIfAbsentFirst", "MIGRATION_PROBE_OP_CREATE_IF_ABSENT_FIRST"),
+    ("createIfAbsentSecondRefused", "MIGRATION_PROBE_OP_CREATE_IF_ABSENT_SECOND_REFUSED"),
+    ("release", "MIGRATION_PROBE_OP_RELEASE"),
+    ("delete", "MIGRATION_PROBE_OP_DELETE"),
+    ("space", "MIGRATION_PROBE_OP_SPACE"),
+];
+
 /// Every item a screen may name: the six a migration carries, the four it never moves and the three not yet sorted.
 const ITEMS: [(&str, &str); 13] = [
     ("protocols", "MIGRATION_ITEM_PROTOCOLS"),
@@ -87,6 +100,7 @@ pub(crate) fn op(name: &str, _req: &Value) -> Option<R<Value>> {
             "reasons": table(&REASONS),
             "secret": table(&SECRET),
             "probe": table(&PROBE),
+            "probeOps": table(&PROBE_OPS),
             "items": table(&ITEMS),
         }))
     })
@@ -158,12 +172,29 @@ mod tests {
         let m = op("messageKeys", &json!({})).unwrap().unwrap();
         assert_eq!(m["items"]["lastPairedHelmetId"], "MIGRATION_ITEM_LAST_PAIRED_HELMET_ID");
         assert_eq!(m["reasons"]["claimed"], "MIGRATION_REASON_CLAIMED");
-        for (group, prefix) in [("reasons", "MIGRATION_REASON_"), ("secret", "MIGRATION_SECRET_"), ("probe", "MIGRATION_PROBE_"), ("items", "MIGRATION_ITEM_")] {
+        for (group, prefix) in [("reasons", "MIGRATION_REASON_"), ("secret", "MIGRATION_SECRET_"), ("probe", "MIGRATION_PROBE_"), ("probeOps", "MIGRATION_PROBE_OP_"), ("items", "MIGRATION_ITEM_")] {
             for (code, key) in m[group].as_object().unwrap() {
                 assert!(key.as_str().unwrap().starts_with(prefix), "{code} in {group} has key {key}");
             }
         }
         assert!(op("something_else", &json!({})).is_none());
+    }
+
+    // @verifies SWR-MG-12
+    #[test]
+    fn every_operation_the_storage_check_can_fail_on_has_a_key() {
+        let seen: BTreeSet<String> = include_str!("object_route.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap()
+            .split("set(&mut st, \"")
+            .skip(1)
+            .map(|p| p.chars().take_while(|c| c.is_ascii_alphabetic()).collect())
+            .collect();
+        assert_eq!(seen.len(), PROBE_OPS.len(), "the probe sets {seen:?}");
+        for op in &seen {
+            assert!(PROBE_OPS.iter().any(|(name, _)| name == op), "the probe can fail on '{op}', which has no text key");
+        }
     }
 
     // @verifies SWR-MG-03

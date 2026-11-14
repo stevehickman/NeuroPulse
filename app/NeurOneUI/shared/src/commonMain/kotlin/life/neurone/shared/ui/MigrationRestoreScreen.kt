@@ -49,13 +49,16 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = hostPlace ?: portable?.place
-    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null) }
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null, storageChecks = portable == null) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.
     var fileOpened by remember { mutableStateOf(false) }
     var noFile by remember { mutableStateOf(false) }
     LaunchedEffect(model) { if (portable == null) model.look() }
+    // Check the place when it is picked (and so again when the person picks another folder or account), SWR-MG-12.
+    val storage by model.storage.collectAsState()
+    LaunchedEffect(model) { model.checkStorage() }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
         Text(stringResource(Res.string.migration_restore_title), style = MaterialTheme.typography.headlineMedium)
@@ -66,6 +69,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.migration_backup_place, it.label), style = MaterialTheme.typography.bodySmall)
             BackupFolderRow(app)
+            storage?.let { StorageCheckNote(it) }
         }
         Spacer(Modifier.height(16.dp))
 

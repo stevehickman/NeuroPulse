@@ -85,7 +85,7 @@ sealed interface BackupStep {
 }
 
 /** The groups of the core's table of locale keys (`messageKeys`). */
-enum class MessageGroup(val wire: String) { REASONS("reasons"), SECRET("secret"), PROBE("probe"), ITEMS("items") }
+enum class MessageGroup(val wire: String) { REASONS("reasons"), SECRET("secret"), PROBE("probe"), PROBE_OPS("probeOps"), ITEMS("items") }
 
 /** The mark in front of a listed item. */
 const val LIST_MARK = "\u2022"
@@ -99,7 +99,25 @@ class MigrationBackupModel(
     private val scheduled: ScheduledBackup? = null,
     /** The recordings in the UHDR folder, sealed beside the bundle in a health-data backup; null where the place cannot hold them or the host keeps none. */
     private val waveforms: WaveformBackup? = null,
+    /**
+     * Whether the place is checked on throwaway objects (SWR-MG-12): when it is chosen ([checkStorage]) and again before a migration
+     * begins. Off for a place that is not an object store the app can probe (a saved file, a direct move).
+     */
+    private val storageChecks: Boolean = false,
 ) {
+    private val checked = MutableStateFlow<StorageCheck?>(null)
+
+    /** What the last check of the place found; null before the first, or where checks are off. */
+    val storage: StateFlow<StorageCheck?> = checked.asStateFlow()
+
+    /** Check the place now. The bundle's size is what the items hold today, so a place with no room for it is found here. */
+    suspend fun checkStorage(): StorageCheck? {
+        if (!storageChecks || place == null) return null
+        return StorageCheckModel.check(place, bundleBytesNow(), random).also { checked.value = it }
+    }
+
+    private fun bundleBytesNow(): Long = maxOf(1L, items.sumOf { it.export()?.toString()?.length?.toLong() ?: 0L })
+
     /** Whether a health-data backup made now should also turn the automatic backup on, under the same code or passphrase. */
     var keepAutomatic: Boolean = false
 
@@ -178,6 +196,16 @@ class MigrationBackupModel(
     private suspend fun run(preview: BackupPreview, method: BundleKeyMethod, secret: BundleSecret) {
         val place = place ?: return
         state.value = BackupStep.Running
+        // A migration is checked again just before it begins (SWR-MG-12): the account may have changed since it was chosen. A place
+        // that cannot carry it is refused with the core's own reason, and nothing is written or claimed.
+        if (storageChecks && preview.kind == BackupKind.MIGRATE) {
+            val c = checkStorage()
+            if (c != null && !c.canMigrate) {
+                secret.destroy()
+                state.value = BackupStep.Failed(if (c.canBackUp) "route_not_offered" else "route_unavailable")
+                return
+            }
+        }
         val outcome = try {
             runBackup(place, keys, items, preview.kind, method, secret, random, waveforms).also { done ->
                 // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
