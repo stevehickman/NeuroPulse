@@ -749,6 +749,7 @@ function eventToMessage(ev) {
     case 'hub_status':
     case 'hub_task':
     case 'hub_led':
+    case 'hub_storage':                        // what each partition is stored in, by size and by what the host allocated (NP-SIM-FW-001 §33)
       return { type: 'HUB_STATE', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for
