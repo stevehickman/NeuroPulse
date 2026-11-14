@@ -153,6 +153,7 @@ jobs:
       releasepins: ${{ steps.scope.outputs.releasepins }}
       unjustified: ${{ steps.scope.outputs.unjustified }}
       reqtrace: ${{ steps.scope.outputs.reqtrace }}
+      wlrules: ${{ steps.scope.outputs.wlrules }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -428,6 +429,15 @@ jobs:
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
+      # The wavelength-rules register gate (SWR-HV-03, OI-WRV-01). It compares the append-only register and the shipped
+      # defaults file with the merge base: the edit that breaks it is either file or the gate.
+      NP_SCOPE_WLRULES: |
+        common/npps/wavelength-rules-register.json
+        protocols/predefined/00-wavelength-rules.npps
+        scripts/check-wavelength-rules-register.ts
+        .github/workflows/tooling-ci.yml
+        .github/toolchain.json
+        .github/actions/setup-toolchain/**
       NP_SCOPE_PBMMODEL: |
         hardware/np_pbm_model.json
         firmware/hub_control/include/np_pbm_model.generated.h
@@ -506,6 +516,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_MIGRATIONKEYS" > scope.migrationkeys.paths
           printf '%s\n' "$NP_SCOPE_TOOLCHAINPINS" > scope.toolchainpins.paths
           printf '%s\n' "$NP_SCOPE_RELEASEPINS" > scope.releasepins.paths
+          printf '%s\n' "$NP_SCOPE_WLRULES" > scope.wlrules.paths
           printf '%s\n' "$NP_SCOPE_UNJUSTIFIED" > scope.unjustified.paths
           printf '%s\n' "$NP_SCOPE_REQTRACE" > scope.reqtrace.paths
 
@@ -515,7 +526,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.releasepins.paths scope.unjustified.paths scope.reqtrace.paths scope.toolchainpins.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths scope.wirefmt.paths scope.bringup.paths scope.consumables.paths scope.lfscallers.paths scope.benchboundary.paths scope.map2shdr.paths scope.pbmmodel.paths scope.sharedplace.paths scope.migrationkeys.paths scope.releasepins.paths scope.unjustified.paths scope.reqtrace.paths scope.toolchainpins.paths scope.wlrules.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -689,6 +700,13 @@ jobs:
           assert scope.releasepins.paths false app/ios/NeurOne/Data/SessionStore.swift
           assert scope.releasepins.paths false docs/np_art_001.md
 
+          # The wavelength-rules register gate. The register, the shipped defaults it ends with and the gate are in.
+          assert scope.wlrules.paths true  common/npps/wavelength-rules-register.json
+          assert scope.wlrules.paths true  protocols/predefined/00-wavelength-rules.npps
+          assert scope.wlrules.paths true  scripts/check-wavelength-rules-register.ts
+          assert scope.wlrules.paths false protocols/predefined/01-gamma-focus.npps
+          assert scope.wlrules.paths false docs/np_art_001.md
+
           # The unjustified-choices register gate. The register, a firmware
           # header that carries a marker, the hardware JSON, an app source and
           # the script are in; the locale files are not, because the gate reads
@@ -784,6 +802,7 @@ jobs:
           emit migrationkeys scope.migrationkeys.paths
           emit toolchainpins scope.toolchainpins.paths
           emit releasepins scope.releasepins.paths
+          emit wlrules   scope.wlrules.paths
           emit unjustified scope.unjustified.paths
           emit reqtrace  scope.reqtrace.paths
 
@@ -1561,6 +1580,33 @@ jobs:
       # This still fails if a pin list is broken or the detector can no longer see it. The release build runs --release.
       - name: The pin lists are well formed and the detector sees them
         run: bun scripts/check-release-pins.ts
+
+  wavelength-rules-register:
+    name: a released wavelength rule set is never edited and a shipped window changes only in a release (SWR-HV-03)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.wlrules != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Two commits: on a pull_request run HEAD is the merge of the PR into its base, and the gate compares the
+          # register and the shipped file with HEAD^1 (the base tip), which is exactly the PR's own change. On a push it
+          # has no base and reads the tree only.
+          fetch-depth: 2
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      # No `bun install`: the checker reads source text with node builtins and spawns nothing but git.
+
+      - name: Gate self-test (prove an edited, removed or reordered released row, a window changed with no release, and an unreadable tree can fail)
+        run: bun scripts/check-wavelength-rules-register.ts --self-test
+
+      - name: Released rows are unchanged and a shipped window has a release
+        run: bun scripts/check-wavelength-rules-register.ts
 
   shared-placement:
     name: files used by more than one app live in app/NeurOneShared (CLAUDE.md §20)
