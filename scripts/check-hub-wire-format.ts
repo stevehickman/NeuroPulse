@@ -354,7 +354,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
   const C = cmd as Struct;
   const hf = (n: string) => H.fields.find((f) => f.name === n);
   const cf = (n: string) => C.fields.find((f) => f.name === n);
-  for (const n of ["magic", "version", "cmd_count", "session_duration_ms", "hardware_version"]) {
+  for (const n of ["magic", "version", "cmd_count", "session_duration_ms", "hardware_version", "rules_stamp"]) {
     if (!hf(n)) v.push(`${TYPES}: np_proto_header_t has no field ${n}`);
   }
   for (const n of ["mod_type", "slot_id", "start_ms", "duration_ms", "params_len", "target_kind", "target_len"]) {
@@ -481,9 +481,21 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     // after it, to the end of the header, are reserved and zero.
     const hw = readField(dv, 0, hf("hardware_version")!);
     if (hw !== 1) v.push(`${at} hardware_version reads ${hw} at the firmware's offset, expected 1 (the default, SWR-HV-07)`);
-    for (let i = hf("hardware_version")!.offset + 1; i < H.size; i++) {
+    // The reserved bytes run from just after it to the wavelength-rules stamp (SWR-HV-03), which is the rest of the header.
+    const stampField = hf("rules_stamp")!;
+    for (let i = hf("hardware_version")!.offset + 1; i < stampField.offset; i++) {
       if (blob[i] !== 0) v.push(`${at} reserved header byte ${i} is ${blob[i]}, expected 0`);
     }
+    // The stamp: its field is the wire constant's length, it ends the header, and its origin is 0, 1 or 2. The golden
+    // protocols compile under the shipped rules, which are a NeurOne release (origin 1); origin 0 states nothing and so
+    // must be followed by zeros (np_protocol.c refuses anything else).
+    const wireStamp = fw("NP_HUB_PROTO_RULES_STAMP_LEN");
+    if (stampField.size !== wireStamp) v.push(`${TYPES}: rules_stamp is ${stampField.size} B, NP_HUB_PROTO_RULES_STAMP_LEN is ${wireStamp}`);
+    if (stampField.offset + stampField.size !== H.size) v.push(`${TYPES}: rules_stamp does not end the header`);
+    const origin = blob[stampField.offset]!;
+    if (origin > 2) v.push(`${at} rules stamp origin is ${origin}, expected 0, 1 or 2`);
+    else if (origin === 0 && blob.slice(stampField.offset + 1, stampField.offset + stampField.size).some((x) => x !== 0)) v.push(`${at} rules stamp states nothing (origin 0) but is not zero`);
+    else if (origin !== 1) v.push(`${at} rules stamp origin is ${origin}; the golden protocols compile under the shipped rules, a NeurOne release (origin 1)`);
     if (dur !== DURATION_S * 1000) v.push(`${at} session_duration_ms reads ${dur} at the firmware's offset, expected ${DURATION_S * 1000}`);
     if (count < 1) { v.push(`${at} cmd_count reads ${count}`); continue; }
     let p = H.size;
@@ -580,7 +592,7 @@ if (process.argv.includes("--self-test")) {
     // Vacuity first: an agreeing tree must pass, or every failure proves nothing.
     ["the real tree, copied, passes", undefined, null],
     // DOC corner.
-    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 2", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
+    ["doc: §4.1 version changed", { file: DOC, from: "`NP_HUB_PROTO_VERSION` = 3", to: "`NP_HUB_PROTO_VERSION` = 4" }, "version (§4.1)"],
     ["doc: §4.6 byte count changed", { file: DOC, from: "| `np_mod_tdcs_params_t` | 8 |", to: "| `np_mod_tdcs_params_t` | 6 |" }, "§4.6 says 6 bytes"],
     ["doc: §4.6 row dropped", { file: DOC, from: /\n\| `0x10` \| `NP_MOD_VIBROTACTILE`[^\n]*/, to: "" }, "NP_MOD_VIBROTACTILE (16) has no"],
     ["doc: §4.6 slot changed", { file: DOC, from: "`NP_HUB_SLOT_TMS` (12)", to: "`NP_HUB_SLOT_PBM_1170NM` (13)" }, "slot_id is 12"],
@@ -597,7 +609,7 @@ if (process.argv.includes("--self-test")) {
     ["limits: the shared audio ceiling moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_DB_SPL",\s*"value": )85\.0/, to: "$1" + "90.0" }, "NP_AUDIO_MAX_LEVEL_HALF_DB is 170"],
     ["limits: the hub's tDCS ceiling moved", { file: LIMITS, from: "#define STIM_MAX_AMP_TDCS_UA  2000U", to: "#define STIM_MAX_AMP_TDCS_UA  2500U" }, "STIM_MAX_AMP_TDCS_UA is 2500"],
     // COMPILER corner, the Rust source, read statically.
-    ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 2;", to: "const VERSION: u16 = 3;" }, "VERSION = 3"],
+    ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 3;", to: "const VERSION: u16 = 4;" }, "VERSION = 4"],
     ["compiler: a slot constant wrong", { file: COMPILER, from: "const SLOT_TMS: u32 = 12;", to: "const SLOT_TMS: u32 = 13;" }, "SLOT_TMS = 13"],
     ["compiler: target kinds swapped", { file: COMPILER, from: "const TARGET_SOCKET_MASK: u8 = 0x01;", to: "const TARGET_SOCKET_MASK: u8 = 0x02;" }, "TARGET_SOCKET_MASK = 2"],
   ];
@@ -607,7 +619,7 @@ if (process.argv.includes("--self-test")) {
   // output is tampered the way a miscompiling core would write it, and the decode must catch it.
   const cmdHeaderAt = (blob: Uint8Array, modType: number): number => {
     const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
-    let p = 68;
+    let p = 107;   // the header: 68 bytes, then the 39-byte rules stamp
     for (let i = 0; i < blob[7]!; i++) {
       if (blob[p] === modType && dv.getUint16(p + 10, true) > 0) return p;
       p += 14 + blob[p + 13]! + dv.getUint16(p + 10, true);
@@ -627,6 +639,12 @@ if (process.argv.includes("--self-test")) {
     ["compiler: a reserved header byte not zero",
       (_l, b) => { b[67] = 9; return b; },
       "reserved header byte 67"],
+    ["compiler: an unknown rules stamp origin",
+      (_l, b) => { b[68] = 3; return b; },
+      "rules stamp origin is 3"],
+    ["compiler: a stamp that states nothing but is not zero",
+      (_l, b) => { b[68] = 0; b[70] = 1; return b; },
+      "states nothing"],
   ];
   for (const [label, tamper, needle] of tampered) await expect(label, build(), needle, tamper);
 

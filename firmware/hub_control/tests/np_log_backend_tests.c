@@ -40,6 +40,7 @@
 
 #include "../include/np_log_backend.h"
 #include "../include/np_session_log.h"
+#include "../include/np_session_fitting.h"
 #include "../include/np_log_hrv.h"
 
 static int g_failures = 0;
@@ -409,11 +410,27 @@ static void test_per_file_cap(void)
 
 static np_session_uhdr_record_t g_rec;
 
-/* @verifies SWR-HV-02 */
+/* A fitting frame (np_session_fitting.h): format, hardware version, the 39-byte rules stamp, n, n module bytes. */
+static size_t fitting_frame(uint8_t *out, uint8_t stamp0, uint8_t n_field, uint8_t n_modules)
+{
+    memset(out, 0, NP_FITTING_HDR_LEN + 8U);
+    out[0] = (uint8_t)NP_FITTING_FORMAT;
+    out[1] = 1U;                                           /* hardware version */
+    out[NP_FITTING_IDX_STAMP] = stamp0;
+    if (stamp0 != 0U) {
+        out[NP_FITTING_IDX_STAMP + 1U] = 1U;               /* release 1.0 or the base of an owner set */
+        for (size_t k = 3U; k < NP_HUB_PROTO_RULES_STAMP_LEN; k++) { out[NP_FITTING_IDX_STAMP + k] = (uint8_t)(0x40U + k); }
+    }
+    out[NP_FITTING_IDX_COUNT] = n_field;
+    for (uint8_t i = 0U; i < n_modules; i++) { out[NP_FITTING_HDR_LEN + i] = (uint8_t)(i == 1U ? 0x00U : 0x01U); }
+    return (size_t)NP_FITTING_HDR_LEN + n_modules;
+}
+
+/* @verifies SWR-HV-02 SWR-HV-03#c */
 static void test_fitting_record_is_written_to_uhdr_and_durable(void)
 {
-    static const uint8_t FRAME[] = { 1U, 3U, 0x01U, 0x00U, 0x02U };   /* hw 1, three sockets */
-    static const uint8_t BAD_COUNT[] = { 1U, 4U, 0x01U, 0x00U, 0x02U };
+    uint8_t frame[NP_FITTING_MAX_LEN];
+    const size_t flen = fitting_frame(frame, 2U, 3U, 3U);   /* an owner set over a release, three sockets */
     np_log_test_reset();
     (void)np_log_backend_init();
     np_log_init(0U);
@@ -422,23 +439,37 @@ static void test_fitting_record_is_written_to_uhdr_and_durable(void)
 
     const size_t before = np_log_test_captured_len(NP_LOG_PART_UHDR);
     const uint32_t syncs_before = np_log_test_sync_count(NP_LOG_PART_UHDR);
-    np_log_session_fitting(FRAME, sizeof FRAME);
+    np_log_session_fitting(frame, flen);
     const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR);
-    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == before + 1U + sizeof FRAME &&
-          cap[before] == NP_LOG_TAG_UHDR_FITTING && memcmp(&cap[before + 1U], FRAME, sizeof FRAME) == 0,
-          "fitting: the frame is written to UHDR behind its tag");
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) == before + 1U + flen &&
+          cap[before] == NP_LOG_TAG_UHDR_FITTING && memcmp(&cap[before + 1U], frame, flen) == 0,
+          "fitting: the frame, with the rules stamp in it, is written to UHDR behind its tag");
+    check(memcmp(&cap[before + 1U + NP_FITTING_IDX_STAMP], &frame[NP_FITTING_IDX_STAMP], NP_HUB_PROTO_RULES_STAMP_LEN) == 0,
+          "fitting: the session record holds the rules stamp, byte for byte (SWR-HV-03)");
     check(np_log_test_sync_count(NP_LOG_PART_UHDR) > syncs_before,
           "fitting: the record is synced before the session dispatches anything");
     check(np_log_test_captured_len(NP_LOG_PART_SHDR) == np_log_test_captured_len(NP_LOG_PART_SHDR) &&
           memchr(np_log_test_captured(NP_LOG_PART_SHDR), NP_LOG_TAG_UHDR_FITTING, np_log_test_captured_len(NP_LOG_PART_SHDR)) == NULL,
           "fitting: nothing of it reaches SHDR");
 
+    /* A frame that is not a record is not written: a count that disagrees, no frame, a short one, another format, an
+     * unknown origin, and a stamp that states nothing (origin 0) with a byte after it. */
     const size_t after = np_log_test_captured_len(NP_LOG_PART_UHDR);
-    np_log_session_fitting(BAD_COUNT, sizeof BAD_COUNT);
+    uint8_t bad[NP_FITTING_MAX_LEN];
+    size_t blen = fitting_frame(bad, 2U, 4U, 3U);                   /* count 4, three module bytes */
+    np_log_session_fitting(bad, blen);
     np_log_session_fitting(NULL, 5U);
-    np_log_session_fitting(FRAME, 1U);
+    np_log_session_fitting(frame, 1U);
+    blen = fitting_frame(bad, 2U, 3U, 3U); bad[0] = 1U;             /* format 1: the frame before the stamp */
+    np_log_session_fitting(bad, blen);
+    blen = fitting_frame(bad, 3U, 3U, 3U);                          /* origin 3 */
+    np_log_session_fitting(bad, blen);
+    blen = fitting_frame(bad, 0U, 3U, 3U); bad[NP_FITTING_IDX_STAMP + 20U] = 1U;   /* not stated, but not zero */
+    np_log_session_fitting(bad, blen);
+    blen = fitting_frame(bad, 2U, 0U, 0U);                          /* no sockets */
+    np_log_session_fitting(bad, blen);
     check(np_log_test_captured_len(NP_LOG_PART_UHDR) == after,
-          "fitting: a frame that disagrees with its own socket count is not written");
+          "fitting: a frame that is not this format, disagrees with its count or carries a malformed stamp is not written");
 }
 
 /* @verifies SWR-SS-05 */
