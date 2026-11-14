@@ -265,7 +265,8 @@ jobs:
         run: |
           set -euo pipefail
           test -x "$NP_SIM_FW_BIN"
-          node --test server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
+          # The TAP reporter is named because the check below reads its "# fail 0" line, and Node 24 (the runner's on 2026-11-14) prints its spec reporter when piped.
+          node --test --test-reporter=tap server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
           if ! grep -q '^# fail 0$' ../node-test.log; then
             echo "::error::node --test reported a failure"
             exit 1
