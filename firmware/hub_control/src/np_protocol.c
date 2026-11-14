@@ -163,6 +163,21 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_INVALID_ARG;
     }
 
+    /* The wavelength-rules stamp (SWR-HV-03): origin 0 (not stated), 1 (a NeurOne release) or 2 (an owner set).  The hub
+     * does not look the release up or read the windows: it records what the descriptor states.  It refuses only a shape
+     * no writer produces: an unknown origin, or "not stated" with anything but zeros after it, so a bare zero stamp
+     * cannot be mistaken for a version. */
+    if (hdr->rules_stamp[0] > 2U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    if (hdr->rules_stamp[0] == 0U) {
+        for (size_t k = 1U; k < NP_HUB_PROTO_RULES_STAMP_LEN; k++) {
+            if (hdr->rules_stamp[k] != 0U) {
+                return NP_HUB_ERR_INVALID_ARG;
+            }
+        }
+    }
+
     /* Ed25519 signature is the last NP_HUB_PROTO_SIG_LEN bytes of buf. */
     const uint8_t *sig = buf + len - NP_HUB_PROTO_SIG_LEN;
     size_t         msg_len = len - NP_HUB_PROTO_SIG_LEN;
@@ -203,6 +218,7 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     desc_out->flags            = hdr->flags;
     desc_out->cmd_count        = hdr->cmd_count;
     desc_out->hardware_version = hdr->hardware_version;
+    memcpy(desc_out->rules_stamp, hdr->rules_stamp, NP_HUB_PROTO_RULES_STAMP_LEN);
 
     size_t offset = 0U;
     for (uint8_t i = 0U; i < hdr->cmd_count; i++) {

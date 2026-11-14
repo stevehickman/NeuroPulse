@@ -303,7 +303,8 @@ np_hub_status_t np_mod_vns_telemetry(uint8_t slot, np_telem_record_t *out)
     h->rmssd_ms           = np_mod_vns_hal_get_rmssd();       /* UHDR */
     h->coherence_score    = np_mod_vns_hal_get_coherence();   /* UHDR */
     h->hr_bpm             = np_mod_vns_hal_get_hr_bpm();      /* UHDR */
-    h->impedance_ohm      = (uint16_t)s_state.last_impedance_ohm; /* UHDR */
+    h->impedance_ohm      = (s_state.last_impedance_ohm >= 4294967040.0f) ? UINT32_MAX
+                                                                    : (uint32_t)s_state.last_impedance_ohm; /* UHDR; the range test keeps the cast defined (OI-UINT16-01) */
     h->contact_confirmed  = s_state.active;                   /* SHDR-safe bool */
 
     return NP_HUB_OK;

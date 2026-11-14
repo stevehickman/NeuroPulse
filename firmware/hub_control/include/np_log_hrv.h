@@ -31,8 +31,8 @@
  * Layout after NP_LOG_TAG_UHDR_HRV_SESSION, each field little-endian as the
  * target stores it: reason (1, np_hrv_status_t as int8), duration_s (4),
  * protocol (1), target_rate_bpm (4), mean_coherence (4), min_coherence (4),
- * max_coherence (4), mean_rmssd_ms (4), rr_sample_count (2),
- * tavns_stim_count (2) — 31 bytes with the tag.  Serialized field by field,
+ * max_coherence (4), mean_rmssd_ms (4), rr_sample_count (4),
+ * tavns_stim_count (4) — 35 bytes with the tag (both counts were 2 bytes: OI-UINT16-01).  Serialized field by field,
  * so struct padding and `reserved` never reach the medium.
  *
  * session_start_unix is NOT written: the library never sets it (the device

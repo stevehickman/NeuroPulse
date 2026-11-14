@@ -19,6 +19,8 @@
 
 > **Rev 34 (2026-11-03) — §6 states what a composite compiles to, and its rules (principal direction, option A of `OI-NPPS-COMP-01`; `SWR-PL-01`).** Until now §6 said only that `merge` runs layers "simultaneously", `sequential` runs them end to end, and `override` replaces "shared modality types", and no compiler turned a composite into helmet bytes. The core now does (`common/npps-core/src/composite.rs`, `compiler::compile_composite`), and §6 records the rules it applies. **Every rule refuses; none reshapes** (`CLAUDE.md` §3). **What changes for an author:** (i) two layers that drive one modality at the same time are refused, except transcranial PBM on sockets they do not share, so a `merge` of two audio layers, or of two PBM layers on one zone, no longer compiles (a relaxation that let shared sockets pass when window, frequency and duty matched was tried and withdrawn the same day, because the weighted-sum ceiling over the merged channels is not checked yet, `OI-HEXTILE-30`, `OI-HEXTILE-31`; the question is with Safety in `OI-NPPS-COMP-01`); (ii) `intensity_scale` is above 0 and at most 1, not 0.0 to 2.0 as this section said (the validator already enforced 0 to 1); (iii) a layer may not run longer than its protocol; (iv) a `sequential` composite ignores `start`. **Two shipped composites are refused by (i)** and stay refused until a decision (`OI-NPPS-COMP-01`): "Full Multi-Modal RCT" (two audio layers at once) and "Calm to Focus" (two layers overlap for two minutes on EEG neurofeedback, audio and PBM). The rules not derived from anything are `UC-120`. No grammar, no field and no shipped file changes.
 >
+> **Rev {NP-NPPS-REF-001 to} (2026-11-13) — a `wavelength_rules` block may state a release `version` (principal rulings 2026-11-13, `OI-WRV-01`, `SWR-HV-03`; GitHub #564).** `version: "1.0"` is optional, a `major.minor` string of two whole numbers of at most 255, and only a `level: global` block may state one: an owner's set that does is a parse error. Until now an unknown key in the block was skipped silently, so a `version` line would have been dropped. The shipped file states `"1.0"`. The grammar (`npps.peggy`) needs no change: the field is a generic `Field`, checked by the core, as the level and the numbers are. No descriptor byte changes, and the protocol content hash is unchanged.
+>
 > **Rev 33 (2026-10-30) — the threshold-relative intensity fields are retired: intensity is absolute only (principal decision; `OI-NPPS-VNS-01` (b) and (b2)).** `intensity_basis` (`perceptual_threshold`, `pain_threshold`, `titrated`) and `intensity_percent_of_threshold` are removed from the grammar, the validator, the compiler and the serializer, and are now unknown fields. The system has no a-priori mapping from a perceived intensity to a hardware setting, and one person perceives the same absolute intensity differently on different occasions, so a stored threshold would drift. Perceived-intensity programming is out of scope: it cannot run in Mode 3, needs the person's input at every cycle, and breaks the coordinated ramps of parallel modalities. No shipped protocol used the fields. `REQ-NPPS-07` is narrowed to `movement_cue`.
 >
 > **Rev 32 (2026-10-30) — an unknown key in a modality block is a parse error (principal decision; `REQ-NPPS-24`, `OI-NPPS-VNS-01` (d)).** Until now a key a modality's field table did not carry was accepted and dropped, so a misspelt parameter (`pulse_widht_us: 300`) ran as the default. The block now fails to parse at that line, naming the key and listing the modality's fields. Aliases (`frequency`, `pulse_width`, `burst` and the rest) and the block keys are unaffected, and no shipped protocol carried an unknown key. Nothing else in the grammar changes.
@@ -900,7 +902,7 @@ T2 only. Focal figure-8 coil, rTMS and TBS.
 | `frequency` | `frequency_hz` | number | 1–50 |
 | `intensity_percent_mt` | `intensity_percent_mt` | number | % motor threshold, 80–120 typical |
 | `target` | `target` | string | `DLPFC_L` `DLPFC_R` `VLPFC_L` `ACC` `MPFC` `M1_L` `M1_R` |
-| `pulse_count` | `pulse_count` | int | total pulses per session. A whole number, at most 65535 (the descriptor field); above it, or not whole, the compiler refuses. The frequency travels as mHz in 16 bits (at most 65.535 Hz), and an `rTMS` frequency under 0.016 Hz gives an inter-train interval the field cannot carry and is refused (`REQ-NPPS-33` (a)) |
+| `pulse_count` | `pulse_count` | int | total pulses per session. A whole number, at most 4294967295 (the 32-bit descriptor field, widened from 65535 by `OI-UINT16-01`); above it, or not whole, the compiler refuses. The frequency travels as mHz in 16 bits (at most 65.535 Hz), and an `rTMS` frequency under 0.016 Hz gives an inter-train interval the field cannot carry and is refused (`REQ-NPPS-33` (a)) |
 
 ```
 tms {
@@ -1347,6 +1349,7 @@ limits "T1 Home Defaults" {
 ```
 wavelength_rules "NeurOne default wavelength mapping" {
     level: global
+    version: "1.0"
     description: "Channel band from CLAUDE.md §3 widened 10 nm each side."
     channel "led_660"  { nominal_nm: 660   min_nm: 650   max_nm: 680 }
     channel "led_808"  { nominal_nm: 808   min_nm: 798   max_nm: 840 }
@@ -1357,6 +1360,7 @@ wavelength_rules "NeurOne default wavelength mapping" {
 | Field | Type | Meaning |
 |-------|------|---------|
 | `level` | `global` \| `user` | `global` is the shipped defaults (`protocols/predefined/00-wavelength-rules.npps`); `user` is a user's override |
+| `version` | string | Optional. The release version `major.minor`, two whole numbers of at most 255 each (they are two bytes of the rules stamp), that NeurOne assigns to a set it ships (§7a.1, `OI-WRV-01`). **Only a `level: global` block states one**: an owner's set (`level: user`) that states one is a parse error, because an edited set is named by its windows and the release it was merged over, never by a release of its own. A value that is not `major.minor`, or not a string, is a parse error. The shipped file states `"1.0"`, which `common/npps/wavelength-rules-register.json` records |
 | `description` | string | Optional |
 | `channel "<element>" { … }` | block | One per channel: `"led_660"`, `"led_808"` or `"led_1064"`. A channel with no rule accepts nothing |
 | `nominal_nm` | number | The channel's nominal emission. Used only to choose between two accepting channels, nearest first |
@@ -1376,11 +1380,11 @@ and 830 nm deliver on the 808 nm channel; 850, 633 and 640 nm do not; 1060 and 1
 them. The web app edits, restores and exports them (Helmet configuration → Wavelength rules), and
 the eligibility check and the compiler read the same resolved set.
 
-### 7a.1 Version of the rules (RULED 2026-11-13, Q1 to Q8; not built; `OI-WRV-01`, GitHub #564)
+### 7a.1 Version of the rules (RULED 2026-11-13, Q1 to Q8; core, field, descriptor stamp and the hub's session record built; `OI-WRV-01`, GitHub #564)
 
-**All eight questions (Q1 to Q8) are ruled (2026-11-13, the principal, in chat); nothing is built.** It records the scheme `SWR-HV-03` needs before the shipped rules are first
+**All eight questions (Q1 to Q8) are ruled (2026-11-13, the principal, in chat). The shared core's canonical form, hash, stamp, register reader and major/minor floor are built (`common/npps-core/src/wavelength_version.rs`, `common/npps/wavelength-rules-register.json`); nothing else is.** It records the scheme `SWR-HV-03` needs before the shipped rules are first
 modified, so the options are written once. **Ruled 2026-11-13 (Q1, the principal, in chat): the version is option D** (release version, origin and the windows themselves; the hash is computed from the windows). Two rows were not put as separate questions and stand as proposed: comparison by content, and the notice on a stored descriptor that is out of date. **Q2 ruled the same day: yes, the identity is the hash of the resolved set, leaving out name, level and description.** **Q3 ruled the same day: yes, NeurOne assigns `major.minor` to each shipped set by the protocol rule, the present defaults are `1.0`, and an append-only register lists each released (version, hash).** **Q4 ruled the same day: yes, the major/minor line of this table is the floor** (major when a delivered wavelength is refused or moves channel, or the mapping algorithm changes; minor otherwise; NeurOne may still call a release major). **Q5 ruled the same day: a grid of 0.1 pm (10⁻⁴ nm).** First put as 0.001 nm; the principal moved it to 0.1 pm because the 32-bit stamp field has room for it and finer detail may be wanted later. The principal's condition is that the grid be finer than any resolution needed or cited in the literature for a relevant modality; the source check found it holds for every figure found, including the finest (a helium-neon vacuum wavelength, to 0.1 pm), but read no primary source (`UC-175`). **Q6 ruled the same day: the staged option.** An upload with no stamp is recorded as "not stated" until every shipped app states one, and is refused after that; the change to refusal is made, and recorded in `SWR-HV-02`, when that holds. **Q7 ruled the same day, corrected the same day by the principal: edited rules travel with the warranty owner**, because the rules belong to the warranty owner and not to the user (in a clinic, one set defined by the clinic for all its patients; in home use the owner and the user are one person). They are not a per-person setting and a patient's own migration does not carry them. The migration key list today carries them with the user's limits and profiles (`np.wavelength-rules.user` under `limitsProfiles`, `common/npps/migration-keys.json`); moving them to the owner profile's migration is a build item to settle with `OI-UI-KMP-11`, and whether they also travel through a cloud route is not decided here. The stamp's origin `2` is named an *owner set*; the grammar's `level: user` is unchanged, since renaming it is a grammar change. **Q8 ruled the same day, in three parts: (1) the rule definition is owner configuration, neither UHDR nor SHDR, and lives in the owner profile; (2) the stamp in the session record is UHDR, as `SWR-HV-02` already says, because it records how the requested wavelength was applied in that person's session; (3) NeurOne never receives the definition, so it is not in SHDR, a fleet upload or the hub diagnostic log, and any transfer of it is encrypted (`CLAUDE.md` §23).** Derivation and six hand-checkable
-vectors in `docs/human-input/oi-ui-kmp-10-wavelength-rules-versioning.md`). Until the scheme is built, **do not change a shipped window**:
+vectors in `docs/human-input/oi-ui-kmp-10-wavelength-rules-versioning.md`). Until the stamp reaches the session record, **do not change a shipped window**:
 no version exists to record the change under.
 
 | Point | Proposed scheme |
@@ -1394,14 +1398,12 @@ no version exists to record the change under.
 | Unknown or missing version | The hub never checks a version against a list: it records what the descriptor states. A descriptor with no stamp is recorded as origin `0` with zero bytes, never an invented version (Q6, ruled: staged. It is recorded as not stated until every shipped app states a stamp, then refused). A reader that meets a release it does not know shows the stated version and the windows and says it is not known; a stamp whose windows do not hash to its stated release is shown as an owner set. A rule value off the 0.1 pm grid, or a set the validator refuses, is never stamped and the compile is refused |
 | Used protocols | A protocol's identity excludes the rules (`SWR-HV-01`), so a rules release cannot change a used protocol or its history. A **compiled descriptor** states the set it was compiled under. The app marks a stored descriptor out of date when the rules in force would now map one of its wavelengths differently, and offers a new upload. It never re-uploads silently |
 
-**How the hub records it today.** It does not. `np_log_backend_session_begin(session_counter)` only opens the UHDR session file.
-The fitting frame written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FITTING`) holds the hardware version and one byte per
-socket, and its header says the rules version is left out until #564 is decided. The helmet never sees the rules: it receives
-the channel the app chose, so it can only record a version the upload states.
+**How the hub records it.** `np_log_backend_session_begin(session_counter)` only opens the UHDR session file. The fitting frame
+written after it (`np_session_fitting.h`, `NP_LOG_TAG_UHDR_FITTING`, `NP_FITTING_FORMAT` 2) holds the format, the hardware version,
+the 39-byte stamp of the signed descriptor being run, and one byte per socket. The helmet never sees the rules: it receives the
+channel the app chose and records the stamp the descriptor states, copied unchanged, as zeros (origin 0) when it states none.
 
-**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Builds that remain:** the core's canonical form, hash and comparison; the stamp in
-the descriptor and the fitting frame; the `version` field and its grammar row; the register and its check; the app notice; the
-requirement rows that `SWR-HV-03` will need.
+**Open items for the principal (`OI-WRV-01`):** none; Q1 to Q8 are ruled (2026-11-13). Still to settle with `OI-UI-KMP-11`: moving `np.wavelength-rules.user` to the owner profile's migration. **Builds that remain:** the app notice; the requirement rows `SWR-HV-03` still needs for it; and the other platforms' calls into the core. Built: the `version` field of the block (slice 2), the stamp in the signed descriptor (slice 3, `NP-FW-HUB-001` §4.2, descriptor version 3), the hub's copy of it into the UHDR fitting frame (slice 4), and the check that a released register row is never edited, removed or reordered (slice 5, `scripts/check-wavelength-register.ts`, run on every pull request against its base, with a self-test; the core's tests also fail when the shipped file is not the register's last row or names a different release).
 
 **Eligibility.** A protocol is offered only when every block can be delivered by the fitted
 modules under the rules in force. When a module swap would fix it, the shortfall names each socket
@@ -1625,7 +1627,7 @@ ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
 
 # ── Wavelength rules (§7a) ─────────────────────────────────────────────────
 wavelength_rules := 'wavelength_rules' STRING '{' wl_member* '}'
-wl_member   := 'level' ':' ('global' | 'user') | 'description' ':' STRING
+wl_member   := 'level' ':' ('global' | 'user') | 'version' ':' STRING | 'description' ':' STRING
              | 'channel' STRING '{' channel_field* '}'
 channel_field := 'nominal_nm' ':' NUMBER | 'min_nm' ':' NUMBER | 'max_nm' ':' NUMBER
 # channel STRING is "led_660" | "led_808" | "led_1064"; all three fields required
@@ -1896,7 +1898,7 @@ Reading the table:
 | `types` | Zone field | `zone` | Optional element-type array restricting the zone to certain element types within the listed sockets. Mirrors firmware `np_elem_type_t`. |
 | `until_end` | Enum value | any modality block → `repeat` | Cycle the interval for the remainder of the session. |
 | `user` | Enum value | `wavelength_rules` → `level` | *(Rev 17)* A user's override of the shipped wavelength rules (§7a). |
-| `version` | Metadata field | `protocol`, `composite` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. |
+| `version` | Metadata field | `protocol`, `composite`; `wavelength_rules` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. For `wavelength_rules` it is the rules' release version, stated by a `level: global` block only (§7a, §7a.1). |
 | `vibrotactile_40hz` | Modality block | `protocol`, `limits` | Provisional — mastoid-placement LRA vibrotactile pad (§4.15). |
 | `visual_stimulation` | Modality block | `protocol`, `limits` | 108 micro-LEDs per lens with EMDR and Mode F support (§4.8). |
 | `VLPFC_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left ventrolateral prefrontal cortex. |

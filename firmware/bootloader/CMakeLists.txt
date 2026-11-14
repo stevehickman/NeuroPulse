@@ -242,6 +242,11 @@ if(NP_BUILD_TESTS)
     target_compile_definitions(np_bootloader_flexram_tests PRIVATE
         NP_FLEXRAM_HOST_TEST)
 
+    # OI-UINT16-01: the DFU download length bound and the dTD token, both pure (np_dfu_block.h).
+    add_executable(np_bootloader_dfu_block_tests tests/np_bootloader_dfu_block_tests.c)
+    target_include_directories(np_bootloader_dfu_block_tests PRIVATE include)
+    target_compile_options(np_bootloader_dfu_block_tests PRIVATE -std=c11 -Wall -Wextra -O0 -g)
+
     # OI-SWCI-15 adds np_signature.c (which the post-copy gate calls) and
     # Monocypher, which is both np_signature.c's verifier and the test's signer.
     # The test key is force-included so np_signature.c verifies against a key
