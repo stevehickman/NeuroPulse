@@ -108,7 +108,11 @@ set(NP_SIM_PBM_FIRMWARE
     # the storage they keep their settings in: the store over LittleFS, in the device's own Config-instance geometry (np_sim_gatt.c)
     ../hub_control/src/np_cfg_store.c
     ../hub_control/src/np_lfs_instance.c
-    ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse)
+    ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse); built WITHOUT -DNPTEST_HOST (below): its file layer is np_sim_storage.c
+    ../hub_control/src/np_lfs_log_instance.c    # the UHDR and SHDR littlefs instances' geometry (OI-SIMFW-51)
+    ../hub_control/src/np_hexmap_nvram.c        # the module-map blob on the Config partition
+    ../hub_control/src/np_map3_record.c         # Map 3's record format (nothing in the tree calls it yet)
+    ../hub_control/src/np_hexmap_inventory.c    # the socket inventory reader (calls the smart-module register tunnel, unrouted)
     # the hub's own task set and boot path (OI-SIMFW-45, OI-SIMFW-50): the five tasks and np_hub_control_app_main, the freertos hooks, the module
     # registry np_runner_run dispatches through, the session log and count, the photic roles, and the factory-reset boot check np_hub_control_app_main calls
     ../hub_control/src/np_hub_control_main.c
@@ -178,8 +182,11 @@ set_source_files_properties(src/np_sim_proto.c PROPERTIES
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include;${CMAKE_CURRENT_SOURCE_DIR}/../crypto/vendor/monocypher")
 
 # np_log_backend.c names the bootloader's partition sizes (np_config.h).
-set_source_files_properties(../hub_control/src/np_log_backend.c PROPERTIES
+set_source_files_properties(../hub_control/src/np_log_backend.c ../hub_control/src/np_lfs_log_instance.c PROPERTIES
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/include")
+# np_log_backend.c's host branch (NPTEST_HOST) is a RAM model of the file layer and its test hooks; the twin's file layer is np_sim_storage.c,
+# over the partitions' files, so this one file is built without the flag (as np_transport.c is).
+set_property(SOURCE ../hub_control/src/np_log_backend.c APPEND PROPERTY COMPILE_OPTIONS "-UNPTEST_HOST")
 
 # The hub's own signature check (np_proto_verify.c) calls Monocypher's crypto_ed25519_check, the vendored SOUP np_crypto links.
 set_source_files_properties(../hub_control/src/np_proto_verify.c PROPERTIES
@@ -196,7 +203,7 @@ add_library(np_sim_pbm STATIC
     src/np_sim_safety_harness.c
     src/np_sim_proto.c
     src/np_sim_gatt.c
-    ../hub_control/tests/np_lfs_powerbd.c   # the RAM block device the hub's own storage tests use
+    src/np_sim_storage.c              # the partitions' files, the log partitions' instances and file layer (OI-SIMFW-51)
     ${NP_SIM_SAFETY_FIRMWARE}
     src/np_sim_pbm.c
     src/np_sim_stim.c
@@ -205,6 +212,7 @@ add_library(np_sim_pbm STATIC
     src/np_sim_eeg_harness.c
     src/np_sim_vns.c
     src/np_sim_vns_harness.c
+    src/np_sim_hrv_harness.c          # the HRV session's missing feeders: PPG, EEG and the HRV task (OI-SIMFW-60)
     src/np_sim_audio.c
     src/np_sim_audio_harness.c
     src/np_sim_visual.c
@@ -275,6 +283,9 @@ target_link_libraries(np_sim_hub_run_tests PRIVATE np_sim_pbm)
 target_compile_options(np_sim_hub_run_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 # The app compiler's own golden descriptors: one file in common/testdata, read by every consumer (CLAUDE.md §20), never copied here.
 target_compile_definitions(np_sim_hub_run_tests PRIVATE NP_SIM_GOLDEN_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../common/testdata/hub-descriptor-golden.json")
+add_executable(np_sim_hrv_tests tests/np_sim_hrv_tests.c)
+target_link_libraries(np_sim_hrv_tests PRIVATE np_sim_pbm)
+target_compile_options(np_sim_hrv_tests PRIVATE -std=gnu11 -Wall -Wextra -O0 -g)
 add_custom_target(np_sim_run_tests
     COMMAND np_sim_pbm_tests
     COMMAND np_sim_stim_tests
@@ -288,5 +299,6 @@ add_custom_target(np_sim_run_tests
     COMMAND np_sim_safety_tests
     COMMAND np_sim_hub_safety_tests
     COMMAND np_sim_hub_run_tests
-    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests np_sim_hub_safety_tests np_sim_hub_run_tests
+    COMMAND np_sim_hrv_tests
+    DEPENDS np_sim_pbm_tests np_sim_stim_tests np_sim_eeg_tests np_sim_vns_tests np_sim_audio_tests np_sim_visual_tests np_sim_intranasal_tests np_sim_stubs_tests np_sim_cvns_tests np_sim_safety_tests np_sim_hub_safety_tests np_sim_hub_run_tests np_sim_hrv_tests
     COMMENT "Running the simulator scenario tests")
