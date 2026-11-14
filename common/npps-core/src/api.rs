@@ -53,7 +53,7 @@ fn sockets(v: &Value) -> Result<Vec<u32>, String> {
         .collect()
 }
 
-fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
+pub(crate) fn rules(v: &Value) -> Result<Option<WavelengthRules>, String> {
     if v.is_null() {
         return Ok(None);
     }

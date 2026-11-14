@@ -633,6 +633,101 @@ fn import_families(req: &Value) -> R<Value> {
     Ok(json!({ "entries": out }))
 }
 
+// ── The wavelength rules a stored descriptor was compiled under (`SWR-HV-03`, NP-NPPS-REF-001 §7a.1) ──────────
+
+/// The PBM wavelengths a protocol states, in block order, without repeats: every enabled transcranial or intranasal block.
+fn pbm_wavelengths(def: &Value) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for m in def["modalities"].as_array().into_iter().flatten() {
+        if m["enabled"].as_bool() == Some(false) {
+            continue;
+        }
+        if matches!(m["type"].as_str(), Some("pbm_transcranial") | Some("pbm_intranasal")) {
+            if let Some(w) = m["params"]["wavelength"].as_str() {
+                if !out.iter().any(|x| x == w) {
+                    out.push(w.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// What a stored descriptor's rules do to a protocol now. `{"op":"rulesDrift","stampHex":"<39 bytes>","def"|"wavelengths":…,
+/// "rules": <the rules in force, as a compile takes them, or null for the shipped defaults>}`. The comparison is by content, never by the order of
+/// two numbers (§7a.1): equal window bytes are `current`. Different windows that map every wavelength of this protocol as
+/// they did are `differs` (the app says so and does nothing); a wavelength that now maps to another channel, or is
+/// refused, or was refused and is now delivered, makes it `stale` and lists each change. A stamp with origin 0 states no
+/// rules, so nothing is compared (`notStated`). The core never offers a re-upload: the app offers one, and the person chooses.
+fn rules_drift(req: &Value) -> R<Value> {
+    use crate::wavelength::{resolve, windows_bytes, windows_from_bytes, windows_of, Channel, ChannelRule, Resolution, RulesStamp, STAMP_LEN};
+    let hex = req["stampHex"].as_str().ok_or("stampHex is required")?;
+    if hex.len() != STAMP_LEN * 2 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("stampHex must be {} hex digits", STAMP_LEN * 2));
+    }
+    let mut raw = [0u8; STAMP_LEN];
+    for (i, b) in raw.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| e.to_string())?;
+    }
+    let stamp = RulesStamp::from_bytes(&raw);
+    if stamp.origin > crate::wavelength::ORIGIN_OWNER_SET {
+        return Err(format!("stamp origin {} is not 0, 1 or 2", stamp.origin));
+    }
+    let wavelengths: Vec<String> = if req["def"].is_object() {
+        pbm_wavelengths(&req["def"])
+    } else {
+        req["wavelengths"]
+            .as_array()
+            .ok_or("def or wavelengths is required")?
+            .iter()
+            .map(|w| w.as_str().map(str::to_string).ok_or_else(|| "a wavelength must be a string such as \"810nm\"".to_string()))
+            .collect::<R<_>>()?
+    };
+    let in_force = crate::api::rules(&req["rules"])?.unwrap_or_else(crate::wavelength::WavelengthRules::default_rules);
+    let now_windows = windows_of(&in_force)?;
+    let now_hex = crate::wavelength::rules_hash_hex(&now_windows);
+    let state_json = |state: &str, changes: Vec<Value>| {
+        json!({ "state": state, "origin": stamp.origin, "release": [stamp.major, stamp.minor], "changes": changes, "rulesHash": now_hex,
+                "storedHash": stamp.hash_hex() })
+    };
+    if stamp.origin == crate::wavelength::ORIGIN_NOT_STATED {
+        return Ok(state_json("notStated", vec![]));
+    }
+    if windows_bytes(&now_windows) == stamp.windows {
+        return Ok(state_json("current", vec![]));
+    }
+    // The set the descriptor was compiled under, rebuilt from the windows it carries.
+    let then_w = windows_from_bytes(&stamp.windows);
+    let then = crate::wavelength::WavelengthRules {
+        name: "stored".into(),
+        version: None,
+        channels: Channel::ALL
+            .iter()
+            .enumerate()
+            .filter_map(|(i, ch)| {
+                then_w[i].map(|(n, lo, hi)| ChannelRule {
+                    element: *ch,
+                    nominal_nm: n as f64 / crate::wavelength::COUNTS_PER_NM,
+                    min_nm: lo as f64 / crate::wavelength::COUNTS_PER_NM,
+                    max_nm: hi as f64 / crate::wavelength::COUNTS_PER_NM,
+                })
+            })
+            .collect(),
+    };
+    let channel_of = |r: &crate::wavelength::WavelengthRules, w: &str| match resolve(w, r) {
+        Resolution::Ok(c) => Some(c.name()),
+        _ => None,
+    };
+    let changes: Vec<Value> = wavelengths
+        .iter()
+        .filter_map(|w| {
+            let (was, is) = (channel_of(&then, w), channel_of(&in_force, w));
+            (was != is).then(|| json!({ "wavelength": w, "was": was, "now": is }))
+        })
+        .collect();
+    Ok(state_json(if changes.is_empty() { "differs" } else { "stale" }, changes))
+}
+
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.
 pub fn library_json(request: &str) -> R<String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("library request is not JSON: {e}"))?;
@@ -649,6 +744,7 @@ pub fn library_json(request: &str) -> R<String> {
         "uploadGate" => upload_gate(&req)?,
         "uploadResult" => upload_result(&req)?,
         "helmetCause" => helmet_cause(&req)?,
+        "rulesDrift" => rules_drift(&req)?,
         "mergeImport" => merge_import(&req)?,
         "offered" => offered(&req)?,
         "usedRecord" => used_record(&req)?,
