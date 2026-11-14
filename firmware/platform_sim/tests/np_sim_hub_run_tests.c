@@ -22,8 +22,17 @@
 #include "np_sim_test_util.h"
 #include "np_sim_safety_test_consts.h"
 
+#include "np_sim_storage.h"
+
 #include "np_hub_types.h"
+#include "np_cfg_store.h"
+#include "np_lfs_instance.h"
+#include "np_lfs_log_instance.h"
+#include "np_hexmap_inventory.h"
+#include "np_map3_record.h"
+#include "np_module_map.h"
 #include "np_safety_spi.h"
+#include "np_session_count.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -405,6 +414,148 @@ static void test_a_run_repeats_exactly(void)
     check(strlen(out[0]) > 200U && strcmp(out[0], out[1]) == 0, "two runs of one session (start, pause, resume, completion) report the same states at the same virtual times");
 }
 
+
+/* A completed 3 s visual session, so the partitions hold what the hub's own logger wrote. */
+static void run_a_short_session(void)
+{
+    start_visual(3000U);
+    hub_run_ms(9000);   /* 1.5 s already run, then the length and the runner's own 5 s shutdown wait */
+}
+
+/* @verifies REQ-SIMFW-25#a */
+static void test_each_partition_is_a_sparse_file_nobody_can_name_in_the_devices_geometry(void)
+{
+    run_a_short_session();
+    check(runner_is("complete"), "a session ran to its length");
+    const struct { np_sim_store_t which; const char *name; uint64_t bytes; } want[] = {
+        { NP_SIM_STORE_CONFIG, "Config", (uint64_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT },
+        { NP_SIM_STORE_UHDR,   "UHDR",   (uint64_t)NP_LFS_LOG_UHDR_BLOCK_COUNT * NP_LFS_LOG_BLOCK_SIZE },
+        { NP_SIM_STORE_SHDR,   "SHDR",   (uint64_t)NP_LFS_LOG_SHDR_BLOCK_COUNT * NP_LFS_LOG_BLOCK_SIZE },
+    };
+    for (unsigned i = 0U; i < 3U; i++) {
+        np_sim_store_info_t in;
+        char name[128];
+        (void)snprintf(name, sizeof name, "%s: a mounted partition backed by a file of exactly the instance's size", want[i].name);
+        check(np_sim_storage_info(want[i].which, &in) && in.up && in.apparent_bytes == want[i].bytes, name);
+        (void)snprintf(name, sizeof name, "%s: the file has no name (unlinked) and only its owner can read or write it (0600)", want[i].name);
+        check(in.nlink == 0U && in.mode == 0600U, name);
+        (void)snprintf(name, sizeof name, "%s: it is sparse: under 64 MiB is allocated for a partition of up to 6.9 GiB", want[i].name);
+        check(in.allocated_bytes < 64ULL * 1024ULL * 1024ULL, name);
+    }
+}
+
+/* @verifies REQ-SIMFW-25#b */
+static void test_a_sessions_records_are_in_the_partition_files_and_come_back_from_them(void)
+{
+    run_a_short_session();
+    uint64_t counters[4];
+    uint32_t sizes[4];
+    check(np_sim_storage_uhdr_sessions(counters, sizes, 4U) == 1U && sizes[0] > 0U, "the hub's logger left one UHDR session file with bytes in it");
+    uint32_t shdr = 0U;
+    check(np_sim_storage_shdr_size(&shdr) && shdr > 0U, "and bytes in the one SHDR log file");
+    uint8_t head[16];
+    uint32_t got = 0U;
+    check(np_sim_storage_uhdr_read(counters[0], 0U, head, sizeof head, &got) && got == sizeof head, "the UHDR file's first bytes read back");
+    const uint32_t uhdr_before = sizes[0], shdr_before = shdr;
+    (void)np_log_hal_part_close(NP_LOG_PART_SHDR);
+    check(np_sim_storage_remount_log(NP_SIM_STORE_UHDR) && np_sim_storage_remount_log(NP_SIM_STORE_SHDR),
+          "both log instances unmount and mount again: littlefs's RAM state is gone");
+    uint32_t after_u[4], after_s = 0U;
+    uint64_t after_c[4];
+    check(np_sim_storage_uhdr_sessions(after_c, after_u, 4U) == 1U && after_u[0] == uhdr_before && after_c[0] == counters[0] &&
+          np_sim_storage_shdr_size(&after_s) && after_s == shdr_before, "and the same files with the same sizes come back: what the hub logged is in the file");
+}
+
+/* @verifies REQ-SIMFW-25#b */
+static void test_a_second_session_gets_its_own_uhdr_file_and_the_shdr_log_grows(void)
+{
+    run_a_short_session();
+    uint64_t c1[4];
+    uint32_t s1[4], shdr1 = 0U;
+    check(np_sim_storage_uhdr_sessions(c1, s1, 4U) == 1U && np_sim_storage_shdr_size(&shdr1), "one session so far");
+    upload(golden("visual"), 0);
+    hub_run_ms(1500);
+    check(runner_is("running"), "a second protocol was taken in after the first completed");
+    run("gatt_write 15 01");
+    hub_run_ms(7000);
+    uint64_t c2[4];
+    uint32_t s2[4], shdr2 = 0U;
+    check(np_sim_storage_uhdr_sessions(c2, s2, 4U) == 2U, "the second session is a second UHDR file");
+    check(c2[0] == c1[0] && s2[0] == s1[0] && c2[1] != c2[0], "the first file is as it was: a closed session file is never written again, and the counters differ");
+    check(np_sim_storage_shdr_size(&shdr2) && shdr2 > shdr1, "the SHDR log, one file for the device, grew");
+}
+
+/* @verifies REQ-SIMFW-25#c */
+static void test_the_session_count_and_the_module_map_are_kept_in_the_config_file(void)
+{
+    run_a_short_session();
+    uint32_t n = 99U;
+    check(np_session_count_load(&n) == NP_HUB_OK && n == 1U, "the device's session count in the Config partition is 1 after one session");
+    np_cfg_store_unmount();
+    check(np_cfg_store_mount() == NP_HUB_OK, "the Config instance unmounts and mounts again");
+    n = 99U;
+    check(np_session_count_load(&n) == NP_HUB_OK && n == 1U, "and the count comes back from the file");
+    check(np_module_map_persist() == NP_HUB_OK, "the module map persists through the device's own np_hexmap_nvram.c");
+    static uint8_t blob[16384];
+    size_t len = 0U;
+    const np_hub_status_t rr = np_hexmap_nvram_read(blob, sizeof blob, &len);
+    printf("  (module map blob read: code %d, %zu bytes)\n", (int)rr, len);
+    check(rr == NP_HUB_OK && len > 0U && np_module_map_blob_verify(blob, len),
+          "and reads back as a blob the module map's own check accepts");
+}
+
+/* @verifies REQ-SIMFW-25#d */
+static void test_a_medium_that_cannot_be_made_refuses_the_boot(void)
+{
+    hardware();
+    check(setenv("TMPDIR", "/nonexistent-np-sim-dir", 1) == 0, "the system temporary directory is one that does not exist");
+    run("hub_boot");
+    check(count2("\"cmd\":\"hub_boot\"", "\"booted\":true") == 0 && !result_code_is(0), "the hub is not booted: the twin does not fall back to a medium held only in memory");
+    run("hub_run 100");
+    check(strstr(last_with("\"ev\":\"error\""), "not running") != NULL, "and no hub runs");
+}
+
+static bool count_row(const np_map3_row_t *row, void *ctx) { (void)row; (*(unsigned *)ctx)++; return true; }
+
+/* @verifies REQ-SIMFW-25#e */
+static void test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix(void)
+{
+    uint8_t journal[3U * NP_MAP3_V1_BYTES];
+    for (unsigned i = 0U; i < 3U; i++) {
+        np_map3_rec_t r;
+        memset(&r, 0, sizeof r);
+        r.uid[0] = 0xA5U;
+        r.seq = i + 1U;
+        r.ordinal = i;
+        r.session_count = 1U;
+        r.dose_accum = 1000U * (i + 1U);
+        check(np_map3_encode(&r, &journal[i * NP_MAP3_V1_BYTES], NP_MAP3_V1_BYTES) == NP_MAP3_V1_BYTES, "a row encodes to the version 1 length");
+    }
+    np_map3_scan_t sc;
+    unsigned seen = 0U;
+    np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
+    check(seen == 3U && sc.rows == 3U && sc.end == NP_MAP3_END_CLEAN, "three rows scan back, and the scan ends clean");
+    journal[NP_MAP3_V1_BYTES + 5U] ^= 0x01U;           /* a bit of the second row */
+    seen = 0U;
+    np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
+    check(seen == 1U && sc.end == NP_MAP3_END_BAD_CRC, "a damaged second row ends the valid prefix at the first: nothing after it is trusted");
+    seen = 0U;
+    np_map3_scan(journal, NP_MAP3_V1_BYTES - 4U, count_row, &seen, &sc);
+    check(seen == 0U && sc.end == NP_MAP3_END_TORN, "a journal cut short in its first row is a torn tail");
+}
+
+/* @verifies REQ-SIMFW-25#e */
+static void test_a_socket_poll_stops_at_the_unrouted_register_tunnel_and_fails_closed(void)
+{
+    hardware();
+    run("add 0 34.0");
+    g_cap_n = 0;
+    bool changed = false;
+    const np_hub_status_t rc = np_hexmap_poll_socket(0U, &changed);
+    check(rc != NP_HUB_OK, "the device's own poll of a socket returns an error: the smart-module register tunnel has no route in the twin");
+    check(count2("\"ev\":\"unrouted\"", "np_pbm_hal_i2c_read") >= 1, "and the twin reports the unrouted read, as it does every seam with no route");
+}
+
 int main(void)
 {
     if (golden("visual") == NULL) { printf("FAIL: the golden descriptors were not found\n"); return 1; }
@@ -418,6 +569,13 @@ int main(void)
     in_child(test_the_safety_mcu_gates_the_module_the_hub_commands);
     in_child(test_an_electrical_line_without_declarations_is_withheld_while_the_hub_commands_it);
     in_child(test_a_run_repeats_exactly);
+    in_child(test_each_partition_is_a_sparse_file_nobody_can_name_in_the_devices_geometry);
+    in_child(test_a_sessions_records_are_in_the_partition_files_and_come_back_from_them);
+    in_child(test_a_second_session_gets_its_own_uhdr_file_and_the_shdr_log_grows);
+    in_child(test_the_session_count_and_the_module_map_are_kept_in_the_config_file);
+    in_child(test_a_medium_that_cannot_be_made_refuses_the_boot);
+    in_child(test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix);
+    in_child(test_a_socket_poll_stops_at_the_unrouted_register_tunnel_and_fails_closed);
     if (g_failures == 0) { printf("ALL PASS (0 failures)\n"); return 0; }
     printf("%d FAILURES\n", g_failures);
     return 1;

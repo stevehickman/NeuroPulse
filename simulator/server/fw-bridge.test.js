@@ -1138,3 +1138,18 @@ test('end to end: a boot that refused data refuses a protocol the key signed, an
   assert.ok(frame && frame.hex.slice(0, 2) === '02' && parseInt(frame.hex.slice(2, 4), 16) === 25, 'REFUSED, reason 25 (BOOT_REFUSED)');
   assert.ok(r.hub.length > 0 && r.hub.every((h) => h.runner === 'idle'), 'the runner never left idle');
 });
+
+// @verifies REQ-SIMFW-25#a,b
+test('end to end: after a session the hub\'s status reports each partition as a file nobody can name, and the logs hold the session', { skip: !BIN }, async () => {
+  const b = Buffer.from(GOLDEN.visual, 'hex');
+  b.writeUInt32LE(3000, 60);
+  const r = await hubSession(b.toString('hex'), [1500, 8000, { cmd: 'hub_status' }], { modules: [VISUAL_MODULE] });
+  const parts = new Map(r.seen.filter((m) => m.type === 'HUB_STATE' && m.event.ev === 'hub_storage').map((m) => [m.event.part, m.event]));
+  assert.deepStrictEqual([...parts.keys()].sort(), ['config', 'shdr', 'uhdr'], 'all three partitions are reported');
+  for (const [name, p] of parts) {
+    assert.ok(p.up && p.unlinked && p.mode === 0o600, `${name}: a mounted partition in a file with no name, readable by its owner only`);
+    assert.ok(p.allocated_bytes < 64 * 1024 * 1024 && p.apparent_bytes >= 16 * 1024 * 1024, `${name}: sparse`);
+  }
+  assert.strictEqual(parts.get('uhdr').files, 1, 'the session left one UHDR file');
+  assert.ok(parts.get('shdr').shdr_bytes > 0, 'and bytes in the SHDR log');
+});

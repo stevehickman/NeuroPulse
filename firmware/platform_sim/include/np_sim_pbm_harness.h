@@ -28,6 +28,10 @@ void np_simh_vns_init(void);
 void np_simh_vns_status(void);
 bool np_simh_vns_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
 
+/* The HRV session's missing feeders: PPG, EEG and the HRV task (np_sim_hrv_harness.c, OI-SIMFW-60). */
+void np_simh_hrv_init(void);
+bool np_simh_hrv_line(const char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 /* The audio commands (np_sim_audio_harness.c). */
 void np_simh_audio_init(void);
 void np_simh_audio_status(void);

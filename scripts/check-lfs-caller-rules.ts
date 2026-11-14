@@ -92,12 +92,15 @@ const ROOT =
 
 const STORE_C = "firmware/hub_control/src/np_cfg_store.c";
 const STORE_H = "firmware/hub_control/include/np_cfg_store.h";
+const SIM_STORAGE_C = "firmware/platform_sim/src/np_sim_storage.c";
 
 /** R1 — who may call littlefs, and why. */
 const LFS_CALLERS: Record<string, string> = {
   [STORE_C]: "the Config instance's only caller — every caller rule is a property of its API",
   "firmware/hub_control/src/np_lfs_log_instance.c":
     "lfs_fs_gc() in np_lfs_log_prime_allocator() only; the log instances' file I/O is OI-LOG-05..07 and must be added here when it exists",
+  [SIM_STORAGE_C]:
+    "the simulator's host-only glue for the log partitions (NP-SIM-FW-001 §33, REQ-SIMFW-25): the file layer OI-LOG-05..07 describes, which the device's board layer does not implement yet. It is never built for a device (REQ-SIMFW-01), keeps one open handle per partition, and is the one non-store file allowed lfs_file_opencfg (R2)",
 };
 
 /** R4 — the only tail-additive Config files. Adding one is a REQ-LFS-01 decision. */
@@ -323,7 +326,8 @@ function run(root: string): { code: number; lines: string[] } {
       }
       if (fn === "lfs_file_opencfg") {
         const inOpener = rel === STORE_C && m.index! > opener[0] && m.index! < opener[1];
-        if (inOpener) opencfgInOpener++;
+        if (rel === SIM_STORAGE_C) { /* the twin's host-only log glue: its own static file configurations, one handle per partition */ }
+        else if (inOpener) opencfgInOpener++;
         else violations.push(`R2 ${at}: lfs_file_opencfg() outside cfg_open() — a handle the open-handle registry never saw (OI-LFS-06, upstream 488e84bb)`);
       }
       // R3

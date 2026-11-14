@@ -769,6 +769,14 @@ static void blob_audio(blob_t *b, uint8_t level_half_db)
     blob_make(b, 1U, 60000U, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO, (const uint8_t *)&p, sizeof p);
 }
 
+static void blob_audio_tone(blob_t *b, uint8_t mode, uint16_t carrier_hz, uint16_t beat_mhz)
+{
+    np_mod_audio_params_t p;
+    memset(&p, 0, sizeof p);
+    p.mode = mode; p.carrier_hz = carrier_hz; p.beat_mhz = beat_mhz; p.level_half_db = 120U;
+    blob_make(b, 1U, 60000U, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO, (const uint8_t *)&p, sizeof p);
+}
+
 static void blob_cvns(blob_t *b, uint16_t freq_mhz, uint16_t amplitude_ua, uint16_t pulse_width_us, uint8_t side)
 {
     np_mod_cvns_params_t p;
@@ -821,7 +829,7 @@ static void expect_loads(blob_t *b, bool t2, const char *name)
     check(np_runner_load(b->buf, b->len) == NP_HUB_OK, msg);
 }
 
-/* @verifies REQ-FWHUB-78#g */
+/* @verifies REQ-FWHUB-78#g REQ-AUDIO-25 */
 static void test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_upload(void)
 {
     blob_t b;
@@ -829,6 +837,14 @@ static void test_audio_and_cervical_vns_outside_their_ranges_are_refused_at_uplo
     expect_refused_at_load(&b, false, "audio: 85.5 dB SPL");
     blob_audio(&b, (uint8_t)NP_AUDIO_MAX_LEVEL_HALF_DB);
     expect_loads(&b, false, "audio: exactly 85 dB SPL");
+
+    /* REQ-AUDIO-25: a planar tone above 1,000 Hz, the carrier or the carrier plus the beat, is refused; at it, allowed. */
+    blob_audio_tone(&b, 1U, 10000U, 40000U); expect_refused_at_load(&b, false, "audio: a 10 kHz isochronic carrier");
+    blob_audio_tone(&b, 0U, 1001U, 0U);      expect_refused_at_load(&b, false, "audio: a 1001 Hz binaural carrier");
+    blob_audio_tone(&b, 0U, 990U, 10001U);   expect_refused_at_load(&b, false, "audio: 990 Hz plus a 10.001 Hz beat");
+    blob_audio_tone(&b, 1U, 990U, 10001U);   expect_refused_at_load(&b, false, "audio: 990 Hz plus a 10.001 Hz pulse rate");
+    blob_audio_tone(&b, 0U, 990U, 10000U);   expect_loads(&b, false, "audio: exactly 1000 Hz");
+    blob_audio_tone(&b, 2U, 5000U, 0U);      expect_loads(&b, false, "audio: noise has no tone frequency");
 
     blob_cvns(&b, 25001U, 2000U, 250U, 0U);  expect_refused_at_load(&b, true, "cVNS: 25.001 Hz");
     blob_cvns(&b, 999U, 2000U, 250U, 0U);    expect_refused_at_load(&b, true, "cVNS: 0.999 Hz");
