@@ -129,7 +129,7 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         let blob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .pbmTranscranial(transcranial))])).blob
         // header(107: 68 + the 39-byte rules stamp) + cmd_hdr(14) + socket mask(16) → params [freq, duty, cur_660, cur_808]
-        XCTAssertEqual(Array(blob.subdata(in: 98..<102)), [20, 50, 0, 158])
+        XCTAssertEqual(Array(blob.subdata(in: 137..<141)), [20, 50, 0, 158])
         // Audio: 70 dB SPL is the absolute level, 2 × dB = 140 on the wire (REQ-AUDIO-20).
         let audioBlob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .audioEntrainment(audio))])).blob

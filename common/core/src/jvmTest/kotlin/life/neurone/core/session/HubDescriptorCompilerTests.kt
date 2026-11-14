@@ -80,7 +80,7 @@ class HubDescriptorCompilerTests {
         assertEquals(1, blob[107 + 12].toInt(), "target_kind = socket mask")
         assertEquals(16, blob[107 + 13].toInt(), "target_len")
         val ids = mutableListOf<Int>()
-        for (i in 0 until 16) for (bit in 0 until 8) if ((blob[82 + i].toInt() and (1 shl bit)) != 0) ids += i * 8 + bit + 1
+        for (i in 0 until 16) for (bit in 0 until 8) if ((blob[121 + i].toInt() and (1 shl bit)) != 0) ids += i * 8 + bit + 1
         assertEquals(listOf(72, 73, 74, 77, 78), ids)
     }
 
