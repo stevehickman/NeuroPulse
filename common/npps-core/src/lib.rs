@@ -35,6 +35,7 @@ pub mod resolve;
 pub mod sigv4;
 pub mod serialize;
 pub mod table;
+pub mod tier_record;
 pub mod validate;
 pub mod wavelength;
 pub mod zones;
