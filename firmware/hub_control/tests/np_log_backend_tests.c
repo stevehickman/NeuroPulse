@@ -581,7 +581,7 @@ static void test_count_committed_before_file(void)
 
 /* Serialized record sizes, as np_session_log.c writes them. */
 #define START_REC_BYTES (1U + NP_HUB_PROTO_UUID_LEN + sizeof(uint32_t) + sizeof(uint32_t))
-#define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint16_t))
+#define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint32_t))   /* impedance_ohm is 32-bit (OI-UINT16-01) */
 #define ADAPT_REC_BYTES (1U + sizeof(np_adaptation_event_t))
 #define ZONE_REC_BYTES  (1U + sizeof(uint32_t) + 3U)
 #define EEG_HDR_BYTES   7U
@@ -914,7 +914,7 @@ static void test_command_record_layout(void)
 
 /* ── OI-HRV-03: the HRV session record ────────────────────────────────────── */
 
-#define HRV_REC_BYTES 31U
+#define HRV_REC_BYTES 35U
 
 static np_hrv_session_record_t hrv_record(void)
 {
@@ -928,8 +928,8 @@ static np_hrv_session_record_t hrv_record(void)
     r.min_coherence    = 0.5f;
     r.max_coherence    = 6.75f;
     r.mean_rmssd_ms    = 42.0f;
-    r.rr_sample_count  = 0x0321U;
-    r.tavns_stim_count = 0x0077U;
+    r.rr_sample_count  = 0x00010321U;       /* above 16 bits: the count is 32-bit (OI-UINT16-01) */
+    r.tavns_stim_count = 0x00020077U;
     return r;
 }
 
@@ -938,15 +938,15 @@ static bool hrv_record_at(const uint8_t *c, const np_hrv_session_record_t *r,
 {
     uint32_t dur;
     float    rate, mean, lo, hi, rmssd;
-    uint16_t rr, st;
+    uint32_t rr, st;
     memcpy(&dur,   c + 2U,  4U);
     memcpy(&rate,  c + 7U,  4U);
     memcpy(&mean,  c + 11U, 4U);
     memcpy(&lo,    c + 15U, 4U);
     memcpy(&hi,    c + 19U, 4U);
     memcpy(&rmssd, c + 23U, 4U);
-    memcpy(&rr,    c + 27U, 2U);
-    memcpy(&st,    c + 29U, 2U);
+    memcpy(&rr,    c + 27U, 4U);
+    memcpy(&st,    c + 31U, 4U);
     return c[0] == NP_LOG_TAG_UHDR_HRV_SESSION && (int8_t)c[1] == (int8_t)reason &&
            dur == r->duration_s && c[6] == r->protocol &&
            rate == r->target_rate_bpm && mean == r->mean_coherence &&

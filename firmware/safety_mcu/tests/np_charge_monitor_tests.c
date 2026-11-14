@@ -1051,10 +1051,10 @@ static void test_withhold_report_shape_magic_and_checksum(void)
 /* @verifies REQ-FWHUB-82#c */
 static void test_withhold_report_does_not_change_the_frame(void)
 {
-    check(NP_SAFETY_RX_EXT_FRAME_LEN == 38U, "withhold report: the extended frame is still 38 bytes");
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 42U, "withhold report: the extended frame is 42 bytes (widened by 4 for the 32-bit impedance report, OI-UINT16-01)");
     check(NP_SAFETY_FRAME_LEN == 8U, "withhold report: the base reply is still 8 bytes");
-    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == 27U,
-          "withhold report: starts at window byte 27, straight after the tier report [20..26]");
+    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == 31U,
+          "withhold report: starts at window byte 31, straight after the tier report [24..30]");
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN,
           "withhold report: begins where the tier report ends");
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN <= NP_SAFETY_RX_EXT_FRAME_LEN &&

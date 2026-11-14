@@ -137,7 +137,7 @@ typedef struct {
     /* the ADS1299 front end (NP_SIM_KIND_EEG) */
     uint8_t           eeg_regs[32];                    /* the register file; 0x00 is the ID                      */
     bool              eeg_running;                     /* continuous conversion started                          */
-    uint16_t          eeg_calibrations;                /* self-calibrations that ran                             */
+    uint32_t          eeg_calibrations;                /* self-calibrations that ran                             */
     float             eeg_impedance_kohm[8];           /* per channel, caller-set                                */
     float             eeg_band_db[5];                  /* delta, theta, alpha, beta, gamma; caller-set           */
     /* the auricular clip (NP_SIM_KIND_VNS) */
@@ -164,7 +164,7 @@ typedef struct {
     bool              vis_emdr_on;
     void            (*vis_isr)(void);                  /* the not-seated edge handler the firmware registered    */
     bool              vis_lift_during_command;         /* fire the lift edge between the seated read and the enable */
-    uint16_t          vis_edges_delivered;
+    uint32_t          vis_edges_delivered;
     /* the intranasal Y-probe (NP_SIM_KIND_INTRANASAL) */
     bool              ins_auth, ins_contact;           /* sleeve code matches; photodiode contact; caller-set     */
     bool              ins_side_on[2];                  /* left, right                                            */

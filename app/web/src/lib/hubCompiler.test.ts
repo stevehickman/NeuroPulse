@@ -419,7 +419,7 @@ describe('parameter block sizes match the firmware structs', () => {
     audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
     visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
-    tms:                { size: 10, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
+    tms:                { size: 12, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
     pbm_deep_1170nm:    { size: 5,  slot: 13,   params: { intensityMWcm2: 500, frequencyHz: 40, dutyCyclePercent: 25 } },
     clinical_tacs:      { size: 8,  slot: 14,   params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount: 21 } },
     hd_tdcs:            { size: 6,  slot: 15,   params: { target: 'DLPFC_L', montage: 'ring_4x1', intensityMilliamps: 2 } },

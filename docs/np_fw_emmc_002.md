@@ -677,7 +677,7 @@ window only**, **once per between-session gap**, in the single registered table
 | Field | What it is |
 |---|---|
 | `impact_g_bin_1` … `impact_g_bin_8` | **Counts** of impact events falling in eight fixed, log-spaced peak-resultant-g bins |
-| `impact_event_count` | Σ of the bins — carried explicitly so bin saturation is detectable rather than silent |
+| `impact_event_count` | Σ of the bins, carried explicitly. Every count is 32-bit unsigned on the device and none saturates (`OI-UINT16-01`), so the sum always holds; the fleet columns are `BIGINT` |
 | `char_programme_id`, `char_consent_granted`, `char_consent_epoch`, `char_record_seq` | The four structural markers (§H.3.4) |
 | `gap_index` | Ordering, as everywhere else in SHDR — a counter, never a clock |
 

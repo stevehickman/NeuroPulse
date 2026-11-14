@@ -419,8 +419,8 @@ static void test_extended_record_carries_no_prohibited_field(void)
     const size_t expect = sizeof(uint16_t)                                  /* programme_id */
                         + sizeof(uint32_t)                                  /* consent_epoch */
                         + sizeof(uint32_t)                                  /* record_seq */
-                        + sizeof(uint16_t) * NP_ACCEL_CHAR_G_BIN_COUNT      /* g_bin */
-                        + sizeof(uint16_t);                                 /* impact_event_count */
+                        + sizeof(uint32_t) * NP_ACCEL_CHAR_G_BIN_COUNT      /* g_bin */
+                        + sizeof(uint32_t);                                 /* impact_event_count */
     CHECK(sizeof(np_shdr_accel_char_record_t) >= expect,   "no field is missing");
     CHECK(sizeof(np_shdr_accel_char_record_t) <= expect + 4u,
           "no room for an orientation vector, a raw peak or a timestamp");

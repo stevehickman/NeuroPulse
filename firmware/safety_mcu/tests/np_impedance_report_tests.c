@@ -171,6 +171,30 @@ static void test_report_rounds_and_survives_gate_fail(void)
 }
 
 /* @verifies DI-SAFE-12 */
+static void test_report_carries_a_large_impedance_unclamped(void)
+{
+    reset_mocks();
+    np_impedance_check_init();
+
+    np_safety_state_t state;
+    memset(&state, 0, sizeof(state));
+    state.fault_slot   = 0xFFU;
+    state.granted_mask = NP_SAFETY_EN_CVNS;
+    np_impedance_check_request(NP_SAFETY_EN_CVNS);
+    g_result_ready[CVNS_CH] = true;
+    g_read_ohm[CVNS_CH]     = 12000U;      /* gate fails; the report is still built */
+    g_electrode_ohm[0]      = 1000000U;    /* 1 MΩ: 100000 (kΩ×100), over the old 16-bit ceiling of 65535 */
+    g_electrode_ohm[1]      = 4294967295U; /* the largest uint32 ohm value: the product ohm x 100 must not wrap */
+    np_impedance_check_poll(&state);
+
+    np_safety_imp_report_t rep;
+    check(np_impedance_check_build_cvns_report(&rep), "report: still produced for a very high impedance");
+    check(rep.cvns_kohm_x100[0] == 100000U, "report: 1 MOhm is 100000 (kOhm x100), not clamped to 65535 (OI-UINT16-01)");
+    check(rep.cvns_kohm_x100[1] == 429496730U, "report: 4294967295 Ohm is 429496730 (kOhm x100): no wrap, no clamp (OI-UINT16-01)");
+    check(rep.checksum == report_checksum(&rep), "report: checksum matches contents at the 12-byte size");
+}
+
+/* @verifies DI-SAFE-12 */
 static void test_report_reinvalidated_on_new_request(void)
 {
     reset_mocks();
@@ -380,6 +404,7 @@ int main(void)
     test_report_invalid_before_measurement();
     test_report_valid_after_cvns_poll();
     test_report_rounds_and_survives_gate_fail();
+    test_report_carries_a_large_impedance_unclamped();
     test_report_reinvalidated_on_new_request();
     test_gate_pending_then_pass();
     test_gate_fail_is_not_regranted();

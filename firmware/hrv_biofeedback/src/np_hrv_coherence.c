@@ -197,9 +197,7 @@ np_hrv_status_t np_hrv_coherence_update(const np_rr_buffer_t *buf,
                        / (float)(psd->num_averages + 1U);
     }
 
-    if (psd->num_averages < 0xFFFFU) {
-        psd->num_averages++;
-    }
+    psd->num_averages++;
     psd->valid = true;
 
     return NP_HRV_OK;

@@ -316,6 +316,19 @@ static void test_xcheck_envelope_across_commands_and_sessions(void)
     check(count("\"divergence_flagged\":true") == 0, "envelope: with every output off a reset clears the hold");
 }
 
+/* @verifies-none Simulator evidence only (REQ-SIMFW-06): the charge seam is 32 bits (OI-UINT16-01), so a pinned reading above 65535 uC must come back whole, not wrapped to 16 bits. */
+static void test_a_charge_above_16_bits_is_not_wrapped(void)
+{
+    setup();
+    run("bes 0 0 10000 500");
+    run("reading 0 stim_read_charge 100000");
+    run("sample bes");
+    check(count("\"charge_uc\":100000") == 1, "charge: 100000 uC is reported as 100000, not wrapped to 34464");
+    run("reading 0 stim_read_charge 3750000");
+    run("sample bes");
+    check(count("\"charge_uc\":3750000") == 1, "charge: 3.75e6 uC, the DC ceiling on a 25 cm2 pad, is reported whole");
+}
+
 /* ── the simulator's own properties ───────────────────────────────────────── */
 
 /* @verifies REQ-SIMFW-04 */
@@ -367,6 +380,7 @@ int main(void)
     test_ramp_up_wait_is_the_whole_ramp_or_the_rest_of_it();
     test_pause_edges();
     test_xcheck_envelope_across_commands_and_sessions();
+    test_a_charge_above_16_bits_is_not_wrapped();
     test_default_and_injected_answers_are_marked();
     test_a_module_answers_only_for_itself();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");

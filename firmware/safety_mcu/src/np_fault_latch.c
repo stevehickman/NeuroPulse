@@ -14,9 +14,13 @@
  *   offset 0:  uint32_t magic   (NP_FAULT_LATCH_MAGIC if latch is valid)
  *   offset 4:  uint8_t  status  (NP_SAFETY_STATUS_* flags at time of fault)
  *   offset 5:  uint8_t  slot    (fault_slot at time of fault)
- *   offset 6:  uint16_t count   (total faults since last power-on reset)
- *   offset 8:  uint32_t tick_ms (SysTick timestamp of last fault)
- *   offset 12: uint8_t  pad[52] (reserved)
+ *   offset 6:  uint32_t count   (total fault transitions since last power-on reset; 32-bit, never saturates)
+ *   offset 10: uint32_t tick_ms (SysTick timestamp of last fault)
+ *   offset 14: uint8_t  pad[50] (reserved)
+ *
+ * OI-UINT16-01: `count` was 16 bits and stopped at 65535.  The latch lives in non-cleared SRAM, so a reset after a
+ * firmware swap finds the previous image's latch: NP_FAULT_LATCH_MAGIC was changed with this layout so that an
+ * old-layout latch is never read as a new one (it reads as no latch).
  *
  * Privacy classification of the latch fields for any hub-facing read
  * (NP-FW-EMMC-001 Rev 2 §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
@@ -41,10 +45,11 @@ typedef struct __attribute__((packed)) {
     uint32_t magic;
     uint8_t  status;
     uint8_t  slot;
-    uint16_t count;
+    uint32_t count;
     uint32_t tick_ms;
-    uint8_t  pad[52];
+    uint8_t  pad[50];
 } np_fault_latch_t;
+_Static_assert(sizeof(np_fault_latch_t) == 64U, "the fault latch is 64 bytes: the layout comment above and the linker section size depend on it");
 
 /* Placed in the .fault_latch section by the linker script (NOLOAD, no zero).
  * Host unit tests (NPTEST_HOST) build this translation unit without the section
@@ -84,9 +89,9 @@ void np_fault_latch_commit(const np_safety_state_t *state)
 {
     /* Only increment count and update tick_ms when fault status or slot
      * actually changes.  Committing on every main-loop iteration while a
-     * persistent fault is active saturates s_latch.count (UINT16_MAX = 65535)
-     * in ~65 s, freezing the fault event counter and hiding subsequent distinct
-     * fault events in the SHDR audit trail.  Change-gating means count tracks
+     * persistent fault is active would run s_latch.count up by one every
+     * iteration (it once saturated at 65535 in ~65 s, freezing the fault event counter and hiding subsequent distinct
+     * fault events in the SHDR audit trail).  Change-gating means count tracks
      * "distinct fault transitions" rather than "loop iterations since fault". */
     bool status_changed = (s_latch.status != state->status) ||
                           (s_latch.slot   != state->fault_slot);
@@ -97,9 +102,7 @@ void np_fault_latch_commit(const np_safety_state_t *state)
 
     if (status_changed) {
         s_latch.tick_ms = np_hal_get_tick_ms();
-        if (s_latch.count < UINT16_MAX) {
-            s_latch.count++;
-        }
+        s_latch.count++;     /* 32-bit: a count never saturates (OI-UINT16-01) */
     }
 }
 

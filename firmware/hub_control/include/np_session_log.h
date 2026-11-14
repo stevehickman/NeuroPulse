@@ -187,7 +187,7 @@ void np_log_shdr_pbm_socket_health(const np_pst_health_record_t *rec);
  * not a function of the modality (CLAUDE.md §5.1 rule 2).  Counts only.
  *
  * Layout after NP_LOG_TAG_SHDR_PBM_COUNTS: session_count (4),
- * throttle_events (2), predrive_refusals (2), drive_faults (2) — 11 bytes.
+ * throttle_events (4), predrive_refusals (4), drive_faults (4) — 17 bytes (each was 2: OI-UINT16-01).
  */
 void np_log_shdr_pbm_session_counts(const np_pst_counts_t *counts);
 

@@ -118,10 +118,18 @@ object GattParser {
     /** CVNS_FAULT_STATUS: version + re-enable state + n + flags + n × 8-byte record. UHDR-class. null if malformed. */
     fun parseCervicalFaultStatus(data: ByteArray): CervicalFaultStatus? = CervicalFaultStatus.fromWire(data)
 
-    /** CONSUMABLE_STATUS: 4 × uint16 session counts (intranasal, hydrogel, VNS, audio) */
+    /**
+     * CONSUMABLE_STATUS: 4 × uint32 session counts (intranasal, hydrogel, VNS, audio), 16 bytes. They were 4 × uint16
+     * (8 bytes) until OI-UINT16-01; a shorter frame is refused, not read as eight 16-bit halves.
+     *
+     * The app model keeps `Int`. A count is one per session, so 2^31 is not reachable on a device; a frame that
+     * claims more is malformed and is refused (null), never clamped to Int.MAX_VALUE.
+     */
     fun parseConsumableStatus(data: ByteArray): List<Int>? {
-        if (data.size < 8) return null
-        return (0 until 4).map { data.leUInt16(it * 2) }
+        if (data.size < 16) return null
+        val counts = (0 until 4).map { data.leUInt32(it * 4) }
+        if (counts.any { it > Int.MAX_VALUE }) return null
+        return counts.map { it.toInt() }
     }
 
     /**

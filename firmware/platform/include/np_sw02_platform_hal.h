@@ -259,7 +259,7 @@ extern np_hub_status_t np_mod_stim_hal_dc_ramp(uint8_t pair, uint16_t target_ua,
                                                uint8_t polarity, uint16_t ramp_s);
 extern float    np_mod_stim_hal_read_impedance(uint8_t pair);
 extern float    np_mod_stim_hal_read_current(uint8_t pair);
-extern uint16_t np_mod_stim_hal_read_charge(uint8_t pair);
+extern uint32_t np_mod_stim_hal_read_charge(uint8_t pair);
 
 /* ── Auricular VNS + PPG/HRV (np_mod_vns.c) ─────────────────────────────── */
 extern float           np_mod_vns_hal_impedance_check(void);

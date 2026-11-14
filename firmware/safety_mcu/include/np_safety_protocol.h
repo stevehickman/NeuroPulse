@@ -124,7 +124,7 @@ typedef struct __attribute__((packed)) {
 typedef struct {
     uint8_t  status;   /* latched NP_SAFETY_STATUS_* bitmask (OK if no valid latch) */
     uint8_t  slot;     /* latched fault slot (0xFF = none / no valid latch)         */
-    uint16_t count;    /* distinct fault transitions since power-on (0 if no latch) */
+    uint32_t count;    /* distinct fault transitions since power-on (0 if no latch); 32-bit, never saturates */
 } np_fault_latch_report_t;
 
 void np_fault_latch_build_report(np_fault_latch_report_t *out);

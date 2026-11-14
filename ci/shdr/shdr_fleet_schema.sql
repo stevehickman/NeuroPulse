@@ -1293,17 +1293,17 @@ CREATE TABLE shdr_accel_characterisation (
     --   5:[9.5,14.0) 6:[14.0,21.0) 7:[21.0,31.0) 8:[31.0,∞)
     -- The 15.0 g placeholder sits inside bin 6, with 5 and 7 either side, so the
     -- review gate can resolve both directions from the number it is testing.
-    impact_g_bin_1        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_1 >= 0),
-    impact_g_bin_2        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_2 >= 0),
-    impact_g_bin_3        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_3 >= 0),
-    impact_g_bin_4        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_4 >= 0),
-    impact_g_bin_5        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_5 >= 0),
-    impact_g_bin_6        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_6 >= 0),
-    impact_g_bin_7        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_7 >= 0),
-    impact_g_bin_8        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_8 >= 0),
+    impact_g_bin_1        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_1 >= 0),
+    impact_g_bin_2        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_2 >= 0),
+    impact_g_bin_3        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_3 >= 0),
+    impact_g_bin_4        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_4 >= 0),
+    impact_g_bin_5        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_5 >= 0),
+    impact_g_bin_6        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_6 >= 0),
+    impact_g_bin_7        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_7 >= 0),
+    impact_g_bin_8        BIGINT     NOT NULL DEFAULT 0 CHECK (impact_g_bin_8 >= 0),
 
-    -- Σ of the bins. Explicit so bin saturation is detectable rather than silent.
-    impact_event_count    SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_event_count >= 0),
+    -- Σ of the bins. Counts are 32-bit unsigned on the device and never saturate (OI-UINT16-01), so BIGINT holds every value.
+    impact_event_count    BIGINT     NOT NULL DEFAULT 0 CHECK (impact_event_count >= 0),
 
     -- Between-session gap index — ordering with no wall clock, as elsewhere.
     gap_index             INTEGER    NOT NULL CHECK (gap_index >= 0),

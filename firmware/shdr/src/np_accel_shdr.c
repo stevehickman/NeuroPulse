@@ -194,12 +194,8 @@ np_accel_status_t np_accel_shdr_evaluate(const float                  *samples,
         }
         if (window_open && out_char != NULL) {
             const uint8_t bin = np_accel_bin_for(event_peak);
-            if (out_char->g_bin[bin] < UINT16_MAX) {
-                out_char->g_bin[bin]++;
-            }
-            if (out_char->impact_event_count < UINT16_MAX) {
-                out_char->impact_event_count++;
-            }
+            out_char->g_bin[bin]++;
+            out_char->impact_event_count++;
         }
         event_peak = 0.0f;
     }

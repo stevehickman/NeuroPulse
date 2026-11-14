@@ -69,13 +69,18 @@
 #include "np_hub_types.h"
 
 #define NP_CONS_KIND_COUNT       4u
-#define NP_CONS_WIRE_LEN         8u   /* READ/NOTIFY: 4 × u16 LE, kind order */
+#define NP_CONS_WIRE_LEN         16u  /* READ/NOTIFY: 4 × u32 LE, kind order (was 4 × u16: OI-UINT16-01) */
 #define NP_CONS_RESET_LEN        1u   /* WRITE: the kind index               */
-#define NP_CONS_COUNT_MAX        0xFFFFu  /* saturates; never wraps to zero  */
+/* A count is a 32-bit number of sessions and has no ceiling: it was held at 65535 and is no longer (OI-UINT16-01).
+ * It advances by one per session end, so 4,294,967,296 sessions on one device is not reachable and no limit is
+ * applied; there is no positive reason to saturate it. */
 
-/* Persisted record: version, then 4 × u16 LE. */
-#define NP_CONS_RECORD_VERSION   0x01u
-#define NP_CONS_RECORD_LEN       (1u + (2u * NP_CONS_KIND_COUNT))
+/* Persisted record: version, then 4 × u32 LE.  Version 1 was 4 × u16 LE; it is still read and rewritten as version 2,
+ * so a device that holds counts keeps them. */
+#define NP_CONS_RECORD_VERSION   0x02u
+#define NP_CONS_RECORD_LEN       (1u + (4u * NP_CONS_KIND_COUNT))
+#define NP_CONS_RECORD_V1_VERSION 0x01u
+#define NP_CONS_RECORD_V1_LEN    (1u + (2u * NP_CONS_KIND_COUNT))
 
 /* Load the persisted counts.  Absent (a new device) loads as zeros; present
  * but unreadable leaves the module unloaded and retried by np_cons_poll().
