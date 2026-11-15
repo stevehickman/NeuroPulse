@@ -527,11 +527,13 @@ struct VNSHRVParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(
+            // Auricular VNS has no frequency ceiling and no floor above zero (CLAUDE.md §3, OI-VNSCLIP-08): the
+            // former 1 to 25 Hz slider was an equivalence bound with no derivation. A range with no end has no
+            // track, so the frequency is typed.
+            NumberFieldRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
-                value: $params.frequencyHz,
-                range: 1...25,
-                format: { "\(Int($0)) Hz" }
+                unit: "Hz",
+                value: $params.frequencyHz
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
@@ -634,7 +636,7 @@ struct AudioEntrainmentParamsView: View {
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_VOLUME"),
                 value: $params.volumeDb,
-                range: 40...90,
+                range: 0...NPAudioLimits.maxLevelDbSpl,
                 format: { "\(Int($0)) \(String(localized: "UNIT_DB_SPL"))" }
             )
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
@@ -1016,6 +1018,53 @@ struct IntervalConfigView: View {
 }
 
 // MARK: - Reusable Slider Row
+
+/// Audio level ceiling, dB SPL at the ear (NP-HW-AUDIO-001 REQ-AUDIO-19). The compiler and the hub refuse a level
+/// above it, and a limits block may lower it and never raise it, so no control offers more. The generated Swift
+/// constants do not carry it, so this is the one copy the iOS app has; it equals `AUDIO_MAX_DB_SPL` in
+/// `common/npps/constants.json`, which `app/web/src/lib/appBounds.test.ts` checks.
+enum NPAudioLimits {
+    static let maxLevelDbSpl: Double = 85
+}
+
+/// A typed number, for a value whose range has no end on one side or both: such a range has no slider track.
+/// The typed value is kept as typed and never clamped.
+struct NumberFieldRow: View {
+    let label: String
+    let unit: String
+    @Binding var value: Double
+
+    @State private var text: String = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            TextField("", text: $text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 90)
+                .focused($focused)
+                .onChange(of: text) { _, newText in
+                    if let typed = Double(newText) { value = typed }
+                }
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { syncText() }
+                }
+                .onAppear { syncText() }
+            Text(unit)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func syncText() {
+        text = String(format: "%g", value)
+    }
+}
 
 struct SliderRow: View {
     let label: String
