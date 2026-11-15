@@ -168,6 +168,14 @@ run {
         "Microsoft" to input("cloudAuth.microsoft.redirectUri", "CLOUDAUTH_MICROSOFT_REDIRECT_URI"),
         "Dropbox" to input("cloudAuth.dropbox.redirectUri", "CLOUDAUTH_DROPBOX_REDIRECT_URI"),
     )
+    // A Google client for Android has no secret; only its Desktop-app client is issued one. A value set here would be compiled into
+    // the app, where anyone can read it, and it would belong to some other client (SWR-MG-29).
+    if (input("cloudAuth.google.clientSecret", "CLOUDAUTH_GOOGLE_CLIENT_SECRET") != null) {
+        throw GradleException(
+            "cloudAuth.google.clientSecret is set for an Android build. Google's Android client type has no secret: register an Android " +
+                "client and remove the value. See docs/np_sw_cloudstore_001.md section 4c.17.",
+        )
+    }
     for ((provider, uri) in registered) {
         if (uri == null) continue
         val claimed = uri.startsWith("$scheme:") || uri.startsWith("https://$host$path")

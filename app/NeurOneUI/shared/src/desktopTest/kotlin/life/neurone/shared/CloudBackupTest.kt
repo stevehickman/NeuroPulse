@@ -73,7 +73,7 @@ class CloudBackupTest {
     }
 
     private fun auth(f: Fakes, kv: InMemoryKeyValueStore) =
-        CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
+        CloudAuth(f.transport, sealedVault(kv), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
 
     // @verifies SWR-MG-21#a
     @Test fun every_signed_in_account_is_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
@@ -269,6 +269,7 @@ class CloudBackupTest {
                 override val bleCentral = UnavailableBleCentral()
                 override val protocolSigner = Ed25519ProtocolSigner()
                 override val analyticsBackend = NoOpAnalyticsBackend()
+                override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore()
                 override val httpTransport: HttpTransport? = f.transport
                 override val authorizationLauncher: AuthorizationLauncher? = f.launcher
                 override val migrationPlace: MigrationPlace? = local
@@ -296,3 +297,7 @@ class CloudBackupTest {
         assertNull(cloud.selected.value)
     }
 }
+
+/** The vault as an app that seals opens it: over [kv], through a sealing store with a keystore of its own (SWR-MG-28). */
+private fun sealedVault(kv: life.neurone.core.common.KeyValueStore): CredentialStore =
+    CredentialStore.open(life.neurone.core.common.ProtectedStorage.open(kv, life.neurone.core.common.InMemorySecretKeyStore()) { setOf(CredentialStore.KEY) })!!

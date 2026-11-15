@@ -322,6 +322,12 @@ private fun SettingsContent(
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onManageCloud) { Text(stringResource(Res.string.cloud_accounts_button)) }
         }
+        // A host that could sign in and cannot seal what the sign-in returns offers none, and says why (SWR-MG-28).
+        if (app.cloudAccountsNeedKeystore) {
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(Res.string.cloud_accounts_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.cloud_accounts_need_keystore), style = MaterialTheme.typography.bodySmall)
+        }
 
         // Erase what this host keeps, where it offers that (the browser does): the person's own way to empty it.
         app.platform.eraseLocalData?.let { erase ->

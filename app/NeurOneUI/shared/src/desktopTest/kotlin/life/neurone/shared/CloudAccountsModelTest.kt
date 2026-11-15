@@ -51,7 +51,7 @@ class CloudAccountsModelTest {
     }
 
     private fun model(fakes: Fakes, kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), config: CloudAuthConfig = CloudAuthConfig(google = google, microsoft = microsoft)) =
-        CloudAccountsModel(CloudAuth(fakes.transport, CredentialStore(kv), config, fakes.launcher))
+        CloudAccountsModel(CloudAuth(fakes.transport, sealedVault(kv), config, fakes.launcher))
 
     // @verifies SWR-MG-20#a
     @Test fun every_service_is_listed_and_only_those_the_build_is_registered_for_can_sign_in() = runTest {
@@ -120,7 +120,7 @@ class CloudAccountsModelTest {
     @Test fun a_sign_in_the_provider_refused_is_signed_in_again_keeping_the_account() = runTest {
         val f = Fakes()
         val kv = InMemoryKeyValueStore()
-        val auth = CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google), f.launcher)
+        val auth = CloudAuth(f.transport, sealedVault(kv), CloudAuthConfig(google = google), f.launcher)
         val m = CloudAccountsModel(auth)
         m.refresh()
         m.signIn(CloudService.GOOGLE_DRIVE)
@@ -256,3 +256,7 @@ class CloudAccountsModelTest {
         assertNull(m.busy.value)
     }
 }
+
+/** The vault as an app that seals opens it: over [kv], through a sealing store with a keystore of its own (SWR-MG-28). */
+private fun sealedVault(kv: life.neurone.core.common.KeyValueStore): CredentialStore =
+    CredentialStore.open(life.neurone.core.common.ProtectedStorage.open(kv, life.neurone.core.common.InMemorySecretKeyStore()) { setOf(CredentialStore.KEY) })!!

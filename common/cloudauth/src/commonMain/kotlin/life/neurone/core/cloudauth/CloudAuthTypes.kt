@@ -68,8 +68,12 @@ class DropboxClientConfig(val appKey: String, val redirectUri: String)
 /**
  * A Google OAuth client. [redirectUri] is the one registered for the client and the platform: a loopback address
  * (`http://127.0.0.1:<port>`) on a computer, the claimed HTTPS or reverse-client-ID redirect on a phone. Google ends custom URI schemes
- * on Android and deprecates loopback on phones (native-app page), so this is not a value the library can choose. [clientSecret] is
- * set only for a client type Google issues one for (a desktop client); Google's page calls it optional, and an Android or iOS client has none.
+ * on Android and deprecates loopback on phones (native-app page), so this is not a value the library can choose.
+ *
+ * [clientSecret] is set only for Google's Desktop-app client, the one installed-app type Google issues one for; its page calls the
+ * parameter optional and says it does not apply to Android or iOS clients. **It is compiled into the app and is public**: Google's
+ * own words are "Desktop apps are public clients and cannot keep secrets confidential". It must never be a value a confidential (web or
+ * server) client also uses, and [CloudAuth] refuses it on a phone (`SWR-MG-29`). PKCE is what protects the exchange, not this value.
  */
 class OAuthClientConfig(val clientId: String, val redirectUri: String, val clientSecret: String? = null)
 
@@ -87,6 +91,10 @@ class MicrosoftClientConfig(
 /**
  * The CloudKit container (it begins `iCloud.`), its API token (made in CloudKit Dashboard) and the sign-in callback URL set on that
  * token, to which Apple's sign-in page sends `ckWebAuthToken`. A server-to-server key is not supported: it reaches only the public database.
+ *
+ * **[apiToken] is compiled into the app and is public by design**: Apple's page says to use an API token "from a website or an embedded
+ * web view in a native app", so it is sent by client code in every request. It names the container; what reaches a person's records is
+ * their own `ckWebAuthToken`, which is kept in the sealed vault. A server-to-server key is a private key and must never be put here.
  */
 class CloudKitConfig(
     val container: String,

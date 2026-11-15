@@ -405,7 +405,7 @@ POST paths behave as before. **These two transport edits are not covered by a te
 | Apple (CloudKit Web Services) | The container's sign-in page, reached through the 421 reply's `redirectURL`; the callback carries `ckWebAuthToken` | The token, as received (a `+` stays a `+`) | A token serves one round trip; the service returns a new one and `cloudKitTokenSink` stores it | Delete only |
 | AWS (S3) | None: `addAwsKeys` takes the person's keys, checked for blanks, whitespace and control characters | Key id, secret, optional session token and expiry | Temporary keys expire; no refresh | Delete only |
 
-**Storage.** All credentials are one JSON value under `np.cloud.accounts` in the host's protected `KeyValueStore`, so the host's `EncryptedKeyValueStore` seals it (`SWR-MG-16`). The key is `perInstall` in `common/npps/migration-keys.json`: a credential belongs to an install and never moves in a migration (`SWR-MG-01`). A stored value that cannot be read fails with `STORE_UNREADABLE` and is never overwritten. `check-migration-keys.ts` now scans `common/cloudauth`, or the entry would read as stale.
+**Storage.** All credentials are one JSON value under `np.cloud.accounts`, written only through a store that seals it (`SWR-MG-16`, `SWR-MG-28`): `CredentialStore.open` takes the app's `ProtectedStorage` and gives no vault where the value could only be kept in the clear (§4c.17). The key is `perInstall` in `common/npps/migration-keys.json`: a credential belongs to an install and never moves in a migration (`SWR-MG-01`). A stored value that cannot be read fails with `STORE_UNREADABLE` and is never overwritten. `check-migration-keys.ts` now scans `common/cloudauth`, or the entry would read as stale.
 
 **Seams.** `AuthorizationLauncher` (open this URL in the system browser, return the redirect URL) is the one thing each platform implements. `CloudAuthConfig` carries the client identifiers and redirect URIs; none is in the source, and an unconfigured provider fails with `NOT_CONFIGURED` naming it. SHA-256 and random bytes are the Rust core's (`CLAUDE.md` §22). Refresh is serialised: any number of callers make one request.
 
@@ -462,9 +462,9 @@ Checked: `:web:compileKotlinWasmJs` builds it. The callback page and the channel
 
 ### 4c.7 Wired into the app
 
-**What is wired.** `PlatformServices.authorizationLauncher` is a new member (null by default). Android supplies `NeurOneApplication.browserLauncher`, iOS `IosAuthorizationLauncher`, the computer `DesktopBrowser.launcher()` and the browser `WebAuthorizationLauncher`. `AppServices.cloudAuth` is a `CloudAuth` over the host's `httpTransport` and launcher, with a `CredentialStore` on the app's own `keyValueStore`, where `np.cloud.accounts` is a sealed key (`SWR-MG-16`) and a per-install one (`SWR-MG-01`); it is **null** on a host without a transport or a launcher. **The browser therefore has none**, because it has no transport (§4c.6). A test (`CloudAuthWiringTest`) checks that the credentials are not readable in the host's raw store.
+**What is wired.** `PlatformServices.authorizationLauncher` is a new member (null by default). Android supplies `NeurOneApplication.browserLauncher`, iOS `IosAuthorizationLauncher`, the computer `DesktopBrowser.launcher()` and the browser `WebAuthorizationLauncher`. `AppServices.cloudAuth` is a `CloudAuth` over the host's `httpTransport` and launcher, with a `CredentialStore` opened from the app's `ProtectedStorage` (§4c.17), where `np.cloud.accounts` is a sealed key (`SWR-MG-16`) and a per-install one (`SWR-MG-01`); it is **null** on a host without a transport or a launcher, and on one that cannot seal the credentials (`SWR-MG-28`). **The browser therefore has none**, because it has no transport (§4c.6). A test (`CloudAuthWiringTest`) checks that the credentials are not readable in the host's raw store.
 
-**The registrations are build inputs.** `:shared` writes `CloudAuthBuildConfig.kt` (generated, untracked) from Gradle properties, falling back to environment variables; a provider whose required values are not all set is null, and its sign-in fails with `NOT_CONFIGURED` naming it. Values are escaped into string literals. Required: Google `cloudAuth.google.clientId` and `.redirectUri` (optional `.clientSecret`, for a desktop-type client only); Microsoft `cloudAuth.microsoft.clientId` and `.redirectUri` (optional `.oneDriveTenant`, `.azureTenant`); CloudKit `cloudAuth.cloudKit.container`, `.apiToken` and `.signInCallbackUri` (optional `.environment`, `.baseUrl`). The environment names are `CLOUDAUTH_` plus the same words in capitals with underscores (for example `CLOUDAUTH_GOOGLE_CLIENT_ID`). The redirect address must match the host that runs it (the manifest's scheme on Android, `http://127.0.0.1:<port>` on a computer, `<origin>/oauth-callback.html` on the web): **one build has one value per provider**, so a build for several hosts needs a registration each, and nothing here picks the right one per host. **A client ID is not a secret** and is compiled into the app; a Google client secret for a desktop client is not one either (Google says so for installed apps), but a secret that is one must not be set here.
+**The registrations are build inputs.** `:shared` writes `CloudAuthBuildConfig.kt` (generated, untracked) from Gradle properties, falling back to environment variables; a provider whose required values are not all set is null, and its sign-in fails with `NOT_CONFIGURED` naming it. Values are escaped into string literals. Required: Google `cloudAuth.google.clientId` and `.redirectUri` (optional `.clientSecret`, for a desktop-type client only); Microsoft `cloudAuth.microsoft.clientId` and `.redirectUri` (optional `.oneDriveTenant`, `.azureTenant`); CloudKit `cloudAuth.cloudKit.container`, `.apiToken` and `.signInCallbackUri` (optional `.environment`, `.baseUrl`). The environment names are `CLOUDAUTH_` plus the same words in capitals with underscores (for example `CLOUDAUTH_GOOGLE_CLIENT_ID`). The redirect address must match the host that runs it (the manifest's scheme on Android, `http://127.0.0.1:<port>` on a computer, `<origin>/oauth-callback.html` on the web): **one build has one value per provider**, so a build for several hosts needs a registration each, and nothing here picks the right one per host. **A client ID is not a secret** and is compiled into the app; a Google client secret for a desktop client is not one either (Google says so for installed apps), but a secret that is one must not be set here (§4c.17 says which values these are and what each must never be).
 
 **Not done.** No screen lets the person sign in or out; the backup route (§4c.9) is the only use of an account to open an `ObjectStore`; no client is registered at any provider; the per-host redirect problem above; the shared, desktop and web changes compiled here and the shared desktop tests pass, but the Android and iOS changes were written without an Android SDK or a Mac and are first built by CI, and nothing ran on a device.
 
@@ -554,7 +554,7 @@ Checked: `:web:compileKotlinWasmJs` builds it. The callback page and the channel
 
 | Provider | Required | Optional |
 |---|---|---|
-| Google | `cloudAuth.google.clientId`, `cloudAuth.google.redirectUri` | `cloudAuth.google.clientSecret` (a desktop-type client only) |
+| Google | `cloudAuth.google.clientId`, `cloudAuth.google.redirectUri` | `cloudAuth.google.clientSecret` (a Desktop-app client only; public, §4c.17; refused on Android and iOS) |
 | Microsoft | `cloudAuth.microsoft.clientId`, `cloudAuth.microsoft.redirectUri` | `.oneDriveTenant`, `.azureTenant` |
 | Dropbox | `cloudAuth.dropbox.appKey`, `cloudAuth.dropbox.redirectUri` | |
 | iCloud | `cloudAuth.cloudKit.container`, `.apiToken`, `.signInCallbackUri` | `.environment`, `.baseUrl` |
@@ -625,6 +625,55 @@ Each platform is its own build with its own values, because the providers regist
 **What it does not show.** These are emulators and open-source servers, not Azure, Amazon or a Nextcloud. Azurite and moto do not stand for the real services' limits, latency, consistency or error bodies. **moto does not check the request signature by default**, so the S3 run shows the requests, paging and conditional create work, not that Amazon's signature check accepts ours (the signer is checked against Amazon's published examples, `sigv4.rs`). The Entra-token path of the Azure adapter and Google Cloud Storage's `x-goog-if-generation-match` condition (§4c.15) were not run, because no local server stands in for them. A MinIO binary was not used. Nothing ran on a device.
 
 **To repeat it.** Start the server, set the variables, and run `./gradlew :cloudstore:cleanJvmTest :cloudstore:jvmTest --tests '*Live*'` (and `:cloudauth:jvmTest --tests '*LiveS3*'`). Gradle does not treat an environment variable as an input, so clean the test task first or a cached result is reused.
+
+### 4c.17 Credentials at rest, and the values compiled into the app (`OI-PRIV-14`)
+
+**Rev {NP-SW-CLOUDSTORE-001 to} (2026-11-15).** A privacy review of `common/` reported two things about this library. Both were checked against the code and both were so.
+
+**1. The vault could be made over a store that seals nothing.** `CredentialStore` took any `KeyValueStore`, with a comment that it "must be the protected one". What the app handed it was the store of its `ProtectedStorage`, which has three states, and in one of them (`UNSEALED`) that store is the host's own, as it is.
+
+*Which hosts run `UNSEALED`, and whether they offered cloud accounts:*
+
+| Host | When it runs `UNSEALED` | Cloud accounts offered there before this change |
+|---|---|---|
+| A computer (macOS, Windows, Linux) | Its credential tool fails the probe at start (`DesktopSecretKeyStore.create()` returns null): no `secret-tool` or no Secret Service on Linux, no Windows PowerShell, a keychain that refuses | **Yes.** It has a transport and a launcher, so Settings showed the section and a sign-in wrote the refresh token to the data file in the clear |
+| Android, iOS | The keystore cannot be asked on an install that has sealed nothing yet, or the core binding that lists the keys is missing | **Yes**, by the same wiring. Not observed on a device |
+| The browser | Always (it has no keystore) | **No.** It has no HTTP transport, so no `CloudAuth` is built (§4c.6); it also holds every key in memory |
+
+*The repair (`SWR-MG-28`).* The vault's constructor is private. The only way to get one is `CredentialStore.open(ProtectedStorage)`:
+
+| State | The vault |
+|---|---|
+| `SEALED`, and the storage seals `np.cloud.accounts` (`ProtectedStorage.seals`) | Kept in the sealing store, as before |
+| `LOCKED` (sealed values are on disk and this run cannot open them) | **Held in memory for the run.** It starts empty, a sign-in made in it is forgotten when the run ends, and nothing is written over or removed from the sealed accounts. This is what `LOCKED` already means for every other protected key, and it holds for a gated install with no key list too, whose whole store is in memory. The person is already told that what is done in such a run is not kept |
+| `UNSEALED`, or `SEALED` without that key in the sealed set | **None.** `AppServices.cloudAuth`, `cloudAccounts` and `cloudBackup` are null, and Settings shows `CLOUD_ACCOUNTS_NEED_KEYSTORE` in place of the button |
+
+There is no fallback that writes in the clear, and no setting, build or test mode that gives one (`CLAUDE.md` §5.1, §23). `CredentialStore.inMemory()` is the only other way to get a vault, and it writes nowhere. An install that ran `UNSEALED` and signed in before this change keeps a plain `np.cloud.accounts` value in its data file until its key store works (the sealing store seals a plain value when it opens) or the person erases the app's data; no build offered a completed browser sign-in, since no client is registered, so only typed-in keys (Amazon, Google Cloud Storage HMAC, WebDAV, an Azure signature) can be there.
+
+*What this costs.* On a computer whose key store does not work, cloud backup is not available. The folder backup is unchanged. A memory-only vault there was considered and not built: the chosen backup place is itself a stored key, so an automatic backup would fail at every start until the person signed in again.
+
+**2. Values compiled into the app.** `:shared` writes the build's registrations into `CloudAuthBuildConfig.kt`, so each is in the shipped binary and anyone with the app can read it. **None of them may be relied on as a secret**, and none is:
+
+| Value | What it is | Rule |
+|---|---|---|
+| Client IDs, the Dropbox app key, redirect addresses, tenants, the CloudKit container | Public identifiers | None |
+| `cloudAuth.google.clientSecret` | The "client secret" Google issues with a **Desktop app** client. Google's native-app page (read 2026-11-15): "Desktop apps are public clients and cannot keep secrets confidential", and in its overview, "In this context, the client secret is obviously not treated as a secret." The parameter is "Optional" in the exchange and refresh tables | **Public. It must be the value of a Desktop-app client and of nothing else: never a value that a Web-application client, a server, or any client expected to keep a secret also uses.** Set only in a build for a computer. PKCE protects the exchange; this value does not |
+| `cloudAuth.cloudKit.apiToken` | A CloudKit **API token**. Apple's page (CloudKit Web Services Reference, archive, updated 2016-06-13, read 2026-11-15): "Use an API Token from a website or an embedded web view in a native app, or when you need to authenticate the user"; it is sent as `ckAPIToken` in the address of every request | **Public by design.** It names the container. The page's example request for the current user with the token alone is answered `AUTHENTICATION_REQUIRED`; what opens a person's records is the person's own `ckWebAuthToken`, which is kept in the vault. **A server-to-server key is a private key ("Protect your private key as you would an account password") and must never be put in this property or in the app** |
+
+*Enforced (`SWR-MG-29`).* Google's page says `client_secret` "is not applicable to requests from clients registered as Android, iOS, or Chrome applications". So `CloudAuth` refuses a Google configuration that carries one on Android or iOS: it reads "not set up", the sign-in fails with `NOT_CONFIGURED` before a browser opens, and the value is never sent. The Android build also fails when the property is set. Microsoft and Dropbox configurations have no field for a secret.
+
+*What must be registered, which nothing here can do (no identifier is invented):*
+
+- **Google, Android:** an **Android** client (package name and signing-certificate fingerprint). No secret exists. The redirect is the App Link of §4c.13.
+- **Google, iOS:** an **iOS** client (bundle ID). No secret exists. Whether Google accepts this flow's redirect there is still unconfirmed (§4c.13).
+- **Google, a computer:** a **Desktop app** client. Google issues a secret with it and the page calls sending it optional; **whether Google's token endpoint accepts a Desktop-app exchange with PKCE and no secret has not been tried**. If it does, leave `cloudAuth.google.clientSecret` unset and the question is closed; if it does not, set it, under the rule in the table.
+- **Google, Windows from the Store:** Google's consoles have offered a Universal Windows Platform client type, which has no secret; the pages read on 2026-11-15 do not mention it, and the desktop app here is a JVM application receiving a loopback redirect, not a UWP package. **Unverified, and not planned.**
+- **Never** a **Web application** client for any of these: Google's overview says "Don't use this application type for any other application, such as native or mobile apps", and its secret is a real one.
+- **Microsoft:** a public client, no secret (§4c.13, unchanged). **Dropbox:** PKCE, no secret (unchanged).
+- **iCloud:** a CloudKit container and an **API token** with the sign-in callback set on it; the page offers restricting the domains that may use the token. Not a server-to-server key.
+
+**Not done.** No registration exists, so none of this has met a provider. The Android and iOS paths, and the Android build check, were not compiled or run here.
+
 
 ## 5. To close #566
 

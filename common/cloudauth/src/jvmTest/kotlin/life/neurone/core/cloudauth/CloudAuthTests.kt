@@ -8,6 +8,11 @@ import life.neurone.core.cloud.CloudStoreException
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.InMemorySecretKeyStore
+import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.ProtectedStorage
+import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.common.SecretKeyUnavailableException
+import life.neurone.core.common.StorageProtection
 import life.neurone.core.data.RandomSource
 import life.neurone.core.net.HttpRequest
 import life.neurone.core.net.HttpResponse
@@ -132,8 +137,12 @@ internal class Rig(
     val browser = FakeBrowser(providers)
     val kv = InMemoryKeyValueStore()
     var clock = 1_000_000L
-    val auth = CloudAuth(providers, CredentialStore(kv), config, browser, CountingRandom(), Digests::sha256, { clock })
+    val auth = CloudAuth(providers, sealedVault(kv), config, browser, CountingRandom(), Digests::sha256, { clock })
 }
+
+/** The vault as an app that seals opens it: over [kv], through a sealing store with a keystore of its own (SWR-MG-28). */
+internal fun sealedVault(kv: KeyValueStore): CredentialStore =
+    CredentialStore.open(ProtectedStorage.open(kv, InMemorySecretKeyStore()) { setOf(CredentialStore.KEY) })!!
 
 class CloudAuthTests {
     // @verifies SWR-MG-19#a
@@ -353,17 +362,84 @@ class CloudAuthTests {
         assertEquals("{not json", rig.kv.getString(CredentialStore.KEY), "left as it was")
     }
 
-    // @verifies SWR-MG-19#c
+    // @verifies SWR-MG-19#c SWR-MG-28#a
     @Test
     fun theCredentialsAreOneValueSealedAtRestAndNoTokenIsReadableInTheHostsRawStore() = runBlocking {
         val raw = InMemoryKeyValueStore()
-        val sealed = EncryptedKeyValueStore(raw, InMemorySecretKeyStore(), setOf(CredentialStore.KEY))
+        val vault = sealedVault(raw)
+        assertTrue(vault.keptAcrossRuns)
         val providers = FakeProviders()
-        val auth = CloudAuth(providers, CredentialStore(sealed), CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT)), FakeBrowser(providers), CountingRandom(), Digests::sha256, { 1L })
+        val auth = CloudAuth(providers, vault, CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT)), FakeBrowser(providers), CountingRandom(), Digests::sha256, { 1L })
         val a = auth.signIn(CloudService.GOOGLE_DRIVE)
         val onDisk = raw.getString(CredentialStore.KEY)!!
+        assertTrue(onDisk.startsWith(EncryptedKeyValueStore.PREFIX), "a sealed value")
         assertFalse("refresh-1" in onDisk || "access-1" in onDisk, "no token in the clear")
         assertEquals("access-1", auth.accessToken(a.id).bearer())
+    }
+
+    // @verifies SWR-MG-28#c
+    @Test
+    fun thereIsNoVaultOverAnUnsealedHostStoreSoNoCredentialCanBeWrittenToIt() {
+        val keys = setOf(CredentialStore.KEY)
+        // A host with no keystore, one whose keystore cannot be asked, and one with no list of keys to seal: all run UNSEALED.
+        val noKeystore = ProtectedStorage.open(InMemoryKeyValueStore(), null) { keys }
+        val brokenKeystore = ProtectedStorage.open(InMemoryKeyValueStore(), object : SecretKeyStore {
+            override fun load(): ByteArray? = throw SecretKeyUnavailableException("locked")
+            override fun store(key: ByteArray) = throw SecretKeyUnavailableException("locked")
+            override fun destroy() = throw SecretKeyUnavailableException("locked")
+        }) { keys }
+        val noKeyList = ProtectedStorage.open(InMemoryKeyValueStore(), InMemorySecretKeyStore()) { throw IllegalStateException("no core binding") }
+        for (storage in listOf(noKeystore, brokenKeystore, noKeyList)) {
+            assertEquals(StorageProtection.UNSEALED, storage.state)
+            assertNull(CredentialStore.open(storage))
+        }
+        // Sealed storage that does not seal this key would write it plain, so it gives no vault either.
+        val sealsOtherKeys = ProtectedStorage.open(InMemoryKeyValueStore(), InMemorySecretKeyStore()) { setOf("np.something.else") }
+        assertEquals(StorageProtection.SEALED, sealsOtherKeys.state)
+        assertNull(CredentialStore.open(sealsOtherKeys))
+    }
+
+    // @verifies SWR-MG-28#b
+    @Test
+    fun aLockedRunsVaultIsInMemoryAndWritesNothingOverTheSealedAccounts() = runBlocking {
+        val raw = InMemoryKeyValueStore()
+        val keystore = InMemorySecretKeyStore()
+        fun auth(vault: CredentialStore): CloudAuth {
+            val providers = FakeProviders()
+            return CloudAuth(providers, vault, CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT)), FakeBrowser(providers), CountingRandom(), Digests::sha256, { 1L })
+        }
+        auth(CredentialStore.open(ProtectedStorage.open(raw, keystore) { setOf(CredentialStore.KEY) })!!).signIn(CloudService.GOOGLE_DRIVE)
+        val sealed = raw.getString(CredentialStore.KEY)!!
+
+        val locked = ProtectedStorage.open(raw, null) { setOf(CredentialStore.KEY) }
+        assertEquals(StorageProtection.LOCKED, locked.state)
+        val vault = CredentialStore.open(locked)!!
+        assertFalse(vault.keptAcrossRuns)
+        val lockedAuth = auth(vault)
+        assertTrue(lockedAuth.accounts().isEmpty())
+        lockedAuth.signIn(CloudService.GOOGLE_DRIVE)
+        assertEquals(1, lockedAuth.accounts().size)
+        assertEquals(sealed, raw.getString(CredentialStore.KEY), "the sealed accounts are exactly as they were")
+        vault.clear()
+        assertEquals(sealed, raw.getString(CredentialStore.KEY), "forgetting the run's accounts removes nothing on disk")
+        assertTrue(CredentialStore.open(ProtectedStorage.open(raw, null) { setOf(CredentialStore.KEY) })!!.load().accounts.isEmpty(), "a later locked run starts empty")
+    }
+
+    // @verifies SWR-MG-29
+    @Test
+    fun aGoogleClientSecretIsRefusedOnAPhoneBeforeABrowserOpensAndIsNeverSent() = runBlocking {
+        for (phone in listOf(RedirectPlatform.ANDROID to "https://oauth.example/oauth2redirect/google", RedirectPlatform.IOS to "com.googleusercontent.apps.g:/oauth2redirect")) {
+            val providers = FakeProviders()
+            val browser = FakeBrowser(providers)
+            val config = CloudAuthConfig(google = OAuthClientConfig("g", phone.second, clientSecret = "s3cret"))
+            val auth = CloudAuth(providers, CredentialStore.inMemory(), config, browser, CountingRandom(), Digests::sha256, { 1L }, redirectPlatform = phone.first)
+            assertFalse(auth.isConfigured(CloudService.GOOGLE_DRIVE), "reads not set up on ${phone.first}")
+            assertEquals(CloudAuthProblem.NOT_CONFIGURED, assertFailsWith<CloudAuthException> { auth.signIn(CloudService.GOOGLE_DRIVE) }.problem)
+            assertTrue(providers.seen.isEmpty(), "nothing was sent")
+            // The same registration without the secret is a configuration on that phone.
+            val without = CloudAuth(providers, CredentialStore.inMemory(), CloudAuthConfig(google = OAuthClientConfig("g", phone.second)), browser, CountingRandom(), Digests::sha256, { 1L }, redirectPlatform = phone.first)
+            assertTrue(without.isConfigured(CloudService.GOOGLE_DRIVE))
+        }
     }
 
     // @verifies SWR-MG-19#b

@@ -161,19 +161,31 @@ class AppServices(
     val analyticsErasureQueue = AnalyticsErasureQueue(keyValueStore, platform.httpTransport) { platform.analyticsConfig?.baseUrl }
 
     /**
-     * Sign-in to the cloud providers and the credentials it returns (SWR-MG-19), or null on a host that lacks either half: [PlatformServices.httpTransport]
-     * to reach the providers with, or an [PlatformServices.authorizationLauncher] to show their pages with (the browser has no transport, so it has none).
-     * The credentials are kept in [keyValueStore], where `np.cloud.accounts` is a sealed key (SWR-MG-16), and never move in a migration (SWR-MG-01).
-     * [cloudAuthConfig] is the build's provider registrations; a provider it does not hold fails its sign-in with NOT_CONFIGURED. Nothing offers a
-     * sign-in to the person yet.
+     * Where the cloud credentials are kept (`SWR-MG-28`), or null when this run could only keep them in the clear: storage is
+     * [StorageProtection.UNSEALED] (no usable keystore, or no core binding to seal with). Then no cloud account is offered. In a
+     * [StorageProtection.LOCKED] run it is held in memory and written nowhere.
+     */
+    private val cloudCredentials: life.neurone.core.cloudauth.CredentialStore? = life.neurone.core.cloudauth.CredentialStore.open(protectedStorage)
+
+    /**
+     * True when this host could sign in to a cloud provider (it has a transport and a launcher) and does not offer it because the
+     * credentials could not be sealed. The settings screen says so, so the missing section is not a puzzle.
+     */
+    val cloudAccountsNeedKeystore: Boolean =
+        platform.httpTransport != null && platform.authorizationLauncher != null && cloudCredentials == null
+
+    /**
+     * Sign-in to the cloud providers and the credentials it returns (SWR-MG-19), or null on a host that lacks any part: [PlatformServices.httpTransport]
+     * to reach the providers with, an [PlatformServices.authorizationLauncher] to show their pages with (the browser has no transport, so it has none),
+     * or a sealing store to keep the credentials in ([cloudCredentials]). They never move in a migration (SWR-MG-01).
+     * [cloudAuthConfig] is the build's provider registrations; a provider it does not hold fails its sign-in with NOT_CONFIGURED.
      */
     val cloudAuth: life.neurone.core.cloudauth.CloudAuth? = run {
         val transport = platform.httpTransport
         val launcher = platform.authorizationLauncher
-        if (transport == null || launcher == null) null
-        else life.neurone.core.cloudauth.CloudAuth(
-            transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher, redirectPlatform = platform.redirectPlatform,
-        )
+        val vault = cloudCredentials
+        if (transport == null || launcher == null || vault == null) null
+        else life.neurone.core.cloudauth.CloudAuth(transport, vault, cloudAuthConfig, launcher, redirectPlatform = platform.redirectPlatform)
     }
 
     /** The cloud accounts screen's state and actions, or null where there is no [cloudAuth] (SWR-MG-20). */

@@ -3,7 +3,10 @@ package life.neurone.core.cloudauth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.ProtectedStorage
+import life.neurone.core.common.StorageProtection
 
 /**
  * One account's record, as stored. **Every field here is a credential or is stored beside one**, which is why the whole document
@@ -47,16 +50,29 @@ internal class StoredAccount(
 internal class Vault(val version: Int = 1, val accounts: List<StoredAccount> = emptyList())
 
 /**
- * The person's cloud credentials on this install: one JSON document under [KEY] in the app's key-value store. **The store handed in
- * must be the protected one** (`EncryptedKeyValueStore` over the host's store), which seals every key in `common/npps/migration-keys.json`,
- * and [KEY] is in that file's `perInstall` list, so it is sealed on every host that seals and **never moves in a migration**: a new
- * phone signs in again, and a refresh token is not copied between devices (SWR-MG-16, SWR-MG-01).
+ * The person's cloud credentials on this install: one JSON document under [KEY]. **It is written to disk only through a store that seals
+ * it, and that is a type, not a comment** (`SWR-MG-28`, `OI-PRIV-14`): the only way to get one is [open], which takes the app's
+ * [ProtectedStorage] and answers by its state.
+ *
+ * - **[StorageProtection.SEALED]**, and the storage seals [KEY]: the vault is kept in that store, sealed at rest. [KEY] is in the
+ *   `perInstall` list of `common/npps/migration-keys.json`, so it **never moves in a migration**: a new phone signs in again, and a
+ *   refresh token is not copied between devices (SWR-MG-16, SWR-MG-01).
+ * - **[StorageProtection.LOCKED]**: the vault is held in memory for this run and nothing is written. The accounts an earlier run sealed
+ *   cannot be read and are left exactly as they are; a sign-in made in this run is forgotten when it ends, as everything else done under
+ *   the protected keys in a locked run is.
+ * - **[StorageProtection.UNSEALED]**, or a sealed storage whose key list does not hold [KEY]: there is no vault ([open] answers null) and
+ *   the host offers no cloud accounts. A refresh token, an AWS secret, a WebDAV password or an Azure signature is never written to a
+ *   host store in the clear, and there is no fallback that does.
  *
  * A document that cannot be read is never replaced: [load] throws [CloudAuthProblem.STORE_UNREADABLE], so one corrupt value cannot be
  * overwritten by the next sign-in and take the other accounts with it. (A value that is *absent* reads as no accounts; the protected store
  * also answers absent for a value sealed under a key that no longer exists, which is its documented behaviour and cannot be told apart here.)
  */
-class CredentialStore(private val store: KeyValueStore) {
+class CredentialStore private constructor(
+    private val store: KeyValueStore,
+    /** Whether the accounts outlive this run: false for the memory-only vault of a locked run. */
+    val keptAcrossRuns: Boolean,
+) {
     private val json = Json { ignoreUnknownKeys = true }
 
     internal fun load(): Vault {
@@ -78,6 +94,16 @@ class CredentialStore(private val store: KeyValueStore) {
     }
 
     companion object {
+        /** The vault for [storage], or null where the credentials could only be kept in the clear (see the class comment). */
+        fun open(storage: ProtectedStorage): CredentialStore? = when (storage.state) {
+            StorageProtection.SEALED -> if (storage.seals(KEY)) CredentialStore(storage.store, keptAcrossRuns = true) else null
+            StorageProtection.LOCKED -> inMemory()
+            StorageProtection.UNSEALED -> null
+        }
+
+        /** A vault that is never written anywhere: what a locked run uses, and what a test that needs no disk uses. */
+        fun inMemory(): CredentialStore = CredentialStore(InMemoryKeyValueStore(), keptAcrossRuns = false)
+
         /** In `perInstall` in `common/npps/migration-keys.json`. */
         const val KEY = "np.cloud.accounts"
     }

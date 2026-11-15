@@ -40,6 +40,7 @@ class CloudBackupRowTest {
                 override val bleCentral = UnavailableBleCentral()
                 override val protocolSigner = Ed25519ProtocolSigner()
                 override val analyticsBackend = NoOpAnalyticsBackend()
+                override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore()
                 override val httpTransport: HttpTransport? = object : HttpTransport {
                     override suspend fun post(request: HttpRequest) =
                         HttpResponse(200, emptyMap(), """{"access_token":"a","refresh_token":"r","expires_in":3600,"files":[]}""".encodeToByteArray())

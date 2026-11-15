@@ -168,6 +168,7 @@
   "CLINICIAN_USECASE_HRV_OUTCOMES_NAME": "HRV + Outcome Tracking",
   "CLOUD_ACCOUNTS_BODY": "Sign in to the cloud services you keep backups in. Your sign-in is kept on this device only.",
   "CLOUD_ACCOUNTS_BUTTON": "Manage cloud accounts",
+  "CLOUD_ACCOUNTS_NEED_KEYSTORE": "Cloud accounts are not available because this device's secure key store is not available, and the app does not keep a cloud sign-in without encrypting it. Make the key store available and restart the app to keep backups in a cloud service.",
   "CLOUD_ACCOUNTS_SETTINGS_BODY": "Sign in to a cloud service to keep your backups there.",
   "CLOUD_ACCOUNTS_TITLE": "Cloud accounts",
   "CLOUD_ACCOUNTS_UNAVAILABLE": "Cloud sign-in is not available on this device.",

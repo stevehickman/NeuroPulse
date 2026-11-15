@@ -38,12 +38,13 @@ import kotlin.test.assertTrue
 class CloudAccountsScreenTest {
     private var shown = 0
 
-    private fun app(config: CloudAuthConfig, withCloud: Boolean = true) = AppServices(
+    private fun app(config: CloudAuthConfig, withCloud: Boolean = true, keystore: Boolean = true) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = InMemoryKeyValueStore()
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
+            override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = if (keystore) life.neurone.core.common.InMemorySecretKeyStore() else null
             override val httpTransport: HttpTransport? = if (!withCloud) null else object : HttpTransport {
                 override suspend fun post(request: HttpRequest) =
                     if ("revoke" in request.url) HttpResponse(200, emptyMap(), ByteArray(0))
@@ -212,6 +213,19 @@ class CloudAccountsScreenTest {
             unavailable = stringResource(Res.string.cloud_accounts_unavailable)
             SettingsScreen(app(CloudAuthConfig(), withCloud = false))
         }
+        onNodeWithText(button).assertDoesNotExist()
+    }
+
+    // @verifies SWR-MG-28#c
+    @Test fun settings_says_why_a_host_with_no_keystore_has_no_cloud_accounts_and_offers_no_sign_in() = runComposeUiTest {
+        var button = ""
+        var why = ""
+        setContent {
+            button = stringResource(Res.string.cloud_accounts_button)
+            why = stringResource(Res.string.cloud_accounts_need_keystore)
+            SettingsScreen(app(CloudAuthConfig(), keystore = false))
+        }
+        onNodeWithText(why).performScrollTo().assertExists()
         onNodeWithText(button).assertDoesNotExist()
     }
 

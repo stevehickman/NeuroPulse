@@ -32,7 +32,16 @@ class ProtectedStorage private constructor(
     val state: StorageProtection,
     /** The sealing store, or null unless [state] is [StorageProtection.SEALED]: what the clear's key destruction acts on. */
     val sealing: EncryptedKeyValueStore?,
+    /** The keys [store] seals before it writes them; empty unless [state] is [StorageProtection.SEALED]. */
+    private val sealedKeys: Set<String> = emptySet(),
 ) {
+    /**
+     * Whether a value written to [store] under [key] is sealed at rest: the state is [StorageProtection.SEALED] and [key] is one of the
+     * keys the sealing store was given. A caller that must never write in the clear (the cloud credentials, `SWR-MG-28`) asks this
+     * and does not take "the store is the protected one" on trust.
+     */
+    fun seals(key: String): Boolean = state == StorageProtection.SEALED && key in sealedKeys
+
     companion object {
         /**
          * @param host the host's own durable store.
@@ -71,7 +80,7 @@ class ProtectedStorage private constructor(
             val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
                 ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null)
             val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
-            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr)
+            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all)
         }
 
         private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
@@ -87,7 +96,7 @@ class ProtectedStorage private constructor(
                     secrets.load()
                     EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
                 }.getOrNull()
-                if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing)
+                if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing, keys)
             }
             return if (holdsSealedValue(host, keys)) {
                 ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, keys, removeStaleFromInner = false), StorageProtection.LOCKED, null)

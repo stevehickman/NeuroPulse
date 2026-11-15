@@ -49,7 +49,7 @@ class CloudAuthWiringTest {
 
     private fun services(
         kv: life.neurone.core.common.KeyValueStore = InMemoryKeyValueStore(),
-        secrets: life.neurone.core.common.SecretKeyStore? = null,
+        secrets: life.neurone.core.common.SecretKeyStore? = InMemorySecretKeyStore(),
         http: HttpTransport? = null,
         launcher: AuthorizationLauncher? = null,
         config: CloudAuthConfig = CloudAuthConfig(),
@@ -100,6 +100,43 @@ class CloudAuthWiringTest {
         val onDisk = raw.getString("np.cloud.accounts")
         assertNotNull(onDisk, "the credentials were stored")
         assertFalse("refresh-secret-token" in onDisk || "access-secret-token" in onDisk, "no token is readable in the host's raw store")
+    }
+
+    // @verifies SWR-MG-28#c
+    @Test fun a_host_with_no_keystore_offers_no_cloud_sign_in_and_says_the_keystore_is_why() {
+        val fakes = Fakes()
+        val raw = InMemoryKeyValueStore()
+        val unsealed = services(raw, secrets = null, http = fakes.transport, launcher = fakes.launcher, config = CloudAuthConfig(google = OAuthClientConfig("client", redirect)))
+        assertEquals(life.neurone.core.common.StorageProtection.UNSEALED, unsealed.storageProtection)
+        assertNull(unsealed.cloudAuth, "nothing to keep a credential sealed in")
+        assertNull(unsealed.cloudAccounts); assertNull(unsealed.cloudBackup)
+        assertTrue(unsealed.cloudAccountsNeedKeystore)
+        assertNull(raw.getString("np.cloud.accounts"))
+        // A host that has no sign-in for another reason does not blame the keystore, and one that seals has nothing to say.
+        assertFalse(services(secrets = null, http = null, launcher = fakes.launcher).cloudAccountsNeedKeystore)
+        assertFalse(services(http = fakes.transport, launcher = fakes.launcher).cloudAccountsNeedKeystore)
+    }
+
+    // @verifies SWR-MG-28#b
+    @Test fun a_run_that_cannot_open_its_sealed_store_keeps_a_sign_in_in_memory_and_leaves_the_sealed_accounts_as_they_were() = runTest {
+        val fakes = Fakes()
+        val raw = InMemoryKeyValueStore()
+        val keystore = InMemorySecretKeyStore()
+        val config = CloudAuthConfig(google = OAuthClientConfig("client", redirect))
+        services(raw, keystore, fakes.transport, fakes.launcher, config).cloudAuth!!.signIn(CloudService.GOOGLE_DRIVE)
+        val sealedBefore = assertNotNull(raw.getString("np.cloud.accounts"))
+
+        val locked = services(raw, secrets = null, http = fakes.transport, launcher = fakes.launcher, config = config)
+        assertEquals(life.neurone.core.common.StorageProtection.LOCKED, locked.storageProtection)
+        val auth = assertNotNull(locked.cloudAuth)
+        assertTrue(auth.accounts().isEmpty(), "the sealed accounts cannot be read in this run")
+        auth.signIn(CloudService.GOOGLE_DRIVE)
+        assertEquals(1, auth.accounts().size)
+        assertEquals(sealedBefore, raw.getString("np.cloud.accounts"), "nothing was written over the sealed accounts")
+
+        // The keystore works again: the earlier account is back and the locked run's sign-in is gone.
+        assertEquals(1, services(raw, keystore, fakes.transport, fakes.launcher, config).cloudAuth!!.accounts().size)
+        assertEquals(sealedBefore, raw.getString("np.cloud.accounts"))
     }
 
     // @verifies SWR-MG-25#c

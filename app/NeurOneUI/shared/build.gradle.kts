@@ -68,12 +68,17 @@ val generateValidationStrings by tasks.registering {
 // all set is null in the config, and a sign-in to it fails with NOT_CONFIGURED naming it. Written to CloudAuthBuildConfig.kt.
 //   Google:    cloudAuth.google.clientId     CLOUDAUTH_GOOGLE_CLIENT_ID      (required)
 //              cloudAuth.google.redirectUri  CLOUDAUTH_GOOGLE_REDIRECT_URI   (required)
-//              cloudAuth.google.clientSecret CLOUDAUTH_GOOGLE_CLIENT_SECRET  (optional: a desktop-type client only)
+//              cloudAuth.google.clientSecret CLOUDAUTH_GOOGLE_CLIENT_SECRET  (optional: a Desktop-app client only)
 //   Microsoft: cloudAuth.microsoft.clientId / .redirectUri (required), .oneDriveTenant / .azureTenant (optional)
 //              CLOUDAUTH_MICROSOFT_CLIENT_ID / _REDIRECT_URI / _ONEDRIVE_TENANT / _AZURE_TENANT
 //   Dropbox:   cloudAuth.dropbox.appKey / .redirectUri (required)   CLOUDAUTH_DROPBOX_APP_KEY / _REDIRECT_URI
 //   CloudKit:  cloudAuth.cloudKit.container / .apiToken / .signInCallbackUri (required), .environment / .baseUrl (optional)
 //              CLOUDAUTH_CLOUDKIT_CONTAINER / _API_TOKEN / _SIGN_IN_CALLBACK_URI / _ENVIRONMENT / _BASE_URL
+// EVERY VALUE HERE IS COMPILED INTO THE APP AND IS PUBLIC: anyone with the app can read it (SWR-MG-29, NP-SW-CLOUDSTORE-001 section 4c.17).
+// Google's Desktop-app "client secret" is not a secret (Google: "Desktop apps are public clients and cannot keep secrets confidential");
+// it must be the value of a Desktop-app client and of nothing else, never one that a web or server client also uses. Android and iOS
+// builds set none: the Android build refuses it and CloudAuth refuses it on both. The CloudKit API token is made to be sent by client
+// code; it names the container and gives no access to a person's data without their own sign-in.
 fun cloudAuthInput(property: String, env: String): String? =
     ((findProperty(property) as String?) ?: System.getenv(env))?.trim()?.takeIf { it.isNotEmpty() }
 

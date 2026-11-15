@@ -67,7 +67,7 @@ class CloudAuth(
      * before anything is sent, so a screen can say so up front. AWS has no registration to hold: the person brings their own keys.
      */
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
-        AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
+        AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri) && !secretOnAPhone(config.google)
         AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
         AccountFamily.APPLE -> config.cloudKit != null
         AccountFamily.AWS -> true
@@ -75,6 +75,14 @@ class CloudAuth(
         AccountFamily.WEBDAV -> true
         AccountFamily.AZURE_SAS -> true
     }
+
+    /**
+     * Only Google's Desktop-app client is issued a secret, and it is public there (Google's native-app page: "Desktop apps are public
+     * clients and cannot keep secrets confidential"). Its Android and iOS clients have none, so a phone build that carries one was given
+     * another client type's value: it reads "not set up", fails before a browser opens, and the value is never sent (`SWR-MG-29`).
+     */
+    private fun secretOnAPhone(c: OAuthClientConfig): Boolean =
+        c.clientSecret != null && (redirectPlatform == RedirectPlatform.ANDROID || redirectPlatform == RedirectPlatform.IOS)
 
     private fun redirectWorks(family: AccountFamily, redirectUri: String): Boolean =
         redirectPlatform == null || RedirectRules.problem(redirectPlatform, family, redirectUri) == null
@@ -120,6 +128,9 @@ class CloudAuth(
         AccountFamily.GOOGLE -> {
             val c = config.google ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no Google OAuth client is configured")
             checkRedirect(family = AccountFamily.GOOGLE, c.redirectUri)
+            if (secretOnAPhone(c)) {
+                throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "a Google client secret is set, and a Google client for $redirectPlatform has none")
+            }
             OAuthEndpoints(
                 "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token",
                 "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.clientSecret,

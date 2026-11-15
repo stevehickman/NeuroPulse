@@ -71,7 +71,7 @@ class RedirectRulesTests {
     private fun auth(platform: RedirectPlatform?, config: CloudAuthConfig): Pair<CloudAuth, FakeBrowser> {
         val providers = FakeProviders()
         val browser = FakeBrowser(providers)
-        return CloudAuth(providers, CredentialStore(InMemoryKeyValueStore()), config, browser, CountingRandom(), Digests::sha256, { 1_000_000L }, redirectPlatform = platform) to browser
+        return CloudAuth(providers, CredentialStore.inMemory(), config, browser, CountingRandom(), Digests::sha256, { 1_000_000L }, redirectPlatform = platform) to browser
     }
 
     // @verifies SWR-MG-25#b
