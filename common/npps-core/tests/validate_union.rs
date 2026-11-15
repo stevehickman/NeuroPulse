@@ -292,3 +292,24 @@ fn each_limit_is_attributed_to_its_own_tier_when_a_source_map_says_so() {
     assert_eq!(find(&i, "VALIDATE_MSG_BES_TACS_FREQUENCYHZ_2")["limitSource"], "global", "from the map");
     assert_eq!(find(&i, "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_2")["limitSource"], "individual", "from the level");
 }
+
+// @verifies REQ-AUDIO-25
+#[test]
+fn a_planar_tone_above_1000_hz_is_a_validation_error_before_the_compiler_refuses_it() {
+    let audio = |carrier: f64, extra: (&str, f64)| {
+        let mut p = json!({ "carrierHz": carrier, "volumeDb": 60, "eegAdaptive": false, "boneConductionPacer": false });
+        p[extra.0] = json!(extra.1);
+        run(proto(600.0, vec![block("audio_entrainment", p, CONT())]), json!({}), json!({}))
+    };
+    let tone = |i: &[Value]| i.iter().find(|x| x["message"]["key"] == "VALIDATE_MSG_AUDIO_ENTRAINMENT_TONEHZ").cloned();
+    // The carrier alone, and the carrier plus the beat or the pulse rate.
+    for (carrier, field, rate) in [(1001.0, "binauralBeatsHz", 10.0), (990.0, "binauralBeatsHz", 10.001), (990.0, "isochronicTonesHz", 20.0), (10000.0, "isochronicTonesHz", 40.0)] {
+        let issue = tone(&audio(carrier, (field, rate))).unwrap_or_else(|| panic!("{carrier} Hz + {rate} Hz must be an error"));
+        assert_eq!(issue["severity"], "error");
+        assert_eq!(issue["parameterKey"], "carrierHz");
+    }
+    // At the bound, in both modes, there is none. A noise block has no tone, so its carrier is not checked.
+    assert!(tone(&audio(990.0, ("binauralBeatsHz", 10.0))).is_none());
+    assert!(tone(&audio(960.0, ("isochronicTonesHz", 40.0))).is_none());
+    assert!(tone(&audio(5000.0, ("noiseType", 0.0))).is_none());
+}

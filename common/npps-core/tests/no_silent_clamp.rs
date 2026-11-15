@@ -350,7 +350,7 @@ fn the_cores_limits_are_the_hubs_limits() {
     assert_eq!(hw::TDCS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA")));
     assert_eq!(hw::VNS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const("common/include/np_shared_constants.h", "NP_VNS_MAX_CURRENT_UA")));
     assert_eq!(170, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_LEVEL_HALF_DB"));
-    assert_eq!(1000, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_TONE_HZ"));
+    assert_eq!(hw::AUDIO_MAX_TONE_HZ, f64::from(hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_TONE_HZ")));
     // The audio level at the ceiling compiles to the hub's ceiling byte, and above it is refused.
     assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85 })))[5], 170);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);

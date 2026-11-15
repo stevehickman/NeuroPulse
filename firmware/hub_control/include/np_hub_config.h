@@ -154,7 +154,8 @@
 
 /* Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz plus the
  * beat or pulse rate.  The flat bound of NP-HW-AUDIO-001 REQ-AUDIO-25.  A command above it is REFUSED,
- * never clamped.  Equals AUDIO_MAX_TONE_HZ in common/npps-core/src/compiler.rs. */
+ * never clamped.  Equals AUDIO_MAX_TONE_HZ in common/npps/constants.json
+ * (scripts/check-hub-wire-format.ts holds the two together). */
 #define NP_AUDIO_MAX_TONE_HZ        1000U
 
 /* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
