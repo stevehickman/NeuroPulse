@@ -55,6 +55,9 @@ sealed interface OtaError {
     data object VerificationFailed : OtaError
 }
 
+/** The chunk payload carries a 16-bit index, so indices run 0..65535: at most 65536 chunks (OI-UINT16-01). */
+internal const val MAX_CHUNKS = 65536
+
 class OtaException(val error: OtaError) : Exception(error.toString())
 
 class OtaManager(
@@ -173,6 +176,11 @@ class OtaManager(
         } catch (e: Exception) {
             fail(OtaError.ImageLoadFailed)
         }
+
+        // The chunk payload numbers a chunk in 16 bits (0..65535). An image of more chunks cannot be sent, and an index
+        // past 65535 used to wrap to 0, so the hub received duplicate indexes. Refused before INITIATE (OI-UINT16-01).
+        val chunks = (data.size + BleTransfer.OTA_CHUNK_SIZE - 1) / BleTransfer.OTA_CHUNK_SIZE
+        if (chunks > MAX_CHUNKS) fail(OtaError.ImageLoadFailed)
 
         _session.value = OtaSession(totalBytes = data.size.toLong())
         _phase.value = OtaPhase.PREPARING

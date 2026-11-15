@@ -263,7 +263,7 @@ Written to UHDR partition at session end, encrypted with biometric-derived AES-2
 |---|---|---|
 | R-R interval time series | `uint16_t[]` in EDF+ annotation | Full session record. **No writer exists** (OI-HRV-06) |
 | Coherence score array | `float[]` | One per 5-second update. The hub's 1 s `0x14` VNS/HRV telemetry record carries the current coherence, RMSSD and HR, read through HAL stubs `OI-VNS-07…09` |
-| Session record (`np_hrv_session_record_t`) | UHDR record `0x1B`, 31 bytes serialized | Duration, protocol, mean/min/max coherence, RMSSD, RR count, taVNS count. Committed since Rev 3 (§8.1.1) |
+| Session record (`np_hrv_session_record_t`) | UHDR record `0x1B`, 35 bytes serialized | Duration, protocol, mean/min/max coherence, RMSSD, RR count, taVNS count. Committed since Rev 3 (§8.1.1) |
 
 #### 8.1.1 Session record commit path (Rev 3, OI-HRV-03)
 
@@ -271,7 +271,7 @@ The library does not write storage. `np_hrv_session_stop()` builds the record an
 
 - **Encryption.** The session logger appends plaintext to the UHDR partition, which `np_uhdr_key_unlock()` has mounted AES-256-XTS under the user's biometric-derived key (`NP-FW-EMMC-002` §C). Encryption happens at the mounted block device. Neither the HRV library nor the logger holds or sees the key (`np_log_backend.h`, "Encryption boundary").
 - **Which file.** The record goes into the session file that is open when it is logged. The runner stops every module before `np_log_session_end()`, and stopping the VNS module (`control(NULL)`) is what calls `np_hrv_session_stop()`. So the record lands in the session it describes, ahead of `SESSION_END`. An auto-complete from `np_hrv_session_tick()` fires during the session, and the later stop is then a no-op, so the record is written once. If the record is logged outside a session, UHDR accepts no append and the record is lost. It is never written into another session's file.
-- **Layout** after tag `0x1B`, each field little-endian: reason (1, `np_hrv_status_t` as `int8`), `duration_s` (4), `protocol` (1), `target_rate_bpm` (4), `mean_coherence` (4), `min_coherence` (4), `max_coherence` (4), `mean_rmssd_ms` (4), `rr_sample_count` (2), `tavns_stim_count` (2). That is 31 bytes with the tag. The record is serialized field by field, so struct padding and `reserved[8]` never reach the medium.
+- **Layout** after tag `0x1B`, each field little-endian: reason (1, `np_hrv_status_t` as `int8`), `duration_s` (4), `protocol` (1), `target_rate_bpm` (4), `mean_coherence` (4), `min_coherence` (4), `max_coherence` (4), `mean_rmssd_ms` (4), `rr_sample_count` (4), `tavns_stim_count` (4). That is 35 bytes with the tag (both counts were 2 bytes: `OI-UINT16-01`, a count never saturates, and `rr_sample_count` is now every accepted interval and not the 256-entry ring's occupancy). The record is serialized field by field, so struct padding and `reserved[8]` never reach the medium.
 - **`session_start_unix` is not written.** The library never sets it, because the device has no RTC backup (CLAUDE.md §4.5). A zero written there would read as a 1970 start time. The session file's `0x10` start record already carries the session's start time.
 - **The statistics are valid only when the library saw data.** With no coherence update, the library leaves mean, min and max coherence and RMSSD at 0. A reader must treat `rr_sample_count = 0` as "no data" and never as a measured zero. On today's firmware that is every record (OI-HRV-07).
 - **UHDR only.** Nothing from this record reaches SHDR. The SHDR coherence trend slope is §8.2 and OI-HRV-04.

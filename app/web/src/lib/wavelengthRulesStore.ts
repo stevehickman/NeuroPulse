@@ -85,7 +85,7 @@ class WavelengthRulesStore extends EventTarget {
   }
 
   exportUserRules(): string {
-    return serializeWavelengthRules(this._user ?? { ...this.resolved, level: 'user' });
+    return serializeWavelengthRules(this._user ?? { ...this.resolved, level: 'user', version: undefined });
   }
 
   /** Import a `wavelength_rules` block as the user's override. Throws on anything invalid. */

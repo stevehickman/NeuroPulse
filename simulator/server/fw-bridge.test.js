@@ -665,8 +665,8 @@ test('the bridge relays a protocol upload as validated hex and nothing else', ()
     { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '' },
     { type: 'FW_COMMAND', cmd: 'proto_feed', hex: 12 },
     { type: 'FW_COMMAND', cmd: 'proto_feed' },
-    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00'.repeat(6153) },           // more than one whole frame
-    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: '00'.repeat(6149) },           // more than one whole blob
+    { type: 'FW_COMMAND', cmd: 'proto_feed', hex: '00'.repeat(6192) },           // more than one whole frame
+    { type: 'FW_COMMAND', cmd: 'proto_sign', hex: '00'.repeat(6188) },           // more than one whole blob
     { type: 'FW_COMMAND', cmd: 'proto_sign', hex: ['00'] },
   ];
   for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m).slice(0, 80));
@@ -1044,6 +1044,25 @@ test('the hub commands take validated integers and a whitelisted boot mode, and 
     { type: 'FW_COMMAND', cmd: 'hub_start' },                 // no command starts, paces or names a driver for a session
     { type: 'FW_COMMAND', cmd: 'hub_stop' },
     { type: 'FW_COMMAND', cmd: 'hub_session' },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+});
+
+// @verifies REQ-SIMFW-12
+test('the key scheme takes a whitelisted operation and a synthetic credential number, and no client bytes reach a command line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'provision', credential: 3 }), ['uhdr_key provision 3']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'change', credential: 15 }), ['uhdr_key change 15']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'background', credential: 9 }), ['uhdr_key background']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'status' }), ['uhdr_key status']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'uhdr_key' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: 16 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: -1 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: '3\nquit' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: 'hunter2' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'export', credential: 1 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'status\nquit' },
   ];
   for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
 });

@@ -287,9 +287,8 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     record.target_rate_bpm   = sess->pacer.personalized
                                 ? sess->pacer.target_rate_bpm
                                 : sess->config.pacer_rate_bpm;
-    record.rr_sample_count   = sess->rr_buf.count;
-    record.tavns_stim_count  = (uint16_t)(sess->tavns.stim_count < 0xFFFFU
-                                           ? sess->tavns.stim_count : 0xFFFFU);
+    record.rr_sample_count   = sess->rr_buf.total_pushed;
+    record.tavns_stim_count  = sess->tavns.stim_count;
     if (sess->coherence_sample_count > 0U) {
         record.mean_coherence = sess->coherence_sum / (float)sess->coherence_sample_count;
         record.min_coherence  = sess->coherence_min;

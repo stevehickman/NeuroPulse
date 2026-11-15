@@ -132,7 +132,8 @@ static void test_the_peak_detector_rejects_intervals_outside_the_valid_range_and
     restart(1);
     hrv("hrv_run 400000 60 80 0");
     stop_session();
-    check(rec("\"rr_count\":") == 256.0, "400 s of beats fill the 256-interval buffer and it saturates there");
+    printf("  (400 s of beats: %.0f intervals recorded)\n", rec("\"rr_count\":"));
+    check(rec("\"rr_count\":") >= 395.0 && rec("\"rr_count\":") <= 402.0, "400 s of beats are all counted: the record carries every accepted interval, not the 256-entry ring's occupancy (OI-UINT16-01)");
 }
 
 /* @verifies REQ-SIMFW-24#c */

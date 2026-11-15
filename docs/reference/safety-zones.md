@@ -48,6 +48,13 @@ For a charge-balanced block with peak current `I`, geometric pad area `A`, and o
 | RMS current density | the same | `I_rms / A`; `I·√(2·w·f·δ)` for a pulse train, `I/√2·√δ` for a sinusoid | 3.0 mA/cm² | 1.0 mA/cm² |
 | Mean current density | the same | `mean-rectified current / A`; `2·I·w·f·δ` for a pulse train, `2I/π·δ` for a sinusoid | 300 µA/cm² | 100 µA/cm² |
 | Session charge density | tDCS | `I·t / A` | **150 mC/cm²** (the existing ceiling) | 100 mC/cm² |
+| Session length (`sessionDuration`) | **every modality but audio**; carried once, on the session's first block that is not audio | session minutes | none | **120 min**, compared with `>`: a session of exactly 120 minutes is not past it (`SESSION_LONG_WARNING_SECONDS`, `UC-067`) |
+
+**The session-length axis is not a health limit** (`SWR-SS-02`, the principal, 2026-11-13, `OI-HLIM-01` Q1 B). The research read for GitHub #563 finds no
+limit on session length, cumulative dose or a day's total for any modality (`docs/reference/health-limits.md` §8), so one general level asks the author to
+confirm that a long session is intended, and the message says no health limit is defined. The level is the long-session advisory the validator already
+carried, with no derivation (`UC-067`). **Audio is outside it** (Q2 A): its 85 dB SPL level ceiling is the whole control, so a session of audio alone has no
+such axis. A session is judged as one length, not summed across modalities or sites: no research read states that doses combine across them (§8, Q-C).
 
 **Where frequency enters.** The per-phase charge limit has no frequency in it; the literature says frequency, duty and
 current density are co-factors in damage that the Shannon line does not capture (Cogan 2016, citing McCreery 1995 and 1997),

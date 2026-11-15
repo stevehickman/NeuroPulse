@@ -13,8 +13,8 @@
  *                          its target over the commanded seconds.  Every call site of np_mod_stim_hal_dc_ramp
  *                          passes the time to cover the distance from the present level, so that is how the
  *                          model reads it.
- *   charge             DC: the integral of the delivered magnitude, in microcoulombs, saturating at the
- *                          16 bits the seam returns.  AC: 0.  The seam's comment says "session total" and does
+ *   charge             DC: the integral of the delivered magnitude, in microcoulombs, returned in the
+ *                          32 bits the seam carries (OI-UINT16-01).  AC: 0.  The seam's comment says "session total" and does
  *                          not say what a charge-balanced waveform's total is; the model does not invent one.
  *   polarity           reported as a magnitude.  The seam does not define what polarity 0 and 1 mean.
  *   impedance          the value the scenario gave the pair.  No default.
@@ -188,7 +188,7 @@ float np_mod_stim_hal_read_current(uint8_t pair)
     return v;
 }
 
-uint16_t np_mod_stim_hal_read_charge(uint8_t pair)
+uint32_t np_mod_stim_hal_read_charge(uint8_t pair)
 {
     np_sim_module_t *m = resolve(pair, "stim_read_charge");
     if (m == NULL) { return 0U; }
@@ -200,10 +200,12 @@ uint16_t np_mod_stim_hal_read_charge(uint8_t pair)
     charge_update(m);
     const np_sim_override_t *o = &m->ov[NP_SIM_OP_STIM_READ_CHARGE];
     double uc = o->has_reading ? (double)o->reading : m->stim_charge_uc;
-    if (uc > 65535.0) { uc = 65535.0; }
     if (uc < 0.0)     { uc = 0.0; }
+    /* A double above UINT32_MAX would make the cast undefined.  4.29e9 uC is 4,295 C, which no session reaches
+     * (the 150 mC/cm2 ceiling on a 25 cm2 pad is 3.75e6 uC), so the bound is never taken by a modelled value. */
+    const uint32_t uc32 = (uc >= 4294967295.0) ? UINT32_MAX : (uint32_t)uc;
     char args[32];
-    (void)snprintf(args, sizeof args, "[%u]", (unsigned)uc);
+    (void)snprintf(args, sizeof args, "[%u]", (unsigned)uc32);
     np_sim_report_hal(m, NP_SIM_OP_STIM_READ_CHARGE, args, (int)NP_HUB_OK, o->has_reading ? "injected" : "default");
-    return (uint16_t)uc;
+    return uc32;
 }

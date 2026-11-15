@@ -206,8 +206,8 @@ typedef struct {
     uint16_t programme_id;                          /* == NP_ACCEL_CHAR_PROGRAMME_ID */
     uint32_t consent_epoch;                         /* ≥1; bumped on each grant */
     uint32_t record_seq;                            /* 1..NP_ACCEL_CHAR_RECORD_BUDGET */
-    uint16_t g_bin[NP_ACCEL_CHAR_G_BIN_COUNT];      /* counts, coarsened */
-    uint16_t impact_event_count;                    /* == Σ g_bin; explicit so bin saturation is detectable */
+    uint32_t g_bin[NP_ACCEL_CHAR_G_BIN_COUNT];      /* counts, coarsened; 32-bit, never saturate (OI-UINT16-01) */
+    uint32_t impact_event_count;                    /* == Σ g_bin exactly: nothing saturates, so the sum always holds */
 } np_shdr_accel_char_record_t;
 
 /* Device-local enrolment state.  Lives in the Config partition under the SHDR

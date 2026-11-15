@@ -8,7 +8,7 @@
  *
  * Three SPI frame types, distinguished by NSS-delineated transfer length:
  *
- *   (1) Extended heartbeat frame   (38 bytes, hub→MCU every 200ms)
+ *   (1) Extended heartbeat frame   (42 bytes, hub→MCU every 200ms)
  *         np_safety_rx_ext_frame_t  — MCU's receive perspective
  *         np_safety_tx_ext_frame_t  — hub's transmit perspective (typedef alias)
  *
@@ -277,19 +277,20 @@ typedef char _np_safety_ch_index_check[
 /* Layout: 8-byte base (magic+session_status+enables+channel_count+checksum)
  *        + 28-byte current array (14 × uint16_t)
  *        + 2-byte ext_checksum
- *        = 38 bytes total.
+ *        + 4-byte zero tail (OI-UINT16-01: the reply window grew)
+ *        = 42 bytes total.
  *
  * The base 8 bytes are layout-identical to the old np_safety_rx_frame_t so
  * that existing base-checksum code (covering bytes [0..5]) continues to work
  * unchanged.  The channel_count byte repurposes the former `reserved` byte at
  * offset 5.                                                                   */
-#define NP_SAFETY_RX_EXT_FRAME_LEN  38U
+#define NP_SAFETY_RX_EXT_FRAME_LEN  42U   /* was 38; +4 for the widened impedance report (OI-UINT16-01) */
 
-/* ── Extended heartbeat frame (hub → MCU, 38 bytes) ─────────────────────── */
+/* ── Extended heartbeat frame (hub → MCU, 42 bytes) ─────────────────────── */
 /*
  * Hub sends this every 200ms.  MCU replies simultaneously with the 8-byte TX
  * frame (status + granted_mask + fault_slot + checksum); hub reads the first 8
- * bytes of the 38-byte receive buffer as the MCU reply and discards the rest
+ * bytes of the 42-byte receive buffer as the MCU reply and discards the rest
  * (which the MCU's SPI slave clocks out as zeros).
  *
  * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
@@ -318,7 +319,8 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;          /* additive sum of bytes [0..5], wrapping u16 */
     uint16_t current_ua[NP_SAFETY_MAX_CHANNELS]; /* commanded µA per channel  */
     uint16_t ext_checksum;      /* additive sum of bytes [8..35], wrapping u16*/
-} np_safety_rx_ext_frame_t;    /* 38 bytes; named from MCU's "receive" perspective */
+    uint8_t  window_tail[4];    /* sent as zero, NOT in ext_checksum: widens the MISO window for the reports */
+} np_safety_rx_ext_frame_t;    /* 42 bytes; named from MCU's "receive" perspective */
 
 /* Hub-perspective naming alias (hub transmits this frame to MCU) */
 typedef np_safety_rx_ext_frame_t np_safety_tx_ext_frame_t;
@@ -482,11 +484,11 @@ typedef char _np_spi_chan_wave_cmd_size_check[
  *
  * The report is carried in the SPARE bytes of the 38-byte heartbeat window.
  * During each heartbeat the MCU (SPI slave) clocks out its 8-byte reply frame
- * in bytes [0..7] and this 8-byte report in bytes [8..15] on MISO; the hub reads
- * the whole 38-byte receive buffer.  This adds NO new SPI transfer, NO new
+ * in bytes [0..7] and this 12-byte report in bytes [8..19] on MISO; the hub reads
+ * the whole 42-byte receive buffer.  This adds NO new SPI transfer, NO new
  * NSS-delineated length, and does not touch the base 8-byte reply frame or its
- * checksum.  Bytes [16..19] carry the cardiac-status report below
- * (np_safety_nv_report_t); bytes [20..37] stay zero (unused).
+ * checksum.  Bytes [20..23] carry the cardiac-status report below
+ * (np_safety_nv_report_t); the tier report follows it.
  *
  * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
  * cvns_kohm_x100[] is measured tissue impedance → UHDR (user biology).  It is
@@ -498,21 +500,21 @@ typedef char _np_spi_chan_wave_cmd_size_check[
  */
 #define NP_SAFETY_IMP_REPORT_MAGIC     0x5AU  /* marks bytes [8..] as a valid report */
 #define NP_SAFETY_IMP_CVNS_ELECTRODES  2U     /* MUST equal NP_CVNS_ELECTRODE_COUNT   */
-#define NP_SAFETY_IMP_REPORT_OFFSET    8U     /* byte offset within 38-byte MISO window */
+#define NP_SAFETY_IMP_REPORT_OFFSET    8U     /* byte offset within 42-byte MISO window */
 
 /* flags bits */
 #define NP_SAFETY_IMP_FLAG_CVNS_VALID  (1U << 0)  /* cvns_kohm_x100[] holds a completed
                                                    * per-electrode CVNS measurement    */
 
-/* 1 (magic) + 1 (flags) + 4 (kohm[2]) + 2 (checksum) = 8 bytes */
+/* 1 (magic) + 1 (flags) + 8 (kohm[2], 4 each) + 2 (checksum) = 12 bytes (OI-UINT16-01: was 8, kohm was 16-bit) */
 typedef struct __attribute__((packed)) {
     uint8_t  magic;        /* NP_SAFETY_IMP_REPORT_MAGIC when populated, else 0 */
     uint8_t  flags;        /* NP_SAFETY_IMP_FLAG_* */
-    uint16_t cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES]; /* [0]=left, [1]=right; kΩ×100 */
-    uint16_t checksum;     /* additive sum of bytes [0..5], wrapping uint16 */
-} np_safety_imp_report_t;  /* 8 bytes; fits window bytes [8..15] */
+    uint32_t cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES]; /* [0]=left, [1]=right; kΩ×100, never clamped */
+    uint16_t checksum;     /* additive sum of bytes [0..9], wrapping uint16 */
+} np_safety_imp_report_t;  /* 12 bytes; window bytes [8..19] */
 
-#define NP_SAFETY_IMP_REPORT_LEN  8U
+#define NP_SAFETY_IMP_REPORT_LEN  12U
 
 /* Compile-time size assertions */
 typedef char _np_spi_imp_report_size_check[
@@ -653,7 +655,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  magic;            /* NP_SAFETY_NV_REPORT_MAGIC */
     uint8_t  flags;            /* NP_SAFETY_NV_FLAG_*       */
     uint16_t checksum;         /* additive sum of bytes [0..1] */
-} np_safety_nv_report_t;       /* 4 bytes; window bytes [16..19] */
+} np_safety_nv_report_t;       /* 4 bytes; window bytes [20..23] */
 
 #define NP_SAFETY_NV_REPORT_LEN  4U
 
@@ -732,7 +734,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  reason;           /* NP_TIER_REASON_*                   */
     uint8_t  hw_version;       /* helmet hardware version, 1..15 (SWR-HV-06) */
     uint16_t checksum;         /* additive sum of bytes [0..4]       */
-} np_safety_tier_report_t;     /* 7 bytes; window bytes [20..26]     */
+} np_safety_tier_report_t;     /* 7 bytes; window bytes [24..30]     */
 
 #define NP_SAFETY_TIER_REPORT_LEN  7U
 
@@ -775,7 +777,7 @@ typedef char _np_spi_tier_report_fits_check[
  * arrives.  Fixed shape: every field is populated on every beat, with zero
  * masks when nothing was withheld.
  *
- * The report fills the spare window exactly: bytes [27..37] of the 38-byte
+ * The report fills the spare window exactly: bytes [31..41] of the 42-byte
  * frame.  Nothing is deployed, so no earlier layout (the 7-byte report built
  * first on this branch carried only the two condition masks) is kept.
  *
@@ -795,7 +797,7 @@ typedef struct __attribute__((packed)) {
     uint16_t decl_decided;     /* of decl_mask: lines no other check holds              */
     uint16_t geom_decided;     /* of geom_mask: lines no other check holds              */
     uint16_t checksum;         /* additive sum of bytes [0..8], wrapping uint16        */
-} np_safety_withhold_report_t; /* 11 bytes; window bytes [27..37]                      */
+} np_safety_withhold_report_t; /* 11 bytes; window bytes [31..41]                      */
 
 #define NP_SAFETY_WITHHOLD_REPORT_LEN  11U
 

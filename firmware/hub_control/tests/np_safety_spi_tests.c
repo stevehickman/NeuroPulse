@@ -63,7 +63,7 @@ static bool     g_corrupt_reply;
 static int      g_withhold_mode;
 static uint16_t g_wh_decl, g_wh_geom, g_wh_decl_dec, g_wh_geom_dec;
 
-/* The tier report the double clocks out at window bytes [20..26].  g_tier_send
+/* The tier report the double clocks out at window bytes [24..30].  g_tier_send
  * false leaves those bytes zero, which is a hub that has been sent no report. */
 static bool     g_tier_send;
 static uint8_t  g_tier_magic;
@@ -387,9 +387,9 @@ static void test_the_hardware_version_in_a_valid_tier_report_is_the_one_the_func
     }
     check(each, "hw version: each value 1..15 in a valid tier report is returned by the one hub function");
     check(tier_kept, "hw version: the tier the hub holds is the report's tier at every version (independent)");
-    check(NP_SAFETY_TIER_REPORT_OFFSET == 20U && NP_SAFETY_TIER_REPORT_LEN == 7U &&
+    check(NP_SAFETY_TIER_REPORT_OFFSET == 24U && NP_SAFETY_TIER_REPORT_LEN == 7U &&
           (NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN) <= NP_SAFETY_RX_EXT_FRAME_LEN,
-          "hw version: the report is window bytes 20 to 26, inside the frame the hub already reads");
+          "hw version: the report is window bytes 24 to 30, inside the frame the hub already reads");
 }
 
 /* @verifies SWR-HV-07#a */
