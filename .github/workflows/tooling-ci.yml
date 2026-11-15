@@ -408,6 +408,7 @@ jobs:
         common/core/**
         common/cloudauth/**
         common/npps/migration-keys.json
+        common/npps-core/src/migration_flow.rs
         scripts/check-migration-keys.ts
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
@@ -675,6 +676,7 @@ jobs:
           assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
           assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/NppsCore.cs
           assert scope.migrationkeys.paths true  common/npps/migration-keys.json
+          assert scope.migrationkeys.paths true  common/npps-core/src/migration_flow.rs
           assert scope.migrationkeys.paths false docs/np_art_001.md
           assert scope.migrationkeys.paths false firmware/hub_control/src/np_session_log.c
 
