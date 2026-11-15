@@ -727,6 +727,7 @@
   "MIGRATION_LINK_WORKING": "Connecting and restoring…",
   "MIGRATION_PROBE_BACKUP_ONLY": "This place can hold a backup, but it cannot be used to move to a new phone, because it cannot make sure that only one phone receives it.",
   "MIGRATION_PROBE_INSUFFICIENT": "This place cannot be used for a backup.",
+  "MIGRATION_PROBE_SPACE_UNCONFIRMED": "This place does not say how much room it has, so we could not confirm that the backup will fit. If a backup fails, free some space or choose another place.",
   "MIGRATION_PROBE_SUFFICIENT": "This place can carry a move to a new phone.",
   "MIGRATION_REASON_AUTHENTICATION_FAILED": "That recovery code or passphrase does not open this backup, or the backup has been changed.",
   "MIGRATION_REASON_CLAIMED": "This backup has already been claimed by another phone.",
