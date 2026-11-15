@@ -455,8 +455,8 @@ np_pbm_status_t np_pbm_session_tick(np_pbm_session_ctx_t *ctx,
     /* ── Stage transitions ─────────────────────────────────────────────────── */
     uint32_t elapsed_ms = now_ms - ctx->ramp_start_ms;
     uint32_t ramp_ms    = NP_PBM_RAMP_DURATION_S * 1000U;
-    uint32_t active_ms  = (uint32_t)ctx->desc.hdr.duration_s * 1000U - 2U * ramp_ms;
-    (void)active_ms;
+    /* The active stage's length was computed here as duration - 2 x ramp and never read: it wrapped for a duration under
+     * two ramps (OI-UINT16-01).  The stage ends on the elapsed time below, so it is not computed. */
 
     switch (ctx->stage) {
     case NP_PBM_STAGE_RAMP_UP:

@@ -166,6 +166,15 @@ np_hd_status_t np_hd_stim_start(np_hd_stim_ctx_t *ctx,
         return NP_HD_ERR_SESSION_ACTIVE;
     }
 
+    /* A session holds a ramp up and a ramp down.  Shorter than the two, the steady phase would end before the ramp up does
+     * (and total - ramp would wrap below zero), so it is refused before anything is set or requested (OI-UINT16-01).  This is
+     * structural, not the 120 to 1,800 s range of np_hd_config.h, which nothing here enforces and no document derives. */
+    uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
+    uint32_t total_ms = (uint32_t)duration_s * 1000U;
+    if (total_ms < 2U * ramp_ms) {
+        return NP_HD_ERR_INVALID_ARG;
+    }
+
     /* Set target currents: anode positive, cathodes split equally (negative).   */
     int32_t cathode_ua = -(int32_t)anode_current_ua / (int32_t)NP_HD_CATHODE_SPLIT_DENOM;
 
@@ -177,10 +186,8 @@ np_hd_status_t np_hd_stim_start(np_hd_stim_ctx_t *ctx,
     ctx->target_ua   = anode_current_ua;
     ctx->duration_s  = duration_s;
 
-    /* Compute steady phase end time.                                            */
-    uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
-    uint32_t total_ms = (uint32_t)duration_s * 1000U;
-    ctx->steady_end_ms = now_ms + total_ms - ramp_ms;
+    /* Steady phase end time.                                                    */
+    ctx->steady_end_ms = now_ms + (total_ms - ramp_ms);
 
     /* Request safety MCU enable.  Actual current starts in tick() after grant. */
     uint8_t  channels[NP_HD_RING_ELECTRODE_COUNT];

@@ -68,7 +68,7 @@ bool np_simh_ins_line(const char *cmd, char *a, char *b, char *c, char *d, char 
         else { return false; }
     } else if (strcmp(cmd, "ins_pd") == 0 && a && b && c && m != NULL) {
         const unsigned side = (unsigned)atoi(a), wl = (unsigned)atoi(b);
-        if (side < 2U && wl < 2U) { m->ins_pd[side][wl] = (uint16_t)atoi(c); }
+        if (side < 2U && wl < 2U) { m->ins_pd[side][wl] = NP_SIMH_U16(c); }
     } else if (strcmp(cmd, "ins_detect") == 0) {
         np_hub_mod_type_t t = NP_MOD_NONE;
         const np_hub_status_t rc = np_mod_intranasal_detect(NP_HUB_SLOT_INTRANASAL, &t);
@@ -76,8 +76,8 @@ bool np_simh_ins_line(const char *cmd, char *a, char *b, char *c, char *d, char 
     } else if (strcmp(cmd, "ins_init") == 0) {
         ins_result(cmd, (int)np_mod_intranasal_init(NP_HUB_SLOT_INTRANASAL));
     } else if (strcmp(cmd, "ins") == 0 && a && b && c && d && e) {
-        const np_mod_intranasal_params_t p = { .side = (uint8_t)atoi(a), .freq_code = (uint8_t)atoi(b), .duty = (uint8_t)atoi(c),
-                                               .cur_660 = (uint8_t)atoi(d), .cur_808 = (uint8_t)atoi(e) };
+        const np_mod_intranasal_params_t p = { .side = NP_SIMH_U8(a), .freq_code = NP_SIMH_U8(b), .duty = NP_SIMH_U8(c),
+                                               .cur_660 = NP_SIMH_U8(d), .cur_808 = NP_SIMH_U8(e) };
         ins_result(cmd, (int)np_mod_intranasal_control(NP_HUB_SLOT_INTRANASAL, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "ins_stop") == 0) {
         ins_result(cmd, (int)np_mod_intranasal_control(NP_HUB_SLOT_INTRANASAL, NULL, 0U));

@@ -126,18 +126,27 @@ fn request_info(hdr: &[u8]) -> Vec<u8> {
 
 // ── Binary HTTP (RFC 9292), known-length ─────────────────────────────────────────────────────────────────────────
 
-fn put_varint(out: &mut Vec<u8>, n: usize) {
-    let n = n as u64;
+/// A variable-length integer (RFC 9000 §16), at most the 4-byte form: 0 to 2^30 - 1. A larger value is refused: it used to be
+/// written with its top bits cut off, which would have framed a different length from the one measured (OI-UINT16-01).
+const VARINT_MAX: u64 = (1 << 30) - 1;
+
+fn put_varint(out: &mut Vec<u8>, n: usize) -> R<()> {
+    let n = u64::try_from(n).map_err(|_| "a length does not fit a binary HTTP varint".to_string())?;
+    if n > VARINT_MAX {
+        return Err(format!("a length of {n} does not fit a binary HTTP varint (at most {VARINT_MAX})"));
+    }
     match n {
         0..=63 => out.push(n as u8),
         64..=16383 => out.extend((0x4000 | n as u16).to_be_bytes()),
         _ => out.extend((0x8000_0000 | n as u32).to_be_bytes()),
     }
+    Ok(())
 }
 
-fn put_str(out: &mut Vec<u8>, s: &[u8]) {
-    put_varint(out, s.len());
+fn put_str(out: &mut Vec<u8>, s: &[u8]) -> R<()> {
+    put_varint(out, s.len())?;
     out.extend(s);
+    Ok(())
 }
 
 struct Cursor<'a>(&'a [u8]);
@@ -171,13 +180,13 @@ fn utf8(b: &[u8]) -> R<String> {
     String::from_utf8(b.to_vec()).map_err(|_| "not text".to_string())
 }
 
-fn encode_fields(headers: &[(String, String)]) -> Vec<u8> {
+fn encode_fields(headers: &[(String, String)]) -> R<Vec<u8>> {
     let mut f = Vec::new();
     for (n, v) in headers {
-        put_str(&mut f, n.to_ascii_lowercase().as_bytes());
-        put_str(&mut f, v.as_bytes());
+        put_str(&mut f, n.to_ascii_lowercase().as_bytes())?;
+        put_str(&mut f, v.as_bytes())?;
     }
-    f
+    Ok(f)
 }
 
 fn decode_fields(section: &[u8]) -> R<Vec<(String, String)>> {
@@ -198,17 +207,17 @@ struct Request {
     body: Vec<u8>,
 }
 
-fn encode_request(r: &Request) -> Vec<u8> {
+fn encode_request(r: &Request) -> R<Vec<u8>> {
     let mut m = vec![0u8]; // framing indicator: known-length request
     for s in [&r.method, &r.scheme, &r.authority, &r.path] {
-        put_str(&mut m, s.as_bytes());
+        put_str(&mut m, s.as_bytes())?;
     }
-    put_str(&mut m, &encode_fields(&r.headers));
-    put_str(&mut m, &r.body);
-    put_varint(&mut m, 0); // no trailers
+    put_str(&mut m, &encode_fields(&r.headers)?)?;
+    put_str(&mut m, &r.body)?;
+    put_varint(&mut m, 0)?; // no trailers
     let padded = m.len().div_ceil(PAD_TO) * PAD_TO;
     m.resize(padded, 0);
-    m
+    Ok(m)
 }
 
 /// A message may end after any whole field once the rest is empty (RFC 9292 §3.8: the sender may leave off what is empty, and the
@@ -230,13 +239,13 @@ fn decode_request(m: &[u8]) -> R<Request> {
     Ok(Request { method, scheme, authority, path, headers, body })
 }
 
-fn encode_response(status: u16, headers: &[(String, String)], body: &[u8]) -> Vec<u8> {
+fn encode_response(status: u16, headers: &[(String, String)], body: &[u8]) -> R<Vec<u8>> {
     let mut m = vec![1u8]; // framing indicator: known-length response
-    put_varint(&mut m, status as usize);
-    put_str(&mut m, &encode_fields(headers));
-    put_str(&mut m, body);
-    put_varint(&mut m, 0);
-    m
+    put_varint(&mut m, usize::from(status))?;
+    put_str(&mut m, &encode_fields(headers)?)?;
+    put_str(&mut m, body)?;
+    put_varint(&mut m, 0)?;
+    Ok(m)
 }
 
 fn decode_response(m: &[u8]) -> R<(u16, Vec<(String, String)>, Vec<u8>)> {
@@ -312,7 +321,7 @@ fn seal(req: &Value) -> R<Value> {
         path: text(req, "path")?.into(),
         headers: headers_in(&req["headers"])?,
         body: field(req, "body")?,
-    });
+    })?;
     if message.len() > MAX_MESSAGE {
         return Err("the request is too large".into());
     }
@@ -378,7 +387,7 @@ fn gateway_seal(req: &Value) -> R<Value> {
     }
     let status = u16::try_from(req["status"].as_u64().ok_or("status is required")?).map_err(|_| "bad status".to_string())?;
     let (key, iv) = response_keys(&enc, &secret, &nonce)?;
-    let ct = aead_seal(&key, &iv, &encode_response(status, &headers_in(&req["headers"])?, &field(req, "body")?))?;
+    let ct = aead_seal(&key, &iv, &encode_response(status, &headers_in(&req["headers"])?, &field(req, "body")?)?)?;
     Ok(json!({ "response": hex(&[nonce, ct].concat()) }))
 }
 
@@ -415,6 +424,19 @@ mod tests {
             "headers": [["X-NP-Device-Token", "abc"], ["Content-Type", "application/octet-stream"]],
             "body": body, "entropy": bytes(32, 9),
         })).unwrap()
+    }
+
+    #[test]
+    fn a_length_the_four_byte_varint_cannot_hold_is_refused_not_cut() {
+        let mut out = Vec::new();
+        put_varint(&mut out, 63).unwrap();
+        put_varint(&mut out, 16383).unwrap();
+        put_varint(&mut out, VARINT_MAX as usize).unwrap();
+        assert_eq!(out, [63, 0x7F, 0xFF, 0xBF, 0xFF, 0xFF, 0xFF]);
+        let before = out.len();
+        let e = put_varint(&mut out, VARINT_MAX as usize + 1).unwrap_err();
+        assert!(e.contains("does not fit"), "{e}");
+        assert_eq!(out.len(), before, "a refused length writes nothing");
     }
 
     #[test]

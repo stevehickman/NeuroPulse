@@ -115,7 +115,7 @@ bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char
         m = np_sim_add(NP_SIM_KIND_CVNS, 0U, 0.0f);
         if (m != NULL) {
             m->cvns_kohm[0] = (float)atof(a); m->cvns_kohm[1] = (float)atof(b);
-            m->cvns_unix_base_s = (uint32_t)strtoul(c, NULL, 10);
+            m->cvns_unix_base_s = NP_SIMH_U32(c);
             m->cvns_reenable_pass = true;
         }
     } else if (strcmp(cmd, "cvns_absent") == 0) {
@@ -136,12 +136,16 @@ bool np_simh_cvns_line(const char *cmd, char *a, char *b, char *c, char *d, char
         int ramp = 0, base = 0;                                  /* e is the rest of the line: <ramp_s> <baseline_req> [<block_ms>] */
         unsigned long block_ms = CVNS_SCENARIO_BLOCK_MS;
         if (sscanf(e, "%d %d %lu", &ramp, &base, &block_ms) < 2) { return false; }
+        /* Each goes into a narrower field: refuse one that does not fit, never wrap it. */
+        if (ramp < 0 || ramp > 0xFFFF) { np_simh_refuse(0xFFFFUL); }
+        if (base < 0 || base > 0xFF) { np_simh_refuse(0xFFUL); }
+        if (block_ms > 0xFFFFFFFFUL) { np_simh_refuse(0xFFFFFFFFUL); }
         np_mod_cvns_set_block_ms((uint32_t)block_ms);
-        const np_mod_cvns_params_t p = { .side = (uint8_t)atoi(a), .freq_mhz = (uint16_t)atoi(b), .amplitude_ua = (uint16_t)atoi(c),
-                                         .pulse_width_us = (uint16_t)atoi(d), .ramp_s = (uint16_t)ramp, .baseline_req = (uint8_t)base };
+        const np_mod_cvns_params_t p = { .side = NP_SIMH_U8(a), .freq_mhz = NP_SIMH_U16(b), .amplitude_ua = NP_SIMH_U16(c),
+                                         .pulse_width_us = NP_SIMH_U16(d), .ramp_s = (uint16_t)ramp, .baseline_req = (uint8_t)base };
         state_event("result", cmd, (int)np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "cvns_mcu") == 0 && a && b) {
-        np_mod_cvns_set_heartbeat_status((uint16_t)strtoul(a, NULL, 0), (uint8_t)atoi(b));
+        np_mod_cvns_set_heartbeat_status(NP_SIMH_U16(a), NP_SIMH_U8(b));
     } else if (strcmp(cmd, "cvns_mcu_imp") == 0 && a && b) {
         const float k[2] = { (float)atof(a), (float)atof(b) };
         np_mod_cvns_set_mcu_impedance(k, true);

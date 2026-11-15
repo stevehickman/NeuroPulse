@@ -49,6 +49,27 @@ static void cur_ua(uint16_t out[]) { np_safety_spi_get_channel_currents(out); }
 
 /* ── BES / tACS ────────────────────────────────────────────────────────────── */
 
+/* @verifies-none Simulator harness input check (OI-UINT16-01): a number that does not fit its field refuses the command. Simulator evidence only (REQ-SIMFW-06). */
+static void test_a_number_that_does_not_fit_refuses_the_command(void)
+{
+    setup();
+    run("bes 0 0 10000 65537");          /* 65537 does not fit the 16-bit amplitude: it used to become 1 and run */
+    check(count("\"ev\":\"error\"") == 1 && count("\"ev\":\"result\"") == 0 && !pair(0)->driven,
+          "refused: a 16-bit field given 65537 refuses the command, and nothing was driven");
+    g_cap_n = 0;
+    run("bes 0 0 10000 -5");
+    check(count("\"ev\":\"error\"") == 1 && count("\"ev\":\"result\"") == 0, "refused: a negative number is not a whole unsigned number");
+    g_cap_n = 0;
+    run("bes 0 0 10000 5x");
+    check(count("\"ev\":\"error\"") == 1 && count("\"ev\":\"result\"") == 0, "refused: trailing text is not a number");
+    g_cap_n = 0;
+    run("bes 0 300 10000 500");           /* 300 does not fit the 8-bit waveform field */
+    check(count("\"ev\":\"error\"") == 1 && count("\"ev\":\"result\"") == 0, "refused: an 8-bit field given 300 refuses the command");
+    g_cap_n = 0;
+    run("bes 0 0 10000 500");
+    check(count("\"ev\":\"error\"") == 0 && result_code_is(0), "refused: a valid line right after is taken as before");
+}
+
 /* @verifies-none Baseline of the firmware path; np_mod_stim_tests verifies the driver. Simulator evidence only (REQ-SIMFW-06). */
 static void test_bes_drive_and_stop(void)
 {
@@ -365,6 +386,7 @@ static void test_a_module_answers_only_for_itself(void)
 
 int main(void)
 {
+    test_a_number_that_does_not_fit_refuses_the_command();
     test_bes_drive_and_stop();
     test_bes_amplitude_above_the_limit_is_refused_before_the_dac();
     test_bes_dac_fault_leaves_nothing_enabled();

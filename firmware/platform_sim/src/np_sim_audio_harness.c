@@ -71,8 +71,8 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
     } else if (strcmp(cmd, "audio") == 0 && a && b && c && d && e) {
         int bone = 0, adaptive = 0;
         if (sscanf(e, "%d %d", &bone, &adaptive) != 2) { return false; }   /* e is the rest of the line */
-        const np_mod_audio_params_t p = { .mode = (uint8_t)atoi(a), .carrier_hz = (uint16_t)atoi(b),
-                                          .beat_mhz = (uint16_t)atoi(c), .level_half_db = (uint8_t)atoi(d),
+        const np_mod_audio_params_t p = { .mode = NP_SIMH_U8(a), .carrier_hz = NP_SIMH_U16(b),
+                                          .beat_mhz = NP_SIMH_U16(c), .level_half_db = NP_SIMH_U8(d),
                                           .bone_conduct_en = (uint8_t)bone, .eeg_adaptive = (uint8_t)adaptive };
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "audio_stop") == 0) {
@@ -85,7 +85,7 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
         const unsigned len = (unsigned)atoi(a);
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, zeros, (uint16_t)(len > sizeof zeros ? sizeof zeros : len)));
     } else if (strcmp(cmd, "audio_eeg_band") == 0 && a) {
-        np_mod_audio_set_eeg_band((uint8_t)atoi(a));
+        np_mod_audio_set_eeg_band(NP_SIMH_U8(a));
         audio_state_event("result", cmd, 0);
     } else if (strcmp(cmd, "audio_sample") == 0) {
         np_telem_record_t rec;

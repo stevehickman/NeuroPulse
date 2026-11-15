@@ -16,6 +16,8 @@
 #include "np_socket_layouts.h"
 #include "np_layout_bind.h"
 
+#include <errno.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,6 +134,35 @@ void np_simh_init(void)
     np_simh_safety_init();
 }
 
+/* The jump np_simh_arg takes to abandon a command line whose number does not fit (see the header). */
+static jmp_buf g_arg_jmp;
+static bool    g_arg_armed;
+
+_Noreturn void np_simh_refuse(unsigned long max)
+{
+    /* The offending text is not echoed: it came from a client. */
+    np_sim_emit("{\"ev\":\"error\",\"what\":\"an argument is not a whole number in range, so the command was refused\",\"max\":%lu}", max);
+    if (!g_arg_armed) { abort(); }          /* a parse outside np_simh_line is a bug in the harness */
+    longjmp(g_arg_jmp, 1);
+}
+
+unsigned long np_simh_arg(const char *s, unsigned long max)
+{
+    char *end = NULL;
+    unsigned long v = 0UL;
+    bool ok = (s != NULL) && (s[0] >= '0') && (s[0] <= '9');     /* no sign, no space, not empty */
+    if (ok) {
+        const int base = (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 16 : 10;   /* not base 0: "010" is ten */
+        errno = 0;
+        v = strtoul(s, &end, base);
+        ok = (errno == 0) && (end != s) && (*end == '\0') && (v <= max);
+    }
+    if (ok) { return v; }
+    np_simh_refuse(max);
+}
+
+static void line_dispatch(char *cmd, char *a, char *b, char *c, char *d, char *e);
+
 void np_simh_line(char *line)
 {
     char *save = NULL;
@@ -142,6 +173,16 @@ void np_simh_line(char *line)
     char *c = strtok_r(NULL, " \t\r\n", &save);
     char *d = strtok_r(NULL, " \t\r\n", &save);
     char *e = strtok_r(NULL, "\r\n", &save);   /* the rest of the line: one token for most commands, three for vns */
+
+    if (setjmp(g_arg_jmp) == 0) {
+        g_arg_armed = true;
+        line_dispatch(cmd, a, b, c, d, e);
+    }
+    g_arg_armed = false;
+}
+
+static void line_dispatch(char *cmd, char *a, char *b, char *c, char *d, char *e)
+{
 
     /* The other modules' commands first.  "fail" and "reading" are shared: an op name implies its module kind. */
     if (np_simh_stim_line(cmd, a, b, c, d, e)) { return; }
@@ -163,7 +204,7 @@ void np_simh_line(char *line)
     unsigned n;
 
     if (strcmp(cmd, "add") == 0 && a && b) {
-        uint16_t s = (uint16_t)atoi(a);
+        uint16_t s = NP_SIMH_U16(a);
         if (!np_socket_layout_valid_address(g_layout, s)) {
             np_sim_emit("{\"ev\":\"error\",\"what\":\"not a valid address: %s\",\"hardware_version\":%d,\"socket\":%u}",
                         g_layout != NULL ? "past this helmet's lattice" : "no layout is bound",
@@ -176,19 +217,24 @@ void np_simh_line(char *line)
     } else if (strcmp(cmd, "fail") == 0 && a && b && c && d) {
         int op = np_sim_op_from_name(b);
         if (op >= 0) {   /* an optional 5th word: answer that many calls normally first */
-            np_sim_set_response_after(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, atoi(c), atoi(d), e != NULL ? atoi(e) : 0);
+            np_sim_set_response_after(np_sim_op_kind((np_sim_op_t)op), NP_SIMH_U16(a), (np_sim_op_t)op, atoi(c), atoi(d), e != NULL ? atoi(e) : 0);
         }
     } else if (strcmp(cmd, "reading") == 0 && a && b && c) {
         int op = np_sim_op_from_name(b);
-        if (op >= 0) { np_sim_set_reading(np_sim_op_kind((np_sim_op_t)op), (uint16_t)atoi(a), (np_sim_op_t)op, (float)atof(c)); }
+        if (op >= 0) {
+            /* A reading that a driver stub narrows to 8 or 16 bits must fit that width: it is refused here, not cut there. */
+            if (op == (int)NP_SIM_OP_EEG_SPI_READ || op == (int)NP_SIM_OP_EEG_DOMINANT_BAND) { (void)np_simh_arg(c, 0xFFUL); }
+            if (op == (int)NP_SIM_OP_INS_PD_READ) { (void)np_simh_arg(c, 0xFFFFUL); }
+            np_sim_set_reading(np_sim_op_kind((np_sim_op_t)op), NP_SIMH_U16(a), (np_sim_op_t)op, (float)atof(c));
+        }
     } else if ((strcmp(cmd, "absent") == 0 || strcmp(cmd, "present") == 0) && a) {
-        uint16_t s = (uint16_t)atoi(a);
+        uint16_t s = NP_SIMH_U16(a);
         np_sim_set_present(NP_SIM_KIND_PBM_BASE, s, cmd[0] == 'p');
         poll_socket(s);
     } else if (strcmp(cmd, "report") == 0 && a) {
         /* The safety MCU's report names the helmet's hardware version: the firmware's own follow-the-report path. */
         bool rebound = false;
-        np_hub_status_t rc = np_layout_follow_report((uint8_t)atoi(a), true, &rebound);
+        np_hub_status_t rc = np_layout_follow_report(NP_SIMH_U8(a), true, &rebound);
         g_layout = np_layout_bound();
         np_sim_emit("{\"ev\":\"layout\",\"reported\":%d,\"rebound\":%s,\"code\":%d,\"bound_version\":%d}",
                     atoi(a), rebound ? "true" : "false", (int)rc, g_layout != NULL ? (int)g_layout->hardware_version : -1);
@@ -198,7 +244,7 @@ void np_simh_line(char *line)
             }
         }
     } else if (strcmp(cmd, "clear") == 0 && a) {
-        np_sim_clear(NP_SIM_KIND_PBM_BASE, (uint16_t)atoi(a));
+        np_sim_clear(NP_SIM_KIND_PBM_BASE, NP_SIMH_U16(a));
     } else if (strcmp(cmd, "status") == 0) {
         status();
     } else if (strcmp(cmd, "quit") == 0) {
