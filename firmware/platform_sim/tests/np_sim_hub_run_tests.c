@@ -33,6 +33,7 @@
 #include "np_module_map.h"
 #include "np_safety_spi.h"
 #include "np_session_count.h"
+#include "np_uhdr_key.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -556,6 +557,107 @@ static void test_a_socket_poll_stops_at_the_unrouted_register_tunnel_and_fails_c
     check(count2("\"ev\":\"unrouted\"", "np_pbm_hal_i2c_read") >= 1, "and the twin reports the unrouted read, as it does every seam with no route");
 }
 
+/* The device's own host-build accessors of np_uhdr_key.c (its header declares none). */
+extern uint32_t              np_uhdr_host_mount_count(void);
+extern const uint8_t        *np_uhdr_host_last_mounted_key(void);
+extern const np_ukmd_record_t *np_uhdr_host_config(void);
+
+/* The key scheme needs no modules: the event sink and a fresh harness. */
+static void key_scheme(void)
+{
+    np_sim_set_sink(capture);
+    np_sim_use_real_clock();
+    np_simh_init();
+    g_cap_n = 0;
+}
+
+/* @verifies REQ-SIMFW-26#a */
+static void test_the_key_lifecycle_runs_from_the_devices_own_source_on_synthetic_credentials(void)
+{
+    key_scheme();
+    g_cap_n = 0;
+    run("uhdr_key status");
+    check(count2("\"ev\":\"uhdr_key\"", "\"provisioned\":false") == 1, "before provisioning the scheme holds no key");
+    run("uhdr_key provision 3");
+    check(count2("\"cmd\":\"provision\"", "\"status\":\"ok\"") == 1 && count2("\"cmd\":\"provision\"", "\"unlocked\":true") == 1,
+          "the device's own provision mints a key and leaves the partition unlocked");
+    check(np_uhdr_host_mount_count() == 1U, "the UHDR mount seam was called once, with the key");
+    run("uhdr_key background");
+    check(count2("\"cmd\":\"background\"", "\"unlocked\":false") == 1, "background locks it again");
+    run("uhdr_key unlock 3");
+    check(count2("\"cmd\":\"unlock\"", "\"status\":\"ok\"") == 1 && np_uhdr_host_mount_count() == 2U, "the same credential unlocks it and mounts the partition again");
+}
+
+/* @verifies REQ-SIMFW-26#b */
+static void test_a_wrong_credential_is_refused_and_mounts_nothing(void)
+{
+    key_scheme();
+    run("uhdr_key provision 3");
+    run("uhdr_key background");
+    const uint32_t mounts = np_uhdr_host_mount_count();
+    g_cap_n = 0;
+    run("uhdr_key unlock 4");
+    check(count2("\"cmd\":\"unlock\"", "\"status\":\"auth\"") == 1, "a wrong credential fails the tag check, as the device's own code decides");
+    check(count2("\"cmd\":\"unlock\"", "\"unlocked\":false") == 1 && np_uhdr_host_mount_count() == mounts, "it stays locked and the partition is not mounted");
+    run("uhdr_key change 5");
+    check(count2("\"cmd\":\"change\"", "\"status\":\"state\"") == 1, "a credential cannot be changed while locked");
+}
+
+/* @verifies REQ-SIMFW-26#c */
+static void test_a_changed_credential_wraps_the_same_key_again(void)
+{
+    key_scheme();
+    run("uhdr_key provision 3");
+    uint8_t first[NP_UHDR_UKMD_LEN];
+    memcpy(first, np_uhdr_host_last_mounted_key(), sizeof first);
+    run("uhdr_key change 5");
+    run("uhdr_key background");
+    g_cap_n = 0;
+    run("uhdr_key unlock 3");
+    check(count2("\"cmd\":\"unlock\"", "\"status\":\"auth\"") == 1, "the old credential no longer opens it");
+    run("uhdr_key unlock 5");
+    check(count2("\"cmd\":\"unlock\"", "\"status\":\"ok\"") == 1, "the new credential does");
+    check(memcmp(first, np_uhdr_host_last_mounted_key(), sizeof first) == 0, "and the partition is mounted with the SAME key, so no ciphertext was re-encrypted");
+}
+
+/* @verifies REQ-SIMFW-26#d */
+static void test_no_event_carries_a_key_and_the_record_never_holds_it_plain(void)
+{
+    key_scheme();
+    g_cap_n = 0;
+    run("uhdr_key provision 7");
+    run("uhdr_key background");
+    run("uhdr_key unlock 7");
+    check(count2("\"cmd\":\"provision\"", "\"record_is_wrapped\":true") == 1, "the stored record's wrapped field is not the key it wraps");
+    check(count2("\"ev\":\"uhdr_key\"", "\"model\":\"host-model-not-cryptography\"") == 3, "every event says the scheme's primitives are the device's host model, not cryptography");
+    char hex[3];
+    int leaked = 0;
+    const uint8_t *k = np_uhdr_host_last_mounted_key();
+    for (int i = 0; i < g_cap_n; i++) {
+        if (strstr(g_cap[i], "\"ev\":\"uhdr_key\"") == NULL) { continue; }
+        for (int b = 0; b + 4 <= (int)NP_UHDR_UKMD_LEN; b += 4) {
+            char probe[9];
+            for (int j = 0; j < 4; j++) { (void)snprintf(hex, sizeof hex, "%02x", k[b + j]); probe[2 * j] = hex[0]; probe[2 * j + 1] = hex[1]; }
+            probe[8] = '\0';
+            if (strstr(g_cap[i], probe) != NULL) { leaked = 1; }
+        }
+    }
+    check(leaked == 0, "no event carries any four bytes of the key, in hex");
+}
+
+/* @verifies REQ-SIMFW-26#e */
+static void test_a_bad_command_is_refused_and_changes_nothing(void)
+{
+    key_scheme();
+    g_cap_n = 0;
+    run("uhdr_key provision 99");
+    run("uhdr_key provision x");
+    run("uhdr_key unlock");
+    run("uhdr_key frobnicate");
+    check(count2("\"ev\":\"error\"", "uhdr_key") == 4, "a number out of range, a word, a missing number and an unknown verb are each refused");
+    check(np_uhdr_host_mount_count() == 0U, "and nothing was provisioned or mounted");
+}
+
 int main(void)
 {
     if (golden("visual") == NULL) { printf("FAIL: the golden descriptors were not found\n"); return 1; }
@@ -576,6 +678,11 @@ int main(void)
     in_child(test_a_medium_that_cannot_be_made_refuses_the_boot);
     in_child(test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix);
     in_child(test_a_socket_poll_stops_at_the_unrouted_register_tunnel_and_fails_closed);
+    in_child(test_the_key_lifecycle_runs_from_the_devices_own_source_on_synthetic_credentials);
+    in_child(test_a_wrong_credential_is_refused_and_mounts_nothing);
+    in_child(test_a_changed_credential_wraps_the_same_key_again);
+    in_child(test_no_event_carries_a_key_and_the_record_never_holds_it_plain);
+    in_child(test_a_bad_command_is_refused_and_changes_nothing);
     if (g_failures == 0) { printf("ALL PASS (0 failures)\n"); return 0; }
     printf("%d FAILURES\n", g_failures);
     return 1;

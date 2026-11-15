@@ -1048,6 +1048,25 @@ test('the hub commands take validated integers and a whitelisted boot mode, and 
   for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
 });
 
+// @verifies REQ-SIMFW-12
+test('the key scheme takes a whitelisted operation and a synthetic credential number, and no client bytes reach a command line', () => {
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'provision', credential: 3 }), ['uhdr_key provision 3']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'change', credential: 15 }), ['uhdr_key change 15']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'background', credential: 9 }), ['uhdr_key background']);
+  assert.deepStrictEqual(messageToLines({ type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'status' }), ['uhdr_key status']);
+  const hostile = [
+    { type: 'FW_COMMAND', cmd: 'uhdr_key' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: 16 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: -1 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: '3\nquit' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'unlock', credential: 'hunter2' },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'export', credential: 1 },
+    { type: 'FW_COMMAND', cmd: 'uhdr_key', op: 'status\nquit' },
+  ];
+  for (const m of hostile) assert.throws(() => messageToLines(m), BridgeError, JSON.stringify(m));
+});
+
 // @verifies REQ-SIMFW-23#g
 test('the hub\'s state reaches the page as HUB_STATE, and a late-joining page is given the last one', () => {
   for (const ev of ['hub_state', 'hub_status', 'hub_task', 'hub_led']) assert.strictEqual(eventToMessage({ ev }).type, 'HUB_STATE', ev);
