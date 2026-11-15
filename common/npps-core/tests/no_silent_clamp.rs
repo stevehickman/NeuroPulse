@@ -10,7 +10,7 @@ use neurone_npps_core::api::compile_json;
 use serde_json::{json, Value};
 
 const UUID: &str = "00112233445566778899aabbccddeeff";
-const HEADER: usize = 68;
+const HEADER: usize = 68 + 39; // through the hardware version, then the 39-byte rules stamp
 const CMD_HDR: usize = 14;
 
 fn request(ty: &str, params: Value, interval: Value, seconds: f64) -> Value {
@@ -39,6 +39,10 @@ fn ok(ty: &str, p: Value) -> Vec<u8> {
 
 fn u16_at(p: &[u8], at: usize) -> u16 {
     u16::from_le_bytes([p[at], p[at + 1]])
+}
+
+fn u32_at(p: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([p[at], p[at + 1], p[at + 2], p[at + 3]])
 }
 
 /// Refused, and the message carries every needle (the field, the value, the range).
@@ -118,17 +122,20 @@ fn a_tdcs_ramp_under_30_seconds_or_missing_is_refused_not_lengthened() {
 fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not_capped() {
     let p = ok("tms", tms("rTMS", 65.535, 65535.0));
     assert_eq!(u16_at(&p, 2), 65535);
-    assert_eq!(u16_at(&p, 5), 65535);
-    assert_eq!(u16_at(&p, 7), 15); // 1000 / 65.535 Hz
+    assert_eq!(u32_at(&p, 5), 65535);
+    assert_eq!(u16_at(&p, 9), 15); // 1000 / 65.535 Hz
     refused(compile("tms", tms("rTMS", 65.536, 600.0)), &["TMS", "frequencyHz 65.536 Hz", "0–65.535 Hz"]);
     refused(compile("tms", tms("iTBS", 66.0, 600.0)), &["frequencyHz 66 Hz", "0–65.535 Hz"]);
-    refused(compile("tms", tms("rTMS", 10.0, 65536.0)), &["TMS", "pulseCount 65536", "0–65535"]);
+    // pulse_count is 32 bits (OI-UINT16-01): 65536 is carried, and only a value past 32 bits is refused.
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 65536.0)), 5), 65536);
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 4294967295.0)), 5), 4294967295);
+    refused(compile("tms", tms("rTMS", 10.0, 4294967296.0)), &["TMS", "pulseCount 4294967296", "0–4294967295"]);
     refused(compile("tms", tms("rTMS", 10.0, 10.5)), &["pulseCount 10.5"]);
     refused(compile("tms", tms("rTMS", 10.0, -1.0)), &["pulseCount -1"]);
     // rTMS: the interval is one period. 0.016 Hz is 62500 ms and fits; 0.015 Hz is 66667 ms and does not; it used to be
     // computed at 0.1 Hz whatever was authored below that.
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 7), 62500);
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 7), 20000);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 9), 62500);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 9), 20000);
     refused(compile("tms", tms("rTMS", 0.015, 600.0)), &["TMS", "frequencyHz 0.015 Hz", "inter-train interval", "65535 ms"]);
     refused(compile("tms", tms("rTMS", 0.0, 600.0)), &["frequencyHz 0 Hz", "inter-train interval"]);
     // A missing frequency or pulse count used to be written as 65535.
@@ -191,7 +198,13 @@ fn a_pbm_frequency_the_code_byte_cannot_carry_is_refused_not_wrapped() {
 #[test]
 fn a_time_the_millisecond_field_cannot_carry_is_refused_not_wrapped() {
     let bes = json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" });
-    let run = |interval: Value, seconds: f64| compile_json(&request("bes_tacs", bes.clone(), interval, seconds).to_string());
+    // These sessions are longer than the long-session level, so each carries that acknowledgement (`SWR-SS-02`); the test is
+    // about the width of the field, not about the gate.
+    let run = |interval: Value, seconds: f64| {
+        let mut req = request("bes_tacs", bes.clone(), interval, seconds);
+        req["acknowledgedCautions"] = json!([format!("0:bes_tacs:sessionDuration={:.3}", seconds / 60.0)]);
+        compile_json(&req.to_string())
+    };
     // The largest session the field carries is 2^32 - 1 ms; one millisecond more used to wrap to 0.
     let max_s = 4_294_967_295.0 / 1000.0;
     let blob = run(json!({ "intervalOnSeconds": 0 }), max_s).unwrap();

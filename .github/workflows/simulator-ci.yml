@@ -265,7 +265,8 @@ jobs:
         run: |
           set -euo pipefail
           test -x "$NP_SIM_FW_BIN"
-          # The TAP reporter is named because the check below reads its "# fail 0" line, and Node 24 (the runner's on 2026-11-14) prints its spec reporter when piped.
+          # The summary is read from TAP lines (`# fail 0`). The reporter is pinned because Node 24's default
+          # (the spec reporter, `ℹ fail 0`) does not print them, and the runner's Node is not pinned.
           node --test --test-reporter=tap server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
           if ! grep -q '^# fail 0$' ../node-test.log; then
             echo "::error::node --test reported a failure"

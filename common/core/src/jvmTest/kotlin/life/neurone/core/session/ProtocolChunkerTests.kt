@@ -53,7 +53,7 @@ class ProtocolChunkerTests {
     // @verifies REQ-FWHUB-80#d
     @Test
     fun theStreamIsTheLittleEndianLengthThenTheBlobAndNothingElse() {
-        for (size in listOf(1, 100, 508, 509, 510, 1020, 4096, 6148)) {
+        for (size in listOf(1, 100, 508, 509, 510, 1020, 4096, 6187)) {
             val data = ByteArray(size) { ((it * 7) and 0xFF).toByte() }
             val s = stream(ProtocolChunker.chunk(data))
             assertEquals(BleTransfer.PROTOCOL_LEN_PREFIX + size, s.size, "size $size")
@@ -67,7 +67,7 @@ class ProtocolChunkerTests {
     // @verifies REQ-FWHUB-80#d
     @Test
     fun noWriteExceedsTheWriteSizeAndEveryWriteButTheLastIsFull() {
-        for (size in listOf(0, 1, 507, 508, 509, 1020, 6148)) {
+        for (size in listOf(0, 1, 507, 508, 509, 1020, 6187)) {
             val chunks = ProtocolChunker.chunk(ByteArray(size) { it.toByte() })
             assertTrue(chunks.all { it.size in 1..BleTransfer.MAX_WRITE_SIZE }, "size $size")
             assertTrue(chunks.dropLast(1).all { it.size == BleTransfer.MAX_WRITE_SIZE }, "size $size")
@@ -120,8 +120,8 @@ class ProtocolChunkerTests {
     // @verifies REQ-FWHUB-80#d
     @Test
     fun theLargestBlobTheHubTakesIsThirteenWrites() {
-        val chunks = ProtocolChunker.chunk(ByteArray(6148) { 1 })
-        assertEquals(13, chunks.size)   // (4 + 6148) / 512 rounded up
-        assertEquals(6152 - 12 * BleTransfer.MAX_WRITE_SIZE, chunks.last().size)
+        val chunks = ProtocolChunker.chunk(ByteArray(6187) { 1 })
+        assertEquals(13, chunks.size)   // (4 + 6187) / 512 rounded up
+        assertEquals(6191 - 12 * BleTransfer.MAX_WRITE_SIZE, chunks.last().size)
     }
 }

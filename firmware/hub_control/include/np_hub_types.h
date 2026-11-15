@@ -180,11 +180,16 @@ typedef struct __attribute__((packed)) {
     uint32_t session_duration_ms;                /* total session length            */
     uint8_t  hardware_version;                   /* helmet layout it was compiled for, 1..15 (SWR-HV-08) */
     uint8_t  reserved[3];                        /* zero; refused if not            */
+    /* The wavelength rules the descriptor was compiled under (SWR-HV-03, NP-NPPS-REF-001 7a.1): origin (0 not
+     * stated, 1 NeurOne release, 2 owner set), release major, release minor, then 36 bytes of windows.  The hub does
+     * not read the windows or check the release against a list: it keeps the bytes for the session record, and
+     * refuses only a stamp whose shape is wrong (np_protocol_verify_and_parse). */
+    uint8_t  rules_stamp[NP_HUB_PROTO_RULES_STAMP_LEN];
 } np_proto_header_t;
 
-/* compile-time check: header is exactly 68 bytes
- * Layout: 4+2+1+1+16+4+32+4+1+3 = 68 bytes (packed). */
-typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 68U) ? 1 : -1];
+/* compile-time check: header is exactly 107 bytes
+ * Layout: 4+2+1+1+16+4+32+4+1+3+39 = 107 bytes (packed). */
+typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 107U) ? 1 : -1];
 
 /* ── Command target kind ─────────────────────────────────────────────────────
  * How to read a command's target block. Values are wire constants: frozen once
@@ -274,6 +279,7 @@ typedef struct {
     uint8_t           flags;
     uint8_t           cmd_count;
     uint8_t           hardware_version; /* from the signed header; compared with the helmet's at load (SWR-HV-08) */
+    uint8_t           rules_stamp[NP_HUB_PROTO_RULES_STAMP_LEN]; /* the wavelength-rules stamp, for the session record (SWR-HV-03) */
     np_session_cmd_t  cmds[NP_HUB_PROTO_CMD_MAX];
 } np_session_desc_t;
 
@@ -438,7 +444,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  target;            /* 0=DLPFC_L 1=DLPFC_R 2=VLPFC_L 3=ACC 4=MPFC 5=M1_L 6=M1_R */
     uint16_t freq_mhz;          /* stim freq mHz (10000=10Hz, 50000=50Hz for TBS) */
     uint8_t  intensity_pct_mt;  /* % motor threshold; safety MCU enforces ceiling */
-    uint16_t pulse_count;       /* total pulses this command */
+    uint32_t pulse_count;       /* total pulses this command; 32-bit so no count can overflow (OI-UINT16-01) */
     uint16_t inter_train_ms;    /* inter-train interval ms */
     uint8_t  tbs_burst_hz;      /* burst freq for TBS/iTBS (50); 0 for rTMS */
 } np_mod_tms_params_t;
@@ -551,7 +557,7 @@ typedef struct {
     /* Aggregate irradiance mW/cm² — UHDR. */
     float   irradiance_mW_cm2;
     /* Throttle event count since session start — SHDR. */
-    uint16_t throttle_events;
+    uint32_t throttle_events;   /* a count: 32-bit, never saturates (OI-UINT16-01) */
     uint8_t  fault_mask;   /* bit n = 1 → slot n has active fault (SHDR) */
 } np_telem_pbm_t;
 
@@ -568,14 +574,14 @@ typedef struct {
     float    rmssd_ms;          /* HRV RMSSD — UHDR */
     float    coherence_score;   /* LF/(LF+HF)×10 — UHDR */
     float    hr_bpm;            /* instantaneous HR — UHDR */
-    uint16_t impedance_ohm;     /* electrode contact impedance — UHDR */
+    uint32_t impedance_ohm;     /* electrode contact impedance — UHDR; 32-bit, never narrowed (OI-UINT16-01) */
     bool     contact_confirmed; /* SHDR-safe: bool only */
 } np_telem_vns_hrv_t;
 
 typedef struct {
     float    current_ua;        /* actual delivered current — UHDR */
     float    impedance_kohm;    /* electrode impedance — UHDR */
-    uint16_t charge_uC;         /* cumulative charge this session — UHDR */
+    uint32_t charge_uC;         /* cumulative charge this session, µC — UHDR; 32-bit, never saturates (OI-UINT16-01) */
     bool     ramp_active;       /* SHDR */
 } np_telem_stim_t;
 
@@ -594,7 +600,7 @@ typedef struct {
 } np_telem_qeeg_t;
 
 typedef struct {
-    uint16_t pulse_count;       /* pulses delivered this command — SHDR */
+    uint32_t pulse_count;       /* pulses delivered this command — SHDR; 32-bit (OI-UINT16-01) */
     uint8_t  coil_temp_c;       /* coil temperature °C — SHDR */
     bool     emf_gate_active;   /* Helmholtz cancellation gate state — SHDR */
 } np_telem_tms_t;

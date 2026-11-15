@@ -201,6 +201,9 @@ jobs:
         scripts/check-dhf-index.ts
         scripts/check-md-tables.ts
         scripts/check-revision-fragments.ts
+        scripts/check-wavelength-register.ts
+        # The register of released wavelength-rules sets (NP-NPPS-REF-001 7a.1): the gate below holds it append-only.
+        common/npps/wavelength-rules-register.json
         scripts/assign-revisions.ts
         scripts/revision-lib.ts
         .github/workflows/tooling-ci.yml
@@ -567,6 +570,8 @@ jobs:
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
           assert scope.docnaming.paths true  scripts/check-dhf-index.ts
           assert scope.docnaming.paths true  scripts/check-md-tables.ts
+          assert scope.docnaming.paths true  scripts/check-wavelength-register.ts
+          assert scope.docnaming.paths true  common/npps/wavelength-rules-register.json
           assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js
           assert scope.simulator.paths true  simulator/js/ui.js
@@ -1000,6 +1005,17 @@ jobs:
       - name: A pull request follows the revision scheme in force
         if: ${{ github.event_name == 'pull_request' }}
         run: bun scripts/check-revision-fragments.ts
+
+      # A released set of wavelength rules is never edited, removed or reordered: a session record names the rules it ran
+      # under by their windows, and a reader recognises a release by its hash in this register (NP-NPPS-REF-001 7a.1,
+      # SWR-HV-03). The gate compares the register with the pull request's base, HEAD^1 on this two-commit checkout. The
+      # core's own test (common/npps-core/tests/wavelength_version.rs) holds the shipped file to the register's last row.
+      - name: Guard self-test (prove the register rules can fail)
+        run: bun scripts/check-wavelength-register.ts --self-test
+
+      - name: The wavelength-rules register only ever gains rows
+        if: ${{ github.event_name == 'pull_request' }}
+        run: bun scripts/check-wavelength-register.ts
 
   section-refs:
     name: CLAUDE.md section citations resolve (repo-wide)

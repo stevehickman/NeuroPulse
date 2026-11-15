@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 6b25f9aed46c71e28410050d3a98d32ff5e8ae3689254961bed6e4527de4ea82
+// sources-sha256: 16052736dff68aa6509c2f5a2d17ef1a5c55ae60977f3eda61c46a58795fc844
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -212,6 +212,7 @@ var PBM_CHANNEL_ELEMENTS = ["led_660", "led_808", "led_1064"];
 var DEFAULT_WAVELENGTH_RULES = {
   name: "NeurOne default wavelength mapping",
   level: "global",
+  version: "1.0",
   channels: [
     { element: "led_660", nominalNm: 660, minNm: 650, maxNm: 680 },
     { element: "led_808", nominalNm: 808, minNm: 798, maxNm: 840 },

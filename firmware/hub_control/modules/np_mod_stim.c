@@ -26,7 +26,7 @@
  *               For BES/tACS this is the PEAK magnitude over the sample window,
  *               the same quantity as the commanded amplitude_ua, because the
  *               OI-FMEA-09 cross-check (np_stim_xcheck.c) compares the two.
- *   OI-STIM-07: np_mod_stim_hal_read_charge(pair)    → uint16_t µC (session total)
+ *   OI-STIM-07: np_mod_stim_hal_read_charge(pair)    → uint32_t µC (session total)
  */
 
 #include "np_hub_types.h"

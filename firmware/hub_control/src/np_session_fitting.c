@@ -5,16 +5,20 @@
 
 #include "np_session_fitting.h"
 
+#include <string.h>
+
 #include "np_module_map.h"
 
-size_t np_fitting_build(uint8_t hw_version, uint8_t *out, size_t cap)
+size_t np_fitting_build(uint8_t hw_version, const uint8_t *rules_stamp, uint8_t *out, size_t cap)
 {
     const uint16_t n = np_module_map_socket_count();
-    if (out == NULL || n == 0U || cap < (size_t)NP_FITTING_HDR_LEN + n) {
+    if (out == NULL || rules_stamp == NULL || n == 0U || cap < (size_t)NP_FITTING_HDR_LEN + n) {
         return 0U;
     }
-    out[0] = hw_version;
-    out[1] = (uint8_t)n;
+    out[0] = (uint8_t)NP_FITTING_FORMAT;
+    out[NP_FITTING_IDX_HW] = hw_version;
+    memcpy(&out[NP_FITTING_IDX_STAMP], rules_stamp, NP_HUB_PROTO_RULES_STAMP_LEN);
+    out[NP_FITTING_IDX_COUNT] = (uint8_t)n;
     for (uint16_t i = 0U; i < n; i++) {
         np_module_uid_t uid;
         uint8_t t;

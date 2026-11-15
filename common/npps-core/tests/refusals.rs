@@ -56,8 +56,8 @@ fn an_out_of_range_value_is_refused_not_clamped() {
 #[test]
 fn an_in_range_value_still_compiles() {
     let b = compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" })).unwrap();
-    // params follow the 14-byte command header after the 68-byte descriptor header: [0, freq mHz (LE), amp µA (LE), waveform].
-    assert_eq!(&b[68 + 14..68 + 14 + 5], &[0, 0x10, 0x27, 0xE8, 0x03]);
+    // params follow the 14-byte command header after the 107-byte descriptor header (68 + the 39-byte rules stamp): [0, freq mHz (LE), amp µA (LE), waveform].
+    assert_eq!(&b[107 + 14..107 + 14 + 5], &[0, 0x10, 0x27, 0xE8, 0x03]);
 }
 
 // @verifies REQ-NPPS-04
@@ -94,10 +94,14 @@ fn the_validator_reports_a_missing_required_parameter() {
 // SWR-SS-01: a session is finite and non-zero. The descriptor carries its length at byte 60 (little-endian u32, ms).
 
 fn compile_timed(timing: Value, interval: Value) -> Result<Vec<u8>, String> {
+    compile_timed_acknowledging(timing, interval, &[])
+}
+
+fn compile_timed_acknowledging(timing: Value, interval: Value, acknowledged: &[String]) -> Result<Vec<u8>, String> {
     let req = json!({
         "def": { "timingMode": timing,
                  "modalities": [{ "type": "bes_tacs", "params": { "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" }, "interval": interval }] },
-        "nowUnix": 1, "sessionUuidHex": UUID,
+        "nowUnix": 1, "sessionUuidHex": UUID, "acknowledgedCautions": acknowledged,
     });
     compile_json(&req.to_string())
 }
@@ -117,8 +121,12 @@ fn a_zero_or_negative_duration_is_refused_by_the_compiler() {
 // @verifies SWR-SS-01
 #[test]
 fn a_very_long_finite_duration_is_not_refused_for_its_length() {
-    // 30 days: far past anything a session needs, and still finite.
-    let b = compile_timed(json!({ "type": "duration", "seconds": 2_592_000 }), json!({ "intervalOnSeconds": 0 })).unwrap();
+    // 30 days: far past anything a session needs, and still finite. Past the long-session level it asks to be
+    // acknowledged (SWR-SS-02), which is not a refusal for its length: the same session compiles once it is.
+    let timing = || json!({ "type": "duration", "seconds": 2_592_000 });
+    let unacknowledged = compile_timed(timing(), json!({ "intervalOnSeconds": 0 })).unwrap_err();
+    assert!(unacknowledged.contains("has not been acknowledged") && !unacknowledged.contains("refused"), "{unacknowledged:?}");
+    let b = compile_timed_acknowledging(timing(), json!({ "intervalOnSeconds": 0 }), &["0:bes_tacs:sessionDuration=43200.000".to_string()]).unwrap();
     assert_eq!(length_ms(&b), 2_592_000_000);
 }
 

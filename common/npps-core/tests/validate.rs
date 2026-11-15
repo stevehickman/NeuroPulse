@@ -84,6 +84,8 @@ const ADDED: &[&str] = &[
     "VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2",
     "VALIDATE_MSG_ZONE_CAUTION",
     "VALIDATE_MSG_ZONE_DANGER",
+    // SWR-SS-02: a session past the long-session level is a caution to acknowledge (the session-length axis of the zone model).
+    "VALIDATE_MSG_LONG_SESSION_CAUTION",
     // REQ-NPPS-23 (a): the authorable ranges of NP-NPPS-REF-001 §4 that the web validator did not check.
     "VALIDATE_MSG_PBM_FREQUENCYHZ",
     "VALIDATE_MSG_TMS_FREQUENCYHZ",
@@ -98,6 +100,10 @@ const ADDED: &[&str] = &[
 /// by the 40 mA one on the principal's instruction (OI-VNSCLIP-09, issues #554 and #559), and "PBM frequency cannot be
 /// negative", which the PBM range check (`VALIDATE_MSG_PBM_FREQUENCYHZ`, REQ-NPPS-23) now states with its range. The
 /// golden is frozen, so both are set aside here.
+///
+/// The web's "Session is very long (> 2 hours)" advisory is also set aside, but only for a session with a block that is not
+/// audio (`has_non_audio_block`): there the core gives the session-length caution of `SWR-SS-02` instead, and an audio-only
+/// session (outside that rule, `OI-HLIM-01` Q2) keeps the advisory, so the golden still holds it.
 fn is_removed(issue: &Value) -> bool {
     issue["message"].as_str() == Some("PBM frequency cannot be negative.")
         || is_removed_vns(issue)
@@ -121,6 +127,24 @@ fn is_removed_vns(issue: &Value) -> bool {
         && issue["message"].as_str().map_or(false, |m| m.starts_with("VNS intensity"))
 }
 
+/// The old long-session advisory, as the web validator worded it.
+fn is_long_session_advisory(issue: &Value) -> bool {
+    issue["message"].as_str() == Some("Session is very long (> 2 hours). Verify this is intentional.")
+}
+
+/// True when an entry has an enabled block whose modality is not audio, anywhere in it.
+fn has_non_audio_block(v: &Value) -> bool {
+    match v {
+        Value::Object(o) => {
+            o.get("modalities").and_then(Value::as_array).map_or(false, |a| {
+                a.iter().any(|m| m["enabled"] != false && m["type"].as_str().map_or(false, |t| t != "audio_entrainment"))
+            }) || o.values().any(has_non_audio_block)
+        }
+        Value::Array(a) => a.iter().any(has_non_audio_block),
+        _ => false,
+    }
+}
+
 fn is_added(issue: &Value) -> bool {
     issue["message"]["key"].as_str().map_or(false, |k| ADDED.contains(&k))
 }
@@ -141,7 +165,9 @@ fn every_case_gives_the_issues_the_web_validator_gave() {
         let got: Value = serde_json::from_str(&validate_json(&req.to_string()).unwrap()).unwrap();
         let issues: Vec<Value> =
             got["issues"].as_array().unwrap().iter().filter(|i| !is_added(i)).map(|i| resolve(i, &en)).collect();
-        let want: Vec<Value> = c["expected"].as_array().unwrap().iter().filter(|i| !is_removed(i)).cloned().collect();
+        let covered = has_non_audio_block(&c["entry"]);
+        let want: Vec<Value> =
+            c["expected"].as_array().unwrap().iter().filter(|i| !is_removed(i) && !(covered && is_long_session_advisory(i))).cloned().collect();
         if issues != want {
             failures.push(format!("{}\n  core: {}\n  web:  {}", c["name"], Value::Array(issues), Value::Array(want)));
         }
