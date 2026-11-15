@@ -14,7 +14,7 @@
 //! behind it, and it is held in `common/npps/constants.json` so it can move without a code change. **The app-side zone
 //! is advisory to the safety MCU, never a substitute**: a caution boundary is always below a boundary the MCU enforces.
 
-use crate::constants::{hardware_limits as hw, safety_zones as z};
+use crate::constants::{hardware_limits as hw, safety_zones as z, validation as threshold};
 use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -33,6 +33,15 @@ impl Zone {
         }
     }
 }
+
+/// The id of the session-length axis (`SWR-SS-02`, principal's decision of 2026-11-13, GitHub #569). It is not a health
+/// limit: research establishes none for any modality (`docs/reference/health-limits.md`), so the boundary is the long-session
+/// advisory (`SESSION_LONG_WARNING_SECONDS`, `UC-067`) and it prompts the author to check the length is intended. A session of
+/// exactly the boundary is not past it, as the advisory always read ("more than 2 hours"), so this axis alone compares with `>`.
+pub const SESSION_DURATION_AXIS: &str = "sessionDuration";
+
+/// The one modality kind `SWR-SS-02` leaves out: audio is governed by its level ceiling alone (principal, 2026-11-13).
+pub const AUDIO_KIND: &str = "audio_entrainment";
 
 /// One quantity of a block's dose, with its boundaries.
 #[derive(Clone, Debug)]
@@ -53,7 +62,7 @@ impl Axis {
     pub fn zone(&self) -> Zone {
         if self.danger.map_or(false, |d| self.value >= d) {
             Zone::Danger
-        } else if self.value >= self.caution {
+        } else if if self.id == SESSION_DURATION_AXIS { self.value > self.caution } else { self.value >= self.caution } {
             Zone::Caution
         } else {
             Zone::Safe
@@ -209,7 +218,7 @@ fn axes_of(kind: &str, p: &Value, interval: &Value, session_seconds: Option<f64>
 /// none: the validator reports a missing parameter separately.
 pub fn evaluate(def: &Value) -> Vec<Block> {
     let session_seconds = if def["timingMode"]["type"] == "duration" { def["timingMode"]["seconds"].as_f64() } else { None };
-    def["modalities"]
+    let mut blocks: Vec<Block> = def["modalities"]
         .as_array()
         .map(|mods| {
             mods.iter()
@@ -219,10 +228,24 @@ pub fn evaluate(def: &Value) -> Vec<Block> {
                     let kind = m["type"].as_str().unwrap_or("").to_string();
                     Block { index, axes: axes_of(&kind, &m["params"], &m["interval"], session_seconds), kind }
                 })
-                .filter(|b| !b.axes.is_empty())
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // The session-length axis belongs to the session, not a block, and is carried once, on the first block that is not
+    // audio. A session of audio alone has no such block, so it has no axis (`SWR-SS-02`, Q2 of `OI-HLIM-01`).
+    if let (Some(t), Some(first)) = (session_seconds.filter(|t| t.is_finite() && *t > 0.0), blocks.iter_mut().find(|b| b.kind != AUDIO_KIND)) {
+        first.axes.push(Axis {
+            id: SESSION_DURATION_AXIS,
+            name_key: "ZONE_AXIS_SESSION_DURATION",
+            name: "session length",
+            unit: "min",
+            value: t / 60.0,
+            caution: threshold::SESSION_LONG_WARNING_SECONDS as f64 / 60.0,
+            danger: None,
+        });
+    }
+    blocks.retain(|b| !b.axes.is_empty());
+    blocks
 }
 
 /// The worst zone of a protocol.

@@ -1,10 +1,10 @@
 # OI-SIMFW-71: a combined secure-channel design for `CLAUDE.md` §23, and what other systems do
 
-**Status:** DRAFT, not sent. A proposal for the Principal's decision.
+**Status:** ANSWERED 2026-11-13 by the Principal; the rulings are in §14 and are recorded in `docs/np_sim_fw_001.md` (`OI-SIMFW-70`, `OI-SIMFW-71`) and `docs/status/completed-decisions.md`. The rest of the file is the trail.
 **Sender:** the design session (a Claude agent), drafted 2026-11-11.
 **Addressee:** the Principal (also the owner of the safety MCU; nothing here touches the safety MCU).
 **Owning open items:** `OI-SIMFW-70` (which layer carries the rule), `OI-SIMFW-71` (end-to-end payload encryption, which USB-C needs), `OI-SIMFW-72` (whether pairing is authenticated), `OI-SIMFW-73` (the unencrypted stop and pause/panic writes).
-**Not a controlled document and not a design input** (`docs/human-input/README.md`): it carries no serial, is not in `NP-DHF-001`, and writes no requirement (`CLAUDE.md` §18). Nothing in the repo may act as if any part of it were decided.
+**Not a controlled document and not a design input** (`docs/human-input/README.md`): it carries no serial, is not in `NP-DHF-001`, and writes no requirement (`CLAUDE.md` §18). Nothing in the repo may act as if any part of it were decided, except the rulings recorded in §14.
 
 **How to read it.** Every statement is marked: **[E]** established, with its source; **[P]** proposed here, for you to accept, change or reject; **[?]** not stated in anything read. Numbers marked **[choice]** have no derivation: if adopted they go into `docs/status/unjustified-choices.md` (`CLAUDE.md` §19), and I have not added the rows because nothing is adopted.
 
@@ -227,3 +227,23 @@ It does not: encrypt the stop and pause/panic writes; add device attestation (a 
 | Guess limit | 100 failures, persisted | 10 failures, persisted [choice] | stricter, because the hub is unattended and a wrong guess costs nothing to the owner |
 | Attestation | Matter and Fast Pair have manufacturer-signed identity | none proposed | would need a CA; question 9 |
 | Sensitive data on the wire | a separate concern in those products | the record layer carries data about a person (`CLAUDE.md` §5) | the reason §23 exists |
+
+---
+
+## 14. Rulings (2026-11-13)
+
+The Principal answered all nine questions of §12 on 2026-11-13 by accepting the design session's recommendations. **Final** means decided. **Conditional** means decided, subject to a fact the repo does not yet hold; the condition is in the Reopens cell. Reviewer: the Principal (name not given to the design session), principal.
+
+| Q | Ruling | Rationale | Reopens if | Status |
+|---|--------|-----------|-----------|--------|
+| 1 Factory | Option A: the factory knows the code transiently, keeps no copy, and destroys the station's record after the label is printed. A lost label means a service re-provisioning with a new label. | A code is not a session key: the hub and the app each make their own keys. | The factory is found to retain codes. | Final for the design. The `CLAUDE.md` §23 wording ("never held" to "never retained") is **not** changed here; it needs the Principal's explicit confirmation and a separate revision. |
+| 2 Layer | A payload layer under both transports, with BLE link encryption kept as defence in depth. | USB-C has no link encryption; one mechanism for both is simpler to build and review. | The payload layer cannot be shown to cover a path. | Final |
+| 3 Pairing action | Holding the rear toggle for about 3 s opens a window of 3 to 5 min. If the toggle is the power switch, plugging in a USB-C cable is the physical action instead. "Open until first pairing" is rejected. | A clinic hub is unattended. | What the rear toggle does is established and differs from the assumption. | Conditional |
+| 4 Audit | An independent review is commissioned before the first shipped release. Unreviewed crates are acceptable for a prototype only. | The release's main claim is privacy, and only `aes-gcm` has a stated audit. | The Principal names who commissions it. | Conditional (who commissions it and its cost are not decided) |
+| 5 PAKE | SPAKE2 now, with the crate already in the repo; SPAKE2+ when a reviewed implementation exists. | The code is printed on the label, so SPAKE2+'s extra protection buys little today. | A reviewed SPAKE2+ implementation exists. | Final |
+| 6 Noise | A crate, if a stable, maintained `no_std` one passes the SOUP rules; not a hand-written handshake. | A hand-written handshake is the larger review burden. | No crate passes: then the question returns to the Principal. | Conditional (no crate has been checked yet) |
+| 7 Presence gate | The app's hub-pairing key may be device tier (`REQ-PRES-05`). | The key says nothing about the person. | The key is ever used to decrypt person data at rest. | Final |
+| 8 Clinic hubs | One clinic admin app is paired with the hub; patients are handled in per-patient stores on it. An admin can remove any paired app, a user only itself, and a physical reset clears all. Admin pairing is not consent to read any patient's data. | Fits `CLAUDE.md` §6.0: each patient on a clinic device has their own `ConsentStore`. | The clinical review finds a patient must hold their own pairing. | Final |
+| 9 Attestation | Deferred. | It needs a CA held by NeurOne; a counterfeit hub that knows the code could pair, which is a stimulation-safety question for the ISO 14971 analysis. | The risk analysis asks for it. | Final (deferred) |
+
+Choices adopted without a derivation (the 3 to 5 min window, the failure counter of 10, the 8-entry table) go into `docs/status/unjustified-choices.md` when they are built, not before.
