@@ -33,6 +33,7 @@ internal fun migrationText(key: String): StringResource? = when (key) {
         "MIGRATION_PROBE_OP_RELEASE" -> Res.string.migration_probe_op_release
         "MIGRATION_PROBE_OP_SPACE" -> Res.string.migration_probe_op_space
         "MIGRATION_PROBE_OP_WRITE" -> Res.string.migration_probe_op_write
+        "MIGRATION_PROBE_SPACE_UNCONFIRMED" -> Res.string.migration_probe_space_unconfirmed
         "MIGRATION_PROBE_SUFFICIENT" -> Res.string.migration_probe_sufficient
         "MIGRATION_REASON_AUTHENTICATION_FAILED" -> Res.string.migration_reason_authentication_failed
         "MIGRATION_REASON_CLAIMED" -> Res.string.migration_reason_claimed

@@ -78,4 +78,12 @@ class StorageCheckTest {
         assertEquals(StorageVerdict.BACKUP_ONLY, c.verdict)
         assertFalse(c.canMigrate)
     }
+
+    // @verifies SWR-MG-12
+    @Test fun a_place_that_cannot_say_how_much_room_it_has_passes_and_the_room_is_reported_as_not_confirmed() = runTest {
+        val c = StorageCheckModel.check(place(Store(space = null)), 1_000)
+        assertEquals(StorageVerdict.SUFFICIENT, c.verdict)
+        assertFalse(c.spaceConfirmed)
+        assertTrue(StorageCheckModel.check(place(Store()), 1_000).spaceConfirmed)
+    }
 }

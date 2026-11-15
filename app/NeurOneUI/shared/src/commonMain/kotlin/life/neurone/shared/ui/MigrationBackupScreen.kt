@@ -327,4 +327,6 @@ internal fun StorageCheckNote(check: StorageCheck) {
         color = if (bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
     )
     check.failedOperation?.let { Text(words(MessageGroup.PROBE_OPS, it), style = MaterialTheme.typography.bodySmall) }
+    // A place that cannot say how much room it has passes; the person is told the room was not confirmed (the principal, 2026-11-13).
+    if (!check.spaceConfirmed && check.canBackUp) Text(words(MessageGroup.PROBE, "space_unconfirmed"), style = MaterialTheme.typography.bodySmall)
 }

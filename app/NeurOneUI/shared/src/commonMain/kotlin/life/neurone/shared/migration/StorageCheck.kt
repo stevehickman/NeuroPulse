@@ -1,6 +1,6 @@
 package life.neurone.shared.migration
 
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonPrimitive
 import life.neurone.core.data.RandomSource
 import life.neurone.core.data.SystemRandomSource
@@ -29,7 +29,14 @@ enum class StorageVerdict(val wire: String) {
  * What the check found. [messageKey] words the verdict; [operationKey] words the failed operation and what the person can do,
  * and is null when nothing failed. [failedOperation] is the core's name for it.
  */
-class StorageCheck(val verdict: StorageVerdict, val failedOperation: String?, val messageKey: String, val operationKey: String?) {
+class StorageCheck(
+    val verdict: StorageVerdict,
+    val failedOperation: String?,
+    val messageKey: String,
+    val operationKey: String?,
+    /** False when the place answered but cannot say how much room it has: it passes, and the person is told the room was not confirmed. */
+    val spaceConfirmed: Boolean = true,
+) {
     val canBackUp: Boolean get() = verdict != StorageVerdict.INSUFFICIENT
     val canMigrate: Boolean get() = verdict == StorageVerdict.SUFFICIENT
 }
@@ -54,6 +61,7 @@ object StorageCheckModel {
             failed,
             MigrationBackupModel.messageKey(MessageGroup.PROBE, verdict.wire)!!,
             failed?.let { MigrationBackupModel.messageKey(MessageGroup.PROBE_OPS, it)!! },
+            done["spaceConfirmed"]?.jsonPrimitive?.boolean ?: true,
         )
     }
 }
