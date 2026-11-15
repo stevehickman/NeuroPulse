@@ -20,7 +20,9 @@ import kotlinx.coroutines.CompletableDeferred
  * **What it accepts.** Only an address that is the registered redirect, followed by nothing, a path, a query or a fragment. Any
  * other address is not taken (the host handles it as usual), so another app's intent cannot end a sign-in. An address that is the
  * redirect but carries a forged `code` is [CloudAuth]'s to refuse: it checks `state`, and the code cannot be redeemed without the
- * PKCE verifier that never left the app.
+ * PKCE verifier that never left the app. That holds for an OAuth sign-in only. CloudKit's callback has neither, and anyone can hand
+ * the app the redirect, so this launcher does not confine the callback ([AuthorizationLauncher.confinesCallback] stays false) and
+ * [CloudAuth] offers no CloudKit sign-in through it (`OI-PRIV-13`).
  *
  * One sign-in waits at a time. Starting a second cancels the first.
  */

@@ -183,6 +183,7 @@ class CloudStoresTests {
     @Test
     fun anICloudStoreNeedsTheBuildsContainerAndUsesTheAccountsWebToken() = runBlocking {
         val rig = Rig()
+        rig.browser.confined = true
         rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=web-token-1" }
         val account = rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT)
         val api = RecordingApi()

@@ -30,10 +30,14 @@ import java.util.Collections
  * one redirect address in both the sign-in and the token request, and they must agree.)
  *
  * **What it answers.** Only a `GET` for the redirect's path, from a request whose `Host` is the loopback address and port (a page that
- * resolves its own name to this address is refused: DNS rebinding). Anything else, such as the browser's request for an icon, is
- * answered with an error and the listener carries on. The first matching request is the answer: [authorize] returns its address
- * whole, whatever it carries (a code, or `error=access_denied`), and [CloudAuth] decides. [donePage] is what the browser is shown
- * afterwards; it is the host's, because it is text the person reads (`CLAUDE.md` §17), and empty by default.
+ * resolves its own name to this address is refused: DNS rebinding), **and only when it carries the `state` of the sign-in that is
+ * waiting**, which is read from the authorization address. Any page the person has open can make the browser request the loopback
+ * path, so a request without that `state` is not the answer: it gets an error and the listener carries on, as it does for anything
+ * else, such as the browser's request for an icon. A sign-in whose authorization address has no `state` is refused before the
+ * listener opens, because nothing would tell its answer from another page's request (CloudKit's is one, `OI-PRIV-13`). The first
+ * matching request is the answer: [authorize] returns its address whole, whatever it carries (a code, or `error=access_denied`),
+ * and [CloudAuth] decides. [donePage] is what the browser is shown afterwards; it is the host's, because it is text the person
+ * reads (`CLAUDE.md` §17), and empty by default.
  *
  * Cancelling the waiting coroutine closes the listener and every open connection.
  */
@@ -44,6 +48,10 @@ class LoopbackAuthorizationLauncher(
 
     override suspend fun authorize(authorizationUrl: String, redirectUri: String): String {
         val redirect = LoopbackRedirect.parse(redirectUri)
+        val state = CloudAuth.queryParams(authorizationUrl, plusIsSpace = true)["state"]
+        if (state.isNullOrEmpty()) {
+            throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a loopback sign-in needs a state value to tell its answer from another page's request")
+        }
         val server = try {
             ServerSocket(redirect.port, BACKLOG, InetAddress.getByName(LOOPBACK))
         } catch (e: IOException) {
@@ -67,7 +75,7 @@ class LoopbackAuthorizationLauncher(
                     }
                     connections += socket
                     // On the outer scope, not as a child of this loop: waiting for the loop to end must not wait on a connection's read.
-                    scope.launch { serve(socket, redirect, answer) }
+                    scope.launch { serve(socket, redirect, state, answer) }
                 }
             }
             try {
@@ -87,10 +95,10 @@ class LoopbackAuthorizationLauncher(
         }
     }
 
-    private fun serve(socket: Socket, redirect: LoopbackRedirect, answer: CompletableDeferred<String>) {
+    private fun serve(socket: Socket, redirect: LoopbackRedirect, state: String, answer: CompletableDeferred<String>) {
         try {
             val head = readHead(socket) ?: return respond(socket, LoopbackRedirect.Reply(431, null), "")
-            val reply = redirect.reply(head)
+            val reply = redirect.reply(head, state)
             respond(socket, reply, donePage)
             // The answer is given after the page is written, so closing the listener cannot cut the page off.
             reply.address?.let { answer.complete(it) }
@@ -141,8 +149,8 @@ class LoopbackAuthorizationLauncher(
 internal class LoopbackRedirect private constructor(private val authority: String, val port: Int, private val path: String) {
     class Reply(val status: Int, val address: String?)
 
-    /** The decision for one request head (request line and headers). */
-    fun reply(head: String): Reply {
+    /** The decision for one request head (request line and headers), for the sign-in whose `state` is [state]. */
+    fun reply(head: String, state: String): Reply {
         val lines = head.split("\r\n")
         val parts = lines[0].split(' ')
         if (parts.size != 3 || !parts[2].startsWith("HTTP/1.")) return Reply(400, null)
@@ -153,6 +161,8 @@ internal class LoopbackRedirect private constructor(private val authority: Strin
         if (!target.startsWith("/")) return Reply(400, null)
         val requestPath = target.substringBefore('?').substringBefore('#')
         if (requestPath != path) return Reply(404, null)
+        // Not this sign-in's answer: any page can request this path, and only the provider's redirect knows the state.
+        if (CloudAuth.queryParams("http://$authority$target", plusIsSpace = true)["state"] != state) return Reply(400, null)
         return Reply(200, "http://$authority$target")
     }
 

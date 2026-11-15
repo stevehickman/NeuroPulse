@@ -37,6 +37,8 @@ import life.neurone.core.platform.toHex
  *   [accessToken] refreshes silently. A refresh the provider refuses (`invalid_grant`) marks the account [CloudAccount.needsSignIn]; a
  *   refresh that gets no answer does not.
  * - **Apple (CloudKit Web Services):** the web-authentication token Apple's sign-in page returns, kept beside the container's API token.
+ *   The callback carries nothing of the request's (no `state`, no PKCE), so the sign-in is offered only through a launcher that confines
+ *   the callback to the session it opened ([AuthorizationLauncher.confinesCallback]) and is withheld on every other host (`OI-PRIV-13`).
  * - **AWS:** the access key, secret and optional session token the person types ([addAwsKeys]); no browser sign-in exists.
  *
  * The identity of the person is never requested (no `openid`, `email` or `profile` scope): NeurOne needs a grant to a folder, not to know who
@@ -69,7 +71,8 @@ class CloudAuth(
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
         AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
         AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
-        AccountFamily.APPLE -> config.cloudKit != null
+        // CloudKit's callback cannot be bound to the request, so it is "not set up" wherever the launcher does not confine it (OI-PRIV-13).
+        AccountFamily.APPLE -> config.cloudKit != null && launcher.confinesCallback
         AccountFamily.AWS -> true
         AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
@@ -197,18 +200,34 @@ class CloudAuth(
         }
     }
 
+    /**
+     * The authorization code of a redirect, or the reason there is none. **`state` is checked before anything else is read**: a redirect
+     * that does not carry this request's `state` is somebody else's, and nothing in it (an `error`, a `code`) is acted on or quoted. A
+     * refusal is reported as one of a fixed set ([AuthorizationRefusal]), never in the redirect's own words.
+     */
     private fun codeFrom(redirect: String, redirectUri: String, state: String): String {
-        if (!redirect.startsWith(redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
+        if (!ExternalBrowserLauncher.isRedirect(redirect, redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
         val p = queryParams(redirect, plusIsSpace = true)
-        p["error"]?.let { err ->
-            throw CloudAuthException(if (err == "access_denied") CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER, "sign-in was refused: $err")
-        }
         if (p["state"] != state) throw CloudAuthException(CloudAuthProblem.STATE_MISMATCH, "the answer is not for this sign-in request")
+        p["error"]?.let { err ->
+            val refusal = AuthorizationRefusal.of(err)
+            throw CloudAuthException(
+                if (refusal == AuthorizationRefusal.ACCESS_DENIED) CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER,
+                "sign-in was refused: ${refusal.name}",
+            )
+        }
         return p["code"] ?: throw CloudAuthException(CloudAuthProblem.PROVIDER, "the redirect carried no authorization code")
     }
 
     private suspend fun cloudKitSignIn(replacing: String?): CloudAccount {
         val c = config.cloudKit ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no CloudKit container is configured")
+        // Apple's callback is `<registered URL>?ckWebAuthToken=...` and nothing else: no `state`, no PKCE, and nothing Apple documents that
+        // a request can add and get back (Apple's CloudKit Web Services Reference, setting up web services, read 2026-11-15). Whoever can deliver that
+        // address chooses the iCloud account, so it is taken only from a launcher nobody else can deliver to (OI-PRIV-13). Before the
+        // probe: a withheld sign-in sends nothing.
+        if (!launcher.confinesCallback) {
+            throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "CloudKit sign-in is withheld on this host: its callback cannot be bound to the request")
+        }
         val probe = transport.post(
             HttpRequest(
                 "${c.baseUrl}/database/1/${percentEncode(c.container)}/${c.environment}/private/users/current?ckAPIToken=${percentEncode(c.apiToken)}",
@@ -221,7 +240,7 @@ class CloudAuth(
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit did not ask for sign-in (status ${probe.status})")
         }
         val back = launcher.authorize(signInUrl, c.signInCallbackUri)
-        if (!back.startsWith(c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
+        if (!ExternalBrowserLauncher.isRedirect(back, c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
         // The token holds '+', '/' and '=' and may arrive encoded or not; '+' here is a plus, not a space.
         val token = queryParams(back, plusIsSpace = false)["ckWebAuthToken"]
             ?: throw CloudAuthException(CloudAuthProblem.DENIED, "sign-in returned no web authentication token")

@@ -100,6 +100,10 @@ internal class FakeBrowser(private val providers: FakeProviders) : Authorization
     val urls = mutableListOf<String>()
     var mode = "approve" // approve | deny | wrongState | cancel | other
     var callback: ((String, Map<String, String>) -> String)? = null
+
+    /** Stands for a launcher whose answer can only come from the session it opened (iOS); false is every other host. */
+    var confined = false
+    override val confinesCallback: Boolean get() = confined
     private var codes = 0
 
     override suspend fun authorize(authorizationUrl: String, redirectUri: String): String {
@@ -281,6 +285,7 @@ class CloudAuthTests {
     @Test
     fun cloudKitSignInOpensAppleSignInPageKeepsThePlusSignedTokenAndTheSinkReplacesIt() = runBlocking {
         val rig = Rig()
+        rig.browser.confined = true
         rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=ab+c/d=" }
         val a = rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT)
         assertEquals("https://idmsa.test/sign-in?x=1", rig.browser.urls.single())
@@ -375,6 +380,78 @@ class CloudAuthTests {
         assertFalse(CloudAuth.needsSignIn(CloudAuthException(CloudAuthProblem.NETWORK, "x")))
         assertFalse(CloudAuth.needsSignIn(RuntimeException("x")))
         assertNull(CloudAuthException(CloudAuthProblem.NETWORK, "x").status)
+    }
+
+    // The forged callback of OI-PRIV-13: on a host where anyone can deliver the callback (an Android intent, a request to the loopback
+    // listener, the web callback page), a CloudKit answer is never taken, whatever it carries.
+    // @verifies SWR-MG-19#l
+    @Test
+    fun aCloudKitSignInIsWithheldWhereTheCallbackCanBeDeliveredByAnyoneAndAForgedCallbackAttachesNoAccount() = runBlocking {
+        val rig = Rig()
+        assertFalse(rig.auth.isConfigured(CloudService.ICLOUD_CLOUDKIT), "reads as not set up, so no screen offers it")
+        val forged = listOf(
+            "$CK_CALLBACK?ckWebAuthToken=attackers-token", // no nonce: the callback exactly as Apple documents it
+            "$CK_CALLBACK?ckWebAuthToken=attackers-token&state=guessed", // a wrong nonce
+            "$CK_CALLBACK?ckWebAuthToken=attackers-token&nonce=guessed",
+            "$CK_CALLBACK/guessed?ckWebAuthToken=attackers-token",
+        )
+        for (address in forged) {
+            rig.browser.callback = { _, _ -> address }
+            val e = assertFailsWith<CloudAuthException>(address) { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }
+            assertEquals(CloudAuthProblem.NOT_CONFIGURED, e.problem, address)
+            assertFalse("attackers-token" in e.message!!)
+        }
+        assertTrue(rig.auth.accounts().isEmpty(), "no account was attached")
+        assertNull(rig.kv.getString("np.cloud.accounts"), "nothing was stored")
+        assertTrue(rig.browser.urls.isEmpty() && rig.providers.seen.isEmpty(), "no browser was opened and nothing was sent")
+    }
+
+    // @verifies SWR-MG-19#l
+    @Test
+    fun aCloudKitSignInIsOfferedOnlyThroughALauncherThatConfinesTheCallbackAndTakesOnlyTheRegisteredCallback() = runBlocking {
+        val rig = Rig()
+        rig.browser.confined = true
+        assertTrue(rig.auth.isConfigured(CloudService.ICLOUD_CLOUDKIT))
+        // Even a confining launcher's answer must be the registered callback itself, not an address that merely begins with it.
+        for (address in listOf("$CK_CALLBACK.evil.example/?ckWebAuthToken=t", "${CK_CALLBACK}2?ckWebAuthToken=t", "https://evil.example.test/?ckWebAuthToken=t")) {
+            rig.browser.callback = { _, _ -> address }
+            assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException>(address) { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem, address)
+        }
+        assertTrue(rig.auth.accounts().isEmpty())
+        // An OAuth provider does not need a confining launcher: state and PKCE bind its answer.
+        assertTrue(Rig().auth.isConfigured(CloudService.GOOGLE_DRIVE))
+        // A launcher says nothing about confinement unless it is written to: the default withholds.
+        assertFalse(AuthorizationLauncher { _, _ -> "" }.confinesCallback)
+    }
+
+    // @verifies SWR-MG-19#a
+    @Test
+    fun stateIsCheckedBeforeTheRedirectsErrorIsReadAndARefusalIsNeverQuoted() = runBlocking {
+        val rig = Rig()
+        val planted = "PLANTED-TEXT<script>"
+        // Somebody else's redirect (no state, a wrong state) carrying an error: it is not this request's answer, and its text goes nowhere.
+        for (query in listOf("error=$planted", "error=$planted&state=not-the-state", "error=access_denied", "error=access_denied&state=")) {
+            rig.browser.callback = { redirect, _ -> "$redirect?$query" }
+            val e = assertFailsWith<CloudAuthException>(query) { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }
+            assertEquals(CloudAuthProblem.STATE_MISMATCH, e.problem, query)
+            assertFalse("PLANTED" in e.message!!, query)
+        }
+        // This request's answer (the right state) with an error the RFC does not list: refused as a fixed kind, and the text is not quoted.
+        rig.browser.callback = { redirect, q -> "$redirect?error=$planted&error_description=$planted&state=${q["state"]}" }
+        val unknown = assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }
+        assertEquals(CloudAuthProblem.PROVIDER, unknown.problem)
+        assertEquals("sign-in was refused: OTHER", unknown.message)
+        rig.browser.callback = { redirect, q -> "$redirect?error=server_error&state=${q["state"]}" }
+        assertEquals("sign-in was refused: SERVER_ERROR", assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.message)
+        rig.browser.callback = { redirect, q -> "$redirect?error=access_denied&state=${q["state"]}" }
+        assertEquals(CloudAuthProblem.DENIED, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.problem)
+        // An address that only begins with the redirect is not the redirect, right state or not.
+        rig.browser.callback = { redirect, q -> "${redirect}0/?code=c&state=${q["state"]}" }
+        assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.problem)
+        assertEquals(AuthorizationRefusal.ACCESS_DENIED, AuthorizationRefusal.of("access_denied"))
+        assertEquals(AuthorizationRefusal.OTHER, AuthorizationRefusal.of("other"), "the name of the catch-all is not a code")
+        assertEquals(AuthorizationRefusal.OTHER, AuthorizationRefusal.of("ACCESS_DENIED"), "codes are lower case (RFC 6749)")
+        assertTrue(rig.auth.accounts().isEmpty()); assertTrue(rig.providers.seen.isEmpty(), "nothing was redeemed")
     }
 
     // @verifies SWR-MG-19#d

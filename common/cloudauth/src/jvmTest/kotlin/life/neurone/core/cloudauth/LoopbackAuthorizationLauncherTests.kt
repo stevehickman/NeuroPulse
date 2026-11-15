@@ -64,19 +64,25 @@ class LoopbackRedirectTests {
     fun aRequestIsTakenOnlyForTheRedirectPathWithAGetFromTheLoopbackHost() {
         val r = LoopbackRedirect.parse("http://127.0.0.1:9004/cb")
         fun head(line: String, host: String? = "127.0.0.1:9004") = line + "\r\n" + (host?.let { "Host: $it\r\n" } ?: "") + "\r\n"
-        assertEquals("http://127.0.0.1:9004/cb?code=c&state=s", r.reply(head("GET /cb?code=c&state=s HTTP/1.1")).address)
-        assertEquals("http://127.0.0.1:9004/cb", r.reply(head("GET /cb HTTP/1.1", "LOCALHOST:9004")).address, "the name localhost is the same place")
-        assertEquals(404, r.reply(head("GET /favicon.ico HTTP/1.1")).status)
-        assertEquals(404, r.reply(head("GET /cb/extra?code=c HTTP/1.1")).status)
-        assertEquals(405, r.reply(head("POST /cb HTTP/1.1")).status)
-        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", "evil.example:9004")).status, "a rebound name")
-        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", "127.0.0.1:9999")).status, "another port")
-        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", null)).status, "no Host")
-        assertEquals(400, r.reply(head("nonsense")).status)
-        assertEquals(400, r.reply(head("GET http://evil.example/cb HTTP/1.1")).status, "an absolute-form target")
-        assertNull(r.reply(head("GET /cb HTTP/1.1", "evil.example:9004")).address)
+        assertEquals("http://127.0.0.1:9004/cb?code=c&state=s", r.reply(head("GET /cb?code=c&state=s HTTP/1.1"), "s").address)
+        assertEquals("http://127.0.0.1:9004/cb?state=s", r.reply(head("GET /cb?state=s HTTP/1.1", "LOCALHOST:9004"), "s").address, "the name localhost is the same place")
+        assertEquals(404, r.reply(head("GET /favicon.ico HTTP/1.1"), "s").status)
+        assertEquals(404, r.reply(head("GET /cb/extra?code=c HTTP/1.1"), "s").status)
+        assertEquals(405, r.reply(head("POST /cb HTTP/1.1"), "s").status)
+        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", "evil.example:9004"), "s").status, "a rebound name")
+        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", "127.0.0.1:9999"), "s").status, "another port")
+        assertEquals(403, r.reply(head("GET /cb?code=c HTTP/1.1", null), "s").status, "no Host")
+        assertEquals(400, r.reply(head("nonsense"), "s").status)
+        assertEquals(400, r.reply(head("GET http://evil.example/cb HTTP/1.1"), "s").status, "an absolute-form target")
+        assertNull(r.reply(head("GET /cb HTTP/1.1", "evil.example:9004"), "s").address)
+        // Only the waiting sign-in's state is the answer: any page can make the browser request this path.
+        assertEquals(400, r.reply(head("GET /cb?code=c HTTP/1.1"), "s").status, "no state")
+        assertEquals(400, r.reply(head("GET /cb?code=c&state=other HTTP/1.1"), "s").status, "another state")
+        assertEquals(400, r.reply(head("GET /cb?error=access_denied HTTP/1.1"), "s").status, "an error with no state")
+        assertEquals(400, r.reply(head("GET /cb?state=s2 HTTP/1.1"), "s").status, "a state that only begins the same")
+        assertEquals("http://127.0.0.1:9004/cb?state=a%2Bb", r.reply(head("GET /cb?state=a%2Bb HTTP/1.1"), "a+b").address, "the state is compared decoded")
         // A redirect with no path takes "/".
-        assertEquals("http://127.0.0.1:9004/?code=c", LoopbackRedirect.parse("http://127.0.0.1:9004").reply(head("GET /?code=c HTTP/1.1")).address)
+        assertEquals("http://127.0.0.1:9004/?code=c&state=s", LoopbackRedirect.parse("http://127.0.0.1:9004").reply(head("GET /?code=c&state=s HTTP/1.1"), "s").address)
     }
 }
 
@@ -88,10 +94,10 @@ class LoopbackAuthorizationLauncherTests {
         val redirect = "http://127.0.0.1:$port"
         var seenReply = ""
         val launcher = LoopbackAuthorizationLauncher("<p>done</p>") { shown ->
-            assertEquals("https://idp.example/auth?x=1", shown)
+            assertEquals("https://idp.example/auth?x=1&state=s", shown)
             Thread { seenReply = get(port, "/?code=c%2F1&state=s") }.start() // the browser comes back, from another thread
         }
-        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth?x=1", redirect) }
+        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth?x=1&state=s", redirect) }
         assertEquals("$redirect/?code=c%2F1&state=s", back)
         // The page is written before the listener closes; give the browser thread a moment to read it.
         for (i in 0 until 100) { if (seenReply.isNotEmpty()) break; Thread.sleep(20) }
@@ -114,10 +120,40 @@ class LoopbackAuthorizationLauncherTests {
                 statuses += get(port, "/cb?code=real&state=s").lineSequence().first()
             }.start()
         }
-        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth", redirect) }
+        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth?state=s", redirect) }
         assertEquals("$redirect?code=real&state=s", back, "none of the earlier requests ended the sign-in")
         for (i in 0 until 100) { if (statuses.size == 4) break; Thread.sleep(20) }
         assertEquals(listOf("HTTP/1.1 404 Not Found", "HTTP/1.1 403 Forbidden", "HTTP/1.1 405 Method Not Allowed", "HTTP/1.1 200 OK"), statuses)
+    }
+
+    // The reported half of OI-PRIV-13 point 2: a page the person has open requests the loopback path while a sign-in waits.
+    // @verifies SWR-MG-19#h
+    @Test
+    fun aRequestWithoutTheWaitingSignInsStateDoesNotEndItAndASignInWithNoStateIsNotListenedFor() = runBlocking {
+        val port = freePort()
+        val redirect = "http://127.0.0.1:$port/cb"
+        val statuses = mutableListOf<String>()
+        val launcher = LoopbackAuthorizationLauncher {
+            Thread {
+                statuses += get(port, "/cb?error=access_denied").lineSequence().first()
+                statuses += get(port, "/cb?ckWebAuthToken=attackers-token").lineSequence().first()
+                statuses += get(port, "/cb?code=forged&state=guess").lineSequence().first()
+                statuses += get(port, "/cb?code=real&state=the-state").lineSequence().first()
+            }.start()
+        }
+        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth?state=the-state", redirect) }
+        assertEquals("$redirect?code=real&state=the-state", back, "the forged requests did not end the sign-in")
+        for (i in 0 until 100) { if (statuses.size == 4) break; Thread.sleep(20) }
+        assertEquals(listOf("HTTP/1.1 400 Bad Request", "HTTP/1.1 400 Bad Request", "HTTP/1.1 400 Bad Request", "HTTP/1.1 200 OK"), statuses)
+
+        // No state in the sign-in address (CloudKit's has none): nothing would tell the answer from a page's request, so nothing listens.
+        val opened = mutableListOf<String>()
+        val free = freePort()
+        for (address in listOf("https://idmsa.example/sign-in?x=1", "https://idp.example/auth?state=")) {
+            val e = assertFailsWith<CloudAuthException>(address) { LoopbackAuthorizationLauncher { opened += it }.authorize(address, "http://127.0.0.1:$free/cb") }
+            assertEquals(CloudAuthProblem.INVALID_INPUT, e.problem)
+        }
+        assertTrue(opened.isEmpty() && isClosed(free), "no browser was opened and no listener was left")
     }
 
     // @verifies SWR-MG-19#h
@@ -132,7 +168,7 @@ class LoopbackAuthorizationLauncherTests {
                 get(port, "/?error=access_denied&state=s", host = "localhost:$port")
             }.start()
         }
-        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth", redirect) }
+        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth?state=s", redirect) }
         assertEquals("$redirect/?error=access_denied&state=s", back)
         for (i in 0 until 100) { if (oversized.isNotEmpty()) break; Thread.sleep(20) }
         assertEquals("HTTP/1.1 431 Request Header Fields Too Large", oversized)
@@ -146,13 +182,13 @@ class LoopbackAuthorizationLauncherTests {
         val held = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         val busy = held.localPort
         held.use {
-            val e = assertFailsWith<CloudAuthException> { LoopbackAuthorizationLauncher { opened += it }.authorize("https://x", "http://127.0.0.1:$busy") }
+            val e = assertFailsWith<CloudAuthException> { LoopbackAuthorizationLauncher { opened += it }.authorize("https://x?state=s", "http://127.0.0.1:$busy") }
             assertEquals(CloudAuthProblem.PROVIDER, e.problem)
             assertTrue(opened.isEmpty(), "the page is not opened when nothing could take the answer")
         }
         val port = freePort()
         val broken = LoopbackAuthorizationLauncher { throw IllegalStateException("no browser") }
-        assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { broken.authorize("https://x", "http://127.0.0.1:$port") }.problem)
+        assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { broken.authorize("https://x?state=s", "http://127.0.0.1:$port") }.problem)
         assertTrue(isClosed(port), "the listener was closed")
     }
 
@@ -162,7 +198,7 @@ class LoopbackAuthorizationLauncherTests {
         val port = freePort()
         var up = false
         val wait = async(Dispatchers.IO, start = CoroutineStart.DEFAULT) {
-            LoopbackAuthorizationLauncher { up = true }.authorize("https://x", "http://127.0.0.1:$port")
+            LoopbackAuthorizationLauncher { up = true }.authorize("https://x?state=s", "http://127.0.0.1:$port")
         }
         for (i in 0 until 200) { if (up) break; Thread.sleep(10) }
         assertTrue(up)

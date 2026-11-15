@@ -98,7 +98,7 @@ class CloudKitConfig(
 
 /** Why a sign-in step failed, in terms a host can act on (Gap 2 of `docs/np_sw_cloudstore_001.md`). */
 enum class CloudAuthProblem {
-    /** No client ID for the provider. */
+    /** No client ID for the provider, a redirect this host cannot receive, or a sign-in this host cannot bind to its request (CloudKit, `OI-PRIV-13`). */
     NOT_CONFIGURED,
 
     /** The person closed the browser. */
@@ -145,6 +145,32 @@ class CloudAuthException(val problem: CloudAuthProblem, message: String, status:
  */
 fun interface AuthorizationLauncher {
     suspend fun authorize(authorizationUrl: String, redirectUri: String): String
+
+    /**
+     * True only when the address [authorize] returns can come from nowhere but the browser session this launcher opened for that call: the
+     * session itself hands the address back (iOS `ASWebAuthenticationSession`), and no other app, page or local request can deliver one.
+     * False, the default, for every launcher whose answer arrives through something others can reach: a custom scheme the system hands
+     * to the app (any app or page can send that intent), a loopback listener (any local page can request it), a callback page of the
+     * app's own origin (any page can open it).
+     *
+     * An OAuth sign-in does not need this: its answer is bound to the request by `state` and the PKCE verifier. **CloudKit's is bound by
+     * nothing** (the callback carries `ckWebAuthToken` and no value of the request's), so [CloudAuth] offers a CloudKit sign-in only
+     * through a launcher that says true here (`OI-PRIV-13`). Saying true for a launcher that does not confine the callback lets
+     * another party attach their own iCloud account, and the person's backup then goes there.
+     */
+    val confinesCallback: Boolean get() = false
+}
+
+/**
+ * Why an authorization server refused a sign-in: the `error` codes of RFC 6749 section 4.1.2.1, and [OTHER] for anything else. The
+ * redirect's own text is never kept: it is whatever the party that delivered the redirect chose to write.
+ */
+enum class AuthorizationRefusal {
+    ACCESS_DENIED, INVALID_REQUEST, UNAUTHORIZED_CLIENT, UNSUPPORTED_RESPONSE_TYPE, INVALID_SCOPE, SERVER_ERROR, TEMPORARILY_UNAVAILABLE, OTHER;
+
+    companion object {
+        fun of(code: String): AuthorizationRefusal = entries.firstOrNull { it != OTHER && it.name.lowercase() == code } ?: OTHER
+    }
 }
 
 /** An account as the host may see it: never a token. */

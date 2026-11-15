@@ -32,6 +32,15 @@ class IosAuthorizationLauncher : AuthorizationLauncher {
     private var session: ASWebAuthenticationSession? = null
     private var anchor: AnchorProvider? = null
 
+    /**
+     * The session hands its callback to this launcher's completion handler and to nothing else, and takes it only from a navigation
+     * inside the sheet it opened: no other app and no other page delivers the address [authorize] returns. That is what Apple documents
+     * for `ASWebAuthenticationSession`; **it has not been run** (this class has never been built on a Mac), and what a page shown
+     * inside the sheet can do is not examined (`OI-PRIV-13`). A CloudKit sign-in still cannot complete here while its callback is
+     * `https` ([WebSessionRules.callbackScheme]).
+     */
+    override val confinesCallback: Boolean get() = true
+
     override suspend fun authorize(authorizationUrl: String, redirectUri: String): String {
         if (!authorizationUrl.startsWith("https://")) {
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "a sign-in page is opened over https only")
