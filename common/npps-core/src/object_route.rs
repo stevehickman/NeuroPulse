@@ -174,8 +174,16 @@ fn probe(req: &Value) -> R<Value> {
             call(&mut st, "spaced", json!({ "type": "objectSpace" }))
         }
         "spaced" => {
-            let enough = r["bytes"].as_u64().is_some_and(|b| b >= st["bundleBytes"].as_u64().unwrap_or(u64::MAX));
-            set(&mut st, "space", !failed(r) && enough);
+            // A store that answers but cannot say how much room it has (a bucket has no quota to read) passes this step and the result
+            // carries `spaceConfirmed: false`, so the screen says the room was not confirmed (the principal, 2026-11-13, `OI-UI-KMP-11` M12 space).
+            // A store that says it has too little, or a call that fails, is still a failed `space`.
+            let need = st["bundleBytes"].as_u64().unwrap_or(u64::MAX);
+            let (ok, confirmed) = match r["bytes"].as_u64() {
+                Some(b) => (!failed(r) && b >= need, !failed(r) && b >= need),
+                None => (!failed(r), false),
+            };
+            set(&mut st, "space", ok);
+            st["spaceConfirmed"] = json!(confirmed);
             // Whatever failed above, both throwaway objects go: the probe leaves nothing behind.
             call(&mut st, "clean1", json!({ "type": "objectDelete", "name": n }))
         }
@@ -183,6 +191,7 @@ fn probe(req: &Value) -> R<Value> {
         "clean2" => {
             let mut out = dispatch("probeResult", &json!({ "ops": st["ops"] }))?;
             out["ops"] = st["ops"].clone();
+            out["spaceConfirmed"] = st["spaceConfirmed"].clone();
             Ok(json!({ "done": out }))
         }
         other => Err(format!("unknown probe step '{other}'")),
@@ -304,7 +313,13 @@ mod tests {
     fn a_store_that_reads_back_something_else_or_has_too_little_room_is_not_sufficient() {
         assert_eq!(Provider { corrupts: true, ..good() }.probe(1_000)["failedOperation"], "read");
         assert_eq!(Provider { space: Some(999), ..good() }.probe(1_000)["failedOperation"], "space");
-        assert_eq!(Provider { space: None, ..good() }.probe(1_000)["failedOperation"], "space", "a provider that cannot say is not assumed to have room");
+        // A provider that cannot say how much room it has is not failed for it: the result is not blocked and says the room was not confirmed.
+        let unknown = Provider { space: None, ..good() }.probe(1_000);
+        assert_eq!(unknown["result"], "sufficient");
+        assert_eq!(unknown["spaceConfirmed"], false);
+        assert_eq!(good().probe(1_000)["spaceConfirmed"], true);
+        // Unknown room does not hide a missing claim: the migration steps are still judged.
+        assert_eq!(Provider { space: None, failing: vec!["objectCreate"], ..good() }.probe(1_000)["result"], "backup_only");
     }
 
     // @verifies SWR-MG-12

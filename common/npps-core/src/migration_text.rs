@@ -53,10 +53,11 @@ const SECRET: [(&str, &str); 3] = [
 ];
 
 /// What the storage check says about an account (`probeResult`).
-const PROBE: [(&str, &str); 3] = [
+const PROBE: [(&str, &str); 4] = [
     ("sufficient", "MIGRATION_PROBE_SUFFICIENT"),
     ("backup_only", "MIGRATION_PROBE_BACKUP_ONLY"),
     ("insufficient", "MIGRATION_PROBE_INSUFFICIENT"),
+    ("space_unconfirmed", "MIGRATION_PROBE_SPACE_UNCONFIRMED"),
 ];
 
 /// Every item a screen may name: the six a migration carries, the four it never moves and the three not yet sorted.

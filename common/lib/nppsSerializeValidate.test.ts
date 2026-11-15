@@ -73,11 +73,23 @@ const ADDED = new Set([
   'VALIDATE_MSG_GENERAL_FREQUENCYHZ_2', 'VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2',
   // The zone model (docs/reference/safety-zones.md) is new to the core; common/npps-core/tests/zones.rs holds it.
   'VALIDATE_MSG_ZONE_CAUTION', 'VALIDATE_MSG_ZONE_DANGER',
+  // SWR-SS-02: a session past the long-session level is a caution to acknowledge (the session-length axis).
+  'VALIDATE_MSG_LONG_SESSION_CAUTION',
   // REQ-NPPS-23 (a): the authorable ranges of NP-NPPS-REF-001 section 4 the web validator did not check.
   'VALIDATE_MSG_PBM_FREQUENCYHZ', 'VALIDATE_MSG_TMS_FREQUENCYHZ', 'VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ',
   'VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE', 'VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE',
   'VALIDATE_MSG_VNS_HRV_BREATHINGRATE', 'VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_NEGATIVE',
 ]);
+
+/** True when an entry has an enabled block that is not audio, anywhere in it (as tests/validate.rs `has_non_audio_block`). */
+function hasNonAudioBlock(v: unknown): boolean {
+  if (Array.isArray(v)) return v.some(hasNonAudioBlock);
+  if (v === null || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  const mods = o.modalities;
+  if (Array.isArray(mods) && mods.some((m: any) => m?.enabled !== false && typeof m?.type === 'string' && m.type !== 'audio_entrainment')) return true;
+  return Object.values(o).some(hasNonAudioBlock);
+}
 
 describe('validator wrapper', () => {
   // @verifies REQ-NPPS-12
@@ -102,8 +114,12 @@ describe('validator wrapper', () => {
       // undefined `modality` is absent in the golden.
       // The frozen golden still holds the 2 mA auricular VNS hardware ceiling, replaced by the 40 mA one on the principal's
       // instruction (OI-VNSCLIP-09, issues #554 and #559); it is set aside here as in common/npps-core/tests/validate.rs.
+      // The web's "Session is very long (> 2 hours)" advisory is also set aside where the core gives the session-length caution
+      // of SWR-SS-02 instead (a session with a block that is not audio); an audio-only session keeps it.
+      const covered = hasNonAudioBlock(c.entry);
       const want = c.expected.filter((i: { modality?: string; parameterKey?: string; limitSource?: string; message: string }) =>
-        !(i.modality === 'vns_hrv' && i.parameterKey === 'intensityMilliamps' && i.limitSource === 'hardware'
+        !(covered && i.message === 'Session is very long (> 2 hours). Verify this is intentional.')
+        && !(i.modality === 'vns_hrv' && i.parameterKey === 'intensityMilliamps' && i.limitSource === 'hardware'
           && i.message.startsWith('VNS intensity'))
         // ...and "PBM frequency cannot be negative.", which the PBM range check now states with its range (REQ-NPPS-23).
         && i.message !== 'PBM frequency cannot be negative.'
