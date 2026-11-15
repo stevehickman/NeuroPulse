@@ -189,4 +189,24 @@ class PresenceNeverWeakerTests {
         assertNull(host.getString(history), "nothing was written to disk, in the clear or sealed")
         assertEquals("a new session", storage.store.getString(history), "and it still reads for this run")
     }
+
+    // Privacy review of `common/`, 2026-11-15, Finding 2: this path returned the host's raw store, marked UNSEALED.
+    // @verifies REQ-PRES-09#b
+    @Test
+    fun aGatedInstallThatCannotGetTheListOfProtectedKeysHoldsTheRunInMemoryAndLeavesTheHostsStoreAlone() {
+        val host = InMemoryKeyValueStore()
+        host.putString(history, "sealed-by-an-earlier-run")
+        val gated = DownGated()
+        val lock = PresenceLock(gated, { 0L })
+        val storage = ProtectedStorage.openGated(
+            host, InMemorySecretKeyStore(), gated, lock, { throw IllegalStateException("no core binding") }, { setOf(token) },
+        )
+        assertEquals(StorageProtection.LOCKED, storage.state, "never UNSEALED: a gated install does not fall back to the host's store")
+        assertNull(storage.store.getString(history), "a sealed value is not handed out as if it were the value")
+        storage.store.putString(history, "a new session")
+        storage.store.putString("some.other.key", "anything")
+        assertEquals("sealed-by-an-earlier-run", host.getString(history), "the sealed value is not overwritten, in the clear or at all")
+        assertNull(host.getString("some.other.key"), "with no list no key is known to be safe to write")
+        assertEquals("a new session", storage.store.getString(history), "and it still reads for this run")
+    }
 }

@@ -27,7 +27,7 @@
 //! | `applyItem` | `name`, `value` | `{ok: true}` |
 //! | `getBundle` / `putBundle` | `bundle` (hex) | `{bundle: hex or null}` / `{ok}` |
 //! | `readClaim` / `createClaim` | `claim` | `{claim: object or null}` / `{created: bool}` |
-//! | `writeConfirmation` / `readConfirmation` | `confirmation` | `{ok}` / `{confirmation: object or null}` |
+//! | `writeConfirmation` / `readConfirmation` | `confirmation` (`{bundleHash, tag}`) | `{ok}` / `{confirmation: object or null}` |
 //! | `runClearStep` | `step`: `destroyEncryptionKey` or `forgetPairingRecord` | `{ok: bool}` |
 //! | `listFiles` | none | `{files: [{path, size}]}`: every UHDR-class file the app holds that is still there |
 //! | `writeFile` | `path`, `offset`, `data` (hex) | `{ok}`: overwrite those bytes in place |
@@ -73,6 +73,10 @@ const CLEARED_MARKER_KEY: &str = "np.migration.cleared";
 const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
 /// The step that overwrites and deletes the app's files (`SWR-MG-06`), and the size of one overwrite chunk. One chunk of
 /// random bytes is asked for once and written repeatedly (`UC-089`).
+/// What the old phone records when it seals a migration bundle, and the only thing its clear trusts a confirmation against
+/// (`SWR-MG-08`): `{"bundleHash","tag"}` as text. It holds the tag a phone that opened the bundle will write, not the key. It
+/// is in the `perInstall` list, so it is sealed at rest, is never carried, and is forgotten with every other key by the clear.
+const PENDING_CLEAR_KEY: &str = "np.migration.pending-clear";
 const WIPE_STEP: &str = "overwriteAndDeleteFiles";
 const WIPE_CHUNK: u64 = 16 * 1024;
 const TOKEN_BYTES: u64 = 16;
@@ -204,10 +208,26 @@ fn backup(req: &Value) -> R<Value> {
                 &json!({ "kind": st["kind"], "key": req["result"]["key"], "nonce": st["nonce"], "kdf": st["kdf"], "items": st["items"] }),
             )?;
             let written: Vec<String> = st["items"].as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
-            effect(
-                json!({ "step": "put", "kind": st["kind"], "bundleHash": sealed["bundleHash"], "written": written, "omitted": st["omitted"] }),
-                json!({ "type": "putBundle", "bundle": sealed["bundle"] }),
-            )
+            let next = json!({ "step": "put", "kind": st["kind"], "bundleHash": sealed["bundleHash"], "written": written, "omitted": st["omitted"] });
+            if st["kind"] != "migrate" {
+                return effect(next, json!({ "type": "putBundle", "bundle": sealed["bundle"] }));
+            }
+            // SWR-MG-08: before the bundle leaves, this phone records the tag only a phone that opens the bundle can write.
+            // The record is written first: a bundle at the backup location with no record here could never be cleared against.
+            let tag = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": sealed["bundleHash"] }))?["tag"].clone();
+            let record = json!({ "bundleHash": sealed["bundleHash"], "tag": tag }).to_string();
+            let mut st2 = next;
+            st2["step"] = json!("record");
+            st2["bundle"] = sealed["bundle"].clone();
+            effect(st2, write_keys(&[], json!({ PENDING_CLEAR_KEY: record })))
+        }
+        "record" => {
+            if req["result"]["ok"] != true {
+                return refused("step_failed");
+            }
+            let bundle = st["bundle"].take();
+            st["step"] = json!("put");
+            effect(st, json!({ "type": "putBundle", "bundle": bundle }))
         }
         "put" => done(json!({
             "ok": true, "kind": st["kind"], "bundleHash": st["bundleHash"], "written": st["written"], "omitted": st["omitted"],
@@ -282,11 +302,12 @@ fn finish(st: Value) -> R<Value> {
         "tellConsentNotRestored": consent["tellChoicesNotRestored"], "confirmed": false,
     });
     if kind == "migrate" {
-        // SWR-MG-08: the confirmation is the last act, carries the hash and nothing else, and is read back.
-        let hash = st["hash"].clone();
+        // SWR-MG-08: the confirmation is the last act, carries the hash and the tag made from the bundle key and nothing
+        // else, and is read back.
+        let confirmation = json!({ "bundleHash": st["hash"], "tag": st["tag"] });
         return effect(
-            json!({ "step": "confirmW", "result": result, "hash": hash, "attempts": 1 }),
-            json!({ "type": "writeConfirmation", "confirmation": { "bundleHash": hash } }),
+            json!({ "step": "confirmW", "result": result, "confirmation": confirmation, "attempts": 1 }),
+            json!({ "type": "writeConfirmation", "confirmation": confirmation }),
         );
     }
     done(result)
@@ -337,6 +358,8 @@ fn restore(req: &Value) -> R<Value> {
             });
             if st["kind"] == "migrate" {
                 let mut st2 = bundle_dropped;
+                // SWR-MG-08: the tag the confirmation will carry is made now, while the key is here; the key is not kept.
+                st2["tag"] = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
                 st2["step"] = json!("token");
                 return effect(st2, json!({ "type": "random", "bytes": TOKEN_BYTES }));
             }
@@ -424,8 +447,8 @@ fn restore(req: &Value) -> R<Value> {
             effect(st, json!({ "type": "readConfirmation" }))
         }
         "confirmR" => {
-            let hash = st["hash"].clone();
-            let landed = req["result"]["confirmation"]["bundleHash"] == hash;
+            let confirmation = st["confirmation"].clone();
+            let landed = req["result"]["confirmation"] == confirmation;
             let attempts = st["attempts"].as_u64().unwrap_or(1);
             if landed || attempts >= CONFIRM_ATTEMPTS {
                 let mut result = st["result"].clone();
@@ -434,7 +457,7 @@ fn restore(req: &Value) -> R<Value> {
             }
             st["attempts"] = json!(attempts + 1);
             st["step"] = json!("confirmW");
-            effect(st, json!({ "type": "writeConfirmation", "confirmation": { "bundleHash": hash } }))
+            effect(st, json!({ "type": "writeConfirmation", "confirmation": confirmation }))
         }
         other => Err(format!("unknown restore step '{other}'")),
     }
@@ -537,7 +560,7 @@ fn clear(req: &Value) -> R<Value> {
                     "erase": erase,
                     "canRemoveOsBond": p["canRemoveOsBond"].as_bool().unwrap_or(false),
                 }),
-                json!({ "type": "readKeys", "keys": [CLEAR_PROGRESS_KEY] }),
+                json!({ "type": "readKeys", "keys": [CLEAR_PROGRESS_KEY, PENDING_CLEAR_KEY] }),
             )
         }
         "progress" => {
@@ -548,11 +571,14 @@ fn clear(req: &Value) -> R<Value> {
                 // A clear already under way resumes without asking again: by now the old state is half gone (SWR-MG-08).
                 return plan_next(st);
             }
+            // SWR-MG-08: what this phone recorded when it sealed the bundle; text that does not parse is no record.
+            let record = req["result"]["values"][PENDING_CLEAR_KEY].as_str().and_then(|t| serde_json::from_str::<Value>(t).ok());
+            st["expected"] = record.unwrap_or(Value::Null);
             st["step"] = json!("conf");
             effect(st, json!({ "type": "readConfirmation" }))
         }
         "conf" => {
-            let d = dispatch("clearDecision", &json!({ "bundleHash": st["bundleHash"], "confirmation": req["result"]["confirmation"] }))?;
+            let d = dispatch("clearDecision", &json!({ "bundleHash": st["bundleHash"], "expected": st["expected"], "confirmation": req["result"]["confirmation"] }))?;
             if d["clear"] != true {
                 return done(json!({ "ok": false, "reason": d["reason"] }));
             }
@@ -797,6 +823,11 @@ mod tests {
         panic!("a flow did not end");
     }
 
+    /// What a phone holds that a migration may carry: everything but its own record of the bundle it sealed (`SWR-MG-08`).
+    fn carried(p: &Phone) -> BTreeMap<String, String> {
+        p.kv.iter().filter(|(k, _)| *k != "np.migration.pending-clear").map(|(k, v)| (k.clone(), v.clone())).collect()
+    }
+
     fn fill(p: &mut Phone) {
         for item in KEYED {
             for k in keys_of(item) {
@@ -836,9 +867,15 @@ mod tests {
 
         let r = restore(&mut route, &mut fresh, SECRET);
         assert_eq!(r["ok"], true, "{r}");
-        assert_eq!(fresh.kv, old.kv);
+        assert_eq!(fresh.kv, carried(&old));
         assert_eq!(r["confirmed"], true);
-        assert_eq!(route.confirmation, Some(json!({ "bundleHash": done["bundleHash"] })), "the confirmation carries the hash and nothing else");
+        let confirmation = route.confirmation.clone().unwrap();
+        assert_eq!(confirmation.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "tag"], "the hash, the tag and nothing else");
+        assert_eq!(confirmation["bundleHash"], done["bundleHash"]);
+        // The old phone recorded the same tag when it sealed the bundle, and kept the tag, not the key.
+        let record: Value = serde_json::from_str(&old.kv["np.migration.pending-clear"]).unwrap();
+        assert_eq!(record, confirmation);
+        assert!(!fresh.kv.contains_key("np.migration.pending-clear"), "the record never moves");
         let claim = route.claim.clone().unwrap();
         assert_eq!(claim.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "token"]);
     }
@@ -856,7 +893,7 @@ mod tests {
         for k in ["np.research.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.consumable.snooze-counts"] {
             assert!(!fresh.kv.contains_key(k), "{k} must not move");
         }
-        assert_eq!(fresh.kv.len(), old.kv.len() - 4);
+        assert_eq!(fresh.kv.len(), carried(&old).len() - 4);
     }
 
     // @verifies SWR-MG-03
@@ -1051,6 +1088,34 @@ mod tests {
         old.files.insert("c-small.db".into(), vec![0xCC; 100]);
     }
 
+    // Anyone who can write to the backup location can compute the bundle hash from the ciphertext there. The old phone must
+    // not clear on it (privacy review of `common/`, 2026-11-15, Finding 1).
+    // @verifies SWR-MG-08
+    #[test]
+    fn a_confirmation_forged_at_the_backup_location_clears_nothing() {
+        let (mut route, mut old, hash) = confirmed_route();
+        let before = old.kv.clone();
+        for forged in [json!({ "bundleHash": hash }), json!({ "bundleHash": hash, "tag": "00".repeat(32) })] {
+            route.confirmation = Some(forged);
+            let r = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+            assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("no_confirmation")));
+        }
+        // A bundle put there by someone else, with a confirmation that is right for it, is not the bundle this phone sealed.
+        let (mut theirs, mut attacker) = (Route::default(), phone(&ADAPTER, 77));
+        fill(&mut attacker);
+        let their_hash = backup("migrate", &mut theirs, &mut attacker, ATOMIC())["bundleHash"].as_str().unwrap().to_string();
+        assert_eq!(restore(&mut theirs, &mut phone(&ADAPTER, 78), SECRET)["confirmed"], true);
+        let r = run("clear", json!({ "bundleHash": their_hash, "canRemoveOsBond": false }), &mut theirs, &mut old, SECRET);
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("other_bundle")));
+        // A phone that holds no record (it sealed nothing) clears against nothing.
+        let mut blank = phone(&ADAPTER, 79);
+        fill(&mut blank);
+        let r = run("clear", json!({ "bundleHash": their_hash, "canRemoveOsBond": false }), &mut theirs, &mut blank, SECRET);
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("no_confirmation")));
+        assert!(old.ran.is_empty() && blank.ran.is_empty());
+        assert_eq!(old.kv, before, "nothing is erased");
+    }
+
     // @verifies SWR-MG-17#a
     #[test]
     fn an_erase_runs_the_whole_plan_with_no_backup_and_no_confirmation_and_the_key_first() {
@@ -1161,7 +1226,16 @@ mod tests {
         let first = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
         assert_eq!(first["ok"], true);
         old.ran.clear();
-        let again = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        // The clear forgot the record of the first bundle with every other key, so the old confirmation clears nothing now.
+        let stale = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": true }), &mut route, &mut old, SECRET);
+        assert_eq!((stale["ok"].clone(), stale["reason"].clone()), (json!(false), json!("no_confirmation")));
+        assert!(old.ran.is_empty());
+        // Reused: it holds data again, is moved again and confirmed again.
+        fill(&mut old);
+        let mut route2 = Route::default();
+        let hash2 = backup("migrate", &mut route2, &mut old, ATOMIC())["bundleHash"].as_str().unwrap().to_string();
+        assert_eq!(restore(&mut route2, &mut phone(&ADAPTER, 60), SECRET)["confirmed"], true);
+        let again = run("clear", json!({ "bundleHash": hash2, "canRemoveOsBond": true }), &mut route2, &mut old, SECRET);
         assert_eq!(again["ok"], true);
         assert_eq!(old.ran[0], "destroyEncryptionKey");
     }
@@ -1186,7 +1260,7 @@ mod tests {
 
         let r = run("restore", object_params(&fresh, json!({})), &mut route, &mut fresh, SECRET);
         assert_eq!((r["ok"].clone(), r["confirmed"].clone()), (json!(true), json!(true)));
-        assert_eq!(fresh.kv, old.kv);
+        assert_eq!(fresh.kv, carried(&old));
         let claim: Value = serde_json::from_slice(&crate::migration::unhex(&route.objects[names["claim"].as_str().unwrap()], "claim").unwrap()).unwrap();
         let confirmation: Value =
             serde_json::from_slice(&crate::migration::unhex(&route.objects[names["confirmation"].as_str().unwrap()], "confirmation").unwrap()).unwrap();
@@ -1327,7 +1401,7 @@ mod tests {
             assert_eq!(r["ok"], expect_ok, "{r}");
             if expect_ok {
                 assert_eq!(r["confirmed"], true);
-                assert_eq!(phone_in.kv, old.kv);
+                assert_eq!(phone_in.kv, carried(&old));
             } else {
                 assert_eq!(r["reason"], "claimed");
             }
