@@ -188,8 +188,12 @@ final class MigrationFlowTests: XCTestCase {
             secret: try secret("a long enough passphrase"), keys: freshStore)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
-        XCTAssertEqual(freshStore.values, oldStore.values)
+        // The old phone also holds its own record of the bundle it sealed, which never moves (SWR-MG-08).
+        XCTAssertEqual(freshStore.values, oldStore.values.filter { $0.key != "np.migration.pending-clear" })
         XCTAssertEqual(route.confirmation?["bundleHash"] as? String, done["bundleHash"] as? String)
+        let record = try XCTUnwrap(oldStore.values["np.migration.pending-clear"]?.data(using: .utf8))
+        let recorded = try XCTUnwrap(JSONSerialization.jsonObject(with: record) as? [String: Any])
+        XCTAssertEqual(route.confirmation?["tag"] as? String, recorded["tag"] as? String)
     }
 
     // @verifies SWR-MG-08
@@ -235,7 +239,7 @@ final class MigrationFlowTests: XCTestCase {
             "restore", params: params(), host: host, secret: try secret("a long enough passphrase"), keys: freshStore, store: store)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
-        XCTAssertEqual(freshStore.values, oldStore.values)
+        XCTAssertEqual(freshStore.values, oldStore.values.filter { $0.key != "np.migration.pending-clear" })
         XCTAssertTrue(host.seen.allSatisfy { !["getBundle", "putBundle", "readClaim", "createClaim"].contains($0) })
 
         let second = try await MigrationFlow.run(
@@ -271,7 +275,7 @@ final class MigrationFlowTests: XCTestCase {
         let r = try await restoreOver(freshStore)
         XCTAssertEqual(r["ok"] as? Bool, true)
         XCTAssertEqual(r["confirmed"] as? Bool, true)
-        XCTAssertEqual(freshStore.values, oldStore.values)
+        XCTAssertEqual(freshStore.values, oldStore.values.filter { $0.key != "np.migration.pending-clear" })
         let names = try MigrationFlow.objectNames()
         XCTAssertNotNil(store.objects[names["claim"] as? String ?? ""], "the serving phone took the claim")
         XCTAssertNotNil(store.objects[names["confirmation"] as? String ?? ""])

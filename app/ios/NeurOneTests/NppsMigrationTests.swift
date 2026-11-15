@@ -42,9 +42,14 @@ final class NppsMigrationTests: XCTestCase {
 
     // @verifies SWR-MG-08
     func testTheOldPhoneClearsOnlyOnAMatchingConfirmation() throws {
-        let none = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "confirmation": NSNull()])
+        let expected = ["bundleHash": "h", "tag": "aa"]
+        let none = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": NSNull()])
         XCTAssertEqual(none["clear"] as? Bool, false)
-        let ok = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "confirmation": ["bundleHash": "h"]])
+        // The hash alone confirms nothing: it is computed from ciphertext the backup location holds.
+        let forged = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": ["bundleHash": "h"]])
+        XCTAssertEqual(forged["clear"] as? Bool, false)
+        let ok = try NppsCore.migration(
+            ["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": ["bundleHash": "h", "tag": "aa"]])
         XCTAssertEqual(ok["clear"] as? Bool, true)
     }
 

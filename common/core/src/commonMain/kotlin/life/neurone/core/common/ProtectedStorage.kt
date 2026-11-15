@@ -58,7 +58,11 @@ class ProtectedStorage private constructor(
             protectedKeys: () -> Set<String>,
             deviceTierKeys: () -> Set<String>,
         ): ProtectedStorage {
-            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
+            // A gated install that cannot get the list of protected keys cannot tell a sealed value from a plain one, so it can
+            // neither read the host's store (a sealed value would read as text) nor write to it (a UHDR value would land in the
+            // clear over the sealed one). The whole run is held in memory and the host's store is left exactly as it is. The
+            // ungated [open] keeps the host's store in this case; a gated install must not (`REQ-PRES-09` (b)).
+            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null)
             val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
             val uhdrKeys = all - deviceKeys
             // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
