@@ -69,7 +69,23 @@ class MigrationRestoreModel(
     private val random: RandomSource = SystemRandomSource,
     /** Puts the backup's recordings back in the UHDR folder; null where the host keeps none. */
     private val waveforms: WaveformBackup? = null,
+    /**
+     * Whether the place is checked on throwaway objects (SWR-MG-12): when it is picked ([checkStorage]) and again before a migration
+     * is restored, which writes a claim and a confirmation there. Off for a saved file, which is not a store the app can probe.
+     */
+    private val storageChecks: Boolean = false,
 ) {
+    private val checked = MutableStateFlow<StorageCheck?>(null)
+
+    /** What the last check of the place found; null before the first, or where checks are off. */
+    val storage: StateFlow<StorageCheck?> = checked.asStateFlow()
+
+    /** Check the place now. A restore writes only a claim and a confirmation, so the room asked for is the least there is. */
+    suspend fun checkStorage(): StorageCheck? {
+        if (!storageChecks || place == null) return null
+        return StorageCheckModel.check(place, 1L, random).also { checked.value = it }
+    }
+
     private val state = MutableStateFlow<RestoreStep>(if (place == null) RestoreStep.NoPlace else RestoreStep.Looking)
     val step: StateFlow<RestoreStep> = state.asStateFlow()
 
@@ -106,6 +122,16 @@ class MigrationRestoreModel(
     private suspend fun restore(info: BundleInfo, secret: BundleSecret) {
         val place = place ?: return
         state.value = RestoreStep.Running
+        // A migration takes a claim and writes a confirmation on the place, so a place that cannot do that is refused before the claim
+        // is taken, and the backup stays where it is for another try. A health-data backup is only read, so it is not held to the check.
+        if (storageChecks && info.kind == BackupKind.MIGRATE) {
+            val c = checkStorage()
+            if (c != null && !c.canMigrate) {
+                secret.destroy()
+                state.value = RestoreStep.Failed(if (c.canBackUp) "route_not_offered" else "route_unavailable")
+                return
+            }
+        }
         val host = StandardMigrationHost(items)
         val params = buildJsonObject {
             put("route", place.route.toJson())
