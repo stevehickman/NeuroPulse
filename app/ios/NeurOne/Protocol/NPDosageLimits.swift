@@ -98,7 +98,6 @@ struct NPIndividualProfile: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
     var notes: String = ""
-    var dateOfBirth: Date? = nil
     var createdAt: Date = Date()
 }
 

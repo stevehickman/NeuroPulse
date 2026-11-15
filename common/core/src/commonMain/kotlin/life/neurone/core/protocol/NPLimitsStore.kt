@@ -18,6 +18,11 @@ import life.neurone.core.common.UUID
 // the validator enforces, and the tier each value came from, which the validator names in an issue. The resolution
 // is the shared NPPS core's; see resolveLimits below.
 
+// What the store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-31; the per-field rulings are in
+// docs/reference/data-architecture-detail.md §5.1). `id` is random and names the individual tier. `name` is how the person
+// choosing a profile recognises it. `notes` is a short label that tells two profiles apart; it is not a record about the
+// person, nothing reads it but the profile list, and it holds at most ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code
+// units. There is no date of birth: no limit or protocol rule ever read one (OI-PRIV-11).
 @Serializable
 data class NPIndividualProfile(
     val id: String = UUID.randomUUID().toString(),
@@ -140,13 +145,16 @@ class NPLimitsStore(private val kv: KeyValueStore) {
         persistTiers()
     }
 
-    fun saveProfile(profile: NPIndividualProfile) {
+    /** Keep [profile]. A note over the bound is refused (false) and nothing changes (REQ-SW03-31). */
+    fun saveProfile(profile: NPIndividualProfile): Boolean {
+        if (profile.notes.length > ProfileLimits.PROFILE_NOTES_MAX_CHARS) return false
         profiles = if (profiles.any { it.id == profile.id }) {
             profiles.map { if (it.id == profile.id) profile else it }
         } else {
             profiles + profile
         }
         persistProfiles()
+        return true
     }
 
     fun deleteProfile(id: String) {
@@ -188,10 +196,19 @@ class NPLimitsStore(private val kv: KeyValueStore) {
         globalLimits = runCatching { importLimitsFromNPPS(text) }.getOrNull()
     }
 
+    // What is stored is reduced to what a profile has (REQ-SW03-31): a field it does not have (the date of birth an earlier
+    // build of another app kept) is not read, a note over the bound is cut to it, and the stored value is written back in
+    // that form, so the dropped field does not stay on the device or travel in a migration bundle.
     private fun loadProfiles() {
-        profiles = kv.getString(PROFILES_KEY)
+        val stored = kv.getString(PROFILES_KEY)
+        profiles = stored
             ?.let { runCatching { json.decodeFromString(profilesSerializer, it) }.getOrNull() }
+            ?.map { it.copy(notes = it.notes.take(ProfileLimits.PROFILE_NOTES_MAX_CHARS)) }
             ?: emptyList()
+        if (stored != null && profiles.isNotEmpty()) {
+            val current = json.encodeToString(profilesSerializer, profiles)
+            if (current != stored) kv.putString(PROFILES_KEY, current)
+        }
         // Restore only an id that still names a saved profile.
         activeProfileId = kv.getString(ACTIVE_PROFILE_KEY)?.takeIf { id -> profiles.any { it.id == id } }
     }

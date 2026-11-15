@@ -2,6 +2,8 @@ import {
   NPLimitsSet,
   NPLimitSourceMap,
   NPIndividualProfile,
+  profileNotesFit,
+  storedProfile,
   resolveLimitsWithSources,
   UNLIMITED_LIMITS,
 } from '../../../../common/types/limits';
@@ -143,7 +145,14 @@ class LimitsStore extends EventTarget {
     this.emit();
   }
 
-  saveProfile(profile: NPIndividualProfile): void {
+  /**
+   * Keep `profile`. A note over the bound is refused (false) and nothing changes; a field a profile does not have is not
+   * kept (REQ-SW03-31).
+   */
+  saveProfile(input: NPIndividualProfile): boolean {
+    if (!profileNotesFit(input.notes)) return false;
+    const profile = storedProfile(input);
+    if (!profile) return false;
     const idx = this._profiles.findIndex(p => p.id === profile.id);
     if (idx >= 0) {
       this._profiles[idx] = profile;
@@ -152,6 +161,7 @@ class LimitsStore extends EventTarget {
     }
     this.persist();
     this.emit();
+    return true;
   }
 
   deleteProfile(id: string): void {
@@ -268,7 +278,7 @@ class LimitsStore extends EventTarget {
       }
 
       const p = appStorage.getItem(STORAGE_KEY_PROFILES);
-      if (p) this._profiles = JSON.parse(p) as NPIndividualProfile[];
+      if (p) this._profiles = (JSON.parse(p) as unknown[]).map(storedProfile).filter((x): x is NPIndividualProfile => x !== null);
 
       const ap = appStorage.getItem(STORAGE_KEY_ACTIVE_PROFILE);
       this._activeProfileId = ap ?? undefined;
