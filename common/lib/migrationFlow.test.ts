@@ -172,8 +172,11 @@ describe('MigrationFlow.run', () => {
     const fresh = new Store();
     const r = await MigrationFlow.run('restore', { route: ROUTE }, new Host(route), { secret: secretOf('a long enough passphrase'), keys: fresh });
     expect(r).toMatchObject({ ok: true, kind: 'migrate', confirmed: true });
-    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
-    expect(route.confirmation).toEqual({ bundleHash: done.bundleHash });
+    // The old phone also holds its own record of the bundle it sealed, which never moves (SWR-MG-08).
+    const record = JSON.parse(oldStore.values.get('np.migration.pending-clear')!);
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].filter(([k]) => k !== 'np.migration.pending-clear').sort());
+    expect(route.confirmation).toEqual({ bundleHash: done.bundleHash, tag: record.tag });
+    expect(record.tag).toMatch(/^[0-9a-f]{64}$/);
   }, 60_000);
 
   // @verifies SWR-MG-01
@@ -271,7 +274,7 @@ describe('MigrationFlow.run', () => {
     const host = new Host(new Route());
     const r = await MigrationFlow.run('restore', { route: ROUTE }, host, { secret: secretOf('a long enough passphrase'), keys: fresh, store });
     expect(r).toMatchObject({ ok: true, confirmed: true });
-    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].filter(([k]) => k !== 'np.migration.pending-clear').sort());
     expect(host.seen.filter((t) => ['getBundle', 'putBundle', 'readClaim', 'createClaim'].includes(t))).toEqual([]);
 
     const second = await MigrationFlow.run('restore', { route: ROUTE }, new Host(new Route()), {
@@ -310,7 +313,7 @@ describe('MigrationFlow.run', () => {
     };
     const fresh = new Store();
     expect(await restoreOver(fresh)).toMatchObject({ ok: true, confirmed: true });
-    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].sort());
+    expect([...fresh.values.entries()].sort()).toEqual([...oldStore.values.entries()].filter(([k]) => k !== 'np.migration.pending-clear').sort());
     const names = MigrationFlow.objectNames();
     expect(store.objects.has(names.claim) && store.objects.has(names.confirmation)).toBe(true);
     expect(await restoreOver(new Store())).toEqual({ ok: false, reason: 'claimed' });

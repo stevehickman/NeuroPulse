@@ -27,6 +27,8 @@ use crate::bundle_key;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Map, Value};
+use hkdf::Hkdf;
+use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
@@ -306,12 +308,49 @@ fn claim_readback(req: &Value) -> R<Value> {
     Ok(json!({ "owned": owned, "reason": if back.is_null() { "not_read_back" } else if owned { "ours" } else { "someone_elses" } }))
 }
 
-/// `SWR-MG-08`: the old phone clears only after it reads a confirmation that matches this bundle, and never on a timer.
+/// `SWR-MG-08`: the label under which the confirmation key is derived from the bundle key, so the bundle key itself is
+/// used only to seal and open the bundle.
+const CONFIRMATION_LABEL: &[u8] = b"np-migration-confirmation-v1";
+
+/// `SWR-MG-08`: the tag a confirmation carries: HMAC-SHA-256 over the bundle hash, under a key derived (HKDF-SHA-256) from
+/// the bundle key. Only a phone that holds the bundle key can make it: the old phone makes it when it seals the bundle and
+/// keeps it (not the key), and the new phone makes it when it has opened the bundle. The bundle hash is computed from
+/// ciphertext the backup location already holds, so without the tag anyone who can write there could confirm.
+fn confirmation_tag(req: &Value) -> R<Value> {
+    let key = zeroize::Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    if key.len() != KEY_LEN {
+        return Err(format!("the key is {KEY_LEN} bytes"));
+    }
+    let hash = req["bundleHash"].as_str().filter(|h| !h.is_empty()).ok_or("bundleHash is required")?;
+    let mut mac_key = zeroize::Zeroizing::new([0u8; 32]);
+    Hkdf::<Sha256>::new(None, &key).expand(CONFIRMATION_LABEL, &mut *mac_key).map_err(|_| "key derivation failed".to_string())?;
+    let mut m = <Hmac<Sha256> as Mac>::new_from_slice(&*mac_key).map_err(|_| "bad key".to_string())?;
+    m.update(hash.as_bytes());
+    Ok(json!({ "tag": hex(&m.finalize().into_bytes()) }))
+}
+
+/// Whether two tags are the same, in time that does not depend on where they differ. An empty tag matches nothing.
+fn same_tag(a: &str, b: &str) -> bool {
+    !a.is_empty() && a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
+}
+
+/// `SWR-MG-08`: the old phone clears only after it reads a confirmation that matches this bundle and carries the tag this
+/// phone recorded when it sealed the bundle (`expected`), and never on a timer. A confirmation with no tag or another tag was
+/// not written by a phone that opened the bundle, and is no confirmation. A phone with no record of the bundle (`expected`
+/// absent, or of another bundle) never clears against it: the bundle at the backup location may not be the one it wrote.
 fn clear_decision(req: &Value) -> R<Value> {
     let hash = req["bundleHash"].as_str().unwrap_or("");
-    let c = &req["confirmation"];
-    let matches = !hash.is_empty() && !c.is_null() && c["bundleHash"].as_str() == Some(hash);
-    Ok(json!({ "clear": matches, "reason": if c.is_null() { "no_confirmation" } else if matches { "confirmed" } else { "other_bundle" } }))
+    let (c, e) = (&req["confirmation"], &req["expected"]);
+    let reason = if hash.is_empty() || c.is_null() {
+        "no_confirmation"
+    } else if c["bundleHash"].as_str() != Some(hash) || (!e.is_null() && e["bundleHash"].as_str() != Some(hash)) {
+        "other_bundle"
+    } else if same_tag(e["tag"].as_str().unwrap_or(""), c["tag"].as_str().unwrap_or("")) {
+        "confirmed"
+    } else {
+        "no_confirmation"
+    };
+    Ok(json!({ "clear": reason == "confirmed", "reason": reason }))
 }
 
 /// `SWR-MG-06`, `SWR-MG-08`, `SWR-MG-09`: what the old phone does when it clears, in order. The key goes first: with the
@@ -525,6 +564,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "claimDecision" => claim_decision(req)?,
         "claimReadback" => claim_readback(req)?,
         "clearDecision" => clear_decision(req)?,
+        "confirmationTag" => confirmation_tag(req)?,
         "clearPlan" => clear_plan(req)?,
         "probeResult" => probe_result(req)?,
         "objectNames" => crate::object_route::names(),
@@ -635,14 +675,53 @@ mod tests {
     // @verifies SWR-MG-08
     #[test]
     fn the_old_phone_clears_only_on_a_matching_confirmation() {
-        let none = ask(json!({"op":"clearDecision","bundleHash":"h","confirmation":null}));
-        assert_eq!(none["clear"], false);
-        let other = ask(json!({"op":"clearDecision","bundleHash":"h","confirmation":{"bundleHash":"x"}}));
-        assert_eq!(other["clear"], false);
-        let ok = ask(json!({"op":"clearDecision","bundleHash":"h","confirmation":{"bundleHash":"h"}}));
+        let e = json!({"bundleHash":"h","tag":"aa"});
+        let none = ask(json!({"op":"clearDecision","bundleHash":"h","expected":e,"confirmation":null}));
+        assert_eq!((none["clear"].clone(), none["reason"].clone()), (json!(false), json!("no_confirmation")));
+        let other = ask(json!({"op":"clearDecision","bundleHash":"h","expected":e,"confirmation":{"bundleHash":"x","tag":"aa"}}));
+        assert_eq!((other["clear"].clone(), other["reason"].clone()), (json!(false), json!("other_bundle")));
+        let ok = ask(json!({"op":"clearDecision","bundleHash":"h","expected":e,"confirmation":{"bundleHash":"h","tag":"aa"}}));
         assert_eq!(ok["clear"], true);
-        let empty = ask(json!({"op":"clearDecision","bundleHash":"","confirmation":{"bundleHash":""}}));
+        let empty = ask(json!({"op":"clearDecision","bundleHash":"","expected":{"bundleHash":"","tag":"aa"},"confirmation":{"bundleHash":"","tag":"aa"}}));
         assert_eq!(empty["clear"], false, "no hash is no match");
+    }
+
+    // The hash is computed from ciphertext the backup location holds, so the hash alone confirms nothing (privacy review of
+    // `common/`, 2026-11-15, Finding 1).
+    // @verifies SWR-MG-08
+    #[test]
+    fn a_confirmation_without_the_tag_this_phone_recorded_does_not_clear() {
+        let e = json!({"bundleHash":"h","tag":"aa"});
+        for forged in [json!({"bundleHash":"h"}), json!({"bundleHash":"h","tag":""}), json!({"bundleHash":"h","tag":"ab"}), json!({"bundleHash":"h","tag":"aaa"})] {
+            let r = ask(json!({"op":"clearDecision","bundleHash":"h","expected":e,"confirmation":forged}));
+            assert_eq!((r["clear"].clone(), r["reason"].clone()), (json!(false), json!("no_confirmation")), "{forged}");
+        }
+        // A phone with no record of the bundle clears against nothing, whatever the confirmation says.
+        for expected in [Value::Null, json!({"bundleHash":"h"}), json!({"bundleHash":"h","tag":""})] {
+            let r = ask(json!({"op":"clearDecision","bundleHash":"h","expected":expected,"confirmation":{"bundleHash":"h","tag":""}}));
+            assert_eq!(r["clear"], false, "{expected}");
+        }
+        // The record is of another bundle: the one at the backup location is not the one this phone wrote.
+        let r = ask(json!({"op":"clearDecision","bundleHash":"h","expected":{"bundleHash":"g","tag":"aa"},"confirmation":{"bundleHash":"h","tag":"aa"}}));
+        assert_eq!((r["clear"].clone(), r["reason"].clone()), (json!(false), json!("other_bundle")));
+    }
+
+    // @verifies SWR-MG-08
+    #[test]
+    fn the_confirmation_tag_needs_the_bundle_key_and_is_bound_to_the_bundle() {
+        let tag = |key: &str, hash: &str| ask(json!({"op":"confirmationTag","key":key,"bundleHash":hash}))["tag"].as_str().unwrap().to_string();
+        let (k1, k2) = ("11".repeat(32), "12".repeat(32));
+        assert_eq!(tag(&k1, "h").len(), 64);
+        assert_eq!(tag(&k1, "h"), tag(&k1, "h"));
+        assert_ne!(tag(&k1, "h"), tag(&k2, "h"), "another key gives another tag");
+        assert_ne!(tag(&k1, "h"), tag(&k1, "g"), "another bundle gives another tag");
+        // HKDF-SHA-256 (no salt, the label as info, 32 bytes) then HMAC-SHA-256 over the hash text, worked independently.
+        let mut mk = [0u8; 32];
+        hkdf::Hkdf::<sha2::Sha256>::new(None, &[0x11; 32]).expand(b"np-migration-confirmation-v1", &mut mk).unwrap();
+        let mut m = <hmac::Hmac<sha2::Sha256> as hmac::Mac>::new_from_slice(&mk).unwrap();
+        hmac::Mac::update(&mut m, b"h");
+        assert_eq!(tag(&k1, "h"), hex(&hmac::Mac::finalize(m).into_bytes()));
+        assert!(migration_json(&json!({"op":"confirmationTag","key":k1,"bundleHash":""}).to_string()).is_err(), "no hash, no tag");
     }
 
     // @verifies SWR-MG-08
