@@ -34,7 +34,11 @@ class ProtocolUploader internal constructor(
 
     sealed interface Result {
         /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */
-        data class Success(val sentHash: String) : Result
+        data class Success(
+            val sentHash: String,
+            /** The descriptor sent, kept only for a Mode 3 programming, so the app can record what the helmet holds (`SWR-HV-03`); null otherwise. */
+            val descriptor: ByteArray? = null,
+        ) : Result
         data class Failure(val message: String) : Result
         /** An unread cardiac cutoff from an offline session — read the summary first. */
         data object CervicalRestartBlocked : Result
@@ -78,7 +82,7 @@ class ProtocolUploader internal constructor(
                 autonomous = autonomous,
             )
             ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
-            Result.Success(UploadCheck.hashOf(blob.blob))
+            Result.Success(UploadCheck.hashOf(blob.blob), if (autonomous) blob.blob else null)
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
         }

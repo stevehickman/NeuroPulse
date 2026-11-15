@@ -9,6 +9,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -16,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import life.neurone.core.protocol.NPProtocolEntry
+import life.neurone.core.session.HelmetProgramStore
 import life.neurone.core.protocol.NPZoneCaution
 import life.neurone.core.models.HelmetRefusalCause
 import life.neurone.core.models.SessionStatus
@@ -71,6 +73,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
 
     // Mode 3: the next protocol chosen is programmed for use without a phone (the iOS `programAutonomous`).
     var programMode by remember { mutableStateOf(false) }
+    // Bumped when the record of what was programmed changes, so the notice below is asked again.
+    var programmedRevision by remember { mutableIntStateOf(0) }
 
     // On Android 12+ this asks for BLUETOOTH_SCAN/CONNECT and, on grant, starts scanning; elsewhere it refreshes.
     val requestConnect = services.platform.rememberBleConnectAction()
@@ -136,6 +140,13 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 // Mode 3 says "stored" only when the helmet holds the protocol (SWR-UP-02, SWR-HV-08, as the iOS flow): every
                 // refusal, and an answer for other bytes, is shown instead and nothing is reported stored.
                 if (programming) {
+                    // SWR-HV-03: what the helmet now holds, kept app-side in UHDR so the app can say when the rules change under it. An answer
+                    // for other bytes means the app no longer knows what the helmet holds; a refusal leaves the earlier record true.
+                    when {
+                        cause == null && entry is NPProtocolEntry.Single && result.descriptor != null -> services.helmetProgram.remember(entry.protocol, result.descriptor)
+                        cause == life.neurone.core.models.HelmetRefusalCause.UNMATCHED -> services.helmetProgram.forget()
+                    }
+                    programmedRevision++
                     snackbar.showSnackbar(
                         when (val outcome = ProgrammingOutcome.of(cause)) {
                             is ProgrammingOutcome.Refused -> refusalText.getValue(outcome.cause)
@@ -204,7 +215,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
         SessionScreen(
             connectionState = connectionState,
             pairingRequired = pairingRequired,
-            onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); hubForgotten++ }) else null,
+            onForgetHub = if (canForgetHub) ({ gatt.forgetHub(); services.helmetProgram.forget(); programmedRevision++; hubForgotten++ }) else null,
             session = session,
             finishedContent = if (edf != null && shouldShowSessionDownload(session.status, session.epoch)) {
                 { EdfDownloadSection(edf, session.epoch, fileTransfer) }
@@ -213,6 +224,17 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onChooseProtocol = { showMenu = true },
             // The Session tab opens only once first-run setup has finished (the first-setup gate), as the iOS card appears on its complete step.
             onProgramAutonomous = { programMode = true; showMenu = true },
+            // The core's verdict on the stored protocol under the rules now in force (SWR-HV-03); asked again when either changes.
+            rulesNotice = remember(programmedRevision, services.wavelengthRulesStore.resolved) {
+                services.helmetProgram.verdict(services.wavelengthRulesStore.resolved)?.let { v ->
+                    val name = services.helmetProgram.record()?.protocolName ?: return@let null
+                    when (v) {
+                        is HelmetProgramStore.Verdict.Stale -> RulesNotice.Stale(name, v.changes.map { it.wavelength })
+                        HelmetProgramStore.Verdict.Differs -> RulesNotice.Differs(name)
+                        else -> null
+                    }
+                }
+            },
             onStop = { gatt.requestSessionStop() },
             progress = progress,
             onPause = { gatt.requestSessionPause() },

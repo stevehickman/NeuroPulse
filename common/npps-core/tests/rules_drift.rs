@@ -115,3 +115,26 @@ fn a_descriptor_that_states_no_rules_is_not_judged_and_a_malformed_stamp_is_refu
     let e = library_json(&json!({ "op": "rulesDrift", "stampHex": stamp_hex(&WavelengthRules::default_rules()), "wavelengths": [], "rules": bad }).to_string()).unwrap_err();
     assert!(e.contains("0.1 pm"), "{e}");
 }
+
+// @verifies SWR-HV-03
+#[test]
+fn a_compiled_descriptors_stamp_is_read_back_for_the_record_and_a_non_descriptor_is_refused() {
+    use neurone_npps_core::api::compile_json;
+    let req = json!({
+        "def": { "name": "T", "familyId": "11111111-2222-3333-4444-555555555555", "timingMode": { "type": "duration", "seconds": 600 },
+            "modalities": [{ "type": "pbm_transcranial", "enabled": true,
+                "params": { "zones": "named", "zoneRefs": ["Frontal"], "wavelength": "810nm", "irradianceMWcm2": 200, "frequencyHz": 40, "dutyCyclePercent": 25 },
+                "interval": { "intervalOnSeconds": 0, "intervalOffSeconds": 0 } }] },
+        "hardwareVersion": 1, "zonesByVersion": { "Frontal": { "1": [3, 1, 2] } }, "clinicianSockets": null,
+        "deviceSerialHex": "aabbccdd", "nowUnix": 1_000, "sessionUuidHex": "00112233445566778899aabbccddeeff",
+        "wavelengthRules": rules_json(&wide808()), "autonomous": true, "acknowledgedCautions": [] });
+    let blob = compile_json(&req.to_string()).unwrap();
+    let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
+    let got: Value = serde_json::from_str(&library_json(&json!({ "op": "descriptorStamp", "descriptorHex": hex }).to_string()).unwrap()).unwrap();
+    assert_eq!(got["stampHex"], stamp_hex(&wide808()), "the stamp of the rules the descriptor was compiled under");
+    // Fed back, the record is judged against the rules now in force: the shipped defaults refuse 850 nm.
+    let drift: Value = serde_json::from_str(&library_json(&json!({ "op": "rulesDrift", "stampHex": got["stampHex"], "wavelengths": ["850nm"], "rules": null }).to_string()).unwrap()).unwrap();
+    assert_eq!(drift["state"], "stale");
+    assert!(library_json(&json!({ "op": "descriptorStamp", "descriptorHex": "00" }).to_string()).is_err());
+    assert!(library_json(&json!({ "op": "descriptorStamp", "descriptorHex": "0g" }).to_string()).is_err());
+}

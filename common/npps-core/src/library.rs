@@ -722,6 +722,18 @@ fn rules_drift(req: &Value) -> R<Value> {
     Ok(state_json(if changes.is_empty() { "differs" } else { "stale" }, changes))
 }
 
+/// The stamp of a compiled descriptor, as the hex `rulesDrift` takes: `{"op":"descriptorStamp","descriptorHex":"…"}`. The app
+/// records it when the helmet accepts an upload, so no platform holds the header layout (`SWR-HV-03`).
+fn descriptor_stamp(req: &Value) -> R<Value> {
+    let hex = req["descriptorHex"].as_str().ok_or("descriptorHex is required")?;
+    if hex.len() % 2 != 0 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("descriptorHex must be an even number of hex digits".into());
+    }
+    let blob: Vec<u8> = (0..hex.len() / 2).map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).map_err(|e| e.to_string())).collect::<R<_>>()?;
+    let stamp = crate::compiler::descriptor_rules_stamp(&blob)?;
+    Ok(json!({ "stampHex": stamp.encode().iter().map(|b| format!("{b:02x}")).collect::<String>() }))
+}
+
 /// One entry point for every binding: `{"op": "...", ...}` in, JSON out. A binding does marshalling and nothing else.
 pub fn library_json(request: &str) -> R<String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("library request is not JSON: {e}"))?;
@@ -739,6 +751,7 @@ pub fn library_json(request: &str) -> R<String> {
         "uploadResult" => upload_result(&req)?,
         "helmetCause" => helmet_cause(&req)?,
         "rulesDrift" => rules_drift(&req)?,
+        "descriptorStamp" => descriptor_stamp(&req)?,
         "mergeImport" => merge_import(&req)?,
         "offered" => offered(&req)?,
         "usedRecord" => used_record(&req)?,

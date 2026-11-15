@@ -89,6 +89,8 @@ fun SessionScreen(
     finishedContent: (@Composable () -> Unit)? = null,
     /** Opens the protocol menu to program a protocol for Mode 3 (no phone needed); null hides the offer (first-run setup not finished). */
     onProgramAutonomous: (() -> Unit)? = null,
+    /** What the wavelength rules now do to the protocol stored on the helmet for Mode 3 (`SWR-HV-03`); null says nothing. */
+    rulesNotice: RulesNotice? = null,
 ) {
     var showStopConfirm by remember { mutableStateOf(false) }
     // The controls follow the helmet's state (SWR-SS-05): a paused session is still a session in progress.
@@ -143,6 +145,10 @@ fun SessionScreen(
                 }
                 Button(onClick = onChooseProtocol, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(Res.string.session_choose_protocol_button))
+                }
+                if (rulesNotice != null) {
+                    Spacer(Modifier.height(16.dp))
+                    RulesNoticeCard(rulesNotice, onProgramAutonomous)
                 }
                 if (onProgramAutonomous != null) {
                     Spacer(Modifier.height(16.dp))
@@ -564,6 +570,47 @@ internal fun PairingRequiredCard() {
             Text(stringResource(Res.string.ble_pairing_required_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(stringResource(Res.string.ble_pairing_required_body), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/**
+ * What the wavelength rules in force now do to the protocol stored on the helmet for Mode 3 (`SWR-HV-03`, `NP-NPPS-REF-001` §7a.1). The core decides
+ * which (`HelmetProgramStore.verdict`); this only says it. Nothing is changed on the helmet and nothing is sent: a stale protocol is offered
+ * a new upload and the person chooses.
+ */
+sealed interface RulesNotice {
+    val protocolName: String
+    /** The rules changed and some wavelength of the protocol now maps to another channel, is refused, or is newly delivered. */
+    data class Stale(override val protocolName: String, val wavelengths: List<String>) : RulesNotice
+    /** The rules changed, and the protocol maps every wavelength as it did: said, and nothing offered. */
+    data class Differs(override val protocolName: String) : RulesNotice
+}
+
+@Composable
+private fun RulesNoticeCard(notice: RulesNotice, onProgramAgain: (() -> Unit)?) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            when (notice) {
+                is RulesNotice.Stale -> {
+                    Text(stringResource(Res.string.setup_rules_stale_title), style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(Res.string.setup_rules_stale_body, notice.protocolName, notice.wavelengths.joinToString(", ")),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (onProgramAgain != null) {
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onClick = onProgramAgain, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(Res.string.setup_rules_stale_button))
+                        }
+                    }
+                }
+                is RulesNotice.Differs -> Text(
+                    stringResource(Res.string.setup_rules_differs_note, notice.protocolName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }

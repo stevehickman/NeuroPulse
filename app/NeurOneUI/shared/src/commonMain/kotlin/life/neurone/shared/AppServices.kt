@@ -329,6 +329,9 @@ class AppServices(
     /** The user's PBM wavelength rules; the descriptor compiler reads the resolved set at each upload (NP-NPPS-REF-001 §7a). */
     val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore)
 
+    /** What this install last programmed onto a helmet for Mode 3, in the sealed UHDR store (`SWR-HV-03`, `OI-WRV-01`). */
+    val helmetProgram = life.neurone.core.session.HelmetProgramStore(keyValueStore)
+
     val protocolUploader = ProtocolUploader(gattManager, { wavelengthRulesStore.resolved }, platform.protocolSigner)
 
     /** Consumable reminder engine, fed by the hub's CONSUMABLE_STATUS counts (SHDR-class). */

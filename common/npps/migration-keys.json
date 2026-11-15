@@ -34,7 +34,8 @@
     "np.presence.passphrase-wrap",
     "np.cloud.accounts",
     "np.backup.cloud-account",
-    "np.backup.cloud-target"
+    "np.backup.cloud-target",
+    "np.helmet.programmed"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",
