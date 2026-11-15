@@ -63,6 +63,7 @@ export function IntervalControls({ interval, onChange }: IntervalControlsProps) 
               <input
                 type="number"
                 className="form-input param-input"
+                min={0}
                 value={interval.intervalOnSeconds}
                 onChange={e => onChange({ ...interval, intervalOnSeconds: Number(e.target.value) })}
               />
@@ -72,6 +73,7 @@ export function IntervalControls({ interval, onChange }: IntervalControlsProps) 
               <input
                 type="number"
                 className="form-input param-input"
+                min={0}
                 value={interval.intervalOffSeconds}
                 onChange={e => onChange({ ...interval, intervalOffSeconds: Number(e.target.value) })}
               />
@@ -81,6 +83,7 @@ export function IntervalControls({ interval, onChange }: IntervalControlsProps) 
               <input
                 type="number"
                 className="form-input param-input"
+                min={0}
                 placeholder={t('WEB_MOD_UNTIL_END')}
                 value={interval.repeatCount ?? ''}
                 onChange={e => {
@@ -254,7 +257,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             ]}
           />
           <NumberField label={t('WEB_MOD_IRRADIANCE')} value={p.irradianceMWcm2} min={1} max={400} unit="mW/cm²" onChange={v => update<typeof params>({ ...p, irradianceMWcm2: v })} />
-          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
         </div>
       );
@@ -271,7 +274,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             ]}
           />
           <NumberField label={t('WEB_MOD_IRRADIANCE')} value={p.irradianceMWcm2} min={1} max={400} unit="mW/cm²" onChange={v => update<typeof params>({ ...p, irradianceMWcm2: v })} />
-          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
         </div>
       );
@@ -392,7 +395,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
       const p = params.params as VNSHRVParams;
       return (
         <div className="param-grid">
-          <FrequencyField label={t('WEB_MOD_VNS_FREQUENCY')} value={p.frequencyHz} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('WEB_MOD_VNS_FREQUENCY')} value={p.frequencyHz} min={0} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMilliamps} min={0.1} max={2.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />
           <SelectField label={t('WEB_MOD_HRV_PROTOCOL')} value={p.hrvProtocol} onChange={v => update<typeof params>({ ...p, hrvProtocol: v as VNSHRVParams['hrvProtocol'] })}
             options={[
@@ -418,7 +421,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
                 type="number"
                 className="form-input"
                 style={{ flex: 1 }}
-                step={0.5}
+                min={0} step={0.5}
                 value={p.binauralBeatsHz ?? ''}
                 placeholder={t('UI_NONE')}
                 onChange={e => update<typeof params>({ ...p, binauralBeatsHz: e.target.value ? Number(e.target.value) : undefined })}
@@ -430,7 +433,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             <input
               type="number"
               className="form-input"
-              step={0.5}
+              min={0} step={0.5}
               value={p.isochronicTonesHz ?? ''}
               placeholder={t('UI_NONE')}
               onChange={e => update<typeof params>({ ...p, isochronicTonesHz: e.target.value ? Number(e.target.value) : undefined })}
@@ -443,8 +446,8 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               { value: 'brown', label: t('WEB_NOISE_BROWN') },
             ]}
           />
-          <NumberField label={t('WEB_MOD_CARRIER')} value={p.carrierHz} unit="Hz" onChange={v => update<typeof params>({ ...p, carrierHz: v })} />
-          <NumberField label={t('WEB_MOD_VOLUME')} value={p.volumeDb} max={NPHardwareLimits.AUDIO_MAX_DB_SPL} unit="dB SPL" onChange={v => update<typeof params>({ ...p, volumeDb: v })} />
+          <NumberField label={t('WEB_MOD_CARRIER')} value={p.carrierHz} min={0} unit="Hz" onChange={v => update<typeof params>({ ...p, carrierHz: v })} />
+          <NumberField label={t('WEB_MOD_VOLUME')} value={p.volumeDb} min={0} max={NPHardwareLimits.AUDIO_MAX_DB_SPL} unit="dB SPL" onChange={v => update<typeof params>({ ...p, volumeDb: v })} />
           <CheckboxField label={t('WEB_MOD_EEG_ADAPTIVE')} value={p.eegAdaptive} onChange={v => update<typeof params>({ ...p, eegAdaptive: v })} />
           <CheckboxField label={t('WEB_MOD_BONE_CONDUCTION')} value={p.boneConductionPacer} onChange={v => update<typeof params>({ ...p, boneConductionPacer: v })} />
         </div>
@@ -465,7 +468,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             ]}
           />
           {p.mode === 'emdr' && (
-            <NumberField label={t('WEB_MOD_EMDR_CADENCE')} value={p.emdrCadenceHz} step={0.1} unit="Hz" onChange={v => update<typeof params>({ ...p, emdrCadenceHz: v })} />
+            <NumberField label={t('WEB_MOD_EMDR_CADENCE')} value={p.emdrCadenceHz} min={0} step={0.1} unit="Hz" onChange={v => update<typeof params>({ ...p, emdrCadenceHz: v })} />
           )}
           <CheckboxField label={t('WEB_MOD_ENABLE_MODE_F')} value={p.enableModeF} onChange={v => update<typeof params>({ ...p, enableModeF: v })} />
         </div>
@@ -521,7 +524,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
       return (
         <div className="param-grid">
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMWcm2} min={100} max={1000} step={50} unit=" mW/cm²" onChange={v => update<typeof params>({ ...p, intensityMWcm2: v })} />
-          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
+          <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('MODALITY_DUTY_CYCLE')} value={p.dutyCyclePercent} min={5} max={100} unit="%" onChange={v => update<typeof params>({ ...p, dutyCyclePercent: v })} />
         </div>
       );
