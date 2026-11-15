@@ -296,7 +296,7 @@ export const LIMIT_BOUNDS = {
     maxFrequencyHz: { min: NONNEG('A limit'), step: 0.1, unbounded: 'No ceiling: the hardware states none (OI-VNSCLIP-08).' },
   },
   audioEntrainment: {
-    maxVolumeDb: { min: unestablished(40, 'Form figure for a clinician limit, no source on record.'), max: unestablished(90, 'Form figure for a clinician limit, no source on record.'), step: 1 },
+    maxVolumeDb: { min: NONNEG('A limit'), max: safety(hw.AUDIO_MAX_DB_SPL, 'NP-HW-AUDIO-001 REQ-AUDIO-19: a limits block may lower the 85 dB SPL ceiling and never raise it.'), step: 1 },
     maxBinauralBeatsHz: { min: unestablished(0.5, 'Form figure for a clinician limit, no source on record.'), max: unestablished(100, 'Form figure for a clinician limit, no source on record.'), step: 0.5 },
     maxIsochronicTonesHz: { min: unestablished(0.5, 'Form figure for a clinician limit, no source on record.'), max: unestablished(100, 'Form figure for a clinician limit, no source on record.'), step: 0.5 },
   },
@@ -364,6 +364,24 @@ export function inBounds(v: number, b: ParamBound): boolean {
   if (b.min !== undefined && v < b.min.value) return false;
   if (b.max !== undefined && v > b.max.value) return false;
   return true;
+}
+
+/** The clinician limits whose value is outside the range its field states, as `modality.field` keys. A set with any
+ *  is refused when it is saved or imported, never changed: the limit a clinician typed is the limit they meant, and
+ *  holding it inside its range would save one they did not choose. An absent limit is "no limit" and never fails;
+ *  a value that is not a finite number always does. */
+export function limitsOutOfRange(limits: object): string[] {
+  const bad: string[] = [];
+  for (const [m, fields] of Object.entries(LIMIT_BOUNDS)) {
+    const block = (limits as Record<string, unknown>)[m] as Record<string, unknown> | undefined;
+    if (!block || typeof block !== 'object') continue;
+    for (const [f, b] of Object.entries(fields)) {
+      const v = block[f];
+      if (v === undefined) continue;
+      if (typeof v !== 'number' || !Number.isFinite(v) || !inBounds(v, b as ParamBound)) bad.push(`${m}.${f}`);
+    }
+  }
+  return bad;
 }
 
 function round(v: number, step: number): number {

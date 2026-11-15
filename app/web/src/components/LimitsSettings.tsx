@@ -9,7 +9,7 @@ import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
 import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
-import { LIMIT_BOUNDS } from '../lib/paramBounds';
+import { LIMIT_BOUNDS, limitsOutOfRange } from '../lib/paramBounds';
 import type { ParamBound } from '../lib/paramBounds';
 import { RangeEditor } from './ParamInputs';
 
@@ -241,6 +241,11 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
                   const text = await file.text();
                   try {
                     const imported = limitsStore.importLimitsFromNPPS(text);
+                    const bad = limitsOutOfRange(imported);
+                    if (bad.length > 0) {
+                      alert(t('WEB_IMPORT_FAILED', { 0: t('WEB_LIMITS_OUT_OF_RANGE_LIST', { 0: bad.join(', ') }) }));
+                      return;
+                    }
                     limitsStore.saveGlobalLimits(imported);
                   } catch (e) {
                     alert(t('WEB_IMPORT_FAILED', { 0: (e as Error).message }));
@@ -762,6 +767,8 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
   const [editorTab, setEditorTab] = useState<EditorTab>('visual');
   const [scriptText, setScriptText] = useState('');
   const [scriptError, setScriptError] = useState<string | null>(null);
+  // A limit outside its range is marked where it is typed and the set cannot be saved until it is corrected.
+  const outOfRange = limitsOutOfRange(limits);
 
   // Generate script text from current limits whenever switching to script tab
   function handleSwitchToScript() {
@@ -865,12 +872,16 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
         display: 'flex',
         gap: 8,
         justifyContent: 'flex-end',
+        alignItems: 'center',
       }}>
+        {outOfRange.length > 0 && (
+          <span role="alert" style={{ marginRight: 'auto', fontSize: 12, color: 'var(--error)' }}>{t('WEB_LIMITS_OUT_OF_RANGE')}</span>
+        )}
         <button className="btn btn-secondary btn-sm" onClick={() => onExport(limits)}>
           {t('WEB_EXPORT_NPPS')}
         </button>
         <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
-        <button className="btn btn-primary" onClick={() => onSave(limits)}>{t('WEB_SAVE_LIMITS')}</button>
+        <button className="btn btn-primary" disabled={outOfRange.length > 0} onClick={() => onSave(limits)}>{t('WEB_SAVE_LIMITS')}</button>
       </div>
     </>
   );
@@ -1479,8 +1490,6 @@ function LimitField({
   const max = bound.max?.value;
   const isSet = value !== undefined;
   const displayVal = isSet ? value : min;
-  // A clinician limit stays held inside its range, as it always has. That is a limit on a limit, not a stimulus.
-  const hold = (v: number) => (max === undefined ? Math.max(min, v) : Math.min(max, Math.max(min, v)));
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1493,7 +1502,7 @@ function LimitField({
       <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 150, flexShrink: 0 }}>{label}</span>
       {isSet ? (
         <div style={{ flex: 1 }}>
-          <RangeEditor value={displayVal} bound={bound} unit={unit} ariaLabel={label} onChange={v => v !== undefined && onChange(hold(v))} />
+          <RangeEditor value={displayVal} bound={bound} unit={unit} ariaLabel={label} onChange={v => v !== undefined && onChange(v)} />
         </div>
       ) : (
         <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>

@@ -7,6 +7,7 @@ import {
   needsMagnifier,
   fineRange,
   inBounds,
+  limitsOutOfRange,
   stepsAcross,
   SLIDER_TRACK_PX,
   PARAM_BOUNDS,
@@ -125,5 +126,26 @@ describe('a value outside its bounds', () => {
     expect(inBounds(86, PARAM_BOUNDS.audio.volume)).toBe(false);
     expect(inBounds(-1, PARAM_BOUNDS.audio.carrier)).toBe(false);
     expect(inBounds(1e9, PARAM_BOUNDS.audio.carrier)).toBe(true);
+  });
+});
+
+describe('clinician limits outside their range', () => {
+  // @verifies SWR-UI-01#f
+  it('are named, never changed, and a set inside its ranges has none', () => {
+    const ok = { besTacs: { maxIntensityMilliamps: 1, minFrequencyHz: 1, maxFrequencyHz: 40 }, audioEntrainment: { maxVolumeDb: 85 } };
+    expect(limitsOutOfRange(ok)).toEqual([]);
+    const bad = { besTacs: { maxIntensityMilliamps: 1.5 }, audioEntrainment: { maxVolumeDb: 90 }, tdcs: { maxIntensityMilliamps: 0.05 } };
+    expect(limitsOutOfRange(bad).sort()).toEqual(['audioEntrainment.maxVolumeDb', 'besTacs.maxIntensityMilliamps', 'tdcs.maxIntensityMilliamps']);
+    expect(bad.besTacs.maxIntensityMilliamps).toBe(1.5); // reading the set does not alter it
+  });
+
+  // @verifies SWR-UI-01#f
+  it('treats an absent limit as no limit, an open side as never failing, and a value that is not a finite number as outside', () => {
+    expect(limitsOutOfRange({})).toEqual([]);
+    expect(limitsOutOfRange({ besTacs: {} })).toEqual([]);
+    expect(limitsOutOfRange({ vnsHrv: { maxFrequencyHz: 1e9 } })).toEqual([]); // no ceiling is stated
+    expect(limitsOutOfRange({ vnsHrv: { maxFrequencyHz: -1 } })).toEqual(['vnsHrv.maxFrequencyHz']);
+    expect(limitsOutOfRange({ besTacs: { maxIntensityMilliamps: NaN } })).toEqual(['besTacs.maxIntensityMilliamps']);
+    expect(limitsOutOfRange({ besTacs: { maxIntensityMilliamps: '1' } })).toEqual(['besTacs.maxIntensityMilliamps']);
   });
 });
