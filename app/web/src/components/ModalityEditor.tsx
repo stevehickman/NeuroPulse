@@ -449,7 +449,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               { value: 'brown', label: t('WEB_NOISE_BROWN') },
             ]}
           />
-          <NumberField label={t('WEB_MOD_CARRIER')} value={p.carrierHz} min={80} unit="Hz" onChange={v => update<typeof params>({ ...p, carrierHz: v })} />
+          <NumberField label={t('WEB_MOD_CARRIER')} value={p.carrierHz} unit="Hz" onChange={v => update<typeof params>({ ...p, carrierHz: v })} />
           <NumberField label={t('WEB_MOD_VOLUME')} value={p.volumeDb} min={40} max={90} unit="dB SPL" onChange={v => update<typeof params>({ ...p, volumeDb: v })} />
           <CheckboxField label={t('WEB_MOD_EEG_ADAPTIVE')} value={p.eegAdaptive} onChange={v => update<typeof params>({ ...p, eegAdaptive: v })} />
           <CheckboxField label={t('WEB_MOD_BONE_CONDUCTION')} value={p.boneConductionPacer} onChange={v => update<typeof params>({ ...p, boneConductionPacer: v })} />
