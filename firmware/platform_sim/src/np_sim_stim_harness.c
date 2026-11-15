@@ -106,23 +106,23 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
 {
     uint8_t slot;
     if (strcmp(cmd, "stim_add") == 0 && a && b) {
-        (void)np_sim_add(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a), (float)atof(b));
+        (void)np_sim_add(NP_SIM_KIND_STIM_PAIR, NP_SIMH_U16(a), (float)atof(b));
     } else if (strcmp(cmd, "stim_absent") == 0 && a) {
-        (void)np_sim_set_present(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a), false);
+        (void)np_sim_set_present(NP_SIM_KIND_STIM_PAIR, NP_SIMH_U16(a), false);
     } else if (strcmp(cmd, "stim_present") == 0 && a) {
-        (void)np_sim_set_present(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a), true);
+        (void)np_sim_set_present(NP_SIM_KIND_STIM_PAIR, NP_SIMH_U16(a), true);
     } else if (strcmp(cmd, "stim_clear") == 0 && a) {
-        (void)np_sim_clear(NP_SIM_KIND_STIM_PAIR, (uint16_t)atoi(a));
+        (void)np_sim_clear(NP_SIM_KIND_STIM_PAIR, NP_SIMH_U16(a));
     } else if (strcmp(cmd, "bes") == 0 && a && b && c && d) {
-        const np_mod_bes_tacs_params_t p = { .electrode_pair = (uint8_t)atoi(a), .waveform = (uint8_t)atoi(b),
-                                             .freq_mhz = (uint16_t)atoi(c), .amplitude_ua = (uint16_t)atoi(d),
+        const np_mod_bes_tacs_params_t p = { .electrode_pair = NP_SIMH_U8(a), .waveform = NP_SIMH_U8(b),
+                                             .freq_mhz = NP_SIMH_U16(c), .amplitude_ua = NP_SIMH_U16(d),
                                              .phase_deg = 0U };
         tick_driver();
         stim_result(cmd, (int)np_mod_stim_control(NP_HUB_SLOT_BES_TACS, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "tdcs") == 0 && a && b && c && d && e) {
-        const np_mod_tdcs_params_t p = { .electrode_pair = (uint8_t)atoi(a), .current_ua = (uint16_t)atoi(b),
-                                         .polarity = (uint8_t)atoi(c), .ramp_s = (uint16_t)atoi(d),
-                                         .electrode_area_mcm2 = (uint16_t)atoi(e) };
+        const np_mod_tdcs_params_t p = { .electrode_pair = NP_SIMH_U8(a), .current_ua = NP_SIMH_U16(b),
+                                         .polarity = NP_SIMH_U8(c), .ramp_s = NP_SIMH_U16(d),
+                                         .electrode_area_mcm2 = NP_SIMH_U16(e) };
         tick_driver();
         stim_result(cmd, (int)np_mod_stim_control(NP_HUB_SLOT_TDCS, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "stim_stop") == 0 && slot_from(a, &slot)) {
@@ -133,7 +133,7 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
         const bool still = np_mod_stim_tdcs_pause();
         stim_result(cmd, still ? 1 : 0);          /* 1: ramping down, enable held; 0: off */
     } else if (strcmp(cmd, "advance") == 0 && a) {
-        np_sim_advance_ms((uint32_t)atol(a));
+        np_sim_advance_ms(NP_SIMH_U32(a));
         tick_driver();
         np_ramp_report_t r;
         np_mod_stim_tdcs_ramp(&r);
@@ -156,7 +156,7 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
                     tripped ? "true" : "false");
     } else if (strcmp(cmd, "stim_detect") == 0 && a) {
         np_hub_mod_type_t t = NP_MOD_NONE;
-        const np_hub_status_t rc = np_mod_stim_detect((uint8_t)atoi(a), &t);
+        const np_hub_status_t rc = np_mod_stim_detect(NP_SIMH_U8(a), &t);
         np_sim_emit("{\"ev\":\"stim_detect\",\"slot\":%d,\"code\":%d,\"mod_type\":%d}", atoi(a), (int)rc, (int)t);
     } else if (strcmp(cmd, "stim_shutdown") == 0 && slot_from(a, &slot)) {
         tick_driver();
@@ -165,8 +165,8 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
         np_stim_xcheck_reset();
         stim_result(cmd, 0);
     } else if (strcmp(cmd, "stim_ramp_up_ms") == 0 && a && b && c && d) {
-        const np_mod_tdcs_params_t p = { .electrode_pair = (uint8_t)atoi(a), .current_ua = (uint16_t)atoi(b),
-                                         .polarity = (uint8_t)atoi(c), .ramp_s = (uint16_t)atoi(d),
+        const np_mod_tdcs_params_t p = { .electrode_pair = NP_SIMH_U8(a), .current_ua = NP_SIMH_U16(b),
+                                         .polarity = NP_SIMH_U8(c), .ramp_s = NP_SIMH_U16(d),
                                          .electrode_area_mcm2 = 1U };
         np_sim_emit("{\"ev\":\"stim_ramp_up\",\"ms\":%u,\"bad_length_ms\":%u}",
                     (unsigned)np_mod_stim_tdcs_ramp_up_ms(&p, (uint16_t)sizeof p),
@@ -176,7 +176,7 @@ bool np_simh_stim_line(const char *cmd, char *a, char *b, char *c, char *d, char
         memset(zeros, 0, sizeof zeros);
         const unsigned len = (unsigned)atoi(b);
         tick_driver();
-        stim_result(cmd, (int)np_mod_stim_control((uint8_t)atoi(a), zeros, (uint16_t)(len > sizeof zeros ? sizeof zeros : len)));
+        stim_result(cmd, (int)np_mod_stim_control(NP_SIMH_U8(a), zeros, (uint16_t)(len > sizeof zeros ? sizeof zeros : len)));
     } else {
         return false;
     }

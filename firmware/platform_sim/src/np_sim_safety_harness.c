@@ -117,16 +117,16 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         memset(uid, (int)strtoul(a, NULL, 0), sizeof uid);
         np_sim_safety_set_uid(uid);
     } else if (strcmp(cmd, "safety_tier") == 0 && a && b) {
-        np_sim_safety_otp_program_tier((uint8_t)atoi(a), (uint8_t)atoi(b));
+        np_sim_safety_otp_program_tier(NP_SIMH_U8(a), NP_SIMH_U8(b));
     } else if (strcmp(cmd, "safety_attach") == 0) {
         const bool ok = np_sim_safety_attach();
         state_event("safety_state", cmd, ok ? 0 : -1);
     } else if (strcmp(cmd, "safety_adc") == 0 && a && b) {
-        np_sim_safety_set_adc((uint8_t)atoi(a), (uint16_t)atoi(b));
+        np_sim_safety_set_adc(NP_SIMH_U8(a), NP_SIMH_U16(b));
     } else if (strcmp(cmd, "safety_imp") == 0 && a && b) {
-        np_sim_safety_set_impedance_ohm((uint8_t)atoi(a), (uint32_t)strtoul(b, NULL, 10));
+        np_sim_safety_set_impedance_ohm(NP_SIMH_U8(a), NP_SIMH_U32(b));
     } else if (strcmp(cmd, "safety_cvns_el") == 0 && a && b) {
-        np_sim_safety_set_cvns_electrode_ohm((uint8_t)atoi(a), (uint32_t)strtoul(b, NULL, 10));
+        np_sim_safety_set_cvns_electrode_ohm(NP_SIMH_U8(a), NP_SIMH_U32(b));
     } else if (strcmp(cmd, "safety_rpeak") == 0) {
         np_sim_safety_rpeak();
     } else if (strcmp(cmd, "safety_beat") == 0 && a) {
@@ -158,26 +158,26 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         uint16_t area[NP_SAFETY_MAX_CHANNELS];
         memset(area, 0, sizeof area);
         const unsigned ch = (unsigned)atoi(a);
-        if (ch < NP_SAFETY_MAX_CHANNELS) { area[ch] = (uint16_t)atoi(b); }
+        if (ch < NP_SAFETY_MAX_CHANNELS) { area[ch] = NP_SIMH_U16(b); }
         state_event("safety_state", cmd, (int)np_safety_spi_send_channel_limits(area, (uint8_t)NP_SAFETY_MAX_CHANNELS));
     } else if (strcmp(cmd, "safety_wave") == 0 && a && b && c) {
         uint8_t  cls[NP_SAFETY_MAX_CHANNELS];
         uint32_t ph[NP_SAFETY_MAX_CHANNELS];
         memset(cls, 0, sizeof cls); memset(ph, 0, sizeof ph);
         const unsigned ch = (unsigned)atoi(a);
-        if (ch < NP_SAFETY_MAX_CHANNELS) { cls[ch] = (uint8_t)atoi(b); ph[ch] = (uint32_t)strtoul(c, NULL, 10); }
+        if (ch < NP_SAFETY_MAX_CHANNELS) { cls[ch] = NP_SIMH_U8(b); ph[ch] = NP_SIMH_U32(c); }
         state_event("safety_state", cmd, (int)np_safety_spi_send_channel_waveforms(cls, ph, (uint8_t)NP_SAFETY_MAX_CHANNELS));
     } else if (strcmp(cmd, "safety_user") == 0 && a) {
-        state_event("safety_state", cmd, (int)np_safety_spi_send_active_user((uint32_t)strtoul(a, NULL, 0)));
+        state_event("safety_state", cmd, (int)np_safety_spi_send_active_user(NP_SIMH_U32(a)));
     } else if (strcmp(cmd, "safety_hr") == 0 && a && b && c) {
-        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, (uint16_t)atoi(b), (uint16_t)atoi(c),
+        state_event("safety_state", cmd, (int)np_safety_spi_send_hr_report(atoi(a) != 0, NP_SIMH_U16(b), NP_SIMH_U16(c),
                                                                                    0U /* sens_level: the cutoff as validated, REQ-CVNS-14 */));
     } else if (strcmp(cmd, "safety_enable") == 0 && a) {                    /* what a modality driver does beside its own command */
-        np_safety_spi_request_enable((uint16_t)strtoul(a, NULL, 0));
+        np_safety_spi_request_enable(NP_SIMH_U16(a));
     } else if (strcmp(cmd, "safety_disable") == 0 && a) {
-        np_safety_spi_request_disable((uint16_t)strtoul(a, NULL, 0));
+        np_safety_spi_request_disable(NP_SIMH_U16(a));
     } else if (strcmp(cmd, "safety_current") == 0 && a && b) {
-        np_safety_spi_set_channel_current((uint8_t)atoi(a), (uint16_t)atoi(b));
+        np_safety_spi_set_channel_current(NP_SIMH_U8(a), NP_SIMH_U16(b));
     } else if (strcmp(cmd, "safety_reenable") == 0 && a) {
         np_safety_spi_set_cvns_reenable(atoi(a) != 0);
     } else if (strcmp(cmd, "safety_geom") == 0 && a && b) {                 /* the three geometry gates of np_charge_monitor.c */
@@ -186,8 +186,8 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
         else if (strcmp(a, "tdcs") == 0)      { np_safety_spi_set_geom_required_tdcs(on); }
         else if (strcmp(a, "bes") == 0)       { np_safety_spi_set_geom_required_bes(on); }
     } else if (strcmp(cmd, "safety_fault") == 0 && a && b) {
-        const uint32_t n = (uint32_t)strtoul(b, NULL, 10);
-        const uint32_t arg = c ? (uint32_t)strtoul(c, NULL, 10) : 0U;
+        const uint32_t n = NP_SIMH_U32(b);
+        const uint32_t arg = c ? NP_SIMH_U32(c) : 0U;
         if      (strcmp(a, "nv_erase") == 0)    { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_NV_ERASE, n, arg); }
         else if (strcmp(a, "nv_program") == 0)  { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_NV_PROGRAM, n, arg); }
         else if (strcmp(a, "spi_timeout") == 0) { np_sim_safety_inject(NP_SIM_SAFETY_FAULT_SPI_TIMEOUT, n, arg); }

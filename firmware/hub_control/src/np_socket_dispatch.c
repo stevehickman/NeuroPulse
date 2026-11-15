@@ -13,6 +13,14 @@
 #include "np_cmd_limits.h"   /* REQ-FWHUB-78 */
 #include <string.h>
 
+/* A paused command's parameters are copied into a fixed buffer of NP_SOCK_DISP_PARAMS_MAX bytes, taking params_len from the
+ * command.  params_len is held to the size of the PBM struct for its type, so the copy is in bounds exactly when the buffer
+ * holds both structs: adding a field to either would otherwise overflow it at run time (OI-UINT16-01). */
+_Static_assert(sizeof(np_mod_pbm_smart_params_t) <= NP_SOCK_DISP_PARAMS_MAX,
+               "the smart PBM params no longer fit a paused command's buffer");
+_Static_assert(sizeof(np_mod_pbm_base_params_t) <= NP_SOCK_DISP_PARAMS_MAX,
+               "the base PBM params no longer fit a paused command's buffer");
+
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
 static np_sock_disp_socket_t s_sock[NP_HEXMAP_MAX_SOCKETS];

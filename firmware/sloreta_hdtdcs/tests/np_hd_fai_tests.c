@@ -1768,6 +1768,32 @@ static int fai_safety_constants(void)
 
 /* ── Main ────────────────────────────────────────────────────────────────────── */
 
+/* ── A session shorter than its two ramps is refused (OI-UINT16-01) ────────────
+ *
+ * np_hd_stim_start() computed the end of the steady phase as now + duration - ramp in unsigned arithmetic, which wrapped
+ * for a duration under one ramp and, between one and two, put the end of the steady phase before the end of the ramp up.
+ * It is refused before anything is set or requested.  The 120 to 1,800 s range of np_hd_config.h is NOT what is tested:
+ * nothing enforces it.
+ */
+static void fai_stim_start_short_session(void)
+{
+    printf("[OI-UINT16-01] a session shorter than its two ramps is refused, and one of exactly two ramps is not\n");
+    const uint16_t two_ramps_s = (uint16_t)(2U * NP_HD_RAMP_DURATION_S);
+    np_hd_stim_ctx_t ctx;
+
+    memset(&ctx, 0, sizeof ctx);
+    ctx.impedance_ok = true;
+    ctx.phase        = NP_HD_STIM_IDLE;
+    ASSERT_EQ(np_hd_stim_start(&ctx, 1000U, 0U, 5000U), NP_HD_ERR_INVALID_ARG);
+    ASSERT_EQ(np_hd_stim_start(&ctx, 1000U, (uint16_t)(NP_HD_RAMP_DURATION_S - 1U), 5000U), NP_HD_ERR_INVALID_ARG);
+    ASSERT_EQ(np_hd_stim_start(&ctx, 1000U, (uint16_t)(two_ramps_s - 1U), 5000U), NP_HD_ERR_INVALID_ARG);
+    ASSERT(ctx.phase == NP_HD_STIM_IDLE && ctx.target_ua == 0U, "a refused start changes nothing");
+
+    ASSERT_OK(np_hd_stim_start(&ctx, 1000U, two_ramps_s, 5000U));
+    ASSERT(ctx.phase == NP_HD_STIM_RAMP_UP, "exactly two ramps starts");
+    ASSERT_EQ(ctx.steady_end_ms, 5000U + (uint32_t)NP_HD_RAMP_DURATION_S * 1000U);
+}
+
 int main(void)
 {
     printf("=== NP-FW-HD-001 §12 — sLORETA-guided HD-tDCS FAI item checks ===\n");
@@ -1784,6 +1810,7 @@ int main(void)
     fai_hd02l_driver_channel_single_source();
     fai_hd03_focality_algorithm();
     fai_hd04_snr_constants();
+    fai_stim_start_short_session();
 
     printf("=== Results: %d total failure(s) ===\n", g_fail_count);
 

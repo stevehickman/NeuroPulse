@@ -175,7 +175,7 @@ bool np_simh_gatt_line(const char *cmd, char *a, char *b)
         uint8_t buf[NP_GATT_VALUE_MAX];
         size_t len = 0U;
         const unsigned id = (unsigned)atoi(a);
-        np_att_status_t st = np_gatt_on_read((uint16_t)id, (uint16_t)atoi(b), buf, sizeof buf, &len);
+        np_att_status_t st = np_gatt_on_read((uint16_t)id, NP_SIMH_U16(b), buf, sizeof buf, &len);
         char head[64];
         (void)snprintf(head, sizeof head, "{\"ev\":\"gatt_read\",\"id\":%u,\"att\":%d,", id, (int)st);
         emit_hex(head, st == NP_ATT_OK && len > 0U ? buf : (const uint8_t *)"", st == NP_ATT_OK ? len : 0U, "}");

@@ -181,7 +181,12 @@ fn handle(mut stream: TcpStream, cfg: &Config, counters: &Counters) {
             let config: Vec<u8> = (0..cfg.key_config_hex.len() / 2)
                 .map(|i| u8::from_str_radix(&cfg.key_config_hex[2 * i..2 * i + 2], 16).unwrap_or(0))
                 .collect();
-            let mut out = (config.len() as u16).to_be_bytes().to_vec();
+            // The length prefix is 16 bits. `serve` refuses a longer configuration at start, so this does not fail; if it ever
+            // did, it would be answered 500, never sent with a wrapped length.
+            let Ok(len) = u16::try_from(config.len()) else {
+                return reply(&mut stream, 500, "text/plain", b"");
+            };
+            let mut out = len.to_be_bytes().to_vec();
             out.extend(config);
             reply(&mut stream, 200, "application/ohttp-keys", &out)
         }
@@ -241,6 +246,11 @@ pub fn serve(listen: &str, cfg: Config) -> std::io::Result<(SocketAddr, Arc<Coun
     let hex_ok = |t: &str| !t.is_empty() && t.len() % 2 == 0 && t.bytes().all(|b| b.is_ascii_hexdigit());
     if !hex_ok(&cfg.key_config_hex) || !hex_ok(&cfg.private_key_hex) {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "the key configuration and private key must be hex"));
+    }
+    // `/ohttp-keys` sends the configuration behind a 16-bit length (RFC 9458 §3), so it can be at most 65535 bytes: refuse a
+    // longer one now rather than send a prefix that wrapped (OI-UINT16-01).
+    if cfg.key_config_hex.len() / 2 > usize::from(u16::MAX) {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "the key configuration is longer than 65535 bytes"));
     }
     let listener = TcpListener::bind(listen)?;
     let addr = listener.local_addr()?;

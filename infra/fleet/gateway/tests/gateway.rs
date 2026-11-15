@@ -186,3 +186,14 @@ fn the_gateway_refuses_to_start_on_a_key_that_is_not_hex() {
     let bad = serve("127.0.0.1:0", Config { key_config_hex: "zz".into(), private_key_hex: "00".into(), ingest: "x:1".into() });
     assert!(bad.is_err());
 }
+
+// @verifies REQ-SHDR-07#d
+#[test]
+fn the_gateway_refuses_to_start_on_a_key_configuration_its_16_bit_length_cannot_carry() {
+    // 65536 bytes is 131072 hex digits: one byte past what the /ohttp-keys length prefix can say.
+    let too_long = "00".repeat(65536);
+    let bad = serve("127.0.0.1:0", Config { key_config_hex: too_long, private_key_hex: "00".into(), ingest: "x:1".into() });
+    assert!(bad.is_err());
+    let largest = "00".repeat(65535);
+    assert!(serve("127.0.0.1:0", Config { key_config_hex: largest, private_key_hex: "00".into(), ingest: "x:1".into() }).is_ok());
+}
