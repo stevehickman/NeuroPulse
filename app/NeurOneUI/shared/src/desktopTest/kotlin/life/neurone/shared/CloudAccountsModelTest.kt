@@ -225,9 +225,9 @@ class CloudAccountsModelTest {
     // @verifies SWR-MG-20#e
     @Test fun an_unreadable_store_is_reported_and_never_overwritten() = runTest {
         val kv = InMemoryKeyValueStore()
-        kv.putString(CredentialStore.KEY, "this is not json")
         val f = Fakes()
         val m = model(f, kv)
+        kv.putString(CredentialStore.KEY, "this is not json") // after the store is opened, which seals a plain value it finds
         m.refresh()
         assertEquals(CloudNoticeKind.UNREADABLE, m.notice.value?.kind)
         assertEquals(CloudService.values().size, m.rows.value.size, "the list is still drawn")
