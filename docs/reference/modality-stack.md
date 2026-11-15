@@ -76,7 +76,7 @@
   - Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction, d=0.65 depression); 2025 multi-modal RCT (PBM + qEEG NF + HRV combined, nationally conducted RCT)
 
 **7. Neural Audio Entrainment**
-- Over-ear planar magnetic 40mm + bone conduction at mastoid
+- Over-ear planar magnetic (size not fixed: the 40 mm figure was retired 2026-11-15, `NP-HW-AUDIO-001` §8.2.7 I; off-the-shelf preferred where it meets the specs) + bone conduction at mastoid
 - Binaural beats + isochronic tones + pink/brown noise
 - EEG-adaptive frequency (closed-loop)
 - **User-replaceable snap-in mesh frame** (silver-coated nylon, 40dB RF, $9.99/pair annual)
