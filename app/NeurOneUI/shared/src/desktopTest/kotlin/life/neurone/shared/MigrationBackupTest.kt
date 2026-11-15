@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
 
 /** The backup screen's steps, without Compose: what it asks the core, and in what order (SWR-MG-02, SWR-MG-03). */
 class MigrationBackupTest {
-    private class MemoryStore(var failPut: Boolean = false) : ObjectStore {
+    private class MemoryStore(var failPut: Boolean = false, val conditional: Boolean = true, val space: Long? = 1L shl 30) : ObjectStore {
         val objects = linkedMapOf<String, ByteArray>()
         override suspend fun get(name: String) = objects[name]?.copyOf()
         override suspend fun put(name: String, bytes: ByteArray) {
@@ -37,13 +37,13 @@ class MigrationBackupTest {
             objects[name] = bytes.copyOf()
         }
         override suspend fun createIfAbsent(name: String, bytes: ByteArray): Boolean {
-            if (name in objects) return false
+            if (conditional && name in objects) return false
             objects[name] = bytes.copyOf()
             return true
         }
         override suspend fun delete(name: String) { objects.remove(name) }
         override suspend fun list(prefix: String) = objects.keys.filter { it.startsWith(prefix) }
-        override suspend fun freeSpace(): Long? = 1L shl 30
+        override suspend fun freeSpace(): Long? = space
     }
 
     private val route = ObjectStoreRoute("test", atomicClaim = true)
@@ -149,5 +149,52 @@ class MigrationBackupTest {
         }
         assertTrue(seen >= 37, "the core names fewer keys than before: $seen")
         assertFalse(migrationText("MIGRATION_NOT_A_KEY") != null)
+    }
+
+    private fun checked(store: MemoryStore) = MigrationBackupModel(MigrationPlace("test place", store, route), filled(), storageChecks = true)
+
+    // @verifies SWR-MG-12
+    @Test fun the_place_is_checked_when_it_is_picked_and_the_result_is_kept() = runTest {
+        val good = checked(MemoryStore())
+        assertEquals(null, good.storage.value)
+        assertTrue(good.checkStorage()!!.canMigrate)
+        assertTrue(good.storage.value!!.canMigrate)
+        val weak = checked(MemoryStore(conditional = false))
+        weak.checkStorage()
+        assertEquals("createIfAbsentSecondRefused", weak.storage.value!!.failedOperation)
+        assertEquals(null, model(MemoryStore()).checkStorage())
+    }
+
+    // @verifies SWR-MG-12
+    @Test fun a_migration_is_checked_again_before_it_begins_and_a_place_that_fails_is_refused_with_nothing_written() = runTest {
+        val store = MemoryStore(conditional = false)
+        val m = checked(store)
+        m.chooseKind(BackupKind.MIGRATE)
+        m.continueToMethod()
+        m.usePassphrase()
+        m.submitPassphrase("a long enough passphrase")
+        assertEquals("route_not_offered", (m.step.value as BackupStep.Failed).reason)
+        assertTrue(store.objects.isEmpty())
+
+        val small = MemoryStore(space = 0)
+        val n = checked(small)
+        n.chooseKind(BackupKind.MIGRATE)
+        n.continueToMethod()
+        n.usePassphrase()
+        n.submitPassphrase("a long enough passphrase")
+        assertEquals("route_unavailable", (n.step.value as BackupStep.Failed).reason)
+        assertTrue(small.objects.isEmpty())
+    }
+
+    // @verifies SWR-MG-12
+    @Test fun a_health_data_backup_still_goes_to_a_place_that_cannot_carry_a_migration() = runTest {
+        val store = MemoryStore(conditional = false)
+        val m = checked(store)
+        m.chooseKind(BackupKind.UHDR)
+        m.continueToMethod()
+        m.usePassphrase()
+        m.submitPassphrase("a long enough passphrase")
+        assertTrue(m.step.value is BackupStep.Done)
+        assertEquals(1, store.objects.size)
     }
 }

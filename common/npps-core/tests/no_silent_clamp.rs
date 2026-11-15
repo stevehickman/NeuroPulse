@@ -10,7 +10,7 @@ use neurone_npps_core::api::compile_json;
 use serde_json::{json, Value};
 
 const UUID: &str = "00112233445566778899aabbccddeeff";
-const HEADER: usize = 68;
+const HEADER: usize = 68 + 39; // through the hardware version, then the 39-byte rules stamp
 const CMD_HDR: usize = 14;
 
 fn request(ty: &str, params: Value, interval: Value, seconds: f64) -> Value {
@@ -39,6 +39,10 @@ fn ok(ty: &str, p: Value) -> Vec<u8> {
 
 fn u16_at(p: &[u8], at: usize) -> u16 {
     u16::from_le_bytes([p[at], p[at + 1]])
+}
+
+fn u32_at(p: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([p[at], p[at + 1], p[at + 2], p[at + 3]])
 }
 
 /// Refused, and the message carries every needle (the field, the value, the range).
@@ -118,17 +122,20 @@ fn a_tdcs_ramp_under_30_seconds_or_missing_is_refused_not_lengthened() {
 fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not_capped() {
     let p = ok("tms", tms("rTMS", 65.535, 65535.0));
     assert_eq!(u16_at(&p, 2), 65535);
-    assert_eq!(u16_at(&p, 5), 65535);
-    assert_eq!(u16_at(&p, 7), 15); // 1000 / 65.535 Hz
+    assert_eq!(u32_at(&p, 5), 65535);
+    assert_eq!(u16_at(&p, 9), 15); // 1000 / 65.535 Hz
     refused(compile("tms", tms("rTMS", 65.536, 600.0)), &["TMS", "frequencyHz 65.536 Hz", "0–65.535 Hz"]);
     refused(compile("tms", tms("iTBS", 66.0, 600.0)), &["frequencyHz 66 Hz", "0–65.535 Hz"]);
-    refused(compile("tms", tms("rTMS", 10.0, 65536.0)), &["TMS", "pulseCount 65536", "0–65535"]);
+    // pulse_count is 32 bits (OI-UINT16-01): 65536 is carried, and only a value past 32 bits is refused.
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 65536.0)), 5), 65536);
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 4294967295.0)), 5), 4294967295);
+    refused(compile("tms", tms("rTMS", 10.0, 4294967296.0)), &["TMS", "pulseCount 4294967296", "0–4294967295"]);
     refused(compile("tms", tms("rTMS", 10.0, 10.5)), &["pulseCount 10.5"]);
     refused(compile("tms", tms("rTMS", 10.0, -1.0)), &["pulseCount -1"]);
     // rTMS: the interval is one period. 0.016 Hz is 62500 ms and fits; 0.015 Hz is 66667 ms and does not; it used to be
     // computed at 0.1 Hz whatever was authored below that.
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 7), 62500);
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 7), 20000);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 9), 62500);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 9), 20000);
     refused(compile("tms", tms("rTMS", 0.015, 600.0)), &["TMS", "frequencyHz 0.015 Hz", "inter-train interval", "65535 ms"]);
     refused(compile("tms", tms("rTMS", 0.0, 600.0)), &["frequencyHz 0 Hz", "inter-train interval"]);
     // A missing frequency or pulse count used to be written as 65535.
@@ -139,8 +146,8 @@ fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not
 // @verifies REQ-NPPS-33#a
 #[test]
 fn an_audio_beat_or_carrier_the_field_cannot_carry_is_refused_not_capped() {
-    let p = ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.535, "carrierHz": 65535 })));
-    assert_eq!(u16_at(&p, 1), 65535);
+    let p = ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.535, "carrierHz": 440 })));
+    assert_eq!(u16_at(&p, 1), 440);
     assert_eq!(u16_at(&p, 3), 65535);
     assert_eq!(u16_at(&ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 65.535 }))), 3), 65535);
     refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.536 }))), &["Audio", "binauralBeatsHz 65.536 Hz", "0–65.535 Hz"]);
@@ -191,7 +198,13 @@ fn a_pbm_frequency_the_code_byte_cannot_carry_is_refused_not_wrapped() {
 #[test]
 fn a_time_the_millisecond_field_cannot_carry_is_refused_not_wrapped() {
     let bes = json!({ "frequencyHz": 10, "intensityMilliamps": 1, "waveform": "sine" });
-    let run = |interval: Value, seconds: f64| compile_json(&request("bes_tacs", bes.clone(), interval, seconds).to_string());
+    // These sessions are longer than the long-session level, so each carries that acknowledgement (`SWR-SS-02`); the test is
+    // about the width of the field, not about the gate.
+    let run = |interval: Value, seconds: f64| {
+        let mut req = request("bes_tacs", bes.clone(), interval, seconds);
+        req["acknowledgedCautions"] = json!([format!("0:bes_tacs:sessionDuration={:.3}", seconds / 60.0)]);
+        compile_json(&req.to_string())
+    };
     // The largest session the field carries is 2^32 - 1 ms; one millisecond more used to wrap to 0.
     let max_s = 4_294_967_295.0 / 1000.0;
     let blob = run(json!({ "intervalOnSeconds": 0 }), max_s).unwrap();
@@ -337,7 +350,25 @@ fn the_cores_limits_are_the_hubs_limits() {
     assert_eq!(hw::TDCS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA")));
     assert_eq!(hw::VNS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const("common/include/np_shared_constants.h", "NP_VNS_MAX_CURRENT_UA")));
     assert_eq!(170, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_LEVEL_HALF_DB"));
+    assert_eq!(1000, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_TONE_HZ"));
     // The audio level at the ceiling compiles to the hub's ceiling byte, and above it is refused.
     assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85 })))[5], 170);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);
+}
+
+// @verifies REQ-AUDIO-25
+#[test]
+fn a_planar_tone_above_1000_hz_is_refused_not_reduced() {
+    let msg = &["Audio", "tone frequency", "1000 Hz", "REQ-AUDIO-25"];
+    // The carrier alone.
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 40, "carrierHz": 10000 }))), msg);
+    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 10, "carrierHz": 1001 }))), msg);
+    // The carrier plus the beat or pulse rate: 990 + 10.001 Hz is above the bound.
+    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 10.001, "carrierHz": 990 }))), msg);
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 10.001, "carrierHz": 990 }))), msg);
+    // Exactly at the bound is allowed, in both modes.
+    ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 10, "carrierHz": 990 })));
+    ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 40, "carrierHz": 960 })));
+    // A noise command produces no tone, so its carrier field is not a tone frequency.
+    ok("audio_entrainment", audio(json!({ "noiseType": "pink", "carrierHz": 5000 })));
 }

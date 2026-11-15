@@ -51,7 +51,7 @@ const SAFETY_GEOM = new Set(['clin_stim', 'tdcs', 'bes']);                // the
 const SAFETY_PROGRAMMING = new Set(['safety_attach', 'safety_root_corrupt']);
 const SAFETY_CHANNELS = 14;                                   // NP_SAFETY_MAX_CHANNELS
 const SAFETY_MAX_RUN_MS = 60000;                              // one blocking harness call; unjustified-choices.md UC-127
-const PROTO_BLOB_MAX_BYTES = 6148;                            // NP_HUB_PROTO_BLOB_MAX (np_hub_types.h): 64 commands, the header and the signature
+const PROTO_BLOB_MAX_BYTES = 6187;                            // NP_HUB_PROTO_BLOB_MAX (np_hub_types.h): 64 commands, the header and the signature
 const STIM_CHANNELS = new Set(['bes', 'tdcs']);                       // the driver's two slots
 const MAX_SOCKET = 127;                                       // NP_SIM_MAX_MODULES - 1
 const MAX_SOCKETS_PER_COMMAND = 128;                          // the 7-bit socket-address domain (NP_HEXMAP_MAX_SOCKETS)
@@ -494,6 +494,13 @@ function hubCommandLines(msg) {
       return [`hub_run ${int(msg.ms, 0, HUB_RUN_MAX_MS, 'ms')}`];
     case 'hub_status':
       return ['hub_status'];
+    case 'uhdr_key': {
+      // the UHDR key scheme on SYNTHETIC credentials (NP-SIM-FW-001 §34): a whitelisted operation and a small number; the client supplies no bytes
+      const ops = ['provision', 'unlock', 'background', 'change', 'status'];
+      if (!ops.includes(msg.op)) throw new BridgeError('op must be provision, unlock, background, change or status');
+      if (msg.op === 'background' || msg.op === 'status') return [`uhdr_key ${msg.op}`];
+      return [`uhdr_key ${msg.op} ${int(msg.credential, 0, 15, 'credential')}`];
+    }
     default:
       return null;
   }
@@ -749,6 +756,7 @@ function eventToMessage(ev) {
     case 'hub_status':
     case 'hub_task':
     case 'hub_led':
+    case 'hub_storage':                        // what each partition is stored in, by size and by what the host allocated (NP-SIM-FW-001 §33)
       return { type: 'HUB_STATE', event: ev };
     case 'safety_iwdg_reset':                  // the independent watchdog reset the MCU
     case 'safety_pin_unknown':                 // the MCU drove a pin the HAL has no line for

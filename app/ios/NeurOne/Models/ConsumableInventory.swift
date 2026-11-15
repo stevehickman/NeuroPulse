@@ -117,7 +117,7 @@ struct ConsumableState: Identifiable {
 struct ConsumableInventory {
     var states: [ConsumableState] = ConsumableKind.allCases.map { ConsumableState(kind: $0, sessionCount: 0) }
 
-    mutating func update(fromGATTCounts counts: [UInt16]) {
+    mutating func update(fromGATTCounts counts: [UInt32]) {
         for kind in ConsumableKind.allCases {
             guard kind.rawValue < counts.count else { continue }
             states[kind.rawValue].sessionCount = Int(counts[kind.rawValue])

@@ -31,6 +31,7 @@ void np_hrv_rr_push(np_rr_buffer_t *buf, uint16_t rr_ms, uint32_t timestamp_ms)
     if (buf->count < NP_RR_BUFFER_SIZE) {
         buf->count++;
     }
+    buf->total_pushed++;
 }
 
 uint16_t np_hrv_rr_get(const np_rr_buffer_t *buf, uint16_t idx)
