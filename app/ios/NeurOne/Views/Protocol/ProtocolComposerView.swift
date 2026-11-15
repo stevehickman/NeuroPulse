@@ -364,19 +364,14 @@ struct LayerEditorRow: View {
                     Divider()
 
                     // Start offset
-                    Stepper(
+                    IntFieldRow(
+                        label: String(localized: "PROTOCOL_START_OFFSET"),
+                        unit: "min",
                         value: Binding(
                             get: { layer.startOffsetSeconds / 60 },
                             set: { layer.startOffsetSeconds = $0 * 60 }
-                        ),
-                        in: 0...240
-                    ) {
-                        HStack {
-                            Text("PROTOCOL_START_OFFSET").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text(formatTime(layer.startOffsetSeconds)).font(.caption)
-                        }
-                    }
+                        )
+                    )
 
                     // Duration
                     Toggle("PROTOCOL_COMPOSER_CUSTOM_DURATION", isOn: Binding(
@@ -386,19 +381,14 @@ struct LayerEditorRow: View {
                     .font(.caption)
 
                     if layer.durationSeconds != nil {
-                        Stepper(
+                        IntFieldRow(
+                            label: String(localized: "PROTOCOL_DURATION"),
+                            unit: "min",
                             value: Binding(
                                 get: { (layer.durationSeconds ?? 1200) / 60 },
                                 set: { layer.durationSeconds = $0 * 60 }
-                            ),
-                            in: 1...240
-                        ) {
-                            HStack {
-                                Text(String(localized: "PROTOCOL_DURATION")).font(.caption).foregroundColor(.secondary)
-                                Spacer()
-                                Text(formatTime(layer.durationSeconds ?? 1200)).font(.caption)
-                            }
-                        }
+                            )
+                        )
                     }
 
                     // Intensity scale
@@ -408,7 +398,11 @@ struct LayerEditorRow: View {
                             Spacer()
                             Text("\(Int(layer.intensityScale * 100))%").font(.caption.monospacedDigit())
                         }
-                        Slider(value: $layer.intensityScale, in: 0...1, step: 0.05)
+                        Slider(
+                            value: $layer.intensityScale,
+                            in: NPBounds.ProtocolFields.layerIntensityScale.range,
+                            step: NPBounds.ProtocolFields.layerIntensityScale.step
+                        )
                     }
                 }
                 .padding(.leading, 32)
