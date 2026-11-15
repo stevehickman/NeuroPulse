@@ -11,6 +11,8 @@ import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
 import { ModalityEditorBlock, ModalityPicker } from './ModalityEditor';
 import { ScriptEditor } from './ScriptEditor';
 import { t } from '../../../../common/lib/i18n';
+import { PROTOCOL_BOUNDS } from '../lib/paramBounds';
+import { RangeEditor } from './ParamInputs';
 
 interface ProtocolEditorProps {
   existing?: NPProtocolEntry;
@@ -301,13 +303,12 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                     ? t('WEB_FIELD_DURATION_SEC')
                     : t('WEB_FIELD_REPEAT_COUNT')}
                 </label>
-                <input
-                  type="number"
-                  className="form-input"
-                  min={1}
+                <RangeEditor
                   value={timingValue}
-                  onChange={e => {
-                    const v = Number(e.target.value);
+                  bound={PROTOCOL_BOUNDS.timingValue}
+                  ariaLabel={timingType === 'duration' ? t('WEB_FIELD_DURATION_SEC') : t('WEB_FIELD_REPEAT_COUNT')}
+                  onChange={v => {
+                    if (v === undefined) return;
                     if (timingType === 'duration') {
                       updateProtocol({ timingMode: { type: 'duration', seconds: v } });
                     } else {
