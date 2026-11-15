@@ -307,9 +307,13 @@ public class NppsCoreTests
     [Fact]
     public void MigrationClearsTheOldPhoneOnlyOnAMatchingConfirmation()
     {
-        var none = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\",\"confirmation\":null}");
+        const string expected = "\"expected\":{\"bundleHash\":\"h\",\"tag\":\"aa\"}";
+        var none = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\"," + expected + ",\"confirmation\":null}");
         Assert.False((bool)none["clear"]!);
-        var ok = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\",\"confirmation\":{\"bundleHash\":\"h\"}}");
+        // The hash alone confirms nothing: it is computed from ciphertext the backup location holds.
+        var forged = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\"," + expected + ",\"confirmation\":{\"bundleHash\":\"h\"}}");
+        Assert.False((bool)forged["clear"]!);
+        var ok = Migration("{\"op\":\"clearDecision\",\"bundleHash\":\"h\"," + expected + ",\"confirmation\":{\"bundleHash\":\"h\",\"tag\":\"aa\"}}");
         Assert.True((bool)ok["clear"]!);
     }
 }
