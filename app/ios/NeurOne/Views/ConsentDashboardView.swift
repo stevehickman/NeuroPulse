@@ -157,7 +157,9 @@ struct ConsentDashboardView: View {
             } else {
                 ForEach(pending) { request in
                     if let grant = consentStore.clinicianGrants.first(where: { $0.id == request.grantID }),
-                       let differential = ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier) {
+                       let differential = ConsentEngine.accessDifferential(
+                           for: grant, expandingTo: request.toTier, on: Date()
+                       ) {
                         Button {
                             selectedExpansionRequest = request
                         } label: {
@@ -183,9 +185,10 @@ struct ConsentDashboardView: View {
                         }
                         .foregroundColor(.primary)
                     }
-                    // A pending request whose differential no longer holds — the grant was revoked
-                    // or already widened — is not rendered. `approveExpansion` fails closed on the
-                    // same condition, so there is nothing here the user could usefully answer.
+                    // A pending request whose differential no longer holds — the grant was revoked,
+                    // already widened, or is no longer in force (`REQ-CONSENT-18`) — is not rendered.
+                    // `approveExpansion` fails closed on the same condition, so there is nothing here
+                    // the user could usefully answer.
                 }
             }
         } header: {
@@ -195,6 +198,13 @@ struct ConsentDashboardView: View {
 
     private var researchSection: some View {
         Section {
+            // A stored consent record could not be read, so what is shown below is defaults, not the person's
+            // answers, and no study is admitted until they decide again (`REQ-CONSENT-20`).
+            if consentStore.consentRecordUnreadable {
+                Text("DASHBOARD_CONSENT_UNREADABLE")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
             researchConsentSummaryRow
             // L3 posture is a separate row from the L2 category list below, because they are
             // separate axes (§6.2.2): scope versus ask-me-each-time. Withdrawal of one must
@@ -298,13 +308,24 @@ struct ConsentDashboardView: View {
         }
     }
 
+    /// The open invitations the person can answer now. One the current consent does not cover is left out: the
+    /// store refuses to accept it (`REQ-CONSENT-19` d), and it is answerable again if they consent again. While
+    /// a stored consent record is unreadable none is offered, for the same reason (`REQ-CONSENT-20`).
+    private var answerableInvitations: [StudyInvitation] {
+        guard !consentStore.consentRecordUnreadable else { return [] }
+        let consent = consentStore.researchConsent
+        return consentStore.pendingInvitations.filter {
+            $0.isOpen && ConsentEngine.covers(consent, categories: $0.researchCategories)
+        }
+    }
+
     /// The invitation inbox. Rows carry their posture, because the two are not the same object to
     /// the user: a consent request is waiting on them, an engagement notification is telling them
     /// about a study they are already in under L3 (§6.2). A row that looked the same either way
     /// would leave the user to guess which.
     private var pendingInvitationsSection: some View {
         Section("DASHBOARD_SECTION_PENDING") {
-            let openInvitations = consentStore.pendingInvitations.filter(\.isOpen)
+            let openInvitations = answerableInvitations
             if openInvitations.isEmpty {
                 Text("DASHBOARD_NO_INVITATIONS")
                     .font(.subheadline)
@@ -378,12 +399,25 @@ struct ClinicianGrantRow: View {
                 Label(String(format: String(localized: "DASHBOARD_GRANTED_FORMAT"),
                              grant.grantedAt.formatted(.dateTime.month().day().year())),
                       systemImage: "checkmark.shield")
-                    .font(.caption2).foregroundColor(.green)
+                    .font(.caption2).foregroundColor(grant.isInForce(on: Date()) ? .green : .secondary)
                 Spacer()
+                // §5.1: access is time-limited, and the card says where the grant stands. A grant whose expiry
+                // day has passed, or one stored with none (before `OI-PRIV-06`), shows the clinician nothing
+                // (`REQ-CONSENT-18`); the lines above are then the record of what was granted.
                 if let exp = grant.expiresAt {
-                    Text(String(format: String(localized: "DASHBOARD_EXPIRES_FORMAT"),
-                                exp.formatted(.dateTime.month().day())))
-                        .font(.caption2).foregroundColor(.orange)
+                    let calendar = Calendar.current
+                    if calendar.startOfDay(for: Date()) > calendar.startOfDay(for: exp) {
+                        Text(String(format: String(localized: "DASHBOARD_GRANT_ENDED_FORMAT"),
+                                    exp.formatted(.dateTime.month().day().year())))
+                            .font(.caption2).foregroundColor(.secondary)
+                    } else {
+                        Text(String(format: String(localized: "DASHBOARD_EXPIRES_FORMAT"),
+                                    exp.formatted(.dateTime.month().day())))
+                            .font(.caption2).foregroundColor(.orange)
+                    }
+                } else {
+                    Text("DASHBOARD_GRANT_NO_END_DATE")
+                        .font(.caption2).foregroundColor(.secondary)
                 }
             }
         }
@@ -398,9 +432,17 @@ struct StudyParticipationRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.studyID).font(.subheadline.bold())
-                Text(String(format: String(localized: "DASHBOARD_DATA_SHARED_FORMAT"),
-                            record.transmittedAt.formatted(.dateTime.month().day().year())))
-                    .font(.caption).foregroundColor(.secondary)
+                if let enrolledAt = record.enrolledAt {
+                    Text(String(format: String(localized: "DASHBOARD_STUDY_JOINED_FORMAT"),
+                                enrolledAt.formatted(.dateTime.month().day().year())))
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                // Shown only once an extract has gone out; joining a study sends nothing (`REQ-CONSENT-21`).
+                if let transmittedAt = record.transmittedAt {
+                    Text(String(format: String(localized: "DASHBOARD_DATA_SHARED_FORMAT"),
+                                transmittedAt.formatted(.dateTime.month().day().year())))
+                        .font(.caption).foregroundColor(.secondary)
+                }
                 if !record.isActive {
                     Label("DASHBOARD_WITHDRAWN_LABEL", systemImage: "xmark.circle")
                         .font(.caption2).foregroundColor(.orange)
@@ -610,7 +652,7 @@ struct ClinicianExpansionRequestView: View {
     private var differential: ClinicianAccessDifferential? {
         guard let grant = consentStore.clinicianGrants.first(where: { $0.id == request.grantID })
         else { return nil }
-        return ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier)
+        return ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier, on: Date())
     }
 
     var body: some View {
@@ -781,6 +823,11 @@ struct NewClinicianGrantView: View {
     @State private var organization = ""
     @State private var selectedTier: ClinicianUseCaseTier = .monitor
     @State private var selectedUseCases = Set<String>()
+    /// The grant's last day (§5.1, `REQ-CONSENT-18`). Required: there is no "indefinite" to pick. The picker
+    /// has to show some day, and it shows today, but that is not taken as the answer: the form does not proceed
+    /// until the person has picked a day themselves (`expiryChosen`).
+    @State private var expiresAt = Date()
+    @State private var expiryChosen = false
 
     private enum Step { case scope, history }
     @State private var step: Step = .scope
@@ -803,7 +850,7 @@ struct NewClinicianGrantView: View {
     /// The Research tier has no library to pick from — its elements are IRB-defined per study
     /// descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
     private var canProceed: Bool {
-        !name.isEmpty && !organization.isEmpty
+        !name.isEmpty && !organization.isEmpty && expiryChosen
             && (selectedTier == .research || !selectedUseCases.isEmpty)
     }
 
@@ -849,6 +896,19 @@ struct NewClinicianGrantView: View {
                     let offered = Set(availableUseCases.map(\.id))
                     selectedUseCases.formIntersection(offered)
                 }
+            }
+            Section {
+                DatePicker(
+                    "CLINICIAN_GRANT_EXPIRY_LABEL",
+                    selection: $expiresAt,
+                    in: Calendar.current.startOfDay(for: Date())...,
+                    displayedComponents: .date
+                )
+                .onChange(of: expiresAt) { _, _ in expiryChosen = true }
+            } header: {
+                Text("CLINICIAN_GRANT_SECTION_EXPIRY")
+            } footer: {
+                Text("CLINICIAN_GRANT_EXPIRY_FOOTER").font(.caption)
             }
             if selectedTier == .research {
                 Section("CLINICIAN_GRANT_SECTION_USE_CASES") {
@@ -958,13 +1018,13 @@ struct NewClinicianGrantView: View {
         }
     }
 
-    /// Build the grant from both answers. The scope is derived here, once, and stored — see
+    /// Build the grant from both answers and the end date. The scope is derived here, once, and stored — see
     /// `ConsentEngine.initialAccessScope` for why it is frozen rather than re-derived on read.
     private func commit(includePriorData: Bool) {
         let now = Date()
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: name, clinicianOrganization: organization,
-            tier: selectedTier, grantedAt: now, expiresAt: nil, isActive: true,
+            tier: selectedTier, grantedAt: now, expiresAt: expiresAt, isActive: true,
             accessScopes: [
                 ConsentEngine.initialAccessScope(
                     useCaseIDs: selectedUseCases,

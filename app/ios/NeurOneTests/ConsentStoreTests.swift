@@ -36,7 +36,8 @@ final class ConsentStoreTests: XCTestCase {
 
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
-                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals"]
+                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals",
+                    "np.consent.quarantine"]
         keys.forEach { ProtectedDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -150,9 +151,15 @@ final class ConsentStoreTests: XCTestCase {
         return store
     }
 
+    /// Every element a study may ask for: a descriptor that asks for one no extract may carry is refused for
+    /// that, before the consent state is looked at (`REQ-CONSENT-09` h).
+    private var everyElementAnExtractMayCarry: Set<UHDRElement> {
+        Set(UHDRElement.allCases).subtracting(ConsentEngine.elementsNoExtractMayCarry)
+    }
+
     private func makeDescriptor(
         categories: [ResearchCategory] = [.depression],
-        elements: Set<UHDRElement> = [.sessionTimestamps, .eegWaveforms],
+        elements: Set<UHDRElement> = [.sessionTimestamps, .neurofeedbackScores],
         k: Int = 10,
         rounding: Int = 7
     ) -> StudyDescriptor {
@@ -511,7 +518,7 @@ final class ConsentStoreTests: XCTestCase {
                       Date().addingTimeInterval(30 * day)]
         for (i, date) in issued.enumerated() {
             var d = makeDescriptor(categories: ResearchCategory.allCases,
-                                   elements: Set(UHDRElement.allCases))
+                                   elements: everyElementAnExtractMayCarry)
             d.studyID = "AFTER-WITHDRAWAL-\(i)"
             d.issuedAt = date
             XCTAssertEqual(store.ingestStudyDescriptor(d), .refused(.researchConsentWithdrawn),
@@ -530,7 +537,7 @@ final class ConsentStoreTests: XCTestCase {
         store.ingestStudyDescriptor(makeDescriptor())
         store.withdrawBlanketResearchConsent()
 
-        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        var reissued = makeDescriptor(elements: everyElementAnExtractMayCarry)
         reissued.issuedAt = Date().addingTimeInterval(86_400)
         XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.researchConsentWithdrawn))
     }
@@ -564,7 +571,7 @@ final class ConsentStoreTests: XCTestCase {
         store.withdrawFromStudy(studyID: studyID)
         XCTAssertFalse(store.studyParticipations[0].isActive)
 
-        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        var reissued = makeDescriptor(elements: everyElementAnExtractMayCarry)
         reissued.issuedAt = Date().addingTimeInterval(30 * 86_400)
         XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.studyAlreadyDecided))
 
@@ -591,7 +598,7 @@ final class ConsentStoreTests: XCTestCase {
     func testRevokeClinicianAccess_removesGrant() {
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: .monitor, grantedAt: Date(), expiresAt: nil, isActive: true
+            tier: .monitor, grantedAt: Date(), expiresAt: Date().addingTimeInterval(30 * 86_400), isActive: true
         )
         store.grantClinicianAccess(grant)
         XCTAssertEqual(store.clinicianGrants.count, 1)
@@ -731,7 +738,7 @@ final class ConsentStoreTests: XCTestCase {
     private func makeGrant(_ tier: ClinicianUseCaseTier) -> ClinicianConsentGrant {
         ClinicianConsentGrant(
             id: grantID, clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: tier, grantedAt: yesterday
+            tier: tier, grantedAt: yesterday, expiresAt: Date().addingTimeInterval(30 * 86_400)
         )
     }
 
@@ -756,14 +763,14 @@ final class ConsentStoreTests: XCTestCase {
         // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
         XCTAssertEqual(grant.tier, .assess)
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date()),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(), on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
 
         // ...but yesterday's sessions still show only what Monitor ever reached. This is the
         // assertion the old implementation could not have passed.
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.monitor.uhdrElements)
-        XCTAssertFalse(grant.elementsVisible(forDataRecordedAt: yesterday).contains(.eegWaveforms))
+        XCTAssertFalse(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()).contains(.eegWaveforms))
         XCTAssertEqual(
             grant.forwardOnlyElements,
             ClinicianUseCaseTier.assess.uhdrElements
@@ -779,7 +786,7 @@ final class ConsentStoreTests: XCTestCase {
         store.approveExpansion(requestID: requestID, includePriorData: true)
 
         let grant = store.clinicianGrants[0]
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
         XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
     }
@@ -891,7 +898,7 @@ final class ConsentStoreTests: XCTestCase {
             return XCTFail("Expected the approval to survive a reload.")
         }
         XCTAssertFalse(includesPriorData)
-        XCTAssertEqual(reloaded.clinicianGrants[0].elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(reloaded.clinicianGrants[0].elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.monitor.uhdrElements)
     }
 
@@ -902,7 +909,7 @@ final class ConsentStoreTests: XCTestCase {
         let grant = makeGrant(.assess)
         XCTAssertNil(grant.accessScopes)
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0)),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0), on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
         XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
     }
@@ -911,18 +918,18 @@ final class ConsentStoreTests: XCTestCase {
     func testAChangeThatIsNotAnExpansionHasNoDifferential() {
         let monitor = makeGrant(.monitor)
         // Nothing new.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .monitor))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .monitor, on: Date()))
         // Something lost — a re-scope, not a widening.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.fullClinical), expandingTo: .assess))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.fullClinical), expandingTo: .assess, on: Date()))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .research))
-        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .research, on: Date()))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical, on: Date()))
     }
 
     // @verifies REQ-CONSENT-16
     func testTheDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
-        guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess) else {
+        guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess, on: Date()) else {
             return XCTFail("Monitor → Assess is an expansion.")
         }
         XCTAssertEqual(d.newlyVisibleElements,
