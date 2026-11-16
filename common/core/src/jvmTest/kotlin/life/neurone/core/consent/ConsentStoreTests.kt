@@ -128,7 +128,7 @@ class ConsentStoreTests {
     private fun descriptor(
         categories: List<ResearchCategory> = listOf(ResearchCategory.DEPRESSION),
         elements: Set<UHDRElement> = setOf(
-            UHDRElement.SESSION_TIMESTAMPS, UHDRElement.EEG_WAVEFORMS,
+            UHDRElement.SESSION_TIMESTAMPS, UHDRElement.NEUROFEEDBACK_SCORES,
         ),
         k: Int = 10,
         rounding: Int = 7,
@@ -605,7 +605,7 @@ class ConsentStoreTests {
         issued.forEachIndexed { i, day ->
             val d = descriptor(
                 categories = ResearchCategory.entries,
-                elements = UHDRElement.entries.toSet(),
+                elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY,
             ).copy(studyId = "AFTER-WITHDRAWAL-$i", issuedOnDay = day)
             assertEquals(
                 StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
@@ -628,7 +628,7 @@ class ConsentStoreTests {
         store.ingestStudyDescriptor(descriptor())
         store.withdrawBlanketResearchConsent()
 
-        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+        val reissued = descriptor(elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY)
             .copy(issuedOnDay = LocalDate.now().plusDays(1).toString())
         assertEquals(
             StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
@@ -672,7 +672,7 @@ class ConsentStoreTests {
         store.withdrawFromStudy(STUDY_ID)
         assertFalse(store.studyParticipations[0].isActive)
 
-        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+        val reissued = descriptor(elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY)
             .copy(issuedOnDay = LocalDate.now().plusDays(30).toString())
         assertEquals(
             StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
@@ -856,6 +856,7 @@ class ConsentStoreTests {
         clinicianOrganization = "Test Hospital",
         tier = tier,
         grantedAtDay = LocalDate.now().minusDays(1).toString(),
+        expiresAtDay = LocalDate.now().plusDays(30).toString(),
     )
 
     private fun requestTo(tier: ClinicianUseCaseTier) = ClinicianAccessExpansionRequest(
@@ -882,15 +883,15 @@ class ConsentStoreTests {
         // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
         assertEquals(ClinicianUseCaseTier.ASSESS, grant.tier)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
-        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today, LocalDate.now().toString()))
 
         // ...but yesterday's sessions still show only what Monitor ever reached. This is the
         // assertion the old implementation could not have passed.
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(yesterday),
+            grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()),
         )
-        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday))
+        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()))
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
             grant.forwardOnlyElements,
@@ -909,7 +910,7 @@ class ConsentStoreTests {
         val grant = store.clinicianGrants.single()
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), LocalDate.now().toString()),
         )
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
@@ -1054,7 +1055,7 @@ class ConsentStoreTests {
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
             store2.clinicianGrants.single()
-                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), LocalDate.now().toString()),
         )
     }
 
@@ -1068,7 +1069,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn("2020-01-01"),
+            grant.elementsVisibleForDataRecordedOn("2020-01-01", LocalDate.now().toString()),
         )
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
@@ -1078,19 +1079,20 @@ class ConsentStoreTests {
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
         // Nothing new.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR, LocalDate.now().toString()))
         // Something lost — a re-scope, not a widening.
         val full = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)
-        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS))
+        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS, LocalDate.now().toString()))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH, LocalDate.now().toString()))
         assertEquals(
             null,
             ConsentEngine.accessDifferential(
                 grantedYesterday(ClinicianUseCaseTier.RESEARCH),
                 ClinicianUseCaseTier.FULL_CLINICAL,
-            ),
+                LocalDate.now().toString(),
+),
         )
     }
 
@@ -1100,7 +1102,8 @@ class ConsentStoreTests {
         val differential = ConsentEngine.accessDifferential(
             grantedYesterday(ClinicianUseCaseTier.MONITOR),
             ClinicianUseCaseTier.ASSESS,
-        )!!
+            LocalDate.now().toString(),
+)!!
 
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
@@ -1259,8 +1262,8 @@ class ConsentStoreTests {
             ),
             useCaseIds = listOf("eeg_review"),
         )
-        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday).isEmpty())
-        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()).isEmpty())
+        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today, LocalDate.now().toString()))
         assertEquals(grant.approvedElements, grant.forwardOnlyElements)
     }
 
@@ -1274,7 +1277,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, legacy.approvedElements)
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString()),
+            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString(), LocalDate.now().toString()),
         )
     }
 

@@ -41,7 +41,12 @@ data class ClinicianConsentGrant(
     val clinicianOrganization: String,
     val tier: ClinicianUseCaseTier,
     val grantedAtDay: String,      // "yyyy-MM-dd" — day granularity, consistent with SessionRecord
-    val expiresAtDay: String? = null, // null = indefinite until revoked
+    /**
+     * The last day this grant is in force ("yyyy-MM-dd"). §5.1 makes clinician access time-limited, so a grant
+     * needs one: `ConsentStore.grantClinicianAccess` refuses a grant without it, and a stored grant that has none
+     * (written before `OI-PRIV-06`) is not in force. Read it through [isInForce].
+     */
+    val expiresAtDay: String? = null,
     val isActive: Boolean = true,
     /**
      * The access decisions this grant is made of, newest last. Null because a grant written
@@ -76,6 +81,21 @@ data class ClinicianConsentGrant(
      * fallback's. The fallback stays because those earlier grants still have to mean what they
      * meant when they were made.
      */
+    /**
+     * Whether the clinician may see anything under this grant on [today] ("yyyy-MM-dd"): it is active, it has an
+     * expiry, and that day has not passed. The expiry day itself is the last day in force, which is what
+     * "Expires <day>" on the dashboard says.
+     *
+     * **Every read of what a grant lets a clinician see or do goes through this** (`REQ-CONSENT-18`):
+     * [elementsVisibleForDataRecordedOn], `ConsentEngine.accessDifferential` and `ConsentStore.approveExpansion`.
+     * [approvedElements] and [forwardOnlyElements] are the record of what was decided, which the dashboard still
+     * shows for a lapsed grant, and are not such a read.
+     */
+    fun isInForce(today: String): Boolean {
+        val expiry = expiresAtDay ?: return false
+        return isActive && today <= expiry
+    }
+
     val effectiveScopes: List<ClinicianAccessScope>
         get() = accessScopes ?: listOf(
             ClinicianAccessScope(
@@ -93,17 +113,22 @@ data class ClinicianConsentGrant(
         get() = effectiveScopes.flatMap { it.elements }.toSet()
 
     /**
-     * Elements the clinician may see in data recorded on [day] ("yyyy-MM-dd") — the predicate
-     * that makes the retroactive decision mean something. A scope contributes when the data is on
-     * or after its effective day, or when the user separately approved prior data for it.
+     * Elements the clinician may see, on [today], in data recorded on [day] ("yyyy-MM-dd") — the
+     * predicate that makes the retroactive decision mean something. A scope contributes when the
+     * data is on or after its effective day, or when the user separately approved prior data for
+     * it. Nothing is visible under a grant that is not in force on [today] ([isInForce]).
      *
      * ISO-8601 day strings compare correctly as strings, which is why they are stored that way.
      */
-    fun elementsVisibleForDataRecordedOn(day: String): Set<UHDRElement> =
-        effectiveScopes
-            .filter { day >= it.effectiveFromDay || it.includesPriorData }
-            .flatMap { it.elements }
-            .toSet()
+    fun elementsVisibleForDataRecordedOn(day: String, today: String): Set<UHDRElement> =
+        if (!isInForce(today)) {
+            emptySet()
+        } else {
+            effectiveScopes
+                .filter { day >= it.effectiveFromDay || it.includesPriorData }
+                .flatMap { it.elements }
+                .toSet()
+        }
 
     /**
      * Elements this grant reaches only from some day onwards — what the user kept out of the
@@ -181,7 +206,8 @@ data class ResearchConsentState(
     val contactConsentGranted: Boolean = false,
     val contactMethod: String = "",
     val contactFrequency: ContactFrequency = ContactFrequency.MONTHLY,
-    val isPoaHolder: Boolean = false,
+    // `isPoaHolder` was here with no reader and no writer (`OI-PRIV-06` point 8). The POA workflow is not built
+    // (`REQ-CONSENT-17`); its fields arrive with it. A stored record that still carries the key decodes without it.
 
     // L2: Category consent (9 research categories)
     val categoryConsents: Map<ResearchCategory, Boolean> =
@@ -279,18 +305,66 @@ enum class ResearchCategory(val wireName: String) {
     val displayName: String get() = wireName
 }
 
-// Study participation record (audit trail — SHDR-class, not UHDR)
+/**
+ * One study this device has joined, and what it has sent to it.
+ *
+ * §5.3's audit trail is four fields: study ID, descriptor hash, the day an extract was transmitted and its byte
+ * count. The last two say something was sent, so they are empty until something is. They used to be written at
+ * enrolment, as that day and 0 bytes, which recorded a transmission that had not happened (`OI-PRIV-06` point 4).
+ * No extractor exists yet (`OI-CONSENT-07`), so today every record has [transmittedAtDay] null.
+ *
+ * [enrolledOnDay] and [withdrawnAtDay] are not in §5.3's list: they are the person's decisions about a study.
+ * Nothing uploads this record today, and whether any of it may leave the device as SHDR is `OI-PRIV-07`.
+ */
 @Serializable
 data class StudyParticipationRecord(
     val id: String,
     val studyId: String,
     val descriptorHash: String,     // SHA-256 of signed study descriptor
-    val transmittedAtDay: String,   // day granularity
-    val extractBytes: Long,
+    /** The day the device joined the study. Null only in a record stored before `OI-PRIV-06`, until it is read. */
+    val enrolledOnDay: String? = null,
+    /** The day an extract was last transmitted, or null if none has been. Day granularity. */
+    val transmittedAtDay: String? = null,
+    /** Bytes transmitted so far. 0 with [transmittedAtDay] null means nothing has been sent. */
+    val extractBytes: Long = 0,
+    /**
+     * The day this participation stopped, or null while it is active. Written by `ConsentStore` and nothing else:
+     * on a withdrawal from the study, and on a blanket or category withdrawal that leaves the study without a
+     * consent covering it (`REQ-CONSENT-19`).
+     */
     val withdrawnAtDay: String? = null,
 ) {
     val isActive: Boolean get() = withdrawnAtDay == null
+
+    /**
+     * A record stored before `OI-PRIV-06` carries its enrolment day in [transmittedAtDay] with 0 bytes. Read as
+     * what it was: enrolled that day, nothing sent.
+     */
+    fun normalised(): StudyParticipationRecord =
+        if (enrolledOnDay == null && extractBytes == 0L) {
+            copy(enrolledOnDay = transmittedAtDay, transmittedAtDay = null)
+        } else {
+            this
+        }
 }
+
+/**
+ * A stored consent record the app could not read, kept as it was found (`REQ-CONSENT-20`).
+ *
+ * A record that fails to decode used to fall back to defaults, and the next save wrote those defaults over it:
+ * a person who had said stop became a person who was never asked. The raw text is kept here instead, and for the
+ * records research admission depends on, nothing is admitted until the person decides again ([redecidedOnDay]).
+ */
+@Serializable
+data class QuarantinedConsentBlob(
+    /** The storage key the record was under. */
+    val key: String,
+    /** The record exactly as stored. UHDR-class, like the record it came from; it never leaves the device. */
+    val blob: String,
+    val quarantinedOnDay: String,
+    /** The day the person next committed a research-consent decision, or null if they have not yet. */
+    val redecidedOnDay: String? = null,
+)
 
 // ── Signed study descriptor (§5.3 step 1) ────────────────────────────────────
 
@@ -408,6 +482,18 @@ sealed interface StudyDescriptorAdmission {
          * notifications alike (§6.2.1).
          */
         NO_CONTACT_CONSENT,
+
+        /**
+         * The study asks for an element no extract may carry, because it cannot be made k-anonymous (§5.3):
+         * `ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY`. A property of the study, like the floors.
+         */
+        REQUESTS_ELEMENT_NO_EXTRACT_MAY_CARRY,
+
+        /**
+         * A stored consent record could not be read and the person has not decided again since
+         * (`REQ-CONSENT-20`). The device cannot tell "never asked" from "said stop", so it admits nothing.
+         */
+        CONSENT_RECORD_UNREADABLE,
 
         /** No L2 category on this descriptor is consented, and L3 is off. */
         CATEGORY_NOT_CONSENTED,
