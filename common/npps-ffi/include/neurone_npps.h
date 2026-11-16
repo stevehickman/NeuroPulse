@@ -65,7 +65,9 @@ int32_t npps_resolve_limits_json(const uint8_t *req, size_t req_len, uint8_t **o
  * the host writes the input here, passes it to a call, then releases it with npps_free(ptr, len)). */
 uint8_t *npps_alloc(size_t len);
 
-/* Release a buffer returned through `out`/`out_len`. A null pointer is ignored. */
+/* Release a buffer returned through `out`/`out_len`, or by npps_alloc(). A null pointer is ignored. The buffer is
+ * filled with zeros before it is released (SWR-MG-28 (a)): a request or an answer of npps_migration_json can hold a
+ * passphrase, a key or plaintext UHDR. A buffer the caller allocated itself is the caller's to clear. */
 void npps_free(uint8_t *ptr, size_t len);
 
 #ifdef __cplusplus

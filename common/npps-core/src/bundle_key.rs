@@ -205,12 +205,17 @@ pub fn parse_recovery_code(text: &str) -> Result<Vec<u8>, &'static str> {
 
 /// The secret a passphrase stands for: Unicode NFKC (so the same words typed on another phone's keyboard are the same
 /// bytes), UTF-8. Not trimmed: a space is a character. Shorter than [`PASSPHRASE_MIN_CHARS`] is `too_short`.
-pub fn passphrase_secret(passphrase: &str) -> Result<Vec<u8>, &'static str> {
-    let n: String = passphrase.nfkc().collect();
+///
+/// The normalised text is the secret, so it is built in one buffer of its final size (a buffer that grew would leave its
+/// earlier, shorter copies behind in freed memory) and that buffer is cleared when the caller drops it (`SWR-MG-28` (b)).
+pub fn passphrase_secret(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, &'static str> {
+    let len: usize = passphrase.nfkc().map(char::len_utf8).sum();
+    let mut n = Zeroizing::new(String::with_capacity(len));
+    n.extend(passphrase.nfkc());
     if n.chars().count() < PASSPHRASE_MIN_CHARS {
         return Err("too_short");
     }
-    Ok(n.into_bytes())
+    Ok(Zeroizing::new(std::mem::take(&mut *n).into_bytes()))
 }
 
 /// The operations of `migration_json` that belong to the key.

@@ -31,6 +31,7 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use zeroize::{Zeroize, Zeroizing};
 
 type R<T> = Result<T, String>;
 
@@ -418,7 +419,19 @@ pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+    // Decoded into one buffer of its final size. Collecting through a `Result` starts small and grows, and each growth
+    // releases the shorter copy as it is: for a key, that is its first bytes left behind in freed memory (`SWR-MG-28` (b)).
+    let mut out = Vec::with_capacity(s.len() / 2);
+    for i in (0..s.len()).step_by(2) {
+        match u8::from_str_radix(&s[i..i + 2], 16) {
+            Ok(b) => out.push(b),
+            Err(_) => {
+                out.zeroize();
+                return Err(format!("{what} is not hex"));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.
@@ -461,7 +474,8 @@ fn read_bundle_header(req: &Value) -> R<Value> {
 }
 
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    // The decoded key is cleared when this call ends (`SWR-MG-28` (b)); the cipher clears its own copy (`aes-gcm`, `zeroize`).
+    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }

@@ -29,13 +29,14 @@ use hmac::{Hmac, Mac};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
-fn hmac(key: &[u8], data: &str) -> Vec<u8> {
+fn hmac(key: &[u8], data: &str) -> Zeroizing<Vec<u8>> {
     let mut m = <Hmac<Sha256> as Mac>::new_from_slice(key).expect("HMAC takes a key of any length");
     m.update(data.as_bytes());
-    m.finalize().into_bytes().to_vec()
+    Zeroizing::new(m.finalize().into_bytes().to_vec())
 }
 
 fn text<'a>(req: &'a Value, key: &str) -> R<&'a str> {
@@ -125,7 +126,12 @@ pub(crate) fn sign(req: &Value) -> R<Value> {
     let date = &amz_date[..8];
     let scope = format!("{date}/{region}/{service}/aws4_request");
     let string_to_sign = format!("AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}", hex(&Sha256::digest(canonical_request.as_bytes())));
-    let k = hmac(format!("AWS4{secret}").as_bytes(), date);
+    // The secret with its prefix, and each key derived from it, are cleared when this call ends (`SWR-MG-28` (b)). The
+    // prefixed copy is built at its final size: a string that grew would leave a shorter copy behind in freed memory.
+    let mut prefixed = Zeroizing::new(Vec::with_capacity(4 + secret.len()));
+    prefixed.extend_from_slice(b"AWS4");
+    prefixed.extend_from_slice(secret.as_bytes());
+    let k = hmac(&prefixed, date);
     let k = hmac(&k, region);
     let k = hmac(&k, service);
     let k = hmac(&k, "aws4_request");

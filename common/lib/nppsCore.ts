@@ -20,7 +20,8 @@ export class NppsRefusal extends Error {
   }
 }
 
-interface CoreExports {
+/** What the WebAssembly module exports (common/npps-ffi/include/neurone_npps.h). */
+export interface NppsCoreExports {
   memory: WebAssembly.Memory;
   npps_alloc(len: number): number;
   npps_free(ptr: number, len: number): void;
@@ -40,11 +41,11 @@ interface CoreExports {
 // also writes the module.
 const WASM_URL = new URL('../generated/neurone_npps.wasm', import.meta.url);
 
-let instance: CoreExports | null = null;
+let instance: NppsCoreExports | null = null;
 
-function instantiate(module: WebAssembly.Module): CoreExports {
+function instantiate(module: WebAssembly.Module): NppsCoreExports {
   // The core imports nothing: it has no clock, no randomness and no I/O.
-  return new WebAssembly.Instance(module, {}).exports as unknown as CoreExports;
+  return new WebAssembly.Instance(module, {}).exports as unknown as NppsCoreExports;
 }
 
 /** Load the core. Await this once at startup in a browser; Node loads it on first use without it. */
@@ -68,7 +69,7 @@ function nodeFilePath(): string {
   return (proc.getBuiltinModule('node:url') as { fileURLToPath(u: URL): string }).fileURLToPath(WASM_URL);
 }
 
-function core(): CoreExports {
+function core(): NppsCoreExports {
   if (instance) return instance;
   const nodeFs = nodeFileSystem();
   if (!nodeFs) throw new Error('the NPPS core is not loaded: await initNppsCore() before compiling');
@@ -81,6 +82,17 @@ function core(): CoreExports {
 }
 
 
+/**
+ * For tests of what a call leaves behind (SWR-MG-28 (a)): put `wrap`'s object in place of the loaded core's exports, so
+ * a test can look at a buffer at the moment it is released. Nothing in the apps calls it. Returns a function that puts
+ * the real exports back.
+ */
+export function wrapNppsCoreForTest(wrap: (real: NppsCoreExports) => NppsCoreExports): () => void {
+  const real = core();
+  instance = wrap(real);
+  return () => { instance = real; };
+}
+
 function call(
   entry:
     | 'npps_parse_json' | 'npps_compile_json' | 'npps_namespace_json' | 'npps_serialize_json' | 'npps_validate_json'
@@ -88,6 +100,8 @@ function call(
   input: string,
 ): Uint8Array {
   const wasm = core();
+  // The request may hold a passphrase, a key or plaintext UHDR (npps_migration_json). `input` is a JS string and cannot be
+  // cleared (OI-PRIV-12 stage 2); every copy made here can be, and is, before this returns (SWR-MG-28 (a)).
   const bytes = new TextEncoder().encode(input);
   // Never empty, so the pointer handed over is never null (an empty source is a valid input).
   const inPtr = wasm.npps_alloc(bytes.length + 1);
@@ -107,7 +121,10 @@ function call(
     const outPtr = view.getUint32(cells, true);
     const outLen = view.getUint32(cells + 4, true);
     const out = outPtr === 0 ? new Uint8Array(0) : new Uint8Array(wasm.memory.buffer, outPtr, outLen).slice();
-    if (outPtr !== 0) wasm.npps_free(outPtr, outLen);
+    if (outPtr !== 0) {
+      new Uint8Array(wasm.memory.buffer, outPtr, outLen).fill(0);
+      wasm.npps_free(outPtr, outLen);
+    }
     switch (code) {
       case NppsStatus.OK: return out;
       case NppsStatus.REFUSED:
@@ -117,6 +134,12 @@ function call(
         throw new NppsRefusal('the NPPS core was given an argument it cannot read');
     }
   } finally {
+    // Zeros first, then the release. npps_free clears the buffer too; doing it here as well means the request is gone from
+    // the core's memory even if the module is an older build, and the linear memory is never returned to the system, so
+    // what is left in it stays readable for as long as the page does. The view is taken now: the memory may have grown.
+    new Uint8Array(wasm.memory.buffer, inPtr, bytes.length + 1).fill(0);
+    new Uint8Array(wasm.memory.buffer, cells, 8).fill(0);
+    bytes.fill(0);
     wasm.npps_free(inPtr, bytes.length + 1);
     wasm.npps_free(cells, 8);
   }

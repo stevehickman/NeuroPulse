@@ -36,7 +36,13 @@ data class SessionRecord(
     val impedancePassCount: Int,              // 0–8 EEG electrodes that passed
     // Deliberately excluded from serialization — UHDR-class (see header comment).
     @Transient val edfSessionId: Long? = null,
-)
+) {
+    /**
+     * A record says what a person did and how their heart answered, so its text names the record and nothing in it
+     * (SWR-MG-28 (e)): a log line or a crash report that prints one prints no protocol, day, duration or HRV figure.
+     */
+    override fun toString(): String = "SessionRecord(id=$id, <redacted>)"
+}
 
 // Post-session summary handed in by the session flow (in-memory only).
 data class CompletedSessionSummary(
@@ -52,6 +58,9 @@ data class CompletedSessionSummary(
     // an empty list — the Adaptive Adjustments card then shows its empty state, as on iOS.
     val adaptationEvents: List<AdaptationEvent> = emptyList(),
 ) {
+    /** As [SessionRecord]: the text of a summary holds none of it (SWR-MG-28 (e)). */
+    override fun toString(): String = "CompletedSessionSummary(<redacted>)"
+
     companion object {
         /** Reconstruct a display summary from a persisted history row (no adaptation events). */
         fun fromRecord(record: SessionRecord): CompletedSessionSummary = CompletedSessionSummary(

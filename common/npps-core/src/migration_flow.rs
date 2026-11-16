@@ -12,8 +12,15 @@
 //! "state":<from the last answer>,"result":<what the effect returned>}` continues it. The answer is either
 //! `{"effect":{"type":…,…},"state":…}`, meaning "do this and call me again with the outcome", or `{"done":{…}}`. The state
 //! is opaque to the platform, is never persisted by it, and holds the flow's working data (items, the bundle) for the
-//! length of the flow only. **No secret and no key is ever in a state**: the driver holds the secret and asks
-//! `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//! length of the flow only. **The person's secret and the bundle key are never in a state**: the driver holds the secret and
+//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//!
+//! **A flow over a direct link is the one exception, and it holds only the link's own secrets** (`link.rs`, `SWR-MG-28` (c)).
+//! While two phones pair, the state holds the pairing code and, between two turns, the SPAKE2 randomness (the restoring
+//! phone) or the shared key (the serving phone): the flow is sans-IO and has nowhere else to keep them. They are taken out
+//! at the turn that last uses them. From then to the end of the flow the state holds the session's two channel keys
+//! (`ctx.sk`, `ctx.rk`, as hex) and nothing else that is secret; they were made by this pairing and open nothing once the
+//! link closes. Keeping them out of the state as well needs the core to hold a key itself (`OI-PRIV-12` stage 2).
 //!
 //! # Effects
 //! | type | args | result |
@@ -1338,12 +1345,13 @@ mod tests {
     /// Run `client` against `server` over two byte queues that deliver `piece` bytes at a time. The client's effects other
     /// than the link's go to its phone; the server's go to the object store it serves.
     fn over_link(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize) {
-        over_link_cut(client, c_phone, server, store, s_phone, piece, usize::MAX, json!(null));
+        over_link_cut(client, c_phone, server, store, s_phone, piece, usize::MAX, json!(null), &mut |_, _| {});
     }
 
     /// As `over_link`, but once the client has sent `cut_after` frames its next receive gets `closing` instead of the bytes.
+    /// `watch` is shown each end (0 the client, 1 the server) after every turn it takes.
     #[allow(clippy::too_many_arguments)]
-    fn over_link_cut(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value) {
+    fn over_link_cut(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value, watch: &mut dyn FnMut(usize, &Peer)) {
         let mut sent = 0usize;
         let mut inbox: [Vec<u8>; 2] = [vec![], vec![]];
         let mut scratch = Route::default();
@@ -1372,6 +1380,7 @@ mod tests {
                     _ => perform(&e, store, s_phone, SECRET),
                 };
                 me.advance(result);
+                watch(side, me);
                 moved = true;
             }
             if client.done.is_some() && server.done.is_some() {
@@ -1413,6 +1422,77 @@ mod tests {
         assert_eq!(store.route_calls, 0);
         assert!(quiet.kv.is_empty() && srv_phone.kv.is_empty(), "the link wrote nothing to the key-value stores");
         quiet.kv.clear();
+    }
+
+    /// Every field name in a state, at any depth, as `a.b.c`.
+    fn field_names(v: &Value, at: &str, out: &mut Vec<String>) {
+        match v {
+            Value::Object(o) => {
+                for (k, v) in o {
+                    let path = if at.is_empty() { k.clone() } else { format!("{at}.{k}") };
+                    out.push(path.clone());
+                    field_names(v, &path, out);
+                }
+            }
+            Value::Array(a) => a.iter().for_each(|v| field_names(v, at, out)),
+            _ => {}
+        }
+    }
+
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn once_two_phones_are_paired_neither_state_holds_the_code_the_spake2_randomness_or_the_shared_key() {
+        let (mut store, mut old, mut fresh, mut srv_phone) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 3));
+        fill(&mut old);
+        run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut store, &mut old, SECRET);
+        let mut client = Peer::start("restore", link_params(&fresh));
+        let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
+        // The request the client keeps to start its flow with once paired never holds the code: one copy is in `code`.
+        assert!(client.state["origin"]["params"].get("pairing").is_none(), "{}", client.state["origin"]);
+        assert_eq!(client.state["code"], CODE);
+
+        // The pairing's own fields, and the turns on which each end may still hold them.
+        let pairing_fields = ["code", "seed", "a", "b", "hello", "key", "origin", "pairing.code"];
+        let client_pairing = ["pair_rand", "pair_hello_sent", "pair_reply"];
+        let server_pairing = ["hello", "now", "rand", "reply_sent", "confirm"];
+        let (mut after, mut sealed) = ([0usize; 2], [0usize; 2]);
+        let mut watch = |side: usize, peer: &Peer| {
+            if peer.done.is_some() {
+                return;
+            }
+            let st = &peer.state;
+            let (turn, still_pairing) = if side == 0 {
+                let phase = st["phase"].as_str().unwrap_or("");
+                (phase.to_string(), client_pairing.contains(&phase))
+            } else {
+                let step = st["step"].as_str().unwrap_or("");
+                (step.to_string(), server_pairing.contains(&step))
+            };
+            if still_pairing {
+                return;
+            }
+            after[side] += 1;
+            let mut names = vec![];
+            field_names(st, "", &mut names);
+            // The inner flow's state is its own; the pairing's fields are the link's, at the top of the state.
+            let held: Vec<&String> = names.iter().filter(|n| !n.starts_with("inner") && pairing_fields.contains(&n.as_str())).collect();
+            // The request is kept, without its code, until the inner flow starts (the last pairing turn).
+            let held: Vec<&String> = held.into_iter().filter(|n| !(side == 0 && turn.starts_with("pair_") && n.as_str() == "origin")).collect();
+            assert!(held.is_empty(), "side {side}, turn '{turn}': the state still holds {held:?}");
+            assert!(!st.to_string().contains(CODE), "side {side}, turn '{turn}': the code is in the state");
+            // What does remain, said plainly: the two channel keys, in `ctx` (or waiting in `keys` / `after` until it starts).
+            if st["ctx"].is_object() {
+                sealed[side] += 1;
+                assert_eq!(st["ctx"]["sk"].as_str().map(str::len), Some(64), "side {side}, turn '{turn}'");
+                assert_eq!(st["ctx"]["rk"].as_str().map(str::len), Some(64), "side {side}, turn '{turn}'");
+            } else {
+                assert!(st["keys"].is_object() || st["after"].is_object(), "side {side}, turn '{turn}': {st}");
+            }
+        };
+        over_link_cut(&mut client, &mut fresh, &mut server, &mut store, &mut srv_phone, 64, usize::MAX, json!(null), &mut watch);
+        assert_eq!(client.done.clone().unwrap()["ok"], true);
+        assert_eq!(server.done.clone().unwrap(), json!({ "ok": true, "reason": "closed", "paired": true, "triesLeft": 2 }), "the tries left outlive the code");
+        assert!(after[0] > 2 && after[1] > 2 && sealed[0] > 0 && sealed[1] > 0, "the check ran on both ends, paired: {after:?} {sealed:?}");
     }
 
     // @verifies SWR-MG-10
@@ -1467,7 +1547,7 @@ mod tests {
             let mut fresh = phone(&ADAPTER, 50);
             let mut client = Peer::start("restore", link_params(&fresh));
             let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
-            over_link_cut(&mut client, &mut fresh, &mut server, &mut store, &mut srv, 64, 3, closing.clone());
+            over_link_cut(&mut client, &mut fresh, &mut server, &mut store, &mut srv, 64, 3, closing.clone(), &mut |_, _| {});
             let d = client.done.clone().unwrap();
             assert_eq!((d["ok"].clone(), d["reason"].clone()), (json!(false), json!("route_unavailable")), "{closing}");
             assert!(fresh.kv.is_empty());

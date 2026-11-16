@@ -15,6 +15,7 @@ use crate::migration::{hex, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Value};
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -29,7 +30,8 @@ fn aad(name: &str) -> Vec<u8> {
 }
 
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    // The decoded key is cleared when this call ends (`SWR-MG-28` (b)); the cipher clears its own copy (`aes-gcm`, `zeroize`).
+    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }

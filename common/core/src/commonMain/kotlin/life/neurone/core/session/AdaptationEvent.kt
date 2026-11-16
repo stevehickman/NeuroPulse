@@ -85,4 +85,10 @@ data class AdaptationEvent(
     val id: String get() = "$sessionOffsetMs-${trigger.rawValue}-$modType-$paramId"
 
     val sessionOffsetSeconds: Double get() = sessionOffsetMs / 1000.0
+
+    /**
+     * An event says what the person's EEG or heart did and when (UHDR-class), so its text holds none of it
+     * (SWR-MG-28 (e)): a log line or a crash report that prints one prints no trigger, offset or value.
+     */
+    override fun toString(): String = "AdaptationEvent(<redacted>)"
 }

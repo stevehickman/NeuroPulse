@@ -4,12 +4,23 @@
 use neurone_npps_core::api;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
+use zeroize::Zeroize;
 
 use neurone_npps_core::constants::status::{BAD_ARGUMENT, INTERNAL_ERROR, OK, REFUSED};
 
 /// Hand `bytes` to the caller as a leaked boxed slice; `npps_free` takes it back.
-unsafe fn give(bytes: Vec<u8>, out: *mut *mut u8, out_len: *mut usize) {
-    let boxed = bytes.into_boxed_slice();
+///
+/// An answer may hold a key or plaintext UHDR (`npps_migration_json`). Shrinking a vector to its length may move it and
+/// release the old block as it is, so a vector with spare capacity is copied to an exact one and cleared instead
+/// (SWR-MG-28 (a)).
+unsafe fn give(mut bytes: Vec<u8>, out: *mut *mut u8, out_len: *mut usize) {
+    let boxed = if bytes.len() == bytes.capacity() {
+        bytes.into_boxed_slice()
+    } else {
+        let exact: Box<[u8]> = Box::from(&bytes[..]);
+        bytes.zeroize();
+        exact
+    };
     *out_len = boxed.len();
     *out = Box::into_raw(boxed) as *mut u8;
 }
@@ -107,12 +118,18 @@ pub unsafe extern "C" fn npps_migration_json(req: *const u8, req_len: usize, out
     call(req, req_len, out, out_len, |t| api::migration_json(t).map(String::into_bytes))
 }
 
+/// Release a buffer this library handed out, **after filling it with zeros** (SWR-MG-28 (a)). A request or an answer of
+/// `npps_migration_json` can hold a passphrase, a recovery secret, a key or plaintext UHDR, and released memory is not
+/// cleared by anyone else: in WebAssembly the linear memory never shrinks, so it would stay readable as long as the page.
+///
 /// # Safety
 /// `ptr` and `len` are exactly what a call returned through `out` and `out_len`, released once.
 #[no_mangle]
 pub unsafe extern "C" fn npps_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() {
-        drop(Box::from_raw(slice::from_raw_parts_mut(ptr, len)));
+        let bytes = slice::from_raw_parts_mut(ptr, len);
+        bytes.zeroize();
+        drop(Box::from_raw(bytes));
     }
 }
 

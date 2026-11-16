@@ -16,6 +16,12 @@ import life.neurone.core.platform.epochSeconds
  * is left after the sessions already tried (each one costs a try, wrong or not).
  */
 data class PairingOffer(val code: String, val expiresAt: Long, val triesLeft: Int) {
+    /**
+     * The code is what lets a phone receive the bundle, so it is never in the text of this object (SWR-MG-28 (e)): a log
+     * line, a crash report or an assertion message that prints an offer prints no code. The screen reads [code] itself.
+     */
+    override fun toString(): String = "PairingOffer(code=<redacted>, expiresAt=$expiresAt, triesLeft=$triesLeft)"
+
     internal fun toJson(): JsonObject = buildJsonObject {
         put("code", code)
         put("expiresAt", expiresAt)
