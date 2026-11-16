@@ -35,7 +35,10 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     var clinicianOrganization: String
     var tier: ClinicianUseCaseTier
     var grantedAt: Date
-    var expiresAt: Date?         // nil = indefinite until revoked
+    /// When this access ends. Clinician access is time-limited (CLAUDE.md §5.1), so a grant needs one to be
+    /// in force: see `isInForce(at:)`. `nil` only on a grant stored before an end was required
+    /// (`OI-PRIV-06` point 2); the store refuses a new grant without one.
+    var expiresAt: Date?
     var isActive: Bool
 
     /// The access decisions this grant is made of, newest last. Optional because a grant written
@@ -78,6 +81,23 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         self.useCaseIDs = useCaseIDs
     }
 
+    /// Whether this grant gives the clinician anything at `now`.
+    ///
+    /// False from its end onwards, and false for a grant with no end at all: access with no end is not
+    /// time-limited, which §5.1 requires it to be. Every read of what a clinician may see goes through this
+    /// (`elementsInForce(at:)`, `elementsVisible(forDataRecordedAt:asOf:)`, `ConsentEngine.accessDifferential`).
+    /// `approvedElements` does not: it is the record of what was decided, and it stays readable after the
+    /// grant ends.
+    func isInForce(at now: Date) -> Bool {
+        guard let expiresAt else { return false }
+        return isActive && now < expiresAt
+    }
+
+    /// What the clinician may see at `now`: `approvedElements` while the grant is in force, nothing after.
+    func elementsInForce(at now: Date) -> Set<UHDRElement> {
+        isInForce(at: now) ? approvedElements : []
+    }
+
     /// The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
     /// tier's elements, effective from the grant date, with prior data included.
     ///
@@ -104,11 +124,13 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         effectiveScopes.reduce(into: Set<UHDRElement>()) { $0.formUnion($1.elements) }
     }
 
-    /// Elements the clinician may see in data recorded at `date` — the predicate that makes the
+    /// Elements the clinician may see at `now` in data recorded at `date` — the predicate that makes the
     /// retroactive decision mean something. A scope contributes when the data is at or after its
-    /// effective instant, or when the user separately approved prior data for it.
-    func elementsVisible(forDataRecordedAt date: Date) -> Set<UHDRElement> {
-        effectiveScopes.reduce(into: Set<UHDRElement>()) { acc, scope in
+    /// effective instant, or when the user separately approved prior data for it. Nothing is visible once
+    /// the grant is no longer in force, whenever the data was recorded.
+    func elementsVisible(forDataRecordedAt date: Date, asOf now: Date = Date()) -> Set<UHDRElement> {
+        guard isInForce(at: now) else { return [] }
+        return effectiveScopes.reduce(into: Set<UHDRElement>()) { acc, scope in
             if date >= scope.effectiveFrom || scope.includesPriorData {
                 acc.formUnion(scope.elements)
             }
@@ -304,11 +326,19 @@ enum ResearchCategory: String, CaseIterable, Codable {
 
 // MARK: - Study participation record (audit trail — stored in SHDR, not UHDR)
 
+/// Joining a study and sending it data are different events, and the record keeps them apart: it is written
+/// when the person joins (`enrolledAt`), and `transmittedAt` and `extractBytes` stay empty until an extract has
+/// really been sent. It used to be written at enrolment with `transmittedAt` set to that moment and zero bytes,
+/// so the audit trail and the dashboard said data was shared when nothing had left the device (`OI-PRIV-06`
+/// point 4). No extractor exists yet (`OI-CONSENT-07`), so nothing sets the two fields today.
 struct StudyParticipationRecord: Codable, Identifiable {
     var id: UUID
     var studyID: String
     var descriptorHash: String   // SHA-256 of signed study descriptor
-    var transmittedAt: Date
+    /// When the person joined. `nil` only on a record stored before this field existed, until the store reads it.
+    var enrolledAt: Date?
+    /// When an extract was last sent, or `nil` if none has been.
+    var transmittedAt: Date?
     var extractBytes: Int
     var withdrawnAt: Date?
 
@@ -395,6 +425,10 @@ enum StudyDescriptorAdmission: Equatable {
         /// k < 10 or date rounding < 1 week (§5.3). A study whose anonymisation is below the
         /// locked floor is not one the user may be asked to consent to.
         case anonymisationBelowFloor
+        /// A stored consent record could not be read, so the device does not know what the person decided,
+        /// and they have not decided again yet (`OI-PRIV-06` point 3). Distinct from `noResearchConsent`:
+        /// the record may have said stop.
+        case consentRecordUnreadable
         /// L1 is the shared precondition for every delivery path, invitations and engagement
         /// notifications alike (§6.2.1).
         case noContactConsent

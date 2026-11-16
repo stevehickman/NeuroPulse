@@ -36,7 +36,8 @@ final class ConsentStoreTests: XCTestCase {
 
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
-                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals"]
+                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals",
+                    "np.consent.quarantine", "np.consent.redecision-required"]
         keys.forEach { ProtectedDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -591,7 +592,7 @@ final class ConsentStoreTests: XCTestCase {
     func testRevokeClinicianAccess_removesGrant() {
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: .monitor, grantedAt: Date(), expiresAt: nil, isActive: true
+            tier: .monitor, grantedAt: Date(), expiresAt: Date().addingTimeInterval(30 * 86_400), isActive: true
         )
         store.grantClinicianAccess(grant)
         XCTAssertEqual(store.clinicianGrants.count, 1)
@@ -731,7 +732,7 @@ final class ConsentStoreTests: XCTestCase {
     private func makeGrant(_ tier: ClinicianUseCaseTier) -> ClinicianConsentGrant {
         ClinicianConsentGrant(
             id: grantID, clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: tier, grantedAt: yesterday
+            tier: tier, grantedAt: yesterday, expiresAt: Date().addingTimeInterval(30 * 86_400)
         )
     }
 
@@ -1093,6 +1094,115 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertFalse(r.blanketConsentGranted, "nothing here turns a grant on")
         XCTAssertEqual(store.studyWithdrawals["study-z"].map(ConsentTime.string), "2026-04-04T00:00:00Z")
         XCTAssertNotNil(store.exportWithdrawals()["studyWithdrawals"])
+    }
+
+    // MARK: - OI-PRIV-06 (peers of the Kotlin ConsentStoreTests of the same names)
+
+    private func study(_ id: String, _ categories: [ResearchCategory]) -> StudyDescriptor {
+        var descriptor = makeDescriptor(categories: categories)
+        descriptor.studyID = id
+        return descriptor
+    }
+
+    private func activeStudies(_ store: ConsentStore) -> Set<String> {
+        Set(store.studyParticipations.filter(\.isActive).map(\.studyID))
+    }
+
+    // @verifies REQ-CONSENT-18#a,e
+    func testBlanketWithdrawalEndsEveryActiveParticipation() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
+        store.ingestStudyDescriptor(study("S-1", [.depression]))
+        store.ingestStudyDescriptor(study("S-2", [.sleep]))
+        XCTAssertEqual(activeStudies(store), ["S-1", "S-2"])
+
+        store.withdrawBlanketResearchConsent()
+
+        XCTAssertTrue(activeStudies(store).isEmpty)
+        XCTAssertEqual(Set(store.studyWithdrawals.keys), ["S-1", "S-2"])
+        XCTAssertFalse(store.pendingInvitations.contains(where: \.isOpen),
+                       "nothing left on the device says the person is in a study")
+        // A fresh blanket grant does not put the person back in a study the withdrawal took them out of.
+        store.updateResearchConsent(blanketConsent)
+        XCTAssertEqual(store.ingestStudyDescriptor(study("S-1", [.depression])), .refused(.studyAlreadyDecided))
+    }
+
+    // @verifies REQ-CONSENT-18#b,c
+    func testCategoryWithdrawalEndsOnlyTheStudiesLeftWithoutAConsentedCategory() {
+        var consent = categoryConsent
+        consent.categoryConsents[.sleep] = true
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: consent)
+        store.ingestStudyDescriptor(study("DEP", [.depression]))
+        store.ingestStudyDescriptor(study("BOTH", [.depression, .sleep]))
+        ["DEP", "BOTH"].forEach { store.acceptInvitation(studyID: $0) }
+
+        // A commit that withdraws nothing ends nothing.
+        var edited = store.researchConsent
+        edited.resultsOptIn = true
+        store.updateResearchConsent(edited)
+        XCTAssertEqual(activeStudies(store), ["DEP", "BOTH"])
+
+        edited.categoryConsents[.depression] = false
+        store.updateResearchConsent(edited)
+        XCTAssertEqual(activeStudies(store), ["BOTH"])
+    }
+
+    // @verifies REQ-CONSENT-19#a,b,c
+    func testClinicianAccessIsTimeLimited() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let end = start.addingTimeInterval(30 * 86_400)
+        var grant = ClinicianConsentGrant(
+            id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
+            tier: .assess, grantedAt: start, expiresAt: nil
+        )
+        XCTAssertFalse(store.grantClinicianAccess(grant), "a grant with no end is refused")
+        XCTAssertFalse(grant.isInForce(at: start.addingTimeInterval(60)), "and one stored without an end gives nothing")
+        grant.expiresAt = start
+        XCTAssertFalse(store.grantClinicianAccess(grant), "an end that is not after the grant is refused")
+        XCTAssertTrue(store.clinicianGrants.isEmpty)
+
+        grant.expiresAt = end
+        XCTAssertTrue(store.grantClinicianAccess(grant))
+        let dayBefore = end.addingTimeInterval(-86_400)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: start, asOf: dayBefore),
+                       ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: start, asOf: end).isEmpty)
+        XCTAssertTrue(grant.elementsInForce(at: end.addingTimeInterval(86_400)).isEmpty)
+        XCTAssertNil(ConsentEngine.accessDifferential(for: grant, expandingTo: .fullClinical, asOf: end))
+        XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements,
+                       "what was decided stays readable")
+    }
+
+    // @verifies REQ-CONSENT-20#a,b,c
+    func testAnUnreadableResearchRecordIsKeptAndPausesAdmissionUntilTheFormIsCommitted() {
+        let first = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
+        first.withdrawBlanketResearchConsent()
+        let blob = Data("{\"blanketConsentGranted\":fal".utf8)
+        ProtectedDefaults.standard.set(blob, forKey: "np.consent.research")
+
+        let store = ConsentStore(descriptorVerifier: StubVerifier(result: .verified(descriptorHash: descriptorHash)))
+        XCTAssertTrue(store.redecisionRequired)
+        XCTAssertEqual(store.ingestStudyDescriptor(study("S-9", [.sleep])), .refused(.consentRecordUnreadable))
+
+        var consent = categoryConsent
+        consent.categoryConsents[.sleep] = true
+        store.setCategoryConsent(.sleep, granted: true)
+        XCTAssertTrue(store.redecisionRequired, "a partial edit is not the person deciding again")
+        store.updateResearchConsent(consent)
+        XCTAssertFalse(store.redecisionRequired)
+
+        let held = ProtectedDefaults.standard.data(forKey: "np.consent.quarantine")
+            .flatMap { try? JSONDecoder().decode([String: [Data]].self, from: $0) }
+        XCTAssertEqual(held?["np.consent.research"], [blob], "the record is kept as found, and the saves did not remove it")
+    }
+
+    // @verifies REQ-CONSENT-21#a
+    func testAParticipationRecordWrittenAtEnrolmentClaimsNoTransmission() {
+        let store = makeStore(verification: .verified(descriptorHash: descriptorHash), consent: blanketConsent)
+        store.ingestStudyDescriptor(study("S-1", [.depression]))
+        let record = store.studyParticipations[0]
+        XCTAssertNotNil(record.enrolledAt)
+        XCTAssertNil(record.transmittedAt)
+        XCTAssertEqual(record.extractBytes, 0)
     }
 }
 

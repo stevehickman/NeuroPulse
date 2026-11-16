@@ -141,10 +141,16 @@ enum ConsentEngine {
     ///
     /// The document carries no prose of its own: the elements are the substance, and the wording
     /// around them belongs to whichever platform is rendering it (CLAUDE.md §17).
+    ///
+    /// A fourth case is not an expansion either: **the grant is not in force at `now`** (it has ended, or has
+    /// no end). There is nothing to widen, and approving would attach new elements to access that §5.1 says
+    /// is over.
     static func accessDifferential(
         for grant: ClinicianConsentGrant,
-        expandingTo newTier: ClinicianUseCaseTier
+        expandingTo newTier: ClinicianUseCaseTier,
+        asOf now: Date = Date()
     ) -> ClinicianAccessDifferential? {
+        guard grant.isInForce(at: now) else { return nil }
         guard grant.tier != .research, newTier != .research else { return nil }
 
         let current = grant.approvedElements
@@ -164,6 +170,19 @@ enum ConsentEngine {
             alreadyVisibleElements: current,
             stillNotAccessibleElements: Set(UHDRElement.allCases).subtracting(target)
         )
+    }
+
+    /// Whether `grant` carries an end that is after the moment it was granted (`OI-PRIV-06` point 2).
+    static func hasUsableExpiry(_ grant: ClinicianConsentGrant) -> Bool {
+        guard let expiresAt = grant.expiresAt else { return false }
+        return expiresAt > grant.grantedAt
+    }
+
+    /// The end of a grant made at `grantedAt` that lasts `days` days, or `nil` when `days` is not positive.
+    /// The form asks for a number of days and stores this.
+    static func expiry(grantedAt: Date, days: Int, calendar: Calendar = .current) -> Date? {
+        guard days > 0 else { return nil }
+        return calendar.date(byAdding: .day, value: days, to: grantedAt)
     }
 
     // MARK: - Study descriptor ingestion (§6.3 per-project workflow)
@@ -190,7 +209,8 @@ enum ConsentEngine {
         descriptor: StudyDescriptor,
         verification: StudyDescriptorVerification,
         consent: ResearchConsentState,
-        studyAlreadyDecided: Bool
+        studyAlreadyDecided: Bool,
+        consentRecordUnreadable: Bool = false
     ) -> StudyDescriptorAdmission {
         let descriptorHash: String
         switch verification {
@@ -202,6 +222,10 @@ enum ConsentEngine {
         guard descriptor.kAnonymity >= ConsentLimits.MINIMUM_K_ANONYMITY,
               descriptor.dateRoundingDays >= ConsentLimits.MINIMUM_DATE_ROUNDING_DAYS
         else { return .refused(.anonymisationBelowFloor) }
+
+        // Ahead of every read of `consent`: when the stored record could not be read, what is in memory is
+        // the defaults, and the record that was lost may have held a withdrawal (`OI-PRIV-06` point 3).
+        guard !consentRecordUnreadable else { return .refused(.consentRecordUnreadable) }
 
         // §6.0: withdrawing blanket consent "stops ALL research data flows" — all of them, not
         // only the pre-approved ones. Checked before `hasAnyResearchConsent`, because a withdrawn

@@ -195,6 +195,13 @@ struct ConsentDashboardView: View {
 
     private var researchSection: some View {
         Section {
+            // A stored consent record could not be read. The choices shown below are then the defaults, not
+            // what the person decided, and the store admits no study until they choose again; saying so is
+            // what lets them find out why research went quiet (`OI-PRIV-06` point 3).
+            if consentStore.redecisionRequired {
+                Text("DASHBOARD_CONSENT_UNREADABLE")
+                    .font(.subheadline)
+            }
             researchConsentSummaryRow
             // L3 posture is a separate row from the L2 category list below, because they are
             // separate axes (§6.2.2): scope versus ask-me-each-time. Withdrawal of one must
@@ -356,9 +363,9 @@ struct ClinicianGrantRow: View {
                     .font(.caption)
                     .buttonStyle(.borderless)
             }
-            // Granted elements (ISC-75)
+            // Granted elements (ISC-75). What the grant reaches now: nothing once it has ended (§5.1).
             Text(String(format: String(localized: "DASHBOARD_ACCESS_FORMAT"),
-                        grant.approvedElements.map(\.displayName).sorted().joined(separator: ", ")))
+                        grant.elementsInForce(at: Date()).map(\.displayName).sorted().joined(separator: ", ")))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .lineLimit(nil)
@@ -380,9 +387,15 @@ struct ClinicianGrantRow: View {
                       systemImage: "checkmark.shield")
                     .font(.caption2).foregroundColor(.green)
                 Spacer()
+                // Clinician access is time-limited (§5.1). The row says which of three states the grant is in:
+                // running to a day, ended on one, or stored before an end was required and so not in force.
                 if let exp = grant.expiresAt {
-                    Text(String(format: String(localized: "DASHBOARD_EXPIRES_FORMAT"),
-                                exp.formatted(.dateTime.month().day())))
+                    Text(String(format: String(localized: grant.isInForce(at: Date())
+                                                   ? "DASHBOARD_EXPIRES_FORMAT" : "DASHBOARD_GRANT_ENDED_FORMAT"),
+                                exp.formatted(.dateTime.month().day().year())))
+                        .font(.caption2).foregroundColor(.orange)
+                } else {
+                    Text("DASHBOARD_GRANT_NO_END")
                         .font(.caption2).foregroundColor(.orange)
                 }
             }
@@ -398,9 +411,21 @@ struct StudyParticipationRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.studyID).font(.subheadline.bold())
-                Text(String(format: String(localized: "DASHBOARD_DATA_SHARED_FORMAT"),
-                            record.transmittedAt.formatted(.dateTime.month().day().year())))
-                    .font(.caption).foregroundColor(.secondary)
+                // Joining and sending are different events. "Data shared" is shown only for a day an extract
+                // was really sent; until then the row says nothing has been.
+                if let joined = record.enrolledAt {
+                    Text(String(format: String(localized: "DASHBOARD_JOINED_FORMAT"),
+                                joined.formatted(.dateTime.month().day().year())))
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                if let sent = record.transmittedAt {
+                    Text(String(format: String(localized: "DASHBOARD_DATA_SHARED_FORMAT"),
+                                sent.formatted(.dateTime.month().day().year())))
+                        .font(.caption).foregroundColor(.secondary)
+                } else {
+                    Text("DASHBOARD_NO_DATA_SHARED")
+                        .font(.caption).foregroundColor(.secondary)
+                }
                 if !record.isActive {
                     Label("DASHBOARD_WITHDRAWN_LABEL", systemImage: "xmark.circle")
                         .font(.caption2).foregroundColor(.orange)
@@ -781,6 +806,14 @@ struct NewClinicianGrantView: View {
     @State private var organization = ""
     @State private var selectedTier: ClinicianUseCaseTier = .monitor
     @State private var selectedUseCases = Set<String>()
+    /// How long the access lasts, in days, as typed. No default and no preset: §5.1 makes clinician access
+    /// time-limited, and how long is the person's decision, so the form cannot continue until they give one.
+    @State private var daysText = ""
+
+    private var days: Int? {
+        guard let value = Int(daysText.trimmingCharacters(in: .whitespaces)), value > 0 else { return nil }
+        return value
+    }
 
     private enum Step { case scope, history }
     @State private var step: Step = .scope
@@ -803,7 +836,7 @@ struct NewClinicianGrantView: View {
     /// The Research tier has no library to pick from — its elements are IRB-defined per study
     /// descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
     private var canProceed: Bool {
-        !name.isEmpty && !organization.isEmpty
+        !name.isEmpty && !organization.isEmpty && days != nil
             && (selectedTier == .research || !selectedUseCases.isEmpty)
     }
 
@@ -836,6 +869,18 @@ struct NewClinicianGrantView: View {
             Section("CLINICIAN_GRANT_SECTION_DETAILS") {
                 TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $name)
                 TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organization)
+            }
+            Section {
+                TextField("CLINICIAN_GRANT_DURATION_LABEL", text: $daysText)
+                    .keyboardType(.numberPad)
+            } footer: {
+                if let days, let end = ConsentEngine.expiry(grantedAt: Date(), days: days) {
+                    Text(String(format: String(localized: "CLINICIAN_GRANT_DURATION_FOOTER"),
+                                end.formatted(.dateTime.month().day().year())))
+                        .font(.caption)
+                } else {
+                    Text("CLINICIAN_GRANT_DURATION_REQUIRED").font(.caption)
+                }
             }
             Section("CLINICIAN_GRANT_SECTION_ACCESS") {
                 Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
@@ -964,7 +1009,8 @@ struct NewClinicianGrantView: View {
         let now = Date()
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: name, clinicianOrganization: organization,
-            tier: selectedTier, grantedAt: now, expiresAt: nil, isActive: true,
+            tier: selectedTier, grantedAt: now,
+            expiresAt: days.flatMap { ConsentEngine.expiry(grantedAt: now, days: $0) }, isActive: true,
             accessScopes: [
                 ConsentEngine.initialAccessScope(
                     useCaseIDs: selectedUseCases,
@@ -975,7 +1021,9 @@ struct NewClinicianGrantView: View {
             ],
             useCaseIDs: selectedUseCases
         )
-        consentStore.grantClinicianAccess(grant)
+        // The store refuses a grant with no usable end (§5.1). The form cannot produce one, so a refusal
+        // leaves the person on the form instead of dismissing as though the grant had been stored.
+        guard consentStore.grantClinicianAccess(grant) else { return }
         dismiss()
     }
 }

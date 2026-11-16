@@ -357,7 +357,7 @@ final class ConsentEngineTests: XCTestCase {
         let earlier = now.addingTimeInterval(-86_400)
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
-            tier: .assess, grantedAt: now,
+            tier: .assess, grantedAt: now, expiresAt: now.addingTimeInterval(30 * 86_400),
             accessScopes: [
                 ConsentEngine.initialAccessScope(
                     useCaseIDs: ["eeg_review"], tier: .assess,
@@ -379,7 +379,7 @@ final class ConsentEngineTests: XCTestCase {
         let now = Date()
         let legacy = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
-            tier: .assess, grantedAt: now
+            tier: .assess, grantedAt: now, expiresAt: now.addingTimeInterval(30 * 86_400)
         )
         XCTAssertNil(legacy.useCaseIDs)
         XCTAssertEqual(legacy.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
@@ -397,7 +397,7 @@ final class ConsentEngineTests: XCTestCase {
         let now = Date()
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
-            tier: .fullClinical, grantedAt: now,
+            tier: .fullClinical, grantedAt: now, expiresAt: now.addingTimeInterval(30 * 86_400),
             accessScopes: [
                 ConsentEngine.initialAccessScope(
                     useCaseIDs: ["adherence_monitoring"], tier: .fullClinical,

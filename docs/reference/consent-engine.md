@@ -133,6 +133,7 @@ is load-bearing**, and each step traces to a locked line:
 |---|-------|---------|--------|
 | 1 | Signature verifies | `verifierUnavailable` · `signatureInvalid` | §5.3 step 1. First, so nothing an unverified descriptor *claims* reaches a later step |
 | 2 | `k ≥ 10` and date rounding `≥ 7` days | `anonymisationBelowFloor` | §5.3. The device is the only place these can be enforced, because §5.3 puts the anonymisation on the device — a study below the floor is not one a user may be *asked* about |
+| 2a | No stored consent record is unreadable and awaiting a fresh decision | `consentRecordUnreadable` | §6.0; `REQ-CONSENT-20`. Ahead of every read of the consent state, which is the defaults when the record could not be read (added 2026-11-16, `OI-PRIV-06` point 3) |
 | 3a | Blanket consent not withdrawn | `researchConsentWithdrawn` | §6.0 — *withdrawal stops **ALL** research data flows*. Ahead of 3b because a withdrawn user usually still passes it: withdrawal does not un-tick the nine L2 categories |
 | 3b | Any research consent at all | `noResearchConsent` | §6.0 |
 | 4 | L1 contact consent | `noContactConsent` | §6.2.1 — a contact method is the precondition for **all three** delivery paths, so it gates the engagement notification too |
