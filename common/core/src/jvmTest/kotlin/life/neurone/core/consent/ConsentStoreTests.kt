@@ -22,6 +22,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -856,7 +860,10 @@ class ConsentStoreTests {
         clinicianOrganization = "Test Hospital",
         tier = tier,
         grantedAtDay = LocalDate.now().minusDays(1).toString(),
+        expiresAtDay = LocalDate.now().plusDays(30).toString(),
     )
+
+    private val todayDay: String get() = LocalDate.now().toString()
 
     private fun requestTo(tier: ClinicianUseCaseTier) = ClinicianAccessExpansionRequest(
         id = "req-1",
@@ -882,15 +889,15 @@ class ConsentStoreTests {
         // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
         assertEquals(ClinicianUseCaseTier.ASSESS, grant.tier)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
-        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today, todayDay))
 
         // ...but yesterday's sessions still show only what Monitor ever reached. This is the
         // assertion the old implementation could not have passed.
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(yesterday),
+            grant.elementsVisibleForDataRecordedOn(yesterday, todayDay),
         )
-        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday))
+        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday, todayDay))
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
             grant.forwardOnlyElements,
@@ -909,7 +916,7 @@ class ConsentStoreTests {
         val grant = store.clinicianGrants.single()
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), todayDay),
         )
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
@@ -1054,7 +1061,7 @@ class ConsentStoreTests {
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
             store2.clinicianGrants.single()
-                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), todayDay),
         )
     }
 
@@ -1068,7 +1075,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn("2020-01-01"),
+            grant.elementsVisibleForDataRecordedOn("2020-01-01", todayDay),
         )
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
@@ -1078,18 +1085,19 @@ class ConsentStoreTests {
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
         // Nothing new.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR, todayDay))
         // Something lost — a re-scope, not a widening.
         val full = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)
-        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS))
+        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS, todayDay))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH, todayDay))
         assertEquals(
             null,
             ConsentEngine.accessDifferential(
                 grantedYesterday(ClinicianUseCaseTier.RESEARCH),
                 ClinicianUseCaseTier.FULL_CLINICAL,
+                todayDay,
             ),
         )
     }
@@ -1100,6 +1108,7 @@ class ConsentStoreTests {
         val differential = ConsentEngine.accessDifferential(
             grantedYesterday(ClinicianUseCaseTier.MONITOR),
             ClinicianUseCaseTier.ASSESS,
+            todayDay,
         )!!
 
         assertEquals(
@@ -1259,8 +1268,8 @@ class ConsentStoreTests {
             ),
             useCaseIds = listOf("eeg_review"),
         )
-        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday).isEmpty())
-        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday, todayDay).isEmpty())
+        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today, todayDay))
         assertEquals(grant.approvedElements, grant.forwardOnlyElements)
     }
 
@@ -1274,7 +1283,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, legacy.approvedElements)
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString()),
+            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString(), todayDay),
         )
     }
 
@@ -1459,5 +1468,501 @@ class ConsentStoreTests {
         assertNull(exported["blanketConsentWithdrawnAt"], "nothing withdrawn exports no time, so never-asked stays null")
         s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01T00:00:00Z") }) })
         assertEquals("2026-04-01T00:00:00Z", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
+    }
+
+    // ── OI-PRIV-06 point 1: a consent withdrawal ends the participations it leaves without consent ──
+
+    private fun study(id: String, vararg categories: ResearchCategory) =
+        descriptor(categories = categories.toList()).copy(studyId = id)
+
+    private fun twoCategories() = ResearchConsentState(
+        contactConsentGranted = true,
+        categoryConsents = ResearchCategory.entries.associateWith {
+            it == ResearchCategory.DEPRESSION || it == ResearchCategory.SLEEP
+        },
+    )
+
+    private fun activeStudies(store: ConsentStore) =
+        store.studyParticipations.filter { it.isActive }.map { it.studyId }.toSet()
+
+    // @verifies REQ-CONSENT-18#a
+    @Test
+    fun blanketWithdrawalEndsEveryActiveParticipation() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+        store.ingestStudyDescriptor(study("S-2", ResearchCategory.SLEEP))
+        assertEquals(setOf("S-1", "S-2"), activeStudies(store))
+
+        store.withdrawBlanketResearchConsent()
+
+        assertTrue(activeStudies(store).isEmpty())
+        assertEquals(setOf("S-1", "S-2"), store.studyWithdrawals.keys)
+        // A fresh blanket grant does not put the person back in a study the withdrawal took them out of.
+        store.updateResearchConsent(blanketConsent())
+        assertEquals(
+            StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
+            refusalOf(store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))),
+        )
+        assertTrue(activeStudies(store).isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-18#a
+    @Test
+    fun blanketWithdrawalThroughTheFormCommitEndsParticipationsToo() {
+        // The form commits a whole state, with the nine category ticks still on. They do not keep a study alive.
+        val all = blanketConsent().withAllCategories(true)
+        val (store, kv) = ingestingStore(consent = all)
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+
+        store.updateResearchConsent(all.copy(blanketConsentGranted = false))
+
+        assertTrue(activeStudies(store).isEmpty())
+        assertTrue("S-1" in store.studyWithdrawals)
+        // And it is what a restart reads back.
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertTrue(activeStudies(reloaded).isEmpty())
+        assertTrue("S-1" in reloaded.studyWithdrawals)
+    }
+
+    // @verifies REQ-CONSENT-18#b
+    @Test
+    fun categoryWithdrawalEndsOnlyTheStudiesLeftWithoutAConsentedCategory() {
+        val (store, _) = ingestingStore(consent = twoCategories())
+        store.ingestStudyDescriptor(study("DEP", ResearchCategory.DEPRESSION))
+        store.ingestStudyDescriptor(study("BOTH", ResearchCategory.DEPRESSION, ResearchCategory.SLEEP))
+        store.ingestStudyDescriptor(study("SLEEP", ResearchCategory.SLEEP))
+        listOf("DEP", "BOTH", "SLEEP").forEach(store::acceptInvitation)
+        assertEquals(setOf("DEP", "BOTH", "SLEEP"), activeStudies(store))
+
+        store.setCategoryConsent(ResearchCategory.DEPRESSION, false)
+
+        assertEquals(setOf("BOTH", "SLEEP"), activeStudies(store))
+        assertEquals(setOf("DEP"), store.studyWithdrawals.keys)
+
+        // The form's commit path reaches the same rule.
+        store.updateResearchConsent(store.researchConsent.withAllCategories(false))
+        assertTrue(activeStudies(store).isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-18#b
+    @Test
+    fun categoryWithdrawalUnderBlanketConsentLeavesAStudyBlanketConsentStillAdmits() {
+        val (store, _) = ingestingStore(consent = blanketConsent().withAllCategories(true))
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+
+        store.setCategoryConsent(ResearchCategory.DEPRESSION, false)
+
+        assertEquals(setOf("S-1"), activeStudies(store))
+    }
+
+    // @verifies REQ-CONSENT-18#b
+    @Test
+    fun aParticipationWithNoInvitationOnRecordEndsOnlyWhenNoCategoryIsLeft() {
+        val (first, kv) = ingestingStore(consent = twoCategories())
+        first.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+        first.acceptInvitation("S-1")
+        kv.remove(ConsentStore.INVITATIONS_KEY)
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertTrue(store.pendingInvitations.isEmpty())
+
+        // Its categories are unknown, and one category is still consented: it cannot be shown to be uncovered.
+        store.setCategoryConsent(ResearchCategory.DEPRESSION, false)
+        assertEquals(setOf("S-1"), activeStudies(store))
+
+        // With no category left it is uncovered whatever its categories were.
+        store.setCategoryConsent(ResearchCategory.SLEEP, false)
+        assertTrue(activeStudies(store).isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-18#c
+    @Test
+    fun aCommitThatWithdrawsNothingEndsNoParticipation() {
+        val (store, _) = ingestingStore(consent = twoCategories())
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+        store.acceptInvitation("S-1")
+
+        store.updateResearchConsent(
+            store.researchConsent.copy(
+                contactFrequency = life.neurone.core.models.ContactFrequency.QUARTERLY,
+                resultsOptIn = true,
+            ),
+        )
+        store.setCategoryConsent(ResearchCategory.PTSD, true)
+
+        assertEquals(setOf("S-1"), activeStudies(store))
+        assertTrue(store.studyWithdrawals.isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-18#d
+    @Test
+    fun aBlanketWithdrawalThatArrivesInARestoreEndsParticipations() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+
+        store.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z") })
+
+        assertFalse(store.researchConsent.blanketConsentGranted)
+        assertTrue(activeStudies(store).isEmpty())
+        assertTrue("S-1" in store.studyWithdrawals)
+    }
+
+    // @verifies REQ-CONSENT-18#d
+    @Test
+    fun aCategoryWithdrawalThatArrivesInARestoreEndsTheStudiesItUncovers() {
+        val (store, _) = ingestingStore(consent = twoCategories())
+        store.ingestStudyDescriptor(study("DEP", ResearchCategory.DEPRESSION))
+        store.ingestStudyDescriptor(study("SLEEP", ResearchCategory.SLEEP))
+        store.acceptInvitation("DEP")
+        store.acceptInvitation("SLEEP")
+
+        store.applyWithdrawals(
+            buildJsonObject {
+                put(
+                    "categoryWithdrawals",
+                    buildJsonObject { put(ResearchCategory.DEPRESSION.wireName, "2026-03-01T00:00:00Z") },
+                )
+            },
+        )
+
+        assertEquals(setOf("SLEEP"), activeStudies(store))
+    }
+
+    // @verifies REQ-CONSENT-18#e
+    @Test
+    fun withdrawingClosesTheEngagementNotificationThatSaysThePersonIsInTheStudy() {
+        val (store, _) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+        store.ingestStudyDescriptor(study("S-2", ResearchCategory.SLEEP))
+        assertEquals(2, store.pendingInvitations.count { it.isOpen && it.participatesWithoutAnswer })
+
+        // One study from the dashboard, the rest by withdrawing blanket consent.
+        store.withdrawFromStudy("S-1")
+        assertEquals(listOf("S-2"), store.pendingInvitations.filter { it.isOpen }.map { it.studyId })
+        store.withdrawBlanketResearchConsent()
+
+        assertTrue(store.pendingInvitations.none { it.isOpen })
+    }
+
+    // ── OI-PRIV-06 point 2: clinician access is time-limited ─────────────────────
+
+    private fun plainStore(kv: InMemoryKeyValueStore = InMemoryKeyValueStore()) =
+        ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+
+    // @verifies REQ-CONSENT-19#a
+    @Test
+    fun aGrantWithNoUsableEndDayIsRefused() {
+        val store = plainStore()
+        val grant = grantedYesterday(ClinicianUseCaseTier.MONITOR)
+
+        assertFalse(store.grantClinicianAccess(grant.copy(expiresAtDay = null)))
+        assertFalse(store.grantClinicianAccess(grant.copy(expiresAtDay = grant.grantedAtDay)), "ends the day it starts")
+        assertFalse(store.grantClinicianAccess(grant.copy(expiresAtDay = "2020-01-01")), "ends before it starts")
+        assertFalse(store.grantClinicianAccess(grant.copy(expiresAtDay = "next year")), "not a day")
+        assertFalse(store.grantClinicianAccess(grant.copy(expiresAtDay = "9999-1-1")), "not in the stored form")
+        assertTrue(store.clinicianGrants.isEmpty())
+
+        assertTrue(store.grantClinicianAccess(grant))
+        assertEquals(grant.expiresAtDay, store.clinicianGrants.single().expiresAtDay)
+    }
+
+    // @verifies REQ-CONSENT-19#b
+    @Test
+    fun aGrantGivesNothingFromItsEndDayOn() {
+        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(
+            grantedAtDay = "2026-01-01",
+            expiresAtDay = "2026-02-01",
+        )
+
+        assertTrue(grant.isInForce("2026-01-31"))
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsInForce("2026-01-31"))
+        assertEquals(
+            ClinicianUseCaseTier.ASSESS.uhdrElements,
+            grant.elementsVisibleForDataRecordedOn("2026-01-15", today = "2026-01-31"),
+        )
+
+        for (today in listOf("2026-02-01", "2026-02-02", "2030-01-01")) {
+            assertFalse(grant.isInForce(today))
+            assertTrue(grant.elementsInForce(today).isEmpty())
+            // Whenever the data was recorded, including while the grant was running.
+            assertTrue(grant.elementsVisibleForDataRecordedOn("2026-01-15", today).isEmpty())
+            assertTrue(grant.elementsVisibleForDataRecordedOn("2025-06-01", today).isEmpty())
+        }
+    }
+
+    // @verifies REQ-CONSENT-19#c
+    @Test
+    fun aGrantStoredWithNoEndDayIsNotInForce() {
+        // What the form wrote before an end day was required. It still decodes, and it gives nothing.
+        val kv = InMemoryKeyValueStore()
+        kv.putString(
+            ConsentStore.GRANTS_KEY,
+            """[{"id":"g","clinicianName":"Dr. Test","clinicianOrganization":"Test Hospital","tier":"MONITOR","grantedAtDay":"2026-01-01"}]""",
+        )
+        val grant = plainStore(kv).clinicianGrants.single()
+
+        assertNull(grant.expiresAtDay)
+        assertFalse(grant.isInForce("2026-01-02"))
+        assertTrue(grant.elementsInForce("2026-01-02").isEmpty())
+        assertTrue(grant.elementsVisibleForDataRecordedOn("2026-01-02", today = "2026-01-02").isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-19#d
+    @Test
+    fun aGrantThatHasEndedCannotBeWidened() {
+        val kv = InMemoryKeyValueStore()
+        val ended = grantedYesterday(ClinicianUseCaseTier.MONITOR).copy(
+            grantedAtDay = "2026-01-01",
+            expiresAtDay = "2026-02-01",
+        )
+        val store = plainStore(kv)
+        assertTrue(store.grantClinicianAccess(ended))
+        assertNull(ConsentEngine.accessDifferential(ended, ClinicianUseCaseTier.ASSESS, todayDay))
+        assertNotNull(ConsentEngine.accessDifferential(ended, ClinicianUseCaseTier.ASSESS, "2026-01-31"))
+
+        store.addExpansionRequest(requestTo(ClinicianUseCaseTier.ASSESS))
+        store.approveExpansion("req-1", includePriorData = true)
+
+        assertEquals(ClinicianUseCaseTier.MONITOR, store.clinicianGrants.single().tier)
+        assertTrue(store.expansionRequests.single().isPending, "nothing was approved")
+    }
+
+    // @verifies REQ-CONSENT-19#e
+    @Test
+    fun whatAnEndedGrantWasDecidedToReachStaysReadable() {
+        val ended = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(
+            grantedAtDay = "2026-01-01",
+            expiresAtDay = "2026-02-01",
+        )
+        assertFalse(ended.isInForce(todayDay))
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, ended.approvedElements)
+    }
+
+    // @verifies REQ-CONSENT-19#f
+    @Test
+    fun theEndDayIsTheGrantDayPlusTheDaysEntered() {
+        assertEquals("2026-01-31", ConsentEngine.expiryDay("2026-01-01", 30))
+        assertEquals("2026-03-01", ConsentEngine.expiryDay("2026-02-28", 1))
+        assertEquals("2028-02-29", ConsentEngine.expiryDay("2027-03-01", 365))
+        assertNull(ConsentEngine.expiryDay("2026-01-01", 0))
+        assertNull(ConsentEngine.expiryDay("2026-01-01", -5))
+        assertNull(ConsentEngine.expiryDay("not a day", 30))
+        assertNull(ConsentEngine.expiryDay("2026-01-01", Int.MAX_VALUE), "past the years a day string can order")
+        // What it produces is what the store accepts.
+        val grant = grantedYesterday(ClinicianUseCaseTier.MONITOR)
+        assertTrue(ConsentEngine.hasUsableExpiry(grant.copy(expiresAtDay = ConsentEngine.expiryDay(grant.grantedAtDay, 1))))
+    }
+
+    // ── OI-PRIV-06 point 3: a consent record that cannot be read ─────────────────
+
+    private val quarantineSerializer = MapSerializer(String.serializer(), ListSerializer(String.serializer()))
+
+    private fun quarantined(kv: InMemoryKeyValueStore): Map<String, List<String>> =
+        kv.getString(ConsentStore.QUARANTINE_KEY)
+            ?.let { Json.decodeFromString(quarantineSerializer, it) }
+            .orEmpty()
+
+    /** A store whose person withdrew blanket consent, then the same storage with that record made unreadable. */
+    private fun storeWithUnreadableResearchRecord(blob: String = "{\"blanketConsentGranted\":fal"): Pair<ConsentStore, InMemoryKeyValueStore> {
+        val (first, kv) = ingestingStore(consent = blanketConsent().withAllCategories(true))
+        first.withdrawBlanketResearchConsent()
+        assertTrue(first.researchConsent.blanketConsentWithdrawn)
+        kv.putString(ConsentStore.RESEARCH_KEY, blob)
+        return ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), descriptorVerifier = verifying(HASH)) to kv
+    }
+
+    // @verifies REQ-CONSENT-20#a
+    @Test
+    fun anUnreadableRecordIsKeptAsFoundAndLaterSavesDoNotRemoveIt() {
+        val blob = "{\"blanketConsentGranted\":fal"
+        val (store, kv) = storeWithUnreadableResearchRecord(blob)
+
+        assertEquals(mapOf(ConsentStore.RESEARCH_KEY to listOf(blob)), quarantined(kv))
+
+        // Anything that saves used to write the defaults over it.
+        store.setCategoryConsent(ResearchCategory.SLEEP, true)
+        store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR))
+        store.updateResearchConsent(categoryConsent(ResearchCategory.SLEEP))
+
+        assertEquals(mapOf(ConsentStore.RESEARCH_KEY to listOf(blob)), quarantined(kv))
+    }
+
+    // @verifies REQ-CONSENT-20#b
+    @Test
+    fun whileTheResearchRecordIsUnreadableNoStudyIsAdmitted() {
+        val (store, _) = storeWithUnreadableResearchRecord()
+
+        assertTrue(store.redecisionRequired)
+        // The defaults are in memory. They say "never asked"; the record that was lost said stop.
+        assertFalse(store.researchConsent.blanketConsentWithdrawn)
+        assertEquals(
+            StudyDescriptorAdmission.Reason.CONSENT_RECORD_UNREADABLE,
+            refusalOf(store.ingestStudyDescriptor(study("S-9", ResearchCategory.SLEEP))),
+        )
+        // A partial edit that would otherwise admit the study does not lift the pause.
+        store.setCategoryConsent(ResearchCategory.SLEEP, true)
+        assertEquals(
+            StudyDescriptorAdmission.Reason.CONSENT_RECORD_UNREADABLE,
+            refusalOf(store.ingestStudyDescriptor(study("S-9", ResearchCategory.SLEEP))),
+        )
+        assertTrue(store.pendingInvitations.none { it.studyId == "S-9" })
+    }
+
+    // @verifies REQ-CONSENT-20#b
+    @Test
+    fun theSignatureIsStillCheckedBeforeTheUnreadableRecordIsNamed() {
+        // The order of the gate holds: an unverifiable descriptor learns nothing about this device's state.
+        val admission = ConsentEngine.admit(
+            descriptor = descriptor(),
+            verification = StudyDescriptorVerification.Rejected,
+            consent = ResearchConsentState(),
+            studyAlreadyDecided = false,
+            consentRecordUnreadable = true,
+        )
+        assertEquals(StudyDescriptorAdmission.Reason.SIGNATURE_INVALID, refusalOf(admission))
+    }
+
+    // @verifies REQ-CONSENT-20#b
+    @Test
+    fun whileARecordIsUnreadableAnOpenInvitationCannotBeAccepted() {
+        val (first, kv) = ingestingStore(consent = categoryConsent(ResearchCategory.SLEEP))
+        first.ingestStudyDescriptor(study("S-1", ResearchCategory.SLEEP))
+        kv.putString(ConsentStore.STUDY_WITHDRAWALS_KEY, "not json")
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), descriptorVerifier = verifying(HASH))
+        assertTrue(store.redecisionRequired)
+        assertTrue(store.pendingInvitations.single().isOpen)
+
+        store.acceptInvitation("S-1")
+
+        assertTrue(store.studyParticipations.isEmpty())
+        assertTrue(store.pendingInvitations.single().isOpen, "still there to answer once the person has decided again")
+
+        store.updateResearchConsent(store.researchConsent)
+        store.acceptInvitation("S-1")
+        assertEquals(setOf("S-1"), activeStudies(store))
+    }
+
+    // @verifies REQ-CONSENT-20#c
+    @Test
+    fun committingTheConsentFormIsTheFreshDecisionThatEndsThePause() {
+        val (store, kv) = storeWithUnreadableResearchRecord()
+
+        store.setCategoryConsent(ResearchCategory.SLEEP, true)
+        store.withdrawBlanketResearchConsent()
+        store.withdrawFromStudy("S-1")
+        assertTrue(store.redecisionRequired, "none of these is the person deciding their research consent again")
+
+        store.updateResearchConsent(categoryConsent(ResearchCategory.SLEEP))
+
+        assertFalse(store.redecisionRequired)
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(study("S-9", ResearchCategory.SLEEP)))
+        assertFalse(ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).redecisionRequired)
+    }
+
+    // @verifies REQ-CONSENT-20#d
+    @Test
+    fun thePauseSurvivesARestartAndTheRecordIsQuarantinedOnce() {
+        val (_, kv) = storeWithUnreadableResearchRecord()
+        val once = quarantined(kv)
+
+        // No save happened in between: the next launch finds the same storage.
+        val again = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        assertTrue(again.redecisionRequired)
+        assertEquals(once, quarantined(kv))
+
+        // A second, different unreadable record is added to the first, not written over it.
+        kv.putString(ConsentStore.RESEARCH_KEY, "second")
+        assertTrue(ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).redecisionRequired)
+        assertEquals(once.getValue(ConsentStore.RESEARCH_KEY) + "second", quarantined(kv).getValue(ConsentStore.RESEARCH_KEY))
+    }
+
+    // @verifies REQ-CONSENT-20#e
+    @Test
+    fun aRecordThatReadsIsNotQuarantinedIncludingOneWithAKeyThisVersionDropped() {
+        val (first, kv) = ingestingStore(consent = blanketConsent())
+        first.withdrawBlanketResearchConsent()
+        assertFalse(ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).redecisionRequired)
+        assertTrue(quarantined(kv).isEmpty())
+
+        // `isPoaHolder` was removed from the model (OI-PRIV-06 point 8). A record written with it still reads,
+        // and its withdrawal marker with it.
+        val stored = kv.getString(ConsentStore.RESEARCH_KEY)!!
+        assertFalse("isPoaHolder" in stored, "the field is no longer written")
+        kv.putString(ConsentStore.RESEARCH_KEY, stored.replaceFirst("{", "{\"isPoaHolder\":false,"))
+        val reloaded = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+
+        assertFalse(reloaded.redecisionRequired)
+        assertTrue(reloaded.researchConsent.blanketConsentWithdrawn)
+        assertTrue(quarantined(kv).isEmpty())
+    }
+
+    // @verifies REQ-CONSENT-20#f
+    @Test
+    fun anUnreadableClinicianRecordIsKeptAndDoesNotPauseResearch() {
+        val (first, kv) = ingestingStore(consent = categoryConsent(ResearchCategory.SLEEP))
+        first.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR))
+        kv.putString(ConsentStore.GRANTS_KEY, "[{")
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), descriptorVerifier = verifying(HASH))
+
+        assertEquals(mapOf(ConsentStore.GRANTS_KEY to listOf("[{")), quarantined(kv))
+        assertTrue(store.clinicianGrants.isEmpty(), "access that cannot be read is access that is not given")
+        assertFalse(store.redecisionRequired)
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(study("S-9", ResearchCategory.SLEEP)))
+    }
+
+    // ── OI-PRIV-06 point 4: joining a study is not sending it data ───────────────
+
+    // @verifies REQ-CONSENT-21#a
+    @Test
+    fun aParticipationRecordWrittenAtEnrolmentClaimsNoTransmission() {
+        val (store, kv) = ingestingStore(consent = blanketConsent())
+        store.ingestStudyDescriptor(study("S-1", ResearchCategory.DEPRESSION))
+
+        for (record in listOf(
+            store.studyParticipations.single(),
+            ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).studyParticipations.single(),
+        )) {
+            assertEquals(todayDay, record.enrolledAtDay)
+            assertNull(record.transmittedAtDay)
+            assertEquals(0L, record.extractBytes)
+        }
+    }
+
+    // @verifies REQ-CONSENT-21#b
+    @Test
+    fun aRecordStoredInTheEarlierShapeIsReadWithItsDayAsTheDayJoined() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(
+            PersistedKeys.PARTICIPATION_KEY,
+            """[{"id":"p","studyId":"S-1","descriptorHash":"sha256:abc","transmittedAtDay":"2026-05-04","extractBytes":0}]""",
+        )
+        val record = plainStore(kv).studyParticipations.single()
+
+        assertEquals("2026-05-04", record.enrolledAtDay)
+        assertNull(record.transmittedAtDay)
+        assertTrue(record.isActive)
+        assertTrue(quarantined(kv).isEmpty())
+    }
+
+    // ── OI-PRIV-06 point 7: why a withdrawal time is kept to the second ──────────
+
+    /// The restore rule is "the later withdrawal wins, and a grant made after a withdrawal stands". Two phones
+    /// can each record a withdrawal of the same consent on one day, so a day cannot order them: with days, the
+    /// later "stop" below would compare equal to the one held and be dropped.
+    // @verifies SWR-MG-04
+    @Test
+    fun twoWithdrawalsOnOneDayAreOrderedByTheirTimes() {
+        val s = clocked("2026-03-01T09:00:00Z")
+        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+        s.updateResearchConsent(ResearchConsentState(contactConsentGranted = true))
+        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+
+        // Earlier the same day: older than the withdrawal held here, so the grant made after it stands.
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T08:00:00Z") })
+        assertTrue(s.researchConsent.blanketConsentGranted)
+
+        // Later the same day, on another phone: it is the later decision, and it wins.
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T17:00:00Z") })
+        assertFalse(s.researchConsent.blanketConsentGranted)
+        assertEquals("2026-03-01T17:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
     }
 }

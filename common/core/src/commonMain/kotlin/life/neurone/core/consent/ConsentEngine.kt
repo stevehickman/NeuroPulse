@@ -10,6 +10,9 @@ import life.neurone.core.models.StudyDescriptorVerification
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.UHDRElement
 import life.neurone.core.protocol.ConsentLimits
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 
 /**
  * One plain-language thing a clinician may do with a grant, and the UHDR elements doing it needs.
@@ -121,13 +124,18 @@ object ConsentEngine {
      *    and a move away from one as adding everything; both are wrong. Research access changes
      *    go through the per-study consent path (§6.3), not this one.
      *
+     * A fourth: **the grant is not in force on [today]** (it has ended, or has no end day). There is nothing
+     * to widen, and approving would attach new elements to access that §5.1 says is over.
+     *
      * The document carries no prose of its own: the elements are the substance, and the wording
      * around them belongs to whichever platform is rendering it (CLAUDE.md §17).
      */
     fun accessDifferential(
         grant: ClinicianConsentGrant,
         newTier: ClinicianUseCaseTier,
+        today: String,
     ): ClinicianAccessDifferential? {
+        if (!grant.isInForce(today)) return null
         if (grant.tier == ClinicianUseCaseTier.RESEARCH ||
             newTier == ClinicianUseCaseTier.RESEARCH
         ) {
@@ -153,6 +161,25 @@ object ConsentEngine {
         )
     }
 
+    /**
+     * The end day of a grant made on [grantedAtDay] that lasts [days] days, or null when that is not a
+     * usable end: [days] is not positive, [grantedAtDay] is not a day, or the result falls outside the four-digit
+     * years a "yyyy-MM-dd" string can order. The form asks for a number of days and stores this day.
+     */
+    fun expiryDay(grantedAtDay: String, days: Int): String? {
+        if (days <= 0) return null
+        val end = runCatching { LocalDate.parse(grantedAtDay).plus(days, DateTimeUnit.DAY) }.getOrNull() ?: return null
+        return if (end.year in 0..9999) end.toString() else null
+    }
+
+    /** Whether [grant] carries an end day that is a real day after the day it was granted. */
+    fun hasUsableExpiry(grant: ClinicianConsentGrant): Boolean {
+        val expiry = grant.expiresAtDay ?: return false
+        val end = runCatching { LocalDate.parse(expiry) }.getOrNull() ?: return false
+        val start = runCatching { LocalDate.parse(grant.grantedAtDay) }.getOrNull() ?: return false
+        return end > start && end.toString() == expiry
+    }
+
     // ── Study descriptor ingestion (§6.3 per-project workflow) ───────────
 
     // §5.3's anonymisation floors are `ConsentLimits` (common/npps/constants.json), generated for every runtime.
@@ -173,12 +200,15 @@ object ConsentEngine {
      * @param consent the user's current research consent (L1–L4).
      * @param studyAlreadyDecided whether this study ID has already been answered, joined or
      *   withdrawn from on this device.
+     * @param consentRecordUnreadable whether a stored consent record could not be read and the person has not
+     *   decided again since. [consent] is then not what they decided, so it is not consulted.
      */
     fun admit(
         descriptor: StudyDescriptor,
         verification: StudyDescriptorVerification,
         consent: ResearchConsentState,
         studyAlreadyDecided: Boolean,
+        consentRecordUnreadable: Boolean,
     ): StudyDescriptorAdmission {
         val descriptorHash = when (verification) {
             StudyDescriptorVerification.Unavailable ->
@@ -197,6 +227,14 @@ object ConsentEngine {
         ) {
             return StudyDescriptorAdmission.Refused(
                 StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
+            )
+        }
+
+        // Ahead of every read of `consent`: when the stored record could not be read, what is in memory is
+        // the defaults, and the record that was lost may have held a withdrawal.
+        if (consentRecordUnreadable) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.CONSENT_RECORD_UNREADABLE,
             )
         }
 

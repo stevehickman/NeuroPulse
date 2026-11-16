@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.Res
@@ -113,9 +115,13 @@ fun ConsentDashboardScreen(app: AppServices, modifier: Modifier = Modifier) {
 
         is DashboardRoute.NewClinicianGrant -> NewClinicianGrantScreen(
             onGrant = { grant ->
-                store.grantClinicianAccess(grant)
-                version++
-                route = DashboardRoute.Dashboard
+                // The store refuses a grant with no usable end day (§5.1). The form cannot produce one, so a
+                // refusal leaves the person on the form with what they entered instead of showing a grant
+                // that was not stored.
+                if (store.grantClinicianAccess(grant)) {
+                    version++
+                    route = DashboardRoute.Dashboard
+                }
             },
             onCancel = { route = DashboardRoute.Dashboard },
             modifier = modifier,
@@ -177,6 +183,8 @@ private fun DashboardContent(
     val participations = remember(version) { store.studyParticipations }
     val invitations = remember(version) { store.pendingInvitations.filter { it.isOpen } }
     val expansions = remember(version) { store.expansionRequests.filter { it.isPending } }
+    val redecisionRequired = remember(version) { store.redecisionRequired }
+    val today = todayIso()
 
     var grantPendingRevoke by remember { mutableStateOf<ClinicianConsentGrant?>(null) }
     var participationPendingWithdraw by remember { mutableStateOf<StudyParticipationRecord?>(null) }
@@ -230,9 +238,9 @@ private fun DashboardContent(
         } else {
             for (request in expansions) {
                 val grant = grants.firstOrNull { it.id == request.grantId }
-                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
-                // A pending request whose differential no longer holds — the grant was revoked or
-                // already widened — is not rendered. approveExpansion fails closed on the same
+                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, today) }
+                // A pending request whose differential no longer holds — the grant was revoked, has
+                // ended, or was already widened — is not rendered. approveExpansion fails closed on the same
                 // condition, so there is nothing here the user could usefully answer.
                 if (differential != null) {
                     Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -280,6 +288,16 @@ private fun DashboardContent(
 
         // ── Research consent (§6.2) ──────────────────────────────────────
         SectionHeader(stringResource(Res.string.dashboard_section_research))
+        // A stored consent record could not be read. The choices shown below are then the defaults, not
+        // what the person decided, and the store admits no study until they choose again; saying so is
+        // what lets them find out why research went quiet.
+        if (redecisionRequired) {
+            Text(
+                stringResource(Res.string.dashboard_consent_unreadable),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+        }
         // Contact status first: it belongs to the section, not to the category list below it.
         Text(
             if (research.contactConsentGranted) {
@@ -562,15 +580,21 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                     Text(stringResource(Res.string.dashboard_revoke_button))
                 }
             }
-            // What this grant actually reaches — the §6.1 minimum-necessary set for its tier.
-            Text(
-                stringResource(Res.string.dashboard_access_format, elementList(grant.approvedElements)),
-                style = MaterialTheme.typography.labelSmall,
-            )
+            val today = todayIso()
+            val inForce = grant.isInForce(today)
+            // What this grant actually reaches — the §6.1 minimum-necessary set for its tier. Shown only
+            // while the grant is in force: an ended grant reaches nothing, and listing elements under it
+            // would say otherwise.
+            if (inForce) {
+                Text(
+                    stringResource(Res.string.dashboard_access_format, elementList(grant.elementsInForce(today))),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
             // A "from today onwards only" answer to §6.1's retroactive question has to stay
             // visible after the decision, or the user cannot tell which of the two answers they
             // gave. Absent when every scope covers prior data, which is the ordinary case.
-            if (grant.forwardOnlyElements.isNotEmpty()) {
+            if (inForce && grant.forwardOnlyElements.isNotEmpty()) {
                 Text(
                     stringResource(
                         Res.string.dashboard_forward_only_format,
@@ -583,12 +607,17 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                 stringResource(Res.string.dashboard_granted_format, grant.grantedAtDay),
                 style = MaterialTheme.typography.labelSmall,
             )
-            grant.expiresAtDay?.let { expiry ->
-                Text(
-                    stringResource(Res.string.dashboard_expires_format, expiry),
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            // Clinician access is time-limited (§5.1). The card says which of three states the grant is in:
+            // running to a day, ended on one, or stored before an end day was required and so not in force.
+            val expiry = grant.expiresAtDay
+            Text(
+                when {
+                    expiry == null -> stringResource(Res.string.dashboard_grant_no_end)
+                    inForce -> stringResource(Res.string.dashboard_expires_format, expiry)
+                    else -> stringResource(Res.string.dashboard_grant_ended_format, expiry)
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -606,8 +635,21 @@ private fun StudyParticipationCard(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(record.studyId, style = MaterialTheme.typography.titleSmall)
+                // Joining and sending are different events. "Data shared" is shown only for a day an
+                // extract was really sent; until then the card says nothing has been.
+                record.enrolledAtDay?.let { joined ->
+                    Text(
+                        stringResource(Res.string.dashboard_joined_format, joined),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                val sent = record.transmittedAtDay
                 Text(
-                    stringResource(Res.string.dashboard_data_shared_format, record.transmittedAtDay),
+                    if (sent != null) {
+                        stringResource(Res.string.dashboard_data_shared_format, sent)
+                    } else {
+                        stringResource(Res.string.dashboard_no_data_shared)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (!record.isActive) {
@@ -829,9 +871,9 @@ private fun ClinicianExpansionRequestScreen(
     var questionSent by remember { mutableStateOf(false) }
 
     val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
-    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
+    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, todayIso()) }
     if (differential == null) {
-        // Stale request: the grant went away or was already widened past this tier. Nothing here
+        // Stale request: the grant went away, has ended, or was already widened past this tier. Nothing here
         // can be answered honestly, so the screen renders nothing and leaves. The navigation is a
         // side effect, so it goes through LaunchedEffect rather than firing during composition.
         LaunchedEffect(request.id) { onBack() }
@@ -1033,6 +1075,10 @@ private fun NewClinicianGrantScreen(
     var tier by remember { mutableStateOf(ClinicianUseCaseTier.MONITOR) }
     var selectedUseCaseIds by remember { mutableStateOf(emptySet<String>()) }
     var askingHistory by remember { mutableStateOf(false) }
+    // How long the access lasts, in days, as typed. No default and no preset: §5.1 makes clinician access
+    // time-limited, and how long is the person's decision, so the form cannot continue until they give one.
+    var daysText by remember { mutableStateOf("") }
+    val expiresAtDay = daysText.trim().toIntOrNull()?.let { ConsentEngine.expiryDay(todayIso(), it) }
 
     val availableUseCases = ConsentEngine.useCasesAvailableFor(tier)
     // The scope the grant would carry. Built with includesPriorData = false only to read its
@@ -1046,7 +1092,7 @@ private fun NewClinicianGrantScreen(
     val withheld = UHDRElement.entries.filterNot { it in approved }.toSet()
     // The Research tier has no library to pick from — its elements are IRB-defined per study
     // descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
-    val canProceed = name.isNotBlank() && organization.isNotBlank() &&
+    val canProceed = name.isNotBlank() && organization.isNotBlank() && expiresAtDay != null &&
         (tier == ClinicianUseCaseTier.RESEARCH || selectedUseCaseIds.isNotEmpty())
 
     fun commit(includePriorData: Boolean) {
@@ -1058,7 +1104,9 @@ private fun NewClinicianGrantScreen(
                 clinicianOrganization = organization.trim(),
                 tier = tier,
                 grantedAtDay = today,
-                expiresAtDay = null,
+                // Counted from the day of the grant, which may be a day later than the one the footer
+                // showed if the form was left open over midnight.
+                expiresAtDay = daysText.trim().toIntOrNull()?.let { ConsentEngine.expiryDay(today, it) },
                 isActive = true,
                 accessScopes = listOf(
                     ConsentEngine.initialAccessScope(
@@ -1121,6 +1169,23 @@ private fun NewClinicianGrantScreen(
             onValueChange = { organization = it },
             label = { Text(stringResource(Res.string.clinician_grant_org_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = daysText,
+            onValueChange = { typed -> daysText = typed.filter(Char::isDigit) },
+            label = { Text(stringResource(Res.string.clinician_grant_duration_label)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            if (expiresAtDay != null) {
+                stringResource(Res.string.clinician_grant_duration_footer, expiresAtDay)
+            } else {
+                stringResource(Res.string.clinician_grant_duration_required)
+            },
+            style = MaterialTheme.typography.bodySmall,
         )
 
         Spacer(Modifier.height(20.dp))

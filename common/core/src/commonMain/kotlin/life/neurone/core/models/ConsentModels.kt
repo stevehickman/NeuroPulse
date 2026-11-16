@@ -41,7 +41,12 @@ data class ClinicianConsentGrant(
     val clinicianOrganization: String,
     val tier: ClinicianUseCaseTier,
     val grantedAtDay: String,      // "yyyy-MM-dd" — day granularity, consistent with SessionRecord
-    val expiresAtDay: String? = null, // null = indefinite until revoked
+    /**
+     * The day this access ends, "yyyy-MM-dd". Clinician access is time-limited (CLAUDE.md §5.1), so a grant
+     * needs one to be in force: see [isInForce]. Null only on a grant stored before an end day was required
+     * (`OI-PRIV-06` point 2); the store refuses a new grant without one.
+     */
+    val expiresAtDay: String? = null,
     val isActive: Boolean = true,
     /**
      * The access decisions this grant is made of, newest last. Null because a grant written
@@ -66,6 +71,24 @@ data class ClinicianConsentGrant(
     val useCaseIds: List<String>? = null,
 ) {
     /**
+     * Whether this grant gives the clinician anything on [today] ("yyyy-MM-dd").
+     *
+     * False once the end day arrives (the last day of access is the day before [expiresAtDay]), and false for
+     * a grant with no end day at all: access with no end is not time-limited, which CLAUDE.md §5.1 requires
+     * it to be. Every read of what a clinician may see goes through this ([elementsInForce],
+     * [elementsVisibleForDataRecordedOn], `ConsentEngine.accessDifferential`). [approvedElements] does not:
+     * it is the record of what was decided, and it stays readable after the grant ends.
+     */
+    fun isInForce(today: String): Boolean {
+        val expiry = expiresAtDay ?: return false
+        return isActive && today < expiry
+    }
+
+    /** What the clinician may see on [today]: [approvedElements] while the grant is in force, nothing after. */
+    fun elementsInForce(today: String): Set<UHDRElement> =
+        if (isInForce(today)) approvedElements else emptySet()
+
+    /**
      * The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
      * tier's elements, effective from the grant day, with prior data included.
      *
@@ -86,24 +109,30 @@ data class ClinicianConsentGrant(
         )
 
     /**
-     * Everything this grant reaches, ignoring when the data was recorded. This is the dashboard's
-     * "what can they see" line; for the time-aware answer use [elementsVisibleForDataRecordedOn].
+     * Everything this grant was decided to reach, ignoring when the data was recorded and whether the grant
+     * is still in force. This is the record of the decision; what the clinician may see today is
+     * [elementsInForce], and the time-aware answer is [elementsVisibleForDataRecordedOn].
      */
     val approvedElements: Set<UHDRElement>
         get() = effectiveScopes.flatMap { it.elements }.toSet()
 
     /**
-     * Elements the clinician may see in data recorded on [day] ("yyyy-MM-dd") — the predicate
+     * Elements the clinician may see on [today] in data recorded on [day] ("yyyy-MM-dd") — the predicate
      * that makes the retroactive decision mean something. A scope contributes when the data is on
-     * or after its effective day, or when the user separately approved prior data for it.
+     * or after its effective day, or when the user separately approved prior data for it. Nothing is
+     * visible once the grant is no longer in force ([isInForce]), whenever the data was recorded.
      *
      * ISO-8601 day strings compare correctly as strings, which is why they are stored that way.
      */
-    fun elementsVisibleForDataRecordedOn(day: String): Set<UHDRElement> =
-        effectiveScopes
-            .filter { day >= it.effectiveFromDay || it.includesPriorData }
-            .flatMap { it.elements }
-            .toSet()
+    fun elementsVisibleForDataRecordedOn(day: String, today: String): Set<UHDRElement> =
+        if (!isInForce(today)) {
+            emptySet()
+        } else {
+            effectiveScopes
+                .filter { day >= it.effectiveFromDay || it.includesPriorData }
+                .flatMap { it.elements }
+                .toSet()
+        }
 
     /**
      * Elements this grant reaches only from some day onwards — what the user kept out of the
@@ -181,7 +210,9 @@ data class ResearchConsentState(
     val contactConsentGranted: Boolean = false,
     val contactMethod: String = "",
     val contactFrequency: ContactFrequency = ContactFrequency.MONTHLY,
-    val isPoaHolder: Boolean = false,
+    // No POA field: the proxy workflow (`REQ-CONSENT-17`) is not built in this app, and a flag nothing writes
+    // would record "not a proxy" for a person nobody asked (`OI-PRIV-06` point 8). A blob that still carries
+    // the old `isPoaHolder` key decodes, because the store's decoder ignores unknown keys.
 
     // L2: Category consent (9 research categories)
     val categoryConsents: Map<ResearchCategory, Boolean> =
@@ -279,14 +310,25 @@ enum class ResearchCategory(val wireName: String) {
     val displayName: String get() = wireName
 }
 
-// Study participation record (audit trail — SHDR-class, not UHDR)
+/**
+ * Study participation record (audit trail — SHDR-class, not UHDR).
+ *
+ * Joining a study and sending it data are different events, and the record keeps them apart: it is written
+ * when the person joins ([enrolledAtDay]), and [transmittedAtDay] and [extractBytes] stay empty until an
+ * extract has really been sent. It used to be written at enrolment with `transmittedAtDay` set to that day and
+ * zero bytes, so the audit trail and the dashboard said data was shared on a day nothing left the device
+ * (`OI-PRIV-06` point 4). No extractor exists yet (`OI-CONSENT-07`), so nothing sets the two fields today.
+ */
 @Serializable
 data class StudyParticipationRecord(
     val id: String,
     val studyId: String,
     val descriptorHash: String,     // SHA-256 of signed study descriptor
-    val transmittedAtDay: String,   // day granularity
-    val extractBytes: Long,
+    /** The day the person joined. Null only on a record stored before this field existed, until the store reads it. */
+    val enrolledAtDay: String? = null,
+    /** The day an extract was last sent, or null if none has been. Day granularity. */
+    val transmittedAtDay: String? = null,
+    val extractBytes: Long = 0,
     val withdrawnAtDay: String? = null,
 ) {
     val isActive: Boolean get() = withdrawnAtDay == null
@@ -402,6 +444,13 @@ sealed interface StudyDescriptorAdmission {
          * floor is not one the user may be asked to consent to.
          */
         ANONYMISATION_BELOW_FLOOR,
+
+        /**
+         * A stored consent record could not be read, so the device does not know what the person decided,
+         * and they have not decided again yet (`OI-PRIV-06` point 3). Distinct from [NO_RESEARCH_CONSENT]:
+         * the record may have said stop.
+         */
+        CONSENT_RECORD_UNREADABLE,
 
         /**
          * L1 is the shared precondition for every delivery path, invitations and engagement

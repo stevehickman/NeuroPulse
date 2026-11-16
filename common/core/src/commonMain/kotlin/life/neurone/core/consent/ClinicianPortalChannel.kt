@@ -1,5 +1,6 @@
 package life.neurone.core.consent
 
+import life.neurone.core.platform.todayIso
 import life.neurone.core.models.ClinicianAccessExpansionRequest
 
 // The clinician-portal channel — CLAUDE.md §6.1, NP-SW-PORTAL-API-001 §4(c).
@@ -90,7 +91,8 @@ class ClinicianPortalSync(
         val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
             ?: return ClinicianRequestAdmission.RefusedUnknownGrant
 
-        ConsentEngine.accessDifferential(grant, request.toTier)
+        // Also refuses a request against a grant that has ended: there is no access left to widen.
+        ConsentEngine.accessDifferential(grant, request.toTier, todayIso())
             ?: return ClinicianRequestAdmission.RefusedNotAnExpansion
 
         store.addExpansionRequest(request)

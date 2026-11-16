@@ -13,6 +13,8 @@
     "np.consent.study-invitations",
     "np.consent.study-participations",
     "np.consent.study-withdrawals",
+    "np.consent.quarantine",
+    "np.consent.redecision-required",
     "np.research.consent-granted",
     "np.research.suggestions"
   ],
