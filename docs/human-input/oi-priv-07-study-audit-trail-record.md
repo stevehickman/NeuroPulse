@@ -21,7 +21,7 @@ Plain form: **is the study audit trail a fact about the device or a fact about t
 
 ### 2.1 Nothing sends or stores a study identifier in SHDR today
 
-Each of these was searched on 2026-11-15 for `study`, `studyId`, `descriptor hash`, `research` and `extract`.
+Each of these was searched on 2026-11-15 for `study`, `studyId`, `descriptor hash`, `research` and `extract`, and searched again by a second session on 2026-11-16 with the same result (`ci/test_shdr_schema.py` and `scripts/check-map2-shdr-boundary.ts` both pass, and neither names a study field).
 
 | Place | Finding |
 |-------|---------|
