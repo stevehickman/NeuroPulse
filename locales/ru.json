@@ -1723,6 +1723,8 @@
   "WEB_LAYER_INTENSITY": "Intensity",
   "WEB_LAYER_START_SEC": "Start (sec)",
   "WEB_LIMITS_ACTIVE_PREFIX": "Active: ",
+  "WEB_LIMITS_OUT_OF_RANGE": "A limit is outside the range the hardware allows. Correct the limits marked in red to save.",
+  "WEB_LIMITS_OUT_OF_RANGE_LIST": "These limits are outside the range the hardware allows: {0}",
   "WEB_LIMITS_TOOLTIP": "Configure dosage limits",
   "WEB_LIM_ALLOWED_BANDS": "Allowed Bands",
   "WEB_LIM_ALLOWED_MODES": "Allowed Modes",

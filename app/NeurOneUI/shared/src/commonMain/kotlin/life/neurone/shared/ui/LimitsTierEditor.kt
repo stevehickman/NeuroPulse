@@ -38,6 +38,7 @@ import life.neurone.core.protocol.NPEEGNeurofeedbackLimits
 import life.neurone.core.protocol.NPEEGNeurofeedbackParams
 import life.neurone.core.protocol.NPHDTdcsLimits
 import life.neurone.core.protocol.NPHDTdcsParams
+import life.neurone.core.protocol.NPHardwareLimits
 import life.neurone.core.protocol.NPLimitsSet
 import life.neurone.core.protocol.NPPBMIntranasalLimits
 import life.neurone.core.protocol.NPPBMTranscranialLimits
@@ -174,7 +175,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_audio,
         { it.audioEntrainment != null }, { l, on -> l.copy(audioEntrainment = if (on) NPAudioEntrainmentLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_volume, "", 40.0..90.0, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) }.also { it.unitLabel = Res.string.unit_db_spl },
+            LimitField.Num(Res.string.web_lim_max_volume, "", 0.0..NPHardwareLimits.AUDIO_MAX_DB_SPL, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) }.also { it.unitLabel = Res.string.unit_db_spl },
             LimitField.Num(Res.string.limits_max_binaural_beats, "Hz", 0.0..100.0, { it.audioEntrainment?.maxBinauralBeatsHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxBinauralBeatsHz = v)) },
             LimitField.Num(Res.string.limits_max_isochronic_tones, "Hz", 0.0..100.0, { it.audioEntrainment?.maxIsochronicTonesHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxIsochronicTonesHz = v)) },
         ),
