@@ -8,7 +8,7 @@ import {
   UNLIMITED_LIMITS,
 } from '../../../../common/types/limits';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
-import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { serializeNPPSLimits, shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { appStorage } from './appStorage';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
@@ -196,8 +196,14 @@ class LimitsStore extends EventTarget {
     return result;
   }
 
+  /** `limits` as a file for someone else (SWR-WO-07): its level, with no helmet serial or individual id. */
+  shareLimitsAsNPPS(limits: NPLimitsSet): string {
+    return shareNPPSLimits(limits);
+  }
+
+  /** A downloaded limits file is one given to someone else, so it is the share form; the editor's text stays the full form. */
   downloadLimitsFile(limits: NPLimitsSet): void {
-    const text = this.exportLimitsAsNPPS(limits);
+    const text = this.shareLimitsAsNPPS(limits);
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

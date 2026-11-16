@@ -1,7 +1,11 @@
 # Question for the principal: OI-PRIV-11, what a protocol or limits file carries when it is shared
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
-**GitHub issue:** none yet. The open item was raised by pull request [#885](https://github.com/stevehickman/NeuroPulse/pull/885); an issue is to be opened when this is sent.
+**Status:** ANSWERED 2026-11-16 by the principal: **Q1 A, Q2 as recommended, Q3 a new `family_id` and the free text left as written, Q4 the level kept and the ID dropped**. Recorded in `NP-SW-001` §6.3 `SWR-WO-07` and `SWR-WO-03`, `docs/reference/data-architecture-detail.md` §5.1 and `docs/status/completed-decisions.md`. Not a controlled document; see `docs/human-input/README.md`.
+
+> **Answer, 2026-11-16 (the principal, in the session that wrote this file):** Q1: two forms. Q2: "Save my protocols" stays the full form and a new "Share a copy" action writes the share form; the React web app's Copy button and limits file download use the share form. Q3: a new `family_id`; the author is kept. Q4: the level is kept and the ID is dropped. No rationale beyond the recommendation's was given, and no condition that would reopen it.
+>
+> **Correction to §2 and §3, found while building it:** the React web app's "Save my protocols" (`backupText`) has never written the used flag; its own comment says a protocol opened from a file starts as unused. So row 4 of §3 carried the ids and no flag, and the statement that the web app keeps the flag only in the saved file was wrong. The ruling does not depend on it. That file not carrying the flag is a gap against `SWR-WO-03` that predates this question and is not changed here.
+**GitHub issue:** none. The open item was raised by pull request [#885](https://github.com/stevehickman/NeuroPulse/pull/885) and the question was answered before an issue was opened.
 **From:** NeurOne Software Engineering (`OI-PRIV-11` part 2 in `docs/status/pending-decisions.md`; it revisits `OI-UI-KMP-10` decision W3 of 2026-10-09 and `NP-SW-001` `SWR-WO-03`)
 **To:** the principal
 **Response needed:** an option for each of Q1 to Q4, a short rationale, anything that would reopen it, and the date.

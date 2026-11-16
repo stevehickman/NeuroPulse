@@ -3,6 +3,8 @@ package life.neurone.core.protocol
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.toNppsCoreLimitsJson
+import life.neurone.core.npps.toNppsCoreItem
+import life.neurone.core.platform.secureRandomBytes
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -51,7 +53,10 @@ fun resolveLimitsWithSources(global: NPLimitsSet?, helmet: NPLimitsSet?, individ
     return resolved.copy(level = NPLimitsSet.LimitLevel.GLOBAL) to (out["sources"] as JsonObject)
 }
 
-class NPLimitsStore(private val kv: KeyValueStore) {
+class NPLimitsStore(
+    private val kv: KeyValueStore,
+    private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
+) {
 
     companion object {
         const val GLOBAL_KEY = "np.limits.global"
@@ -181,7 +186,15 @@ class NPLimitsStore(private val kv: KeyValueStore) {
 
     // MARK: NPPS import / export
 
+    /** [limits] in full, with the helmet serial or individual id it belongs to: the form the store keeps and the tier editor edits. */
     fun exportLimitsAsNPPS(limits: NPLimitsSet): String = NPPSSerializer().serializeLimits(limits)
+
+    /**
+     * [limits] as a file for someone else (SWR-WO-07): the level is kept and the helmet serial and individual id are not
+     * written, so the file names no helmet and no person. The recipient attaches it to the tier they open it in.
+     */
+    fun shareLimitsAsNPPS(limits: NPLimitsSet): String =
+        NppsCore.serializeShare(listOf(NPProtocolEntry.Limits(limits).toNppsCoreItem()), randomBytes(32))
 
     fun importLimitsFromNPPS(text: String): NPLimitsSet {
         val entries = NPPSParser.parse(text)

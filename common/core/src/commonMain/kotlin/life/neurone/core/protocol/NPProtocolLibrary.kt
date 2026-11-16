@@ -1,5 +1,6 @@
 package life.neurone.core.protocol
 
+import life.neurone.core.platform.secureRandomBytes
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -123,6 +124,8 @@ sealed class ProtocolAvailability {
 
 class NPProtocolLibrary(
     private val kv: KeyValueStore,
+    // The random bytes a share export's new ids are made from (SWR-WO-07).
+    private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
 ) {
     companion object {
         const val USER_PROTOCOLS_KEY = "np.user-protocols.npps"
@@ -605,6 +608,16 @@ class NPProtocolLibrary(
             JsonObject(item + ("composite" to composite))
         } else item
     }
+
+    /**
+     * [entry] as a file for someone else (SWR-WO-07): no used flag, and a new id and family id, so the copy says nothing
+     * about what this person ran and cannot be matched to this library. What is stripped is the shared core's rule.
+     */
+    fun shareScript(entry: NPProtocolEntry): String = NppsCore.serializeShare(listOf(flaggedItem(entry)), randomBytes(32))
+
+    /** Everything the user made, as [shareScript] writes it; null when there is nothing of theirs to share. */
+    fun shareAllScript(): String? =
+        if (_userProtocols.isEmpty()) null else NppsCore.serializeShare(_userProtocols.map(::flaggedItem), randomBytes(32))
 
     /** What [openScript] did with a file: how many entries went in, how many the library's rules refused, or that it was unreadable. */
     data class OpenResult(val opened: Int, val refused: Int, val unreadable: Boolean)

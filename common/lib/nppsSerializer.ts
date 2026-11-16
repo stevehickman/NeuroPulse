@@ -20,7 +20,7 @@ import type {
 } from '../types/protocol';
 import type { NPLimitsSet } from '../types/limits';
 import type { NPWavelengthRules } from './wavelengthRules';
-import { nppsSerialize } from './nppsCore';
+import { nppsSerialize, nppsSerializeShare } from './nppsCore';
 
 /**
  * The core's shape of an entry. A modality is `{type, params, interval, enabled}`, not the app's
@@ -75,3 +75,15 @@ export function serializeWavelengthRules(rules: NPWavelengthRules): string {
 }
 
 export type { NPProtocolDefinition, NPCompositeProtocol };
+
+// ── The share form (SWR-WO-07): a file for someone else ───────────────────────────────────────────────────────────────
+
+/** Protocols and composites as a file for someone else: no used flag, new ids. The full form is serializeNPPS. */
+export function shareNPPS(entries: NPProtocolEntry[], random?: Uint8Array): string {
+  return nppsSerializeShare(entries.map(coreEntry), random);
+}
+
+/** A limits set as a file for someone else: its level, and no helmet serial or individual id. */
+export function shareNPPSLimits(limits: NPLimitsSet, random?: Uint8Array): string {
+  return nppsSerializeShare([{ kind: 'limits', limits }], random);
+}

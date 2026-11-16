@@ -220,4 +220,25 @@ class NPLimitsStoreTests {
         assertEquals(listOf(store.profiles.single()), NPLimitsStore(kv).profiles)
         assertFalse("n".repeat(max + 1) in kv.getString(NPLimitsStore.PROFILES_KEY)!!)
     }
+
+    // @verifies SWR-WO-07#c
+    @Test
+    fun aSharedLimitsFileNamesNoHelmetAndNoPerson_andTheStoredFormStillDoes() {
+        val store = NPLimitsStore(InMemoryKeyValueStore())
+        val profile = NPIndividualProfile(name = "Alex")
+        store.saveProfile(profile)
+        store.saveHelmetLimits(NPLimitsSet(name = "h", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), "NP-000123")
+        store.saveIndividualLimits(NPLimitsSet(name = "i", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), profile.id)
+        val helmet = store.helmetLimits.getValue("NP-000123")
+        val individual = store.individualLimits.getValue(profile.id)
+        assertTrue("NP-000123" in store.exportLimitsAsNPPS(helmet))
+
+        val sharedHelmet = store.shareLimitsAsNPPS(helmet)
+        assertFalse("helmet_id" in sharedHelmet || "NP-000123" in sharedHelmet, sharedHelmet)
+        assertEquals(NPLimitsSet.LimitLevel.HELMET, store.importLimitsFromNPPS(sharedHelmet).level)
+
+        val sharedIndividual = store.shareLimitsAsNPPS(individual)
+        assertFalse("individual_id" in sharedIndividual || profile.id in sharedIndividual, sharedIndividual)
+        assertEquals(1.0, store.importLimitsFromNPPS(sharedIndividual).tdcs!!.maxIntensityMilliamps)
+    }
 }

@@ -1,5 +1,7 @@
 import { useRef } from 'react';
 import { t, tPlural } from '../../../../common/lib/i18n';
+import { parseNPPS } from '../../../../common/lib/nppsParser';
+import { shareNPPS } from '../../../../common/lib/nppsSerializer';
 
 interface ScriptEditorProps {
   value: string;
@@ -39,8 +41,16 @@ export function ScriptEditor({ value, onChange, error, onFormat }: ScriptEditorP
     }
   }
 
+  // What goes to the clipboard may go anywhere, so it is the share form (SWR-WO-07): the text is read and written again
+  // with no used flag and new ids. Text that does not read as .npps is not copied; the button is off while it has an error.
   function handleCopy() {
-    navigator.clipboard.writeText(value).catch(() => {});
+    let text: string;
+    try {
+      text = shareNPPS(parseNPPS(value));
+    } catch {
+      return;
+    }
+    navigator.clipboard.writeText(text).catch(() => {});
   }
 
   return (
@@ -49,7 +59,7 @@ export function ScriptEditor({ value, onChange, error, onFormat }: ScriptEditorP
         <button className="btn btn-secondary btn-sm" onClick={onFormat}>
           {t('SCRIPT_FORMAT')}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
+        <button className="btn btn-ghost btn-sm" onClick={handleCopy} disabled={!!error || !value.trim()}>
           {t('SCRIPT_COPY')}
         </button>
         {error && (
