@@ -7,7 +7,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import life.neurone.core.migration.ObjectStore
 import life.neurone.core.net.HttpRequest
 import life.neurone.core.net.HttpResponse
@@ -33,7 +32,7 @@ import life.neurone.core.net.HttpTransport
  * file is a 409 with `path` then `not_found`, read as null. The header is JSON and Dropbox wants non-ASCII characters in it written `\uXXXX`.
  * **Delete** is `files/delete_v2`; a missing file is not an error. A deleted file stays recoverable by the person for a while, as ciphertext.
  * **List** is `files/list_folder` followed by `files/list_folder/continue` while `has_more`; folders are skipped.
- * **Free space** is `users/get_space_usage` (allocated minus used), null when the reply gives no allocation.
+ * **Free space** is not asked for: the call needs a scope that also grants the person's identity (see [freeSpace]).
  *
  * **Names.** Dropbox is case-insensitive and refuses some characters in a name; the characters OneDrive refuses (and `%`) are written `%XX`
  * here as well ([OneDriveObjectStore.fileName]), which is stricter than Dropbox needs, not looser. The reserved-word list is not handled.
@@ -170,21 +169,13 @@ class DropboxObjectStore(
         }
     }
 
-    /** Allocated minus used from `users/get_space_usage`; null when the reply has no allocation figure. */
-    override suspend fun freeSpace(): Long? {
-        val r = send("POST", "$apiUrl/users/get_space_usage", emptyMap())
-        if (r.status != 200) throw CloudStoreException("space usage answered ${r.status}", r.status)
-        return try {
-            val o = Json.parseToJsonElement(r.body.decodeToString()).jsonObject
-            val allocation = o["allocation"]?.jsonObject ?: return null
-            val allocated = allocation["allocated"]?.jsonPrimitive?.longOrNull ?: return null
-            // A team account shares its space: the team's own `used` is what counts against the team's `allocated`.
-            val used = (allocation["used"] ?: o["used"])?.jsonPrimitive?.longOrNull ?: return null
-            (allocated - used).coerceAtLeast(0)
-        } catch (e: Exception) {
-            null
-        }
-    }
+    /**
+     * Unknown, on purpose (`OI-PRIV-15` point 3). The one call that answers it, `users/get_space_usage`, declares the scope
+     * `account_info.read` in Dropbox's API spec, and so does `users/get_current_account`, which returns the person's name and
+     * e-mail address (`users.stone`, read 2026-11-15): asking for the space figure would also be a grant to read who the person is,
+     * which this app never asks for. A store that cannot say how much room it has passes the account check (`SWR-MG-12`).
+     */
+    override suspend fun freeSpace(): Long? = null
 
     internal companion object {
         /** One upload call's limit: "Do not use this to upload a file larger than 150 MiB" (the `upload` route's text in Dropbox's API spec). */

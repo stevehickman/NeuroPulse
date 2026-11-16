@@ -35,6 +35,11 @@ import life.neurone.core.net.HttpTransport
  * **Download.** `GET .../content` answers **302** with a pre-authenticated URL, and [HttpTransport] follows no redirect, so
  * this class makes the second request itself, again without a token.
  *
+ * **Addresses Graph hands back** (`SWR-MG-28` (a)). The upload and download addresses must be `https`; their host is not pinned,
+ * because Microsoft's pages promise none (the examples are `sn3302.up.1drv.com` and `b0mpua-by3301.files.1drv.com`; a work account
+ * uses others), and they are sent no token. `@odata.nextLink` **is** sent the token ("use the entire URL", the paging page), so
+ * it must lie under this adapter's own base address, or the listing stops with an error. Pages read 2026-11-15.
+ *
  * **Names.** OneDrive refuses `" * : < > ? / \ |` in a name and reserves some (`.lock`, `CON`, `PRN`, `AUX`, `NUL`, `COM0-9`,
  * `LPT0-9`, `_vti_`, `desktop.ini`, a leading `~$`) (Microsoft's restrictions article, seen through search excerpts only). The
  * core's names (`np-...`) are plain, but any other name is stored with those characters, a `%`, and a leading or trailing space or
@@ -91,11 +96,14 @@ class OneDriveObjectStore(
         val start = send("POST", "${itemUrl(name)}:/createUploadSession", body.encodeToByteArray(), mapOf("Content-Type" to "application/json"))
         if (start.status == 409 && errorCode(start) == "nameAlreadyExists") return Outcome.EXISTS
         if (start.status != 200) throw CloudStoreException("upload '$name' could not start: ${start.status}", start.status)
-        val uploadUrl = try {
-            Json.parseToJsonElement(start.body.decodeToString()).jsonObject["uploadUrl"]!!.jsonPrimitive.content
-        } catch (e: Exception) {
-            throw CloudStoreException("upload '$name' got a reply with no uploadUrl")
-        }
+        val uploadUrl = followUp(
+            try {
+                Json.parseToJsonElement(start.body.decodeToString()).jsonObject["uploadUrl"]!!.jsonPrimitive.content
+            } catch (e: Exception) {
+                throw CloudStoreException("upload '$name' got a reply with no uploadUrl")
+            },
+            "upload '$name'",
+        )
         var offset = 0
         while (offset < bytes.size) {
             val end = minOf(offset + chunkBytes, bytes.size)
@@ -121,7 +129,7 @@ class OneDriveObjectStore(
             200 -> r.body
             301, 302, 303, 307, 308 -> {
                 val to = r.header("Location") ?: throw CloudStoreException("get '$name' was redirected with no Location", r.status)
-                val d = send("GET", to, authorized = false)
+                val d = send("GET", followUp(to, "get '$name'"), authorized = false)
                 if (d.status != 200) throw CloudStoreException("get '$name' download answered ${d.status}", d.status)
                 d.body
             }
@@ -158,7 +166,8 @@ class OneDriveObjectStore(
                 val decoded = objectName(o["name"]!!.jsonPrimitive.content)
                 if (decoded.startsWith(prefix)) names += decoded
             }
-            url = json["@odata.nextLink"]?.jsonPrimitive?.contentOrNull
+            // The next page is asked for with the token, so it must be Graph's own address and not merely https (`SWR-MG-28` (a)).
+            url = json["@odata.nextLink"]?.jsonPrimitive?.contentOrNull?.let { followUp(it, "list '$prefix'", under = baseUrl) }
         }
         return names
     }

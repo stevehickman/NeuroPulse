@@ -29,11 +29,9 @@ internal class FakeDropbox(private val pageSize: Int = 2) : HttpTransport {
     val seen = mutableListOf<HttpRequest>()
     var offline = false
     var failStatus: Int? = null
-    var allocated: Long? = 1000L
 
     private fun r(code: Int, body: String = "") = HttpResponse(code, emptyMap(), body.encodeToByteArray())
     var summaries = true // false: the reply carries only the structured `error`, as the SDK reads it
-    var teamAllocation = false
     private fun err(summary: String, error: String) = r(409, if (summaries) """{"error_summary":"$summary","error":$error}""" else """{"error":$error}""")
     private val conflict = """{".tag":"path","reason":{".tag":"conflict","conflict":{".tag":"file"}},"upload_session_id":"pid_upload_session:x"}"""
     private val notFound = """{".tag":"path","path":{".tag":"not_found"}}"""
@@ -74,11 +72,6 @@ internal class FakeDropbox(private val pageSize: Int = 2) : HttpTransport {
                 val more = from + pageSize < all.size
                 r(200, """{"entries":[${all.drop(from).take(pageSize).joinToString(",")}],"cursor":"${from + pageSize}","has_more":$more}""")
             }
-            "2/users/get_space_usage" -> r(
-                200,
-                if (teamAllocation) """{"used":100,"allocation":{".tag":"team","used":300,"allocated":${allocated ?: 0},"user_within_team_space_allocated":0}}"""
-                else """{"used":100,"allocation":{".tag":"individual"${allocated?.let { ",\"allocated\":$it" } ?: ""}}}""",
-            )
             else -> r(404)
         }
     }
@@ -161,17 +154,14 @@ class DropboxObjectStoreTests {
         assertTrue(fake.seen.count { it.url.endsWith("/files/list_folder/continue") } >= 2)
     }
 
-    // @verifies SWR-MG-11#calls
+    // @verifies SWR-MG-23#a
     @Test
-    fun freeSpaceIsAllocatedMinusUsedOrNull() = runBlocking {
+    fun freeSpaceIsUnknownAndNothingIsAskedBecauseTheCallNeedsTheScopeThatReadsWhoThePersonIs() = runBlocking {
         val fake = FakeDropbox()
-        assertEquals(900L, db(fake).freeSpace())
-        assertEquals(0, fake.seen.last().body.size, "the call takes no body")
-        fake.teamAllocation = true
-        assertEquals(700L, db(fake).freeSpace(), "a team shares its space: its allocation less the team's own use (1000 less 300)")
-        fake.teamAllocation = false
-        fake.allocated = null
         assertNull(db(fake).freeSpace())
+        assertTrue(fake.seen.isEmpty(), "no call is made: users/get_space_usage needs account_info.read, which is not granted")
+        fake.failStatus = 500
+        assertNull(db(fake).freeSpace(), "and so nothing can fail")
     }
 
     // @verifies SWR-MG-11#calls
@@ -189,7 +179,7 @@ class DropboxObjectStoreTests {
         val s = db(fake)
         s.put("x", byteArrayOf(1))
         fake.failStatus = 500
-        for (call in listOf<suspend () -> Unit>({ s.get("x") }, { s.put("x", byteArrayOf(1)) }, { s.createIfAbsent("x", byteArrayOf(1)) }, { s.delete("x") }, { s.list("") }, { s.freeSpace() })) {
+        for (call in listOf<suspend () -> Unit>({ s.get("x") }, { s.put("x", byteArrayOf(1)) }, { s.createIfAbsent("x", byteArrayOf(1)) }, { s.delete("x") }, { s.list("") })) {
             assertEquals(500, assertFailsWith<CloudStoreException> { call() }.status)
         }
         fake.failStatus = null

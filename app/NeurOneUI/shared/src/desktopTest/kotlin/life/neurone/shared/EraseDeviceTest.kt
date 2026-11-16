@@ -93,6 +93,31 @@ class EraseDeviceTest {
         assertNull(kv.getString("np.session.history"))
     }
 
+    // @verifies SWR-MG-19#e
+    @Test fun an_erase_signs_out_of_the_cloud_accounts_while_their_credentials_still_exist_and_says_what_it_cannot_reach() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.cloud.accounts", "sealed credentials") }
+        var credentialsWhenAsked: String? = null
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), cloudSignOut = { credentialsWhenAsked = kv.getString("np.cloud.accounts"); 2 })
+        model.erase()
+        assertEquals("sealed credentials", credentialsWhenAsked, "the providers are asked before the stored keys are forgotten")
+        assertTrue((model.step.value as EraseStep.Done).cloudAccessMayRemain)
+        assertNull(kv.getString("np.cloud.accounts"))
+
+        // No account, and a host with no cloud sign-in: nothing to say.
+        val none = InMemoryKeyValueStore()
+        assertFalse(EraseDeviceModel(none, null, null, gatt(none), cloudSignOut = { 0 }).also { it.erase() }.let { (it.step.value as EraseStep.Done).cloudAccessMayRemain })
+        assertFalse(EraseDeviceModel(none, null, null, gatt(none)).also { it.erase() }.let { (it.step.value as EraseStep.Done).cloudAccessMayRemain })
+    }
+
+    // @verifies SWR-MG-17#b
+    @Test fun an_erase_goes_on_when_the_cloud_sign_ins_cannot_be_read_or_revoked() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the person") }
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), cloudSignOut = { throw IllegalStateException("the stored cloud accounts cannot be read") })
+        model.erase()
+        assertTrue((model.step.value as EraseStep.Done).cloudAccessMayRemain, "not known, so the person is told")
+        assertNull(kv.getString("np.session.history"))
+    }
+
     private val used = listOf(
         Res.string.settings_erase_device_title, Res.string.settings_erase_device_confirm,
         Res.string.settings_erase_device_button, Res.string.settings_erase_device_close,

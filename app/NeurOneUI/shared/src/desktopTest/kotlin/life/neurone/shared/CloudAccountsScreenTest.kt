@@ -87,7 +87,9 @@ class CloudAccountsScreenTest {
             signIn = stringResource(Res.string.cloud_button_sign_in)
             signOut = stringResource(Res.string.cloud_button_sign_out)
             signedInNotice = stringResource(Res.string.cloud_notice_signed_in, stringResource(Res.string.cloud_service_google_drive))
-            signedOutNotice = stringResource(Res.string.cloud_notice_signed_out, stringResource(Res.string.cloud_service_google_drive))
+            // Signing out says what it cannot reach as well: what the app stored at the provider, and what it deleted there (`SWR-MG-20` (c)).
+            signedOutNotice = stringResource(Res.string.cloud_notice_signed_out, stringResource(Res.string.cloud_service_google_drive)) + " " +
+                stringResource(Res.string.cloud_notice_stored_remains, stringResource(Res.string.cloud_service_google_drive))
             CloudAccountsScreen(app(CloudAuthConfig(google = OAuthClientConfig("g", "http://127.0.0.1:53682"))), onDone = {})
         }
         waitForIdle()
@@ -195,7 +197,7 @@ class CloudAccountsScreenTest {
         assertEquals(1, fields.fetchSemanticsNodes().size, "one field")
         assertEquals(1, onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password)).fetchSemanticsNodes().size, "and it is masked")
         onNodeWithText(save).performScrollTo().assertIsNotEnabled()
-        fields[0].performScrollTo().performTextInput("sv=2024-11-04&sr=c&sp=rcwdl&sig=abc")
+        fields[0].performScrollTo().performTextInput("sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc")
         onNodeWithText(save).performScrollTo().assertIsEnabled().performClick()
         waitUntil(timeoutMillis = 10_000) { onAllNodesWithText(saved).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the field is gone, and with it what was pasted")

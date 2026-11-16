@@ -117,7 +117,8 @@ class GoogleDriveObjectStore(
             )
         }
         if (start.status != 200) throw CloudStoreException("upload '$name' could not start: ${start.status}", start.status)
-        val session = start.header("Location") ?: throw CloudStoreException("upload '$name' got no session URI", start.status)
+        // Sent no token, and held to https only: Google's page promises no host for a session URI (its examples use www.googleapis.com; read 2026-11-15).
+        val session = followUp(start.header("Location") ?: throw CloudStoreException("upload '$name' got no session URI", start.status), "upload '$name'")
         var offset = 0
         while (offset < bytes.size) {
             val end = minOf(offset + chunkBytes, bytes.size)

@@ -50,6 +50,7 @@ internal class FakeProviders : HttpTransport {
     var refreshStatus = 400
     var rotateRefresh = false // Microsoft-style: a new refresh token with each refresh
     var revokeStatus = 200
+    var cloudKitSignInPage = "https://idmsa.test/sign-in?x=1"
     private var issued = 0
     val challenges = HashMap<String, String>() // code -> code_challenge, set by the launcher
     val validRefresh = mutableSetOf<String>()
@@ -66,7 +67,7 @@ internal class FakeProviders : HttpTransport {
         seen += request
         val url = request.url
         if (url.startsWith("https://api.apple-cloudkit.com/")) {
-            return json(421, """{"serverErrorCode":"AUTHENTICATION_REQUIRED","reason":"request needs authorization","redirectURL":"https://idmsa.test/sign-in?x=1"}""")
+            return json(421, """{"serverErrorCode":"AUTHENTICATION_REQUIRED","reason":"request needs authorization","redirectURL":"$cloudKitSignInPage"}""")
         }
         val f = form(request)
         if (url == GOOGLE_REVOKE) return json(revokeStatus, "{}")
@@ -411,7 +412,8 @@ class CloudAuthTests {
         assertTrue(url.startsWith("https://www.dropbox.com/oauth2/authorize?"), url)
         assertEquals("db-key", p["client_id"]); assertEquals(DROPBOX_REDIRECT, p["redirect_uri"]); assertEquals("code", p["response_type"])
         assertEquals("offline", p["token_access_type"]); assertEquals("S256", p["code_challenge_method"])
-        assertEquals("files.content.write files.content.read files.metadata.read account_info.read", p["scope"], "one scope for each route the store calls")
+        assertEquals("files.content.write files.content.read files.metadata.read", p["scope"], "one scope for each route the store calls")
+        assertTrue("account_info" !in p["scope"]!!, "the scope that reads the space figure also reads who the person is, so it is not asked for")
         val exchange = rig.providers.form(rig.providers.seen.single { it.url == DROPBOX_TOKEN })
         assertEquals("db-key", exchange["client_id"]); assertNull(exchange["client_secret"], "a public client sends no secret"); assertNull(exchange["scope"])
         assertEquals("access-1", rig.auth.accessToken(account.id).bearer())
@@ -433,14 +435,92 @@ class CloudAuthTests {
         assertEquals(Revocation.FAILED, rig.auth.signOut(failing.id))
         assertTrue(rig.auth.accounts().isEmpty())
 
-        // A refresh Dropbox refuses leaves nothing to revoke with; the credential is still deleted.
+        // A refresh Dropbox refuses leaves no current token: the revoke is tried with the last one stored, and the credential is deleted whatever comes back.
         val rig2 = Rig()
         val gone = rig2.auth.signIn(CloudService.DROPBOX)
         rig2.clock += 3_600
         rig2.providers.refreshError = "invalid_grant"
+        rig2.providers.revokeStatus = 401
         assertEquals(Revocation.FAILED, rig2.auth.signOut(gone.id))
         assertTrue(rig2.auth.accounts().isEmpty())
-        assertTrue(rig2.providers.seen.none { it.url == DROPBOX_REVOKE })
+        assertEquals("Bearer access-1", rig2.providers.seen.single { it.url == DROPBOX_REVOKE }.headers["Authorization"])
+    }
+
+    // @verifies SWR-MG-19#e
+    @Test
+    fun signingInAgainRevokesTheCredentialItReplacesBeforeTheBrowserOpensWhereTheProviderCan() = runBlocking {
+        val rig = Rig()
+        val g = rig.auth.signIn(CloudService.GOOGLE_DRIVE)
+        val seenBefore = rig.providers.seen.size
+        rig.browser.mode = "cancel"
+        // The person closes the browser: the old grant is already ended, and the account says so instead of holding a token the provider has dropped.
+        assertEquals(CloudAuthProblem.CANCELLED, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE, replacing = g.id) }.problem)
+        val revoke = rig.providers.seen.drop(seenBefore).single()
+        assertEquals(GOOGLE_REVOKE, revoke.url); assertEquals("refresh-1", rig.providers.form(revoke)["token"])
+        assertEquals(2, rig.browser.urls.size, "the browser was opened after the revoke, and closed")
+        assertTrue(rig.auth.accounts().single().needsSignIn, "its credential was revoked")
+
+        rig.browser.mode = "approve"
+        val again = rig.auth.signIn(CloudService.GOOGLE_DRIVE, replacing = g.id)
+        assertEquals(g.id, again.id); assertTrue(!again.needsSignIn)
+        assertEquals("refresh-1", rig.providers.form(rig.providers.seen.last { it.url == GOOGLE_REVOKE })["token"], "the old token, never the new one")
+        assertEquals("access-2", rig.auth.accessToken(g.id).bearer())
+
+        // A revoke that fails leaves the account as it was and the sign-in goes on.
+        rig.providers.revokeStatus = 503
+        assertEquals(g.id, rig.auth.signIn(CloudService.GOOGLE_DRIVE, replacing = g.id).id)
+        rig.providers.revokeStatus = 200
+
+        // Dropbox: revoked with an access token of the account being replaced.
+        val d = rig.auth.signIn(CloudService.DROPBOX)
+        val dropboxAccess = rig.auth.accessToken(d.id).bearer()
+        rig.auth.signIn(CloudService.DROPBOX, replacing = d.id)
+        assertEquals("Bearer $dropboxAccess", rig.providers.seen.last { it.url == DROPBOX_REVOKE }.headers["Authorization"])
+
+        // Microsoft has no revoke call: nothing is sent but the new sign-in, and the account is not flagged meanwhile.
+        val m = rig.auth.signIn(CloudService.ONEDRIVE)
+        val before = rig.providers.seen.size
+        rig.auth.signIn(CloudService.ONEDRIVE, replacing = m.id)
+        assertTrue(rig.providers.seen.drop(before).all { it.url == MS_CONSUMERS_TOKEN })
+    }
+
+    // @verifies SWR-MG-19#e
+    @Test
+    fun signingOutOfEverythingAsksEachProviderThatCanToEndAccessAndLeavesNoCredentialHere() = runBlocking {
+        val rig = Rig()
+        rig.auth.signIn(CloudService.GOOGLE_DRIVE); rig.auth.signIn(CloudService.DROPBOX); rig.auth.signIn(CloudService.ONEDRIVE)
+        rig.auth.addAwsKeys("AKID", "s")
+        val before = rig.providers.seen.size
+        val result = rig.auth.signOutAll().associate { it.first.service to it.second }
+        assertEquals(
+            mapOf(
+                CloudService.GOOGLE_DRIVE to Revocation.REVOKED, CloudService.DROPBOX to Revocation.REVOKED,
+                CloudService.ONEDRIVE to Revocation.NOT_AVAILABLE, CloudService.AWS_S3 to Revocation.NOT_AVAILABLE,
+            ),
+            result,
+        )
+        assertEquals(setOf(GOOGLE_REVOKE, DROPBOX_REVOKE), rig.providers.seen.drop(before).map { it.url }.toSet())
+        assertTrue(rig.auth.accounts().isEmpty())
+        assertTrue(rig.auth.signOutAll().isEmpty(), "nothing left to sign out of")
+
+        // With no network every credential is still forgotten, and the result says the grants may stand.
+        rig.auth.signIn(CloudService.GOOGLE_DRIVE)
+        rig.providers.offline = true
+        assertEquals(listOf(Revocation.FAILED), rig.auth.signOutAll().map { it.second })
+        assertTrue(rig.auth.accounts().isEmpty())
+    }
+
+    // @verifies SWR-MG-28#a
+    @Test
+    fun aCloudKitSignInPageThatIsNotHttpsIsNeverOpened() = runBlocking {
+        for (page in listOf("http://idmsa.test/sign-in", "javascript:alert(1)", "file:///etc/passwd", "//idmsa.test/sign-in")) {
+            val rig = Rig()
+            rig.providers.cloudKitSignInPage = page
+            val e = assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }
+            assertEquals(CloudAuthProblem.PROVIDER, e.problem, page)
+            assertTrue(rig.browser.urls.isEmpty(), "no browser was opened for $page")
+            assertTrue(page !in e.message!!, "the message does not quote the address")
+        }
     }
 
     // @verifies SWR-MG-23#a

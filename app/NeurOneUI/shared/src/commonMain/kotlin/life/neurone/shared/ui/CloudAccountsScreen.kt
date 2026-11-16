@@ -278,8 +278,10 @@ private fun noticeText(notice: CloudNotice): String {
     val name = notice.service?.let { stringResource(serviceName(it)) } ?: ""
     return when (notice.kind) {
         CloudNoticeKind.SIGNED_IN -> stringResource(Res.string.cloud_notice_signed_in, name)
-        CloudNoticeKind.SIGNED_OUT -> stringResource(Res.string.cloud_notice_signed_out, name)
-        CloudNoticeKind.SIGNED_OUT_NOT_REVOKED -> stringResource(Res.string.cloud_notice_signed_out_not_revoked, name)
+        // Signing out ends this app's access at most: what it stored, and what it deleted, is the provider's to keep (`SWR-MG-20` (c)).
+        CloudNoticeKind.SIGNED_OUT -> stringResource(Res.string.cloud_notice_signed_out, name) + " " + stringResource(Res.string.cloud_notice_stored_remains, name)
+        CloudNoticeKind.SIGNED_OUT_NOT_REVOKED ->
+            stringResource(Res.string.cloud_notice_signed_out_not_revoked, name) + " " + stringResource(Res.string.cloud_notice_stored_remains, name)
         CloudNoticeKind.NOT_CONFIGURED -> stringResource(Res.string.cloud_notice_not_configured, name)
         CloudNoticeKind.DENIED -> stringResource(Res.string.cloud_notice_denied, name)
         CloudNoticeKind.FAILED -> stringResource(Res.string.cloud_notice_failed, name)

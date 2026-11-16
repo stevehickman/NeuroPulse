@@ -92,6 +92,23 @@ private fun codePointToString(cp: Int): String =
     }
 
 
+/**
+ * An address a provider's reply supplied (an upload session, a download, the next page), checked before anything is sent to it
+ * (`SWR-MG-28` (a), `CLAUDE.md` §23): it must be `https` with a host, and when [under] is given it must lie under that address,
+ * which is how a link that will carry the person's token is held to the adapter's own provider. [what] names the call for the
+ * message, which never holds the address: such an address is often a credential in itself.
+ */
+internal fun followUp(url: String, what: String, under: String? = null): String {
+    val host = if (url.startsWith("https://")) url.substring(8).substringBefore('/').substringBefore('?').substringBefore('#') else ""
+    // A user-info part (`https://graph.microsoft.com@other.example/`) would put the real host after the `@`.
+    val plain = host.isNotEmpty() && '@' !in host && host.none { it.isWhitespace() || it.code < 0x20 || it == '\\' }
+    if (!plain) throw CloudStoreException("$what was given an address that is not https")
+    if (under != null && !(url == under || url.startsWith("$under/") || url.startsWith("$under?"))) {
+        throw CloudStoreException("$what was given an address outside the provider's own")
+    }
+    return url
+}
+
 /** One request through [transport]; a missing answer is a [CloudStoreException], never a null the caller could mistake for "absent". */
 internal suspend fun HttpTransport.call(request: HttpRequest): HttpResponse =
     post(request) ?: throw CloudStoreException("no answer from the provider")

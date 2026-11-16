@@ -322,7 +322,10 @@ class AppServices(
      */
     val eraseDevice: life.neurone.shared.migration.EraseDeviceModel? =
         platform.endRunAfterErase?.let {
-            life.neurone.shared.migration.EraseDeviceModel(platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager)
+            life.neurone.shared.migration.EraseDeviceModel(
+                platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
+                cloudSignOut = cloudAuth?.let { auth -> { auth.signOutAll().size } },
+            )
         }
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */

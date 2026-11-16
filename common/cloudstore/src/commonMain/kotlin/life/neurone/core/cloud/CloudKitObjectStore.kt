@@ -119,11 +119,15 @@ class CloudKitObjectStore(
                 putJsonArray("tokens") { add(buildJsonObject { put("recordName", rn); put("recordType", RECORD_TYPE); put("fieldName", FIELD) }) }
             },
         )
-        val url = try {
-            ((json!!["tokens"] as JsonArray)[0] as JsonObject)["url"]!!.jsonPrimitive.content
-        } catch (e: Exception) {
-            throw CloudStoreException("asset upload for '$rn' got no URL: ${errorCode(json, null) ?: r.status}", r.status)
-        }
+        // Sent no token of ours, and held to https only: Apple's page shows a placeholder for this address and names no host (read 2026-11-15).
+        val url = followUp(
+            try {
+                ((json!!["tokens"] as JsonArray)[0] as JsonObject)["url"]!!.jsonPrimitive.content
+            } catch (e: Exception) {
+                throw CloudStoreException("asset upload for '$rn' got no URL: ${errorCode(json, null) ?: r.status}", r.status)
+            },
+            "asset upload for '$rn'",
+        )
         val up = transport.call(
             HttpRequest(url, mapOf("Content-Type" to "application/octet-stream"), bytes, "POST", timeoutSeconds),
         )
@@ -185,7 +189,7 @@ class CloudKitObjectStore(
             throw CloudStoreException("get '$name' found a record with no download URL")
         }
         // Asset URLs are said (from memory, not the pages read) to carry a ${f} placeholder for the file name.
-        val d = transport.call(HttpRequest(url.replace("\${f}", FIELD), emptyMap(), ByteArray(0), "GET", timeoutSeconds))
+        val d = transport.call(HttpRequest(followUp(url, "get '$name'").replace("\${f}", FIELD), emptyMap(), ByteArray(0), "GET", timeoutSeconds))
         if (d.status != 200) throw CloudStoreException("get '$name' download answered ${d.status}", d.status)
         return d.body
     }

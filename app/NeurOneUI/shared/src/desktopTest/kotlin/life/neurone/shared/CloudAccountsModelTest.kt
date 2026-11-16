@@ -208,10 +208,10 @@ class CloudAccountsModelTest {
         assertEquals(CloudNoticeKind.SAS_INVALID, m.notice.value?.kind, "expired")
         assertNull(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.account)
 
-        m.addAzureSas(" ?sv=2024-11-04&sr=c&sp=rcwdl&sig=abc%2B ")
+        m.addAzureSas(" ?sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc%2B ")
         assertEquals(CloudNoticeKind.SAS_SAVED, m.notice.value?.kind)
         assertTrue(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.signedIn)
-        m.addAzureSas("sv=2024-11-04&sr=c&sp=rcwdl&sig=other")
+        m.addAzureSas("sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=other")
         assertEquals(1, m.rows.value.count { it.account != null }, "replacing, not adding a second")
 
         m.signIn(CloudService.AZURE_BLOB_SAS) // there is no sign-in

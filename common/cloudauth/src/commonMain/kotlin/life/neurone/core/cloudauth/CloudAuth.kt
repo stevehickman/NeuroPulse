@@ -89,6 +89,12 @@ class CloudAuth(
     /**
      * Sign in to [service] through the system browser and keep the result. With [replacing] it signs an existing account in again (after
      * [CloudAccount.needsSignIn]) and keeps its id. AWS has no browser sign-in: use [addAwsKeys].
+     *
+     * **The credential being replaced is revoked first**, where the provider has a call for it (Google, Dropbox), so the old refresh token does not
+     * stay good at the provider after this install has forgotten it. It is done before the browser opens and not after: whether a provider's revoke
+     * reaches only the token it is given or the whole grant is not something the pages read settle, and revoking afterwards could end the sign-in
+     * just made. An account whose old credential was revoked reads [CloudAccount.needsSignIn] until the new sign-in completes, which is true of it.
+     * Microsoft and Apple have no revoke call, so their old credential stands until it lapses or the person removes the app in their account.
      */
     suspend fun signIn(service: CloudService, replacing: String? = null): CloudAccount {
         replacing?.let { checkReplacing(it, service) }
@@ -154,6 +160,7 @@ class CloudAuth(
 
     private suspend fun oauthSignIn(service: CloudService, replacing: String?): CloudAccount {
         val e = endpoints(service)
+        replacing?.let { revokeBeforeReplacing(it) }
         val pkce = Pkce.create(random, sha256)
         val state = Base64Url.encode(random.nextBytes(16))
         val url = e.authorize + "?" + form(
@@ -220,6 +227,8 @@ class CloudAuth(
         if (body?.get("serverErrorCode")?.jsonPrimitive?.contentOrNull != "AUTHENTICATION_REQUIRED" || signInUrl == null) {
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit did not ask for sign-in (status ${probe.status})")
         }
+        // The page the person types their Apple password into comes from a reply, so it is opened only over https (`SWR-MG-28` (a)).
+        if (!signInUrl.startsWith("https://")) throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit gave a sign-in address that is not https")
         val back = launcher.authorize(signInUrl, c.signInCallbackUri)
         if (!back.startsWith(c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
         // The token holds '+', '/' and '=' and may arrive encoded or not; '+' here is a plus, not a space.
@@ -408,41 +417,64 @@ class CloudAuth(
     // ── Sign-out ───────────────────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Forget the account and its credential here, then ask the provider to revoke the grant where it has a call for it (Google does; the
+     * Forget the account and its credential here, then ask the provider to revoke the grant where it has a call for it (Google and Dropbox do; the
      * result says so). The local credential is deleted whatever the provider answers.
      */
     suspend fun signOut(accountId: String): Revocation {
-        // Dropbox's revoke call is authenticated with an access token, so a current one is got before the account is forgotten (a refresh that fails
-        // leaves nothing to revoke with, and the local credential is deleted all the same).
-        val dropboxToken = try {
-            if (credentials.load().accounts.firstOrNull { it.id == accountId }?.service?.family == AccountFamily.DROPBOX) freshAccessToken(accountId) else null
-        } catch (e: CloudAuthException) {
-            null
-        }
+        val dropboxToken = dropboxTokenFor(accountId)
         val removed = lock.withLock {
             val vault = credentials.load()
             val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
             credentials.save(Vault(vault.version, vault.accounts.filter { it.id != accountId }))
             acc
         }
-        if (removed.service.family == AccountFamily.DROPBOX) {
+        return revokeAtProvider(removed, dropboxToken)
+    }
+
+    /**
+     * [signOut] for every account, for an erase (`SWR-MG-17`) or a person leaving every cloud store: each provider that has a revoke call is asked
+     * to end the app's access before the credential is forgotten, which [CredentialStore.clear] alone does not do. Every account is forgotten here
+     * whatever its provider answers; the result says, per account, what the provider did.
+     */
+    suspend fun signOutAll(): List<Pair<CloudAccount, Revocation>> = accounts().map { it to signOut(it.id) }
+
+    /**
+     * Dropbox's revoke call is authenticated with an access token, so one is got before the account is forgotten or replaced: a current one, or
+     * failing that (the account is flagged, or the refresh got no answer) the last one stored, which Dropbox may still accept.
+     */
+    private suspend fun dropboxTokenFor(accountId: String): String? {
+        val acc = lock.withLock { credentials.load().accounts.firstOrNull { it.id == accountId } }
+        if (acc?.service?.family != AccountFamily.DROPBOX) return null
+        return try {
+            freshAccessToken(accountId)
+        } catch (e: CloudAuthException) {
+            acc.accessToken
+        }
+    }
+
+    /** Ask [acc]'s provider to end the grant its credential stands for. Never throws: no answer and a refusal are both [Revocation.FAILED]. */
+    private suspend fun revokeAtProvider(acc: StoredAccount, dropboxToken: String?): Revocation {
+        if (acc.service.family == AccountFamily.DROPBOX) {
             // `auth/token/revoke` takes no argument: "Disables the access token used to authenticate the call" and its refresh token (Dropbox API spec, auth.stone).
             val token = dropboxToken ?: return Revocation.FAILED
-            return try {
-                val r = transport.post(HttpRequest(DROPBOX_REVOKE, mapOf("Authorization" to "Bearer $token"), ByteArray(0), "POST", timeoutSeconds))
-                if (r != null && r.status == 200) Revocation.REVOKED else Revocation.FAILED
-            } catch (e: CloudStoreException) {
-                Revocation.FAILED
-            }
+            val r = transport.post(HttpRequest(DROPBOX_REVOKE, mapOf("Authorization" to "Bearer $token"), ByteArray(0), "POST", timeoutSeconds))
+            return if (r != null && r.status == 200) Revocation.REVOKED else Revocation.FAILED
         }
-        val revoke = if (removed.service.family == AccountFamily.GOOGLE) endpoints(removed.service).revoke else null
-        val token = removed.refreshToken ?: removed.accessToken
-        if (revoke == null || token == null) return Revocation.NOT_AVAILABLE
+        val token = acc.refreshToken ?: acc.accessToken
+        if (acc.service.family != AccountFamily.GOOGLE || token == null) return Revocation.NOT_AVAILABLE
         return try {
+            val revoke = endpoints(acc.service).revoke ?: return Revocation.NOT_AVAILABLE
             if (postForm(revoke, listOf("token" to token)).status == 200) Revocation.REVOKED else Revocation.FAILED
         } catch (e: CloudAuthException) {
             Revocation.FAILED
         }
+    }
+
+    /** See [signIn]. A revoke that fails or has no call leaves the account as it was, and the sign-in goes on. */
+    private suspend fun revokeBeforeReplacing(accountId: String) {
+        val dropboxToken = dropboxTokenFor(accountId)
+        val acc = lock.withLock { credentials.load().accounts.firstOrNull { it.id == accountId } } ?: return
+        if (revokeAtProvider(acc, dropboxToken) == Revocation.REVOKED) markNeedsSignIn(accountId)
     }
 
     // ── Wire ───────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -28,6 +28,12 @@ class HttpResponse(val status: Int, val headers: Map<String, String>, val body: 
  * with the 3xx. It returns `null` when there was no answer (no network, a timeout, a certificate that did not verify, a pin that
  * did not match), which callers treat as "try again later", never as a refusal.
  *
+ * **A transport never logs, prints or otherwise surfaces a request's URL or headers** (`SWR-MG-28` (b)), on an answer, on a failure
+ * or on an address it will not take: an address it cannot use is answered with `null` and never with an exception that could carry it.
+ * Some providers put the credential in the query by design (CloudKit's `ckAPIToken` and `ckWebAuthToken`, an Azure shared access
+ * signature) and a pre-authenticated upload or download address is a credential in itself, so a URL in a log, a crash report or an
+ * error message is a credential there. A host must also leave its HTTP library's own request logging off.
+ *
  * A transport made with certificate pins refuses a connection whose leaf public key (SPKI SHA-256, as `sha256/<base64>`) is
  * not among them, so a pinned transport is made for one host and used for that host only.
  */

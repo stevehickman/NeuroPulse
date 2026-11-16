@@ -29,9 +29,11 @@ sealed interface EraseStep {
     /**
      * The erase finished. [keyKept] is true when the data key could not be removed from the system's credential store (a locked
      * keychain, a tool that failed): everything it protected has been overwritten and deleted, so what is left is a key for
-     * nothing, and the person is told it can be removed by hand.
+     * nothing, and the person is told it can be removed by hand. [cloudAccessMayRemain] is true when the install held a cloud sign-in, or
+     * could not tell whether it did: the erase asked each provider to end the app's access where it has a call, and the person is told what
+     * an erase here cannot reach (what is stored at the provider, and a grant the provider could not be asked to end).
      */
-    class Done(val keyKept: Boolean) : EraseStep
+    class Done(val keyKept: Boolean, val cloudAccessMayRemain: Boolean = false) : EraseStep
 
     /** The core's reason code (`step_failed`, ...). The erase stops at the step and carries on at the next try (`SWR-MG-08`). */
     class Failed(val reason: String) : EraseStep
@@ -78,6 +80,12 @@ class EraseDeviceModel(
     private val secrets: SecretKeyStore?,
     private val gatt: NeurOneGattManager,
     private val random: RandomSource = SystemRandomSource,
+    /**
+     * Signs out of every cloud account before the stored keys are forgotten, so a provider that has a revoke call is asked to end the app's
+     * access while the credential still exists (`SWR-MG-19` (e)); it returns how many accounts there were. Null on a host with no cloud sign-in.
+     * **It never stops the erase:** no network, a provider's refusal and credentials that cannot be read all leave the erase to go on.
+     */
+    private val cloudSignOut: (suspend () -> Int)? = null,
 ) {
     private val state = MutableStateFlow<EraseStep>(EraseStep.Idle)
     val step: StateFlow<EraseStep> = state.asStateFlow()
@@ -86,13 +94,20 @@ class EraseDeviceModel(
         if (state.value is EraseStep.Running) return
         state.value = EraseStep.Running
         val actions = EraseActions(secrets, gatt)
+        val cloudAccessMayRemain = try {
+            (cloudSignOut?.invoke() ?: 0) > 0
+        } catch (ex: kotlinx.coroutines.CancellationException) {
+            throw ex
+        } catch (ex: Exception) {
+            true // not known: the sign-ins could not be read, so nothing could be revoked
+        }
         val params = buildJsonObject {
             put("erase", true)
             put("canRemoveOsBond", false)
         }
         state.value = try {
             val done = MigrationFlow.run("clear", params, StandardMigrationHost(emptyList(), null, actions), null, keys, null, files, random = random)
-            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
+            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept, cloudAccessMayRemain) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
         } catch (ex: Exception) {
             EraseStep.Failed("step_failed")
         }

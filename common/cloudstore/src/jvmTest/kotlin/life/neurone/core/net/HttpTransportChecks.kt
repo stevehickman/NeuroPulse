@@ -96,6 +96,72 @@ abstract class HttpTransportChecks {
         assertEquals("precondition", r.header("x-reason"))
     }
 
+    /**
+     * `SWR-MG-28` (b): the address and headers of a request reach the server and nothing else. Some providers put the credential in the query
+     * (CloudKit, an Azure shared access signature), so each request here carries a marked value in its query and in a header, and the mark must
+     * not come out on standard output, on standard error, in a `java.util.logging` record, or in an exception, whether the request is answered,
+     * refused, unanswered, or has an address the transport will not take (which is `null`, never a throw).
+     *
+     * What this cannot see: a log the platform keeps outside the process (Android's logcat is not in a JVM unit test), and logging a host turns on
+     * in its HTTP library's own configuration.
+     */
+    fun theAddressAndHeadersOfARequestAreNeverPrintedLoggedOrThrown() {
+        val mark = "np-secret-mark-7f3a"
+        val out = java.io.ByteArrayOutputStream()
+        val records = CopyOnWriteArrayList<String>()
+        val handler = object : java.util.logging.Handler() {
+            override fun publish(record: java.util.logging.LogRecord) {
+                records += listOfNotNull(record.message, record.parameters?.joinToString(), record.thrown?.toString()).joinToString(" ")
+            }
+            override fun flush() {}
+            override fun close() {}
+        }.apply { level = java.util.logging.Level.ALL }
+        val root = java.util.logging.Logger.getLogger("")
+        val oldOut = System.out
+        val oldErr = System.err
+        val answered = Loopback(200, emptyMap())
+        val refusing = Loopback(403, emptyMap())
+        val gone = Loopback(200, emptyMap()).let { s -> s.url("/gone").also { s.stop() } }
+        val results = LinkedHashMap<String, Any?>()
+        root.addHandler(handler)
+        System.setOut(java.io.PrintStream(out, true))
+        System.setErr(java.io.PrintStream(out, true))
+        try {
+            for ((what, address) in listOf(
+                "answered" to answered.url("/database/1/c/production/private/records/query"),
+                "refused" to refusing.url("/container/blob"),
+                "no server" to gone,
+                "a scheme that is not http" to "ftp://127.0.0.1/x",
+                "a host with a space" to "http://exa mple.test/x",
+                "no scheme" to "127.0.0.1/x",
+                "not an address" to "not an address",
+            )) {
+                results[what] = try {
+                    runBlocking {
+                        transport().post(
+                            HttpRequest("$address?ckAPIToken=$mark&sig=$mark", mapOf("Authorization" to "Bearer $mark"), ByteArray(0), method = "GET", timeoutSeconds = 5),
+                        )?.status
+                    }
+                } catch (e: Throwable) {
+                    e
+                }
+            }
+        } finally {
+            System.setOut(oldOut)
+            System.setErr(oldErr)
+            root.removeHandler(handler)
+            answered.stop()
+            refusing.stop()
+        }
+        results.forEach { (what, r) -> assertTrue(r !is Throwable, "$what threw ${(r as? Throwable)?.javaClass?.name}; an address a transport cannot use is null") }
+        assertEquals(200, results["answered"])
+        assertEquals(403, results["refused"])
+        for (what in listOf("no server", "a scheme that is not http", "a host with a space", "no scheme", "not an address")) assertNull(results[what], what)
+        assertTrue(answered.seen.single().headers["authorization"] == "Bearer $mark", "the request did carry the mark to the server")
+        assertTrue(mark !in out.toString(), "the mark was printed")
+        assertTrue(records.none { mark in it }, "the mark was logged")
+    }
+
     fun noServerGivesNullNotAnException() {
         val s = Loopback(200, emptyMap())
         val url = s.url("/gone")

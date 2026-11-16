@@ -27,9 +27,12 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
     /**
      * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes are
      * the ones the routes the store calls declare in Dropbox's API spec (read 2026-10-28, `UC-116`): `files.content.write` for upload and delete,
-     * `files.content.read` for download, `files.metadata.read` for listing the folder, `account_info.read` for the space figure.
+     * `files.content.read` for download, `files.metadata.read` for listing the folder. **`account_info.read` is not asked for** (`OI-PRIV-15` point 3):
+     * the space figure needs it, and the same scope lets `users/get_current_account` read the person's name and e-mail address (`users.stone`, read
+     * 2026-11-15), which [CloudAuth] says is never requested. The store therefore reports no free space. An account signed in before this change
+     * keeps the wider grant at Dropbox until it is signed out or signed in again.
      */
-    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read account_info.read"),
+    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read"),
 
     /**
      * Azure Blob authorized by a **shared access signature** the person makes in Azure and pastes in (SWR-MG-26): no Entra sign-in, so a personal Azure
@@ -154,9 +157,16 @@ class CloudAccount(
     val createdAtEpochSeconds: Long,
     /** True once the provider refused the stored credential: the person must sign in again ([CloudAuth.signIn] with `replacing`). */
     val needsSignIn: Boolean,
+    /** When a credential the person pasted or typed lapses (an Azure shared access signature, temporary AWS keys), or 0 when it has no expiry of its own. Never a token. */
+    val credentialExpiresAtEpochSeconds: Long = 0,
 )
 
-/** What signing out did at the provider. */
+/**
+ * What signing out did at the provider. **It is about the app's access only.** Whatever the answer, what the app stored at the provider is
+ * still there, and a file the app deleted may be recoverable there: OneDrive's delete "moves the items to the recycle bin" and its permanent
+ * delete is not open to the app-folder scope (Microsoft's delete and permanentDelete pages, read 2026-11-15), and Dropbox keeps deleted files
+ * recoverable. The host tells the person so (`SWR-MG-20` (c)).
+ */
 enum class Revocation {
     /** The provider confirmed the grant is revoked. */
     REVOKED,

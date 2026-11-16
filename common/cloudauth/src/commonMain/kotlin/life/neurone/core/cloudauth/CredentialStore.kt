@@ -29,7 +29,7 @@ internal class StoredAccount(
     @SerialName("azureSas") val azureSas: String? = null,
     @SerialName("azureSasExpiresAt") val azureSasExpiresAt: Long = 0,
 ) {
-    fun view() = CloudAccount(id, service, createdAtEpochSeconds, needsSignIn)
+    fun view() = CloudAccount(id, service, createdAtEpochSeconds, needsSignIn, if (azureSasExpiresAt != 0L) azureSasExpiresAt else awsExpiresAt)
 
     fun copyWith(
         needsSignIn: Boolean = this.needsSignIn,
@@ -72,7 +72,11 @@ class CredentialStore(private val store: KeyValueStore) {
         store.putString(KEY, json.encodeToString(Vault.serializer(), vault))
     }
 
-    /** Forget every account and credential (an erase, SWR-MG-17, or a person leaving every cloud store). */
+    /**
+     * Forget every account and credential **on this install only**. Nothing is sent to a provider, so every grant stands there: a caller that can
+     * reach the network calls [CloudAuth.signOutAll] first, which asks each provider to end the app's access and then leaves nothing to clear. This
+     * stays for the case that cannot (the stored value is unreadable, so there is no token to revoke with).
+     */
     fun clear() {
         store.remove(KEY)
     }
