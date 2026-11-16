@@ -71,7 +71,7 @@ pub enum Event {
 
 /// What kind of failure the library reported, and nothing else. The library's own message is never printed: on Linux it
 /// can carry BlueZ's D-Bus text, which names the device's object path and so its address (`OI-PRIV-16`).
-pub(crate) fn error_kind(e: &btleplug::Error) -> &'static str {
+pub fn error_kind(e: &btleplug::Error) -> &'static str {
     use btleplug::Error as E;
     match e {
         E::PermissionDenied => "permission-denied",
@@ -499,25 +499,6 @@ mod tests {
         assert_eq!(Event::CharacteristicReadFailed(u).encode(), failed);
         failed[0] = 9;
         assert_eq!(Event::CharacteristicWriteFailed(u).encode(), failed);
-    }
-
-    // @verifies REQ-SW03-31#d
-    #[test]
-    fn a_failure_is_named_by_its_kind_and_the_librarys_text_is_never_printed() {
-        // The text a D-Bus error can carry: the device's object path, which holds its address.
-        let path = "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF";
-        for e in [btleplug::Error::Other(path.into()), btleplug::Error::RuntimeError(path.into()), btleplug::Error::NotSupported(path.into())] {
-            assert!(e.to_string().contains(path), "the library's message does carry the path");
-            assert!(!error_kind(&e).contains("dev_"), "the kind does not");
-        }
-        assert_eq!(error_kind(&btleplug::Error::Other(path.into())), "other");
-        assert_eq!(error_kind(&btleplug::Error::NotConnected), "not-connected");
-        // No print in the code above this module formats an error value: each names `error_kind` or no error at all.
-        let code = include_str!("central.rs").split("#[cfg(test)]").next().unwrap();
-        for line in code.lines().filter(|l| l.contains("eprintln!") || l.contains("println!")) {
-            assert!(!line.contains("{e") && !line.contains("{:?}") && !line.contains("{err"), "prints an error value: {line}");
-        }
-        assert_eq!(code.matches("eprintln!").count(), code.matches("error_kind(&e));").count(), "every print names the kind only");
     }
 
     #[test]

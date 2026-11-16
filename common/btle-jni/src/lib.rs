@@ -1,7 +1,8 @@
 //! JNI entry points for `life.neurone.desktop.BtleNative` (the desktop Bluetooth LE central).
 //! Marshalling only: a handle, commands in, encoded events out. See `central`.
 
-mod central;
+// Public so the crate's integration tests (tests/) reach it; nothing outside this crate links the rlib.
+pub mod central;
 
 use central::{Central, Command};
 use jni::objects::{JByteArray, JClass, JString};
