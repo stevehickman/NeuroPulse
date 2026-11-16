@@ -64,11 +64,35 @@ pub enum Event {
     CharacteristicRead(Uuid, Vec<u8>),
     /// A read the link refused. On an encrypted characteristic of an unpaired link this is the pairing signal (`OI-UI-KMP-03`).
     CharacteristicReadFailed(Uuid),
+    /// A write the link refused, or that never reached the peer. On an encrypted characteristic of an unpaired link this
+    /// is the hub's refusal (ATT 0x0F, `REQ-FWHUB-81`); the manager is told, and nothing is retried here (`OI-PRIV-16`).
+    CharacteristicWriteFailed(Uuid),
+}
+
+/// What kind of failure the library reported, and nothing else. The library's own message is never printed: on Linux it
+/// can carry BlueZ's D-Bus text, which names the device's object path and so its address (`OI-PRIV-16`).
+pub(crate) fn error_kind(e: &btleplug::Error) -> &'static str {
+    use btleplug::Error as E;
+    match e {
+        E::PermissionDenied => "permission-denied",
+        E::DeviceNotFound => "device-not-found",
+        E::NotConnected => "not-connected",
+        E::UnexpectedCallback => "unexpected-callback",
+        E::UnexpectedCharacteristic => "unexpected-characteristic",
+        E::NoSuchCharacteristic => "no-such-characteristic",
+        E::NoAdapterAvailable => "no-adapter",
+        E::NotSupported(_) => "not-supported",
+        E::TimedOut(_) => "timed-out",
+        E::Uuid(_) => "uuid",
+        E::InvalidBDAddr(_) => "invalid-address",
+        E::RuntimeError(_) => "runtime",
+        E::Other(_) => "other",
+    }
 }
 
 impl Event {
     /// The wire form read by `DesktopBleCentral.decode`: one kind byte, then
-    /// 1 `[state]` · 2/3/4 `[utf-8 device id]` · 5 `[16-byte uuid]*` · 6/7 `[16-byte uuid][value]` · 8 `[16-byte uuid]`.
+    /// 1 `[state]` · 2/3/4 `[utf-8 device id]` · 5 `[16-byte uuid]*` · 6/7 `[16-byte uuid][value]` · 8/9 `[16-byte uuid]`.
     pub fn encode(&self) -> Vec<u8> {
         match self {
             Event::AdapterState(s) => vec![1, *s as u8],
@@ -85,6 +109,7 @@ impl Event {
             Event::CharacteristicChanged(u, v) => with_uuid(6, u, v),
             Event::CharacteristicRead(u, v) => with_uuid(7, u, v),
             Event::CharacteristicReadFailed(u) => with_uuid(8, u, &[]),
+            Event::CharacteristicWriteFailed(u) => with_uuid(9, u, &[]),
         }
     }
 }
@@ -238,7 +263,7 @@ impl Actor {
                 self.scanning_for = Some(service);
                 if let Some(adapter) = &self.adapter {
                     if let Err(e) = adapter.start_scan(ScanFilter { services: vec![service] }).await {
-                        eprintln!("neurone-btle: start_scan failed: {e}");
+                        eprintln!("neurone-btle: start_scan failed: {}", error_kind(&e));
                     }
                 }
             }
@@ -306,7 +331,7 @@ impl Actor {
                     let _ = events.send(Event::Connected(id));
                 }
                 Err(e) => {
-                    eprintln!("neurone-btle: connect failed: {e}");
+                    eprintln!("neurone-btle: connect failed: {}", error_kind(&e));
                     clear_link(&link);
                     // A failed connect is a disconnect to the manager: it rescans after its delay.
                     let _ = events.send(Event::Disconnected(id));
@@ -385,7 +410,7 @@ async fn gatt_worker(mut ops: UnboundedReceiver<Gatt>, link: Link, events: mpsc:
         match op {
             Gatt::Discover { service, wanted } => {
                 if let Err(e) = peripheral.discover_services().await {
-                    eprintln!("neurone-btle: discover failed: {e}");
+                    eprintln!("neurone-btle: discover failed: {}", error_kind(&e));
                     continue;
                 }
                 let mut found = Vec::new();
@@ -404,7 +429,7 @@ async fn gatt_worker(mut ops: UnboundedReceiver<Gatt>, link: Link, events: mpsc:
             Gatt::Subscribe(u) => {
                 if let Some(c) = characteristic(&link, u) {
                     if let Err(e) = peripheral.subscribe(&c).await {
-                        eprintln!("neurone-btle: subscribe {u} failed: {e}");
+                        eprintln!("neurone-btle: subscribe {u} failed: {}", error_kind(&e));
                     }
                 }
             }
@@ -416,16 +441,26 @@ async fn gatt_worker(mut ops: UnboundedReceiver<Gatt>, link: Link, events: mpsc:
                         }
                         // An encrypted characteristic read on an unpaired link lands here.
                         Err(e) => {
-                            eprintln!("neurone-btle: read {u} failed: {e}");
+                            eprintln!("neurone-btle: read {u} failed: {}", error_kind(&e));
                             let _ = events.send(Event::CharacteristicReadFailed(u));
                         }
                     }
                 }
             }
             Gatt::Write(u, v) => {
-                if let Some(c) = characteristic(&link, u) {
-                    if let Err(e) = peripheral.write(&c, &v, WriteType::WithResponse).await {
-                        eprintln!("neurone-btle: write {u} failed: {e}");
+                // No encryption check is made here: btleplug reports neither pairing nor link security. The gate is
+                // above, in the shared manager, which sends no protocol until an encrypted-only read has succeeded on
+                // this link (`REQ-SW03-31`); what this arm owes it is the refusal, as an event.
+                match characteristic(&link, u) {
+                    Some(c) => {
+                        if let Err(e) = peripheral.write(&c, &v, WriteType::WithResponse).await {
+                            eprintln!("neurone-btle: write {u} failed: {}", error_kind(&e));
+                            let _ = events.send(Event::CharacteristicWriteFailed(u));
+                        }
+                    }
+                    // A write to a characteristic the link does not have went nowhere: that is a failed write too.
+                    None => {
+                        let _ = events.send(Event::CharacteristicWriteFailed(u));
                     }
                 }
             }
@@ -441,6 +476,7 @@ fn characteristic(link: &Link, uuid: Uuid) -> Option<Characteristic> {
 mod tests {
     use super::*;
 
+    // @verifies REQ-SW03-15
     #[test]
     fn events_encode_to_the_documented_wire_form() {
         let u = Uuid::parse_str("00000001-0000-1000-8000-00805f9b34fb").unwrap();
@@ -461,6 +497,27 @@ mod tests {
         let mut failed = vec![8];
         failed.extend_from_slice(u.as_bytes());
         assert_eq!(Event::CharacteristicReadFailed(u).encode(), failed);
+        failed[0] = 9;
+        assert_eq!(Event::CharacteristicWriteFailed(u).encode(), failed);
+    }
+
+    // @verifies REQ-SW03-31#d
+    #[test]
+    fn a_failure_is_named_by_its_kind_and_the_librarys_text_is_never_printed() {
+        // The text a D-Bus error can carry: the device's object path, which holds its address.
+        let path = "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF";
+        for e in [btleplug::Error::Other(path.into()), btleplug::Error::RuntimeError(path.into()), btleplug::Error::NotSupported(path.into())] {
+            assert!(e.to_string().contains(path), "the library's message does carry the path");
+            assert!(!error_kind(&e).contains("dev_"), "the kind does not");
+        }
+        assert_eq!(error_kind(&btleplug::Error::Other(path.into())), "other");
+        assert_eq!(error_kind(&btleplug::Error::NotConnected), "not-connected");
+        // No print in the code above this module formats an error value: each names `error_kind` or no error at all.
+        let code = include_str!("central.rs").split("#[cfg(test)]").next().unwrap();
+        for line in code.lines().filter(|l| l.contains("eprintln!") || l.contains("println!")) {
+            assert!(!line.contains("{e") && !line.contains("{:?}") && !line.contains("{err"), "prints an error value: {line}");
+        }
+        assert_eq!(code.matches("eprintln!").count(), code.matches("error_kind(&e));").count(), "every print names the kind only");
     }
 
     #[test]

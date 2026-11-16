@@ -80,6 +80,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // What to say for each reason the helmet can refuse a protocol (SWR-HV-08, REQ-UPG-01, SWR-UP-02).
     val refusalText: Map<HelmetRefusalCause, String> = helmetRefusalMessages()
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
+    val pairingRequiredBody = stringResource(Res.string.ble_pairing_required_body)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
     val compositeUnsupported = stringResource(Res.string.and_ui_composite_protocol_upload_is_not_yet_support)
 
@@ -118,6 +119,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             is ProtocolUploader.Result.Failure -> result.message
             is ProtocolUploader.Result.CervicalRestartBlocked -> cervicalBlocked
             is ProtocolUploader.Result.DifferentPersonConfirmationRequired -> differentPersonBody
+            is ProtocolUploader.Result.LinkNotEncrypted -> pairingRequiredBody
         }
         // SWR-UP-01/-02: the upload is not over when the last chunk is written. The helmet's report decides whether it
         // holds the protocol, and the library marks the family used for a confirmed or an unknown outcome, never for a

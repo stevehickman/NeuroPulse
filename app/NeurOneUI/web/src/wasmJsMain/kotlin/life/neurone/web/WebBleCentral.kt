@@ -79,6 +79,10 @@ class WebBleCentral : BleCentral {
             "discovered" -> l.onCharacteristicsDiscovered(if (a.isEmpty()) emptySet() else a.split(",").map(UUID::fromString).toSet())
             "changed" -> l.onCharacteristicChanged(UUID.fromString(a), hexToBytes(b))
             "read" -> l.onCharacteristicRead(UUID.fromString(a), hexToBytes(b))
+            // A read or a write the browser could not complete (OI-PRIV-16). Only the characteristic is passed up: the
+            // browser's message is not.
+            "readFailed" -> l.onCharacteristicReadFailed(UUID.fromString(a))
+            "writeFailed" -> l.onCharacteristicWriteFailed(UUID.fromString(a))
             // "cancelled" (the user closed the chooser) and "error" leave the manager scanning, so the next click retries.
         }
     }
@@ -173,7 +177,9 @@ private external fun bleNotify(uuid: String)
         ble.enqueue(async () => {
             const c = ble.chars.get(uuid);
             if (!c) return;
-            ble.cb('read', uuid, ble.hex(await c.readValue()));
+            let value;
+            try { value = await c.readValue(); } catch (e) { ble.cb('readFailed', uuid, ''); return; }
+            ble.cb('read', uuid, ble.hex(value));
         });
     }""",
 )
@@ -186,7 +192,8 @@ private external fun bleRead(uuid: String)
             const c = ble.chars.get(uuid);
             if (!c) return;
             const bytes = new Uint8Array((hex.match(/../g) || []).map((h) => parseInt(h, 16)));
-            if (c.writeValueWithResponse) await c.writeValueWithResponse(bytes); else await c.writeValue(bytes);
+            try { if (c.writeValueWithResponse) await c.writeValueWithResponse(bytes); else await c.writeValue(bytes); }
+            catch (e) { ble.cb('writeFailed', uuid, ''); }
         });
     }""",
 )

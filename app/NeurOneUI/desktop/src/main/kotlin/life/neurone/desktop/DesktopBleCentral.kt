@@ -122,6 +122,7 @@ internal class DesktopBleCentral(
             6 -> l?.onCharacteristicChanged(uuid(body), body.copyOfRange(16, body.size))
             7 -> l?.onCharacteristicRead(uuid(body), body.copyOfRange(16, body.size))
             8 -> l?.onCharacteristicReadFailed(uuid(body))
+            9 -> l?.onCharacteristicWriteFailed(uuid(body))
         }
     }
 

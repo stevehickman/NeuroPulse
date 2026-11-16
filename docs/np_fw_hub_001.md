@@ -588,8 +588,11 @@ the default and the encrypted link is what must be shown. "Encrypted" is all the
 | Calibration, zone module status, SHDR upload status, session state and status, HRV, pacer, impedance result, socket map, firmware version, CVNS pad status | either | various | **not published by the hub** (the table holds only what the hub produces); when one is, the host test fails unless it requires an encrypted link or is named as an exception | whatever is published |
 | System Health Data Record (SHDR) from hub to fleet | hub, via the app, to the fleet database | device condition | the hub side of the transfer (the hub to the app) does not exist; the app to the fleet leg is not audited here | not audited |
 
-**What this says about the apps.** The apps do not check the link: a central's operating system pairs when the hub's permission demands it, and no app code
-refuses an unencrypted link or reads the pairing method (`OI-SIMFW-72`).
+**What this says about the apps.** No app reads the link's security or the pairing method (`OI-SIMFW-72`): a central's operating system pairs when the hub's
+permission demands it. What the Compose apps (Android, iOS, desktop, web) do, in the shared manager, is send no protocol until a read of `DEVICE_SERIAL` has succeeded on the same link
+(`REQ-SW03-31`, `OI-PRIV-16`), so the protocol's bytes are not transmitted in clear to a hub the system has not paired, which the hub would refuse only after they
+were on the air. That read shows what this table guarantees of a hub and nothing about a peer that is not one: a peripheral that serves the serial without
+demanding encryption passes. The Swift app (`app/ios/NeurOne`) has no such gate.
 
 ## 3. Module registry
 

@@ -40,6 +40,18 @@ class ProtocolUploader internal constructor(
         data object CervicalRestartBlocked : Result
         /** Another person on this device has an outstanding cutoff — confirm the profile is yours. */
         data object DifferentPersonConfirmationRequired : Result
+        /**
+         * The link has not been shown encrypted, so nothing was sent (`REQ-SW03-31`): the hub has not answered a read of its
+         * encrypted-only serial on this link. Pairing the hub in the system's Bluetooth settings is what the person can do.
+         */
+        data object LinkNotEncrypted : Result
+    }
+
+    /** Holds an upload back until the link is shown encrypted, and asks for the read again in case the hub was paired since. */
+    private fun linkGate(): Result? {
+        if (gatt.linkEncryptionShown.value) return null
+        gatt.requestLinkEncryptionCheck()
+        return Result.LinkNotEncrypted
     }
 
     private var differentPersonConfirmed = false
@@ -69,6 +81,7 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
+        linkGate()?.let { return it }
         checkCervicalGate(definition)?.let { return it }
         return try {
             val blob = compiler.compile(
@@ -77,8 +90,12 @@ class ProtocolUploader internal constructor(
                 hardwareVersion = gatt.hardwareVersion.value,
                 autonomous = autonomous,
             )
-            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
-            Result.Success(UploadCheck.hashOf(blob.blob))
+            // The manager holds the gate too, so a link that dropped since the check above writes nothing.
+            if (ProtocolChunker.chunk(blob.blob, gatt.writeLength).all { gatt.writeProtocolChunk(it) }) {
+                Result.Success(UploadCheck.hashOf(blob.blob))
+            } else {
+                Result.LinkNotEncrypted
+            }
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
         }
@@ -98,14 +115,19 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
+        linkGate()?.let { return it }
         members.firstNotNullOfOrNull { checkCervicalGate(it) }?.let { return it }
         return try {
             val blob = compiler.compileComposite(
                 composite, members, deviceSerial ?: gatt.deviceSerial, acknowledgedCautions,
                 hardwareVersion = gatt.hardwareVersion.value,
             )
-            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
-            Result.Success(UploadCheck.hashOf(blob.blob))
+            // The manager holds the gate too, so a link that dropped since the check above writes nothing.
+            if (ProtocolChunker.chunk(blob.blob, gatt.writeLength).all { gatt.writeProtocolChunk(it) }) {
+                Result.Success(UploadCheck.hashOf(blob.blob))
+            } else {
+                Result.LinkNotEncrypted
+            }
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
         }

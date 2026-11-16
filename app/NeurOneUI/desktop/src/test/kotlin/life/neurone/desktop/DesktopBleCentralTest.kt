@@ -41,6 +41,7 @@ class DesktopBleCentralTest {
         override fun onCharacteristicChanged(uuid: UUID, value: ByteArray) { lastChanged = value; log += "changed $uuid" }
         override fun onCharacteristicRead(uuid: UUID, value: ByteArray) { log += "read $uuid ${value.toList()}" }
         override fun onCharacteristicReadFailed(uuid: UUID) { log += "readFailed $uuid" }
+        override fun onCharacteristicWriteFailed(uuid: UUID) { log += "writeFailed $uuid" }
     }
 
     private val a = UUID.fromString("00000001-0000-1000-8000-00805f9b34fb")
@@ -135,6 +136,19 @@ class DesktopBleCentralTest {
         rec.next()
         link.events += byteArrayOf(8) + bytes(a)
         assertEquals("readFailed $a", rec.next())
+        central.close()
+    }
+
+    // @verifies REQ-SW03-31#c
+    @Test fun a_refused_write_reaches_the_listener_as_its_own_event() {
+        val link = FakeLink()
+        val central = DesktopBleCentral(link)
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+        // Kind 9 with the characteristic: `Event::CharacteristicWriteFailed` in common/btle-jni/src/central.rs.
+        link.events += byteArrayOf(9) + bytes(b)
+        assertEquals("writeFailed $b", rec.next())
         central.close()
     }
 
