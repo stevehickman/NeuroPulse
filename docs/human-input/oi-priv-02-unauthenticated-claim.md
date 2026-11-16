@@ -38,7 +38,9 @@ because the message it leaves is false in a way that would alarm the person: it 
 
 ## 2. What is known, and what is not
 
-**Read from the code on 2026-11-15; nothing was run for this brief.**
+**Read from the code on 2026-11-15; nothing was run for this brief.** Re-read on 2026-11-16 by a second session against PR #885's
+head (the route declarations, `claim_decision`, the backup flow's `put` step, the absence of a `releaseClaim` caller): each
+statement below still holds.
 
 - **Who can plant today.** The core carries a migration only on a route that declares an atomic claim. Those are the
   direct phone-to-phone link, where the serving phone holds the store, and folders on the device or computer
