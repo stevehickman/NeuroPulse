@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: d9bec46a3881061091d4473418aae938dc20cff39a1a0cf55d8ec6588fe011d2
+// sources-sha256: 644ea431635d06bf4b54a86e5ea8a9d7d60b2e682eaa15d9d966cafe4d5a2f87
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -273,7 +273,7 @@ function channelLabel(wl) {
   return el ? el.replace("led_", "") + "nm" : null;
 }
 function findParam(modalities, type) {
-  const m = modalities.find((m) => m.modalityParams.type === type);
+  const m = modalities.find((m2) => m2.modalityParams.type === type);
   return m ? m.modalityParams.params : undefined;
 }
 function deriveTier(def) {
@@ -457,11 +457,11 @@ async function loadLibrary(baseUrl = DEFAULT_BASE_URL) {
   }
 }
 export {
-  LOAD_REPORT,
-  PROTOCOLS,
-  PROTOCOL_IDS,
-  ZONES,
-  buildLibrary,
+  loadLibrary,
   buildModalities,
-  loadLibrary
+  buildLibrary,
+  ZONES,
+  PROTOCOL_IDS,
+  PROTOCOLS,
+  LOAD_REPORT
 };
