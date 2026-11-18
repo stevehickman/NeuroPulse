@@ -738,7 +738,11 @@ final class ConsentStoreTests: XCTestCase {
     private func makeGrant(_ tier: ClinicianUseCaseTier) -> ClinicianConsentGrant {
         ClinicianConsentGrant(
             id: grantID, clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: tier, grantedAt: yesterday, expiresAt: Date().addingTimeInterval(30 * 86_400)
+            tier: tier, grantedAt: yesterday, expiresAt: Date().addingTimeInterval(30 * 86_400),
+            // As the form makes it: the tier's elements, with "include my earlier sessions" answered yes.
+            accessScopes: [
+                ClinicianAccessScope(elements: tier.uhdrElements, effectiveFrom: yesterday, includesPriorData: true)
+            ]
         )
     }
 
@@ -903,15 +907,16 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     // @verifies REQ-CONSENT-16#c
-    func testAGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
-        // A grant written before the workflow existed has no scopes. Introducing the workflow must
-        // not silently re-scope it: a bare tier has always meant "these elements, all history".
-        let grant = makeGrant(.assess)
-        XCTAssertNil(grant.accessScopes)
+    func testAGrantWithNoScopesReachesNoEarlierSessions() {
+        // Nobody was asked the history question for a grant built without a scope, so it takes the
+        // answer that reaches least. No grant predates the workflow (OI-PRIV-06 point 6).
+        var grant = makeGrant(.assess)
+        grant.accessScopes = nil
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0), on: Date()),
+        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0), on: Date()).isEmpty)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(), on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
+        XCTAssertEqual(grant.forwardOnlyElements, ClinicianUseCaseTier.assess.uhdrElements)
     }
 
     // @verifies REQ-CONSENT-16

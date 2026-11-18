@@ -464,13 +464,19 @@ final class ConsentRepairTests: XCTestCase {
     // MARK: - REQ-CONSENT-09 h: what a study may ask for
 
     // @verifies REQ-CONSENT-09#h
-    func testAStudyAskingForRawEegIsRefusedWhateverKItDeclares() {
+    func testAStudyAskingForARecordedSignalIsRefusedWhateverKItDeclares() {
         let store = storeWith(blanket)
-        var asksForWaveforms = study("A", .depression)
-        asksForWaveforms.requestedElements = [.sessionDuration, .eegWaveforms]
-        asksForWaveforms.kAnonymity = 1000
-
-        XCTAssertEqual(store.ingestStudyDescriptor(asksForWaveforms), .refused(.requestsElementNoExtractMayCarry))
+        // EEG, PPG and HRV alike: the three recorded signals are handled the same way.
+        let signals: [UHDRElement] = [.eegWaveforms, .ppgOpticalSignal, .hrvTimeSeries]
+        for signal in signals {
+            var asksForSignal = study("A-\(signal.rawValue)", .depression)
+            asksForSignal.requestedElements = [.sessionDuration, signal]
+            asksForSignal.kAnonymity = 1000
+            XCTAssertEqual(
+                store.ingestStudyDescriptor(asksForSignal), .refused(.requestsElementNoExtractMayCarry),
+                signal.rawValue
+            )
+        }
         XCTAssertTrue(store.pendingInvitations.isEmpty)
         XCTAssertEqual(store.ingestStudyDescriptor(study("B")),
                        .admitted(posture: .engagementNotification, descriptorHash: "sha256:abc"))

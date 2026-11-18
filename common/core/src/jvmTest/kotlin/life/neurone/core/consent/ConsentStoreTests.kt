@@ -4,6 +4,7 @@ import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest
+import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
@@ -857,6 +858,14 @@ class ConsentStoreTests {
         tier = tier,
         grantedAtDay = LocalDate.now().minusDays(1).toString(),
         expiresAtDay = LocalDate.now().plusDays(30).toString(),
+        // As the form makes it: the tier's elements, with "include my earlier sessions" answered yes.
+        accessScopes = listOf(
+            ClinicianAccessScope(
+                elements = tier.uhdrElements,
+                effectiveFromDay = LocalDate.now().minusDays(1).toString(),
+                includesPriorData = true,
+            ),
+        ),
     )
 
     private fun requestTo(tier: ClinicianUseCaseTier) = ClinicianAccessExpansionRequest(
@@ -1061,17 +1070,17 @@ class ConsentStoreTests {
 
     // @verifies REQ-CONSENT-16#c
     @Test
-    fun aGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
-        // A grant written before the workflow existed has no scopes. Introducing the workflow must
-        // not silently re-scope it: a bare tier has always meant "these elements, all history".
-        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS)
-        assertEquals(null, grant.accessScopes)
+    fun aGrantWithNoScopesReachesNoEarlierSessions() {
+        // Nobody was asked the history question for a grant built without a scope, so it takes the
+        // answer that reaches least. No grant predates the workflow (OI-PRIV-06 point 6).
+        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
+        assertTrue(grant.elementsVisibleForDataRecordedOn("2020-01-01", LocalDate.now().toString()).isEmpty())
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn("2020-01-01", LocalDate.now().toString()),
+            grant.elementsVisibleForDataRecordedOn(LocalDate.now().toString(), LocalDate.now().toString()),
         )
-        assertTrue(grant.forwardOnlyElements.isEmpty())
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.forwardOnlyElements)
     }
 
     // @verifies REQ-CONSENT-16
@@ -1271,13 +1280,13 @@ class ConsentStoreTests {
     /// elements, from the grant day, prior data included.
     // @verifies REQ-CONSENT-16#c
     @Test
-    fun preWorkflowGrantStillFallsBackToTheTier() {
-        val legacy = grantedYesterday(ClinicianUseCaseTier.ASSESS)
-        assertNull(legacy.useCaseIds)
-        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, legacy.approvedElements)
-        assertEquals(
-            ClinicianUseCaseTier.ASSESS.uhdrElements,
-            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString(), LocalDate.now().toString()),
+    fun aGrantWithNoUseCasesOrScopesFallsBackToTheTierGoingForwardOnly() {
+        val bare = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null)
+        assertNull(bare.useCaseIds)
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, bare.approvedElements)
+        assertTrue(
+            bare.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString(), LocalDate.now().toString())
+                .isEmpty(),
         )
     }
 

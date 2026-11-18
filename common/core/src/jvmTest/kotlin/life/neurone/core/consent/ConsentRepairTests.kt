@@ -456,17 +456,21 @@ class ConsentRepairTests {
 
     // @verifies REQ-CONSENT-09#h
     @Test
-    fun aStudyAskingForRawEegIsRefusedWhateverKItDeclares() {
+    fun aStudyAskingForARecordedSignalIsRefusedWhateverKItDeclares() {
         val (store, _) = storeWith(blanket)
-        val asksForWaveforms = study("A", ResearchCategory.DEPRESSION).copy(
-            requestedElements = setOf(UHDRElement.SESSION_DURATION, UHDRElement.EEG_WAVEFORMS),
-            kAnonymity = 1000,
-        )
-
-        assertEquals(
-            StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.REQUESTS_ELEMENT_NO_EXTRACT_MAY_CARRY),
-            store.ingestStudyDescriptor(asksForWaveforms),
-        )
+        // EEG, PPG and HRV alike: the three recorded signals are handled the same way.
+        val signals = listOf(UHDRElement.EEG_WAVEFORMS, UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.HRV_TIME_SERIES)
+        for (signal in signals) {
+            val asksForSignal = study("A-${signal.name}", ResearchCategory.DEPRESSION).copy(
+                requestedElements = setOf(UHDRElement.SESSION_DURATION, signal),
+                kAnonymity = 1000,
+            )
+            assertEquals(
+                StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.REQUESTS_ELEMENT_NO_EXTRACT_MAY_CARRY),
+                store.ingestStudyDescriptor(asksForSignal),
+                signal.name,
+            )
+        }
         assertTrue(store.pendingInvitations.isEmpty())
         assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(study("B")), "a study that does not ask for it is admitted")
     }

@@ -95,21 +95,20 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         return calendar.startOfDay(for: today) <= calendar.startOfDay(for: expiry)
     }
 
-    /// The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
-    /// tier's elements, effective from the grant date, with prior data included.
+    /// The scopes as decided. For a grant built with none, the tier's elements from the grant date onwards,
+    /// **with no earlier sessions**.
     ///
-    /// That fallback is deliberately what a bare `tier` has always meant, so introducing the
-    /// workflow does not silently re-scope an existing grant. It is now reached only by grants
-    /// written before `OI-CONSENT-04`/`-06`: every grant the form makes today carries an explicit
-    /// initial scope, whose `includesPriorData` is the user's own answer rather than this
-    /// fallback's. The fallback stays because those earlier grants still have to mean what they
-    /// meant when they were made.
+    /// The fallback used to include prior data, so that a grant written before the §6.1 workflow kept what a
+    /// bare `tier` had meant. No such grant exists: nothing was deployed before the workflow (the principal,
+    /// 2026-11-18; `OI-PRIV-06` point 6). The fallback is therefore reached only by a grant made in code without
+    /// a scope, where nobody was asked the history question, and it takes the answer that reaches least
+    /// (`REQ-CONSENT-16` c). Every grant the form makes carries the person's own answer.
     var effectiveScopes: [ClinicianAccessScope] {
         accessScopes ?? [
             ClinicianAccessScope(
                 elements: tier.uhdrElements,
                 effectiveFrom: grantedAt,
-                includesPriorData: true
+                includesPriorData: false
             )
         ]
     }

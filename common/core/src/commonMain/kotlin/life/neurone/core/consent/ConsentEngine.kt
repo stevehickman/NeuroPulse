@@ -167,14 +167,17 @@ object ConsentEngine {
      * UHDR elements no research extract may carry, whatever `k` a descriptor declares.
      *
      * §5.3 promises a k-anonymous extract. k-anonymity groups records that share their quasi-identifiers, and a
-     * raw EEG waveform is one the person alone has: there is no group of ten to put it in without ceasing to be
-     * the waveform. A study that asks for it is asking for something the device cannot anonymise, so the person
+     * recorded signal is one the person alone has: there is no group of ten to put it in without ceasing to be
+     * the signal. A study that asks for one is asking for something the device cannot anonymise, so the person
      * is not asked about it (`REQ-CONSENT-09` h).
      *
-     * EEG waveforms are the one element ruled on (`OI-PRIV-06` point 5). Whether the other per-person signals
-     * (PPG optical signal, HRV time series) belong here is an open question in that item, not decided here.
+     * **The three recorded signals are handled alike** (the principal, 2026-11-18: a person expects EEG, PPG and
+     * HRV data to be treated the same way). The argument above was made for EEG waveforms and holds for the PPG
+     * optical signal and the HRV time series, so all three are here. A signal element added later joins them.
      */
-    val ELEMENTS_NO_EXTRACT_MAY_CARRY: Set<UHDRElement> = setOf(UHDRElement.EEG_WAVEFORMS)
+    val ELEMENTS_NO_EXTRACT_MAY_CARRY: Set<UHDRElement> = setOf(
+        UHDRElement.EEG_WAVEFORMS, UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.HRV_TIME_SERIES,
+    )
 
     /**
      * Whether [consent] covers a study in [categories]: blanket consent is on, or one of the study's categories

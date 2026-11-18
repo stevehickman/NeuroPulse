@@ -375,7 +375,7 @@ final class ConsentEngineTests: XCTestCase {
     /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
     /// elements, from the grant date, prior data included.
     // @verifies REQ-CONSENT-16#c
-    func testPreWorkflowGrantStillFallsBackToTheTier() {
+    func testAGrantWithNoUseCasesOrScopesFallsBackToTheTierGoingForwardOnly() {
         let now = Date()
         let legacy = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
@@ -383,10 +383,9 @@ final class ConsentEngineTests: XCTestCase {
         )
         XCTAssertNil(legacy.useCaseIDs)
         XCTAssertEqual(legacy.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(
-            legacy.elementsVisible(forDataRecordedAt: now.addingTimeInterval(-86_400), on: now),
-            ClinicianUseCaseTier.assess.uhdrElements,
-            "Introducing the workflow must not silently re-scope a grant made before it."
+        XCTAssertTrue(
+            legacy.elementsVisible(forDataRecordedAt: now.addingTimeInterval(-86_400), on: now).isEmpty,
+            "Nobody was asked the history question, so earlier sessions stay out of reach."
         )
     }
 
