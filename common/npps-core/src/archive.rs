@@ -11,18 +11,33 @@
 //! endian) ‖ kdf (JSON)`. The `kdf` is the bundle key's own block (`bundle_key`): how the key was made from the person's code or
 //! passphrase, so a restore on a new phone knows what to ask for. It is present in the file that indexes the others and may be
 //! empty in the rest. Every chunk is AES-256-GCM of up to [`CHUNK_BYTES`] bytes plus a 16-byte tag, under the nonce
-//! `prefix ‖ counter (4, big endian)`, with the whole header and a final-chunk flag as the associated data. So a chunk moved,
-//! repeated, dropped from the middle, or cut off the end fails to open, and a wrong key and an edited file are not told apart
-//! (`authentication_failed`). Every chunk is full except the last, which is the one the file ends with and may be empty only if
-//! the whole recording is.
+//! `prefix ‖ counter (4, big endian)`, with the whole header, the object ID and a final-chunk flag as the associated data
+//! (`header ‖ ID length (2, big endian) ‖ ID ‖ flag`). So a chunk moved, repeated, dropped from the middle, or cut off the end
+//! fails to open, and a wrong key and an edited file are not told apart (`authentication_failed`). Every chunk is full except
+//! the last, which is the one the file ends with and may be empty only if the whole recording is.
+//!
+//! # The object ID (`SWR-MG-28` (a), `OI-PRIV-09`)
+//! Every file of one backup is sealed under one key, and the place that keeps them is not trusted: it can hand back any file it
+//! holds under any name. So a file is sealed as a named object, and whoever opens it says which object it expects: the ID is in
+//! the associated data of every chunk and **is not in the file**. A file sealed as one recording does not open as another, or as
+//! the index (`authentication_failed`, the same answer as a wrong key). The ID comes from what the opener already trusts (the
+//! sealed index names each recording; the index has a fixed ID), never from the file or its name at the backup location, and it
+//! is not written in the clear because a recording's name is UHDR. The core takes any ID that is not empty and fits the two-byte
+//! length; what the IDs are is the driver's (`RecordingArchive`).
+//!
+//! # Versions
+//! Version 1 had no object ID. This build writes version 2 and **does not open version 1** (`older_version`): files with and
+//! without the binding under one key would leave the version-1 files interchangeable, which is the fault the ID removes. A
+//! backup that meets a version-1 set starts a new one, under a new key. A build that reads only version 1 refuses version 2
+//! (`newer_version`).
 //!
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
 //! | `archiveInfo` | none | `{chunkBytes, tagBytes, prefixBytes, headerBytes}`: the fixed sizes a driver cuts a file by |
 //! | `archiveStart` | `prefix` (8 bytes, hex, random), `kdf` (optional) | `{header}` (hex) |
-//! | `archiveReadHeader` | `bytes`: the first bytes of a file (hex; at least [`HEADER_BYTES`] and as many more as the `kdf` needs, [`MAX_KDF`] at most) | `{ok: true, headerLength, kdf}` or `{ok: false, reason}`: `malformed`, `truncated` or `newer_version` |
-//! | `archiveSealChunk` | `key`, `header` (hex, the whole header), `counter`, `last`, `data` (hex) | `{sealed}` (hex) |
-//! | `archiveOpenChunk` | `key`, `header`, `counter`, `last`, `sealed` | `{ok: true, data}` or `{ok: false, reason: "authentication_failed"}` |
+//! | `archiveReadHeader` | `bytes`: the first bytes of a file (hex; at least [`HEADER_BYTES`] and as many more as the `kdf` needs, [`MAX_KDF`] at most) | `{ok: true, headerLength, kdf}` or `{ok: false, reason}`: `malformed`, `truncated`, `newer_version` or `older_version` |
+//! | `archiveSealChunk` | `key`, `header` (hex, the whole header), `objectId`, `counter`, `last`, `data` (hex) | `{sealed}` (hex) |
+//! | `archiveOpenChunk` | `key`, `header`, `objectId` (the object the caller expects), `counter`, `last`, `sealed` | `{ok: true, data}` or `{ok: false, reason: "authentication_failed"}` |
 
 use crate::bundle_key;
 use crate::migration::{hex, unhex};
@@ -33,7 +48,7 @@ use serde_json::{json, Value};
 type R<T> = Result<T, String>;
 
 const MAGIC: &[u8; 4] = b"NPAR";
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 /// A chunk's plaintext length. A platform cuts a recording by this and the core refuses a longer one.
 pub const CHUNK_BYTES: usize = 64 * 1024;
 const TAG_BYTES: usize = 16;
@@ -52,7 +67,8 @@ fn cipher(req: &Value) -> R<Aes256Gcm> {
     Aes256Gcm::new_from_slice(&key).map_err(|_| "the key is not usable".to_string())
 }
 
-/// The nonce of chunk `counter` and its associated data (the header, then whether it is the last chunk).
+/// The nonce of chunk `counter` and its associated data: the header, the object ID with its length, then whether it is the last
+/// chunk. The length goes before the ID so no ID can be mistaken for another ID followed by a flag.
 fn frame(req: &Value) -> R<([u8; 12], Vec<u8>)> {
     let header = unhex(req["header"].as_str().ok_or("header is required")?, "header")?;
     let parsed = read_header(&header)?;
@@ -71,7 +87,14 @@ fn frame(req: &Value) -> R<([u8; 12], Vec<u8>)> {
     let mut nonce = [0u8; 12];
     nonce[..PREFIX_BYTES].copy_from_slice(&header[5..5 + PREFIX_BYTES]);
     nonce[PREFIX_BYTES..].copy_from_slice(&(counter as u32).to_be_bytes());
+    let id = req["objectId"].as_str().ok_or("objectId is required")?.as_bytes();
+    if id.is_empty() {
+        return Err("objectId is empty".into());
+    }
+    let id_len = u16::try_from(id.len()).map_err(|_| "objectId is too long".to_string())?;
     let mut aad = header;
+    aad.extend_from_slice(&id_len.to_be_bytes());
+    aad.extend_from_slice(id);
     aad.push(u8::from(last));
     Ok((nonce, aad))
 }
@@ -108,7 +131,13 @@ fn read_header(bytes: &[u8]) -> R<Value> {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     }
     if bytes[4] != VERSION {
-        return Ok(json!({ "ok": false, "reason": if bytes[4] > VERSION { "newer_version" } else { "malformed" } }));
+        // Version 0 was never written. Version 1 is refused by name: it has no object ID (see the module's "Versions").
+        let reason = match bytes[4] {
+            0 => "malformed",
+            v if v > VERSION => "newer_version",
+            _ => "older_version",
+        };
+        return Ok(json!({ "ok": false, "reason": reason }));
     }
     let kdf_len = u16::from_be_bytes([bytes[13], bytes[14]]) as usize;
     if kdf_len > MAX_KDF {
@@ -182,6 +211,7 @@ mod tests {
     const KEY: &str = "0101010101010101010101010101010101010101010101010101010101010101";
     const OTHER: &str = "0202020202020202020202020202020202020202020202020202020202020202";
     const PREFIX: &str = "a1a2a3a4a5a6a7a8";
+    const ID: &str = "recording:session_7.edf";
 
     fn ask(v: Value) -> Value {
         serde_json::from_str(&migration_json(&v.to_string()).unwrap()).unwrap()
@@ -201,10 +231,14 @@ mod tests {
 
     /// Seal `plain` the way a driver does: cut by the chunk size, count up, flag the last.
     fn seal(plain: &[u8], key: &str, header_hex: &str) -> Vec<u8> {
+        seal_as(plain, key, header_hex, ID)
+    }
+
+    fn seal_as(plain: &[u8], key: &str, header_hex: &str, id: &str) -> Vec<u8> {
         let mut file = unhex(header_hex, "h").unwrap();
         let chunks: Vec<&[u8]> = if plain.is_empty() { vec![&[][..]] } else { plain.chunks(CHUNK_BYTES).collect() };
         for (i, c) in chunks.iter().enumerate() {
-            let r = ask(json!({"op":"archiveSealChunk","key":key,"header":header_hex,"counter":i,"last":i + 1 == chunks.len(),"data":hex(c)}));
+            let r = ask(json!({"op":"archiveSealChunk","key":key,"header":header_hex,"objectId":id,"counter":i,"last":i + 1 == chunks.len(),"data":hex(c)}));
             file.extend(unhex(r["sealed"].as_str().unwrap(), "s").unwrap());
         }
         file
@@ -212,6 +246,10 @@ mod tests {
 
     /// Open a whole file the way a driver does, or say why not.
     fn open(file: &[u8], key: &str) -> Result<Vec<u8>, String> {
+        open_as(file, key, ID)
+    }
+
+    fn open_as(file: &[u8], key: &str, id: &str) -> Result<Vec<u8>, String> {
         let head = ask(json!({"op":"archiveReadHeader","bytes":hex(&file[..file.len().min(HEADER_BYTES + MAX_KDF)])}));
         if head["ok"] != true {
             return Err(head["reason"].as_str().unwrap().to_string());
@@ -224,7 +262,7 @@ mod tests {
         let mut out = Vec::new();
         for i in 0..n {
             let part = &body[i * full..body.len().min((i + 1) * full)];
-            let r = ask(json!({"op":"archiveOpenChunk","key":key,"header":header_hex,"counter":i,"last":i + 1 == n,"sealed":hex(part)}));
+            let r = ask(json!({"op":"archiveOpenChunk","key":key,"header":header_hex,"objectId":id,"counter":i,"last":i + 1 == n,"sealed":hex(part)}));
             if r["ok"] != true {
                 return Err(r["reason"].as_str().unwrap().to_string());
             }
@@ -315,9 +353,9 @@ mod tests {
     fn the_core_refuses_what_it_should_not_seal() {
         let h = header(false);
         let too_long = hex(&sample(CHUNK_BYTES + 1));
-        assert!(migration_json(&json!({"op":"archiveSealChunk","key":KEY,"header":h,"counter":0,"last":true,"data":too_long}).to_string()).is_err());
-        assert!(migration_json(&json!({"op":"archiveSealChunk","key":KEY,"header":h,"counter":1u64 << 32,"last":true,"data":""}).to_string()).is_err());
-        assert!(migration_json(&json!({"op":"archiveSealChunk","key":"00","header":h,"counter":0,"last":true,"data":""}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"archiveSealChunk","key":KEY,"header":h,"objectId":ID,"counter":0,"last":true,"data":too_long}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"archiveSealChunk","key":KEY,"header":h,"objectId":ID,"counter":1u64 << 32,"last":true,"data":""}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"archiveSealChunk","key":"00","header":h,"objectId":ID,"counter":0,"last":true,"data":""}).to_string()).is_err());
         // A kdf block the bundle key would refuse (a cheaper derivation) is not written into a header.
         let mut weak = kdf();
         weak["memoryKiB"] = json!(8);
@@ -325,5 +363,59 @@ mod tests {
         assert!(migration_json(&json!({"op":"archiveStart","prefix":"00"}).to_string()).is_err());
         let info = ask(json!({"op":"archiveInfo"}));
         assert_eq!(info["chunkBytes"], CHUNK_BYTES);
+    }
+
+    // @verifies SWR-MG-28#a
+    #[test]
+    fn a_file_sealed_as_one_object_does_not_open_as_another() {
+        // Two recordings and the index of one backup: one key, and (the worst case) one header.
+        let h = header(false);
+        let (a, b) = (sample(CHUNK_BYTES + 9), sample(40));
+        let file_a = seal_as(&a, KEY, &h, "recording:session_1.edf");
+        let file_b = seal_as(&b, KEY, &h, "recording:session_2.edf");
+        assert_eq!(open_as(&file_a, KEY, "recording:session_1.edf").unwrap(), a);
+        assert_eq!(open_as(&file_b, KEY, "recording:session_2.edf").unwrap(), b);
+        // The backup location hands back the other file: it does not open, and the answer is the one a wrong key gets.
+        assert_eq!(open_as(&file_b, KEY, "recording:session_1.edf").unwrap_err(), "authentication_failed");
+        assert_eq!(open_as(&file_a, KEY, "recording:session_2.edf").unwrap_err(), "authentication_failed");
+        assert_eq!(open_as(&file_a, KEY, "index").unwrap_err(), "authentication_failed");
+        // The ID is not in the file: the two files differ only in ciphertext, and neither holds a recording's name.
+        assert_eq!(file_b.len(), unhex(&h, "h").unwrap().len() + b.len() + TAG_BYTES);
+        assert!(!file_a.windows(9).any(|w| w == b"session_1"));
+    }
+
+    // @verifies SWR-MG-28#a
+    #[test]
+    fn an_object_id_is_required_and_its_length_is_bound_with_it() {
+        let h = header(false);
+        for bad in [json!(null), json!(""), json!(7), json!("x".repeat(usize::from(u16::MAX) + 1))] {
+            let mut req = json!({"op":"archiveSealChunk","key":KEY,"header":h,"counter":0,"last":true,"data":""});
+            if !bad.is_null() {
+                req["objectId"] = bad.clone();
+            }
+            assert!(migration_json(&req.to_string()).is_err(), "sealed with objectId {bad}");
+            req["op"] = json!("archiveOpenChunk");
+            req["sealed"] = json!("00".repeat(TAG_BYTES));
+            assert!(migration_json(&req.to_string()).is_err(), "opened with objectId {bad}");
+        }
+        // An ID is not a prefix of another: "ab" then the last flag is not "a" with a longer tail.
+        let file = seal_as(b"", KEY, &h, "ab");
+        assert_eq!(open_as(&file, KEY, "a").unwrap_err(), "authentication_failed");
+        assert_eq!(open_as(&file, KEY, "ab\u{1}").unwrap_err(), "authentication_failed");
+    }
+
+    // @verifies SWR-MG-28#a
+    #[test]
+    fn a_version_1_archive_is_refused_by_name_and_this_build_writes_a_version_the_older_reader_refuses() {
+        let file = seal(b"abc", KEY, &header(false));
+        // The older reader took version 1 only and called anything above it newer: this file is refused by it whole.
+        assert_eq!(file[4], 2);
+        // A version-1 file has no object ID in its associated data. It is not opened, and is not called damaged.
+        let mut v1 = file.clone();
+        v1[4] = 1;
+        assert_eq!(open(&v1, KEY).unwrap_err(), "older_version");
+        let mut v0 = file;
+        v0[4] = 0;
+        assert_eq!(open(&v0, KEY).unwrap_err(), "malformed");
     }
 }

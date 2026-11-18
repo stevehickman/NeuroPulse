@@ -98,6 +98,36 @@ class WaveformBackupTest {
         assertEquals(listOf("session_1.edf", "session_3.edf"), fresh.protectedNames.sorted(), "each restored file is protected as it lands")
     }
 
+    // The backup folder can hand back any file under any name (privacy review of `common/`, 2026-11-15, Finding 22; `OI-PRIV-09`).
+    // @verifies SWR-MG-28#a
+    @Test fun a_backup_folder_that_swaps_two_recordings_restores_neither_and_never_one_as_the_other() = runTest {
+        val folder = Folder(); folder.add(1); folder.add(2); val third = folder.add(3)
+        val place = place()
+        val s = secret()
+        WaveformBackup(folder).backUp(place, BundleKeyMethod.RECOVERY_CODE, s)
+        // The index is sealed, so the folder cannot tell which file is which recording; it swaps until it has hit a pair.
+        val files = place.store.list("wf-").filter { it != WaveformBackup.INDEX_NAME }
+        assertEquals(3, files.size)
+        val (a, b) = files[0] to files[1]
+        val (bytesA, bytesB) = place.store.get(a)!! to place.store.get(b)!!
+        place.store.put(a, bytesB); place.store.put(b, bytesA)
+
+        val fresh = Folder()
+        val restored = WaveformBackup(fresh).restore(place, s)
+        assertIs<WaveformRestoreResult.Done>(restored)
+        assertEquals(1, restored.restored); assertEquals(2, restored.unreadable)
+        val back = fresh.store.list("session_")
+        assertEquals(1, back.size, "the two swapped recordings are not put back under each other's names")
+        // The one that was left alone comes back as itself, whichever it was.
+        val id = back.single().removePrefix("session_").removeSuffix(".edf").toInt()
+        assertContentEquals(recording(id), fresh.store.get(back.single()))
+        assertTrue(third.isNotEmpty())
+
+        // The index is a named object too: a recording put where the index is does not open as it.
+        place.store.put(WaveformBackup.INDEX_NAME, bytesA)
+        assertIs<WaveformRestoreResult.Failed>(WaveformBackup(Folder()).restore(place, s))
+    }
+
     // @verifies REQ-SW03-29#c
     @Test fun a_secret_that_does_not_open_the_recordings_restores_none_and_says_so() = runTest {
         val source = Folder(); source.add(1)

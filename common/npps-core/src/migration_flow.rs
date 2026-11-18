@@ -41,6 +41,13 @@
 //! named in `hostItems` (consent, and any item an app stores another way) is read and written whole with `readItems` and
 //! `applyItem`. An item in neither is not applied, and the report says so.
 //!
+//! # The epoch
+//! The backup location can hand back any bundle it was ever given, so a bundle is sealed with an epoch and a phone refuses
+//! one older than it has seen (`SWR-MG-28`; the rule and its limit are in `migration`). The count is the phone's, under a
+//! key of the core's own (`np.migration.seen-epoch`) that it reaches through `readKeys` and `writeKeys`, so no app keeps
+//! it: a backup reads it, seals with one more and records that before the bundle leaves; a restore reads it before it asks
+//! for the key, refuses an older bundle before any claim or write, and records the epoch of the bundle it opened.
+//!
 //! # The old phone's clear
 //! Of the six steps of `clearPlan`, two are the platform's own (the key store and the pairing record) and are the only
 //! `runClearStep` effects. The files' overwrite is the core's algorithm over four file calls (below). The other three are
@@ -77,6 +84,12 @@ const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
 /// (`SWR-MG-08`): `{"bundleHash","tag"}` as text. It holds the tag a phone that opened the bundle will write, not the key. It
 /// is in the `perInstall` list, so it is sealed at rest, is never carried, and is forgotten with every other key by the clear.
 const PENDING_CLEAR_KEY: &str = "np.migration.pending-clear";
+/// The highest bundle epoch this phone has sealed or opened, as decimal text (`SWR-MG-28`, `OI-PRIV-09`). A backup seals with
+/// one more; a restore refuses a bundle below it. It is in the `perInstall` list: sealed at rest, never carried (the new
+/// phone learns the number from the bundle it opens, inside the seal, not from an item), and forgotten by a clear or an
+/// erase, after which the phone has seen nothing. The core reads and writes it itself, so no app keeps the count or decides
+/// when it rises. Not to be confused with `np.backup.last-epoch`, which is the clock time of the last automatic backup.
+const SEEN_EPOCH_KEY: &str = "np.migration.seen-epoch";
 const WIPE_STEP: &str = "overwriteAndDeleteFiles";
 const WIPE_CHUNK: u64 = 16 * 1024;
 const TOKEN_BYTES: u64 = 16;
@@ -92,6 +105,15 @@ fn done(v: Value) -> R<Value> {
 
 fn refused(reason: &str) -> R<Value> {
     done(json!({ "ok": false, "reason": reason }))
+}
+
+/// The epoch this phone holds, from the answer to a `readKeys` of [`SEEN_EPOCH_KEY`]: 0 when it holds none. A value that
+/// is there and is not a count is `None`, and the flow stops: reading it as 0 would let any older bundle in.
+fn seen_epoch(result: &Value) -> Option<u64> {
+    match &result["values"][SEEN_EPOCH_KEY] {
+        Value::Null => Some(0),
+        v => v.as_str().filter(|t| !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit())).and_then(|t| t.parse().ok()),
+    }
 }
 
 fn s<'a>(v: &'a Value, key: &str) -> R<&'a str> {
@@ -159,7 +181,15 @@ fn backup(req: &Value) -> R<Value> {
             let carried: Vec<String> = inv["carried"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
             let keyed: Vec<String> = carried.iter().filter(|n| key_items.contains(n) && !keys_of(n).is_empty()).cloned().collect();
             let adapter: Vec<String> = carried.iter().filter(|n| host_items.contains(n) && !keyed.contains(n)).cloned().collect();
-            let st = json!({ "step": "keys", "kind": kind, "method": method, "omitted": inv["omitted"], "keyed": keyed, "adapter": adapter, "items": {} });
+            let st = json!({ "step": "epoch", "kind": kind, "method": method, "omitted": inv["omitted"], "keyed": keyed, "adapter": adapter, "items": {} });
+            // SWR-MG-28 (b): the bundle is sealed with one more than the highest epoch this phone has sealed or opened.
+            effect(st, json!({ "type": "readKeys", "keys": [SEEN_EPOCH_KEY] }))
+        }
+        "epoch" => {
+            let Some(next) = seen_epoch(&req["result"]).and_then(|seen| seen.checked_add(1)) else {
+                return refused("step_failed");
+            };
+            st["epoch"] = json!(next);
             gather(st)
         }
         "keys" => {
@@ -205,21 +235,21 @@ fn backup(req: &Value) -> R<Value> {
         "key" => {
             let sealed = dispatch(
                 "sealBundle",
-                &json!({ "kind": st["kind"], "key": req["result"]["key"], "nonce": st["nonce"], "kdf": st["kdf"], "items": st["items"] }),
+                &json!({ "kind": st["kind"], "key": req["result"]["key"], "nonce": st["nonce"], "kdf": st["kdf"], "epoch": st["epoch"], "items": st["items"] }),
             )?;
             let written: Vec<String> = st["items"].as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
-            let next = json!({ "step": "put", "kind": st["kind"], "bundleHash": sealed["bundleHash"], "written": written, "omitted": st["omitted"] });
-            if st["kind"] != "migrate" {
-                return effect(next, json!({ "type": "putBundle", "bundle": sealed["bundle"] }));
-            }
-            // SWR-MG-08: before the bundle leaves, this phone records the tag only a phone that opens the bundle can write.
-            // The record is written first: a bundle at the backup location with no record here could never be cleared against.
-            let tag = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": sealed["bundleHash"] }))?["tag"].clone();
-            let record = json!({ "bundleHash": sealed["bundleHash"], "tag": tag }).to_string();
-            let mut st2 = next;
-            st2["step"] = json!("record");
+            let mut st2 = json!({ "step": "record", "kind": st["kind"], "bundleHash": sealed["bundleHash"], "written": written, "omitted": st["omitted"] });
             st2["bundle"] = sealed["bundle"].clone();
-            effect(st2, write_keys(&[], json!({ PENDING_CLEAR_KEY: record })))
+            // SWR-MG-28 (b): the epoch is recorded before the bundle leaves, so no later bundle from this phone can carry
+            // the same or a lower one, whatever happens to the write that follows.
+            let mut set = json!({ SEEN_EPOCH_KEY: sealed["epoch"].to_string() });
+            if st["kind"] == "migrate" {
+                // SWR-MG-08: before the bundle leaves, this phone records the tag only a phone that opens the bundle can write.
+                // The record is written first: a bundle at the backup location with no record here could never be cleared against.
+                let tag = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": sealed["bundleHash"] }))?["tag"].clone();
+                set[PENDING_CLEAR_KEY] = json!(json!({ "bundleHash": sealed["bundleHash"], "tag": tag }).to_string());
+            }
+            effect(st2, write_keys(&[], set))
         }
         "record" => {
             if req["result"]["ok"] != true {
@@ -313,6 +343,15 @@ fn finish(st: Value) -> R<Value> {
     done(result)
 }
 
+/// The bundle is open and its epoch recorded: a migration takes its claim next, a health-data backup goes to its items.
+fn opened_and_recorded(mut st: Value) -> R<Value> {
+    if st["kind"] == "migrate" {
+        st["step"] = json!("token");
+        return effect(st, json!({ "type": "random", "bytes": TOKEN_BYTES }));
+    }
+    next_item(st)
+}
+
 fn restore(req: &Value) -> R<Value> {
     let mut st = req["state"].clone();
     match step_of(req) {
@@ -329,13 +368,25 @@ fn restore(req: &Value) -> R<Value> {
             st["bundle"] = json!(bundle);
             st["kind"] = h["kind"].clone();
             st["hash"] = h["bundleHash"].clone();
+            st["method"] = h["method"].clone();
+            st["kdf"] = h["kdf"].clone();
+            // SWR-MG-28 (c): what this phone has seen is read before the key is asked for, because the key is used in the
+            // call that brings it and is not kept.
+            st["step"] = json!("seen");
+            effect(st, json!({ "type": "readKeys", "keys": [SEEN_EPOCH_KEY] }))
+        }
+        "seen" => {
+            let Some(seen) = seen_epoch(&req["result"]) else { return refused("step_failed") };
+            st["seen"] = json!(seen);
             st["step"] = json!("key");
-            effect(st, json!({ "type": "deriveKey", "method": h["method"], "kdf": h["kdf"] }))
+            let e = json!({ "type": "deriveKey", "method": st["method"], "kdf": st["kdf"] });
+            effect(st, e)
         }
         "key" => {
             // The bundle is opened BEFORE any claim, so a wrong passphrase never costs the person a claim only they can
             // release (SWR-MG-07). The key is used here and not kept.
-            let opened = dispatch("openBundle", &json!({ "bundle": st["bundle"], "key": req["result"]["key"] }))?;
+            // SWR-MG-28 (c): an older bundle than this phone has seen is refused here, whole, before any claim or write.
+            let opened = dispatch("openBundle", &json!({ "bundle": st["bundle"], "key": req["result"]["key"], "seenEpoch": st["seen"] }))?;
             if opened["ok"] != true {
                 return done(json!({ "ok": false, "reason": opened["reason"] }));
             }
@@ -356,14 +407,24 @@ fn restore(req: &Value) -> R<Value> {
                 "kind": st["kind"], "hash": st["hash"], "route": st["route"], "hostItems": st["hostItems"], "keyItems": st["keyItems"],
                 "items": items, "queue": queue, "applied": [], "notApplied": [],
             });
+            let mut st2 = bundle_dropped;
             if st["kind"] == "migrate" {
-                let mut st2 = bundle_dropped;
                 // SWR-MG-08: the tag the confirmation will carry is made now, while the key is here; the key is not kept.
                 st2["tag"] = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
-                st2["step"] = json!("token");
-                return effect(st2, json!({ "type": "random", "bytes": TOKEN_BYTES }));
             }
-            next_item(bundle_dropped)
+            // SWR-MG-28 (c): the phone has now opened this epoch, and records it before it takes a claim or changes anything,
+            // so a restore that stops part way still leaves it refusing anything older. The same bundle opens again.
+            if opened["epoch"].as_u64() > st["seen"].as_u64() {
+                st2["step"] = json!("epochW");
+                return effect(st2, write_keys(&[], json!({ SEEN_EPOCH_KEY: opened["epoch"].to_string() })));
+            }
+            opened_and_recorded(st2)
+        }
+        "epochW" => {
+            if req["result"]["ok"] != true {
+                return refused("step_failed");
+            }
+            opened_and_recorded(st)
         }
         "token" => {
             st["token"] = req["result"]["bytes"].clone();
@@ -629,6 +690,7 @@ fn clear(req: &Value) -> R<Value> {
 
 #[cfg(test)]
 mod tests {
+    use super::SEEN_EPOCH_KEY;
     use crate::migration::migration_json;
     use serde_json::{json, Value};
     use std::collections::BTreeMap;
@@ -828,6 +890,12 @@ mod tests {
         p.kv.iter().filter(|(k, _)| *k != "np.migration.pending-clear").map(|(k, v)| (k.clone(), v.clone())).collect()
     }
 
+    /// A phone whose restore was refused after the bundle opened: it has recorded the epoch it saw (`SWR-MG-28`) and holds
+    /// nothing else, so nothing of the bundle was applied.
+    fn holds_only_the_epoch(p: &Phone) -> bool {
+        p.kv.keys().map(String::as_str).collect::<Vec<_>>() == [SEEN_EPOCH_KEY]
+    }
+
     fn fill(p: &mut Phone) {
         for item in KEYED {
             for k in keys_of(item) {
@@ -948,7 +1016,7 @@ mod tests {
         assert_eq!(restore(&mut route, &mut first, SECRET)["ok"], true);
         let r = restore(&mut route, &mut second, SECRET);
         assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("claimed")));
-        assert!(second.kv.is_empty());
+        assert!(holds_only_the_epoch(&second));
         route.claim = None; // the person's explicit release
         assert_eq!(restore(&mut route, &mut second, SECRET)["ok"], true);
     }
@@ -995,7 +1063,7 @@ mod tests {
         let secret_hex: String = SECRET.bytes().map(|b| format!("{b:02x}")).collect();
         let key = ask(json!({ "op": "deriveBundleKey", "secret": secret_hex, "kdf": kdf }))["key"].clone();
         let items = json!({ "sessionHistory": { "np.session.history": "ok", "np.warranty.consent-granted": "true" } });
-        let sealed = ask(json!({ "op": "sealBundle", "kind": "migrate", "key": key, "nonce": "11".repeat(12), "kdf": kdf, "items": items }));
+        let sealed = ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "migrate", "key": key, "nonce": "11".repeat(12), "kdf": kdf, "items": items }));
         route.bundle = sealed["bundle"].as_str().map(String::from);
         let mut fresh = phone(&ADAPTER, 50);
         let r = restore(&mut route, &mut fresh, SECRET);
@@ -1041,7 +1109,7 @@ mod tests {
         fill(&mut old);
         backup("uhdr", &mut route, &mut old, ATOMIC());
         let found = run("inspect", json!({}), &mut route, &mut old, SECRET);
-        assert_eq!((found["kind"].clone(), found["method"].clone(), found["formatVersion"].clone()), (json!("uhdr"), json!("passphrase"), json!(1)));
+        assert_eq!((found["kind"].clone(), found["method"].clone(), found["formatVersion"].clone()), (json!("uhdr"), json!("passphrase"), json!(2)));
     }
 
     fn confirmed_route() -> (Route, Phone, String) {
@@ -1076,6 +1144,137 @@ mod tests {
             ["np.migration.cleared"],
             "everything stored is forgotten but the proof that the clear ran; the progress key goes with the plan"
         );
+    }
+
+    // @verifies SWR-MG-28#b
+    #[test]
+    fn each_backup_is_sealed_one_epoch_later_and_the_phone_records_it_before_the_bundle_leaves() {
+        let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
+        fill(&mut old);
+        for (n, kind) in [(1u64, "uhdr"), (2, "migrate"), (3, "uhdr")] {
+            assert_eq!(backup(kind, &mut route, &mut old, ATOMIC())["ok"], true);
+            assert_eq!(old.kv[SEEN_EPOCH_KEY], n.to_string(), "one count across both kinds");
+            let bundle = route.bundle.clone().unwrap();
+            let opened = ask(json!({ "op": "openBundle", "seenEpoch": 0, "bundle": bundle, "key": old.last_key }));
+            assert_eq!(opened["epoch"], n);
+        }
+        // The epoch is recorded before the bundle is handed to the route: a bundle that never arrives still used its number.
+        let mut route = Route { fail_object: Some("objectPut".into()), ..Default::default() };
+        let b = run("backup", object_params(&old, json!({ "kind": "uhdr", "method": "passphrase" })), &mut route, &mut old, SECRET);
+        assert_eq!(b["reason"], "route_unavailable");
+        assert_eq!(old.kv[SEEN_EPOCH_KEY], "4");
+        // The count is the phone's own and is never carried as an item: it is in the per-install list.
+        let lists = ask(json!({ "op": "itemKeys" }));
+        assert!(lists["perInstall"].as_array().unwrap().contains(&json!(SEEN_EPOCH_KEY)));
+        assert!(lists["sealedAtRest"].as_array().unwrap().contains(&json!(SEEN_EPOCH_KEY)));
+    }
+
+    // The backup location keeps every bundle it was given and can hand back any of them (privacy review of `common/`,
+    // 2026-11-15, Finding 23; `OI-PRIV-09`).
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn a_phone_handed_an_older_bundle_than_it_has_seen_refuses_it_and_changes_nothing() {
+        let (mut route, mut phone_a) = (Route::default(), phone(&ADAPTER, 1));
+        fill(&mut phone_a);
+        backup("uhdr", &mut route, &mut phone_a, ATOMIC());
+        let before_the_change = route.bundle.clone();
+        phone_a.kv.insert("np.limits.global".into(), "a tighter limit, set after the first backup".into());
+        backup("uhdr", &mut route, &mut phone_a, ATOMIC());
+        let held = phone_a.kv.clone();
+
+        route.bundle = before_the_change.clone();
+        let r = restore(&mut route, &mut phone_a, SECRET);
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("older_bundle")));
+        assert_eq!(phone_a.kv, held, "nothing was written");
+        assert!(route.claim.is_none() && route.confirmation.is_none());
+
+        // The same on a migration bundle: refused before any claim, so it costs the person nothing to release.
+        let (mut route, mut phone_b) = (Route::default(), phone(&ADAPTER, 20));
+        fill(&mut phone_b);
+        backup("migrate", &mut route, &mut phone_b, ATOMIC());
+        let first = route.bundle.clone();
+        backup("migrate", &mut route, &mut phone_b, ATOMIC());
+        route.bundle = first;
+        assert_eq!(restore(&mut route, &mut phone_b, SECRET)["reason"], "older_bundle");
+        assert!(route.claim.is_none(), "an older bundle takes no claim");
+
+        // The bundle a phone last sealed opens on it again: equal is not older.
+        let (mut route, mut phone_c) = (Route::default(), phone(&ADAPTER, 30));
+        fill(&mut phone_c);
+        backup("uhdr", &mut route, &mut phone_c, ATOMIC());
+        assert_eq!(restore(&mut route, &mut phone_c, SECRET)["ok"], true);
+    }
+
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn a_restore_records_the_epoch_it_opened_so_the_new_phone_seals_later_and_refuses_earlier() {
+        let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+        fill(&mut old);
+        backup("uhdr", &mut route, &mut old, ATOMIC());
+        let first = route.bundle.clone();
+        backup("uhdr", &mut route, &mut old, ATOMIC());
+        backup("uhdr", &mut route, &mut old, ATOMIC());
+        assert_eq!(restore(&mut route, &mut fresh, SECRET)["ok"], true);
+        assert_eq!(fresh.kv[SEEN_EPOCH_KEY], "3", "learned from inside the bundle, not carried as an item");
+        // Now that it has seen epoch 3, the first bundle is refused on it.
+        route.bundle = first;
+        assert_eq!(restore(&mut route, &mut fresh, SECRET)["reason"], "older_bundle");
+        // And its own next backup is later than anything the old phone sealed.
+        backup("uhdr", &mut route, &mut fresh, ATOMIC());
+        assert_eq!(fresh.kv[SEEN_EPOCH_KEY], "4");
+    }
+
+    // The limit of the epoch, pinned so that nothing claims more for it (`SWR-MG-28` (d)).
+    // @verifies SWR-MG-28#d
+    #[test]
+    fn a_phone_that_has_seen_nothing_restores_an_old_bundle_and_the_old_phone_does_not_clear_against_it() {
+        let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+        fill(&mut old);
+        backup("migrate", &mut route, &mut old, ATOMIC());
+        let before = route.bundle.clone();
+        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-11-01T00:00:00Z" }));
+        let latest = backup("migrate", &mut route, &mut old, ATOMIC())["bundleHash"].as_str().unwrap().to_string();
+
+        // The backup location serves the bundle from before the withdrawal to a new phone, which has nothing to compare with.
+        route.bundle = before;
+        let r = restore(&mut route, &mut fresh, SECRET);
+        assert_eq!(r["ok"], true, "a phone that has seen nothing cannot tell: {r}");
+        assert!(fresh.items.get("withdrawalState").is_none_or(|w| w["blanketConsentWithdrawnAt"].is_null()), "the withdrawal did not arrive");
+
+        // What still holds: the old phone clears only against the bundle it last sealed, so it keeps the newer state.
+        let c = run("clear", json!({ "bundleHash": latest, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!((c["ok"].clone(), c["reason"].clone()), (json!(false), json!("other_bundle")));
+        assert!(old.ran.is_empty(), "the old phone is not cleared");
+
+        // A phone after an erase has seen nothing either: the erase forgets the count with every other key.
+        let (mut route, mut again) = (Route::default(), phone(&ADAPTER, 70));
+        fill(&mut again);
+        backup("uhdr", &mut route, &mut again, ATOMIC());
+        let first = route.bundle.clone();
+        backup("uhdr", &mut route, &mut again, ATOMIC());
+        assert_eq!(run("clear", json!({ "erase": true, "canRemoveOsBond": true }), &mut route, &mut again, SECRET)["ok"], true);
+        assert!(!again.kv.contains_key(SEEN_EPOCH_KEY));
+        route.bundle = first;
+        assert_eq!(restore(&mut route, &mut again, SECRET)["ok"], true);
+    }
+
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn a_stored_epoch_that_is_not_a_count_stops_the_backup_and_the_restore_and_is_not_read_as_zero() {
+        let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
+        fill(&mut old);
+        backup("uhdr", &mut route, &mut old, ATOMIC());
+        for bad in ["", "garbled", "-1", "1.5", " 2", "99999999999999999999999999"] {
+            old.kv.insert(SEEN_EPOCH_KEY.into(), bad.into());
+            let r = restore(&mut route, &mut old, SECRET);
+            assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("step_failed")), "restore with '{bad}'");
+            let b = backup("uhdr", &mut route, &mut old, ATOMIC());
+            assert_eq!((b["ok"].clone(), b["reason"].clone()), (json!(false), json!("step_failed")), "backup with '{bad}'");
+            assert_eq!(old.kv[SEEN_EPOCH_KEY], bad, "left as found");
+        }
+        // The count cannot wrap round to a low number.
+        old.kv.insert(SEEN_EPOCH_KEY.into(), u64::MAX.to_string());
+        assert_eq!(backup("uhdr", &mut route, &mut old, ATOMIC())["reason"], "step_failed");
     }
 
     fn unhex(h: &str) -> Vec<u8> {
@@ -1291,7 +1490,7 @@ mod tests {
             route.fail_object = Some(failing.into());
             let r = run("restore", object_params(&fresh, json!({})), &mut route, &mut fresh, SECRET);
             assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("route_unavailable")), "{failing}");
-            assert!(fresh.kv.is_empty(), "nothing is applied when the route fails");
+            assert!(holds_only_the_epoch(&fresh) || fresh.kv.is_empty(), "nothing is applied when the route fails");
         }
     }
 

@@ -35,7 +35,8 @@
     "np.cloud.accounts",
     "np.backup.cloud-account",
     "np.backup.cloud-target",
-    "np.migration.pending-clear"
+    "np.migration.pending-clear",
+    "np.migration.seen-epoch"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",
