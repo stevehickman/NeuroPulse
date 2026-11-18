@@ -183,7 +183,10 @@ class MigrationFlowTests {
         carriedKeys.values.flatten().forEach { assertEquals("value-of-$it", fresh.kv.getString(it), it) }
         assertTrue(r.flag("confirmed"))
         assertEquals(done.text("bundleHash"), route.readConfirmation()!!["bundleHash"]!!.jsonPrimitive.content)
-        assertEquals(setOf("bundleHash"), route.readConfirmation()!!.keys, "the confirmation carries the hash and nothing else")
+        assertEquals(setOf("bundleHash", "tag"), route.readConfirmation()!!.keys, "the confirmation carries the hash, the tag and nothing else")
+        // The old phone recorded the same tag when it sealed the bundle; the record never moves (SWR-MG-08).
+        assertTrue(route.readConfirmation()!!["tag"]!!.jsonPrimitive.content in old.kv.getString("np.migration.pending-clear")!!)
+        assertNull(fresh.kv.getString("np.migration.pending-clear"))
         assertEquals(setOf("token", "bundleHash"), route.readClaim()!!.keys, "the claim carries a token and the hash and nothing else")
     }
 

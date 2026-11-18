@@ -180,8 +180,11 @@ public class MigrationFlowTests
         var r = await MigrationFlow.RunAsync("restore", Params(), new Host(route), freshSecret, fresh);
         Assert.True((bool)r["ok"]!);
         Assert.True((bool)r["confirmed"]!);
-        Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
+        // The old phone also holds its own record of the bundle it sealed, which never moves (SWR-MG-08).
+        var record = JsonNode.Parse(oldStore.Values["np.migration.pending-clear"])!;
+        Assert.Equal(oldStore.Values.Where(kv => kv.Key != "np.migration.pending-clear").OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
         Assert.Equal((string)done["bundleHash"]!, (string)route.Confirmation!["bundleHash"]!);
+        Assert.Equal((string)record["tag"]!, (string)route.Confirmation!["tag"]!);
     }
 
     // @verifies SWR-MG-08
@@ -228,7 +231,7 @@ public class MigrationFlowTests
         var r = await MigrationFlow.RunAsync("restore", Params(), host, freshSecret, fresh, store);
         Assert.True((bool)r["ok"]!);
         Assert.True((bool)r["confirmed"]!);
-        Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
+        Assert.Equal(oldStore.Values.Where(kv => kv.Key != "np.migration.pending-clear").OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
         Assert.DoesNotContain(host.Seen, t => t is "getBundle" or "putBundle" or "readClaim" or "createClaim");
 
         using var thirdSecret = Secret("a long enough passphrase");
@@ -264,7 +267,7 @@ public class MigrationFlowTests
         var r = await RestoreOver(fresh);
         Assert.True((bool)r["ok"]!);
         Assert.True((bool)r["confirmed"]!);
-        Assert.Equal(oldStore.Values.OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
+        Assert.Equal(oldStore.Values.Where(kv => kv.Key != "np.migration.pending-clear").OrderBy(kv => kv.Key), fresh.Values.OrderBy(kv => kv.Key));
         var names = MigrationFlow.ObjectNames();
         Assert.Contains((string)names["claim"]!, store.Objects.Keys);
         Assert.Contains((string)names["confirmation"]!, store.Objects.Keys);
