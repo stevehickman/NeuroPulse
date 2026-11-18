@@ -95,6 +95,7 @@ class UploadRefusalTest {
         val manager = NeurOneGattManager(central, scope)
         manager.onDeviceFound("hub")
         manager.onConnected("hub")
+        manager.onCharacteristicRead(UUID.fromString(life.neurone.core.protocol.GattUuidStrings.DEVICE_SERIAL_ID), ByteArray(32)) // REQ-SW03-31
         return manager to ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
     }
 
