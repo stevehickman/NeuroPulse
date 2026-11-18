@@ -96,6 +96,67 @@ abstract class HttpTransportChecks {
         assertEquals("precondition", r.header("x-reason"))
     }
 
+    /**
+     * The contract line of [HttpTransport]: the request URL is never logged or surfaced. A URL whose query holds a marker is sent three ways (answered,
+     * to a port nothing listens on, and malformed), and the marker must appear in nothing the transport wrote to the console or to `java.util.logging`
+     * and in nothing it threw. **What this cannot see:** a log written through another logging library, or to a file.
+     */
+    fun theRequestUrlIsNeverLoggedOrSurfaced() {
+        val marker = "np-secret-" + java.util.UUID.randomUUID()
+        val records = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val handler = object : java.util.logging.Handler() {
+            override fun publish(record: java.util.logging.LogRecord) {
+                // The loopback server below is in this process and logs each request it receives at FINE: that is the far end, not the transport.
+                if (record.loggerName?.startsWith("com.sun.net.httpserver") == true) return
+                records += (record.message ?: "") + " " + (record.parameters?.joinToString(" ") ?: "") + " " + (record.thrown?.toString() ?: "")
+            }
+
+            override fun flush() {}
+
+            override fun close() {}
+        }
+        val root = java.util.logging.Logger.getLogger("")
+        val oldLevel = root.level
+        val oldOut = System.out
+        val oldErr = System.err
+        val console = java.io.ByteArrayOutputStream()
+        val thrown = mutableListOf<Throwable>()
+        root.addHandler(handler)
+        root.level = java.util.logging.Level.ALL
+        handler.level = java.util.logging.Level.ALL
+        System.setOut(java.io.PrintStream(console, true))
+        System.setErr(java.io.PrintStream(console, true))
+        try {
+            val live = Loopback(200, emptyMap())
+            val dead = Loopback(200, emptyMap()).also { it.stop() }
+            try {
+                val urls = listOf(
+                    live.url("/o/x?sig=$marker&ckWebAuthToken=$marker"),
+                    dead.url("/o/x?sig=$marker"),
+                    "https://exa mple.invalid:notaport/o/x?sig=$marker",
+                    "nonsense://$marker",
+                )
+                for (u in urls) {
+                    try {
+                        runBlocking { transport().post(HttpRequest(u, mapOf("Authorization" to "Bearer $marker"), ByteArray(0), method = "GET", timeoutSeconds = 5)) }
+                    } catch (e: Throwable) {
+                        thrown += e
+                    }
+                }
+            } finally {
+                live.stop()
+            }
+        } finally {
+            System.setOut(oldOut)
+            System.setErr(oldErr)
+            root.removeHandler(handler)
+            root.level = oldLevel
+        }
+        assertTrue(thrown.isEmpty(), "a request that cannot be sent is null, not an exception: " + thrown.map { it::class.simpleName })
+        assertTrue(marker !in console.toString(), "the transport wrote the request's address or a header to the console")
+        assertTrue(records.none { marker in it }, "the transport logged the request's address or a header: " + records.filter { marker in it }.map { it.replace(marker, "<marker>").take(160) })
+    }
+
     fun noServerGivesNullNotAnException() {
         val s = Loopback(200, emptyMap())
         val url = s.url("/gone")

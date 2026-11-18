@@ -92,6 +92,21 @@ private fun codePointToString(cp: Int): String =
     }
 
 
+/**
+ * An address a provider's **reply** named and the adapter is about to send to (an upload session, a download, a next page), checked before
+ * anything goes to it (SWR-MG-28 (b), `CLAUDE.md` §23): it must be `https`, so nothing is sent in the clear because a reply said so, and with
+ * [mustStartWith] it must sit under the service's own address, which is what an address that will be sent the person's token needs. A reply that
+ * fails is a [CloudStoreException] and nothing is sent. **The message never holds the address**: such an address is often a credential itself.
+ */
+internal fun serverUrl(url: String, what: String, mustStartWith: String? = null): String {
+    val plain = url.length > HTTPS.length && url.startsWith(HTTPS) && url[HTTPS.length] != '/' && url.none { it.isWhitespace() || it.code < 0x20 || it.code == 0x7F }
+    if (!plain) throw CloudStoreException("$what is not an https address")
+    if (mustStartWith != null && !url.startsWith(mustStartWith)) throw CloudStoreException("$what is not at the service's own address")
+    return url
+}
+
+private const val HTTPS = "https://"
+
 /** One request through [transport]; a missing answer is a [CloudStoreException], never a null the caller could mistake for "absent". */
 internal suspend fun HttpTransport.call(request: HttpRequest): HttpResponse =
     post(request) ?: throw CloudStoreException("no answer from the provider")

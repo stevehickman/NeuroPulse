@@ -31,6 +31,11 @@ internal class StoredAccount(
 ) {
     fun view() = CloudAccount(id, service, createdAtEpochSeconds, needsSignIn)
 
+    /** Whether [other] holds the same typed credential (AWS keys, a WebDAV login, an Azure signature) as this record. */
+    fun sameTypedCredential(other: StoredAccount): Boolean =
+        awsAccessKeyId == other.awsAccessKeyId && awsSecretAccessKey == other.awsSecretAccessKey && awsSessionToken == other.awsSessionToken &&
+            webdavUrl == other.webdavUrl && webdavUser == other.webdavUser && webdavPassword == other.webdavPassword && azureSas == other.azureSas
+
     fun copyWith(
         needsSignIn: Boolean = this.needsSignIn,
         accessToken: String? = this.accessToken,
@@ -72,8 +77,11 @@ class CredentialStore(private val store: KeyValueStore) {
         store.putString(KEY, json.encodeToString(Vault.serializer(), vault))
     }
 
-    /** Forget every account and credential (an erase, SWR-MG-17, or a person leaving every cloud store). */
-    fun clear() {
+    /**
+     * Forget every account and credential on this install. **It revokes nothing**, so it is not called on its own: `CloudAuth.signOutAll` reads
+     * the credentials, calls this, and then asks each provider to end its grant (SWR-MG-28 (d)).
+     */
+    internal fun clear() {
         store.remove(KEY)
     }
 

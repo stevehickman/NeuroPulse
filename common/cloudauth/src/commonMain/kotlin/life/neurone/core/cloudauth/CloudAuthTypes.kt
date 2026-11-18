@@ -27,9 +27,10 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
     /**
      * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes are
      * the ones the routes the store calls declare in Dropbox's API spec (read 2026-10-28, `UC-116`): `files.content.write` for upload and delete,
-     * `files.content.read` for download, `files.metadata.read` for listing the folder, `account_info.read` for the space figure.
+     * `files.content.read` for download, `files.metadata.read` for listing the folder. **Not `account_info.read`**: it is the scope of
+     * `users/get_current_account` (the person's name and e-mail address) as well as of the space figure, and no identity is requested (SWR-MG-28 (c)).
      */
-    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read account_info.read"),
+    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read"),
 
     /**
      * Azure Blob authorized by a **shared access signature** the person makes in Azure and pastes in (SWR-MG-26): no Entra sign-in, so a personal Azure
@@ -154,6 +155,12 @@ class CloudAccount(
     val createdAtEpochSeconds: Long,
     /** True once the provider refused the stored credential: the person must sign in again ([CloudAuth.signIn] with `replacing`). */
     val needsSignIn: Boolean,
+    /**
+     * Set only on the account a sign-in or an add **returned**, and only when it took the place of an earlier credential: what was done about
+     * that earlier one at the provider. Anything but [Revocation.REVOKED] means it may still work there, and the host tells the person
+     * (SWR-MG-28 (d)). Null when nothing was replaced.
+     */
+    val replaced: Revocation? = null,
 )
 
 /** What signing out did at the provider. */
@@ -161,7 +168,7 @@ enum class Revocation {
     /** The provider confirmed the grant is revoked. */
     REVOKED,
 
-    /** The provider has no call for it (Microsoft's v2 endpoint, Apple, AWS), so the grant stands until the person removes it in their account. */
+    /** The provider has no call for it (Microsoft's v2 endpoint, Apple, and any key, login or signature the person typed), so it stands until the person removes it in their account. */
     NOT_AVAILABLE,
 
     /** The call was made and failed or got no answer: the local credential is deleted, the grant may stand. */

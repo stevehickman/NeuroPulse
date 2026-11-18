@@ -30,8 +30,12 @@ sealed interface EraseStep {
      * The erase finished. [keyKept] is true when the data key could not be removed from the system's credential store (a locked
      * keychain, a tool that failed): everything it protected has been overwritten and deleted, so what is left is a key for
      * nothing, and the person is told it can be removed by hand.
+     *
+     * [cloudAccessMayRemain] is true when the person had cloud sign-ins here and not every provider confirmed it ended the app's access (it has
+     * no call for that, the call failed, or the sign-ins could not be read): the credentials are erased from this device all the same, and the
+     * person is told a service may still list the app, and that a key or password they typed still works there (SWR-MG-28 (d)).
      */
-    class Done(val keyKept: Boolean) : EraseStep
+    class Done(val keyKept: Boolean, val cloudAccessMayRemain: Boolean = false) : EraseStep
 
     /** The core's reason code (`step_failed`, ...). The erase stops at the step and carries on at the next try (`SWR-MG-08`). */
     class Failed(val reason: String) : EraseStep
@@ -78,6 +82,12 @@ class EraseDeviceModel(
     private val secrets: SecretKeyStore?,
     private val gatt: NeurOneGattManager,
     private val random: RandomSource = SystemRandomSource,
+    /**
+     * Ends the cloud sign-ins before the erase (`CloudAuth.signOutAll`), so a refresh token is not left working at a provider after the device
+     * that held it is wiped; answers true when a provider's access may remain. Null on a host with no cloud sign-in. It is best effort and
+     * **never stops the erase**: a throw reads as "may remain", and the stored credentials go with every other key in the plan below.
+     */
+    private val endCloudAccess: (suspend () -> Boolean)? = null,
 ) {
     private val state = MutableStateFlow<EraseStep>(EraseStep.Idle)
     val step: StateFlow<EraseStep> = state.asStateFlow()
@@ -85,6 +95,11 @@ class EraseDeviceModel(
     suspend fun erase() {
         if (state.value is EraseStep.Running) return
         state.value = EraseStep.Running
+        val cloudMayRemain = try {
+            endCloudAccess?.invoke() ?: false
+        } catch (ex: Exception) {
+            true
+        }
         val actions = EraseActions(secrets, gatt)
         val params = buildJsonObject {
             put("erase", true)
@@ -92,7 +107,7 @@ class EraseDeviceModel(
         }
         state.value = try {
             val done = MigrationFlow.run("clear", params, StandardMigrationHost(emptyList(), null, actions), null, keys, null, files, random = random)
-            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
+            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept, cloudMayRemain) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
         } catch (ex: Exception) {
             EraseStep.Failed("step_failed")
         }

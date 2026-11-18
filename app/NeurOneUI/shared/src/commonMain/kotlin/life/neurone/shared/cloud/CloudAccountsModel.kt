@@ -12,6 +12,13 @@ import life.neurone.core.cloudauth.Revocation
 
 /** One service on the cloud accounts screen: whether this build can sign in to it at all, and the account the person has there, if any. */
 class CloudServiceRow(val service: CloudService, val configured: Boolean, val account: CloudAccount?) {
+    /**
+     * True for a service where a file this app deletes is kept by the service, recoverable, until the person empties it there: OneDrive's recycle
+     * bin (Microsoft's delete page) and Dropbox's deleted files. The app can end neither with the access it asks for, so the screen says so
+     * (SWR-MG-28 (d)).
+     */
+    val keepsDeletedFiles: Boolean get() = account != null && (service == CloudService.ONEDRIVE || service == CloudService.DROPBOX)
+
     val signedIn: Boolean get() = account != null && !account.needsSignIn
     val needsSignIn: Boolean get() = account?.needsSignIn == true
 }
@@ -27,6 +34,12 @@ enum class CloudNoticeKind {
 
     /** The local sign-in is gone, but the provider could not be asked to end the app's access (it has no such call, or the call failed). */
     SIGNED_OUT_NOT_REVOKED,
+
+    /**
+     * A new sign-in, key, login or signature was saved in place of an earlier one, and the provider could not be asked to end the earlier one (it
+     * has no such call, or the call failed), so that one may still work there (SWR-MG-28 (d)).
+     */
+    REPLACED_NOT_REVOKED,
     NOT_CONFIGURED,
     DENIED,
     FAILED,
@@ -90,8 +103,8 @@ class CloudAccountsModel(
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
             if (existing != null && !existing.needsSignIn) return
-            auth.signIn(service, replacing = existing?.id)
-            _notice.value = CloudNotice(CloudNoticeKind.SIGNED_IN, service)
+            val account = auth.signIn(service, replacing = existing?.id)
+            _notice.value = CloudNotice(saved(account, CloudNoticeKind.SIGNED_IN), service)
         } catch (e: CloudAuthException) {
             report(e, service)
         } finally {
@@ -121,8 +134,8 @@ class CloudAccountsModel(
         if (!begin(service)) return
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
-            auth.addAwsKeys(accessKeyId.trim(), secretAccessKey.trim(), sessionToken?.trim()?.takeIf { it.isNotEmpty() }, replacing = existing?.id)
-            _notice.value = CloudNotice(CloudNoticeKind.KEYS_SAVED, service)
+            val account = auth.addAwsKeys(accessKeyId.trim(), secretAccessKey.trim(), sessionToken?.trim()?.takeIf { it.isNotEmpty() }, replacing = existing?.id)
+            _notice.value = CloudNotice(saved(account, CloudNoticeKind.KEYS_SAVED), service)
         } catch (e: CloudAuthException) {
             report(e, service)
         } finally {
@@ -136,8 +149,8 @@ class CloudAccountsModel(
         if (!begin(service)) return
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
-            auth.addWebDavLogin(url.trim(), user.trim(), password, replacing = existing?.id)
-            _notice.value = CloudNotice(CloudNoticeKind.LOGIN_SAVED, service)
+            val account = auth.addWebDavLogin(url.trim(), user.trim(), password, replacing = existing?.id)
+            _notice.value = CloudNotice(saved(account, CloudNoticeKind.LOGIN_SAVED), service)
         } catch (e: CloudAuthException) {
             report(e, service)
         } finally {
@@ -151,14 +164,18 @@ class CloudAccountsModel(
         if (!begin(service)) return
         try {
             val existing = _rows.value.firstOrNull { it.service == service }?.account
-            auth.addAzureSas(sas, replacing = existing?.id)
-            _notice.value = CloudNotice(CloudNoticeKind.SAS_SAVED, service)
+            val account = auth.addAzureSas(sas, replacing = existing?.id)
+            _notice.value = CloudNotice(saved(account, CloudNoticeKind.SAS_SAVED), service)
         } catch (e: CloudAuthException) {
             report(e, service)
         } finally {
             end()
         }
     }
+
+    /** [plain] when nothing was replaced or the earlier credential was ended at the provider; otherwise the notice that says it may still work there. */
+    private fun saved(account: CloudAccount, plain: CloudNoticeKind): CloudNoticeKind =
+        if (account.replaced == null || account.replaced == Revocation.REVOKED) plain else CloudNoticeKind.REPLACED_NOT_REVOKED
 
     private fun begin(service: CloudService): Boolean {
         if (_busy.value != null) return false

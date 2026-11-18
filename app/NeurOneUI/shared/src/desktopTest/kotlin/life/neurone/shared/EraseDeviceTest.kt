@@ -48,6 +48,34 @@ class EraseDeviceTest {
 
     private fun gatt(kv: InMemoryKeyValueStore) = NeurOneGattManager(UnavailableBleCentral(), scope, kv)
 
+    // @verifies SWR-MG-28#d
+    @Test fun an_erase_ends_the_cloud_sign_ins_first_and_says_when_a_providers_access_may_remain() = runTest {
+        for ((answer, expected) in listOf<Pair<suspend () -> Boolean, Boolean>>(
+            suspend { false } to false,
+            suspend { true } to true,
+            suspend { throw IllegalStateException("no network") } to true,
+        )) {
+            val kv = InMemoryKeyValueStore().also { it.putString("np.cloud.accounts", "sealed credentials") }
+            var asked = 0
+            var storedWhenAsked: String? = null
+            val model = EraseDeviceModel(kv, null, InMemorySecretKeyStore(), gatt(kv), endCloudAccess = {
+                asked++
+                storedWhenAsked = kv.getString("np.cloud.accounts")
+                answer()
+            })
+            model.erase()
+            val done = model.step.value as EraseStep.Done
+            assertEquals(1, asked)
+            assertEquals("sealed credentials", storedWhenAsked, "the providers are asked while the credentials can still be read")
+            assertEquals(expected, done.cloudAccessMayRemain)
+            assertNull(kv.getString("np.cloud.accounts"), "the credentials are erased whatever the providers answered")
+        }
+        val kv = InMemoryKeyValueStore()
+        val plain = EraseDeviceModel(kv, null, InMemorySecretKeyStore(), gatt(kv))
+        plain.erase()
+        assertFalse((plain.step.value as EraseStep.Done).cloudAccessMayRemain, "a host with no cloud sign-in has nothing to say")
+    }
+
     // @verifies SWR-MG-17#b
     @Test fun an_erase_destroys_the_key_overwrites_and_deletes_the_files_and_forgets_every_stored_key() = runTest {
         val dir = Files.createTempDirectory("np-erase").toFile()
