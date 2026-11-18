@@ -35,7 +35,10 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     var clinicianOrganization: String
     var tier: ClinicianUseCaseTier
     var grantedAt: Date
-    var expiresAt: Date?         // nil = indefinite until revoked
+    /// The end of the grant; its calendar day is the last day in force. §5.1 makes clinician access time-limited,
+    /// so a grant needs one: `ConsentStore.grantClinicianAccess` refuses a grant without it, and a stored grant
+    /// that has none (written before `OI-PRIV-06`) is not in force. Read it through `isInForce(on:)`.
+    var expiresAt: Date?
     var isActive: Bool
 
     /// The access decisions this grant is made of, newest last. Optional because a grant written
@@ -78,37 +81,52 @@ struct ClinicianConsentGrant: Codable, Identifiable {
         self.useCaseIDs = useCaseIDs
     }
 
-    /// The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
-    /// tier's elements, effective from the grant date, with prior data included.
+    /// Whether the clinician may see anything under this grant on `today`: it is active, it has an expiry, and
+    /// that day has not passed. The expiry day itself is the last day in force, which is what "Expires <day>" on
+    /// the dashboard says. Days are calendar days on this device, where Kotlin compares "yyyy-MM-dd" strings.
     ///
-    /// That fallback is deliberately what a bare `tier` has always meant, so introducing the
-    /// workflow does not silently re-scope an existing grant. It is now reached only by grants
-    /// written before `OI-CONSENT-04`/`-06`: every grant the form makes today carries an explicit
-    /// initial scope, whose `includesPriorData` is the user's own answer rather than this
-    /// fallback's. The fallback stays because those earlier grants still have to mean what they
-    /// meant when they were made.
+    /// **Every read of what a grant lets a clinician see or do goes through this** (`REQ-CONSENT-18`):
+    /// `elementsVisible(forDataRecordedAt:on:)`, `ConsentEngine.accessDifferential` and
+    /// `ConsentStore.approveExpansion`. `approvedElements` and `forwardOnlyElements` are the record of what was
+    /// decided, which the dashboard still shows for a lapsed grant, and are not such a read.
+    func isInForce(on today: Date) -> Bool {
+        guard isActive, let expiry = expiresAt else { return false }
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: today) <= calendar.startOfDay(for: expiry)
+    }
+
+    /// The scopes as decided. For a grant built with none, the tier's elements from the grant date onwards,
+    /// **with no earlier sessions**.
+    ///
+    /// The fallback used to include prior data, so that a grant written before the §6.1 workflow kept what a
+    /// bare `tier` had meant. No such grant exists: nothing was deployed before the workflow (the principal,
+    /// 2026-11-18; `OI-PRIV-06` point 6). The fallback is therefore reached only by a grant made in code without
+    /// a scope, where nobody was asked the history question, and it takes the answer that reaches least
+    /// (`REQ-CONSENT-16` c). Every grant the form makes carries the person's own answer.
     var effectiveScopes: [ClinicianAccessScope] {
         accessScopes ?? [
             ClinicianAccessScope(
                 elements: tier.uhdrElements,
                 effectiveFrom: grantedAt,
-                includesPriorData: true
+                includesPriorData: false
             )
         ]
     }
 
     /// Everything this grant reaches, ignoring when the data was recorded. This is the
     /// dashboard's "what can they see" line; for the time-aware answer use
-    /// `elementsVisible(forDataRecordedAt:)`.
+    /// `elementsVisible(forDataRecordedAt:on:)`.
     var approvedElements: Set<UHDRElement> {
         effectiveScopes.reduce(into: Set<UHDRElement>()) { $0.formUnion($1.elements) }
     }
 
-    /// Elements the clinician may see in data recorded at `date` — the predicate that makes the
-    /// retroactive decision mean something. A scope contributes when the data is at or after its
-    /// effective instant, or when the user separately approved prior data for it.
-    func elementsVisible(forDataRecordedAt date: Date) -> Set<UHDRElement> {
-        effectiveScopes.reduce(into: Set<UHDRElement>()) { acc, scope in
+    /// Elements the clinician may see, on `today`, in data recorded at `date` — the predicate that
+    /// makes the retroactive decision mean something. A scope contributes when the data is at or
+    /// after its effective instant, or when the user separately approved prior data for it. Nothing
+    /// is visible under a grant that is not in force on `today` (`isInForce(on:)`).
+    func elementsVisible(forDataRecordedAt date: Date, on today: Date) -> Set<UHDRElement> {
+        guard isInForce(on: today) else { return [] }
+        return effectiveScopes.reduce(into: Set<UHDRElement>()) { acc, scope in
             if date >= scope.effectiveFrom || scope.includesPriorData {
                 acc.formUnion(scope.elements)
             }
@@ -200,8 +218,8 @@ struct ResearchConsentState: Codable {
     var contactMethod: String = ""
     var contactFrequency: ContactFrequency = .monthly
     var isPOAHolder: Bool = false
-    var poaUploadedAt: Date? = nil
-    var poaVerifiedAt: Date? = nil
+    // `poaUploadedAt` and `poaVerifiedAt` were here with no reader and no writer (`OI-PRIV-06` point 8); the POA
+    // workflow is not built (`REQ-CONSENT-17`). A stored record that still carries the keys decodes without them.
 
     // L2: Category consent (9 research categories)
     var categoryConsents: [ResearchCategory: Bool] = {
@@ -302,17 +320,63 @@ enum ResearchCategory: String, CaseIterable, Codable {
     }
 }
 
-// MARK: - Study participation record (audit trail — stored in SHDR, not UHDR)
+// MARK: - Study participation record
 
-struct StudyParticipationRecord: Codable, Identifiable {
+/// One study this device has joined, and what it has sent to it.
+///
+/// §5.3's audit trail is four fields: study ID, descriptor hash, when an extract was transmitted and its byte
+/// count. The last two say something was sent, so they are empty until something is. They used to be written at
+/// enrolment, as that time and 0 bytes, which recorded a transmission that had not happened (`OI-PRIV-06` point 4).
+/// No extractor exists yet (`OI-CONSENT-07`), so today every record has `transmittedAt` nil.
+///
+/// `enrolledAt` and `withdrawnAt` are not in §5.3's list. They are the person's decisions about a study, so
+/// they stay on the device and are not part of what an SHDR upload of the audit trail may carry (§5.1: when in
+/// doubt, UHDR).
+struct StudyParticipationRecord: Codable, Identifiable, Equatable {
     var id: UUID
     var studyID: String
     var descriptorHash: String   // SHA-256 of signed study descriptor
-    var transmittedAt: Date
-    var extractBytes: Int
+    /// When the device joined the study. Nil only in a record stored before `OI-PRIV-06`, until it is read.
+    /// Optional, so a stored record without the key still decodes.
+    var enrolledAt: Date?
+    /// When an extract was last transmitted, or nil if none has been.
+    var transmittedAt: Date?
+    /// Bytes transmitted so far. 0 with `transmittedAt` nil means nothing has been sent.
+    var extractBytes: Int = 0
+    /// When this participation stopped, or nil while it is active. Written by `ConsentStore` and nothing else:
+    /// on a withdrawal from the study, and on a blanket or category withdrawal that leaves the study without a
+    /// consent covering it (`REQ-CONSENT-19`).
     var withdrawnAt: Date?
 
     var isActive: Bool { withdrawnAt == nil }
+
+    /// A record stored before `OI-PRIV-06` carries its enrolment time in `transmittedAt` with 0 bytes. Read as
+    /// what it was: enrolled then, nothing sent.
+    func normalised() -> StudyParticipationRecord {
+        guard enrolledAt == nil, extractBytes == 0 else { return self }
+        var record = self
+        record.enrolledAt = transmittedAt
+        record.transmittedAt = nil
+        return record
+    }
+}
+
+// MARK: - Quarantined consent record (REQ-CONSENT-20)
+
+/// A stored consent record the app could not read, kept as it was found (`REQ-CONSENT-20`).
+///
+/// A record that fails to decode used to fall back to defaults, and the next save wrote those defaults over it:
+/// a person who had said stop became a person who was never asked. The stored bytes are kept here instead, and
+/// for the records research admission depends on, nothing is admitted until the person decides again
+/// (`redecidedAt`).
+struct QuarantinedConsentBlob: Codable, Equatable {
+    /// The storage key the record was under.
+    var key: String
+    /// The record exactly as stored. UHDR-class, like the record it came from; it never leaves the device.
+    var blob: Data
+    var quarantinedAt: Date
+    /// When the person next committed a research-consent decision, or nil if they have not yet.
+    var redecidedAt: Date?
 }
 
 // MARK: - Signed study descriptor (§5.3 step 1)
@@ -398,6 +462,12 @@ enum StudyDescriptorAdmission: Equatable {
         /// L1 is the shared precondition for every delivery path, invitations and engagement
         /// notifications alike (§6.2.1).
         case noContactConsent
+        /// The study asks for an element no extract may carry, because it cannot be made k-anonymous (§5.3):
+        /// `ConsentEngine.elementsNoExtractMayCarry`. A property of the study, like the floors.
+        case requestsElementNoExtractMayCarry
+        /// A stored consent record could not be read and the person has not decided again since
+        /// (`REQ-CONSENT-20`). The device cannot tell "never asked" from "said stop", so it admits nothing.
+        case consentRecordUnreadable
         /// No L2 category on this descriptor is consented, and L3 is off.
         case categoryNotConsented
         /// The user holds no research consent at any layer.

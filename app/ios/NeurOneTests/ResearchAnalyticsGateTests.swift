@@ -219,6 +219,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
     /// test cannot decide the transition under test.
     private func makeCleanStore() -> ConsentStore {
         ProtectedDefaults.standard.removeObject(forKey: "np.consent.research")
+        ProtectedDefaults.standard.removeObject(forKey: "np.consent.quarantine")
         return ConsentStore()
     }
 

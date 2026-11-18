@@ -52,8 +52,9 @@ enum ClinicianRequestAdmission: Equatable {
     /// device issued its own grants and knows which they are.
     case refusedUnknownGrant
     /// The tier change is not an expansion — it adds nothing, or removes something, or touches the
-    /// Research tier. `ConsentEngine.accessDifferential` decides, and a request it refuses has no
-    /// consent document to show, so there is nothing the user could usefully be asked.
+    /// Research tier, or the grant is not in force today (`REQ-CONSENT-18`).
+    /// `ConsentEngine.accessDifferential` decides, and a request it refuses has no consent
+    /// document to show, so there is nothing the user could usefully be asked.
     case refusedNotAnExpansion
 }
 
@@ -88,7 +89,7 @@ struct ClinicianPortalSync {
         guard let grant = store.clinicianGrants.first(where: { $0.id == request.grantID })
         else { return .refusedUnknownGrant }
 
-        guard ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier) != nil
+        guard ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier, on: Date()) != nil
         else { return .refusedNotAnExpansion }
 
         store.addExpansionRequest(request)
