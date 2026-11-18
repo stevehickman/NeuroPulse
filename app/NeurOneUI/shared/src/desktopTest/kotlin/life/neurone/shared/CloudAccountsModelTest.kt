@@ -101,7 +101,8 @@ class CloudAccountsModelTest {
         assertNull(m.notice.value, "a cancel is not an error")
         assertNull(m.rows.value.first { it.service == CloudService.GOOGLE_DRIVE }.account)
 
-        f.launch = { _, redirect -> "$redirect?error=access_denied&state=x" }
+        // A provider's refusal carries the state that was sent; one without it is not the provider's answer (SWR-MG-19 (a), OI-PRIV-13).
+        f.launch = { url, redirect -> "$redirect?error=access_denied&state=${Regex("[?&]state=([^&]+)").find(url)!!.groupValues[1]}" }
         m.signIn(CloudService.GOOGLE_DRIVE)
         assertEquals(CloudNoticeKind.DENIED, m.notice.value?.kind)
 
