@@ -171,6 +171,7 @@
   "CLOUD_ACCOUNTS_SETTINGS_BODY": "Sign in to a cloud service to keep your backups there.",
   "CLOUD_ACCOUNTS_TITLE": "Cloud accounts",
   "CLOUD_ACCOUNTS_UNAVAILABLE": "Cloud sign-in is not available on this device.",
+  "CLOUD_ACCOUNTS_UNAVAILABLE_UNPROTECTED": "Cloud backup is not available on this device right now. The system's secure key store is not available, and the app does not keep a cloud sign-in without encrypting it. Make the key store available and restart the app.",
   "CLOUD_AWS_ACCESS_KEY_ID": "Access key ID",
   "CLOUD_AWS_NOTE": "Use keys for a user that can reach one bucket only. The secret key stays on this device.",
   "CLOUD_AWS_SECRET_KEY": "Secret access key",
