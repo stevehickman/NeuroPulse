@@ -277,7 +277,8 @@ class AppServices(
         syncBackgroundSchedule()
         return outcome
     }
-    val sessionHistoryStore = SessionHistoryStore(keyValueStore)
+    /** Given the lock, so it holds no history while locked and merges a session that finishes then (`REQ-PRES-01` (d)). */
+    val sessionHistoryStore = SessionHistoryStore(keyValueStore, lock = presenceLock)
     val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
 
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)

@@ -1,12 +1,17 @@
 package life.neurone.core.session
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.protocol.PersistedKeys
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlin.math.floor
+import kotlin.math.round
 
 // Local, display-only record of completed sessions. Port of iOS
 // SessionHistoryStore.swift.
@@ -21,6 +26,16 @@ import kotlinx.serialization.json.Json
 //
 // edfSessionId is in-memory only (@Transient) — the hub session epoch is a
 // Unix-ms timestamp and must not reach persisted storage.
+//
+// What a record keeps is what the History screen shows and no finer (OI-PRIV-10 (2)): the
+// duration in whole minutes and the coherence score to one decimal place. protocolName is kept
+// as text because it is the row's title; a protocol the person named themselves is their own
+// wording, which is one reason this key is UHDR-tier and sealed.
+//
+// PRESENCE (NP-APP-PRESENCE-001, REQ-PRES-01 (d)): under the gate this store is built while
+// the app is locked, when a read of the sealed history answers "absent". It therefore never
+// treats a locked read as an empty history: it holds nothing while locked, reads again at
+// each unlock, and a session that finishes while locked waits and is merged then.
 
 @Serializable
 data class SessionRecord(
@@ -70,8 +85,14 @@ data class CompletedSessionSummary(
 class SessionHistoryStore(
     private val store: KeyValueStore,
     private val json: Json = Json { ignoreUnknownKeys = true },
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. With a lock, the history is in
+     * memory only while the person's presence stands (`REQ-PRES-01` (d), `OI-PRIV-10` (1)).
+     */
+    private val lock: PresenceLock? = null,
 ) {
     companion object {
+        /** The newest this many records are kept. Nothing derives the figure and there is no age limit (`UC-193`, `OI-PRIV-10` (2)). */
         const val MAX_RECORDS = 100
 
         // Companion-scoped so it exists before the instance init block runs
@@ -83,57 +104,125 @@ class SessionHistoryStore(
                 b.insertionIndex.compareTo(a.insertionIndex)
             }
         }
+
+        /**
+         * A record holds no more than the history shows (`OI-PRIV-10` (2)): the duration in whole minutes (kept in seconds, so a
+         * record written by an earlier build or another platform still reads) and the coherence score to one decimal place.
+         */
+        internal fun wholeMinutes(seconds: Double): Double = if (seconds.isFinite() && seconds > 0) floor(seconds / 60.0) * 60.0 else 0.0
+        internal fun oneDecimal(score: Float?): Float? = score?.takeIf { it.isFinite() }?.let { round(it * 10f) / 10f }
+
+        private fun asShown(r: SessionRecord): SessionRecord =
+            r.copy(durationSeconds = wholeMinutes(r.durationSeconds), averageCoherenceScore = oneDecimal(r.averageCoherenceScore))
     }
 
+    /** The history, newest first. **Empty while locked**, whatever is sealed and whatever finished since the lock closed. */
     var records: List<SessionRecord> = emptyList()
         private set
 
     private var nextInsertionIndex = 0
 
+    /**
+     * Whether [records] is what the store holds. False while locked: a locked read answers "absent", which is not "empty", and a
+     * list built on it would replace the sealed history when it was written (`OI-PRIV-10` (1)).
+     */
+    private var loaded = false
+
+    /** Sessions that finished while the history could not be read, oldest first. They join it at the next unlock, in this order. */
+    private val waiting = mutableListOf<CompletedSessionSummary>()
+
     init {
-        load()
+        if (lock == null || lock.isUnlocked) load()
+        lock?.onStateChanged { state -> if (state == PresenceState.LOCKED) forget() else reload() }
     }
 
-    /** Append a completed session, persist, trim, and keep newest-first. */
+    /**
+     * Append a completed session, persist, trim, and keep newest-first. While locked nothing is read or written: the session waits
+     * in memory and is added to the sealed history at the next unlock, so it neither replaces that history nor is lost.
+     */
     fun record(session: CompletedSessionSummary) {
+        if (!loaded) {
+            waiting += session
+            return
+        }
+        append(session)
+        if (!persist()) {
+            // The lock closed between the check and the write: nothing reached the disk, so the session waits like any other.
+            forget()
+            waiting += session
+        }
+    }
+
+    /**
+     * Destroy the history. It works locked: a removal discloses nothing and needs no presence (`REQ-PRES-01` (b)), and a session
+     * that was waiting to join the history is dropped with it.
+     */
+    fun clearHistory() {
+        records = emptyList()
+        nextInsertionIndex = 0
+        waiting.clear()
+        store.remove(PersistedKeys.SESSION_HISTORY_KEY)
+    }
+
+    // ── Presence ─────────────────────────────────────────────────────────
+
+    /** The lock closed: nothing of the person's history stays decrypted in this store. */
+    private fun forget() {
+        records = emptyList()
+        nextInsertionIndex = 0
+        loaded = false
+    }
+
+    /** The lock opened: read the sealed history, then add what finished while it was closed and write the two together. */
+    private fun reload() {
+        load()
+        if (!loaded || waiting.isEmpty()) return
+        val joining = waiting.toList()
+        joining.forEach(::append)
+        if (persist()) waiting.clear() else forget()
+    }
+
+    private fun append(session: CompletedSessionSummary) {
         val new = SessionRecord(
             id = life.neurone.core.common.UUID.randomUUID().toString(),
             protocolName = session.protocolName,
             sessionDay = session.completedAt.toString(), // ISO yyyy-MM-dd
             insertionIndex = nextInsertionIndex,
-            durationSeconds = session.durationSeconds.toDouble(),
-            averageCoherenceScore = session.averageCoherenceScore,
+            durationSeconds = wholeMinutes(session.durationSeconds.toDouble()),
+            averageCoherenceScore = oneDecimal(session.averageCoherenceScore),
             rmssdMilliseconds = session.rmssdMilliseconds,
             impedancePassCount = session.impedancePassCount,
             edfSessionId = session.edfSessionId,
         )
         nextInsertionIndex += 1
         records = (records + new).sortedWith(newestFirst).take(MAX_RECORDS)
-        persist()
-    }
-
-    fun clearHistory() {
-        records = emptyList()
-        nextInsertionIndex = 0
-        persist()
     }
 
     // ── Persistence ──────────────────────────────────────────────────────
 
     private fun load() {
-        val blob = store.getString(PersistedKeys.SESSION_HISTORY_KEY) ?: return
+        if (lock != null && !lock.isUnlocked) return
+        val blob = store.getString(PersistedKeys.SESSION_HISTORY_KEY)
         // Corrupt blob is non-fatal — start clean rather than crash on launch.
-        records = runCatching {
+        records = if (blob == null) emptyList() else runCatching {
             json.decodeFromString(ListSerializer(SessionRecord.serializer()), blob)
-                .sortedWith(newestFirst)
+                .map(::asShown).sortedWith(newestFirst)
         }.getOrDefault(emptyList())
         nextInsertionIndex = (records.maxOfOrNull { it.insertionIndex } ?: -1) + 1
+        loaded = true
     }
 
-    private fun persist() {
-        store.putString(
-            PersistedKeys.SESSION_HISTORY_KEY,
-            json.encodeToString(ListSerializer(SessionRecord.serializer()), records),
-        )
+    /** False when the store could not take the write because the key is not readable; nothing was written. */
+    private fun persist(): Boolean {
+        if (lock != null && !lock.isUnlocked) return false
+        return try {
+            store.putString(
+                PersistedKeys.SESSION_HISTORY_KEY,
+                json.encodeToString(ListSerializer(SessionRecord.serializer()), records),
+            )
+            true
+        } catch (e: SecretKeyUnavailableException) {
+            false
+        }
     }
 }
