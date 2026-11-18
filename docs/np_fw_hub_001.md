@@ -588,8 +588,12 @@ the default and the encrypted link is what must be shown. "Encrypted" is all the
 | Calibration, zone module status, SHDR upload status, session state and status, HRV, pacer, impedance result, socket map, firmware version, CVNS pad status | either | various | **not published by the hub** (the table holds only what the hub produces); when one is, the host test fails unless it requires an encrypted link or is named as an exception | whatever is published |
 | System Health Data Record (SHDR) from hub to fleet | hub, via the app, to the fleet database | device condition | the hub side of the transfer (the hub to the app) does not exist; the app to the fleet leg is not audited here | not audited |
 
-**What this says about the apps.** The apps do not check the link: a central's operating system pairs when the hub's permission demands it, and no app code
-refuses an unencrypted link or reads the pairing method (`OI-SIMFW-72`).
+**What this says about the apps.** A central's operating system pairs when the hub's permission demands it, and no app code reads the link's
+encryption state or the pairing method (`OI-SIMFW-72`): no central exposes it. What the Compose app does instead (`REQ-SW03-31`, NP-SW-001; `OI-PRIV-16`)
+is hold the protocol upload until a read of `DEVICE_SERIAL` has succeeded on the same link, and report a write the link refuses to its hub manager.
+That read is refused by a genuine hub unless the link is encrypted, so the app no longer writes a protocol to a hub that has not encrypted the link, or to
+a peer that cannot answer the read. **It is not a check of the link and not authentication of the peer:** a peripheral that publishes the same
+characteristic without demanding encryption answers the read in the clear and is then written the protocol. The table's "Not covered" column is unchanged.
 
 ## 3. Module registry
 
