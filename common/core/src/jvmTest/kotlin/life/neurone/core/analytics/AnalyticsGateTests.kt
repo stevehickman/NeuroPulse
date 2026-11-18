@@ -148,8 +148,6 @@ class AnalyticsGateTests {
         store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val backend = SpyAnalyticsBackend()
         val gate = ResearchAnalyticsGate(store, backend)
-        gate.reset()
-        assertTrue(backend.calls.isEmpty(), "a reset before any configure does nothing")
         gate.configure()
         gate.reset()
         gate.configure()
@@ -166,9 +164,10 @@ class AnalyticsGateTests {
         gate.configure()
         gate.reset()
         assertEquals(listOf("configure", "reset"), backend.calls)
-        // reset() when not configured is a no-op
+        // reset() when not configured still tells the backend to forget its ID: the ID outlives the process, so a withdrawal
+        // made before configure() ran has one to erase (OI-PRIV-08 (1)). It never configures.
         gate.reset()
-        assertEquals(listOf("configure", "reset"), backend.calls)
+        assertEquals(listOf("configure", "reset", "reset"), backend.calls)
     }
 
     // ── Two consent subjects never share keys (ISC-24) ───────────────────

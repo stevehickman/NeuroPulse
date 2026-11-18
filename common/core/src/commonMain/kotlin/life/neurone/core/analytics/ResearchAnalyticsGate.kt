@@ -49,19 +49,39 @@ class ResearchAnalyticsGate(
      * concurrent configure() cannot re-initialize before shutdown completes
      * (order preserved from the iOS implementation).
      * Does NOT affect [WarrantyAnalyticsGate] or SHDR fleet uploads.
+     *
+     * It does not depend on [configure] having run in this process (`OI-PRIV-08` (1)): the backend keeps its ID across runs, so a
+     * withdrawal made before the gate was configured still has an ID the vendor holds events under, and it is forgotten and
+     * queued all the same. A backend that never sent anything has no ID and nothing is queued.
      */
     fun reset() {
-        if (!isConfigured) return
-        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` makes a new one, and the old one is what the vendor
-        // holds this person's events under. It is queued, durably, and erased from the vendor within 30 days
+        if (forgetAndQueue()) scope?.launch { erasureQueue?.drain() }
+    }
+
+    /**
+     * [reset] for an erase of this device: the same teardown, and then the relay is asked now and the answer waited for, because
+     * the erase deletes the queue with everything else and an ID still in it could never be erased from the vendor afterwards.
+     * IDs queued by earlier withdrawals are asked about too. Returns how many IDs the relay has not accepted (it could not be
+     * reached, or it refused): the erase goes on regardless, since the person's erase is never held back, and the caller can say so.
+     */
+    suspend fun resetForErase(): Int {
+        forgetAndQueue()
+        val queue = erasureQueue ?: return 0
+        queue.drain()
+        return queue.pending.size
+    }
+
+    /** True when an ID was queued. */
+    private fun forgetAndQueue(): Boolean {
+        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` forgets it, and it is what the vendor holds this
+        // person's events under. It is queued, durably, and erased from the vendor within 30 days
         // (NP-APP-TELEMETRY-001 §5, REQ-SW03-19).
         val withdrawnId = backend.distinctId
         backend.reset()
         isConfigured = false
-        if (withdrawnId != null && erasureQueue != null) {
-            erasureQueue.enqueue(withdrawnId)
-            scope?.launch { erasureQueue.drain() }
-        }
+        if (withdrawnId == null || erasureQueue == null) return false
+        erasureQueue.enqueue(withdrawnId)
+        return true
     }
 
     /**

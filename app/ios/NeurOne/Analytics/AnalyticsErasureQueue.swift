@@ -6,17 +6,19 @@ import os
 // The policy says the ID must be deleted from the vendor's servers within 30 days of a research-consent withdrawal, by a vendor
 // deletion call made at withdrawal time. The SDK's `reset()` makes a NEW anonymous ID, so the old one is gone from the phone the
 // moment it runs: unless it was kept, nothing can ever ask for its deletion. So the gate captures it first
-// (`ResearchAnalyticsGate.reset()`), and this queue holds it, durably, until the erasure relay has accepted it or refused it for
-// good. A withdrawal made offline is therefore not lost: the request is sent when the phone next can.
+// (`ResearchAnalyticsGate.reset()`), and this queue holds it, durably, until the erasure relay has accepted it. A withdrawal
+// made offline is therefore not lost: the request is sent when the phone next can.
 //
-// The relay is a NeurOne service that holds the vendor's private API key, which must never be in the app. It is not built yet
-// (OI-ANALYTICS-01); until it exists a queued ID stays queued, which is the honest state: the erasure has not happened.
+// Only a 2xx drops an ID (OI-PRIV-08 (2), REQ-SW03-19 (b)). The queue holds the only copy, and a 401, 403 or 404 is what a
+// misdeployed relay or a proxy in front of it answers, not a verdict on the ID, so a refusal keeps the ID and it is asked about
+// again at the next drain. The relay is `infra/posthog/erase_relay.py` (docs/np_analytics_001.md §7.6).
 
 /// What the relay said about one ID.
 enum ErasureOutcome: Equatable {
     /// The relay accepted the request (any 2xx). Erasing an ID the vendor does not hold is also accepted: the call is idempotent.
     case done
-    /// The relay refused it for good (a 4xx other than 408 and 429). Retrying the same request cannot change the answer.
+    /// The relay refused it (a 4xx other than 408 and 429). The ID stays queued and is asked about again at the next drain: a
+    /// misdeployed relay answers this way, and the queue holds the only copy. The drain goes on to the next ID.
     case refused
     /// A network error, a timeout, a 408, a 429 or a 5xx. The ID stays queued.
     case retryLater
@@ -107,9 +109,9 @@ final class AnalyticsErasureQueue {
         save(ids)
     }
 
-    /// Ask the relay about every queued ID. An ID leaves the queue when the relay accepted it or refused it for good; on a
-    /// transient failure it stays, and the rest wait for the next call (the network is likely down for all of them).
-    /// Does nothing, and makes no network call, when the queue is empty.
+    /// Ask the relay about every queued ID, once each. An ID leaves the queue only when the relay accepted it. A refusal keeps
+    /// it and the drain goes on to the next one; on a transient failure it stays and the rest wait for the next call (the
+    /// network is likely down for all of them). Does nothing, and makes no network call, when the queue is empty.
     func drain() async {
         guard !isDraining else { return }
         isDraining = true
@@ -121,8 +123,8 @@ final class AnalyticsErasureQueue {
                 remove(id)
             case .refused:
                 // Never log the ID: it is the pseudonym the vendor holds data under.
-                Self.log.fault("AnalyticsErasureQueue: the relay refused an erasure request for good; dropping it from the queue.")
-                remove(id)
+                Self.log.fault("AnalyticsErasureQueue: the relay refused an erasure request; keeping it for the next try.")
+                continue
             case .retryLater:
                 return
             }

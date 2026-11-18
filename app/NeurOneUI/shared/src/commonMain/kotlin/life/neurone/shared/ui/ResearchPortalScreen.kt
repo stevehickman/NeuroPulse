@@ -68,7 +68,8 @@ fun ResearchPortalScreen(
         ) {
             TextButton(onClick = onBack) { Text(stringResource(Res.string.consent_back_button)) }
             Text(stringResource(Res.string.portal_research_ideas), style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = { composing = true }) { Text(stringResource(Res.string.protocol_menu_new)) }
+            // A person who is not opted into the portal authors nothing (`OI-PRIV-08` (3)); the store refuses it too.
+            TextButton(onClick = { composing = true }, enabled = store.canSubmit) { Text(stringResource(Res.string.protocol_menu_new)) }
         }
         Spacer(Modifier.height(8.dp))
 

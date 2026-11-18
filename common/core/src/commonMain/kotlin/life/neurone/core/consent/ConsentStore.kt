@@ -61,6 +61,13 @@ class ConsentStore(
     private val descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier,
     /** The clock for withdrawal times (UTC to the second); injectable so a test can order two withdrawals. */
     private val now: () -> String = ::nowIso,
+    /**
+     * Run when the suggestion-portal opt-in or blanket research consent goes from granted to withdrawn, by a screen, by the named
+     * withdrawal or by a restored withdrawal record. The composition root gives it `ResearchSuggestionStore.forgetAuthorToken`,
+     * so the token that joins a person's suggestions does not outlive either consent (`OI-PRIV-08` (3)). Keyed on the
+     * transition, like the analytics teardown: a state that was never granted withdraws nothing.
+     */
+    private val onPortalIdentityWithdrawn: () -> Unit = {},
 ) {
     companion object {
         const val GRANTS_KEY = "np.consent.clinician-grants"
@@ -278,6 +285,7 @@ class ConsentStore(
         // whole state and cannot see the transition this method is built around; carrying the
         // committed value through would let a stale screen erase the record of the user having
         // said stop, which is the one thing §6.0 needs to survive.
+        val before = researchConsent
         researchConsent = withTimes(researchConsent, state).copy(
             blanketConsentWithdrawnOnDay = if (isWithdrawal) {
                 todayIso()
@@ -286,6 +294,7 @@ class ConsentStore(
             },
         )
         save()
+        portalIdentityAfter(before)
 
         if (isWithdrawal) {
             revokeResearchAnalytics()
@@ -307,6 +316,7 @@ class ConsentStore(
         // was never granted stops nothing, and marking it would silently bar an L2 participant
         // from studies they are still consenting to.
         val wasGranted = researchConsent.blanketConsentGranted
+        val before = researchConsent
         researchConsent = withTimes(researchConsent, researchConsent.copy(blanketConsentGranted = false)).copy(
             blanketConsentWithdrawnOnDay = if (wasGranted) {
                 todayIso()
@@ -315,7 +325,16 @@ class ConsentStore(
             },
         )
         save()
+        portalIdentityAfter(before)
         revokeResearchAnalytics()
+    }
+
+    /** Tell the portal its author token is withdrawn if the change from [before] took the portal opt-in or blanket consent away. */
+    private fun portalIdentityAfter(before: ResearchConsentState) {
+        val now = researchConsent
+        val portalWithdrawn = before.suggestionPortalOptIn && !now.suggestionPortalOptIn
+        val blanketWithdrawn = before.blanketConsentGranted && !now.blanketConsentGranted
+        if (portalWithdrawn || blanketWithdrawn) onPortalIdentityWithdrawn()
     }
 
     /**
@@ -424,6 +443,7 @@ class ConsentStore(
             if (t != null && it.isActive) it.copy(withdrawnAtDay = t.substringBefore('T')) else it
         }
         save()
+        portalIdentityAfter(r)
         if (blanket != null) revokeResearchAnalytics()
     }
 

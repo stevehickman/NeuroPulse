@@ -39,8 +39,9 @@ class PostHogAnalyticsBackend(
 
     private var active = false
 
+    /** The stored ID, in any state: an ID exists only once an event has been sent under it ([track] makes it), in this run or an earlier one. */
     override val distinctId: String?
-        get() = if (active) currentId() else null
+        get() = store.getString(ID_KEY)?.takeIf { it.isNotEmpty() }
 
     override fun configure() {
         if (!config.usable) return
@@ -70,12 +71,13 @@ class PostHogAnalyticsBackend(
     }
 
     /**
-     * Stop collecting and make a new ID, so a later session cannot be joined to the earlier ones even if the person consents
-     * again. The gate has read [distinctId] and queued it for erasure before this runs.
+     * Stop collecting and forget the ID, so a later session cannot be joined to the earlier ones even if the person consents
+     * again: the next event sent, if there ever is one, makes a new ID. The gate has read [distinctId] and queued it for erasure
+     * before this runs. No unused ID is left behind, so a later withdrawal or erase asks the vendor about nothing it never held.
      */
     override fun reset() {
         active = false
-        store.putString(ID_KEY, newId())
+        store.remove(ID_KEY)
     }
 
     private fun currentId(): String = store.getString(ID_KEY)?.takeIf { it.isNotEmpty() } ?: newId().also { store.putString(ID_KEY, it) }
