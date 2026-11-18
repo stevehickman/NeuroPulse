@@ -35,6 +35,22 @@
 //! The server's driver answers `now` (`{seconds}`, Unix time) for the expiry, as well as `random`; the host keeps the code,
 //! its expiry and the tries left across connections and passes them to each `serve`, whose result says what is left.
 //!
+//! # What a state holds (`SWR-MG-28` (d))
+//! The flow is sans-IO and the core keeps nothing between calls, so a pairing's working secrets are in the state the host
+//! holds, and each is taken out in the call that stops needing it:
+//!
+//! | secret | restoring phone | serving phone |
+//! |--------|-----------------|---------------|
+//! | the pairing code | from the start until the server's reply is read (the shared key is made there) | from the start until the session's random bytes arrive (the shared key is made there); the host still holds the offer |
+//! | the SPAKE2 seed | from `random` until the server's reply is read: the session is re-made from it | never: it is used in the call it arrives in |
+//! | the shared key | never | never: the tag the other phone must send and the channel keys are made in the same call |
+//! | the channel keys | from the server's reply on | from the session's random bytes on (unused until the confirmation is right, and removed if it is wrong) |
+//!
+//! **The channel keys and their message counts must remain** for as long as the link is used: every frame is sealed or
+//! opened with them and there is nowhere else to keep them. The request the restore was started with stays, without the
+//! code, until the server's `ok`, because the restore is started from it then. Moving the channel keys out of the state
+//! needs the core to hold them (a key handle), which is `OI-PRIV-12` stage 2 (`docs/human-input/oi-priv-12-key-boundary-design.md`).
+//!
 //! | type | args | result |
 //! |------|------|--------|
 //! | `now` | none | `{seconds}` the platform clock, for the code's expiry |
@@ -42,7 +58,7 @@
 //! | `linkSend` | `frame` (hex) | `{ok}`: the bytes are on their way |
 //! | `linkRecv` | none | `{chunk: hex}` the next bytes, or `{chunk: null}` when the link is closed; `{failed: true}` if it broke |
 
-use crate::migration::{hex, unhex};
+use crate::migration::{hex, same_tag, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use hkdf::Hkdf;
@@ -52,6 +68,7 @@ use sha2::Sha256;
 use spake2::{Ed25519Group, Identity, Password, Spake2};
 use crate::object_route::{BUNDLE_OBJECT, CLAIM_OBJECT, CONFIRMATION_OBJECT, PROBE_PREFIX};
 use serde_json::{json, Value};
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -136,7 +153,20 @@ pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
 
 /// The bytes the driver gave, handed to SPAKE2 as its randomness, so a session can be re-made from the state the flow keeps
 /// (the flow is sans-IO: it cannot keep a `Spake2` between calls, and the driver owns the random, `UC-089`).
-struct Given(Vec<u8>, usize);
+///
+/// It gives each byte once. Asked for more than it was given it refuses (`SWR-MG-28` (e)), as `ohttp`'s `HostEntropy` does:
+/// starting again from the first byte would hand SPAKE2 a scalar made of repeated bytes, and nothing would say so. The
+/// bytes are wiped when it is dropped.
+struct Given {
+    bytes: Zeroizing<Vec<u8>>,
+    used: usize,
+}
+
+impl Given {
+    fn new(seed: &[u8]) -> Given {
+        Given { bytes: Zeroizing::new(seed.to_vec()), used: 0 }
+    }
+}
 
 impl RngCore for Given {
     fn next_u32(&mut self) -> u32 {
@@ -150,13 +180,17 @@ impl RngCore for Given {
         u64::from_le_bytes(b)
     }
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        for d in dest {
-            *d = self.0[self.1 % self.0.len()];
-            self.1 += 1;
-        }
+        // The infallible form has no way to refuse but to stop. `random_bytes` checks the driver gave `PAIR_RANDOM`
+        // bytes, which is more than one SPAKE2 session takes, so this is reached only if that stops being true.
+        self.try_fill_bytes(dest).expect("the driver supplied too little entropy");
     }
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
+        let end = self.used.checked_add(dest.len()).filter(|end| *end <= self.bytes.len());
+        let Some(end) = end else {
+            return Err(rand_core::Error::from(core::num::NonZeroU32::new(rand_core::Error::CUSTOM_START).expect("not zero")));
+        };
+        dest.copy_from_slice(&self.bytes[self.used..end]);
+        self.used = end;
         Ok(())
     }
 }
@@ -167,9 +201,9 @@ impl CryptoRng for Given {}
 fn spake(server: bool, code: &str, seed: &[u8]) -> (Spake2<Ed25519Group>, Vec<u8>) {
     let (pw, a, b) = (Password::new(code.as_bytes()), Identity::new(SERVER_ID), Identity::new(CLIENT_ID));
     if server {
-        Spake2::<Ed25519Group>::start_a_with_rng(&pw, &a, &b, Given(seed.to_vec(), 0))
+        Spake2::<Ed25519Group>::start_a_with_rng(&pw, &a, &b, Given::new(seed))
     } else {
-        Spake2::<Ed25519Group>::start_b_with_rng(&pw, &a, &b, Given(seed.to_vec(), 0))
+        Spake2::<Ed25519Group>::start_b_with_rng(&pw, &a, &b, Given::new(seed))
     }
 }
 
@@ -191,11 +225,11 @@ fn tag_ok(key: &[u8], label: &str, a: &[u8], b: &[u8], given: &Value) -> bool {
 }
 
 /// The two directions' keys: client to server, server to client.
-fn channel_keys(shared: &[u8]) -> ([u8; 32], [u8; 32]) {
+fn channel_keys(shared: &[u8]) -> (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>) {
     let h = Hkdf::<Sha256>::new(None, shared);
-    let (mut c2s, mut s2c) = ([0u8; 32], [0u8; 32]);
-    h.expand(b"np-link-c2s", &mut c2s).expect("32 bytes is a valid HKDF length");
-    h.expand(b"np-link-s2c", &mut s2c).expect("32 bytes is a valid HKDF length");
+    let (mut c2s, mut s2c) = (Zeroizing::new([0u8; 32]), Zeroizing::new([0u8; 32]));
+    h.expand(b"np-link-c2s", &mut *c2s).expect("32 bytes is a valid HKDF length");
+    h.expand(b"np-link-s2c", &mut *s2c).expect("32 bytes is a valid HKDF length");
     (c2s, s2c)
 }
 
@@ -205,9 +239,21 @@ fn nonce(counter: u64) -> [u8; 12] {
     n
 }
 
-/// The sealed channel one phone holds after pairing: a key and a message count for each direction.
-fn ctx(send: [u8; 32], recv: [u8; 32]) -> Value {
-    json!({ "sk": hex(&send), "rk": hex(&recv), "sn": 0, "rn": 0 })
+/// The sealed channel one phone holds after pairing: a key and a message count for each direction. These two keys are the
+/// one secret a link's state keeps once it is paired (see `strip`): the flow is sans-IO, the core keeps nothing between
+/// calls, and every later frame is sealed or opened with them.
+fn ctx(send: &[u8; 32], recv: &[u8; 32]) -> Value {
+    json!({ "sk": hex(send), "rk": hex(recv), "sn": 0, "rn": 0 })
+}
+
+/// Take `fields` out of a state: what the pairing needed and the channel does not (`SWR-MG-28` (d)). The state is the
+/// host's to hold between calls, so a secret left in it lives in the host's memory for the rest of the migration.
+fn strip(st: &mut Value, fields: &[&str]) {
+    if let Some(o) = st.as_object_mut() {
+        for f in fields {
+            o.remove(*f);
+        }
+    }
 }
 
 fn seal(st: &mut Value, msg: &Value) -> R<Vec<u8>> {
@@ -216,7 +262,7 @@ fn seal(st: &mut Value, msg: &Value) -> R<Vec<u8>> {
     if c.is_null() {
         return Ok(framed(&body));
     }
-    let (key, n) = (unhex(c["sk"].as_str().unwrap_or(""), "key")?, c["sn"].as_u64().unwrap_or(0));
+    let (key, n) = (Zeroizing::new(unhex(c["sk"].as_str().unwrap_or(""), "key")?), c["sn"].as_u64().unwrap_or(0));
     let ct = Aes256Gcm::new_from_slice(&key)
         .map_err(|e| e.to_string())?
         .encrypt(Nonce::from_slice(&nonce(n)), Payload { msg: &body, aad: AAD })
@@ -230,7 +276,7 @@ fn unseal(st: &mut Value, body: &[u8]) -> R<Value> {
     let plain = if c.is_null() {
         body.to_vec()
     } else {
-        let (key, n) = (unhex(c["rk"].as_str().unwrap_or(""), "key")?, c["rn"].as_u64().unwrap_or(0));
+        let (key, n) = (Zeroizing::new(unhex(c["rk"].as_str().unwrap_or(""), "key")?), c["rn"].as_u64().unwrap_or(0));
         let p = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| e.to_string())?
             .decrypt(Nonce::from_slice(&nonce(n)), Payload { msg: body, aad: AAD })
@@ -287,8 +333,8 @@ fn recv(mut st: Value, step: &str) -> R<Value> {
     effect(st, json!({ "type": "linkRecv" }))
 }
 
-fn random_bytes(result: &Value) -> R<Vec<u8>> {
-    let b = unhex(result["bytes"].as_str().unwrap_or(""), "bytes")?;
+fn random_bytes(result: &Value) -> R<Zeroizing<Vec<u8>>> {
+    let b = Zeroizing::new(unhex(result["bytes"].as_str().unwrap_or(""), "bytes")?);
     if b.len() as u64 != PAIR_RANDOM {
         return Err("random gave the wrong number of bytes".into());
     }
@@ -323,7 +369,11 @@ pub(crate) fn flow(req: &Value, inner: fn(&Value) -> R<Value>) -> R<Value> {
         let Ok(code) = parse_code(req["params"]["pairing"]["code"].as_str().unwrap_or("")) else {
             return refuse("no_authenticated_pairing");
         };
-        let st = json!({ "link": true, "buf": "", "id": 0, "phase": "pair_rand", "code": code, "origin": req });
+        // The inner flow is started from `origin` once paired, and has no use for the code: it is kept once, beside it,
+        // and only until the shared key is made.
+        let mut origin = req.clone();
+        strip(&mut origin["params"], &["pairing"]);
+        let st = json!({ "link": true, "buf": "", "id": 0, "phase": "pair_rand", "code": code, "origin": origin });
         return effect(st, json!({ "type": "random", "bytes": PAIR_RANDOM }));
     }
     let mut st = req["state"].clone();
@@ -402,15 +452,19 @@ fn client_pair(req: &Value, mut st: Value, phase: &str, inner: fn(&Value) -> R<V
                 Some("refused") => refuse(match m["reason"].as_str() { Some("code_expired") => "code_expired", Some("code_spent") => "code_spent", _ => "wrong_code" }),
                 Some("reply") => {
                     let (Ok(a), Ok(seed)) = (unhex(m["msg"].as_str().unwrap_or(""), "msg"), unhex(st["seed"].as_str().unwrap_or(""), "seed")) else { return refuse("malformed_frame") };
+                    let seed = Zeroizing::new(seed);
                     let (state, _) = spake(false, st["code"].as_str().unwrap_or(""), &seed);
-                    let Ok(key) = state.finish(&a) else { return wrong() };
+                    let Ok(key) = state.finish(&a).map(Zeroizing::new) else { return wrong() };
                     let b = unhex(st["b"].as_str().unwrap_or(""), "b")?;
+                    // The shared key exists, so the code, the seed it was made with and this phone's SPAKE2 message have
+                    // done their work. The shared key itself is never put in the state: only the channel keys are.
+                    strip(&mut st, &["code", "seed", "b"]);
                     // The server's proof first: a wrong code is found here, on the phone the person is holding.
                     if !tag_ok(&key, "server", &a, &b, &m["tag"]) {
                         return wrong();
                     }
                     let (c2s, s2c) = channel_keys(&key);
-                    st["keys"] = json!({ "c2s": hex(&c2s), "s2c": hex(&s2c) });
+                    st["keys"] = json!({ "c2s": hex(&*c2s), "s2c": hex(&*s2c) });
                     let f = seal(&mut st, &json!({ "pair": "confirm", "tag": tag(&key, "client", &a, &b) }))?;
                     step(st, "pair_confirm_sent", json!({ "type": "linkSend", "frame": hex(&f) }))
                 }
@@ -434,11 +488,15 @@ fn client_pair(req: &Value, mut st: Value, phase: &str, inner: fn(&Value) -> R<V
             if m["pair"] != "ok" {
                 return wrong();
             }
-            let (c2s, s2c) = (unhex(st["keys"]["c2s"].as_str().unwrap_or(""), "key")?, unhex(st["keys"]["s2c"].as_str().unwrap_or(""), "key")?);
-            let (mut a, mut b) = ([0u8; 32], [0u8; 32]);
+            let (c2s, s2c) = (Zeroizing::new(unhex(st["keys"]["c2s"].as_str().unwrap_or(""), "key")?), Zeroizing::new(unhex(st["keys"]["s2c"].as_str().unwrap_or(""), "key")?));
+            if c2s.len() != 32 || s2c.len() != 32 {
+                return Err("the channel keys are not 32 bytes".into());
+            }
+            let (mut a, mut b) = (Zeroizing::new([0u8; 32]), Zeroizing::new([0u8; 32]));
             a.copy_from_slice(&c2s);
             b.copy_from_slice(&s2c);
-            let mut next = json!({ "link": true, "buf": st["buf"], "id": 0, "ctx": ctx(a, b) });
+            // Nothing of the pairing is carried on: not the code, the seed, the request it came in, or the keys' first copy.
+            let mut next = json!({ "link": true, "buf": st["buf"], "id": 0, "ctx": ctx(&a, &b) });
             // The inner flow starts now, with its object calls on the sealed channel.
             let answer = inner(&st["origin"])?;
             next["inner"] = Value::Null;
@@ -504,18 +562,21 @@ fn serve(req: &Value) -> R<Value> {
                 st["step"] = json!("now");
                 return effect(st, json!({ "type": "now" }));
             }
-            // A confirmation. A wrong one is the try the hello already cost.
-            let (a, b, key) = (st["a"].as_str().unwrap_or(""), st["hello"].as_str().unwrap_or(""), st["key"].as_str().unwrap_or(""));
-            let (Ok(a), Ok(b), Ok(key)) = (unhex(a, "a"), unhex(b, "b"), unhex(key, "key")) else { return sdone(&st, false, "malformed_frame") };
-            if m["pair"] != "confirm" || !tag_ok(&key, "client", &a, &b, &m["tag"]) {
+            // A confirmation. A wrong one is the try the hello already cost. The tag the other phone must send was made
+            // when the shared key was (`rand`), so the key did not have to be kept to check it; the comparison takes the
+            // same time wherever the two differ.
+            let expected = st["expect"].as_str().unwrap_or("").to_string();
+            let given = m["tag"].as_str().unwrap_or("").to_ascii_lowercase();
+            strip(&mut st, &["expect"]);
+            if m["pair"] != "confirm" || !same_tag(&expected, &given) {
+                // No channel: the keys made for one go with the refusal.
+                strip(&mut st, &["after"]);
                 return send(st, "fail_sent", &json!({ "pair": "fail" }));
             }
-            let (c2s, s2c) = channel_keys(&key);
-            let mut next = st.clone();
-            // `ok` goes out plain, and the sealed channel starts after it.
+            let mut next = st;
+            // `ok` goes out plain, and the sealed channel (`after`, made at `rand`) starts after it.
             let ok_frame = framed(&json!({ "pair": "ok" }).to_string().into_bytes());
             next["ctx"] = Value::Null;
-            next["after"] = ctx(s2c, c2s);
             next["step"] = json!("ok_sent");
             effect(next, json!({ "type": "linkSend", "frame": hex(&ok_frame) }))
         }
@@ -534,12 +595,20 @@ fn serve(req: &Value) -> R<Value> {
         }
         "rand" => {
             let seed = random_bytes(result)?;
-            let code = st["pairing"]["code"].as_str().unwrap_or("").to_string();
+            let code = Zeroizing::new(st["pairing"]["code"].as_str().unwrap_or("").to_string());
             let b = unhex(st["hello"].as_str().unwrap_or(""), "msg")?;
+            // This session has its one use of the code here, whatever comes of it: the host keeps the offer between
+            // connections (`pairing` in the params of each `serve`), so the state does not carry the code or the other
+            // phone's message past this step. The tries left and the expiry stay: the result reports them.
+            strip(&mut st["pairing"], &["code"]);
+            strip(&mut st, &["hello"]);
             let (state, a) = spake(true, &code, &seed);
-            let Ok(key) = state.finish(&b) else { return send(st, "fail_sent", &json!({ "pair": "fail" })) };
-            st["a"] = json!(hex(&a));
-            st["key"] = json!(hex(&key));
+            let Ok(key) = state.finish(&b).map(Zeroizing::new) else { return send(st, "fail_sent", &json!({ "pair": "fail" })) };
+            // Everything the shared key is for is made now, so the key itself is never in the state: the tag the other
+            // phone must answer with, and the two channel keys, which are the one secret that has to stay (`ctx`).
+            let (c2s, s2c) = channel_keys(&key);
+            st["expect"] = json!(tag(&key, "client", &a, &b));
+            st["after"] = ctx(&s2c, &c2s);
             let t = tag(&key, "server", &a, &b);
             send(st, "reply_sent", &json!({ "pair": "reply", "msg": hex(&a), "tag": t }))
         }
@@ -661,7 +730,7 @@ mod tests {
         let confirm = json!({ "pair": "confirm", "tag": tag(&key, "client", &theirs, &mine) });
         a = step(&a, chunk(&framed(&confirm.to_string().into_bytes())));
         let (c2s, s2c) = channel_keys(&key);
-        (a, json!({ "ctx": ctx(c2s, s2c) }))
+        (a, json!({ "ctx": ctx(&c2s, &s2c) }))
     }
 
     fn paired_server() -> (Value, Value) {
@@ -671,6 +740,108 @@ mod tests {
         let a = step(&a, json!({ "ok": true }));
         assert_eq!(a["effect"]["type"], "linkRecv");
         (a, client)
+    }
+
+    /// Every object key in `v`, at any depth.
+    fn keys_of(v: &Value, out: &mut Vec<String>) {
+        match v {
+            Value::Object(o) => o.iter().for_each(|(k, v)| {
+                out.push(k.clone());
+                keys_of(v, out);
+            }),
+            Value::Array(a) => a.iter().for_each(|v| keys_of(v, out)),
+            _ => {}
+        }
+    }
+
+    fn top_keys(state: &Value) -> Vec<&str> {
+        let mut k: Vec<&str> = state.as_object().unwrap().keys().map(String::as_str).collect();
+        k.sort_unstable();
+        k
+    }
+
+    // @verifies SWR-MG-28#d
+    #[test]
+    fn the_serving_phone_s_state_drops_the_code_when_the_shared_key_is_made_and_never_holds_that_key() {
+        let seed = vec![7u8; 96];
+        let (_, mine) = spake(false, CODE, &seed);
+        let mut a = server(offer(3));
+        a = step(&a, chunk(&framed(&json!({ "pair": "hello", "msg": hex(&mine) }).to_string().into_bytes())));
+        a = step(&a, json!({ "seconds": 1000 }));
+        assert_eq!(a["state"]["pairing"]["code"], CODE, "the code is needed until the session's random bytes arrive");
+        a = step(&a, json!({ "bytes": hex(&[9u8; 96]) }));
+        // The reply is on its way. What the other phone needs is in the frame; what this one keeps is the channel.
+        let reply: Value = serde_json::from_slice(&body_of(&a["effect"])).unwrap();
+        let theirs = unhex(reply["msg"].as_str().unwrap(), "msg").unwrap();
+        let (state, _) = spake(false, CODE, &seed);
+        let key = state.finish(&theirs).unwrap();
+        let text = a["state"].to_string();
+        assert!(!text.contains(CODE), "the code is still in the state: {text}");
+        assert!(!text.contains(&hex(&key)), "the shared key is in the state");
+        assert_eq!(top_keys(&a["state"]), ["after", "buf", "expect", "pairing", "queue", "step"]);
+        assert_eq!(a["state"]["pairing"], json!({ "expiresAt": 1120, "triesLeft": 2 }), "what the result reports stays");
+        assert_eq!(a["state"]["expect"], tag(&key, "client", &theirs, &mine), "the tag to compare, which the other phone sends in the open");
+
+        // Paired: the two channel keys and their counts, the buffer, the queue, and nothing of the pairing.
+        a = step(&a, json!({ "ok": true }));
+        let confirm = json!({ "pair": "confirm", "tag": tag(&key, "client", &theirs, &mine) });
+        a = step(&a, chunk(&framed(&confirm.to_string().into_bytes())));
+        a = step(&a, json!({ "ok": true }));
+        assert_eq!(a["effect"]["type"], "linkRecv");
+        assert_eq!(top_keys(&a["state"]), ["after", "buf", "ctx", "pairing", "queue", "step"]);
+        assert!(a["state"]["after"].is_null());
+        let (c2s, s2c) = channel_keys(&key);
+        assert_eq!(a["state"]["ctx"], json!({ "sk": hex(&*s2c), "rk": hex(&*c2s), "sn": 0, "rn": 0 }), "the one secret that must remain");
+        let text = a["state"].to_string();
+        assert!(!text.contains(CODE) && !text.contains(&hex(&key)));
+    }
+
+    // @verifies SWR-MG-28#d
+    #[test]
+    fn a_refused_confirmation_leaves_no_channel_key_in_the_serving_phone_s_state() {
+        let (a, _) = pair("87654321", 3);
+        assert_eq!(serde_json::from_slice::<Value>(&body_of(&a["effect"])).unwrap(), json!({ "pair": "fail" }));
+        let mut keys = vec![];
+        keys_of(&a["state"], &mut keys);
+        for gone in ["after", "expect", "ctx", "code", "hello", "key", "a"] {
+            assert!(!keys.iter().any(|k| k == gone) || a["state"][gone].is_null(), "'{gone}' is in the state: {}", a["state"]);
+        }
+        assert!(!a["state"].to_string().contains(CODE));
+    }
+
+    // @verifies SWR-MG-28#e
+    #[test]
+    fn the_driver_s_random_bytes_are_given_once_and_asking_for_more_is_refused() {
+        let mut g = Given::new(&[1, 2, 3, 4, 5, 6]);
+        let mut four = [0u8; 4];
+        g.fill_bytes(&mut four);
+        assert_eq!(four, [1, 2, 3, 4]);
+        let mut three = [0xEEu8; 3];
+        assert!(g.try_fill_bytes(&mut three).is_err(), "two bytes are left and three were asked for");
+        assert_eq!(three, [0xEE; 3], "a refusal writes nothing, least of all the first bytes again");
+        let mut two = [0u8; 2];
+        g.try_fill_bytes(&mut two).unwrap();
+        assert_eq!(two, [5, 6], "what was left is still given, once");
+        assert!(g.try_fill_bytes(&mut [0u8; 1]).is_err());
+        assert!(Given::new(&[]).try_fill_bytes(&mut [0u8; 1]).is_err(), "no bytes at all is a refusal, not a division by zero");
+        Given::new(&[]).try_fill_bytes(&mut []).unwrap();
+    }
+
+    // @verifies SWR-MG-28#e
+    #[test]
+    #[should_panic(expected = "too little entropy")]
+    fn a_spake2_session_given_too_few_random_bytes_stops_and_does_not_reuse_them() {
+        // One session takes more than 16 bytes; before, these 16 were handed out again from the first.
+        let _ = spake(true, CODE, &[7u8; 16]);
+    }
+
+    // @verifies SWR-MG-28#e
+    #[test]
+    fn the_bytes_the_driver_is_asked_for_are_enough_for_one_session() {
+        let seed: Vec<u8> = (0..PAIR_RANDOM as u8).collect();
+        let (_, a) = spake(true, CODE, &seed);
+        let (_, b) = spake(true, CODE, &seed);
+        assert_eq!(a, b, "the same bytes make the same session, which is how the flow re-makes it from its state");
     }
 
     // @verifies SWR-MG-10

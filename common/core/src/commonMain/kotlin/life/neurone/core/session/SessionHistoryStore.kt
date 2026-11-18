@@ -36,7 +36,14 @@ data class SessionRecord(
     val impedancePassCount: Int,              // 0–8 EEG electrodes that passed
     // Deliberately excluded from serialization — UHDR-class (see header comment).
     @Transient val edfSessionId: Long? = null,
-)
+) {
+    /**
+     * Names the record and nothing in it (`SWR-MG-28` (f)). Every field is about the person (what they ran, when, their
+     * coherence and RMSSD), so the generated `toString` would write UHDR into any log line or exception message a record
+     * is formatted into. Serialization is unaffected: it does not go through `toString`.
+     */
+    override fun toString(): String = "SessionRecord(<redacted>)"
+}
 
 // Post-session summary handed in by the session flow (in-memory only).
 data class CompletedSessionSummary(
@@ -52,6 +59,9 @@ data class CompletedSessionSummary(
     // an empty list — the Adaptive Adjustments card then shows its empty state, as on iOS.
     val adaptationEvents: List<AdaptationEvent> = emptyList(),
 ) {
+    /** Names the summary and nothing in it, for the reason [SessionRecord.toString] gives (`SWR-MG-28` (f)). */
+    override fun toString(): String = "CompletedSessionSummary(<redacted>)"
+
     companion object {
         /** Reconstruct a display summary from a persisted history row (no adaptation events). */
         fun fromRecord(record: SessionRecord): CompletedSessionSummary = CompletedSessionSummary(

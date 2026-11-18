@@ -4,6 +4,7 @@
 use neurone_npps_core::api;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
+use zeroize::Zeroize;
 
 use neurone_npps_core::constants::status::{BAD_ARGUMENT, INTERNAL_ERROR, OK, REFUSED};
 
@@ -107,12 +108,20 @@ pub unsafe extern "C" fn npps_migration_json(req: *const u8, req_len: usize, out
     call(req, req_len, out, out_len, |t| api::migration_json(t).map(String::into_bytes))
 }
 
+/// Release a buffer, wiped first (`SWR-MG-28` (a)). An answer of `npps_migration_json` can hold a key, a recovery secret or
+/// plaintext UHDR items, and an input allocated with `npps_alloc` can hold a passphrase; the allocator does not clear what
+/// it takes back, and WebAssembly linear memory is never returned to the system, so a buffer dropped as it is stays
+/// readable for the life of the process or the page. Every buffer is wiped, not only a secret one: this function cannot
+/// tell which is which, and a wipe that depended on the content would say which calls carried a secret.
+///
 /// # Safety
 /// `ptr` and `len` are exactly what a call returned through `out` and `out_len`, released once.
 #[no_mangle]
 pub unsafe extern "C" fn npps_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() {
-        drop(Box::from_raw(slice::from_raw_parts_mut(ptr, len)));
+        let mut buffer = Box::from_raw(slice::from_raw_parts_mut(ptr, len));
+        buffer.zeroize();
+        drop(buffer);
     }
 }
 
