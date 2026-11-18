@@ -122,7 +122,7 @@ class CloudAuth(
             checkRedirect(family = AccountFamily.GOOGLE, c.redirectUri)
             OAuthEndpoints(
                 "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token",
-                "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.clientSecret,
+                "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.secretForTokenCalls,
             )
         }
         AccountFamily.MICROSOFT -> {
