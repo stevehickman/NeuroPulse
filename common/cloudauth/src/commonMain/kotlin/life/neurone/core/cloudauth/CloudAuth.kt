@@ -37,6 +37,8 @@ import life.neurone.core.platform.toHex
  *   [accessToken] refreshes silently. A refresh the provider refuses (`invalid_grant`) marks the account [CloudAccount.needsSignIn]; a
  *   refresh that gets no answer does not.
  * - **Apple (CloudKit Web Services):** the web-authentication token Apple's sign-in page returns, kept beside the container's API token.
+ *   Apple's flow has no `state` and no PKCE, so a sign-in runs only where the callback is bound to the request ([CloudKitConfig],
+ *   [ConfinedCallbackLauncher]); elsewhere CloudKit reads as not configured.
  * - **AWS:** the access key, secret and optional session token the person types ([addAwsKeys]); no browser sign-in exists.
  *
  * The identity of the person is never requested (no `openid`, `email` or `profile` scope): NeurOne needs a grant to a folder, not to know who
@@ -69,7 +71,7 @@ class CloudAuth(
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
         AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
         AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
-        AccountFamily.APPLE -> config.cloudKit != null
+        AccountFamily.APPLE -> config.cloudKit != null && cloudKitCallbackIsBound(config.cloudKit)
         AccountFamily.AWS -> true
         AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
@@ -167,7 +169,7 @@ class CloudAuth(
             // Dropbox gives a refresh token only to a request that asks for offline access.
             *(if (service.family == AccountFamily.DROPBOX) arrayOf("token_access_type" to "offline") else emptyArray()),
         )
-        val back = launcher.authorize(url, e.redirectUri)
+        val back = launch(url, e.redirectUri) { ExternalBrowserLauncher.isRedirect(it, e.redirectUri) && queryParams(it, plusIsSpace = true)["state"] == state }
         val code = codeFrom(back, e.redirectUri, state)
         val reply = tokenReply(
             postForm(
@@ -197,18 +199,41 @@ class CloudAuth(
         }
     }
 
+    /** Through a [SelectiveAuthorizationLauncher] an address that is not this request's answer does not end the wait; any other launcher hands back what it gets. */
+    private suspend fun launch(url: String, redirectUri: String, isAnswer: (String) -> Boolean): String =
+        (launcher as? SelectiveAuthorizationLauncher)?.authorize(url, redirectUri, isAnswer) ?: launcher.authorize(url, redirectUri)
+
+    /**
+     * The authorization code of a redirect. `state` is checked **before anything else in the address is read** (`OI-PRIV-13`): an address
+     * without this request's `state` did not come from the provider's answer to it, so its `error` and its `code` mean nothing. The provider's
+     * error text is never quoted: it is mapped to [OAuthRedirectError].
+     */
     private fun codeFrom(redirect: String, redirectUri: String, state: String): String {
-        if (!redirect.startsWith(redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
+        if (!ExternalBrowserLauncher.isRedirect(redirect, redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
         val p = queryParams(redirect, plusIsSpace = true)
-        p["error"]?.let { err ->
-            throw CloudAuthException(if (err == "access_denied") CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER, "sign-in was refused: $err")
-        }
         if (p["state"] != state) throw CloudAuthException(CloudAuthProblem.STATE_MISMATCH, "the answer is not for this sign-in request")
+        p["error"]?.let { err ->
+            val kind = OAuthRedirectError.of(err)
+            throw CloudAuthException(if (kind == OAuthRedirectError.ACCESS_DENIED) CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER, "sign-in was refused: ${kind.name}")
+        }
         return p["code"] ?: throw CloudAuthException(CloudAuthProblem.PROVIDER, "the redirect carried no authorization code")
     }
 
+    /** The nonce parameter of [c] when it is one that can be sent: a plain name that is not the token's own. */
+    private fun cloudKitNonceParameter(c: CloudKitConfig): String? = c.callbackNonceParameter?.takeIf { name ->
+        name.isNotEmpty() && name != CK_TOKEN && name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' || it == '-' }
+    }
+
+    /** Whether a CloudKit callback can be tied to the request that opened it here (`OI-PRIV-13`); when it cannot, CloudKit is not offered. */
+    private fun cloudKitCallbackIsBound(c: CloudKitConfig): Boolean = launcher is ConfinedCallbackLauncher || cloudKitNonceParameter(c) != null
+
     private suspend fun cloudKitSignIn(replacing: String?): CloudAccount {
         val c = config.cloudKit ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no CloudKit container is configured")
+        // Before anything is sent. The callback's token is the credential itself: accepted unbound, anything that can deliver an address to the
+        // callback attaches an iCloud account of its own and the backup goes there.
+        if (!cloudKitCallbackIsBound(c)) {
+            throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "a CloudKit sign-in cannot be tied to its request on this host, so it is not offered")
+        }
         val probe = transport.post(
             HttpRequest(
                 "${c.baseUrl}/database/1/${percentEncode(c.container)}/${c.environment}/private/users/current?ckAPIToken=${percentEncode(c.apiToken)}",
@@ -220,10 +245,20 @@ class CloudAuth(
         if (body?.get("serverErrorCode")?.jsonPrimitive?.contentOrNull != "AUTHENTICATION_REQUIRED" || signInUrl == null) {
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit did not ask for sign-in (status ${probe.status})")
         }
-        val back = launcher.authorize(signInUrl, c.signInCallbackUri)
-        if (!back.startsWith(c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
+        // 16 random bytes, as the OAuth `state` is: RFC 6749 section 10.10 asks that a guess succeed with probability of at most 2^-128.
+        val parameter = cloudKitNonceParameter(c)
+        val nonce = parameter?.let { Base64Url.encode(random.nextBytes(16)) }
+        val carriesNonce = { address: String -> nonce == null || queryParams(address, plusIsSpace = false)[parameter] == nonce }
+        val url = if (nonce == null) signInUrl else {
+            val page = signInUrl.substringBefore('#')
+            page + (if ('?' in page) "&" else "?") + "$parameter=$nonce" + signInUrl.substring(page.length)
+        }
+        val back = launch(url, c.signInCallbackUri) { ExternalBrowserLauncher.isRedirect(it, c.signInCallbackUri) && carriesNonce(it) }
+        if (!ExternalBrowserLauncher.isRedirect(back, c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
+        // Before the token is read: a callback without this request's nonce is not Apple's answer to it, whatever token it carries.
+        if (!carriesNonce(back)) throw CloudAuthException(CloudAuthProblem.STATE_MISMATCH, "the answer is not for this sign-in request")
         // The token holds '+', '/' and '=' and may arrive encoded or not; '+' here is a plus, not a space.
-        val token = queryParams(back, plusIsSpace = false)["ckWebAuthToken"]
+        val token = queryParams(back, plusIsSpace = false)[CK_TOKEN]
             ?: throw CloudAuthException(CloudAuthProblem.DENIED, "sign-in returned no web authentication token")
         // Not verified here: Apple says a token serves one round trip and the next comes in the reply, so a probe would spend it. The first
         // adapter call is the check, and a refusal comes back as status 421 (needsSignIn).
@@ -481,6 +516,7 @@ class CloudAuth(
 
     companion object {
         private const val DROPBOX_REVOKE = "https://api.dropboxapi.com/2/auth/token/revoke"
+        private const val CK_TOKEN = "ckWebAuthToken"
 
         /** OAuth errors on a refresh that mean the person must sign in again (RFC 6749 `invalid_grant`; Microsoft's `interaction_required` and kin). */
         private val SIGN_IN_ERRORS = setOf("invalid_grant", "interaction_required", "consent_required", "login_required")
