@@ -55,7 +55,7 @@ class UploadRefusalTest {
         val manager = NeurOneGattManager(central, scope)
         manager.onDeviceFound("hub")
         manager.onConnected("hub")
-        // The hub answered the read of its encrypted-only serial: the link is shown encrypted (REQ-SW03-31).
+        // The hub has answered its encrypted-only serial read on this link, which the upload waits for (REQ-SW03-31).
         manager.onCharacteristicRead(UUID.fromString(life.neurone.core.protocol.GattUuidStrings.DEVICE_SERIAL_ID), ByteArray(32))
         return ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
     }
@@ -95,8 +95,7 @@ class UploadRefusalTest {
         val manager = NeurOneGattManager(central, scope)
         manager.onDeviceFound("hub")
         manager.onConnected("hub")
-        // The hub answered the read of its encrypted-only serial: the link is shown encrypted (REQ-SW03-31).
-        manager.onCharacteristicRead(UUID.fromString(life.neurone.core.protocol.GattUuidStrings.DEVICE_SERIAL_ID), ByteArray(32))
+        manager.onCharacteristicRead(UUID.fromString(life.neurone.core.protocol.GattUuidStrings.DEVICE_SERIAL_ID), ByteArray(32)) // REQ-SW03-31
         return manager to ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
     }
 

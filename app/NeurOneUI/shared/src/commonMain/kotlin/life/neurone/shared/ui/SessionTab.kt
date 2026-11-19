@@ -80,7 +80,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     // What to say for each reason the helmet can refuse a protocol (SWR-HV-08, REQ-UPG-01, SWR-UP-02).
     val refusalText: Map<HelmetRefusalCause, String> = helmetRefusalMessages()
     val cervicalBlocked = stringResource(Res.string.upload_cervical_blocked)
-    val pairingRequiredBody = stringResource(Res.string.ble_pairing_required_body)
+    val linkNotEncrypted = stringResource(Res.string.ble_pairing_required_body)
     val differentPersonBody = stringResource(Res.string.cvns_different_person_body)
     val compositeUnsupported = stringResource(Res.string.and_ui_composite_protocol_upload_is_not_yet_support)
 
@@ -118,8 +118,8 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             is ProtocolUploader.Result.Success -> sentToHub
             is ProtocolUploader.Result.Failure -> result.message
             is ProtocolUploader.Result.CervicalRestartBlocked -> cervicalBlocked
+            is ProtocolUploader.Result.LinkNotEncrypted -> linkNotEncrypted
             is ProtocolUploader.Result.DifferentPersonConfirmationRequired -> differentPersonBody
-            is ProtocolUploader.Result.LinkNotEncrypted -> pairingRequiredBody
         }
         // SWR-UP-01/-02: the upload is not over when the last chunk is written. The helmet's report decides whether it
         // holds the protocol, and the library marks the family used for a confirmed or an unknown outcome, never for a
@@ -135,7 +135,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
                 // A final answer for other bytes says nothing about this upload: the helmet may hold something else.
                 // A write the link refused never reached the helmet, so no answer is not "stored": it is shown as a refusal
-                // unless the helmet gave a reason of its own (REQ-SW03-31 (c)).
+                // unless the helmet gave a reason of its own (REQ-SW03-31 (a)).
                 val cause = verdict.causeFor(result.sentHash) ?: HelmetRefusalCause.OTHER.takeIf { uploader.writeRefused }
                 // Mode 3 says "stored" only when the helmet holds the protocol (SWR-UP-02, SWR-HV-08, as the iOS flow): every
                 // refusal, and an answer for other bytes, is shown instead and nothing is reported stored.

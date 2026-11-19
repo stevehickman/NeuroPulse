@@ -1,9 +1,7 @@
 package life.neurone.shared
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import life.neurone.core.common.UUID
 import life.neurone.core.protocol.GattUuidStrings
@@ -29,17 +27,16 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * No protocol is written until the hub has answered a read of its encrypted-only serial on the same link, and a write the
- * link refuses reaches the manager (`OI-PRIV-16`, `REQ-SW03-31`). The link here is a fake: what is tested is the order of
- * the app's own calls, not a radio.
+ * The upload waits for the hub's encrypted-only `DEVICE_SERIAL` to be read on the link, and a write the link refuses reaches the
+ * manager (`REQ-SW03-31`, `OI-PRIV-16`). The links here are fakes: no radio and no hub.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UploadLinkGateTest {
-    /** A link that records every read and write the app asks of it, in order. */
+    /** A link that takes every command and records the writes; the test plays the peer's answers into the manager. */
     private class FakeLink : BleCentral {
         override val adapterState = AdapterState.ON
-        val calls = mutableListOf<String>()
-        val writes get() = calls.filter { it.startsWith("write") }
+        val writes = mutableListOf<UUID>()
+        val reads = mutableListOf<UUID>()
         override fun setListener(listener: BleCentralListener) {}
         override fun startScan(serviceUuid: UUID) {}
         override fun stopScan() {}
@@ -47,179 +44,156 @@ class UploadLinkGateTest {
         override fun disconnect() {}
         override fun discoverCharacteristics(serviceUuid: UUID, uuids: List<UUID>) {}
         override fun enableNotifications(uuid: UUID) {}
-        override fun read(uuid: UUID) { calls += "read $uuid" }
-        override fun write(uuid: UUID, value: ByteArray) { calls += "write $uuid" }
+        override fun read(uuid: UUID) { reads += uuid }
+        override fun write(uuid: UUID, value: ByteArray) { writes += uuid }
+    }
+
+    private class FakeBridge : HubBridge {
+        var onEvent: (HubBridgeEvent) -> Unit = {}
+        val sent = mutableListOf<HubBridgeCommand>()
+        override fun setReceiver(receiver: (HubBridgeEvent) -> Unit) { onEvent = receiver }
+        override fun send(command: HubBridgeCommand): Boolean { sent += command; return true }
     }
 
     private val serial = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)
     private val upload = UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID)
 
     private fun tdcs() = NPProtocolDefinition(
-        name = "tDCS",
+        name = "tDCS at 1 mA",
         timingMode = NPTimingMode.Duration(20 * 60),
         modalities = listOf(
             NPProtocolModality(params = NPModalityParams.Tdcs(NPTDCSParams(intensityMilliamps = 1.0, electrodePairs = listOf(listOf("Fp1", "P3"))))),
         ),
     )
 
-    /** Connected, with the serial characteristic discovered and its first read asked for but not answered. */
-    private fun linked(link: FakeLink, scope: TestScope): NeurOneGattManager {
-        val manager = NeurOneGattManager(link, scope)
-        manager.onDeviceFound("hub")
-        manager.onConnected("hub")
-        manager.onCharacteristicsDiscovered(setOf(serial, upload))
-        return manager
-    }
+    private fun linked(link: FakeLink, scope: TestScope): NeurOneGattManager =
+        NeurOneGattManager(link, scope).also {
+            it.onDeviceFound("hub")
+            it.onConnected("hub")
+        }
 
-    // @verifies REQ-SW03-31#a
-    @Test fun no_protocol_is_written_until_the_encrypted_only_read_has_succeeded_on_the_link() = runTest {
+    // @verifies REQ-SW03-31#b
+    @Test fun no_upload_is_written_until_the_encrypted_only_read_has_succeeded_on_the_link() = runTest {
         val link = FakeLink()
         val manager = linked(link, TestScope(testScheduler))
         val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
-        assertEquals("read $serial", link.calls.first { it == "read $serial" }, "the serial is read at link")
 
-        // The read has not been answered: nothing is sent, the result says why, and the read is asked for again.
-        val readsBefore = link.calls.count { it == "read $serial" }
+        // Connected, every characteristic found, and the peer has answered no encrypted-only read: a peripheral that only
+        // advertises the service is here. Nothing is written, by the uploader or by a caller that goes round it.
+        manager.onCharacteristicsDiscovered(setOf(serial, upload))
         assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-        assertEquals(emptyList(), link.writes, "no write of any kind reached the link")
-        assertEquals(readsBefore + 1, link.calls.count { it == "read $serial" })
-        assertFalse(manager.writeProtocolChunk(byteArrayOf(1)), "the manager itself refuses a chunk")
-        assertEquals(emptyList(), link.writes)
+        assertFalse(manager.writeProtocolChunk(byteArrayOf(1, 2, 3)))
+        assertEquals(emptyList(), link.writes, "no write reached the peer")
 
-        // The read is refused (an unpaired link): still nothing.
-        manager.onCharacteristicReadFailed(serial)
-        assertTrue(manager.pairingRequired.value)
-        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-        assertEquals(emptyList(), link.writes)
-
-        // The read succeeds: the upload goes, and every write is after that read was asked for.
         manager.onCharacteristicRead(serial, ByteArray(32) { 7 })
-        assertTrue(manager.linkEncryptionShown.value)
         assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
-        assertTrue(link.writes.isNotEmpty() && link.writes.all { it == "write $upload" })
-        assertTrue(link.calls.indexOf("read $serial") < link.calls.indexOf("write $upload"))
+        assertTrue(link.writes.isNotEmpty() && link.writes.all { it == upload }, "the upload was written once the read had succeeded")
     }
 
     // @verifies REQ-SW03-31#b
-    @Test fun the_showing_is_per_link_and_a_malformed_serial_or_one_from_no_link_shows_nothing() = runTest {
-        val link = FakeLink()
-        val manager = NeurOneGattManager(link, TestScope(testScheduler))
-        val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
-
-        // Not connected: a serial that arrives shows nothing.
-        manager.onCharacteristicRead(serial, ByteArray(32))
-        assertFalse(manager.linkEncryptionShown.value)
-
-        manager.onDeviceFound("hub")
-        manager.onConnected("hub")
-        manager.onCharacteristicsDiscovered(setOf(serial, upload))
-        // A read that is not the 32-byte serial shows nothing, and a successful read of another characteristic shows nothing.
-        manager.onCharacteristicRead(serial, ByteArray(31))
-        manager.onCharacteristicRead(UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID), ByteArray(4))
-        assertFalse(manager.linkEncryptionShown.value)
-        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-
-        manager.onCharacteristicRead(serial, ByteArray(32))
-        assertTrue(manager.linkEncryptionShown.value)
-
-        // A later read of the serial is refused: the gate closes again, and the next read that succeeds reopens it.
-        manager.onCharacteristicReadFailed(serial)
-        assertFalse(manager.linkEncryptionShown.value)
-        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-        assertEquals(emptyList(), link.writes)
-        manager.onCharacteristicRead(serial, ByteArray(32))
-        assertTrue(manager.linkEncryptionShown.value)
-
-        // The link drops and comes back: the new link has shown nothing, and the caller's own serial does not stand in for it.
-        manager.onDisconnected("hub")
-        assertFalse(manager.linkEncryptionShown.value)
-        manager.onDeviceFound("hub")
-        manager.onConnected("hub")
-        manager.onCharacteristicsDiscovered(setOf(serial, upload))
-        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-        assertEquals(emptyList(), link.writes, "nothing was written on either link")
-
-        // A hub that does not publish the serial can never show it: nothing is sent and no read is made up.
-        manager.onDisconnected("hub")
-        manager.onDeviceFound("hub")
-        manager.onConnected("hub")
-        manager.onCharacteristicsDiscovered(setOf(upload))
-        val reads = link.calls.count { it == "read $serial" }
-        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
-        assertEquals(reads, link.calls.count { it == "read $serial" })
-        assertEquals(emptyList(), link.writes)
-    }
-
-    // @verifies REQ-SW03-31#c
-    @Test fun a_refused_write_reaches_the_manager_is_counted_for_the_upload_and_is_not_written_again() = runTest {
-        val link = FakeLink()
-        val manager = NeurOneGattManager(link, TestScope(testScheduler))
-        val seen = mutableListOf<UUID>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { manager.writeRefusals.collect { seen += it } }
-
-        // No link: a refusal belongs to nothing.
-        manager.onCharacteristicWriteFailed(upload)
-        assertEquals(0, manager.uploadWriteRefusals.value)
-
-        manager.onDeviceFound("hub")
-        manager.onConnected("hub")
-        manager.onCharacteristicsDiscovered(setOf(serial, upload))
-        manager.onCharacteristicRead(serial, ByteArray(32))
-        assertTrue(manager.writeProtocolChunk(byteArrayOf(1, 2)))
-        val writes = link.writes.size
-
-        val readsBefore = link.calls.count { it == "read $serial" }
-        manager.onCharacteristicWriteFailed(upload)
-        val pauseLimit = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID)
-        manager.onCharacteristicWriteFailed(pauseLimit)
-        assertEquals(1, manager.uploadWriteRefusals.value, "only the upload's refusals are counted against the upload")
-        assertEquals(listOf(upload, pauseLimit), seen, "every refusal is an event, with its characteristic")
-        assertEquals(writes, link.writes.size, "a refused write is not written again")
-        assertEquals(readsBefore + 1, link.calls.count { it == "read $serial" }, "a refused upload write asks for the serial again, once")
-
-        manager.onDisconnected("hub")
-        assertEquals(0, manager.uploadWriteRefusals.value, "the count is the link's")
-    }
-
-    // @verifies REQ-SW03-31#c
-    @Test fun the_uploader_says_the_upload_last_sent_was_refused_and_forgets_it_at_the_next() = runTest {
+    @Test fun a_held_upload_asks_for_the_serial_again_and_only_the_32_byte_serial_opens_the_gate() = runTest {
         val link = FakeLink()
         val manager = linked(link, TestScope(testScheduler))
-        manager.onCharacteristicRead(serial, ByteArray(32))
         val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
 
-        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
-        assertFalse(uploader.writeRefused)
-        manager.onCharacteristicWriteFailed(upload)
-        assertTrue(uploader.writeRefused, "the screen is told, so no answer from the helmet is not shown as stored")
+        // A value that is not the 32-byte serial is not the hub's answer.
+        manager.onCharacteristicRead(serial, ByteArray(31))
+        manager.onCharacteristicChanged(serial, ByteArray(33))
+        assertFalse(manager.encryptedReadShown.value)
 
-        // The refused write asked for the serial again; here the hub answers it, and the next upload starts clean.
+        // The held upload asks for the read again: a central that reports no refused read (OI-PRIV-17) has no retry of its own.
+        val reads = link.reads.count { it == serial }
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(reads + 1, link.reads.count { it == serial })
+        assertEquals(emptyList(), link.writes)
+
+        // While the manager's own retry is waiting, the upload does not add a second read.
+        manager.onCharacteristicReadFailed(serial)
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(reads + 1, link.reads.count { it == serial })
+
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
+    }
+
+    // @verifies REQ-SW03-31#b
+    @Test fun the_proof_is_per_link_and_a_refused_read_takes_it_back() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        assertTrue(manager.encryptedReadShown.value)
+
+        // The link drops and another comes up: what the last link showed says nothing about this one.
+        manager.onDisconnected("hub")
+        manager.onDeviceFound("other")
+        manager.onConnected("other")
+        assertFalse(manager.encryptedReadShown.value)
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+
+        // A read the same link later refuses closes the gate again.
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        manager.onCharacteristicReadFailed(serial)
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(emptyList(), link.writes)
+    }
+
+    // @verifies REQ-SW03-31#b
+    @Test fun a_read_reported_as_a_change_opens_the_gate_and_a_value_with_no_link_does_not() = runTest {
+        // CoreBluetooth delivers a read's value through the notification callback, so the iOS central reports it as a change.
+        val link = FakeLink()
+        val manager = NeurOneGattManager(link, TestScope(testScheduler))
+        manager.onCharacteristicChanged(serial, ByteArray(32))
+        assertFalse(manager.encryptedReadShown.value, "no link is up")
+
+        manager.onDeviceFound("hub")
+        manager.onConnected("hub")
+        manager.onCharacteristicChanged(serial, ByteArray(32))
+        assertTrue(manager.encryptedReadShown.value)
+    }
+
+    // @verifies REQ-SW03-31#a
+    @Test fun a_refused_upload_write_reaches_the_manager_and_marks_the_upload_refused() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
         manager.onCharacteristicRead(serial, ByteArray(32))
         assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
         assertFalse(uploader.writeRefused)
 
+        val readsBefore = link.reads.size
+        val writesBefore = link.writes.size
         manager.onCharacteristicWriteFailed(upload)
+        assertTrue(manager.uploadWriteRefused.value)
+        assertTrue(uploader.writeRefused, "the uploader does not report this upload stored")
+        assertEquals(listOf(serial), link.reads.drop(readsBefore), "the serial is read again, which raises pairing if the link is not paired")
+        assertEquals(writesBefore, link.writes.size, "a refused write is not sent again")
+
+        // A refusal of another write is not a refused upload, and the next upload starts clean.
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
+        assertFalse(uploader.writeRefused)
+        manager.onCharacteristicWriteFailed(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
+        assertFalse(manager.uploadWriteRefused.value)
+
+        // With no link there is nothing to mark.
         manager.onDisconnected("hub")
-        assertFalse(uploader.writeRefused, "a refusal belongs to its link")
+        manager.onCharacteristicWriteFailed(upload)
+        assertFalse(manager.uploadWriteRefused.value)
     }
 
-    private class FakeBridge : HubBridge {
-        var onEvent: (HubBridgeEvent) -> Unit = {}
-        override fun setReceiver(receiver: (HubBridgeEvent) -> Unit) { onEvent = receiver }
-        override fun send(command: HubBridgeCommand): Boolean = true
-    }
-
-    // @verifies REQ-SW03-31#c
-    @Test fun the_simulated_hubs_refusal_of_an_upload_write_reaches_the_manager() = runTest {
+    // @verifies REQ-SW03-31#a
+    @Test fun the_simulated_hubs_att_refusal_of_a_write_is_the_same_event() = runTest {
         val bridge = FakeBridge()
-        val manager = NeurOneGattManager(SimulatedBleCentral(bridge), TestScope(testScheduler))
+        val central = SimulatedBleCentral(bridge)
+        val manager = NeurOneGattManager(central, TestScope(testScheduler))
         bridge.onEvent(HubBridgeEvent.Opened)
-        listOf(0x08, 0x17).forEachIndexed { i, id -> bridge.onEvent(HubBridgeEvent.Characteristic(index = i, count = 2, id = id, props = 1)) }
+        listOf(0x08, 0x17).forEachIndexed { i, id -> bridge.onEvent(HubBridgeEvent.Characteristic(i, 2, id, props = 1)) }
+        bridge.onEvent(HubBridgeEvent.ReadResult(0x17, att = 0, hex = "00".repeat(32)))
+        assertTrue(manager.writeProtocolChunk(byteArrayOf(1)))
 
-        bridge.onEvent(HubBridgeEvent.WriteResult(id = 0x08, att = 0))
-        assertEquals(0, manager.uploadWriteRefusals.value, "a write the hub took is not a refusal")
-        // ATT 0x0F, Insufficient Encryption: what the hub answers on a link that is not encrypted (REQ-FWHUB-81).
-        bridge.onEvent(HubBridgeEvent.WriteResult(id = 0x08, att = 0x0F))
-        assertEquals(1, manager.uploadWriteRefusals.value)
+        bridge.onEvent(HubBridgeEvent.WriteResult(0x08, att = 0))
+        assertFalse(manager.uploadWriteRefused.value, "a write the hub took is not a refusal")
+        bridge.onEvent(HubBridgeEvent.WriteResult(0x08, att = 0x0F)) // Insufficient Encryption
+        assertTrue(manager.uploadWriteRefused.value)
     }
 }

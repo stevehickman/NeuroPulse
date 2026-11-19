@@ -17,7 +17,8 @@ import life.neurone.shared.ble.UnavailableBleCentral
  * Pairing: btleplug has no pairing call. The hub's encrypted characteristics (`DEVICE_SERIAL`) rely
  * on the operating system pairing the link when one is touched, which CoreBluetooth does; whether
  * Windows does is unverified (`OI-UI-KMP-03`). A refused read arrives as `onCharacteristicReadFailed`,
- * so the manager can say the hub needs pairing in the OS and retry once the user has done it.
+ * so the manager can say the hub needs pairing in the OS and retry once the user has done it; a refused
+ * write arrives as `onCharacteristicWriteFailed` (`OI-PRIV-16`).
  *
  * Identity: the last connected hub's id is kept in [identity]. When one is remembered, a different
  * device is held for [preferenceWindowMs] so the remembered hub wins when both are in range; with none

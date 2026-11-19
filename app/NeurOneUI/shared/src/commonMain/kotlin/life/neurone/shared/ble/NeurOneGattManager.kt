@@ -261,39 +261,28 @@ class NeurOneGattManager(
 
     private var serialRetryJob: Job? = null
 
-    private var deviceSerialCharPresent = false
-
     /**
-     * True once a read of the hub's `DEVICE_SERIAL` has succeeded on this link; cleared at every disconnect and by a later
-     * refused read of it. The hub serves
-     * that characteristic on an encrypted link only (`NP_GATT_PROP_ENC`, `REQ-FWHUB-81`), so against a hub this shows the link
-     * is encrypted, and no protocol is written before it ([writeProtocolChunk], `REQ-SW03-31`, `OI-PRIV-16`). Without it the
-     * hub would still refuse the write, but only after the app had sent the protocol's bytes over the air in clear.
+     * True once the hub's `DEVICE_SERIAL` has been read on this link, and false again when the link drops. The hub
+     * publishes that characteristic for an encrypted link only (`NP_GATT_PROP_ENC`, `REQ-FWHUB-81`), so a protocol
+     * upload is not written until this is true (`REQ-SW03-31`, `OI-PRIV-16`): a peer that never answers the read is
+     * never sent a protocol.
      *
-     * The limit: it shows what the hub's own table guarantees, and nothing about a peer that is not a hub. A peripheral
-     * that serves this characteristic without demanding encryption passes. Whether the peer is a genuine hub is the signed
-     * tier identity and payload encryption (`OI-UPG-08`, `OI-SIMFW-62`), not this.
+     * The limit: this shows that a read of that characteristic succeeded on this link. A genuine hub answers it only
+     * over an encrypted link; a peripheral that publishes the same UUID without demanding encryption answers it in the
+     * clear and passes. It does not show the peer is a genuine hub, and it does not show how the link was paired
+     * (`OI-SIMFW-72`). Payload encryption is what closes that (`OI-SIMFW-62`).
      */
-    private val _linkEncryptionShown = MutableStateFlow(false)
-    val linkEncryptionShown: StateFlow<Boolean> = _linkEncryptionShown
+    private val _encryptedReadShown = MutableStateFlow(false)
+    val encryptedReadShown: StateFlow<Boolean> = _encryptedReadShown
 
     /**
-     * Read `DEVICE_SERIAL` again, for an upload held back because the link has not been shown encrypted: the person may
-     * have paired the hub since the last refusal, and not every central reports a refused read for the retry to hang on.
+     * True when the link refused a write of the protocol upload since the last upload began ([beginProtocolUpload]):
+     * the helmet does not hold what was sent. Cleared when the next upload begins and when the link drops.
      */
-    fun requestLinkEncryptionCheck() {
-        if (deviceSerialCharPresent && _connectionState.value == ConnectionState.CONNECTED) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
-    }
+    private val _uploadWriteRefused = MutableStateFlow(false)
+    val uploadWriteRefused: StateFlow<Boolean> = _uploadWriteRefused
 
-    /**
-     * How many writes of the protocol upload the link has refused on this connection (`OI-PRIV-16`); 0 after a disconnect.
-     * The helmet's own report still decides what it holds ([requestUploadCheck], SWR-UP-03): this says only that a write
-     * did not land.
-     */
-    private val _uploadWriteRefusals = MutableStateFlow(0)
-    val uploadWriteRefusals: StateFlow<Int> = _uploadWriteRefusals
-
-    /** One event per refused write, with the characteristic it was to. Carries no value: the bytes are the caller's. */
+    /** Every write the link refused, by characteristic, for a screen or a test to act on. Nothing is replayed. */
     private val _writeRefusals = MutableSharedFlow<UUID>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val writeRefusals: SharedFlow<UUID> = _writeRefusals
 
@@ -460,8 +449,7 @@ class NeurOneGattManager(
         GattUuidStrings.REQUIRED_IDS.map(UUID::fromString).forEach { central.enableNotifications(it) }
         if (UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.WARRANTY_TOKEN_ID))
         if (UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.FIRMWARE_VERSION_ID))
-        deviceSerialCharPresent = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID) in characteristics
-        if (deviceSerialCharPresent) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
+        if (UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
         // Inventory is read, not only awaited: the hub notifies on change, and nothing may have
         // changed since the last link (iOS parity).
         if (UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID) in characteristics) central.read(UUID.fromString(GattUuidStrings.ZONE_MODULE_STATUS_ID))
@@ -536,10 +524,11 @@ class NeurOneGattManager(
         if (uuid == UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)) {
             // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial no hub holds.
             deviceSerial = if (value.size == 32) value.copyOf() else null
-            // The serial has no notify property and is never subscribed to, so a value here is a read the peer answered,
-            // on every central (CoreBluetooth reports a read and a notification through one callback). A malformed value
-            // shows nothing; once shown, it holds until the link drops or a later read of the serial is refused.
-            if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) _linkEncryptionShown.value = true
+            // Set here and not only in onCharacteristicRead: CoreBluetooth delivers a read's value and a notification
+            // through one callback, so the iOS central reports a read as a change. The hub never notifies this
+            // characteristic and the app never subscribes to it, so a value here is the answer to a read.
+            // Only the 32-byte serial counts: a short or long value is not the hub's answer and shows nothing.
+            if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) _encryptedReadShown.value = true
             return
         }
         if (uuid == UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID)) {
@@ -623,8 +612,7 @@ class NeurOneGattManager(
         val serial = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)
         if (uuid != serial || _connectionState.value != ConnectionState.CONNECTED) return
         _pairingRequired.value = true
-        // The latest read was refused: the upload waits for one that is not (REQ-SW03-31 (b)).
-        _linkEncryptionShown.value = false
+        _encryptedReadShown.value = false // the latest read was refused: the upload waits for one that is not
         serialRetryJob?.cancel()
         serialRetryJob = scope.launch {
             delay(SERIAL_RETRY_MS)
@@ -633,17 +621,16 @@ class NeurOneGattManager(
     }
 
     /**
-     * A write the link refused (`OI-PRIV-16`). It is counted and passed on; nothing is written again, here or by the
-     * central. A refusal that arrives after the link dropped is dropped with it. A refused protocol write also asks for
-     * the serial again: on an unpaired link that read is refused too, which raises the pairing notice and closes the gate
-     * ([onCharacteristicReadFailed]); on a paired one it succeeds and changes nothing.
+     * A refused write is recorded, and nothing is written again because of it. A refused protocol upload write marks the
+     * upload refused, and asks for the serial again: on an unpaired link that read is refused too, which raises the
+     * pairing notice ([onCharacteristicReadFailed]); on a paired one it succeeds and changes nothing.
      */
     override fun onCharacteristicWriteFailed(uuid: UUID) {
         if (_connectionState.value != ConnectionState.CONNECTED) return
         _writeRefusals.tryEmit(uuid)
         if (uuid != UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID)) return
-        _uploadWriteRefusals.value += 1
-        if (deviceSerialCharPresent && serialRetryJob?.isActive != true) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
+        _uploadWriteRefused.value = true
+        if (serialRetryJob?.isActive != true) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
     }
 
     // ── Commands ─────────────────────────────────────────────────────────
@@ -652,12 +639,25 @@ class NeurOneGattManager(
     val writeLength: Int get() = central.writeLength.coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
 
     /**
+     * Read `DEVICE_SERIAL` again, for an upload held back because the encrypted-only read has not succeeded: the person may
+     * have paired the hub since the last refusal, and not every central reports a refused read for the retry to hang on
+     * (`OI-PRIV-17`). Nothing is asked while a retry is already waiting or the link is down.
+     */
+    fun requestEncryptedRead() {
+        if (_connectionState.value == ConnectionState.CONNECTED && serialRetryJob?.isActive != true) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
+    }
+
+    /** A new upload starts: a refusal recorded for the last one says nothing about this one. */
+    fun beginProtocolUpload() {
+        _uploadWriteRefused.value = false
+    }
+
+    /**
      * Mode 2 protocol upload: one write of the stream, at most [writeLength] bytes (the caller cuts it, `ProtocolChunker`).
-     * Nothing is written, and false is returned, until the link has been shown encrypted ([linkEncryptionShown],
-     * `REQ-SW03-31`). There is no way round it: a caller that gets false has sent nothing and may not send it another way.
+     * False, with nothing written, until the encrypted-only read has succeeded on this link ([encryptedReadShown]).
      */
     fun writeProtocolChunk(chunk: ByteArray): Boolean {
-        if (!_linkEncryptionShown.value) return false
+        if (!_encryptedReadShown.value) return false
         central.write(UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID), chunk)
         return true
     }
@@ -810,10 +810,8 @@ class NeurOneGattManager(
     private fun applyDisconnection() {
         serialRetryJob?.cancel()
         _pairingRequired.value = false
-        // The next link is another link: it shows its own encryption or sends no protocol (REQ-SW03-31).
-        _linkEncryptionShown.value = false
-        deviceSerialCharPresent = false
-        _uploadWriteRefusals.value = 0
+        _encryptedReadShown.value = false // the next link shows it again, or is not written to
+        _uploadWriteRefused.value = false
         _connectionState.value = ConnectionState.DISCONNECTED
         _allCharacteristicsResolved.value = false
         _session.value = SessionState.EMPTY   // clear stale UHDR display state

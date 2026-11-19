@@ -224,8 +224,8 @@ class SimulatedBleCentralTest {
         val published = listOf(0x07, 0x08, 0x10, 0x17, 0x14, 0x15, 0x16, 0x18, 0x0f, 0x1a, 0x1c, 0x1d, 0x1b, 0x1e, 0x20, 0x21)
         table(*published.toIntArray()).forEach(bridge::report)
         assertEquals(ConnectionState.CONNECTED, manager.connectionState.value)
-        // The twin answers the read of its encrypted-only serial (0x17), which is what lets an upload start (REQ-SW03-31).
-        bridge.report(HubBridgeEvent.ReadResult(id = 0x17, att = 0, hex = "00".repeat(32)))
+        // The twin answers the encrypted-only serial read the manager makes at discovery, which the upload waits for (REQ-SW03-31).
+        bridge.report(HubBridgeEvent.ReadResult(0x17, att = 0, hex = "00".repeat(32)))
         // The app's own chunker: the transport's stream, in writes of at most 512 bytes (REQ-FWHUB-80).
         val blob = ByteArray(1100) { (it * 7).toByte() }
         val chunks = life.neurone.core.session.ProtocolChunker.chunk(blob)

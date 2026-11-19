@@ -102,6 +102,20 @@ class DesktopBleCentralTest {
         central.close()
     }
 
+    // @verifies REQ-SW03-31#a
+    @Test fun a_refused_write_from_the_library_becomes_the_listeners_write_failed_call() {
+        val link = FakeLink()
+        val central = DesktopBleCentral(link)
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+        link.events += byteArrayOf(8) + bytes(a)
+        assertEquals("readFailed $a", rec.next())
+        link.events += byteArrayOf(9) + bytes(b) // Event::CharacteristicWriteFailed, common/btle-jni/src/central.rs
+        assertEquals("writeFailed $b", rec.next())
+        central.close()
+    }
+
     // @verifies REQ-SW03-15
     @Test fun a_malformed_event_does_not_end_the_event_thread() {
         val link = FakeLink()
@@ -136,19 +150,6 @@ class DesktopBleCentralTest {
         rec.next()
         link.events += byteArrayOf(8) + bytes(a)
         assertEquals("readFailed $a", rec.next())
-        central.close()
-    }
-
-    // @verifies REQ-SW03-31#c
-    @Test fun a_refused_write_reaches_the_listener_as_its_own_event() {
-        val link = FakeLink()
-        val central = DesktopBleCentral(link)
-        val rec = Recorder()
-        central.setListener(rec)
-        rec.next()
-        // Kind 9 with the characteristic: `Event::CharacteristicWriteFailed` in common/btle-jni/src/central.rs.
-        link.events += byteArrayOf(9) + bytes(b)
-        assertEquals("writeFailed $b", rec.next())
         central.close()
     }
 

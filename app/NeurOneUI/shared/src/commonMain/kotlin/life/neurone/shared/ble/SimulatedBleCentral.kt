@@ -188,7 +188,6 @@ class SimulatedBleCentral(private val bridge: HubBridge, attMtu: Int = DEFAULT_S
             }
             is HubBridgeEvent.WriteResult -> if (event.att != 0) {
                 onAttRefusal?.invoke(uuidOf(event.id), event.att, false)
-                // The hub refused the write: the manager is told, as a real central tells it (OI-PRIV-16).
                 l.onCharacteristicWriteFailed(uuidOf(event.id))
             }
             is HubBridgeEvent.Notification -> {
