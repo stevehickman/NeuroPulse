@@ -30,6 +30,9 @@ final class ResearchSuggestionStore: ObservableObject {
     // MARK: - Submit new suggestion (function 1 — patient research agenda)
 
     func submit(_ draft: ResearchSuggestionDraft) async throws {
+        // Without the portal opt-in (L4) there is no portal: nothing is authored and no author token is made
+        // (REQ-SW03-12 (e), OI-PRIV-08 (3)).
+        guard Self.portalOptedIn() else { return }
         guard draft.isValid else { return }
         // STUB: POST /api/v1/research/suggestions with title, body, categories, participationIntent
         // On success: refresh()
@@ -102,11 +105,42 @@ final class ResearchSuggestionStore: ObservableObject {
         }
     }
 
+    /// Whether the person is opted into the suggestion portal, read from the consent state `ConsentStore` persists (this store
+    /// is made by the portal view and holds no reference to it).
+    static func portalOptedIn() -> Bool {
+        guard let data = ProtectedDefaults.standard.data(forKey: "np.consent.research"),
+              let state = try? JSONDecoder().decode(ResearchConsentState.self, from: data)
+        else { return false }
+        return state.suggestionPortalOptIn
+    }
+
+    /// The person withdrew the portal opt-in or blanket research consent (REQ-SW03-12 (f), OI-PRIV-08 (3)). The author token
+    /// joins everything a person wrote, so it does not outlive the consent it was made under: it is removed from the Keychain,
+    /// and the suggestions already on this device stay but name no author. A later submission gets a new token. Called by
+    /// `ConsentStore` on the true→false transition; the portal view makes a new store, and so re-reads, each time it opens.
+    static func forgetAuthorToken() {
+        let query: [CFString: Any] = [
+            kSecClass:       kSecClassGenericPassword,
+            kSecAttrService: tokenService
+        ]
+        SecItemDelete(query as CFDictionary)
+        guard let data = ProtectedDefaults.standard.data(forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY),
+              var stored = try? JSONDecoder().decode([ResearchSuggestion].self, from: data),
+              stored.contains(where: { !$0.authorDeviceToken.isEmpty })
+        else { return }
+        for idx in stored.indices { stored[idx].authorDeviceToken = "" }
+        if let blanked = try? JSONEncoder().encode(stored) {
+            ProtectedDefaults.standard.set(blanked, forKey: PersistedKeys.RESEARCH_SUGGESTIONS_KEY)
+        }
+    }
+
+    private static let tokenService = "np.research.device-token"
+
     // Opaque token stored in the device Keychain — cannot be synced to iCloud or restored to a
     // new device, so it cannot collide across re-installs or device transfers.
     // kSecAttrAccessibleWhenUnlockedThisDeviceOnly + kSecAttrSynchronizable: false enforces this.
     private func deviceToken() -> String {
-        let service = "np.research.device-token"
+        let service = Self.tokenService
         let readQuery: [CFString: Any] = [
             kSecClass:          kSecClassGenericPassword,
             kSecAttrService:    service,

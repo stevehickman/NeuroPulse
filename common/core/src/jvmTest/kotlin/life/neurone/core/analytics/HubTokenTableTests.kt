@@ -59,17 +59,51 @@ class HubTokenTableTests {
         assertEquals("a", table(h, fill = 99).load(mac), "a later table over the same value keeps its salt")
     }
 
+    // OI-PRIV-08 (4): no raw address waits for its helmet to reconnect.
     // @verifies REQ-SHDR-05#d
-    @Test fun aLineWrittenUnderTheRawAddressIsStillReadAndIsRewrittenAtOnce() {
+    @Test fun everyLineWrittenUnderARawAddressIsRewrittenAtLaunchWithoutAnyHelmetConnecting() {
         val h = Holder("$mac\tlegacy-token\n$otherMac\tother-legacy")
         val t = table(h)
-        assertEquals("legacy-token", t.load(mac))
+        t.migrateLegacy()
         val after = h.text!!
-        assertFalse(after.lines().any { it.startsWith("$mac\t") }, "this helmet's raw line is gone")
-        assertTrue(after.lines().any { it.startsWith("$otherMac\t") }, "a helmet that has not reconnected keeps its line until it does")
-        assertEquals("legacy-token", t.load(mac), "and the token still reads from the hashed line")
+        assertFalse(after.contains(mac) || after.contains(otherMac), "no raw address is left, for either helmet")
+        assertTrue(after.lines().first().matches(Regex("#salt\t[0-9a-f]{64}")), "a salt is made if there was none")
+        assertTrue(after.lines().drop(1).all { it.substringBefore('\t').matches(Regex("[0-9a-f]{64}")) })
+        assertEquals("legacy-token", t.load(mac), "and each token still reads for its helmet")
         assertEquals("other-legacy", t.load(otherMac))
-        assertFalse(h.text!!.lines().any { it.startsWith("$otherMac\t") })
+    }
+
+    // @verifies REQ-SHDR-05#d
+    @Test fun aLoadOrASaveForOneHelmetAlsoRewritesTheOthersRawLines() {
+        val viaLoad = Holder("$mac\tlegacy-token\n$otherMac\tother-legacy")
+        assertEquals("legacy-token", table(viaLoad).load(mac))
+        assertFalse(viaLoad.text!!.contains(otherMac), "a helmet that has not reconnected does not keep its line")
+
+        val viaSave = Holder("$otherMac\tother-legacy")
+        table(viaSave).save(mac, "new")
+        assertFalse(viaSave.text!!.contains(otherMac))
+        assertEquals("other-legacy", table(viaSave).load(otherMac))
+    }
+
+    // @verifies REQ-SHDR-05#d
+    @Test fun aMigrationKeepsTheSaltAndTheLaterHashedTokenAndWritesNothingWhenThereIsNothingToMove() {
+        val h = Holder()
+        val t = table(h)
+        t.save(mac, "hashed-and-later")
+        val salt = h.text!!.lines().first()
+        h.text = h.text + "\n$mac\tstale-raw\n$otherMac\tother-legacy"
+        t.migrateLegacy()
+        assertEquals(salt, h.text!!.lines().first(), "the salt is kept")
+        assertEquals("hashed-and-later", t.load(mac), "a helmet that already has a hashed line keeps it")
+        assertEquals("other-legacy", t.load(otherMac))
+
+        var writes = 0
+        val quiet = HubTokenTable({ h.text }, { writes++; h.text = it }, { ByteArray(it) { 7 } })
+        quiet.migrateLegacy()
+        quiet.load(mac)
+        assertEquals(0, writes, "nothing to move, nothing written")
+        HubTokenTable({ null }, { writes++ }, { ByteArray(it) { 7 } }).migrateLegacy()
+        assertEquals(0, writes, "a value that cannot be read yet is left alone")
     }
 
     // @verifies REQ-SHDR-05#a

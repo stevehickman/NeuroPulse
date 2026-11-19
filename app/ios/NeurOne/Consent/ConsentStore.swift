@@ -237,11 +237,13 @@ final class ConsentStore: ObservableObject {
         next.blanketConsentWithdrawnAt = isWithdrawal
             ? now()
             : researchConsent.blanketConsentWithdrawnAt
+        let before = researchConsent
         researchConsent = next
         // A commit from the consent UI is the person deciding, so it is what ends a quarantine.
         markRedecided()
         withdrawUncoveredParticipations()
         save()
+        forgetPortalIdentityIfWithdrawn(since: before)
 
         if isWithdrawal {
             revokeResearchAnalytics()
@@ -262,6 +264,9 @@ final class ConsentStore: ObservableObject {
         markRedecided()
         withdrawUncoveredParticipations()
         save()
+        // The suggestion author token goes with blanket consent (REQ-SW03-12 (f)); a state never granted withdraws nothing,
+        // and an unreadable record that may have held the grant counts as one (REQ-CONSENT-20).
+        if wasGranted || mayHaveBeenGranted { ResearchSuggestionStore.forgetAuthorToken() }
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
         //
@@ -270,6 +275,15 @@ final class ConsentStore: ObservableObject {
         // (Partial withdrawals — specific study or category — do not revoke research analytics
         // because the user remains a research participant in other scopes.)
         revokeResearchAnalytics()
+    }
+
+    /// The suggestion author token does not outlive the portal opt-in or blanket consent (REQ-SW03-12 (f), OI-PRIV-08 (3)).
+    /// Keyed on the true→false transition from `before`, like the analytics teardown. Call after `save()`: the portal store
+    /// reads the saved state.
+    private func forgetPortalIdentityIfWithdrawn(since before: ResearchConsentState) {
+        let portalWithdrawn = before.suggestionPortalOptIn && !researchConsent.suggestionPortalOptIn
+        let blanketWithdrawn = before.blanketConsentGranted && !researchConsent.blanketConsentGranted
+        if portalWithdrawn || blanketWithdrawn { ResearchSuggestionStore.forgetAuthorToken() }
     }
 
     /// Revoke research analytics — clears the research analytics gate key and tears
@@ -446,10 +460,12 @@ final class ConsentStore: ObservableObject {
             }
         }
         let blanketApplied = time("blanketConsentWithdrawnAt") != nil
+        let before = researchConsent
         researchConsent = r
         // A restored blanket or category withdrawal stops what it stops here too (`REQ-CONSENT-19`).
         withdrawUncoveredParticipations()
         save()
+        forgetPortalIdentityIfWithdrawn(since: before)
         if blanketApplied { revokeResearchAnalytics() }
     }
 
