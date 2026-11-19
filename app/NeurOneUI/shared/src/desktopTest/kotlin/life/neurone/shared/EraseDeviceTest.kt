@@ -121,6 +121,71 @@ class EraseDeviceTest {
         assertNull(kv.getString("np.session.history"))
     }
 
+    private class Relay(private val status: Int?, private val kv: InMemoryKeyValueStore) : life.neurone.core.net.HttpTransport {
+        val bodies = mutableListOf<String>()
+        var dataWasStillThere = false
+        override suspend fun post(request: life.neurone.core.net.HttpRequest): life.neurone.core.net.HttpResponse? {
+            bodies += request.body.decodeToString()
+            dataWasStillThere = kv.getString("np.session.history") != null
+            return status?.let { life.neurone.core.net.HttpResponse(it, emptyMap(), ByteArray(0)) }
+        }
+    }
+
+    private class IdBackend(private var id: String?) : life.neurone.core.analytics.AnalyticsBackend {
+        override val distinctId: String? get() = id
+        override fun configure() {}
+        override fun reset() { id = null }
+        override fun track(event: String, properties: Map<String, String>) {}
+    }
+
+    private val analyticsId = "0b1c2d3e4f5061728394a5b6c7d8e9f0"
+
+    private fun gate(kv: InMemoryKeyValueStore, relay: Relay) = life.neurone.core.analytics.ResearchAnalyticsGate(
+        kv, IdBackend(analyticsId),
+        life.neurone.core.analytics.AnalyticsErasureQueue(kv, relay) { "https://analytics.example.org" },
+    )
+
+    // OI-PRIV-08 (1): the wipe deletes the only copy of the analytics ID, so the vendor is asked to erase it first.
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_asks_the_vendor_to_erase_the_analytics_id_before_it_wipes_the_only_copy() = runTest {
+        val kv = InMemoryKeyValueStore().also {
+            it.putString("np.session.history", "history of the person")
+            it.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        }
+        val relay = Relay(200, kv)
+        val gate = gate(kv, relay)
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { gate.resetForErase() })
+        model.erase()
+
+        assertTrue(relay.bodies.single().contains(analyticsId), "the relay was asked about this install's ID")
+        assertTrue(relay.dataWasStillThere, "and it was asked before the wipe, not after")
+        assertEquals(0, (model.step.value as EraseStep.Done).analyticsIdsNotErased)
+        assertNull(kv.getString("np.session.history"))
+        assertNull(kv.getString(life.neurone.core.analytics.AnalyticsErasureQueue.KEY), "nothing of the queue is written back after the wipe")
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_is_not_held_back_by_a_relay_that_does_not_take_the_id_and_says_how_many_were_left() = runTest {
+        for (status in listOf(null, 404, 503)) {
+            val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the person") }
+            val gate = gate(kv, Relay(status, kv))
+            val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { gate.resetForErase() })
+            model.erase()
+            assertEquals(1, (model.step.value as EraseStep.Done).analyticsIdsNotErased, "status $status")
+            assertNull(kv.getString("np.session.history"), "the person's erase still happens")
+            assertNull(kv.getString(life.neurone.core.analytics.AnalyticsErasureQueue.KEY))
+        }
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_still_finishes_when_the_step_before_the_wipe_throws() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "np-enc:1:sealed") }
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { throw IllegalStateException("the store is locked") })
+        model.erase()
+        assertEquals(1, (model.step.value as EraseStep.Done).analyticsIdsNotErased, "not known to be erased is reported as not erased")
+        assertNull(kv.getString("np.session.history"))
+    }
+
     private val used = listOf(
         Res.string.settings_erase_device_title, Res.string.settings_erase_device_confirm,
         Res.string.settings_erase_device_button, Res.string.settings_erase_device_close,

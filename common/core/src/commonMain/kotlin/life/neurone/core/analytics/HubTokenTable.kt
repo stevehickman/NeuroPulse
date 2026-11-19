@@ -15,8 +15,10 @@ import life.neurone.core.platform.toHex
  * the first line of the same value (a key of its own would be a key the store is not told to seal). Without the salt the hash
  * does not give the address back: an address is 48 bits, with a known vendor prefix, so an unsalted hash would.
  *
- * A line written before this (keyed by the raw identifier) is still read, and is rewritten under the hash when that helmet next
- * connects. Until then the raw identifier of a helmet that has not reconnected stays in the value.
+ * A line written before this (keyed by the raw identifier) is still read, and **every** such line is rewritten under the hash
+ * the first time the table is used after this change: [migrateLegacy] at launch, and any [load] or [save]. No raw identifier
+ * waits for its helmet to reconnect (`OI-PRIV-08` (4)). A line's key is a raw identifier exactly when it is not 64 hex digits,
+ * which no Bluetooth address or peripheral UUID is.
  *
  * The caller supplies [read] and [write] for the one value, so this has no store of its own and runs on any platform.
  */
@@ -47,24 +49,45 @@ class HubTokenTable(
     private fun keyFor(salt: String, hub: String): String = sha256(hexBytes(salt) + hub.encodeToByteArray()).toHex()
 
     /**
-     * The token kept for this helmet, or `null` if there is none. A line under the raw identifier is read too, and is rewritten
-     * under the hash at once, so a helmet's address leaves the value the first time it connects after this change.
+     * The table with every line keyed by the hash. A line under a raw identifier is moved to its hash, unless that helmet already
+     * has a hashed line, which is the later one and wins. Writes only if something moved.
      */
-    fun load(hub: String): String? {
+    private fun migrated(): Parsed {
         val t = parse()
-        t.salt?.let { t.entries[keyFor(it, hub)] }?.let { return it }
-        val legacy = t.entries[hub] ?: return null
-        save(hub, legacy)
-        return legacy
+        val legacy = t.entries.keys.filterNot { it.matches(HEX_32) }
+        if (legacy.isEmpty()) return t
+        val salt = t.salt ?: randomBytes(32).toHex()
+        val entries = LinkedHashMap<String, String>()
+        for ((key, token) in t.entries) if (key.matches(HEX_32)) entries[key] = token
+        for (hub in legacy) entries.getOrPut(keyFor(salt, hub)) { t.entries.getValue(hub) }
+        return Parsed(salt, entries).also(::store)
+    }
+
+    private fun store(t: Parsed) {
+        val lines = listOf("$SALT_KEY\t${t.salt}") + t.entries.map { "${it.key}\t${it.value}" }
+        write(lines.joinToString("\n"))
+    }
+
+    /**
+     * Rewrite every line still keyed by a raw identifier under its hash, now, without waiting for that helmet. Called at launch;
+     * it does nothing, and computes no hash, when there is no such line. A value that cannot be read yet (a locked run reads it
+     * as absent) is left alone and is migrated by the first [load] or [save] instead.
+     */
+    fun migrateLegacy() {
+        migrated()
+    }
+
+    /** The token kept for this helmet, or `null` if there is none. */
+    fun load(hub: String): String? {
+        val t = migrated()
+        return t.salt?.let { t.entries[keyFor(it, hub)] }
     }
 
     fun save(hub: String, token: String) {
-        val t = parse()
+        val t = migrated()
         val salt = t.salt ?: randomBytes(32).toHex()
-        t.entries.remove(hub) // a line under the raw identifier is replaced, not kept beside the hashed one
         t.entries[keyFor(salt, hub)] = token
-        val lines = listOf("$SALT_KEY\t$salt") + t.entries.map { "${it.key}\t${it.value}" }
-        write(lines.joinToString("\n"))
+        store(Parsed(salt, t.entries))
     }
 
     private fun hexBytes(h: String): ByteArray = ByteArray(h.length / 2) { h.substring(2 * it, 2 * it + 2).toInt(16).toByte() }

@@ -3,6 +3,7 @@ package life.neurone.core.analytics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -63,12 +64,59 @@ class AnalyticsErasureTests {
         }
     }
 
-    // @verifies REQ-SW03-19
-    @Test fun aRefusalForGoodDropsTheId() = runBlocking {
-        val q = queue(InMemoryKeyValueStore(), Fake(400))
+    // OI-PRIV-08 (2): the queue holds the only copy, so no refusal drops it. A misdeployed relay answers 401, 403 or 404.
+    // @verifies REQ-SW03-19#b
+    @Test fun aRefusalKeepsTheIdAndIsAskedAgainAtTheNextDrain() = runBlocking {
+        for (status in listOf(400, 401, 403, 404, 405, 413)) {
+            val store = InMemoryKeyValueStore()
+            val refusing = Fake(status)
+            val q = queue(store, refusing)
+            q.enqueue(id)
+            q.drain()
+            assertEquals(listOf(id), q.pending, "status $status keeps the only copy")
+            assertEquals(1, refusing.seen.size, "and it is asked about once in a drain, not in a loop")
+
+            val repaired = Fake(200)
+            queue(store, repaired).drain()
+            assertEquals(emptyList(), queue(store, repaired).pending, "the relay, once repaired, still gets the ID")
+        }
+    }
+
+    // @verifies REQ-SW03-19#b
+    @Test fun aRefusalOfOneIdDoesNotHoldBackTheOnesBehindIt() = runBlocking {
+        val other = "ffffffffffffffffffffffffffffffff"
+        val relay = object : HttpTransport {
+            override suspend fun post(request: HttpRequest): HttpResponse? =
+                HttpResponse(if (request.body.decodeToString().contains(id)) 400 else 200, emptyMap(), ByteArray(0))
+        }
+        val q = queue(InMemoryKeyValueStore(), relay)
         q.enqueue(id)
+        q.enqueue(other)
         q.drain()
+        assertEquals(listOf(id), q.pending, "the refused one stays, the accepted one behind it goes")
+    }
+
+    // @verifies REQ-SW03-19#b
+    @Test fun aSecondDrainWaitsForTheFirstInsteadOfReturningWithIdsUnasked() = runBlocking {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val relay = object : HttpTransport {
+            var calls = 0
+            override suspend fun post(request: HttpRequest): HttpResponse? {
+                calls++
+                gate.await()
+                return HttpResponse(200, emptyMap(), ByteArray(0))
+            }
+        }
+        val q = queue(InMemoryKeyValueStore(), relay)
+        q.enqueue(id)
+        val first = kotlinx.coroutines.GlobalScope.launch(Dispatchers.Unconfined) { q.drain() }
+        var secondReturned = false
+        val second = kotlinx.coroutines.GlobalScope.launch(Dispatchers.Unconfined) { q.drain(); secondReturned = true }
+        assertFalse(secondReturned, "an erase that drains while a launch drain is in flight waits for the answer")
+        gate.complete(Unit)
+        first.join(); second.join()
         assertEquals(emptyList(), q.pending)
+        assertEquals(1, relay.calls, "and the ID is not asked about twice")
     }
 
     // @verifies REQ-SW03-19
@@ -110,7 +158,7 @@ class AnalyticsErasureTests {
     }
 
     // @verifies REQ-SW03-25#d
-    @Test fun nothingIsQueuedWhenTheBackendHeldNoIdOrTheGateWasNeverConfigured() {
+    @Test fun nothingIsQueuedWhenTheBackendHeldNoId() {
         val store = InMemoryKeyValueStore()
         store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
         val q = queue(store, null)
@@ -119,10 +167,60 @@ class AnalyticsErasureTests {
         noId.configure()
         noId.reset()
         assertEquals(emptyList(), q.pending, "the SDK held no id, so there is nothing to erase")
+    }
 
-        val never = ResearchAnalyticsGate(store, Backend(id), q)
-        never.reset() // reset before configure: the gate was not configured
+    // OI-PRIV-08 (1): the ID outlives the process, so a withdrawal made before configure() ran still has one to erase.
+    // @verifies REQ-SW03-25#d
+    @Test fun aWithdrawalBeforeTheGateWasConfiguredStillForgetsTheIdAndQueuesIt() {
+        val store = InMemoryKeyValueStore()
+        val q = queue(store, null)
+        val backend = Backend(id)
+        ResearchAnalyticsGate(store, backend, q).reset() // reset before configure
+        assertEquals(1, backend.resets, "the backend forgets the ID")
+        assertEquals(listOf(id), q.pending, "and the vendor is asked to erase it")
+    }
+
+    // The same, end to end with the real backend: an earlier run sent an event, this run never configured the gate.
+    // @verifies REQ-SW03-25#c,d
+    @Test fun anIdMadeInAnEarlierRunIsQueuedByAWithdrawalInARunThatNeverConfigured() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val earlier = PostHogAnalyticsBackend(store, Fake(), config, scope()).also { it.configure() }
+        earlier.track("onboarding_step", mapOf("step_name" to "age_gate"))
+        val made = store.getString(PostHogAnalyticsBackend.ID_KEY)!!
+
+        val q = queue(store, null)
+        ResearchAnalyticsGate(store, PostHogAnalyticsBackend(store, Fake(), config, scope()), q).reset()
+        assertEquals(listOf(made), q.pending)
+        assertNull(store.getString(PostHogAnalyticsBackend.ID_KEY), "the install keeps no ID after the withdrawal")
+    }
+
+    // OI-PRIV-08 (1): an erase deletes the queue with everything else, so the relay is asked, and waited for, first.
+    // @verifies REQ-SW03-19#d
+    @Test fun anEraseForgetsTheIdAndWaitsForTheRelayBeforeItReturns() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        val relay = Fake(200)
+        val q = queue(store, relay)
+        q.enqueue("ffffffffffffffffffffffffffffffff") // an earlier withdrawal the relay never took
+        val backend = Backend(id)
+        val gate = ResearchAnalyticsGate(store, backend, q) // no scope: nothing is left running behind the erase
+        gate.configure()
+        assertEquals(0, gate.resetForErase(), "every ID was accepted")
+        assertEquals(1, backend.resets)
+        assertEquals(2, relay.seen.size, "this install's ID and the one already waiting")
         assertEquals(emptyList(), q.pending)
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun anEraseReportsTheIdsTheRelayDidNotTake() = runBlocking {
+        for (status in listOf(null, 404, 503)) {
+            val store = InMemoryKeyValueStore()
+            val q = queue(store, Fake(status))
+            assertEquals(1, ResearchAnalyticsGate(store, Backend(id), q).resetForErase(), "status $status")
+        }
+        val none = InMemoryKeyValueStore()
+        assertEquals(0, ResearchAnalyticsGate(none, Backend(null), queue(none, Fake(503))).resetForErase(), "no ID, nothing to report")
     }
 
     // @verifies REQ-SW03-25#d
@@ -180,11 +278,15 @@ class AnalyticsErasureTests {
     @Test fun theIdIsKeptAcrossRestartsAndRemadeOnReset() {
         val store = InMemoryKeyValueStore()
         val a = PostHogAnalyticsBackend(store, Fake(), config, scope()).also { it.configure() }
+        assertNull(a.distinctId, "no ID until an event is sent under one")
+        a.track("onboarding_step", emptyMap())
         val first = a.distinctId!!
-        assertEquals(first, PostHogAnalyticsBackend(store, Fake(), config, scope()).also { it.configure() }.distinctId)
+        assertEquals(first, PostHogAnalyticsBackend(store, Fake(), config, scope()).distinctId, "a later run reads it before it is configured")
         a.reset()
-        assertNull(a.distinctId, "no id to erase when nothing is active")
+        assertNull(a.distinctId, "the ID is forgotten, and no unused one is left to be asked about later")
+        assertNull(store.getString(PostHogAnalyticsBackend.ID_KEY))
         val b = PostHogAnalyticsBackend(store, Fake(), config, scope()).also { it.configure() }
+        b.track("onboarding_step", emptyMap())
         assertNotEquals(first, b.distinctId)
         assertFalse(store.getString(PostHogAnalyticsBackend.ID_KEY).isNullOrEmpty())
     }

@@ -34,8 +34,12 @@ sealed interface EraseStep {
      * [cloudAccessMayRemain] is true when the person had cloud sign-ins here and not every provider confirmed it ended the app's access (it has
      * no call for that, the call failed, or the sign-ins could not be read): the credentials are erased from this device all the same, and the
      * person is told a service may still list the app, and that a key or password they typed still works there (SWR-MG-30 (d)).
+     *
+     * [analyticsIdsNotErased] is how many pseudonymous analytics IDs the vendor's erasure relay had not accepted when the wipe
+     * deleted them (the relay could not be reached, or refused): the vendor's events under them can no longer be erased by this
+     * device (`OI-PRIV-08` (1), `OI-ANALYTICS-01` (5)). Zero in the ordinary case, where there was no ID or the relay took it.
      */
-    class Done(val keyKept: Boolean, val cloudAccessMayRemain: Boolean = false) : EraseStep
+    class Done(val keyKept: Boolean, val analyticsIdsNotErased: Int = 0, val cloudAccessMayRemain: Boolean = false) : EraseStep
 
     /** The core's reason code (`step_failed`, ...). The erase stops at the step and carries on at the next try (`SWR-MG-08`). */
     class Failed(val reason: String) : EraseStep
@@ -83,6 +87,13 @@ class EraseDeviceModel(
     private val gatt: NeurOneGattManager,
     private val random: RandomSource = SystemRandomSource,
     /**
+     * Run before anything is wiped: what has to be said to someone else while the data it needs still exists. The composition
+     * root gives it `ResearchAnalyticsGate.resetForErase`, which asks the vendor to erase this install's analytics ID and returns
+     * how many IDs are left unanswered. It never stops the erase: a failure here counts as nothing erased and the wipe goes on
+     * (`SWR-MG-17` (b), `REQ-SW03-19` (d)).
+     */
+    private val beforeWipe: (suspend () -> Int)? = null,
+    /**
      * Ends the cloud sign-ins before the erase (`CloudAuth.signOutAll`), so a refresh token is not left working at a provider after the device
      * that held it is wiped; answers true when a provider's access may remain. Null on a host with no cloud sign-in. It is best effort and
      * **never stops the erase**: a throw reads as "may remain", and the stored credentials go with every other key in the plan below.
@@ -95,9 +106,21 @@ class EraseDeviceModel(
     suspend fun erase() {
         if (state.value is EraseStep.Running) return
         state.value = EraseStep.Running
+        val notErased = try {
+            beforeWipe?.invoke() ?: 0
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            state.value = EraseStep.Idle
+            throw cancelled
+        } catch (ignored: Exception) {
+            // A locked or unreadable store, a transport that threw: the person's erase is not held back by the vendor's.
+            UNKNOWN_NOT_ERASED
+        }
         val cloudMayRemain = try {
             endCloudAccess?.invoke() ?: false
-        } catch (ex: Exception) {
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            state.value = EraseStep.Idle
+            throw cancelled
+        } catch (ignored: Exception) {
             true
         }
         val actions = EraseActions(secrets, gatt)
@@ -107,9 +130,14 @@ class EraseDeviceModel(
         }
         state.value = try {
             val done = MigrationFlow.run("clear", params, StandardMigrationHost(emptyList(), null, actions), null, keys, null, files, random = random)
-            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept, cloudMayRemain) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
+            if (done["ok"]!!.jsonPrimitive.boolean) EraseStep.Done(actions.keyKept, notErased, cloudMayRemain) else EraseStep.Failed(done["reason"]!!.jsonPrimitive.content)
         } catch (ex: Exception) {
             EraseStep.Failed("step_failed")
         }
+    }
+
+    private companion object {
+        /** The step before the wipe failed, so how many IDs were left is not known; reported as one, which is "not all erased". */
+        const val UNKNOWN_NOT_ERASED = 1
     }
 }

@@ -419,8 +419,8 @@ What the app sends and expects:
 |---|---|
 | Request | `POST https://<analytics host>/np/erase`, `Content-Type: application/json`, body `{"distinct_id": "<the old ID>"}` and nothing else. No account, device name, token or consent record, and no `Authorization` header: the ID is a random value only the phone and PostHog know, so presenting it is the proof the request is the owner's. |
 | `200`–`299` | Accepted. Erasing an ID PostHog does not hold must also answer `2xx`: the call is idempotent. The app drops the ID from its queue. |
-| `4xx` other than `408` and `429` | Refused for good (a malformed ID, say). The app drops the ID; retrying cannot change the answer. |
-| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch. |
+| `4xx` other than `408` and `429` | Refused. **The app keeps the ID** and asks again at its next launch (it goes on to the next queued ID in the same drain). The queue holds the only copy, and a `401`, `403` or `404` is what a misdeployed relay or a proxy in front of it answers, so no refusal drops an ID (`OI-PRIV-08` (2), `REQ-SW03-19` (b)). The app queues only IDs of the shape the relay accepts, so a `400` from the relay itself is not expected. |
+| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch; the rest of the queue waits. |
 
 What the relay does:
 

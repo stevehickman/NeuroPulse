@@ -1,5 +1,7 @@
 package life.neurone.core.analytics
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import life.neurone.core.common.KeyValueStore
@@ -13,13 +15,15 @@ import life.neurone.core.net.HttpTransport
  * The policy says the ID must be deleted from the vendor within 30 days of a research-consent withdrawal. Resetting the vendor
  * client makes a NEW anonymous ID, so the old one is gone from the phone the moment it runs: unless it was kept, nothing can ever
  * ask for its deletion. So the gate captures it first ([ResearchAnalyticsGate.reset]) and this queue holds it, durably, until the
- * erasure relay has accepted it or refused it for good. A withdrawal made offline is therefore not lost: the request is sent when
- * the phone next can.
+ * erasure relay has accepted it. A withdrawal made offline is therefore not lost: the request is sent when the phone next can.
  *
  * Contract with the relay (`docs/np_analytics_001.md` §7.6): one `POST <host>/np/erase` with `{"distinct_id": …}` and nothing else.
- * 2xx: accepted (erasing an ID the vendor does not hold is accepted too), and the ID is dropped. 4xx other than 408 and 429: refused
- * for good, and the ID is dropped (retrying cannot change the answer). 408, 429, 5xx or no answer: the ID stays, and the rest wait
- * for the next call.
+ * 2xx: accepted (erasing an ID the vendor does not hold is accepted too, so there is no separate "already gone" answer), and the
+ * ID is dropped. **Nothing else drops it** (`OI-PRIV-08` (2)): the queue holds the only copy, and a 401, 403 or 404 is what a
+ * misdeployed relay or a proxy in front of it answers, not a verdict on the ID. A 4xx other than 408 and 429 keeps the ID and the
+ * drain goes on to the next one (the answer may be about this ID alone); 408, 429, 5xx, any other status or no answer keeps it
+ * and the rest wait for the next call (the relay is likely unavailable to all of them). Either way an ID is asked about at most
+ * once in a drain, and a drain runs at launch, at a withdrawal and before an erase, so a relay that refuses is not asked in a loop.
  *
  * The list is per install and sealed with the rest of the app's state; an ID in it is a pseudonym the vendor holds data under, so it
  * is never written to a log.
@@ -29,7 +33,8 @@ class AnalyticsErasureQueue(
     private val transport: HttpTransport?,
     private val baseUrl: () -> String?,
 ) {
-    private var draining = false
+    /** One drain at a time; a second caller waits and then asks about whatever is still queued, so an erase can wait for the answer. */
+    private val draining = Mutex()
 
     /** The IDs still waiting, oldest first. */
     val pending: List<String>
@@ -44,28 +49,27 @@ class AnalyticsErasureQueue(
     }
 
     /**
-     * Ask the relay about every queued ID. Does nothing, and makes no network call, when the queue is empty, the build has no
-     * analytics host or the host has no transport.
+     * Ask the relay about every queued ID, once each. Does nothing, and makes no network call, when the queue is empty, the build
+     * has no analytics host or the host has no transport. Returns when every queued ID has been asked about or the relay stopped
+     * answering; [pending] then says what is left.
      */
     suspend fun drain() {
-        if (draining) return
         val transport = transport ?: return
-        draining = true
-        try {
+        draining.withLock {
             for (id in pending) {
                 val url = baseUrl()?.let { "$it/$PATH" } ?: return
                 val body = buildJsonObject { put("distinct_id", id) }.toString().encodeToByteArray()
                 val answer = transport.post(HttpRequest(url, mapOf("Content-Type" to "application/json"), body))
                 when (outcome(answer?.status)) {
-                    Outcome.DONE, Outcome.REFUSED -> remove(id)
+                    Outcome.DONE -> remove(id)
+                    Outcome.REFUSED -> continue
                     Outcome.RETRY_LATER -> return
                 }
             }
-        } finally {
-            draining = false
         }
     }
 
+    /** [REFUSED] is a 4xx that is not about load: the ID is kept and asked about again at the next drain, never dropped. */
     internal enum class Outcome { DONE, REFUSED, RETRY_LATER }
 
     private fun outcome(status: Int?): Outcome = when {
