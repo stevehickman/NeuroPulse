@@ -5,7 +5,15 @@ import life.neurone.core.common.PresenceLock
 import life.neurone.core.common.PresenceState
 import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.protocol.PersistedKeys
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.todayIn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.ListSerializer
@@ -92,6 +100,25 @@ data class CompletedSessionSummary(
     }
 }
 
+/**
+ * How long the session history keeps a session, counted from the day it finished (`REQ-SW03-31` (a); the principal, 2026-11-19,
+ * `OI-PRIV-10` (2)). The person chooses; [NO_LIMIT] is the default. The periods offered are a menu, not limits anything derives
+ * (`UC-195`).
+ */
+enum class HistoryRetention(val days: Int?) {
+    NO_LIMIT(null),
+    DAYS_30(30),
+    DAYS_90(90),
+    DAYS_365(365);
+
+    companion object {
+        val DEFAULT = NO_LIMIT
+
+        /** A stored choice; anything unreadable is the default, which removes nothing. */
+        fun parse(stored: String?): HistoryRetention = entries.firstOrNull { it.name == stored } ?: DEFAULT
+    }
+}
+
 class SessionHistoryStore(
     private val store: KeyValueStore,
     private val json: Json = Json { ignoreUnknownKeys = true },
@@ -100,9 +127,14 @@ class SessionHistoryStore(
      * memory only while the person's presence stands (`REQ-PRES-01` (d), `OI-PRIV-10` (1)).
      */
     private val lock: PresenceLock? = null,
+    /** Today's date on the device, by which a session's age is counted for [retention]. Injected so the rule is testable. */
+    private val today: () -> LocalDate = { Clock.System.todayIn(TimeZone.currentSystemDefault()) },
 ) {
     companion object {
-        /** The newest this many records are kept. Nothing derives the figure and there is no age limit (`UC-193`, `OI-PRIV-10` (2)). */
+        /**
+         * The newest this many records are kept, whatever [retention] says. The principal ruled (2026-11-19) that it stays only as a
+         * bound on the stored value's size; nothing has yet traced it to one (`UC-193`, `OI-PRIV-10` (2)).
+         */
         const val MAX_RECORDS = 100
 
         // Companion-scoped so it exists before the instance init block runs
@@ -126,9 +158,24 @@ class SessionHistoryStore(
             r.copy(durationSeconds = wholeMinutes(r.durationSeconds), averageCoherenceScore = oneDecimal(r.averageCoherenceScore))
     }
 
+    private val _records = MutableStateFlow<List<SessionRecord>>(emptyList())
+
     /** The history, newest first. **Empty while locked**, whatever is sealed and whatever finished since the lock closed. */
-    var records: List<SessionRecord> = emptyList()
-        private set
+    var records: List<SessionRecord>
+        get() = _records.value
+        private set(value) { _records.value = value }
+
+    /** [records], for a screen that redraws when the history changes (a clear, a new session, the lock). */
+    val recordsFlow: StateFlow<List<SessionRecord>> = _records.asStateFlow()
+
+    private val _retention = MutableStateFlow(HistoryRetention.DEFAULT)
+
+    /**
+     * How long the person chose to keep the history (`REQ-SW03-31` (a); the principal, 2026-11-19). It is the person's record, so the
+     * period is theirs to set and none is set for them: the default keeps a session with no age limit. Read with the history, so it is
+     * the default while locked.
+     */
+    val retention: StateFlow<HistoryRetention> = _retention.asStateFlow()
 
     private var nextInsertionIndex = 0
 
@@ -164,6 +211,26 @@ class SessionHistoryStore(
     }
 
     /**
+     * Keep the history for [choice] from now on, and remove at once every session older than it (`REQ-SW03-31` (a)). False, changing
+     * nothing, while the history cannot be read: the choice is stored beside the sealed history and a period applied to a list read
+     * while locked would apply to nothing.
+     */
+    fun setRetention(choice: HistoryRetention): Boolean {
+        if (!loaded || (lock != null && !lock.isUnlocked)) return false
+        val before = records
+        val pruned = withinRetention(before, choice)
+        try {
+            store.putString(PersistedKeys.SESSION_HISTORY_RETENTION_KEY, choice.name)
+        } catch (e: SecretKeyUnavailableException) {
+            return false
+        }
+        _retention.value = choice
+        records = pruned
+        if (pruned.size != before.size) persist()
+        return true
+    }
+
+    /**
      * Destroy the history. It works locked: a removal discloses nothing and needs no presence (`REQ-PRES-01` (b)), and a session
      * that was waiting to join the history is dropped with it.
      */
@@ -180,6 +247,7 @@ class SessionHistoryStore(
     private fun forget() {
         records = emptyList()
         nextInsertionIndex = 0
+        _retention.value = HistoryRetention.DEFAULT
         loaded = false
     }
 
@@ -205,7 +273,14 @@ class SessionHistoryStore(
             edfSessionId = session.edfSessionId,
         )
         nextInsertionIndex += 1
-        records = (records + new).sortedWith(newestFirst).take(MAX_RECORDS)
+        records = withinRetention((records + new).sortedWith(newestFirst), _retention.value).take(MAX_RECORDS)
+    }
+
+    /** The records whose day is within [choice] of today; all of them when the choice has no age limit. */
+    private fun withinRetention(list: List<SessionRecord>, choice: HistoryRetention): List<SessionRecord> {
+        val days = choice.days ?: return list
+        val oldest = today().minus(days, DateTimeUnit.DAY).toString() // ISO dates compare as text
+        return list.filter { it.sessionDay >= oldest }
     }
 
     // ── Persistence ──────────────────────────────────────────────────────
@@ -219,7 +294,14 @@ class SessionHistoryStore(
                 .map(::asShown).sortedWith(newestFirst)
         }.getOrDefault(emptyList())
         nextInsertionIndex = (records.maxOfOrNull { it.insertionIndex } ?: -1) + 1
+        _retention.value = HistoryRetention.parse(store.getString(PersistedKeys.SESSION_HISTORY_RETENTION_KEY))
         loaded = true
+        // A session that has aged past the person's choice since the history was last written leaves it now, on disk as well.
+        val kept = withinRetention(records, _retention.value)
+        if (kept.size != records.size) {
+            records = kept
+            persist()
+        }
     }
 
     /** False when the store could not take the write because the key is not readable; nothing was written. */
