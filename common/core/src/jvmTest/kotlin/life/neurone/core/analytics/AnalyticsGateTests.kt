@@ -59,11 +59,11 @@ class AnalyticsGateTests {
         val props = mapOf(
             "app_version" to "1.0.3", "os_version" to "Android 15.0", "device_class" to "Android_mid",
             "screen_name" to "protocol_detail", "engagement_tier" to "established", "app_start_type" to "warm_start",
-            "onboarding_step" to "consent_flow_step_2", "error_code" to "12", "connectivity_type" to "cellular",
+            "onboarding_step" to "consent_flow_step_2", "error_code" to "1001", "connectivity_type" to "cellular",
         )
         gate.track("app_opened", props)
-        gate.track("app_foregrounded", emptyMap())
-        assertEquals(listOf("app_opened" to props, "app_foregrounded" to emptyMap()), backend.trackedEvents)
+        gate.track("screen_viewed", emptyMap())
+        assertEquals(listOf("app_opened" to props, "screen_viewed" to emptyMap()), backend.trackedEvents)
     }
 
     // @verifies REQ-SW03-07
@@ -76,23 +76,32 @@ class AnalyticsGateTests {
             "imp", "impedance", "impedance_flags", "pass_flags",
             "heart_rate", "alpha_power", "electrode_site", "condition", "email", "duration_s", "timestamp",
         )) {
-            gate.track("evt", mapOf(key to "1", "engagement_tier" to "new"))
+            gate.track("app_opened", mapOf(key to "1", "engagement_tier" to "new"))
         }
         assertTrue(backend.trackedEvents.isEmpty())
-        gate.track("evt", mapOf("engagement_tier" to "new"))
+        gate.track("app_opened", mapOf("engagement_tier" to "new"))
         assertEquals(1, backend.trackedEvents.size)
     }
 
     // @verifies REQ-SW03-07
     @Test
-    fun trackDropsAnEventWithAValueNotOfItsPropertysFormOrAnEventNameThatCarriesAHealthTerm() {
+    fun trackDropsAnEventWithAValueNotOfItsPropertysFormOrANameThatIsNotOnTheList() {
         val (gate, backend) = openGate()
-        gate.track("evt", mapOf("engagement_tier" to "42"))            // the raw count the tier replaced
-        gate.track("evt", mapOf("screen_name" to "tdcs_depression"))   // a protocol or condition as a screen
-        gate.track("evt", mapOf("error_code" to "1746000000000"))      // a timestamp in an error code
-        gate.track("evt", mapOf("os_version" to "Android 15.0.1"))     // a patch version
-        gate.track("tdcs_started", emptyMap())                         // a modality in the event name
-        gate.track("User Email Sent", emptyMap())                      // not snake_case
+        gate.track("app_opened", mapOf("engagement_tier" to "42"))            // the raw count the tier replaced
+        gate.track("app_opened", mapOf("screen_name" to "tdcs_depression"))   // a protocol or condition as a screen
+        gate.track("app_opened", mapOf("error_code" to "1746000000000"))      // a timestamp in an error code
+        gate.track("app_opened", mapOf("os_version" to "Android 15.0.1"))     // a patch version
+        gate.track("tdcs_started", emptyMap())                                // a modality in the event name
+        gate.track("User Email Sent", emptyMap())                             // not a listed name
+        // OI-PRIV-05: a well-shaped name nobody listed, a session or consent screen, and a helmet fault slot as an error code.
+        gate.track("stim_2ma_done", emptyMap())
+        gate.track("evt", mapOf("engagement_tier" to "new"))
+        for (screen in listOf("session_setup", "session_active", "session_results", "research_consent", "clinical_consent")) {
+            gate.track("screen_viewed", mapOf("screen_name" to screen))
+        }
+        for (code in listOf("3", "42", "251", "255")) {
+            gate.track("error_reported", mapOf("error_code" to code))
+        }
         assertTrue(backend.trackedEvents.isEmpty())
     }
 
