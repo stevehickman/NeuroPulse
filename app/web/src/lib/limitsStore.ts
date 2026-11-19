@@ -147,7 +147,7 @@ class LimitsStore extends EventTarget {
 
   /**
    * Keep `profile`. A note over the bound is refused (false) and nothing changes; a field a profile does not have is not
-   * kept (REQ-SW03-31).
+   * kept (REQ-SW03-32).
    */
   saveProfile(input: NPIndividualProfile): boolean {
     if (!profileNotesFit(input.notes)) return false;

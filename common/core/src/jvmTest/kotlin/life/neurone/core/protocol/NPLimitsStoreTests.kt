@@ -179,7 +179,7 @@ class NPLimitsStoreTests {
         assertNull(kv.getString(NPLimitsStore.HELMETS_KEY))
     }
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test
     fun storedProfileIsReadAndWrittenBackWithoutAFieldAProfileDoesNotHave() {
         val kv = InMemoryKeyValueStore()
@@ -195,7 +195,7 @@ class NPLimitsStoreTests {
         assertTrue("left chair" in rewritten)
     }
 
-    // @verifies REQ-SW03-31#b
+    // @verifies REQ-SW03-32#b
     @Test
     fun aNoteOverTheBoundIsRefusedAndNothingChanges() {
         val kv = InMemoryKeyValueStore()
@@ -209,7 +209,7 @@ class NPLimitsStoreTests {
         assertEquals(listOf(alex), NPLimitsStore(kv).profiles)
     }
 
-    // @verifies REQ-SW03-31#c
+    // @verifies REQ-SW03-32#c
     @Test
     fun aStoredNoteOverTheBoundIsCutToItAndWrittenBack() {
         val kv = InMemoryKeyValueStore()
