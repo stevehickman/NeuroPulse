@@ -131,6 +131,8 @@ internal class Rig(
         cloudKit = CloudKitConfig("iCloud.test.app", "ck-api-token", CK_CALLBACK),
         dropbox = DropboxClientConfig("db-key", DROPBOX_REDIRECT),
     ),
+    /** Stands in for a host whose browser session hands back only what it was itself sent to (iOS), where CloudKit may sign in with no nonce. */
+    confined: Boolean = false,
 ) {
     val providers = FakeProviders()
     val browser = FakeBrowser(providers)
@@ -141,8 +143,13 @@ internal class Rig(
     val kv: life.neurone.core.common.KeyValueStore = storage.store
     val credentials = CredentialStore.over(storage)!!
     var clock = 1_000_000L
-    val auth = CloudAuth(providers, credentials, config, browser, CountingRandom(), Digests::sha256, { clock })
+    private val launcher: AuthorizationLauncher =
+        if (confined) object : ConfinedCallbackLauncher { override suspend fun authorize(authorizationUrl: String, redirectUri: String) = browser.authorize(authorizationUrl, redirectUri) } else browser
+    val auth = CloudAuth(providers, credentials, config, launcher, CountingRandom(), Digests::sha256, { clock })
 }
+
+internal fun cloudKitWithNonce(parameter: String?) =
+    CloudAuthConfig(cloudKit = CloudKitConfig("iCloud.test.app", "ck-api-token", CK_CALLBACK, callbackNonceParameter = parameter))
 
 class CloudAuthTests {
     // @verifies SWR-MG-19#a
@@ -289,7 +296,7 @@ class CloudAuthTests {
     // @verifies SWR-MG-19#e
     @Test
     fun cloudKitSignInOpensAppleSignInPageKeepsThePlusSignedTokenAndTheSinkReplacesIt() = runBlocking {
-        val rig = Rig()
+        val rig = Rig(confined = true)
         rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=ab+c/d=" }
         val a = rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT)
         assertEquals("https://idmsa.test/sign-in?x=1", rig.browser.urls.single())
@@ -458,5 +465,78 @@ class CloudAuthTests {
         assertFalse(rig.auth.isConfigured(CloudService.DROPBOX))
         assertEquals(CloudAuthProblem.NOT_CONFIGURED, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.DROPBOX) }.problem)
         assertTrue(rig.browser.urls.isEmpty(), "no browser was opened")
+    }
+
+    // @verifies SWR-MG-19#a
+    @Test
+    fun stateIsCheckedBeforeTheErrorAndTheProvidersErrorTextIsNeverQuoted() = runBlocking {
+        val rig = Rig()
+        // What any page or app that can reach the redirect can send: an error with no state, or with a state of its own.
+        rig.browser.callback = { redirect, _ -> "$redirect?error=access_denied" }
+        assertEquals(CloudAuthProblem.STATE_MISMATCH, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.problem, "no state: not DENIED")
+        rig.browser.callback = { redirect, _ -> "$redirect?error=server_error&error_description=call+this+number&state=forged" }
+        val forged = assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }
+        assertEquals(CloudAuthProblem.STATE_MISMATCH, forged.problem)
+        assertFalse("server_error" in forged.message!! || "number" in forged.message!!)
+
+        // With this request's state the error is the provider's, and it is named from a fixed set.
+        rig.browser.callback = { redirect, sent -> "$redirect?error=access_denied&state=${sent["state"]}" }
+        val denied = assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }
+        assertEquals(CloudAuthProblem.DENIED, denied.problem)
+        rig.browser.callback = { redirect, sent -> "$redirect?error=Your+account+is+locked.+Call+555-0100&state=${sent["state"]}" }
+        val other = assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }
+        assertEquals(CloudAuthProblem.PROVIDER, other.problem)
+        assertEquals("sign-in was refused: OTHER", other.message)
+        rig.browser.callback = { redirect, sent -> "$redirect?error=temporarily_unavailable&state=${sent["state"]}" }
+        assertEquals("sign-in was refused: TEMPORARILY_UNAVAILABLE", assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.message)
+
+        // An address that only begins like the redirect is not the redirect, even with the right state.
+        rig.browser.callback = { redirect, sent -> "$redirect.evil.example.test/?code=c&state=${sent["state"]}" }
+        assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.GOOGLE_DRIVE) }.problem)
+        assertTrue(rig.auth.accounts().isEmpty()); assertTrue(rig.providers.seen.isEmpty(), "nothing was redeemed")
+    }
+
+    // @verifies SWR-MG-19#n
+    @Test
+    fun aForgedCloudKitCallbackWithNoNonceOrTheWrongNonceIsRefusedAndStoresNothing() = runBlocking {
+        val rig = Rig(cloudKitWithNonce("npState"))
+        assertTrue(rig.auth.isConfigured(CloudService.ICLOUD_CLOUDKIT))
+        fun sentNonce() = CloudAuth.queryParams(rig.browser.urls.last(), false)["npState"]!!
+
+        // The attacker's own token, delivered to the callback by anything that can reach it.
+        rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=attackers-token" }
+        assertEquals(CloudAuthProblem.STATE_MISMATCH, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem, "no nonce")
+        val first = sentNonce()
+        assertEquals("https://idmsa.test/sign-in?x=1&npState=$first", rig.browser.urls.last(), "the nonce rides on Apple's sign-in address")
+        rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=attackers-token&npState=guess" }
+        assertEquals(CloudAuthProblem.STATE_MISMATCH, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem, "a wrong nonce")
+        rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=attackers-token&npState=$first" }
+        assertEquals(CloudAuthProblem.STATE_MISMATCH, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem, "an earlier request's nonce")
+        assertNotEquals(first, sentNonce(), "each request has its own")
+        rig.browser.callback = { redirect, sent -> "$redirect.evil.example.test/?ckWebAuthToken=attackers-token&npState=${sent["npState"]}" }
+        assertEquals(CloudAuthProblem.PROVIDER, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem, "not the callback")
+        assertTrue(rig.auth.accounts().isEmpty(), "no forged token was kept")
+
+        // The answer to this request is taken, and the token is kept as received.
+        rig.browser.callback = { redirect, sent -> "$redirect?ckWebAuthToken=ab+c/d=&npState=${sent["npState"]}" }
+        val a = rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT)
+        assertEquals("ck-api-token" to "ab+c/d=", rig.auth.cloudKitCredentials(a.id).tokens())
+    }
+
+    // @verifies SWR-MG-19#n
+    @Test
+    fun cloudKitIsNotOfferedWhereTheCallbackCannotBeTiedToItsRequest() = runBlocking {
+        // No nonce parameter is known and the launcher takes its answer from the system at large (an intent, a loopback listener).
+        for (config in listOf(cloudKitWithNonce(null), cloudKitWithNonce(""), cloudKitWithNonce("ckWebAuthToken"), cloudKitWithNonce("a b"), cloudKitWithNonce("a&b=c"))) {
+            val rig = Rig(config)
+            rig.browser.callback = { redirect, _ -> "$redirect?ckWebAuthToken=attackers-token" }
+            assertFalse(rig.auth.isConfigured(CloudService.ICLOUD_CLOUDKIT))
+            assertEquals(CloudAuthProblem.NOT_CONFIGURED, assertFailsWith<CloudAuthException> { rig.auth.signIn(CloudService.ICLOUD_CLOUDKIT) }.problem)
+            assertTrue(rig.browser.urls.isEmpty() && rig.providers.seen.isEmpty(), "no browser was opened and nothing was sent")
+            assertTrue(rig.auth.accounts().isEmpty())
+        }
+        // A session that hands back only what it was itself sent to is bound without a nonce.
+        assertTrue(Rig(cloudKitWithNonce(null), confined = true).auth.isConfigured(CloudService.ICLOUD_CLOUDKIT))
+        assertFalse(Rig(CloudAuthConfig(), confined = true).auth.isConfigured(CloudService.ICLOUD_CLOUDKIT), "still needs a container")
     }
 }
