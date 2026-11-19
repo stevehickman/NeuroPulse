@@ -269,3 +269,66 @@ fn a_key_is_wrapped_and_unwrapped_as_bytes_in_the_form_the_older_records_have() 
     let (code, _, _) = ask_with(json!({ "op": "encodeRecoveryCode", "bytes": { "$secret": 0 } }), &[&[0xc7u8; 32]]).unwrap();
     assert_eq!(code, ask(json!({ "op": "encodeRecoveryCode", "bytes": "c7".repeat(32) })));
 }
+
+// @verifies SWR-MG-32#g
+#[test]
+fn an_oblivious_request_s_response_secret_is_kept_in_the_core_used_once_and_its_entropy_goes_in_as_bytes() {
+    let _one = one();
+    let held = || ask(json!({ "op": "keyCount" }))["count"].as_u64().unwrap();
+    let gateway = ask(json!({ "op": "ohttpGenerateKey", "seed": "05".repeat(32), "keyId": 1 }));
+    let entropy = [9u8; 32];
+    let request = |extra: Value| {
+        let mut r = json!({ "op": "ohttpSeal", "keyConfig": gateway["keyConfig"], "method": "POST", "scheme": "https", "authority": "fleet.example",
+            "path": "/v1/shdr", "headers": [], "body": "00ff", "entropy": { "$secret": 0 } });
+        r.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        r
+    };
+    // The older way, everything in the JSON, for comparison: the same request bytes, and the secret as hex.
+    let old = ask(json!({ "op": "ohttpSeal", "keyConfig": gateway["keyConfig"], "method": "POST", "scheme": "https", "authority": "fleet.example",
+        "path": "/v1/shdr", "headers": [], "body": "00ff", "entropy": hex(&entropy) }));
+    let old_secret = old["secret"].as_str().unwrap().to_string();
+
+    let before = held();
+    let (sealed, beside, text) = ask_with(request(json!({ "keep": true })), &[&entropy]).unwrap();
+    assert_eq!(sealed["request"], old["request"], "the same request goes on the wire");
+    assert!(sealed["secret"]["$handle"].is_u64(), "{sealed}");
+    assert!(beside.is_empty() && !text.contains(&old_secret[..16]), "the response secret left the core: {text}");
+    assert_eq!(held(), before + 1);
+
+    // The gateway's side of the same exchange, its secret kept the same way, answers; the answer opens with the handle.
+    let opened = ask(json!({ "op": "ohttpGatewayOpen", "keyConfig": gateway["keyConfig"], "privateKey": gateway["privateKey"], "request": sealed["request"], "keep": true }));
+    assert!(opened["secret"]["$handle"].is_u64());
+    assert!(!opened.to_string().contains(&old_secret[..16]));
+    let reply = ask(json!({ "op": "ohttpGatewaySeal", "enc": opened["enc"], "secret": opened["secret"], "status": 204, "headers": [], "body": "", "entropy": "01".repeat(16) }));
+    let open = json!({ "op": "ohttpOpen", "enc": sealed["enc"], "secret": sealed["secret"], "response": reply["response"] });
+    assert_eq!(ask(open.clone())["status"], 204);
+    // Used once: both secrets are gone, and the same answer cannot be opened a second time.
+    assert_eq!(held(), before);
+    assert_eq!(migration_json(&open.to_string()).unwrap_err(), "unknown_key");
+    assert_eq!(migration_json(&json!({ "op": "ohttpGatewaySeal", "enc": opened["enc"], "secret": opened["secret"], "status": 204, "headers": [], "body": "", "entropy": "01".repeat(16) }).to_string()).unwrap_err(), "unknown_key");
+
+    // An answer that does not authenticate uses the secret up all the same: it was for one response.
+    let (sealed, _, _) = ask_with(request(json!({ "keep": true })), &[&entropy]).unwrap();
+    let forged = json!({ "op": "ohttpOpen", "enc": sealed["enc"], "secret": sealed["secret"], "response": "03".repeat(64) });
+    assert!(migration_json(&forged.to_string()).unwrap_err().contains("did not authenticate"));
+    assert_eq!(held(), before);
+    // A caller that never gets an answer releases it.
+    let (sealed, _, _) = ask_with(request(json!({ "keep": true })), &[&entropy]).unwrap();
+    assert_eq!(ask(json!({ "op": "keyRelease", "key": sealed["secret"] })), json!({ "released": true }));
+    assert_eq!(held(), before);
+
+    // Typed: a response secret opens no stored value, and a data key opens no response. Neither can be brought in.
+    let (sealed, _, _) = ask_with(request(json!({ "keep": true })), &[&entropy]).unwrap();
+    assert!(migration_json(&json!({ "op": "sealValue", "key": sealed["secret"], "nonce": NONCE, "name": "np.n", "value": "v" }).to_string()).unwrap_err().starts_with("wrong_key_purpose"));
+    let data = ask_with(json!({ "op": "keyImport", "purpose": "data", "key": { "$secret": 0 } }), &[&KEY]).unwrap().0["key"].clone();
+    assert!(migration_json(&json!({ "op": "ohttpOpen", "enc": sealed["enc"], "secret": data, "response": "03".repeat(64) }).to_string()).unwrap_err().starts_with("wrong_key_purpose"));
+    assert!(ask_with(json!({ "op": "keyImport", "purpose": "ohttp", "key": { "$secret": 0 } }), &[&KEY]).is_err());
+    ask(json!({ "op": "keyRelease", "key": sealed["secret"] }));
+
+    // Without `keep`, through the secret entry point, the secret is bytes beside the answer and still not text.
+    let (plain, beside, text) = ask_with(request(json!({})), &[&entropy]).unwrap();
+    assert_eq!(plain["secret"], json!({ "$secret": 0 }));
+    assert_eq!(hex(&beside[0]), old_secret);
+    assert!(!text.contains(&old_secret[..16]));
+    assert!(migration_json(&request(json!({ "keep": "yes" })).to_string()).is_err());
+}

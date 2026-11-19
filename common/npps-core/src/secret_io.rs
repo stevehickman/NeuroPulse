@@ -65,8 +65,9 @@ pub const MAX_KEYS: usize = 64;
 const IMPORTED: [&str; 3] = ["data", "signing", "cloud"];
 /// The purposes `deriveBundleKey` may keep its result under.
 pub(crate) const DERIVED: [&str; 2] = ["bundle", "wrapping"];
-/// Purposes only the core itself keeps a key under: a direct link's channel keys (`link.rs`). No request can ask for one.
-const INTERNAL: [&str; 1] = ["link"];
+/// Purposes only the core itself keeps a key under: a direct link's channel keys (`link.rs`), and the secret an Oblivious
+/// HTTP response is opened or sealed with (`ohttp.rs`). No request can bring one in or derive one.
+const INTERNAL: [&str; 2] = ["link", "ohttp"];
 
 struct Table {
     next: u64,
@@ -201,6 +202,14 @@ pub(crate) fn kept(req: &Value, field: &str, purposes: &[&str]) -> R<Secret> {
         return Err(format!("{field} is not a kept key"));
     }
     secret(req, field, purposes)
+}
+
+/// As [`secret`], for a key that is used once: if the request names a kept key, it is wiped and forgotten as it is read,
+/// whether or not what it is then used for succeeds.
+pub(crate) fn take(req: &Value, field: &str, purposes: &[&str]) -> R<Secret> {
+    let key = secret(req, field, purposes)?;
+    release(&req[field]);
+    Ok(key)
 }
 
 /// Wipe and forget the key `handle` names (`{"$handle": n}`), if it names one. True if there was such a key.

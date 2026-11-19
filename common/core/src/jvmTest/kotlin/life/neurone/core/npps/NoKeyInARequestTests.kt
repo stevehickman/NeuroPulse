@@ -25,6 +25,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -140,5 +141,44 @@ class NoKeyInARequestTests {
             assertEquals(token, headers["x-amz-security-token"])
             uhdr
         }) { uhdr -> listOf(hex(seed), hex(credentialSeed), hex(uhdr.k1), secret, token, hex(secret.encodeToByteArray())) }
+    }
+
+    // @verifies SWR-MG-32#g
+    @Test
+    fun anObliviousRequestsEntropyAndResponseSecretAreInNoRequestAndTheSecretIsGoneOnceTheAnswerIsOpenedOrGivenUp() {
+        fun core(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) = NppsCore.migration(buildJsonObject { put("op", op); build() })
+        val gateway = core("ohttpGenerateKey") { put("seed", "05".repeat(32)); put("keyId", 1) }
+        val keyConfig = gateway["keyConfig"]!!.jsonPrimitive.content
+        val entropy = ByteArray(32) { (it * 11 + 5).toByte() }
+        // What the response secret is, worked out the older way (everything in the JSON), so it can be searched for.
+        val secretHex = core("ohttpSeal") {
+            put("keyConfig", keyConfig); put("method", "POST"); put("scheme", "https"); put("authority", "fleet.example"); put("path", "/v1/shdr")
+            put("headers", kotlinx.serialization.json.JsonArray(listOf(
+                kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("X-NP-Device-Token"), kotlinx.serialization.json.JsonPrimitive("tok"))),
+                kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive("content-type"), kotlinx.serialization.json.JsonPrimitive("application/octet-stream"))),
+            )))
+            put("body", hex("record".encodeToByteArray())); put("entropy", hex(entropy))
+        }["secret"]!!.jsonPrimitive.content
+        recording({
+            // An answer that is opened: the gateway's reply, made the older way so this test holds no handle of its own.
+            val sealed = life.neurone.core.analytics.FleetOhttp.seal(keyConfig, "fleet.example", "/v1/shdr", "X-NP-Device-Token", "tok", "record".encodeToByteArray(), entropy.copyOf())
+            assertFalse(sealed.toString().contains(secretHex.take(16)))
+            // The gateway below is this test's own stand-in, made the older way: it is not a host request, so it is not recorded.
+            NppsCore.requestObserver = null
+            val g = core("ohttpGatewayOpen") { put("keyConfig", keyConfig); put("privateKey", gateway["privateKey"]!!); put("request", hex(sealed.request)) }
+            val reply = core("ohttpGatewaySeal") {
+                put("enc", g["enc"]!!); put("secret", g["secret"]!!); put("status", 204)
+                put("headers", kotlinx.serialization.json.JsonArray(emptyList())); put("body", ""); put("entropy", "01".repeat(16))
+            }["response"]!!.jsonPrimitive.content
+            NppsCore.requestObserver = { seen += it }
+            val answer = life.neurone.core.analytics.FleetOhttp.open(sealed, reply.chunked(2).map { it.toInt(16).toByte() }.toByteArray())
+            assertEquals(204, answer.status)
+            sealed.close()   // after the answer: nothing left to do, and it does not throw
+            // One whose answer never comes, and one the relay refuses: the secret is given up.
+            life.neurone.core.analytics.FleetOhttp.seal(keyConfig, "fleet.example", "/v1/shdr", "X-NP-Device-Token", "tok", ByteArray(1), entropy.copyOf()).close()
+            val refused = life.neurone.core.analytics.FleetOhttp.seal(keyConfig, "fleet.example", "/v1/shdr", "X-NP-Device-Token", "tok", ByteArray(1), entropy.copyOf())
+            assertFalse(life.neurone.core.analytics.FleetOhttp.accepted(refused, relayOk = false, contentType = null, body = null))
+            Unit
+        }) { listOf(secretHex, secretHex.take(16), hex(entropy), hex(entropy).take(16)) }
     }
 }
