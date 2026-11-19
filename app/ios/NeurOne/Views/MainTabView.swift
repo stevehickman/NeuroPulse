@@ -77,12 +77,22 @@ struct MainTabView: View {
             .tag(2)
     }
 
+    /// The invitations the dashboard offers: open, covered by the current consent, and none while a stored
+    /// consent record is unreadable (`REQ-CONSENT-19` d, `REQ-CONSENT-20`). The badge counts the same ones.
+    private var answerableInvitationCount: Int {
+        guard !consent.consentRecordUnreadable else { return 0 }
+        let state = consent.researchConsent
+        return consent.pendingInvitations
+            .filter { $0.isOpen && ConsentEngine.covers(state, categories: $0.researchCategories) }
+            .count
+    }
+
     private var consentTab: some View {
         ConsentDashboardView()
             .tabItem {
                 Label(String(localized: "SETUP_PRIVACY_CARD_TITLE"), systemImage: "lock.shield")
             }
-            .badge(consent.pendingInvitations.filter(\.isOpen).count)
+            .badge(answerableInvitationCount)
             .tag(3)
     }
 

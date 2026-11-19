@@ -69,6 +69,10 @@ val generateValidationStrings by tasks.registering {
 //   Google:    cloudAuth.google.clientId     CLOUDAUTH_GOOGLE_CLIENT_ID      (required)
 //              cloudAuth.google.redirectUri  CLOUDAUTH_GOOGLE_REDIRECT_URI   (required)
 //              cloudAuth.google.clientSecret CLOUDAUTH_GOOGLE_CLIENT_SECRET  (optional: a desktop-type client only)
+//              The "secret" is the value Google issues with a Desktop app client. It ships in the app, so it is public and is treated
+//              as public: never the secret of a confidential (web-server or service) client, never reused for one. The build refuses
+//              it beside a redirect that is not a computer's loopback address, so it cannot be compiled into a phone build
+//              (SWR-MG-19 (m), NP-SW-CLOUDSTORE-001 §4c.13). The CloudKit API token is public by design (same section).
 //   Microsoft: cloudAuth.microsoft.clientId / .redirectUri (required), .oneDriveTenant / .azureTenant (optional)
 //              CLOUDAUTH_MICROSOFT_CLIENT_ID / _REDIRECT_URI / _ONEDRIVE_TENANT / _AZURE_TENANT
 //   Dropbox:   cloudAuth.dropbox.appKey / .redirectUri (required)   CLOUDAUTH_DROPBOX_APP_KEY / _REDIRECT_URI
@@ -94,6 +98,12 @@ val cloudAuthConfigSource: String = run {
     val ckCallback = cloudAuthInput("cloudAuth.cloudKit.signInCallbackUri", "CLOUDAUTH_CLOUDKIT_SIGN_IN_CALLBACK_URI")
     val ckEnvironment = cloudAuthInput("cloudAuth.cloudKit.environment", "CLOUDAUTH_CLOUDKIT_ENVIRONMENT")
     val ckBase = cloudAuthInput("cloudAuth.cloudKit.baseUrl", "CLOUDAUTH_CLOUDKIT_BASE_URL")
+    if (gSecret != null && gRedirect != null && !Regex("^http://(127\\.0\\.0\\.1|localhost):[0-9]{1,5}(/.*)?$", RegexOption.IGNORE_CASE).matches(gRedirect)) {
+        throw GradleException(
+            "cloudAuth.google.clientSecret is set beside a redirect that is not http://127.0.0.1:<port>. Google issues that value with a " +
+                "Desktop app client only; an Android or iOS client has none. Remove it from this build (SWR-MG-19 (m)).",
+        )
+    }
     fun arg(name: String, value: String?) = if (value != null) "$name = ${kotlinLiteral(value)}" else null
     val google = if (gId != null && gRedirect != null) {
         "OAuthClientConfig(" + listOfNotNull(arg("clientId", gId), arg("redirectUri", gRedirect), arg("clientSecret", gSecret)).joinToString(", ") + ")"

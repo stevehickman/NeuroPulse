@@ -14,8 +14,14 @@ import life.neurone.core.platform.epochSeconds
 /**
  * What the phone that holds the bundle shows, and keeps until it is spent. [expiresAt] is Unix seconds; [triesLeft] is what
  * is left after the sessions already tried (each one costs a try, wrong or not).
+ *
+ * [toString] does not print the code (`SWR-MG-28` (f)): whoever reads it within its life can pair as the new phone, and a
+ * data class's generated `toString` would put it in any log line or exception message the offer is formatted into. The
+ * code is read from [code], by the screen that shows it and the flow that serves it.
  */
 data class PairingOffer(val code: String, val expiresAt: Long, val triesLeft: Int) {
+    override fun toString(): String = "PairingOffer(code=<redacted>, expiresAt=$expiresAt, triesLeft=$triesLeft)"
+
     internal fun toJson(): JsonObject = buildJsonObject {
         put("code", code)
         put("expiresAt", expiresAt)

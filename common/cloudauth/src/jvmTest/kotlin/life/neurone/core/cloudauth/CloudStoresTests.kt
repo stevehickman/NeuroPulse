@@ -191,7 +191,7 @@ class CloudStoresTests {
         assertTrue("api.apple-cloudkit.com" in url && "iCloud.test.app" in url && "ckAPIToken=ck-api-token" in url && "ckWebAuthToken=web-token-1" in url, url)
 
         // The same credentials under a build with no container: the store is refused, naming what is missing.
-        val unregistered = CloudAuth(rig.providers, CredentialStore(rig.kv), CloudAuthConfig(), rig.browser)
+        val unregistered = CloudAuth(rig.providers, rig.credentials, CloudAuthConfig(), rig.browser)
         val e = assertFailsWith<CloudAuthException> { CloudStores.storeFor(unregistered, api, account) }
         assertEquals(CloudAuthProblem.NOT_CONFIGURED, e.problem)
     }
