@@ -4,7 +4,7 @@
 //! destroying the key makes it unreadable. The key store is each platform's; the sealing is here, once, so that a value one
 //! platform wrote is the same bytes another reads and no app carries a second implementation. A value is sealed with
 //! AES-256-GCM under a random 12-byte nonce, and the value's own name is the associated data, so a sealed value copied under
-//! another name does not open. Nothing is kept: the key and the nonce are handed in for one call.
+//! another name does not open. The key is handed in for one call as bytes beside the request, or named by the handle of a key the core keeps (`secret_io`, `SWR-MG-30`); the nonce is handed in for one call.
 //!
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
@@ -15,7 +15,6 @@ use crate::migration::{hex, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Value};
-use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -32,7 +31,7 @@ fn aad(name: &str) -> Vec<u8> {
 /// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
 /// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["data", "wrapping"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }

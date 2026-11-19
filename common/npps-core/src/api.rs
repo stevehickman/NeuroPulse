@@ -330,3 +330,9 @@ pub fn library_json(request: &str) -> Result<String, String> {
 pub fn migration_json(request: &str) -> Result<String, String> {
     crate::migration::migration_json(request)
 }
+
+/// [`migration_json`] with the request's secrets beside it as bytes and the answer's secrets beside the answer
+/// (`SWR-MG-30`): the form every binding uses for an operation that takes or returns a key. See `secret_io`.
+pub fn migration_secret_json(request: &str, secrets: &[u8]) -> Result<(String, zeroize::Zeroizing<Vec<u8>>), String> {
+    crate::secret_io::migration_secret_json(request, secrets)
+}

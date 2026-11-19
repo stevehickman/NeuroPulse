@@ -120,6 +120,64 @@ object NppsCore {
      */
     fun migration(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeMigration(request.toString())) as JsonObject
 
+    /**
+     * What [migrationSecret] answers: the JSON, and the secrets it names as `{"$secret": n}`, as bytes. Call [clear] when the
+     * secrets have been used or handed to something that keeps them (a keystore): it overwrites them.
+     */
+    class SecretAnswer(val answer: JsonObject, val secrets: List<ByteArray>) {
+        fun clear() = secrets.forEach { it.fill(0) }
+        override fun toString(): String = "SecretAnswer(${secrets.size} secret(s), <redacted>)"
+    }
+
+    /**
+     * [migration] for an operation that takes or returns a key (`SWR-MG-30`). The request names a secret as
+     * `{"$secret": n}` and `secrets[n]` holds its bytes; a secret in the answer comes back the same way. **A key is never
+     * text on this path**: not in the request, not in the answer, not in a `String` this function makes. The arrays in
+     * [secrets] are the caller's to overwrite; the framed copy made here is overwritten before this returns, whether the
+     * core answered or refused. A key the core keeps is named `{"$handle": n}` and needs no bytes: it goes through
+     * [migration].
+     */
+    fun migrationSecret(request: JsonObject, secrets: List<ByteArray>): SecretAnswer {
+        val framed = ByteArray(secrets.sumOf { 4 + it.size })
+        var at = 0
+        for (s in secrets) {
+            putLength(framed, at, s.size)
+            s.copyInto(framed, at + 4)
+            at += 4 + s.size
+        }
+        val out = try {
+            backend.migrationSecret(request.toString(), framed)
+        } finally {
+            framed.fill(0)
+        }
+        try {
+            val answerLength = length(out, 0)
+            val answer = Json.parseToJsonElement(out.decodeToString(4, 4 + answerLength)) as JsonObject
+            val answered = mutableListOf<ByteArray>()
+            var i = 4 + answerLength
+            while (i < out.size) {
+                val n = length(out, i)
+                answered += out.copyOfRange(i + 4, i + 4 + n)
+                i += 4 + n
+            }
+            return SecretAnswer(answer, answered)
+        } finally {
+            out.fill(0)
+        }
+    }
+
+    private fun putLength(into: ByteArray, at: Int, n: Int) {
+        for (k in 0..3) into[at + k] = (n ushr (24 - 8 * k)).toByte()
+    }
+
+    private fun length(from: ByteArray, at: Int): Int {
+        require(at + 4 <= from.size) { "The core's answer is cut short" }
+        var n = 0
+        for (k in 0..3) n = (n shl 8) or (from[at + k].toInt() and 0xff)
+        require(n >= 0 && at + 4 + n <= from.size) { "The core's answer is cut short" }
+        return n
+    }
+
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(
         /** Zone name → its 1-based socket ids. */

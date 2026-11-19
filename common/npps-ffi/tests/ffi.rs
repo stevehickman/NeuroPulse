@@ -5,7 +5,7 @@
 
 use neurone_npps_core::constants::status;
 use neurone_npps_ffi::{
-    npps_alloc, npps_compile_json, npps_free, npps_library_json, npps_migration_json, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
+    npps_alloc, npps_compile_json, npps_free, npps_library_json, npps_migration_json, npps_migration_secret_json, npps_namespace_json, npps_parse_json, npps_serialize_json, npps_validate_json,
 };
 use serde_json::Value;
 use std::fs;
@@ -231,4 +231,47 @@ fn the_migration_rules_cross_the_c_abi_and_a_newer_bundle_is_refused_whole() {
     let (code, out) = run(npps_migration_json, br#"{"op":"nope"}"#);
     assert_eq!(code, status::REFUSED);
     assert!(String::from_utf8(out).unwrap().contains("unknown migration operation"));
+}
+
+// @verifies SWR-MG-30#a
+#[test]
+fn a_key_crosses_the_c_abi_beside_the_request_and_comes_back_beside_the_answer() {
+    let key = [0x42u8; 32];
+    let mut secrets = 32u32.to_be_bytes().to_vec();
+    secrets.extend_from_slice(&key);
+    let call = |request: &str, secrets: &[u8]| {
+        let (mut out, mut len, mut beside, mut beside_len) = (ptr::null_mut(), 0usize, ptr::null_mut(), 0usize);
+        let code = unsafe { npps_migration_secret_json(request.as_ptr(), request.len(), secrets.as_ptr(), secrets.len(), &mut out, &mut len, &mut beside, &mut beside_len) };
+        let answer = unsafe { std::slice::from_raw_parts(out, len).to_vec() };
+        let secret = if beside.is_null() { vec![] } else { unsafe { std::slice::from_raw_parts(beside, beside_len).to_vec() } };
+        unsafe { npps_free(out, len) };
+        unsafe { npps_free(beside, beside_len) };
+        (code, String::from_utf8(answer).unwrap(), secret)
+    };
+    let seal = r#"{"op":"sealValue","key":{"$secret":0},"nonce":"a0a1a2a3a4a5a6a7a8a9aaab","name":"np.n","value":"v"}"#;
+    let (code, answer, beside) = call(seal, &secrets);
+    assert_eq!(code, status::OK);
+    assert!(beside.is_empty());
+    let (_, by_hex) = run(npps_migration_json, format!(r#"{{"op":"sealValue","key":"{}","nonce":"a0a1a2a3a4a5a6a7a8a9aaab","name":"np.n","value":"v"}}"#, hex(&key)).as_bytes());
+    assert_eq!(answer.as_bytes(), by_hex, "the same sealed bytes as the key in hex gave");
+
+    // A derived key: named in the answer, its bytes beside it, and not in the answer's text.
+    let derive = format!(r#"{{"op":"deriveUhdrKey","seed":{{"$secret":0}},"salt":"{}"}}"#, "09".repeat(32));
+    let (code, answer, beside) = call(&derive, &secrets);
+    assert_eq!(code, status::OK);
+    assert_eq!(answer, r#"{"key":{"$secret":0},"ok":true}"#);
+    assert_eq!(&beside[..4], &64u32.to_be_bytes());
+    assert_eq!(beside.len(), 4 + 64);
+    assert!(!answer.contains(&hex(&beside[4..12])));
+
+    // Refused: a secret that was not given, a buffer that is not framed, and null out cells.
+    let (code, message, beside) = call(seal, &[]);
+    assert_eq!(code, status::REFUSED);
+    assert!(message.contains("was not given") && beside.is_empty());
+    assert_eq!(call(seal, &[0, 0, 0, 9, 1]).0, status::REFUSED);
+    let (mut out, mut len) = (ptr::null_mut(), 0usize);
+    let code = unsafe { npps_migration_secret_json(seal.as_ptr(), seal.len(), ptr::null(), 0, &mut out, &mut len, ptr::null_mut(), ptr::null_mut()) };
+    assert_eq!(code, status::BAD_ARGUMENT);
+    let code = unsafe { npps_migration_secret_json(seal.as_ptr(), seal.len(), ptr::null(), 5, &mut out, &mut len, ptr::null_mut(), &mut len) };
+    assert_eq!(code, status::BAD_ARGUMENT);
 }

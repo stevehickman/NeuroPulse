@@ -78,7 +78,9 @@ fn clean(s: &str, what: &str) -> R<String> {
 pub(crate) fn sign(req: &Value) -> R<Value> {
     let (method, host, path) = (text(req, "method")?, text(req, "host")?, text(req, "path")?);
     let (region, service) = (text(req, "region")?, text(req, "service")?);
-    let (key_id, secret, amz_date) = (text(req, "accessKeyId")?, text(req, "secretAccessKey")?, text(req, "amzDate")?);
+    let (key_id, amz_date) = (text(req, "accessKeyId")?, text(req, "amzDate")?);
+    let secret = crate::secret_io::secret_text(req, "secretAccessKey", &["cloud"])?;
+    let secret = secret.as_str();
     let payload_hash = text(req, "payloadHash")?;
     let b = amz_date.as_bytes();
     let date_ok = b.len() == 16 && b[8] == b'T' && b[15] == b'Z' && b.iter().enumerate().all(|(i, c)| i == 8 || i == 15 || c.is_ascii_digit());
@@ -110,8 +112,10 @@ pub(crate) fn sign(req: &Value) -> R<Value> {
     let mut added = Map::new();
     added.insert("x-amz-date".into(), json!(amz_date));
     added.insert("x-amz-content-sha256".into(), json!(payload_hash));
-    if let Some(token) = req.get("sessionToken").and_then(Value::as_str).filter(|t| !t.is_empty()) {
-        added.insert("x-amz-security-token".into(), json!(clean(token, "the session token")?));
+    if !req["sessionToken"].is_null() && req["sessionToken"] != "" {
+        // The token is sent as a header, so it is in the answer as text whichever way it came in.
+        let token = crate::secret_io::secret_text(req, "sessionToken", &[])?;
+        added.insert("x-amz-security-token".into(), json!(clean(&token, "the session token")?));
     }
     for (n, v) in &added {
         headers.insert(n.clone(), v.as_str().unwrap().to_string());

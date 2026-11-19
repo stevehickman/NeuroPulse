@@ -7,19 +7,30 @@
 //! platform (`CLAUDE.md` §22): a Kotlin, Swift or C# copy would be a second implementation of cryptography.
 //!
 //! # The file
-//! `header ‖ chunk₀ ‖ chunk₁ ‖ … ‖ chunkₙ`, where the header is `"NPAR" ‖ version (1) ‖ prefix (8 bytes) ‖ kdf length (2, big
-//! endian) ‖ kdf (JSON)`. The `kdf` is the bundle key's own block (`bundle_key`): how the key was made from the person's code or
+//! `header ‖ chunk₀ ‖ chunk₁ ‖ … ‖ chunkₙ`, where the header is `"NPAR" ‖ version (1) ‖ salt (16 random bytes) ‖ kdf length
+//! (2, big endian) ‖ kdf (JSON)`. The `kdf` is the bundle key's own block (`bundle_key`): how the key was made from the person's code or
 //! passphrase, so a restore on a new phone knows what to ask for. It is present in the file that indexes the others and may be
-//! empty in the rest. Every chunk is AES-256-GCM of up to [`CHUNK_BYTES`] bytes plus a 16-byte tag, under the nonce
-//! `prefix ‖ counter (4, big endian)`, with the whole header and a final-chunk flag as the associated data. So a chunk moved,
-//! repeated, dropped from the middle, or cut off the end fails to open, and a wrong key and an edited file are not told apart
+//! empty in the rest. Every chunk is AES-256-GCM of up to [`CHUNK_BYTES`] bytes plus a 16-byte tag, **under a key of the
+//! file's own**, with the chunk's number as the nonce and the whole header and a final-chunk flag as the associated data. So
+//! a chunk moved, repeated, dropped from the middle, or cut off the end fails to open, and a wrong key and an edited file
+//! are not told apart
 //! (`authentication_failed`). Every chunk is full except the last, which is the one the file ends with and may be empty only if
 //! the whole recording is.
 //!
+//! # The file's own key (`SWR-MG-29`; the principal, 2026-11-19)
+//! `file key = HKDF-SHA-256(key = the backup key, salt = the header's salt, info = "np.archive.file-key" ‖ the header)`, 32
+//! bytes (RFC 5869). The backup key is one key for every recording of a backup, for as long as the person keeps the same
+//! recovery code or passphrase, so sealing every file under it directly would rest the whole backup on no two files ever
+//! being given the same nonce. Under a key per file the nonce is only a count within one file, which cannot repeat (the
+//! count is refused above 2³² − 1), and two files share a key only if they draw the same 16 random bytes (about n² / 2¹²⁹
+//! for n files). The header is in `info`, so the key is bound to the file it heads. A file sealed before this (the backup
+//! key used directly, an 8-byte random nonce prefix, `UC-194`) is not read: nothing had been released, so the format
+//! version did not change and no such file exists to keep readable.
+//!
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
-//! | `archiveInfo` | none | `{chunkBytes, tagBytes, prefixBytes, headerBytes}`: the fixed sizes a driver cuts a file by |
-//! | `archiveStart` | `prefix` (8 bytes, hex, random), `kdf` (optional) | `{header}` (hex) |
+//! | `archiveInfo` | none | `{chunkBytes, tagBytes, saltBytes, headerBytes}`: the fixed sizes a driver cuts a file by |
+//! | `archiveStart` | `salt` (16 bytes, hex, random: a new one for every file), `kdf` (optional) | `{header}` (hex) |
 //! | `archiveReadHeader` | `bytes`: the first bytes of a file (hex; at least [`HEADER_BYTES`] and as many more as the `kdf` needs, [`MAX_KDF`] at most) | `{ok: true, headerLength, kdf}` or `{ok: false, reason}`: `malformed`, `truncated` or `newer_version` |
 //! | `archiveSealChunk` | `key`, `header` (hex, the whole header), `counter`, `last`, `data` (hex) | `{sealed}` (hex) |
 //! | `archiveOpenChunk` | `key`, `header`, `counter`, `last`, `sealed` | `{ok: true, data}` or `{ok: false, reason: "authentication_failed"}` |
@@ -28,6 +39,8 @@ use crate::bundle_key;
 use crate::migration::{hex, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
+use hkdf::Hkdf;
+use sha2::Sha256;
 use serde_json::{json, Value};
 use zeroize::Zeroizing;
 
@@ -38,25 +51,33 @@ const VERSION: u8 = 1;
 /// A chunk's plaintext length. A platform cuts a recording by this and the core refuses a longer one.
 pub const CHUNK_BYTES: usize = 64 * 1024;
 const TAG_BYTES: usize = 16;
-const PREFIX_BYTES: usize = 8;
-/// Magic, version, prefix and the length of the kdf: the part of the header that is always there.
-pub const HEADER_BYTES: usize = 4 + 1 + PREFIX_BYTES + 2;
+/// The random bytes a file's own key is made with. 16 bytes: two files of one backup sharing them is about n² / 2¹²⁹.
+const SALT_BYTES: usize = 16;
+const FILE_KEY_INFO: &[u8] = b"np.archive.file-key";
+/// Magic, version, salt and the length of the kdf: the part of the header that is always there.
+pub const HEADER_BYTES: usize = 4 + 1 + SALT_BYTES + 2;
 /// The longest kdf block a header may carry. The block is a few dozen bytes; anything near this is not one.
 pub const MAX_KDF: usize = 1024;
 const KEY_LEN: usize = 32;
 
-/// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
-/// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
-fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+/// The cipher for one file: the request's backup key and the file's `header` make the file's own key (the module text).
+/// The decoded backup key and the file key are wiped when this returns, and the cipher wipes its own copy when it is
+/// dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
+fn cipher(req: &Value, header: &[u8]) -> R<Aes256Gcm> {
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
-    Aes256Gcm::new_from_slice(&key).map_err(|_| "the key is not usable".to_string())
+    let mut file_key = Zeroizing::new([0u8; KEY_LEN]);
+    Hkdf::<Sha256>::new(Some(&header[5..5 + SALT_BYTES]), &key)
+        .expand_multi_info(&[FILE_KEY_INFO, header], &mut *file_key)
+        .map_err(|_| "the file key could not be made".to_string())?;
+    Aes256Gcm::new_from_slice(&*file_key).map_err(|_| "the key is not usable".to_string())
 }
 
-/// The nonce of chunk `counter` and its associated data (the header, then whether it is the last chunk).
-fn frame(req: &Value) -> R<([u8; 12], Vec<u8>)> {
+/// What one chunk is sealed with: the file's header, the nonce of chunk `counter` (the count alone: the key is the
+/// file's own) and the associated data (the header, then whether it is the last chunk).
+fn frame(req: &Value) -> R<(Vec<u8>, [u8; 12], Vec<u8>)> {
     let header = unhex(req["header"].as_str().ok_or("header is required")?, "header")?;
     let parsed = read_header(&header)?;
     let Value::Object(_) = parsed else { return Err("the header is not readable".into()) };
@@ -72,17 +93,16 @@ fn frame(req: &Value) -> R<([u8; 12], Vec<u8>)> {
     }
     let last = req["last"].as_bool().ok_or("last is required")?;
     let mut nonce = [0u8; 12];
-    nonce[..PREFIX_BYTES].copy_from_slice(&header[5..5 + PREFIX_BYTES]);
-    nonce[PREFIX_BYTES..].copy_from_slice(&(counter as u32).to_be_bytes());
-    let mut aad = header;
+    nonce[8..].copy_from_slice(&(counter as u32).to_be_bytes());
+    let mut aad = header.clone();
     aad.push(u8::from(last));
-    Ok((nonce, aad))
+    Ok((header, nonce, aad))
 }
 
 fn start(req: &Value) -> R<Value> {
-    let prefix = unhex(req["prefix"].as_str().ok_or("prefix is required")?, "prefix")?;
-    if prefix.len() != PREFIX_BYTES {
-        return Err(format!("the prefix is {PREFIX_BYTES} bytes"));
+    let salt = unhex(req["salt"].as_str().ok_or("salt is required")?, "salt")?;
+    if salt.len() != SALT_BYTES {
+        return Err(format!("the salt is {SALT_BYTES} bytes"));
     }
     let kdf = match req.get("kdf") {
         None | Some(Value::Null) => Vec::new(),
@@ -96,7 +116,7 @@ fn start(req: &Value) -> R<Value> {
     }
     let mut header = MAGIC.to_vec();
     header.push(VERSION);
-    header.extend_from_slice(&prefix);
+    header.extend_from_slice(&salt);
     header.extend_from_slice(&(kdf.len() as u16).to_be_bytes());
     header.extend_from_slice(&kdf);
     Ok(json!({ "header": hex(&header) }))
@@ -113,7 +133,7 @@ fn read_header(bytes: &[u8]) -> R<Value> {
     if bytes[4] != VERSION {
         return Ok(json!({ "ok": false, "reason": if bytes[4] > VERSION { "newer_version" } else { "malformed" } }));
     }
-    let kdf_len = u16::from_be_bytes([bytes[13], bytes[14]]) as usize;
+    let kdf_len = u16::from_be_bytes([bytes[HEADER_BYTES - 2], bytes[HEADER_BYTES - 1]]) as usize;
     if kdf_len > MAX_KDF {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     }
@@ -133,24 +153,24 @@ fn read_header(bytes: &[u8]) -> R<Value> {
 }
 
 fn seal_chunk(req: &Value) -> R<Value> {
-    let (nonce, aad) = frame(req)?;
+    let (header, nonce, aad) = frame(req)?;
     let data = unhex(req["data"].as_str().ok_or("data is required")?, "data")?;
     if data.len() > CHUNK_BYTES {
         return Err(format!("a chunk is at most {CHUNK_BYTES} bytes"));
     }
-    let ct = cipher(req)?
+    let ct = cipher(req, &header)?
         .encrypt(Nonce::from_slice(&nonce), Payload { msg: &data, aad: &aad })
         .map_err(|_| "encryption failed".to_string())?;
     Ok(json!({ "sealed": hex(&ct) }))
 }
 
 fn open_chunk(req: &Value) -> R<Value> {
-    let (nonce, aad) = frame(req)?;
+    let (header, nonce, aad) = frame(req)?;
     let sealed = unhex(req["sealed"].as_str().ok_or("sealed is required")?, "sealed")?;
     if sealed.len() < TAG_BYTES || sealed.len() > CHUNK_BYTES + TAG_BYTES {
         return Ok(json!({ "ok": false, "reason": "authentication_failed" }));
     }
-    Ok(match cipher(req)?.decrypt(Nonce::from_slice(&nonce), Payload { msg: &sealed, aad: &aad }) {
+    Ok(match cipher(req, &header)?.decrypt(Nonce::from_slice(&nonce), Payload { msg: &sealed, aad: &aad }) {
         Ok(plain) => json!({ "ok": true, "data": hex(&plain) }),
         Err(_) => json!({ "ok": false, "reason": "authentication_failed" }),
     })
@@ -162,7 +182,7 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
         "archiveInfo" => Ok(json!({
             "chunkBytes": CHUNK_BYTES,
             "tagBytes": TAG_BYTES,
-            "prefixBytes": PREFIX_BYTES,
+            "saltBytes": SALT_BYTES,
             "headerBytes": HEADER_BYTES,
             "maxKdfBytes": MAX_KDF,
         })),
@@ -184,7 +204,7 @@ mod tests {
 
     const KEY: &str = "0101010101010101010101010101010101010101010101010101010101010101";
     const OTHER: &str = "0202020202020202020202020202020202020202020202020202020202020202";
-    const PREFIX: &str = "a1a2a3a4a5a6a7a8";
+    const SALT: &str = "a1a2a3a4a5a6a7a8a9aaabacadaeafb0";
 
     fn ask(v: Value) -> Value {
         serde_json::from_str(&migration_json(&v.to_string()).unwrap()).unwrap()
@@ -195,7 +215,7 @@ mod tests {
     }
 
     fn header(with_kdf: bool) -> String {
-        let mut req = json!({"op":"archiveStart","prefix":PREFIX});
+        let mut req = json!({"op":"archiveStart","salt":SALT});
         if with_kdf {
             req["kdf"] = kdf();
         }
@@ -302,7 +322,7 @@ mod tests {
     fn a_header_that_is_edited_is_refused_and_so_is_a_chunk_sealed_under_another_header() {
         let file = seal(b"abc", KEY, &header(false));
         let mut edited = file.clone();
-        edited[6] ^= 1; // a byte of the prefix: the nonce and the associated data both change
+        edited[6] ^= 1; // a byte of the salt: the file key and the associated data both change
         assert_eq!(open(&edited, KEY).unwrap_err(), "authentication_failed");
         let mut bad_magic = file.clone();
         bad_magic[0] = b'X';
@@ -324,8 +344,8 @@ mod tests {
         // A kdf block the bundle key would refuse (a cheaper derivation) is not written into a header.
         let mut weak = kdf();
         weak["memoryKiB"] = json!(8);
-        assert!(migration_json(&json!({"op":"archiveStart","prefix":PREFIX,"kdf":weak}).to_string()).is_err());
-        assert!(migration_json(&json!({"op":"archiveStart","prefix":"00"}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"archiveStart","salt":SALT,"kdf":weak}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"archiveStart","salt":"00"}).to_string()).is_err());
         let info = ask(json!({"op":"archiveInfo"}));
         assert_eq!(info["chunkBytes"], CHUNK_BYTES);
     }

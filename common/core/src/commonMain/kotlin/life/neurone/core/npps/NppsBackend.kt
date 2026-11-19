@@ -23,6 +23,20 @@ internal interface NppsBackend {
 
     /** The device-replacement migration and UHDR backup rules (`SWR-MG`): `{"op": …}` in, JSON out. */
     fun migration(request: String): String
+
+    /**
+     * [migration] for an operation that takes or returns a key (`SWR-MG-30`): [secrets] travels beside the request as bytes
+     * (each a 4-byte big-endian length and then the bytes; the n-th is `{"$secret": n}` in the JSON) and is never text. The
+     * answer is one array: a 4-byte big-endian length and the answer's JSON, then the answer's secrets framed the same way.
+     * The caller overwrites both arrays.
+     *
+     * A binding that has not been given this entry point yet refuses here, by name, and nothing falls back to sending the
+     * key as text: built on the JVM and Android (JNI); the Kotlin bindings for iOS and for the browser are still to do
+     * (`OI-PRIV-12`).
+     */
+    fun migrationSecret(request: String, secrets: ByteArray): ByteArray = throw UnsupportedOperationException(
+        "This binding of the shared NPPS core cannot yet take a key as bytes (OI-PRIV-12 stage 2).",
+    )
 }
 
 /** The backend this target has, or one that refuses with a message naming the missing binding. */

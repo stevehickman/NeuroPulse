@@ -113,7 +113,7 @@ fn the_backup_key_is_cleared_after_a_bundle_and_a_recording_chunk_are_sealed_and
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     let key = hex(&RAW_KEY);
     let kdf = ask(json!({ "op": "bundleKdf", "method": "recoveryCode", "salt": "5a".repeat(32) }))["kdf"].clone();
-    let header = ask(json!({ "op": "archiveStart", "prefix": "0102030405060708" }))["header"].clone();
+    let header = ask(json!({ "op": "archiveStart", "salt": "0102030405060708090a0b0c0d0e0f10" }))["header"].clone();
     let n = released_holding(&[&RAW_KEY[..PART]], || {
         let b = ask(json!({ "op": "sealBundle", "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": kdf }));
         let opened = ask(json!({ "op": "openBundle", "bundle": b["bundle"], "key": key }));
@@ -123,6 +123,18 @@ fn the_backup_key_is_cleared_after_a_bundle_and_a_recording_chunk_are_sealed_and
         assert_eq!(o["data"], "00ff", "{o}");
     });
     assert_eq!(n, 0, "a bundle or archive operation released the decoded key uncleared");
+
+    // The recording's own key (`SWR-MG-29`) is made from the backup key and the header, and is as much a key: made here
+    // by the same recipe, on the stack, so that every copy of it on the heap is one the core made.
+    let header_bytes: Vec<u8> = (0..header.as_str().unwrap().len()).step_by(2).map(|i| u8::from_str_radix(&header.as_str().unwrap()[i..i + 2], 16).unwrap()).collect();
+    let mut file_key = [0u8; 32];
+    hkdf::Hkdf::<sha2::Sha256>::new(Some(&header_bytes[5..21]), &RAW_KEY).expand_multi_info(&[b"np.archive.file-key", &header_bytes], &mut file_key).unwrap();
+    let n = released_holding(&[&file_key[..PART]], || {
+        let c = ask(json!({ "op": "archiveSealChunk", "key": key, "header": header, "counter": 1, "last": false, "data": "ab" }));
+        let o = ask(json!({ "op": "archiveOpenChunk", "key": key, "header": header, "counter": 1, "last": false, "sealed": c["sealed"] }));
+        assert_eq!(o["data"], "ab", "{o}");
+    });
+    assert_eq!(n, 0, "an archive operation released the file's own key uncleared");
 }
 
 // @verifies SWR-MG-28#c

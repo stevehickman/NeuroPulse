@@ -26,6 +26,7 @@ function watchReleases(): Release[] {
     npps_content_hash_json: real.npps_content_hash_json,
     npps_library_json: real.npps_library_json,
     npps_migration_json: real.npps_migration_json,
+    npps_migration_secret_json: real.npps_migration_secret_json,
     npps_free(ptr: number, len: number) {
       seen.push({ ptr, len, bytes: new Uint8Array(real.memory.buffer, ptr, len).slice() });
       real.npps_free(ptr, len);
@@ -124,6 +125,6 @@ describe('the whole of the module\'s memory after a call that carried a secret',
     expect(copiesInMemory(memory!, key)).toBe(0);
     expect(copiesInMemory(memory!, value)).toBe(0);
     // The search itself works: text the module keeps for good (a refusal it can give) is found.
-    expect(copiesInMemory(memory!, 'key is required')).toBeGreaterThan(0);
+    expect(copiesInMemory(memory!, 'unknown migration operation')).toBeGreaterThan(0);
   });
 });

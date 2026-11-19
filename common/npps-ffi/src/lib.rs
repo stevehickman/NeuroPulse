@@ -113,6 +113,43 @@ pub unsafe extern "C" fn npps_migration_json(req: *const u8, req_len: usize, out
     call(req, req_len, out, out_len, |t| api::migration_json(t).map(String::into_bytes))
 }
 
+/// `npps_migration_json` for an operation that takes or returns a key (`SWR-MG-30`): the request's secrets travel
+/// beside it in `secrets` (each a 4-byte big-endian length, then the bytes; the n-th is `{"$secret": n}` in the JSON), and
+/// the answer's secrets come back beside the answer in `secret_out`, framed the same way. Neither is ever text. The caller
+/// overwrites `secrets` when the call returns (it is the caller's buffer), copies what it needs from `secret_out` into a
+/// buffer it will clear, and releases `out` and `secret_out` with `npps_free`, which wipes them. On a refusal `out` holds
+/// the message and `secret_out` is empty.
+///
+/// # Safety
+/// As `npps_parse_json`; `secrets` points to `secrets_len` readable bytes (it may be null if `secrets_len` is 0), and
+/// `secret_out` and `secret_out_len` are valid for writes.
+#[no_mangle]
+pub unsafe extern "C" fn npps_migration_secret_json(
+    req: *const u8,
+    req_len: usize,
+    secrets: *const u8,
+    secrets_len: usize,
+    out: *mut *mut u8,
+    out_len: *mut usize,
+    secret_out: *mut *mut u8,
+    secret_out_len: *mut usize,
+) -> i32 {
+    if secret_out.is_null() || secret_out_len.is_null() || (secrets.is_null() && secrets_len != 0) {
+        return BAD_ARGUMENT;
+    }
+    *secret_out = std::ptr::null_mut();
+    *secret_out_len = 0;
+    let secrets = if secrets_len == 0 { &[][..] } else { slice::from_raw_parts(secrets, secrets_len) };
+    call(req, req_len, out, out_len, |t| {
+        let (answer, beside) = api::migration_secret_json(t, secrets)?;
+        if !beside.is_empty() {
+            // An exact copy for the caller; the core's own buffer is wiped when `beside` is dropped.
+            give(beside.to_vec(), secret_out, secret_out_len);
+        }
+        Ok(answer.into_bytes())
+    })
+}
+
 /// Release a buffer, wiped first (`SWR-MG-28` (a)). An answer of `npps_migration_json` can hold a key, a recovery secret or
 /// plaintext UHDR items, and an input allocated with `npps_alloc` can hold a passphrase; the allocator does not clear what
 /// it takes back, and WebAssembly linear memory is never returned to the system, so a buffer dropped as it is stays

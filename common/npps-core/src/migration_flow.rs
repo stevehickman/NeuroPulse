@@ -13,7 +13,7 @@
 //! `{"effect":{"type":…,…},"state":…}`, meaning "do this and call me again with the outcome", or `{"done":{…}}`. The state
 //! is opaque to the platform, is never persisted by it, and holds the flow's working data (items, the bundle) for the
 //! length of the flow only. **No secret of the backup and no key of it is ever in a state**: the driver holds the secret and
-//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped. A driver that has moved to `secret_io` (`SWR-MG-30`) answers `deriveKey` with the handle of a key the core keeps (`deriveBundleKey` with `"keep": "bundle"`), so the `result` names the key and holds none of it.
 //!
 //! **A flow over a direct link is the one exception, and it is bounded** (`link.rs`, `SWR-MG-28` (d)). The core keeps
 //! nothing between calls, so what a pairing needs from one call to the next can only be in the state:
