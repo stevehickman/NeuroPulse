@@ -69,6 +69,20 @@ class AnalyticsErasureQueue(
         }
     }
 
+    /**
+     * Ask the relay about [id] once, without queueing it, and say whether it accepted. For an ID that is leaving with a wiped
+     * store (`OI-ANALYTICS-01` (5c)): queueing it would write it back into the store the wipe just emptied. A failure is final,
+     * since nothing keeps the ID to ask again.
+     */
+    suspend fun eraseNow(id: String): Boolean {
+        val transport = transport ?: return false
+        if (!VALID.matches(id)) return false
+        val url = baseUrl()?.let { "$it/$PATH" } ?: return false
+        val body = buildJsonObject { put("distinct_id", id) }.toString().encodeToByteArray()
+        val answer = transport.post(HttpRequest(url, mapOf("Content-Type" to "application/json"), body))
+        return outcome(answer?.status) == Outcome.DONE
+    }
+
     /** [REFUSED] is a 4xx that is not about load: the ID is kept and asked about again at the next drain, never dropped. */
     internal enum class Outcome { DONE, REFUSED, RETRY_LATER }
 
