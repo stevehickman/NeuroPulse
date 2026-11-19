@@ -414,6 +414,7 @@ internal fun EraseDeviceSection(model: EraseDeviceModel, endRun: () -> Unit) {
         is EraseStep.Done -> {
             Text(stringResource(Res.string.settings_erase_device_done))
             if (s.keyKept) Text(stringResource(Res.string.settings_erase_device_key_kept), style = MaterialTheme.typography.bodySmall)
+            if (s.analyticsIdsNotErased > 0) Text(stringResource(Res.string.settings_erase_device_analytics_kept), style = MaterialTheme.typography.bodySmall)
             if (s.cloudAccessMayRemain) Text(stringResource(Res.string.settings_erase_device_cloud_kept), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             Button(onClick = endRun) { Text(stringResource(Res.string.settings_erase_device_close)) }

@@ -1265,6 +1265,7 @@
   "SESSION_ZONE_MODULE_COUNT": "{0} modules installed",
   "SESSION_ZONE_MODULE_FAULTS": "{0} faulted",
   "SETTINGS_CLEAR_BUTTON": "Clear this phone after a move",
+  "SETTINGS_ERASE_DEVICE_ANALYTICS_KEPT": "NeurOne's usage-statistics service could not be asked to delete the statistics it holds under this app's anonymous ID. That ID is erased from this computer now, so it cannot be asked again, and nothing you can do here will remove them. The service deletes them itself when its retention period ends. They are not linked to your name, your account or your health data.",
   "SETTINGS_ERASE_DEVICE_BODY": "Erases everything NeurOne keeps on this computer: your settings, your session history, your consent choices and the key that protects them. It cannot be undone. Backups you made are kept where you put them, and so is anything on your helmet. When it has finished, close and reopen the app.",
   "SETTINGS_ERASE_DEVICE_BUTTON": "Erase this computer's data",
   "SETTINGS_ERASE_DEVICE_CLOSE": "Close NeurOne",
