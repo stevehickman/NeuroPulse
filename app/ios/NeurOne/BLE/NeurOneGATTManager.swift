@@ -119,6 +119,11 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// characteristic (OI-AND-WIRE-02) — a descriptor compiled without it is bench-only.
     private(set) var deviceSerial: Data?
 
+    /// True once the encrypted-only `deviceSerial` read has returned its 32 bytes on this link (`OI-PRIV-17`). The protocol
+    /// upload waits for it: a hub answers that read only over an encrypted link. A refused read, a short one and a disconnect
+    /// close it. It shows the peer answered, not that it is the hub (`OI-SIMFW-62`).
+    private(set) var encryptedReadShown = false
+
     /// Current hub firmware version decoded from FIRMWARE_VERSION characteristic (ISC-108).
     /// Encoded as uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch.
     /// nil until the hub ships GattUuidStrings.FIRMWARE_VERSION_ID (OI-WA-03); OTAView shows "Unknown".
@@ -312,6 +317,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         warrantyToken = nil
         hubIdentifier = nil
         deviceSerial = nil
+        encryptedReadShown = false
         hubFirmwareVersion = nil
         cervicalPadAlert = nil
         cervicalFaultStatus = nil
@@ -408,11 +414,21 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
     /// Mode 2: write a single protocol chunk to the hub (called per-chunk by SessionProtocolUploader).
     func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        // Nothing is written until the encrypted-only serial read has succeeded on this link (OI-PRIV-17, CLAUDE.md §23).
+        guard encryptedReadShown else {
+            completion(.failure(.linkNotEncrypted)); return
+        }
         guard let char = protocolUploadChar, let p = peripheral else {
             completion(.failure(.notConnected)); return
         }
         onProtocolUploadAck = completion
         p.writeValue(chunk, for: char, type: .withResponse)
+    }
+
+    /// Read `deviceSerial` again, for an upload held at the gate: the person may have paired the hub since the last refusal.
+    func requestEncryptedRead() {
+        guard connectionState == .connected, let char = deviceSerialChar, let p = peripheral else { return }
+        p.readValue(for: char)
     }
 
     /// Mode 4: request EDF+ download — hub streams data over USB-C when connected.
@@ -671,6 +687,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
 
 enum GATTWriteError: Error {
     case notConnected
+    /// The encrypted-only serial has not been read on this link; nothing was written (`OI-PRIV-17`).
+    case linkNotEncrypted
     case peripheralError(Error)
 }
 
@@ -883,6 +901,12 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateValueFor characteristic: CBCharacteristic,
                     error: Error?) {
+        if error != nil, characteristic.uuid == CBUUID(string: GattUuidStrings.DEVICE_SERIAL_ID) {
+            // A refused read (the link is not encrypted): the last serial says nothing about this answer.
+            deviceSerial = nil
+            encryptedReadShown = false
+            return
+        }
         guard error == nil, let data = characteristic.value else { return }
 
         // ── SHDR characteristics ─────────────────────────────────────────────────
@@ -901,6 +925,7 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial
             // that no hub holds.
             deviceSerial = data.count == 32 ? data : nil
+            encryptedReadShown = deviceSerial != nil
             return
         }
 

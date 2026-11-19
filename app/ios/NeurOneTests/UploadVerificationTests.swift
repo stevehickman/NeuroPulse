@@ -15,6 +15,7 @@ import CoreBluetooth
 /// A hub whose reports are scripted: each request for the upload check delivers the next one.
 final class ScriptedUploadHub: ProtocolUploadGateway {
     var isHubConnected = true
+    var encryptedReadShown = true
     var uploadCheck: UploadCheck?
     private let reports: [UploadCheck?]
     private(set) var reads = 0
