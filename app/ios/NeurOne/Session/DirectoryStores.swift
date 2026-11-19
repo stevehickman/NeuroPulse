@@ -118,7 +118,9 @@ struct DirectoryFileStore: FileStore {
         let realRoot = root.resolvingSymlinksInPath().path
         let realParent = file.deletingLastPathComponent().resolvingSymlinksInPath().path
         guard realParent == realRoot || realParent.hasPrefix(realRoot + "/") else { throw DirectoryStoreError.outsideFolder(path) }
-        if (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true { throw DirectoryStoreError.outsideFolder(path) }
+        if (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
+            throw DirectoryStoreError.outsideFolder(path)
+        }
         return file
     }
 
