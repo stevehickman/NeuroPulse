@@ -35,6 +35,7 @@ class StudyDescriptorVerifierCommonTests {
         kAnonymity = 10,
         dateRoundingDays = 7,
         issuedOnDay = "2026-09-14",
+        expiresOnDay = "2026-12-14",
         signature = "",
     )
 

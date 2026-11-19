@@ -1087,24 +1087,24 @@ mod tests {
     fn a_restore_never_resets_a_withdrawal_and_an_item_with_nowhere_to_go_is_reported_not_applied() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
-        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z", "studyWithdrawals": { "study-a": "2026-02-01T00:00:00Z" }, "categoryWithdrawals": {} }));
+        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01#000001", "studyWithdrawals": { "study-a": "2026-02-01#000001" }, "categoryWithdrawals": {} }));
         backup("migrate", &mut route, &mut old, ATOMIC());
 
         // The new phone already holds a LATER blanket withdrawal and another study's.
         let mut fresh = phone(&ADAPTER, 50);
-        fresh.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-06-01T00:00:00Z", "studyWithdrawals": { "study-b": "2026-05-01T00:00:00Z" }, "categoryWithdrawals": {} }));
+        fresh.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-06-01#000001", "studyWithdrawals": { "study-b": "2026-05-01#000001" }, "categoryWithdrawals": {} }));
         let r = restore(&mut route, &mut fresh, SECRET);
         assert_eq!(r["ok"], true, "{r}");
         let merged = &fresh.items["withdrawalState"];
-        assert_eq!(merged["blanketConsentWithdrawnAt"], "2026-06-01T00:00:00Z");
-        assert_eq!(merged["studyWithdrawals"], json!({ "study-a": "2026-02-01T00:00:00Z", "study-b": "2026-05-01T00:00:00Z" }));
+        assert_eq!(merged["blanketConsentWithdrawnAt"], "2026-06-01#000001");
+        assert_eq!(merged["studyWithdrawals"], json!({ "study-a": "2026-02-01#000001", "study-b": "2026-05-01#000001" }));
         assert!(!fresh.items.contains_key("consentGrants"), "grants are never carried");
         assert_eq!((r["askConsent"].clone(), r["tellConsentNotRestored"].clone()), (json!(true), json!(true)));
 
         // A phone with nowhere to put the withdrawal records says so rather than dropping them silently.
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
-        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z" }));
+        old.items.insert("withdrawalState".into(), json!({ "blanketConsentWithdrawnAt": "2026-03-01#000001" }));
         backup("migrate", &mut route, &mut old, ATOMIC());
         let mut bare = phone(&[], 60);
         let r = restore(&mut route, &mut bare, SECRET);

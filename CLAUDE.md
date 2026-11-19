@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 81 (current)  
+**Revision:** 82 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -310,7 +310,9 @@ are in `docs/reference/data-architecture-detail.md` §5.2.
 **All anonymization happens on-device, in the app, before anything leaves the device** — NeurOne
 cannot access raw UHDR even for research, because the biometric-derived AES-256 key is never held by
 NeurOne infrastructure. Studies arrive as cryptographically signed descriptors (k≥10, date rounding
-≥1 week, suppression rules); only the anonymized extract is transmitted; no linkage table exists.
+≥1 week, an expiry day the issuer signs). **Suppression is the device's own rule, the same for every
+study, never a descriptor field:** a record whose group is smaller than k is dropped, not sent (the
+principal, 2026-11-19). Only the anonymized extract is transmitted; no linkage table exists.
 **Withdrawal permanently blocks future extracts for every data period, including sessions predating
 withdrawal**; already-published extracts cannot be individually removed (irreversibility notice given
 at consent time). Study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR

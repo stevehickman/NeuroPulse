@@ -1101,6 +1101,11 @@
           "note": "The on-device session history."
         },
         {
+          "name": "SESSION_HISTORY_RETENTION_KEY",
+          "value": "np.session.history-retention",
+          "note": "How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-33)."
+        },
+        {
           "name": "FIRST_SETUP_KEY",
           "value": "np.setup.first-complete",
           "note": "The first hardware setup has completed."
@@ -1112,8 +1117,8 @@
         },
         {
           "name": "STUDY_DESCRIPTOR_VERSION",
-          "value": "NP-STUDY-DESCRIPTOR-V1",
-          "note": "Domain-separation tag at the head of the canonical form a study descriptor is signed over."
+          "value": "NP-STUDY-DESCRIPTOR-V2",
+          "note": "Domain-separation tag at the head of the canonical form a study descriptor is signed over. V2 adds the expiry day as the last field (OI-PRIV-06 point 5); no V1 descriptor was ever issued."
         }
       ]
     }

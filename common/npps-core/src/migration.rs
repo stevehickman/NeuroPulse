@@ -163,7 +163,8 @@ fn restore_report(req: &Value) -> R<Value> {
 }
 
 fn later(a: Option<&str>, b: Option<&str>) -> Option<String> {
-    // ISO-8601 timestamps of one format order as text; the later one is the withdrawal that stands.
+    // A withdrawal mark is a day and that decision's withdrawal count, `yyyy-MM-dd#NNNNNN` (`REQ-CONSENT-24`). Marks order
+    // as text, by day and then by count; the later one is the withdrawal that stands. The core never parses one.
     match (a, b) {
         (Some(x), Some(y)) => Some(if x >= y { x } else { y }.to_string()),
         (Some(x), None) | (None, Some(x)) => Some(x.to_string()),
@@ -184,8 +185,8 @@ const WITHDRAWAL_BY_ID: [&str; 2] = ["categoryWithdrawals", "studyWithdrawals"];
 
 /// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings, and a withdrawal
 /// is sticky: it is never undone. A restore keeps the later time of every withdrawal and every id withdrawn on either side, and
-/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. Times are UTC
-/// instants of one fixed form (`2026-03-01T00:00:00Z`), which order as text. The app switches off whatever the merged state
+/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. A time is a
+/// withdrawal mark, a day and that decision's count in one fixed form (`2026-03-01#000001`), which orders as text. The app switches off whatever the merged state
 /// withdraws that the phone had not: a restore can only reduce what a phone is consented to.
 fn merge_withdrawal(req: &Value) -> R<Value> {
     let (local, incoming) = (&req["local"], &req["incoming"]);
@@ -852,32 +853,32 @@ mod tests {
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_never_resets_a_withdrawal() {
-        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","studyWithdrawals":{"s2":"2026-03-02T00:00:00Z","s1":"2026-01-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-03-03T00:00:00Z"},"contactConsentWithdrawnAt":"2026-03-04T00:00:00Z"});
+        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","studyWithdrawals":{"s2":"2026-03-02#000001","s1":"2026-01-01#000001"},"categoryWithdrawals":{"c1":"2026-03-03#000001"},"contactConsentWithdrawnAt":"2026-03-04#000001"});
         let m = ask(json!({"op":"mergeWithdrawal","local":local,"incoming":incoming}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01T00:00:00Z");
-        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"}), "the later time per id stands");
-        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03T00:00:00Z"}));
-        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04T00:00:00Z");
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01#000001");
+        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01#000001","s2":"2026-03-02#000001"}), "the later time per id stands");
+        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03#000001"}));
+        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04#000001");
         // The other way round: a fresh install brings none, the bundle's stands; an older one never replaces a later one.
-        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
+        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01#000001"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01#000001");
     }
 
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_applies_only_a_later_withdrawal_and_never_a_grant() {
-        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z","contactConsentWithdrawnAt":null,
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-04-01T00:00:00Z"}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","contactConsentWithdrawnAt":"2026-03-04T00:00:00Z",
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-06-01T00:00:00Z"}});
+        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01#000001","contactConsentWithdrawnAt":null,
+            "studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{"c1":"2026-04-01#000001"}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","contactConsentWithdrawnAt":"2026-03-04#000001",
+            "studyWithdrawals":{"s1":"2026-02-01#000001","s2":"2026-03-02#000001"},"categoryWithdrawals":{"c1":"2026-06-01#000001"}});
         let r = ask(json!({"op":"applyWithdrawal","held":held,"incoming":incoming}));
         // Older than the held blanket withdrawal and equal for s1: not applied. New, or later: applied.
         assert_eq!(r["applied"]["times"], json!(["contactConsentWithdrawnAt"]));
         assert_eq!(r["applied"]["studyWithdrawals"], json!(["s2"]));
         assert_eq!(r["applied"]["categoryWithdrawals"], json!(["c1"]));
-        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
-        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01T00:00:00Z");
+        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01#000001");
+        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01#000001");
         let none = ask(json!({"op":"applyWithdrawal","held":{},"incoming":{}}));
         assert_eq!(none["applied"]["times"], json!([]));
     }
@@ -887,7 +888,7 @@ mod tests {
     fn never_asked_and_said_stop_stay_apart() {
         let never = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{}}));
         assert!(never["blanketConsentWithdrawnAt"].is_null(), "never asked stays null");
-        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
+        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
         assert!(!stopped["blanketConsentWithdrawnAt"].is_null());
     }
 
@@ -960,7 +961,7 @@ mod tests {
     // @verifies SWR-MG-02
     #[test]
     fn a_sealed_bundle_opens_with_the_key_and_returns_what_was_sealed() {
-        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01T00:00:00Z"}});
+        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01#000001"}});
         let b = sealed("uhdr", items.clone());
         let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":b["bundle"],"key":KEY}));
         assert_eq!(opened["ok"], true);

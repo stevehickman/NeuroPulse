@@ -27,7 +27,7 @@
 //!    own (`link`) that no request can ask for: the link's flow makes them, names them in its state by handle, and
 //!    releases them when it ends (`link.rs`).
 //! 3. **No export.** No operation gives a kept key back, as bytes or as hex.
-//! 4. **Bounded.** At most [`MAX_KEYS`] at once (`UC-196`); the next is refused, so a host that forgets to release cannot
+//! 4. **Bounded.** At most [`MAX_KEYS`] at once (`UC-197`); the next is refused, so a host that forgets to release cannot
 //!    grow the table without end.
 //! 5. **Wiped** when released (`keyRelease`), all at once (`keyReleaseAll`: on lock, and when the data key is destroyed),
 //!    and whole if a panic left the table's lock poisoned.
@@ -57,7 +57,7 @@ use zeroize::Zeroizing;
 type R<T> = Result<T, String>;
 type Secret = Zeroizing<Vec<u8>>;
 
-/// The most keys held at once (`UC-196`). A migration holds a handful (a data key, a wrapping key, a bundle key, a
+/// The most keys held at once (`UC-197`). A migration holds a handful (a data key, a wrapping key, a bundle key, a
 /// signing seed, a cloud secret); nothing derives 64.
 pub const MAX_KEYS: usize = 64;
 
