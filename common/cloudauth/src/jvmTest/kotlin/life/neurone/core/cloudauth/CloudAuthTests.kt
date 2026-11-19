@@ -426,7 +426,7 @@ class CloudAuthTests {
         assertTrue(url.startsWith("https://www.dropbox.com/oauth2/authorize?"), url)
         assertEquals("db-key", p["client_id"]); assertEquals(DROPBOX_REDIRECT, p["redirect_uri"]); assertEquals("code", p["response_type"])
         assertEquals("offline", p["token_access_type"]); assertEquals("S256", p["code_challenge_method"])
-        assertEquals("files.content.write files.content.read files.metadata.read account_info.read", p["scope"], "one scope for each route the store calls")
+        assertEquals("files.content.write files.content.read files.metadata.read", p["scope"], "one scope for each route the store calls")
         val exchange = rig.providers.form(rig.providers.seen.single { it.url == DROPBOX_TOKEN })
         assertEquals("db-key", exchange["client_id"]); assertNull(exchange["client_secret"], "a public client sends no secret"); assertNull(exchange["scope"])
         assertEquals("access-1", rig.auth.accessToken(account.id).bearer())

@@ -202,16 +202,16 @@ class CloudAccountsModelTest {
         val f = Fakes()
         val m = model(f)
         m.refresh()
-        m.addAzureSas("sp=r&sig=x")
+        m.addAzureSas("spr=https&se=2099-01-01&sr=c&sp=r&sig=x")
         assertEquals(CloudNoticeKind.SAS_INVALID, m.notice.value?.kind, "read only cannot keep a backup")
-        m.addAzureSas("sp=rcwdl&se=1970-01-01&sig=x")
+        m.addAzureSas("spr=https&sr=c&sp=rcwdl&se=1970-01-01&sig=x")
         assertEquals(CloudNoticeKind.SAS_INVALID, m.notice.value?.kind, "expired")
         assertNull(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.account)
 
-        m.addAzureSas(" ?sv=2024-11-04&sr=c&sp=rcwdl&sig=abc%2B ")
+        m.addAzureSas(" ?sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc%2B ")
         assertEquals(CloudNoticeKind.SAS_SAVED, m.notice.value?.kind)
         assertTrue(m.rows.value.first { it.service == CloudService.AZURE_BLOB_SAS }.signedIn)
-        m.addAzureSas("sv=2024-11-04&sr=c&sp=rcwdl&sig=other")
+        m.addAzureSas("sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=other")
         assertEquals(1, m.rows.value.count { it.account != null }, "replacing, not adding a second")
 
         m.signIn(CloudService.AZURE_BLOB_SAS) // there is no sign-in
@@ -256,5 +256,45 @@ class CloudAccountsModelTest {
         assertEquals(1, f.shown, "the second request never reached the browser")
         assertNull(m.rows.value.first { it.service == CloudService.ONEDRIVE }.account)
         assertNull(m.busy.value)
+    }
+
+    // @verifies SWR-MG-30#d
+    @Test fun replacing_a_credential_the_provider_cannot_end_says_the_earlier_one_may_still_work() = runTest {
+        val f = Fakes()
+        val auth = CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
+        val m = CloudAccountsModel(auth)
+        m.refresh()
+
+        // Microsoft has no call that ends a refresh token: signing in again says the earlier sign-in may still work.
+        m.signIn(CloudService.ONEDRIVE)
+        assertEquals(CloudNoticeKind.SIGNED_IN, m.notice.value?.kind, "a first sign-in replaced nothing")
+        auth.markNeedsSignIn(m.rows.value.first { it.service == CloudService.ONEDRIVE }.account!!.id)
+        m.refresh()
+        m.signIn(CloudService.ONEDRIVE)
+        assertEquals(CloudNoticeKind.REPLACED_NOT_REVOKED, m.notice.value?.kind)
+
+        // Google confirms the revoke, so there is nothing to add.
+        m.signIn(CloudService.GOOGLE_DRIVE)
+        auth.markNeedsSignIn(m.rows.value.first { it.service == CloudService.GOOGLE_DRIVE }.account!!.id)
+        m.refresh()
+        m.signIn(CloudService.GOOGLE_DRIVE)
+        assertEquals(CloudNoticeKind.SIGNED_IN, m.notice.value?.kind)
+        assertTrue(f.posts.any { "revoke" in it }, "the earlier Google grant was revoked")
+
+        // Keys the person typed stay valid at the service until they delete them there.
+        m.addAwsKeys("AKID", "secret-1", null)
+        assertEquals(CloudNoticeKind.KEYS_SAVED, m.notice.value?.kind)
+        m.addAwsKeys("AKID2", "secret-2", null)
+        assertEquals(CloudNoticeKind.REPLACED_NOT_REVOKED, m.notice.value?.kind)
+    }
+
+    // @verifies SWR-MG-30#d
+    @Test fun only_a_signed_in_onedrive_or_dropbox_row_says_it_keeps_deleted_files() = runTest {
+        val m = model(Fakes())
+        m.refresh()
+        assertTrue(m.rows.value.none { it.keepsDeletedFiles }, "nothing signed in, nothing to say")
+        m.signIn(CloudService.ONEDRIVE)
+        m.signIn(CloudService.GOOGLE_DRIVE)
+        assertEquals(listOf(CloudService.ONEDRIVE), m.rows.value.filter { it.keepsDeletedFiles }.map { it.service })
     }
 }

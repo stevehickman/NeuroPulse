@@ -210,7 +210,12 @@ class AppServices(
         platform.fleetTransport(FleetConfig.RELAY_HOST, FleetConfig.PINNED_SPKI_HASHES)?.let {
             FleetUploader(SealedDeviceTokenStore(keyValueStore), warrantyAnalyticsGate, it)
         }
-    val consentStore = ConsentStore(keyValueStore, researchAnalyticsGate)
+    val consentStore: ConsentStore = ConsentStore(
+        keyValueStore,
+        researchAnalyticsGate,
+        // The token that joins a person's suggestions goes when the portal opt-in or blanket consent does (`OI-PRIV-08` (3)).
+        onPortalIdentityWithdrawn = { researchSuggestionStore.forgetAuthorToken() },
+    )
 
     /**
      * The folder the person has chosen to keep a backup in, for a host that offers the choice ([PlatformServices.folderPlaces]);
@@ -292,7 +297,7 @@ class AppServices(
         return outcome
     }
     val sessionHistoryStore = SessionHistoryStore(keyValueStore)
-    val researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
+    val researchSuggestionStore: ResearchSuggestionStore = ResearchSuggestionStore(keyValueStore, portalOptedIn = { consentStore.researchConsent.suggestionPortalOptIn })
 
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
 
@@ -336,7 +341,13 @@ class AppServices(
      */
     val eraseDevice: life.neurone.shared.migration.EraseDeviceModel? =
         platform.endRunAfterErase?.let {
-            life.neurone.shared.migration.EraseDeviceModel(platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager)
+            life.neurone.shared.migration.EraseDeviceModel(
+                platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
+                // The analytics ID is forgotten, queued and the relay asked BEFORE the wipe deletes the only copy (`OI-PRIV-08` (1)).
+                beforeWipe = { researchAnalyticsGate.resetForErase() },
+                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-30 (d)); anything but a confirmation is told to the person.
+                endCloudAccess = cloudAuth?.let { auth -> { auth.signOutAll().any { it.second != life.neurone.core.cloudauth.Revocation.REVOKED } } },
+            )
         }
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */

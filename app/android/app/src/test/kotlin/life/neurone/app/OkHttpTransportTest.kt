@@ -25,4 +25,7 @@ class OkHttpTransportTest : HttpTransportChecks() {
 
     // @verifies SWR-MG-11#calls
     @Test fun noServer() = noServerGivesNullNotAnException()
+
+    // @verifies SWR-MG-30#e
+    @Test fun urlIsNeverLoggedOrSurfaced() = theRequestUrlIsNeverLoggedOrSurfaced()
 }
