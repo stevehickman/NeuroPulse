@@ -10,6 +10,8 @@
 #ifndef NP_HD_CONFIG_H
 #define NP_HD_CONFIG_H
 
+#include <stdint.h>
+
 #include "../../common/include/np_shared_constants.h"
 
 /* ── EEG acquisition ────────────────────────────────────────────────────────── */
@@ -103,6 +105,7 @@
  * design review and is not one.  Give it a consumer or retire it. */
 #define NP_HD_MAX_ELECTRODE_DENSITY_A_M2   6.0f /* tissue current density limit  */
 #define NP_HD_RAMP_DURATION_S       30U     /* 30 s ramp up and ramp down        */
+#define NP_HD_RAMP_MS               ((uint32_t)NP_HD_RAMP_DURATION_S * 1000U)   /* the one place the ramp is read in ms */
 
 /* Charge per phase limit (hardware enforcement):                                */
 /* Q_ph = 40 µC/cm² × 0.0962 cm² = 3.85 µC                                     */
@@ -143,7 +146,14 @@
  * implementation reason).  A session holds a ramp up and a ramp down of NP_HD_RAMP_DURATION_S each, and the ramp down
  * starts at (length - one ramp), so a session shorter than two ramps would start ramping down before it finished ramping
  * up, and its steady-phase end would wrap below zero.  np_hd_stim_start refuses it. */
-#define NP_HD_MIN_SESSION_S         (2U * NP_HD_RAMP_DURATION_S)   /* 60 s: ramp up + ramp down */
+static inline uint32_t np_hd_min_session_s(uint32_t ramp_s)
+{
+    return 2U * ramp_s;      /* a ramp up and a ramp down */
+}
+/* With today's fixed ramp.  The minimum is a function of the ramp, so it moves with it: change NP_HD_RAMP_DURATION_S and this
+ * changes, and a ramp that becomes a per-session value passes its own length to np_hd_min_session_s() where the session is
+ * checked (np_hd_stim_start). */
+#define NP_HD_MIN_SESSION_S         np_hd_min_session_s(NP_HD_RAMP_DURATION_S)   /* 60 s today */
 
 /* Session length DEFAULTS, not limits (the principal, 2026-11-19).  Nothing refuses a session for being shorter than the
  * first or longer than the second: a limit needs research literature that documents why it should exist (or a mechanical
@@ -152,7 +162,7 @@
  * configured with none. */
 #define NP_HD_DEFAULT_SESSION_MIN_S 120U    /* 2 minutes: the shortest the defaults suggest */
 #define NP_HD_DEFAULT_SESSION_MAX_S 1800U   /* 30 minutes: the longest the defaults suggest; no firmware path reads it */
-_Static_assert(NP_HD_DEFAULT_SESSION_MIN_S >= NP_HD_MIN_SESSION_S, "the default session must be one that can run");
+_Static_assert(NP_HD_DEFAULT_SESSION_MIN_S >= 2U * NP_HD_RAMP_DURATION_S, "the default session must be one that can run");
 
 /* ── Safety MCU heartbeat ───────────────────────────────────────────────────── */
 /* HD-tDCS shares the 200 ms SPI heartbeat from the main safety architecture.   */

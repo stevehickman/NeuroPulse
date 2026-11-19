@@ -418,7 +418,7 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms)
         np_hd_stim_phase_t sp = np_hd_stim_phase(&sess->stim);
 
         /* Update display state. */
-        uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
+        uint32_t ramp_ms  = NP_HD_RAMP_MS;
         uint32_t total_ms = (uint32_t)sess->config.stim_duration_s * 1000U;
         uint32_t elapsed  = now_ms - sess->stage_start_ms;
         float progress    = (total_ms > 0U)

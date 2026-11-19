@@ -170,10 +170,10 @@ np_hd_status_t np_hd_stim_start(np_hd_stim_ctx_t *ctx,
      * NP_HD_MIN_SESSION_S (np_hd_config.h).  Shorter, the steady phase would end before the ramp up does and
      * total - ramp would wrap below zero, so it is refused before anything is set or requested (OI-UINT16-01).  The
      * 120 to 1,800 s of np_hd_config.h are defaults, not limits, and nothing enforces them. */
-    if (duration_s < NP_HD_MIN_SESSION_S) {
+    if (duration_s < np_hd_min_session_s(NP_HD_RAMP_DURATION_S)) {
         return NP_HD_ERR_INVALID_ARG;
     }
-    uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
+    uint32_t ramp_ms  = NP_HD_RAMP_MS;
     uint32_t total_ms = (uint32_t)duration_s * 1000U;
 
     /* Set target currents: anode positive, cathodes split equally (negative).   */
@@ -236,7 +236,7 @@ void np_hd_stim_tick(np_hd_stim_ctx_t *ctx, uint32_t now_ms)
         return;
     }
 
-    uint32_t ramp_ms = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
+    uint32_t ramp_ms = NP_HD_RAMP_MS;
     uint32_t elapsed = now_ms - ctx->phase_start_ms;
 
     switch (ctx->phase) {
