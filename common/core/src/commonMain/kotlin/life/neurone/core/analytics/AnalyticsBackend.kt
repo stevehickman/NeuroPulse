@@ -11,7 +11,8 @@ interface AnalyticsBackend {
 
     /**
      * The pseudonymous ID the vendor holds this installation's events under, or null if there is none to erase (nothing was ever
-     * sent). The gate reads it before [reset] makes a new one, so the old one can be queued for erasure (`REQ-SW03-19`).
+     * sent). The gate reads it before [reset] forgets it, so it can be queued for erasure (`REQ-SW03-19`). It is the stored ID
+     * whether or not [configure] has run in this process: events sent in an earlier run are still held under it (`OI-PRIV-08` (1)).
      */
     val distinctId: String? get() = null
 }
