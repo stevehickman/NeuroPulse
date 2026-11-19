@@ -31,6 +31,7 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -330,7 +331,7 @@ fn confirmation_tag(req: &Value) -> R<Value> {
 }
 
 /// Whether two tags are the same, in time that does not depend on where they differ. An empty tag matches nothing.
-fn same_tag(a: &str, b: &str) -> bool {
+pub(crate) fn same_tag(a: &str, b: &str) -> bool {
     !a.is_empty() && a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
@@ -460,8 +461,10 @@ fn read_bundle_header(req: &Value) -> R<Value> {
     Ok(out)
 }
 
+/// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
+/// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
