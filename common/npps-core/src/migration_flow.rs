@@ -12,8 +12,18 @@
 //! "state":<from the last answer>,"result":<what the effect returned>}` continues it. The answer is either
 //! `{"effect":{"type":…,…},"state":…}`, meaning "do this and call me again with the outcome", or `{"done":{…}}`. The state
 //! is opaque to the platform, is never persisted by it, and holds the flow's working data (items, the bundle) for the
-//! length of the flow only. **No secret and no key is ever in a state**: the driver holds the secret and asks
-//! `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//! length of the flow only. **No secret of the backup and no key of it is ever in a state**: the driver holds the secret and
+//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//!
+//! **A flow over a direct link is the one exception, and it is bounded** (`link.rs`, `SWR-MG-28` (d)). The core keeps
+//! nothing between calls, so what a pairing needs from one call to the next can only be in the state:
+//! * until the shared key is made: the pairing code, and on the restoring phone the SPAKE2 seed and its own SPAKE2
+//!   message. They are taken out in the call that makes the shared key;
+//! * from then on: the two channel keys (one per direction) and their message counts, because every later frame is sealed
+//!   or opened with them. Nothing else of the pairing stays. The shared key itself is never in a state, and the request a
+//!   restore starts from is kept without the code and dropped when the restore starts.
+//!
+//! A host therefore treats a link flow's state as it treats a key: in memory only, never logged, never persisted.
 //!
 //! # Effects
 //! | type | args | result |
@@ -1344,6 +1354,12 @@ mod tests {
     /// As `over_link`, but once the client has sent `cut_after` frames its next receive gets `closing` instead of the bytes.
     #[allow(clippy::too_many_arguments)]
     fn over_link_cut(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value) {
+        over_link_watched(client, c_phone, server, store, s_phone, piece, cut_after, closing, &mut |_, _| {});
+    }
+
+    /// As `over_link_cut`, and `watch` is shown each end (0 the client, 1 the server) after every step it takes.
+    #[allow(clippy::too_many_arguments)]
+    fn over_link_watched(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value, watch: &mut dyn FnMut(usize, &Peer)) {
         let mut sent = 0usize;
         let mut inbox: [Vec<u8>; 2] = [vec![], vec![]];
         let mut scratch = Route::default();
@@ -1372,6 +1388,7 @@ mod tests {
                     _ => perform(&e, store, s_phone, SECRET),
                 };
                 me.advance(result);
+                watch(side, me);
                 moved = true;
             }
             if client.done.is_some() && server.done.is_some() {
@@ -1413,6 +1430,66 @@ mod tests {
         assert_eq!(store.route_calls, 0);
         assert!(quiet.kv.is_empty() && srv_phone.kv.is_empty(), "the link wrote nothing to the key-value stores");
         quiet.kv.clear();
+    }
+
+    /// Every object key in `v`, at any depth.
+    fn object_keys(v: &Value, out: &mut Vec<String>) {
+        match v {
+            Value::Object(o) => o.iter().for_each(|(k, v)| {
+                out.push(k.clone());
+                object_keys(v, out);
+            }),
+            Value::Array(a) => a.iter().for_each(|v| object_keys(v, out)),
+            _ => {}
+        }
+    }
+
+    // @verifies SWR-MG-28#d
+    #[test]
+    fn once_two_phones_are_paired_neither_state_holds_the_code_the_seed_or_the_request_it_came_in() {
+        let (mut store, mut old, mut fresh, mut srv_phone) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 3));
+        fill(&mut old);
+        let done = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut store, &mut old, SECRET);
+        assert_eq!(done["ok"], true);
+        let mut client = Peer::start("restore", link_params(&fresh));
+        let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
+        assert_eq!(client.state["code"], CODE, "the restoring phone needs the code until the other phone's reply");
+        assert!(client.state["origin"]["params"]["pairing"].is_null(), "and keeps it once, not also in the request it will start the restore from");
+
+        // (states seen once the channel exists, states that broke the rule)
+        let (mut paired, mut wrong) = ([0usize; 2], Vec::<String>::new());
+        over_link_watched(&mut client, &mut fresh, &mut server, &mut store, &mut srv_phone, 7, usize::MAX, json!(null), &mut |side, peer| {
+            let st = &peer.state;
+            let (who, mut keys) = (["restoring", "serving"][side], vec![]);
+            object_keys(st, &mut keys);
+            let has = |name: &str| keys.iter().any(|k| k == name);
+            // The restoring phone has made the channel keys once `keys` is there, the serving phone once `after` is.
+            let channel = !st["ctx"].is_null() || !st["keys"].is_null() || !st["after"].is_null();
+            if !st.is_null() && channel {
+                paired[side] += 1;
+                for gone in ["code", "seed", "key", "hello", "a", "b"] {
+                    if has(gone) {
+                        wrong.push(format!("the {who} phone's state holds '{gone}' after the channel keys exist"));
+                    }
+                }
+                // The request the restore starts from (without the code) is needed until the server's `ok`, and not after.
+                if has("origin") && !st["ctx"].is_null() {
+                    wrong.push(format!("the {who} phone's state holds the originating request once the channel is in use"));
+                }
+                if st.to_string().contains(CODE) {
+                    wrong.push(format!("the {who} phone's state holds the code after the channel keys exist"));
+                }
+            }
+            // The code a person typed never reaches the inner flow's state, paired or not.
+            if side == 0 && has("pairing") {
+                wrong.push("the restoring phone's state holds the pairing it was started with".into());
+            }
+        });
+        assert_eq!(client.done.clone().unwrap()["ok"], true, "the migration still runs");
+        assert!(paired[0] > 10 && paired[1] > 10, "both ends were watched through the transfer: {paired:?}");
+        wrong.sort();
+        wrong.dedup();
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
 
     // @verifies SWR-MG-10

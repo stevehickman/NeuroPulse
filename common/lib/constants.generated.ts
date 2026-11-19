@@ -421,7 +421,7 @@ export const GattSizes = {
 
 // Bounds on the individual profile the limits store keeps (NP-SW-001 REQ-SW03-31, OI-PRIV-11).
 export const ProfileLimits = {
-  // UNVALIDATED (UC-194): the most UTF-16 code units a profile note may hold. A note is a short label that tells
+  // UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label that tells
   // two profiles apart, not a record about the person; nothing derives 100.
   PROFILE_NOTES_MAX_CHARS: 100,
 } as const;

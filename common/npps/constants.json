@@ -749,7 +749,7 @@
           "name": "PROFILE_NOTES_MAX_CHARS",
           "value": 100,
           "int": true,
-          "note": "UNVALIDATED (UC-194): the most UTF-16 code units a profile note may hold. A note is a short label that tells two profiles apart, not a record about the person; nothing derives 100."
+          "note": "UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label that tells two profiles apart, not a record about the person; nothing derives 100."
         }
       ]
     },

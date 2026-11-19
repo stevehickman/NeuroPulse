@@ -438,7 +438,7 @@ object GattSizes {
 
 // Bounds on the individual profile the limits store keeps (NP-SW-001 REQ-SW03-31, OI-PRIV-11).
 object ProfileLimits {
-    // UNVALIDATED (UC-194): the most UTF-16 code units a profile note may hold. A note is a short label
+    // UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label
     // that tells two profiles apart, not a record about the person; nothing derives 100.
     const val PROFILE_NOTES_MAX_CHARS: Int = 100
 }
