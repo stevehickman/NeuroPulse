@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: d9bec46a3881061091d4473418aae938dc20cff39a1a0cf55d8ec6588fe011d2
+// sources-sha256: 525e7a3debcb29de15d7c24a3327135c9dd4bf5c577a19e558c00d49ec9636e7
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -86,8 +86,12 @@ function call(entry, input) {
         throw new NppsRefusal("the NPPS core was given an argument it cannot read");
     }
   } finally {
-    wasm.npps_free(inPtr, bytes.length + 1);
-    wasm.npps_free(cells, 8);
+    new Uint8Array(wasm.memory.buffer, inPtr, bytes.length + 1).fill(0);
+    bytes.fill(0);
+    if (instance === wasm) {
+      wasm.npps_free(inPtr, bytes.length + 1);
+      wasm.npps_free(cells, 8);
+    }
   }
 }
 function nppsParse(source) {

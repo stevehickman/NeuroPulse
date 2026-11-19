@@ -60,7 +60,7 @@
             </intent-filter>
             <!-- The system browser returns a cloud sign-in here (SWR-MG-19). Another app can claim the same scheme, so the answer is
                  trusted for nothing: the state value and the PKCE verifier decide it (ExternalBrowserLauncher, CloudAuth). CloudKit's callback has
-                 neither, so CloudKit is not offered through this activity (OI-PRIV-13, SWR-MG-19 (l)). -->
+                 neither, so CloudKit is not offered through this activity (OI-PRIV-13, SWR-MG-19 (n)). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
