@@ -527,7 +527,8 @@ class NeurOneGattManager(
             // Set here and not only in onCharacteristicRead: CoreBluetooth delivers a read's value and a notification
             // through one callback, so the iOS central reports a read as a change. The hub never notifies this
             // characteristic and the app never subscribes to it, so a value here is the answer to a read.
-            if (_connectionState.value == ConnectionState.CONNECTED) _encryptedReadShown.value = true
+            // Only the 32-byte serial counts: a short or long value is not the hub's answer and shows nothing.
+            if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) _encryptedReadShown.value = true
             return
         }
         if (uuid == UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID)) {
@@ -636,6 +637,15 @@ class NeurOneGattManager(
 
     /** The write size the upload is cut at: what the link carries now (the negotiated MTU less 3), at most the hub characteristic's 512. */
     val writeLength: Int get() = central.writeLength.coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
+
+    /**
+     * Read `DEVICE_SERIAL` again, for an upload held back because the encrypted-only read has not succeeded: the person may
+     * have paired the hub since the last refusal, and not every central reports a refused read for the retry to hang on
+     * (`OI-PRIV-17`). Nothing is asked while a retry is already waiting or the link is down.
+     */
+    fun requestEncryptedRead() {
+        if (_connectionState.value == ConnectionState.CONNECTED && serialRetryJob?.isActive != true) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
+    }
 
     /** A new upload starts: a refusal recorded for the last one says nothing about this one. */
     fun beginProtocolUpload() {
