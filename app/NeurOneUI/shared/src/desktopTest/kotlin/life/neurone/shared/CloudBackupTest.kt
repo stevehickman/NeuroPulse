@@ -73,7 +73,7 @@ class CloudBackupTest {
     }
 
     private fun auth(f: Fakes, kv: InMemoryKeyValueStore) =
-        CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
+        CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
 
     // @verifies SWR-MG-21#a
     @Test fun every_signed_in_account_is_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
@@ -179,7 +179,7 @@ class CloudBackupTest {
     // @verifies SWR-MG-26#d
     @Test fun an_azure_signature_account_is_chosen_with_an_account_and_container_and_keeps_a_backup_only() = runTest {
         val f = Fakes(); val kv = InMemoryKeyValueStore(); val a = auth(f, kv)
-        val sas = a.addAzureSas("sv=2024-11-04&sr=c&sp=rcwdl&sig=abc")
+        val sas = a.addAzureSas("sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc")
         val m = CloudBackupModel(a, f.transport, kv)
         m.refresh()
         assertEquals(listOf(TargetField.STORAGE_ACCOUNT, TargetField.CONTAINER), m.destinations.value.single().fields)
@@ -189,7 +189,7 @@ class CloudBackupTest {
         assertEquals("Azure Blob (SAS)", place.label)
         assertFalse(place.route.atomicClaim); assertFalse(place.carriesRecordings)
         place.store.get("np-migration-bundle.npbk")
-        assertEquals("https://myaccount.blob.core.windows.net/backups/np-migration-bundle.npbk?sv=2024-11-04&sr=c&sp=rcwdl&sig=abc", f.api.last().url)
+        assertEquals("https://myaccount.blob.core.windows.net/backups/np-migration-bundle.npbk?sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc", f.api.last().url)
         assertTrue(f.api.last().headers.keys.none { it.equals("Authorization", true) })
     }
 
@@ -269,6 +269,7 @@ class CloudBackupTest {
                 override val bleCentral = UnavailableBleCentral()
                 override val protocolSigner = Ed25519ProtocolSigner()
                 override val analyticsBackend = NoOpAnalyticsBackend()
+                override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore() // a host that seals: the vault needs one (SWR-MG-19 (l))
                 override val httpTransport: HttpTransport? = f.transport
                 override val authorizationLauncher: AuthorizationLauncher? = f.launcher
                 override val migrationPlace: MigrationPlace? = local

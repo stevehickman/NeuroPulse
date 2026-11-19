@@ -31,6 +31,11 @@ object NPHardwareLimits {
     // Acoustic output ceiling, dB SPL at the ear, absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). The hub's
     // NP_AUDIO_MAX_LEVEL_HALF_DB is twice it; scripts/check-hub-wire-format.ts holds the two together.
     const val AUDIO_MAX_DB_SPL: Double = 85.0
+    // Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz
+    // plus the beat or pulse rate (NP-HW-AUDIO-001 REQ-AUDIO-25). A-weighting is positive between about 1
+    // kHz and 6.1 kHz, so an unweighted 85 dB SPL tone there is above 85 dB(A). The hub's
+    // NP_AUDIO_MAX_TONE_HZ is the same figure; scripts/check-hub-wire-format.ts holds the two together.
+    const val AUDIO_MAX_TONE_HZ: Double = 1000.0
     // BES / tACS (consumer: Brainwave Entrainment Stimulation)
     const val BES_TACS_MAX_MILLIAMPS: Double = 1.0
     const val BES_TACS_MIN_HZ: Double = 0.5
@@ -431,6 +436,13 @@ object GattSizes {
     const val SESSION_PROGRESS_LEN: Int = 22
 }
 
+// Bounds on the individual profile the limits store keeps (NP-SW-001 REQ-SW03-32, OI-PRIV-11).
+object ProfileLimits {
+    // UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label
+    // that tells two profiles apart, not a record about the person; nothing derives 100.
+    const val PROFILE_NOTES_MAX_CHARS: Int = 100
+}
+
 // The anonymisation floors a study descriptor must meet before a user may be asked to consent to it (CLAUDE.md §5.3,
 // §6.3). Locked; the device is the only place they can be enforced, because the anonymisation happens on the device.
 object ConsentLimits {
@@ -584,10 +596,13 @@ object PersistedKeys {
     const val RESEARCH_SUGGESTIONS_KEY: String = "np.research.suggestions"
     // The on-device session history.
     const val SESSION_HISTORY_KEY: String = "np.session.history"
+    // How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-33).
+    const val SESSION_HISTORY_RETENTION_KEY: String = "np.session.history-retention"
     // The first hardware setup has completed.
     const val FIRST_SETUP_KEY: String = "np.setup.first-complete"
     // Persists age-gate completion (ISC-87).
     const val AGE_CONFIRMED_KEY: String = "np.onboarding.age-confirmed"
-    // Domain-separation tag at the head of the canonical form a study descriptor is signed over.
-    const val STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V1"
+    // Domain-separation tag at the head of the canonical form a study descriptor is signed over. V2 adds
+    // the expiry day as the last field (OI-PRIV-06 point 5); no V1 descriptor was ever issued.
+    const val STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V2"
 }

@@ -512,6 +512,7 @@ enum PersistedKeys {
     static let FIRST_SETUP_KEY: String = "np.setup.first-complete"
     /// Persists age-gate completion (ISC-87).
     static let AGE_CONFIRMED_KEY: String = "np.onboarding.age-confirmed"
-    /// Domain-separation tag at the head of the canonical form a study descriptor is signed over.
-    static let STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V1"
+    /// Domain-separation tag at the head of the canonical form a study descriptor is signed over. V2 adds
+    /// the expiry day as the last field (OI-PRIV-06 point 5); no V1 descriptor was ever issued.
+    static let STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V2"
 }

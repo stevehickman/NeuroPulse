@@ -365,7 +365,7 @@ protocol "Gamma Focus" {
 | `version` | string | `"1.0"` | The release version, `major.minor`, both whole numbers. How a developer edit changes it is in *Release version of a predefined protocol* below. |
 | `family_id` | string | absent | *(Rev 20)* A random 128-bit id written as UUID text (8-4-4-4-12 hex digits), the same for every variant of one authored protocol (`SWR-FM-01`). Authored once and never regenerated: a predefined protocol's id is fixed in its file. **It is not part of the content hash and is never sent to the helmet.** Read as lowercase. Anything else is a parse error. Also accepted on a `composite`. |
 | `hardware_version` | — | **not a protocol field** | *(Rev 20; withdrawn Rev 30)* Only a zone states a hardware version, in its `hardware_version N { sockets: [...] }` block (§8). A protocol or composite that has the field is a parse error. The helmet hardware version a named zone resolves against comes from the compile call (`SWR-HV-05`, `SWR-HV-07`), not from the protocol. |
-| `used` | bool | `false` | *(Rev 26)* The protocol has run in a session (`SWR-WO-03`). Read as `isUsed`; written only when `true`. Carried in export and merged by OR on import; advisory, not a security control, and not part of the content hash. Also accepted on a `composite`. |
+| `used` | bool | `false` | *(Rev 26)* The protocol has run in a session (`SWR-WO-03`). Read as `isUsed`; written only when `true`. Carried in the full form of an export and merged by OR on import; **not written in the share form** (`NP-SW-001` `SWR-WO-07`), which also writes a new `id` and `family_id`; advisory, not a security control, and not part of the content hash. Also accepted on a `composite`. |
 | `readonly` | bool | `false` | Prevents editing or deletion in the app. |
 | `tags` | string array | `[]` | Freeform category labels. |
 | `duration` | duration | `20m` | Fixed session length. |
@@ -789,7 +789,7 @@ Over-ear planar magnetic + bone conduction.
 | `binaural_hz` | `binaural_beats_hz` | number (optional) | 0.5–100. **The descriptor carries at most 65.535 Hz** (16 bits of mHz); the compiler refuses above it, where it wrote 65.535 Hz (`REQ-NPPS-33` (a)). The validator's range still ends at 100 (`OI-NPPS-CLAMP-01` (c)) |
 | `isochronic_hz` | `isochronic_tones_hz` | number (optional) | 0.5–100, and the same 65.535 Hz on the wire |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
-| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses |
+| `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses. For a binaural or isochronic block the carrier, and the carrier plus the beat or pulse rate, are at most 1000 Hz (`REQ-AUDIO-25`): the validator reports it and the compiler and the hub refuse it |
 | `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-19`) |
 | `eeg_adaptive` | `eeg_adaptive` | bool | Adjust frequency in real time based on EEG |
 | `bone_conduction_pacer` | `bone_conduction_pacer` | bool | Use bone conduction for breathing pacer cue |

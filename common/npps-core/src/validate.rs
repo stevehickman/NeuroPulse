@@ -416,6 +416,20 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE");
             range_error(out, kind, p, "isochronicTonesHz", "VALIDATE_PARAM_ISOCHRONIC_TONE", (hw::AUDIO_BEAT_MIN_HZ, hw::AUDIO_BEAT_MAX_HZ), "Hz",
                 "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE");
+            // REQ-AUDIO-25: the compiler refuses a binaural or isochronic tone above the bound, the carrier and the carrier
+            // plus the beat or pulse rate, so the validator says so before the protocol is compiled and signed. The mode is
+            // the compiler's: a binaural beat wins over an isochronic tone, and a noise block has no tone.
+            if let Some(c) = p["carrierHz"].as_f64() {
+                let beat = p["binauralBeatsHz"].as_f64().or_else(|| p["isochronicTonesHz"].as_f64());
+                if let Some(b) = beat {
+                    let highest = c.max(c + b);
+                    if highest > hw::AUDIO_MAX_TONE_HZ + 1e-9 {
+                        out.push(Error, k, "carrierHz", "VALIDATE_PARAM_AUDIO_TONE", s(format!("{} Hz", num_string(highest))),
+                            s(format!("{} Hz", num_string(hw::AUDIO_MAX_TONE_HZ))), "hardware",
+                            msg("VALIDATE_MSG_AUDIO_ENTRAINMENT_TONEHZ", vec![n(highest), n(hw::AUDIO_MAX_TONE_HZ)]));
+                    }
+                }
+            }
             if let (Some(m), Some(b)) = (lim(l, "maxBinauralBeatsHz"), p["binauralBeatsHz"].as_f64()) {
                 if b > m {
                     out.push(Error, k, "binauralBeatsHz", "VALIDATE_PARAM_BINAURAL_BEAT", s(format!("{} Hz", num_string(b))),

@@ -15,6 +15,9 @@
  *   K1  A key literal in the sources is in no list of the JSON.                 (a new key nobody sorted)
  *   K2  A key is in two lists, or twice in one.                                 (it would move and not move)
  *   K3  A key in the JSON appears in no source file.                            (a stale entry; delete it)
+ *       A key the shared core stores itself, through the flows' readKeys and writeKeys, is written in no app: for K3
+ *       only, a literal in common/npps-core/src/migration_flow.rs counts as a source. The core's literals are not read
+ *       for K1, because two of its keys (the cleared marker and the clear's progress) are in no list on purpose.
  *   K4  A list is missing, or an entry is not a plain key.
  *
  * Reach, stated narrowly: this finds a key written as a literal. A key assembled at run time ("np." + name) is not seen.
@@ -25,13 +28,15 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-migration-keys.ts --self-test
  * CI-Scans: every stored-key literal in the app sources (iOS, Android, Windows, macOS, web) common/lib, common/core and common/cloudauth against the one key list common/npps/migration-keys.json
- * CI-Scan-Paths: app/** common/lib/** common/core/** common/cloudauth/** common/npps/migration-keys.json scripts/check-migration-keys.ts
+ * CI-Scan-Paths: app/** common/lib/** common/core/** common/cloudauth/** common/npps/migration-keys.json common/npps-core/src/migration_flow.rs scripts/check-migration-keys.ts
  */
 import { execFileSync } from "child_process";
 import { readFileSync } from "fs";
 import { join, resolve } from "path";
 
 export const KEYS_JSON = "common/npps/migration-keys.json";
+/** The core's flows, which store keys of their own that no app writes (K3). */
+export const CORE_FLOWS = "common/npps-core/src/migration_flow.rs";
 const LISTS = ["carried", "consent", "perInstall", "unsorted"] as const;
 const KEY_LITERAL = /"((?:np|ble)\.[A-Za-z0-9_.\-]+)"/g;
 const PLAIN_KEY = /^(?:np|ble)\.[A-Za-z0-9_.\-]+$/;
@@ -70,7 +75,7 @@ export function listedKeys(map: any, out: Finding[]): Map<string, string> {
   return seen;
 }
 
-export function check(files: Map<string, string>, map: any): Finding[] {
+export function check(files: Map<string, string>, map: any, coreFlows = ""): Finding[] {
   const out: Finding[] = [];
   const listed = listedKeys(map, out);
   // The device tier (NP-APP-PRESENCE-001 §4) is a subset of the sorted keys: a key readable while locked is still a stored key.
@@ -85,6 +90,9 @@ export function check(files: Map<string, string>, map: any): Finding[] {
       if (!found.has(key)) found.set(key, path);
       if (!listed.has(key)) out.push({ file: path, message: `K1: stored key '${key}' is in no list of ${KEYS_JSON}: decide whether it moves (carried), is the install's (perInstall), is consent state (consent) or is not yet sorted (unsorted)` });
     }
+  }
+  for (const m of coreFlows.matchAll(KEY_LITERAL)) {
+    if (!found.has(m[1])) found.set(m[1], CORE_FLOWS);
   }
   for (const [key, list] of listed) {
     if (!found.has(key)) out.push({ file: KEYS_JSON, message: `K3: '${key}' (${list}) appears in no app source: delete the entry or restore the key` });
@@ -103,8 +111,8 @@ function selfTest(): void {
     ["common/core/A.kt", 'const val K = "np.session.history"; val c = "np.consent.research"'],
     ["app/ios/NeurOne/B.swift", 'let k = "ble.last-hub-id"; let s = "np.setup.first-complete"'],
   ]);
-  const expect = (name: string, files: Map<string, string>, m: any, want: string[]) => {
-    const got = check(files, m).map((f) => f.message.slice(0, 2));
+  const expect = (name: string, files: Map<string, string>, m: any, want: string[], coreFlows = "") => {
+    const got = check(files, m, coreFlows).map((f) => f.message.slice(0, 2));
     if (JSON.stringify(got.sort()) !== JSON.stringify(want.sort())) {
       console.error(`self-test FAILED: ${name}: expected [${want}], got [${got}]`);
       process.exit(1);
@@ -118,6 +126,10 @@ function selfTest(): void {
   expect("a key in a test is not read", new Map([...src, ["common/core/src/jvmTest/T.kt", 'val x = "np.fixture.only"']]), map, []);
   expect("a key in a .test.ts is not read", new Map([...src, ["common/lib/x.test.ts", 'const x = "np.fixture.only";']]), map, []);
   expect("a stale entry fails", new Map([["common/core/A.kt", 'val c = "np.consent.research"; val s = "np.session.history"']]), map, ["K3", "K3"]);
+  const withCoreKey = { ...map, perInstall: [...map.perInstall, "np.migration.pending-clear"] };
+  expect("a listed key only the core stores fails when the core does not name it", src, withCoreKey, ["K3"]);
+  expect("a listed key only the core stores passes when the core names it", src, withCoreKey, [], 'const K: &str = "np.migration.pending-clear";');
+  expect("a core key in no list is not a new key", src, map, [], 'const K: &str = "np.migration.cleared";');
   expect("a key in two lists fails", src, { ...map, unsorted: [...map.unsorted, "np.session.history"] }, ["K2"]);
   expect("an entry that is not a key fails", src, { ...map, unsorted: [...map.unsorted, "session.history"] }, ["K4"]);
   expect("a device-tier key in no list fails", src, { ...map, deviceTier: ["np.not.stored"] }, ["K5"]);
@@ -136,7 +148,9 @@ if (import.meta.main) {
     try { files.set(p, readFileSync(join(root, p), "utf8")); } catch { /* deleted or unreadable */ }
   }
   const map = JSON.parse(readFileSync(join(root, KEYS_JSON), "utf8"));
-  const findings = check(files, map);
+  let coreFlows = "";
+  try { coreFlows = readFileSync(join(root, CORE_FLOWS), "utf8"); } catch { /* K3 then reports the keys only it names */ }
+  const findings = check(files, map, coreFlows);
   console.log(`scanned: ${files.size} source file(s) under app/, common/lib/, common/core/ and common/cloudauth/ against ${KEYS_JSON}`);
   for (const f of findings) console.error(`${f.file}: ${f.message}`);
   if (findings.length) {

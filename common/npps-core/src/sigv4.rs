@@ -29,13 +29,25 @@ use hmac::{Hmac, Mac};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
-fn hmac(key: &[u8], data: &str) -> Vec<u8> {
+/// HMAC-SHA-256. Every use but the last makes a key of the signing chain, so the answer is wiped when it is dropped
+/// (`SWR-MG-28` (c)); the last is the signature, which is sent.
+fn hmac(key: &[u8], data: &str) -> Zeroizing<Vec<u8>> {
     let mut m = <Hmac<Sha256> as Mac>::new_from_slice(key).expect("HMAC takes a key of any length");
     m.update(data.as_bytes());
-    m.finalize().into_bytes().to_vec()
+    Zeroizing::new(m.finalize().into_bytes().to_vec())
+}
+
+/// `"AWS4" + secret`, the first key of the chain: the account's secret in a second buffer, wiped when it is dropped. Built
+/// at its final size, so no shorter copy is left behind by a buffer that grew.
+fn aws4_secret(secret: &str) -> Zeroizing<String> {
+    let mut k = Zeroizing::new(String::with_capacity(4 + secret.len()));
+    k.push_str("AWS4");
+    k.push_str(secret);
+    k
 }
 
 fn text<'a>(req: &'a Value, key: &str) -> R<&'a str> {
@@ -125,7 +137,7 @@ pub(crate) fn sign(req: &Value) -> R<Value> {
     let date = &amz_date[..8];
     let scope = format!("{date}/{region}/{service}/aws4_request");
     let string_to_sign = format!("AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}", hex(&Sha256::digest(canonical_request.as_bytes())));
-    let k = hmac(format!("AWS4{secret}").as_bytes(), date);
+    let k = hmac(aws4_secret(secret).as_bytes(), date);
     let k = hmac(&k, region);
     let k = hmac(&k, service);
     let k = hmac(&k, "aws4_request");
@@ -153,6 +165,14 @@ mod tests {
     const KEY_ID: &str = "AKIAIOSFODNN7EXAMPLE";
     const SECRET: &str = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
     const EMPTY: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn the_first_signing_key_is_built_at_its_final_size_so_no_shorter_copy_of_the_secret_is_left() {
+        let k = aws4_secret(SECRET);
+        assert_eq!(k.as_str(), format!("AWS4{SECRET}"), "the key Amazon's procedure names");
+        assert_eq!(k.capacity(), k.len(), "the buffer never grew, so nothing was reallocated and left unwiped");
+    }
 
     fn ask(v: Value) -> Result<Value, String> {
         migration_json(&v.to_string()).map(|s| serde_json::from_str(&s).unwrap())

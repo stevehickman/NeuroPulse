@@ -2,6 +2,7 @@ package life.neurone.core.npps
 
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -45,9 +46,9 @@ class NppsMigrationTests {
     fun aWithdrawalSurvivesARestoreAndNeverAskedStaysNull() {
         val merged = ask("mergeWithdrawal") {
             putJsonObject("local") {}
-            putJsonObject("incoming") { put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z") }
+            putJsonObject("incoming") { put("blanketConsentWithdrawnAt", "2026-03-01#000001") }
         }
-        assertEquals("2026-03-01T00:00:00Z", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
+        assertEquals("2026-03-01#000001", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
         val never = ask("mergeWithdrawal") { putJsonObject("local") {}; putJsonObject("incoming") {} }
         assertEquals(JsonNull, never["blanketConsentWithdrawnAt"])
     }
@@ -55,10 +56,15 @@ class NppsMigrationTests {
     // @verifies SWR-MG-08
     @Test
     fun theOldPhoneClearsOnlyOnAMatchingConfirmation() {
-        val none = ask("clearDecision") { put("bundleHash", "h"); put("confirmation", JsonNull) }
-        assertEquals(false, none["clear"]!!.jsonPrimitive.boolean)
-        val ok = ask("clearDecision") { put("bundleHash", "h"); putJsonObject("confirmation") { put("bundleHash", "h") } }
-        assertEquals(true, ok["clear"]!!.jsonPrimitive.boolean)
+        fun decide(confirmation: (JsonObjectBuilder.() -> Unit)?) = ask("clearDecision") {
+            put("bundleHash", "h")
+            putJsonObject("expected") { put("bundleHash", "h"); put("tag", "aa") }
+            if (confirmation == null) put("confirmation", JsonNull) else putJsonObject("confirmation", confirmation)
+        }
+        assertEquals(false, decide(null)["clear"]!!.jsonPrimitive.boolean)
+        // The hash alone confirms nothing: it is computed from ciphertext the backup location holds.
+        assertEquals(false, decide { put("bundleHash", "h") }["clear"]!!.jsonPrimitive.boolean)
+        assertEquals(true, decide { put("bundleHash", "h"); put("tag", "aa") }["clear"]!!.jsonPrimitive.boolean)
     }
 
     // @verifies-none a harness self-check of the exception mapping, not a requirement

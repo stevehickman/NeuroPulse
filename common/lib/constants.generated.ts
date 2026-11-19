@@ -28,6 +28,11 @@ export const NPHardwareLimits = {
   // Acoustic output ceiling, dB SPL at the ear, absolute (NP-HW-AUDIO-001 REQ-AUDIO-19). The hub's
   // NP_AUDIO_MAX_LEVEL_HALF_DB is twice it; scripts/check-hub-wire-format.ts holds the two together.
   AUDIO_MAX_DB_SPL: 85.0,
+  // Highest planar tone frequency, Hz: carrier_hz, and for a binaural or isochronic command carrier_hz plus the
+  // beat or pulse rate (NP-HW-AUDIO-001 REQ-AUDIO-25). A-weighting is positive between about 1 kHz and 6.1 kHz, so
+  // an unweighted 85 dB SPL tone there is above 85 dB(A). The hub's NP_AUDIO_MAX_TONE_HZ is the same figure;
+  // scripts/check-hub-wire-format.ts holds the two together.
+  AUDIO_MAX_TONE_HZ: 1000.0,
   // BES / tACS (consumer: Brainwave Entrainment Stimulation)
   BES_TACS_MAX_MILLIAMPS: 1.0,
   BES_TACS_MIN_HZ: 0.5,
@@ -412,4 +417,11 @@ export const GattSizes = {
   // total ms, 1 B ramp phase (0 none, 1 down, 2 held, 3 cervical VNS checks, 4 up), 1 B ramp percent, 4 B ramp
   // remaining ms (0xFFFFFFFF unknown) (all little-endian).
   SESSION_PROGRESS_LEN: 22,
+} as const;
+
+// Bounds on the individual profile the limits store keeps (NP-SW-001 REQ-SW03-32, OI-PRIV-11).
+export const ProfileLimits = {
+  // UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label that tells
+  // two profiles apart, not a record about the person; nothing derives 100.
+  PROFILE_NOTES_MAX_CHARS: 100,
 } as const;

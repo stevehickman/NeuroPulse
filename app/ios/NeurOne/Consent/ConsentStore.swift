@@ -39,14 +39,36 @@ final class ConsentStore: ObservableObject {
     private let expansionsKey    = "np.consent.clinician-expansions"
     private let invitationsKey   = "np.consent.study-invitations"
     private let studyWithdrawalsKey = "np.consent.study-withdrawals"
+    /// Stored records that could not be read, as found (`REQ-CONSENT-20`). Never moved in a migration.
+    private let quarantineKey    = "np.consent.quarantine"
 
-    /// Studies the user withdrew from, and when. UHDR-class and kept apart from `studyParticipations`
-    /// (SHDR-class). A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put
-    /// the user back in a study they left (`SWR-MG-04`).
-    @Published private(set) var studyWithdrawals: [String: Date] = [:]
+    /// The records research admission depends on. One of them unreadable means the device cannot tell
+    /// "never asked" from "said stop". The clinician keys are not here: an unreadable grant list reads as
+    /// no grants, which already gives a clinician nothing.
+    private var researchRecordKeys: Set<String> {
+        [researchKey, studyWithdrawalsKey, PersistedKeys.PARTICIPATION_KEY, invitationsKey, quarantineKey]
+    }
 
-    /// The clock for withdrawal times; injectable so a test can order two withdrawals.
-    private let now: () -> Date
+    /// Studies the user withdrew from, and when (a `WithdrawalMark`). UHDR-class and kept apart from
+    /// `studyParticipations` (SHDR-class). A withdrawal stays here for good, so a restore or a re-presented
+    /// descriptor cannot put the user back in a study they left (`SWR-MG-04`).
+    @Published private(set) var studyWithdrawals: [String: String] = [:]
+
+    /// Stored consent records that could not be read, kept as they were found (`REQ-CONSENT-20`). Kept for good:
+    /// a later version of the app may be able to read what this one could not.
+    @Published private(set) var quarantinedBlobs: [QuarantinedConsentBlob] = []
+
+    /// A record research admission depends on could not be read, and the person has not decided again since.
+    /// While this holds no study is admitted, no consent request can be accepted, and the dashboard says so.
+    /// It clears when the person commits a research-consent decision (`updateResearchConsent`,
+    /// `withdrawBlanketResearchConsent`), which is then the record.
+    var consentRecordUnreadable: Bool {
+        quarantinedBlobs.contains { $0.redecidedAt == nil && researchRecordKeys.contains($0.key) }
+    }
+
+    /// The day a withdrawal is marked with ("yyyy-MM-dd"); injectable so a test can put two withdrawals on
+    /// different days.
+    private let today: () -> String
 
     /// Checks the signature on every study descriptor before anything derived from it reaches the
     /// user (§5.3 step 1). The default refuses everything: see `RefusingStudyDescriptorVerifier`.
@@ -54,19 +76,25 @@ final class ConsentStore: ObservableObject {
 
     init(
         descriptorVerifier: StudyDescriptorVerifier = RefusingStudyDescriptorVerifier(),
-        now: @escaping () -> Date = { Date() }
+        today: @escaping () -> String = ConsentDay.today
     ) {
         self.descriptorVerifier = descriptorVerifier
-        self.now = now
+        self.today = today
         load()
     }
 
     // MARK: - Clinician consent
 
-    func grantClinicianAccess(_ grant: ClinicianConsentGrant) {
+    /// Record a grant. Refused, and false returned, unless the grant is time-limited (§5.1, `REQ-CONSENT-18`):
+    /// it carries an expiry and that day has not passed. (Kotlin also checks the expiry is a real "yyyy-MM-dd"
+    /// day; here it is a `Date`, which cannot be anything else.)
+    @discardableResult
+    func grantClinicianAccess(_ grant: ClinicianConsentGrant) -> Bool {
+        guard grant.isInForce(on: Date()) else { return false }
         clinicianGrants.removeAll { $0.id == grant.id }
         clinicianGrants.append(grant)
         save()
+        return true
     }
 
     func revokeClinicianAccess(grantID: UUID) {
@@ -116,11 +144,12 @@ final class ConsentStore: ObservableObject {
         // Fail closed on a stale request: the grant may have been revoked, or already widened past
         // this tier, since the request was raised. Approving what the differential document no
         // longer describes would apply a change the user was not shown.
+        // The differential is also nil for a grant that is no longer in force (`REQ-CONSENT-18`).
+        let now = Date()
         guard let grant = clinicianGrants.first(where: { $0.id == request.grantID }),
-              ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier) != nil
+              ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier, on: now) != nil
         else { return }
 
-        let now = Date()
         expansionRequests[idx].decision = .approved(at: now, includesPriorData: includePriorData)
         expandClinicianAccess(
             grantID: request.grantID,
@@ -204,13 +233,15 @@ final class ConsentStore: ObservableObject {
         // `blanketConsentWithdrawnAt` is the store's to set, never the screen's. The UI commits a
         // whole state and cannot see the transition this method is built around; carrying the
         // committed value through would let a stale screen erase the record of the user having
-        // said stop, which is the one thing §6.0 needs to survive.
-        var next = withTimes(old: researchConsent, new: state)
-        next.blanketConsentWithdrawnAt = isWithdrawal
-            ? now()
-            : researchConsent.blanketConsentWithdrawnAt
-        researchConsent = next
+        // said stop, which is the one thing §6.0 needs to survive. `withTimes` holds that rule for
+        // every withdrawal mark, this one included.
+        let before = researchConsent
+        researchConsent = withTimes(old: researchConsent, new: withContact(old: researchConsent, new: state))
+        // A commit from the consent UI is the person deciding, so it is what ends a quarantine.
+        markRedecided()
+        withdrawUncoveredParticipations()
         save()
+        forgetPortalIdentityIfWithdrawn(since: before)
 
         if isWithdrawal {
             revokeResearchAnalytics()
@@ -219,13 +250,25 @@ final class ConsentStore: ObservableObject {
 
     func withdrawBlanketResearchConsent() {
         let wasGranted = researchConsent.blanketConsentGranted
+        // While the stored record is unreadable the device cannot know blanket consent was never granted, and
+        // the person is saying stop now. That is recorded as a withdrawal (`REQ-CONSENT-20`).
+        let mayHaveBeenGranted = !wasGranted && consentRecordUnreadable
         researchConsent.blanketConsentGranted = false
         researchConsent.blanketConsentGrantedAt = nil
         // Guarded on the transition, like the teardown below and like `updateResearchConsent`:
         // calling this when blanket consent was never granted stops nothing, and marking it would
         // silently bar an L2 participant from studies they are still consenting to.
-        if wasGranted { researchConsent.blanketConsentWithdrawnAt = now() }
+        if wasGranted || mayHaveBeenGranted {
+            researchConsent.blanketConsentWithdrawnAt = WithdrawalMark.next(
+                previous: researchConsent.blanketConsentWithdrawnAt, today: today()
+            )
+        }
+        markRedecided()
+        withdrawUncoveredParticipations()
         save()
+        // The suggestion author token goes with blanket consent (REQ-SW03-12 (f)); a state never granted withdraws nothing,
+        // and an unreadable record that may have held the grant counts as one (REQ-CONSENT-20).
+        if wasGranted || mayHaveBeenGranted { ResearchSuggestionStore.forgetAuthorToken() }
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
         //
@@ -234,6 +277,15 @@ final class ConsentStore: ObservableObject {
         // (Partial withdrawals — specific study or category — do not revoke research analytics
         // because the user remains a research participant in other scopes.)
         revokeResearchAnalytics()
+    }
+
+    /// The suggestion author token does not outlive the portal opt-in or blanket consent (REQ-SW03-12 (f), OI-PRIV-08 (3)).
+    /// Keyed on the true→false transition from `before`, like the analytics teardown. Call after `save()`: the portal store
+    /// reads the saved state.
+    private func forgetPortalIdentityIfWithdrawn(since before: ResearchConsentState) {
+        let portalWithdrawn = before.suggestionPortalOptIn && !researchConsent.suggestionPortalOptIn
+        let blanketWithdrawn = before.blanketConsentGranted && !researchConsent.blanketConsentGranted
+        if portalWithdrawn || blanketWithdrawn { ResearchSuggestionStore.forgetAuthorToken() }
     }
 
     /// Revoke research analytics — clears the research analytics gate key and tears
@@ -257,24 +309,80 @@ final class ConsentStore: ObservableObject {
         var next = researchConsent
         next.categoryConsents[category] = granted
         researchConsent = withTimes(old: researchConsent, new: next)
+        withdrawUncoveredParticipations()
         save()
     }
 
-    /// `new` with every withdrawal time the store owns taken from `old`, and stamped now on a true→false
+    /// Stop every participation the research consent no longer covers (`REQ-CONSENT-19`).
+    ///
+    /// A withdrawal used to change the consent state and leave `studyParticipations` alone, so a study joined
+    /// under blanket consent stayed active after blanket consent was withdrawn, and anything that sends extracts
+    /// for active participations would have kept sending (§5.3, `OI-PRIV-06` point 1). Run after every change to
+    /// `researchConsent`, and when the store is read, so a participation is active only while
+    /// `ConsentEngine.covers` holds for it: blanket withdrawal stops all of them, a category withdrawal stops the
+    /// studies left with no consented category, and a study whose categories are not on record is covered by
+    /// blanket consent alone.
+    ///
+    /// Only `StudyParticipationRecord.withdrawnAt` is written. `studyWithdrawals` is not: that is the list of
+    /// studies the person named, and it bars a study for good, which a blanket or category withdrawal did not
+    /// ask for. An engagement notification for a stopped study is closed with it, because it tells the person
+    /// they are in a study they are no longer in.
+    ///
+    /// Skipped while the stored record is unreadable: the state in memory is then defaults, not the person's.
+    private func withdrawUncoveredParticipations() {
+        guard !consentRecordUnreadable else { return }
+        let consent = researchConsent
+        let invitations = pendingInvitations
+        let stopped = Set(
+            studyParticipations
+                .filter { record in
+                    // The categories of a study this device holds an invitation for, or nil if it holds none.
+                    let categories = invitations.first { $0.studyID == record.studyID }?.researchCategories
+                    return record.isActive && !ConsentEngine.covers(consent, categories: categories)
+                }
+                .map(\.studyID)
+        )
+        guard !stopped.isEmpty else { return }
+        let at = Date()
+        for idx in studyParticipations.indices
+        where stopped.contains(studyParticipations[idx].studyID) && studyParticipations[idx].isActive {
+            studyParticipations[idx].withdrawnAt = at
+        }
+        for idx in pendingInvitations.indices
+        where stopped.contains(pendingInvitations[idx].studyID) && pendingInvitations[idx].isOpen
+            && pendingInvitations[idx].posture == .engagementNotification {
+            pendingInvitations[idx].decision = .declined(at: at)
+        }
+    }
+
+    /// The person has committed a research-consent decision, which ends a quarantine (`REQ-CONSENT-20`).
+    private func markRedecided() {
+        guard consentRecordUnreadable else { return }
+        let at = Date()
+        let keys = researchRecordKeys
+        for idx in quarantinedBlobs.indices
+        where quarantinedBlobs[idx].redecidedAt == nil && keys.contains(quarantinedBlobs[idx].key) {
+            quarantinedBlobs[idx].redecidedAt = at
+        }
+    }
+
+    /// `new` with every withdrawal mark the store owns taken from `old`, and marked on a true→false
     /// transition, so a screen that commits a whole state can neither set nor erase one (`SWR-MG-04`).
-    /// The blanket time is handled by the callers, which also tear down analytics on that transition.
     private func withTimes(old: ResearchConsentState, new: ResearchConsentState) -> ResearchConsentState {
         var next = new
-        // Read the clock only when something was withdrawn (as the Kotlin store does), and once for the whole commit, so
-        // every decision withdrawn together carries one time and a plain grant never consumes a reading.
-        var stamp: Date?
-        func t() -> Date {
+        // Read the day only when something was withdrawn (as the Kotlin store does), and once for the whole
+        // commit, so every decision withdrawn together carries one day and a plain grant never consumes a reading.
+        var stamp: String?
+        func day() -> String {
             if let stamp { return stamp }
-            let read = now()
+            let read = today()
             stamp = read
             return read
         }
-        func at(_ was: Bool, _ will: Bool, _ previous: Date?) -> Date? { was && !will ? t() : previous }
+        func at(_ was: Bool, _ will: Bool, _ previous: String?) -> String? {
+            was && !will ? WithdrawalMark.next(previous: previous, today: day()) : previous
+        }
+        next.blanketConsentWithdrawnAt = at(old.blanketConsentGranted, new.blanketConsentGranted, old.blanketConsentWithdrawnAt)
         next.contactConsentWithdrawnAt = at(old.contactConsentGranted, new.contactConsentGranted, old.contactConsentWithdrawnAt)
         next.resultsOptInWithdrawnAt = at(old.resultsOptIn, new.resultsOptIn, old.resultsOptInWithdrawnAt)
         next.suggestionPortalOptInWithdrawnAt = at(
@@ -283,41 +391,76 @@ final class ConsentStore: ObservableObject {
         var categories = old.categoryWithdrawnAt ?? [:]
         for category in ResearchCategory.allCases
         where old.categoryConsents[category] == true && new.categoryConsents[category] != true {
-            categories[category.rawValue] = t()
+            categories[category.rawValue] = WithdrawalMark.next(previous: categories[category.rawValue], today: day())
         }
         next.categoryWithdrawnAt = categories.isEmpty ? nil : categories
         return next
     }
 
+    /// `new` with its contact method in the stored form (`REQ-CONSENT-23`).
+    ///
+    /// L1 on needs a method the app can use: an email address or a phone number. A commit that turns L1 on
+    /// without one does not turn it on, and a commit that would replace a usable method with an unusable one
+    /// keeps the one held. L1 off holds no method at all: the address or number is erased with the consent.
+    private func withContact(old: ResearchConsentState, new: ResearchConsentState) -> ResearchConsentState {
+        var next = new
+        if new.contactConsentGranted, let contact = ResearchContact.parse(new.contactMethod) {
+            next.contactMethod = contact.value
+            next.contactChannel = contact.channel
+        } else if new.contactConsentGranted, old.contactConsentGranted, old.contactChannel != nil {
+            next.contactMethod = old.contactMethod
+            next.contactChannel = old.contactChannel
+        } else {
+            next.contactConsentGranted = false
+            next.contactMethod = ""
+            next.contactChannel = nil
+        }
+        return next
+    }
+
     // MARK: - Withdrawal records in a migration (SWR-MG-04)
 
-    /// The withdrawal records in the shape the shared core merges (`mergeWithdrawal`): UTC instants, a category
+    /// The withdrawal records in the shape the shared core merges (`mergeWithdrawal`): marks, a category
     /// by its wire name, a study by its id. Grants are not here and never travel: a restore can only reduce
     /// what a phone is consented to.
     func exportWithdrawals() -> [String: Any] {
         let r = researchConsent
         var out: [String: Any] = [:]
-        if let t = r.blanketConsentWithdrawnAt { out["blanketConsentWithdrawnAt"] = ConsentTime.string(t) }
-        if let t = r.contactConsentWithdrawnAt { out["contactConsentWithdrawnAt"] = ConsentTime.string(t) }
-        if let t = r.resultsOptInWithdrawnAt { out["resultsOptInWithdrawnAt"] = ConsentTime.string(t) }
-        if let t = r.suggestionPortalOptInWithdrawnAt { out["suggestionPortalOptInWithdrawnAt"] = ConsentTime.string(t) }
-        out["categoryWithdrawals"] = (r.categoryWithdrawnAt ?? [:]).mapValues(ConsentTime.string)
-        out["studyWithdrawals"] = studyWithdrawals.mapValues(ConsentTime.string)
+        if let t = r.blanketConsentWithdrawnAt { out["blanketConsentWithdrawnAt"] = t }
+        if let t = r.contactConsentWithdrawnAt { out["contactConsentWithdrawnAt"] = t }
+        if let t = r.resultsOptInWithdrawnAt { out["resultsOptInWithdrawnAt"] = t }
+        if let t = r.suggestionPortalOptInWithdrawnAt { out["suggestionPortalOptInWithdrawnAt"] = t }
+        out["categoryWithdrawals"] = r.categoryWithdrawnAt ?? [:]
+        out["studyWithdrawals"] = studyWithdrawals
         return out
     }
 
     /// Apply merged withdrawal records. Which of them are later than the ones held here is the core's to say
     /// (`applyWithdrawal`), so every platform applies a restore the same way; this switches the matching grants
-    /// off and records the times. A grant made here after the withdrawal stands, and nothing here turns one on.
-    func applyWithdrawals(_ incoming: [String: Any]) throws {
+    /// off and records the marks. A grant made here after the withdrawal stands, and nothing here turns one on.
+    func applyWithdrawals(_ received: [String: Any]) throws {
+        // Only well-formed marks are taken from a bundle. Anything else would be stored as received and would
+        // order against real marks by accident of its text (`REQ-CONSENT-24` a).
+        var incoming: [String: Any] = [:]
+        for (key, value) in received {
+            if let mark = value as? String {
+                if WithdrawalMark.isValid(mark) { incoming[key] = mark }
+            } else if let byID = value as? [String: Any] {
+                var marks: [String: String] = [:]
+                for (id, held) in byID {
+                    if let mark = held as? String, WithdrawalMark.isValid(mark) { marks[id] = mark }
+                }
+                incoming[key] = marks
+            }
+        }
         let verdict = try NppsCore.migration([
             "op": "applyWithdrawal", "held": exportWithdrawals(), "incoming": incoming,
         ])
         let applied = verdict["applied"] as? [String: Any] ?? [:]
         let keys = Set(applied["times"] as? [String] ?? [])
-        func time(_ key: String) -> Date? {
-            guard keys.contains(key), let text = incoming[key] as? String else { return nil }
-            return ConsentTime.date(text)
+        func time(_ key: String) -> String? {
+            guard keys.contains(key) else { return nil }
+            return incoming[key] as? String
         }
         var r = researchConsent
         if let t = time("blanketConsentWithdrawnAt") {
@@ -327,6 +470,9 @@ final class ConsentStore: ObservableObject {
         }
         if let t = time("contactConsentWithdrawnAt") {
             r.contactConsentGranted = false
+            // A restored L1 withdrawal erases the method here too (`REQ-CONSENT-23`).
+            r.contactMethod = ""
+            r.contactChannel = nil
             r.contactConsentWithdrawnAt = t
         }
         if let t = time("resultsOptInWithdrawnAt") {
@@ -340,24 +486,27 @@ final class ConsentStore: ObservableObject {
         let theirCategories = incoming["categoryWithdrawals"] as? [String: String] ?? [:]
         var categories = r.categoryWithdrawnAt ?? [:]
         for name in applied["categoryWithdrawals"] as? [String] ?? [] {
-            guard let category = ResearchCategory(rawValue: name), let t = theirCategories[name].flatMap(ConsentTime.date) else {
-                continue
-            }
+            guard let category = ResearchCategory(rawValue: name), let t = theirCategories[name] else { continue }
             r.categoryConsents[category] = false
             categories[name] = t
         }
         r.categoryWithdrawnAt = categories.isEmpty ? nil : categories
         let theirStudies = incoming["studyWithdrawals"] as? [String: String] ?? [:]
         for id in applied["studyWithdrawals"] as? [String] ?? [] {
-            guard let t = theirStudies[id].flatMap(ConsentTime.date) else { continue }
+            guard let t = theirStudies[id] else { continue }
             studyWithdrawals[id] = t
+            // The mark is the other phone's day. The participation's `withdrawnAt` is when this phone stopped.
             for idx in studyParticipations.indices where studyParticipations[idx].studyID == id && studyParticipations[idx].isActive {
-                studyParticipations[idx].withdrawnAt = t
+                studyParticipations[idx].withdrawnAt = Date()
             }
         }
         let blanketApplied = time("blanketConsentWithdrawnAt") != nil
+        let before = researchConsent
         researchConsent = r
+        // A restored blanket or category withdrawal stops what it stops here too (`REQ-CONSENT-19`).
+        withdrawUncoveredParticipations()
         save()
+        forgetPortalIdentityIfWithdrawn(since: before)
         if blanketApplied { revokeResearchAnalytics() }
     }
 
@@ -387,15 +536,17 @@ final class ConsentStore: ObservableObject {
     /// anything the user did.
     @discardableResult
     func ingestStudyDescriptor(_ descriptor: StudyDescriptor) -> StudyDescriptorAdmission {
+        let now = Date()
         let admission = ConsentEngine.admit(
             descriptor: descriptor,
             verification: descriptorVerifier.verify(descriptor),
             consent: researchConsent,
-            studyAlreadyDecided: hasDecided(studyID: descriptor.studyID)
+            studyAlreadyDecided: hasDecided(studyID: descriptor.studyID),
+            consentRecordReadable: !consentRecordUnreadable,
+            today: now
         )
         guard case let .admitted(posture, descriptorHash) = admission else { return admission }
 
-        let now = Date()
         pendingInvitations.removeAll { $0.studyID == descriptor.studyID }
         pendingInvitations.append(
             ConsentEngine.invitation(
@@ -420,6 +571,7 @@ final class ConsentStore: ObservableObject {
     private func hasDecided(studyID: String) -> Bool {
         pendingInvitations.contains { $0.studyID == studyID && !$0.isOpen }
             || studyParticipations.contains { $0.studyID == studyID }
+            || studyWithdrawals[studyID] != nil
     }
 
     /// §6.3 step 4, *Yes*. Only a consent request can be accepted: an engagement notification was
@@ -430,7 +582,15 @@ final class ConsentStore: ObservableObject {
               pendingInvitations[idx].posture == .consentRequest,
               pendingInvitations[idx].isOpen
         else { return }
+        // A request that arrived under a consent since withdrawn, or while the stored record is unreadable,
+        // cannot be accepted: accepting would start a flow the withdrawal stopped (`REQ-CONSENT-19` d). The
+        // invitation stays open, and is answerable again if the person consents again.
+        guard !consentRecordUnreadable,
+              ConsentEngine.covers(researchConsent, categories: pendingInvitations[idx].researchCategories)
+        else { return }
         let now = Date()
+        // Nor can a request whose descriptor has expired: the issuer's undertaking no longer stands.
+        guard ConsentEngine.notExpired(pendingInvitations[idx].expiresAt, on: now) else { return }
         pendingInvitations[idx].decision = .accepted(at: now)
         recordParticipation(
             studyID: studyID,
@@ -486,7 +646,8 @@ final class ConsentStore: ObservableObject {
         let record = StudyParticipationRecord(
             id: UUID(), studyID: studyID,
             descriptorHash: descriptorHash,
-            transmittedAt: date, extractBytes: 0
+            // Joined, and nothing sent: the transmission fields stay empty until an extract goes out.
+            enrolledAt: date
         )
         studyParticipations.append(record)
         save()
@@ -494,36 +655,85 @@ final class ConsentStore: ObservableObject {
 
     func withdrawFromStudy(studyID: String) {
         if let idx = studyParticipations.firstIndex(where: { $0.studyID == studyID && $0.isActive }) {
-            let at = now()
-            studyParticipations[idx].withdrawnAt = at
-            studyWithdrawals[studyID] = at
+            studyParticipations[idx].withdrawnAt = Date()
+            studyWithdrawals[studyID] = WithdrawalMark.next(previous: studyWithdrawals[studyID], today: today())
             save()
         }
     }
 
     // MARK: - Persistence
 
+    /// Read one stored record. A record that is there and cannot be read is quarantined, never dropped: the
+    /// caller keeps its default, and `quarantine` keeps the bytes.
+    private func read<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = ProtectedDefaults.standard.data(forKey: key) else { return nil }
+        if let decoded = try? JSONDecoder().decode(type, from: data) { return decoded }
+        quarantine(key: key, blob: data)
+        return nil
+    }
+
+    /// Keep `blob` as found, and write the quarantine list at once, before any `save` can replace the record
+    /// under `key` with defaults (`REQ-CONSENT-20`).
+    private func quarantine(key: String, blob: Data) {
+        guard !quarantinedBlobs.contains(where: { $0.key == key && $0.blob == blob && $0.redecidedAt == nil })
+        else { return }
+        quarantinedBlobs.append(QuarantinedConsentBlob(key: key, blob: blob, quarantinedAt: Date()))
+        saveQuarantine()
+    }
+
+    private func saveQuarantine() {
+        if let data = try? JSONEncoder().encode(quarantinedBlobs) {
+            ProtectedDefaults.standard.set(data, forKey: quarantineKey)
+        }
+    }
+
+    /// `blob` as a JSON object, or nil if it is absent or is not one.
+    private func parsed(_ blob: Data?) -> [String: Any]? {
+        guard let blob else { return nil }
+        return (try? JSONSerialization.jsonObject(with: blob)) as? [String: Any]
+    }
+
+    /// The entries of `object` whose value is a well-formed `WithdrawalMark`; anything else is left behind.
+    private func recoveredMarks(_ object: [String: Any]?) -> [String: String] {
+        (object ?? [:]).compactMapValues { value -> String? in
+            guard let mark = value as? String, WithdrawalMark.isValid(mark) else { return nil }
+            return mark
+        }
+    }
+
+    /// What can be said of a research record that did not decode: every consent off, and each withdrawal mark
+    /// that is still legible in the bytes (`REQ-CONSENT-20` e). Only marks are taken. A grant is never read out
+    /// of a record the app could not read, nor is the contact method, so this can show "said stop" and can
+    /// never show a consent.
+    private func recoveredWithdrawals(_ blob: Data?) -> ResearchConsentState {
+        var state = ResearchConsentState()
+        guard let object = parsed(blob) else { return state }
+        let marks = recoveredMarks(object)
+        state.blanketConsentWithdrawnAt = marks["blanketConsentWithdrawnAt"]
+        state.contactConsentWithdrawnAt = marks["contactConsentWithdrawnAt"]
+        state.resultsOptInWithdrawnAt = marks["resultsOptInWithdrawnAt"]
+        state.suggestionPortalOptInWithdrawnAt = marks["suggestionPortalOptInWithdrawnAt"]
+        let categories = recoveredMarks(object["categoryWithdrawnAt"] as? [String: Any])
+            .filter { ResearchCategory(rawValue: $0.key) != nil }
+        state.categoryWithdrawnAt = categories.isEmpty ? nil : categories
+        return state
+    }
+
     private func load() {
-        if let data = ProtectedDefaults.standard.data(forKey: grantsKey),
-           let decoded = try? JSONDecoder().decode([ClinicianConsentGrant].self, from: data) {
-            clinicianGrants = decoded
-        }
-        if let data = ProtectedDefaults.standard.data(forKey: researchKey),
-           let decoded = try? JSONDecoder().decode(ResearchConsentState.self, from: data) {
-            researchConsent = decoded
-        }
-        if let data = ProtectedDefaults.standard.data(forKey: PersistedKeys.PARTICIPATION_KEY),
-           let decoded = try? JSONDecoder().decode([StudyParticipationRecord].self, from: data) {
-            studyParticipations = decoded
-        }
-        if let data = ProtectedDefaults.standard.data(forKey: studyWithdrawalsKey),
-           let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
-            studyWithdrawals = decoded
-        }
+        // First, so a record quarantined below is added to what is already held. If the list itself cannot be
+        // read, its bytes become the first entry of a new one.
+        if let decoded = read([QuarantinedConsentBlob].self, forKey: quarantineKey) { quarantinedBlobs = decoded }
+        if let decoded = read([ClinicianConsentGrant].self, forKey: grantsKey) { clinicianGrants = decoded }
+        // An unreadable research record or study-withdrawal list still gives up whatever withdrawal marks can
+        // be read out of it, so "said stop" is held from the start and travels in a migration (`REQ-CONSENT-20` e).
+        researchConsent = read(ResearchConsentState.self, forKey: researchKey)
+            ?? recoveredWithdrawals(ProtectedDefaults.standard.data(forKey: researchKey))
+        let storedParticipations = read([StudyParticipationRecord].self, forKey: PersistedKeys.PARTICIPATION_KEY) ?? []
+        studyWithdrawals = read([String: String].self, forKey: studyWithdrawalsKey)
+            ?? recoveredMarks(parsed(ProtectedDefaults.standard.data(forKey: studyWithdrawalsKey)))
         // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
         // user can dismiss by backgrounding the app is not one.
-        if let data = ProtectedDefaults.standard.data(forKey: expansionsKey),
-           let decoded = try? JSONDecoder().decode([ClinicianAccessExpansionRequest].self, from: data) {
+        if let decoded = read([ClinicianAccessExpansionRequest].self, forKey: expansionsKey) {
             expansionRequests = decoded
         }
         // Invitations persist for the same reason expansion requests do, and for one more: §6.3
@@ -531,10 +741,13 @@ final class ConsentStore: ObservableObject {
         // emptied by the next app launch cannot hold. While they were in-memory only, an accepted
         // study's participation record outlived the invitation that recorded the acceptance, so
         // the trail and the inbox disagreed after every restart.
-        if let data = ProtectedDefaults.standard.data(forKey: invitationsKey),
-           let decoded = try? JSONDecoder().decode([StudyInvitation].self, from: data) {
-            pendingInvitations = decoded
-        }
+        if let decoded = read([StudyInvitation].self, forKey: invitationsKey) { pendingInvitations = decoded }
+
+        // Two repairs to what was stored before `OI-PRIV-06`: a record that called its enrolment time a
+        // transmission, and a participation left active by a withdrawal that should have stopped it.
+        studyParticipations = storedParticipations.map { $0.normalised() }
+        withdrawUncoveredParticipations()
+        if studyParticipations != storedParticipations { save() }
     }
 
     private func save() {
@@ -556,20 +769,21 @@ final class ConsentStore: ObservableObject {
         if let data = try? JSONEncoder().encode(pendingInvitations) {
             ProtectedDefaults.standard.set(data, forKey: invitationsKey)
         }
+        if !quarantinedBlobs.isEmpty { saveQuarantine() }
     }
 }
 
-/// The form a withdrawal time takes in a bundle: a UTC instant to the second (`2026-03-01T00:00:00Z`), which orders
-/// as text, so the core can say which of two is later without parsing (`SWR-MG-04`).
-enum ConsentTime {
+/// The calendar day on this device as "yyyy-MM-dd": the day a withdrawal is marked with (`REQ-CONSENT-24`), and
+/// the day a descriptor's signed expiry day is held against (`REQ-CONSENT-09` i).
+enum ConsentDay {
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        f.timeZone = .autoupdatingCurrent
+        f.dateFormat = "yyyy-MM-dd"
         return f
     }()
 
     static func string(_ date: Date) -> String { formatter.string(from: date) }
-    static func date(_ text: String) -> Date? { formatter.date(from: text) }
+    static func today() -> String { string(Date()) }
 }

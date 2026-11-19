@@ -5,10 +5,13 @@ import {
   NPIndividualProfile,
   LimitLevel,
 } from '../../../../common/types/limits';
-import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
-import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
+import { NPHardwareLimits, ProfileLimits } from '../../../../common/lib/constants.generated';
+import { LIMIT_BOUNDS, limitsOutOfRange } from '../lib/paramBounds';
+import type { ParamBound } from '../lib/paramBounds';
+import { RangeEditor } from './ParamInputs';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -60,7 +63,6 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
   const [showNewProfile, setShowNewProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profileNotes, setProfileNotes] = useState('');
-  const [profileDob, setProfileDob] = useState('');
 
   // New helmet state
   const [showNewHelmet, setShowNewHelmet] = useState(false);
@@ -108,14 +110,11 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
       id: crypto.randomUUID(),
       name: profileName.trim(),
       notes: profileNotes.trim(),
-      dateOfBirth: profileDob || undefined,
-      createdAt: new Date().toISOString(),
     };
-    limitsStore.saveProfile(profile);
+    if (!limitsStore.saveProfile(profile)) return;
     setShowNewProfile(false);
     setProfileName('');
     setProfileNotes('');
-    setProfileDob('');
   }
 
   function handleAddHelmet() {
@@ -238,6 +237,11 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
                   const text = await file.text();
                   try {
                     const imported = limitsStore.importLimitsFromNPPS(text);
+                    const bad = limitsOutOfRange(imported);
+                    if (bad.length > 0) {
+                      alert(t('WEB_IMPORT_FAILED', { 0: t('WEB_LIMITS_OUT_OF_RANGE_LIST', { 0: bad.join(', ') }) }));
+                      return;
+                    }
                     limitsStore.saveGlobalLimits(imported);
                   } catch (e) {
                     alert(t('WEB_IMPORT_FAILED', { 0: (e as Error).message }));
@@ -277,15 +281,13 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
               showNewProfile={showNewProfile}
               profileName={profileName}
               profileNotes={profileNotes}
-              profileDob={profileDob}
               onSetActive={id => limitsStore.setActiveProfile(id === limitsStore.activeProfileId ? undefined : id)}
               onEditLimits={openIndividualEditor}
               onDelete={handleDeleteProfile}
               onShowNew={() => setShowNewProfile(true)}
-              onCancelNew={() => { setShowNewProfile(false); setProfileName(''); setProfileNotes(''); setProfileDob(''); }}
+              onCancelNew={() => { setShowNewProfile(false); setProfileName(''); setProfileNotes(''); }}
               onNameChange={setProfileName}
               onNotesChange={setProfileNotes}
-              onDobChange={setProfileDob}
               onSaveProfile={handleSaveProfile}
             />
           )}
@@ -505,7 +507,6 @@ function IndividualTab({
   showNewProfile,
   profileName,
   profileNotes,
-  profileDob,
   onSetActive,
   onEditLimits,
   onDelete,
@@ -513,7 +514,6 @@ function IndividualTab({
   onCancelNew,
   onNameChange,
   onNotesChange,
-  onDobChange,
   onSaveProfile,
 }: {
   profiles: readonly NPIndividualProfile[];
@@ -522,7 +522,6 @@ function IndividualTab({
   showNewProfile: boolean;
   profileName: string;
   profileNotes: string;
-  profileDob: string;
   onSetActive: (id: string) => void;
   onEditLimits: (profileId: string) => void;
   onDelete: (id: string, name: string) => void;
@@ -530,7 +529,6 @@ function IndividualTab({
   onCancelNew: () => void;
   onNameChange: (s: string) => void;
   onNotesChange: (s: string) => void;
-  onDobChange: (s: string) => void;
   onSaveProfile: () => void;
 }) {
   // Active profile first
@@ -567,17 +565,11 @@ function IndividualTab({
               style={INPUT_STYLE}
               autoFocus
             />
-            <input
-              type="date"
-              placeholder={t('WEB_PROFILE_DOB_PLACEHOLDER')}
-              value={profileDob}
-              onChange={e => onDobChange(e.target.value)}
-              style={INPUT_STYLE}
-            />
             <textarea
               placeholder={t('WEB_PROFILE_NOTES_PLACEHOLDER')}
               value={profileNotes}
               onChange={e => onNotesChange(e.target.value)}
+              maxLength={ProfileLimits.PROFILE_NOTES_MAX_CHARS}
               rows={2}
               style={{ ...INPUT_STYLE, resize: 'vertical' }}
             />
@@ -628,11 +620,6 @@ function IndividualTab({
                   borderRadius: 10,
                   fontWeight: 700,
                 }}>{t('WEB_ACTIVE')}</span>
-              )}
-              {profile.dateOfBirth && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {t('WEB_DOB_LABEL', { 0: profile.dateOfBirth })}
-                </span>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => onSetActive(profile.id)}>
@@ -759,10 +746,14 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
   const [editorTab, setEditorTab] = useState<EditorTab>('visual');
   const [scriptText, setScriptText] = useState('');
   const [scriptError, setScriptError] = useState<string | null>(null);
+  // A limit outside its range is marked where it is typed and the set cannot be saved until it is corrected.
+  const outOfRange = limitsOutOfRange(limits);
 
   // Generate script text from current limits whenever switching to script tab
   function handleSwitchToScript() {
-    setScriptText(serializeNPPSLimits(limits));
+    // The script a person sees and can copy is the share form: no helmet serial, no individual id (SWR-WO-07 (f)).
+    // Saving it back stamps the tier's own id (limitsStore.saveHelmetLimits, saveIndividualLimits).
+    setScriptText(shareNPPSLimits(limits));
     setScriptError(null);
     setEditorTab('script');
   }
@@ -862,12 +853,16 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
         display: 'flex',
         gap: 8,
         justifyContent: 'flex-end',
+        alignItems: 'center',
       }}>
+        {outOfRange.length > 0 && (
+          <span role="alert" style={{ marginRight: 'auto', fontSize: 12, color: 'var(--error)' }}>{t('WEB_LIMITS_OUT_OF_RANGE')}</span>
+        )}
         <button className="btn btn-secondary btn-sm" onClick={() => onExport(limits)}>
           {t('WEB_EXPORT_NPPS')}
         </button>
         <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
-        <button className="btn btn-primary" onClick={() => onSave(limits)}>{t('WEB_SAVE_LIMITS')}</button>
+        <button className="btn btn-primary" disabled={outOfRange.length > 0} onClick={() => onSave(limits)}>{t('WEB_SAVE_LIMITS')}</button>
       </div>
     </>
   );
@@ -925,7 +920,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_IRRADIANCE')}
               value={limits.pbmTranscranial.maxIrradianceMWcm2}
               unit="mW/cm²"
-              min={0} max={400} step={5}
+              bound={LIMIT_BOUNDS.pbmTranscranial.maxIrradianceMWcm2}
               onChange={v => patchModality('pbmTranscranial', { maxIrradianceMWcm2: v })}
               onClear={() => patchModality('pbmTranscranial', { maxIrradianceMWcm2: undefined })}
             />
@@ -933,7 +928,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.pbmTranscranial.maxFrequencyHz}
               unit="Hz"
-              min={0} max={100} step={1}
+              bound={LIMIT_BOUNDS.pbmTranscranial.maxFrequencyHz}
               hint="0 = CW"
               onChange={v => patchModality('pbmTranscranial', { maxFrequencyHz: v })}
               onClear={() => patchModality('pbmTranscranial', { maxFrequencyHz: undefined })}
@@ -942,7 +937,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_DUTY_CYCLE')}
               value={limits.pbmTranscranial.maxDutyCyclePercent}
               unit="%"
-              min={0} max={hw.PBM_DUTY_CYCLE_MAX_PERCENT} step={1}
+              bound={LIMIT_BOUNDS.pbmTranscranial.maxDutyCyclePercent}
               hint={`≤${hw.PBM_DUTY_CYCLE_MAX_PERCENT}% hardware cap`}
               onChange={v => patchModality('pbmTranscranial', { maxDutyCyclePercent: v })}
               onClear={() => patchModality('pbmTranscranial', { maxDutyCyclePercent: undefined })}
@@ -951,7 +946,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSION_DOSE')}
               value={limits.pbmTranscranial.maxSessionDoseJCm2}
               unit="J/cm²"
-              min={0} max={200} step={5}
+              bound={LIMIT_BOUNDS.pbmTranscranial.maxSessionDoseJCm2}
               onChange={v => patchModality('pbmTranscranial', { maxSessionDoseJCm2: v })}
               onClear={() => patchModality('pbmTranscranial', { maxSessionDoseJCm2: undefined })}
             />
@@ -959,7 +954,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_DAILY_DOSE')}
               value={limits.pbmTranscranial.maxDailyDoseJCm2}
               unit="J/cm²"
-              min={0} max={500} step={10}
+              bound={LIMIT_BOUNDS.pbmTranscranial.maxDailyDoseJCm2}
               onChange={v => patchModality('pbmTranscranial', { maxDailyDoseJCm2: v })}
               onClear={() => patchModality('pbmTranscranial', { maxDailyDoseJCm2: undefined })}
             />
@@ -979,7 +974,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_IRRADIANCE')}
               value={limits.pbmIntranasal.maxIrradianceMWcm2}
               unit="mW/cm²"
-              min={0} max={400} step={5}
+              bound={LIMIT_BOUNDS.pbmIntranasal.maxIrradianceMWcm2}
               onChange={v => patchModality('pbmIntranasal', { maxIrradianceMWcm2: v })}
               onClear={() => patchModality('pbmIntranasal', { maxIrradianceMWcm2: undefined })}
             />
@@ -987,7 +982,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.pbmIntranasal.maxSessionDurationSeconds}
               unit="sec"
-              min={60} max={3600} step={60}
+              bound={LIMIT_BOUNDS.pbmIntranasal.maxSessionDurationSeconds}
               onChange={v => patchModality('pbmIntranasal', { maxSessionDurationSeconds: v })}
               onClear={() => patchModality('pbmIntranasal', { maxSessionDurationSeconds: undefined })}
             />
@@ -1032,7 +1027,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.besTacs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.BES_TACS_MAX_MILLIAMPS} step={0.1}
+              bound={LIMIT_BOUNDS.besTacs.maxIntensityMilliamps}
               hint={`Hardware max: ${hw.BES_TACS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('besTacs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('besTacs', { maxIntensityMilliamps: undefined })}
@@ -1041,7 +1036,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MIN_FREQUENCY')}
               value={limits.besTacs.minFrequencyHz}
               unit="Hz"
-              min={hw.BES_TACS_MIN_HZ} max={hw.BES_TACS_MAX_HZ} step={0.5}
+              bound={LIMIT_BOUNDS.besTacs.minFrequencyHz}
               hint={`Hardware min: ${hw.BES_TACS_MIN_HZ} Hz`}
               onChange={v => patchModality('besTacs', { minFrequencyHz: v })}
               onClear={() => patchModality('besTacs', { minFrequencyHz: undefined })}
@@ -1050,7 +1045,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.besTacs.maxFrequencyHz}
               unit="Hz"
-              min={hw.BES_TACS_MIN_HZ} max={hw.BES_TACS_MAX_HZ} step={0.5}
+              bound={LIMIT_BOUNDS.besTacs.maxFrequencyHz}
               hint={`Hardware max: ${hw.BES_TACS_MAX_HZ} Hz`}
               onChange={v => patchModality('besTacs', { maxFrequencyHz: v })}
               onClear={() => patchModality('besTacs', { maxFrequencyHz: undefined })}
@@ -1059,7 +1054,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.besTacs.maxSessionDurationSeconds}
               unit="sec"
-              min={60} max={7200} step={60}
+              bound={LIMIT_BOUNDS.besTacs.maxSessionDurationSeconds}
               onChange={v => patchModality('besTacs', { maxSessionDurationSeconds: v })}
               onClear={() => patchModality('besTacs', { maxSessionDurationSeconds: undefined })}
             />
@@ -1067,7 +1062,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSIONS_DAY')}
               value={limits.besTacs.maxSessionsPerDay}
               unit=""
-              min={1} max={10} step={1}
+              bound={LIMIT_BOUNDS.besTacs.maxSessionsPerDay}
               onChange={v => patchModality('besTacs', { maxSessionsPerDay: v })}
               onClear={() => patchModality('besTacs', { maxSessionsPerDay: undefined })}
             />
@@ -1087,7 +1082,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.tdcs.maxIntensityMilliamps}
               unit="mA"
-              min={hw.TDCS_MIN_MILLIAMPS} max={hw.TDCS_MAX_MILLIAMPS} step={0.1}
+              bound={LIMIT_BOUNDS.tdcs.maxIntensityMilliamps}
               hint={`Hardware: ${hw.TDCS_MIN_MILLIAMPS}–${hw.TDCS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('tdcs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('tdcs', { maxIntensityMilliamps: undefined })}
@@ -1096,7 +1091,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.tdcs.maxSessionDurationSeconds}
               unit="sec"
-              min={60} max={3600} step={60}
+              bound={LIMIT_BOUNDS.tdcs.maxSessionDurationSeconds}
               onChange={v => patchModality('tdcs', { maxSessionDurationSeconds: v })}
               onClear={() => patchModality('tdcs', { maxSessionDurationSeconds: undefined })}
             />
@@ -1104,7 +1099,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSIONS_DAY')}
               value={limits.tdcs.maxSessionsPerDay}
               unit=""
-              min={1} max={5} step={1}
+              bound={LIMIT_BOUNDS.tdcs.maxSessionsPerDay}
               onChange={v => patchModality('tdcs', { maxSessionsPerDay: v })}
               onClear={() => patchModality('tdcs', { maxSessionsPerDay: undefined })}
             />
@@ -1124,7 +1119,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vnsHrv.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.VNS_MAX_MILLIAMPS} step={0.1}
+              bound={LIMIT_BOUNDS.vnsHrv.maxIntensityMilliamps}
               hint={`Hardware max: ${hw.VNS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('vnsHrv', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('vnsHrv', { maxIntensityMilliamps: undefined })}
@@ -1133,7 +1128,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.vnsHrv.maxFrequencyHz}
               unit="Hz"
-              min={0} step={0.1}
+              bound={LIMIT_BOUNDS.vnsHrv.maxFrequencyHz}
               hint={`Any frequency above 0 Hz; no hardware minimum or maximum`}
               onChange={v => patchModality('vnsHrv', { maxFrequencyHz: v })}
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
@@ -1161,7 +1156,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_VOLUME')}
               value={limits.audioEntrainment.maxVolumeDb}
               unit="dB SPL"
-              min={40} max={90} step={1}
+              bound={LIMIT_BOUNDS.audioEntrainment.maxVolumeDb}
               onChange={v => patchModality('audioEntrainment', { maxVolumeDb: v })}
               onClear={() => patchModality('audioEntrainment', { maxVolumeDb: undefined })}
             />
@@ -1169,7 +1164,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_BINAURAL')}
               value={limits.audioEntrainment.maxBinauralBeatsHz}
               unit="Hz"
-              min={0.5} max={100} step={0.5}
+              bound={LIMIT_BOUNDS.audioEntrainment.maxBinauralBeatsHz}
               onChange={v => patchModality('audioEntrainment', { maxBinauralBeatsHz: v })}
               onClear={() => patchModality('audioEntrainment', { maxBinauralBeatsHz: undefined })}
             />
@@ -1177,7 +1172,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_ISOCHRONIC')}
               value={limits.audioEntrainment.maxIsochronicTonesHz}
               unit="Hz"
-              min={0.5} max={100} step={0.5}
+              bound={LIMIT_BOUNDS.audioEntrainment.maxIsochronicTonesHz}
               onChange={v => patchModality('audioEntrainment', { maxIsochronicTonesHz: v })}
               onClear={() => patchModality('audioEntrainment', { maxIsochronicTonesHz: undefined })}
             />
@@ -1197,7 +1192,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MIN_FREQUENCY')}
               value={limits.visualStimulation.minFrequencyHz}
               unit="Hz"
-              min={0} max={100} step={0.5}
+              bound={LIMIT_BOUNDS.visualStimulation.minFrequencyHz}
               onChange={v => patchModality('visualStimulation', { minFrequencyHz: v })}
               onClear={() => patchModality('visualStimulation', { minFrequencyHz: undefined })}
             />
@@ -1205,7 +1200,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.visualStimulation.maxFrequencyHz}
               unit="Hz"
-              min={0} max={hw.VISUAL_MAX_HZ} step={0.5}
+              bound={LIMIT_BOUNDS.visualStimulation.maxFrequencyHz}
               hint={`Hardware max: ${hw.VISUAL_MAX_HZ} Hz`}
               onChange={v => patchModality('visualStimulation', { maxFrequencyHz: v })}
               onClear={() => patchModality('visualStimulation', { maxFrequencyHz: undefined })}
@@ -1239,7 +1234,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.tms.maxIntensityPercentMT}
               unit="% MT"
-              min={80} max={200} step={5}
+              bound={LIMIT_BOUNDS.tms.maxIntensityPercentMT}
               onChange={v => patchModality('tms', { maxIntensityPercentMT: v })}
               onClear={() => patchModality('tms', { maxIntensityPercentMT: undefined })}
             />
@@ -1247,7 +1242,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_PULSES_SESSION')}
               value={limits.tms.maxPulsesPerSession}
               unit="pulses"
-              min={100} max={10000} step={100}
+              bound={LIMIT_BOUNDS.tms.maxPulsesPerSession}
               onChange={v => patchModality('tms', { maxPulsesPerSession: v })}
               onClear={() => patchModality('tms', { maxPulsesPerSession: undefined })}
             />
@@ -1255,7 +1250,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_PULSES_DAY')}
               value={limits.tms.maxPulsesPerDay}
               unit="pulses"
-              min={100} max={30000} step={100}
+              bound={LIMIT_BOUNDS.tms.maxPulsesPerDay}
               onChange={v => patchModality('tms', { maxPulsesPerDay: v })}
               onClear={() => patchModality('tms', { maxPulsesPerDay: undefined })}
             />
@@ -1263,7 +1258,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSIONS_WEEK')}
               value={limits.tms.maxSessionsPerWeek}
               unit=""
-              min={1} max={7} step={1}
+              bound={LIMIT_BOUNDS.tms.maxSessionsPerWeek}
               onChange={v => patchModality('tms', { maxSessionsPerWeek: v })}
               onClear={() => patchModality('tms', { maxSessionsPerWeek: undefined })}
             />
@@ -1297,7 +1292,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.clinicalTacs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.CLINICAL_TACS_MAX_MILLIAMPS} step={0.5}
+              bound={LIMIT_BOUNDS.clinicalTacs.maxIntensityMilliamps}
               hint={`Hardware max: ${hw.CLINICAL_TACS_MAX_MILLIAMPS} mA`}
               onChange={v => patchModality('clinicalTacs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('clinicalTacs', { maxIntensityMilliamps: undefined })}
@@ -1318,7 +1313,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY_ELECTRODE')}
               value={limits.hdTdcs.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} step={0.1}
+              bound={LIMIT_BOUNDS.hdTdcs.maxIntensityMilliamps}
               hint={`Hardware max: ${hw.HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE} mA/electrode`}
               onChange={v => patchModality('hdTdcs', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('hdTdcs', { maxIntensityMilliamps: undefined })}
@@ -1346,7 +1341,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.cervicalVns.maxIntensityMilliamps}
               unit="mA"
-              min={0} max={hw.CERVICAL_VNS_MAX_MILLIAMPS} step={0.1}
+              bound={LIMIT_BOUNDS.cervicalVns.maxIntensityMilliamps}
               hint={`Hardware max: ${hw.CERVICAL_VNS_MAX_MILLIAMPS} mA. Cardiac interlock always active.`}
               onChange={v => patchModality('cervicalVns', { maxIntensityMilliamps: v })}
               onClear={() => patchModality('cervicalVns', { maxIntensityMilliamps: undefined })}
@@ -1355,7 +1350,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.cervicalVns.maxSessionDurationSeconds}
               unit="sec"
-              min={60} max={1800} step={60}
+              bound={LIMIT_BOUNDS.cervicalVns.maxSessionDurationSeconds}
               onChange={v => patchModality('cervicalVns', { maxSessionDurationSeconds: v })}
               onClear={() => patchModality('cervicalVns', { maxSessionDurationSeconds: undefined })}
             />
@@ -1375,7 +1370,7 @@ function VisualLimitsEditor({
               label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vibrotactile40hz.maxIntensityG}
               unit="G"
-              min={hw.VIBROTACTILE_MIN_G} max={hw.VIBROTACTILE_MAX_G} step={0.05}
+              bound={LIMIT_BOUNDS.vibrotactile40hz.maxIntensityG}
               hint={`Hardware: ${hw.VIBROTACTILE_MIN_G}–${hw.VIBROTACTILE_MAX_G} G`}
               onChange={v => patchModality('vibrotactile40hz', { maxIntensityG: v })}
               onClear={() => patchModality('vibrotactile40hz', { maxIntensityG: undefined })}
@@ -1457,9 +1452,7 @@ function LimitField({
   label,
   value,
   unit,
-  min,
-  max,
-  step,
+  bound,
   hint,
   onChange,
   onClear,
@@ -1467,14 +1460,15 @@ function LimitField({
   label: string;
   value: number | undefined;
   unit: string;
-  min: number;
-  /** Absent when the hardware states no ceiling (auricular VNS frequency, OI-VNSCLIP-08): then there is no slider, no clamp above, and a newly ticked limit starts at `min`. */
-  max?: number;
-  step: number;
+  /** The range, from lib/paramBounds.ts. A bound with no maximum (auricular VNS frequency, OI-VNSCLIP-08) gets a typed
+   *  field and no slider, and a newly ticked limit starts at the minimum. */
+  bound: ParamBound;
   hint?: string;
   onChange: (v: number) => void;
   onClear: () => void;
 }) {
+  const min = bound.min!.value;
+  const max = bound.max?.value;
   const isSet = value !== undefined;
   const displayVal = isSet ? value : min;
 
@@ -1488,42 +1482,9 @@ function LimitField({
       />
       <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 150, flexShrink: 0 }}>{label}</span>
       {isSet ? (
-        <>
-          {max !== undefined && (
-            <input
-              type="range"
-              min={min}
-              max={max}
-              step={step}
-              value={displayVal}
-              onChange={e => onChange(parseFloat(e.target.value))}
-              style={{ flex: 1, accentColor: 'var(--accent)' }}
-            />
-          )}
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={displayVal}
-            onChange={e => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onChange(max === undefined ? Math.max(min, v) : Math.min(max, Math.max(min, v)));
-            }}
-            style={{
-              width: 64,
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              color: 'var(--text-primary)',
-              fontSize: 12,
-              padding: '3px 6px',
-              outline: 'none',
-              textAlign: 'right',
-            }}
-          />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 40 }}>{unit}</span>
-        </>
+        <div style={{ flex: 1 }}>
+          <RangeEditor value={displayVal} bound={bound} unit={unit} ariaLabel={label} onChange={v => v !== undefined && onChange(v)} />
+        </div>
       ) : (
         <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
           No limit {hint ? `— ${hint}` : ''}

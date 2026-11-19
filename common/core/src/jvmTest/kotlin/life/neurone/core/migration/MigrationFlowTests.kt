@@ -183,7 +183,10 @@ class MigrationFlowTests {
         carriedKeys.values.flatten().forEach { assertEquals("value-of-$it", fresh.kv.getString(it), it) }
         assertTrue(r.flag("confirmed"))
         assertEquals(done.text("bundleHash"), route.readConfirmation()!!["bundleHash"]!!.jsonPrimitive.content)
-        assertEquals(setOf("bundleHash"), route.readConfirmation()!!.keys, "the confirmation carries the hash and nothing else")
+        assertEquals(setOf("bundleHash", "tag"), route.readConfirmation()!!.keys, "the confirmation carries the hash, the tag and nothing else")
+        // The old phone recorded the same tag when it sealed the bundle; the record never moves (SWR-MG-08).
+        assertTrue(route.readConfirmation()!!["tag"]!!.jsonPrimitive.content in old.kv.getString("np.migration.pending-clear")!!)
+        assertNull(fresh.kv.getString("np.migration.pending-clear"))
         assertEquals(setOf("token", "bundleHash"), route.readClaim()!!.keys, "the claim carries a token and the hash and nothing else")
     }
 
@@ -207,6 +210,50 @@ class MigrationFlowTests {
         assertNull(route.readClaim(), "a UHDR-only bundle is not claimed")
         assertFalse(r.flag("confirmed"))
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"), "a UHDR-only restore never brings the consent record")
+    }
+
+    // The backup location keeps every bundle it was given and can hand back any of them (`OI-PRIV-09`). The rule is the core's;
+    // this proves the Kotlin driver and store carry the count it keeps.
+    // @verifies SWR-MG-29#b,c
+    @Test
+    fun eachBackupIsALaterEpochAndAPhoneHandedAnOlderBundleRefusesItAndChangesNothing() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val phone = Phone(seed = 1).also { it.fill() }
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("1", phone.kv.getString("np.migration.seen-epoch"))
+        val older = route.getBundle()!!
+        phone.kv.putString("np.session.history", "history after the first backup")
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"), "recorded on the phone, one later each time")
+
+        route.putBundle(older)
+        val r = phone.restore(route, route)
+        assertFalse(r.ok)
+        assertEquals("older_bundle", r.reason)
+        assertEquals("history after the first backup", phone.kv.getString("np.session.history"), "nothing was written")
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"))
+    }
+
+    // The limit of the epoch, pinned so that nothing claims more for it.
+    // @verifies SWR-MG-29#d
+    @Test
+    fun aPhoneThatHasSeenNothingRestoresAnOlderBundleAndThenRefusesAnythingEarlier() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val old = Phone(seed = 1).also { it.fill() }
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val first = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val second = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+
+        // A new phone is handed the second of three: it has nothing to compare with, and restores it.
+        route.putBundle(second)
+        val fresh = Phone(seed = 50)
+        assertTrue(fresh.restore(route, route).ok, "a phone that has seen nothing cannot tell an old bundle from the newest")
+        assertEquals("2", fresh.kv.getString("np.migration.seen-epoch"), "it learns the epoch from inside the bundle")
+        // From then on it has seen something, and the first is refused on it.
+        route.putBundle(first)
+        assertEquals("older_bundle", fresh.restore(route, route).reason)
     }
 
     // @verifies SWR-MG-10
@@ -276,8 +323,8 @@ class MigrationFlowTests {
     fun aRestoreNeverResetsAWithdrawalAndAnItemWithNowhereToGoIsReportedNotApplied() = runTest {
         val route = InMemoryBackupRoute()
         val oldWithdrawal = MapItemStore("withdrawalState", buildJsonObject {
-            put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z")
-            put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01T00:00:00Z") })
+            put("blanketConsentWithdrawnAt", "2026-03-01#000001")
+            put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01#000001") })
             put("categoryWithdrawals", buildJsonObject { })
         })
         val old = Phone(extra = listOf(oldWithdrawal), seed = 1).also { it.fill() }
@@ -285,15 +332,15 @@ class MigrationFlowTests {
 
         // The new phone already holds a LATER withdrawal and another study's: the union stands, and the later time.
         val newWithdrawal = MapItemStore("withdrawalState", buildJsonObject {
-            put("blanketConsentWithdrawnAt", "2026-06-01T00:00:00Z")
-            put("studyWithdrawals", buildJsonObject { put("study-b", "2026-05-01T00:00:00Z") })
+            put("blanketConsentWithdrawnAt", "2026-06-01#000001")
+            put("studyWithdrawals", buildJsonObject { put("study-b", "2026-05-01#000001") })
             put("categoryWithdrawals", buildJsonObject { })
         })
         val fresh = Phone(extra = listOf(newWithdrawal), seed = 50)
         val r = fresh.restore(route, route)
         assertTrue(r.ok)
         val merged = newWithdrawal.value!!.jsonObject
-        assertEquals("2026-06-01T00:00:00Z", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-01#000001", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
         assertEquals(setOf("study-a", "study-b"), merged["studyWithdrawals"]!!.jsonObject.keys)
         // Grants are never carried: the person is asked again, and told their earlier choices were not restored.
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"))
@@ -552,7 +599,7 @@ class MigrationFlowTests {
         assertTrue(found.ok)
         assertEquals("uhdr", found.text("kind"))
         assertEquals(BundleKeyMethod.RECOVERY_CODE.wire, found.text("method"))
-        assertEquals("1", found.text("formatVersion"))
+        assertEquals("2", found.text("formatVersion"))
     }
 
     // @verifies SWR-MG-01

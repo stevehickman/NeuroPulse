@@ -4,6 +4,7 @@ import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest
+import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
@@ -116,19 +117,19 @@ class ConsentStoreTests {
     }
 
     private fun categoryConsent(category: ResearchCategory) = ResearchConsentState(
-        contactConsentGranted = true,
+        contactConsentGranted = true, contactMethod = "person@example.org",
         categoryConsents = ResearchCategory.entries.associateWith { it == category },
     )
 
     private fun blanketConsent() = ResearchConsentState(
-        contactConsentGranted = true,
+        contactConsentGranted = true, contactMethod = "person@example.org",
         blanketConsentGranted = true,
     )
 
     private fun descriptor(
         categories: List<ResearchCategory> = listOf(ResearchCategory.DEPRESSION),
         elements: Set<UHDRElement> = setOf(
-            UHDRElement.SESSION_TIMESTAMPS, UHDRElement.EEG_WAVEFORMS,
+            UHDRElement.SESSION_TIMESTAMPS, UHDRElement.NEUROFEEDBACK_SCORES,
         ),
         k: Int = 10,
         rounding: Int = 7,
@@ -140,6 +141,7 @@ class ConsentStoreTests {
         kAnonymity = k,
         dateRoundingDays = rounding,
         issuedOnDay = LocalDate.now().toString(),
+        expiresOnDay = LocalDate.now().plusDays(30).toString(),
         signature = "sig",
     )
 
@@ -605,7 +607,7 @@ class ConsentStoreTests {
         issued.forEachIndexed { i, day ->
             val d = descriptor(
                 categories = ResearchCategory.entries,
-                elements = UHDRElement.entries.toSet(),
+                elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY,
             ).copy(studyId = "AFTER-WITHDRAWAL-$i", issuedOnDay = day)
             assertEquals(
                 StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
@@ -628,7 +630,7 @@ class ConsentStoreTests {
         store.ingestStudyDescriptor(descriptor())
         store.withdrawBlanketResearchConsent()
 
-        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+        val reissued = descriptor(elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY)
             .copy(issuedOnDay = LocalDate.now().plusDays(1).toString())
         assertEquals(
             StudyDescriptorAdmission.Reason.RESEARCH_CONSENT_WITHDRAWN,
@@ -672,7 +674,7 @@ class ConsentStoreTests {
         store.withdrawFromStudy(STUDY_ID)
         assertFalse(store.studyParticipations[0].isActive)
 
-        val reissued = descriptor(elements = UHDRElement.entries.toSet())
+        val reissued = descriptor(elements = UHDRElement.entries.toSet() - ConsentEngine.ELEMENTS_NO_EXTRACT_MAY_CARRY)
             .copy(issuedOnDay = LocalDate.now().plusDays(30).toString())
         assertEquals(
             StudyDescriptorAdmission.Reason.STUDY_ALREADY_DECIDED,
@@ -813,7 +815,7 @@ class ConsentStoreTests {
         val (store, kv, _) = makeStore()
         store.updateResearchConsent(
             ResearchConsentState(
-                contactConsentGranted = true, // L1
+                contactConsentGranted = true, contactMethod = "person@example.org", // L1
                 categoryConsents = ResearchCategory.entries.associateWith { it == ResearchCategory.entries.first() }, // L2
                 blanketConsentGranted = true, // L3
                 resultsOptIn = true, // L4
@@ -856,6 +858,15 @@ class ConsentStoreTests {
         clinicianOrganization = "Test Hospital",
         tier = tier,
         grantedAtDay = LocalDate.now().minusDays(1).toString(),
+        expiresAtDay = LocalDate.now().plusDays(30).toString(),
+        // As the form makes it: the tier's elements, with "include my earlier sessions" answered yes.
+        accessScopes = listOf(
+            ClinicianAccessScope(
+                elements = tier.uhdrElements,
+                effectiveFromDay = LocalDate.now().minusDays(1).toString(),
+                includesPriorData = true,
+            ),
+        ),
     )
 
     private fun requestTo(tier: ClinicianUseCaseTier) = ClinicianAccessExpansionRequest(
@@ -882,15 +893,15 @@ class ConsentStoreTests {
         // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
         assertEquals(ClinicianUseCaseTier.ASSESS, grant.tier)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
-        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.elementsVisibleForDataRecordedOn(today, LocalDate.now().toString()))
 
         // ...but yesterday's sessions still show only what Monitor ever reached. This is the
         // assertion the old implementation could not have passed.
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(yesterday),
+            grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()),
         )
-        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday))
+        assertFalse(UHDRElement.EEG_WAVEFORMS in grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()))
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
             grant.forwardOnlyElements,
@@ -909,7 +920,7 @@ class ConsentStoreTests {
         val grant = store.clinicianGrants.single()
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+            grant.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), LocalDate.now().toString()),
         )
         assertTrue(grant.forwardOnlyElements.isEmpty())
     }
@@ -1054,23 +1065,23 @@ class ConsentStoreTests {
         assertEquals(
             ClinicianUseCaseTier.MONITOR.uhdrElements,
             store2.clinicianGrants.single()
-                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString()),
+                .elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(1).toString(), LocalDate.now().toString()),
         )
     }
 
     // @verifies REQ-CONSENT-16#c
     @Test
-    fun aGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
-        // A grant written before the workflow existed has no scopes. Introducing the workflow must
-        // not silently re-scope it: a bare tier has always meant "these elements, all history".
-        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS)
-        assertEquals(null, grant.accessScopes)
+    fun aGrantWithNoScopesReachesNoEarlierSessions() {
+        // Nobody was asked the history question for a grant built without a scope, so it takes the
+        // answer that reaches least. No grant predates the workflow (OI-PRIV-06 point 6).
+        val grant = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.approvedElements)
+        assertTrue(grant.elementsVisibleForDataRecordedOn("2020-01-01", LocalDate.now().toString()).isEmpty())
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements,
-            grant.elementsVisibleForDataRecordedOn("2020-01-01"),
+            grant.elementsVisibleForDataRecordedOn(LocalDate.now().toString(), LocalDate.now().toString()),
         )
-        assertTrue(grant.forwardOnlyElements.isEmpty())
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, grant.forwardOnlyElements)
     }
 
     // @verifies REQ-CONSENT-16
@@ -1078,19 +1089,20 @@ class ConsentStoreTests {
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
         // Nothing new.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR, LocalDate.now().toString()))
         // Something lost — a re-scope, not a widening.
         val full = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)
-        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS))
+        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS, LocalDate.now().toString()))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH, LocalDate.now().toString()))
         assertEquals(
             null,
             ConsentEngine.accessDifferential(
                 grantedYesterday(ClinicianUseCaseTier.RESEARCH),
                 ClinicianUseCaseTier.FULL_CLINICAL,
-            ),
+                LocalDate.now().toString(),
+),
         )
     }
 
@@ -1100,7 +1112,8 @@ class ConsentStoreTests {
         val differential = ConsentEngine.accessDifferential(
             grantedYesterday(ClinicianUseCaseTier.MONITOR),
             ClinicianUseCaseTier.ASSESS,
-        )!!
+            LocalDate.now().toString(),
+)!!
 
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
@@ -1259,8 +1272,8 @@ class ConsentStoreTests {
             ),
             useCaseIds = listOf("eeg_review"),
         )
-        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday).isEmpty())
-        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today))
+        assertTrue(grant.elementsVisibleForDataRecordedOn(yesterday, LocalDate.now().toString()).isEmpty())
+        assertEquals(grant.approvedElements, grant.elementsVisibleForDataRecordedOn(today, LocalDate.now().toString()))
         assertEquals(grant.approvedElements, grant.forwardOnlyElements)
     }
 
@@ -1268,13 +1281,13 @@ class ConsentStoreTests {
     /// elements, from the grant day, prior data included.
     // @verifies REQ-CONSENT-16#c
     @Test
-    fun preWorkflowGrantStillFallsBackToTheTier() {
-        val legacy = grantedYesterday(ClinicianUseCaseTier.ASSESS)
-        assertNull(legacy.useCaseIds)
-        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, legacy.approvedElements)
-        assertEquals(
-            ClinicianUseCaseTier.ASSESS.uhdrElements,
-            legacy.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString()),
+    fun aGrantWithNoUseCasesOrScopesFallsBackToTheTierGoingForwardOnly() {
+        val bare = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null)
+        assertNull(bare.useCaseIds)
+        assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, bare.approvedElements)
+        assertTrue(
+            bare.elementsVisibleForDataRecordedOn(LocalDate.now().minusDays(30).toString(), LocalDate.now().toString())
+                .isEmpty(),
         )
     }
 
@@ -1389,27 +1402,29 @@ class ConsentStoreTests {
 
     // ── Withdrawal records that travel in a migration (SWR-MG-04) ───────────────
 
-    private fun clocked(vararg times: String): ConsentStore {
+    private fun clocked(vararg days: String): ConsentStore {
         val kv = InMemoryKeyValueStore()
-        val it = times.iterator()
-        return ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), now = { it.next() })
+        val it = days.iterator()
+        return ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), today = { it.next() })
     }
+
+    private val reachable = ResearchConsentState(contactConsentGranted = true, contactMethod = "person@example.org")
 
     // @verifies SWR-MG-04
     @Test
     fun aWithdrawalIsStampedAtTheTransitionAndNeverErasedByARegrant() {
-        val s = clocked("2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z", "2026-03-03T00:00:00Z")
-        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+        val s = clocked("2026-03-01", "2026-03-02", "2026-03-03")
+        s.updateResearchConsent(reachable.copy(blanketConsentGranted = true))
         assertNull(s.researchConsent.blanketConsentWithdrawnAt, "never asked is not said stop")
-        s.updateResearchConsent(ResearchConsentState(contactConsentGranted = true))
-        assertEquals("2026-03-01T00:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
+        s.updateResearchConsent(reachable)
+        assertEquals("2026-03-01#000001", s.researchConsent.blanketConsentWithdrawnAt)
         assertNull(s.researchConsent.contactConsentWithdrawnAt)
         // A screen that commits a stale state cannot erase it, and a re-grant leaves the record.
-        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
-        assertEquals("2026-03-01T00:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
+        s.updateResearchConsent(reachable.copy(blanketConsentGranted = true))
+        assertEquals("2026-03-01#000001", s.researchConsent.blanketConsentWithdrawnAt)
         s.setCategoryConsent(ResearchCategory.entries.first(), true)
         s.setCategoryConsent(ResearchCategory.entries.first(), false)
-        assertEquals("2026-03-02T00:00:00Z", s.researchConsent.categoryWithdrawnAt[ResearchCategory.entries.first()])
+        assertEquals("2026-03-02#000001", s.researchConsent.categoryWithdrawnAt[ResearchCategory.entries.first()])
     }
 
     // @verifies SWR-MG-04
@@ -1417,18 +1432,17 @@ class ConsentStoreTests {
     fun aRestoredWithdrawalSwitchesAGrantOffAndNothingTurnsOneOn() {
         val s = clocked()
         s.updateResearchConsent(
-            ResearchConsentState(
+            reachable.copy(
                 blanketConsentGranted = true,
-                contactConsentGranted = true,
                 categoryConsents = ResearchCategory.entries.associateWith { true },
             ),
         )
         val c = ResearchCategory.entries.first()
         s.applyWithdrawals(
             buildJsonObject {
-                put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z")
-                put("categoryWithdrawals", buildJsonObject { put(c.wireName, "2026-03-01T00:00:00Z") })
-                put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01T00:00:00Z") })
+                put("blanketConsentWithdrawnAt", "2026-03-01#000001")
+                put("categoryWithdrawals", buildJsonObject { put(c.wireName, "2026-03-01#000001") })
+                put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01#000001") })
             },
         )
         assertFalse(s.researchConsent.blanketConsentGranted)
@@ -1439,7 +1453,7 @@ class ConsentStoreTests {
 
         // The same record again, or an older one, changes nothing: a grant made afterwards stands.
         s.updateResearchConsent(s.researchConsent.copy(blanketConsentGranted = true))
-        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z") })
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01#000001") })
         assertTrue(s.researchConsent.blanketConsentGranted)
         // An empty record (a bundle from a phone that never withdrew) turns nothing on or off.
         s.applyWithdrawals(buildJsonObject { })
@@ -1447,17 +1461,64 @@ class ConsentStoreTests {
         // And what survives a restart.
         val kv = InMemoryKeyValueStore()
         val first = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
-        first.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("s", "2026-01-01T00:00:00Z") }) })
-        assertEquals(mapOf("s" to "2026-01-01T00:00:00Z"), ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).studyWithdrawals)
+        first.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("s", "2026-01-01#000001") }) })
+        assertEquals(mapOf("s" to "2026-01-01#000001"), ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).studyWithdrawals)
     }
 
     // @verifies SWR-MG-04
     @Test
     fun aStudyTheUserLeftIsRememberedAndNeverRepresented() {
-        val s = clocked("2026-04-01T00:00:00Z")
+        val s = clocked("2026-04-01")
         val exported = s.exportWithdrawals()
         assertNull(exported["blanketConsentWithdrawnAt"], "nothing withdrawn exports no time, so never-asked stays null")
-        s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01T00:00:00Z") }) })
-        assertEquals("2026-04-01T00:00:00Z", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
+        s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01#000001") }) })
+        assertEquals("2026-04-01#000001", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
+    }
+
+    // ── The suggestion author token does not outlive the consent it was made under (OI-PRIV-08 (3)) ───────────────
+
+    private fun counting(): Pair<ConsentStore, () -> Int> {
+        val kv = InMemoryKeyValueStore()
+        var calls = 0
+        val s = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), onPortalIdentityWithdrawn = { calls++ })
+        return s to { calls }
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun withdrawingThePortalOptInOrBlanketConsentTellsThePortalToForgetItsAuthorToken() {
+        val (s, calls) = counting()
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = true))
+        assertEquals(0, calls(), "a grant withdraws nothing")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = false, blanketConsentGranted = true))
+        assertEquals(1, calls(), "the portal opt-in withdrawn on a screen")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = false))
+        assertEquals(2, calls(), "blanket consent withdrawn on a screen, the portal opt-in still on")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = true))
+        s.withdrawBlanketResearchConsent()
+        assertEquals(3, calls(), "the named blanket withdrawal")
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun aStateThatWasNeverGrantedAndAnEditThatWithdrawsNeitherLeaveTheAuthorTokenAlone() {
+        val (s, calls) = counting()
+        s.withdrawBlanketResearchConsent() // never granted: stops nothing
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = false))
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true))
+        s.setCategoryConsent(ResearchCategory.entries.first(), true)
+        s.setCategoryConsent(ResearchCategory.entries.first(), false)
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, contactConsentGranted = true))
+        assertEquals(0, calls())
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun aRestoredWithdrawalOfThePortalOptInForgetsTheAuthorTokenToo() {
+        val (s, calls) = counting()
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true))
+        s.applyWithdrawals(buildJsonObject { put("suggestionPortalOptInWithdrawnAt", "2099-01-01#000001") })
+        assertFalse(s.researchConsent.suggestionPortalOptIn)
+        assertEquals(1, calls())
     }
 }

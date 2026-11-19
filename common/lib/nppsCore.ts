@@ -20,7 +20,7 @@ export class NppsRefusal extends Error {
   }
 }
 
-interface CoreExports {
+export interface CoreExports {
   memory: WebAssembly.Memory;
   npps_alloc(len: number): number;
   npps_free(ptr: number, len: number): void;
@@ -66,6 +66,16 @@ function nodeFileSystem(): { readFileSync(path: string): Uint8Array<ArrayBuffer>
 function nodeFilePath(): string {
   const proc = (globalThis as { process: { getBuiltinModule(id: string): unknown } }).process;
   return (proc.getBuiltinModule('node:url') as { fileURLToPath(u: URL): string }).fileURLToPath(WASM_URL);
+}
+
+/**
+ * For tests only: put `wrap(core)` in the core's place, so a test can see what a call does to the module's memory (the
+ * exports of a WebAssembly instance cannot be patched). Returns a function that puts the real core back.
+ */
+export function wrapNppsCoreForTest(wrap: (real: CoreExports) => CoreExports): () => void {
+  const real = core();
+  instance = wrap(real);
+  return () => { instance = real; };
 }
 
 function core(): CoreExports {
@@ -117,8 +127,17 @@ function call(
         throw new NppsRefusal('the NPPS core was given an argument it cannot read');
     }
   } finally {
-    wasm.npps_free(inPtr, bytes.length + 1);
-    wasm.npps_free(cells, 8);
+    // SWR-MG-28 (b): the request can hold a passphrase, a key or UHDR items, and WebAssembly linear memory is never given
+    // back, so the copy made here is wiped here, before it is released, and not left to the callee. The memory may have
+    // grown during the call, which detaches every earlier view: take a new one. `bytes`, the encoder's copy on the JS heap,
+    // is wiped too; the string it was made from is the caller's and cannot be (OI-PRIV-12 stage 2).
+    new Uint8Array(wasm.memory.buffer, inPtr, bytes.length + 1).fill(0);
+    bytes.fill(0);
+    // After a trap the instance was dropped above and is not called again; its memory goes with it.
+    if (instance === wasm) {
+      wasm.npps_free(inPtr, bytes.length + 1);
+      wasm.npps_free(cells, 8);
+    }
   }
 }
 
@@ -148,6 +167,16 @@ export function nppsNamespace(files: readonly object[]): NppsNamespace {
  */
 export function nppsSerialize(items: readonly object[]): string {
   return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items })));
+}
+
+/**
+ * As nppsSerialize, in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+ * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from `random`, 32 bytes
+ * from a secure source (crypto.getRandomValues by default). The rule is the core's; no caller decides what is stripped.
+ */
+export function nppsSerializeShare(items: readonly object[], random: Uint8Array = crypto.getRandomValues(new Uint8Array(32))): string {
+  const randomHex = Array.from(random, (b) => b.toString(16).padStart(2, '0')).join('');
+  return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items, share: { randomHex } })));
 }
 
 /** A localizable text from the validator: a plain string, or a locale key with positional arguments. */

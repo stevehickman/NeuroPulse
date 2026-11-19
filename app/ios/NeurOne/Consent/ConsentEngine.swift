@@ -126,8 +126,11 @@ enum ConsentEngine {
     /// would newly show, what it already shows, and what stays out of reach either way.
     ///
     /// Returns `nil` when the change is not an expansion, and the caller must treat that as a
-    /// refusal rather than a formatting problem. Three cases are not expansions:
+    /// refusal rather than a formatting problem. Four cases are not expansions:
     ///
+    ///  - **The grant is not in force on `today`** (`REQ-CONSENT-18`). An expired grant, or one
+    ///    with no expiry, reaches nothing, so there is nothing to widen; the clinician needs a new
+    ///    grant, which is asked for whole.
     ///  - **Nothing new.** The target tier adds no element the grant does not already reach, so
     ///    there is nothing to consent to.
     ///  - **Something lost.** The target tier does not contain everything the grant already
@@ -143,8 +146,10 @@ enum ConsentEngine {
     /// around them belongs to whichever platform is rendering it (CLAUDE.md §17).
     static func accessDifferential(
         for grant: ClinicianConsentGrant,
-        expandingTo newTier: ClinicianUseCaseTier
+        expandingTo newTier: ClinicianUseCaseTier,
+        on today: Date
     ) -> ClinicianAccessDifferential? {
+        guard grant.isInForce(on: today) else { return nil }
         guard grant.tier != .research, newTier != .research else { return nil }
 
         let current = grant.approvedElements
@@ -170,6 +175,43 @@ enum ConsentEngine {
 
     // §5.3's anonymisation floors are `ConsentLimits` (common/npps/constants.json), generated for every runtime.
 
+    /// UHDR elements no research extract may carry, whatever `k` a descriptor declares.
+    ///
+    /// §5.3 promises a k-anonymous extract. k-anonymity groups records that share their quasi-identifiers, and a
+    /// recorded signal is one the person alone has: there is no group of ten to put it in without ceasing to be
+    /// the signal. A study that asks for one is asking for something the device cannot anonymise, so the person
+    /// is not asked about it (`REQ-CONSENT-09` h).
+    ///
+    /// **The three recorded signals are handled alike** (the principal, 2026-11-18: a person expects EEG, PPG and
+    /// HRV data to be treated the same way). The argument above was made for EEG waveforms and holds for the PPG
+    /// optical signal and the HRV time series, so all three are here. A signal element added later joins them.
+    static let elementsNoExtractMayCarry: Set<UHDRElement> = [.eegWaveforms, .ppgOpticalSignal, .hrvTimeSeries]
+
+    /// Whether a descriptor or invitation that expires at `expiresAt` may still be acted on `today`.
+    /// The expiry day is the last day. No expiry (an invitation stored before descriptors carried one)
+    /// does not bar it.
+    ///
+    /// The expiry's day is the UTC day the issuer signed (`StudyDescriptorCanonicalForm.day`), and today
+    /// is the calendar day on this device (`ConsentDay`), which is the comparison Kotlin makes between the
+    /// signed "yyyy-MM-dd" and the device's day. Both are Gregorian "yyyy-MM-dd", so they order as text.
+    static func notExpired(_ expiresAt: Date?, on today: Date) -> Bool {
+        guard let expiresAt else { return true }
+        return ConsentDay.string(today) <= StudyDescriptorCanonicalForm.day(from: expiresAt)
+    }
+
+    /// Whether `consent` covers a study in `categories`: blanket consent is on, or one of the study's categories
+    /// is consented, and blanket consent has not been withdrawn (which outranks the L2 ticks, §6.0).
+    ///
+    /// One rule for the three places it is needed: a participation stays active only while this holds
+    /// (`REQ-CONSENT-19`), a consent request can be accepted only while it holds, and the dashboard offers only
+    /// the invitations for which it holds. `categories` is nil when the study's categories are not on record,
+    /// and then only blanket consent covers it.
+    static func covers(_ consent: ResearchConsentState, categories: [ResearchCategory]?) -> Bool {
+        guard !consent.blanketConsentWithdrawn else { return false }
+        return consent.blanketConsentGranted
+            || (categories ?? []).contains { consent.categoryConsents[$0] == true }
+    }
+
     /// The **ingestion gate**: whether a signed study descriptor may become something the user
     /// sees, and if so which of §6.2's two postures it arrives in.
     ///
@@ -178,19 +220,30 @@ enum ConsentEngine {
     ///
     /// **Order is load-bearing.** The signature is checked first, so nothing a descriptor
     /// *claims* — its categories, its element list, its title — can influence any later step of
-    /// an unverified descriptor. Then §5.3's floors, which are properties of the study itself.
-    /// Only then the user's consent state, which is the part that varies per device.
+    /// an unverified descriptor. Then §5.3's floors and what the study asks for, which are
+    /// properties of the study itself. Only then the user's consent state, which is the part that
+    /// varies per device, and first of all whether that state could be read.
+    ///
+    /// **Suppression is not a descriptor field** (the principal, 2026-11-19; `OI-PRIV-06` point 5).
+    /// The rule is the device's and is the same for every study: a record whose group is smaller
+    /// than `k` is dropped, never sent (`REQ-CONSENT-13` e, with the extractor, `OI-CONSENT-07`).
+    /// So there is nothing about suppression for this gate to check.
     ///
     /// - Parameters:
     ///   - verification: the result of checking the descriptor's signature.
     ///   - consent: the user's current research consent (L1–L4).
     ///   - studyAlreadyDecided: whether this study ID has already been answered, joined or
     ///     withdrawn from on this device.
+    ///   - consentRecordReadable: false while a stored consent record could not be read and the
+    ///     person has not decided again (`REQ-CONSENT-20`).
+    ///   - today: when the descriptor is being admitted, for its expiry.
     static func admit(
         descriptor: StudyDescriptor,
         verification: StudyDescriptorVerification,
         consent: ResearchConsentState,
-        studyAlreadyDecided: Bool
+        studyAlreadyDecided: Bool,
+        consentRecordReadable: Bool,
+        today: Date
     ) -> StudyDescriptorAdmission {
         let descriptorHash: String
         switch verification {
@@ -202,6 +255,22 @@ enum ConsentEngine {
         guard descriptor.kAnonymity >= ConsentLimits.MINIMUM_K_ANONYMITY,
               descriptor.dateRoundingDays >= ConsentLimits.MINIMUM_DATE_ROUNDING_DAYS
         else { return .refused(.anonymisationBelowFloor) }
+
+        // The issuer signs how long the descriptor stands. An expiry that precedes the issue day is not
+        // one the device can hold the issuer to. (Kotlin also refuses an expiry that is not a real
+        // "yyyy-MM-dd" day; here it is a `Date`, which cannot be anything else.)
+        let expiryDay = StudyDescriptorCanonicalForm.day(from: descriptor.expiresAt)
+        guard expiryDay >= StudyDescriptorCanonicalForm.day(from: descriptor.issuedAt),
+              notExpired(descriptor.expiresAt, on: today)
+        else { return .refused(.descriptorExpired) }
+
+        // An element that cannot be made k-anonymous makes the declared k meaningless for it.
+        guard descriptor.requestedElements.isDisjoint(with: elementsNoExtractMayCarry)
+        else { return .refused(.requestsElementNoExtractMayCarry) }
+
+        // An unreadable record reads as defaults, which is "never asked". The person may have said
+        // stop, so until they decide again nothing is admitted, and the refusal says why.
+        guard consentRecordReadable else { return .refused(.consentRecordUnreadable) }
 
         // §6.0: withdrawing blanket consent "stops ALL research data flows" — all of them, not
         // only the pre-approved ones. Checked before `hasAnyResearchConsent`, because a withdrawn
@@ -252,6 +321,7 @@ enum ConsentEngine {
             dateRoundingDays: descriptor.dateRoundingDays,
             posture: posture,
             receivedAt: receivedAt,
+            expiresAt: descriptor.expiresAt,
             decision: nil
         )
     }

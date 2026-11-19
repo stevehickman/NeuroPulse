@@ -48,6 +48,34 @@ class EraseDeviceTest {
 
     private fun gatt(kv: InMemoryKeyValueStore) = NeurOneGattManager(UnavailableBleCentral(), scope, kv)
 
+    // @verifies SWR-MG-30#d
+    @Test fun an_erase_ends_the_cloud_sign_ins_first_and_says_when_a_providers_access_may_remain() = runTest {
+        for ((answer, expected) in listOf<Pair<suspend () -> Boolean, Boolean>>(
+            suspend { false } to false,
+            suspend { true } to true,
+            suspend { throw IllegalStateException("no network") } to true,
+        )) {
+            val kv = InMemoryKeyValueStore().also { it.putString("np.cloud.accounts", "sealed credentials") }
+            var asked = 0
+            var storedWhenAsked: String? = null
+            val model = EraseDeviceModel(kv, null, InMemorySecretKeyStore(), gatt(kv), endCloudAccess = {
+                asked++
+                storedWhenAsked = kv.getString("np.cloud.accounts")
+                answer()
+            })
+            model.erase()
+            val done = model.step.value as EraseStep.Done
+            assertEquals(1, asked)
+            assertEquals("sealed credentials", storedWhenAsked, "the providers are asked while the credentials can still be read")
+            assertEquals(expected, done.cloudAccessMayRemain)
+            assertNull(kv.getString("np.cloud.accounts"), "the credentials are erased whatever the providers answered")
+        }
+        val kv = InMemoryKeyValueStore()
+        val plain = EraseDeviceModel(kv, null, InMemorySecretKeyStore(), gatt(kv))
+        plain.erase()
+        assertFalse((plain.step.value as EraseStep.Done).cloudAccessMayRemain, "a host with no cloud sign-in has nothing to say")
+    }
+
     // @verifies SWR-MG-17#b
     @Test fun an_erase_destroys_the_key_overwrites_and_deletes_the_files_and_forgets_every_stored_key() = runTest {
         val dir = Files.createTempDirectory("np-erase").toFile()
@@ -90,6 +118,71 @@ class EraseDeviceTest {
         val model = EraseDeviceModel(kv, null, null, gatt(kv))
         model.erase()
         assertTrue(model.step.value is EraseStep.Done)
+        assertNull(kv.getString("np.session.history"))
+    }
+
+    private class Relay(private val status: Int?, private val kv: InMemoryKeyValueStore) : life.neurone.core.net.HttpTransport {
+        val bodies = mutableListOf<String>()
+        var dataWasStillThere = false
+        override suspend fun post(request: life.neurone.core.net.HttpRequest): life.neurone.core.net.HttpResponse? {
+            bodies += request.body.decodeToString()
+            dataWasStillThere = kv.getString("np.session.history") != null
+            return status?.let { life.neurone.core.net.HttpResponse(it, emptyMap(), ByteArray(0)) }
+        }
+    }
+
+    private class IdBackend(private var id: String?) : life.neurone.core.analytics.AnalyticsBackend {
+        override val distinctId: String? get() = id
+        override fun configure() {}
+        override fun reset() { id = null }
+        override fun track(event: String, properties: Map<String, String>) {}
+    }
+
+    private val analyticsId = "0b1c2d3e4f5061728394a5b6c7d8e9f0"
+
+    private fun gate(kv: InMemoryKeyValueStore, relay: Relay) = life.neurone.core.analytics.ResearchAnalyticsGate(
+        kv, IdBackend(analyticsId),
+        life.neurone.core.analytics.AnalyticsErasureQueue(kv, relay) { "https://analytics.example.org" },
+    )
+
+    // OI-PRIV-08 (1): the wipe deletes the only copy of the analytics ID, so the vendor is asked to erase it first.
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_asks_the_vendor_to_erase_the_analytics_id_before_it_wipes_the_only_copy() = runTest {
+        val kv = InMemoryKeyValueStore().also {
+            it.putString("np.session.history", "history of the person")
+            it.putBoolean(life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        }
+        val relay = Relay(200, kv)
+        val gate = gate(kv, relay)
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { gate.resetForErase() })
+        model.erase()
+
+        assertTrue(relay.bodies.single().contains(analyticsId), "the relay was asked about this install's ID")
+        assertTrue(relay.dataWasStillThere, "and it was asked before the wipe, not after")
+        assertEquals(0, (model.step.value as EraseStep.Done).analyticsIdsNotErased)
+        assertNull(kv.getString("np.session.history"))
+        assertNull(kv.getString(life.neurone.core.analytics.AnalyticsErasureQueue.KEY), "nothing of the queue is written back after the wipe")
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_is_not_held_back_by_a_relay_that_does_not_take_the_id_and_says_how_many_were_left() = runTest {
+        for (status in listOf(null, 404, 503)) {
+            val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the person") }
+            val gate = gate(kv, Relay(status, kv))
+            val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { gate.resetForErase() })
+            model.erase()
+            assertEquals(1, (model.step.value as EraseStep.Done).analyticsIdsNotErased, "status $status")
+            assertNull(kv.getString("np.session.history"), "the person's erase still happens")
+            assertNull(kv.getString(life.neurone.core.analytics.AnalyticsErasureQueue.KEY))
+        }
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun an_erase_still_finishes_when_the_step_before_the_wipe_throws() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "np-enc:1:sealed") }
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { throw IllegalStateException("the store is locked") })
+        model.erase()
+        assertEquals(1, (model.step.value as EraseStep.Done).analyticsIdsNotErased, "not known to be erased is reported as not erased")
         assertNull(kv.getString("np.session.history"))
     }
 

@@ -1,15 +1,34 @@
 {
-  "_comment": "The analytics events the apps may send, once (NP-APP-TELEMETRY-001 §3 and §7; REQ-SW03-07). The shared core reads this file at build time (common/npps-core/src/analytics.rs, op checkAnalyticsEvent) and every app asks the core, so iOS and Android cannot disagree about what leaves the phone. It is an ALLOWLIST: an event is sent only if its name has the allowed shape and contains none of the forbidden terms, and every property is named here and carries a value of one of its forms. A property not named here, or a value not of its form, drops the whole event; there is no list of keys to forbid, because a key nobody thought of would pass one. A form is {literal: [..]} (one of these exact texts), {digits: {max}} (digits only, at most max of them), {prefixDigits: {prefix, max}} (the prefix then digits, at most max of them) or {dotted: {prefixes, parts, max}} (one of the prefixes and a space, then `parts` numbers joined by dots, each at most max digits; with no prefixes, just the numbers). To add a property or a value, change the spec (NP-APP-TELEMETRY-001 §3, Privacy Lead review) and this file together. The bounds on digits and the event-name shape are not in the spec: docs/status/unjustified-choices.md UC-094.",
-  "eventName": {
-    "snake": { "max": 40 },
-    "forbiddenTerms": [
-      "tdcs", "tacs", "tms", "eeg", "vns", "pbm", "rtms", "tbs", "emdr", "binaural",
-      "depression", "anxiety", "ptsd", "tbi", "parkinson", "alzheimer", "dementia",
-      "sleep", "seizure", "cognitive", "focus", "calm", "theta", "alpha", "gamma",
-      "1064nm", "808nm", "660nm", "cortical", "neural", "neuro", "brain",
-      "hrv", "coherence", "impedance", "session_type", "protocol_name",
-      "email", "name", "token", "uid", "device_id", "serial"
-    ]
+  "_comment": "The analytics events the apps may send, once (NP-APP-TELEMETRY-001 §3 and §7; REQ-SW03-07). The shared core reads this file at build time (common/npps-core/src/analytics.rs, op checkAnalyticsEvent) and every app asks the core, so iOS and Android cannot disagree about what leaves the phone. It is an ALLOWLIST, of names as well as of properties: an event is sent only if its name is one of `events`, exactly, and every property is named here and carries a value of one of its forms. A name not listed, a property not named, or a value not of its form drops the whole event; there is no list of names or keys to forbid at run time, because one nobody thought of would pass it (OI-PRIV-05). A form is {literal: [..]} (one of these exact texts), {prefixDigits: {prefix, max}} (the prefix then digits, at most max of them) or {dotted: {prefixes, parts, max}} (one of the prefixes and a space, then `parts` numbers joined by dots, each at most max digits; with no prefixes, just the numbers). `forbiddenTerms` is the policy's §7 list; it is not consulted when an event is checked, and a test in analytics.rs fails the build if an event name or a literal value in this file contains one. `error_code` is a literal list and `errorCodeMeanings` says what each code means: a code is added only for a failure of the app itself (network, cloud storage, firmware update, the shared core), never for anything raised during or about a session, a consent, an electrode contact or a helmet fault, because a helmet fault can be a physiological halt (CLAUDE.md §5.1 rule 2). Every code is above 255 so that no one-byte helmet fault slot or module fault code is ever a permitted value. `screen_name` has no session screen and no consent screen: under the installation's stable ID each would be a timestamped record of a session or of a research or clinician relationship. To add an event, a property or a value, change the spec (NP-APP-TELEMETRY-001 §3, Privacy Lead review) and this file together. The digit bounds are not in the spec: docs/status/unjustified-choices.md UC-094.",
+  "events": [
+    "app_opened",
+    "onboarding_step_completed",
+    "screen_viewed",
+    "feature_used",
+    "error_reported",
+    "app_crashed"
+  ],
+  "forbiddenTerms": [
+    "tdcs", "tacs", "tms", "eeg", "vns", "pbm", "rtms", "tbs", "emdr", "binaural",
+    "depression", "anxiety", "ptsd", "tbi", "parkinson", "alzheimer", "dementia",
+    "sleep", "seizure", "cognitive", "focus", "calm", "theta", "alpha", "gamma",
+    "1064nm", "808nm", "660nm", "cortical", "neural", "neuro", "brain",
+    "hrv", "coherence", "impedance", "session_type", "protocol_name",
+    "email", "name", "token", "uid", "device_id", "serial"
+  ],
+  "errorCodeMeanings": {
+    "1001": "a network request failed or timed out",
+    "1002": "cloud sign-in failed",
+    "1003": "a cloud storage request failed",
+    "1101": "firmware update: the helmet was not connected",
+    "1102": "firmware update: the image could not be loaded",
+    "1103": "firmware update: the image's signature was invalid",
+    "1104": "firmware update: the image was of the wrong kind",
+    "1105": "firmware update: the transfer failed",
+    "1106": "firmware update: the hub rejected the image (the hub's own code is not carried)",
+    "1107": "firmware update: timed out",
+    "1108": "firmware update: verification failed",
+    "1201": "the shared core could not be loaded or asked"
   },
   "properties": {
     "app_version": [
@@ -22,10 +41,7 @@
       { "literal": ["iPhone_flagship", "iPhone_mid", "iPhone_legacy", "iPad", "Android_flagship", "Android_mid", "Android_budget"] }
     ],
     "screen_name": [
-      { "literal": [
-        "session_setup", "session_active", "session_results", "protocol_library", "protocol_detail",
-        "research_consent", "clinical_consent", "account_settings", "device_management"
-      ] }
+      { "literal": ["protocol_library", "protocol_detail", "account_settings", "device_management"] }
     ],
     "engagement_tier": [
       { "literal": ["new", "active", "established"] }
@@ -38,7 +54,7 @@
       { "prefixDigits": { "prefix": "consent_flow_step_", "max": 2 } }
     ],
     "error_code": [
-      { "digits": { "max": 4 } }
+      { "literal": ["1001", "1002", "1003", "1101", "1102", "1103", "1104", "1105", "1106", "1107", "1108", "1201"] }
     ],
     "connectivity_type": [
       { "literal": ["wifi", "cellular", "none"] }

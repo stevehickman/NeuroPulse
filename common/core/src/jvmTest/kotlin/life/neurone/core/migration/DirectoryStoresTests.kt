@@ -137,6 +137,44 @@ class DirectoryStoresTests {
         for (bad in listOf("../x.db", "/etc/passwd", "")) assertFailsWith<IllegalArgumentException> { files.delete(bad) }
     }
 
+    // OI-PRIV-10 (3): the clear overwrites every file the store lists, so a link in the folder must not lead it to a file elsewhere.
+    // @verifies SWR-MG-06
+    @Test
+    fun theFileStoreNeverFollowsALinkOutOfItsFolder() = runTest {
+        val dir = temp()
+        val outside = temp()
+        val victim = outside.resolve("victim.db").also { it.writeBytes(ByteArray(10) { 1 }) }
+        dir.resolve("own.db").writeBytes(ByteArray(4) { 2 })
+        try {
+            Files.createSymbolicLink(dir.resolve("link.db"), victim)
+            Files.createSymbolicLink(dir.resolve("linked-folder"), outside)
+        } catch (e: UnsupportedOperationException) {
+            return@runTest // a file system with no links has nothing to follow
+        } catch (e: java.io.IOException) {
+            return@runTest // Windows without the privilege to make one
+        }
+        val files = DirectoryFileStore(dir)
+
+        assertEquals(listOf("own.db"), files.list().map { it.path }, "a link is not one of the folder's files")
+        for (bad in listOf("link.db", "linked-folder/victim.db")) {
+            assertFailsWith<IllegalArgumentException> { files.write(bad, 0, byteArrayOf(9, 9)) }
+            assertFailsWith<IllegalArgumentException> { files.sync(bad) }
+            assertFailsWith<IllegalArgumentException> { files.delete(bad) }
+        }
+        assertEquals(List<Byte>(10) { 1 }, victim.readBytes().toList(), "the file outside is untouched")
+        assertTrue(victim.exists())
+
+        // The clear itself, over a folder holding the links: the folder's own file goes, the file outside stays as it was.
+        val clear = MigrationFlow.run(
+            "clear", buildJsonObject { put("erase", true); put("canRemoveOsBond", true) },
+            StandardMigrationHost(actions = object : ClearActions { override suspend fun run(step: String) = true }), null,
+            InMemoryKeyValueStore(), files = files,
+        )
+        assertTrue(clear["ok"]!!.jsonPrimitive.boolean, clear.toString())
+        assertFalse(dir.resolve("own.db").exists())
+        assertEquals(List<Byte>(10) { 1 }, victim.readBytes().toList())
+    }
+
     // The host's own files, as the Android and desktop apps assemble them (appFileStore): the clear overwrites and deletes the data
     // folders' files, including the backing file of the key-value store and its leftovers, and leaves the backup it is clearing
     // against, which on a computer is inside the app's own data folder.

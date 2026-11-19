@@ -29,9 +29,9 @@ describe('nppsMigration', () => {
     const r = nppsMigration({
       op: 'mergeWithdrawal',
       local: {},
-      incoming: { blanketConsentWithdrawnAt: '2026-03-01T00:00:00Z' },
+      incoming: { blanketConsentWithdrawnAt: '2026-03-01#000001' },
     });
-    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01T00:00:00Z');
+    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01#000001');
   });
 
   // @verifies SWR-MG-02
@@ -41,10 +41,24 @@ describe('nppsMigration', () => {
     const nonce = 'a0a1a2a3a4a5a6a7a8a9aaab';
     const items = { sessionHistory: [{ id: 1 }], withdrawalState: { blanketConsentWithdrawnAt: null } };
     const kdf = nppsMigration({ op: 'bundleKdf', method: 'passphrase', salt: '5a'.repeat(32) }).kdf;
-    const sealed = nppsMigration({ op: 'sealBundle', kind: 'uhdr', key, nonce, items, kdf });
-    expect(nppsMigration({ op: 'openBundle', bundle: sealed.bundle, key }).items).toEqual(items);
-    const wrong = nppsMigration({ op: 'openBundle', bundle: sealed.bundle, key: 'ff'.repeat(32) });
+    const sealed = nppsMigration({ op: 'sealBundle', kind: 'uhdr', epoch: 1, key, nonce, items, kdf });
+    expect(nppsMigration({ op: 'openBundle', seenEpoch: 0, bundle: sealed.bundle, key }).items).toEqual(items);
+    const wrong = nppsMigration({ op: 'openBundle', seenEpoch: 0, bundle: sealed.bundle, key: 'ff'.repeat(32) });
     expect(wrong).toEqual({ ok: false, reason: 'authentication_failed' });
+  });
+
+  // @verifies SWR-MG-29#c
+  it('refuses a bundle older than the caller has seen, through WebAssembly, and returns nothing from it', async () => {
+    await initNppsCore();
+    const key = '00'.repeat(32);
+    const kdf = nppsMigration({ op: 'bundleKdf', method: 'passphrase', salt: '5a'.repeat(32) }).kdf;
+    const sealed = nppsMigration({ op: 'sealBundle', kind: 'uhdr', epoch: 3, key, nonce: '11'.repeat(12), items: { sessionHistory: [] }, kdf });
+    expect(sealed.epoch).toBe(3);
+    expect(nppsMigration({ op: 'openBundle', seenEpoch: 5, bundle: sealed.bundle, key })).toEqual({ ok: false, reason: 'older_bundle', epoch: 3, seenEpoch: 5 });
+    expect(nppsMigration({ op: 'openBundle', seenEpoch: 3, bundle: sealed.bundle, key })).toMatchObject({ ok: true, epoch: 3 });
+    // The check is not optional: a request that leaves the number out is refused, not opened.
+    expect(() => nppsMigration({ op: 'openBundle', bundle: sealed.bundle, key })).toThrow();
+    expect(() => nppsMigration({ op: 'sealBundle', kind: 'uhdr', key, nonce: '11'.repeat(12), items: {}, kdf })).toThrow();
   });
 
   // @verifies SWR-MG-05
@@ -52,9 +66,9 @@ describe('nppsMigration', () => {
     await initNppsCore();
     const key = '00'.repeat(32);
     const kdf = nppsMigration({ op: 'bundleKdf', method: 'recoveryCode', salt: '5a'.repeat(32) }).kdf;
-    const sealed = nppsMigration({ op: 'sealBundle', kind: 'migrate', key, nonce: '11'.repeat(12), items: { protocols: [] }, kdf });
+    const sealed = nppsMigration({ op: 'sealBundle', kind: 'migrate', epoch: 1, key, nonce: '11'.repeat(12), items: { protocols: [] }, kdf });
     const h = nppsMigration({ op: 'readBundleHeader', bundle: sealed.bundle });
-    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 1, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
+    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 2, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
   });
 
   // @verifies SWR-MG-02
@@ -85,7 +99,7 @@ describe('nppsMigration', () => {
     const kdf = nppsMigration({ op: 'bundleKdf', method: 'passphrase', salt: '5a'.repeat(32) }).kdf;
     expect(kdf).toMatchObject({ algorithm: 'argon2id', memoryKiB: 65536, iterations: 4, parallelism: 1, outputLength: 32 });
     expect(() =>
-      nppsMigration({ op: 'sealBundle', kind: 'uhdr', key: '00'.repeat(32), nonce: '11'.repeat(12), items: {}, kdf: { ...kdf, memoryKiB: 8 } }),
+      nppsMigration({ op: 'sealBundle', kind: 'uhdr', epoch: 1, key: '00'.repeat(32), nonce: '11'.repeat(12), items: {}, kdf: { ...kdf, memoryKiB: 8 } }),
     ).toThrow();
   });
 });

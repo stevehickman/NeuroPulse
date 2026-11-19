@@ -9,6 +9,8 @@ import { protocolLibrary } from '../lib/protocolLibrary';
 import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
 import { ScriptEditor } from './ScriptEditor';
 import { t, tPlural } from '../../../../common/lib/i18n';
+import { PROTOCOL_BOUNDS } from '../lib/paramBounds';
+import { RangeEditor } from './ParamInputs';
 
 interface ProtocolComposerProps {
   existing?: NPCompositeProtocol;
@@ -239,36 +241,15 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                   <div className="layer-fields">
                     <div>
                       <div className="layer-field-label">{t('WEB_LAYER_START_SEC')}</div>
-                      <input
-                        className="layer-field-input"
-                        type="number"
-                        min={0}
-                        value={layer.startOffsetSeconds}
-                        onChange={e => updateLayer(layer.id, { startOffsetSeconds: Number(e.target.value) })}
-                      />
+                      <RangeEditor value={layer.startOffsetSeconds} bound={PROTOCOL_BOUNDS.layerStartOffsetSeconds} ariaLabel={t('WEB_LAYER_START_SEC')} onChange={v => v !== undefined && updateLayer(layer.id, { startOffsetSeconds: v })} />
                     </div>
                     <div>
                       <div className="layer-field-label">{t('WEB_LAYER_DURATION_SEC')}</div>
-                      <input
-                        className="layer-field-input"
-                        type="number"
-                        min={60}
-                        value={layer.durationSeconds ?? ''}
-                        placeholder={t('WEB_LAYER_DURATION_FULL')}
-                        onChange={e => updateLayer(layer.id, { durationSeconds: e.target.value ? Number(e.target.value) : undefined })}
-                      />
+                      <RangeEditor optional value={layer.durationSeconds} bound={PROTOCOL_BOUNDS.layerDurationSeconds} placeholder={t('WEB_LAYER_DURATION_FULL')} ariaLabel={t('WEB_LAYER_DURATION_SEC')} onChange={v => updateLayer(layer.id, { durationSeconds: v })} />
                     </div>
                     <div>
                       <div className="layer-field-label">{t('WEB_LAYER_INTENSITY')}</div>
-                      <input
-                        className="layer-field-input"
-                        type="number"
-                        min={0.1}
-                        max={2.0}
-                        step={0.05}
-                        value={layer.intensityScale}
-                        onChange={e => updateLayer(layer.id, { intensityScale: Number(e.target.value) })}
-                      />
+                      <RangeEditor value={layer.intensityScale} bound={PROTOCOL_BOUNDS.layerIntensityScale} ariaLabel={t('WEB_LAYER_INTENSITY')} onChange={v => v !== undefined && updateLayer(layer.id, { intensityScale: v })} />
                     </div>
                   </div>
                   <button className="btn btn-danger btn-sm" onClick={() => deleteLayer(layer.id)}>{t('WEB_REMOVE')}</button>

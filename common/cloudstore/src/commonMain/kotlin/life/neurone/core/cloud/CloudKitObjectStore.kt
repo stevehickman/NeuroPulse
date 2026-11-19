@@ -54,6 +54,12 @@ fun interface CloudKitCredentials {
  * against a real account. A server-to-server key (ECDSA-signed requests) is **not** supported: it reaches only the public database,
  * and the signature is cryptography for the Rust core (`CLAUDE.md` §22).
  *
+ * **Addresses a reply names** (SWR-MG-30 (b)). The asset upload `url` and the `downloadURL` must be `https`; Apple's pages give no host for
+ * either (the upload example is the placeholder `[ASSET_UPLOAD_URL]`), so none is pinned, and neither request carries the tokens.
+ *
+ * **The tokens are in the query string**, which is how the service takes them ("Composing Web Service Requests"); an [HttpTransport] never logs
+ * or surfaces a request's address (its contract), and no message thrown here holds one.
+ *
  * **Names.** A record name is written as `%XX` for everything outside A-Z a-z 0-9 `-` `_` `.` `~`, and a leading `_` too, read back the
  * same way. That a record name may contain `%`, that it must be ASCII, at most 255 characters, and not start with an underscore are
  * from the native `CKRecord.ID` rules **as remembered, not read**; a name that would pass 255 characters throws. Nothing here has touched iCloud.
@@ -123,7 +129,7 @@ class CloudKitObjectStore(
             ((json!!["tokens"] as JsonArray)[0] as JsonObject)["url"]!!.jsonPrimitive.content
         } catch (e: Exception) {
             throw CloudStoreException("asset upload for '$rn' got no URL: ${errorCode(json, null) ?: r.status}", r.status)
-        }
+        }.let { serverUrl(it, "the asset upload address for '$rn'") }
         val up = transport.call(
             HttpRequest(url, mapOf("Content-Type" to "application/octet-stream"), bytes, "POST", timeoutSeconds),
         )
@@ -185,7 +191,7 @@ class CloudKitObjectStore(
             throw CloudStoreException("get '$name' found a record with no download URL")
         }
         // Asset URLs are said (from memory, not the pages read) to carry a ${f} placeholder for the file name.
-        val d = transport.call(HttpRequest(url.replace("\${f}", FIELD), emptyMap(), ByteArray(0), "GET", timeoutSeconds))
+        val d = transport.call(HttpRequest(serverUrl(url, "the download address for '$name'").replace("\${f}", FIELD), emptyMap(), ByteArray(0), "GET", timeoutSeconds))
         if (d.status != 200) throw CloudStoreException("get '$name' download answered ${d.status}", d.status)
         return d.body
     }

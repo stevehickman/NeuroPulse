@@ -672,7 +672,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_VOLUME"), unit: String(localized: "UNIT_DB_SPL"), value: Binding(
                     get: { workingLimits.audioEntrainment?.maxVolumeDb },
                     set: { workingLimits.audioEntrainment?.maxVolumeDb = $0 }
-                ), range: 40...90)
+                ), range: 0...NPAudioLimits.maxLevelDbSpl)
                 OptionalDoubleField(label: String(localized: "LIMITS_MAX_BINAURAL_BEATS"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxBinauralBeatsHz },
                     set: { workingLimits.audioEntrainment?.maxBinauralBeatsHz = $0 }

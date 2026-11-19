@@ -33,6 +33,12 @@ class SealedDeviceTokenStore(
         sha256 = sha256,
     )
 
+    // A helmet's raw identifier written by an earlier version leaves the value at launch, not when that helmet next connects
+    // (`OI-PRIV-08` (4)).
+    init {
+        table.migrateLegacy()
+    }
+
     override fun load(hub: String): String? = table.load(hub)
 
     override fun save(hub: String, token: String) = table.save(hub, token)

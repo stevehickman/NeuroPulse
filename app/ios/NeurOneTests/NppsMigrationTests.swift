@@ -33,18 +33,23 @@ final class NppsMigrationTests: XCTestCase {
     func testAWithdrawalSurvivesARestoreAndNeverAskedStaysNull() throws {
         let merged = try NppsCore.migration([
             "op": "mergeWithdrawal", "local": [String: Any](),
-            "incoming": ["blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z"],
+            "incoming": ["blanketConsentWithdrawnAt": "2026-03-01#000001"],
         ])
-        XCTAssertEqual(merged["blanketConsentWithdrawnAt"] as? String, "2026-03-01T00:00:00Z")
+        XCTAssertEqual(merged["blanketConsentWithdrawnAt"] as? String, "2026-03-01#000001")
         let never = try NppsCore.migration(["op": "mergeWithdrawal", "local": [String: Any](), "incoming": [String: Any]()])
         XCTAssertTrue(never["blanketConsentWithdrawnAt"] is NSNull)
     }
 
     // @verifies SWR-MG-08
     func testTheOldPhoneClearsOnlyOnAMatchingConfirmation() throws {
-        let none = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "confirmation": NSNull()])
+        let expected = ["bundleHash": "h", "tag": "aa"]
+        let none = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": NSNull()])
         XCTAssertEqual(none["clear"] as? Bool, false)
-        let ok = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "confirmation": ["bundleHash": "h"]])
+        // The hash alone confirms nothing: it is computed from ciphertext the backup location holds.
+        let forged = try NppsCore.migration(["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": ["bundleHash": "h"]])
+        XCTAssertEqual(forged["clear"] as? Bool, false)
+        let ok = try NppsCore.migration(
+            ["op": "clearDecision", "bundleHash": "h", "expected": expected, "confirmation": ["bundleHash": "h", "tag": "aa"]])
         XCTAssertEqual(ok["clear"] as? Bool, true)
     }
 

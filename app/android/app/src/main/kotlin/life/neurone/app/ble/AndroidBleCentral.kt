@@ -252,13 +252,23 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
             status: Int,
         ) {
             if (status == BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicRead(characteristic.uuid.toCore(), value)
+            // A refused read (an encrypted characteristic on a link the system has not bonded) is the pairing signal (OI-PRIV-16).
+            else listener?.onCharacteristicReadFailed(characteristic.uuid.toCore())
+        }
+
+        // A write the hub refused, or that did not land: the manager is told, and nothing is written again here (OI-PRIV-16).
+        override fun onCharacteristicWrite(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicWriteFailed(characteristic.uuid.toCore())
         }
 
         @Deprecated("Deprecated in API 33")
         @Suppress("DEPRECATION")
         override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && status == BluetoothGatt.GATT_SUCCESS) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+            if (status == BluetoothGatt.GATT_SUCCESS) {
                 characteristic.value?.let { listener?.onCharacteristicRead(characteristic.uuid.toCore(), it) }
+            } else {
+                listener?.onCharacteristicReadFailed(characteristic.uuid.toCore())
             }
         }
     }
