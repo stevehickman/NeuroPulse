@@ -357,7 +357,7 @@ np_hd_status_t np_hd_session_start_stim(np_hd_session_t *sess, uint32_t now_ms)
 
     uint16_t current_ua = sess->montage.anode_current_ua;
     uint16_t duration_s = sess->config.stim_duration_s
-                          ? sess->config.stim_duration_s : NP_HD_MIN_SESSION_S;
+                          ? sess->config.stim_duration_s : NP_HD_DEFAULT_SESSION_MIN_S;
 
     np_hd_status_t ret = np_hd_stim_start(&sess->stim, current_ua, duration_s, now_ms);
     if (ret != NP_HD_OK) {

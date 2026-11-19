@@ -139,8 +139,13 @@
 
 /* ── Stimulation session parameters ─────────────────────────────────────────── */
 #define NP_HD_DEFAULT_CURRENT_UA    1000U   /* 1 mA anode (within 2 mA limit)   */
-#define NP_HD_MIN_SESSION_S         120U    /* 2 minutes minimum                 */
-#define NP_HD_MAX_SESSION_S         1800U   /* 30 minutes maximum                */
+/* Session length DEFAULTS, not limits (the principal, 2026-11-19).  Nothing refuses a session for being shorter than the
+ * first or longer than the second: a limit needs research literature that documents why it should exist, and none is
+ * cited for either figure (register row UC-190).  The only refusal on length is structural, in np_hd_stim_start: a
+ * session shorter than its two ramps cannot be run.  What bounds the dose is the safety MCU's per-session charge
+ * ceiling (CLAUDE.md §3), whatever the length.  The first is also the length used when a session is configured with none. */
+#define NP_HD_DEFAULT_SESSION_MIN_S 120U    /* 2 minutes: the shortest the defaults suggest */
+#define NP_HD_DEFAULT_SESSION_MAX_S 1800U   /* 30 minutes: the longest the defaults suggest; no firmware path reads it */
 
 /* ── Safety MCU heartbeat ───────────────────────────────────────────────────── */
 /* HD-tDCS shares the 200 ms SPI heartbeat from the main safety architecture.   */

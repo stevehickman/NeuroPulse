@@ -168,7 +168,7 @@ np_hd_status_t np_hd_stim_start(np_hd_stim_ctx_t *ctx,
 
     /* A session holds a ramp up and a ramp down.  Shorter than the two, the steady phase would end before the ramp up does
      * (and total - ramp would wrap below zero), so it is refused before anything is set or requested (OI-UINT16-01).  This is
-     * structural, not the 120 to 1,800 s range of np_hd_config.h, which nothing here enforces and no document derives. */
+     * structural, not a limit on length: the 120 to 1,800 s of np_hd_config.h are defaults and nothing enforces them. */
     uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
     uint32_t total_ms = (uint32_t)duration_s * 1000U;
     if (total_ms < 2U * ramp_ms) {
