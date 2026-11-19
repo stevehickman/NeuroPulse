@@ -113,6 +113,12 @@ struct DirectoryFileStore: FileStore {
         // An absolute path would otherwise be read as relative to the folder; the other platforms refuse it, and so does this.
         let file = root.appendingPathComponent(path).standardizedFileURL
         guard !path.hasPrefix("/"), file.path.hasPrefix(root.path + "/") else { throw DirectoryStoreError.outsideFolder(path) }
+        // The check above is lexical. The folder the file is in must really be inside the root once links are resolved, and the
+        // file itself must not be a link, or the overwrite would land in a file outside the folder (OI-PRIV-10 point 3).
+        let realRoot = root.resolvingSymlinksInPath().path
+        let realParent = file.deletingLastPathComponent().resolvingSymlinksInPath().path
+        guard realParent == realRoot || realParent.hasPrefix(realRoot + "/") else { throw DirectoryStoreError.outsideFolder(path) }
+        if (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true { throw DirectoryStoreError.outsideFolder(path) }
         return file
     }
 
