@@ -34,19 +34,18 @@
 //! for n files). The header is in `info`, so the key is bound to the file it heads. The file key and the object ID do
 //! different work: the key keeps two files from sharing a nonce, and the ID keeps one file from being opened as another.
 //!
-//! # Versions
-//! Version 1 had no object ID and no key per file (the backup key sealed every chunk, under an 8-byte random nonce prefix,
-//! `UC-194`). Version 2 has both: the file key did not take a version of its own, because nothing had been released when it
-//! was added (the principal, 2026-11-19). This build writes version 2 and **does not open version 1** (`older_version`): files with and
-//! without the binding under one key would leave the version-1 files interchangeable, which is the fault the ID removes. A
-//! backup that meets a version-1 set starts a new one, under a new key. A build that reads only version 1 refuses version 2
-//! (`newer_version`).
+//! # Version
+//! The version is 1. The object ID and the file's own key each changed the format and the number did not rise with either, by
+//! ruling (the principal, 2026-11-19): no build that sealed a file in an earlier form was released, so no such file should
+//! exist and there is no older reader to refuse this one. A file in an earlier form, were one to turn up, does not open:
+//! its header is another shape and its chunks were sealed under another key and other associated data. The next change to
+//! the format after a release bumps the version.
 //!
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
 //! | `archiveInfo` | none | `{chunkBytes, tagBytes, saltBytes, headerBytes}`: the fixed sizes a driver cuts a file by |
 //! | `archiveStart` | `salt` (16 bytes, hex, random: a new one for every file), `kdf` (optional) | `{header}` (hex) |
-//! | `archiveReadHeader` | `bytes`: the first bytes of a file (hex; at least [`HEADER_BYTES`] and as many more as the `kdf` needs, [`MAX_KDF`] at most) | `{ok: true, headerLength, kdf}` or `{ok: false, reason}`: `malformed`, `truncated`, `newer_version` or `older_version` |
+//! | `archiveReadHeader` | `bytes`: the first bytes of a file (hex; at least [`HEADER_BYTES`] and as many more as the `kdf` needs, [`MAX_KDF`] at most) | `{ok: true, headerLength, kdf}` or `{ok: false, reason}`: `malformed`, `truncated` or `newer_version` |
 //! | `archiveSealChunk` | `key`, `header` (hex, the whole header), `objectId`, `counter`, `last`, `data` (hex) | `{sealed}` (hex) |
 //! | `archiveOpenChunk` | `key`, `header`, `objectId` (the object the caller expects), `counter`, `last`, `sealed` | `{ok: true, data}` or `{ok: false, reason: "authentication_failed"}` |
 
@@ -62,7 +61,7 @@ use zeroize::Zeroizing;
 type R<T> = Result<T, String>;
 
 const MAGIC: &[u8; 4] = b"NPAR";
-const VERSION: u8 = 2;
+const VERSION: u8 = 1;
 /// A chunk's plaintext length. A platform cuts a recording by this and the core refuses a longer one.
 pub const CHUNK_BYTES: usize = 64 * 1024;
 const TAG_BYTES: usize = 16;
@@ -153,13 +152,7 @@ fn read_header(bytes: &[u8]) -> R<Value> {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     }
     if bytes[4] != VERSION {
-        // Version 0 was never written. Version 1 is refused by name: it has no object ID (see the module's "Versions").
-        let reason = match bytes[4] {
-            0 => "malformed",
-            v if v > VERSION => "newer_version",
-            _ => "older_version",
-        };
-        return Ok(json!({ "ok": false, "reason": reason }));
+        return Ok(json!({ "ok": false, "reason": if bytes[4] > VERSION { "newer_version" } else { "malformed" } }));
     }
     let kdf_len = u16::from_be_bytes([bytes[HEADER_BYTES - 2], bytes[HEADER_BYTES - 1]]) as usize;
     if kdf_len > MAX_KDF {
@@ -428,14 +421,13 @@ mod tests {
 
     // @verifies SWR-MG-29#a
     #[test]
-    fn a_version_1_archive_is_refused_by_name_and_this_build_writes_a_version_the_older_reader_refuses() {
+    fn the_version_stays_1_and_any_other_number_is_refused() {
+        // No version bump for the object ID or the file key (the principal, 2026-11-19): no file of an earlier form should exist.
         let file = seal(b"abc", KEY, &header(false));
-        // The older reader took version 1 only and called anything above it newer: this file is refused by it whole.
-        assert_eq!(file[4], 2);
-        // A version-1 file has no object ID in its associated data. It is not opened, and is not called damaged.
-        let mut v1 = file.clone();
-        v1[4] = 1;
-        assert_eq!(open(&v1, KEY).unwrap_err(), "older_version");
+        assert_eq!(file[4], 1);
+        let mut v2 = file.clone();
+        v2[4] = 2;
+        assert_eq!(open(&v2, KEY).unwrap_err(), "newer_version");
         let mut v0 = file;
         v0[4] = 0;
         assert_eq!(open(&v0, KEY).unwrap_err(), "malformed");

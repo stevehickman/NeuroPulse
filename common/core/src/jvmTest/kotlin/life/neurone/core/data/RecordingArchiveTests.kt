@@ -58,7 +58,7 @@ class RecordingArchiveTests {
     }
 
     // @verifies SWR-MG-29#a
-    @Test fun aFileSealedAsOneObjectIsRefusedWhenOpenedAsAnotherAndAnOlderVersionIsNamed() {
+    @Test fun aFileSealedAsOneObjectIsRefusedWhenOpenedAsAnother() {
         val one = RecordingArchive.seal(sample(100), key, "recording:session_1.edf", Counting())
         val two = RecordingArchive.seal(sample(200), key, "recording:session_2.edf", Counting())
         assertIs<ArchiveOpened.Ok>(RecordingArchive.open(one, key, "recording:session_1.edf"))
@@ -66,9 +66,7 @@ class RecordingArchiveTests {
         for ((file, asked) in listOf(two to "recording:session_1.edf", one to "recording:session_2.edf", one to "index")) {
             assertEquals(ArchiveProblem.AUTHENTICATION_FAILED, (RecordingArchive.open(file, key, asked) as ArchiveOpened.Refused).problem, asked)
         }
-        // A file from before objects were named (version 1) is not opened, and is not called damaged.
-        val v1 = one.copyOf().also { it[4] = 1 }
-        assertEquals(ArchiveProblem.OLDER_VERSION, (RecordingArchive.open(v1, key, "recording:session_1.edf") as ArchiveOpened.Refused).problem)
-        assertNull(RecordingArchive.readKdf(v1))
+        // The version did not rise with the object ID (the principal, 2026-11-19): no earlier file should exist.
+        assertEquals(1, one[4].toInt())
     }
 }

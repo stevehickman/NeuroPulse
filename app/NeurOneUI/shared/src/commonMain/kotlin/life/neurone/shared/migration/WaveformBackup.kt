@@ -28,8 +28,8 @@ import kotlin.coroutines.cancellation.CancellationException
 // Each file is sealed as a named object and opened as the object the reader expects (SWR-MG-29 (a), OI-PRIV-09): a recording as its
 // own name in the app (which the sealed index holds, so the name is never in the clear), the index under a fixed name. The backup
 // folder can hand back any file under any name; a file sealed as one recording does not open as another, so a swap is an unreadable
-// recording and not a wrong one. A set sealed before this (archive version 1) is not opened: the next backup starts a new set under
-// a new key and removes the old files, and a restore of an old set alone reports that it could not read it.
+// recording and not a wrong one. No set sealed before this should exist (the format's version did not rise, the
+// principal, 2026-11-19); one that did would not open, and the next backup would start a new set and remove its files.
 //
 // What the backup folder shows: files named by random ids, no recording's name, no time (the Swift app's rule, UHDRBackupFormat); and
 // the number of files and their sizes, which say roughly how many sessions and how long (OI-BACKUP-01 item 1, a decision still open).
