@@ -18,7 +18,7 @@ private fun env(name: String): String? = System.getenv(name)?.takeIf { it.isNotB
 
 /**
  * Sends `https://<host>` to `http://<host>`: the S3 adapter always speaks https, and a local test server is plain http on a loopback port.
- * **Only for a loopback host** (SWR-MG-29 (f), `CLAUDE.md` §23): the request is signed with the keys the environment names, so an address on any
+ * **Only for a loopback host** (SWR-MG-30 (f), `CLAUDE.md` §23): the request is signed with the keys the environment names, so an address on any
  * other host is refused with an [IllegalStateException], which fails the test, and nothing is sent.
  */
 internal class PlainHttpTransport(private val inner: HttpTransport) : HttpTransport {
@@ -49,7 +49,7 @@ class LiveS3ContractTests : ObjectStoreContract() {
     }
 }
 
-/** The downgrade the live S3 suite needs, checked with or without a server (SWR-MG-29 (f)). */
+/** The downgrade the live S3 suite needs, checked with or without a server (SWR-MG-30 (f)). */
 class PlainHttpTransportTests {
     private class Recording : HttpTransport {
         val seen = mutableListOf<String>()
@@ -59,7 +59,7 @@ class PlainHttpTransportTests {
         }
     }
 
-    // @verifies SWR-MG-29#f
+    // @verifies SWR-MG-30#f
     @Test
     fun aSignedRequestIsSentOverPlainHttpOnlyToThisMachine() = kotlinx.coroutines.runBlocking {
         val inner = Recording()

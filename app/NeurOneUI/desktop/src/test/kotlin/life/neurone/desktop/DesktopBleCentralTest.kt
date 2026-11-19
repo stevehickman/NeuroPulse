@@ -41,6 +41,7 @@ class DesktopBleCentralTest {
         override fun onCharacteristicChanged(uuid: UUID, value: ByteArray) { lastChanged = value; log += "changed $uuid" }
         override fun onCharacteristicRead(uuid: UUID, value: ByteArray) { log += "read $uuid ${value.toList()}" }
         override fun onCharacteristicReadFailed(uuid: UUID) { log += "readFailed $uuid" }
+        override fun onCharacteristicWriteFailed(uuid: UUID) { log += "writeFailed $uuid" }
     }
 
     private val a = UUID.fromString("00000001-0000-1000-8000-00805f9b34fb")
@@ -98,6 +99,20 @@ class DesktopBleCentralTest {
         assertEquals("read $a [5]", rec.next())
         link.events += byteArrayOf(4) + "dev-1".encodeToByteArray()
         assertEquals("disconnected dev-1", rec.next())
+        central.close()
+    }
+
+    // @verifies REQ-SW03-31#a
+    @Test fun a_refused_write_from_the_library_becomes_the_listeners_write_failed_call() {
+        val link = FakeLink()
+        val central = DesktopBleCentral(link)
+        val rec = Recorder()
+        central.setListener(rec)
+        rec.next()
+        link.events += byteArrayOf(8) + bytes(a)
+        assertEquals("readFailed $a", rec.next())
+        link.events += byteArrayOf(9) + bytes(b) // Event::CharacteristicWriteFailed, common/btle-jni/src/central.rs
+        assertEquals("writeFailed $b", rec.next())
         central.close()
     }
 

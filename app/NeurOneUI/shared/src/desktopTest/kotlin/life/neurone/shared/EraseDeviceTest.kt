@@ -48,7 +48,7 @@ class EraseDeviceTest {
 
     private fun gatt(kv: InMemoryKeyValueStore) = NeurOneGattManager(UnavailableBleCentral(), scope, kv)
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test fun an_erase_ends_the_cloud_sign_ins_first_and_says_when_a_providers_access_may_remain() = runTest {
         for ((answer, expected) in listOf<Pair<suspend () -> Boolean, Boolean>>(
             suspend { false } to false,

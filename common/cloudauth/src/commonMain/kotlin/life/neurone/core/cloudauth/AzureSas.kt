@@ -6,7 +6,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 
 /**
- * A shared access signature the person pasted, checked before it is kept (SWR-MG-26, SWR-MG-29). It is the query string of a **service SAS on one
+ * A shared access signature the person pasted, checked before it is kept (SWR-MG-26, SWR-MG-30). It is the query string of a **service SAS on one
  * container**: what Azure shows after the `?` in "SAS token". The check is that it can do what a backup needs and no more than that, from the fields
  * Microsoft's "Create a service SAS" page documents (read 2026-11-18); everything else, the signature included, is Azure's to judge, so a wrong one
  * is found by the first request.

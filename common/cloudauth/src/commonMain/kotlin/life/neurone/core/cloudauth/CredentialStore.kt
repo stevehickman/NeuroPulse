@@ -95,7 +95,7 @@ class CredentialStore private constructor(
 
     /**
      * Forget every account and credential on this install. **It revokes nothing**, so it is not called on its own: `CloudAuth.signOutAll` reads
-     * the credentials, calls this, and then asks each provider to end its grant (SWR-MG-29 (d)).
+     * the credentials, calls this, and then asks each provider to end its grant (SWR-MG-30 (d)).
      */
     internal fun clear() {
         store.remove(KEY)

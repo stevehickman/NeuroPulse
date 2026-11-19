@@ -54,7 +54,7 @@ fun interface CloudKitCredentials {
  * against a real account. A server-to-server key (ECDSA-signed requests) is **not** supported: it reaches only the public database,
  * and the signature is cryptography for the Rust core (`CLAUDE.md` §22).
  *
- * **Addresses a reply names** (SWR-MG-29 (b)). The asset upload `url` and the `downloadURL` must be `https`; Apple's pages give no host for
+ * **Addresses a reply names** (SWR-MG-30 (b)). The asset upload `url` and the `downloadURL` must be `https`; Apple's pages give no host for
  * either (the upload example is the placeholder `[ASSET_UPLOAD_URL]`), so none is pinned, and neither request carries the tokens.
  *
  * **The tokens are in the query string**, which is how the service takes them ("Composing Web Service Requests"); an [HttpTransport] never logs

@@ -44,7 +44,7 @@ import life.neurone.core.net.HttpTransport
  * Graph's `permanentDelete` is not used: its page (read 2026-11-18) lists `Files.ReadWrite` as its least permission and not
  * `Files.ReadWrite.AppFolder`, so it would mean asking for the person's whole drive. The accounts screen says where a deleted file goes.
  *
- * **Addresses a reply names** (SWR-MG-29 (b)). The `uploadUrl` and the download `Location` must be `https`; their hosts are not pinned,
+ * **Addresses a reply names** (SWR-MG-30 (b)). The `uploadUrl` and the download `Location` must be `https`; their hosts are not pinned,
  * because Microsoft documents none (the pages' examples are `sn3302.up.1drv.com` and `b0mpua-by3301.files.1drv.com`), and neither is sent
  * the token. `@odata.nextLink` **is** sent the token, so it is followed only when it begins with this store's own Graph address; the paging
  * page's example is on `graph.microsoft.com` and the page does not promise that host, so a next page elsewhere fails the list.

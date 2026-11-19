@@ -78,6 +78,8 @@ class UploadThroughCentralTest {
         bridge.report(HubBridgeEvent.Opened)
         published.forEachIndexed { i, id -> bridge.report(HubBridgeEvent.Characteristic(index = i, count = published.size, id = id, props = 1)) }
         assertEquals(ConnectionState.CONNECTED, manager.connectionState.value)
+        // The twin answers the encrypted-only serial read the manager makes at discovery, which the upload waits for (REQ-SW03-31).
+        bridge.report(HubBridgeEvent.ReadResult(0x17, att = 0, hex = "00".repeat(32)))
 
         // The compiler of the core's golden test: a fixed clock and session id and a zeroed signature slot, as the hub
         // golden is made (`hub-descriptor-golden.json`); the twin's signing service fills the slot (REQ-SIMFW-17).

@@ -101,7 +101,8 @@ class CloudAccountsModelTest {
         assertNull(m.notice.value, "a cancel is not an error")
         assertNull(m.rows.value.first { it.service == CloudService.GOOGLE_DRIVE }.account)
 
-        f.launch = { _, redirect -> "$redirect?error=access_denied&state=x" }
+        // A provider's refusal carries the state that was sent; one without it is not the provider's answer (SWR-MG-19 (a), OI-PRIV-13).
+        f.launch = { url, redirect -> "$redirect?error=access_denied&state=${Regex("[?&]state=([^&]+)").find(url)!!.groupValues[1]}" }
         m.signIn(CloudService.GOOGLE_DRIVE)
         assertEquals(CloudNoticeKind.DENIED, m.notice.value?.kind)
 
@@ -257,7 +258,7 @@ class CloudAccountsModelTest {
         assertNull(m.busy.value)
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test fun replacing_a_credential_the_provider_cannot_end_says_the_earlier_one_may_still_work() = runTest {
         val f = Fakes()
         val auth = CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
@@ -287,7 +288,7 @@ class CloudAccountsModelTest {
         assertEquals(CloudNoticeKind.REPLACED_NOT_REVOKED, m.notice.value?.kind)
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test fun only_a_signed_in_onedrive_or_dropbox_row_says_it_keeps_deleted_files() = runTest {
         val m = model(Fakes())
         m.refresh()

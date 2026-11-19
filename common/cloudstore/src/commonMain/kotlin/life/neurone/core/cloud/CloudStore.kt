@@ -94,7 +94,7 @@ private fun codePointToString(cp: Int): String =
 
 /**
  * An address a provider's **reply** named and the adapter is about to send to (an upload session, a download, a next page), checked before
- * anything goes to it (SWR-MG-29 (b), `CLAUDE.md` §23): it must be `https`, so nothing is sent in the clear because a reply said so, and with
+ * anything goes to it (SWR-MG-30 (b), `CLAUDE.md` §23): it must be `https`, so nothing is sent in the clear because a reply said so, and with
  * [mustStartWith] it must sit under the service's own address, which is what an address that will be sent the person's token needs. A reply that
  * fails is a [CloudStoreException] and nothing is sent. **The message never holds the address**: such an address is often a credential itself.
  */

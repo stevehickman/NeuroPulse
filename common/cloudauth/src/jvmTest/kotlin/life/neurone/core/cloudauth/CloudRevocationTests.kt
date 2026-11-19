@@ -8,13 +8,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * SWR-MG-29 (d): a credential that leaves this install is ended at the provider where the provider has a call for it, and the result says when
+ * SWR-MG-30 (d): a credential that leaves this install is ended at the provider where the provider has a call for it, and the result says when
  * it was not. Against the same stand-in as `CloudAuthTests`, so a pass shows what this library sends, not what a provider does with it.
  */
 class CloudRevocationTests {
     private fun Rig.revokes() = providers.seen.filter { it.url == GOOGLE_REVOKE || it.url == DROPBOX_REVOKE }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun signingInAgainRevokesTheEarlierGoogleGrantBeforeTheBrowserOpens() = runBlocking {
         val rig = Rig()
@@ -39,7 +39,7 @@ class CloudRevocationTests {
         assertEquals("access-2", auth.accessToken(again.id).bearer(), "the new sign-in is the one kept")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun aSignInAgainThatThePersonAbandonsLeavesNoCredentialThatLooksAlive() = runBlocking {
         val rig = Rig()
@@ -53,7 +53,7 @@ class CloudRevocationTests {
         assertTrue("refresh-1" !in rig.kv.getString(CredentialStore.KEY)!! && "access-1" !in rig.kv.getString(CredentialStore.KEY)!!, "the revoked tokens are not kept")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun anEarlierGrantThatCouldNotBeRevokedIsReportedAndKeptForALaterSignOut() = runBlocking {
         val rig = Rig()
@@ -73,7 +73,7 @@ class CloudRevocationTests {
         assertEquals(1, rig.providers.seen.size - seenBefore, "only the code was redeemed")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun signingInToDropboxAgainRevokesTheEarlierGrantWithItsOwnAccessToken() = runBlocking {
         val rig = Rig()
@@ -89,7 +89,7 @@ class CloudRevocationTests {
         assertEquals("Bearer access-3", rig.revokes().last().headers["Authorization"])
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun aSignInToAProviderThatIsNotSetUpRevokesNothing() = runBlocking {
         val rig = Rig()
@@ -100,7 +100,7 @@ class CloudRevocationTests {
         assertEquals("access-1", rig.auth.accessToken(first.id).bearer(), "the account is as it was")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun replacingATypedCredentialSaysTheEarlierOneStillWorksAndTypingTheSameOneReplacesNothing() = runBlocking {
         val rig = Rig()
@@ -119,7 +119,7 @@ class CloudRevocationTests {
         assertTrue(rig.providers.seen.isEmpty(), "nothing was sent to anyone")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun anEraseForgetsEveryAccountAndAsksEachProviderToEndItsGrant() = runBlocking {
         val rig = Rig()
@@ -140,7 +140,7 @@ class CloudRevocationTests {
         assertTrue(rig.auth.signOutAll().isEmpty(), "nothing held, nothing asked")
     }
 
-    // @verifies SWR-MG-29#d
+    // @verifies SWR-MG-30#d
     @Test
     fun anEraseWithNoNetworkStillForgetsEverythingAndSaysWhatMayRemain() = runBlocking {
         val rig = Rig()

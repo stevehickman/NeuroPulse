@@ -338,7 +338,7 @@ class AppServices(
         platform.endRunAfterErase?.let {
             life.neurone.shared.migration.EraseDeviceModel(
                 platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
-                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-29 (d)); anything but a confirmation is told to the person.
+                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-30 (d)); anything but a confirmation is told to the person.
                 endCloudAccess = cloudAuth?.let { auth -> { auth.signOutAll().any { it.second != life.neurone.core.cloudauth.Revocation.REVOKED } } },
             )
         }
