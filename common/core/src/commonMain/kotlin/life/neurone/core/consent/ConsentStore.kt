@@ -8,6 +8,7 @@ import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
+import life.neurone.core.models.QuarantinedConsentBlob
 import life.neurone.core.models.RefusingStudyDescriptorVerifier
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
@@ -19,6 +20,7 @@ import life.neurone.core.models.StudyParticipationRecord
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.common.UUID
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -75,6 +77,22 @@ class ConsentStore(
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
         const val INVITATIONS_KEY = "np.consent.study-invitations"
         const val STUDY_WITHDRAWALS_KEY = "np.consent.study-withdrawals"
+
+        /** Stored records that could not be read, as found (`REQ-CONSENT-20`). Never moved in a migration. */
+        const val QUARANTINE_KEY = "np.consent.quarantine"
+
+        /**
+         * The records research admission depends on. One of them unreadable means the device cannot tell
+         * "never asked" from "said stop". The clinician keys are not here: an unreadable grant list reads as
+         * no grants, which already gives a clinician nothing.
+         */
+        private val RESEARCH_RECORD_KEYS = setOf(
+            RESEARCH_KEY, STUDY_WITHDRAWALS_KEY, PersistedKeys.PARTICIPATION_KEY, INVITATIONS_KEY, QUARANTINE_KEY,
+        )
+
+        /** [day] is a real calendar day written "yyyy-MM-dd", the only form that orders as text. */
+        fun isIsoDay(day: String): Boolean =
+            runCatching { LocalDate.parse(day).toString() == day }.getOrDefault(false)
     }
 
     var clinicianGrants: List<ClinicianConsentGrant> = emptyList()
@@ -101,15 +119,38 @@ class ConsentStore(
     var expansionRequests: List<ClinicianAccessExpansionRequest> = emptyList()
         private set
 
+    /**
+     * Stored consent records that could not be read, kept as they were found (`REQ-CONSENT-20`). Kept for good:
+     * a later version of the app may be able to read what this one could not.
+     */
+    var quarantinedBlobs: List<QuarantinedConsentBlob> = emptyList()
+        private set
+
+    /**
+     * A record research admission depends on could not be read, and the person has not decided again since.
+     * While this holds no study is admitted, no consent request can be accepted, and the dashboard says so.
+     * It clears when the person commits a research-consent decision ([updateResearchConsent],
+     * [withdrawBlanketResearchConsent]), which is then the record.
+     */
+    val consentRecordUnreadable: Boolean
+        get() = quarantinedBlobs.any { it.redecidedOnDay == null && it.key in RESEARCH_RECORD_KEYS }
+
     init {
         load()
     }
 
     // ── Clinician consent ────────────────────────────────────────────────
 
-    fun grantClinicianAccess(grant: ClinicianConsentGrant) {
+    /**
+     * Record a grant. Refused, and false returned, unless the grant is time-limited (§5.1, `REQ-CONSENT-18`):
+     * it carries an expiry that is a real day and has not passed.
+     */
+    fun grantClinicianAccess(grant: ClinicianConsentGrant): Boolean {
+        val expiry = grant.expiresAtDay
+        if (expiry == null || !isIsoDay(expiry) || !grant.isInForce(todayIso())) return false
         clinicianGrants = clinicianGrants.filterNot { it.id == grant.id } + grant
         save()
+        return true
     }
 
     fun revokeClinicianAccess(grantId: String) {
@@ -162,9 +203,10 @@ class ConsentStore(
         // this tier, since the request was raised. Approving what the differential document no
         // longer describes would apply a change the user was not shown.
         val grant = clinicianGrants.firstOrNull { it.id == request.grantId } ?: return
-        if (ConsentEngine.accessDifferential(grant, request.toTier) == null) return
-
+        // The differential is also null for a grant that is no longer in force (`REQ-CONSENT-18`).
         val today = todayIso()
+        if (ConsentEngine.accessDifferential(grant, request.toTier, today) == null) return
+
         expansionRequests = expansionRequests.map {
             if (it.id == requestId) {
                 it.copy(
@@ -293,6 +335,9 @@ class ConsentStore(
                 researchConsent.blanketConsentWithdrawnOnDay
             },
         )
+        // A commit from the consent UI is the person deciding, so it is what ends a quarantine.
+        markRedecided()
+        withdrawUncoveredParticipations()
         save()
         portalIdentityAfter(before)
 
@@ -317,15 +362,24 @@ class ConsentStore(
         // from studies they are still consenting to.
         val wasGranted = researchConsent.blanketConsentGranted
         val before = researchConsent
-        researchConsent = withTimes(researchConsent, researchConsent.copy(blanketConsentGranted = false)).copy(
-            blanketConsentWithdrawnOnDay = if (wasGranted) {
+        // While the stored record is unreadable the device cannot know blanket consent was never granted, and
+        // the person is saying stop now. That is recorded as a withdrawal (`REQ-CONSENT-20`).
+        val mayHaveBeenGranted = !wasGranted && consentRecordUnreadable
+        val next = withTimes(researchConsent, researchConsent.copy(blanketConsentGranted = false))
+        researchConsent = next.copy(
+            blanketConsentWithdrawnOnDay = if (wasGranted || mayHaveBeenGranted) {
                 todayIso()
             } else {
                 researchConsent.blanketConsentWithdrawnOnDay
             },
+            blanketConsentWithdrawnAt = if (mayHaveBeenGranted) now() else next.blanketConsentWithdrawnAt,
         )
+        markRedecided()
+        withdrawUncoveredParticipations()
         save()
-        portalIdentityAfter(before)
+        // An unreadable record that may have held the grants is treated as a withdrawal here too (`REQ-CONSENT-20`), so the
+        // author token goes with it.
+        if (mayHaveBeenGranted) onPortalIdentityWithdrawn() else portalIdentityAfter(before)
         revokeResearchAnalytics()
     }
 
@@ -352,7 +406,59 @@ class ConsentStore(
             researchConsent,
             researchConsent.copy(categoryConsents = researchConsent.categoryConsents + (category to granted)),
         )
+        withdrawUncoveredParticipations()
         save()
+    }
+
+    /**
+     * Stop every participation the research consent no longer covers (`REQ-CONSENT-19`).
+     *
+     * A withdrawal used to change the consent state and leave [studyParticipations] alone, so a study joined
+     * under blanket consent stayed active after blanket consent was withdrawn, and anything that sends extracts
+     * for active participations would have kept sending (§5.3, `OI-PRIV-06` point 1). Run after every change to
+     * [researchConsent], and when the store is read, so a participation is active only while
+     * [ConsentEngine.covers] holds for it: blanket withdrawal stops all of them, a category withdrawal stops the
+     * studies left with no consented category, and a study whose categories are not on record is covered by
+     * blanket consent alone.
+     *
+     * Only [StudyParticipationRecord.withdrawnAtDay] is written. [studyWithdrawals] is not: that is the list of
+     * studies the person named, and it bars a study for good, which a blanket or category withdrawal did not
+     * ask for. An engagement notification for a stopped study is closed with it, because it tells the person
+     * they are in a study they are no longer in.
+     *
+     * Skipped while the stored record is unreadable: the state in memory is then defaults, not the person's.
+     */
+    private fun withdrawUncoveredParticipations() {
+        if (consentRecordUnreadable) return
+        val stopped = studyParticipations
+            .filter { it.isActive && !ConsentEngine.covers(researchConsent, categoriesOf(it.studyId)) }
+            .map { it.studyId }
+            .toSet()
+        if (stopped.isEmpty()) return
+        val today = todayIso()
+        studyParticipations = studyParticipations.map {
+            if (it.studyId in stopped && it.isActive) it.copy(withdrawnAtDay = today) else it
+        }
+        pendingInvitations = pendingInvitations.map {
+            if (it.studyId in stopped && it.isOpen && it.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
+                it.copy(decision = StudyInvitation.StudyDecision.Declined(today))
+            } else {
+                it
+            }
+        }
+    }
+
+    /** The categories of a study this device holds an invitation for, or null if it holds none. */
+    private fun categoriesOf(studyId: String): List<ResearchCategory>? =
+        pendingInvitations.firstOrNull { it.studyId == studyId }?.researchCategories
+
+    /** The person has committed a research-consent decision, which ends a quarantine (`REQ-CONSENT-20`). */
+    private fun markRedecided() {
+        if (!consentRecordUnreadable) return
+        val today = todayIso()
+        quarantinedBlobs = quarantinedBlobs.map {
+            if (it.redecidedOnDay == null && it.key in RESEARCH_RECORD_KEYS) it.copy(redecidedOnDay = today) else it
+        }
     }
 
     /**
@@ -442,6 +548,8 @@ class ConsentStore(
             val t = studies[it.studyId]
             if (t != null && it.isActive) it.copy(withdrawnAtDay = t.substringBefore('T')) else it
         }
+        // A restored blanket or category withdrawal stops what it stops here too (`REQ-CONSENT-19`).
+        withdrawUncoveredParticipations()
         save()
         portalIdentityAfter(r)
         if (blanket != null) revokeResearchAnalytics()
@@ -479,6 +587,7 @@ class ConsentStore(
             verification = descriptorVerifier.verify(descriptor),
             consent = researchConsent,
             studyAlreadyDecided = hasDecided(descriptor.studyId),
+            consentRecordReadable = !consentRecordUnreadable,
         )
         if (admission !is StudyDescriptorAdmission.Admitted) return admission
 
@@ -520,6 +629,10 @@ class ConsentStore(
     fun acceptInvitation(studyId: String) {
         val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
         if (invitation.posture != StudyInvitation.Posture.CONSENT_REQUEST || !invitation.isOpen) return
+        // A request that arrived under a consent since withdrawn, or while the stored record is unreadable,
+        // cannot be accepted: accepting would start a flow the withdrawal stopped (`REQ-CONSENT-19` d). The
+        // invitation stays open, and is answerable again if the person consents again.
+        if (consentRecordUnreadable || !ConsentEngine.covers(researchConsent, invitation.researchCategories)) return
 
         val today = todayIso()
         pendingInvitations = pendingInvitations.map {
@@ -603,8 +716,8 @@ class ConsentStore(
             id = UUID.randomUUID().toString(),
             studyId = studyId,
             descriptorHash = descriptorHash,
-            transmittedAtDay = onDay,
-            extractBytes = 0,
+            // Joined, and nothing sent: the transmission fields stay empty until an extract goes out.
+            enrolledOnDay = onDay,
         )
         save()
     }
@@ -626,51 +739,66 @@ class ConsentStore(
 
     // ── Persistence ──────────────────────────────────────────────────────
 
+    /**
+     * Read one stored record. A record that is there and cannot be read is quarantined, never dropped: the
+     * caller keeps its default, and [quarantine] keeps the text.
+     */
+    private fun <T> read(key: String, decode: (String) -> T): T? {
+        val blob = store.getString(key) ?: return null
+        return runCatching { decode(blob) }.getOrElse {
+            quarantine(key, blob)
+            null
+        }
+    }
+
+    /**
+     * Keep [blob] as found, and write the quarantine list at once, before any [save] can replace the record
+     * under [key] with defaults (`REQ-CONSENT-20`).
+     */
+    private fun quarantine(key: String, blob: String) {
+        if (quarantinedBlobs.any { it.key == key && it.blob == blob && it.redecidedOnDay == null }) return
+        quarantinedBlobs = quarantinedBlobs + QuarantinedConsentBlob(key, blob, quarantinedOnDay = todayIso())
+        saveQuarantine()
+    }
+
+    private fun saveQuarantine() {
+        store.putString(
+            QUARANTINE_KEY,
+            json.encodeToString(ListSerializer(QuarantinedConsentBlob.serializer()), quarantinedBlobs),
+        )
+    }
+
     private fun load() {
-        store.getString(GRANTS_KEY)?.let { blob ->
-            runCatching {
-                clinicianGrants =
-                    json.decodeFromString(ListSerializer(ClinicianConsentGrant.serializer()), blob)
-            }
-        }
-        store.getString(RESEARCH_KEY)?.let { blob ->
-            runCatching {
-                researchConsent = json.decodeFromString(ResearchConsentState.serializer(), blob)
-            }
-        }
-        store.getString(STUDY_WITHDRAWALS_KEY)?.let { blob ->
-            runCatching {
-                studyWithdrawals = json.decodeFromString(MapSerializer(String.serializer(), String.serializer()), blob)
-            }
-        }
-        store.getString(PersistedKeys.PARTICIPATION_KEY)?.let { blob ->
-            runCatching {
-                studyParticipations = json.decodeFromString(
-                    ListSerializer(StudyParticipationRecord.serializer()), blob,
-                )
-            }
-        }
+        // First, so a record quarantined below is added to what is already held. If the list itself cannot be
+        // read, its text becomes the first entry of a new one.
+        read(QUARANTINE_KEY) { json.decodeFromString(ListSerializer(QuarantinedConsentBlob.serializer()), it) }
+            ?.let { quarantinedBlobs = it }
+        read(GRANTS_KEY) { json.decodeFromString(ListSerializer(ClinicianConsentGrant.serializer()), it) }
+            ?.let { clinicianGrants = it }
+        read(RESEARCH_KEY) { json.decodeFromString(ResearchConsentState.serializer(), it) }
+            ?.let { researchConsent = it }
+        read(STUDY_WITHDRAWALS_KEY) { json.decodeFromString(MapSerializer(String.serializer(), String.serializer()), it) }
+            ?.let { studyWithdrawals = it }
+        val storedParticipations = read(PersistedKeys.PARTICIPATION_KEY) {
+            json.decodeFromString(ListSerializer(StudyParticipationRecord.serializer()), it)
+        }.orEmpty()
         // Expansion requests persist because §6.1 calls for a *persistent* notification: one the
         // user can dismiss by backgrounding the app is not one.
-        store.getString(EXPANSIONS_KEY)?.let { blob ->
-            runCatching {
-                expansionRequests = json.decodeFromString(
-                    ListSerializer(ClinicianAccessExpansionRequest.serializer()), blob,
-                )
-            }
-        }
+        read(EXPANSIONS_KEY) { json.decodeFromString(ListSerializer(ClinicianAccessExpansionRequest.serializer()), it) }
+            ?.let { expansionRequests = it }
         // Invitations persist for the same reason expansion requests do, and for one more: §6.3
         // step 4 gives the user two business days for an answer to a question, which an inbox
         // emptied by the next app launch cannot hold. While they were in-memory only, an accepted
         // study's participation record outlived the invitation that recorded the acceptance, so
         // the trail and the inbox disagreed after every restart.
-        store.getString(INVITATIONS_KEY)?.let { blob ->
-            runCatching {
-                pendingInvitations = json.decodeFromString(
-                    ListSerializer(StudyInvitation.serializer()), blob,
-                )
-            }
-        }
+        read(INVITATIONS_KEY) { json.decodeFromString(ListSerializer(StudyInvitation.serializer()), it) }
+            ?.let { pendingInvitations = it }
+
+        // Two repairs to what was stored before `OI-PRIV-06`: a record that called its enrolment day a
+        // transmission, and a participation left active by a withdrawal that should have stopped it.
+        studyParticipations = storedParticipations.map { it.normalised() }
+        withdrawUncoveredParticipations()
+        if (studyParticipations != storedParticipations) save()
     }
 
     private fun save() {
@@ -702,5 +830,6 @@ class ConsentStore(
             INVITATIONS_KEY,
             json.encodeToString(ListSerializer(StudyInvitation.serializer()), pendingInvitations),
         )
+        if (quarantinedBlobs.isNotEmpty()) saveQuarantine()
     }
 }

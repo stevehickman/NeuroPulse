@@ -205,12 +205,25 @@ pub fn parse_recovery_code(text: &str) -> Result<Vec<u8>, &'static str> {
 
 /// The secret a passphrase stands for: Unicode NFKC (so the same words typed on another phone's keyboard are the same
 /// bytes), UTF-8. Not trimmed: a space is a character. Shorter than [`PASSPHRASE_MIN_CHARS`] is `too_short`.
-pub fn passphrase_secret(passphrase: &str) -> Result<Vec<u8>, &'static str> {
-    let n: String = passphrase.nfkc().collect();
+///
+/// The normalised passphrase is wiped when the answer is dropped, and so is every shorter buffer it grew out of
+/// (`SWR-MG-28` (c)): a `String` that grows by reallocating leaves its earlier contents in freed memory, so this one is
+/// grown by hand, into a new wiped buffer each time.
+pub fn passphrase_secret(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, &'static str> {
+    let mut n = Zeroizing::new(String::with_capacity(passphrase.len() + 16));
+    for c in passphrase.nfkc() {
+        if n.len() + c.len_utf8() > n.capacity() {
+            let mut bigger = Zeroizing::new(String::with_capacity(2 * n.capacity() + 4));
+            bigger.push_str(&n);
+            n = bigger;
+        }
+        n.push(c);
+    }
     if n.chars().count() < PASSPHRASE_MIN_CHARS {
         return Err("too_short");
     }
-    Ok(n.into_bytes())
+    // The buffer moves into the answer; nothing is copied.
+    Ok(Zeroizing::new(std::mem::take(&mut *n).into_bytes()))
 }
 
 /// The operations of `migration_json` that belong to the key.
@@ -337,6 +350,18 @@ mod tests {
         other["algorithm"] = json!("argon2i");
         assert_eq!(derive_key(b"a long enough passphrase", &other).unwrap_err(), "unsupported_kdf");
         assert_eq!(derive_key(b"", &kdf(1)).unwrap_err(), "empty_secret");
+    }
+
+    // @verifies SWR-MG-28#c
+    #[test]
+    fn a_passphrase_that_grows_when_normalised_is_the_same_bytes_as_one_pass_of_nfkc() {
+        // U+FDFA is 3 bytes and normalises to 33, so the buffer is outgrown several times and each move is by hand
+        // (into a new wiped buffer). The answer must be exactly what a plain collect gives.
+        let typed = "\u{FDFA}".repeat(40) + "ﬁve words and a ligature";
+        let plain: String = typed.nfkc().collect();
+        assert!(plain.len() > 4 * typed.len(), "the case does outgrow the first buffer");
+        assert_eq!(*passphrase_secret(&typed).unwrap(), plain.into_bytes());
+        assert_eq!(passphrase_secret("short"), Err("too_short"));
     }
 
     // @verifies SWR-MG-02
