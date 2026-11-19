@@ -38,6 +38,7 @@ pub mod table;
 pub mod tier_record;
 pub mod validate;
 pub mod wavelength;
+pub mod wipe_alloc;
 pub mod wavelength_version;
 pub mod zones;
 

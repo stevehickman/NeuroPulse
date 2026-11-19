@@ -8,6 +8,11 @@ use zeroize::Zeroize;
 
 use neurone_npps_core::constants::status::{BAD_ARGUMENT, INTERNAL_ERROR, OK, REFUSED};
 
+/// Every block this library releases is overwritten with zeros first (`SWR-MG-28` (g)): the parsed copy of a request, a
+/// buffer that grew, an intermediate result. See `neurone_npps_core::wipe_alloc` for why and for what it does not reach.
+#[global_allocator]
+static ALLOCATOR: neurone_npps_core::wipe_alloc::Wiping<std::alloc::System> = neurone_npps_core::wipe_alloc::Wiping(std::alloc::System);
+
 /// Hand `bytes` to the caller as a leaked boxed slice; `npps_free` takes it back.
 unsafe fn give(bytes: Vec<u8>, out: *mut *mut u8, out_len: *mut usize) {
     let boxed = bytes.into_boxed_slice();

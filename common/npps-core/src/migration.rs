@@ -419,7 +419,19 @@ pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+    // Decoded into one buffer of its final size (`SWR-MG-28` (c)). Collecting through a `Result` starts small and grows,
+    // and each growth releases the shorter copy as it is: for a key, its first bytes, whatever wraps the result afterwards.
+    let mut out = Vec::with_capacity(s.len() / 2);
+    for i in (0..s.len()).step_by(2) {
+        match u8::from_str_radix(&s[i..i + 2], 16) {
+            Ok(b) => out.push(b),
+            Err(_) => {
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(format!("{what} is not hex"));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.

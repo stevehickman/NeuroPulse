@@ -85,3 +85,45 @@ function watchedMemory(): Uint8Array {
   undo();
   return new Uint8Array(memory!.buffer);
 }
+
+/** How many times `needle` occurs anywhere in the module's linear memory, as it is now. */
+function copiesInMemory(memory: WebAssembly.Memory, needle: string): number {
+  const all = new Uint8Array(memory.buffer);
+  const want = new TextEncoder().encode(needle);
+  let found = 0;
+  outer: for (let i = 0; i + want.length <= all.length; i++) {
+    for (let j = 0; j < want.length; j++) if (all[i + j] !== want[j]) continue outer;
+    found++;
+  }
+  return found;
+}
+
+describe('the whole of the module\'s memory after a call that carried a secret', () => {
+  // Reading released memory is undefined inside the module and well defined from outside it: linear memory is one array.
+  // Before the wiping allocator (SWR-MG-28 (g)) this found one copy of the passphrase, of the hex key and of the value,
+  // left by the core's own parse of the request.
+  // @verifies SWR-MG-28#g
+  it('holds no copy of the passphrase, the key or the plaintext value', async () => {
+    await initNppsCore();
+    let memory: WebAssembly.Memory | null = null;
+    restore = wrapNppsCoreForTest((real: CoreExports) => { memory = real.memory; return real; });
+    const passphrase = 'MARKER-passphrase-7f3a91c2';
+    const key = 'd34c917e02b865fa1da730c95be4862f790abd43e1589c27f63a84cd126fb055';
+    const value = 'MARKER-plaintext-55aa';
+
+    const secret = nppsMigration({ op: 'passphraseSecret', passphrase }).secret as string;
+    expect(copiesInMemory(memory!, passphrase)).toBe(0);
+    expect(copiesInMemory(memory!, secret)).toBe(0);
+
+    const sealed = nppsMigration({ op: 'sealValue', key, nonce: 'a0a1a2a3a4a5a6a7a8a9aaab', name: 'np.n', value }).sealed as string;
+    expect(copiesInMemory(memory!, key)).toBe(0);
+    expect(copiesInMemory(memory!, key.slice(0, 16))).toBe(0);   // nor the front of it, as a buffer that grew would leave
+    expect(copiesInMemory(memory!, value)).toBe(0);
+
+    expect(nppsMigration({ op: 'openValue', key, name: 'np.n', sealed }).value).toBe(value);
+    expect(copiesInMemory(memory!, key)).toBe(0);
+    expect(copiesInMemory(memory!, value)).toBe(0);
+    // The search itself works: text the module keeps for good (a refusal it can give) is found.
+    expect(copiesInMemory(memory!, 'key is required')).toBeGreaterThan(0);
+  });
+});

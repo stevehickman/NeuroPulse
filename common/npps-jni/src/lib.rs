@@ -8,6 +8,11 @@ use jni::JNIEnv;
 use neurone_npps_core::api;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
+/// Every block this library releases is overwritten with zeros first (`SWR-MG-28` (g)): the Rust copy of a request string
+/// the JVM handed over, its parsed form, an answer before it became a Java string. See `neurone_npps_core::wipe_alloc`.
+#[global_allocator]
+static ALLOCATOR: neurone_npps_core::wipe_alloc::Wiping<std::alloc::System> = neurone_npps_core::wipe_alloc::Wiping(std::alloc::System);
+
 fn throw(env: &mut JNIEnv, message: &str) {
     // A pending exception must not be overwritten.
     if !env.exception_check().unwrap_or(false) {
@@ -208,3 +213,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeMigration<'l>(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/wipe.rs"]
+mod wipe_tests;
