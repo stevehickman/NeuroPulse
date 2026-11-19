@@ -1,7 +1,7 @@
 # OI-PRIV-05 (5) — do analytics events go through a relay that hides the network address?
 
 **Status:** DRAFT, not sent. **From:** Software (Claude Code session, 2026-11-16). **To:** the principal, with the Privacy Lead (interim: the principal).
-**GitHub issue:** none opened yet. `README.md` rule 7 asks for one; open it when this is sent, and put the link here.
+**GitHub issue:** [#903](https://github.com/stevehickman/NeuroPulse/issues/903)
 
 **What is asked.** Pick one of options A to D below for how a research analytics event reaches the analytics host. Nothing here is a decision, nothing is built, and nothing in the repository may act as if an option has been chosen. No event is emitted by any app yet (`track` has no caller outside `ResearchAnalyticsGate`), so the choice can be made before the first one ships. `OI-PRIV-05` stays open on this point until it is.
 
