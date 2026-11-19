@@ -101,9 +101,9 @@ data class CompletedSessionSummary(
 }
 
 /**
- * How long the session history keeps a session, counted from the day it finished (`REQ-SW03-32` (a); the principal, 2026-11-19,
+ * How long the session history keeps a session, counted from the day it finished (`REQ-SW03-33` (a); the principal, 2026-11-19,
  * `OI-PRIV-10` (2)). The person chooses; [NO_LIMIT] is the default. The periods offered are a menu, not limits anything derives
- * (`UC-195`).
+ * (`UC-196`).
  */
 enum class HistoryRetention(val days: Int?) {
     NO_LIMIT(null),
@@ -171,7 +171,7 @@ class SessionHistoryStore(
     private val _retention = MutableStateFlow(HistoryRetention.DEFAULT)
 
     /**
-     * How long the person chose to keep the history (`REQ-SW03-32` (a); the principal, 2026-11-19). It is the person's record, so the
+     * How long the person chose to keep the history (`REQ-SW03-33` (a); the principal, 2026-11-19). It is the person's record, so the
      * period is theirs to set and none is set for them: the default keeps a session with no age limit. Read with the history, so it is
      * the default while locked.
      */
@@ -211,7 +211,7 @@ class SessionHistoryStore(
     }
 
     /**
-     * Keep the history for [choice] from now on, and remove at once every session older than it (`REQ-SW03-32` (a)). False, changing
+     * Keep the history for [choice] from now on, and remove at once every session older than it (`REQ-SW03-33` (a)). False, changing
      * nothing, while the history cannot be read: the choice is stored beside the sealed history and a period applied to a list read
      * while locked would apply to nothing.
      */

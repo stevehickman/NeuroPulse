@@ -1,4 +1,5 @@
 import { nppsResolveLimits } from '../lib/nppsCore';
+import { ProfileLimits } from '../lib/constants.generated';
 // ─── Per-modality limit interfaces ────────────────────────────────────────────
 // All fields optional: undefined = not set at this level
 
@@ -124,12 +125,36 @@ export interface NPLimitsSet {
 
 // ─── Individual profile ────────────────────────────────────────────────────────
 
+// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-32; the per-field rulings are in
+// docs/reference/data-architecture-detail.md §5.1). `id` is random and names the individual tier of the limits. `name` is how
+// the person choosing a profile recognises it. `notes` is a short label that tells two profiles apart ("left chair"); it is
+// not a record about the person, nothing reads it but the profile list, and it holds at most
+// ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code units. There is no date of birth and no creation time: no limit or protocol rule ever read
+// either (OI-PRIV-11; the creation time by the principal's ruling of 2026-11-18).
 export interface NPIndividualProfile {
   id: string;
   name: string;
   notes: string;
-  dateOfBirth?: string;  // ISO date string
-  createdAt: string;
+}
+
+/** True when `notes` is within the bound a profile note may hold. */
+export function profileNotesFit(notes: string): boolean {
+  return notes.length <= ProfileLimits.PROFILE_NOTES_MAX_CHARS;
+}
+
+/**
+ * A profile as read from storage or a file, reduced to the fields a profile has: any other field it carries (the date of
+ * birth and the creation time an earlier build kept) is dropped, and a note over the bound is cut to it. Null when it has no id or no name.
+ */
+export function storedProfile(raw: unknown): NPIndividualProfile | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string' || r.id === '' || typeof r.name !== 'string' || r.name === '') return null;
+  return {
+    id: r.id,
+    name: r.name,
+    notes: typeof r.notes === 'string' ? r.notes.slice(0, ProfileLimits.PROFILE_NOTES_MAX_CHARS) : '',
+  };
 }
 
 // ─── Validation types ──────────────────────────────────────────────────────────

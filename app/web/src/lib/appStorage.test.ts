@@ -5,6 +5,7 @@ import type { NPProtocolEntry, NPProtocolDefinition } from '../../../../common/t
 import { MemoryStorage, LEGACY_LOCAL_STORAGE_KEYS, purgeLegacyBrowserState } from './appStorage';
 import { ProtocolLibrary } from './protocolLibrary';
 import { limitsStore } from './limitsStore';
+import { ProfileLimits } from '../../../../common/lib/constants.generated';
 import { backupText, openBackup } from './protocolBackup';
 import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
@@ -65,7 +66,7 @@ describe('the React app keeps nothing in the browser', () => {
       value: { getItem: spy, setItem: spy, removeItem: spy, clear: spy, key: spy, length: 0 },
     });
     try {
-      limitsStore.saveProfile({ id: 'p1', name: 'Alice', notes: 'n', dateOfBirth: '1980-01-01', createdAt: new Date().toISOString() });
+      limitsStore.saveProfile({ id: 'p1', name: 'Alice', notes: 'n' });
       limitsStore.saveGlobalLimits(limitsStore.resolvedLimits);
       const lib = new ProtocolLibrary();
       expect(lib.saveUserProtocol(entry('a')).kind).toBe('saved');
@@ -116,5 +117,19 @@ describe('the protocol backup file', () => {
     const fresh = new ProtocolLibrary(new MemoryStorage());
     expect(openBackup(fresh, 'this is not a protocol {{{')).toMatchObject({ opened: 0, unreadable: true });
     expect(fresh.userProtocols.length).toBe(0);
+  });
+
+  // @verifies REQ-SW03-32#b
+  it('the limits store refuses a profile note over the bound and keeps no field a profile does not have', () => {
+    const over = 'x'.repeat(ProfileLimits.PROFILE_NOTES_MAX_CHARS + 1);
+    expect(limitsStore.saveProfile({ id: 'p2', name: 'Sam', notes: over })).toBe(false);
+    expect(limitsStore.profiles.some(p => p.id === 'p2')).toBe(false);
+    const extra = { id: 'p3', name: 'Alex', notes: 'left chair', createdAt: '2026-01-01T00:00:00Z', dateOfBirth: '1980-01-01' };
+    try {
+      expect(limitsStore.saveProfile(extra)).toBe(true);
+      expect(JSON.stringify(limitsStore.profiles.find(p => p.id === 'p3'))).not.toContain('1980');
+    } finally {
+      limitsStore.deleteProfile('p3');
+    }
   });
 });

@@ -306,7 +306,7 @@ private fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
 
-        // How long the session history is kept, and clearing it: the person's choice, never a period set for them (REQ-SW03-32).
+        // How long the session history is kept, and clearing it: the person's choice, never a period set for them (REQ-SW03-33).
         SessionHistorySection(app.sessionHistoryStore)
         Spacer(Modifier.height(24.dp))
 
@@ -386,7 +386,7 @@ private fun SettingsContent(
 }
 
 /**
- * The session history's retention and its clear (`REQ-SW03-32`; the principal, 2026-11-19, `OI-PRIV-10` (2)). The person picks how long a
+ * The session history's retention and its clear (`REQ-SW03-33`; the principal, 2026-11-19, `OI-PRIV-10` (2)). The person picks how long a
  * session stays in the list, with no age limit as the default, and can clear the list after confirming. This content is composed only
  * while the person's presence stands ([PresenceGate]), so the choice shown is the stored one.
  */

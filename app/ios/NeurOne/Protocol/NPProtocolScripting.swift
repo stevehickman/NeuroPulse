@@ -61,6 +61,24 @@ struct NPPSSerializer {
     func serializeCondition(_ c: NPConditionDefinition) -> String { serialize(.condition(c)) }
 
     func serializeLimits(_ limits: NPLimitsSet) -> String { serialize(.limits(limits)) }
+
+    /// `limits` in the share form (SWR-WO-07 (c)): its level, with no helmet serial and no individual id. What is
+    /// stripped is the shared core's rule; this supplies the 32 random bytes a share request must carry. A model the
+    /// core cannot write, or a failure of the random source, comes back as a comment line, as `serialize` does; the
+    /// full form is never written in its place.
+    func shareLimits(_ limits: NPLimitsSet) -> String {
+        do {
+            let random = try SystemBundleRandomSource().nextBytes(32)
+            let request: [String: Any] = [
+                "items": [NPProtocolEntry.limits(limits).nppsCoreItem()],
+                "share": ["randomHex": random.map { String(format: "%02x", $0) }.joined()],
+            ]
+            let out = try NppsCore.serialize(requestJSON: JSONSerialization.data(withJSONObject: request))
+            return String(bytes: out, encoding: .utf8) ?? ""
+        } catch {
+            return "# This script cannot be written: \(error.localizedDescription)"
+        }
+    }
 }
 
 // MARK: - Round-trip
