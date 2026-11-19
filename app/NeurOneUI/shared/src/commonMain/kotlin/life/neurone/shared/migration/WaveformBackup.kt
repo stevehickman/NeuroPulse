@@ -25,6 +25,12 @@ import kotlin.coroutines.cancellation.CancellationException
 // code or passphrase, and one sealed index file says which file holds which recording and how the key was made, which is all a restore
 // needs. A recording never changes, so each is sealed once and the next backup writes only the new ones.
 //
+// Each file is sealed as a named object and opened as the object the reader expects (SWR-MG-29 (a), OI-PRIV-09): a recording as its
+// own name in the app (which the sealed index holds, so the name is never in the clear), the index under a fixed name. The backup
+// folder can hand back any file under any name; a file sealed as one recording does not open as another, so a swap is an unreadable
+// recording and not a wrong one. A set sealed before this (archive version 1) is not opened: the next backup starts a new set under
+// a new key and removes the old files, and a restore of an old set alone reports that it could not read it.
+//
 // What the backup folder shows: files named by random ids, no recording's name, no time (the Swift app's rule, UHDRBackupFormat); and
 // the number of files and their sizes, which say roughly how many sessions and how long (OI-BACKUP-01 item 1, a decision still open).
 
@@ -79,7 +85,7 @@ class WaveformBackup(
                     if (set.entries[name]?.let { it in held } == true) continue
                     val data = folder.store.get(name) ?: continue
                     val archiveName = ARCHIVE_PREFIX + hex(random.nextBytes(ID_BYTES)) + ARCHIVE_SUFFIX
-                    place.store.put(archiveName, RecordingArchive.seal(data, set.key, random))
+                    place.store.put(archiveName, RecordingArchive.seal(data, set.key, recordingId(name), random))
                     set.entries[name] = archiveName
                     writeIndex(place, set)
                     written++
@@ -109,7 +115,7 @@ class WaveformBackup(
             } else {
                 val key = BundleKeyDerivation.deriveKey(secret, kdf)
                 try {
-                    when (val opened = RecordingArchive.open(bytes, key)) {
+                    when (val opened = RecordingArchive.open(bytes, key, INDEX_ID)) {
                         is ArchiveOpened.Refused ->
                             if (opened.problem == ArchiveProblem.AUTHENTICATION_FAILED) WaveformRestoreResult.WrongSecret else WaveformRestoreResult.Failed
                         is ArchiveOpened.Ok -> putBack(place, key, entriesOf(opened.data))
@@ -133,7 +139,7 @@ class WaveformBackup(
             if (!isRecordingName(name) || !archiveName.startsWith(ARCHIVE_PREFIX)) { unreadable++; continue }
             if (folder.store.get(name) != null) { here++; continue }
             val archive = place.store.get(archiveName)
-            val opened = archive?.let { RecordingArchive.open(it, key) }
+            val opened = archive?.let { RecordingArchive.open(it, key, recordingId(name)) }
             if (opened is ArchiveOpened.Ok) {
                 folder.store.put(name, opened.data)
                 folder.protect(name)
@@ -149,7 +155,7 @@ class WaveformBackup(
         val bytes = place.store.get(INDEX_NAME) ?: return null
         val kdf = RecordingArchive.readKdf(bytes) ?: return null
         val key = runCatching { BundleKeyDerivation.deriveKey(secret, kdf) }.getOrNull() ?: return null
-        val opened = RecordingArchive.open(bytes, key)
+        val opened = RecordingArchive.open(bytes, key, INDEX_ID)
         if (opened !is ArchiveOpened.Ok) { key.destroy(); return null }
         return Opened(kdf, key, entriesOf(opened.data).toMutableMap())
     }
@@ -161,7 +167,7 @@ class WaveformBackup(
 
     private suspend fun writeIndex(place: MigrationPlace, set: Opened) {
         val index = buildJsonObject { put(ENTRIES, buildJsonObject { set.entries.forEach { (k, v) -> put(k, v) } }) }
-        place.store.put(INDEX_NAME, RecordingArchive.seal(index.toString().encodeToByteArray(), set.key, random, set.kdf))
+        place.store.put(INDEX_NAME, RecordingArchive.seal(index.toString().encodeToByteArray(), set.key, INDEX_ID, random, set.kdf))
     }
 
     private suspend fun removeOrphans(place: MigrationPlace, set: Opened) {
@@ -182,6 +188,13 @@ class WaveformBackup(
         const val INDEX_NAME = "wf-index.npa"
         private const val ENTRIES = "entries"
         private const val ID_BYTES = 16
+
+        /** What the index is sealed as. No recording can be sealed as it: a recording's ID starts with [RECORDING_ID_PREFIX]. */
+        private const val INDEX_ID = "index"
+        private const val RECORDING_ID_PREFIX = "recording:"
+
+        /** What the recording the app calls [name] is sealed as: the name the sealed index lists it under, never its file name in the backup. */
+        private fun recordingId(name: String): String = RECORDING_ID_PREFIX + name
 
         /** A name the app would have given a recording: a hub session id between the prefix and the suffix. */
         fun isRecordingName(name: String): Boolean =
