@@ -1474,4 +1474,51 @@ class ConsentStoreTests {
         s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01#000001") }) })
         assertEquals("2026-04-01#000001", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
     }
+
+    // ── The suggestion author token does not outlive the consent it was made under (OI-PRIV-08 (3)) ───────────────
+
+    private fun counting(): Pair<ConsentStore, () -> Int> {
+        val kv = InMemoryKeyValueStore()
+        var calls = 0
+        val s = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), onPortalIdentityWithdrawn = { calls++ })
+        return s to { calls }
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun withdrawingThePortalOptInOrBlanketConsentTellsThePortalToForgetItsAuthorToken() {
+        val (s, calls) = counting()
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = true))
+        assertEquals(0, calls(), "a grant withdraws nothing")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = false, blanketConsentGranted = true))
+        assertEquals(1, calls(), "the portal opt-in withdrawn on a screen")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = false))
+        assertEquals(2, calls(), "blanket consent withdrawn on a screen, the portal opt-in still on")
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, blanketConsentGranted = true))
+        s.withdrawBlanketResearchConsent()
+        assertEquals(3, calls(), "the named blanket withdrawal")
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun aStateThatWasNeverGrantedAndAnEditThatWithdrawsNeitherLeaveTheAuthorTokenAlone() {
+        val (s, calls) = counting()
+        s.withdrawBlanketResearchConsent() // never granted: stops nothing
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = false))
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true))
+        s.setCategoryConsent(ResearchCategory.entries.first(), true)
+        s.setCategoryConsent(ResearchCategory.entries.first(), false)
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true, contactConsentGranted = true))
+        assertEquals(0, calls())
+    }
+
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun aRestoredWithdrawalOfThePortalOptInForgetsTheAuthorTokenToo() {
+        val (s, calls) = counting()
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true))
+        s.applyWithdrawals(buildJsonObject { put("suggestionPortalOptInWithdrawnAt", "2099-01-01#000001") })
+        assertFalse(s.researchConsent.suggestionPortalOptIn)
+        assertEquals(1, calls())
+    }
 }
