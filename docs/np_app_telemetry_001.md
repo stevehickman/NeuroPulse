@@ -113,6 +113,10 @@ Screen names must be coarsened to remove health context. The following mapping i
 
 **Why the session and consent screens have no value** (`OI-PRIV-05` (2)). Events are held under the installation's stable pseudonymous ID. Under that ID, "session_setup", "session_active" and "session_results" were a timestamped record of each stimulation session and its length, which §4 prohibits as a session parameter and a precise timestamp; "clinical_consent" recorded that the person has a clinician, and "research_consent" that they were deciding on a study. One neutral value for the three session screens would still mark when a session happened, so they are dropped, not collapsed. A screen added later that only a session, a consent or a clinician relationship reaches gets no value either.
 
+![The app's screens after `OI-PRIV-05`: four send a screen name to the analytics host, and the session and consent screens send nothing](diagrams/np_app_telemetry_screen_names.svg)
+
+*Figure: the app's screens and the analytics host. The app flow is unchanged by this rule; only which screens send a name is. Which screen each name attaches to follows the table above, and is not wired in code while no app emits an event.*
+
 **Prohibited screen name values** (examples — this list is not exhaustive):
 - Any screen name containing a modality name (tDCS, PBM, VNS, EEG, tACS, TMS)
 - Any screen name containing a health condition (depression, anxiety, PTSD, Parkinson's, cognitive)
