@@ -80,7 +80,7 @@ class AzureSasAuthTests {
         for (bad in listOf("2030-01-01T24%3A00Z", "2030-13-01", "2030-01-01T12%3A60Z", "2030-01-01x", "2030-01-01T12Z", "2030-01-01T00%3A00%2B25%3A00")) assertNull(at(bad), bad)
     }
 
-    // @verifies SWR-MG-29#a
+    // @verifies SWR-MG-30#a
     @Test
     fun aSignatureKeptUnderTheEarlierLooserCheckIsNotUsed() = runBlocking {
         val rig = Rig()

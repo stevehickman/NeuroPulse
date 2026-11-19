@@ -709,7 +709,7 @@ the person to choose a short expiry and that the signature cannot be cancelled f
 **What a pass does not show, and what is left** (`OI-PRIV-15`):
 
 - No provider was contacted, so every "refused" above is this code's refusal of a stand-in's reply.
-- `se` is read as `YYYY-MM-DD` or `YYYY-MM-DDThh:mm:ssZ`. Microsoft's "Format date/time values" page was not read; a form it allows and this does not is refused, not misread.
+- `se` is read in the forms Microsoft's "Formatting DateTime values" page lists (a date alone, or a date and time with or without seconds, with `Z`, an offset or nothing); anything else is refused, not misread.
 - `OkHttpTransportTest` is written and **was not run** (no Android SDK in the session). The iOS transport (`IosHttpTransport`) has no test of the contract line: it answers a malformed address with no answer and writes no log, by reading. The web app has no transport.
 - The transport check sees the console and `java.util.logging`. It cannot see another logging library or a file.
 - An erase in a **locked** run works on the raw store and cannot read the credentials, so it revokes nothing and has nothing to tell the person.
