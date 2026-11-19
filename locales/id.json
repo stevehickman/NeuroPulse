@@ -761,6 +761,7 @@
   "MIGRATION_REASON_NO_AUTHENTICATED_PAIRING": "A direct link needs the two phones to be paired first, so that a phone nearby cannot receive your backup.",
   "MIGRATION_REASON_NO_BUNDLE": "No backup was found in that place.",
   "MIGRATION_REASON_NO_CONFIRMATION": "The new phone has not confirmed that it has your data, so this phone has not been cleared.",
+  "MIGRATION_REASON_OLDER_BUNDLE": "This backup is older than one this device has already made or restored, so it was not restored and nothing was changed. Check that the backup location holds your latest backup.",
   "MIGRATION_REASON_OTHER_BUNDLE": "The new phone confirmed a different backup, so this phone has not been cleared.",
   "MIGRATION_REASON_ROUTE_NOT_OFFERED": "That place cannot be used for this kind of backup.",
   "MIGRATION_REASON_ROUTE_UNAVAILABLE": "That place could not be reached. Check the connection or the storage and try again.",

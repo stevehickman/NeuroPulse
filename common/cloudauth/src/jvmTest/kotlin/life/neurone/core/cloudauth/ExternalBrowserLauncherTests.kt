@@ -88,4 +88,15 @@ class ExternalBrowserLauncherTests {
         assertEquals(CloudAuthProblem.PROVIDER, e.problem)
         assertFalse(broken.onRedirect("$REDIRECT?code=c"), "a failed open leaves nothing waiting")
     }
+
+    // @verifies SWR-MG-19#f
+    @Test
+    fun aRedirectThatIsNotThisRequestsAnswerIsNotTakenAndDoesNotEndTheSignIn() = runBlocking {
+        val wait = async(start = CoroutineStart.UNDISPATCHED) { launcher.authorize("u", REDIRECT) { "state=mine" in it } }
+        assertFalse(launcher.onRedirect("$REDIRECT?error=access_denied"), "another app's intent to the registered scheme")
+        assertFalse(launcher.onRedirect("$REDIRECT?code=c&state=theirs"))
+        assertTrue(wait.isActive, "neither ended the sign-in")
+        assertTrue(launcher.onRedirect("$REDIRECT?code=c&state=mine"))
+        assertEquals("$REDIRECT?code=c&state=mine", wait.await())
+    }
 }
