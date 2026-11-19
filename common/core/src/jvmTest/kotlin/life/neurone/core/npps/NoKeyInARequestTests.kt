@@ -29,7 +29,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * No key is text on its way from the Kotlin hosts to the core (SWR-MG-30 (e)). Each test does what an app does with a
+ * No key is text on its way from the Kotlin hosts to the core (SWR-MG-32 (e)). Each test does what an app does with a
  * secret it holds, records every request exactly as it is handed to the binding, and looks for the secret in them: as
  * the text it is, and as the hex it used to be sent as. It also counts the keys the core is left holding, which must be
  * what it held before: a key that is kept and never released stays in the core for the life of the process.
@@ -60,7 +60,7 @@ class NoKeyInARequestTests {
 
     @AfterTest fun stop() { NppsCore.requestObserver = null }
 
-    // @verifies SWR-MG-30#e
+    // @verifies SWR-MG-32#e
     @Test
     fun theDataKeyIsInNoRequestWhenAValueIsSealedAndOpened() {
         val keys = InMemorySecretKeyStore()
@@ -72,7 +72,7 @@ class NoKeyInARequestTests {
         }) { key -> listOf(hex(key), hex(key).take(16)) }
     }
 
-    // @verifies SWR-MG-30#e
+    // @verifies SWR-MG-32#e
     @Test
     fun thePassphraseTheWrappingKeyAndTheDataKeyAreInNoRequestOfThePassphraseGate() {
         val passphrase = "correct horse battery staple"
@@ -90,7 +90,7 @@ class NoKeyInARequestTests {
         }) { key -> listOf(passphrase, "another passphrase entirely", "not the passphrase at all", hex(passphrase.encodeToByteArray()), hex(key), hex(key).take(16)) }
     }
 
-    // @verifies SWR-MG-30#e
+    // @verifies SWR-MG-32#e
     @Test
     fun aRecoveryCodeAPassphraseAndTheBackupKeyAreInNoRequestWhenARecordingIsSealedAndOpened() {
         val recording = ByteArray(200_000) { (it * 31).toByte() }
@@ -102,8 +102,8 @@ class NoKeyInARequestTests {
             val key = BundleKeyDerivation.deriveKey(typed.secret, kdf)
             try {
                 // Four chunks: the key used to be sent, as hex, once for each.
-                val sealed = RecordingArchive.seal(recording, key, random, kdf)
-                val opened = RecordingArchive.open(sealed, key)
+                val sealed = RecordingArchive.seal(recording, key, "recording:r1", random, kdf)
+                val opened = RecordingArchive.open(sealed, key, "recording:r1")
                 assertIs<ArchiveOpened.Ok>(opened)
                 assertContentEquals(recording, opened.data)
             } finally {
@@ -120,7 +120,7 @@ class NoKeyInARequestTests {
         }
     }
 
-    // @verifies SWR-MG-30#e
+    // @verifies SWR-MG-32#e
     @Test
     fun aSigningSeedTheDeviceKeysSeedAndACloudSecretAreInNoRequest() {
         val seed = ByteArray(32) { (it * 5 + 9).toByte() }

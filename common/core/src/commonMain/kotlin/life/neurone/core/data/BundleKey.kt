@@ -77,7 +77,7 @@ class NewRecoveryCode(val text: String, val secret: BundleSecret)
 
 /**
  * The derived 32-byte AES-256-GCM key. **The key itself is not here**: the shared core derived it and keeps it, and this
- * holds the handle the core gave (`SWR-MG-30` (b)). So no code on this side can read the key, print it or turn it into a
+ * holds the handle the core gave (`SWR-MG-32` (b)). So no code on this side can read the key, print it or turn it into a
  * string, and the operations that use it are given the handle. [destroy] has the core wipe it; a key that is not
  * destroyed stays in the core until the process ends, and the core holds only so many.
  */
@@ -111,7 +111,7 @@ object BundleKeyDerivation {
     fun newRecoveryCode(random: RandomSource): NewRecoveryCode {
         val bytes = random.nextBytes(RECOVERY_BYTES)
         require(bytes.size == RECOVERY_BYTES) { "The random source gave ${bytes.size} bytes, not $RECOVERY_BYTES" }
-        // The bytes are the secret: they go to the core beside the request, never as hex in it (SWR-MG-30).
+        // The bytes are the secret: they go to the core beside the request, never as hex in it (SWR-MG-32).
         val code = NppsCore.migrationSecret(buildJsonObject { put("op", "encodeRecoveryCode"); put("bytes", NppsCore.secretRef(0)) }, listOf(bytes))
             .answer["code"]!!.jsonPrimitive.content
         val secret = BundleSecret(bytes)
@@ -128,7 +128,7 @@ object BundleKeyDerivation {
     /**
      * [text] is already a string when a screen hands it over, and that copy is the toolkit's. From here on it is bytes: it
      * goes to the core beside the request, and the secret it stands for comes back beside the answer, neither as text
-     * (SWR-MG-30).
+     * (SWR-MG-32).
      */
     private fun secretResult(op: String, field: String, text: String): BundleSecretResult {
         val typed = text.encodeToByteArray()
@@ -165,7 +165,7 @@ object BundleKeyDerivation {
     /**
      * As [deriveKey], for the purpose the key is kept under in the core: [PURPOSE_BUNDLE] seals bundles and recordings,
      * [PURPOSE_WRAPPING] wraps the data key behind a passphrase. The core refuses a key used for the other purpose. The
-     * secret goes in beside the request as bytes and the key does not come back at all (SWR-MG-30).
+     * secret goes in beside the request as bytes and the key does not come back at all (SWR-MG-32).
      */
     internal fun deriveKey(secret: BundleSecret, kdf: JsonObject, purpose: String): BundleKey {
         val r = NppsCore.migrationSecret(

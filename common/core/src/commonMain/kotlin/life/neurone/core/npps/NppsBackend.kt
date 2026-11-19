@@ -25,7 +25,7 @@ internal interface NppsBackend {
     fun migration(request: String): String
 
     /**
-     * [migration] for an operation that takes or returns a key (`SWR-MG-30`): [secrets] travels beside the request as bytes
+     * [migration] for an operation that takes or returns a key (`SWR-MG-32`): [secrets] travels beside the request as bytes
      * (each a 4-byte big-endian length and then the bytes; the n-th is `{"$secret": n}` in the JSON) and is never text. The
      * answer is one array: a 4-byte big-endian length and the answer's JSON, then the answer's secrets framed the same way.
      * The caller overwrites both arrays.

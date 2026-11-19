@@ -376,6 +376,47 @@ describe('MigrationFlow.run', () => {
     expect(MigrationFlow.parsePairingCode('1234 567')).toBeNull();
   });
 
+  // @verifies SWR-MG-32#f
+  it('keeps a link\'s channel keys in the core while it runs, and leaves none when it ends or its driver stops part-way', async () => {
+    await initNppsCore();
+    const held = (): number => nppsMigration({ op: 'keyCount' }).count;
+    const store = new MemoryStore();
+    await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route()), {
+      secret: secretOf('a long enough passphrase'), keys: filled(), store,
+    });
+    const before = held();
+
+    // A flow that ends by itself. While it runs, each phone has two keys in the core and none in its state.
+    let most = 0;
+    {
+      const [client, server] = pipe();
+      const send = client.send.bind(client);
+      client.send = async (data: string) => { most = Math.max(most, held()); return send(data); };
+      const serving = MigrationFlow.serve(server, store, offer());
+      const r = await MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
+        secret: secretOf('a long enough passphrase'), keys: new Store(), link: client,
+      });
+      expect(r).toMatchObject({ ok: true });
+      client.close();
+      expect(await serving).toMatchObject({ paired: true });
+    }
+    expect(most).toBeGreaterThanOrEqual(before + 4);
+    expect(held()).toBe(before);
+
+    // A driver that stops part-way: no secret was given, so the driver throws once the phones are paired and the bundle's
+    // header has come over the link. The restoring phone's keys are wiped all the same.
+    {
+      const [client, server] = pipe();
+      const serving = MigrationFlow.serve(server, store, offer());
+      await expect(MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
+        keys: new Store(), link: client,
+      })).rejects.toThrow('no secret');
+      client.close();
+      expect(await serving).toMatchObject({ paired: true });
+    }
+    expect(held()).toBe(before);
+  }, 60_000);
+
   // @verifies SWR-MG-11
   it('ends a restore with the route unavailable when the link breaks', async () => {
     await initNppsCore();
@@ -466,7 +507,7 @@ describe('bundleKey', () => {
     expect(() => deriveBundleKey(secretOf('a long enough passphrase'), { ...kdf, memoryKiB: 8 })).toThrow();
   });
 
-  // @verifies SWR-MG-30#b
+  // @verifies SWR-MG-32#b
   it('gives a handle for the key and never the key, and the core holds none of them once the flows and these tests are done', async () => {
     await initNppsCore();
     const kdf = newKdf('passphrase', steps);

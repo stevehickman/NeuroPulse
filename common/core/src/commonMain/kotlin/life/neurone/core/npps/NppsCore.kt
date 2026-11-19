@@ -52,7 +52,7 @@ object NppsCore {
     }
 
     /**
-     * For tests that no key is ever text on its way to the core (`SWR-MG-30` (e)): shown the JSON of every migration request,
+     * For tests that no key is ever text on its way to the core (`SWR-MG-32` (e)): shown the JSON of every migration request,
      * through either entry point, exactly as it is handed to the binding. Nothing in the apps sets it.
      */
     internal var requestObserver: ((String) -> Unit)? = null
@@ -84,6 +84,19 @@ object NppsCore {
      */
     fun serialize(items: List<JsonObject>): String {
         val request = buildJsonObject { put("items", JsonArray(items)) }
+        return nativeSerialize(request.toString())
+    }
+
+    /**
+     * As [serialize], in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+     * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from [random], 32 bytes
+     * from the platform's secure source. The rule is the core's; nothing here or in an app decides what is stripped.
+     */
+    fun serializeShare(items: List<JsonObject>, random: ByteArray): String {
+        val request = buildJsonObject {
+            put("items", JsonArray(items))
+            put("share", buildJsonObject { put("randomHex", random.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }) })
+        }
         return nativeSerialize(request.toString())
     }
 
@@ -141,7 +154,7 @@ object NppsCore {
     }
 
     /**
-     * [migration] for an operation that takes or returns a key (`SWR-MG-30`). The request names a secret as
+     * [migration] for an operation that takes or returns a key (`SWR-MG-32`). The request names a secret as
      * `{"$secret": n}` and `secrets[n]` holds its bytes; a secret in the answer comes back the same way. **A key is never
      * text on this path**: not in the request, not in the answer, not in a `String` this function makes. The arrays in
      * [secrets] are the caller's to overwrite; the framed copy made here is overwritten before this returns, whether the

@@ -109,4 +109,41 @@ class NPLibraryFileTests {
         assertFalse(result.opened > 0)
         assertEquals(before, lib.userProtocols.size)
     }
+
+    // @verifies SWR-WO-07#a
+    @Test
+    fun aSharedCopyOfAUsedProtocol_doesNotSayItWasUsed_andTheBackupStillDoes() {
+        val a = library()
+        val entry = protocol("Used one")
+        a.save(entry)
+        a.recordUploadResult(entry, sentHash = "h", helmetStatus = "accepted", helmetHash = "h")
+        assertTrue(assertNotNull(a.exportAllScript()).contains("used: true"))
+        for (text in listOf(a.shareScript(entry), assertNotNull(a.shareAllScript()))) {
+            assertFalse(text.contains("used"), text)
+            val b = library()
+            b.openScript(text)
+            assertFalse(b.isUsed(b.userProtocols.single()), "the recipient's copy is not used")
+        }
+    }
+
+    // @verifies SWR-WO-07#b
+    @Test
+    fun aSharedCopyHasNewIds_andTwoSharesOfOneProtocolDoNotMatch() {
+        val a = library()
+        val entry = protocol("Mine")
+        a.save(entry)
+        val own = a.exportScript(entry)
+        val ids = { text: String -> text.lines().map { it.trim() }.filter { it.startsWith("id: ") || it.startsWith("family_id: ") } }
+        val first = ids(a.shareScript(entry))
+        val second = ids(a.shareScript(entry))
+        assertTrue(first.isNotEmpty())
+        assertTrue(first.none { it in ids(own) }, "no id of the sender's library is in the copy")
+        assertTrue(first.none { it in second }, "two copies cannot be matched by id")
+    }
+
+    // @verifies SWR-WO-07#a
+    @Test
+    fun noProtocolsOfYourOwn_hasNothingToShare() {
+        assertNull(library().shareAllScript())
+    }
 }

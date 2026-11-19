@@ -141,7 +141,7 @@ class PassphraseGatedSecretKeyStore(
 
     /**
      * The wrapping key for [passphrase] under [kdf], or the reason it cannot be had. The key is made and kept in the shared
-     * core (SWR-MG-30): what comes back is its handle, and the caller destroys it.
+     * core (SWR-MG-32): what comes back is its handle, and the caller destroys it.
      */
     private fun wrappingKey(passphrase: String, kdf: JsonObject): Pair<BundleKey?, PassphraseResult> {
         val secret = when (val s = BundleKeyDerivation.passphraseSecret(passphrase)) {

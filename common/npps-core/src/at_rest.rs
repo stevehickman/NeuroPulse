@@ -4,7 +4,7 @@
 //! destroying the key makes it unreadable. The key store is each platform's; the sealing is here, once, so that a value one
 //! platform wrote is the same bytes another reads and no app carries a second implementation. A value is sealed with
 //! AES-256-GCM under a random 12-byte nonce, and the value's own name is the associated data, so a sealed value copied under
-//! another name does not open. The key is handed in for one call as bytes beside the request, or named by the handle of a key the core keeps (`secret_io`, `SWR-MG-30`); the nonce is handed in for one call.
+//! another name does not open. The key is handed in for one call as bytes beside the request, or named by the handle of a key the core keeps (`secret_io`, `SWR-MG-32`); the nonce is handed in for one call.
 //!
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
@@ -73,7 +73,7 @@ fn open(req: &Value) -> R<Value> {
 
 /// `wrapKey`: seal a key under another (the data key under the key a passphrase makes). The stored form is exactly what
 /// `sealValue` makes of the key's hex, so a record written before this opens with `unwrapKey` and the reverse; what
-/// changes is that the key being wrapped arrives as bytes (`SWR-MG-30`) and its hex exists only here, in a wiped buffer.
+/// changes is that the key being wrapped arrives as bytes (`SWR-MG-32`) and its hex exists only here, in a wiped buffer.
 fn wrap_key(req: &Value) -> R<Value> {
     let name = req["name"].as_str().ok_or("name is required")?;
     let nonce = unhex(req["nonce"].as_str().ok_or("nonce is required")?, "nonce")?;

@@ -25,6 +25,7 @@ import life.neurone.core.platform.epochSeconds
 import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -151,6 +152,12 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
         link = link, random = random,
     )
 
+    /** A restore over [link] where the person declines to give the secret: the driver stops part-way, after the pairing. */
+    suspend fun restoreDeclining(route: RouteDescriptor, link: Link) = MigrationFlow.run(
+        "restore", params(route) { put("pairing", buildJsonObject { put("code", CODE) }) }, host(), null, kv, null,
+        link = link, random = random, secretProvider = { null },
+    )
+
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
         MigrationFlow.run("inspect", buildJsonObject { }, host(backupRoute), null, kv, store, random = random)
 
@@ -210,6 +217,50 @@ class MigrationFlowTests {
         assertNull(route.readClaim(), "a UHDR-only bundle is not claimed")
         assertFalse(r.flag("confirmed"))
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"), "a UHDR-only restore never brings the consent record")
+    }
+
+    // The backup location keeps every bundle it was given and can hand back any of them (`OI-PRIV-09`). The rule is the core's;
+    // this proves the Kotlin driver and store carry the count it keeps.
+    // @verifies SWR-MG-29#b,c
+    @Test
+    fun eachBackupIsALaterEpochAndAPhoneHandedAnOlderBundleRefusesItAndChangesNothing() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val phone = Phone(seed = 1).also { it.fill() }
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("1", phone.kv.getString("np.migration.seen-epoch"))
+        val older = route.getBundle()!!
+        phone.kv.putString("np.session.history", "history after the first backup")
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"), "recorded on the phone, one later each time")
+
+        route.putBundle(older)
+        val r = phone.restore(route, route)
+        assertFalse(r.ok)
+        assertEquals("older_bundle", r.reason)
+        assertEquals("history after the first backup", phone.kv.getString("np.session.history"), "nothing was written")
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"))
+    }
+
+    // The limit of the epoch, pinned so that nothing claims more for it.
+    // @verifies SWR-MG-29#d
+    @Test
+    fun aPhoneThatHasSeenNothingRestoresAnOlderBundleAndThenRefusesAnythingEarlier() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val old = Phone(seed = 1).also { it.fill() }
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val first = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val second = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+
+        // A new phone is handed the second of three: it has nothing to compare with, and restores it.
+        route.putBundle(second)
+        val fresh = Phone(seed = 50)
+        assertTrue(fresh.restore(route, route).ok, "a phone that has seen nothing cannot tell an old bundle from the newest")
+        assertEquals("2", fresh.kv.getString("np.migration.seen-epoch"), "it learns the epoch from inside the bundle")
+        // From then on it has seen something, and the first is refused on it.
+        route.putBundle(first)
+        assertEquals("older_bundle", fresh.restore(route, route).reason)
     }
 
     // @verifies SWR-MG-10
@@ -452,6 +503,38 @@ class MigrationFlowTests {
         assertEquals("claimed", restoreOver(Phone(seed = 90)).reason)
     }
 
+    // @verifies SWR-MG-32#f
+    @Test
+    fun aLinksChannelKeysAreInTheCoreWhileItRunsAndGoneWhenItEndsOrItsDriverStopsPartWay() = runTest {
+        fun held(): Int = NppsCore.migration(buildJsonObject { put("op", "keyCount") })["count"]!!.jsonPrimitive.content.toInt()
+        val store = MemoryObjectStore()
+        val route = ObjectStoreRoute("link", atomicClaim = true)
+        val old = Phone(seed = 1).also { it.fill() }
+        assertTrue(old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, store = store).ok)
+        val before = held()
+
+        // A flow that ends by itself: both phones' keys are wiped by the core.
+        coroutineScope {
+            val (client, server) = pipe()
+            val serving = async { MigrationFlow.serve(server, store, offer()) }
+            assertTrue(Phone(seed = 50).restore(route, link = client).ok)
+            client.close()
+            assertEquals(JsonPrimitive(true), serving.await()["paired"], "the two phones paired, so each had a channel")
+        }
+        assertEquals(before, held(), "a link flow that ended left a channel key in the core")
+
+        // A driver that stops part-way: the person declines the secret once the phones are paired and the bundle's
+        // header has come over the link. The restoring phone's driver throws; its keys are wiped all the same.
+        coroutineScope {
+            val (client, server) = pipe()
+            val serving = async { MigrationFlow.serve(server, store, offer()) }
+            assertFailsWith<SecretDeclined> { Phone(seed = 60).restoreDeclining(route, client) }
+            client.close()
+            assertEquals(JsonPrimitive(true), serving.await()["paired"], "the driver stopped after the pairing, with a channel open")
+        }
+        assertEquals(before, held(), "a link flow whose driver stopped part-way left a channel key in the core")
+    }
+
     // @verifies SWR-MG-10
     @Test
     fun aServingPhoneWithNoValidOfferServesNothing() = runTest {
@@ -555,7 +638,7 @@ class MigrationFlowTests {
         assertTrue(found.ok)
         assertEquals("uhdr", found.text("kind"))
         assertEquals(BundleKeyMethod.RECOVERY_CODE.wire, found.text("method"))
-        assertEquals("1", found.text("formatVersion"))
+        assertEquals("2", found.text("formatVersion"))
     }
 
     // @verifies SWR-MG-01

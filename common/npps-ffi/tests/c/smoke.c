@@ -57,7 +57,7 @@ int main(void) {
 
     CHECK(npps_parse_json(NULL, 0, &out, &len) == NPPS_STATUS_BAD_ARGUMENT, "null input is a bad argument");
     puts("ok");
-    /* A key beside the request, never in it (SWR-MG-30): one secret, framed as a 4-byte big-endian length and the bytes. */
+    /* A key beside the request, never in it (SWR-MG-32): one secret, framed as a 4-byte big-endian length and the bytes. */
     uint8_t secrets[4 + 32] = {0, 0, 0, 32};
     memset(secrets + 4, 0x42, 32);
     const char *seal = "{\"op\":\"sealValue\",\"key\":{\"$secret\":0},\"nonce\":\"a0a1a2a3a4a5a6a7a8a9aaab\",\"name\":\"np.n\",\"value\":\"v\"}";

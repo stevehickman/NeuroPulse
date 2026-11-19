@@ -61,7 +61,7 @@ int32_t npps_validate_json(const uint8_t *req, size_t req_len, uint8_t **out, si
 
 int32_t npps_resolve_limits_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
-/* npps_migration_json for an operation that takes or returns a key (SWR-MG-30). The request's secrets travel beside
+/* npps_migration_json for an operation that takes or returns a key (SWR-MG-32). The request's secrets travel beside
  * it in `secrets`: each is a 4-byte big-endian length and then the bytes, and the n-th is named in the JSON as
  * {"$secret": n}. The answer's secrets come back beside the answer in `secret_out`, framed the same way, and are named
  * {"$secret": n} in the answer. A secret is never text in either direction. `secrets` is the caller's buffer: overwrite

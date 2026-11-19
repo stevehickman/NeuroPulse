@@ -214,7 +214,7 @@ pub extern "system" fn Java_life_neurone_core_npps_NppsJni_nativeMigration<'l>(
     }
 }
 
-/// `nativeMigration` for an operation that takes or returns a key (`SWR-MG-30`). `secrets` is read from the Java array
+/// `nativeMigration` for an operation that takes or returns a key (`SWR-MG-32`). `secrets` is read from the Java array
 /// straight into a buffer that is wiped (never through a Java or a Rust string); the Kotlin side overwrites its array when
 /// this returns. The answer is one byte array the Kotlin side splits and clears: a 4-byte big-endian length and the answer's
 /// JSON, then the answer's secrets as the core framed them.

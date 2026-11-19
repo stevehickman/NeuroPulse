@@ -12,7 +12,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The secret entry point through whichever binding this target has (SWR-MG-30 (a), (b)): in common code, so the same
+ * The secret entry point through whichever binding this target has (SWR-MG-32 (a), (b)): in common code, so the same
  * assertions run through JNI on the JVM and through WebAssembly under Node. It holds the marshalling in both directions:
  * bytes in beside the request, bytes out beside the answer, and a handle used through the plain entry point.
  */
@@ -20,7 +20,7 @@ class SecretEntryPointTests {
     private val key = ByteArray(32) { (it * 7 + 3).toByte() }
     private fun hex(b: ByteArray) = b.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-    // @verifies SWR-MG-30#a
+    // @verifies SWR-MG-32#a
     @Test
     fun aSecretGoesInBesideTheRequestAndComesBackBesideTheAnswerOnThisBinding() = runTest {
         prepareNppsCore()
@@ -47,7 +47,7 @@ class SecretEntryPointTests {
         assertTrue(refused.message!!.contains("was not given"), refused.message)
     }
 
-    // @verifies SWR-MG-30#b
+    // @verifies SWR-MG-32#b
     @Test
     fun aKeptKeyIsUsedByItsHandleAndIsUnknownOnceReleasedOnThisBinding() = runTest {
         prepareNppsCore()

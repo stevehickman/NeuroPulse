@@ -1,4 +1,4 @@
-//! A key crosses the core's boundary as bytes or not at all (`SWR-MG-30`; `OI-PRIV-12` stage 2). Through the entry point
+//! A key crosses the core's boundary as bytes or not at all (`SWR-MG-32`; `OI-PRIV-12` stage 2). Through the entry point
 //! every binding calls for a key-bearing operation: `migration_secret_json`.
 
 use neurone_npps_core::api::{migration_json, migration_secret_json};
@@ -58,7 +58,7 @@ fn kdf(method: &str) -> Value {
     ask(json!({ "op": "bundleKdf", "method": method, "salt": "5a".repeat(32) }))["kdf"].clone()
 }
 
-// @verifies SWR-MG-30#a
+// @verifies SWR-MG-32#a
 #[test]
 fn a_key_given_beside_the_request_does_what_the_same_key_in_hex_did_and_is_in_no_text() {
     let _one = one();
@@ -82,7 +82,7 @@ fn a_key_given_beside_the_request_does_what_the_same_key_in_hex_did_and_is_in_no
     assert_eq!(signed, ask(aws(json!("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"), json!("a-session-token"))));
 }
 
-// @verifies SWR-MG-30#a
+// @verifies SWR-MG-32#a
 #[test]
 fn a_key_in_an_answer_is_beside_it_as_bytes_and_never_in_its_text() {
     let _one = one();
@@ -103,7 +103,7 @@ fn a_key_in_an_answer_is_beside_it_as_bytes_and_never_in_its_text() {
     assert_eq!(hex(&beside[0]), ask(json!({ "op": "deriveUhdrKey", "seed": "07".repeat(32), "salt": "09".repeat(32) }))["key"].as_str().unwrap());
 }
 
-// @verifies SWR-MG-30#a
+// @verifies SWR-MG-32#a
 #[test]
 fn a_secret_the_call_was_not_given_and_a_buffer_that_is_not_framed_are_refused() {
     let _one = one();
@@ -119,7 +119,7 @@ fn a_secret_the_call_was_not_given_and_a_buffer_that_is_not_framed_are_refused()
     assert!(ask_with(json!({ "op": "sealValue", "key": { "$other": 0 }, "nonce": NONCE, "name": "np.n", "value": "v" }), &[&KEY]).is_err());
 }
 
-// @verifies SWR-MG-30#b
+// @verifies SWR-MG-32#b
 #[test]
 fn a_derived_key_is_kept_in_the_core_and_used_by_its_handle() {
     let _one = one();
@@ -133,14 +133,14 @@ fn a_derived_key_is_kept_in_the_core_and_used_by_its_handle() {
 
     // The handle does everything the bytes did, to the same bytes.
     let items = json!({});
-    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "kind": "uhdr", "key": key, "nonce": NONCE, "items": items, "kdf": k }));
+    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": key, "nonce": NONCE, "items": items, "kdf": k }));
     let (a, b) = (seal(&by_hex), seal(&handle));
     assert_eq!(a, b);
-    assert_eq!(ask(json!({ "op": "openBundle", "bundle": a["bundle"], "key": handle }))["ok"], true);
+    assert_eq!(ask(json!({ "op": "openBundle", "seenEpoch": 0, "bundle": a["bundle"], "key": handle }))["ok"], true);
     let tag = |key: &Value| ask(json!({ "op": "confirmationTag", "key": key, "bundleHash": a["bundleHash"] }));
     assert_eq!(tag(&by_hex), tag(&handle));
     let header = ask(json!({ "op": "archiveStart", "salt": "01".repeat(16) }))["header"].clone();
-    let chunk = |key: &Value| ask(json!({ "op": "archiveSealChunk", "key": key, "header": header, "counter": 0, "last": true, "data": "00ff" }));
+    let chunk = |key: &Value| ask(json!({ "op": "archiveSealChunk", "objectId": "recording:r1", "key": key, "header": header, "counter": 0, "last": true, "data": "00ff" }));
     assert_eq!(chunk(&by_hex), chunk(&handle));
 
     // A key the host holds is brought in once, beside the request, and used by its handle after that.
@@ -151,7 +151,7 @@ fn a_derived_key_is_kept_in_the_core_and_used_by_its_handle() {
     assert_eq!(ask(json!({ "op": "keyCount" })), json!({ "count": 2, "max": 64 }));
 }
 
-// @verifies SWR-MG-30#b
+// @verifies SWR-MG-32#b
 #[test]
 fn a_handle_is_typed_never_reused_never_exported_bounded_and_gone_when_released() {
     let _one = one();
@@ -160,7 +160,7 @@ fn a_handle_is_typed_never_reused_never_exported_bounded_and_gone_when_released(
     let n = data["$handle"].as_u64().unwrap();
 
     // Typed: a data key seals no bundle, and an operation that takes no kept key takes none.
-    let wrong = migration_json(&json!({ "op": "sealBundle", "kind": "uhdr", "key": data, "nonce": NONCE, "items": {}, "kdf": kdf("recoveryCode") }).to_string());
+    let wrong = migration_json(&json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": data, "nonce": NONCE, "items": {}, "kdf": kdf("recoveryCode") }).to_string());
     assert!(wrong.unwrap_err().starts_with("wrong_key_purpose"));
     assert!(migration_json(&json!({ "op": "deriveUhdrKey", "seed": data, "salt": "09".repeat(32) }).to_string()).unwrap_err().starts_with("wrong_key_purpose"));
 
@@ -201,7 +201,7 @@ fn a_handle_is_typed_never_reused_never_exported_bounded_and_gone_when_released(
     assert_eq!(seal(&json!({ "$handle": next })).unwrap_err(), "unknown_key");
 }
 
-// @verifies SWR-MG-30#c
+// @verifies SWR-MG-32#c
 #[test]
 fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret_never_comes_out() {
     let _one = one();
@@ -216,7 +216,7 @@ fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret
     for held in [stood_for.as_str().unwrap(), two_step.as_str().unwrap(), "correct horse"] {
         assert!(!text.contains(&held[..12]), "the answer holds a secret: {text}");
     }
-    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": k }));
+    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": k }));
     assert_eq!(seal(&kept["key"]), seal(&two_step), "the same key either way");
 
     // Too short is said, with the floor, and nothing is kept.
@@ -231,13 +231,13 @@ fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret
     let via_secret = ask(json!({ "op": "deriveBundleKey", "secret": "c7".repeat(32), "kdf": rk }))["key"].clone();
     let (kept, _, text) = ask_with(json!({ "op": "deriveBundleKey", "recoveryCode": { "$secret": 0 }, "kdf": rk, "keep": "bundle" }), &[code.as_bytes()]).unwrap();
     assert!(!text.contains("c7c7c7c7"));
-    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": rk }));
+    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": rk }));
     assert_eq!(seal(&kept["key"]), seal(&via_secret));
     let (bad, _, _) = ask_with(json!({ "op": "deriveBundleKey", "recoveryCode": { "$secret": 0 }, "kdf": rk, "keep": "bundle" }), &[b"ABCD"]).unwrap();
     assert_eq!(bad["ok"], false);
 }
 
-// @verifies SWR-MG-30#d
+// @verifies SWR-MG-32#d
 #[test]
 fn a_key_is_wrapped_and_unwrapped_as_bytes_in_the_form_the_older_records_have() {
     let _one = one();

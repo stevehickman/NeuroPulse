@@ -1,5 +1,5 @@
 /**
- * A key crosses into the WebAssembly core as bytes beside the request, or not at all (SWR-MG-30), through the wrapper
+ * A key crosses into the WebAssembly core as bytes beside the request, or not at all (SWR-MG-32), through the wrapper
  * every web build calls. The Rust tests hold the rules (common/npps-core/tests/secret_boundary.rs); this holds the
  * marshalling: the framing, the bytes that come back, and that nothing of the key is left in the module's memory.
  */
@@ -26,7 +26,7 @@ function copies(memory: WebAssembly.Memory, needle: Uint8Array): number {
 }
 
 describe('a key beside the request', () => {
-  // @verifies SWR-MG-30#a
+  // @verifies SWR-MG-32#a
   it('seals what the same key in hex sealed, and comes back from a derivation as bytes', async () => {
     await initNppsCore();
     const byHex = nppsMigration({ op: 'sealValue', key: KEY_HEX, nonce: NONCE, name: 'np.n', value: 'history' });
@@ -51,7 +51,7 @@ describe('a key beside the request', () => {
     expect(signed.answer).toEqual(nppsMigration(aws('wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'a-session-token')));
   });
 
-  // @verifies SWR-MG-30#a
+  // @verifies SWR-MG-32#a
   it('refuses a secret the call was not given, and leaves the next call working', async () => {
     await initNppsCore();
     const request = { op: 'sealValue', key: { $secret: 0 }, nonce: NONCE, name: 'np.n', value: 'v' };
@@ -59,7 +59,7 @@ describe('a key beside the request', () => {
     expect(nppsMigrationSecret(request, [key()]).answer.sealed).toBeTypeOf('string');
   });
 
-  // @verifies SWR-MG-30#a
+  // @verifies SWR-MG-32#a
   it('leaves no copy of the key in the module, as bytes or as hex, once the call is over', async () => {
     await initNppsCore();
     let memory: WebAssembly.Memory | null = null;
@@ -75,7 +75,7 @@ describe('a key beside the request', () => {
 });
 
 describe('a key the core keeps', () => {
-  // @verifies SWR-MG-30#b
+  // @verifies SWR-MG-32#b
   it('is brought in once, used by its handle, held in the module until released, and unknown after', async () => {
     await initNppsCore();
     let memory: WebAssembly.Memory | null = null;
@@ -91,7 +91,7 @@ describe('a key the core keeps', () => {
     nppsMigration({ op: 'keyCount' });   // a call with no key in it, so nothing of the hex call above is in flight
     expect(copies(memory!, k)).toBe(1);
     const header = nppsMigration({ op: 'archiveStart', salt: '01'.repeat(16) }).header;
-    expect(() => nppsMigration({ op: 'archiveSealChunk', key: handle, header, counter: 0, last: true, data: '00' })).toThrow(/wrong_key_purpose/);
+    expect(() => nppsMigration({ op: 'archiveSealChunk', objectId: 'recording:r1', key: handle, header, counter: 0, last: true, data: '00' })).toThrow(/wrong_key_purpose/);
     expect(nppsMigration({ op: 'keyRelease', key: handle })).toEqual({ released: true });
     expect(copies(memory!, k)).toBe(0);
     expect(() => nppsMigration({ op: 'sealValue', key: handle, nonce: NONCE, name: 'np.n', value: 'v' })).toThrow('unknown_key');

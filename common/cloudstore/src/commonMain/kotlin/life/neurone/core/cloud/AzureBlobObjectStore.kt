@@ -25,6 +25,9 @@ import life.neurone.core.net.HttpTransport
  * permissions each call needs are Azure\'s own (Put Blob: Create or Write, and Write to overwrite; List Blobs: List; Get: Read; Delete: Delete), so
  * the person makes it with `rcwdl`. Azure says a service or account SAS "will not be permitted" when Shared Key access is disallowed on the account.
  *
+ * A signature is a credential in the address of every call, which is Azure's design; an [HttpTransport] never logs or surfaces a request's
+ * address (its contract), and no message thrown here holds one.
+ *
  * Mapping otherwise: a 404 on a read is `null` and on a delete is not an error. A blob goes up in one Put Blob call, which
  * Microsoft documents as at most 5,000 MiB in recent service versions (a larger body is a 413).
  */

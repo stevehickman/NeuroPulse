@@ -1,4 +1,4 @@
-//! How a secret crosses the core's boundary without becoming text, and the keys the core holds (`SWR-MG-30`;
+//! How a secret crosses the core's boundary without becoming text, and the keys the core holds (`SWR-MG-32`;
 //! `OI-PRIV-12` stage 2, the principal, 2026-11-19).
 //!
 //! Every operation of `migration_json` takes one JSON text and answers with one. A key in it was a run of hex digits, and
@@ -23,9 +23,11 @@
 //!    (`unknown_key`), so a stale handle cannot reach another key. It is not a capability: code in the same process can
 //!    read this memory anyway.
 //! 2. **Typed.** Each key has a purpose, and an operation names the purposes it takes. A backup key cannot seal a stored
-//!    value, and a data key cannot seal a bundle.
+//!    value, and a data key cannot seal a bundle. The two channel keys of a direct link are kept under a purpose of their
+//!    own (`link`) that no request can ask for: the link's flow makes them, names them in its state by handle, and
+//!    releases them when it ends (`link.rs`).
 //! 3. **No export.** No operation gives a kept key back, as bytes or as hex.
-//! 4. **Bounded.** At most [`MAX_KEYS`] at once (`UC-195`); the next is refused, so a host that forgets to release cannot
+//! 4. **Bounded.** At most [`MAX_KEYS`] at once (`UC-196`); the next is refused, so a host that forgets to release cannot
 //!    grow the table without end.
 //! 5. **Wiped** when released (`keyRelease`), all at once (`keyReleaseAll`: on lock, and when the data key is destroyed),
 //!    and whole if a panic left the table's lock poisoned.
@@ -55,7 +57,7 @@ use zeroize::Zeroizing;
 type R<T> = Result<T, String>;
 type Secret = Zeroizing<Vec<u8>>;
 
-/// The most keys held at once (`UC-195`). A migration holds a handful (a data key, a wrapping key, a bundle key, a
+/// The most keys held at once (`UC-196`). A migration holds a handful (a data key, a wrapping key, a bundle key, a
 /// signing seed, a cloud secret); nothing derives 64.
 pub const MAX_KEYS: usize = 64;
 
@@ -63,6 +65,8 @@ pub const MAX_KEYS: usize = 64;
 const IMPORTED: [&str; 3] = ["data", "signing", "cloud"];
 /// The purposes `deriveBundleKey` may keep its result under.
 pub(crate) const DERIVED: [&str; 2] = ["bundle", "wrapping"];
+/// Purposes only the core itself keeps a key under: a direct link's channel keys (`link.rs`). No request can ask for one.
+const INTERNAL: [&str; 1] = ["link"];
 
 struct Table {
     next: u64,
@@ -82,7 +86,7 @@ fn with_table<T>(f: impl FnOnce(&mut Table) -> T) -> T {
 }
 
 fn purpose_name(purpose: &str) -> Option<&'static str> {
-    IMPORTED.iter().chain(DERIVED.iter()).copied().find(|p| *p == purpose)
+    IMPORTED.iter().chain(DERIVED.iter()).chain(INTERNAL.iter()).copied().find(|p| *p == purpose)
 }
 
 /// Keep `key` under `purpose` and answer with its handle, as the JSON a request or an answer carries.
@@ -190,6 +194,20 @@ pub(crate) fn secret(req: &Value, field: &str, purposes: &[&str]) -> R<Secret> {
     }
 }
 
+/// The kept key a request names at `field`, and nothing else: not bytes beside the request and not hex. For a place where
+/// the key is one the core itself made and kept (a link's channel keys), so that it can never be text there.
+pub(crate) fn kept(req: &Value, field: &str, purposes: &[&str]) -> R<Secret> {
+    if req[field].get("$handle").is_none() {
+        return Err(format!("{field} is not a kept key"));
+    }
+    secret(req, field, purposes)
+}
+
+/// Wipe and forget the key `handle` names (`{"$handle": n}`), if it names one. True if there was such a key.
+pub(crate) fn release(handle: &Value) -> bool {
+    handle.get("$handle").and_then(Value::as_u64).is_some_and(|h| with_table(|t| t.keys.remove(&h).is_some()))
+}
+
 /// As [`secret`], for a secret that is text (a passphrase, a cloud secret): plain text in the request for now, or UTF-8
 /// bytes beside it, or a kept key.
 pub(crate) fn secret_text(req: &Value, field: &str, purposes: &[&str]) -> R<Zeroizing<String>> {
@@ -238,8 +256,10 @@ pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
             Ok(json!({ "key": keep(purpose, key)? }))
         })(),
         "keyRelease" => (|| {
-            let handle = req["key"].get("$handle").and_then(Value::as_u64).ok_or("key is a handle")?;
-            Ok(json!({ "released": with_table(|t| t.keys.remove(&handle).is_some()) }))
+            if req["key"].get("$handle").and_then(Value::as_u64).is_none() {
+                return Err("key is a handle".into());
+            }
+            Ok(json!({ "released": release(&req["key"]) }))
         })(),
         "keyReleaseAll" => Ok(json!({ "released": with_table(|t| {
             let n = t.keys.len();

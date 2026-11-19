@@ -71,7 +71,7 @@ private external fun nppsIsLoaded(): Boolean
 )
 private external fun nppsCall(entry: String, input: String): Int
 
-// The secret entry point (SWR-MG-30). Kotlin/Wasm cannot hand a ByteArray to JavaScript, so the secrets are staged one byte
+// The secret entry point (SWR-MG-32). Kotlin/Wasm cannot hand a ByteArray to JavaScript, so the secrets are staged one byte
 // at a time into an array JavaScript owns, copied from there into the module's memory for the call, and both are
 // overwritten before the call returns. The answer's secrets come back the same way and are overwritten once read.
 @JsFun("(n) => { globalThis.__neuroneNpps.secretsIn = new Uint8Array(n); }")

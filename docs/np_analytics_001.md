@@ -245,16 +245,18 @@ The SDK must not be initialized until after the user completes the consent flow.
 
 **Permitted events:**
 
-Only these event types may be sent. No other events should be captured:
+Only the event names `NP-APP-TELEMETRY-001` §3.3 lists may be sent, and the list is enforced in the shared core (`events` in `common/npps/analytics-properties.json`, `REQ-SW03-07`; Rev {NP-ANALYTICS-001 to}, `OI-PRIV-05`). That section is the authority; this table repeats it:
 
 | Event name | When fired | Permitted properties |
 |------------|-----------|---------------------|
-| `app_opened` | App foreground | `engagement_tier` |
-| `onboarding_step_completed` | Each onboarding screen | `step_name`, `engagement_tier` |
-| `consent_granted` | Consent flow completed | `engagement_tier` |
-| `consent_revoked` | User revokes consent | `engagement_tier` |
-| `feature_used` | Feature tap (non-health) | `feature_name`, `engagement_tier` |
-| `app_crashed` | On next launch after crash | `engagement_tier` (no stack trace — crash traces are local-only) |
+| `app_opened` | App foreground | Any of `NP-APP-TELEMETRY-001` §3 |
+| `onboarding_step_completed` | Each onboarding screen | `onboarding_step` and any other of §3 |
+| `screen_viewed` | One of the four screens of §3.1 | `screen_name` and any other of §3 |
+| `feature_used` | Feature tap (non-health) | Any of §3. No property names the feature |
+| `error_reported` | One of the app failures of §3.4 | `error_code` and any other of §3 |
+| `app_crashed` | On next launch after crash | Any of §3 (no stack trace — crash traces are local-only) |
+
+**`consent_granted` and `consent_revoked` are removed** (they were listed here through Rev {NP-ANALYTICS-001 from}): no event is named for a consent, a session or a clinician. **`step_name` and `feature_name` were never permitted properties**: `NP-APP-TELEMETRY-001` §3 names neither, so the core drops an event that carries one. The onboarding step is `onboarding_step`.
 
 **Prohibited in all events:** any property in the NP-APP-TELEMETRY-001 prohibited list. The iOS SDK's `PostHogSDK.shared.capture()` must never be called with these properties. The server-side Property Filter (§4) is a backstop, not the primary control.
 
@@ -419,8 +421,8 @@ What the app sends and expects:
 |---|---|
 | Request | `POST https://<analytics host>/np/erase`, `Content-Type: application/json`, body `{"distinct_id": "<the old ID>"}` and nothing else. No account, device name, token or consent record, and no `Authorization` header: the ID is a random value only the phone and PostHog know, so presenting it is the proof the request is the owner's. |
 | `200`–`299` | Accepted. Erasing an ID PostHog does not hold must also answer `2xx`: the call is idempotent. The app drops the ID from its queue. |
-| `4xx` other than `408` and `429` | Refused for good (a malformed ID, say). The app drops the ID; retrying cannot change the answer. |
-| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch. |
+| `4xx` other than `408` and `429` | Refused. **The app keeps the ID** and asks again at its next launch (it goes on to the next queued ID in the same drain). The queue holds the only copy, and a `401`, `403` or `404` is what a misdeployed relay or a proxy in front of it answers, so no refusal drops an ID (`OI-PRIV-08` (2), `REQ-SW03-19` (b)). The app queues only IDs of the shape the relay accepts, so a `400` from the relay itself is not expected. |
+| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch; the rest of the queue waits. |
 
 What the relay does:
 
@@ -444,6 +446,8 @@ engagement_tier          "new" | "active" | "established" — never raw count
 step_name                onboarding step identifier (string enum)
 feature_name             non-health feature name (string enum)
 ```
+
+**This list is out of date and is not the authority** (Rev {NP-ANALYTICS-001 to}): the permitted properties are the nine of `NP-APP-TELEMETRY-001` §3, which name neither `step_name` nor `feature_name`, and the core drops an event that carries either.
 
 `engagement_tier` is the only property permitted to describe app usage intensity. It is defined as:
 - `"new"` — 1–5 app launches

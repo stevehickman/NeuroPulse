@@ -235,7 +235,7 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
         })(),
         "deriveBundleKey" => (|| {
             // The secret, or what it is made from: a passphrase or a recovery code given here is normalised and used in
-            // this one call, so the secret it stands for never leaves the core (`SWR-MG-30` (c)).
+            // this one call, so the secret it stands for never leaves the core (`SWR-MG-32` (c)).
             let secret = if !req["passphrase"].is_null() {
                 match passphrase_secret(&crate::secret_io::secret_text(req, "passphrase", &[])?) {
                     Ok(s) => s,

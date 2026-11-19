@@ -8,7 +8,7 @@
  * carries a second implementation. This file only marshals them. The Kotlin, Swift and C# counterparts are
  * BundleKey.kt, BundleKey.swift and BundleKey.cs.
  *
- * **A secret is bytes and a key is a handle** (SWR-MG-30). A secret (what a recovery code or a passphrase stands for) is
+ * **A secret is bytes and a key is a handle** (SWR-MG-32). A secret (what a recovery code or a passphrase stands for) is
  * a `Uint8Array` the caller holds and overwrites (`fill(0)`) when done; it reaches the core beside the request, never as
  * text in it. A bundle key is never here at all: the core derives it and keeps it, `deriveBundleKey` returns the handle,
  * and `releaseBundleKey` has the core wipe it. Neither is ever a JavaScript string, which could not be cleared. Nothing

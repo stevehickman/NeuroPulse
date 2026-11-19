@@ -61,7 +61,7 @@ object UhdrKeyDerivation {
     fun deriveKey(credentialSeed: ByteArray, salt: ByteArray): UhdrKey {
         require(salt.size == SALT_LENGTH) { "Salt must be $SALT_LENGTH bytes" }
         require(credentialSeed.isNotEmpty()) { "Credential seed must not be empty" }
-        // The seed goes in beside the request and the key comes back beside the answer, both as bytes (SWR-MG-30): this
+        // The seed goes in beside the request and the key comes back beside the answer, both as bytes (SWR-MG-32): this
         // key is the one the device's storage is opened with, so the host must hold it, and it holds it only as bytes.
         val r = NppsCore.migrationSecret(
             buildJsonObject {

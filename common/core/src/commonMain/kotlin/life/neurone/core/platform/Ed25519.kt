@@ -45,7 +45,7 @@ object Ed25519 {
 
     private val SPKI_PREFIX = byteArrayOf(0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00)
 
-    /** A request that signs with [seed]: the seed goes to the core beside the request as bytes, never as hex in it (SWR-MG-30). */
+    /** A request that signs with [seed]: the seed goes to the core beside the request as bytes, never as hex in it (SWR-MG-32). */
     private fun withSeed(seed: ByteArray, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) =
         NppsCore.migrationSecret(buildJsonObject { put("seed", NppsCore.secretRef(0)); build() }, listOf(seed)).answer
 

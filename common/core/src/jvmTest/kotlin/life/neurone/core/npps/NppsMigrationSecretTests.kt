@@ -15,7 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * A key crosses the JNI boundary as bytes beside the request, or not at all (SWR-MG-30). The Rust tests hold the rules
+ * A key crosses the JNI boundary as bytes beside the request, or not at all (SWR-MG-32). The Rust tests hold the rules
  * (`common/npps-core/tests/secret_boundary.rs`); these hold the JVM's marshalling: the framing in both directions, a
  * refusal as an exception, and a kept key used by its handle.
  */
@@ -30,7 +30,7 @@ class NppsMigrationSecretTests {
         put("op", "sealValue"); key(this); put("nonce", nonce); put("name", "np.n"); put("value", "history")
     }
 
-    // @verifies SWR-MG-30#a
+    // @verifies SWR-MG-32#a
     @Test
     fun aKeyBesideTheRequestSealsWhatTheSameKeyInHexSealedAndIsInNoText() {
         val byHex = NppsCore.migration(seal { it.put("key", keyHex) })
@@ -42,7 +42,7 @@ class NppsMigrationSecretTests {
         assertEquals(keyHex, key.joinToString("") { "%02x".format(it) }, "the caller's array is the caller's: it is not cleared for it")
     }
 
-    // @verifies SWR-MG-30#a
+    // @verifies SWR-MG-32#a
     @Test
     fun aDerivedKeyComesBackAsBytesBesideAnAnswerThatOnlyNamesIt() {
         val seed = ByteArray(32) { 7 }
@@ -58,7 +58,7 @@ class NppsMigrationSecretTests {
         assertContentEquals(ByteArray(64), r.secrets[0], "clear() overwrites what was handed back")
     }
 
-    // @verifies SWR-MG-30#a
+    // @verifies SWR-MG-32#a
     @Test
     fun aSecretTheCallWasNotGivenIsRefusedAsAnException() {
         val e = assertFailsWith<IllegalArgumentException> { NppsCore.migrationSecret(seal { it.put("key", secret(3)) }, listOf(key)) }
@@ -68,7 +68,7 @@ class NppsMigrationSecretTests {
         assertEquals(2 * (12 + "history".length + 16), NppsCore.migrationSecret(seal { it.put("key", secret(0)) }, listOf(key)).answer["sealed"]!!.jsonPrimitive.content.length)
     }
 
-    // @verifies SWR-MG-30#b
+    // @verifies SWR-MG-32#b
     @Test
     fun aKeyTheCoreKeepsIsBroughtInOnceUsedByItsHandleAndUnknownOnceReleased() {
         val imported = NppsCore.migrationSecret(buildJsonObject { put("op", "keyImport"); put("purpose", "data"); put("key", secret(0)) }, listOf(key))
@@ -81,7 +81,7 @@ class NppsMigrationSecretTests {
         // Typed: a data key seals no recording.
         val header = NppsCore.migration(buildJsonObject { put("op", "archiveStart"); put("salt", "01".repeat(16)) })["header"]!!
         val wrong = assertFailsWith<IllegalArgumentException> {
-            NppsCore.migration(buildJsonObject { put("op", "archiveSealChunk"); put("key", handle); put("header", header); put("counter", 0); put("last", true); put("data", "00") })
+            NppsCore.migration(buildJsonObject { put("op", "archiveSealChunk"); put("objectId", "recording:r1"); put("key", handle); put("header", header); put("counter", 0); put("last", true); put("data", "00") })
         }
         assertTrue(wrong.message!!.startsWith("wrong_key_purpose"), wrong.message)
         assertEquals("true", NppsCore.migration(buildJsonObject { put("op", "keyRelease"); put("key", handle) })["released"]!!.jsonPrimitive.content)
@@ -89,7 +89,7 @@ class NppsMigrationSecretTests {
         assertEquals("unknown_key", gone.message)
     }
 
-    // @verifies SWR-MG-30#c
+    // @verifies SWR-MG-32#c
     @Test
     fun aPassphraseBecomesAKeptKeyInOneCallAndTheSecretItStandsForNeverComesBack() {
         val kdf = NppsCore.migration(buildJsonObject { put("op", "bundleKdf"); put("method", "passphrase"); put("salt", "5a".repeat(32)) })["kdf"]!!
@@ -104,7 +104,7 @@ class NppsMigrationSecretTests {
             put("op", "deriveBundleKey"); put("secret", passphrase.joinToString("") { "%02x".format(it) }); put("kdf", kdf)
         })["key"]!!
         fun sealWith(k: kotlinx.serialization.json.JsonElement) = NppsCore.migration(buildJsonObject {
-            put("op", "sealBundle"); put("kind", "uhdr"); put("key", k); put("nonce", nonce); putJsonObject("items") {}; put("kdf", kdf)
+            put("op", "sealBundle"); put("epoch", 1); put("kind", "uhdr"); put("key", k); put("nonce", nonce); putJsonObject("items") {}; put("kdf", kdf)
         })
         assertEquals(sealWith(twoStep), sealWith(handle), "the same key either way")
         NppsCore.migration(buildJsonObject { put("op", "keyRelease"); put("key", handle) })

@@ -27,7 +27,13 @@ class OkHttpTransport(
     override suspend fun post(request: HttpRequest): HttpResponse? = suspendCancellableCoroutine { cont ->
         val contentType = request.headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
         val builder = okhttp3.Request.Builder()
-            .url(request.url)
+        try {
+            builder.url(request.url)
+        } catch (e: IllegalArgumentException) {
+            // OkHttp's message quotes the address, which may hold a credential (the HttpTransport contract): no answer, and nothing thrown.
+            cont.resume(null)
+            return@suspendCancellableCoroutine
+        }
         // Any method the caller names (the cloud object stores need PUT-style and DELETE calls); a GET or HEAD carries no body.
         if (request.method == "GET" || request.method == "HEAD") builder.method(request.method, null)
         else builder.method(request.method, request.body.toRequestBody(contentType?.toMediaTypeOrNull()))

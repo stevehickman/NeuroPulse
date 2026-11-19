@@ -233,7 +233,7 @@ fn the_migration_rules_cross_the_c_abi_and_a_newer_bundle_is_refused_whole() {
     assert!(String::from_utf8(out).unwrap().contains("unknown migration operation"));
 }
 
-// @verifies SWR-MG-30#a
+// @verifies SWR-MG-32#a
 #[test]
 fn a_key_crosses_the_c_abi_beside_the_request_and_comes_back_beside_the_answer() {
     let key = [0x42u8; 32];

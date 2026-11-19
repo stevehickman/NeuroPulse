@@ -68,7 +68,7 @@ internal class CinteropNppsBackend : CAbiNppsBackend() {
     }
 
     /**
-     * `npps_migration_secret_json` (`SWR-MG-30`): the request's secrets are pinned and handed over as bytes, never as a
+     * `npps_migration_secret_json` (`SWR-MG-32`): the request's secrets are pinned and handed over as bytes, never as a
      * string, and the answer's secrets are copied out of the buffer the core wrote before `npps_free` wipes and releases
      * it. The caller ([CAbiNppsBackend.migrationSecret]) overwrites the copies made here.
      */

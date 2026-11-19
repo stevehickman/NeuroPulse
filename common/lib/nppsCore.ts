@@ -170,6 +170,16 @@ export function nppsSerialize(items: readonly object[]): string {
   return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items })));
 }
 
+/**
+ * As nppsSerialize, in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+ * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from `random`, 32 bytes
+ * from a secure source (crypto.getRandomValues by default). The rule is the core's; no caller decides what is stripped.
+ */
+export function nppsSerializeShare(items: readonly object[], random: Uint8Array = crypto.getRandomValues(new Uint8Array(32))): string {
+  const randomHex = Array.from(random, (b) => b.toString(16).padStart(2, '0')).join('');
+  return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items, share: { randomHex } })));
+}
+
 /** A localizable text from the validator: a plain string, or a locale key with positional arguments. */
 export type NppsMessage = string | { key: string; args?: NppsMessage[] };
 
@@ -273,7 +283,7 @@ export function nppsMigration(request: { op: string; [field: string]: unknown })
 export interface NppsSecretAnswer { answer: any; secrets: Uint8Array[] }
 
 /**
- * `nppsMigration` for an operation that takes or returns a key (neurone_npps_core::secret_io, SWR-MG-30). The request
+ * `nppsMigration` for an operation that takes or returns a key (neurone_npps_core::secret_io, SWR-MG-32). The request
  * names a secret as `{"$secret": n}` and `secrets[n]` holds its bytes; a secret in the answer comes back the same way.
  * A key is never text here: not in the request string, not in the answer. The caller owns `secrets` and the arrays
  * returned, and overwrites them (`fill(0)`) when it is done; every copy this function makes is overwritten before it

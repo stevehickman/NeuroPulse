@@ -87,7 +87,7 @@ class EncryptedKeyValueStore(
         return fresh
     }
 
-    /** A request that uses [key]: the key goes to the core beside the request as bytes, never as hex in it (SWR-MG-30). */
+    /** A request that uses [key]: the key goes to the core beside the request as bytes, never as hex in it (SWR-MG-32). */
     private fun ask(op: String, key: ByteArray, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
         NppsCore.migrationSecret(buildJsonObject { put("op", op); put("key", NppsCore.secretRef(0)); build() }, listOf(key)).answer
 

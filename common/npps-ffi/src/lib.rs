@@ -113,7 +113,7 @@ pub unsafe extern "C" fn npps_migration_json(req: *const u8, req_len: usize, out
     call(req, req_len, out, out_len, |t| api::migration_json(t).map(String::into_bytes))
 }
 
-/// `npps_migration_json` for an operation that takes or returns a key (`SWR-MG-30`): the request's secrets travel
+/// `npps_migration_json` for an operation that takes or returns a key (`SWR-MG-32`): the request's secrets travel
 /// beside it in `secrets` (each a 4-byte big-endian length, then the bytes; the n-th is `{"$secret": n}` in the JSON), and
 /// the answer's secrets come back beside the answer in `secret_out`, framed the same way. Neither is ever text. The caller
 /// overwrites `secrets` when the call returns (it is the caller's buffer), copies what it needs from `secret_out` into a

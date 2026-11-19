@@ -436,6 +436,13 @@ object GattSizes {
     const val SESSION_PROGRESS_LEN: Int = 22
 }
 
+// Bounds on the individual profile the limits store keeps (NP-SW-001 REQ-SW03-32, OI-PRIV-11).
+object ProfileLimits {
+    // UNVALIDATED (UC-195): the most UTF-16 code units a profile note may hold. A note is a short label
+    // that tells two profiles apart, not a record about the person; nothing derives 100.
+    const val PROFILE_NOTES_MAX_CHARS: Int = 100
+}
+
 // The anonymisation floors a study descriptor must meet before a user may be asked to consent to it (CLAUDE.md §5.3,
 // §6.3). Locked; the device is the only place they can be enforced, because the anonymisation happens on the device.
 object ConsentLimits {

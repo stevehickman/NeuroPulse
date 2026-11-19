@@ -115,14 +115,30 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
   if (options.link && flow !== 'serve' && p.link === undefined) p.link = true;
   if (options.keys && p.keyItems === undefined) p.keyItems = Object.keys(nppsMigration({ op: 'itemKeys' }).carried);
   let answer = nppsMigration({ op: 'flow', flow, params: p });
+  try {
+    return await drive(flow, answer, (a) => { answer = a; }, host, options);
+  } finally {
+    // A flow over a direct link keeps its two channel keys in the core and names them in its state (SWR-MG-32 (f)). The
+    // core wipes them when the flow ends by itself; if this driver stops part-way (the person cancelled, the link or the
+    // host threw), the last state it holds says which to wipe. After a normal end there is no state.
+    if (answer.state !== undefined && answer.state !== null) {
+      try { nppsMigration({ op: 'linkRelease', state: answer.state }); } catch { /* the core is gone, and its keys with it */ }
+    }
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function drive(flow: FlowName, first: any, latest: (answer: any) => void, host: MigrationHost, options: FlowOptions): Promise<any> {
+  let answer = first;
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     if (answer.done) return answer.done;
-    // The key a `deriveKey` effect asks for stays in the core (SWR-MG-30 (b)): the result carries its handle, the core
+    // The key a `deriveKey` effect asks for stays in the core (SWR-MG-32 (b)): the result carries its handle, the core
     // uses it in the turn that reads the result, and it is released as soon as that turn is over, whether it answered or threw.
     const held: { key?: BundleKey } = {};
     try {
       const result = await perform(answer.effect, host, options, held);
       answer = nppsMigration({ op: 'flow', flow, state: answer.state, result });
+      latest(answer);
     } finally {
       if (held.key) releaseBundleKey(held.key);
     }

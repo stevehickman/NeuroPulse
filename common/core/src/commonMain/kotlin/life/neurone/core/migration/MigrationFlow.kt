@@ -92,16 +92,42 @@ object MigrationFlow {
             }
         }
         var answer = ask("flow") { put("flow", flow); put("params", p) }
+        try {
+            return drive(flow, answer, { answer = it }, host, secret, keys, store, files, link, random, clock, secretProvider)
+        } finally {
+            // A flow over a direct link keeps its two channel keys in the core and names them in its state (SWR-MG-32 (f)).
+            // The core wipes them when the flow ends by itself; if this driver stops part-way (the person cancelled, the
+            // link or the host threw), the last state it holds says which to wipe. After a normal end there is no state.
+            answer["state"]?.let { last -> runCatching { ask("linkRelease") { put("state", last) } } }
+        }
+    }
+
+    private suspend fun drive(
+        flow: String,
+        first: JsonObject,
+        latest: (JsonObject) -> Unit,
+        host: MigrationHost,
+        secret: BundleSecret?,
+        keys: KeyValueStore?,
+        store: ObjectStore?,
+        files: FileStore?,
+        link: Link?,
+        random: RandomSource,
+        clock: () -> Long,
+        secretProvider: (suspend (JsonObject) -> BundleSecret?)?,
+    ): JsonObject {
+        var answer = first
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            // The key a `deriveKey` effect asks for stays in the core (SWR-MG-30 (b)): the result carries its handle, the
+            // The key a `deriveKey` effect asks for stays in the core (SWR-MG-32 (b)): the result carries its handle, the
             // core uses it in the turn that reads the result, and it is released as soon as that turn is over, whether the
             // turn answered or threw.
             val held = arrayOfNulls<BundleKey>(1)
             try {
                 val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider, held)
                 answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
+                latest(answer)
             } finally {
                 held[0]?.destroy()
             }

@@ -115,23 +115,23 @@ fn the_backup_key_is_cleared_after_a_bundle_and_a_recording_chunk_are_sealed_and
     let kdf = ask(json!({ "op": "bundleKdf", "method": "recoveryCode", "salt": "5a".repeat(32) }))["kdf"].clone();
     let header = ask(json!({ "op": "archiveStart", "salt": "0102030405060708090a0b0c0d0e0f10" }))["header"].clone();
     let n = released_holding(&[&RAW_KEY[..PART]], || {
-        let b = ask(json!({ "op": "sealBundle", "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": kdf }));
-        let opened = ask(json!({ "op": "openBundle", "bundle": b["bundle"], "key": key }));
+        let b = ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": kdf }));
+        let opened = ask(json!({ "op": "openBundle", "seenEpoch": 0, "bundle": b["bundle"], "key": key }));
         assert_eq!(opened["ok"], true, "{opened}");
-        let c = ask(json!({ "op": "archiveSealChunk", "key": key, "header": header, "counter": 0, "last": true, "data": "00ff" }));
-        let o = ask(json!({ "op": "archiveOpenChunk", "key": key, "header": header, "counter": 0, "last": true, "sealed": c["sealed"] }));
+        let c = ask(json!({ "op": "archiveSealChunk", "objectId": "recording:r1", "key": key, "header": header, "counter": 0, "last": true, "data": "00ff" }));
+        let o = ask(json!({ "op": "archiveOpenChunk", "objectId": "recording:r1", "key": key, "header": header, "counter": 0, "last": true, "sealed": c["sealed"] }));
         assert_eq!(o["data"], "00ff", "{o}");
     });
     assert_eq!(n, 0, "a bundle or archive operation released the decoded key uncleared");
 
-    // The recording's own key (`SWR-MG-29`) is made from the backup key and the header, and is as much a key: made here
+    // The recording's own key (`SWR-MG-31`) is made from the backup key and the header, and is as much a key: made here
     // by the same recipe, on the stack, so that every copy of it on the heap is one the core made.
     let header_bytes: Vec<u8> = (0..header.as_str().unwrap().len()).step_by(2).map(|i| u8::from_str_radix(&header.as_str().unwrap()[i..i + 2], 16).unwrap()).collect();
     let mut file_key = [0u8; 32];
     hkdf::Hkdf::<sha2::Sha256>::new(Some(&header_bytes[5..21]), &RAW_KEY).expand_multi_info(&[b"np.archive.file-key", &header_bytes], &mut file_key).unwrap();
     let n = released_holding(&[&file_key[..PART]], || {
-        let c = ask(json!({ "op": "archiveSealChunk", "key": key, "header": header, "counter": 1, "last": false, "data": "ab" }));
-        let o = ask(json!({ "op": "archiveOpenChunk", "key": key, "header": header, "counter": 1, "last": false, "sealed": c["sealed"] }));
+        let c = ask(json!({ "op": "archiveSealChunk", "objectId": "recording:r1", "key": key, "header": header, "counter": 1, "last": false, "data": "ab" }));
+        let o = ask(json!({ "op": "archiveOpenChunk", "objectId": "recording:r1", "key": key, "header": header, "counter": 1, "last": false, "sealed": c["sealed"] }));
         assert_eq!(o["data"], "ab", "{o}");
     });
     assert_eq!(n, 0, "an archive operation released the file's own key uncleared");
@@ -168,16 +168,25 @@ fn the_prefixed_aws_secret_is_cleared_after_a_request_is_signed() {
 
 // @verifies SWR-MG-28#c
 #[test]
-fn a_channel_key_and_the_pairing_randomness_are_cleared_after_use() {
+fn a_kept_key_s_working_copy_and_the_pairing_randomness_are_cleared_after_use() {
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
-    // A serving phone, already paired, sending an answer: the frame is sealed under the channel key in its state.
-    let state = json!({ "step": "served", "cur": 1, "buf": "", "queue": [], "pairing": { "triesLeft": 2 },
-        "ctx": { "sk": hex(&RAW_KEY), "rk": "11".repeat(32), "sn": 0, "rn": 0 } });
+    // A key the core keeps is used through a copy made for the one call. The key itself stays in the table, unreleased,
+    // so every block released while it is used that holds its bytes is a working copy left uncleared. (A link's channel
+    // keys are used the same way; their bytes are not known outside the core, so a data key stands in for them.)
+    let secrets: Vec<u8> = 32u32.to_be_bytes().iter().chain(RAW_KEY.iter()).copied().collect();
+    let (imported, _) = neurone_npps_core::api::migration_secret_json(&json!({ "op": "keyImport", "purpose": "data", "key": { "$secret": 0 } }).to_string(), &secrets).unwrap();
+    let handle = serde_json::from_str::<Value>(&imported).unwrap()["key"].clone();
     let n = released_holding(&[&RAW_KEY[..PART]], || {
-        let a = ask(json!({ "op": "flow", "flow": "serve", "state": state, "result": { "free": 1 } }));
-        assert_eq!(a["effect"]["type"], "linkSend", "{a}");
+        let s = ask(json!({ "op": "sealValue", "key": handle, "nonce": NONCE, "name": "np.n", "value": "history" }));
+        let o = ask(json!({ "op": "openValue", "key": handle, "name": "np.n", "sealed": s["sealed"] }));
+        assert_eq!(o["value"], "history", "{o}");
     });
-    assert_eq!(n, 0, "sealing a frame released the decoded channel key uncleared");
+    assert_eq!(n, 0, "using a kept key released a copy of it uncleared");
+    // Releasing it wipes the table's own copy before the block goes back.
+    let n = released_holding(&[&RAW_KEY[..PART]], || {
+        assert_eq!(ask(json!({ "op": "keyRelease", "key": handle })), json!({ "released": true }));
+    });
+    assert_eq!(n, 0, "a released key was not wiped");
 
     // The restoring phone's first step: the driver's 96 random bytes become the SPAKE2 randomness.
     let random: Vec<u8> = (0..96u8).map(|i| i.wrapping_mul(151).wrapping_add(43)).collect();

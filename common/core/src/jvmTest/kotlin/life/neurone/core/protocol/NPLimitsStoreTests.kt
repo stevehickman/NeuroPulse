@@ -3,6 +3,7 @@ package life.neurone.core.protocol
 import life.neurone.core.common.InMemoryKeyValueStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -59,7 +60,7 @@ class NPLimitsStoreTests {
     fun profilesAndActiveProfilePersistAcrossReload() {
         val kv = InMemoryKeyValueStore()
         val s1 = NPLimitsStore(kv)
-        val alex = NPIndividualProfile(name = "Alex", notes = "left-handed")
+        val alex = NPIndividualProfile(name = "Alex", notes = "left chair")
         val sam = NPIndividualProfile(name = "Sam")
         s1.saveProfile(alex)
         s1.saveProfile(sam)
@@ -176,5 +177,68 @@ class NPLimitsStoreTests {
         store.saveHelmetLimits(NPLimitsSet(name = "h"), "hub-a")
         store.clearHelmetLimits("hub-a")
         assertNull(kv.getString(NPLimitsStore.HELMETS_KEY))
+    }
+
+    // @verifies REQ-SW03-32#a
+    @Test
+    fun storedProfileIsReadAndWrittenBackWithoutAFieldAProfileDoesNotHave() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(
+            NPLimitsStore.PROFILES_KEY,
+            """[{"id":"p1","name":"Alex","notes":"left chair","dateOfBirth":"1980-01-01"}]""",
+        )
+        val store = NPLimitsStore(kv)
+        assertEquals(listOf(NPIndividualProfile(id = "p1", name = "Alex", notes = "left chair")), store.profiles)
+        val rewritten = kv.getString(NPLimitsStore.PROFILES_KEY)!!
+        assertFalse("dateOfBirth" in rewritten)
+        assertFalse("1980" in rewritten)
+        assertTrue("left chair" in rewritten)
+    }
+
+    // @verifies REQ-SW03-32#b
+    @Test
+    fun aNoteOverTheBoundIsRefusedAndNothingChanges() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv)
+        val max = ProfileLimits.PROFILE_NOTES_MAX_CHARS
+        val alex = NPIndividualProfile(name = "Alex", notes = "x".repeat(max))
+        assertTrue(store.saveProfile(alex))
+        assertFalse(store.saveProfile(alex.copy(notes = "x".repeat(max + 1))))
+        assertFalse(store.saveProfile(NPIndividualProfile(name = "Sam", notes = "x".repeat(max + 1))))
+        assertEquals(listOf(alex), store.profiles)
+        assertEquals(listOf(alex), NPLimitsStore(kv).profiles)
+    }
+
+    // @verifies REQ-SW03-32#c
+    @Test
+    fun aStoredNoteOverTheBoundIsCutToItAndWrittenBack() {
+        val kv = InMemoryKeyValueStore()
+        val max = ProfileLimits.PROFILE_NOTES_MAX_CHARS
+        kv.putString(NPLimitsStore.PROFILES_KEY, """[{"id":"p1","name":"Alex","notes":"${"n".repeat(max + 40)}"}]""")
+        val store = NPLimitsStore(kv)
+        assertEquals("n".repeat(max), store.profiles.single().notes)
+        assertEquals(listOf(store.profiles.single()), NPLimitsStore(kv).profiles)
+        assertFalse("n".repeat(max + 1) in kv.getString(NPLimitsStore.PROFILES_KEY)!!)
+    }
+
+    // @verifies SWR-WO-07#c
+    @Test
+    fun aSharedLimitsFileNamesNoHelmetAndNoPerson_andTheStoredFormStillDoes() {
+        val store = NPLimitsStore(InMemoryKeyValueStore())
+        val profile = NPIndividualProfile(name = "Alex")
+        store.saveProfile(profile)
+        store.saveHelmetLimits(NPLimitsSet(name = "h", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), "NP-000123")
+        store.saveIndividualLimits(NPLimitsSet(name = "i", tdcs = NPTDCSLimits(maxIntensityMilliamps = 1.0)), profile.id)
+        val helmet = store.helmetLimits.getValue("NP-000123")
+        val individual = store.individualLimits.getValue(profile.id)
+        assertTrue("NP-000123" in store.exportLimitsAsNPPS(helmet))
+
+        val sharedHelmet = store.shareLimitsAsNPPS(helmet)
+        assertFalse("helmet_id" in sharedHelmet || "NP-000123" in sharedHelmet, sharedHelmet)
+        assertEquals(NPLimitsSet.LimitLevel.HELMET, store.importLimitsFromNPPS(sharedHelmet).level)
+
+        val sharedIndividual = store.shareLimitsAsNPPS(individual)
+        assertFalse("individual_id" in sharedIndividual || profile.id in sharedIndividual, sharedIndividual)
+        assertEquals(1.0, store.importLimitsFromNPPS(sharedIndividual).tdcs!!.maxIntensityMilliamps)
     }
 }

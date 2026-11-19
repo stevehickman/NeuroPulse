@@ -86,17 +86,17 @@ class BundleKeyTests {
         val kdf = BundleKeyDerivation.newKdf(BundleKeyMethod.RECOVERY_CODE, CountingRandom())
         val key = BundleKeyDerivation.deriveKey(made.secret, kdf)
         val sealed = NppsCore.migration(buildJsonObject {
-            put("op", "sealBundle"); put("kind", "uhdr"); put("key", key.ref()); put("nonce", "a0".repeat(12))
+            put("op", "sealBundle"); put("kind", "uhdr"); put("epoch", 1); put("key", key.ref()); put("nonce", "a0".repeat(12))
             put("kdf", kdf); put("items", buildJsonObject { })
         })
         val header = NppsCore.migration(buildJsonObject { put("op", "readBundleHeader"); put("bundle", sealed["bundle"]!!) })
         assertEquals(JsonPrimitive("recoveryCode"), header["method"])
-        val ok = NppsCore.migration(buildJsonObject { put("op", "openBundle"); put("bundle", sealed["bundle"]!!); put("key", key.ref()) })
+        val ok = NppsCore.migration(buildJsonObject { put("op", "openBundle"); put("seenEpoch", 0); put("bundle", sealed["bundle"]!!); put("key", key.ref()) })
         assertEquals(JsonPrimitive(true), ok["ok"])
         val otherSecret = (BundleKeyDerivation.passphraseSecret("a different passphrase") as BundleSecretResult.Ok).secret
         val otherKey = BundleKeyDerivation.deriveKey(otherSecret, kdf)
         assertNotEquals(key.mark(), otherKey.mark())
-        val denied = NppsCore.migration(buildJsonObject { put("op", "openBundle"); put("bundle", sealed["bundle"]!!); put("key", otherKey.ref()) })
+        val denied = NppsCore.migration(buildJsonObject { put("op", "openBundle"); put("seenEpoch", 0); put("bundle", sealed["bundle"]!!); put("key", otherKey.ref()) })
         assertEquals(JsonPrimitive("authentication_failed"), denied["reason"])
     }
 }

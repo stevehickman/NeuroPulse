@@ -94,12 +94,26 @@ struct NPVibrotactileLimits: Codable, Equatable {
 
 // MARK: - NPIndividualProfile
 
+/// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-32; the per-field rulings are in
+/// docs/reference/data-architecture-detail.md §5.1). `notes` is a short label that tells two profiles apart, not a record
+/// about the person. There is no date of birth and no creation time: nothing read either (OI-PRIV-11), and a stored
+/// profile that carries one loses it when the store loads it.
 struct NPIndividualProfile: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String
     var notes: String = ""
-    var dateOfBirth: Date? = nil
-    var createdAt: Date = Date()
+
+    /// `PROFILE_NOTES_MAX_CHARS` in `common/npps/constants.json` (UNVALIDATED, UC-195), in UTF-16 code units. The
+    /// generated Swift constants do not carry the `ProfileLimits` group, so this is the one copy the iOS app has.
+    static let maxNotesLength = 100
+
+    /// `notes` cut to the bound, never leaving half of a surrogate pair.
+    static func cutNotes(_ notes: String) -> String {
+        let units = Array(notes.utf16)
+        guard units.count > maxNotesLength else { return notes }
+        let keep = UTF16.isLeadSurrogate(units[maxNotesLength - 1]) ? maxNotesLength - 1 : maxNotesLength
+        return String(decoding: units[..<keep], as: UTF16.self)
+    }
 }
 
 // MARK: - NPLimitsSet
