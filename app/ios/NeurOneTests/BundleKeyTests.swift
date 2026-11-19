@@ -71,17 +71,17 @@ final class BundleKeyTests: XCTestCase {
         let kdf = try BundleKeyDerivation.newKdf(method: .recoveryCode, random: CountingRandom())
         let key = try BundleKeyDerivation.deriveKey(secret: made.secret, kdf: kdf)
         let sealed = try NppsCore.migration([
-            "op": "sealBundle", "kind": "uhdr", "key": key.hex, "nonce": String(repeating: "a0", count: 12),
+            "op": "sealBundle", "kind": "uhdr", "epoch": 1, "key": key.hex, "nonce": String(repeating: "a0", count: 12),
             "kdf": kdf, "items": [String: Any](),
         ])
         let header = try NppsCore.migration(["op": "readBundleHeader", "bundle": sealed["bundle"] as Any])
         XCTAssertEqual(header["method"] as? String, "recoveryCode")
-        let opened = try NppsCore.migration(["op": "openBundle", "bundle": sealed["bundle"] as Any, "key": key.hex])
+        let opened = try NppsCore.migration(["op": "openBundle", "seenEpoch": 0, "bundle": sealed["bundle"] as Any, "key": key.hex])
         XCTAssertEqual(opened["ok"] as? Bool, true)
         guard case .ok(let other) = try BundleKeyDerivation.passphraseSecret("a different passphrase") else { return XCTFail() }
         let otherKey = try BundleKeyDerivation.deriveKey(secret: other, kdf: kdf)
         XCTAssertNotEqual(otherKey.hex, key.hex)
-        let denied = try NppsCore.migration(["op": "openBundle", "bundle": sealed["bundle"] as Any, "key": otherKey.hex])
+        let denied = try NppsCore.migration(["op": "openBundle", "seenEpoch": 0, "bundle": sealed["bundle"] as Any, "key": otherKey.hex])
         XCTAssertEqual(denied["reason"] as? String, "authentication_failed")
     }
 }
