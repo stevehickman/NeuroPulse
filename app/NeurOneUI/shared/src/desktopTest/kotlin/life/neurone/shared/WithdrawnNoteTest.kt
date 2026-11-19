@@ -27,9 +27,9 @@ class WithdrawnNoteTest {
     // @verifies SWR-MG-04
     @Test
     fun theDayShowsOnlyWhileTheConsentIsOffAndATimeIsRecorded() {
-        assertEquals("2026-10-17", withdrawnDay(granted = false, withdrawnAt = "2026-10-17T09:30:00Z"))
+        assertEquals("2026-10-17", withdrawnDay(granted = false, withdrawnAt = "2026-10-17#000001"))
         // A later re-grant leaves the record but is not the current state.
-        assertNull(withdrawnDay(granted = true, withdrawnAt = "2026-10-17T09:30:00Z"))
+        assertNull(withdrawnDay(granted = true, withdrawnAt = "2026-10-17#000001"))
         // Never asked has no time, so it shows nothing and stays distinguishable from "said stop".
         assertNull(withdrawnDay(granted = false, withdrawnAt = null))
         assertNull(withdrawnDay(granted = false, withdrawnAt = ""))
@@ -39,7 +39,7 @@ class WithdrawnNoteTest {
     @Test
     fun theStoresRecordedWithdrawalReachesTheLine() = runComposeUiTest {
         val kv = InMemoryKeyValueStore()
-        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, NoBackend), now = { "2026-10-17T09:30:00Z" })
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, NoBackend), today = { "2026-10-17" })
         store.updateResearchConsent(
             store.researchConsent.copy(categoryConsents = mapOf(ResearchCategory.entries.first() to true)),
         )

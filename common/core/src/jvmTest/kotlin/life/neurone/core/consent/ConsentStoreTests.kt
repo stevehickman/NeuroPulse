@@ -117,12 +117,12 @@ class ConsentStoreTests {
     }
 
     private fun categoryConsent(category: ResearchCategory) = ResearchConsentState(
-        contactConsentGranted = true,
+        contactConsentGranted = true, contactMethod = "person@example.org",
         categoryConsents = ResearchCategory.entries.associateWith { it == category },
     )
 
     private fun blanketConsent() = ResearchConsentState(
-        contactConsentGranted = true,
+        contactConsentGranted = true, contactMethod = "person@example.org",
         blanketConsentGranted = true,
     )
 
@@ -141,6 +141,7 @@ class ConsentStoreTests {
         kAnonymity = k,
         dateRoundingDays = rounding,
         issuedOnDay = LocalDate.now().toString(),
+        expiresOnDay = LocalDate.now().plusDays(30).toString(),
         signature = "sig",
     )
 
@@ -814,7 +815,7 @@ class ConsentStoreTests {
         val (store, kv, _) = makeStore()
         store.updateResearchConsent(
             ResearchConsentState(
-                contactConsentGranted = true, // L1
+                contactConsentGranted = true, contactMethod = "person@example.org", // L1
                 categoryConsents = ResearchCategory.entries.associateWith { it == ResearchCategory.entries.first() }, // L2
                 blanketConsentGranted = true, // L3
                 resultsOptIn = true, // L4
@@ -1401,27 +1402,29 @@ class ConsentStoreTests {
 
     // ── Withdrawal records that travel in a migration (SWR-MG-04) ───────────────
 
-    private fun clocked(vararg times: String): ConsentStore {
+    private fun clocked(vararg days: String): ConsentStore {
         val kv = InMemoryKeyValueStore()
-        val it = times.iterator()
-        return ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), now = { it.next() })
+        val it = days.iterator()
+        return ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), today = { it.next() })
     }
+
+    private val reachable = ResearchConsentState(contactConsentGranted = true, contactMethod = "person@example.org")
 
     // @verifies SWR-MG-04
     @Test
     fun aWithdrawalIsStampedAtTheTransitionAndNeverErasedByARegrant() {
-        val s = clocked("2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z", "2026-03-03T00:00:00Z")
-        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+        val s = clocked("2026-03-01", "2026-03-02", "2026-03-03")
+        s.updateResearchConsent(reachable.copy(blanketConsentGranted = true))
         assertNull(s.researchConsent.blanketConsentWithdrawnAt, "never asked is not said stop")
-        s.updateResearchConsent(ResearchConsentState(contactConsentGranted = true))
-        assertEquals("2026-03-01T00:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
+        s.updateResearchConsent(reachable)
+        assertEquals("2026-03-01#000001", s.researchConsent.blanketConsentWithdrawnAt)
         assertNull(s.researchConsent.contactConsentWithdrawnAt)
         // A screen that commits a stale state cannot erase it, and a re-grant leaves the record.
-        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
-        assertEquals("2026-03-01T00:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
+        s.updateResearchConsent(reachable.copy(blanketConsentGranted = true))
+        assertEquals("2026-03-01#000001", s.researchConsent.blanketConsentWithdrawnAt)
         s.setCategoryConsent(ResearchCategory.entries.first(), true)
         s.setCategoryConsent(ResearchCategory.entries.first(), false)
-        assertEquals("2026-03-02T00:00:00Z", s.researchConsent.categoryWithdrawnAt[ResearchCategory.entries.first()])
+        assertEquals("2026-03-02#000001", s.researchConsent.categoryWithdrawnAt[ResearchCategory.entries.first()])
     }
 
     // @verifies SWR-MG-04
@@ -1429,18 +1432,17 @@ class ConsentStoreTests {
     fun aRestoredWithdrawalSwitchesAGrantOffAndNothingTurnsOneOn() {
         val s = clocked()
         s.updateResearchConsent(
-            ResearchConsentState(
+            reachable.copy(
                 blanketConsentGranted = true,
-                contactConsentGranted = true,
                 categoryConsents = ResearchCategory.entries.associateWith { true },
             ),
         )
         val c = ResearchCategory.entries.first()
         s.applyWithdrawals(
             buildJsonObject {
-                put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z")
-                put("categoryWithdrawals", buildJsonObject { put(c.wireName, "2026-03-01T00:00:00Z") })
-                put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01T00:00:00Z") })
+                put("blanketConsentWithdrawnAt", "2026-03-01#000001")
+                put("categoryWithdrawals", buildJsonObject { put(c.wireName, "2026-03-01#000001") })
+                put("studyWithdrawals", buildJsonObject { put("study-a", "2026-02-01#000001") })
             },
         )
         assertFalse(s.researchConsent.blanketConsentGranted)
@@ -1451,7 +1453,7 @@ class ConsentStoreTests {
 
         // The same record again, or an older one, changes nothing: a grant made afterwards stands.
         s.updateResearchConsent(s.researchConsent.copy(blanketConsentGranted = true))
-        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z") })
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01#000001") })
         assertTrue(s.researchConsent.blanketConsentGranted)
         // An empty record (a bundle from a phone that never withdrew) turns nothing on or off.
         s.applyWithdrawals(buildJsonObject { })
@@ -1459,17 +1461,17 @@ class ConsentStoreTests {
         // And what survives a restart.
         val kv = InMemoryKeyValueStore()
         val first = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
-        first.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("s", "2026-01-01T00:00:00Z") }) })
-        assertEquals(mapOf("s" to "2026-01-01T00:00:00Z"), ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).studyWithdrawals)
+        first.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("s", "2026-01-01#000001") }) })
+        assertEquals(mapOf("s" to "2026-01-01#000001"), ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend())).studyWithdrawals)
     }
 
     // @verifies SWR-MG-04
     @Test
     fun aStudyTheUserLeftIsRememberedAndNeverRepresented() {
-        val s = clocked("2026-04-01T00:00:00Z")
+        val s = clocked("2026-04-01")
         val exported = s.exportWithdrawals()
         assertNull(exported["blanketConsentWithdrawnAt"], "nothing withdrawn exports no time, so never-asked stays null")
-        s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01T00:00:00Z") }) })
-        assertEquals("2026-04-01T00:00:00Z", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
+        s.applyWithdrawals(buildJsonObject { put("studyWithdrawals", buildJsonObject { put("study-x", "2026-04-01#000001") }) })
+        assertEquals("2026-04-01#000001", s.exportWithdrawals()["studyWithdrawals"]!!.jsonObject["study-x"]!!.jsonPrimitive.content)
     }
 }

@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 82 (2026-11-19) — §5.3: suppression is the device's fixed rule, not a descriptor field, and a descriptor carries an expiry day (the principal). No other locked decision changed.**
+
+**What changed.** §5.3 said a signed study descriptor carries "k≥10, date rounding ≥1 week, suppression rules". It now says the descriptor carries k, the date rounding and an expiry day the issuer signs, and that suppression is the device's own rule, the same for every study: a record whose group is smaller than k is dropped, not sent. `docs/reference/data-architecture-detail.md` §5.3 steps 1 and 2 are changed to match.
+
+**Why.** `OI-PRIV-06` point 5 found that `ConsentEngine.admit` could check neither suppression rules nor a descriptor's age, because the descriptor had no field for either. No document says which quasi-identifiers exist to suppress, so a per-study rule had no vocabulary to be written in. Asked on 2026-11-19, the principal chose the fixed device rule over a signed list. The expiry is the issuer's to set because how long a study recruits is the study's fact; a maximum age chosen on the device would be a number with no derivation (§18).
+
+**What it leaves.** The rule is stated as `REQ-CONSENT-13` (e) and is not built: no extractor exists (`OI-CONSENT-07`). Naming quasi-identifiers per study can return with the extractor's design, as a new decision. The expiry is built: it is in the signed canonical form (`NP-STUDY-DESCRIPTOR-V2`, `NP-SW-PORTAL-API-001` §4a) and `admit` refuses a descriptor past it (`REQ-CONSENT-09` i). The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
 **Rev 81 (2026-11-11) — §22: the hub's main processor may include `no_std` Rust (the principal). No other locked decision changed.**
 
 **What changed.** §22's bullet "The hub firmware is C (§4.1, §4.2)" now also says the main processor's firmware may include `no_std` Rust, and never the safety MCU's. `docs/reference/engineering-rules.md` §22 detail and `docs/np_soup_kotlin_001.md` said the same thing in their own words and are changed to match. Nothing else in this file changed.

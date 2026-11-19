@@ -3,6 +3,7 @@ package life.neurone.core.consent
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
@@ -10,6 +11,9 @@ import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
+import life.neurone.core.models.ContactChannel
+import life.neurone.core.models.ResearchContact
+import life.neurone.core.models.WithdrawalMark
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
 import life.neurone.core.models.StudyDescriptor
@@ -58,10 +62,15 @@ class ConsentRepairTests {
 
     private fun categories(vararg granted: ResearchCategory) = ResearchConsentState(
         contactConsentGranted = true,
+        contactMethod = "person@example.org",
         categoryConsents = ResearchCategory.entries.associateWith { it in granted },
     )
 
-    private val blanket = ResearchConsentState(contactConsentGranted = true, blanketConsentGranted = true)
+    private val blanket = ResearchConsentState(
+        contactConsentGranted = true,
+        contactMethod = "person@example.org",
+        blanketConsentGranted = true,
+    )
 
     private fun study(id: String, vararg inCategories: ResearchCategory) = StudyDescriptor(
         studyId = id,
@@ -71,6 +80,7 @@ class ConsentRepairTests {
         kAnonymity = 10,
         dateRoundingDays = 7,
         issuedOnDay = today,
+        expiresOnDay = LocalDate.now().plusDays(30).toString(),
         signature = "sig",
     )
 
@@ -473,5 +483,198 @@ class ConsentRepairTests {
         }
         assertTrue(store.pendingInvitations.isEmpty())
         assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(study("B")), "a study that does not ask for it is admitted")
+    }
+
+    // ── REQ-CONSENT-09 i: a descriptor stands only until the day its issuer signed ──
+
+    // @verifies REQ-CONSENT-09#i
+    @Test
+    fun aDescriptorIsRefusedAfterItsExpiryDayOrWithAnExpiryThatCannotBeHeldTo() {
+        val (store, _) = storeWith(blanket)
+        val yesterday = LocalDate.now().minusDays(1).toString()
+        val expired = StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.DESCRIPTOR_EXPIRED)
+
+        assertEquals(expired, store.ingestStudyDescriptor(study("A").copy(issuedOnDay = "2026-01-01", expiresOnDay = yesterday)))
+        assertEquals(expired, store.ingestStudyDescriptor(study("B").copy(expiresOnDay = "soon")))
+        assertEquals(expired, store.ingestStudyDescriptor(study("C").copy(issuedOnDay = today, expiresOnDay = yesterday)))
+        assertIs<StudyDescriptorAdmission.Admitted>(
+            store.ingestStudyDescriptor(study("D").copy(expiresOnDay = today)),
+            "the expiry day is the last day",
+        )
+    }
+
+    // @verifies REQ-CONSENT-09#i
+    @Test
+    fun aRequestCannotBeAcceptedAfterItsDescriptorExpired() {
+        val (store, kv) = storeWith(categories(ResearchCategory.DEPRESSION))
+        store.ingestStudyDescriptor(study("A", ResearchCategory.DEPRESSION))
+        // The invitation as it will be once its expiry day has passed.
+        val key = ConsentStore.INVITATIONS_KEY
+        kv.putString(key, kv.getString(key)!!.replace(Regex("\"expiresOnDay\":\"[0-9-]+\""), "\"expiresOnDay\":\"2020-01-01\""))
+
+        val reopened = open(kv)
+        reopened.acceptInvitation("A")
+
+        assertTrue(reopened.studyParticipations.isEmpty())
+        assertTrue(reopened.pendingInvitations.single().isOpen)
+    }
+
+    // ── REQ-CONSENT-23: the contact method is typed, needed for L1, and erased with it ──
+
+    // @verifies REQ-CONSENT-23#a
+    @Test
+    fun aContactIsAnEmailAddressOrAPhoneNumberAndNothingElse() {
+        assertEquals(ResearchContact(ContactChannel.EMAIL, "a.b@example.org"), ResearchContact.parse("  a.b@example.org "))
+        assertEquals(ResearchContact(ContactChannel.PHONE, "+15551234567"), ResearchContact.parse("+1 (555) 123-4567"))
+        for (notOne in listOf("", "call me after my EEG results", "a@b", "a@@example.org", "a b@example.org", "@example.org",
+            "+1234567890123456", "555-CALL")) {
+            assertNull(ResearchContact.parse(notOne), notOne)
+        }
+    }
+
+    // @verifies REQ-CONSENT-23#b
+    @Test
+    fun contactConsentIsNotTakenWithoutAUsableMethod() {
+        val store = open(InMemoryKeyValueStore())
+
+        store.updateResearchConsent(ResearchConsentState(contactConsentGranted = true, contactMethod = "ask my sister"))
+        assertFalse(store.researchConsent.contactConsentGranted)
+        assertEquals("", store.researchConsent.contactMethod, "and what was typed is not kept")
+        assertNull(store.researchConsent.contactConsentWithdrawnAt, "nothing was granted, so nothing was withdrawn")
+
+        store.updateResearchConsent(ResearchConsentState(contactConsentGranted = true, contactMethod = "+44 20 7946 0000"))
+        assertTrue(store.researchConsent.contactConsentGranted)
+        assertEquals("+442079460000", store.researchConsent.contactMethod)
+        assertEquals(ContactChannel.PHONE, store.researchConsent.contactChannel)
+
+        // An unusable replacement does not displace the method held, and does not read as a withdrawal.
+        store.updateResearchConsent(store.researchConsent.copy(contactMethod = "nope"))
+        assertTrue(store.researchConsent.contactConsentGranted)
+        assertEquals("+442079460000", store.researchConsent.contactMethod)
+    }
+
+    // @verifies REQ-CONSENT-23#c
+    @Test
+    fun withdrawingContactConsentErasesTheMethod() {
+        val (store, kv) = storeWith(blanket)
+        assertEquals("person@example.org", store.researchConsent.contactMethod)
+
+        store.updateResearchConsent(store.researchConsent.copy(contactConsentGranted = false))
+
+        assertEquals("", store.researchConsent.contactMethod)
+        assertNull(store.researchConsent.contactChannel)
+        assertFalse(kv.getString(ConsentStore.RESEARCH_KEY)!!.contains("person@example.org"))
+    }
+
+    // @verifies REQ-CONSENT-23#c
+    @Test
+    fun aRestoredContactWithdrawalErasesTheMethodHereToo() {
+        val (store, _) = storeWith(blanket)
+
+        store.applyWithdrawals(buildJsonObject { put("contactConsentWithdrawnAt", "2099-01-01#000001") })
+
+        assertFalse(store.researchConsent.contactConsentGranted)
+        assertEquals("", store.researchConsent.contactMethod)
+    }
+
+    // ── REQ-CONSENT-24: a withdrawal is marked with a day and a count ─────
+
+    private fun onDays(vararg days: String): ConsentStore {
+        val kv = InMemoryKeyValueStore()
+        val it = days.iterator()
+        return ConsentStore(kv, ResearchAnalyticsGate(kv, QuietBackend), today = { it.next() })
+    }
+
+    // @verifies REQ-CONSENT-24#a
+    @Test
+    fun aMarkHoldsADayAndACountAndNoTimeOfDay() {
+        val store = onDays("2026-03-01")
+        store.updateResearchConsent(blanket)
+
+        store.updateResearchConsent(blanket.copy(blanketConsentGranted = false))
+
+        assertEquals("2026-03-01#000001", store.researchConsent.blanketConsentWithdrawnAt)
+        assertTrue(WithdrawalMark.isValid("2026-03-01#000001"))
+        assertFalse(WithdrawalMark.isValid("2026-03-01T10:15:30Z"), "an instant is not a mark")
+    }
+
+    // @verifies REQ-CONSENT-24#b
+    @Test
+    fun twoWithdrawalsOfOneDecisionOnOneDayAreOrderedByTheirCount() {
+        val store = onDays("2026-03-01", "2026-03-01", "2026-03-05")
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanket.copy(blanketConsentGranted = false))
+        val first = store.researchConsent.blanketConsentWithdrawnAt!!
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanket.copy(blanketConsentGranted = false))
+        val second = store.researchConsent.blanketConsentWithdrawnAt!!
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanket.copy(blanketConsentGranted = false))
+        val third = store.researchConsent.blanketConsentWithdrawnAt!!
+
+        assertEquals("2026-03-01#000002", second)
+        assertEquals("2026-03-05#000003", third)
+        assertTrue(first < second && second < third, "the text orders them")
+    }
+
+    // @verifies REQ-CONSENT-24#c
+    @Test
+    fun aSecondWithdrawalOnTheOtherPhoneTheSameDayIsLaterAndIsApplied() {
+        // This phone holds the first withdrawal and consent was granted again here. The other phone
+        // withdrew again the same day: its count is higher, so the restore switches the grant off.
+        val store = onDays("2026-03-01")
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanket.copy(blanketConsentGranted = false))
+        store.updateResearchConsent(blanket)
+
+        store.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01#000001") })
+        assertTrue(store.researchConsent.blanketConsentGranted, "the same withdrawal again changes nothing")
+
+        store.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01#000002") })
+        assertFalse(store.researchConsent.blanketConsentGranted)
+        assertEquals("2026-03-01#000002", store.researchConsent.blanketConsentWithdrawnAt)
+    }
+
+    // ── REQ-CONSENT-20 e: marks are read out of a record that did not decode ──
+
+    // @verifies REQ-CONSENT-20#e
+    @Test
+    fun withdrawalMarksAreRecoveredFromAnUnreadableRecordAndGrantsNeverAre() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(
+            ConsentStore.RESEARCH_KEY,
+            """{"blanketConsentGranted":"perhaps","contactConsentGranted":true,"contactMethod":"person@example.org",
+               "blanketConsentWithdrawnAt":"2026-02-01#000002","resultsOptInWithdrawnAt":"2026-02-01T10:00:00Z",
+               "categoryWithdrawnAt":{"SLEEP":"2026-01-15#000001","NOT_A_CATEGORY":"2026-01-15#000001"}}""",
+        )
+        kv.putString(ConsentStore.STUDY_WITHDRAWALS_KEY, """{"S-1":"2026-01-20#000001","S-2":17""" + "}")
+
+        val store = open(kv)
+
+        assertTrue(store.consentRecordUnreadable)
+        assertTrue(store.researchConsent.blanketConsentWithdrawn, "said stop is held from the start")
+        assertEquals("2026-02-01#000002", store.researchConsent.blanketConsentWithdrawnAt)
+        assertEquals(mapOf(ResearchCategory.SLEEP to "2026-01-15#000001"), store.researchConsent.categoryWithdrawnAt)
+        assertNull(store.researchConsent.resultsOptInWithdrawnAt, "a value that is not a mark is left behind")
+        assertFalse(store.researchConsent.contactConsentGranted, "a grant is never read out of an unreadable record")
+        assertEquals("", store.researchConsent.contactMethod)
+        assertEquals("2026-02-01#000002", store.exportWithdrawals()["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
+
+        // After the person decides again the recovered marks are still the record.
+        store.updateResearchConsent(categories(ResearchCategory.DEPRESSION))
+        assertFalse(store.consentRecordUnreadable)
+        assertEquals("2026-02-01#000002", open(kv).researchConsent.blanketConsentWithdrawnAt)
+    }
+
+    // @verifies REQ-CONSENT-20#e
+    @Test
+    fun studyWithdrawalsAreRecoveredFromAnUnreadableList() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(ConsentStore.STUDY_WITHDRAWALS_KEY, """{"S-1":"2026-01-20#000001","S-2":17}""")
+
+        val store = open(kv)
+
+        assertEquals(mapOf("S-1" to "2026-01-20#000001"), store.studyWithdrawals)
+        assertTrue(store.consentRecordUnreadable)
     }
 }
