@@ -43,6 +43,30 @@
 # STEP-19): deploy the entire stack on an EU-region cloud instance. Caddy's
 # ACME server is configurable if a specific CA is required by your DPA.
 
+# ── Logs keep no client address (OI-PRIV-05 (5), the interim floor; the principal, 2026-11-19) ───────────────────────────
+# The address reaches this proxy (TCP needs it). The rule is that it is written nowhere and handed on to nothing: the upstream
+# never gets it (header_up, below), and neither log holds it. Caddy writes the client's address into every access-log entry and
+# into the error entries of the default logger, so BOTH get the same filter. An event carries the installation's stable
+# analytics ID, and an address beside that ID places the installation on a household or clinic network.
+# This is a floor, not the protection decided on: analytics is to go through an Oblivious HTTP relay, so that this host never
+# receives the address at all (NP-APP-TELEMETRY-001 §4.1). Checked by ci/test_posthog_infra.py (P8).
+{
+  log default {
+    output stdout
+    level WARN
+    format filter {
+      wrap json
+      fields {
+        request>remote_ip delete
+        request>remote_port delete
+        request>client_ip delete
+        request>headers>X-Forwarded-For delete
+        request>headers>X-Real-Ip delete
+      }
+    }
+  }
+}
+
 # {$VAR} is read when the file is parsed; a site address cannot use the runtime {env.VAR} placeholder.
 {$POSTHOG_HOST} {
 
@@ -101,9 +125,19 @@
   # Compress responses to reduce bandwidth
   encode gzip
 
-  # Access log: write to stdout (captured by docker logs caddy)
+  # Access log: write to stdout (captured by docker logs caddy), with the client's address removed (see the top of this file).
   log {
     output stdout
     level WARN
+    format filter {
+      wrap json
+      fields {
+        request>remote_ip delete
+        request>remote_port delete
+        request>client_ip delete
+        request>headers>X-Forwarded-For delete
+        request>headers>X-Real-Ip delete
+      }
+    }
   }
 }
