@@ -33,7 +33,7 @@ sealed interface EraseStep {
      *
      * [cloudAccessMayRemain] is true when the person had cloud sign-ins here and not every provider confirmed it ended the app's access (it has
      * no call for that, the call failed, or the sign-ins could not be read): the credentials are erased from this device all the same, and the
-     * person is told a service may still list the app, and that a key or password they typed still works there (SWR-MG-28 (d)).
+     * person is told a service may still list the app, and that a key or password they typed still works there (SWR-MG-29 (d)).
      */
     class Done(val keyKept: Boolean, val cloudAccessMayRemain: Boolean = false) : EraseStep
 

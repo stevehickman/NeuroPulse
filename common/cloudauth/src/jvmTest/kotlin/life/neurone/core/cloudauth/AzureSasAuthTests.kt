@@ -38,7 +38,7 @@ class AzureSasAuthTests {
         }
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     @Test
     fun aSignatureForTheWholeAccountOrWithNoReadableExpiryOrOverPlainHttpOrWithMorePermissionsIsRefused() {
         fun with(sp: String = "rcwdl", rest: String = "spr=https&se=2030-01-01&sr=c") = "sv=2024-11-04&$rest&sp=$sp&sig=x"
@@ -64,7 +64,7 @@ class AzureSasAuthTests {
         }
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     @Test
     fun aSignatureKeptUnderTheEarlierLooserCheckIsNotUsed() = runBlocking {
         val rig = Rig()

@@ -81,6 +81,13 @@ data class AdaptationEvent(
     val valueAfterX100: Int,  // parameter value after × 100
     val confidencePct: Int,   // 0–100; 0xFF = not applicable
 ) {
+    /**
+     * Names the event and nothing in it (`SWR-MG-28` (f)). An event is UHDR: its trigger says what the person's EEG or
+     * heart rate did and its values are what the device did in answer (an HRV trigger's are HRV figures), and the generated
+     * `toString` would write that into any log line or exception message an event is formatted into.
+     */
+    override fun toString(): String = "AdaptationEvent(<redacted>)"
+
     /** Stable content-derived identity (same UHDR event decoded twice → same id). */
     val id: String get() = "$sessionOffsetMs-${trigger.rawValue}-$modType-$paramId"
 

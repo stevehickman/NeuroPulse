@@ -27,7 +27,7 @@ private class Altered(private val inner: HttpTransport, private val from: String
 }
 
 /**
- * SWR-MG-28 (b): an address a provider's reply names is followed only when it is `https`, and one that will be sent the person's token only
+ * SWR-MG-29 (b): an address a provider's reply names is followed only when it is `https`, and one that will be sent the person's token only
  * under the service's own address. Run against the same stand-ins as the adapters' other tests, with the reply altered.
  */
 class ServerUrlTests {
@@ -39,7 +39,7 @@ class ServerUrlTests {
         assertFalse(to.substringAfter("://") in e.message.orEmpty(), "the message does not hold the address: ${e.message}")
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     @Test
     fun theCheckTakesHttpsOnlyAndAPrefixWhenOneIsGiven() {
         assertEquals("https://up.example/x?sig=1", serverUrl("https://up.example/x?sig=1", "the address"))
@@ -59,7 +59,7 @@ class ServerUrlTests {
         }
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     @Test
     fun oneDriveSendsItsTokenToANextPageOnlyUnderItsOwnGraphAddress() {
         fun store(t: HttpTransport) = OneDriveObjectStore(t, AccessToken { "tok" }, 30, "https://graph.test/v1.0", 327_680)
@@ -79,7 +79,7 @@ class ServerUrlTests {
         }
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     @Test
     fun oneDriveUploadsAndDownloadsOnlyOverHttps() {
         fun store(t: HttpTransport) = OneDriveObjectStore(t, AccessToken { "tok" }, 30, "https://graph.test/v1.0", 327_680)
@@ -93,7 +93,7 @@ class ServerUrlTests {
         refused(down, "http://dl.test") { store(down).get("np-bundle") }
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     @Test
     fun googleDriveUploadsOnlyToAnHttpsSession() {
         fun store(t: HttpTransport) = GoogleDriveObjectStore(t, AccessToken { "tok" }, 30, "https://drive.test", 262_144)
@@ -105,7 +105,7 @@ class ServerUrlTests {
         refused(update, "http://drive.test/session") { store(update).put("np-bundle", bytes) }
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     @Test
     fun cloudKitUploadsAndDownloadsAssetsOnlyOverHttps() {
         fun store(t: HttpTransport) = CloudKitObjectStore(t, "iCloud.test.app", CloudKitCredentials { "api" to "web" }, 30)
@@ -119,7 +119,7 @@ class ServerUrlTests {
         refused(down, "http://dl.test") { store(down).get("np-bundle") }
     }
 
-    // @verifies SWR-MG-28#e
+    // @verifies SWR-MG-29#e
     @Test
     fun noFailureOfAStoreThatCarriesItsCredentialInTheAddressQuotesTheAddress() {
         val failing = object : HttpTransport {

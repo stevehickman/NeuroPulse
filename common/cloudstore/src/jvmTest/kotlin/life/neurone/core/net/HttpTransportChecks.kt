@@ -100,6 +100,10 @@ abstract class HttpTransportChecks {
      * The contract line of [HttpTransport]: the request URL is never logged or surfaced. A URL whose query holds a marker is sent three ways (answered,
      * to a port nothing listens on, and malformed), and the marker must appear in nothing the transport wrote to the console or to `java.util.logging`
      * and in nothing it threw. **What this cannot see:** a log written through another logging library, or to a file.
+     *
+     * The logging levels are left as the process has them. Raising them all to `ALL` turns on the JDK HTTP client's own debug logger on JDK 17
+     * (`jdk.internal.httpclient.debug`, which is loggable whenever its `java.util.logging` level allows it), and that logger prints requests: it is
+     * a switch an operator sets on the JDK, not something the transport writes.
      */
     fun theRequestUrlIsNeverLoggedOrSurfaced() {
         val marker = "np-secret-" + java.util.UUID.randomUUID()
@@ -116,13 +120,11 @@ abstract class HttpTransportChecks {
             override fun close() {}
         }
         val root = java.util.logging.Logger.getLogger("")
-        val oldLevel = root.level
         val oldOut = System.out
         val oldErr = System.err
         val console = java.io.ByteArrayOutputStream()
         val thrown = mutableListOf<Throwable>()
         root.addHandler(handler)
-        root.level = java.util.logging.Level.ALL
         handler.level = java.util.logging.Level.ALL
         System.setOut(java.io.PrintStream(console, true))
         System.setErr(java.io.PrintStream(console, true))
@@ -150,7 +152,6 @@ abstract class HttpTransportChecks {
             System.setOut(oldOut)
             System.setErr(oldErr)
             root.removeHandler(handler)
-            root.level = oldLevel
         }
         assertTrue(thrown.isEmpty(), "a request that cannot be sent is null, not an exception: " + thrown.map { it::class.simpleName })
         assertTrue(marker !in console.toString(), "the transport wrote the request's address or a header to the console")

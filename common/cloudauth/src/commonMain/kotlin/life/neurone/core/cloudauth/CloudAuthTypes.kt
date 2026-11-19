@@ -28,7 +28,7 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
      * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes are
      * the ones the routes the store calls declare in Dropbox's API spec (read 2026-10-28, `UC-116`): `files.content.write` for upload and delete,
      * `files.content.read` for download, `files.metadata.read` for listing the folder. **Not `account_info.read`**: it is the scope of
-     * `users/get_current_account` (the person's name and e-mail address) as well as of the space figure, and no identity is requested (SWR-MG-28 (c)).
+     * `users/get_current_account` (the person's name and e-mail address) as well as of the space figure, and no identity is requested (SWR-MG-29 (c)).
      */
     DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read"),
 
@@ -69,10 +69,18 @@ class DropboxClientConfig(val appKey: String, val redirectUri: String)
 /**
  * A Google OAuth client. [redirectUri] is the one registered for the client and the platform: a loopback address
  * (`http://127.0.0.1:<port>`) on a computer, the claimed HTTPS or reverse-client-ID redirect on a phone. Google ends custom URI schemes
- * on Android and deprecates loopback on phones (native-app page), so this is not a value the library can choose. [clientSecret] is
- * set only for a client type Google issues one for (a desktop client); Google's page calls it optional, and an Android or iOS client has none.
+ * on Android and deprecates loopback on phones (native-app page), so this is not a value the library can choose.
+ *
+ * [clientSecret] is the value Google issues with a **Desktop app** client and with no other installed-app type (an Android or iOS client
+ * has none). **It is not a secret**: it ships in an app anyone can download, so anyone can read it, and nothing may rely on it being
+ * unknown (`SWR-MG-19` (m), `NP-SW-CLOUDSTORE-001` §4c.13). It is never the secret of a confidential client (a web-server or service
+ * client), and it is sent only by a client whose redirect is the loopback address a computer receives: [secretForTokenCalls] is null
+ * for any other redirect, so a value set by mistake in a phone build is never sent.
  */
-class OAuthClientConfig(val clientId: String, val redirectUri: String, val clientSecret: String? = null)
+class OAuthClientConfig(val clientId: String, val redirectUri: String, val clientSecret: String? = null) {
+    /** [clientSecret] when this is a desktop-type client (a loopback redirect), else null. */
+    val secretForTokenCalls: String? get() = clientSecret?.takeIf { RedirectRules.isLoopback(redirectUri) }
+}
 
 /**
  * A Microsoft Entra app registered as a public client. No secret: the native-app guidance is that a client secret "can't be reliably
@@ -88,6 +96,10 @@ class MicrosoftClientConfig(
 /**
  * The CloudKit container (it begins `iCloud.`), its API token (made in CloudKit Dashboard) and the sign-in callback URL set on that
  * token, to which Apple's sign-in page sends `ckWebAuthToken`. A server-to-server key is not supported: it reaches only the public database.
+ *
+ * **[apiToken] is public by design.** It identifies the container to CloudKit Web Services and goes in every request's address; it opens
+ * nothing by itself, because the person's private database needs the `ckWebAuthToken` their own sign-in returns. It is compiled into the
+ * app like a client ID. A server-to-server key is the confidential credential, and one is never put here (`NP-SW-CLOUDSTORE-001` §4c.13).
  */
 class CloudKitConfig(
     val container: String,
@@ -158,7 +170,7 @@ class CloudAccount(
     /**
      * Set only on the account a sign-in or an add **returned**, and only when it took the place of an earlier credential: what was done about
      * that earlier one at the provider. Anything but [Revocation.REVOKED] means it may still work there, and the host tells the person
-     * (SWR-MG-28 (d)). Null when nothing was replaced.
+     * (SWR-MG-29 (d)). Null when nothing was replaced.
      */
     val replaced: Revocation? = null,
 )

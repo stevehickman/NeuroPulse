@@ -15,7 +15,7 @@ class CloudServiceRow(val service: CloudService, val configured: Boolean, val ac
     /**
      * True for a service where a file this app deletes is kept by the service, recoverable, until the person empties it there: OneDrive's recycle
      * bin (Microsoft's delete page) and Dropbox's deleted files. The app can end neither with the access it asks for, so the screen says so
-     * (SWR-MG-28 (d)).
+     * (SWR-MG-29 (d)).
      */
     val keepsDeletedFiles: Boolean get() = account != null && (service == CloudService.ONEDRIVE || service == CloudService.DROPBOX)
 
@@ -37,7 +37,7 @@ enum class CloudNoticeKind {
 
     /**
      * A new sign-in, key, login or signature was saved in place of an earlier one, and the provider could not be asked to end the earlier one (it
-     * has no such call, or the call failed), so that one may still work there (SWR-MG-28 (d)).
+     * has no such call, or the call failed), so that one may still work there (SWR-MG-29 (d)).
      */
     REPLACED_NOT_REVOKED,
     NOT_CONFIGURED,

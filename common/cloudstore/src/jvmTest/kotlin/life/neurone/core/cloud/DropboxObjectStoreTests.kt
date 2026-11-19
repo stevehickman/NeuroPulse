@@ -161,7 +161,7 @@ class DropboxObjectStoreTests {
         assertTrue(fake.seen.count { it.url.endsWith("/files/list_folder/continue") } >= 2)
     }
 
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     @Test
     fun freeSpaceIsUnknownBecauseReadingItNeedsTheScopeThatReadsWhoThePersonIs() = runBlocking {
         val fake = FakeDropbox()

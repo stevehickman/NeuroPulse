@@ -19,7 +19,7 @@ import java.util.Base64
  * (an aborted assumption, so a run with no server is green and says "skipped", not "passed"). These are not part of CI: they need a server the
  * tester starts, and they speak plain `http` to a loopback address, which the adapters' callers (`WebDavAddress`) would refuse for a person's login.
  *
- * **Plain `http` goes to this machine only** (SWR-MG-28 (f), `CLAUDE.md` §23: no unencrypted path, in a test mode either). The servers are named by
+ * **Plain `http` goes to this machine only** (SWR-MG-29 (f), `CLAUDE.md` §23: no unencrypted path, in a test mode either). The servers are named by
  * environment variables and are sent real-looking credentials (a WebDAV password, a signature, signed S3 requests), so [LiveJdkTransport] refuses
  * an `http` address whose host is not a loopback literal, and each suite checks its variable before it makes a store. A variable that names
  * another host over `http` **fails** the test; it is not skipped. An `https` address may be any host: that path is encrypted.
@@ -49,7 +49,7 @@ class LiveJdkTransport : HttpTransport {
     }
 }
 
-/** Where a live test may send (SWR-MG-28 (f)): `https` anywhere, plain `http` only to this machine. */
+/** Where a live test may send (SWR-MG-29 (f)): `https` anywhere, plain `http` only to this machine. */
 object LiveEndpoints {
     /**
      * True for the loopback literals only: `localhost`, `127.x.y.z` and `::1`. No name is resolved, because a name that resolves to this machine
@@ -112,9 +112,9 @@ class LiveAzureSasContractTests : ObjectStoreContract() {
     }
 }
 
-/** The live suites' own guard, which runs with or without a server (SWR-MG-28 (f)). */
+/** The live suites' own guard, which runs with or without a server (SWR-MG-29 (f)). */
 class LiveEndpointsTests {
-    // @verifies SWR-MG-28#f
+    // @verifies SWR-MG-29#f
     @Test
     fun plainHttpIsRefusedUnlessTheHostIsThisMachine() {
         for (ok in listOf("http://127.0.0.1:10000/devstoreaccount1", "http://localhost:8080/dav/", "http://[::1]:9000/", "http://127.9.8.7/", "https://dav.example.com/remote.php/dav/")) {
@@ -130,7 +130,7 @@ class LiveEndpointsTests {
         }
     }
 
-    // @verifies SWR-MG-28#f
+    // @verifies SWR-MG-29#f
     @Test
     fun theLiveTransportSendsNothingOverPlainHttpToAnotherHost() {
         val e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException::class.java) {
@@ -146,7 +146,7 @@ class LiveEndpointsTests {
 class LiveJdkTransportTests : life.neurone.core.net.HttpTransportChecks() {
     override fun transport(): HttpTransport = LiveJdkTransport()
 
-    // @verifies SWR-MG-28#e
+    // @verifies SWR-MG-29#e
     @Test
     fun urlIsNeverLoggedOrSurfaced() = theRequestUrlIsNeverLoggedOrSurfaced()
 }

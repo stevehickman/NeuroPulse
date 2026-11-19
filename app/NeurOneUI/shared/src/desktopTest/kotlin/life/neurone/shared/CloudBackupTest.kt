@@ -73,7 +73,7 @@ class CloudBackupTest {
     }
 
     private fun auth(f: Fakes, kv: InMemoryKeyValueStore) =
-        CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
+        CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google, microsoft = microsoft, dropbox = DropboxClientConfig("db-key", "http://127.0.0.1:53683")), f.launcher)
 
     // @verifies SWR-MG-21#a
     @Test fun every_signed_in_account_is_listed_and_a_choice_makes_a_place_that_is_remembered() = runTest {
@@ -269,6 +269,7 @@ class CloudBackupTest {
                 override val bleCentral = UnavailableBleCentral()
                 override val protocolSigner = Ed25519ProtocolSigner()
                 override val analyticsBackend = NoOpAnalyticsBackend()
+                override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore() // a host that seals: the vault needs one (SWR-MG-19 (l))
                 override val httpTransport: HttpTransport? = f.transport
                 override val authorizationLauncher: AuthorizationLauncher? = f.launcher
                 override val migrationPlace: MigrationPlace? = local

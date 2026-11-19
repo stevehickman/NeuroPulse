@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -34,6 +35,9 @@ import life.neurone.shared.migration.EraseStep
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 import life.neurone.core.protocol.PersistedKeys
+
+/** The Settings line that says cloud accounts are unavailable because nothing protected can hold the credentials. */
+const val CLOUD_UNAVAILABLE_TAG = "cloud_accounts_unavailable_unprotected"
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).
@@ -321,6 +325,15 @@ private fun SettingsContent(
             Text(stringResource(Res.string.cloud_accounts_settings_body), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onManageCloud) { Text(stringResource(Res.string.cloud_accounts_button)) }
+        }
+        // A host that could sign in, on a run with nowhere protected to keep the credentials: said, and no sign-in offered (SWR-MG-19 (l)).
+        if (app.cloudUnavailableUnprotected) {
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(Res.string.cloud_accounts_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(Res.string.cloud_accounts_unavailable_unprotected),
+                modifier = Modifier.testTag(CLOUD_UNAVAILABLE_TAG), style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         // Erase what this host keeps, where it offers that (the browser does): the person's own way to empty it.

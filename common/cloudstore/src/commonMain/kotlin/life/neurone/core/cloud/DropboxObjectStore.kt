@@ -34,7 +34,7 @@ import life.neurone.core.net.HttpTransport
  * **List** is `files/list_folder` followed by `files/list_folder/continue` while `has_more`; folders are skipped.
  * **Free space is unknown** (null). The one route that tells it, `users/get_space_usage`, declares the scope `account_info.read` in `users.stone`
  * (read 2026-11-18), the scope `users/get_current_account` reads the person's name and e-mail address with, and the sign-in asks for nothing
- * that identifies the person (SWR-MG-28 (c)). A place that cannot say its space passes the storage check (`OI-UI-KMP-11`).
+ * that identifies the person (SWR-MG-29 (c)). A place that cannot say its space passes the storage check (`OI-UI-KMP-11`).
  * A deleted file's stay at Dropbox is told to the person on the accounts screen; `files/permanently_delete` is "only available for Dropbox
  * Business apps" (`files.stone`).
  *

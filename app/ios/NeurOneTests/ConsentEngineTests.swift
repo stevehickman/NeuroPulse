@@ -357,7 +357,7 @@ final class ConsentEngineTests: XCTestCase {
         let earlier = now.addingTimeInterval(-86_400)
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
-            tier: .assess, grantedAt: now,
+            tier: .assess, grantedAt: now, expiresAt: now.addingTimeInterval(30 * 86_400),
             accessScopes: [
                 ConsentEngine.initialAccessScope(
                     useCaseIDs: ["eeg_review"], tier: .assess,
@@ -366,27 +366,26 @@ final class ConsentEngineTests: XCTestCase {
             ],
             useCaseIDs: ["eeg_review"]
         )
-        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: earlier).isEmpty,
+        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: earlier, on: now).isEmpty,
                       "A forward-only initial grant must show nothing from before it was made.")
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: now), grant.approvedElements)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: now, on: now), grant.approvedElements)
         XCTAssertEqual(grant.forwardOnlyElements, grant.approvedElements)
     }
 
     /// A grant written before `OI-CONSENT-04`/`-06` keeps meaning what it meant: the tier's
     /// elements, from the grant date, prior data included.
     // @verifies REQ-CONSENT-16#c
-    func testPreWorkflowGrantStillFallsBackToTheTier() {
+    func testAGrantWithNoUseCasesOrScopesFallsBackToTheTierGoingForwardOnly() {
         let now = Date()
         let legacy = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Ada Okafor", clinicianOrganization: "Bay Clinic",
-            tier: .assess, grantedAt: now
+            tier: .assess, grantedAt: now, expiresAt: now.addingTimeInterval(30 * 86_400)
         )
         XCTAssertNil(legacy.useCaseIDs)
         XCTAssertEqual(legacy.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(
-            legacy.elementsVisible(forDataRecordedAt: now.addingTimeInterval(-86_400)),
-            ClinicianUseCaseTier.assess.uhdrElements,
-            "Introducing the workflow must not silently re-scope a grant made before it."
+        XCTAssertTrue(
+            legacy.elementsVisible(forDataRecordedAt: now.addingTimeInterval(-86_400), on: now).isEmpty,
+            "Nobody was asked the history question, so earlier sessions stay out of reach."
         )
     }
 

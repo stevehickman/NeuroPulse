@@ -32,7 +32,18 @@ class ProtectedStorage private constructor(
     val state: StorageProtection,
     /** The sealing store, or null unless [state] is [StorageProtection.SEALED]: what the clear's key destruction acts on. */
     val sealing: EncryptedKeyValueStore?,
+    /** The keys [store] keeps off the disk in the clear on this run: sealed ([StorageProtection.SEALED]) or held in memory ([StorageProtection.LOCKED]). Null is every key (the all-in-memory run); empty when [StorageProtection.UNSEALED]. */
+    private val keptFromTheClear: Set<String>?,
 ) {
+    /**
+     * Whether a value written under [key] through [store] on this run can never land on disk in the clear: the key is sealed at rest
+     * ([StorageProtection.SEALED]) or held in memory for the run ([StorageProtection.LOCKED]). False for every key of an
+     * [StorageProtection.UNSEALED] run, and for a key that is not on the protected list. A store of secrets asks this before it is
+     * built (`SWR-MG-19` (l)), so the requirement is checked where the state is known and not left to the caller's comment.
+     */
+    fun keepsFromTheClear(key: String): Boolean =
+        state != StorageProtection.UNSEALED && (keptFromTheClear == null || key in keptFromTheClear)
+
     companion object {
         /**
          * @param host the host's own durable store.
@@ -62,21 +73,21 @@ class ProtectedStorage private constructor(
             // neither read the host's store (a sealed value would read as text) nor write to it (a UHDR value would land in the
             // clear over the sealed one). The whole run is held in memory and the host's store is left exactly as it is. The
             // ungated [open] keeps the host's store in this case; a gated install must not (`REQ-PRES-09` (b)).
-            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null)
+            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null, null)
             val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
             val uhdrKeys = all - deviceKeys
             // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
             // is written in the clear. It never falls back to the ungated or unsealed store, which would lower the protection UHDR has
             // (`CLAUDE.md` §5.1, `REQ-PRES-09`).
             val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
-                ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null)
+                ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null, all)
             val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
-            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr)
+            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all)
         }
 
         private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
             val keys = runCatching(protectedKeys).getOrNull()
-                ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null)
+                ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null, emptySet())
             if (secrets != null) {
                 val sealing = runCatching {
                     // Building the store does not touch the keystore when there is nothing plain to seal, so ask it once here: a
@@ -87,12 +98,12 @@ class ProtectedStorage private constructor(
                     secrets.load()
                     EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
                 }.getOrNull()
-                if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing)
+                if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing, keys)
             }
             return if (holdsSealedValue(host, keys)) {
-                ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, keys, removeStaleFromInner = false), StorageProtection.LOCKED, null)
+                ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, keys, removeStaleFromInner = false), StorageProtection.LOCKED, null, keys)
             } else {
-                ProtectedStorage(host, StorageProtection.UNSEALED, null)
+                ProtectedStorage(host, StorageProtection.UNSEALED, null, emptySet())
             }
         }
 

@@ -44,6 +44,7 @@ class CloudAccountsScreenTest {
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
+            override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore() // a host that seals: the vault needs one (SWR-MG-19 (l))
             override val httpTransport: HttpTransport? = if (!withCloud) null else object : HttpTransport {
                 override suspend fun post(request: HttpRequest) =
                     if ("revoke" in request.url) HttpResponse(200, emptyMap(), ByteArray(0))

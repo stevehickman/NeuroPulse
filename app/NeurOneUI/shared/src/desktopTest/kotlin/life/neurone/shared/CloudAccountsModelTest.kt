@@ -50,8 +50,8 @@ class CloudAccountsModelTest {
         }
     }
 
-    private fun model(fakes: Fakes, kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), config: CloudAuthConfig = CloudAuthConfig(google = google, microsoft = microsoft)) =
-        CloudAccountsModel(CloudAuth(fakes.transport, CredentialStore(kv), config, fakes.launcher))
+    private fun model(fakes: Fakes, vault: CredentialStore = CredentialStore.inMemory(), config: CloudAuthConfig = CloudAuthConfig(google = google, microsoft = microsoft)) =
+        CloudAccountsModel(CloudAuth(fakes.transport, vault, config, fakes.launcher))
 
     // @verifies SWR-MG-20#a
     @Test fun every_service_is_listed_and_only_those_the_build_is_registered_for_can_sign_in() = runTest {
@@ -119,8 +119,7 @@ class CloudAccountsModelTest {
     // @verifies SWR-MG-20#b
     @Test fun a_sign_in_the_provider_refused_is_signed_in_again_keeping_the_account() = runTest {
         val f = Fakes()
-        val kv = InMemoryKeyValueStore()
-        val auth = CloudAuth(f.transport, CredentialStore(kv), CloudAuthConfig(google = google), f.launcher)
+        val auth = CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google), f.launcher)
         val m = CloudAccountsModel(auth)
         m.refresh()
         m.signIn(CloudService.GOOGLE_DRIVE)
@@ -224,10 +223,12 @@ class CloudAccountsModelTest {
 
     // @verifies SWR-MG-20#e
     @Test fun an_unreadable_store_is_reported_and_never_overwritten() = runTest {
-        val kv = InMemoryKeyValueStore()
+        // Sealed storage, as the app opens it: the value is written and read back through the sealing.
+        val storage = life.neurone.core.common.ProtectedStorage.open(InMemoryKeyValueStore(), life.neurone.core.common.InMemorySecretKeyStore()) { setOf(CredentialStore.KEY) }
+        val kv = storage.store
         kv.putString(CredentialStore.KEY, "this is not json")
         val f = Fakes()
-        val m = model(f, kv)
+        val m = model(f, CredentialStore.over(storage)!!)
         m.refresh()
         assertEquals(CloudNoticeKind.UNREADABLE, m.notice.value?.kind)
         assertEquals(CloudService.values().size, m.rows.value.size, "the list is still drawn")
@@ -256,10 +257,10 @@ class CloudAccountsModelTest {
         assertNull(m.busy.value)
     }
 
-    // @verifies SWR-MG-28#d
+    // @verifies SWR-MG-29#d
     @Test fun replacing_a_credential_the_provider_cannot_end_says_the_earlier_one_may_still_work() = runTest {
         val f = Fakes()
-        val auth = CloudAuth(f.transport, CredentialStore(InMemoryKeyValueStore()), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
+        val auth = CloudAuth(f.transport, CredentialStore.inMemory(), CloudAuthConfig(google = google, microsoft = microsoft), f.launcher)
         val m = CloudAccountsModel(auth)
         m.refresh()
 
@@ -286,7 +287,7 @@ class CloudAccountsModelTest {
         assertEquals(CloudNoticeKind.REPLACED_NOT_REVOKED, m.notice.value?.kind)
     }
 
-    // @verifies SWR-MG-28#d
+    // @verifies SWR-MG-29#d
     @Test fun only_a_signed_in_onedrive_or_dropbox_row_says_it_keeps_deleted_files() = runTest {
         val m = model(Fakes())
         m.refresh()

@@ -42,7 +42,7 @@ import life.neurone.core.platform.toHex
  * The identity of the person is never requested (no `openid`, `email` or `profile` scope, and not Dropbox's `account_info.read`): NeurOne needs a
  * grant to a folder, not to know who holds it, and an account is shown by the local id, which the host may label with whatever the person types.
  *
- * **A credential that leaves this install is ended at the provider where the provider has a call for it** (SWR-MG-28 (d)): at [signOut], when a
+ * **A credential that leaves this install is ended at the provider where the provider has a call for it** (SWR-MG-29 (d)): at [signOut], when a
  * sign-in replaces an earlier one ([signIn] with `replacing`; the earlier grant is revoked **before** the browser opens, because Google's page says a
  * revocation ends every token of the project's grant, so revoking afterwards could end the new one), and at [signOutAll] for an erase. Where
  * there is no call (Microsoft, Apple, and every credential the person typed), or it fails, the result says so and the host tells the person.
@@ -130,7 +130,7 @@ class CloudAuth(
             checkRedirect(family = AccountFamily.GOOGLE, c.redirectUri)
             OAuthEndpoints(
                 "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token",
-                "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.clientSecret,
+                "https://oauth2.googleapis.com/revoke", c.clientId, c.redirectUri, c.secretForTokenCalls,
             )
         }
         AccountFamily.MICROSOFT -> {
@@ -247,7 +247,7 @@ class CloudAuth(
         if (body?.get("serverErrorCode")?.jsonPrimitive?.contentOrNull != "AUTHENTICATION_REQUIRED" || signInUrl == null) {
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit did not ask for sign-in (status ${probe.status})")
         }
-        // The sign-in page is an address the reply named: opened only when it is https (SWR-MG-28 (b)). The message does not hold it.
+        // The sign-in page is an address the reply named: opened only when it is https (SWR-MG-29 (b)). The message does not hold it.
         if (!signInUrl.startsWith("https://")) throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit named a sign-in page that is not an https address")
         val back = launcher.authorize(signInUrl, c.signInCallbackUri)
         if (!back.startsWith(c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")

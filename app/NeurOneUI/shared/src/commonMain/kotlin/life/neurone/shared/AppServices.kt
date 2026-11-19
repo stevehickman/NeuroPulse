@@ -161,19 +161,33 @@ class AppServices(
     val analyticsErasureQueue = AnalyticsErasureQueue(keyValueStore, platform.httpTransport) { platform.analyticsConfig?.baseUrl }
 
     /**
-     * Sign-in to the cloud providers and the credentials it returns (SWR-MG-19), or null on a host that lacks either half: [PlatformServices.httpTransport]
-     * to reach the providers with, or an [PlatformServices.authorizationLauncher] to show their pages with (the browser has no transport, so it has none).
-     * The credentials are kept in [keyValueStore], where `np.cloud.accounts` is a sealed key (SWR-MG-16), and never move in a migration (SWR-MG-01).
-     * [cloudAuthConfig] is the build's provider registrations; a provider it does not hold fails its sign-in with NOT_CONFIGURED. Nothing offers a
-     * sign-in to the person yet.
+     * Where the cloud credentials are kept, or null on a run whose storage would keep them in the clear (`SWR-MG-19` (l), `OI-PRIV-14`):
+     * [CredentialStore.over] answers only for sealed storage, or for a locked run that holds them in memory until the app closes. Asked on
+     * every host, sign-in or not, because asking is also what removes a credential an earlier run left in the clear.
+     */
+    private val cloudCredentials: life.neurone.core.cloudauth.CredentialStore? = life.neurone.core.cloudauth.CredentialStore.over(protectedStorage)
+
+    /**
+     * True when this host could sign in to a cloud provider and this run has nowhere protected to keep what a sign-in returns, so
+     * [cloudAuth] is null. Settings says so in place of the cloud accounts button.
+     */
+    val cloudUnavailableUnprotected: Boolean =
+        platform.httpTransport != null && platform.authorizationLauncher != null && cloudCredentials == null
+
+    /**
+     * Sign-in to the cloud providers and the credentials it returns (SWR-MG-19), or null on a host that lacks any of three things:
+     * [PlatformServices.httpTransport] to reach the providers with, an [PlatformServices.authorizationLauncher] to show their pages with
+     * (the browser has no transport, so it has none), or protected storage to keep the credentials in ([cloudCredentials]). The credentials
+     * are sealed at rest under `np.cloud.accounts` (SWR-MG-16) and never move in a migration (SWR-MG-01); on a locked run they are held in
+     * memory and forgotten when the app closes. [cloudAuthConfig] is the build's provider registrations; a provider it does not hold fails
+     * its sign-in with NOT_CONFIGURED.
      */
     val cloudAuth: life.neurone.core.cloudauth.CloudAuth? = run {
         val transport = platform.httpTransport
         val launcher = platform.authorizationLauncher
-        if (transport == null || launcher == null) null
-        else life.neurone.core.cloudauth.CloudAuth(
-            transport, life.neurone.core.cloudauth.CredentialStore(keyValueStore), cloudAuthConfig, launcher, redirectPlatform = platform.redirectPlatform,
-        )
+        val vault = cloudCredentials
+        if (transport == null || launcher == null || vault == null) null
+        else life.neurone.core.cloudauth.CloudAuth(transport, vault, cloudAuthConfig, launcher, redirectPlatform = platform.redirectPlatform)
     }
 
     /** The cloud accounts screen's state and actions, or null where there is no [cloudAuth] (SWR-MG-20). */
@@ -324,7 +338,7 @@ class AppServices(
         platform.endRunAfterErase?.let {
             life.neurone.shared.migration.EraseDeviceModel(
                 platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
-                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-28 (d)); anything but a confirmation is told to the person.
+                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-29 (d)); anything but a confirmation is told to the person.
                 endCloudAccess = cloudAuth?.let { auth -> { auth.signOutAll().any { it.second != life.neurone.core.cloudauth.Revocation.REVOKED } } },
             )
         }
