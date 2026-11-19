@@ -250,14 +250,15 @@ struct ConsentDashboardView: View {
         return "DASHBOARD_PER_CATEGORY"
     }
 
-    /// What stopped, when, and where to undo it. The date is the user's own record of a decision
-    /// they made; it is shown to them and goes nowhere else.
+    /// What stopped, when, and where to undo it. The day is the user's own record of a decision
+    /// they made; it is shown to them and goes nowhere else. It is the day of the withdrawal mark,
+    /// "yyyy-MM-dd": the record holds a day and a count, and no instant to format (`REQ-CONSENT-24`).
     private var withdrawnNotice: String {
-        guard let withdrawnAt = consentStore.researchConsent.blanketConsentWithdrawnAt else {
+        guard let mark = consentStore.researchConsent.blanketConsentWithdrawnAt else {
             return String(localized: "DASHBOARD_RESEARCH_STOPPED")
         }
         return String(format: String(localized: "DASHBOARD_RESEARCH_STOPPED_FORMAT"),
-                      withdrawnAt.formatted(.dateTime.month().day().year()))
+                      WithdrawalMark.dayOf(mark))
     }
 
     private var researchConsentSummaryRow: some View {
@@ -310,12 +311,15 @@ struct ConsentDashboardView: View {
 
     /// The open invitations the person can answer now. One the current consent does not cover is left out: the
     /// store refuses to accept it (`REQ-CONSENT-19` d), and it is answerable again if they consent again. While
-    /// a stored consent record is unreadable none is offered, for the same reason (`REQ-CONSENT-20`).
+    /// a stored consent record is unreadable none is offered, for the same reason (`REQ-CONSENT-20`). One whose
+    /// descriptor has expired is left out too: the store refuses that as well (`REQ-CONSENT-09` i).
     private var answerableInvitations: [StudyInvitation] {
         guard !consentStore.consentRecordUnreadable else { return [] }
         let consent = consentStore.researchConsent
+        let today = Date()
         return consentStore.pendingInvitations.filter {
             $0.isOpen && ConsentEngine.covers(consent, categories: $0.researchCategories)
+                && ConsentEngine.notExpired($0.expiresAt, on: today)
         }
     }
 

@@ -202,6 +202,111 @@ enum ContactFrequency: String, CaseIterable, Codable {
     }
 }
 
+/// Every character of `text` is one of the ASCII digits. True of the empty string.
+private func isAllDigits(_ text: String) -> Bool {
+    text.utf8.allSatisfy { $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }
+}
+
+/// How the person asked to be reached about research (§6.2 L1): the two channels the L1 screen names.
+enum ContactChannel: String, Codable {
+    case email, phone
+}
+
+/// A research contact method the app can use: a channel and a value in that channel's form
+/// (`REQ-CONSENT-23`). The L1 field takes "email or phone", so the channel is read from what was typed.
+///
+/// It used to be stored as whatever was typed, so the field could hold anything, including text about
+/// the person's health, and L1 could be on with nothing in it (`OI-PRIV-06` point 8).
+struct ResearchContact: Equatable {
+    var channel: ContactChannel
+    var value: String
+
+    /// RFC 5321 §4.5.3.1.3: a path is at most 256 octets with its angle brackets, so an address is at most 254.
+    private static let maxEmailLength = 254
+
+    /// ITU-T E.164: an international number has at most 15 digits.
+    private static let maxPhoneDigits = 15
+
+    private static let phoneSeparators: Set<Character> = [" ", "-", "(", ")", "."]
+
+    /// `text` as a contact, or nil if it is neither an email address nor a phone number. An address has
+    /// one `@`, something before it, a dotted domain after it and no whitespace. A number is digits with
+    /// an optional leading `+`, once spaces, hyphens, dots and brackets are dropped; it is stored without
+    /// them.
+    static func parse(_ text: String) -> ResearchContact? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let at = trimmed.firstIndex(of: "@") {
+            let local = trimmed[..<at]
+            let domain = trimmed[trimmed.index(after: at)...]
+            let labels = domain.split(separator: ".", omittingEmptySubsequences: false)
+            // Length in UTF-16 units, which is what Kotlin's `length` counts.
+            let usable = trimmed.utf16.count <= maxEmailLength && !trimmed.contains(where: \.isWhitespace)
+                && !local.isEmpty && domain.firstIndex(of: "@") == nil
+                && labels.count >= 2 && labels.allSatisfy { !$0.isEmpty }
+            return usable ? ResearchContact(channel: .email, value: trimmed) : nil
+        }
+        let compact = trimmed.filter { !phoneSeparators.contains($0) }
+        let digits = compact.hasPrefix("+") ? String(compact.dropFirst()) : compact
+        let usable = !digits.isEmpty && digits.utf8.count <= maxPhoneDigits && isAllDigits(digits)
+        return usable ? ResearchContact(channel: .phone, value: compact) : nil
+    }
+}
+
+/// When a consent was last withdrawn: the day, and how many times that one decision has been withdrawn,
+/// as `yyyy-MM-dd#NNNNNN` (`REQ-CONSENT-24`, `SWR-MG-04`).
+///
+/// A withdrawal has to be ordered against another withdrawal of the same decision, on this phone or on
+/// the person's other one, and nothing else. A day and a count do that: the text orders by day and then
+/// by count, the count travels in a migration bundle so the two phones count the same decision, and two
+/// equal marks mean both sides already stopped. It used to be a `Date`, an instant, which is finer time
+/// than the decision needs (`OI-PRIV-06` point 7).
+enum WithdrawalMark {
+    private static let countDigits = 6
+    private static let maxCount = 999_999
+
+    /// The mark for a withdrawal on `today`, after `previous` (the mark this decision already holds, if any).
+    static func next(previous: String?, today: String) -> String {
+        let held = previous.map(countOf) ?? 0
+        let count = held >= maxCount ? maxCount : held + 1
+        let digits = String(count)
+        return today + "#" + String(repeating: "0", count: max(0, countDigits - digits.count)) + digits
+    }
+
+    static func dayOf(_ mark: String) -> String {
+        guard let hash = mark.firstIndex(of: "#") else { return mark }
+        return String(mark[..<hash])
+    }
+
+    static func countOf(_ mark: String) -> Int {
+        Int(countText(mark)) ?? 0
+    }
+
+    /// `mark` has the one form that orders as text: a real day, `#`, and a six-digit count above zero.
+    static func isValid(_ mark: String) -> Bool {
+        let count = countText(mark)
+        return isDay(dayOf(mark)) && count.utf8.count == countDigits && isAllDigits(count) && (Int(count) ?? 0) > 0
+    }
+
+    /// What follows the first `#`, or the empty string if there is none.
+    private static func countText(_ mark: String) -> String {
+        guard let hash = mark.firstIndex(of: "#") else { return "" }
+        return String(mark[mark.index(after: hash)...])
+    }
+
+    /// `day` is a real calendar day written "yyyy-MM-dd". Checked on the text and the Gregorian month
+    /// lengths, with no `Calendar`, so a device's calendar or locale cannot change the answer.
+    private static func isDay(_ day: String) -> Bool {
+        let parts = day.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 3, parts.map(\.utf8.count) == [4, 2, 2], parts.allSatisfy(isAllDigits),
+              let year = Int(parts[0]), let month = Int(parts[1]), let dayOfMonth = Int(parts[2]),
+              (1...12).contains(month)
+        else { return false }
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+        let lengths = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        return (1...lengths[month - 1]).contains(dayOfMonth)
+    }
+}
+
 // MARK: - Research consent layers (CLAUDE.md §6.2)
 
 /// The four consent layers. Layers are not screens: since CLAUDE.md Rev 37 they are presented
@@ -215,7 +320,12 @@ enum ContactFrequency: String, CaseIterable, Codable {
 struct ResearchConsentState: Codable {
     // L1: Contact consent
     var contactConsentGranted: Bool = false
+    /// The contact method, in the form `ResearchContact.parse` stores, or empty. `ConsentStore` writes it
+    /// with `contactChannel`: a commit with L1 on and no usable method does not turn L1 on, and turning L1
+    /// off erases the method (`REQ-CONSENT-23`).
     var contactMethod: String = ""
+    /// Optional, so a record stored without the key still decodes.
+    var contactChannel: ContactChannel? = nil
     var contactFrequency: ContactFrequency = .monthly
     var isPOAHolder: Bool = false
     // `poaUploadedAt` and `poaVerifiedAt` were here with no reader and no writer (`OI-PRIV-06` point 8); the POA
@@ -231,7 +341,11 @@ struct ResearchConsentState: Codable {
     // L3: Blanket consent
     var blanketConsentGranted: Bool = false
     var blanketConsentGrantedAt: Date? = nil
-    /// When the user last withdrew blanket consent. `nil` means they never have.
+    /// The `WithdrawalMark` (day and count, `yyyy-MM-dd#NNNNNN`) of the user's last withdrawal of blanket
+    /// consent. `nil` means they never have.
+    ///
+    /// The five withdrawal fields of this type were `Date`s. Nothing was ever deployed, so no record in that
+    /// form is stored anywhere and none is read (`REQ-CONSENT-24`).
     ///
     /// **"Never asked" and "said stop" are different states, and §6.0 treats them differently.**
     /// `blanketConsentGranted == false` is true of both, so the flag alone cannot tell them apart
@@ -240,22 +354,22 @@ struct ResearchConsentState: Codable {
     /// nothing else: the consent UI commits a whole `ResearchConsentState` and cannot see a
     /// transition, and a screen able to clear this could erase the record of the user having
     /// said stop.
-    var blanketConsentWithdrawnAt: Date? = nil
+    var blanketConsentWithdrawnAt: String? = nil
 
     // L4: Results + community
     var resultsOptIn: Bool = false
     var suggestionPortalOptIn: Bool = false
 
-    /// When each of these was last withdrawn, or `nil` if it never was (`SWR-MG-04`). Like
-    /// `blanketConsentWithdrawnAt` they are the store's to set on a true→false transition and nothing
+    /// The `WithdrawalMark` of each one's last withdrawal, or `nil` if it never was withdrawn (`SWR-MG-04`).
+    /// Like `blanketConsentWithdrawnAt` they are the store's to set on a true→false transition and nothing
     /// else's, and a later re-grant does not clear them: a withdrawal is a record that stays. They let a
-    /// restore carry "said stop" to another phone, where the later time wins and a grant is never added.
-    var contactConsentWithdrawnAt: Date? = nil
-    var resultsOptInWithdrawnAt: Date? = nil
-    var suggestionPortalOptInWithdrawnAt: Date? = nil
+    /// restore carry "said stop" to another phone, where the later mark wins and a grant is never added.
+    var contactConsentWithdrawnAt: String? = nil
+    var resultsOptInWithdrawnAt: String? = nil
+    var suggestionPortalOptInWithdrawnAt: String? = nil
     /// Per research category, by `ResearchCategory.rawValue` (the wire name, which is the id the other
     /// apps use too). Optional only so a record saved before this existed still decodes.
-    var categoryWithdrawnAt: [String: Date]? = nil
+    var categoryWithdrawnAt: [String: String]? = nil
 
     var hasAnyResearchConsent: Bool {
         contactConsentGranted || blanketConsentGranted ||
@@ -404,6 +518,12 @@ struct StudyDescriptor: Codable, Equatable {
     var kAnonymity: Int
     var dateRoundingDays: Int
     var issuedAt: Date
+    /// The end of the time the device may act on this descriptor, set and signed by the issuer. Its day (the
+    /// UTC day the signature covers, as for `issuedAt`) is the last day: after it the descriptor is refused
+    /// and an invitation made from it can no longer be accepted (`REQ-CONSENT-09` i). The issuer sets it
+    /// because how long a study recruits is the study's fact; a maximum age chosen on the device would be a
+    /// number with no derivation (`OI-PRIV-06` point 5).
+    var expiresAt: Date
     /// Detached signature over the canonical descriptor bytes. Never parsed here: it is the
     /// verifier's input, and nothing derived from an unverified descriptor may reach the user.
     var signature: String
@@ -459,6 +579,9 @@ enum StudyDescriptorAdmission: Equatable {
         /// k < 10 or date rounding < 1 week (§5.3). A study whose anonymisation is below the
         /// locked floor is not one the user may be asked to consent to.
         case anonymisationBelowFloor
+        /// The descriptor's expiry day has passed, or is before its issue day (`REQ-CONSENT-09` i). An
+        /// issuer's undertaking does not stand for ever.
+        case descriptorExpired
         /// L1 is the shared precondition for every delivery path, invitations and engagement
         /// notifications alike (§6.2.1).
         case noContactConsent
@@ -501,6 +624,8 @@ struct StudyInvitation: Codable, Identifiable, Equatable {
     var dateRoundingDays: Int
     var posture: Posture
     var receivedAt: Date
+    /// The descriptor's expiry. Nil only on an invitation stored before descriptors carried one.
+    var expiresAt: Date?
     var decision: StudyDecision?
 
     /// **Which question the device is putting to the user, and what silence means.**

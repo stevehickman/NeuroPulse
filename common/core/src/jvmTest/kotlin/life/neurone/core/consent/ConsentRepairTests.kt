@@ -165,7 +165,7 @@ class ConsentRepairTests {
         store.ingestStudyDescriptor(study("A", ResearchCategory.DEPRESSION))
 
         store.applyWithdrawals(
-            buildJsonObject { put("blanketConsentWithdrawnAt", "2099-01-01T00:00:00Z") },
+            buildJsonObject { put("blanketConsentWithdrawnAt", "2099-01-01#000001") },
         )
 
         assertTrue(store.active().isEmpty())
@@ -596,6 +596,23 @@ class ConsentRepairTests {
         assertEquals("2026-03-01#000001", store.researchConsent.blanketConsentWithdrawnAt)
         assertTrue(WithdrawalMark.isValid("2026-03-01#000001"))
         assertFalse(WithdrawalMark.isValid("2026-03-01T10:15:30Z"), "an instant is not a mark")
+    }
+
+    // @verifies REQ-CONSENT-24#a
+    @Test
+    fun aRestoreTakesOnlyWellFormedMarks() {
+        val store = onDays()
+        store.updateResearchConsent(blanket)
+
+        store.applyWithdrawals(
+            buildJsonObject {
+                put("blanketConsentWithdrawnAt", "2099-01-01T00:00:00Z")
+                put("studyWithdrawals", buildJsonObject { put("S-1", "yesterday"); put("S-2", "2026-01-20#000001") })
+            },
+        )
+
+        assertTrue(store.researchConsent.blanketConsentGranted, "an instant is not a mark, so it withdraws nothing")
+        assertEquals(mapOf("S-2" to "2026-01-20#000001"), store.studyWithdrawals)
     }
 
     // @verifies REQ-CONSENT-24#b

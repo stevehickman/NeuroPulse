@@ -24,6 +24,9 @@ final class StudyDescriptorSigningTests: XCTestCase {
     /// 2026-09-14T00:00:00Z, so the day rendering is unambiguous.
     private let issued = Date(timeIntervalSince1970: 1_789_344_000)
 
+    /// 2026-12-14T00:00:00Z.
+    private let expires = Date(timeIntervalSince1970: 1_797_206_400)
+
     private func descriptor(
         studyID: String = "NP-STUDY-2026-014",
         studyTitle: String = "Sleep onset latency under 810 nm PBM",
@@ -37,7 +40,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         StudyDescriptor(
             studyID: studyID, studyTitle: studyTitle, researchCategories: categories,
             requestedElements: elements, kAnonymity: k, dateRoundingDays: rounding,
-            issuedAt: issuedAt ?? issued, signature: signature
+            issuedAt: issuedAt ?? issued, expiresAt: expires, signature: signature
         )
     }
 
@@ -64,7 +67,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
         XCTAssertEqual(
             String(decoding: bytes, as: UTF8.self),
             """
-            NP-STUDY-DESCRIPTOR-V1
+            NP-STUDY-DESCRIPTOR-V2
             2:S1
             5:Trial
             15:Sleep Disorders
@@ -72,6 +75,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
             2:10
             1:7
             10:2026-09-14
+            10:2026-12-14
 
             """
         )
@@ -141,6 +145,7 @@ final class StudyDescriptorSigningTests: XCTestCase {
             { (d: inout StudyDescriptor) in d.kAnonymity = 1 },
             { (d: inout StudyDescriptor) in d.dateRoundingDays = 0 },
             { (d: inout StudyDescriptor) in d.issuedAt = d.issuedAt.addingTimeInterval(86_400) },
+            { (d: inout StudyDescriptor) in d.expiresAt = d.expiresAt.addingTimeInterval(365 * 86_400) },
         ] {
             var copy = base
             mutate(&copy)

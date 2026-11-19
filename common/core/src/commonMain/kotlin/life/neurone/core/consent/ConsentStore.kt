@@ -507,7 +507,17 @@ class ConsentStore(
      * grant on.
      */
     fun applyWithdrawals(value: JsonElement) {
-        val incoming = value.jsonObject
+        // Only well-formed marks are taken from a bundle. Anything else would be stored as received and would
+        // order against real marks by accident of its text (`REQ-CONSENT-24` a).
+        val incoming = buildJsonObject {
+            value.jsonObject.forEach { (key, held) ->
+                if (held is JsonObject) {
+                    put(key, buildJsonObject { recoveredMarks(held).forEach { (id, mark) -> put(id, mark) } })
+                } else {
+                    recoveredMarks(JsonObject(mapOf(key to held)))[key]?.let { put(key, it) }
+                }
+            }
+        }
         // Which withdrawals are later than the ones held here is the core's to say (`applyWithdrawal`), so every platform
         // applies a restore the same way. This store only switches the matching grants off and records the times.
         val verdict = NppsCore.migration(
