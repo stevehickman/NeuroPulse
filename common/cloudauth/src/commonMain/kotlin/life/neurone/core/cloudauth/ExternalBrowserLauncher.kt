@@ -19,21 +19,24 @@ import kotlinx.coroutines.CompletableDeferred
  *
  * **What it accepts.** Only an address that is the registered redirect, followed by nothing, a path, a query or a fragment. Any
  * other address is not taken (the host handles it as usual), so another app's intent cannot end a sign-in. An address that is the
- * redirect but carries a forged `code` is [CloudAuth]'s to refuse: it checks `state`, and the code cannot be redeemed without the
- * PKCE verifier that never left the app.
+ * redirect but does not carry this request's `state` (or CloudKit nonce) is not taken either when [CloudAuth] says what the answer
+ * looks like ([SelectiveAuthorizationLauncher]), so it cannot end the sign-in; [CloudAuth] checks the address again, and a code cannot
+ * be redeemed without the PKCE verifier that never left the app.
  *
  * One sign-in waits at a time. Starting a second cancels the first.
  */
-class ExternalBrowserLauncher(private val open: (String) -> Unit) : AuthorizationLauncher {
-    private class Pending(val redirectUri: String) {
+class ExternalBrowserLauncher(private val open: (String) -> Unit) : SelectiveAuthorizationLauncher {
+    private class Pending(val redirectUri: String, val isAnswer: (String) -> Boolean) {
         val answer = CompletableDeferred<String>()
         var left = false
     }
 
     private var pending: Pending? = null
 
-    override suspend fun authorize(authorizationUrl: String, redirectUri: String): String {
-        val mine = Pending(redirectUri)
+    override suspend fun authorize(authorizationUrl: String, redirectUri: String): String = authorize(authorizationUrl, redirectUri) { true }
+
+    override suspend fun authorize(authorizationUrl: String, redirectUri: String, isAnswer: (String) -> Boolean): String {
+        val mine = Pending(redirectUri, isAnswer)
         // Single-threaded by the host's main thread; the swap is before the browser opens so no answer can beat it.
         pending?.answer?.completeExceptionally(cancelled("another sign-in was started"))
         pending = mine
@@ -50,10 +53,10 @@ class ExternalBrowserLauncher(private val open: (String) -> Unit) : Authorizatio
         }
     }
 
-    /** True if this address ended a waiting sign-in; false if nothing was waiting or the address is not the redirect. */
+    /** True if this address ended a waiting sign-in; false if nothing was waiting, the address is not the redirect, or it is not this request's answer. */
     fun onRedirect(address: String): Boolean {
         val p = pending ?: return false
-        if (!isRedirect(address, p.redirectUri)) return false
+        if (!isRedirect(address, p.redirectUri) || !p.isAnswer(address)) return false
         return p.answer.complete(address)
     }
 
