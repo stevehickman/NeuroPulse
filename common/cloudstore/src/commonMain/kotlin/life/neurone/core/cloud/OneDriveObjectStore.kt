@@ -41,6 +41,13 @@ import life.neurone.core.net.HttpTransport
  * period written as `%XX`, and read back the same way, so the folder stays flat. The reserved words are **not** handled.
  *
  * **Delete** moves the file to the recycle bin (Microsoft's delete page). It stays there, as ciphertext, until the person empties it.
+ * Graph's `permanentDelete` is not used: its page (read 2026-11-18) lists `Files.ReadWrite` as its least permission and not
+ * `Files.ReadWrite.AppFolder`, so it would mean asking for the person's whole drive. The accounts screen says where a deleted file goes.
+ *
+ * **Addresses a reply names** (SWR-MG-30 (b)). The `uploadUrl` and the download `Location` must be `https`; their hosts are not pinned,
+ * because Microsoft documents none (the pages' examples are `sn3302.up.1drv.com` and `b0mpua-by3301.files.1drv.com`), and neither is sent
+ * the token. `@odata.nextLink` **is** sent the token, so it is followed only when it begins with this store's own Graph address; the paging
+ * page's example is on `graph.microsoft.com` and the page does not promise that host, so a next page elsewhere fails the list.
  * **Reads of a missing item are 404.** The folder also holds whatever the person puts in it; folders are skipped when listing.
  */
 class OneDriveObjectStore(
@@ -95,7 +102,7 @@ class OneDriveObjectStore(
             Json.parseToJsonElement(start.body.decodeToString()).jsonObject["uploadUrl"]!!.jsonPrimitive.content
         } catch (e: Exception) {
             throw CloudStoreException("upload '$name' got a reply with no uploadUrl")
-        }
+        }.let { serverUrl(it, "the upload address for '$name'") }
         var offset = 0
         while (offset < bytes.size) {
             val end = minOf(offset + chunkBytes, bytes.size)
@@ -121,7 +128,7 @@ class OneDriveObjectStore(
             200 -> r.body
             301, 302, 303, 307, 308 -> {
                 val to = r.header("Location") ?: throw CloudStoreException("get '$name' was redirected with no Location", r.status)
-                val d = send("GET", to, authorized = false)
+                val d = send("GET", serverUrl(to, "the download address for '$name'"), authorized = false)
                 if (d.status != 200) throw CloudStoreException("get '$name' download answered ${d.status}", d.status)
                 d.body
             }
@@ -158,7 +165,8 @@ class OneDriveObjectStore(
                 val decoded = objectName(o["name"]!!.jsonPrimitive.content)
                 if (decoded.startsWith(prefix)) names += decoded
             }
-            url = json["@odata.nextLink"]?.jsonPrimitive?.contentOrNull
+            // The next page is sent the person's token, so it is followed only under this store's own Graph address.
+            url = json["@odata.nextLink"]?.jsonPrimitive?.contentOrNull?.let { serverUrl(it, "the next page of the list", mustStartWith = "$baseUrl/") }
         }
         return names
     }

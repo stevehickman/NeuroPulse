@@ -345,6 +345,8 @@ class AppServices(
                 platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
                 // The analytics ID is forgotten, queued and the relay asked BEFORE the wipe deletes the only copy (`OI-PRIV-08` (1)).
                 beforeWipe = { researchAnalyticsGate.resetForErase() },
+                // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-30 (d)); anything but a confirmation is told to the person.
+                endCloudAccess = cloudAuth?.let { auth -> { auth.signOutAll().any { it.second != life.neurone.core.cloudauth.Revocation.REVOKED } } },
             )
         }
 

@@ -149,6 +149,10 @@ private fun ServiceCard(
                     }
                 }
             }
+            if (row.keepsDeletedFiles) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(Res.string.cloud_deleted_files_note, stringResource(serviceName(row.service))), style = MaterialTheme.typography.bodySmall)
+            }
             if (isSas && enteringKeys && !row.signedIn) {
                 AzureSasForm(
                     enabled = enabled,
@@ -269,7 +273,7 @@ private fun WebDavLoginForm(enabled: Boolean, onSave: (String, String, String) -
 }
 
 private fun CloudNotice.isProblem(): Boolean = when (kind) {
-    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED, CloudNoticeKind.LOGIN_SAVED, CloudNoticeKind.SAS_SAVED -> false
+    CloudNoticeKind.SIGNED_IN, CloudNoticeKind.SIGNED_OUT, CloudNoticeKind.SIGNED_OUT_NOT_REVOKED, CloudNoticeKind.REPLACED_NOT_REVOKED, CloudNoticeKind.KEYS_SAVED, CloudNoticeKind.LOGIN_SAVED, CloudNoticeKind.SAS_SAVED -> false
     else -> true
 }
 
@@ -280,6 +284,7 @@ private fun noticeText(notice: CloudNotice): String {
         CloudNoticeKind.SIGNED_IN -> stringResource(Res.string.cloud_notice_signed_in, name)
         CloudNoticeKind.SIGNED_OUT -> stringResource(Res.string.cloud_notice_signed_out, name)
         CloudNoticeKind.SIGNED_OUT_NOT_REVOKED -> stringResource(Res.string.cloud_notice_signed_out_not_revoked, name)
+        CloudNoticeKind.REPLACED_NOT_REVOKED -> stringResource(Res.string.cloud_notice_replaced_not_revoked, name)
         CloudNoticeKind.NOT_CONFIGURED -> stringResource(Res.string.cloud_notice_not_configured, name)
         CloudNoticeKind.DENIED -> stringResource(Res.string.cloud_notice_denied, name)
         CloudNoticeKind.FAILED -> stringResource(Res.string.cloud_notice_failed, name)
