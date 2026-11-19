@@ -26,6 +26,13 @@ interface BleCentralListener {
      * pairing signal; a central that cannot tell a failed read from a slow one never calls it.
      */
     fun onCharacteristicReadFailed(uuid: UUID) {}
+
+    /**
+     * A write the link refused, or one the central could not send. On an encrypted characteristic of an unpaired link this
+     * is the hub's refusal (ATT 0x0F); a central that cannot tell a refused write from one still in flight never calls it
+     * (`OI-PRIV-16`).
+     */
+    fun onCharacteristicWriteFailed(uuid: UUID) {}
 }
 
 interface BleCentral {

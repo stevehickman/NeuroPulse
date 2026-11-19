@@ -1,7 +1,7 @@
 date: 2026-11-18
 ## DHF
 author: NeurOne Software Engineering
-text: **{NP-SW-001 from → to}, {NP-SW-CLOUDSTORE-001 from → to}: a CloudKit sign-in runs only where its callback is bound to the request, `state` is checked before `error`, and a forged request no longer ends a sign-in (`OI-PRIV-13`, closed; `OI-PRIV-17` raised).**
+text: **{NP-SW-001 from → to}, {NP-SW-CLOUDSTORE-001 from → to}: a CloudKit sign-in runs only where its callback is bound to the request, `state` is checked before `error`, and a forged request no longer ends a sign-in (`OI-PRIV-13`, closed; `OI-PRIV-18` raised).**
 ## NP-SW-001
 author: NeurOne Software Engineering
 text: **§6.3 `SWR-MG-19`: (a) `state` is checked before anything else in the redirect and the provider's error text is never quoted; (f), (h) a launcher does not take a redirect that lacks this request's `state`; (n), new: a CloudKit sign-in needs a confined browser session or a verified per-request nonce, and is not offered elsewhere (`OI-PRIV-13`).**
