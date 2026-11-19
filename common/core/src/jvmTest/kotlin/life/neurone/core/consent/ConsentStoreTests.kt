@@ -1521,4 +1521,26 @@ class ConsentStoreTests {
         assertFalse(s.researchConsent.suggestionPortalOptIn)
         assertEquals(1, calls())
     }
+
+    /// The restore rule is "the later withdrawal wins, and a grant made after a withdrawal stands". Two phones
+    /// can each record a withdrawal of the same consent on one day, so the order within a day has to survive
+    /// whatever form the time is stored in (`OI-PRIV-06` point 7): if only the day were compared, the later
+    /// "stop" below would equal the one held and be dropped.
+    // @verifies SWR-MG-04
+    @Test
+    fun twoWithdrawalsOnOneDayAreOrderedByTheirTimes() {
+        val s = clocked("2026-03-01T09:00:00Z")
+        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+        s.updateResearchConsent(ResearchConsentState(contactConsentGranted = true))
+        s.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true, contactConsentGranted = true))
+
+        // Earlier the same day: older than the withdrawal held here, so the grant made after it stands.
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T08:00:00Z") })
+        assertTrue(s.researchConsent.blanketConsentGranted)
+
+        // Later the same day, on another phone: it is the later decision, and it wins.
+        s.applyWithdrawals(buildJsonObject { put("blanketConsentWithdrawnAt", "2026-03-01T17:00:00Z") })
+        assertFalse(s.researchConsent.blanketConsentGranted)
+        assertEquals("2026-03-01T17:00:00Z", s.researchConsent.blanketConsentWithdrawnAt)
+    }
 }
