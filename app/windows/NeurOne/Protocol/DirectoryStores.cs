@@ -106,7 +106,27 @@ sealed class DirectoryFileStore : IFileStore
     {
         var full = Path.GetFullPath(Path.Combine(_root, path));
         var prefix = _root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        return full.StartsWith(prefix, StringComparison.Ordinal) ? full : throw new ArgumentException($"path leaves the folder: '{path}'");
+        if (!full.StartsWith(prefix, StringComparison.Ordinal)) throw new ArgumentException($"path leaves the folder: '{path}'");
+        // The check above is lexical. A symbolic link or junction on the way would lead the overwrite to a file outside the folder,
+        // so no segment between the folder and the file may be one (OI-PRIV-10 point 3).
+        if (ThroughLink(full)) throw new ArgumentException($"path leaves the folder through a link: '{path}'");
+        return full;
+    }
+
+    /// <summary>Whether <paramref name="full"/>, a path under the folder, is a link or has a linked folder on the way to it.</summary>
+    private bool ThroughLink(string full)
+    {
+        var rootLength = _root.TrimEnd(Path.DirectorySeparatorChar).Length;
+        for (var at = full; at.Length > rootLength; at = Path.GetDirectoryName(at) ?? "")
+            if (IsLink(at)) return true;
+        return false;
+    }
+
+    /// <summary>Whether <paramref name="path"/> is itself a symbolic link or a junction. A path with nothing at it is not.</summary>
+    private static bool IsLink(string path)
+    {
+        FileSystemInfo entry = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+        return entry.LinkTarget != null;
     }
 
     public Task<IReadOnlyList<StoredFile>> ListAsync()
@@ -114,6 +134,9 @@ sealed class DirectoryFileStore : IFileStore
         if (!Directory.Exists(_root)) return Task.FromResult<IReadOnlyList<StoredFile>>([]);
         return Task.FromResult<IReadOnlyList<StoredFile>>(
             Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories)
+                // A link, or a file under a linked folder, is not a file of this folder: the clear overwrites what is listed, and
+                // must not reach through one.
+                .Where(f => !ThroughLink(f))
                 .Select(f => new StoredFile(Path.GetRelativePath(_root, f).Replace('\\', '/'), new FileInfo(f).Length))
                 .OrderBy(f => f.Path, StringComparer.Ordinal).ToList());
     }
