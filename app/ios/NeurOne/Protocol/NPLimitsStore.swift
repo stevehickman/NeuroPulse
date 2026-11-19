@@ -89,13 +89,17 @@ final class NPLimitsStore: ObservableObject {
         persist()
     }
 
-    func saveProfile(_ profile: NPIndividualProfile) {
+    /// Keep `profile`. A note over the bound is refused (false) and nothing changes (REQ-SW03-31 (b)).
+    @discardableResult
+    func saveProfile(_ profile: NPIndividualProfile) -> Bool {
+        guard profile.notes.utf16.count <= NPIndividualProfile.maxNotesLength else { return false }
         if let idx = profiles.firstIndex(where: { $0.id == profile.id }) {
             profiles[idx] = profile
         } else {
             profiles.append(profile)
         }
         persist()
+        return true
     }
 
     func deleteProfile(_ id: UUID) {
@@ -117,8 +121,11 @@ final class NPLimitsStore: ObservableObject {
 
     // MARK: NPPS import/export
 
+    /// The limits as the script a person sees, copies or sends: the share form, with no helmet serial and no individual
+    /// id (SWR-WO-07 (f)). The store keeps limits as JSON, so this is never the stored form; saving a script back into
+    /// a tier stamps the tier's own id.
     func exportLimitsAsNPPS(_ limits: NPLimitsSet) -> String {
-        NPPSSerializer().serializeLimits(limits)
+        NPPSSerializer().shareLimits(limits)
     }
 
     func importLimitsFromNPPS(_ text: String) throws -> NPLimitsSet {
@@ -232,7 +239,18 @@ final class NPLimitsStore: ObservableObject {
         // Profiles
         if fm.fileExists(atPath: Self.profilesURL.path),
            let data = try? Data(contentsOf: Self.profilesURL) {
-            profiles = (try? decoder.decode([NPIndividualProfile].self, from: data)) ?? []
+            profiles = ((try? decoder.decode([NPIndividualProfile].self, from: data)) ?? []).map { p in
+                var kept = p
+                kept.notes = NPIndividualProfile.cutNotes(p.notes)
+                return kept
+            }
+            // What is stored is reduced to what a profile has (REQ-SW03-31 (a), (c)): decoding drops a field the profile
+            // does not have (a date of birth, a creation time) and a note over the bound is cut, and the file is written
+            // back so neither stays on the device. The encoder sorts its keys, so a file that needs no change encodes
+            // to the same bytes.
+            if !profiles.isEmpty, let kept = try? makeEncoder().encode(profiles), kept != data {
+                try? kept.write(to: Self.profilesURL, options: .atomic)
+            }
         }
 
         // Active profile id

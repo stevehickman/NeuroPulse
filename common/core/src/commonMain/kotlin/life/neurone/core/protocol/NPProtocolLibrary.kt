@@ -595,8 +595,13 @@ class NPProtocolLibrary(
 
     // MARK: Script export / import
 
-    /** The script for [entry], carrying the used flag when its family is used (SWR-WO-03). The flag is not part of the content hash. */
-    fun exportScript(entry: NPProtocolEntry): String = NppsCore.serialize(listOf(flaggedItem(entry)))
+    /**
+     * The script for [entry] as an editor shows it: the entry as it is stored, with its own id, so saving the edited text
+     * replaces the entry. It carries no used flag (SWR-WO-07 (f), the principal, 2026-11-18): the text is on screen and can
+     * be copied, and whether a family is used is the library's to know ([isUsed]), not the text's. The flag is written only
+     * by [exportAllScript], the person's own backup.
+     */
+    fun exportScript(entry: NPProtocolEntry): String = NppsCore.serialize(listOf(entry.toNppsCoreItem()))
 
     private fun flaggedItem(entry: NPProtocolEntry): JsonObject {
         val item = entry.toNppsCoreItem()

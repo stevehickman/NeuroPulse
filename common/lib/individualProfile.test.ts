@@ -12,7 +12,7 @@ describe('storedProfile', () => {
   // @verifies REQ-SW03-31#a
   it('drops a field a profile does not have', () => {
     const p = storedProfile({ id: 'p1', name: 'Alex', notes: 'left chair', dateOfBirth: '1980-01-01', createdAt: '2026-01-01T00:00:00Z', diagnosis: 'x' });
-    expect(p).toEqual({ id: 'p1', name: 'Alex', notes: 'left chair', createdAt: '2026-01-01T00:00:00Z' });
+    expect(p).toEqual({ id: 'p1', name: 'Alex', notes: 'left chair' });
     expect(JSON.stringify(p)).not.toContain('1980');
   });
 

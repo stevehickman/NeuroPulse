@@ -5,7 +5,7 @@ import {
   NPIndividualProfile,
   LimitLevel,
 } from '../../../../common/types/limits';
-import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
 import { NPHardwareLimits, ProfileLimits } from '../../../../common/lib/constants.generated';
@@ -110,7 +110,6 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
       id: crypto.randomUUID(),
       name: profileName.trim(),
       notes: profileNotes.trim(),
-      createdAt: new Date().toISOString(),
     };
     if (!limitsStore.saveProfile(profile)) return;
     setShowNewProfile(false);
@@ -752,7 +751,9 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
 
   // Generate script text from current limits whenever switching to script tab
   function handleSwitchToScript() {
-    setScriptText(serializeNPPSLimits(limits));
+    // The script a person sees and can copy is the share form: no helmet serial, no individual id (SWR-WO-07 (f)).
+    // Saving it back stamps the tier's own id (limitsStore.saveHelmetLimits, saveIndividualLimits).
+    setScriptText(shareNPPSLimits(limits));
     setScriptError(null);
     setEditorTab('script');
   }

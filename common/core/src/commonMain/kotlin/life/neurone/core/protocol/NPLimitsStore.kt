@@ -186,12 +186,13 @@ class NPLimitsStore(
 
     // MARK: NPPS import / export
 
-    /** [limits] in full, with the helmet serial or individual id it belongs to: the form the store keeps and the tier editor edits. */
+    /** [limits] in full, with the helmet serial or individual id it belongs to: the form the store keeps. */
     fun exportLimitsAsNPPS(limits: NPLimitsSet): String = NPPSSerializer().serializeLimits(limits)
 
     /**
      * [limits] as a file for someone else (SWR-WO-07): the level is kept and the helmet serial and individual id are not
-     * written, so the file names no helmet and no person. The recipient attaches it to the tier they open it in.
+     * written, so the file names no helmet and no person. The recipient attaches it to the tier they open it in. It is also
+     * the script the tier editor shows (SWR-WO-07 (f)): saving a script back into a tier attaches it to that tier again.
      */
     fun shareLimitsAsNPPS(limits: NPLimitsSet): String =
         NppsCore.serializeShare(listOf(NPProtocolEntry.Limits(limits).toNppsCoreItem()), randomBytes(32))

@@ -66,7 +66,7 @@ describe('the React app keeps nothing in the browser', () => {
       value: { getItem: spy, setItem: spy, removeItem: spy, clear: spy, key: spy, length: 0 },
     });
     try {
-      limitsStore.saveProfile({ id: 'p1', name: 'Alice', notes: 'n', createdAt: new Date().toISOString() });
+      limitsStore.saveProfile({ id: 'p1', name: 'Alice', notes: 'n' });
       limitsStore.saveGlobalLimits(limitsStore.resolvedLimits);
       const lib = new ProtocolLibrary();
       expect(lib.saveUserProtocol(entry('a')).kind).toBe('saved');
@@ -122,9 +122,9 @@ describe('the protocol backup file', () => {
   // @verifies REQ-SW03-31#b
   it('the limits store refuses a profile note over the bound and keeps no field a profile does not have', () => {
     const over = 'x'.repeat(ProfileLimits.PROFILE_NOTES_MAX_CHARS + 1);
-    expect(limitsStore.saveProfile({ id: 'p2', name: 'Sam', notes: over, createdAt: '' })).toBe(false);
+    expect(limitsStore.saveProfile({ id: 'p2', name: 'Sam', notes: over })).toBe(false);
     expect(limitsStore.profiles.some(p => p.id === 'p2')).toBe(false);
-    const extra = { id: 'p3', name: 'Alex', notes: 'left chair', createdAt: '', dateOfBirth: '1980-01-01' };
+    const extra = { id: 'p3', name: 'Alex', notes: 'left chair', createdAt: '2026-01-01T00:00:00Z', dateOfBirth: '1980-01-01' };
     try {
       expect(limitsStore.saveProfile(extra)).toBe(true);
       expect(JSON.stringify(limitsStore.profiles.find(p => p.id === 'p3'))).not.toContain('1980');
