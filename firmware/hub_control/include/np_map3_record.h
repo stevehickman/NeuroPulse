@@ -86,6 +86,10 @@
  * none straddles one (NP-FW-NVRAM-001 §4.2(b) requirement 1).  A 40-byte row would straddle.  Header 2 + the v1
  * fields 26 + the two 32-bit counts 8 + 24 reserved + CRC 4. */
 #define NP_MAP3_V2_BYTES         64U
+/* The program unit is the NAND's (NP-FW-NVRAM-001 §3.3.1.5: 256 B), so it is the foundational value and the row sizes are held to it. */
+#define NP_MAP3_PROGRAM_UNIT_BYTES 256U
+_Static_assert(NP_MAP3_PROGRAM_UNIT_BYTES % NP_MAP3_V1_BYTES == 0U, "a version-1 row would straddle a program unit");
+_Static_assert(NP_MAP3_PROGRAM_UNIT_BYTES % NP_MAP3_V2_BYTES == 0U, "a version-2 row would straddle a program unit");
 #define NP_MAP3_V2_FIELDS_END    60U   /* first byte after the v2 fields */
 #define NP_MAP3_CRC_BYTES        4U
 

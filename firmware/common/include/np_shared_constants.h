@@ -34,6 +34,14 @@
 #define NP_SAFETY_HEARTBEAT_MS      200U   /* main processor heartbeat period */
 #define NP_SAFETY_WATCHDOG_MS       1500U  /* safety MCU watchdog; cutoff on expiry */
 
+/* ── tDCS ramp ──────────────────────────────────────────────────────────── */
+/* The hardware-enforced minimum tDCS ramp (CLAUDE.md §3: 30 s), the foundation of every bound derived from a ramp: the
+ * hub refuses a shorter authored ramp (np_cmd_limits.h), an HD-tDCS ramp may not be shorter (np_hd_config.h), and a session
+ * must hold two ramps (np_hd_min_session_s).  It is FIXED because the figure is the specified hardware limit, not a tunable;
+ * common/npps/constants.json TDCS_RAMP_SECONDS holds the same figure for the apps and scripts/check-hub-wire-format.ts holds
+ * the two equal. */
+#define NP_TDCS_MIN_RAMP_S          30U
+
 /* ── EEG front end (ADS1299) ────────────────────────────────────────────── */
 #define NP_EEG_CHANNELS             8U     /* T1: Fp1/2 F3/4 C3/4 P3/4 semi-dry */
 #define NP_EEG_SAMPLE_RATE_HZ       500U

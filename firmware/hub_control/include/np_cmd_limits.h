@@ -59,7 +59,7 @@
 
 /* tDCS ramp (CLAUDE.md §3: 30 s ramp).  A shorter authored ramp is refused, not
  * lengthened: a longer ramp is also a stimulus nobody authored. */
-#define STIM_MIN_RAMP_S       30U
+#define STIM_MIN_RAMP_S       NP_TDCS_MIN_RAMP_S   /* np_shared_constants.h: the one definition */
 
 /* Intranasal duty, 25 %: inherited from the cranial tiles, not derived (UC-016).
  * INTERIM, as NP_PBM_DUTY_MAX_REG is: the 25 % duty cap is retired as policy

@@ -104,7 +104,11 @@
  * current.  A declared limit that nothing enforces reads as a control in a
  * design review and is not one.  Give it a consumer or retire it. */
 #define NP_HD_MAX_ELECTRODE_DENSITY_A_M2   6.0f /* tissue current density limit  */
-#define NP_HD_RAMP_DURATION_S       30U     /* 30 s ramp up and ramp down        */
+/* The HD-tDCS ramp is a fixed 30 s, up and down.  It is fixed because it is the tDCS ramp the hardware specifies
+ * (CLAUDE.md §3), not a value tuned for HD; it may not be shorter than the hardware minimum, which the assertion holds, so
+ * a change to that minimum cannot leave this one under it. */
+#define NP_HD_RAMP_DURATION_S       30U
+_Static_assert(NP_HD_RAMP_DURATION_S >= NP_TDCS_MIN_RAMP_S, "the HD-tDCS ramp is under the hardware minimum tDCS ramp");
 #define NP_HD_RAMP_MS               ((uint32_t)NP_HD_RAMP_DURATION_S * 1000U)   /* the one place the ramp is read in ms */
 
 /* Charge per phase limit (hardware enforcement):                                */
