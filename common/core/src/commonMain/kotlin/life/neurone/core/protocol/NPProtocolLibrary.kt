@@ -1,5 +1,6 @@
 package life.neurone.core.protocol
 
+import life.neurone.core.platform.secureRandomBytes
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -123,6 +124,8 @@ sealed class ProtocolAvailability {
 
 class NPProtocolLibrary(
     private val kv: KeyValueStore,
+    // The random bytes a share export's new ids are made from (SWR-WO-07).
+    private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
 ) {
     companion object {
         const val USER_PROTOCOLS_KEY = "np.user-protocols.npps"
@@ -592,8 +595,13 @@ class NPProtocolLibrary(
 
     // MARK: Script export / import
 
-    /** The script for [entry], carrying the used flag when its family is used (SWR-WO-03). The flag is not part of the content hash. */
-    fun exportScript(entry: NPProtocolEntry): String = NppsCore.serialize(listOf(flaggedItem(entry)))
+    /**
+     * The script for [entry] as an editor shows it: the entry as it is stored, with its own id, so saving the edited text
+     * replaces the entry. It carries no used flag (SWR-WO-07 (f), the principal, 2026-11-18): the text is on screen and can
+     * be copied, and whether a family is used is the library's to know ([isUsed]), not the text's. The flag is written only
+     * by [exportAllScript], the person's own backup.
+     */
+    fun exportScript(entry: NPProtocolEntry): String = NppsCore.serialize(listOf(entry.toNppsCoreItem()))
 
     private fun flaggedItem(entry: NPProtocolEntry): JsonObject {
         val item = entry.toNppsCoreItem()
@@ -605,6 +613,16 @@ class NPProtocolLibrary(
             JsonObject(item + ("composite" to composite))
         } else item
     }
+
+    /**
+     * [entry] as a file for someone else (SWR-WO-07): no used flag, and a new id and family id, so the copy says nothing
+     * about what this person ran and cannot be matched to this library. What is stripped is the shared core's rule.
+     */
+    fun shareScript(entry: NPProtocolEntry): String = NppsCore.serializeShare(listOf(flaggedItem(entry)), randomBytes(32))
+
+    /** Everything the user made, as [shareScript] writes it; null when there is nothing of theirs to share. */
+    fun shareAllScript(): String? =
+        if (_userProtocols.isEmpty()) null else NppsCore.serializeShare(_userProtocols.map(::flaggedItem), randomBytes(32))
 
     /** What [openScript] did with a file: how many entries went in, how many the library's rules refused, or that it was unreadable. */
     data class OpenResult(val opened: Int, val refused: Int, val unreadable: Boolean)

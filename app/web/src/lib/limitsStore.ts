@@ -2,11 +2,13 @@ import {
   NPLimitsSet,
   NPLimitSourceMap,
   NPIndividualProfile,
+  profileNotesFit,
+  storedProfile,
   resolveLimitsWithSources,
   UNLIMITED_LIMITS,
 } from '../../../../common/types/limits';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
-import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { serializeNPPSLimits, shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { appStorage } from './appStorage';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
@@ -143,7 +145,14 @@ class LimitsStore extends EventTarget {
     this.emit();
   }
 
-  saveProfile(profile: NPIndividualProfile): void {
+  /**
+   * Keep `profile`. A note over the bound is refused (false) and nothing changes; a field a profile does not have is not
+   * kept (REQ-SW03-32).
+   */
+  saveProfile(input: NPIndividualProfile): boolean {
+    if (!profileNotesFit(input.notes)) return false;
+    const profile = storedProfile(input);
+    if (!profile) return false;
     const idx = this._profiles.findIndex(p => p.id === profile.id);
     if (idx >= 0) {
       this._profiles[idx] = profile;
@@ -152,6 +161,7 @@ class LimitsStore extends EventTarget {
     }
     this.persist();
     this.emit();
+    return true;
   }
 
   deleteProfile(id: string): void {
@@ -186,8 +196,14 @@ class LimitsStore extends EventTarget {
     return result;
   }
 
+  /** `limits` as a file for someone else (SWR-WO-07): its level, with no helmet serial or individual id. */
+  shareLimitsAsNPPS(limits: NPLimitsSet): string {
+    return shareNPPSLimits(limits);
+  }
+
+  /** A downloaded limits file is one given to someone else, so it is the share form; the editor's text stays the full form. */
   downloadLimitsFile(limits: NPLimitsSet): void {
-    const text = this.exportLimitsAsNPPS(limits);
+    const text = this.shareLimitsAsNPPS(limits);
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -268,7 +284,7 @@ class LimitsStore extends EventTarget {
       }
 
       const p = appStorage.getItem(STORAGE_KEY_PROFILES);
-      if (p) this._profiles = JSON.parse(p) as NPIndividualProfile[];
+      if (p) this._profiles = (JSON.parse(p) as unknown[]).map(storedProfile).filter((x): x is NPIndividualProfile => x !== null);
 
       const ap = appStorage.getItem(STORAGE_KEY_ACTIVE_PROFILE);
       this._activeProfileId = ap ?? undefined;

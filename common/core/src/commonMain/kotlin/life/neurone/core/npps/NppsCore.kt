@@ -77,6 +77,19 @@ object NppsCore {
     }
 
     /**
+     * As [serialize], in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+     * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from [random], 32 bytes
+     * from the platform's secure source. The rule is the core's; nothing here or in an app decides what is stripped.
+     */
+    fun serializeShare(items: List<JsonObject>, random: ByteArray): String {
+        val request = buildJsonObject {
+            put("items", JsonArray(items))
+            put("share", buildJsonObject { put("randomHex", random.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }) })
+        }
+        return nativeSerialize(request.toString())
+    }
+
+    /**
      * Validate an entry against resolved limits: `{"issues":[…], "isValid", "hasWarnings"}`. The core returns
      * locale keys and arguments, never text; see `NPValidationText` for how they become words. The request
      * is `{"entry":…, "limits":…, "allProtocols":[…]|null, "zones":{…}|null, "limitSources":{…}|null}`.

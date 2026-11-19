@@ -251,11 +251,25 @@ pub fn namespace_json(request: &str) -> Result<String, String> {
 /// Write models as `.npps` text: `request` is `{"items":[<item>…]}`, each item as in
 /// `serialize::serialize_item` (the shapes `parse_json` returns). Items are separated by a blank line, which is
 /// what `serializeNPPS` wrote. The error is the refusal message; a model that cannot be written is a bug in
-/// whatever built it, so it is refused rather than serialized into a file the parser rejects.
+/// whatever built it, so it is refused rather than serialized into a file the parser rejects. With
+/// `"share":{"randomHex":<32 bytes>}` the items are written in the share form (`serialize::share_item`): the form for a
+/// file given to someone else. Without it they are written in full, which is the form for the person's own storage,
+/// backup and migration.
 pub fn serialize_json(request: &str) -> Result<String, String> {
     let req: Value = serde_json::from_str(request).map_err(|e| format!("serialize request is not JSON: {e}"))?;
     let items = req["items"].as_array().ok_or("serialize request needs an items array")?;
-    let texts = items.iter().map(crate::serialize::serialize_item).collect::<Result<Vec<_>, _>>()?;
+    // The share form (SWR-WO-07): refused, never written in the full form, when the random bytes are missing or short.
+    let texts = if req["share"].is_null() {
+        items.iter().map(crate::serialize::serialize_item).collect::<Result<Vec<_>, _>>()?
+    } else {
+        let hex = req["share"]["randomHex"].as_str().ok_or("a share request needs share.randomHex")?;
+        let seed: [u8; 32] = hex_decode(hex)?.try_into().map_err(|_| "share.randomHex must be 32 bytes".to_string())?;
+        let mut ids = crate::serialize::ShareIds::new(seed);
+        items
+            .iter()
+            .map(|i| crate::serialize::share_item(i, &mut ids).and_then(|v| crate::serialize::serialize_item(&v)))
+            .collect::<Result<Vec<_>, _>>()?
+    };
     Ok(texts.join("\n\n"))
 }
 

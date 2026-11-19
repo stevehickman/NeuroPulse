@@ -6,7 +6,7 @@
 // which protocol was cloned from which (SWR-PL-06). A protocol opened from a file starts as unused and offered, so a family
 // that was used and locked before the reload can be edited in place afterwards. That is the cost of keeping nothing in the browser.
 
-import { serializeNPPS } from '../../../../common/lib/nppsSerializer';
+import { serializeNPPS, shareNPPS } from '../../../../common/lib/nppsSerializer';
 import { parseNPPS } from '../../../../common/lib/nppsParser';
 import type { ProtocolLibrary } from './protocolLibrary';
 
@@ -16,6 +16,17 @@ export const BACKUP_FILE_NAME = 'neurone-protocols.npps';
 export function backupText(library: Pick<ProtocolLibrary, 'userProtocols'>): string | null {
   const mine = library.userProtocols;
   return mine.length === 0 ? null : serializeNPPS(mine);
+}
+
+export const SHARE_FILE_NAME = 'neurone-protocols-shared.npps';
+
+/**
+ * The user's protocols as a file for someone else (SWR-WO-07), or null when there are none: the share form, which carries no
+ * used flag and whose ids are new, so a copy cannot be matched to this library or to another copy.
+ */
+export function shareText(library: Pick<ProtocolLibrary, 'userProtocols'>): string | null {
+  const mine = library.userProtocols;
+  return mine.length === 0 ? null : shareNPPS(mine);
 }
 
 export interface OpenResult {

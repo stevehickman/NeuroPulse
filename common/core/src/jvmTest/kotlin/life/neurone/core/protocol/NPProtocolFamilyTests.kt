@@ -313,7 +313,8 @@ class NPProtocolFamilyTests {
         val unflagged = lib.exportScript(copy)
         assertFalse(unflagged.contains("used: true"))
         lib.recordUploadResult(copy, hash, "accepted", hash)
-        val flagged = lib.exportScript(copy)
+        // The flag is written only in the person's own backup (SWR-WO-07 (f)); the library here holds this one protocol.
+        val flagged = assertNotNull(lib.exportAllScript())
         assertTrue(flagged.contains("used: true"), "export carries the flag")
         assertEquals(hash, assertNotNull(lib.contentHash(lib.importScript(flagged))), "and the flag is not part of the hash")
 
@@ -327,6 +328,21 @@ class NPProtocolFamilyTests {
         // An import of an unflagged copy of a protocol already used here leaves it used.
         lib.importScript(unflagged)
         assertTrue(lib.isUsed(copy))
+    }
+
+    // @verifies SWR-WO-07#f
+    @Test
+    fun theEditorsScriptCarriesNoUsedFlagAndKeepsTheEntrysId() {
+        val lib = library()
+        val copy = clone(lib)
+        val hash = assertNotNull(lib.contentHash(copy))
+        lib.recordUploadResult(copy, hash, "accepted", hash)
+        assertTrue(lib.isUsed(copy))
+        val text = lib.exportScript(copy)
+        assertFalse(text.contains("used"), text)
+        assertEquals(copy.id, NPPSParser.parse(text).single().id, "saving the edited text replaces this entry")
+        // Only the person's own backup file carries the flag.
+        assertTrue(assertNotNull(lib.exportAllScript()).contains("used: true"))
     }
 
     // @verifies SWR-PL-02
