@@ -139,13 +139,20 @@
 
 /* ── Stimulation session parameters ─────────────────────────────────────────── */
 #define NP_HD_DEFAULT_CURRENT_UA    1000U   /* 1 mA anode (within 2 mA limit)   */
+/* The one limit on session length, and it is DERIVED (the principal, 2026-11-19: a limit may rest on a mechanical or
+ * implementation reason).  A session holds a ramp up and a ramp down of NP_HD_RAMP_DURATION_S each, and the ramp down
+ * starts at (length - one ramp), so a session shorter than two ramps would start ramping down before it finished ramping
+ * up, and its steady-phase end would wrap below zero.  np_hd_stim_start refuses it. */
+#define NP_HD_MIN_SESSION_S         (2U * NP_HD_RAMP_DURATION_S)   /* 60 s: ramp up + ramp down */
+
 /* Session length DEFAULTS, not limits (the principal, 2026-11-19).  Nothing refuses a session for being shorter than the
- * first or longer than the second: a limit needs research literature that documents why it should exist, and none is
- * cited for either figure (register row UC-190).  The only refusal on length is structural, in np_hd_stim_start: a
- * session shorter than its two ramps cannot be run.  What bounds the dose is the safety MCU's per-session charge
- * ceiling (CLAUDE.md §3), whatever the length.  The first is also the length used when a session is configured with none. */
+ * first or longer than the second: a limit needs research literature that documents why it should exist (or a mechanical
+ * reason, as above), and none is cited for either figure (register row UC-190).  What bounds the dose is the safety MCU's
+ * per-session charge ceiling (CLAUDE.md §3), whatever the length.  The first is also the length used when a session is
+ * configured with none. */
 #define NP_HD_DEFAULT_SESSION_MIN_S 120U    /* 2 minutes: the shortest the defaults suggest */
 #define NP_HD_DEFAULT_SESSION_MAX_S 1800U   /* 30 minutes: the longest the defaults suggest; no firmware path reads it */
+_Static_assert(NP_HD_DEFAULT_SESSION_MIN_S >= NP_HD_MIN_SESSION_S, "the default session must be one that can run");
 
 /* ── Safety MCU heartbeat ───────────────────────────────────────────────────── */
 /* HD-tDCS shares the 200 ms SPI heartbeat from the main safety architecture.   */
