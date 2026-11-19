@@ -91,6 +91,32 @@ class UploadLinkGateTest {
     }
 
     // @verifies REQ-SW03-31#b
+    @Test fun a_held_upload_asks_for_the_serial_again_and_only_the_32_byte_serial_opens_the_gate() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
+
+        // A value that is not the 32-byte serial is not the hub's answer.
+        manager.onCharacteristicRead(serial, ByteArray(31))
+        manager.onCharacteristicChanged(serial, ByteArray(33))
+        assertFalse(manager.encryptedReadShown.value)
+
+        // The held upload asks for the read again: a central that reports no refused read (OI-PRIV-17) has no retry of its own.
+        val reads = link.reads.count { it == serial }
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(reads + 1, link.reads.count { it == serial })
+        assertEquals(emptyList(), link.writes)
+
+        // While the manager's own retry is waiting, the upload does not add a second read.
+        manager.onCharacteristicReadFailed(serial)
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(reads + 1, link.reads.count { it == serial })
+
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
+    }
+
+    // @verifies REQ-SW03-31#b
     @Test fun the_proof_is_per_link_and_a_refused_read_takes_it_back() = runTest {
         val link = FakeLink()
         val manager = linked(link, TestScope(testScheduler))
