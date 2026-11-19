@@ -50,6 +50,7 @@ internal fun migrationText(key: String): StringResource? = when (key) {
         "MIGRATION_REASON_NO_AUTHENTICATED_PAIRING" -> Res.string.migration_reason_no_authenticated_pairing
         "MIGRATION_REASON_NO_BUNDLE" -> Res.string.migration_reason_no_bundle
         "MIGRATION_REASON_NO_CONFIRMATION" -> Res.string.migration_reason_no_confirmation
+        "MIGRATION_REASON_OLDER_BUNDLE" -> Res.string.migration_reason_older_bundle
         "MIGRATION_REASON_OTHER_BUNDLE" -> Res.string.migration_reason_other_bundle
         "MIGRATION_REASON_ROUTE_NOT_OFFERED" -> Res.string.migration_reason_route_not_offered
         "MIGRATION_REASON_ROUTE_UNAVAILABLE" -> Res.string.migration_reason_route_unavailable
