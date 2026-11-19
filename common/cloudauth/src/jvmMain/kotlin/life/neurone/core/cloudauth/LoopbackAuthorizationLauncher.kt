@@ -31,8 +31,10 @@ import java.util.Collections
  *
  * **What it answers.** Only a `GET` for the redirect's path, from a request whose `Host` is the loopback address and port (a page that
  * resolves its own name to this address is refused: DNS rebinding). Anything else, such as the browser's request for an icon, is
- * answered with an error and the listener carries on. The first matching request is the answer: [authorize] returns its address
- * whole, whatever it carries (a code, or `error=access_denied`), and [CloudAuth] decides. [donePage] is what the browser is shown
+ * answered with an error and the listener carries on. So is a request for the redirect's path that is not this request's answer
+ * (it lacks the `state` [CloudAuth] sent): any page in the person's browser can make such a request, and it must not end the sign-in
+ * (`OI-PRIV-13`). The first request that is the answer ends the wait: [authorize] returns its address whole, whatever else it carries
+ * (a code, or `error=access_denied`), and [CloudAuth] decides. [donePage] is what the browser is shown
  * afterwards; it is the host's, because it is text the person reads (`CLAUDE.md` §17), and empty by default.
  *
  * Cancelling the waiting coroutine closes the listener and every open connection.
@@ -40,9 +42,11 @@ import java.util.Collections
 class LoopbackAuthorizationLauncher(
     private val donePage: String = "",
     private val open: (String) -> Unit,
-) : AuthorizationLauncher {
+) : SelectiveAuthorizationLauncher {
 
-    override suspend fun authorize(authorizationUrl: String, redirectUri: String): String {
+    override suspend fun authorize(authorizationUrl: String, redirectUri: String): String = authorize(authorizationUrl, redirectUri) { true }
+
+    override suspend fun authorize(authorizationUrl: String, redirectUri: String, isAnswer: (String) -> Boolean): String {
         val redirect = LoopbackRedirect.parse(redirectUri)
         val server = try {
             ServerSocket(redirect.port, BACKLOG, InetAddress.getByName(LOOPBACK))
@@ -67,7 +71,7 @@ class LoopbackAuthorizationLauncher(
                     }
                     connections += socket
                     // On the outer scope, not as a child of this loop: waiting for the loop to end must not wait on a connection's read.
-                    scope.launch { serve(socket, redirect, answer) }
+                    scope.launch { serve(socket, redirect, isAnswer, answer) }
                 }
             }
             try {
@@ -87,10 +91,10 @@ class LoopbackAuthorizationLauncher(
         }
     }
 
-    private fun serve(socket: Socket, redirect: LoopbackRedirect, answer: CompletableDeferred<String>) {
+    private fun serve(socket: Socket, redirect: LoopbackRedirect, isAnswer: (String) -> Boolean, answer: CompletableDeferred<String>) {
         try {
             val head = readHead(socket) ?: return respond(socket, LoopbackRedirect.Reply(431, null), "")
-            val reply = redirect.reply(head)
+            val reply = redirect.reply(head, isAnswer)
             respond(socket, reply, donePage)
             // The answer is given after the page is written, so closing the listener cannot cut the page off.
             reply.address?.let { answer.complete(it) }
@@ -141,8 +145,8 @@ class LoopbackAuthorizationLauncher(
 internal class LoopbackRedirect private constructor(private val authority: String, val port: Int, private val path: String) {
     class Reply(val status: Int, val address: String?)
 
-    /** The decision for one request head (request line and headers). */
-    fun reply(head: String): Reply {
+    /** The decision for one request head (request line and headers). An address [isAnswer] refuses is a bad request and no answer. */
+    fun reply(head: String, isAnswer: (String) -> Boolean = { true }): Reply {
         val lines = head.split("\r\n")
         val parts = lines[0].split(' ')
         if (parts.size != 3 || !parts[2].startsWith("HTTP/1.")) return Reply(400, null)
@@ -153,7 +157,8 @@ internal class LoopbackRedirect private constructor(private val authority: Strin
         if (!target.startsWith("/")) return Reply(400, null)
         val requestPath = target.substringBefore('?').substringBefore('#')
         if (requestPath != path) return Reply(404, null)
-        return Reply(200, "http://$authority$target")
+        val address = "http://$authority$target"
+        return if (isAnswer(address)) Reply(200, address) else Reply(400, null)
     }
 
     companion object {

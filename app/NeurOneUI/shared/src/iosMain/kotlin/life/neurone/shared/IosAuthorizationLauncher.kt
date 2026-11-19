@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import life.neurone.core.cloudauth.AuthorizationLauncher
 import life.neurone.core.cloudauth.CloudAuthException
 import life.neurone.core.cloudauth.CloudAuthProblem
+import life.neurone.core.cloudauth.ConfinedCallbackLauncher
 import life.neurone.core.cloudauth.WebSessionRules
 import platform.AuthenticationServices.ASPresentationAnchor
 import platform.AuthenticationServices.ASWebAuthenticationPresentationContextProvidingProtocol
@@ -25,10 +26,13 @@ import kotlin.coroutines.resumeWithException
  * Only an `https` address is opened. The decisions about the redirect and the outcome are in [WebSessionRules], which has JVM tests;
  * this class is the platform calls around them and has not been built or run (no Mac in the session that wrote it).
  *
+ * It is a [ConfinedCallbackLauncher]: the session completes only with an address its own page was sent to, which is what lets a CloudKit
+ * sign-in, whose callback has no `state`, run here (`OI-PRIV-13`). That rests on Apple's description of the session and has not been tried.
+ *
  * The session and its context provider are held here until the session answers: the session keeps its provider weakly, and a session
  * nothing holds can be freed before the person has finished.
  */
-class IosAuthorizationLauncher : AuthorizationLauncher {
+class IosAuthorizationLauncher : AuthorizationLauncher, ConfinedCallbackLauncher {
     private var session: ASWebAuthenticationSession? = null
     private var anchor: AnchorProvider? = null
 
