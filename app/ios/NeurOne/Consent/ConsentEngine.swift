@@ -187,6 +187,18 @@ enum ConsentEngine {
     /// optical signal and the HRV time series, so all three are here. A signal element added later joins them.
     static let elementsNoExtractMayCarry: Set<UHDRElement> = [.eegWaveforms, .ppgOpticalSignal, .hrvTimeSeries]
 
+    /// Whether a descriptor or invitation that expires at `expiresAt` may still be acted on `today`.
+    /// The expiry day is the last day. No expiry (an invitation stored before descriptors carried one)
+    /// does not bar it.
+    ///
+    /// The expiry's day is the UTC day the issuer signed (`StudyDescriptorCanonicalForm.day`), and today
+    /// is the calendar day on this device (`ConsentDay`), which is the comparison Kotlin makes between the
+    /// signed "yyyy-MM-dd" and the device's day. Both are Gregorian "yyyy-MM-dd", so they order as text.
+    static func notExpired(_ expiresAt: Date?, on today: Date) -> Bool {
+        guard let expiresAt else { return true }
+        return ConsentDay.string(today) <= StudyDescriptorCanonicalForm.day(from: expiresAt)
+    }
+
     /// Whether `consent` covers a study in `categories`: blanket consent is on, or one of the study's categories
     /// is consented, and blanket consent has not been withdrawn (which outranks the L2 ticks, §6.0).
     ///
@@ -212,9 +224,10 @@ enum ConsentEngine {
     /// properties of the study itself. Only then the user's consent state, which is the part that
     /// varies per device, and first of all whether that state could be read.
     ///
-    /// **Not checked, because the descriptor does not carry them yet** (`OI-PRIV-06` point 5):
-    /// §5.3's suppression rules, and how long a descriptor stays valid. Both need a field in the
-    /// signed descriptor, which is the study service's format (`OI-CONSENT-07`).
+    /// **Suppression is not a descriptor field** (the principal, 2026-11-19; `OI-PRIV-06` point 5).
+    /// The rule is the device's and is the same for every study: a record whose group is smaller
+    /// than `k` is dropped, never sent (`REQ-CONSENT-13` e, with the extractor, `OI-CONSENT-07`).
+    /// So there is nothing about suppression for this gate to check.
     ///
     /// - Parameters:
     ///   - verification: the result of checking the descriptor's signature.
@@ -223,12 +236,14 @@ enum ConsentEngine {
     ///     withdrawn from on this device.
     ///   - consentRecordReadable: false while a stored consent record could not be read and the
     ///     person has not decided again (`REQ-CONSENT-20`).
+    ///   - today: when the descriptor is being admitted, for its expiry.
     static func admit(
         descriptor: StudyDescriptor,
         verification: StudyDescriptorVerification,
         consent: ResearchConsentState,
         studyAlreadyDecided: Bool,
-        consentRecordReadable: Bool
+        consentRecordReadable: Bool,
+        today: Date
     ) -> StudyDescriptorAdmission {
         let descriptorHash: String
         switch verification {
@@ -240,6 +255,14 @@ enum ConsentEngine {
         guard descriptor.kAnonymity >= ConsentLimits.MINIMUM_K_ANONYMITY,
               descriptor.dateRoundingDays >= ConsentLimits.MINIMUM_DATE_ROUNDING_DAYS
         else { return .refused(.anonymisationBelowFloor) }
+
+        // The issuer signs how long the descriptor stands. An expiry that precedes the issue day is not
+        // one the device can hold the issuer to. (Kotlin also refuses an expiry that is not a real
+        // "yyyy-MM-dd" day; here it is a `Date`, which cannot be anything else.)
+        let expiryDay = StudyDescriptorCanonicalForm.day(from: descriptor.expiresAt)
+        guard expiryDay >= StudyDescriptorCanonicalForm.day(from: descriptor.issuedAt),
+              notExpired(descriptor.expiresAt, on: today)
+        else { return .refused(.descriptorExpired) }
 
         // An element that cannot be made k-anonymous makes the declared k meaningless for it.
         guard descriptor.requestedElements.isDisjoint(with: elementsNoExtractMayCarry)
@@ -298,6 +321,7 @@ enum ConsentEngine {
             dateRoundingDays: descriptor.dateRoundingDays,
             posture: posture,
             receivedAt: receivedAt,
+            expiresAt: descriptor.expiresAt,
             decision: nil
         )
     }

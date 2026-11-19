@@ -303,6 +303,7 @@
   "CONSENT_IMPORTANT_LABEL": "Important — please read",
   "CONSENT_INDIVIDUALLY_WITHDRAWN_FROM_THAT_DATASET_HOW": "individually withdrawn from that dataset. However, because NeurOne anonymises ",
   "CONSENT_IRREVERSIBILITY_NOTICE": "Once your anonymised data has been included in a published study, it cannot be individually withdrawn from that dataset. This is a fundamental property of aggregate anonymised data required by Common Rule (45 CFR 46).\n\nHowever, because NeurOne anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal.\n\nYour session recordings remain on your device under your sole control at all times.",
+  "CONSENT_L1_CONTACT_INVALID": "Enter an email address or a phone number.",
   "CONSENT_L1_CONTACT_LABEL": "Contact email or phone:",
   "CONSENT_L1_CONTACT_PLACEHOLDER": "your@email.com",
   "CONSENT_L1_NO_CONTACT_NOTE": "If you say no — or skip this entirely — all features work identically. We will never contact you about research.",

@@ -600,6 +600,7 @@ object PersistedKeys {
     const val FIRST_SETUP_KEY: String = "np.setup.first-complete"
     // Persists age-gate completion (ISC-87).
     const val AGE_CONFIRMED_KEY: String = "np.onboarding.age-confirmed"
-    // Domain-separation tag at the head of the canonical form a study descriptor is signed over.
-    const val STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V1"
+    // Domain-separation tag at the head of the canonical form a study descriptor is signed over. V2 adds
+    // the expiry day as the last field (OI-PRIV-06 point 5); no V1 descriptor was ever issued.
+    const val STUDY_DESCRIPTOR_VERSION: String = "NP-STUDY-DESCRIPTOR-V2"
 }

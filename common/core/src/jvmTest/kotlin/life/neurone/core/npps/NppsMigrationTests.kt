@@ -46,9 +46,9 @@ class NppsMigrationTests {
     fun aWithdrawalSurvivesARestoreAndNeverAskedStaysNull() {
         val merged = ask("mergeWithdrawal") {
             putJsonObject("local") {}
-            putJsonObject("incoming") { put("blanketConsentWithdrawnAt", "2026-03-01T00:00:00Z") }
+            putJsonObject("incoming") { put("blanketConsentWithdrawnAt", "2026-03-01#000001") }
         }
-        assertEquals("2026-03-01T00:00:00Z", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
+        assertEquals("2026-03-01#000001", merged["blanketConsentWithdrawnAt"]!!.jsonPrimitive.content)
         val never = ask("mergeWithdrawal") { putJsonObject("local") {}; putJsonObject("incoming") {} }
         assertEquals(JsonNull, never["blanketConsentWithdrawnAt"])
     }

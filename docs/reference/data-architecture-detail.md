@@ -79,8 +79,8 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 All anonymization of UHDR data for research purposes must occur **on-device**, within the NeurOne app, before any data leaves the device. NeurOne cannot access raw UHDR at any point — including for research purposes — because the biometric-derived AES-256 key is never held by NeurOne infrastructure.
 
 **Data flow per approved study:**
-1. NeurOne server sends device a signed study descriptor (study ID, approved UHDR element list, anonymization parameters: k≥10, suppression rules, date-rounding ≥1-week interval). Descriptor is cryptographically signed.
-2. App reads encrypted UHDR partition in-app, applies on-device anonymization transformations: k-anonymity grouping, date/time rounding, direct identifier removal, quasi-identifier suppression per study descriptor.
+1. NeurOne server sends device a signed study descriptor (study ID, approved UHDR element list, anonymization parameters: k≥10 and a date-rounding interval of ≥1 week, and an expiry day after which the device refuses it). Descriptor is cryptographically signed. It carries no suppression rule: that rule is the device's and is the same for every study (the principal, 2026-11-19; CLAUDE.md Rev 82).
+2. App reads encrypted UHDR partition in-app, applies on-device anonymization transformations: k-anonymity grouping, date/time rounding, direct identifier removal, and suppression by the device's fixed rule: a record whose group is smaller than k is dropped, not sent (`REQ-CONSENT-13` e).
 3. Only the pre-anonymized, signed extract is transmitted to NeurOne research infrastructure. Raw UHDR never leaves the device.
 4. NeurOne servers store extract keyed to study ID and device ID only. No persistent per-user anonymized data store. No linkage table exists that could re-identify users.
 5. Researchers access aggregated study datasets with no device ID fields.

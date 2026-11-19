@@ -175,6 +175,17 @@ object ConsentEngine {
      * HRV data to be treated the same way). The argument above was made for EEG waveforms and holds for the PPG
      * optical signal and the HRV time series, so all three are here. A signal element added later joins them.
      */
+    /** [day] is a real calendar day written "yyyy-MM-dd", the only form that orders as text. */
+    fun isIsoDay(day: String): Boolean =
+        runCatching { kotlinx.datetime.LocalDate.parse(day).toString() == day }.getOrDefault(false)
+
+    /**
+     * Whether a descriptor or invitation that expires on [expiresOnDay] may still be acted on [today].
+     * The expiry day is the last day. No expiry (an invitation stored before descriptors carried one)
+     * does not bar it.
+     */
+    fun notExpired(expiresOnDay: String?, today: String): Boolean = expiresOnDay == null || today <= expiresOnDay
+
     val ELEMENTS_NO_EXTRACT_MAY_CARRY: Set<UHDRElement> = setOf(
         UHDRElement.EEG_WAVEFORMS, UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.HRV_TIME_SERIES,
     )
@@ -205,14 +216,16 @@ object ConsentEngine {
      * of the study itself. Only then the user's consent state, which is the part that varies per
      * device, and first of all whether that state could be read.
      *
-     * **Not checked, because the descriptor does not carry them yet** (`OI-PRIV-06` point 5):
-     * §5.3's suppression rules, and how long a descriptor stays valid. Both need a field in the
-     * signed descriptor, which is the study service's format (`OI-CONSENT-07`).
+     * **Suppression is not a descriptor field** (the principal, 2026-11-19; `OI-PRIV-06` point 5).
+     * The rule is the device's and is the same for every study: a record whose group is smaller
+     * than `k` is dropped, never sent (`REQ-CONSENT-13` e, with the extractor, `OI-CONSENT-07`).
+     * So there is nothing about suppression for this gate to check.
      *
      * @param verification the result of checking the descriptor's signature.
      * @param consent the user's current research consent (L1–L4).
      * @param studyAlreadyDecided whether this study ID has already been answered, joined or
      *   withdrawn from on this device.
+     * @param today the day the descriptor is being admitted on ("yyyy-MM-dd"), for its expiry.
      * @param consentRecordReadable false while a stored consent record could not be read and the
      *   person has not decided again (`REQ-CONSENT-20`).
      */
@@ -222,6 +235,7 @@ object ConsentEngine {
         consent: ResearchConsentState,
         studyAlreadyDecided: Boolean,
         consentRecordReadable: Boolean,
+        today: String,
     ): StudyDescriptorAdmission {
         val descriptorHash = when (verification) {
             StudyDescriptorVerification.Unavailable ->
@@ -241,6 +255,14 @@ object ConsentEngine {
             return StudyDescriptorAdmission.Refused(
                 StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
             )
+        }
+
+        // The issuer signs how long the descriptor stands. An expiry that is not a day, or that
+        // precedes the issue day, is not one the device can hold the issuer to.
+        if (!isIsoDay(descriptor.expiresOnDay) || descriptor.expiresOnDay < descriptor.issuedOnDay ||
+            !notExpired(descriptor.expiresOnDay, today)
+        ) {
+            return StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.DESCRIPTOR_EXPIRED)
         }
 
         // An element that cannot be made k-anonymous makes the declared k meaningless for it.
@@ -334,6 +356,7 @@ object ConsentEngine {
         dateRoundingDays = descriptor.dateRoundingDays,
         posture = posture,
         receivedOnDay = receivedOnDay,
+        expiresOnDay = descriptor.expiresOnDay,
         decision = null,
     )
 }

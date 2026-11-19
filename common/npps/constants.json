@@ -1112,8 +1112,8 @@
         },
         {
           "name": "STUDY_DESCRIPTOR_VERSION",
-          "value": "NP-STUDY-DESCRIPTOR-V1",
-          "note": "Domain-separation tag at the head of the canonical form a study descriptor is signed over."
+          "value": "NP-STUDY-DESCRIPTOR-V2",
+          "note": "Domain-separation tag at the head of the canonical form a study descriptor is signed over. V2 adds the expiry day as the last field (OI-PRIV-06 point 5); no V1 descriptor was ever issued."
         }
       ]
     }
