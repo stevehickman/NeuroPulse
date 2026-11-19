@@ -20,7 +20,6 @@ use crate::migration::{hex, unhex};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256, Sha512};
-use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -29,7 +28,7 @@ fn field(req: &Value, key: &str) -> R<Vec<u8>> {
 }
 
 fn seed_key(req: &Value) -> R<SigningKey> {
-    let seed = Zeroizing::new(field(req, "seed")?);
+    let seed = crate::secret_io::secret(req, "seed", &["signing"])?;
     let bytes: [u8; 32] = seed.as_slice().try_into().map_err(|_| "an Ed25519 seed is 32 bytes".to_string())?;
     Ok(SigningKey::from_bytes(&bytes))
 }

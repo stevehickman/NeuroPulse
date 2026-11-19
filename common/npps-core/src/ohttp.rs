@@ -16,10 +16,19 @@
 //! | `op` | request | answer |
 //! |------|---------|--------|
 //! | `ohttpGenerateKey` | `seed` (32 bytes, hex), `keyId` (0–255) | `{keyConfig, privateKey}`; `keyConfig` is one key configuration without the length prefix of `application/ohttp-keys` |
-//! | `ohttpSeal` | `keyConfig` (hex), `method`, `scheme`, `authority`, `path`, `headers` (`[[name, value]]`), `body` (hex), `entropy` (32 bytes, hex) | `{request, enc, secret}` (hex): send `request` as `message/ohttp-req`; keep `enc` and `secret` in memory until the answer, then drop them |
+//! | `ohttpSeal` | `keyConfig` (hex), `method`, `scheme`, `authority`, `path`, `headers` (`[[name, value]]`), `body` (hex), `entropy` (32 bytes), `keep` (optional) | `{request, enc, secret}`: send `request` as `message/ohttp-req`; `enc` and `secret` are for the answer |
 //! | `ohttpOpen` | `enc`, `secret`, `response` (hex) | `{status, headers, body}`, or an error when the response does not authenticate |
-//! | `ohttpGatewayOpen` | `privateKey`, `keyConfig`, `request` (hex) | `{method, scheme, authority, path, headers, body, enc, secret}` |
+//! | `ohttpGatewayOpen` | `privateKey`, `keyConfig`, `request` (hex), `keep` (optional) | `{method, scheme, authority, path, headers, body, enc, secret}` |
 //! | `ohttpGatewaySeal` | `enc`, `secret`, `status`, `headers`, `body` (hex), `entropy` (16 bytes, hex) | `{response}` (hex), sent as `message/ohttp-res` |
+//!
+//! # The response secret (`SWR-MG-32` (g))
+//! The answer to a request is opened with a secret made when the request was sealed, so it has to live from one call to
+//! the next, across the network round trip. With `"keep": true` it lives **in the core**: `ohttpSeal` (and
+//! `ohttpGatewayOpen`) answers `{"secret": {"$handle": n}}` (`secret_io`, a purpose of its own that no request can bring
+//! in), and `ohttpOpen` (and `ohttpGatewaySeal`) takes that handle and **uses it once**: the secret is wiped as it is
+//! read, whether or not the response then authenticates. A caller that never gets an answer releases it (`keyRelease`).
+//! The request's `entropy` makes the ephemeral key the secret comes from, so it is a secret too: it goes in beside the
+//! request as bytes (`{"$secret": n}`). Without `keep`, and with hex, the older forms still work for now.
 
 use crate::migration::{hex, unhex};
 use hpke::aead::AesGcm128;
@@ -303,13 +312,13 @@ fn aead_open(key: &[u8; NK], iv: &[u8; NN], ct: &[u8]) -> R<Vec<u8>> {
 // ── The operations ───────────────────────────────────────────────────────────────────────────────────────────────
 
 fn generate_key(req: &Value) -> R<Value> {
-    let seed = Zeroizing::new(field(req, "seed")?);
+    let seed = crate::secret_io::secret(req, "seed", &[])?;
     if seed.len() != 32 {
         return Err("a key seed is 32 bytes".into());
     }
     let key_id = u8::try_from(req["keyId"].as_u64().ok_or("keyId is required")?).map_err(|_| "keyId is 0 to 255".to_string())?;
     let (sk, pk) = Kem::derive_keypair(&seed);
-    Ok(json!({ "keyConfig": hex(&key_config(key_id, &pk.to_bytes())), "privateKey": hex(&sk.to_bytes()) }))
+    Ok(json!({ "keyConfig": hex(&key_config(key_id, &pk.to_bytes())), "privateKey": crate::secret_io::answer_secret(&Zeroizing::new(sk.to_bytes().to_vec())) }))
 }
 
 fn seal(req: &Value) -> R<Value> {
@@ -325,7 +334,7 @@ fn seal(req: &Value) -> R<Value> {
     if message.len() > MAX_MESSAGE {
         return Err("the request is too large".into());
     }
-    let entropy = Zeroizing::new(field(req, "entropy")?);
+    let entropy = crate::secret_io::secret(req, "entropy", &[])?;
     if entropy.len() != 32 {
         return Err("a request needs 32 bytes of entropy".into());
     }
@@ -338,11 +347,27 @@ fn seal(req: &Value) -> R<Value> {
     ctx.export(b"message/bhttp response", &mut *secret).map_err(|_| "export".to_string())?;
     let enc = enc.to_bytes();
     let request = [hdr, enc.to_vec(), ct].concat();
-    Ok(json!({ "request": hex(&request), "enc": hex(&enc), "secret": hex(&*secret) }))
+    Ok(json!({ "request": hex(&request), "enc": hex(&enc), "secret": secret_out(req, &*secret)? }))
+}
+
+/// The response secret for an answer: kept in the core and named by its handle when the request says `"keep": true`,
+/// and otherwise a secret of the answer (bytes beside it through the secret entry point, hex through the plain one).
+fn secret_out(req: &Value, secret: &[u8; NK]) -> R<Value> {
+    match &req["keep"] {
+        Value::Null | Value::Bool(false) => Ok(crate::secret_io::answer_secret(secret)),
+        Value::Bool(true) => {
+            let mut copy = Zeroizing::new(Vec::with_capacity(NK));
+            copy.extend_from_slice(secret);
+            crate::secret_io::keep("ohttp", copy)
+        }
+        other => Err(format!("keep is true or false, not {other}")),
+    }
 }
 
 fn open(req: &Value) -> R<Value> {
-    let (enc, secret, response) = (field(req, "enc")?, Zeroizing::new(field(req, "secret")?), field(req, "response")?);
+    // The secret is for one response: a kept one is wiped as it is read here, before anything can refuse.
+    let secret = crate::secret_io::take(req, "secret", &["ohttp"])?;
+    let (enc, response) = (field(req, "enc")?, field(req, "response")?);
     if response.len() < NK + 16 {
         return Err("the response is too short".into());
     }
@@ -354,7 +379,7 @@ fn open(req: &Value) -> R<Value> {
 
 fn gateway_open(req: &Value) -> R<Value> {
     let (key_id, _) = parse_key_config(&field(req, "keyConfig")?)?;
-    let sk_bytes = Zeroizing::new(field(req, "privateKey")?);
+    let sk_bytes = crate::secret_io::secret(req, "privateKey", &[])?;
     let sk = <Kem as KemTrait>::PrivateKey::from_bytes(&sk_bytes).map_err(|_| "not a private key".to_string())?;
     let request = field(req, "request")?;
     if request.len() < 7 + 32 + 16 {
@@ -375,12 +400,13 @@ fn gateway_open(req: &Value) -> R<Value> {
     Ok(json!({
         "method": r.method, "scheme": r.scheme, "authority": r.authority, "path": r.path,
         "headers": headers_out(&r.headers), "body": hex(&r.body),
-        "enc": hex(enc_bytes), "secret": hex(&*secret),
+        "enc": hex(enc_bytes), "secret": secret_out(req, &*secret)?,
     }))
 }
 
 fn gateway_seal(req: &Value) -> R<Value> {
-    let (enc, secret) = (field(req, "enc")?, Zeroizing::new(field(req, "secret")?));
+    let secret = crate::secret_io::take(req, "secret", &["ohttp"])?;
+    let enc = field(req, "enc")?;
     let nonce = field(req, "entropy")?;
     if nonce.len() != NK {
         return Err("a response needs 16 bytes of entropy".into());

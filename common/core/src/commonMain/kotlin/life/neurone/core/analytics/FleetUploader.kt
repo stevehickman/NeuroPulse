@@ -116,8 +116,14 @@ class FleetUploader(
         } catch (e: IllegalArgumentException) {
             return false
         }
-        val answer = transport.post(HttpRequest(relayUrl, mapOf("Content-Type" to FleetOhttp.REQUEST_MEDIA_TYPE), sealed.request))
-        return FleetOhttp.accepted(sealed, relayOk = answer != null && answer.status in 200..299, answer?.header("Content-Type"), answer?.body)
+        // The response secret is in the core until the answer is opened. If the post throws or is cancelled there is no
+        // answer, so the secret is released here; after `accepted` it is already gone and this does nothing.
+        try {
+            val answer = transport.post(HttpRequest(relayUrl, mapOf("Content-Type" to FleetOhttp.REQUEST_MEDIA_TYPE), sealed.request))
+            return FleetOhttp.accepted(sealed, relayOk = answer != null && answer.status in 200..299, answer?.header("Content-Type"), answer?.body)
+        } finally {
+            sealed.close()
+        }
     }
 
     companion object {
