@@ -31,11 +31,12 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
 /// The bundle format version this build reads and writes (`SWR-MG-05`). The scheme beyond "one number, a newer one is
-/// refused whole" is open (`OI-UI-KMP-11` open question 5). Version 2 added the epoch inside the sealed body (`SWR-MG-28`,
+/// refused whole" is open (`OI-UI-KMP-11` open question 5). Version 2 added the epoch inside the sealed body (`SWR-MG-29`,
 /// `OI-PRIV-09`); a version-1 bundle has none and is read as epoch 0, the oldest there can be.
 pub const FORMAT_VERSION: u64 = 2;
 
@@ -334,7 +335,7 @@ fn confirmation_tag(req: &Value) -> R<Value> {
 }
 
 /// Whether two tags are the same, in time that does not depend on where they differ. An empty tag matches nothing.
-fn same_tag(a: &str, b: &str) -> bool {
+pub(crate) fn same_tag(a: &str, b: &str) -> bool {
     !a.is_empty() && a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
@@ -410,7 +411,7 @@ fn probe_result(req: &Value) -> R<Value> {
 // core keeps nothing (`SWR-MG-02`: NeurOne holds no key and sees no plaintext). The nonce is also handed in, from the
 // platform's CSPRNG, because the core is pure and has no source of randomness; a nonce is used once per key.
 //
-// The epoch (`SWR-MG-28` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
+// The epoch (`SWR-MG-29` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
 // hand back any bundle it was ever given: an older one is as authentic as the newest. So the sealed body is
 // `{"epoch": n, "items": {…}}` (format version 2), where the epoch is a count that only rises: a phone seals each bundle
 // with one more than the highest epoch it has sealed or opened. It is inside the ciphertext, so it is authenticated and the
@@ -479,8 +480,10 @@ fn read_bundle_header(req: &Value) -> R<Value> {
     Ok(out)
 }
 
+/// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
+/// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -503,7 +506,7 @@ fn seal_bundle(req: &Value) -> R<Value> {
     // The header says how the key was made, so a restore on a new phone knows what to ask for (`SWR-MG-02`, `SWR-MG-05`).
     let kdf = &req["kdf"];
     bundle_key::check_kdf(kdf).map_err(|e| format!("kdf: {e}"))?;
-    // `SWR-MG-28` (b): the epoch is named by the caller, which holds the count, and is at least 1 (0 means "seen nothing").
+    // `SWR-MG-29` (b): the epoch is named by the caller, which holds the count, and is at least 1 (0 means "seen nothing").
     let epoch = req["epoch"].as_u64().filter(|e| *e >= 1).ok_or("epoch is required and is at least 1")?;
     let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": hex(&nonce), "kdf": kdf }).to_string().into_bytes();
     let mut aad = Vec::with_capacity(8 + header.len());
@@ -523,7 +526,7 @@ fn seal_bundle(req: &Value) -> R<Value> {
 /// returned from either. The items it returns are checked against the kind's list, so a forged body cannot bring an item
 /// the kind does not carry.
 ///
-/// `SWR-MG-28` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
+/// `SWR-MG-29` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
 /// none). It is required, so no caller opens a bundle without the check by leaving it out. A bundle whose epoch is lower is
 /// refused whole (`older_bundle`) and its items are not returned. A version-1 bundle carries no epoch and counts as 0.
 fn open_bundle(req: &Value) -> R<Value> {
@@ -1031,7 +1034,7 @@ mod tests {
         ask(json!({"op":"sealBundle","epoch":epoch,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":items,"kdf":kdf("recoveryCode")}))
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     #[test]
     fn a_bundle_carries_its_epoch_inside_the_seal_and_not_in_the_clear() {
         let b = sealed_at(41, json!({"sessionHistory":[]}));
@@ -1056,7 +1059,7 @@ mod tests {
         }
     }
 
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     #[test]
     fn a_phone_that_has_seen_a_later_epoch_refuses_an_older_bundle_whole() {
         let old = sealed_at(3, json!({"sessionHistory":["from-before-the-withdrawal"]}));
@@ -1076,7 +1079,7 @@ mod tests {
         assert!(wrong.get("epoch").is_none());
     }
 
-    // @verifies SWR-MG-28#d
+    // @verifies SWR-MG-29#d
     #[test]
     fn a_phone_that_has_seen_nothing_opens_an_old_bundle_and_the_epoch_does_not_stop_it() {
         // The limit of the epoch, pinned so nobody reads more into it: with nothing seen, an old bundle is as good as the
@@ -1088,7 +1091,7 @@ mod tests {
     }
 
     // @verifies SWR-MG-05
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     #[test]
     fn the_format_version_rose_with_the_epoch_so_the_older_reader_refuses_this_bundle() {
         // The reader before this change took versions up to 1 and refused anything above whole (`newer_version`).
@@ -1101,7 +1104,7 @@ mod tests {
         assert_eq!(ask(json!({"op":"readHeader","header":{"kind":"uhdr","formatVersion":FORMAT_VERSION + 1}}))["reason"], "newer_version");
     }
 
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     #[test]
     fn a_version_1_bundle_has_no_epoch_and_counts_as_the_oldest() {
         let v1 = sealed_raw(1, json!({"items":{"sessionHistory":[]}}));

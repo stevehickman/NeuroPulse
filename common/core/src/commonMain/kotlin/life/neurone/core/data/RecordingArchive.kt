@@ -14,7 +14,7 @@ import life.neurone.core.npps.NppsCore
 // chunks the core takes, one at a time, so a recording is never turned into one large JSON value, and puts the answers back
 // together. The key is a [BundleKey] derived from the person's code or passphrase and is the caller's to destroy.
 //
-// Every file is sealed as a named object (SWR-MG-28 (a), OI-PRIV-09). All the files of one backup are under one key, and the place
+// Every file is sealed as a named object (SWR-MG-29 (a), OI-PRIV-09). All the files of one backup are under one key, and the place
 // that keeps them can hand back any of them under any name, so the caller says which object it is sealing and, when it opens a file,
 // which object it expects; a file sealed as another object does not open. The ID is in the core's authenticated data and is not in
 // the file. It must come from something the caller already trusts (the sealed index, or a fixed name), never from the file itself or

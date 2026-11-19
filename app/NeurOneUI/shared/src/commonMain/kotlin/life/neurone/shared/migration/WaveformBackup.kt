@@ -25,7 +25,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // code or passphrase, and one sealed index file says which file holds which recording and how the key was made, which is all a restore
 // needs. A recording never changes, so each is sealed once and the next backup writes only the new ones.
 //
-// Each file is sealed as a named object and opened as the object the reader expects (SWR-MG-28 (a), OI-PRIV-09): a recording as its
+// Each file is sealed as a named object and opened as the object the reader expects (SWR-MG-29 (a), OI-PRIV-09): a recording as its
 // own name in the app (which the sealed index holds, so the name is never in the clear), the index under a fixed name. The backup
 // folder can hand back any file under any name; a file sealed as one recording does not open as another, so a swap is an unreadable
 // recording and not a wrong one. A set sealed before this (archive version 1) is not opened: the next backup starts a new set under

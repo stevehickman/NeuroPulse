@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 644ea431635d06bf4b54a86e5ea8a9d7d60b2e682eaa15d9d966cafe4d5a2f87
+// sources-sha256: b8c052ea727dcc133fcfea881791f6592937d77a77a0c08209bbd01090bb3919
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -86,8 +86,12 @@ function call(entry, input) {
         throw new NppsRefusal("the NPPS core was given an argument it cannot read");
     }
   } finally {
-    wasm.npps_free(inPtr, bytes.length + 1);
-    wasm.npps_free(cells, 8);
+    new Uint8Array(wasm.memory.buffer, inPtr, bytes.length + 1).fill(0);
+    bytes.fill(0);
+    if (instance === wasm) {
+      wasm.npps_free(inPtr, bytes.length + 1);
+      wasm.npps_free(cells, 8);
+    }
   }
 }
 function nppsParse(source) {
@@ -273,7 +277,7 @@ function channelLabel(wl) {
   return el ? el.replace("led_", "") + "nm" : null;
 }
 function findParam(modalities, type) {
-  const m = modalities.find((m2) => m2.modalityParams.type === type);
+  const m = modalities.find((m) => m.modalityParams.type === type);
   return m ? m.modalityParams.params : undefined;
 }
 function deriveTier(def) {
@@ -457,11 +461,11 @@ async function loadLibrary(baseUrl = DEFAULT_BASE_URL) {
   }
 }
 export {
-  loadLibrary,
-  buildModalities,
-  buildLibrary,
-  ZONES,
-  PROTOCOL_IDS,
+  LOAD_REPORT,
   PROTOCOLS,
-  LOAD_REPORT
+  PROTOCOL_IDS,
+  ZONES,
+  buildLibrary,
+  buildModalities,
+  loadLibrary
 };

@@ -16,7 +16,7 @@
 //! fails to open, and a wrong key and an edited file are not told apart (`authentication_failed`). Every chunk is full except
 //! the last, which is the one the file ends with and may be empty only if the whole recording is.
 //!
-//! # The object ID (`SWR-MG-28` (a), `OI-PRIV-09`)
+//! # The object ID (`SWR-MG-29` (a), `OI-PRIV-09`)
 //! Every file of one backup is sealed under one key, and the place that keeps them is not trusted: it can hand back any file it
 //! holds under any name. So a file is sealed as a named object, and whoever opens it says which object it expects: the ID is in
 //! the associated data of every chunk and **is not in the file**. A file sealed as one recording does not open as another, or as
@@ -44,6 +44,7 @@ use crate::migration::{hex, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use serde_json::{json, Value};
+use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -59,8 +60,10 @@ pub const HEADER_BYTES: usize = 4 + 1 + PREFIX_BYTES + 2;
 pub const MAX_KDF: usize = 1024;
 const KEY_LEN: usize = 32;
 
+/// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
+/// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -365,7 +368,7 @@ mod tests {
         assert_eq!(info["chunkBytes"], CHUNK_BYTES);
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     #[test]
     fn a_file_sealed_as_one_object_does_not_open_as_another() {
         // Two recordings and the index of one backup: one key, and (the worst case) one header.
@@ -384,7 +387,7 @@ mod tests {
         assert!(!file_a.windows(9).any(|w| w == b"session_1"));
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     #[test]
     fn an_object_id_is_required_and_its_length_is_bound_with_it() {
         let h = header(false);
@@ -404,7 +407,7 @@ mod tests {
         assert_eq!(open_as(&file, KEY, "ab\u{1}").unwrap_err(), "authentication_failed");
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     #[test]
     fn a_version_1_archive_is_refused_by_name_and_this_build_writes_a_version_the_older_reader_refuses() {
         let file = seal(b"abc", KEY, &header(false));

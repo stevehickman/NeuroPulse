@@ -5,13 +5,13 @@
 **From:** NeurOne Software Engineering (`OI-PRIV-09` items 3 to 5 in `docs/status/pending-decisions.md`; privacy review of `common/`, 2026-11-15, Findings 22 and 23)
 **To:** The principal, with the Privacy Lead (`OI-BACKUP-01` item 1 is the same decision for the recordings and is asked here once)
 **Response needed:** an option for each of Q1 to Q5, a short rationale, conditions that would reopen it, name, role and date.
-**Why now:** nothing is blocked. The two integrity faults of `OI-PRIV-09` are fixed (`SWR-MG-28`). What is left changes the file formats and costs space, so it is not made as a detail. Every option that changes a format is cheapest now, before any backup made by a released app exists.
+**Why now:** nothing is blocked. The two integrity faults of `OI-PRIV-09` are fixed (`SWR-MG-29`). What is left changes the file formats and costs space, so it is not made as a detail. Every option that changes a format is cheapest now, before any backup made by a released app exists.
 
 ## 1. What is known
 
 **Who the observer is.** The backup goes to a place the person chose: a folder on a USB-C drive or computer, or their own cloud account (`SWR-MG-10`, `SWR-MG-21` to `-27`). NeurOne is never the observer (`SWR-MG-02`). The observer is the storage provider, anyone else with access to the account or the drive, and anyone who finds the drive.
 
-**What they cannot read.** Any item, any recording, any recording's name, the epoch of a bundle (`SWR-MG-28`), or which file holds which recording (`REQ-SW03-29` (b)). File times are the epoch where the app sets them (`REQ-SW03-29` (f)).
+**What they cannot read.** Any item, any recording, any recording's name, the epoch of a bundle (`SWR-MG-29`), or which file holds which recording (`REQ-SW03-29` (b)). File times are the epoch where the app sets them (`REQ-SW03-29` (f)).
 
 **What they can read today** (checked against the code on 2026-11-18):
 
@@ -60,7 +60,7 @@ The salt and the format version stay in the clear under every option.
 
 ## 3. One more thing the sender wants ruled, from the integrity fix
 
-`SWR-MG-28` (d) says plainly that a phone which has seen no bundle cannot tell an old bundle from the newest. Two follow-ons were not built because they are choices:
+`SWR-MG-29` (d) says plainly that a phone which has seen no bundle cannot tell an old bundle from the newest. Two follow-ons were not built because they are choices:
 
 - **Q6. Should a restore on a new phone show which backup it was given** (its number, and a date sealed inside it) **and ask the person to confirm it is their latest?** It is the only check a new phone can make. Cost: the person has to know roughly when they last backed up; a date inside the seal is new content in the bundle.
 - **Q7. May a person choose to restore an older bundle on purpose?** Today a phone that has seen a later one refuses, and the only way round is an erase. Cost of allowing it: the refusal becomes a warning the person can dismiss, which is the path an attacker wants them to take.

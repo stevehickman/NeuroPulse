@@ -57,7 +57,7 @@ class RecordingArchiveTests {
         assertNotNull(sealed)
     }
 
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     @Test fun aFileSealedAsOneObjectIsRefusedWhenOpenedAsAnotherAndAnOlderVersionIsNamed() {
         val one = RecordingArchive.seal(sample(100), key, "recording:session_1.edf", Counting())
         val two = RecordingArchive.seal(sample(200), key, "recording:session_2.edf", Counting())

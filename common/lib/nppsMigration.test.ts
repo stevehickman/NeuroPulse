@@ -47,7 +47,7 @@ describe('nppsMigration', () => {
     expect(wrong).toEqual({ ok: false, reason: 'authentication_failed' });
   });
 
-  // @verifies SWR-MG-28#c
+  // @verifies SWR-MG-29#c
   it('refuses a bundle older than the caller has seen, through WebAssembly, and returns nothing from it', async () => {
     await initNppsCore();
     const key = '00'.repeat(32);

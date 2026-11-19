@@ -99,7 +99,7 @@ class WaveformBackupTest {
     }
 
     // The backup folder can hand back any file under any name (privacy review of `common/`, 2026-11-15, Finding 22; `OI-PRIV-09`).
-    // @verifies SWR-MG-28#a
+    // @verifies SWR-MG-29#a
     @Test fun a_backup_folder_that_swaps_two_recordings_restores_neither_and_never_one_as_the_other() = runTest {
         val folder = Folder(); folder.add(1); folder.add(2); val third = folder.add(3)
         val place = place()

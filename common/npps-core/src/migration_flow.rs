@@ -12,8 +12,18 @@
 //! "state":<from the last answer>,"result":<what the effect returned>}` continues it. The answer is either
 //! `{"effect":{"type":…,…},"state":…}`, meaning "do this and call me again with the outcome", or `{"done":{…}}`. The state
 //! is opaque to the platform, is never persisted by it, and holds the flow's working data (items, the bundle) for the
-//! length of the flow only. **No secret and no key is ever in a state**: the driver holds the secret and asks
-//! `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//! length of the flow only. **No secret of the backup and no key of it is ever in a state**: the driver holds the secret and
+//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//!
+//! **A flow over a direct link is the one exception, and it is bounded** (`link.rs`, `SWR-MG-28` (d)). The core keeps
+//! nothing between calls, so what a pairing needs from one call to the next can only be in the state:
+//! * until the shared key is made: the pairing code, and on the restoring phone the SPAKE2 seed and its own SPAKE2
+//!   message. They are taken out in the call that makes the shared key;
+//! * from then on: the two channel keys (one per direction) and their message counts, because every later frame is sealed
+//!   or opened with them. Nothing else of the pairing stays. The shared key itself is never in a state, and the request a
+//!   restore starts from is kept without the code and dropped when the restore starts.
+//!
+//! A host therefore treats a link flow's state as it treats a key: in memory only, never logged, never persisted.
 //!
 //! # Effects
 //! | type | args | result |
@@ -43,7 +53,7 @@
 //!
 //! # The epoch
 //! The backup location can hand back any bundle it was ever given, so a bundle is sealed with an epoch and a phone refuses
-//! one older than it has seen (`SWR-MG-28`; the rule and its limit are in `migration`). The count is the phone's, under a
+//! one older than it has seen (`SWR-MG-29`; the rule and its limit are in `migration`). The count is the phone's, under a
 //! key of the core's own (`np.migration.seen-epoch`) that it reaches through `readKeys` and `writeKeys`, so no app keeps
 //! it: a backup reads it, seals with one more and records that before the bundle leaves; a restore reads it before it asks
 //! for the key, refuses an older bundle before any claim or write, and records the epoch of the bundle it opened.
@@ -84,7 +94,7 @@ const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
 /// (`SWR-MG-08`): `{"bundleHash","tag"}` as text. It holds the tag a phone that opened the bundle will write, not the key. It
 /// is in the `perInstall` list, so it is sealed at rest, is never carried, and is forgotten with every other key by the clear.
 const PENDING_CLEAR_KEY: &str = "np.migration.pending-clear";
-/// The highest bundle epoch this phone has sealed or opened, as decimal text (`SWR-MG-28`, `OI-PRIV-09`). A backup seals with
+/// The highest bundle epoch this phone has sealed or opened, as decimal text (`SWR-MG-29`, `OI-PRIV-09`). A backup seals with
 /// one more; a restore refuses a bundle below it. It is in the `perInstall` list: sealed at rest, never carried (the new
 /// phone learns the number from the bundle it opens, inside the seal, not from an item), and forgotten by a clear or an
 /// erase, after which the phone has seen nothing. The core reads and writes it itself, so no app keeps the count or decides
@@ -182,7 +192,7 @@ fn backup(req: &Value) -> R<Value> {
             let keyed: Vec<String> = carried.iter().filter(|n| key_items.contains(n) && !keys_of(n).is_empty()).cloned().collect();
             let adapter: Vec<String> = carried.iter().filter(|n| host_items.contains(n) && !keyed.contains(n)).cloned().collect();
             let st = json!({ "step": "epoch", "kind": kind, "method": method, "omitted": inv["omitted"], "keyed": keyed, "adapter": adapter, "items": {} });
-            // SWR-MG-28 (b): the bundle is sealed with one more than the highest epoch this phone has sealed or opened.
+            // SWR-MG-29 (b): the bundle is sealed with one more than the highest epoch this phone has sealed or opened.
             effect(st, json!({ "type": "readKeys", "keys": [SEEN_EPOCH_KEY] }))
         }
         "epoch" => {
@@ -240,7 +250,7 @@ fn backup(req: &Value) -> R<Value> {
             let written: Vec<String> = st["items"].as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
             let mut st2 = json!({ "step": "record", "kind": st["kind"], "bundleHash": sealed["bundleHash"], "written": written, "omitted": st["omitted"] });
             st2["bundle"] = sealed["bundle"].clone();
-            // SWR-MG-28 (b): the epoch is recorded before the bundle leaves, so no later bundle from this phone can carry
+            // SWR-MG-29 (b): the epoch is recorded before the bundle leaves, so no later bundle from this phone can carry
             // the same or a lower one, whatever happens to the write that follows.
             let mut set = json!({ SEEN_EPOCH_KEY: sealed["epoch"].to_string() });
             if st["kind"] == "migrate" {
@@ -370,7 +380,7 @@ fn restore(req: &Value) -> R<Value> {
             st["hash"] = h["bundleHash"].clone();
             st["method"] = h["method"].clone();
             st["kdf"] = h["kdf"].clone();
-            // SWR-MG-28 (c): what this phone has seen is read before the key is asked for, because the key is used in the
+            // SWR-MG-29 (c): what this phone has seen is read before the key is asked for, because the key is used in the
             // call that brings it and is not kept.
             st["step"] = json!("seen");
             effect(st, json!({ "type": "readKeys", "keys": [SEEN_EPOCH_KEY] }))
@@ -385,7 +395,7 @@ fn restore(req: &Value) -> R<Value> {
         "key" => {
             // The bundle is opened BEFORE any claim, so a wrong passphrase never costs the person a claim only they can
             // release (SWR-MG-07). The key is used here and not kept.
-            // SWR-MG-28 (c): an older bundle than this phone has seen is refused here, whole, before any claim or write.
+            // SWR-MG-29 (c): an older bundle than this phone has seen is refused here, whole, before any claim or write.
             let opened = dispatch("openBundle", &json!({ "bundle": st["bundle"], "key": req["result"]["key"], "seenEpoch": st["seen"] }))?;
             if opened["ok"] != true {
                 return done(json!({ "ok": false, "reason": opened["reason"] }));
@@ -412,7 +422,7 @@ fn restore(req: &Value) -> R<Value> {
                 // SWR-MG-08: the tag the confirmation will carry is made now, while the key is here; the key is not kept.
                 st2["tag"] = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
             }
-            // SWR-MG-28 (c): the phone has now opened this epoch, and records it before it takes a claim or changes anything,
+            // SWR-MG-29 (c): the phone has now opened this epoch, and records it before it takes a claim or changes anything,
             // so a restore that stops part way still leaves it refusing anything older. The same bundle opens again.
             if opened["epoch"].as_u64() > st["seen"].as_u64() {
                 st2["step"] = json!("epochW");
@@ -890,7 +900,7 @@ mod tests {
         p.kv.iter().filter(|(k, _)| *k != "np.migration.pending-clear").map(|(k, v)| (k.clone(), v.clone())).collect()
     }
 
-    /// A phone whose restore was refused after the bundle opened: it has recorded the epoch it saw (`SWR-MG-28`) and holds
+    /// A phone whose restore was refused after the bundle opened: it has recorded the epoch it saw (`SWR-MG-29`) and holds
     /// nothing else, so nothing of the bundle was applied.
     fn holds_only_the_epoch(p: &Phone) -> bool {
         p.kv.keys().map(String::as_str).collect::<Vec<_>>() == [SEEN_EPOCH_KEY]
@@ -1146,7 +1156,7 @@ mod tests {
         );
     }
 
-    // @verifies SWR-MG-28#b
+    // @verifies SWR-MG-29#b
     #[test]
     fn each_backup_is_sealed_one_epoch_later_and_the_phone_records_it_before_the_bundle_leaves() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
@@ -1171,7 +1181,7 @@ mod tests {
 
     // The backup location keeps every bundle it was given and can hand back any of them (privacy review of `common/`,
     // 2026-11-15, Finding 23; `OI-PRIV-09`).
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     #[test]
     fn a_phone_handed_an_older_bundle_than_it_has_seen_refuses_it_and_changes_nothing() {
         let (mut route, mut phone_a) = (Route::default(), phone(&ADAPTER, 1));
@@ -1205,7 +1215,7 @@ mod tests {
         assert_eq!(restore(&mut route, &mut phone_c, SECRET)["ok"], true);
     }
 
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     #[test]
     fn a_restore_records_the_epoch_it_opened_so_the_new_phone_seals_later_and_refuses_earlier() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
@@ -1224,8 +1234,8 @@ mod tests {
         assert_eq!(fresh.kv[SEEN_EPOCH_KEY], "4");
     }
 
-    // The limit of the epoch, pinned so that nothing claims more for it (`SWR-MG-28` (d)).
-    // @verifies SWR-MG-28#d
+    // The limit of the epoch, pinned so that nothing claims more for it (`SWR-MG-29` (d)).
+    // @verifies SWR-MG-29#d
     #[test]
     fn a_phone_that_has_seen_nothing_restores_an_old_bundle_and_the_old_phone_does_not_clear_against_it() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
@@ -1258,7 +1268,7 @@ mod tests {
         assert_eq!(restore(&mut route, &mut again, SECRET)["ok"], true);
     }
 
-    // @verifies SWR-MG-28#c
+    // @verifies SWR-MG-29#c
     #[test]
     fn a_stored_epoch_that_is_not_a_count_stops_the_backup_and_the_restore_and_is_not_read_as_zero() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
@@ -1543,6 +1553,12 @@ mod tests {
     /// As `over_link`, but once the client has sent `cut_after` frames its next receive gets `closing` instead of the bytes.
     #[allow(clippy::too_many_arguments)]
     fn over_link_cut(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value) {
+        over_link_watched(client, c_phone, server, store, s_phone, piece, cut_after, closing, &mut |_, _| {});
+    }
+
+    /// As `over_link_cut`, and `watch` is shown each end (0 the client, 1 the server) after every step it takes.
+    #[allow(clippy::too_many_arguments)]
+    fn over_link_watched(client: &mut Peer, c_phone: &mut Phone, server: &mut Peer, store: &mut Route, s_phone: &mut Phone, piece: usize, cut_after: usize, closing: Value, watch: &mut dyn FnMut(usize, &Peer)) {
         let mut sent = 0usize;
         let mut inbox: [Vec<u8>; 2] = [vec![], vec![]];
         let mut scratch = Route::default();
@@ -1571,6 +1587,7 @@ mod tests {
                     _ => perform(&e, store, s_phone, SECRET),
                 };
                 me.advance(result);
+                watch(side, me);
                 moved = true;
             }
             if client.done.is_some() && server.done.is_some() {
@@ -1612,6 +1629,66 @@ mod tests {
         assert_eq!(store.route_calls, 0);
         assert!(quiet.kv.is_empty() && srv_phone.kv.is_empty(), "the link wrote nothing to the key-value stores");
         quiet.kv.clear();
+    }
+
+    /// Every object key in `v`, at any depth.
+    fn object_keys(v: &Value, out: &mut Vec<String>) {
+        match v {
+            Value::Object(o) => o.iter().for_each(|(k, v)| {
+                out.push(k.clone());
+                object_keys(v, out);
+            }),
+            Value::Array(a) => a.iter().for_each(|v| object_keys(v, out)),
+            _ => {}
+        }
+    }
+
+    // @verifies SWR-MG-28#d
+    #[test]
+    fn once_two_phones_are_paired_neither_state_holds_the_code_the_seed_or_the_request_it_came_in() {
+        let (mut store, mut old, mut fresh, mut srv_phone) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 3));
+        fill(&mut old);
+        let done = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut store, &mut old, SECRET);
+        assert_eq!(done["ok"], true);
+        let mut client = Peer::start("restore", link_params(&fresh));
+        let mut server = Peer::start("serve", serve_params(NOW + 120, 3));
+        assert_eq!(client.state["code"], CODE, "the restoring phone needs the code until the other phone's reply");
+        assert!(client.state["origin"]["params"]["pairing"].is_null(), "and keeps it once, not also in the request it will start the restore from");
+
+        // (states seen once the channel exists, states that broke the rule)
+        let (mut paired, mut wrong) = ([0usize; 2], Vec::<String>::new());
+        over_link_watched(&mut client, &mut fresh, &mut server, &mut store, &mut srv_phone, 7, usize::MAX, json!(null), &mut |side, peer| {
+            let st = &peer.state;
+            let (who, mut keys) = (["restoring", "serving"][side], vec![]);
+            object_keys(st, &mut keys);
+            let has = |name: &str| keys.iter().any(|k| k == name);
+            // The restoring phone has made the channel keys once `keys` is there, the serving phone once `after` is.
+            let channel = !st["ctx"].is_null() || !st["keys"].is_null() || !st["after"].is_null();
+            if !st.is_null() && channel {
+                paired[side] += 1;
+                for gone in ["code", "seed", "key", "hello", "a", "b"] {
+                    if has(gone) {
+                        wrong.push(format!("the {who} phone's state holds '{gone}' after the channel keys exist"));
+                    }
+                }
+                // The request the restore starts from (without the code) is needed until the server's `ok`, and not after.
+                if has("origin") && !st["ctx"].is_null() {
+                    wrong.push(format!("the {who} phone's state holds the originating request once the channel is in use"));
+                }
+                if st.to_string().contains(CODE) {
+                    wrong.push(format!("the {who} phone's state holds the code after the channel keys exist"));
+                }
+            }
+            // The code a person typed never reaches the inner flow's state, paired or not.
+            if side == 0 && has("pairing") {
+                wrong.push("the restoring phone's state holds the pairing it was started with".into());
+            }
+        });
+        assert_eq!(client.done.clone().unwrap()["ok"], true, "the migration still runs");
+        assert!(paired[0] > 10 && paired[1] > 10, "both ends were watched through the transfer: {paired:?}");
+        wrong.sort();
+        wrong.dedup();
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
 
     // @verifies SWR-MG-10

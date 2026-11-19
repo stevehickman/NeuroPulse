@@ -214,7 +214,7 @@ class MigrationFlowTests {
 
     // The backup location keeps every bundle it was given and can hand back any of them (`OI-PRIV-09`). The rule is the core's;
     // this proves the Kotlin driver and store carry the count it keeps.
-    // @verifies SWR-MG-28#b,c
+    // @verifies SWR-MG-29#b,c
     @Test
     fun eachBackupIsALaterEpochAndAPhoneHandedAnOlderBundleRefusesItAndChangesNothing() = runTest {
         val route = InMemoryBackupRoute(atomicClaim = false)
@@ -235,7 +235,7 @@ class MigrationFlowTests {
     }
 
     // The limit of the epoch, pinned so that nothing claims more for it.
-    // @verifies SWR-MG-28#d
+    // @verifies SWR-MG-29#d
     @Test
     fun aPhoneThatHasSeenNothingRestoresAnOlderBundleAndThenRefusesAnythingEarlier() = runTest {
         val route = InMemoryBackupRoute(atomicClaim = false)

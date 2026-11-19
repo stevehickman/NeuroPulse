@@ -28,6 +28,10 @@ internal const val MS_ORG_TOKEN = "https://login.microsoftonline.com/organizatio
 internal const val DROPBOX_TOKEN = "https://api.dropboxapi.com/oauth2/token"
 internal const val DROPBOX_REVOKE = "https://api.dropboxapi.com/2/auth/token/revoke"
 internal const val DROPBOX_REDIRECT = "http://127.0.0.1:9005"
+/** Protected storage over [raw] that seals the vault's key, as a host with a keystore opens it. */
+internal fun sealedStorage(raw: life.neurone.core.common.KeyValueStore = InMemoryKeyValueStore()): life.neurone.core.common.ProtectedStorage =
+    life.neurone.core.common.ProtectedStorage.open(raw, InMemorySecretKeyStore()) { setOf(CredentialStore.KEY) }
+
 internal const val GOOGLE_REDIRECT = "http://127.0.0.1:9004"
 internal const val MS_REDIRECT = "msal-test://auth"
 internal const val CK_CALLBACK = "https://app.example.test/ck-callback"
@@ -130,9 +134,14 @@ internal class Rig(
 ) {
     val providers = FakeProviders()
     val browser = FakeBrowser(providers)
-    val kv = InMemoryKeyValueStore()
+    /** The host's own store, as it is on disk: what the vault's value looks like there is sealed. */
+    val raw = InMemoryKeyValueStore()
+    val storage = sealedStorage(raw)
+    /** The app's store: reads and writes pass through the sealing. */
+    val kv: life.neurone.core.common.KeyValueStore = storage.store
+    val credentials = CredentialStore.over(storage)!!
     var clock = 1_000_000L
-    val auth = CloudAuth(providers, CredentialStore(kv), config, browser, CountingRandom(), Digests::sha256, { clock })
+    val auth = CloudAuth(providers, credentials, config, browser, CountingRandom(), Digests::sha256, { clock })
 }
 
 class CloudAuthTests {
@@ -357,9 +366,8 @@ class CloudAuthTests {
     @Test
     fun theCredentialsAreOneValueSealedAtRestAndNoTokenIsReadableInTheHostsRawStore() = runBlocking {
         val raw = InMemoryKeyValueStore()
-        val sealed = EncryptedKeyValueStore(raw, InMemorySecretKeyStore(), setOf(CredentialStore.KEY))
         val providers = FakeProviders()
-        val auth = CloudAuth(providers, CredentialStore(sealed), CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT)), FakeBrowser(providers), CountingRandom(), Digests::sha256, { 1L })
+        val auth = CloudAuth(providers, CredentialStore.over(sealedStorage(raw))!!, CloudAuthConfig(google = OAuthClientConfig("g", GOOGLE_REDIRECT)), FakeBrowser(providers), CountingRandom(), Digests::sha256, { 1L })
         val a = auth.signIn(CloudService.GOOGLE_DRIVE)
         val onDisk = raw.getString(CredentialStore.KEY)!!
         assertFalse("refresh-1" in onDisk || "access-1" in onDisk, "no token in the clear")
