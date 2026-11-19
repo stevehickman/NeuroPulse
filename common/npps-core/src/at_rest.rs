@@ -9,6 +9,8 @@
 //! | operation | arguments | result |
 //! |-----------|-----------|--------|
 //! | `sealValue` | `key` (32 bytes, hex), `nonce` (12 bytes, hex), `name`, `value` (text) | `{sealed}`: the nonce and the ciphertext, hex |
+//! | `wrapKey` | `key` (the wrapping key), `nonce`, `name`, `data` (the key to wrap: bytes beside the request, or a kept `data` key) | `{sealed}`, the same form `sealValue` gives the key's hex |
+//! | `unwrapKey` | `key`, `name`, `sealed` | `{ok: true, key}` with the key as a secret of the answer, or `{ok: false, reason}` as `openValue` |
 //! | `openValue` | `key`, `name`, `sealed` | `{ok: true, value}`, or `{ok: false, reason}` with `authentication_failed` (a wrong key, a different name or an edited value) or `malformed` |
 
 use crate::migration::{hex, unhex};
@@ -69,9 +71,57 @@ fn open(req: &Value) -> R<Value> {
     }
 }
 
-/// `sealValue` and `openValue`.
+/// `wrapKey`: seal a key under another (the data key under the key a passphrase makes). The stored form is exactly what
+/// `sealValue` makes of the key's hex, so a record written before this opens with `unwrapKey` and the reverse; what
+/// changes is that the key being wrapped arrives as bytes (`SWR-MG-30`) and its hex exists only here, in a wiped buffer.
+fn wrap_key(req: &Value) -> R<Value> {
+    let name = req["name"].as_str().ok_or("name is required")?;
+    let nonce = unhex(req["nonce"].as_str().ok_or("nonce is required")?, "nonce")?;
+    if nonce.len() != NONCE_LEN {
+        return Err(format!("the nonce is {NONCE_LEN} bytes"));
+    }
+    let data = crate::secret_io::secret(req, "data", &["data"])?;
+    if data.is_empty() {
+        return Err("the key to wrap is empty".into());
+    }
+    let mut text = zeroize::Zeroizing::new(String::with_capacity(2 * data.len()));
+    for b in data.iter() {
+        text.push(char::from_digit(u32::from(b >> 4), 16).expect("a nibble"));
+        text.push(char::from_digit(u32::from(b & 15), 16).expect("a nibble"));
+    }
+    let ct = cipher(req)?
+        .encrypt(Nonce::from_slice(&nonce), Payload { msg: text.as_bytes(), aad: &aad(name) })
+        .map_err(|_| "encryption failed".to_string())?;
+    let mut sealed = nonce;
+    sealed.extend(ct);
+    Ok(json!({ "sealed": hex(&sealed) }))
+}
+
+/// `unwrapKey`: the key `wrapKey` (or, before it, `sealValue` over the key's hex) sealed, as a secret of the answer: bytes
+/// beside it through the secret entry point, and never the text `openValue` would have answered with.
+fn unwrap_key(req: &Value) -> R<Value> {
+    let name = req["name"].as_str().ok_or("name is required")?;
+    let cipher = cipher(req)?;
+    let Some(sealed) = req["sealed"].as_str().and_then(|s| unhex(s, "sealed").ok()).filter(|s| s.len() > NONCE_LEN) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let (nonce, ct) = sealed.split_at(NONCE_LEN);
+    let Ok(plain) = cipher.decrypt(Nonce::from_slice(nonce), Payload { msg: ct, aad: &aad(name) }) else {
+        return Ok(json!({ "ok": false, "reason": "authentication_failed" }));
+    };
+    let plain = zeroize::Zeroizing::new(plain);
+    let key = std::str::from_utf8(&plain).ok().and_then(|text| unhex(text, "key").ok()).map(zeroize::Zeroizing::new);
+    Ok(match key {
+        Some(key) if !key.is_empty() => json!({ "ok": true, "key": crate::secret_io::answer_secret(&key) }),
+        _ => json!({ "ok": false, "reason": "malformed" }),
+    })
+}
+
+/// `sealValue`, `openValue`, `wrapKey` and `unwrapKey`.
 pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
     match name {
+        "wrapKey" => Some(wrap_key(req)),
+        "unwrapKey" => Some(unwrap_key(req)),
         "sealValue" => Some(seal(req)),
         "openValue" => Some(open(req)),
         _ => None,

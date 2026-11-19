@@ -75,25 +75,28 @@ fun BundleKeyDerivation.storedSecret(text: String): BundleSecret? {
 /** A recovery code just made: the [text] to show the user once, and the [secret] it stands for. */
 class NewRecoveryCode(val text: String, val secret: BundleSecret)
 
-/** The derived 32-byte AES-256-GCM key. Memory-only; zero after use via [destroy]. */
-class BundleKey internal constructor(bytes: ByteArray) {
-    init {
-        require(bytes.size == BundleKeyDerivation.KEY_LENGTH) { "A bundle key is ${BundleKeyDerivation.KEY_LENGTH} bytes" }
-    }
-
-    private val material = bytes.copyOf()
+/**
+ * The derived 32-byte AES-256-GCM key. **The key itself is not here**: the shared core derived it and keeps it, and this
+ * holds the handle the core gave (`SWR-MG-30` (b)). So no code on this side can read the key, print it or turn it into a
+ * string, and the operations that use it are given the handle. [destroy] has the core wipe it; a key that is not
+ * destroyed stays in the core until the process ends, and the core holds only so many.
+ */
+class BundleKey internal constructor(private val handle: JsonObject) {
     private var destroyed = false
 
-    /** The key as the lowercase hex the core's sealBundle and openBundle take. */
-    fun hex(): String {
+    /** What a request to the core carries where the key belongs: `{"$handle": n}`. Not a secret. */
+    internal fun ref(): JsonObject {
         check(!destroyed) { "BundleKey has been destroyed" }
-        return material.toHex()
+        return handle
     }
 
     fun destroy() {
-        material.fill(0)
+        if (destroyed) return
         destroyed = true
+        runCatching { NppsCore.migration(buildJsonObject { put("op", "keyRelease"); put("key", handle) }) }
     }
+
+    override fun toString(): String = "BundleKey(<in the core>)"
 }
 
 object BundleKeyDerivation {
@@ -108,25 +111,41 @@ object BundleKeyDerivation {
     fun newRecoveryCode(random: RandomSource): NewRecoveryCode {
         val bytes = random.nextBytes(RECOVERY_BYTES)
         require(bytes.size == RECOVERY_BYTES) { "The random source gave ${bytes.size} bytes, not $RECOVERY_BYTES" }
-        val code = ask("encodeRecoveryCode") { put("bytes", bytes.toHex()) }["code"]!!.jsonPrimitive.content
+        // The bytes are the secret: they go to the core beside the request, never as hex in it (SWR-MG-30).
+        val code = NppsCore.migrationSecret(buildJsonObject { put("op", "encodeRecoveryCode"); put("bytes", NppsCore.secretRef(0)) }, listOf(bytes))
+            .answer["code"]!!.jsonPrimitive.content
         val secret = BundleSecret(bytes)
         bytes.fill(0)
         return NewRecoveryCode(code, secret)
     }
 
     /** A recovery code typed or pasted by the user. */
-    fun recoveryCodeSecret(text: String): BundleSecretResult = secretResult(ask("parseRecoveryCode") { put("code", text) })
+    fun recoveryCodeSecret(text: String): BundleSecretResult = secretResult("parseRecoveryCode", "code", text)
 
     /** A passphrase the user chose (or typed to restore). Normalised and length-checked by the core. */
-    fun passphraseSecret(text: String): BundleSecretResult = secretResult(ask("passphraseSecret") { put("passphrase", text) })
+    fun passphraseSecret(text: String): BundleSecretResult = secretResult("passphraseSecret", "passphrase", text)
 
-    private fun secretResult(r: JsonObject): BundleSecretResult =
-        if (r["ok"]!!.jsonPrimitive.content == "true") {
-            val bytes = r["secret"]!!.jsonPrimitive.content.hexToBytes()
-            BundleSecretResult.Ok(BundleSecret(bytes)).also { bytes.fill(0) }
-        } else {
-            BundleSecretResult.Rejected(r["reason"]!!.jsonPrimitive.content, r["minChars"]?.jsonPrimitive?.int)
+    /**
+     * [text] is already a string when a screen hands it over, and that copy is the toolkit's. From here on it is bytes: it
+     * goes to the core beside the request, and the secret it stands for comes back beside the answer, neither as text
+     * (SWR-MG-30).
+     */
+    private fun secretResult(op: String, field: String, text: String): BundleSecretResult {
+        val typed = text.encodeToByteArray()
+        val r = try {
+            NppsCore.migrationSecret(buildJsonObject { put("op", op); put(field, NppsCore.secretRef(0)) }, listOf(typed))
+        } finally {
+            typed.fill(0)
         }
+        try {
+            if (r.answer["ok"]!!.jsonPrimitive.content != "true") {
+                return BundleSecretResult.Rejected(r.answer["reason"]!!.jsonPrimitive.content, r.answer["minChars"]?.jsonPrimitive?.int)
+            }
+            return BundleSecretResult.Ok(BundleSecret(NppsCore.secretAt(r, "secret") ?: error("the core answered ok with no secret")))
+        } finally {
+            r.clear()
+        }
+    }
 
     /** The `kdf` block for the header of a bundle about to be sealed: a fresh random salt and the core's fixed cost. */
     fun newKdf(method: BundleKeyMethod, random: RandomSource): JsonObject {
@@ -141,14 +160,25 @@ object BundleKeyDerivation {
      * checks the block against the fixed cost first, so a bundle cannot ask this phone for a cheaper derivation or another
      * algorithm. Throws [IllegalArgumentException] for a block the core refuses.
      */
-    fun deriveKey(secret: BundleSecret, kdf: JsonObject): BundleKey {
-        val r = ask("deriveBundleKey") { put("secret", secret.bytes().toHex()); put("kdf", kdf) }
-        require(r["ok"]!!.jsonPrimitive.content == "true") { "unsupported kdf: ${r["reason"]?.jsonPrimitive?.content}" }
-        val raw = r["key"]!!.jsonPrimitive.content.hexToBytes()
-        val key = BundleKey(raw)
-        raw.fill(0)
-        return key
+    fun deriveKey(secret: BundleSecret, kdf: JsonObject): BundleKey = deriveKey(secret, kdf, PURPOSE_BUNDLE)
+
+    /**
+     * As [deriveKey], for the purpose the key is kept under in the core: [PURPOSE_BUNDLE] seals bundles and recordings,
+     * [PURPOSE_WRAPPING] wraps the data key behind a passphrase. The core refuses a key used for the other purpose. The
+     * secret goes in beside the request as bytes and the key does not come back at all (SWR-MG-30).
+     */
+    internal fun deriveKey(secret: BundleSecret, kdf: JsonObject, purpose: String): BundleKey {
+        val r = NppsCore.migrationSecret(
+            buildJsonObject { put("op", "deriveBundleKey"); put("secret", NppsCore.secretRef(0)); put("kdf", kdf); put("keep", purpose) },
+            listOf(secret.bytes()),
+        )
+        r.clear()
+        require(r.answer["ok"]!!.jsonPrimitive.content == "true") { "unsupported kdf: ${r.answer["reason"]?.jsonPrimitive?.content}" }
+        return BundleKey(r.answer["key"] as JsonObject)
     }
+
+    internal const val PURPOSE_BUNDLE = "bundle"
+    internal const val PURPOSE_WRAPPING = "wrapping"
 }
 
 internal fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }

@@ -30,9 +30,8 @@ internal interface NppsBackend {
      * answer is one array: a 4-byte big-endian length and the answer's JSON, then the answer's secrets framed the same way.
      * The caller overwrites both arrays.
      *
-     * A binding that has not been given this entry point yet refuses here, by name, and nothing falls back to sending the
-     * key as text: built on the JVM and Android (JNI); the Kotlin bindings for iOS and for the browser are still to do
-     * (`OI-PRIV-12`).
+     * A binding that has not been given this entry point refuses here, by name, and nothing falls back to sending the key
+     * as text. Every binding has it: JNI (the JVM and Android), the C ABI through cinterop (iOS) and WebAssembly (the browser).
      */
     fun migrationSecret(request: String, secrets: ByteArray): ByteArray = throw UnsupportedOperationException(
         "This binding of the shared NPPS core cannot yet take a key as bytes (OI-PRIV-12 stage 2).",
@@ -65,8 +64,23 @@ internal enum class NppsEntry { PARSE, COMPILE, NAMESPACE, SERIALIZE, VALIDATE, 
 /** What a C ABI call returns: its status code and the bytes it wrote to `out`. */
 internal class NppsFfiResult(val status: Int, val output: ByteArray)
 
+/** What `npps_migration_secret_json` returns: its status, the bytes it wrote to `out`, and those it wrote to `secret_out`. */
+internal class NppsSecretFfiResult(val status: Int, val output: ByteArray, val secrets: ByteArray)
+
 /** The status codes of `neurone_npps_status.h`, and the one place they become an exception. */
 internal object NppsFfi {
+    /**
+     * What [NppsBackend.migrationSecret] answers, from the two buffers of the C ABI: a 4-byte big-endian length and the
+     * answer's JSON, then the answer's secrets as the core framed them. The JNI library builds the same array in Rust.
+     */
+    fun joined(answer: ByteArray, secrets: ByteArray): ByteArray {
+        val out = ByteArray(4 + answer.size + secrets.size)
+        for (k in 0..3) out[k] = (answer.size ushr (24 - 8 * k)).toByte()
+        answer.copyInto(out, 4)
+        secrets.copyInto(out, 4 + answer.size)
+        return out
+    }
+
     const val OK = 0
     const val REFUSED = 1
     const val INTERNAL_ERROR = 2
@@ -92,6 +106,20 @@ internal object NppsFfi {
  */
 internal abstract class CAbiNppsBackend : NppsBackend {
     protected abstract fun call(entry: NppsEntry, input: ByteArray): NppsFfiResult
+
+    /** `npps_migration_secret_json`: the status, the answer, and the answer's secrets as the core framed them. */
+    protected abstract fun callSecret(input: ByteArray, secrets: ByteArray): NppsSecretFfiResult
+
+    override fun migrationSecret(request: String, secrets: ByteArray): ByteArray {
+        val result = callSecret(request.encodeToByteArray(), secrets)
+        try {
+            if (result.status != NppsFfi.OK) NppsFfi.refuse(result.status, result.output.decodeToString())
+            return NppsFfi.joined(result.output, result.secrets)
+        } finally {
+            result.secrets.fill(0)
+            result.output.fill(0)
+        }
+    }
 
     private fun bytes(entry: NppsEntry, input: String): ByteArray {
         val result = call(entry, input.encodeToByteArray())

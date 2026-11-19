@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.platform.epochSeconds
+import life.neurone.core.data.BundleKey
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleSecret
 import life.neurone.core.data.RandomSource
@@ -94,8 +95,16 @@ object MigrationFlow {
         repeat(MAX_TURNS) {
             answer["done"]?.let { return it.jsonObject }
             val turn = answer
-            val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider)
-            answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
+            // The key a `deriveKey` effect asks for stays in the core (SWR-MG-30 (b)): the result carries its handle, the
+            // core uses it in the turn that reads the result, and it is released as soon as that turn is over, whether the
+            // turn answered or threw.
+            val held = arrayOfNulls<BundleKey>(1)
+            try {
+                val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider, held)
+                answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
+            } finally {
+                held[0]?.destroy()
+            }
         }
         error("The $flow flow did not end in $MAX_TURNS turns")
     }
@@ -148,6 +157,7 @@ object MigrationFlow {
         random: RandomSource,
         clock: () -> Long,
         secretProvider: (suspend (JsonObject) -> BundleSecret?)?,
+        held: Array<BundleKey?>,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
         // The pairing code's expiry reads the platform clock (SWR-MG-10).
         "now" -> buildJsonObject { put("seconds", clock()) }
@@ -163,7 +173,8 @@ object MigrationFlow {
             // secret now (SWR-MG-05); a provider that returns null is the person declining.
             val given = secret ?: secretProvider?.invoke(kdf) ?: throw SecretDeclined()
             val key = try { BundleKeyDerivation.deriveKey(given, kdf) } finally { if (secret == null) given.destroy() }
-            try { buildJsonObject { put("key", key.hex()) } } finally { key.destroy() }
+            held[0] = key
+            buildJsonObject { put("key", key.ref()) }
         }
         "readKeys" -> if (keys == null) host.perform(e) else buildJsonObject {
             put("values", buildJsonObject { strings(e["keys"]).forEach { k -> keys.getString(k)?.let { put(k, JsonPrimitive(it)) } } })

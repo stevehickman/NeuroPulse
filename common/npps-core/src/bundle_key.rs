@@ -271,10 +271,11 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
             })
         })(),
         "encodeRecoveryCode" => (|| {
-            let b = unhex(req["bytes"].as_str().ok_or("bytes is required")?, "bytes")?;
+            // The bytes are the secret the code stands for; the code itself is text by purpose (it is shown to the person).
+            let b = crate::secret_io::secret(req, "bytes", &[])?;
             Ok(json!({ "code": encode_recovery_code(&b)? }))
         })(),
-        "parseRecoveryCode" => Ok(match parse_recovery_code(req["code"].as_str().unwrap_or("")) {
+        "parseRecoveryCode" => Ok(match crate::secret_io::secret_text(req, "code", &[]).map_err(|_| "malformed").and_then(|c| parse_recovery_code(&c)) {
             Ok(b) => json!({ "ok": true, "secret": crate::secret_io::answer_secret(&b) }),
             Err(reason) => json!({ "ok": false, "reason": reason }),
         }),

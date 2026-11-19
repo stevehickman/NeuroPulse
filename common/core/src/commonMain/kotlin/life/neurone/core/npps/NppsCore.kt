@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -44,7 +46,16 @@ object NppsCore {
     private fun nativeContentHash(request: String): String = backend.contentHash(request)
 
     private fun nativeLibrary(request: String): String = backend.library(request)
-    private fun nativeMigration(request: String): String = backend.migration(request)
+    private fun nativeMigration(request: String): String {
+        requestObserver?.invoke(request)
+        return backend.migration(request)
+    }
+
+    /**
+     * For tests that no key is ever text on its way to the core (`SWR-MG-30` (e)): shown the JSON of every migration request,
+     * through either entry point, exactly as it is handed to the binding. Nothing in the apps sets it.
+     */
+    internal var requestObserver: ((String) -> Unit)? = null
 
     /**
      * Parse NPPS text into everything the file declares:
@@ -146,7 +157,9 @@ object NppsCore {
             at += 4 + s.size
         }
         val out = try {
-            backend.migrationSecret(request.toString(), framed)
+            val text = request.toString()
+            requestObserver?.invoke(text)
+            backend.migrationSecret(text, framed)
         } finally {
             framed.fill(0)
         }
@@ -164,6 +177,15 @@ object NppsCore {
         } finally {
             out.fill(0)
         }
+    }
+
+    /** How a request names the n-th secret given beside it. */
+    fun secretRef(n: Int): JsonObject = buildJsonObject { put("\$secret", n) }
+
+    /** The bytes of the secret [answer] names at [field], or null if it names none there. The array is the answer's: [SecretAnswer.clear] overwrites it. */
+    fun secretAt(answer: SecretAnswer, field: String): ByteArray? {
+        val n = (answer.answer[field] as? JsonObject)?.get("\$secret")?.jsonPrimitive?.intOrNull ?: return null
+        return answer.secrets.getOrNull(n)
     }
 
     private fun putLength(into: ByteArray, at: Int, n: Int) {

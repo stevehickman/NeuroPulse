@@ -18,13 +18,13 @@ object Ed25519 {
 
     fun publicKey(seed: ByteArray): ByteArray {
         require(seed.size == SEED_BYTES) { "An Ed25519 seed is $SEED_BYTES bytes" }
-        return call("ed25519PublicKey") { put("seed", seed.toHex()) }["publicKey"]!!.jsonPrimitive.content.hexToBytes()
+        return withSeed(seed) { put("op", "ed25519PublicKey") }["publicKey"]!!.jsonPrimitive.content.hexToBytes()
     }
 
     fun sign(seed: ByteArray, message: ByteArray): ByteArray {
         require(seed.size == SEED_BYTES) { "An Ed25519 seed is $SEED_BYTES bytes" }
-        return call("ed25519Sign") {
-            put("seed", seed.toHex())
+        return withSeed(seed) {
+            put("op", "ed25519Sign")
             put("message", message.toHex())
         }["signature"]!!.jsonPrimitive.content.hexToBytes()
     }
@@ -44,6 +44,10 @@ object Ed25519 {
     }
 
     private val SPKI_PREFIX = byteArrayOf(0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00)
+
+    /** A request that signs with [seed]: the seed goes to the core beside the request as bytes, never as hex in it (SWR-MG-30). */
+    private fun withSeed(seed: ByteArray, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) =
+        NppsCore.migrationSecret(buildJsonObject { put("seed", NppsCore.secretRef(0)); build() }, listOf(seed)).answer
 
     private fun call(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) =
         NppsCore.migration(buildJsonObject { put("op", op); build() })

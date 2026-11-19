@@ -19,6 +19,7 @@ import life.neurone.core.npps.ffi.npps_content_hash_json
 import life.neurone.core.npps.ffi.npps_library_json
 import life.neurone.core.npps.ffi.npps_free
 import life.neurone.core.npps.ffi.npps_migration_json
+import life.neurone.core.npps.ffi.npps_migration_secret_json
 import life.neurone.core.npps.ffi.npps_namespace_json
 import life.neurone.core.npps.ffi.npps_parse_json
 import life.neurone.core.npps.ffi.npps_resolve_limits_json
@@ -64,6 +65,45 @@ internal class CinteropNppsBackend : CAbiNppsBackend() {
         }
         if (pointer != null) npps_free(pointer, written)
         NppsFfiResult(status, output)
+    }
+
+    /**
+     * `npps_migration_secret_json` (`SWR-MG-30`): the request's secrets are pinned and handed over as bytes, never as a
+     * string, and the answer's secrets are copied out of the buffer the core wrote before `npps_free` wipes and releases
+     * it. The caller ([CAbiNppsBackend.migrationSecret]) overwrites the copies made here.
+     */
+    override fun callSecret(input: ByteArray, secrets: ByteArray): NppsSecretFfiResult = memScoped {
+        val outPointer = alloc<CPointerVar<UByteVar>>()
+        val outLength = alloc<ULongVar>()
+        val secretPointer = alloc<CPointerVar<UByteVar>>()
+        val secretLength = alloc<ULongVar>()
+        // Never an empty array to pin: a byte that is never read stands in, with the true length passed beside it.
+        val source = if (input.isEmpty()) ByteArray(1) else input
+        val given = if (secrets.isEmpty()) ByteArray(1) else secrets
+
+        val status = source.usePinned { pinnedSource ->
+            given.usePinned { pinnedSecrets ->
+                npps_migration_secret_json(
+                    pinnedSource.addressOf(0).reinterpret<UByteVar>(),
+                    input.size.convert<ULong>(),
+                    pinnedSecrets.addressOf(0).reinterpret<UByteVar>(),
+                    secrets.size.convert<ULong>(),
+                    outPointer.ptr,
+                    outLength.ptr,
+                    secretPointer.ptr,
+                    secretLength.ptr,
+                )
+            }
+        }
+
+        fun taken(pointer: kotlinx.cinterop.CPointer<UByteVar>?, written: ULong): ByteArray {
+            val bytes = if (pointer == null || written == 0uL) ByteArray(0) else pointer.reinterpret<ByteVar>().readBytes(written.toInt())
+            if (pointer != null) npps_free(pointer, written)
+            return bytes
+        }
+        val output = taken(outPointer.value, outLength.value)
+        val answered = taken(secretPointer.value, secretLength.value)
+        NppsSecretFfiResult(status, output, answered)
     }
 }
 

@@ -11,7 +11,7 @@
  *
  * A flow state is opaque, is never stored, and never holds a secret or a key.
  */
-import { deriveBundleKey, systemRandom, type RandomBytes } from './bundleKey';
+import { deriveBundleKey, releaseBundleKey, systemRandom, type BundleKey, type RandomBytes } from './bundleKey';
 import { nppsMigration } from './nppsCore';
 
 export interface FlowEffect {
@@ -88,8 +88,8 @@ export interface Link {
 export type FlowName = 'backup' | 'inspect' | 'restore' | 'clear' | 'probe' | 'serve';
 
 export interface FlowOptions {
-  /** What a backup or restore derives its key from, as hex (from `bundleKey.ts`). */
-  secret?: string;
+  /** What a backup or restore derives its key from, as bytes (from `bundleKey.ts`). The caller's to overwrite afterwards. */
+  secret?: Uint8Array;
   /** The key-value store the plain-key items live in. When given, the core's plain-key items are declared to it as `keyItems`. */
   keys?: KeyValueStore;
   /**
@@ -117,13 +117,20 @@ async function run(flow: FlowName, params: Record<string, unknown>, host: Migrat
   let answer = nppsMigration({ op: 'flow', flow, params: p });
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     if (answer.done) return answer.done;
-    const result = await perform(answer.effect, host, options);
-    answer = nppsMigration({ op: 'flow', flow, state: answer.state, result });
+    // The key a `deriveKey` effect asks for stays in the core (SWR-MG-30 (b)): the result carries its handle, the core
+    // uses it in the turn that reads the result, and it is released as soon as that turn is over, whether it answered or threw.
+    const held: { key?: BundleKey } = {};
+    try {
+      const result = await perform(answer.effect, host, options, held);
+      answer = nppsMigration({ op: 'flow', flow, state: answer.state, result });
+    } finally {
+      if (held.key) releaseBundleKey(held.key);
+    }
   }
   throw new Error(`The ${flow} flow did not end in ${MAX_TURNS} turns`);
 }
 
-async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link, random = systemRandom }: FlowOptions): Promise<Record<string, unknown>> {
+async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store, files, link, random = systemRandom }: FlowOptions, held: { key?: BundleKey }): Promise<Record<string, unknown>> {
   switch (e.type) {
     case 'now':
       // The pairing code's expiry reads the platform clock (SWR-MG-10).
@@ -136,7 +143,8 @@ async function perform(e: FlowEffect, host: MigrationHost, { secret, keys, store
     }
     case 'deriveKey':
       if (secret === undefined) throw new Error('no secret to derive a key from');
-      return { key: deriveBundleKey(secret, e.kdf as Record<string, unknown>) };
+      held.key = deriveBundleKey(secret, e.kdf as Record<string, unknown>);
+      return { key: held.key };
     case 'readKeys':
       if (!keys) break;
       return {

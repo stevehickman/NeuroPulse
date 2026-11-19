@@ -236,3 +236,36 @@ fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret
     let (bad, _, _) = ask_with(json!({ "op": "deriveBundleKey", "recoveryCode": { "$secret": 0 }, "kdf": rk, "keep": "bundle" }), &[b"ABCD"]).unwrap();
     assert_eq!(bad["ok"], false);
 }
+
+// @verifies SWR-MG-30#d
+#[test]
+fn a_key_is_wrapped_and_unwrapped_as_bytes_in_the_form_the_older_records_have() {
+    let _one = one();
+    let wrapping = [0x5au8; 32];
+    // The older way: the data key's hex sealed as a value, and read back as text.
+    let old = ask(json!({ "op": "sealValue", "key": hex(&wrapping), "nonce": NONCE, "name": "np.wrap", "value": hex(&KEY) }));
+    let (wrapped, beside, _) = ask_with(json!({ "op": "wrapKey", "key": { "$secret": 0 }, "nonce": NONCE, "name": "np.wrap", "data": { "$secret": 1 } }), &[&wrapping, &KEY]).unwrap();
+    assert_eq!(wrapped, old, "a record written either way is the same bytes");
+    assert!(beside.is_empty());
+    let (opened, beside, text) = ask_with(json!({ "op": "unwrapKey", "key": { "$secret": 0 }, "name": "np.wrap", "sealed": old["sealed"] }), &[&wrapping]).unwrap();
+    assert_eq!(opened, json!({ "ok": true, "key": { "$secret": 0 } }));
+    assert_eq!(beside[0], KEY);
+    assert!(!text.contains(&hex(&KEY)[..16]), "the unwrapped key is in the answer's text: {text}");
+    // A wrong key, another name and a value that is not a key are told apart as `openValue` tells them.
+    let wrong = ask_with(json!({ "op": "unwrapKey", "key": { "$secret": 0 }, "name": "np.wrap", "sealed": old["sealed"] }), &[&[1u8; 32]]).unwrap().0;
+    assert_eq!(wrong, json!({ "ok": false, "reason": "authentication_failed" }));
+    let renamed = ask_with(json!({ "op": "unwrapKey", "key": { "$secret": 0 }, "name": "np.other", "sealed": old["sealed"] }), &[&wrapping]).unwrap().0;
+    assert_eq!(renamed["reason"], "authentication_failed");
+    let not_a_key = ask(json!({ "op": "sealValue", "key": hex(&wrapping), "nonce": NONCE, "name": "np.wrap", "value": "not hex" }));
+    let r = ask_with(json!({ "op": "unwrapKey", "key": { "$secret": 0 }, "name": "np.wrap", "sealed": not_a_key["sealed"] }), &[&wrapping]).unwrap().0;
+    assert_eq!(r, json!({ "ok": false, "reason": "malformed" }));
+    // With a kept wrapping key: the one call a passphrase gate makes.
+    let k = kdf("passphrase");
+    let (kept, _, _) = ask_with(json!({ "op": "deriveBundleKey", "passphrase": { "$secret": 0 }, "kdf": k, "keep": "wrapping" }), &[b"correct horse battery"]).unwrap();
+    let (w, _, _) = ask_with(json!({ "op": "wrapKey", "key": kept["key"], "nonce": NONCE, "name": "np.wrap", "data": { "$secret": 0 } }), &[&KEY]).unwrap();
+    let (u, beside, _) = ask_with(json!({ "op": "unwrapKey", "key": kept["key"], "name": "np.wrap", "sealed": w["sealed"] }), &[]).unwrap();
+    assert_eq!((u["ok"].clone(), beside[0].clone()), (json!(true), KEY.to_vec()));
+    // A recovery code is made from secret bytes given beside the request.
+    let (code, _, _) = ask_with(json!({ "op": "encodeRecoveryCode", "bytes": { "$secret": 0 } }), &[&[0xc7u8; 32]]).unwrap();
+    assert_eq!(code, ask(json!({ "op": "encodeRecoveryCode", "bytes": "c7".repeat(32) })));
+}

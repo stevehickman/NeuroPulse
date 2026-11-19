@@ -60,7 +60,7 @@ object RecordingArchive {
             val from = i * chunk
             val data = plain.copyOfRange(from, minOf(plain.size, from + chunk))
             val sealed = ask("archiveSealChunk") {
-                put("key", key.hex()); put("header", header); put("counter", i); put("last", i == count - 1); put("data", data.toHex())
+                put("key", key.ref()); put("header", header); put("counter", i); put("last", i == count - 1); put("data", data.toHex())
             }["sealed"]!!.jsonPrimitive.content
             parts += sealed.hexToBytes()
         }
@@ -86,7 +86,7 @@ object RecordingArchive {
             val from = head.length + i * full
             val part = archive.copyOfRange(from, minOf(archive.size, from + full))
             val r = ask("archiveOpenChunk") {
-                put("key", key.hex()); put("header", header); put("counter", i); put("last", i == count - 1); put("sealed", part.toHex())
+                put("key", key.ref()); put("header", header); put("counter", i); put("last", i == count - 1); put("sealed", part.toHex())
             }
             if (!r["ok"]!!.jsonPrimitive.boolean) return ArchiveOpened.Refused(ArchiveProblem.AUTHENTICATION_FAILED)
             out += r["data"]!!.jsonPrimitive.content.hexToBytes()
