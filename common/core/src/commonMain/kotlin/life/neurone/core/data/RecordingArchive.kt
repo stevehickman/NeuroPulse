@@ -13,6 +13,12 @@ import life.neurone.core.npps.NppsCore
 // core's (`archive.rs`, `archiveSealChunk`, `archiveOpenChunk`), the same for every platform; this file cuts a recording into the
 // chunks the core takes, one at a time, so a recording is never turned into one large JSON value, and puts the answers back
 // together. The key is a [BundleKey] derived from the person's code or passphrase and is the caller's to destroy.
+//
+// Every file is sealed as a named object (SWR-MG-29 (a), OI-PRIV-09). All the files of one backup are under one key, and the place
+// that keeps them can hand back any of them under any name, so the caller says which object it is sealing and, when it opens a file,
+// which object it expects; a file sealed as another object does not open. The ID is in the core's authenticated data and is not in
+// the file. It must come from something the caller already trusts (the sealed index, or a fixed name), never from the file itself or
+// from its name in the backup folder.
 
 /** How an archive was refused when opened. */
 enum class ArchiveProblem {
@@ -24,6 +30,9 @@ enum class ArchiveProblem {
 
     /** Made by a newer build than this one. */
     NEWER_VERSION,
+
+    /** Made by a build from before files were sealed as named objects. It is not opened; the next backup seals the recordings again. */
+    OLDER_VERSION,
 }
 
 sealed interface ArchiveOpened {
@@ -45,10 +54,10 @@ object RecordingArchive {
         NppsCore.migration(buildJsonObject { put("op", op); build() })
 
     /**
-     * [plain] sealed under [key]. [kdf] goes in the header when the file is the one a restore starts from (it says how the key was made);
+     * [plain] sealed under [key] as the object [objectId]. [kdf] goes in the header when the file is the one a restore starts from (it says how the key was made);
      * the other files of a backup carry none.
      */
-    fun seal(plain: ByteArray, key: BundleKey, random: RandomSource, kdf: JsonObject? = null): ByteArray {
+    fun seal(plain: ByteArray, key: BundleKey, objectId: String, random: RandomSource, kdf: JsonObject? = null): ByteArray {
         val prefix = random.nextBytes(prefixBytes)
         require(prefix.size == prefixBytes) { "The random source gave ${prefix.size} bytes, not $prefixBytes" }
         val header = ask("archiveStart") { put("prefix", prefix.toHex()); if (kdf != null) put("kdf", kdf) }["header"]!!.jsonPrimitive.content
@@ -60,7 +69,7 @@ object RecordingArchive {
             val from = i * chunk
             val data = plain.copyOfRange(from, minOf(plain.size, from + chunk))
             val sealed = ask("archiveSealChunk") {
-                put("key", key.hex()); put("header", header); put("counter", i); put("last", i == count - 1); put("data", data.toHex())
+                put("key", key.hex()); put("header", header); put("objectId", objectId); put("counter", i); put("last", i == count - 1); put("data", data.toHex())
             }["sealed"]!!.jsonPrimitive.content
             parts += sealed.hexToBytes()
         }
@@ -73,8 +82,8 @@ object RecordingArchive {
         return head.kdf
     }
 
-    /** [archive] opened under [key]. */
-    fun open(archive: ByteArray, key: BundleKey): ArchiveOpened {
+    /** [archive] opened under [key], as the object [objectId] the caller expects it to be. A file sealed as any other object is refused. */
+    fun open(archive: ByteArray, key: BundleKey, objectId: String): ArchiveOpened {
         val head = readHeader(archive)
             ?: return ArchiveOpened.Refused(headerProblem(archive))
         val header = archive.copyOfRange(0, head.length).toHex()
@@ -86,7 +95,7 @@ object RecordingArchive {
             val from = head.length + i * full
             val part = archive.copyOfRange(from, minOf(archive.size, from + full))
             val r = ask("archiveOpenChunk") {
-                put("key", key.hex()); put("header", header); put("counter", i); put("last", i == count - 1); put("sealed", part.toHex())
+                put("key", key.hex()); put("header", header); put("objectId", objectId); put("counter", i); put("last", i == count - 1); put("sealed", part.toHex())
             }
             if (!r["ok"]!!.jsonPrimitive.boolean) return ArchiveOpened.Refused(ArchiveProblem.AUTHENTICATION_FAILED)
             out += r["data"]!!.jsonPrimitive.content.hexToBytes()
@@ -105,7 +114,11 @@ object RecordingArchive {
 
     private fun headerProblem(archive: ByteArray): ArchiveProblem {
         val r = ask("archiveReadHeader") { put("bytes", archive.copyOfRange(0, minOf(archive.size, headerBytes + maxKdfBytes)).toHex()) }
-        return if (r["reason"]?.jsonPrimitive?.content == "newer_version") ArchiveProblem.NEWER_VERSION else ArchiveProblem.MALFORMED
+        return when (r["reason"]?.jsonPrimitive?.content) {
+            "newer_version" -> ArchiveProblem.NEWER_VERSION
+            "older_version" -> ArchiveProblem.OLDER_VERSION
+            else -> ArchiveProblem.MALFORMED
+        }
     }
 
     private fun join(parts: List<ByteArray>): ByteArray {
