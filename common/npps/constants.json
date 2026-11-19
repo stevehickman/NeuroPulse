@@ -1090,7 +1090,7 @@
         {
           "name": "SESSION_HISTORY_RETENTION_KEY",
           "value": "np.session.history-retention",
-          "note": "How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-31)."
+          "note": "How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-32)."
         },
         {
           "name": "FIRST_SETUP_KEY",

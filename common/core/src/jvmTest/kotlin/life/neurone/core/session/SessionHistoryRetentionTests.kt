@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** How long the session history keeps a session is the person's choice, with no age limit by default (`REQ-SW03-31`, `OI-PRIV-10` (2)). */
+/** How long the session history keeps a session is the person's choice, with no age limit by default (`REQ-SW03-32`, `OI-PRIV-10` (2)). */
 class SessionHistoryRetentionTests {
     private var today = LocalDate(2026, 11, 19)
 
@@ -19,7 +19,7 @@ class SessionHistoryRetentionTests {
         averageCoherenceScore = null, rmssdMilliseconds = null, impedancePassCount = 8,
     )
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test fun the_default_keeps_a_session_whatever_its_age() {
         val kv = InMemoryKeyValueStore()
         val history = store(kv)
@@ -29,7 +29,7 @@ class SessionHistoryRetentionTests {
         assertEquals(1, store(kv).records.size)
     }
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test fun choosing_a_period_removes_older_sessions_at_once_and_on_disk() {
         val kv = InMemoryKeyValueStore()
         val history = store(kv)
@@ -45,7 +45,7 @@ class SessionHistoryRetentionTests {
         assertEquals(2, reloaded.records.size)
     }
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test fun a_session_that_ages_past_the_choice_leaves_when_the_history_is_next_read() {
         val kv = InMemoryKeyValueStore()
         store(kv).apply { setRetention(HistoryRetention.DAYS_90); record(session(LocalDate(2026, 11, 1))) }
@@ -55,7 +55,7 @@ class SessionHistoryRetentionTests {
         assertTrue(kv.getString(PersistedKeys.SESSION_HISTORY_KEY)!!.trim() == "[]", "and it is gone from the stored history too")
     }
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test fun an_unreadable_stored_choice_is_the_default_and_removes_nothing() {
         val kv = InMemoryKeyValueStore()
         store(kv).record(session(LocalDate(2019, 5, 5)))
@@ -65,7 +65,7 @@ class SessionHistoryRetentionTests {
         assertEquals(1, history.records.size)
     }
 
-    // @verifies REQ-SW03-31#b
+    // @verifies REQ-SW03-32#b
     @Test fun clearing_removes_the_history_and_keeps_the_choice() {
         val kv = InMemoryKeyValueStore()
         val history = store(kv)

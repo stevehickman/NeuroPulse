@@ -20,7 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Settings' session history section (`REQ-SW03-31`): the person picks the retention period and clears the history after confirming. */
+/** Settings' session history section (`REQ-SW03-32`): the person picks the retention period and clears the history after confirming. */
 @OptIn(ExperimentalTestApi::class)
 class SessionHistorySettingsTest {
     private val used = listOf(Res.string.history_retention_90_days, Res.string.history_clear_button, Res.string.common_cancel)
@@ -31,7 +31,7 @@ class SessionHistorySettingsTest {
         it.record(CompletedSessionSummary("Protocol 1", LocalDate(2026, 11, 19), 600, null, null, 8))
     }
 
-    // @verifies REQ-SW03-31#a
+    // @verifies REQ-SW03-32#a
     @Test
     fun thePersonPicksHowLongTheHistoryIsKept() = runComposeUiTest {
         val store = history()
@@ -45,7 +45,7 @@ class SessionHistorySettingsTest {
         assertEquals(HistoryRetention.DAYS_90, store.retention.value)
     }
 
-    // @verifies REQ-SW03-31#b
+    // @verifies REQ-SW03-32#b
     @Test
     fun clearingAsksFirstAndACancelKeepsTheHistory() = runComposeUiTest {
         val store = history()
