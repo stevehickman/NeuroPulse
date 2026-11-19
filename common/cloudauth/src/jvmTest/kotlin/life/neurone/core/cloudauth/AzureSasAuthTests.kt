@@ -66,6 +66,22 @@ class AzureSasAuthTests {
 
     // @verifies SWR-MG-30#a
     @Test
+    fun theExpiryIsReadInEachFormAzureDocuments() {
+        fun at(se: String) = AzureSas.parse("sr=c&spr=https&sp=rcwdl&se=$se&sig=x", now)?.expiresAtEpochSeconds
+        val midnight = 1_893_456_000L // 2030-01-01T00:00:00Z
+        assertEquals(midnight, at("2030-01-01"), "a date alone is midnight UTC")
+        assertEquals(midnight + 12 * 3600 + 30 * 60, at("2030-01-01T12%3A30Z"), "no seconds")
+        assertEquals(midnight + 12 * 3600 + 30 * 60 + 15, at("2030-01-01T12:30:15Z"), "seconds, colons not encoded")
+        assertEquals(midnight + 15, at("2030-01-01T00%3A00%3A15.1234567Z"), "a fraction of a second is dropped")
+        assertEquals(midnight, at("2030-01-01T00%3A00"), "no suffix is UTC")
+        assertEquals(midnight + 15, at("2030-01-01T00%3A00%3A15"), "no suffix, with seconds")
+        assertEquals(midnight - 2 * 3600, at("2030-01-01T00%3A00%3A00%2B02%3A00"), "an offset east of UTC is earlier")
+        assertEquals(midnight + 5 * 3600 + 30 * 60, at("2030-01-01T00%3A00-05%3A30"), "an offset with no seconds")
+        for (bad in listOf("2030-01-01T24%3A00Z", "2030-13-01", "2030-01-01T12%3A60Z", "2030-01-01x", "2030-01-01T12Z", "2030-01-01T00%3A00%2B25%3A00")) assertNull(at(bad), bad)
+    }
+
+    // @verifies SWR-MG-29#a
+    @Test
     fun aSignatureKeptUnderTheEarlierLooserCheckIsNotUsed() = runBlocking {
         val rig = Rig()
         val account = rig.auth.addAzureSas(good)

@@ -1,6 +1,5 @@
 package life.neurone.core.cloudauth
 
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -51,11 +50,21 @@ class AzureSas private constructor(val query: String, val expiresAtEpochSeconds:
             return AzureSas(query, expiry)
         }
 
-        /** Azure writes `se` as `YYYY-MM-DD` or `YYYY-MM-DDThh:mm:ssZ` (percent-encoded in the query); anything else cannot be read, and is refused. */
+        /**
+         * Azure's forms of `se` ("Formatting DateTime values", read 2026-11-15): `YYYY-MM-DD`, `YYYY-MM-DDThh:mm` or `YYYY-MM-DDThh:mm:ss` with up to
+         * seven decimals, then nothing (UTC), `Z` or an offset. The library's own parser takes only the form with seconds and a zone, and refused the rest.
+         */
+        private val expiryForm = Regex("""(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,7})?)?(Z|[+-]\d{2}:\d{2})?)?""")
+
+        /** The expiry in epoch seconds (percent-encoded in the query; a fraction of a second is dropped); anything else cannot be read, and is refused. */
         private fun expiry(raw: String): Long? {
-            val text = percentDecodeQuery(raw)
+            val m = expiryForm.matchEntire(percentDecodeQuery(raw)) ?: return null
+            val (date, hh, mm, ss, zone) = m.destructured
             return try {
-                if ('T' in text) Instant.parse(text).epochSeconds else LocalDate.parse(text).atStartOfDayIn(TimeZone.UTC).epochSeconds
+                val day = LocalDate.parse(date).atStartOfDayIn(TimeZone.UTC).epochSeconds
+                fun n(text: String, below: Int): Long = (if (text.isEmpty()) 0 else text.toInt()).also { require(it < below) }.toLong()
+                val offset = if (zone.isEmpty() || zone == "Z") 0L else (n(zone.substring(1, 3), 24) * 3600 + n(zone.substring(4, 6), 60) * 60) * (if (zone[0] == '-') -1 else 1)
+                day + n(hh, 24) * 3600 + n(mm, 60) * 60 + n(ss, 60) - offset
             } catch (e: IllegalArgumentException) {
                 null
             }
