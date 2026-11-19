@@ -74,7 +74,7 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
-        if (!gatt.encryptedReadShown.value) return Result.LinkNotEncrypted
+        linkGate()?.let { return it }
         checkCervicalGate(definition)?.let { return it }
         return try {
             val blob = compiler.compile(
@@ -104,7 +104,7 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
-        if (!gatt.encryptedReadShown.value) return Result.LinkNotEncrypted
+        linkGate()?.let { return it }
         members.firstNotNullOfOrNull { checkCervicalGate(it) }?.let { return it }
         return try {
             val blob = compiler.compileComposite(
@@ -116,6 +116,13 @@ class ProtocolUploader internal constructor(
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
         }
+    }
+
+    /** Holds an upload back until the encrypted-only read has succeeded on the link, and asks for that read again in case the hub was paired since. */
+    private fun linkGate(): Result? {
+        if (gatt.encryptedReadShown.value) return null
+        gatt.requestEncryptedRead()
+        return Result.LinkNotEncrypted
     }
 
     /** Writes the stream in order. False as soon as the manager refuses a chunk (the link dropped mid-upload), and no later chunk is written. */

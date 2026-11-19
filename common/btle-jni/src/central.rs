@@ -96,7 +96,7 @@ impl Event {
 /// The kind of a radio error, and nothing else. The library's own message is never printed: on Linux it is the
 /// BlueZ daemon's D-Bus text passed through unchanged, which can name the device's object path, and that path holds
 /// the device address (`OI-PRIV-16`). The kind carries no text from the library, the daemon or the peer.
-fn error_kind(e: &btleplug::Error) -> &'static str {
+pub fn error_kind(e: &btleplug::Error) -> &'static str {
     use btleplug::Error as E;
     match e {
         E::PermissionDenied => "permission denied",
@@ -117,7 +117,7 @@ fn error_kind(e: &btleplug::Error) -> &'static str {
 
 /// The one line printed for a failed radio operation: what was tried and the error's kind. `what` is this file's own
 /// text (an operation name, and a characteristic UUID where there is one), never the library's.
-fn failure_line(what: &str, e: &btleplug::Error) -> String {
+pub fn failure_line(what: &str, e: &btleplug::Error) -> String {
     format!("neurone-btle: {what} failed: {}", error_kind(e))
 }
 
