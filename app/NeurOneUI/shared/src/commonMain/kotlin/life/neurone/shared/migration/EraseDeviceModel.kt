@@ -74,6 +74,20 @@ class EraseActions(
 }
 
 /**
+ * What a locked run cannot send to the vendor before an erase (`OI-ANALYTICS-01` (5) (b)). A locked run reads its sealed keys as
+ * absent, so the analytics gate sees no ID and no queue and reports nothing left, while the [raw] store still holds them sealed
+ * and the wipe is about to delete them. Each sealed value found counts as one: how many IDs the queue holds cannot be read, and
+ * "not all erased" is what the person is told. Zero in any other run, where the gate could read them and its own count stands.
+ */
+internal fun unreadableAnalyticsIds(protection: life.neurone.core.common.StorageProtection, raw: KeyValueStore): Int {
+    if (protection != life.neurone.core.common.StorageProtection.LOCKED) return 0
+    return listOf(
+        life.neurone.core.analytics.PostHogAnalyticsBackend.ID_KEY,
+        life.neurone.core.analytics.AnalyticsErasureQueue.KEY,
+    ).count { raw.getString(it) != null }
+}
+
+/**
  * Runs the erase against the host's **raw** [keys]: in a locked run the protected store holds the sealed values in memory and
  * would leave them on disk, and an erase has to remove what is on disk.
  */

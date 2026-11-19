@@ -414,6 +414,10 @@ internal fun EraseDeviceSection(model: EraseDeviceModel, endRun: () -> Unit) {
         is EraseStep.Done -> {
             Text(stringResource(Res.string.settings_erase_device_done))
             if (s.keyKept) Text(stringResource(Res.string.settings_erase_device_key_kept), style = MaterialTheme.typography.bodySmall)
+            // The vendor could not be asked to erase the analytics ID before it was wiped here (`REQ-SW03-19` (d), `OI-ANALYTICS-01` (5)).
+            if (s.analyticsIdsNotErased > 0) {
+                Text(stringResource(Res.string.settings_erase_device_analytics_unsent), style = MaterialTheme.typography.bodySmall)
+            }
             Spacer(Modifier.height(8.dp))
             Button(onClick = endRun) { Text(stringResource(Res.string.settings_erase_device_close)) }
         }

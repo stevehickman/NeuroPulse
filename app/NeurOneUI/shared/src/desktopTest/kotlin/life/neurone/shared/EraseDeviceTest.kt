@@ -13,6 +13,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.InMemorySecretKeyStore
@@ -156,6 +157,40 @@ class EraseDeviceTest {
         model.erase()
         assertEquals(1, (model.step.value as EraseStep.Done).analyticsIdsNotErased, "not known to be erased is reported as not erased")
         assertNull(kv.getString("np.session.history"))
+    }
+
+    // A locked run reads its sealed keys as absent, so the gate reports nothing left while the raw store still holds them.
+    // @verifies REQ-SW03-19#d
+    @Test fun a_locked_run_counts_the_sealed_analytics_values_it_could_not_read_and_any_other_run_counts_none() {
+        val raw = InMemoryKeyValueStore()
+        assertEquals(0, life.neurone.shared.migration.unreadableAnalyticsIds(life.neurone.core.common.StorageProtection.LOCKED, raw), "nothing stored, nothing unsent")
+        raw.putString("np.analytics.distinct-id", "np-enc:1:sealed")
+        assertEquals(1, life.neurone.shared.migration.unreadableAnalyticsIds(life.neurone.core.common.StorageProtection.LOCKED, raw))
+        raw.putString("np.analytics.pending-erasures", "np-enc:1:sealed")
+        assertEquals(2, life.neurone.shared.migration.unreadableAnalyticsIds(life.neurone.core.common.StorageProtection.LOCKED, raw))
+        for (readable in life.neurone.core.common.StorageProtection.entries.filter { it != life.neurone.core.common.StorageProtection.LOCKED }) {
+            assertEquals(0, life.neurone.shared.migration.unreadableAnalyticsIds(readable, raw), "$readable: the gate read them, so its own count stands")
+        }
+    }
+
+    // @verifies REQ-SW03-19#d
+    @Test fun the_person_is_told_when_the_analytics_service_was_not_asked_and_not_told_when_it_was() = runComposeUiTest {
+        val kv = InMemoryKeyValueStore()
+        var left = 1
+        val model = EraseDeviceModel(kv, null, null, gatt(kv), beforeWipe = { left })
+        var notice = ""
+        setContent {
+            notice = stringResource(Res.string.settings_erase_device_analytics_unsent)
+            androidx.compose.foundation.layout.Column { life.neurone.shared.ui.EraseDeviceSection(model) {} }
+        }
+        runBlocking { model.erase() }
+        waitUntil { model.step.value is EraseStep.Done }
+        onNodeWithText(notice).assertExists()
+
+        left = 0
+        runBlocking { model.erase() }
+        waitUntil { (model.step.value as? EraseStep.Done)?.analyticsIdsNotErased == 0 }
+        onNodeWithText(notice).assertDoesNotExist()
     }
 
     private val used = listOf(

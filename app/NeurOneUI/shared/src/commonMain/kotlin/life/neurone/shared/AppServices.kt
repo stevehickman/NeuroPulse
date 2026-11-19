@@ -344,7 +344,10 @@ class AppServices(
             life.neurone.shared.migration.EraseDeviceModel(
                 platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
                 // The analytics ID is forgotten, queued and the relay asked BEFORE the wipe deletes the only copy (`OI-PRIV-08` (1)).
-                beforeWipe = { researchAnalyticsGate.resetForErase() },
+                beforeWipe = {
+                    researchAnalyticsGate.resetForErase() +
+                        life.neurone.shared.migration.unreadableAnalyticsIds(storageProtection, platform.keyValueStore)
+                },
             )
         }
 

@@ -3,6 +3,7 @@ package life.neurone.core.consent
 import life.neurone.core.platform.nowIso
 import life.neurone.core.platform.todayIso
 import life.neurone.core.analytics.ResearchAnalyticsGate
+import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianAccessScope
@@ -379,7 +380,7 @@ class ConsentStore(
         save()
         // An unreadable record that may have held the grants is treated as a withdrawal here too (`REQ-CONSENT-20`), so the
         // author token goes with it.
-        if (mayHaveBeenGranted) onPortalIdentityWithdrawn() else portalIdentityAfter(before)
+        if (mayHaveBeenGranted) forgetPortalIdentity() else portalIdentityAfter(before)
         revokeResearchAnalytics()
     }
 
@@ -388,7 +389,17 @@ class ConsentStore(
         val now = researchConsent
         val portalWithdrawn = before.suggestionPortalOptIn && !now.suggestionPortalOptIn
         val blanketWithdrawn = before.blanketConsentGranted && !now.blanketConsentGranted
-        if (portalWithdrawn || blanketWithdrawn) onPortalIdentityWithdrawn()
+        if (portalWithdrawn || blanketWithdrawn) forgetPortalIdentity()
+    }
+
+    /**
+     * The stored author token is removed here, whoever listens: the callback's default does nothing, so a host that builds this
+     * store without wiring the portal store would otherwise keep the token past the withdrawal. The callback then lets the portal
+     * store take the token off the suggestions it holds.
+     */
+    private fun forgetPortalIdentity() {
+        store.remove(ResearchSuggestionStore.TOKEN_KEY)
+        onPortalIdentityWithdrawn()
     }
 
     /**
