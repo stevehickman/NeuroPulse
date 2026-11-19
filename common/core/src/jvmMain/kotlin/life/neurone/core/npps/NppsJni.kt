@@ -27,6 +27,8 @@ internal object NppsJni : NppsBackend {
 
     @JvmStatic private external fun nativeMigration(request: String): String
 
+    @JvmStatic private external fun nativeMigrationSecret(request: String, secrets: ByteArray): ByteArray
+
     override fun parse(source: String): String = nativeParse(source)
     override fun compile(request: String): ByteArray = nativeCompile(request)
     override fun namespace(request: String): String = nativeNamespace(request)
@@ -36,6 +38,7 @@ internal object NppsJni : NppsBackend {
     override fun contentHash(request: String): String = nativeContentHash(request)
     override fun library(request: String): String = nativeLibrary(request)
     override fun migration(request: String): String = nativeMigration(request)
+    override fun migrationSecret(request: String, secrets: ByteArray): ByteArray = nativeMigrationSecret(request, secrets)
 }
 
 internal actual fun defaultNppsBackend(): NppsBackend = NppsJni

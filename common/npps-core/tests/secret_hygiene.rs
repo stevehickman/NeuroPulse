@@ -131,17 +131,73 @@ fn a_paired_link_s_states_hold_the_channel_keys_and_nothing_else_of_the_pairing(
     // The serving phone: the channel, its buffer and queue, and the offer's expiry and tries (not its code).
     let mut s: Vec<&str> = server.state().as_object().unwrap().keys().map(String::as_str).collect();
     s.sort_unstable();
-    assert_eq!(s, ["after", "buf", "ctx", "pairing", "queue", "step"]);
-    assert!(server.state()["after"].is_null());
+    assert_eq!(s, ["buf", "ctx", "pairing", "queue", "step"]);
     assert_eq!(server.state()["pairing"], json!({ "expiresAt": 1_120, "triesLeft": 2 }));
-    // The one secret that must remain: a key and a count per direction, the same two keys seen from each end.
+    // The channel: a key and a count per direction. The keys are in the core, and the state names them (next test).
     for st in [client.state(), server.state()] {
         let mut k: Vec<&str> = st["ctx"].as_object().unwrap().keys().map(String::as_str).collect();
         k.sort_unstable();
         assert_eq!(k, ["rk", "rn", "sk", "sn"]);
     }
-    assert_eq!(client.state()["ctx"]["sk"], server.state()["ctx"]["rk"]);
-    assert_eq!(client.state()["ctx"]["rk"], server.state()["ctx"]["sk"]);
+    release(&client, &server);
+}
+
+/// Have the core wipe the channel keys of two ends a test has finished with: its table is one per process.
+fn release(client: &End, server: &End) {
+    for end in [client, server] {
+        ask(json!({ "op": "linkRelease", "state": end.state() })).unwrap();
+    }
+}
+
+/// Every string in `v`, at any depth.
+fn strings_of(v: &Value, out: &mut Vec<String>) {
+    match v {
+        Value::String(s) => out.push(s.clone()),
+        Value::Object(o) => o.values().for_each(|v| strings_of(v, out)),
+        Value::Array(a) => a.iter().for_each(|v| strings_of(v, out)),
+        _ => {}
+    }
+}
+
+// @verifies SWR-MG-32#f
+#[test]
+fn a_link_s_channel_keys_are_in_the_core_and_its_state_names_them_and_holds_none() {
+    let held = || ask(json!({ "op": "keyCount" })).unwrap()["count"].as_u64().unwrap();
+    let (mut client, mut server) = two_ends();
+    let mut keys_in_text = vec![];
+    pair(&mut client, &mut server, &mut |c, s| {
+        // At no step, pairing or paired, does a state hold anything shaped like a 32-byte key in hex under a channel's name.
+        for st in [c, s] {
+            for channel in ["ctx", "after", "keys"] {
+                let mut strings = vec![];
+                strings_of(&st[channel], &mut strings);
+                keys_in_text.extend(strings.into_iter().filter(|t| t.len() >= 32));
+            }
+        }
+    });
+    assert!(keys_in_text.is_empty(), "a channel key is in a state as text: {keys_in_text:?}");
+    for (who, end) in [("restoring", &client), ("serving", &server)] {
+        let c = &end.state()["ctx"];
+        assert!(c["sk"]["$handle"].is_u64() && c["rk"]["$handle"].is_u64(), "the {who} phone's channel: {c}");
+        assert_ne!(c["sk"], c["rk"], "one key for each direction");
+        assert_eq!(c.as_object().unwrap().len(), 4, "two handles and two counts, and nothing else: {c}");
+    }
+    // A state that carries a channel key as text is refused: there is no going back to a key the host holds.
+    let mut forged = server.state().clone();
+    forged["ctx"]["rk"] = json!("11".repeat(32));
+    let r = ask(json!({ "op": "flow", "flow": "serve", "state": forged, "result": { "chunk": "0000000100" } })).unwrap();
+    assert_eq!(r["done"]["reason"], "malformed_frame", "{r}");
+    // That refusal ended a serve that named the serving phone's keys, so the core wiped them: the real state opens nothing now.
+    let after = ask(json!({ "op": "flow", "flow": "serve", "state": server.state(), "result": { "chunk": "0000000100" } })).unwrap();
+    assert_eq!(after["done"]["reason"], "malformed_frame");
+
+    // A driver that stops part-way has the core wipe what its last state names, and that state is then of no use.
+    let before = held();
+    let released = ask(json!({ "op": "linkRelease", "state": client.state() })).unwrap();
+    assert_eq!(released, json!({ "released": 2 }));
+    assert_eq!(held(), before - 2);
+    assert_eq!(ask(json!({ "op": "linkRelease", "state": client.state() })).unwrap(), json!({ "released": 0 }), "twice is safe");
+    assert_eq!(ask(json!({ "op": "linkRelease", "state": null })).unwrap(), json!({ "released": 0 }));
 }
 
 // @verifies SWR-MG-28#e

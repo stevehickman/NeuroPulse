@@ -31,7 +31,6 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
@@ -323,7 +322,7 @@ const CONFIRMATION_LABEL: &[u8] = b"np-migration-confirmation-v1";
 /// keeps it (not the key), and the new phone makes it when it has opened the bundle. The bundle hash is computed from
 /// ciphertext the backup location already holds, so without the tag anyone who can write there could confirm.
 fn confirmation_tag(req: &Value) -> R<Value> {
-    let key = zeroize::Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -439,7 +438,19 @@ pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+    // Decoded into one buffer of its final size (`SWR-MG-28` (c)). Collecting through a `Result` starts small and grows,
+    // and each growth releases the shorter copy as it is: for a key, its first bytes, whatever wraps the result afterwards.
+    let mut out = Vec::with_capacity(s.len() / 2);
+    for i in (0..s.len()).step_by(2) {
+        match u8::from_str_radix(&s[i..i + 2], 16) {
+            Ok(b) => out.push(b),
+            Err(_) => {
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(format!("{what} is not hex"));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.
@@ -484,7 +495,7 @@ fn read_bundle_header(req: &Value) -> R<Value> {
 /// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
 /// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -617,7 +628,8 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "readBundleHeader" => read_bundle_header(req)?,
         "openBundle" => open_bundle(req)?,
         other => {
-            return crate::link::op(other, req)
+            return crate::secret_io::op(other, req)
+                .or_else(|| crate::link::op(other, req))
                 .or_else(|| crate::migration_text::op(other, req))
                 .or_else(|| crate::at_rest::op(other, req))
                 .or_else(|| crate::archive::op(other, req))

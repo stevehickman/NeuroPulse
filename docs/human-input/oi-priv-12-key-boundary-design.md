@@ -1,6 +1,8 @@
 # OI-PRIV-12 stage 2: how a key crosses the boundary of the shared core
 
-**Status:** DRAFT, not sent.
+**Status:** ANSWERED 2026-11-19 by the principal. Recorded in `docs/status/completed-decisions.md` and `OI-PRIV-12`.
+
+> **Answer, 2026-11-19 (the principal).** **Q1:** both, each where it fits, as §6 recommends. **Q2:** yes (it follows from Q1). **Q3:** yes: once every host uses the byte entry point, the core refuses a key given as hex text. **Q4:** a per-file key **now**, not waiting for `OI-PRIV-09` (2), and **with no change of format version, because nothing has been released yet** (so there is no version 1 file to keep readable; this differs from the recommendation). **Q5:** does not arise, for the same reason. **Also directed, and not a question of this file:** the core's heap is overwritten with zeros when a block is released (an allocator in the binding libraries), which closes the copies §2 lists as "not wiped" inside the Rust side (copies 4 and 5).
 **GitHub issue:** none yet. Rule 7 of `docs/human-input/README.md` asks for one; the session that wrote this did not open an issue unasked. The findings come from pull request [stevehickman/NeuroPulse#885](https://github.com/stevehickman/NeuroPulse/pull/885).
 **Sender:** the session that did stage 1 of `OI-PRIV-12` (a Claude agent), drafted 2026-11-18.
 **Addressee:** the Principal, with Software Engineering.

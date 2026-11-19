@@ -25,6 +25,7 @@ import life.neurone.core.platform.epochSeconds
 import kotlinx.coroutines.flow.first
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -149,6 +150,12 @@ private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), pri
     ) = MigrationFlow.run(
         "restore", params(route) { code?.let { put("pairing", buildJsonObject { put("code", it) }) } }, host(backupRoute), passphrase(secret), kv, store,
         link = link, random = random,
+    )
+
+    /** A restore over [link] where the person declines to give the secret: the driver stops part-way, after the pairing. */
+    suspend fun restoreDeclining(route: RouteDescriptor, link: Link) = MigrationFlow.run(
+        "restore", params(route) { put("pairing", buildJsonObject { put("code", CODE) }) }, host(), null, kv, null,
+        link = link, random = random, secretProvider = { null },
     )
 
     suspend fun inspect(backupRoute: BackupRoute? = null, store: ObjectStore? = null) =
@@ -494,6 +501,38 @@ class MigrationFlowTests {
         val names = MigrationFlow.objectNames()
         assertTrue(names.text("claim") in store.objects && names.text("confirmation") in store.objects, "the serving phone took the claim")
         assertEquals("claimed", restoreOver(Phone(seed = 90)).reason)
+    }
+
+    // @verifies SWR-MG-32#f
+    @Test
+    fun aLinksChannelKeysAreInTheCoreWhileItRunsAndGoneWhenItEndsOrItsDriverStopsPartWay() = runTest {
+        fun held(): Int = NppsCore.migration(buildJsonObject { put("op", "keyCount") })["count"]!!.jsonPrimitive.content.toInt()
+        val store = MemoryObjectStore()
+        val route = ObjectStoreRoute("link", atomicClaim = true)
+        val old = Phone(seed = 1).also { it.fill() }
+        assertTrue(old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, store = store).ok)
+        val before = held()
+
+        // A flow that ends by itself: both phones' keys are wiped by the core.
+        coroutineScope {
+            val (client, server) = pipe()
+            val serving = async { MigrationFlow.serve(server, store, offer()) }
+            assertTrue(Phone(seed = 50).restore(route, link = client).ok)
+            client.close()
+            assertEquals(JsonPrimitive(true), serving.await()["paired"], "the two phones paired, so each had a channel")
+        }
+        assertEquals(before, held(), "a link flow that ended left a channel key in the core")
+
+        // A driver that stops part-way: the person declines the secret once the phones are paired and the bundle's
+        // header has come over the link. The restoring phone's driver throws; its keys are wiped all the same.
+        coroutineScope {
+            val (client, server) = pipe()
+            val serving = async { MigrationFlow.serve(server, store, offer()) }
+            assertFailsWith<SecretDeclined> { Phone(seed = 60).restoreDeclining(route, client) }
+            client.close()
+            assertEquals(JsonPrimitive(true), serving.await()["paired"], "the driver stopped after the pairing, with a channel open")
+        }
+        assertEquals(before, held(), "a link flow whose driver stopped part-way left a channel key in the core")
     }
 
     // @verifies SWR-MG-10
