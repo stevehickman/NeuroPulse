@@ -122,6 +122,14 @@ class UploadLinkGateTest {
         manager.onCharacteristicRead(serial, ByteArray(32))
         assertTrue(manager.linkEncryptionShown.value)
 
+        // A later read of the serial is refused: the gate closes again, and the next read that succeeds reopens it.
+        manager.onCharacteristicReadFailed(serial)
+        assertFalse(manager.linkEncryptionShown.value)
+        assertEquals(ProtocolUploader.Result.LinkNotEncrypted, uploader.upload(tdcs(), deviceSerial = ByteArray(32)))
+        assertEquals(emptyList(), link.writes)
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        assertTrue(manager.linkEncryptionShown.value)
+
         // The link drops and comes back: the new link has shown nothing, and the caller's own serial does not stand in for it.
         manager.onDisconnected("hub")
         assertFalse(manager.linkEncryptionShown.value)
@@ -160,15 +168,39 @@ class UploadLinkGateTest {
         assertTrue(manager.writeProtocolChunk(byteArrayOf(1, 2)))
         val writes = link.writes.size
 
+        val readsBefore = link.calls.count { it == "read $serial" }
         manager.onCharacteristicWriteFailed(upload)
         val pauseLimit = UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID)
         manager.onCharacteristicWriteFailed(pauseLimit)
         assertEquals(1, manager.uploadWriteRefusals.value, "only the upload's refusals are counted against the upload")
         assertEquals(listOf(upload, pauseLimit), seen, "every refusal is an event, with its characteristic")
         assertEquals(writes, link.writes.size, "a refused write is not written again")
+        assertEquals(readsBefore + 1, link.calls.count { it == "read $serial" }, "a refused upload write asks for the serial again, once")
 
         manager.onDisconnected("hub")
         assertEquals(0, manager.uploadWriteRefusals.value, "the count is the link's")
+    }
+
+    // @verifies REQ-SW03-31#c
+    @Test fun the_uploader_says_the_upload_last_sent_was_refused_and_forgets_it_at_the_next() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        val uploader = ProtocolUploader(manager, signer = Ed25519ProtocolSigner())
+
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
+        assertFalse(uploader.writeRefused)
+        manager.onCharacteristicWriteFailed(upload)
+        assertTrue(uploader.writeRefused, "the screen is told, so no answer from the helmet is not shown as stored")
+
+        // The refused write asked for the serial again; here the hub answers it, and the next upload starts clean.
+        manager.onCharacteristicRead(serial, ByteArray(32))
+        assertIs<ProtocolUploader.Result.Success>(uploader.upload(tdcs()))
+        assertFalse(uploader.writeRefused)
+
+        manager.onCharacteristicWriteFailed(upload)
+        manager.onDisconnected("hub")
+        assertFalse(uploader.writeRefused, "a refusal belongs to its link")
     }
 
     private class FakeBridge : HubBridge {

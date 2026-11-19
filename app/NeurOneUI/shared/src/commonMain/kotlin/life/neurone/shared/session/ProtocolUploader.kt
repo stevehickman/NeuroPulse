@@ -47,6 +47,14 @@ class ProtocolUploader internal constructor(
         data object LinkNotEncrypted : Result
     }
 
+    private var refusalsAtSend = 0
+
+    /**
+     * True when the link refused a write of the upload last sent: the helmet does not hold it, whatever it reports of an
+     * earlier one. False again once the next upload is sent, and after the link drops (the count is the link's).
+     */
+    val writeRefused: Boolean get() = gatt.uploadWriteRefusals.value > refusalsAtSend
+
     /** Holds an upload back until the link is shown encrypted, and asks for the read again in case the hub was paired since. */
     private fun linkGate(): Result? {
         if (gatt.linkEncryptionShown.value) return null
@@ -91,6 +99,7 @@ class ProtocolUploader internal constructor(
                 autonomous = autonomous,
             )
             // The manager holds the gate too, so a link that dropped since the check above writes nothing.
+            refusalsAtSend = gatt.uploadWriteRefusals.value
             if (ProtocolChunker.chunk(blob.blob, gatt.writeLength).all { gatt.writeProtocolChunk(it) }) {
                 Result.Success(UploadCheck.hashOf(blob.blob))
             } else {
@@ -123,6 +132,7 @@ class ProtocolUploader internal constructor(
                 hardwareVersion = gatt.hardwareVersion.value,
             )
             // The manager holds the gate too, so a link that dropped since the check above writes nothing.
+            refusalsAtSend = gatt.uploadWriteRefusals.value
             if (ProtocolChunker.chunk(blob.blob, gatt.writeLength).all { gatt.writeProtocolChunk(it) }) {
                 Result.Success(UploadCheck.hashOf(blob.blob))
             } else {

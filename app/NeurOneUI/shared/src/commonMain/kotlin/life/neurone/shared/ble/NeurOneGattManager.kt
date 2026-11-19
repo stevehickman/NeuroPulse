@@ -264,7 +264,8 @@ class NeurOneGattManager(
     private var deviceSerialCharPresent = false
 
     /**
-     * True once a read of the hub's `DEVICE_SERIAL` has succeeded on this link; cleared at every disconnect. The hub serves
+     * True once a read of the hub's `DEVICE_SERIAL` has succeeded on this link; cleared at every disconnect and by a later
+     * refused read of it. The hub serves
      * that characteristic on an encrypted link only (`NP_GATT_PROP_ENC`, `REQ-FWHUB-81`), so against a hub this shows the link
      * is encrypted, and no protocol is written before it ([writeProtocolChunk], `REQ-SW03-31`, `OI-PRIV-16`). Without it the
      * hub would still refuse the write, but only after the app had sent the protocol's bytes over the air in clear.
@@ -537,7 +538,7 @@ class NeurOneGattManager(
             deviceSerial = if (value.size == 32) value.copyOf() else null
             // The serial has no notify property and is never subscribed to, so a value here is a read the peer answered,
             // on every central (CoreBluetooth reports a read and a notification through one callback). A malformed value
-            // shows nothing; once shown, it holds until the link drops, since a link's encryption does not end before it.
+            // shows nothing; once shown, it holds until the link drops or a later read of the serial is refused.
             if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) _linkEncryptionShown.value = true
             return
         }
@@ -622,6 +623,8 @@ class NeurOneGattManager(
         val serial = UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID)
         if (uuid != serial || _connectionState.value != ConnectionState.CONNECTED) return
         _pairingRequired.value = true
+        // The latest read was refused: the upload waits for one that is not (REQ-SW03-31 (b)).
+        _linkEncryptionShown.value = false
         serialRetryJob?.cancel()
         serialRetryJob = scope.launch {
             delay(SERIAL_RETRY_MS)
@@ -631,12 +634,16 @@ class NeurOneGattManager(
 
     /**
      * A write the link refused (`OI-PRIV-16`). It is counted and passed on; nothing is written again, here or by the
-     * central. A refusal that arrives after the link dropped is dropped with it.
+     * central. A refusal that arrives after the link dropped is dropped with it. A refused protocol write also asks for
+     * the serial again: on an unpaired link that read is refused too, which raises the pairing notice and closes the gate
+     * ([onCharacteristicReadFailed]); on a paired one it succeeds and changes nothing.
      */
     override fun onCharacteristicWriteFailed(uuid: UUID) {
         if (_connectionState.value != ConnectionState.CONNECTED) return
-        if (uuid == UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID)) _uploadWriteRefusals.value += 1
         _writeRefusals.tryEmit(uuid)
+        if (uuid != UUID.fromString(GattUuidStrings.PROTOCOL_UPLOAD_ID)) return
+        _uploadWriteRefusals.value += 1
+        if (deviceSerialCharPresent && serialRetryJob?.isActive != true) central.read(UUID.fromString(GattUuidStrings.DEVICE_SERIAL_ID))
     }
 
     // ── Commands ─────────────────────────────────────────────────────────

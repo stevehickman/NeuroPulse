@@ -134,7 +134,9 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
                 // The "sent" message above was true when it was shown; this says what the helmet then decided, whatever its
                 // reason. A tier refusal never names a purchase (NP-PWRSRC-001 §6.3).
                 // A final answer for other bytes says nothing about this upload: the helmet may hold something else.
-                val cause = verdict.causeFor(result.sentHash)
+                // A write the link refused never reached the helmet, so no answer is not "stored": it is shown as a refusal
+                // unless the helmet gave a reason of its own (REQ-SW03-31 (c)).
+                val cause = verdict.causeFor(result.sentHash) ?: HelmetRefusalCause.OTHER.takeIf { uploader.writeRefused }
                 // Mode 3 says "stored" only when the helmet holds the protocol (SWR-UP-02, SWR-HV-08, as the iOS flow): every
                 // refusal, and an answer for other bytes, is shown instead and nothing is reported stored.
                 if (programming) {
