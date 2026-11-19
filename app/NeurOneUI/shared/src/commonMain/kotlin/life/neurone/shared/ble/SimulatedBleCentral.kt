@@ -186,7 +186,10 @@ class SimulatedBleCentral(private val bridge: HubBridge, attMtu: Int = DEFAULT_S
                 val uuid = uuidOf(event.id)
                 if (event.att == 0) l.onCharacteristicRead(uuid, hexToBytes(event.hex)) else onAttRefusal?.invoke(uuid, event.att, true)
             }
-            is HubBridgeEvent.WriteResult -> if (event.att != 0) onAttRefusal?.invoke(uuidOf(event.id), event.att, false)
+            is HubBridgeEvent.WriteResult -> if (event.att != 0) {
+                onAttRefusal?.invoke(uuidOf(event.id), event.att, false)
+                l.onCharacteristicWriteFailed(uuidOf(event.id))
+            }
             is HubBridgeEvent.Notification -> {
                 val uuid = uuidOf(event.id)
                 // A notification reaches only a central that subscribed to that characteristic.

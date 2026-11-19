@@ -79,7 +79,7 @@ A helmet-level or individual-level set with its ID stripped names no helmet and 
 
 ## 5. What is not being asked
 
-- Part 1 of `OI-PRIV-11` (the profile's date of birth and notes) is settled in the same change that adds this file: `NP-SW-001` `REQ-SW03-31`.
+- Part 1 of `OI-PRIV-11` (the profile's date of birth and notes) is settled in the same change that adds this file: `NP-SW-001` `REQ-SW03-32`.
 - Whether the content hash should be salted per copy. It would break the rule that the same content has the same hash (H1).
 
 ## 6. What to send back

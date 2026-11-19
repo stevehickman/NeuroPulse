@@ -119,7 +119,7 @@ describe('the protocol backup file', () => {
     expect(fresh.userProtocols.length).toBe(0);
   });
 
-  // @verifies REQ-SW03-31#b
+  // @verifies REQ-SW03-32#b
   it('the limits store refuses a profile note over the bound and keeps no field a profile does not have', () => {
     const over = 'x'.repeat(ProfileLimits.PROFILE_NOTES_MAX_CHARS + 1);
     expect(limitsStore.saveProfile({ id: 'p2', name: 'Sam', notes: over })).toBe(false);

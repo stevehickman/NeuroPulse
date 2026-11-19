@@ -125,7 +125,7 @@ export interface NPLimitsSet {
 
 // ─── Individual profile ────────────────────────────────────────────────────────
 
-// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-31; the per-field rulings are in
+// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-32; the per-field rulings are in
 // docs/reference/data-architecture-detail.md §5.1). `id` is random and names the individual tier of the limits. `name` is how
 // the person choosing a profile recognises it. `notes` is a short label that tells two profiles apart ("left chair"); it is
 // not a record about the person, nothing reads it but the profile list, and it holds at most

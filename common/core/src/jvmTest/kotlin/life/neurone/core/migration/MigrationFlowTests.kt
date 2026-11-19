@@ -212,6 +212,50 @@ class MigrationFlowTests {
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"), "a UHDR-only restore never brings the consent record")
     }
 
+    // The backup location keeps every bundle it was given and can hand back any of them (`OI-PRIV-09`). The rule is the core's;
+    // this proves the Kotlin driver and store carry the count it keeps.
+    // @verifies SWR-MG-29#b,c
+    @Test
+    fun eachBackupIsALaterEpochAndAPhoneHandedAnOlderBundleRefusesItAndChangesNothing() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val phone = Phone(seed = 1).also { it.fill() }
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("1", phone.kv.getString("np.migration.seen-epoch"))
+        val older = route.getBundle()!!
+        phone.kv.putString("np.session.history", "history after the first backup")
+        assertTrue(phone.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route).ok)
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"), "recorded on the phone, one later each time")
+
+        route.putBundle(older)
+        val r = phone.restore(route, route)
+        assertFalse(r.ok)
+        assertEquals("older_bundle", r.reason)
+        assertEquals("history after the first backup", phone.kv.getString("np.session.history"), "nothing was written")
+        assertEquals("2", phone.kv.getString("np.migration.seen-epoch"))
+    }
+
+    // The limit of the epoch, pinned so that nothing claims more for it.
+    // @verifies SWR-MG-29#d
+    @Test
+    fun aPhoneThatHasSeenNothingRestoresAnOlderBundleAndThenRefusesAnythingEarlier() = runTest {
+        val route = InMemoryBackupRoute(atomicClaim = false)
+        val old = Phone(seed = 1).also { it.fill() }
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val first = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+        val second = route.getBundle()!!
+        old.backup("uhdr", BundleKeyMethod.PASSPHRASE, route, route)
+
+        // A new phone is handed the second of three: it has nothing to compare with, and restores it.
+        route.putBundle(second)
+        val fresh = Phone(seed = 50)
+        assertTrue(fresh.restore(route, route).ok, "a phone that has seen nothing cannot tell an old bundle from the newest")
+        assertEquals("2", fresh.kv.getString("np.migration.seen-epoch"), "it learns the epoch from inside the bundle")
+        // From then on it has seen something, and the first is refused on it.
+        route.putBundle(first)
+        assertEquals("older_bundle", fresh.restore(route, route).reason)
+    }
+
     // @verifies SWR-MG-10
     @Test
     fun aRouteWithoutAnAtomicClaimCannotCarryAMigrationButCanCarryTheBackup() = runTest {
@@ -555,7 +599,7 @@ class MigrationFlowTests {
         assertTrue(found.ok)
         assertEquals("uhdr", found.text("kind"))
         assertEquals(BundleKeyMethod.RECOVERY_CODE.wire, found.text("method"))
-        assertEquals("1", found.text("formatVersion"))
+        assertEquals("2", found.text("formatVersion"))
     }
 
     // @verifies SWR-MG-01

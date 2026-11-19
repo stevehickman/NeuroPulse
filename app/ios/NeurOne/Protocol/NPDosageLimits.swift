@@ -94,7 +94,7 @@ struct NPVibrotactileLimits: Codable, Equatable {
 
 // MARK: - NPIndividualProfile
 
-/// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-31; the per-field rulings are in
+/// What the limits store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-32; the per-field rulings are in
 /// docs/reference/data-architecture-detail.md §5.1). `notes` is a short label that tells two profiles apart, not a record
 /// about the person. There is no date of birth and no creation time: nothing read either (OI-PRIV-11), and a stored
 /// profile that carries one loses it when the store loads it.

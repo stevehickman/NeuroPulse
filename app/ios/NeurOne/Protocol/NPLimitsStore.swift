@@ -89,7 +89,7 @@ final class NPLimitsStore: ObservableObject {
         persist()
     }
 
-    /// Keep `profile`. A note over the bound is refused (false) and nothing changes (REQ-SW03-31 (b)).
+    /// Keep `profile`. A note over the bound is refused (false) and nothing changes (REQ-SW03-32 (b)).
     @discardableResult
     func saveProfile(_ profile: NPIndividualProfile) -> Bool {
         guard profile.notes.utf16.count <= NPIndividualProfile.maxNotesLength else { return false }
@@ -244,7 +244,7 @@ final class NPLimitsStore: ObservableObject {
                 kept.notes = NPIndividualProfile.cutNotes(p.notes)
                 return kept
             }
-            // What is stored is reduced to what a profile has (REQ-SW03-31 (a), (c)): decoding drops a field the profile
+            // What is stored is reduced to what a profile has (REQ-SW03-32 (a), (c)): decoding drops a field the profile
             // does not have (a date of birth, a creation time) and a note over the bound is cut, and the file is written
             // back so neither stays on the device. The encoder sorts its keys, so a file that needs no change encodes
             // to the same bytes.

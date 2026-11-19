@@ -20,7 +20,7 @@ import life.neurone.core.common.UUID
 // the validator enforces, and the tier each value came from, which the validator names in an issue. The resolution
 // is the shared NPPS core's; see resolveLimits below.
 
-// What the store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-31; the per-field rulings are in
+// What the store keeps about a person, and nothing else (NP-SW-001 REQ-SW03-32; the per-field rulings are in
 // docs/reference/data-architecture-detail.md §5.1). `id` is random and names the individual tier. `name` is how the person
 // choosing a profile recognises it. `notes` is a short label that tells two profiles apart; it is not a record about the
 // person, nothing reads it but the profile list, and it holds at most ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code
@@ -150,7 +150,7 @@ class NPLimitsStore(
         persistTiers()
     }
 
-    /** Keep [profile]. A note over the bound is refused (false) and nothing changes (REQ-SW03-31). */
+    /** Keep [profile]. A note over the bound is refused (false) and nothing changes (REQ-SW03-32). */
     fun saveProfile(profile: NPIndividualProfile): Boolean {
         if (profile.notes.length > ProfileLimits.PROFILE_NOTES_MAX_CHARS) return false
         profiles = if (profiles.any { it.id == profile.id }) {
@@ -210,7 +210,7 @@ class NPLimitsStore(
         globalLimits = runCatching { importLimitsFromNPPS(text) }.getOrNull()
     }
 
-    // What is stored is reduced to what a profile has (REQ-SW03-31): a field it does not have (the date of birth an earlier
+    // What is stored is reduced to what a profile has (REQ-SW03-32): a field it does not have (the date of birth an earlier
     // build of another app kept) is not read, a note over the bound is cut to it, and the stored value is written back in
     // that form, so the dropped field does not stay on the device or travel in a migration bundle.
     private fun loadProfiles() {
