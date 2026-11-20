@@ -242,7 +242,8 @@ def self_test(require_docker):
         if docker_daemon():
             if caddy_adapt_problems(caddy):
                 failures.append(f"self-test: the real Caddyfile should be accepted but raised {caddy_adapt_problems(caddy)}")
-            expect("a Caddyfile with an unclosed block", caddy_adapt_problems(caddy.rstrip().rstrip("}")), "P9")
+            # (A missing final brace is not a usable mutant: Caddy 2.8 adapts a file whose last block is left open.)
+            expect("a directive Caddy does not know", caddy_adapt_problems(caddy.replace("encode gzip", "no_such_directive gzip")), "P9")
             expect("a log filter Caddy does not know", caddy_adapt_problems(caddy.replace("format filter {", "format no_such_encoder {")), "P9")
         elif require_docker:
             failures.append("self-test: no Docker daemon answers (and --require-docker was given), so P9 was not exercised")
