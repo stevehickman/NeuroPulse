@@ -206,7 +206,7 @@ class MigrationFlowTests {
         val done = old.backup("uhdr", BundleKeyMethod.RECOVERY_CODE, route, route)
         assertTrue(done.ok)
         assertTrue("protocols" in done.strings("omitted") && "limitsProfiles" in done.strings("omitted"))
-        assertEquals(setOf("sessionHistory", "characterisationEnrolment"), done.strings("written").toSet())
+        assertEquals(setOf("sessionHistory"), done.strings("written").toSet())
 
         val fresh = Phone(seed = 50)
         val r = fresh.restore(route, route)

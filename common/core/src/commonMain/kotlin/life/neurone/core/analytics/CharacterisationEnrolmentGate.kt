@@ -1,6 +1,5 @@
 package life.neurone.core.analytics
 
-import life.neurone.core.common.KeyValueStore
 import life.neurone.core.protocol.PersistedKeys
 
 /**
@@ -33,54 +32,56 @@ import life.neurone.core.protocol.PersistedKeys
  * ConsentStore or ResearchAnalyticsGate and must never share a persistence key
  * with them. The one coupling that exists is a strict subset relation with
  * WarrantyAnalyticsGate, running one way only — see [isOpen].
+ *
+ * PER HELMET (`REQ-SHDR-09`; the principal, 2026-11-20, `OI-PRIV-04`). Enrolment
+ * is a decision about one helmet by that helmet's warranty owner, kept in the
+ * warranty owner's store beside that helmet's consent. Every question here
+ * names a helmet; with none named the gate is closed and nothing is recorded.
+ * It is not user data and never moves with a user's migration or backup
+ * (`REQ-SHDR-10`).
  */
 class CharacterisationEnrolmentGate(
-    private val store: KeyValueStore,
+    private val records: WarrantyOwnerStore,
     private val warrantyGate: WarrantyAnalyticsGate,
 ) {
 
-    companion object {
-
-    }
-
     /**
-     * True only when the warranty owner has affirmatively enrolled AND warranty
-     * consent itself is still open.
+     * True only when this helmet's warranty owner has affirmatively enrolled it
+     * AND warranty consent for it is still open.
      *
      * The warranty conjunct is a strict subset relation, not a merge:
      * characterisation records travel on the SHDR upload path, so an owner who
      * revoked SHDR telemetry cannot still be contributing the more detailed set.
      * It runs one way only — enrolling here never grants warranty consent.
+     * A warranty revoke also withdraws the enrolment itself
+     * ([WarrantyAnalyticsGate.revoke]), so a later grant does not reopen it.
      */
-    val isOpen: Boolean
-        get() = warrantyGate.isOpen &&
-            store.getBoolean(PersistedKeys.ENROLMENT_KEY) &&
-            store.getInt(PersistedKeys.PROGRAMME_ID_KEY) == PersistedKeys.CURRENT_PROGRAMME_ID &&
-            consentEpoch >= 1
+    fun isOpen(hub: String?): Boolean {
+        if (hub == null || !warrantyGate.isOpen(hub)) return false
+        val r = records.record(hub) ?: return false
+        return r.enrolled && r.programmeId == PersistedKeys.CURRENT_PROGRAMME_ID && r.consentEpoch >= 1
+    }
 
     /** Zero means "never granted", which the firmware treats as not enrolled. */
-    val consentEpoch: Int
-        get() = store.getInt(PersistedKeys.CONSENT_EPOCH_KEY)
+    fun consentEpoch(hub: String?): Int = hub?.let { records.record(it)?.consentEpoch } ?: 0
 
     /**
-     * Record an affirmative enrolment by the warranty owner.
+     * Record an affirmative enrolment of this helmet by its warranty owner.
      *
      * Call only from the §H enrolment screen after an explicit choice — never
      * from onboarding defaults, never from warranty registration, never as a
      * side effect of another setting.
      *
-     * Refused unless warranty consent is open: enrolling a device whose owner
-     * has not consented to SHDR telemetry at all would be incoherent, so it is
-     * refused rather than silently recorded.
+     * Refused unless warranty consent for this helmet is open: enrolling a
+     * device whose owner has not consented to SHDR telemetry at all would be
+     * incoherent, so it is refused rather than silently recorded.
      *
      * @return the new consent epoch, or null if refused.
      */
-    fun grant(): Int? {
-        if (!warrantyGate.isOpen) return null
-        val epoch = consentEpoch + 1
-        store.putBoolean(PersistedKeys.ENROLMENT_KEY, true)
-        store.putInt(PersistedKeys.CONSENT_EPOCH_KEY, epoch)
-        store.putInt(PersistedKeys.PROGRAMME_ID_KEY, PersistedKeys.CURRENT_PROGRAMME_ID)
+    fun grant(hub: String?): Int? {
+        if (hub == null || !warrantyGate.isOpen(hub)) return null
+        val epoch = consentEpoch(hub) + 1
+        records.update(hub) { it.copy(enrolled = true, consentEpoch = epoch, programmeId = PersistedKeys.CURRENT_PROGRAMME_ID) }
         return epoch
     }
 
@@ -93,18 +94,21 @@ class CharacterisationEnrolmentGate(
      *
      * The epoch is deliberately not reset — it must keep increasing.
      * No effect on WarrantyAnalyticsGate, ConsentStore or any UHDR flow.
+     * A helmet with no record is left with none: it was never enrolled.
      */
-    fun withdraw() = store.putBoolean(PersistedKeys.ENROLMENT_KEY, false)
+    fun withdraw(hub: String?) {
+        if (hub == null || records.record(hub) == null) return
+        records.update(hub) { it.copy(enrolled = false) }
+    }
 
     /**
-     * Clear enrolment on factory reset / change of custody. A consent decision
-     * by a previous registrant must not keep authorising collection for a new
-     * one (NP-MOD-ID-001 §A.4); a device out of reset starts un-enrolled and
-     * asks again, epoch included.
+     * Clear this helmet's enrolment on factory reset / change of custody. A
+     * consent decision by a previous registrant must not keep authorising
+     * collection for a new one (NP-MOD-ID-001 §A.4); a device out of reset
+     * starts un-enrolled and asks again, epoch included.
      */
-    fun clearForDeviceTransfer() {
-        store.remove(PersistedKeys.ENROLMENT_KEY)
-        store.remove(PersistedKeys.CONSENT_EPOCH_KEY)
-        store.remove(PersistedKeys.PROGRAMME_ID_KEY)
+    fun clearForDeviceTransfer(hub: String?) {
+        if (hub == null || records.record(hub) == null) return
+        records.update(hub) { it.copy(enrolled = false, consentEpoch = 0, programmeId = 0) }
     }
 }

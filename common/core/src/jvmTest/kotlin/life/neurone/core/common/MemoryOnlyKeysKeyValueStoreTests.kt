@@ -94,8 +94,8 @@ class MemoryOnlyKeysKeyValueStoreTests {
         assertTrue(list("consent").all { it in keys }, "every consent key, including the contact the person gave")
         assertTrue(list("perInstall").all { it in keys }, "the per-install keys: a launch count, a path, a helmet id")
         assertTrue(list("unsorted").all { it in keys }, "the onboarding records (age, biometric-privacy consent) and the rest")
-        assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles", "characterisationEnrolment").flatMap { c.jsonObjectList(it) }.all { it in keys } },
-            "saved protocols, limits and the research enrolment")
+        assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles").flatMap { c.jsonObjectList(it) }.all { it in keys } },
+            "saved protocols and limits")
         assertEquals(map["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet(), keys, "the core's one list, so a new key is covered")
 
         val inner = InMemoryKeyValueStore()

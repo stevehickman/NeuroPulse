@@ -11,14 +11,18 @@
 //!
 //! # Items
 //! The state a migration may move is named in `SWR-MG-01`. **Moved by a migration:** protocols and their used flags
-//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`), characterisation enrolment
-//! (`characterisationEnrolment`) and limits profiles (`limitsProfiles`). **Never moved, because it belongs to the install:**
-//! the research device token, the warranty consent flag, the last paired helmet id and the launch count. **Never moved, by
+//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`) and limits profiles
+//! (`limitsProfiles`). **Never moved, because it belongs to the install:**
+//! the research device token, the last paired helmet id and the launch count. **Never moved with a user's data, because it is
+//! the warranty owner's and not a user's** (`REQ-SHDR-10`; the principal, 2026-11-20): the warranty consent
+//! (`warrantyConsentFlag`) and characterisation enrolment (`characterisationEnrolment`). A bundle an earlier version sealed
+//! may hold `characterisationEnrolment`; it is dropped when the bundle is opened and the rest is restored (`RETIRED_ITEMS`).
+//! **Never moved, by
 //! ruling:** the consent grants (`consentGrants`). A grant is stated on each device, so an out-of-date one can never be
 //! restored; a restore can only reduce what a phone is consented to, never add to it (`SWR-MG-04`). **Not yet sorted, and neither moved nor dropped by this row:** the consumable counters,
 //! the cervical fault acknowledgement ledger and the onboarding flags.
 //!
-//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history, characterisation enrolment and the
+//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history and the
 //! withdrawal state; it omits protocols and limits profiles. The withdrawal state is in both kinds so a
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
@@ -94,15 +98,14 @@ pub(crate) fn device_tier() -> Vec<String> {
     v
 }
 
-const MIGRATE_ITEMS: [&str; 5] = [
-    "protocols",
-    "sessionHistory",
-    "withdrawalState",
-    "characterisationEnrolment",
-    "limitsProfiles",
-];
-const UHDR_ITEMS: [&str; 3] = ["sessionHistory", "characterisationEnrolment", "withdrawalState"];
-const PER_INSTALL: [&str; 5] = ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"];
+const MIGRATE_ITEMS: [&str; 4] = ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"];
+const UHDR_ITEMS: [&str; 2] = ["sessionHistory", "withdrawalState"];
+const PER_INSTALL: [&str; 6] =
+    ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"];
+/// `REQ-SHDR-10` (c): items an earlier version carried and no bundle carries now. One met in a bundle that is being opened is
+/// dropped, never restored, and the rest of the bundle is restored; sealing one is refused like any item a kind does not carry.
+/// Characterisation enrolment is the warranty owner's decision about a helmet and was once carried with a user's data.
+const RETIRED_ITEMS: [&str; 1] = ["characterisationEnrolment"];
 const UNSORTED: [&str; 3] = ["consumableCounters", "cervicalFaultLedger", "onboardingFlags"];
 
 fn kind_items(kind: &str) -> R<&'static [&'static str]> {
@@ -576,9 +579,10 @@ fn open_bundle(req: &Value) -> R<Value> {
     if epoch < seen {
         return Ok(json!({ "ok": false, "reason": "older_bundle", "epoch": epoch, "seenEpoch": seen }));
     }
-    let Some(items) = body["items"].as_object().cloned() else {
+    let Some(mut items) = body["items"].as_object().cloned() else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
+    items.retain(|k, _| !RETIRED_ITEMS.contains(&k.as_str()));
     let carried = kind_items(kind)?;
     if items.keys().any(|k| !carried.contains(&k.as_str())) {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
@@ -819,10 +823,11 @@ mod tests {
     fn a_migration_carries_the_users_state_and_none_of_the_per_install_state() {
         let inv = ask(json!({"op":"inventory","kind":"migrate"}));
         let carried: Vec<&str> = inv["carried"].as_array().unwrap().iter().map(|s| s.as_str().unwrap()).collect();
-        for want in ["protocols", "sessionHistory", "withdrawalState", "characterisationEnrolment", "limitsProfiles"] {
+        for want in ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"] {
             assert!(carried.contains(&want), "{want}");
         }
-        for never in ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"] {
+        // The warranty owner's two items are among the never-moved: they are not a user's (`REQ-SHDR-10`).
+        for never in ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"] {
             assert!(!carried.contains(&never), "{never}");
             assert!(inv["perInstall"].to_string().contains(never));
         }
@@ -845,7 +850,7 @@ mod tests {
         let r = ask(json!({"op":"restoreReport","kind":"migrate","present":["protocols","sessionHistory"]}));
         assert_eq!(r["restored"].as_array().unwrap().len(), 2);
         assert!(r["missing"].to_string().contains("limitsProfiles"));
-        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState","characterisationEnrolment"]}));
+        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState"]}));
         assert_eq!(u["missing"].as_array().unwrap().len(), 0);
         assert!(u["omitted"].to_string().contains("protocols"));
     }
@@ -1141,6 +1146,57 @@ mod tests {
             assert!(r.is_err(), "{kind} must not seal {item}");
         }
         assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
+    }
+
+    /// A bundle as a version before `REQ-SHDR-10` sealed it: the same bytes `sealBundle` makes, with no check of what the kind
+    /// carries, so it can hold the item that version carried.
+    fn sealed_by_an_earlier_version(kind: &str, items: Value) -> String {
+        let nonce = unhex(NONCE, "nonce").unwrap();
+        let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": NONCE, "kdf": kdf("recoveryCode") }).to_string().into_bytes();
+        let mut out = Vec::new();
+        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(&(header.len() as u32).to_be_bytes());
+        out.extend_from_slice(&header);
+        let plain = json!({ "epoch": 1, "items": items }).to_string().into_bytes();
+        let key = unhex(KEY, "key").unwrap();
+        let ct = Aes256Gcm::new_from_slice(&key).unwrap().encrypt(Nonce::from_slice(&nonce), Payload { msg: &plain, aad: &out }).unwrap();
+        out.extend_from_slice(&ct);
+        hex(&out)
+    }
+
+    // @verifies REQ-SHDR-10#b
+    #[test]
+    fn neither_kind_of_user_bundle_seals_the_warranty_owners_enrolment_or_consent() {
+        for kind in ["migrate", "uhdr"] {
+            for item in ["characterisationEnrolment", "warrantyConsentFlag"] {
+                let r = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":kind,"key":KEY,"nonce":NONCE,"items":{item:{}},"kdf":kdf("passphrase")}).to_string());
+                assert!(r.is_err(), "{kind} must not seal {item}");
+            }
+            let inv = ask(json!({"op":"inventory","kind":kind}));
+            assert!(!inv["carried"].to_string().contains("characterisationEnrolment"), "{kind}");
+        }
+        // No stored key of the warranty owner's is a carried key, so no adapter is ever handed one to put in a bundle.
+        let keys = ask(json!({"op":"itemKeys"}));
+        for k in ["np.warranty-owner.records", "np.warranty.consent-granted", "np.characterisation.enrolled", "np.characterisation.consent-epoch", "np.characterisation.programme-id"] {
+            assert!(!keys["carried"].to_string().contains(k), "{k}");
+        }
+        // Control: the same request with an item the kind carries is sealed.
+        assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":{"sessionHistory":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
+    }
+
+    // @verifies REQ-SHDR-10#c
+    #[test]
+    fn a_bundle_an_earlier_version_sealed_with_the_enrolment_opens_without_it() {
+        let history = json!([{"id":1}]);
+        for kind in ["migrate", "uhdr"] {
+            let old = sealed_by_an_earlier_version(kind, json!({"sessionHistory": history, "characterisationEnrolment": {"np.characterisation.enrolled": "true"}}));
+            let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":old,"key":KEY}));
+            assert_eq!(opened["ok"], true, "{opened}");
+            assert_eq!(opened["items"], json!({"sessionHistory": history}), "the enrolment is dropped and the rest restored");
+        }
+        // Control: the helper's bundle is checked like any other, so an item no version carried is still refused whole.
+        let forged = sealed_by_an_earlier_version("uhdr", json!({"sessionHistory": history, "consentGrants": {}}));
+        assert_eq!(ask(json!({"op":"openBundle","seenEpoch":0,"bundle":forged,"key":KEY}))["reason"], "malformed");
     }
 
     // @verifies SWR-MG-02

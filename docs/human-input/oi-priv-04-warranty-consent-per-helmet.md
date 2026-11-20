@@ -1,6 +1,10 @@
 # Question for the principal: OI-PRIV-04, whose consent an SHDR upload rests on when one phone meets several helmets
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-20 by the principal: **Q1 yes (A), Q2 A, Q3 yes to both (A), Q4 a wider ruling than the options offered.** Recorded in `CLAUDE.md` §6.0 (Rev 84), `docs/reference/data-architecture-detail.md` (`REQ-SHDR-08` to `-10`), `NP-SW-001` `SWR-MG-01` and `docs/status/completed-decisions.md`. Not a controlled document; see `docs/human-input/README.md`.
+
+> **Answer, 2026-11-20 (the principal):** Q1: yes. Q2: A. Q3: yes to both. Q4: helmet health data and study enrolment are not related to users and should not move with user data. The warranty owner should have a separate store. The app, on all platforms, should have a separate page for all warranty-owner information collection, consents included, and it should be the first page seen when a new helmet is being registered. That data is tracked by warranty owner, backup and restore included. Automated backups can take warranty-owner and user data at the same time, and the data is not commingled, though it may be stored on the same media. Backup, restore and transfer to a new device of either is independent of the other: warranty-owner data can go to a separate location, be restored to a different device and run on a different schedule. In a clinic this is obvious, because there are several users per helmet and the warranty owner might never use it. At home the warranty owner is likely also a user, so both may be backed up, restored and transferred in parallel.
+>
+> Q4 goes further than option A. What is built is in `REQ-SHDR-10`; what the ruling asks for beyond it is `OI-PRIV-20`. §4 to §6 below are the brief as it was sent and are not edited.
 **GitHub issue:** [#888](https://github.com/stevehickman/NeuroPulse/issues/888)
 **From:** NeurOne Software Engineering (`OI-PRIV-04` in `docs/status/pending-decisions.md`; privacy review of `common/`, 2026-11-15, Findings 3 and 4; raised in GitHub #885)
 **To:** the principal

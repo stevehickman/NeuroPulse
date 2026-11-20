@@ -43,7 +43,7 @@ class FleetUploaderTests {
     }
 
     private fun uploader(store: DeviceTokenStore, hub: String? = HUB, consented: Boolean = false, transport: HttpTransport = never, key: String = "") =
-        FleetUploader(store, WarrantyAnalyticsGate(InMemoryKeyValueStore()).also { if (consented) it.grant() }, transport, gatewayKeyConfigHex = key)
+        FleetUploader(store, WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore())).also { if (consented) it.grant(HUB) }, transport, gatewayKeyConfigHex = key)
             .also { it.setHubIdentifier(hub) }
 
     // @verifies REQ-SHDR-02
@@ -185,6 +185,34 @@ class FleetUploaderTests {
         assertTrue(sent.headers.keys.none { it.equals(FleetConfig.DEVICE_TOKEN_HEADER, ignoreCase = true) }, "no token header on the wire")
         assertEquals(up.deviceToken, gw.innerToken)
         assertEquals("record".encodeToByteArray().toHex(), gw.innerBody)
+    }
+
+    // @verifies REQ-SHDR-08#a
+    @Test fun aHelmetWhoseOwnerHasNotConsentedIsNotUploadedThoughAnotherHelmetOnThisPhoneIs() = runBlocking {
+        val records = WarrantyOwnerStore(InMemoryKeyValueStore())
+        val gate = WarrantyAnalyticsGate(records).also { it.grant(HUB) }
+        val gw = Gateway()
+        val tokens = FakeTokenStore()
+        val up = FleetUploader(tokens, gate, gw, gatewayKeyConfigHex = keyConfig)
+        // The clinic's helmet connects to a phone whose own helmet is consented: nothing is sent, and no token is made for it.
+        val clinic = "AA:BB:CC:00:00:02"
+        up.setHubIdentifier(clinic)
+        assertFalse(up.upload("record".encodeToByteArray()))
+        assertTrue(gw.seen.isEmpty(), "no request was made")
+        assertNull(tokens.byHub[clinic])
+        // With no helmet connected nothing is sent either.
+        up.setHubIdentifier(null)
+        assertFalse(up.upload("record".encodeToByteArray()))
+        assertTrue(gw.seen.isEmpty())
+        // Control: the consented helmet reconnects and its record is taken.
+        up.setHubIdentifier(HUB)
+        assertTrue(up.upload("record".encodeToByteArray()))
+        assertEquals(1, gw.seen.size)
+        // And once the clinic's owner consents for its helmet, that helmet uploads under its own token.
+        gate.grant(clinic)
+        up.setHubIdentifier(clinic)
+        assertTrue(up.upload("record".encodeToByteArray()))
+        assertNotEquals(tokens.byHub[HUB], tokens.byHub[clinic])
     }
 
     // @verifies REQ-SHDR-07#c
