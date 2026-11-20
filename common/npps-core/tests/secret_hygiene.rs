@@ -5,9 +5,20 @@
 use neurone_npps_core::api::migration_json;
 use neurone_npps_core::bundle_key::passphrase_secret;
 use serde_json::{json, Value};
+use std::sync::{Mutex, MutexGuard};
 use unicode_normalization::UnicodeNormalization;
 
 const CODE: &str = "48151623";
+
+/// The table of kept keys is one per process, and cargo runs the tests of this binary on parallel threads. A test that
+/// pairs two ends, or counts the table, holds this for its whole run, so no other test's keys come or go meanwhile.
+static ONE: Mutex<()> = Mutex::new(());
+
+fn one() -> MutexGuard<'static, ()> {
+    let guard = ONE.lock().unwrap_or_else(|e| e.into_inner());
+    migration_json(r#"{"op":"keyReleaseAll"}"#).unwrap();
+    guard
+}
 
 fn ask(v: Value) -> Result<Value, String> {
     migration_json(&v.to_string()).map(|s| serde_json::from_str(&s).unwrap())
@@ -95,6 +106,7 @@ fn two_ends() -> (End, End) {
 // @verifies SWR-MG-28#d
 #[test]
 fn a_paired_link_s_states_hold_the_channel_keys_and_nothing_else_of_the_pairing() {
+    let _one = one();
     let (mut client, mut server) = two_ends();
     let mut wrong: Vec<String> = vec![];
     let mut seen_code = [false; 2];
@@ -162,6 +174,7 @@ fn strings_of(v: &Value, out: &mut Vec<String>) {
 // @verifies SWR-MG-32#f
 #[test]
 fn a_link_s_channel_keys_are_in_the_core_and_its_state_names_them_and_holds_none() {
+    let _one = one();
     let held = || ask(json!({ "op": "keyCount" })).unwrap()["count"].as_u64().unwrap();
     let (mut client, mut server) = two_ends();
     let mut keys_in_text = vec![];
