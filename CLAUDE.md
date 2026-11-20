@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 85 (current)  
+**Revision:** 86 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -318,7 +318,7 @@ withdrawal**; already-published extracts cannot be individually removed (irrever
 at consent time). The audit trail (study ID, descriptor hash, enrolment day,
 transmission day, byte count, withdrawal day) is **UHDR**, held on the device under the person's key; SHDR
 carries nothing that names a study or says a wearer takes part in research (the principal, 2026-11-20,
-`OI-PRIV-07`). It is never shared with researchers. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
+`OI-PRIV-07`). It is never shared with researchers. **No device identifier reaches the research store**, which is keyed to study ID only (the principal, 2026-11-20, `OI-PRIV-21`); a person's extracts come only from their *current* device (§6.3). Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
 
 ---
 
@@ -385,7 +385,7 @@ Binding invariants (rationale in `consent-engine.md` §6.2.2–§6.2.5):
 ### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
 Research agenda voting · pre-identified subject pool · crowdfunding pledges (intent, not charges).
-NeurOne builds the invitation list from device ID and contact preferences only (**no UHDR**). **The
+NeurOne builds the invitation list from device ID and contact preferences only (**no UHDR**). **A request is broadcast to the current device of every person who consented to any research, and the server never filters it by topic: the person's detailed consents are compared with it on the device only** (the principal, 2026-11-20, `OI-PRIV-22`). The current-device record is for delivery only, held apart from the research store, SHDR and the warranty database, and names no study. **The
 device does not trust the server:** it verifies the signed study descriptor, and
 `ConsentEngine.admit()` re-checks k≥10, the ≥1-week floor, L1 and the user's L2/L3 state before
 showing anything. What a study cannot see is **computed as the complement** of what it asked for.

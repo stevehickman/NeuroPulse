@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 86 (2026-11-20) — §5.3, §6.3: no device identifier in the research store, and study requests are broadcast to each consenter's current device (the principal, `OI-PRIV-21`, `OI-PRIV-22`). No other locked decision changed.**
+
+**What changed.** §5.3 says the research store is keyed to study ID only and a person's extracts come only from their current device. §6.3 says a request is broadcast to the current device of every person who consented to any research, the server never filters by topic, and the current-device record is delivery-only and kept apart from the research store, SHDR and the warranty database.
+
+**Why.** Studies do not need device data. The one use found, stopping one person's UHDR being loaded from several devices, is met by delivering only to the current device. Broadcast means NeurOne never learns which research areas a person consented to. Returning data to NeurOne for further anonymization was rejected, because partly anonymized UHDR at NeurOne breaks §5.1.
+
+**What it leaves.** Not built (`OI-PRIV-22`): registering and retiring a current device, the non-current refusal, the withdrawal path of the "any research" subscription. The server holds that subscription bit, and it is not SHDR. `OI-PRIV-23` (relay for extracts) is not ruled.
+
 **Rev 85 (2026-11-20) — §5.3: the study participation audit trail is UHDR, not SHDR, and SHDR holds nothing about research extracts (the principal, `OI-PRIV-07`). No other locked decision changed.**
 
 **What changed.** §5.3's last sentence said study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR. It now says the audit trail (those four, plus the enrolment and withdrawal days) is UHDR, held on the device under the person's key, never uploaded and never shared with researchers.
