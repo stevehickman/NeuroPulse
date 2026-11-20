@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-07, which record holds the study participation audit trail
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-20: Q1 A, Q2 A, Q3 A (the principal; recommendation accepted). Originally DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#887](https://github.com/stevehickman/NeuroPulse/issues/887)
 **From:** NeurOne Software Engineering (`OI-PRIV-07` in `docs/status/pending-decisions.md`; privacy review of `common/`, Finding 9, GitHub #885)
 **To:** the principal

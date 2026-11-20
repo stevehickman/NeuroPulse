@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 84 (current)  
+**Revision:** 85 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -315,8 +315,10 @@ study, never a descriptor field:** a record whose group is smaller than k is dro
 principal, 2026-11-19). Only the anonymized extract is transmitted; no linkage table exists.
 **Withdrawal permanently blocks future extracts for every data period, including sessions predating
 withdrawal**; already-published extracts cannot be individually removed (irreversibility notice given
-at consent time). Study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR
-and never shared with researchers. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
+at consent time). The audit trail (study ID, descriptor hash, enrolment day,
+transmission day, byte count, withdrawal day) is **UHDR**, held on the device under the person's key; SHDR
+carries nothing that names a study or says a wearer takes part in research (the principal, 2026-11-20,
+`OI-PRIV-07`). It is never shared with researchers. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
 
 ---
 

@@ -6,7 +6,7 @@ import Combine
 // whose plist is included in iCloud/iTunes backups and MDM-readable. Consent state reveals health
 // conditions by inference (research categories, clinician grants). Consent is deliberately
 // re-established on a new device, as on Android.
-// UHDR/SHDR boundary: study audit trail written to SHDR (study ID, hash, timestamp, byte count).
+// UHDR/SHDR boundary: the study audit trail is UHDR (OI-PRIV-07); nothing naming a study goes to SHDR.
 //
 // TWO CONSENT SUBJECTS:
 //   • Warranty owner — consent for SHDR fleet telemetry. Granted at warranty registration.
@@ -49,8 +49,8 @@ final class ConsentStore: ObservableObject {
         [researchKey, studyWithdrawalsKey, PersistedKeys.PARTICIPATION_KEY, invitationsKey, quarantineKey]
     }
 
-    /// Studies the user withdrew from, and when (a `WithdrawalMark`). UHDR-class and kept apart from
-    /// `studyParticipations` (SHDR-class). A withdrawal stays here for good, so a restore or a re-presented
+    /// Studies the user withdrew from, and when (a `WithdrawalMark`). UHDR-class like
+    /// `studyParticipations` (`OI-PRIV-07`) and kept apart from it. A withdrawal stays here for good, so a restore or a re-presented
     /// descriptor cannot put the user back in a study they left (`SWR-MG-04`).
     @Published private(set) var studyWithdrawals: [String: String] = [:]
 
@@ -632,7 +632,7 @@ final class ConsentStore: ObservableObject {
         save()
     }
 
-    // MARK: - Participation audit (SHDR)
+    // MARK: - Participation audit (UHDR, OI-PRIV-07)
 
     /// Append the §5.3 audit-trail record for a study the device has joined.
     ///

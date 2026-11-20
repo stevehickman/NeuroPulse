@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 85 (2026-11-20) — §5.3: the study participation audit trail is UHDR, not SHDR, and SHDR holds nothing about research extracts (the principal, `OI-PRIV-07`). No other locked decision changed.**
+
+**What changed.** §5.3's last sentence said study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR. It now says the audit trail (those four, plus the enrolment and withdrawal days) is UHDR, held on the device under the person's key, never uploaded and never shared with researchers.
+
+**Why.** §5.3 conflicted with the §5.1 defining test: a study ID resolves to a disease-category study and a withdrawal day is a personal decision, and under the device-linked SHDR token the log would tell the fleet database which wearer is in which study. SHDR upload is consented by the warranty owner, who may be a clinic (§6.0), and a shared device would mix wearers. The principal ruled (2026-11-20; brief `docs/human-input/oi-priv-07-study-audit-trail-record.md`): Q1 A (the whole record is UHDR), Q2 A (SHDR holds no research field beyond the `anonymization_failed` boolean, and no running totals), Q3 A (the research store's study-and-device key is reviewed, `OI-PRIV-21`).
+
+**What it leaves.** NeurOne has no device-side account of extracts in the fleet database; its own record is the research store's receipt. The trail is lost with the phone unless the person's UHDR backup holds it. `OI-PRIV-21` is open. The §1 to §6 and §16 to §23 numbering is unchanged.
+
 **Rev 84 (2026-11-20) — §6.0: warranty-owner consent is per helmet, and the warranty owner's data has its own store that never travels with a user's (the principal, `OI-PRIV-04`). No other locked decision changed.**
 
 **What changed.** §6.0 gains two bullets. Consent to SHDR upload is recorded per helmet; consent for one helmet opens nothing for another; revoking it ends that helmet's characterisation enrolment. The warranty owner's data (helmet health data, the owner's consents, the study enrolment) is kept in a store of its own, is backed up, restored and transferred independently of any user's data, and is collected on one warranty-owner page that is the first page when a new helmet is registered.

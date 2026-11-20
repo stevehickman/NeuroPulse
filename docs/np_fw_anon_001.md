@@ -299,7 +299,7 @@ The `records_b64` field is encrypted with the study public key from the descript
 
 ### 8.1 Per-device budget tracking
 
-The engine tracks cumulative privacy budget spent per study across all sessions:
+The engine tracks cumulative privacy budget spent per study across all sessions. **Class (`OI-PRIV-07`, the principal, 2026-11-20): the budget record names a study and is therefore UHDR. It is never copied to SHDR.**
 
 ```c
 /* Config partition — per-study budget record */
@@ -317,7 +317,7 @@ If `epsilon_spent` would exceed 1.0 for a given study after a new extract, the e
 When the user withdraws research consent, the engine:
 1. Immediately stops processing any pending study descriptors
 2. Zeroes all study budget records in the Config partition for that study
-3. Issues `NP_ANON_CONSENT_WITHDRAWN` SHDR event (no study content — flag only)
+3. ~~Issues `NP_ANON_CONSENT_WITHDRAWN` SHDR event (no study content — flag only)~~ **Retired 2026-11-20 (`OI-PRIV-07`, the principal):** under the device-linked token the flag still says the wearer had consented to research and then withdrew, so no SHDR event is issued. The withdrawal is recorded in the UHDR audit trail only (`REQ-CONSENT-24`).
 
 Per the research architecture, this makes future data flows impossible. Already-transmitted extracts cannot be recalled (disclosed at L3 consent and per-project invitation).
 

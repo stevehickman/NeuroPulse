@@ -197,9 +197,10 @@ shape is the canonical case.
   complement, because the service knows what it sent.
 - **No per-refusal reason reaches the service.** `ConsentEngine.admit()`'s refusal reasons are
   legible on-device and in a test, and stay there.
-- **The SHDR audit trail is unchanged by this document.** §5.3 already logs study ID, descriptor
-  hash, transmission timestamp and byte count, and already says they are never shared with
-  researchers.
+- **The study audit trail is unchanged by this document, and it is UHDR.** §5.3 logs study ID,
+  descriptor hash, enrolment day, transmission day, byte count and withdrawal day on the device
+  under the person's key (`OI-PRIV-07`, the principal, 2026-11-20), never in SHDR and never shared
+  with researchers.
 
 ## §6 — The outbound direction, and the one thing NeurOne must not read
 
