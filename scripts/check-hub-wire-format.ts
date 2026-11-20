@@ -81,7 +81,6 @@ const CONSTANTS = "common/npps/constants.json";
 const SHARED_LIMITS: [string, string, number, string?][] = [
   ["NP_BES_FREQ_MHZ_MIN", "BES_TACS_MIN_HZ", 1000],
   ["NP_BES_FREQ_MHZ_MAX", "BES_TACS_MAX_HZ", 1000],
-  ["NP_CLIN_TACS_FREQ_MHZ_MIN", "CLINICAL_TACS_MIN_HZ", 1000],
   ["STIM_MAX_AMP_BES_UA", "BES_TACS_MAX_MILLIAMPS", 1000],
   ["STIM_MAX_AMP_TDCS_UA", "TDCS_MAX_MILLIAMPS", 1000],
   // The acoustic ceiling is in np_hub_config.h, not np_cmd_limits.h; the wire carries half-dB (OI-NPPS-ABS-02).

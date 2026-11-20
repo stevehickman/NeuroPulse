@@ -123,39 +123,16 @@ static class NPHardwareLimits
     /// still means the firmware default, 250 µs.
     public const double VNS_MIN_PULSE_WIDTH_US = 50.0;
     public const double VNS_MAX_PULSE_WIDTH_US = 500.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced
-    /// when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external
-    /// source (UC-082).
-    public const double PBM_MIN_HZ = 0.5;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced
-    /// when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external
-    /// source (UC-082).
-    public const double PBM_MAX_HZ = 100.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the
-    /// protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source
-    /// (UC-082).
-    public const double AUDIO_BEAT_MIN_HZ = 0.5;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the
-    /// protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source
-    /// (UC-082).
-    public const double AUDIO_BEAT_MAX_HZ = 100.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
-    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-    public const double TMS_MIN_HZ = 1.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
-    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-    public const double TMS_MAX_HZ = 50.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
-    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-    public const double CLINICAL_TACS_MIN_HZ = 0.5;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
-    /// (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-    public const double CLINICAL_TACS_MAX_HZ = 100.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is
-    /// edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-    public const double BREATHING_MIN_BPM = 4.0;
-    /// Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is
-    /// edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+    /// Resonance-frequency breathing rate, lower end, breaths per minute. RESEARCH-BACKED: an individual's
+    /// resonance frequency lies typically between 4.5 and 7.0 breaths/min, with 5.5 the most common, and
+    /// the identification protocol steps 4.5, 5.0, 5.5, 6.0, 6.5, 7.0 (Steffen et al. 2017, Front Public
+    /// Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449). It was 4.0, which that source does not
+    /// support, so it is 4.5 (the principal's rule, 2026-11-20: a range is enforced only on a documented
+    /// reason). Enforced when the protocol is edited or compiled (REQ-NPPS-23).
+    public const double BREATHING_MIN_BPM = 4.5;
+    /// Resonance-frequency breathing rate, upper end, breaths per minute: 7.0, the top of the range Steffen
+    /// et al. 2017 give (see BREATHING_MIN_BPM). Enforced when the protocol is edited or compiled
+    /// (REQ-NPPS-23).
     public const double BREATHING_MAX_BPM = 7.0;
     /// Visual stimulation
     public const double VISUAL_MAX_HZ = 100.0;

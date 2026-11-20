@@ -129,8 +129,8 @@ export const PARAM_BOUNDS = {
       step: 0.1,
     },
     breathingRate: {
-      min: { value: 4 /* BREATHING_MIN_BPM */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)." },
-      max: { value: 7 /* BREATHING_MAX_BPM */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)." },
+      min: { value: 4.5 /* BREATHING_MIN_BPM */, basis: 'practical', source: "Steffen et al. 2017 (Front Public Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449): resonance-frequency breathing lies typically between 4.5 and 7.0 breaths/min." },
+      max: { value: 7 /* BREATHING_MAX_BPM */, basis: 'practical', source: "Steffen et al. 2017 (Front Public Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449): resonance-frequency breathing lies typically between 4.5 and 7.0 breaths/min." },
       step: 0.5,
     },
   },
@@ -138,7 +138,7 @@ export const PARAM_BOUNDS = {
     beatRate: {
       min: { value: 0, basis: 'natural', source: "A rate cannot be below 0." },
       step: 0.5,
-      unbounded: "No maximum: the former 100 Hz is register UC-082, with no derivation. A binaural beat has a perceptual limit (NP-HW-AUDIO-001 §8.2.7 A), which is not a source for 100.",
+      unbounded: "No maximum of its own: the former 0.5 to 100 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The documented bound on a beat is the planar path's tone ceiling, carrier plus beat at most 1,000 Hz (REQ-AUDIO-25), which the validator and compiler hold. A binaural beat has a perceptual limit (NP-HW-AUDIO-001 §8.2.7 A), which is not a source for 100.",
     },
     carrier: {
       min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
@@ -165,9 +165,9 @@ export const PARAM_BOUNDS = {
   },
   tms: {
     frequency: {
-      min: { value: 1 /* TMS_MIN_HZ */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)." },
-      max: { value: 50 /* TMS_MAX_HZ */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)." },
+      min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
       step: 0.5,
+      unbounded: "No maximum: the former 1 to 50 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The descriptor carries up to about 4.29 MHz (32 bits), and the compiler refuses a rTMS frequency whose period does not fit the 16-bit inter-train interval (below 0.016 Hz). No TMS pulse-rate limit is established: the pulse driver's power budget is undecided (NP-HW-TMS-001, OI-PWRTH-07).",
     },
     intensity: {
       min: { value: 80, basis: 'unestablished', source: "Form figure, no source on record." },
@@ -182,9 +182,9 @@ export const PARAM_BOUNDS = {
   },
   clinicalTacs: {
     frequency: {
-      min: { value: 0.5 /* CLINICAL_TACS_MIN_HZ */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)." },
-      max: { value: 100 /* CLINICAL_TACS_MAX_HZ */, basis: 'unestablished', source: "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)." },
+      min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
       step: 0.5,
+      unbounded: "No maximum: the former 0.5 to 100 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The descriptor carries up to about 4.29 MHz (32 bits) and the hub refuses 0 Hz, a division by zero in the half-period it declares to the safety MCU. The driver's bandwidth is not established (NP-HW-TACSDRV-001), so no hardware figure is applied yet.",
     },
     intensity: {
       min: { value: 0.1, basis: 'unestablished', source: "Form figure, no source on record." },
