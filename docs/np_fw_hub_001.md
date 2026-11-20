@@ -937,7 +937,7 @@ the stop command. Each modality has exactly one target form.
 | `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
 | `0x06` | `NP_MOD_TDCS` | `np_mod_tdcs_params_t` | 8 | `NP_HUB_SLOT_TDCS` (18) |
-| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 12 | `NP_HUB_SLOT_VNS_HRV` (8) |
+| `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 14 | `NP_HUB_SLOT_VNS_HRV` (8) |
 | `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 10 | `NP_HUB_SLOT_AUDIO` (6) |
 | `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
 | `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |
@@ -947,6 +947,8 @@ the stop command. Each modality has exactly one target form.
 | `0x0E` | `NP_MOD_CLIN_TACS` | `np_mod_clin_tacs_params_t` | 10 | `NP_HUB_SLOT_CLIN_TACS` (14) |
 | `0x0F` | `NP_MOD_HD_TDCS` | `np_mod_hd_tdcs_params_t` | 6 | `NP_HUB_SLOT_HD_TDCS` (15) |
 | `0x10` | `NP_MOD_VIBROTACTILE` | `np_mod_vibrotactile_params_t` | 4 | `NP_HUB_SLOT_VIBROTACTILE` (16) |
+
+**The auricular VNS current is 32 bits, end to end (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_vns_hrv_params_t.amplitude_ua` was 16 bits, which would have made 65.535 mA the bound whenever the 40 mA ceiling (`NP_VNS_MAX_CURRENT_UA`, derived from the charge limit and the provisional pad area) moved with the pad. The VNS block is 14 bytes (was 12), the platform HAL's `np_mod_vns_hal_stim_set`, the taVNS sync and the hub's published commanded current are 32 bits, and so is every `current_ua[]` entry of the safety heartbeat (§7.1). The 40 mA refusal itself is unchanged.
 
 **The TMS, clinical tACS and audio frequencies are 32 bits (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_tms_params_t.freq_mhz`, `np_mod_clin_tacs_params_t.freq_mhz` and `np_mod_audio_params_t.beat_mhz` were 16 bits, which topped out at 65.535 Hz, a width no research sets. The three blocks grow by two bytes (TMS 12 to 14, clinical tACS 8 to 10, audio 8 to 10), every later field moves with them, and `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The unsourced authoring ranges (`TMS_MAX_HZ`, `CLINICAL_TACS_MAX_HZ`, `AUDIO_BEAT_MAX_HZ` and their floors) are defaults and no longer enforced (`UC-082`, the principal, 2026-11-20); `np_chan_decl_half_period_us` takes the 32-bit frequency, so a clinical tACS frequency above 65.535 Hz declares its true half period.
 
@@ -1621,11 +1623,11 @@ cover:
 
 The hub is always SPI master; the STM32G071 is slave. Two frame types.
 
-### 7.1 Extended heartbeat — 42 bytes, every 200 ms
+### 7.1 Extended heartbeat — 66 bytes, every 200 ms
 
 Hub sends `np_safety_tx_ext_frame_t`: magic (`0xBE`, `0xA7`), enable mask, `session_status` bits,
-`channel_count`, checksum, `current_ua[14]`, extended checksum. The MCU simultaneously returns its
-8-byte reply; the hub reads the first 8 bytes and discards the remaining 34 slave zero bytes. The frame grew from 38 to 42 bytes (`OI-UINT16-01`, the principal, 2026-11-12): a 4-byte zero tail, sent as zero and outside the extended checksum, widens the reply window because the cervical impedance report now carries two 32-bit values (12 bytes, was 8), which moves the cardiac-status, tier and withhold reports 4 bytes later.
+`channel_count`, checksum, `current_ua[14]` (32 bits each), extended checksum. The MCU simultaneously returns its
+8-byte reply and its reports at their fixed window offsets; the hub reads the 66-byte window. **The frame grew from 42 to 66 bytes (`OI-UINT16-01`, the principal, 2026-11-20):** the commanded current is 32 bits, so no current a descriptor can carry is cut off at 65.535 mA on its way to the safety MCU. `current_ua[]` is 56 bytes (was 28), the extended checksum covers bytes 8 to 63, and the 4-byte zero tail that widened the reply window (added at 38 to 42, `OI-UINT16-01`, 2026-11-12) is gone, because the window is now larger than the reports need: they still sit at window bytes 8 to 41, and bytes 42 to 65 are zero. The reply-window offsets of the impedance, cardiac-status, tier and withhold reports are unchanged. The safety MCU's per-phase charge arithmetic was rewritten so the widest product, 2^32 − 1 µA times 2^32 − 1 µs, fits `uint64` (the former form multiplied by 2000 and could not); it gives the same value for every input the old form handled, and a `_Static_assert` proves the bound from the field types.
 
 **Heartbeat sequence counter (Rev 11, `NP-FMEA-001` OI-FMEA-12 (a)).** Bits 5–7 of `session_status`
 carry a 3-bit counter (`NP_SESSION_STATUS_SEQ_*`, `np_spi_wire_types.h`) that
@@ -1684,7 +1686,7 @@ therefore fails **closed**. All three are cleared on session end/abort and by
 **Withhold report — why a gate held a line (`REQ-FWHUB-82`, `OI-SIMFW-61`).** A gate that holds a
 requested line clears it from `granted_mask` with status `OK` and no fault slot, so the hub could not tell
 an undeclared waveform class or a missing electrode geometry from any other withhold. The MCU now says,
-in the spare bytes of its 42-byte reply (`np_safety_withhold_report_t`, `np_spi_wire_types.h`): window
+in the spare bytes of its reply window (`np_safety_withhold_report_t`, `np_spi_wire_types.h`): window
 bytes 31 to 41, straight after the tier report (24 to 30) and filling the window exactly, are a magic byte
 `0x8E` and four 16-bit masks, then the additive 16-bit checksum of bytes 0 to 8 that the other reports
 use. Bit *n* is the line's `NP_SAFETY_EN_*` bit. Two masks are **conditions**: the lines the hub
@@ -2164,7 +2166,7 @@ The argument, in the four steps that carry it:
 
 1. **No electrical path.** Every stimulation enable line is a GPIO physically owned by the STM32G071
    safety MCU (CLAUDE.md §4.2, `NP-HW-HUB-001` Rev 4 §7.2). The hub's only influence is the
-   *requested* mask in a 42-byte SPI frame. A hub that requests everything gets what the MCU grants.
+   *requested* mask in a 66-byte SPI frame. A hub that requests everything gets what the MCU grants.
 2. **No stored value widens a grant.** Nothing the hub persists — calibration, the module map, the
    log — is read by the safety MCU. Its limits are resident constants (both charge-density ceilings, HR-change
    cutoff, lockout duration) and the hub supplies *inputs* to them (electrode **area**, §5.4), never

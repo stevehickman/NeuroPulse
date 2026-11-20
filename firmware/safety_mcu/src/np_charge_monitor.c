@@ -511,30 +511,30 @@ void np_charge_monitor_tick(np_safety_state_t *state)
  * approximation errs strict.
  *
  * Overflow: none is possible, and that is proved at compile time below, not
- * by bounding the declared phase (there is no clamp on it any more).  The
- * current reaches this function as the heartbeat sends it, 16 bits; the phase
- * is the wire's 32 bits.  The widest intermediate is therefore
- *     65535 x 4294967295 x 2000 = about 5.6e17,
- * against about 1.8e19 for uint64.  The assertions take the maxima from the
- * types themselves, so widening either field stops the build here instead of
- * wrapping the product at run time.
+ * by bounding the declared phase (there is no clamp on it any more) and not by
+ * bounding the current (the heartbeat carries it in 32 bits, OI-UINT16-01).  The
+ * current times the phase is the widest product the function forms:
+ *     4294967295 x 4294967295 = about 1.8e19,
+ * which fits uint64 (about 1.84e19) with 2^33 to spare.  The sine path multiplies
+ * by 2/pi, so it is written as floor(2 P / 3141) with P the product, computed as
+ * (P / 3141) * 2 + ((P % 3141) * 2) / 3141: the same value as the former
+ * floor(floor(P x 2000 / 3141) / 1000), but with no intermediate larger than P.
+ * The assertions take the maxima from the types themselves, so widening either
+ * field stops the build here instead of wrapping the product at run time.
  */
 
 /* The largest value an unsigned object of this size can hold (8 bytes or more: all ones). */
 #define NP_CHARGE_UMAX_OF(obj) \
     ((sizeof(obj) >= sizeof(uint64_t)) ? UINT64_MAX : ((1ULL << (sizeof(obj) * 8U)) - 1ULL))
-/* The sine path's multiplier; the rectangular path multiplies by nothing, so this bounds both. */
-#define NP_CHARGE_SINE_NUMERATOR 2000ULL
 
 /* The commanded current as charge_per_phase_nc() receives it.  One name, so the assertions below and the function's
  * parameter cannot drift apart. */
-typedef uint16_t np_charge_current_ua_t;
+typedef uint32_t np_charge_current_ua_t;
 
-/* (i) current max x phase max x 2000 fits in uint64, with both maxima read from the types in use: the current as
+/* (i) current max x phase max fits in uint64, with both maxima read from the types in use: the current as
  * charge_per_phase_nc() receives it and the phase as the monitor stores it. */
-_Static_assert(NP_CHARGE_UMAX_OF(np_charge_current_ua_t) <=
-                   (UINT64_MAX / NP_CHARGE_SINE_NUMERATOR) / NP_CHARGE_UMAX_OF(s_phase_us[0]),
-               "per-phase charge: current x phase x 2000 must fit uint64; a field was widened");
+_Static_assert(NP_CHARGE_UMAX_OF(np_charge_current_ua_t) <= UINT64_MAX / NP_CHARGE_UMAX_OF(s_phase_us[0]),
+               "per-phase charge: current x phase must fit uint64; a field was widened");
 /* (ii) what (i) assumed about the current is what the heartbeat sends, and the phase the monitor stores is as wide as
  * the phase the wire carries, so no value can arrive that (i) did not cover. */
 _Static_assert(sizeof(((const np_safety_rx_ext_frame_t *)0)->current_ua[0]) == sizeof(np_charge_current_ua_t),
@@ -551,10 +551,12 @@ static uint64_t charge_per_phase_nc(uint8_t channel, np_charge_current_ua_t curr
         return 0ULL;
     }
 
+    const uint64_t p = (uint64_t)current_ua * phase_us;     /* µA x µs = pC; fits uint64 by (i) */
     if ((s_wave_class[channel] & (uint8_t)NP_CHARGE_WAVE_SINE) != 0U) {
-        q_nc = ((uint64_t)current_ua * phase_us * 2000ULL) / 3141ULL / 1000ULL;
+        /* floor(2 P / 3141), 2000/3141 standing in for 2/pi (rounds the result up: 0.63675 > 0.63662), then pC to nC. */
+        q_nc = (p / 3141ULL) * 2ULL + ((p % 3141ULL) * 2ULL) / 3141ULL;
     } else {
-        q_nc = ((uint64_t)current_ua * phase_us) / 1000ULL;
+        q_nc = p / 1000ULL;
     }
     return q_nc;
 }
@@ -576,7 +578,7 @@ static uint64_t charge_per_phase_nc(uint8_t channel, np_charge_current_ua_t curr
  * beyond channel_count are treated as commanding nothing.
  */
 void np_charge_monitor_phase_tick(np_safety_state_t *state,
-                                  const uint16_t    *current_ua,
+                                  const uint32_t    *current_ua,
                                   uint8_t            channel_count)
 {
     uint8_t ch;

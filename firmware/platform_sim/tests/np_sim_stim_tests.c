@@ -45,7 +45,7 @@ static void setup(void)
 static np_sim_module_t *pair(unsigned p) { return np_sim_find(NP_SIM_KIND_STIM_PAIR, (uint16_t)p); }
 static uint16_t requested(void)           { return np_safety_spi_get_requested_mask(); }
 
-static void cur_ua(uint16_t out[]) { np_safety_spi_get_channel_currents(out); }
+static void cur_ua(uint32_t out[]) { np_safety_spi_get_channel_currents(out); }
 
 /* ── BES / tACS ────────────────────────────────────────────────────────────── */
 
@@ -78,7 +78,7 @@ static void test_bes_drive_and_stop(void)
     check(result_code_is(0), "bes: a command is accepted");
     check(pair(0)->driven && !pair(0)->stim_dc && pair(0)->stim_amp_ua == 500, "bes: the pair holds the commanded AC drive");
     check((requested() & NP_SAFETY_EN_BES_TACS) != 0U, "bes: the hub requested the BES/tACS enable");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
+    uint32_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
     check(c[NP_SAFETY_CH_BES_TACS] == 500U, "bes: the hub published the commanded current to the safety channel");
     run("sample bes");
     check(field("\"ev\":\"stim_sample\"", "\"current_ua\":") == 500.0 &&
@@ -98,7 +98,7 @@ static void test_bes_amplitude_above_the_limit_is_refused_before_the_dac(void)
     run("bes 0 0 10000 1500");
     check(!result_code_is(0), "bes limit: 1.5 mA is refused, not clamped to 1 mA");
     check(!pair(0)->driven && pair(0)->stim_amp_ua == 0U, "bes limit: the DAC was never commanded");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
+    uint32_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
     check(c[NP_SAFETY_CH_BES_TACS] == 0U && (requested() & NP_SAFETY_EN_BES_TACS) == 0U,
           "bes limit: no current was published to the safety channel and no enable requested");
     g_cap_n = 0;
@@ -205,7 +205,7 @@ static void test_tdcs_stop_ramps_down_under_the_hold(void)
     run("advance 30000");
     run("stim_stop tdcs");
     check((requested() & NP_SAFETY_EN_TDCS) == 0U, "tdcs stop: the enable is dropped at once");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
+    uint32_t c[NP_SAFETY_MAX_CHANNELS]; cur_ua(c);
     check(c[NP_SAFETY_CH_TDCS] == 0U, "tdcs stop: the published current is cleared at once");
     run("advance 10000");
     run("sample tdcs");

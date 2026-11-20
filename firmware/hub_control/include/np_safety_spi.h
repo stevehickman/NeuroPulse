@@ -22,7 +22,7 @@
  * HAL stub OI-SAF-01: np_safety_hal_spi_transfer(tx, rx, len)
  *   Full-duplex SPI3 transfer; chip-select managed by HAL.
  *   STM32G071 is SPI slave, i.MX RT1062 is SPI master.
- *   len = NP_SAFETY_RX_EXT_FRAME_LEN (42) for heartbeat;
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (66) for heartbeat;
  *   len = NP_SAFETY_CMD_FRAME_LEN (102) for sig command.
  *
  * OI-SW01-M07-01 CLOSED.
@@ -126,7 +126,7 @@ np_hub_status_t np_safety_spi_init(void);
  */
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                           uint16_t            requested_enable_mask,
-                                          const uint16_t     *current_ua,
+                                          const uint32_t     *current_ua,
                                           uint8_t             channel_count);
 
 /*
@@ -419,14 +419,14 @@ np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t  *wave_class,
  * descriptor — never ADC-measured delivered current, which reveals tissue
  * impedance and is UHDR-class (NP-FW-EMMC-001 §12).
  */
-void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua);
+void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua);
 void np_safety_spi_clear_channel_currents(void);
-void np_safety_spi_get_channel_currents(uint16_t out_ua[]);
+void np_safety_spi_get_channel_currents(uint32_t out_ua[]);
 
 /* ── HAL stub ─────────────────────────────────────────────────────────────────── */
 
 /* OI-SAF-01: full-duplex SPI exchange.
- *   len = NP_SAFETY_RX_EXT_FRAME_LEN (42) → extended heartbeat exchange
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (66) → extended heartbeat exchange
  *   len = NP_SAFETY_CMD_FRAME_LEN (102)   → session sig command
  * Hub is SPI master; chip-select managed by HAL.                             */
 extern np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx,

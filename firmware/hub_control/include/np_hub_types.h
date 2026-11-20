@@ -374,7 +374,9 @@ typedef struct __attribute__((packed)) {
     uint32_t freq_mhz;        /* stim freq mHz; 32 bits so no frequency the descriptor can author is cut off
                                * (a 16-bit field topped out at 65.535 Hz). The 25 Hz ceiling is removed:
                                * OI-VNSCLIP-08, the principal 2026-10-29. Not a safety limit of any kind. */
-    uint16_t amplitude_ua;    /* µA; ≤ 40000 (NP_VNS_MAX_CURRENT_UA), refused above, never clamped (REQ-FWHUB-78) */
+    uint32_t amplitude_ua;    /* µA; ≤ 40000 (NP_VNS_MAX_CURRENT_UA), refused above, never clamped (REQ-FWHUB-78). 32 bits so the
+                               * field is never the bound: that ceiling is derived from the charge limit and the pad area, and
+                               * moves with them (OI-UINT16-01, CLAUDE.md §18) */
     uint16_t pulse_width_us;  /* biphasic pulse width µs; 0=default 250µs. Authored range 50–500 µs
                                * (VNS_MIN/MAX_PULSE_WIDTH_US); widened from 8 bits so the 300 and 500 µs
                                * widths the taVNS studies use can be written. The safety MCU's per-phase

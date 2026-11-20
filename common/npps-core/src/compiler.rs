@@ -1064,14 +1064,14 @@ fn encode_vns(p: &Value) -> R<Encoded> {
         "eeg_biofeedback" => 3,
         _ => 0,
     };
-    let mut buf = vec![0u8; 12];
+    let mut buf = vec![0u8; 14];
     buf[0] = side;
     put32(&mut buf, 1, freq_mhz, "VNS frequencyHz")?;
-    put16(&mut buf, 5, amp_ua, "VNS intensityMilliamps")?;
-    put16(&mut buf, 7, pulse_width_us, "VNS pulseWidthUs")?;
-    buf[9] = 1;
-    buf[10] = 1;
-    buf[11] = proto;
+    put32(&mut buf, 5, amp_ua, "VNS intensityMilliamps")?;
+    put16(&mut buf, 9, pulse_width_us, "VNS pulseWidthUs")?;
+    buf[11] = 1;
+    buf[12] = 1;
+    buf[13] = proto;
     Ok(slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf))
 }
 
