@@ -218,20 +218,22 @@ fn freq_code(hz: f64, what: &str) -> R<u8> {
     if !hz.is_finite() {
         return Err(format!("{what}: frequencyHz is required and must be a finite number. The protocol is refused, not given a default."));
     }
-    let r = js_round(hz);
-    if hz < 0.0 || r > 255.0 {
+    if hz < 0.0 || hz > 255.0 {
         return Err(format!(
             "{what}: frequencyHz {} Hz is outside what the descriptor can carry (0 for continuous wave, or 1–255 Hz). The protocol is refused, not reduced or wrapped to fit.",
             num_string(hz)
         ));
     }
-    if hz > 0.0 && r < 1.0 {
+    // The descriptor carries whole hertz in one byte, so a frequency that is not whole would run as another one: 0.75 Hz as
+    // 1 Hz, 2.4 Hz as 2 Hz. It is refused, not rounded (the principal, 2026-11-20, OI-NPPS-CLAMP-01 (b)). That also leaves
+    // no value above zero that could be written as 0, which is continuous wave.
+    if hz.fract() != 0.0 {
         return Err(format!(
-            "{what}: frequencyHz {} Hz would be encoded as 0, which is continuous wave. The smallest pulse frequency the descriptor can carry is 1 Hz. The protocol is refused, not run as continuous wave.",
+            "{what}: frequencyHz {} Hz is not a whole number of hertz, which is all the descriptor carries (one byte, 1–255 Hz, or 0 for continuous wave). The protocol is refused, not rounded to a frequency nobody authored.",
             num_string(hz)
         ));
     }
-    Ok(r as u8)
+    Ok(hz as u8)
 }
 
 /// The PBM duty register, 0.5 % per step. A duty above `PBM_DUTY_CYCLE_MAX_PERCENT` (25 %) is refused, as the validator

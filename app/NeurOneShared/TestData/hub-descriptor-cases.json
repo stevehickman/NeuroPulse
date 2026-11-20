@@ -1240,7 +1240,7 @@
     ]
    },
    "noClinicianSockets": false,
-   "message": "PBM: frequencyHz 0.4 Hz would be encoded as 0, which is continuous wave. The smallest pulse frequency the descriptor can carry is 1 Hz. The protocol is refused, not run as continuous wave."
+   "message": "PBM: frequencyHz 0.4 Hz is not a whole number of hertz, which is all the descriptor carries (one byte, 1–255 Hz, or 0 for continuous wave). The protocol is refused, not rounded to a frequency nobody authored."
   },
   "irradianceBelowOneStep": {
    "def": {

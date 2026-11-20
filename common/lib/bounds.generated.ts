@@ -45,8 +45,8 @@ export const PARAM_BOUNDS = {
     },
     frequency: {
       min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
-      step: 0.5,
-      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+      step: 1,
+      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
     },
     duty: {
       min: { value: 0, basis: 'natural', source: "A duty cycle cannot be below 0." },
@@ -62,8 +62,8 @@ export const PARAM_BOUNDS = {
     },
     frequency: {
       min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
-      step: 0.5,
-      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+      step: 1,
+      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
     },
     duty: {
       min: { value: 0, basis: 'natural', source: "A duty cycle cannot be below 0." },
@@ -79,8 +79,8 @@ export const PARAM_BOUNDS = {
     },
     frequency: {
       min: { value: 0, basis: 'natural', source: "A frequency cannot be below 0." },
-      step: 0.5,
-      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+      step: 1,
+      unbounded: "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
     },
     duty: {
       min: { value: 0, basis: 'natural', source: "A duty cycle cannot be below 0." },

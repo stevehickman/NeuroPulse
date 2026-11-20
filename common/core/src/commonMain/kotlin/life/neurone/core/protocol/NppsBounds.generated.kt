@@ -50,8 +50,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
@@ -68,8 +68,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
@@ -86,8 +86,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),

@@ -248,9 +248,14 @@ fn a_value_under_half_a_register_step_is_refused_not_raised_to_the_first_step() 
 // @verifies REQ-NPPS-33#c
 #[test]
 fn a_value_above_zero_that_would_be_written_as_zero_is_refused() {
-    // Frequency code 0 is continuous wave: 0.4 Hz used to compile to it.
-    assert_eq!(ok("pbm_transcranial", pbm(0.5, 25.0, 100.0))[0], 1);
-    refused(compile("pbm_transcranial", pbm(0.4, 25.0, 100.0)), &["PBM", "frequencyHz 0.4 Hz", "continuous wave", "1 Hz"]);
+    // Frequency code 0 is continuous wave: 0.4 Hz used to compile to it, and 0.5 to 0.99 Hz to code 1. The descriptor
+    // carries whole hertz, so a frequency that is not whole is refused, not rounded (the principal, 2026-11-20).
+    refused(compile("pbm_transcranial", pbm(0.4, 25.0, 100.0)), &["PBM", "frequencyHz 0.4 Hz", "not a whole number of hertz", "not rounded"]);
+    refused(compile("pbm_transcranial", pbm(0.5, 25.0, 100.0)), &["frequencyHz 0.5 Hz", "not a whole number"]);
+    refused(compile("pbm_transcranial", pbm(0.75, 25.0, 100.0)), &["frequencyHz 0.75 Hz"]);
+    refused(compile("pbm_intranasal", nasal(2.4, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 2.4 Hz", "not a whole number"]);
+    refused(compile("pbm_deep_1170nm", deep(39.9, 25.0)), &["1170 nm PBM", "frequencyHz 39.9 Hz", "not a whole number"]);
+    assert_eq!(ok("pbm_transcranial", pbm(1.0, 25.0, 100.0))[0], 1);
     // A current under half a microamp used to compile to 0 µA.
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 0.0004 })), &["BES/tACS", "intensityMilliamps 0.0004 mA", "smallest step", "0.001 mA"]);
     refused(compile("visual_stimulation", visual(json!(0.4), json!(1))), &["Visual", "frequencyHz 0.4 Hz", "smallest step"]);
