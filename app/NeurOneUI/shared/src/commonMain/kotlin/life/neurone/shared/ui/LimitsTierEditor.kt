@@ -26,11 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPAudioEntrainmentLimits
 import life.neurone.core.protocol.NPBESTacsLimits
+import life.neurone.core.protocol.NPBounds
 import life.neurone.core.protocol.NPCervicalVnsLimits
 import life.neurone.core.protocol.NPClinicalTacsLimits
 import life.neurone.core.protocol.NPDeepPBMLimits
@@ -38,7 +38,6 @@ import life.neurone.core.protocol.NPEEGNeurofeedbackLimits
 import life.neurone.core.protocol.NPEEGNeurofeedbackParams
 import life.neurone.core.protocol.NPHDTdcsLimits
 import life.neurone.core.protocol.NPHDTdcsParams
-import life.neurone.core.protocol.NPHardwareLimits
 import life.neurone.core.protocol.NPLimitsSet
 import life.neurone.core.protocol.NPPBMIntranasalLimits
 import life.neurone.core.protocol.NPPBMTranscranialLimits
@@ -117,19 +116,19 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_pbm_transcranial,
         { it.pbmTranscranial != null }, { l, on -> l.copy(pbmTranscranial = if (on) NPPBMTranscranialLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_irradiance, "mW/cm²", 0.0..400.0, { it.pbmTranscranial?.maxIrradianceMWcm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxIrradianceMWcm2 = v)) },
-            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 0.0..100.0, { it.pbmTranscranial?.maxFrequencyHz }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxFrequencyHz = v)) },
-            LimitField.Whole(Res.string.web_lim_max_duty_cycle, "%", 0..25, { it.pbmTranscranial?.maxDutyCyclePercent }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxDutyCyclePercent = v)) },
-            LimitField.Num(Res.string.web_lim_max_session_dose, "J/cm²", 0.0..1000.0, { it.pbmTranscranial?.maxSessionDoseJCm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxSessionDoseJCm2 = v)) },
-            LimitField.Num(Res.string.web_lim_max_daily_dose, "J/cm²", 0.0..5000.0, { it.pbmTranscranial?.maxDailyDoseJCm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxDailyDoseJCm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_irradiance, "mW/cm²", NPBounds.Limit.PbmTranscranial.maxIrradianceMWcm2.range, { it.pbmTranscranial?.maxIrradianceMWcm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxIrradianceMWcm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", NPBounds.Limit.PbmTranscranial.maxFrequencyHz.range, { it.pbmTranscranial?.maxFrequencyHz }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxFrequencyHz = v)) },
+            LimitField.Whole(Res.string.web_lim_max_duty_cycle, "%", NPBounds.Limit.PbmTranscranial.maxDutyCyclePercent.intRange, { it.pbmTranscranial?.maxDutyCyclePercent }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxDutyCyclePercent = v)) },
+            LimitField.Num(Res.string.web_lim_max_session_dose, "J/cm²", NPBounds.Limit.PbmTranscranial.maxSessionDoseJCm2.range, { it.pbmTranscranial?.maxSessionDoseJCm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxSessionDoseJCm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_daily_dose, "J/cm²", NPBounds.Limit.PbmTranscranial.maxDailyDoseJCm2.range, { it.pbmTranscranial?.maxDailyDoseJCm2 }) { l, v -> l.copy(pbmTranscranial = l.pbmTranscranial?.copy(maxDailyDoseJCm2 = v)) },
         ),
     ),
     LimitSection(
         Res.string.web_lim_section_pbm_intranasal,
         { it.pbmIntranasal != null }, { l, on -> l.copy(pbmIntranasal = if (on) NPPBMIntranasalLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_irradiance, "mW/cm²", 0.0..400.0, { it.pbmIntranasal?.maxIrradianceMWcm2 }) { l, v -> l.copy(pbmIntranasal = l.pbmIntranasal?.copy(maxIrradianceMWcm2 = v)) },
-            LimitField.Num(Res.string.web_lim_max_session_dose, "J/cm²", 0.0..500.0, { it.pbmIntranasal?.maxSessionDoseJCm2 }) { l, v -> l.copy(pbmIntranasal = l.pbmIntranasal?.copy(maxSessionDoseJCm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_irradiance, "mW/cm²", NPBounds.Limit.PbmIntranasal.maxIrradianceMWcm2.range, { it.pbmIntranasal?.maxIrradianceMWcm2 }) { l, v -> l.copy(pbmIntranasal = l.pbmIntranasal?.copy(maxIrradianceMWcm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_session_dose, "J/cm²", NPBounds.Limit.PbmIntranasal.maxSessionDoseJCm2.range, { it.pbmIntranasal?.maxSessionDoseJCm2 }) { l, v -> l.copy(pbmIntranasal = l.pbmIntranasal?.copy(maxSessionDoseJCm2 = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.pbmIntranasal?.maxSessionDurationSeconds }) { l, v -> l.copy(pbmIntranasal = l.pbmIntranasal?.copy(maxSessionDurationSeconds = v)) },
         ),
     ),
@@ -145,28 +144,28 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_bes_tacs,
         { it.besTacs != null }, { l, on -> l.copy(besTacs = if (on) NPBESTacsLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..1.0, { it.besTacs?.maxIntensityMilliamps }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxIntensityMilliamps = v)) },
-            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 0.5..40.0, { it.besTacs?.maxFrequencyHz }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxFrequencyHz = v)) },
-            LimitField.Num(Res.string.web_lim_min_frequency, "Hz", 0.5..40.0, { it.besTacs?.minFrequencyHz }) { l, v -> l.copy(besTacs = l.besTacs?.copy(minFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", NPBounds.Limit.BesTacs.maxIntensityMilliamps.range, { it.besTacs?.maxIntensityMilliamps }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", NPBounds.Limit.BesTacs.maxFrequencyHz.range, { it.besTacs?.maxFrequencyHz }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_min_frequency, "Hz", NPBounds.Limit.BesTacs.minFrequencyHz.range, { it.besTacs?.minFrequencyHz }) { l, v -> l.copy(besTacs = l.besTacs?.copy(minFrequencyHz = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.besTacs?.maxSessionDurationSeconds }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxSessionDurationSeconds = v)) },
-            LimitField.Whole(Res.string.web_lim_max_sessions_day, "", 1..10, { it.besTacs?.maxSessionsPerDay }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxSessionsPerDay = v)) },
+            LimitField.Whole(Res.string.web_lim_max_sessions_day, "", NPBounds.Limit.BesTacs.maxSessionsPerDay.intRange, { it.besTacs?.maxSessionsPerDay }) { l, v -> l.copy(besTacs = l.besTacs?.copy(maxSessionsPerDay = v)) },
         ),
     ),
     LimitSection(
         Res.string.web_lim_section_tdcs,
         { it.tdcs != null }, { l, on -> l.copy(tdcs = if (on) NPTDCSLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.1..2.0, { it.tdcs?.maxIntensityMilliamps }) { l, v -> l.copy(tdcs = l.tdcs?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", NPBounds.Limit.Tdcs.maxIntensityMilliamps.range, { it.tdcs?.maxIntensityMilliamps }) { l, v -> l.copy(tdcs = l.tdcs?.copy(maxIntensityMilliamps = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.tdcs?.maxSessionDurationSeconds }) { l, v -> l.copy(tdcs = l.tdcs?.copy(maxSessionDurationSeconds = v)) },
-            LimitField.Whole(Res.string.web_lim_max_sessions_day, "", 1..5, { it.tdcs?.maxSessionsPerDay }) { l, v -> l.copy(tdcs = l.tdcs?.copy(maxSessionsPerDay = v)) },
+            LimitField.Whole(Res.string.web_lim_max_sessions_day, "", NPBounds.Limit.Tdcs.maxSessionsPerDay.intRange, { it.tdcs?.maxSessionsPerDay }) { l, v -> l.copy(tdcs = l.tdcs?.copy(maxSessionsPerDay = v)) },
         ),
     ),
     LimitSection(
         Res.string.web_lim_section_vns_hrv,
         { it.vnsHrv != null }, { l, on -> l.copy(vnsHrv = if (on) NPVNSHRVLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..40.0, { it.vnsHrv?.maxIntensityMilliamps }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxIntensityMilliamps = v)) },
-            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 0.0..Double.POSITIVE_INFINITY, { it.vnsHrv?.maxFrequencyHz }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", NPBounds.Limit.VnsHrv.maxIntensityMilliamps.range, { it.vnsHrv?.maxIntensityMilliamps }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", NPBounds.Limit.VnsHrv.maxFrequencyHz.range, { it.vnsHrv?.maxFrequencyHz }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxFrequencyHz = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.vnsHrv?.maxSessionDurationSeconds }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(maxSessionDurationSeconds = v)) },
             LimitField.Allowed(Res.string.ui_lim_allowed_hrv, hrvProtocols, { it.vnsHrv?.allowedProtocols }) { l, v -> l.copy(vnsHrv = l.vnsHrv?.copy(allowedProtocols = v)) },
         ),
@@ -175,17 +174,17 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_audio,
         { it.audioEntrainment != null }, { l, on -> l.copy(audioEntrainment = if (on) NPAudioEntrainmentLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_volume, "", 0.0..NPHardwareLimits.AUDIO_MAX_DB_SPL, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) }.also { it.unitLabel = Res.string.unit_db_spl },
-            LimitField.Num(Res.string.limits_max_binaural_beats, "Hz", 0.0..100.0, { it.audioEntrainment?.maxBinauralBeatsHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxBinauralBeatsHz = v)) },
-            LimitField.Num(Res.string.limits_max_isochronic_tones, "Hz", 0.0..100.0, { it.audioEntrainment?.maxIsochronicTonesHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxIsochronicTonesHz = v)) },
+            LimitField.Num(Res.string.web_lim_max_volume, "", NPBounds.Limit.AudioEntrainment.maxVolumeDb.range, { it.audioEntrainment?.maxVolumeDb }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxVolumeDb = v)) }.also { it.unitLabel = Res.string.unit_db_spl },
+            LimitField.Num(Res.string.limits_max_binaural_beats, "Hz", NPBounds.Limit.AudioEntrainment.maxBinauralBeatsHz.range, { it.audioEntrainment?.maxBinauralBeatsHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxBinauralBeatsHz = v)) },
+            LimitField.Num(Res.string.limits_max_isochronic_tones, "Hz", NPBounds.Limit.AudioEntrainment.maxIsochronicTonesHz.range, { it.audioEntrainment?.maxIsochronicTonesHz }) { l, v -> l.copy(audioEntrainment = l.audioEntrainment?.copy(maxIsochronicTonesHz = v)) },
         ),
     ),
     LimitSection(
         Res.string.web_lim_section_visual,
         { it.visualStimulation != null }, { l, on -> l.copy(visualStimulation = if (on) NPVisualStimLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", 0.0..100.0, { it.visualStimulation?.maxFrequencyHz }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(maxFrequencyHz = v)) },
-            LimitField.Num(Res.string.web_lim_min_frequency, "Hz", 0.0..100.0, { it.visualStimulation?.minFrequencyHz }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(minFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_max_frequency, "Hz", NPBounds.Limit.VisualStimulation.maxFrequencyHz.range, { it.visualStimulation?.maxFrequencyHz }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(maxFrequencyHz = v)) },
+            LimitField.Num(Res.string.web_lim_min_frequency, "Hz", NPBounds.Limit.VisualStimulation.minFrequencyHz.range, { it.visualStimulation?.minFrequencyHz }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(minFrequencyHz = v)) },
             LimitField.Flag(Res.string.limits_block_3_30_hz_risk_range, { it.visualStimulation?.blockHighRiskRange }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(blockHighRiskRange = v)) },
             LimitField.Allowed(Res.string.limits_allowed_visual_modes, visualModes, { it.visualStimulation?.allowedModes }) { l, v -> l.copy(visualStimulation = l.visualStimulation?.copy(allowedModes = v)) },
         ),
@@ -194,17 +193,17 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_tms,
         { it.tms != null }, { l, on -> l.copy(tms = if (on) NPTMSLimits() else null) },
         listOf(
-            LimitField.Whole(Res.string.limits_max_intensity_mt, "%MT", 0..150, { it.tms?.maxIntensityPercentMT }) { l, v -> l.copy(tms = l.tms?.copy(maxIntensityPercentMT = v)) },
-            LimitField.Whole(Res.string.web_lim_max_pulses_session, "", 0..5000, { it.tms?.maxPulsesPerSession }) { l, v -> l.copy(tms = l.tms?.copy(maxPulsesPerSession = v)) },
-            LimitField.Whole(Res.string.web_lim_max_pulses_day, "", 0..10000, { it.tms?.maxPulsesPerDay }) { l, v -> l.copy(tms = l.tms?.copy(maxPulsesPerDay = v)) },
-            LimitField.Whole(Res.string.web_lim_max_sessions_week, "", 0..7, { it.tms?.maxSessionsPerWeek }) { l, v -> l.copy(tms = l.tms?.copy(maxSessionsPerWeek = v)) },
+            LimitField.Whole(Res.string.limits_max_intensity_mt, "%MT", NPBounds.Limit.Tms.maxIntensityPercentMT.intRange, { it.tms?.maxIntensityPercentMT }) { l, v -> l.copy(tms = l.tms?.copy(maxIntensityPercentMT = v)) },
+            LimitField.Whole(Res.string.web_lim_max_pulses_session, "", NPBounds.Limit.Tms.maxPulsesPerSession.intRange, { it.tms?.maxPulsesPerSession }) { l, v -> l.copy(tms = l.tms?.copy(maxPulsesPerSession = v)) },
+            LimitField.Whole(Res.string.web_lim_max_pulses_day, "", NPBounds.Limit.Tms.maxPulsesPerDay.intRange, { it.tms?.maxPulsesPerDay }) { l, v -> l.copy(tms = l.tms?.copy(maxPulsesPerDay = v)) },
+            LimitField.Whole(Res.string.web_lim_max_sessions_week, "", NPBounds.Limit.Tms.maxSessionsPerWeek.intRange, { it.tms?.maxSessionsPerWeek }) { l, v -> l.copy(tms = l.tms?.copy(maxSessionsPerWeek = v)) },
         ),
     ),
     LimitSection(
         Res.string.modality_pbm_deep_1170nm_name,
         { it.pbmDeep1170nm != null }, { l, on -> l.copy(pbmDeep1170nm = if (on) NPDeepPBMLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mW/cm²", 0.0..1000.0, { it.pbmDeep1170nm?.maxIntensityMWcm2 }) { l, v -> l.copy(pbmDeep1170nm = l.pbmDeep1170nm?.copy(maxIntensityMWcm2 = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mW/cm²", NPBounds.Limit.PbmDeep1170nm.maxIntensityMWcm2.range, { it.pbmDeep1170nm?.maxIntensityMWcm2 }) { l, v -> l.copy(pbmDeep1170nm = l.pbmDeep1170nm?.copy(maxIntensityMWcm2 = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.pbmDeep1170nm?.maxSessionDurationSeconds }) { l, v -> l.copy(pbmDeep1170nm = l.pbmDeep1170nm?.copy(maxSessionDurationSeconds = v)) },
         ),
     ),
@@ -212,7 +211,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_clinical_tacs,
         { it.clinicalTacs != null }, { l, on -> l.copy(clinicalTacs = if (on) NPClinicalTacsLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..4.0, { it.clinicalTacs?.maxIntensityMilliamps }) { l, v -> l.copy(clinicalTacs = l.clinicalTacs?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", NPBounds.Limit.ClinicalTacs.maxIntensityMilliamps.range, { it.clinicalTacs?.maxIntensityMilliamps }) { l, v -> l.copy(clinicalTacs = l.clinicalTacs?.copy(maxIntensityMilliamps = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.clinicalTacs?.maxSessionDurationSeconds }) { l, v -> l.copy(clinicalTacs = l.clinicalTacs?.copy(maxSessionDurationSeconds = v)) },
         ),
     ),
@@ -220,7 +219,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_hd_tdcs,
         { it.hdTdcs != null }, { l, on -> l.copy(hdTdcs = if (on) NPHDTdcsLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity_electrode, "mA", 0.0..2.0, { it.hdTdcs?.maxIntensityMilliamps }) { l, v -> l.copy(hdTdcs = l.hdTdcs?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity_electrode, "mA", NPBounds.Limit.HdTdcs.maxIntensityMilliamps.range, { it.hdTdcs?.maxIntensityMilliamps }) { l, v -> l.copy(hdTdcs = l.hdTdcs?.copy(maxIntensityMilliamps = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.hdTdcs?.maxSessionDurationSeconds }) { l, v -> l.copy(hdTdcs = l.hdTdcs?.copy(maxSessionDurationSeconds = v)) },
             LimitField.Allowed(Res.string.ui_lim_allowed_montages, hdMontages, { it.hdTdcs?.allowedMontages }) { l, v -> l.copy(hdTdcs = l.hdTdcs?.copy(allowedMontages = v)) },
         ),
@@ -229,7 +228,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_cervical_vns,
         { it.cervicalVns != null }, { l, on -> l.copy(cervicalVns = if (on) NPCervicalVnsLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "mA", 0.0..2.0, { it.cervicalVns?.maxIntensityMilliamps }) { l, v -> l.copy(cervicalVns = l.cervicalVns?.copy(maxIntensityMilliamps = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "mA", NPBounds.Limit.CervicalVns.maxIntensityMilliamps.range, { it.cervicalVns?.maxIntensityMilliamps }) { l, v -> l.copy(cervicalVns = l.cervicalVns?.copy(maxIntensityMilliamps = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.cervicalVns?.maxSessionDurationSeconds }) { l, v -> l.copy(cervicalVns = l.cervicalVns?.copy(maxSessionDurationSeconds = v)) },
             LimitField.Note(Res.string.limits_cardiac_interlock_is_always_enforced_by_the),
         ),
@@ -238,7 +237,7 @@ private val sections: List<LimitSection> = listOf(
         Res.string.web_lim_section_vibrotactile,
         { it.vibrotactile40hz != null }, { l, on -> l.copy(vibrotactile40hz = if (on) NPVibrotactileLimits() else null) },
         listOf(
-            LimitField.Num(Res.string.web_lim_max_intensity, "G", 0.6..1.2, { it.vibrotactile40hz?.maxIntensityG }) { l, v -> l.copy(vibrotactile40hz = l.vibrotactile40hz?.copy(maxIntensityG = v)) },
+            LimitField.Num(Res.string.web_lim_max_intensity, "G", NPBounds.Limit.Vibrotactile40hz.maxIntensityG.range, { it.vibrotactile40hz?.maxIntensityG }) { l, v -> l.copy(vibrotactile40hz = l.vibrotactile40hz?.copy(maxIntensityG = v)) },
             LimitField.Duration(MAX_SESSION_DURATION, { it.vibrotactile40hz?.maxSessionDurationSeconds }) { l, v -> l.copy(vibrotactile40hz = l.vibrotactile40hz?.copy(maxSessionDurationSeconds = v)) },
         ),
     ),
@@ -246,6 +245,22 @@ private val sections: List<LimitSection> = listOf(
 
 private enum class EditorMode(val label: StringResource) {
     FIELDS(Res.string.limits_dosage_limits), SCRIPT(Res.string.ui_tab_script),
+}
+
+/**
+ * True when any numeric limit in [limits] is outside the range its field states (the web's `limitsOutOfRange`,
+ * SWR-UI-01 (f)). Such a set is refused when it is saved, never changed: the limit a clinician typed is the limit
+ * they meant, and holding it inside its range would save one they did not choose. An absent limit is "no limit"
+ * and never fails. It reads the section table, so it checks exactly the ranges the fields show.
+ */
+internal fun limitsOutOfRange(limits: NPLimitsSet): Boolean = sections.any { section ->
+    section.fields.any { field ->
+        when (field) {
+            is LimitField.Num -> field.get(limits)?.let { !it.isFinite() || it !in field.range } ?: false
+            is LimitField.Whole -> field.get(limits)?.let { it !in field.range } ?: false
+            else -> false
+        }
+    }
 }
 
 /**
@@ -296,7 +311,12 @@ internal fun LimitsTierEditor(
             )
         }
         Spacer(Modifier.height(16.dp))
-        Button(onClick = { onSave(working.copy(name = name)) }, modifier = Modifier.fillMaxWidth()) {
+        val outOfRange = limitsOutOfRange(working)
+        if (outOfRange) {
+            Text(stringResource(Res.string.web_limits_out_of_range), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(4.dp))
+        }
+        Button(onClick = { onSave(working.copy(name = name)) }, enabled = !outOfRange, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(Res.string.protocol_composer_save))
         }
         Spacer(Modifier.height(8.dp))
@@ -378,8 +398,9 @@ private fun FieldRow(field: LimitField, working: NPLimitsSet, update: (NPLimitsS
 }
 
 /**
- * A number that is either unset ("Set limit") or typed. The value is committed as it is typed, and pulled into
- * [min]..[max] when the field loses focus, as on iOS.
+ * A number that is either unset ("Set limit") or typed. The value is committed as it is typed and is never pulled
+ * into [min]..[max]: a value outside them is marked as an error, and the limits cannot be saved until it is fixed
+ * (SWR-UI-01 (f), as on the web).
  */
 @Composable
 private fun OptionalNumber(
@@ -387,7 +408,7 @@ private fun OptionalNumber(
     toValue: (String) -> Double?, onChange: (Double?) -> Unit,
 ) {
     var text by remember(current == null) { mutableStateOf(current ?: "") }
-    var hadFocus by remember { mutableStateOf(false) }
+    val outOfRange = current?.let(toValue)?.let { it < min || it > max } ?: false
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         if (current == null) {
@@ -402,15 +423,10 @@ private fun OptionalNumber(
                     text = filtered
                     toValue(filtered)?.let { onChange(it) }
                 },
+                isError = outOfRange,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.width(110.dp).onFocusChanged { f ->
-                    if (hadFocus && !f.isFocused) {
-                        val clamped = toValue(text)?.coerceIn(min, max)
-                        if (clamped != null) { text = formatNumber(clamped); onChange(clamped) }
-                    }
-                    hadFocus = f.isFocused
-                },
+                modifier = Modifier.width(110.dp),
             )
             Text(unit, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { text = ""; onChange(null) }) { Text("✕") }

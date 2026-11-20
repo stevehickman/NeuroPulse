@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 83 (current)  
+**Revision:** 84 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -335,6 +335,18 @@ and never shared with researchers. Full data flow: `docs/reference/data-architec
   `ConsentStore`, and revoking either consent does not affect the other.
 - Withdrawing from a study or category stops only that flow. **Withdrawing blanket consent (L3)
   stops all research flows and tears down research analytics.**
+- **Warranty-owner consent is per helmet** (the principal, 2026-11-20). Consent recorded for one
+  helmet opens no upload for another, and with no helmet connected nothing is open
+  (`REQ-SHDR-08`). Revoking it ends that helmet's characterisation enrolment, and a later grant
+  does not bring the enrolment back (`REQ-SHDR-09`).
+- **The warranty owner's data has its own store and never travels with a user's** (the principal,
+  2026-11-20; `REQ-SHDR-10`). Helmet health data, the owner's consents and the study enrolment are
+  not related to users. Backup, restore and transfer of the owner's data are independent of any
+  user's: another place, another device, another schedule. The two may share a medium and are
+  never commingled. The app has one warranty-owner page for everything collected from the owner,
+  consents included, and it is the first page when a new helmet is registered. **Built:** the
+  store. **Not built:** the owner's backup, restore and transfer, and the page at registration
+  (`OI-PRIV-20`).
 - **"Never asked" and "said stop" must stay distinguishable.** `blanketConsentWithdrawnAt` is set
   by the store, never by a screen, and it outranks stale L2 ticks at the §6.3 gate.
 

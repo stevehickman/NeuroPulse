@@ -76,6 +76,11 @@ jobs:
         scripts/sync-constants.ts
         common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
         app/ios/NeurOne/Protocol/NppsConstants.generated.swift
+        # The control bounds (every range any app applies) are one file, common/npps/bounds.json, generated into the same three
+        # trees by the same script, and the same check fails if any output is stale or hand-edited.
+        common/lib/bounds.generated.ts
+        common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsBounds.generated.kt
+        app/ios/NeurOne/Protocol/NppsBounds.generated.swift
         app/windows/NeurOne/Protocol/NppsConstants.generated.cs
         firmware/common/include/np_app_wire_constants.h
         # The clinician use-case library is generated from app/NeurOneShared/Resources into iOS and Android and checked here.
@@ -284,7 +289,7 @@ jobs:
         run: bun scripts/sync-socket-map.ts --check
 
       # One source for every shared constant (OI-NPPS-CORE-01), spelled the same in every language: the Rust core takes
-      # them at build time, and this writes the web, Android, iOS, Windows and C copies. A hand edit to an output, or to
+      # them at build time, and this writes the web, Android, iOS, Windows and C copies, and the control bounds. A hand edit to an output, or to
       # the JSON without re-running the generator, fails here.
       - name: Shared constants in sync
         working-directory: .

@@ -101,7 +101,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 6 | 2026-08-11 | [np_db_005.docx](./np_db_005.docx) | DRAFT — PENDING APPROVAL | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief | 10 | 2026-11-03 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DRAFT | REQ |
-| — | CLAUDE.md — Project Design Memory | 83 | 2026-11-19 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 84 | 2026-11-20 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 
@@ -312,6 +312,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 9 | 2026-11-03 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
 | NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 6 | 2026-10-20 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
+| NP-MAN-OPS-001 | NeurOne Operations Manual | 1 | 2026-11-20 | [np_man_ops_001.md](./np_man_ops_001.md) | DRAFT | APP |
 | NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 1 | 2026-08-11 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |

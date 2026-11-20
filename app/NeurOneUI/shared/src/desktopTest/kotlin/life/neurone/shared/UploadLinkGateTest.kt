@@ -90,6 +90,39 @@ class UploadLinkGateTest {
         assertTrue(link.writes.isNotEmpty() && link.writes.all { it == upload }, "the upload was written once the read had succeeded")
     }
 
+    // @verifies REQ-SW03-31#d
+    @Test fun the_other_writes_to_encrypted_characteristics_wait_for_the_read_and_the_held_ones_go_when_it_succeeds() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        val ids = listOf(
+            GattUuidStrings.PAUSE_LIMIT_ID, GattUuidStrings.PPX_CONFIG_ID, GattUuidStrings.PPX_SENSITIVITY_ID,
+            GattUuidStrings.CARDIAC_SENSITIVITY_ID, GattUuidStrings.ACTIVE_USER_ID, GattUuidStrings.CONSUMABLE_STATUS_ID,
+        ).map(UUID::fromString)
+        manager.activeUserTag = 11
+        manager.onCharacteristicsDiscovered(ids.toSet() + serial)
+        manager.requestConsumableReset(0)
+
+        assertFalse(manager.writePauseLimit(60L))
+        assertFalse(manager.writePpxConfig(true, false))
+        assertFalse(manager.writePpxSensitivity(1))
+        assertFalse(manager.writeCardiacSensitivity(1))
+        assertEquals(emptyList(), link.writes, "nothing reached a peer that has answered no encrypted-only read")
+
+        manager.onCharacteristicRead(serial, ByteArray(32) { 7 })
+        val active = UUID.fromString(GattUuidStrings.ACTIVE_USER_ID)
+        val consumable = UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID)
+        assertEquals(setOf(active, consumable), link.writes.toSet(), "the tag and the queued replacement go once the gate opens")
+        assertTrue(manager.writePauseLimit(60L))
+
+        // Stopping stimulation is never held behind the read.
+        val closed = linked(FakeLink(), TestScope(testScheduler))
+        val stopLink = FakeLink()
+        val stopper = linked(stopLink, TestScope(testScheduler))
+        stopper.requestSessionStop()
+        assertEquals(listOf(UUID.fromString(GattUuidStrings.SESSION_STOP_ID)), stopLink.writes)
+        assertFalse(closed.encryptedReadShown.value)
+    }
+
     // @verifies REQ-SW03-31#b
     @Test fun a_held_upload_asks_for_the_serial_again_and_only_the_32_byte_serial_opens_the_gate() = runTest {
         val link = FakeLink()

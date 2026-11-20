@@ -391,6 +391,9 @@ struct LimitsEditorView: View {
     @State private var scriptError: String? = nil
     @State private var workingLimits: NPLimitsSet = .unlimited
 
+    /// The limits outside the range their field states. Any one blocks Save; none is changed (SWR-UI-01 (f)).
+    private var outOfRange: [String] { NPLimitRangeCheck.outOfRange(workingLimits) }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -401,6 +404,14 @@ struct LimitsEditorView: View {
                 }
                 .pickerStyle(.segmented)
                 .padding()
+
+                if !outOfRange.isEmpty {
+                    Text("WEB_LIMITS_OUT_OF_RANGE")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                        .padding(.bottom, 6)
+                }
 
                 if viewMode == .visual {
                     visualEditor
@@ -419,6 +430,7 @@ struct LimitsEditorView: View {
                         onSave(workingLimits)
                         dismiss()
                     }
+                    .disabled(!outOfRange.isEmpty)
                 }
             }
             .onAppear {
@@ -506,23 +518,23 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_IRRADIANCE"), unit: "mW/cm²", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 },
                     set: { workingLimits.pbmTranscranial?.maxIrradianceMWcm2 = $0 }
-                ), range: 0...400)
+                ), range: NPBounds.Limit.PbmTranscranial.maxIrradianceMWcm2.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxFrequencyHz },
                     set: { workingLimits.pbmTranscranial?.maxFrequencyHz = $0 }
-                ), range: 0...100)
+                ), range: NPBounds.Limit.PbmTranscranial.maxFrequencyHz.range)
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_DUTY_CYCLE"), unit: "%", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxDutyCyclePercent },
                     set: { workingLimits.pbmTranscranial?.maxDutyCyclePercent = $0 }
-                ), range: 0...25)
+                ), range: NPBounds.Limit.PbmTranscranial.maxDutyCyclePercent.intRange)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_SESSION_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxSessionDoseJCm2 },
                     set: { workingLimits.pbmTranscranial?.maxSessionDoseJCm2 = $0 }
-                ), range: 0...1000)
+                ), range: NPBounds.Limit.PbmTranscranial.maxSessionDoseJCm2.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_DAILY_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxDailyDoseJCm2 },
                     set: { workingLimits.pbmTranscranial?.maxDailyDoseJCm2 = $0 }
-                ), range: 0...5000)
+                ), range: NPBounds.Limit.PbmTranscranial.maxDailyDoseJCm2.range)
             }
         }
     }
@@ -539,11 +551,11 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_IRRADIANCE"), unit: "mW/cm²", value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxIrradianceMWcm2 },
                     set: { workingLimits.pbmIntranasal?.maxIrradianceMWcm2 = $0 }
-                ), range: 0...400)
+                ), range: NPBounds.Limit.PbmIntranasal.maxIrradianceMWcm2.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_SESSION_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 },
                     set: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 = $0 }
-                ), range: 0...500)
+                ), range: NPBounds.Limit.PbmIntranasal.maxSessionDoseJCm2.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxSessionDurationSeconds },
                     set: { workingLimits.pbmIntranasal?.maxSessionDurationSeconds = $0 }
@@ -585,15 +597,15 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.besTacs?.maxIntensityMilliamps },
                     set: { workingLimits.besTacs?.maxIntensityMilliamps = $0 }
-                ), range: 0...1.0)
+                ), range: NPBounds.Limit.BesTacs.maxIntensityMilliamps.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.besTacs?.maxFrequencyHz },
                     set: { workingLimits.besTacs?.maxFrequencyHz = $0 }
-                ), range: 0.5...40)
+                ), range: NPBounds.Limit.BesTacs.maxFrequencyHz.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MIN_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.besTacs?.minFrequencyHz },
                     set: { workingLimits.besTacs?.minFrequencyHz = $0 }
-                ), range: 0.5...40)
+                ), range: NPBounds.Limit.BesTacs.minFrequencyHz.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.besTacs?.maxSessionDurationSeconds },
                     set: { workingLimits.besTacs?.maxSessionDurationSeconds = $0 }
@@ -601,7 +613,7 @@ struct LimitsEditorView: View {
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_DAY"), unit: "", value: Binding(
                     get: { workingLimits.besTacs?.maxSessionsPerDay },
                     set: { workingLimits.besTacs?.maxSessionsPerDay = $0 }
-                ), range: 1...10)
+                ), range: NPBounds.Limit.BesTacs.maxSessionsPerDay.intRange)
             }
         }
     }
@@ -618,7 +630,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.tdcs?.maxIntensityMilliamps },
                     set: { workingLimits.tdcs?.maxIntensityMilliamps = $0 }
-                ), range: 0.1...2.0)
+                ), range: NPBounds.Limit.Tdcs.maxIntensityMilliamps.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.tdcs?.maxSessionDurationSeconds },
                     set: { workingLimits.tdcs?.maxSessionDurationSeconds = $0 }
@@ -626,7 +638,7 @@ struct LimitsEditorView: View {
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_DAY"), unit: "", value: Binding(
                     get: { workingLimits.tdcs?.maxSessionsPerDay },
                     set: { workingLimits.tdcs?.maxSessionsPerDay = $0 }
-                ), range: 1...5)
+                ), range: NPBounds.Limit.Tdcs.maxSessionsPerDay.intRange)
             }
         }
     }
@@ -643,11 +655,11 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.vnsHrv?.maxIntensityMilliamps },
                     set: { workingLimits.vnsHrv?.maxIntensityMilliamps = $0 }
-                ), range: 0...40.0)
+                ), range: NPBounds.Limit.VnsHrv.maxIntensityMilliamps.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.vnsHrv?.maxFrequencyHz },
                     set: { workingLimits.vnsHrv?.maxFrequencyHz = $0 }
-                ), range: 0...Double.infinity)  // no upper bound (OI-VNSCLIP-08)
+                ), range: NPBounds.Limit.VnsHrv.maxFrequencyHz.range)  // no upper bound (OI-VNSCLIP-08)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.vnsHrv?.maxSessionDurationSeconds },
                     set: { workingLimits.vnsHrv?.maxSessionDurationSeconds = $0 }
@@ -672,15 +684,15 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_VOLUME"), unit: String(localized: "UNIT_DB_SPL"), value: Binding(
                     get: { workingLimits.audioEntrainment?.maxVolumeDb },
                     set: { workingLimits.audioEntrainment?.maxVolumeDb = $0 }
-                ), range: 0...NPAudioLimits.maxLevelDbSpl)
+                ), range: NPBounds.Limit.AudioEntrainment.maxVolumeDb.range)
                 OptionalDoubleField(label: String(localized: "LIMITS_MAX_BINAURAL_BEATS"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxBinauralBeatsHz },
                     set: { workingLimits.audioEntrainment?.maxBinauralBeatsHz = $0 }
-                ), range: 0...100)
+                ), range: NPBounds.Limit.AudioEntrainment.maxBinauralBeatsHz.range)
                 OptionalDoubleField(label: String(localized: "LIMITS_MAX_ISOCHRONIC_TONES"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxIsochronicTonesHz },
                     set: { workingLimits.audioEntrainment?.maxIsochronicTonesHz = $0 }
-                ), range: 0...100)
+                ), range: NPBounds.Limit.AudioEntrainment.maxIsochronicTonesHz.range)
             }
         }
     }
@@ -697,11 +709,11 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.visualStimulation?.maxFrequencyHz },
                     set: { workingLimits.visualStimulation?.maxFrequencyHz = $0 }
-                ), range: 0...100)
+                ), range: NPBounds.Limit.VisualStimulation.maxFrequencyHz.range)
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MIN_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.visualStimulation?.minFrequencyHz },
                     set: { workingLimits.visualStimulation?.minFrequencyHz = $0 }
-                ), range: 0...100)
+                ), range: NPBounds.Limit.VisualStimulation.minFrequencyHz.range)
                 OptionalBoolField(label: String(localized: "LIMITS_BLOCK_3_30_HZ_RISK_RANGE"), value: Binding(
                     get: { workingLimits.visualStimulation?.blockHighRiskRange },
                     set: { workingLimits.visualStimulation?.blockHighRiskRange = $0 }
@@ -726,19 +738,19 @@ struct LimitsEditorView: View {
                 OptionalIntField(label: String(localized: "LIMITS_MAX_INTENSITY_MT"), unit: "%MT", value: Binding(
                     get: { workingLimits.tms?.maxIntensityPercentMT },
                     set: { workingLimits.tms?.maxIntensityPercentMT = $0 }
-                ), range: 0...150)
+                ), range: NPBounds.Limit.Tms.maxIntensityPercentMT.intRange)
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_PULSES_SESSION"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxPulsesPerSession },
                     set: { workingLimits.tms?.maxPulsesPerSession = $0 }
-                ), range: 0...5000)
+                ), range: NPBounds.Limit.Tms.maxPulsesPerSession.intRange)
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_PULSES_DAY"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxPulsesPerDay },
                     set: { workingLimits.tms?.maxPulsesPerDay = $0 }
-                ), range: 0...10000)
+                ), range: NPBounds.Limit.Tms.maxPulsesPerDay.intRange)
                 OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_WEEK"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxSessionsPerWeek },
                     set: { workingLimits.tms?.maxSessionsPerWeek = $0 }
-                ), range: 0...7)
+                ), range: NPBounds.Limit.Tms.maxSessionsPerWeek.intRange)
             }
         }
     }
@@ -755,7 +767,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mW/cm²", value: Binding(
                     get: { workingLimits.pbmDeep1170nm?.maxIntensityMWcm2 },
                     set: { workingLimits.pbmDeep1170nm?.maxIntensityMWcm2 = $0 }
-                ), range: 0...1000)
+                ), range: NPBounds.Limit.PbmDeep1170nm.maxIntensityMWcm2.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.pbmDeep1170nm?.maxSessionDurationSeconds },
                     set: { workingLimits.pbmDeep1170nm?.maxSessionDurationSeconds = $0 }
@@ -776,7 +788,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.clinicalTacs?.maxIntensityMilliamps },
                     set: { workingLimits.clinicalTacs?.maxIntensityMilliamps = $0 }
-                ), range: 0...4.0)
+                ), range: NPBounds.Limit.ClinicalTacs.maxIntensityMilliamps.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.clinicalTacs?.maxSessionDurationSeconds },
                     set: { workingLimits.clinicalTacs?.maxSessionDurationSeconds = $0 }
@@ -797,7 +809,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY_ELECTRODE"), unit: "mA", value: Binding(
                     get: { workingLimits.hdTdcs?.maxIntensityMilliamps },
                     set: { workingLimits.hdTdcs?.maxIntensityMilliamps = $0 }
-                ), range: 0...2.0)
+                ), range: NPBounds.Limit.HdTdcs.maxIntensityMilliamps.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.hdTdcs?.maxSessionDurationSeconds },
                     set: { workingLimits.hdTdcs?.maxSessionDurationSeconds = $0 }
@@ -822,7 +834,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.cervicalVns?.maxIntensityMilliamps },
                     set: { workingLimits.cervicalVns?.maxIntensityMilliamps = $0 }
-                ), range: 0...2.0)
+                ), range: NPBounds.Limit.CervicalVns.maxIntensityMilliamps.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.cervicalVns?.maxSessionDurationSeconds },
                     set: { workingLimits.cervicalVns?.maxSessionDurationSeconds = $0 }
@@ -846,7 +858,7 @@ struct LimitsEditorView: View {
                 OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "G", value: Binding(
                     get: { workingLimits.vibrotactile40hz?.maxIntensityG },
                     set: { workingLimits.vibrotactile40hz?.maxIntensityG = $0 }
-                ), range: 0.6...1.2)
+                ), range: NPBounds.Limit.Vibrotactile40hz.maxIntensityG.range)
                 OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.vibrotactile40hz?.maxSessionDurationSeconds },
                     set: { workingLimits.vibrotactile40hz?.maxSessionDurationSeconds = $0 }
@@ -885,6 +897,12 @@ struct OptionalDoubleField: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
 
+    /// True when the typed value is outside the range: marked red, and the limits cannot be saved until it is fixed.
+    private var isOutOfRange: Bool {
+        guard let v = value else { return false }
+        return !v.isFinite || !range.contains(v)
+    }
+
     var body: some View {
         HStack {
             Text(label)
@@ -902,12 +920,12 @@ struct OptionalDoubleField: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
                     .focused($focused)
+                    .foregroundColor(isOutOfRange ? .red : .primary)
                     .onChange(of: text) { _, v in value = Double(v) }
                     .onChange(of: focused) { _, isFocused in
+                        // Only the display is tidied. A value outside the range is marked and refused when the
+                        // limits are saved, never pulled into the range (SWR-UI-01 (f)).
                         guard !isFocused else { return }
-                        if let v = value {
-                            value = max(range.lowerBound, min(v, range.upperBound))
-                        }
                         syncText()
                     }
                     .onAppear { syncText() }
@@ -939,6 +957,12 @@ struct OptionalIntField: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
 
+    /// True when the typed value is outside the range: marked red, and the limits cannot be saved until it is fixed.
+    private var isOutOfRange: Bool {
+        guard let v = value else { return false }
+        return !range.contains(v)
+    }
+
     var body: some View {
         HStack {
             Text(label)
@@ -953,12 +977,12 @@ struct OptionalIntField: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
                     .focused($focused)
+                    .foregroundColor(isOutOfRange ? .red : .primary)
                     .onChange(of: text) { _, v in value = Int(v) }
                     .onChange(of: focused) { _, isFocused in
+                        // Only the display is tidied. A value outside the range is marked and refused when the
+                        // limits are saved, never pulled into the range (SWR-UI-01 (f)).
                         guard !isFocused else { return }
-                        if let v = value {
-                            value = max(range.lowerBound, min(v, range.upperBound))
-                        }
                         syncText()
                     }
                     .onAppear { syncText() }
@@ -1219,6 +1243,12 @@ struct ScriptImportView: View {
                     .padding(.horizontal).padding(.vertical, 6)
                     .background(Color.red.opacity(0.1))
                 }
+                if parsedOutOfRange {
+                    Text("WEB_LIMITS_OUT_OF_RANGE")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal).padding(.vertical, 6)
+                }
                 if parsedLimits != nil {
                     HStack {
                         Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
@@ -1252,9 +1282,15 @@ struct ScriptImportView: View {
                         if let l = parsedLimits { onImport(l) }
                         dismiss()
                     }
-                    .disabled(parsedLimits == nil)
+                    .disabled(parsedLimits == nil || parsedOutOfRange)
                 }
             }
         }
+    }
+
+    /// A script whose limits are outside their ranges is refused whole, not imported with values changed.
+    private var parsedOutOfRange: Bool {
+        guard let l = parsedLimits else { return false }
+        return !NPLimitRangeCheck.outOfRange(l).isEmpty
     }
 }

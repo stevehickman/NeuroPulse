@@ -7,7 +7,7 @@
  *   A choice from a list        a select. A yes/no                    a checkbox.
  *
  * Which of the first two a value gets follows from its bounds (paramBounds.controlKind), and the bounds live in
- * lib/paramBounds.ts and nowhere else. Every value has a typed field, because the displayed value is the field:
+ * common/npps/bounds.json and nowhere else (read through lib/paramBounds.ts). Every value has a typed field, because the displayed value is the field:
  * Apple's HIG and Material both pair a slider with an editable value, and a slider alone is a poor way to enter an
  * exact number. Nothing here clamps what is typed. A value outside its bounds is marked, and the validator, the
  * compiler and the hub stay the places it is refused.

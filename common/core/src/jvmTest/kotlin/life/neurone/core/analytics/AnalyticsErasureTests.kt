@@ -223,6 +223,32 @@ class AnalyticsErasureTests {
         assertEquals(0, ResearchAnalyticsGate(none, Backend(null), queue(none, Fake(503))).resetForErase(), "no ID, nothing to report")
     }
 
+    // OI-ANALYTICS-01 (5c): reading the IDs for a clear changes nothing; asking happens after, once each, and queues nothing.
+    // @verifies REQ-SW03-19#e
+    @Test fun aClearReadsTheIdsWithoutChangingThemAndAsksTheRelayOnlyWhenToldTo() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        val relay = Fake(200)
+        val q = queue(store, relay)
+        q.enqueue("ffffffffffffffffffffffffffffffff")
+        val backend = Backend(id)
+        val gate = ResearchAnalyticsGate(store, backend, q)
+        val ids = gate.idsOnThisInstall()
+        assertEquals(listOf(id, "ffffffffffffffffffffffffffffffff"), ids)
+        assertEquals(0, backend.resets, "a clear the core may refuse must not rotate the ID")
+        assertEquals(0, relay.seen.size, "nothing is sent before the core accepts")
+        assertEquals(0, gate.eraseAfterClear(ids))
+        assertEquals(2, relay.seen.size)
+        assertEquals(listOf("ffffffffffffffffffffffffffffffff"), q.pending, "the relay's answer queues nothing and drops nothing")
+    }
+
+    // @verifies REQ-SW03-19#e
+    @Test fun aClearCountsTheIdsTheRelayDidNotTakeAndNeverQueuesThem() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        val q = queue(store, Fake(503))
+        assertEquals(1, ResearchAnalyticsGate(store, Backend(id), q).eraseAfterClear(listOf(id)))
+        assertEquals(emptyList(), q.pending, "the wiped store gets nothing written back")
+    }
+
     // @verifies REQ-SW03-25#d
     @Test fun aWithdrawalAsksTheRelayStraightAwayAndDropsTheIdOnceItAnswers() {
         val store = InMemoryKeyValueStore()

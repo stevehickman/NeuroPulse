@@ -12,7 +12,7 @@ import life.neurone.core.consent.ConsentStore
 
 /** One item of a bundle that this phone stores some way other than plain keys: read and written whole. */
 interface MigrationItemStore {
-    /** The core's item name: `protocols`, `sessionHistory`, `withdrawalState`, `characterisationEnrolment`, `limitsProfiles`. */
+    /** The core's item name: `protocols`, `sessionHistory`, `withdrawalState`, `limitsProfiles`. */
     val item: String
 
     /** The item's current value, or null when this phone holds none (it is then left out of the bundle). */

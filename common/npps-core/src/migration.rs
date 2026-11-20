@@ -11,14 +11,18 @@
 //!
 //! # Items
 //! The state a migration may move is named in `SWR-MG-01`. **Moved by a migration:** protocols and their used flags
-//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`), characterisation enrolment
-//! (`characterisationEnrolment`) and limits profiles (`limitsProfiles`). **Never moved, because it belongs to the install:**
-//! the research device token, the warranty consent flag, the last paired helmet id and the launch count. **Never moved, by
+//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`) and limits profiles
+//! (`limitsProfiles`). **Never moved, because it belongs to the install:**
+//! the research device token, the last paired helmet id and the launch count. **Never moved with a user's data, because it is
+//! the warranty owner's and not a user's** (`REQ-SHDR-10`; the principal, 2026-11-20): the warranty consent
+//! (`warrantyConsentFlag`) and characterisation enrolment (`characterisationEnrolment`). A bundle an earlier version sealed
+//! may hold `characterisationEnrolment`; it is dropped when the bundle is opened and the rest is restored (`RETIRED_ITEMS`).
+//! **Never moved, by
 //! ruling:** the consent grants (`consentGrants`). A grant is stated on each device, so an out-of-date one can never be
 //! restored; a restore can only reduce what a phone is consented to, never add to it (`SWR-MG-04`). **Not yet sorted, and neither moved nor dropped by this row:** the consumable counters,
 //! the cervical fault acknowledgement ledger and the onboarding flags.
 //!
-//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history, characterisation enrolment and the
+//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history and the
 //! withdrawal state; it omits protocols and limits profiles. The withdrawal state is in both kinds so a
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
@@ -35,12 +39,11 @@ use std::collections::BTreeSet;
 type R<T> = Result<T, String>;
 
 /// The bundle format version this build reads and writes (`SWR-MG-05`). The scheme beyond "one number, a newer one is
-/// refused whole" is open (`OI-UI-KMP-11` open question 5). Version 2 added the epoch inside the sealed body (`SWR-MG-29`,
-/// `OI-PRIV-09`); a version-1 bundle has none and is read as epoch 0, the oldest there can be.
-pub const FORMAT_VERSION: u64 = 2;
-
-/// The first format version whose sealed body carries an epoch.
-const EPOCH_FROM_VERSION: u64 = 2;
+/// refused whole" is open (`OI-UI-KMP-11` open question 5). The epoch joined the sealed body (`SWR-MG-29`, `OI-PRIV-09`)
+/// and the number stayed 1, by ruling (the principal, 2026-11-19): no build that sealed a bundle without an epoch was
+/// released, so no such bundle should exist and there is no older reader to refuse this one. A body with no epoch, were one
+/// to turn up, is `malformed`. The next change to the format after a release bumps the version.
+pub const FORMAT_VERSION: u64 = 1;
 
 /// The stored keys, sorted (`common/npps/migration-keys.json`, one file for every app and the gate that reads every app).
 const KEY_MAP: &str = include_str!("../../npps/migration-keys.json");
@@ -94,15 +97,14 @@ pub(crate) fn device_tier() -> Vec<String> {
     v
 }
 
-const MIGRATE_ITEMS: [&str; 5] = [
-    "protocols",
-    "sessionHistory",
-    "withdrawalState",
-    "characterisationEnrolment",
-    "limitsProfiles",
-];
-const UHDR_ITEMS: [&str; 3] = ["sessionHistory", "characterisationEnrolment", "withdrawalState"];
-const PER_INSTALL: [&str; 5] = ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"];
+const MIGRATE_ITEMS: [&str; 4] = ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"];
+const UHDR_ITEMS: [&str; 2] = ["sessionHistory", "withdrawalState"];
+const PER_INSTALL: [&str; 6] =
+    ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"];
+/// `REQ-SHDR-10` (c): items an earlier version carried and no bundle carries now. One met in a bundle that is being opened is
+/// dropped, never restored, and the rest of the bundle is restored; sealing one is refused like any item a kind does not carry.
+/// Characterisation enrolment is the warranty owner's decision about a helmet and was once carried with a user's data.
+const RETIRED_ITEMS: [&str; 1] = ["characterisationEnrolment"];
 const UNSORTED: [&str; 3] = ["consumableCounters", "cervicalFaultLedger", "onboardingFlags"];
 
 fn kind_items(kind: &str) -> R<&'static [&'static str]> {
@@ -413,7 +415,7 @@ fn probe_result(req: &Value) -> R<Value> {
 //
 // The epoch (`SWR-MG-29` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
 // hand back any bundle it was ever given: an older one is as authentic as the newest. So the sealed body is
-// `{"epoch": n, "items": {…}}` (format version 2), where the epoch is a count that only rises: a phone seals each bundle
+// `{"epoch": n, "items": {…}}`, where the epoch is a count that only rises: a phone seals each bundle
 // with one more than the highest epoch it has sealed or opened. It is inside the ciphertext, so it is authenticated and the
 // backup location cannot read it or count backups by it. `openBundle` is told the highest epoch the phone has seen
 // (`seenEpoch`, required, 0 for none) and refuses a bundle below it whole (`older_bundle`), with no items in the answer.
@@ -540,7 +542,7 @@ fn seal_bundle(req: &Value) -> R<Value> {
 ///
 /// `SWR-MG-29` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
 /// none). It is required, so no caller opens a bundle without the check by leaving it out. A bundle whose epoch is lower is
-/// refused whole (`older_bundle`) and its items are not returned. A version-1 bundle carries no epoch and counts as 0.
+/// refused whole (`older_bundle`) and its items are not returned. A body with no epoch does not open (`malformed`).
 fn open_bundle(req: &Value) -> R<Value> {
     let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
     let seen = req["seenEpoch"].as_u64().ok_or("seenEpoch is required (0 for a phone that has seen no bundle)")?;
@@ -564,21 +566,18 @@ fn open_bundle(req: &Value) -> R<Value> {
     let Ok(body) = serde_json::from_slice::<Value>(&plain) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
-    let epoch = if checked["formatVersion"].as_u64().is_some_and(|v| v >= EPOCH_FROM_VERSION) {
-        // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make.
-        let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
-            return Ok(json!({ "ok": false, "reason": "malformed" }));
-        };
-        epoch
-    } else {
-        0
+    // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make: it gets no place in
+    // the order, and is never read as "the oldest".
+    let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
     if epoch < seen {
         return Ok(json!({ "ok": false, "reason": "older_bundle", "epoch": epoch, "seenEpoch": seen }));
     }
-    let Some(items) = body["items"].as_object().cloned() else {
+    let Some(mut items) = body["items"].as_object().cloned() else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
+    items.retain(|k, _| !RETIRED_ITEMS.contains(&k.as_str()));
     let carried = kind_items(kind)?;
     if items.keys().any(|k| !carried.contains(&k.as_str())) {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
@@ -820,10 +819,11 @@ mod tests {
     fn a_migration_carries_the_users_state_and_none_of_the_per_install_state() {
         let inv = ask(json!({"op":"inventory","kind":"migrate"}));
         let carried: Vec<&str> = inv["carried"].as_array().unwrap().iter().map(|s| s.as_str().unwrap()).collect();
-        for want in ["protocols", "sessionHistory", "withdrawalState", "characterisationEnrolment", "limitsProfiles"] {
+        for want in ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"] {
             assert!(carried.contains(&want), "{want}");
         }
-        for never in ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"] {
+        // The warranty owner's two items are among the never-moved: they are not a user's (`REQ-SHDR-10`).
+        for never in ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"] {
             assert!(!carried.contains(&never), "{never}");
             assert!(inv["perInstall"].to_string().contains(never));
         }
@@ -846,7 +846,7 @@ mod tests {
         let r = ask(json!({"op":"restoreReport","kind":"migrate","present":["protocols","sessionHistory"]}));
         assert_eq!(r["restored"].as_array().unwrap().len(), 2);
         assert!(r["missing"].to_string().contains("limitsProfiles"));
-        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState","characterisationEnrolment"]}));
+        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState"]}));
         assert_eq!(u["missing"].as_array().unwrap().len(), 0);
         assert!(u["omitted"].to_string().contains("protocols"));
     }
@@ -1115,31 +1115,20 @@ mod tests {
     // @verifies SWR-MG-29#b
     #[test]
     #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
-    fn the_format_version_rose_with_the_epoch_so_the_older_reader_refuses_this_bundle() {
-        // The reader before this change took versions up to 1 and refused anything above whole (`newer_version`).
+    fn the_format_version_stays_1_and_a_body_with_no_epoch_does_not_open() {
+        // No version bump (the principal, 2026-11-19): no bundle from before the epoch should exist.
         let b = sealed_at(1, json!({}));
-        assert_eq!(b["formatVersion"], 2);
-        let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
-        assert_eq!(h["formatVersion"], 2);
-        const OLDER_READER_SUPPORTS: u64 = 1;
-        assert!(h["formatVersion"].as_u64().unwrap() > OLDER_READER_SUPPORTS);
+        assert_eq!(b["formatVersion"], 1);
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}))["formatVersion"], 1);
         assert_eq!(ask(json!({"op":"readHeader","header":{"kind":"uhdr","formatVersion":FORMAT_VERSION + 1}}))["reason"], "newer_version");
-    }
-
-    // @verifies SWR-MG-29#c
-    #[test]
-    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
-    fn a_version_1_bundle_has_no_epoch_and_counts_as_the_oldest() {
-        let v1 = sealed_raw(1, json!({"items":{"sessionHistory":[]}}));
-        // A phone that has seen nothing opens it, as epoch 0; a phone that has sealed anything since refuses it.
-        let fresh = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":v1,"key":KEY}));
-        assert_eq!((fresh["ok"].clone(), fresh["epoch"].clone()), (json!(true), json!(0)));
-        assert_eq!(ask(json!({"op":"openBundle","seenEpoch":1,"bundle":v1,"key":KEY}))["reason"], "older_bundle");
-        // A version-1 body cannot claim an epoch, and a version-2 body cannot go without one or name 0.
-        let claims = ask(json!({"op":"openBundle","seenEpoch":1,"bundle":sealed_raw(1, json!({"epoch":99,"items":{}})),"key":KEY}));
-        assert_eq!(claims["reason"], "older_bundle");
-        for body in [json!({"items":{}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
-            assert_eq!(ask(json!({"op":"openBundle","seenEpoch":0,"bundle":sealed_raw(2, body.clone()),"key":KEY}))["reason"], "malformed", "{body}");
+        // If one did exist, or a body named no usable epoch, it is not opened, whatever the phone has seen: it is not
+        // taken for "the oldest", which a phone that has seen nothing would accept.
+        for body in [json!({"items":{"sessionHistory":[]}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
+            for seen in [0, 1] {
+                let r = ask(json!({"op":"openBundle","seenEpoch":seen,"bundle":sealed_raw(1, body.clone()),"key":KEY}));
+                assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("malformed")), "{body} seen {seen}");
+                assert!(r.get("items").is_none());
+            }
         }
     }
 
