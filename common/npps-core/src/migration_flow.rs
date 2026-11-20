@@ -742,7 +742,7 @@ mod tests {
         last_key: String,
     }
 
-    const KEYED: [&str; 4] = ["protocols", "sessionHistory", "limitsProfiles", "characterisationEnrolment"];
+    const KEYED: [&str; 3] = ["protocols", "sessionHistory", "limitsProfiles"];
 
     fn phone(adapter: &[&str], seed: u8) -> Phone {
         Phone {
@@ -985,7 +985,7 @@ mod tests {
         let done = backup("uhdr", &mut route, &mut old, rj);
         assert_eq!(done["ok"], true, "{done}");
         let written: Vec<&str> = done["written"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
-        assert_eq!(written, ["characterisationEnrolment", "sessionHistory"]);
+        assert_eq!(written, ["sessionHistory"]);
         assert!(done["omitted"].as_array().unwrap().iter().any(|v| v == "protocols"));
 
         let r = restore(&mut route, &mut fresh, SECRET);
