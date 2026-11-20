@@ -17,11 +17,11 @@
 static np_tavns_enable_cb_t  s_enable_cb;
 static np_tavns_disable_cb_t s_disable_cb;
 static uint32_t s_stim_freq_mhz;
-static uint16_t s_stim_current_ua;
+static uint32_t s_stim_current_ua;
 
 np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
                                    uint32_t           stim_freq_mhz,
-                                   uint16_t           stim_current_ua,
+                                   uint32_t           stim_current_ua,
                                    np_tavns_enable_cb_t  enable_cb,
                                    np_tavns_disable_cb_t disable_cb)
 {

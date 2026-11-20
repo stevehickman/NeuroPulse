@@ -39,7 +39,7 @@
  * `freq_mhz`   — carrier frequency in millihertz (any positive value; no floor or ceiling, OI-VNSCLIP-08)
  * `current_ua` — peak current in microamperes (100–40000)
  */
-typedef void (*np_tavns_enable_cb_t)(uint32_t freq_mhz, uint16_t current_ua);
+typedef void (*np_tavns_enable_cb_t)(uint32_t freq_mhz, uint32_t current_ua);
 
 /*
  * Callback invoked when the gate CLOSES (stim should stop).
@@ -53,7 +53,7 @@ typedef void (*np_tavns_disable_cb_t)(void);
  */
 np_hrv_status_t np_hrv_tavns_init(np_tavns_state_t  *tavns,
                                    uint32_t           stim_freq_mhz,
-                                   uint16_t           stim_current_ua,
+                                   uint32_t           stim_current_ua,
                                    np_tavns_enable_cb_t  enable_cb,
                                    np_tavns_disable_cb_t disable_cb);
 

@@ -72,7 +72,7 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
         int bone = 0, adaptive = 0;
         if (sscanf(e, "%d %d", &bone, &adaptive) != 2) { return false; }   /* e is the rest of the line */
         const np_mod_audio_params_t p = { .mode = NP_SIMH_U8(a), .carrier_hz = NP_SIMH_U16(b),
-                                          .beat_mhz = NP_SIMH_U16(c), .level_half_db = NP_SIMH_U8(d),
+                                          .beat_mhz = NP_SIMH_U32(c), .level_half_db = NP_SIMH_U8(d),
                                           .bone_conduct_en = (uint8_t)bone, .eeg_adaptive = (uint8_t)adaptive };
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "audio_stop") == 0) {

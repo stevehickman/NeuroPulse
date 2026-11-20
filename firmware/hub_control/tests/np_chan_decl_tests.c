@@ -175,6 +175,16 @@ static void test_hd_and_clinical_tacs(void)
     check(!d.geom_clin_stim && !d.send_limits,
           "clinical tACS alone: no gate, no area frame (declares no geometry)");
     check(d.send_waveforms, "clinical tACS: waveform frame sent");
+    check(d.phase_us[NP_SAFETY_CH_CLIN_STIM] == 50000UL, "clinical tACS at 10 Hz declares a 50,000 us phase");
+
+    /* The frequency is 32 bits (OI-UINT16-01): one above 65.535 Hz must declare its own half period, not the one a
+     * 16-bit truncation would (70 Hz truncated to 4464 mHz would declare 112,000 us instead of 7,142 us). */
+    reset();
+    ct.freq_mhz = 70000U;
+    add(NP_MOD_CLIN_TACS, &ct, sizeof ct);
+    np_chan_decl_build(&g_desc, &d);
+    check(d.phase_us[NP_SAFETY_CH_CLIN_STIM] == 500000000UL / 70000UL,
+          "clinical tACS above 65.535 Hz declares its true half period, not a truncated frequency's");
 
     reset();
     memset(&hd, 0, sizeof hd);
@@ -236,6 +246,7 @@ static void test_half_period(void)
 {
     check(np_chan_decl_half_period_us(500U) == 1000000UL, "0.5 Hz -> 1,000,000 us");
     check(np_chan_decl_half_period_us(40000U) == 12500UL, "40 Hz -> 12,500 us");
+    check(np_chan_decl_half_period_us(1000000000U) == 1UL, "a half period under 1 us is declared as 1, never 0 (0 = not declared)");
     check(np_chan_decl_half_period_us(0U) == UINT32_MAX,
           "0 Hz -> the longest phase the field carries (the strictest verdict; the hub refuses 0 Hz first)");
     check(np_chan_decl_half_period_us(1U) == 500000000UL,
@@ -254,7 +265,7 @@ static void test_every_frequency_declares_its_true_half_period_and_the_ranges_ar
     unsigned bes_admitted = 0U, tacs_admitted = 0U, untrue = 0U, below_floor_admitted = 0U;
 
     for (uint32_t f = 0U; f <= 0xFFFFU; f++) {
-        if (f != 0U && np_chan_decl_half_period_us((uint16_t)f) != 500000000UL / f) { untrue++; }
+        if (f != 0U && np_chan_decl_half_period_us(f) != 500000000UL / f) { untrue++; }
 
         np_mod_bes_tacs_params_t b;
         memset(&b, 0, sizeof b);
@@ -263,19 +274,20 @@ static void test_every_frequency_declares_its_true_half_period_and_the_ranges_ar
 
         np_mod_clin_tacs_params_t t;
         memset(&t, 0, sizeof t);
-        t.freq_mhz = (uint16_t)f; t.amplitude_ua = 500U;
+        t.freq_mhz = f; t.amplitude_ua = 500U;
         const bool tacs_ok = (np_cmd_limits_check(NP_MOD_CLIN_TACS, &t, sizeof t) == NP_HUB_OK);
 
         if (bes_ok)  { bes_admitted++; }
         if (tacs_ok) { tacs_admitted++; }
-        if (f < NP_BES_FREQ_MHZ_MIN && (bes_ok || tacs_ok)) { below_floor_admitted++; }
+        if (f < NP_BES_FREQ_MHZ_MIN && bes_ok) { below_floor_admitted++; }
+        if (f == 0U && tacs_ok) { below_floor_admitted++; }
     }
     check(untrue == 0U, "every frequency above zero declares exactly 500e6 / f us: nothing is clamped");
     check(bes_admitted == (NP_BES_FREQ_MHZ_MAX - NP_BES_FREQ_MHZ_MIN + 1U),
           "BES/tACS: exactly the frequencies from 0.5 Hz to 40 Hz are admitted");
     check(tacs_admitted == (0xFFFFU - NP_CLIN_TACS_FREQ_MHZ_MIN + 1U),
-          "clinical tACS: every frequency from 0.5 Hz up is admitted");
-    check(below_floor_admitted == 0U, "nothing below 0.5 Hz, 0 Hz included, is admitted for either modality");
+          "clinical tACS: every frequency above 0 Hz is admitted (the 0.5 Hz floor was an unsourced default, UC-082)");
+    check(below_floor_admitted == 0U, "BES/tACS admits nothing below 0.5 Hz, and clinical tACS admits no 0 Hz");
     check(np_chan_decl_half_period_us((uint16_t)NP_BES_FREQ_MHZ_MIN) == 1000000UL,
           "the floor, 0.5 Hz, declares 1 s");
 }

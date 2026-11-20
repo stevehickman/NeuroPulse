@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 85 (2026-11-20) — §18: an economic reason also justifies a bound, and the reasons rank (the principal). No other locked decision changed.**
+
+**What changed.** §18's paragraph on derived bounds named three reasons a limit may rest on: research literature, an external standard, and a mechanical or implementation reason. It now names a fourth, an economic reason, with regulatory equivalence as the example, and ranks them: research is strongest, an economic reason is weaker, and either is better than none. An economic bound carries its reason and its cost of change beside it.
+
+**Why.** Asked whether the cervical VNS 1–25 Hz range should go for want of research, the principal ruled that an equivalence argument is an economic reason, not a research one, and still a reason, so the bound may stand if what it costs to change is on record. The range rests on the 510(k) equivalence to gammaCore's fixed 25 Hz (`NP-REG-CVNS-001` §3.2). Its reason and cost of change are now written in `common/npps/constants.json`, `np_cvns_config.h` and the compiler.
+
+**What it leaves.** The cost of changing the cervical VNS range has not been estimated; the notes say so. The authoring ranges listed in `UC-082` (TMS, clinical tACS and audio beat) have no reason of any kind yet and are not changed by this revision. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
 **Rev 84 (2026-11-20) — §6.0: warranty-owner consent is per helmet, and the warranty owner's data has its own store that never travels with a user's (the principal, `OI-PRIV-04`). No other locked decision changed.**
 
 **What changed.** §6.0 gains two bullets. Consent to SHDR upload is recorded per helmet; consent for one helmet opens nothing for another; revoking it ends that helmet's characterisation enrolment. The warranty owner's data (helmet health data, the owner's consents, the study enrolment) is kept in a store of its own, is backed up, restored and transferred independently of any user's data, and is collected on one warranty-owner page that is the first page when a new helmet is registered.

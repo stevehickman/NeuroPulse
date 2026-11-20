@@ -114,7 +114,7 @@ void np_safety_spi_request_disable(uint16_t bits) { g_disabled_bits |= bits; }
  * enforced nothing.  The publish is what makes it live, so it is asserted
  * rather than merely stubbed. */
 static uint16_t g_chan_ua[NP_SAFETY_MAX_CHANNELS];
-void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua)
 {
     if (channel < NP_SAFETY_MAX_CHANNELS) { g_chan_ua[channel] = current_ua; }
 }

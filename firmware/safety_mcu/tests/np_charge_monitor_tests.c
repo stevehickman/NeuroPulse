@@ -54,7 +54,7 @@ extern void np_charge_monitor_build_withhold_report(const np_safety_state_t     
                                                     np_safety_withhold_report_t *out);
 extern void np_charge_monitor_withhold_decide(np_safety_state_t *state, uint16_t other_refusals);
 extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
-                                         const uint16_t    *current_ua,
+                                         const uint32_t    *current_ua,
                                          uint8_t            channel_count);
 
 /* Charge-monitor channel indices = bit positions of the NP_SAFETY_EN_* bits. */
@@ -90,9 +90,9 @@ static void beat(uint8_t ch, uint32_t ua)
 }
 
 /* Build a current_ua[] array with one channel commanding. */
-static void one_current(uint16_t *buf, uint8_t ch, uint16_t ua)
+static void one_current(uint32_t *buf, uint8_t ch, uint32_t ua)
 {
-    memset(buf, 0, sizeof(uint16_t) * NP_SAFETY_MAX_CHANNELS);
+    memset(buf, 0, sizeof(uint32_t) * NP_SAFETY_MAX_CHANNELS);
     buf[ch] = ua;
 }
 
@@ -222,7 +222,7 @@ static void test_pulsed_channel_never_accumulates(void)
 /* @verifies DI-SAFE-01a */
 static void test_phase_ceiling_pulse(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     np_charge_monitor_init();
     /* VNS auricular clip: 0.5 cm² → per-phase budget 40 × 500 = 20,000 nC = 20 µC. */
@@ -253,6 +253,55 @@ static void test_phase_ceiling_pulse(void)
 }
 
 /*
+ * OI-UINT16-01 (the principal, 2026-11-20): the commanded current is 32 bits.  The ceilings below are the same, but no
+ * current is cut off before the check: 80 mA at 250 us is exactly the 20 uC ceiling of a 0.5 cm2 pad, and a 16-bit field
+ * would have read it as 14.5 mA and let it through.  The widest product, current x phase, still fits uint64.
+ */
+/* @verifies DI-SAFE-01a */
+static void test_phase_ceiling_with_a_32_bit_current(void)
+{
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
+
+    /* Rectangular, 0.5 cm2 (20,000 nC), 250 us: the trip current is 80,000 uA, above what 16 bits carry. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_VNS_IDX, 500U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_VNS_IDX, NP_CHARGE_WAVE_PULSE, 250U);
+    np_safety_state_t s = fresh_state();
+    one_current(cur, NP_SAFETY_CH_VNS_IDX, 79999U);
+    np_charge_monitor_phase_tick(&s, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_VNS_IDX)) != 0U, "32-bit current: 79,999 uA x 250 us is 19,999 nC and passes");
+    np_safety_state_t s2 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_VNS_IDX, 80000U);
+    np_charge_monitor_phase_tick(&s2, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_VNS_IDX)) == 0U, "32-bit current: 80,000 uA x 250 us is 20,000 nC and trips (16 bits would read 14,464 uA)");
+
+    /* Sine: floor(2 P / 3141) with P = current x phase.  At 1 s the trip current is 32 uA: 31 gives 19,739 nC, 32 gives 20,375. */
+    np_charge_monitor_init();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_VNS_IDX, 500U);
+    np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_VNS_IDX, NP_CHARGE_WAVE_SINE, 1000000U);
+    np_safety_state_t s3 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_VNS_IDX, 31U);
+    np_charge_monitor_phase_tick(&s3, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s3.granted_mask & (1U << NP_SAFETY_CH_VNS_IDX)) != 0U, "sine: 31 uA x 1 s is 19,739 nC and passes");
+    np_safety_state_t s4 = fresh_state();
+    one_current(cur, NP_SAFETY_CH_VNS_IDX, 32U);
+    np_charge_monitor_phase_tick(&s4, cur, NP_SAFETY_MAX_CHANNELS);
+    check((s4.granted_mask & (1U << NP_SAFETY_CH_VNS_IDX)) == 0U, "sine: 32 uA x 1 s is 20,375 nC and trips");
+
+    /* The widest product, 2^32-1 uA x 2^32-1 us, fits uint64: it must trip, not wrap to something small. */
+    for (int sine = 0; sine < 2; sine++) {
+        np_charge_monitor_init();
+        np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_VNS_IDX, 500U);
+        np_charge_monitor_set_channel_waveform(NP_SAFETY_CH_VNS_IDX, sine ? NP_CHARGE_WAVE_SINE : NP_CHARGE_WAVE_PULSE, UINT32_MAX);
+        np_safety_state_t sm = fresh_state();
+        one_current(cur, NP_SAFETY_CH_VNS_IDX, UINT32_MAX);
+        np_charge_monitor_phase_tick(&sm, cur, NP_SAFETY_MAX_CHANNELS);
+        check((sm.granted_mask & (1U << NP_SAFETY_CH_VNS_IDX)) == 0U,
+              sine ? "sine: the widest current x phase trips and does not wrap" : "rectangular: the widest current x phase trips and does not wrap");
+    }
+}
+
+/*
  * The 2/pi factor for a sine is load-bearing, not a refinement.  At identical
  * amplitude and phase duration a sinusoid delivers 2/pi of what a rectangular
  * pulse does, and at the 0.5 Hz bottom of the BES/tACS band — where the
@@ -262,7 +311,7 @@ static void test_phase_ceiling_pulse(void)
 /* @verifies DI-SAFE-01a */
 static void test_phase_ceiling_sine_vs_square(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
     one_current(cur, NP_SAFETY_CH_BES_IDX, 1000U);   /* 1 mA, the T1 tACS cap */
 
     /* 25 cm² pad → per-phase budget 40 × 25000 = 1,000,000 nC = 1000 µC.
@@ -292,7 +341,7 @@ static void test_phase_ceiling_sine_vs_square(void)
 /* @verifies DI-SAFE-01a */
 static void test_phase_tick_ignores_idle_channels(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     np_charge_monitor_init();
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_VNS_IDX, 500U);
@@ -406,7 +455,7 @@ static void test_zero_class_does_not_undeclare(void)
 /* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_mixed_class_channel_runs_both_checks(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     np_charge_monitor_init();
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 25000U);
@@ -537,7 +586,7 @@ static void test_charge_accumulation_math(void)
 /* @verifies DI-SAFE-01 DI-SAFE-01a */
 static void test_set_channel_area_hd_tdcs(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     np_charge_monitor_init();
     /* HD-tDCS 3.5mm electrode: 96 milli-cm² → per-phase 40 × 96 = 3840 nC
@@ -738,7 +787,7 @@ static void test_tdcs_geom_gate_rearms_each_session(void)
 /* @verifies DI-SAFE-01a DI-SAFE-01 */
 static void test_bes_geom_gate_blocks_until_applied(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
     np_charge_monitor_reset_session(NULL);
 
     np_safety_state_t s = fresh_state();
@@ -806,7 +855,7 @@ static void test_bes_geom_gate_independent_and_rearms(void)
 /* @verifies DI-SAFE-01a */
 static void test_a_phase_above_the_old_bound_is_checked_at_its_true_charge(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     /* 3 s rectangular phase.  At 333 uA the true charge is 999,000 nC (inside); at 334 uA it is 1,002,000 nC
      * (over).  Clamped to 2 s these were 666,000 and 668,000 nC, and both passed. */
@@ -842,7 +891,7 @@ static void test_a_phase_above_the_old_bound_is_checked_at_its_true_charge(void)
 /* @verifies DI-SAFE-01a */
 static void test_the_longest_declarable_phase_is_stored_as_declared_and_does_not_wrap(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
 
     /* 4,294,967,295 us at 65,535 uA: 2.8e11 nC rectangular, far over the 1,000,000 nC ceiling.  It trips; a wrapped
      * product could have passed. */
@@ -1051,15 +1100,15 @@ static void test_withhold_report_shape_magic_and_checksum(void)
 /* @verifies REQ-FWHUB-82#c */
 static void test_withhold_report_does_not_change_the_frame(void)
 {
-    check(NP_SAFETY_RX_EXT_FRAME_LEN == 42U, "withhold report: the extended frame is 42 bytes (widened by 4 for the 32-bit impedance report, OI-UINT16-01)");
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 66U, "withhold report: the extended frame is 66 bytes (the 32-bit current array, OI-UINT16-01)");
     check(NP_SAFETY_FRAME_LEN == 8U, "withhold report: the base reply is still 8 bytes");
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == 31U,
           "withhold report: starts at window byte 31, straight after the tier report [24..30]");
     check(NP_SAFETY_WITHHOLD_REPORT_OFFSET == NP_SAFETY_TIER_REPORT_OFFSET + NP_SAFETY_TIER_REPORT_LEN,
           "withhold report: begins where the tier report ends");
-    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN <= NP_SAFETY_RX_EXT_FRAME_LEN &&
-          NP_SAFETY_RX_EXT_FRAME_LEN - (NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN) == 0U,
-          "withhold report: ends at byte 37, filling the spare window exactly, inside the unchanged 38-byte frame");
+    check(NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN == 42U &&
+          NP_SAFETY_WITHHOLD_REPORT_OFFSET + NP_SAFETY_WITHHOLD_REPORT_LEN <= NP_SAFETY_RX_EXT_FRAME_LEN,
+          "withhold report: ends at byte 41, the last report, inside the 66-byte window");
     check(NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_IMP_REPORT_MAGIC &&
           NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_NV_REPORT_MAGIC &&
           NP_SAFETY_WITHHOLD_REPORT_MAGIC != NP_SAFETY_TIER_REPORT_MAGIC,
@@ -1171,6 +1220,7 @@ int main(void)
     test_two_ma_twenty_minutes_completes();
     test_pulsed_channel_never_accumulates();
     test_phase_ceiling_pulse();
+    test_phase_ceiling_with_a_32_bit_current();
     test_phase_ceiling_sine_vs_square();
     test_phase_tick_ignores_idle_channels();
     test_decl_gate_blocks_undeclared_electrical();

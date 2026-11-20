@@ -78,7 +78,7 @@ void np_simh_safety_status(void)
  * cervical VNS module. */
 static int beat(np_session_state_t state)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(cur);
     const np_hub_status_t rc = np_safety_spi_heartbeat(state, np_safety_spi_get_requested_mask(), cur, (uint8_t)NP_SAFETY_MAX_CHANNELS);
     np_mod_cvns_set_heartbeat_status(np_safety_spi_get_granted_mask(), np_safety_spi_get_status());
@@ -177,7 +177,7 @@ bool np_simh_safety_line(const char *cmd, char *a, char *b, char *c)
     } else if (strcmp(cmd, "safety_disable") == 0 && a) {
         np_safety_spi_request_disable(NP_SIMH_U16(a));
     } else if (strcmp(cmd, "safety_current") == 0 && a && b) {
-        np_safety_spi_set_channel_current(NP_SIMH_U8(a), NP_SIMH_U16(b));
+        np_safety_spi_set_channel_current(NP_SIMH_U8(a), NP_SIMH_U32(b));
     } else if (strcmp(cmd, "safety_reenable") == 0 && a) {
         np_safety_spi_set_cvns_reenable(atoi(a) != 0);
     } else if (strcmp(cmd, "safety_geom") == 0 && a && b) {                 /* the three geometry gates of np_charge_monitor.c */

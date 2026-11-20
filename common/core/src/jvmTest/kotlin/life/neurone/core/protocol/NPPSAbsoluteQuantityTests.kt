@@ -150,7 +150,7 @@ class NPPSAbsoluteQuantityTests {
         assertEquals(listOf<Byte>(20, 50, 0, 158.toByte()), params.toList())
         // Audio: 70 dB SPL is the absolute level, 2 × dB = 140 on the wire (REQ-AUDIO-20).
         val audio = compiler.compile(def.copy(modalities = def.modalities.drop(2))).blob
-        assertEquals(140.toByte(), audio[107 + 14 + 5])
+        assertEquals(140.toByte(), audio[107 + 14 + 7])
 
         val bad = NPProtocolDefinition(
             name = "bad",

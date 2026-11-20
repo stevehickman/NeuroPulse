@@ -49,7 +49,7 @@ static struct np_hrv_session s_session_pool;  /* single-instance pool */
 
 /* ── taVNS callbacks (forwarded to safety MCU SPI driver) ───────────────────── */
 
-static void tavns_enable(uint32_t freq_mhz, uint16_t current_ua)
+static void tavns_enable(uint32_t freq_mhz, uint32_t current_ua)
 {
     /* Platform HAL call: programs VNS pulse generator and requests         */
     /* safety MCU SPI enable.  The response comes back asynchronously via     */

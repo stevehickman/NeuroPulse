@@ -106,7 +106,7 @@ static void test_a_start_does_not_enable_anything(void)
     run("cvns 2 10000 1000 250 10 1");
     run("cvns_state");
     check(stage() == STAGE_IMPEDANCE && !enable_bit(), "start: the session is in the impedance check and no enable is requested");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS];
+    uint32_t c[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(c);
     check(c[NP_SAFETY_CH_CVNS] == 0U, "start: and no current is published to the safety channel");
 }
@@ -189,7 +189,7 @@ static void test_the_real_detector_finds_a_baseline_in_a_pulse_train(void)
 
 static unsigned published_ua(void)
 {
-    uint16_t c[NP_SAFETY_MAX_CHANNELS];
+    uint32_t c[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(c);
     return (unsigned)c[NP_SAFETY_CH_CVNS];
 }

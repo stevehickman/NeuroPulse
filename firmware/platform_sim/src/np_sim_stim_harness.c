@@ -85,7 +85,7 @@ static bool slot_from(const char *name, uint8_t *slot)
 
 void np_simh_stim_status(void)
 {
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
     for (unsigned p = 0; p < NP_SIM_MAX_MODULES; p++) {
         np_sim_module_t *m = np_sim_find(NP_SIM_KIND_STIM_PAIR, (uint16_t)p);
         if (m == NULL) { continue; }

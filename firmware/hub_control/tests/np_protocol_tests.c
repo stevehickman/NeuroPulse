@@ -882,17 +882,17 @@ static void test_clin_tacs_channel_mask_spans_the_driver(void)
     check(NP_CLIN_TACS_CHANNELS == NP_HD_DRIVER_CHANNELS,
           "clin_tacs: the hub wire mask covers exactly the driver's channels");
 
-    check(sizeof(np_mod_clin_tacs_params_t) == 8U,
-          "clin_tacs: params struct is 8 bytes packed (was 7 before OI-TACS-01)");
+    check(sizeof(np_mod_clin_tacs_params_t) == 10U,
+          "clin_tacs: params struct is 10 bytes packed (8 before the 32-bit frequency, OI-UINT16-01)");
 
     /* Field offsets: an encoder writes these positions numerically, so a struct
      * edit that shifts one is a silent misinterpretation, not a build error. */
     check(offsetof(np_mod_clin_tacs_params_t, freq_mhz)         == 0U &&
-          offsetof(np_mod_clin_tacs_params_t, amplitude_ua)     == 2U &&
-          offsetof(np_mod_clin_tacs_params_t, channel_mask_lo)  == 4U &&
-          offsetof(np_mod_clin_tacs_params_t, channel_mask_hi)  == 5U &&
-          offsetof(np_mod_clin_tacs_params_t, channel_mask_ext) == 6U &&
-          offsetof(np_mod_clin_tacs_params_t, waveform)         == 7U,
+          offsetof(np_mod_clin_tacs_params_t, amplitude_ua)     == 4U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_lo)  == 6U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_hi)  == 7U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_ext) == 8U &&
+          offsetof(np_mod_clin_tacs_params_t, waveform)         == 9U,
           "clin_tacs: field offsets match the encoders' byte positions");
 
     /* channel_mask_ext carries channels 16–20 in bits 0–4; bits 5–7 are reserved

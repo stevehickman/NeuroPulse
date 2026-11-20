@@ -78,7 +78,7 @@ bool np_simh_vns_line(const char *cmd, char *a, char *b, char *c, char *d, char 
         int ppg = 0, ref = 0, proto = 0;            /* e is the rest of the line: <ppg> <eeg_ref> <hrv_proto> */
         if (sscanf(e, "%d %d %d", &ppg, &ref, &proto) != 3) { return false; }
         const np_mod_vns_hrv_params_t p = { .side = NP_SIMH_U8(a), .freq_mhz = NP_SIMH_U32(b),
-                                            .amplitude_ua = NP_SIMH_U16(c), .pulse_width_us = NP_SIMH_U16(d),
+                                            .amplitude_ua = NP_SIMH_U32(c), .pulse_width_us = NP_SIMH_U16(d),
                                             .ppg_enable = (uint8_t)ppg, .eeg_ref_enable = (uint8_t)ref,
                                             .hrv_proto = (uint8_t)proto };
         vns_result(cmd, (int)np_mod_vns_control(NP_HUB_SLOT_VNS_HRV, &p, (uint16_t)sizeof p));

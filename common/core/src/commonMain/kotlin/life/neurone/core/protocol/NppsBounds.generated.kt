@@ -50,8 +50,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
@@ -68,8 +68,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
@@ -86,8 +86,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 0.5,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 1.0,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
@@ -138,8 +138,8 @@ object NPBounds {
                 step = 0.1,
             )
             val breathingRate = NPBound(
-                min = NPBoundEdge(4.0, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)."),
-                max = NPBoundEdge(7.0, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)."),
+                min = NPBoundEdge(4.5, "practical", "Steffen et al. 2017 (Front Public Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449): resonance-frequency breathing lies typically between 4.5 and 7.0 breaths/min."),
+                max = NPBoundEdge(7.0, "practical", "Steffen et al. 2017 (Front Public Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449): resonance-frequency breathing lies typically between 4.5 and 7.0 breaths/min."),
                 step = 0.5,
             )
         }
@@ -148,7 +148,7 @@ object NPBounds {
                 min = NPBoundEdge(0.0, "natural", "A rate cannot be below 0."),
                 max = null,
                 step = 0.5,
-                unbounded = "No maximum: the former 100 Hz is register UC-082, with no derivation. A binaural beat has a perceptual limit (NP-HW-AUDIO-001 §8.2.7 A), which is not a source for 100.",
+                unbounded = "No maximum of its own: the former 0.5 to 100 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The documented bound on a beat is the planar path's tone ceiling, carrier plus beat at most 1,000 Hz (REQ-AUDIO-25), which the validator and compiler hold. A binaural beat has a perceptual limit (NP-HW-AUDIO-001 §8.2.7 A), which is not a source for 100.",
             )
             val carrier = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
@@ -177,9 +177,10 @@ object NPBounds {
         }
         object Tms {
             val frequency = NPBound(
-                min = NPBoundEdge(1.0, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)."),
-                max = NPBoundEdge(50.0, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)."),
+                min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
+                max = null,
                 step = 0.5,
+                unbounded = "No maximum: the former 1 to 50 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The descriptor carries up to about 4.29 MHz (32 bits), and the compiler refuses a rTMS frequency whose period does not fit the 16-bit inter-train interval (below 0.016 Hz). No TMS pulse-rate limit is established: the pulse driver's power budget is undecided (NP-HW-TMS-001, OI-PWRTH-07).",
             )
             val intensity = NPBound(
                 min = NPBoundEdge(80.0, "unestablished", "Form figure, no source on record."),
@@ -194,9 +195,10 @@ object NPBounds {
         }
         object ClinicalTacs {
             val frequency = NPBound(
-                min = NPBoundEdge(0.5, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)."),
-                max = NPBoundEdge(100.0, "unestablished", "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)."),
+                min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
+                max = null,
                 step = 0.5,
+                unbounded = "No maximum: the former 0.5 to 100 Hz is register UC-082, with no derivation, and is a default now (the principal, 2026-11-20). The descriptor carries up to about 4.29 MHz (32 bits) and the hub refuses 0 Hz, a division by zero in the half-period it declares to the safety MCU. The driver's bandwidth is not established (NP-HW-TACSDRV-001), so no hardware figure is applied yet.",
             )
             val intensity = NPBound(
                 min = NPBoundEdge(0.1, "unestablished", "Form figure, no source on record."),
