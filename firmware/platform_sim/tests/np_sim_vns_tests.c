@@ -66,7 +66,7 @@ static void test_drive_and_stop(void)
     check(vns()->driven && vns()->vns_side_on[0] && !vns()->vns_side_on[1] && vns()->vns_amp_ua == 2000U,
           "drive: the left side is told the authored amplitude");
     check(enabled() && vns()->vns_ppg_on && vns()->vns_eeg_ref, "drive: the hub requested the VNS enable, started the PPG and routed the EEG reference");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS];
+    uint32_t c[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(c);
     check(c[NP_SAFETY_CH_VNS_HRV] == 2000U, "drive: the commanded current was published to the safety channel");
     run("vns_stop");
@@ -85,7 +85,7 @@ static void test_an_amplitude_above_the_ceiling_is_refused_before_the_stimulator
     check(!result_code_is(0), "ceiling: 60 mA is refused, not clamped to 40 mA");
     check(!vns()->driven && !enabled() && !vns()->vns_ppg_on && !vns()->vns_eeg_ref,
           "ceiling: no stimulation, no enable, no PPG and no reference routing were started");
-    uint16_t c[NP_SAFETY_MAX_CHANNELS];
+    uint32_t c[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(c);
     check(c[NP_SAFETY_CH_VNS_HRV] == 0U, "ceiling: and no current was published to the safety channel");
     g_cap_n = 0;

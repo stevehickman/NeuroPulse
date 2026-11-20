@@ -106,12 +106,13 @@ static uint16_t td_level(const np_mod_stim_state_t *st, uint32_t now_ms)
     }
 }
 
-/* Whole seconds, rounded up, at least 1: the hardware ramp takes seconds, and rounding up is never faster than the slope. */
+/* Whole seconds, rounded up, at least 1: the hardware ramp takes seconds, and rounding up is never faster than the slope.
+ * Every caller passes td_time_ms() of at most the full-scale ramp: delta <= target, so ms <= ramp_s * 1000 and the result
+ * is at most ramp_s, which is itself a 16-bit field.  Nothing here can exceed 16 bits, so nothing is held at a ceiling. */
 static uint16_t ceil_s(uint32_t ms)
 {
     uint32_t s = (ms + 999U) / 1000U;
     if (s < 1U) { s = 1U; }
-    if (s > 0xFFFFU) { s = 0xFFFFU; }
     return (uint16_t)s;
 }
 

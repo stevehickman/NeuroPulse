@@ -42,11 +42,12 @@
  * safety MCU is the exact half period; the 2 s clamp both processors once applied is removed.) */
 #define NP_BES_FREQ_MHZ_MIN   500U    /* 0.5 Hz */
 #define NP_BES_FREQ_MHZ_MAX   40000U  /* 40 Hz  */
-/* Clinical tACS (T2) frequency floor, milli-hertz: CLINICAL_TACS_MIN_HZ of constants.json x 1000, for the same
- * reason (it shares np_chan_decl_half_period_us).  Its maximum, 100 Hz, is above what the 16-bit milli-hertz
- * field can carry, so the field is its own upper bound.  The driver is not built; this is the load-time check
- * only (np_mod_t2_stubs.c). */
-#define NP_CLIN_TACS_FREQ_MHZ_MIN 500U  /* 0.5 Hz */
+/* Clinical tACS (T2) frequency floor, milli-hertz: 1 mHz, the smallest value the wire carries above zero.  The only
+ * reason is mechanical: 0 Hz is a division by zero in np_chan_decl_half_period_us(), which this shares.  The former
+ * 0.5 Hz floor and 100 Hz range had no source (register UC-082) and are defaults now, not limits (the principal,
+ * 2026-11-20); the frequency field is 32 bits, so it is its own upper bound.  The driver is not built; this is the
+ * load-time check only (np_mod_t2_stubs.c). */
+#define NP_CLIN_TACS_FREQ_MHZ_MIN 1U    /* 1 mHz: refuses 0 only */
 
 /* EEG PGA gain code: np_mod_eeg_params_t defines 0..6 (1x to 24x).  7 is not a gain the ADS1299 CHnSET field
  * defines for use, and a code above 7 does not fit the 3-bit field: it used to be masked into another gain. */

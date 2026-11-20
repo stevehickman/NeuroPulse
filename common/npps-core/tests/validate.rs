@@ -86,19 +86,14 @@ const ADDED: &[&str] = &[
     "VALIDATE_MSG_ZONE_DANGER",
     // SWR-SS-02: a session past the long-session level is a caution to acknowledge (the session-length axis of the zone model).
     "VALIDATE_MSG_LONG_SESSION_CAUTION",
-    // REQ-NPPS-23 (a): the authorable ranges of NP-NPPS-REF-001 §4 that the web validator did not check.
-    "VALIDATE_MSG_PBM_FREQUENCYHZ",
-    "VALIDATE_MSG_TMS_FREQUENCYHZ",
-    "VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ",
-    "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE",
-    "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE",
+    // REQ-NPPS-23 (a): the ranges of NP-NPPS-REF-001 §4 that have a documented reason (the breathing range).
     "VALIDATE_MSG_VNS_HRV_BREATHINGRATE",
     "VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_NEGATIVE",
 ];
 
 /// An issue the frozen web golden holds and the core no longer gives: the 2 mA auricular VNS hardware ceiling, replaced
 /// by the 40 mA one on the principal's instruction (OI-VNSCLIP-09, issues #554 and #559), and "PBM frequency cannot be
-/// negative", which the PBM range check (`VALIDATE_MSG_PBM_FREQUENCYHZ`, REQ-NPPS-23) now states with its range. The
+/// negative", which the PBM range check (REQ-NPPS-23; removed by `UC-082`, 2026-11-20) used to state with its range. The
 /// golden is frozen, so both are set aside here.
 ///
 /// The web's "Session is very long (> 2 hours)" advisory is also set aside, but only for a session with a block that is not

@@ -58,7 +58,7 @@ extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
 extern void np_charge_monitor_decl_gate(np_safety_state_t *state);
 extern bool np_charge_monitor_is_dc(uint8_t channel);
 extern void np_charge_monitor_phase_tick(np_safety_state_t *state,
-                                         const uint16_t    *current_ua,
+                                         const uint32_t    *current_ua,
                                          uint8_t            channel_count);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
@@ -167,14 +167,14 @@ static bool frame_checksum_ok(const np_safety_rx_ext_frame_t *f)
     return sum == f->checksum;
 }
 
-/* Ext checksum: additive sum of bytes [8..35] (current_ua[14] only).
+/* Ext checksum: additive sum of bytes [8..63] (current_ua[14] only, 32 bits each).
  * Detects corruption of the current magnitude array independent of the base. */
 static bool ext_checksum_ok(const np_safety_rx_ext_frame_t *f)
 {
     uint16_t sum = 0U;
     const uint8_t *b = (const uint8_t *)f;
     uint8_t i;
-    for (i = 8U; i < 36U; i++) {
+    for (i = 8U; i < (uint8_t)(8U + sizeof(f->current_ua)); i++) {
         sum += b[i];
     }
     return sum == f->ext_checksum;
@@ -582,11 +582,11 @@ int main(void)
              *
              * Copied into an aligned local first: rx is __attribute__((packed)),
              * so current_ua[] has alignment 1 and passing &rx.current_ua[0] as
-             * a uint16_t* is an unaligned-pointer hazard on Cortex-M
+             * a uint32_t* is an unaligned-pointer hazard on Cortex-M
              * (-Waddress-of-packed-member).  The accumulate loop above reads
              * the members by VALUE, which the compiler handles; only taking
              * the address needs this.                                        */
-            uint16_t beat_ua[NP_SAFETY_MAX_CHANNELS];
+            uint32_t beat_ua[NP_SAFETY_MAX_CHANNELS];
             uint8_t  n;
             for (n = 0U; n < NP_SAFETY_MAX_CHANNELS; n++) {
                 beat_ua[n] = (n < rx.channel_count) ? rx.current_ua[n] : 0U;

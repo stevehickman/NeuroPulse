@@ -147,11 +147,12 @@
         {
           "name": "CERVICAL_VNS_MIN_HZ",
           "value": 1.0,
-          "note": "Cervical VNS (T2) frequency range, 1-25 Hz, from the gammaCore predicate (K163334, fixed 25 Hz; NP-REG-CVNS-001 section 3). This one stays: it is the equivalence claim the regulatory argument rests on. It was the same constant as the auricular range until OI-VNSCLIP-08."
+          "note": "Cervical VNS (T2) frequency range, 1-25 Hz. THE REASON IS ECONOMIC, NOT RESEARCH, AND IT IS A REAL ONE (the principal, 2026-11-20): the 510(k) pathway rests on substantial equivalence to gammaCore (K163334, K173323), which delivers a fixed 25 Hz, and NP-REG-CVNS-001 section 3.2 argues that 1-25 Hz sits inside the predicate's modality and that the lower frequencies add no new safety question. COST OF CHANGE: a frequency above 25 Hz would be a technological difference from the predicate that the equivalence argument does not cover, so the submission would need a new analysis (likely performance or clinical evidence and a Q-Sub question; NP-REG-CVNS-001 section 4), and the pathway itself could change; the cost has not been estimated. Lowering the 1 Hz floor has the same standing. The auricular range has no such reason and was removed (OI-VNSCLIP-08). It was the same constant as the auricular range until then."
         },
         {
           "name": "CERVICAL_VNS_MAX_HZ",
-          "value": 25.0
+          "value": 25.0,
+          "note": "The upper end of the range above: the predicate's fixed 25 Hz. Same reason, same cost of change (see CERVICAL_VNS_MIN_HZ)."
         },
         {
           "name": "VNS_MIN_PULSE_WIDTH_US",
@@ -163,54 +164,14 @@
           "value": 500.0
         },
         {
-          "name": "PBM_MIN_HZ",
-          "value": 0.5,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "PBM_MAX_HZ",
-          "value": 100.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "AUDIO_BEAT_MIN_HZ",
-          "value": 0.5,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "AUDIO_BEAT_MAX_HZ",
-          "value": 100.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "TMS_MIN_HZ",
-          "value": 1.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "TMS_MAX_HZ",
-          "value": 50.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "CLINICAL_TACS_MIN_HZ",
-          "value": 0.5,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
-          "name": "CLINICAL_TACS_MAX_HZ",
-          "value": 100.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
-        },
-        {
           "name": "BREATHING_MIN_BPM",
-          "value": 4.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+          "value": 4.5,
+          "note": "Resonance-frequency breathing rate, lower end, breaths per minute. RESEARCH-BACKED: an individual's resonance frequency lies typically between 4.5 and 7.0 breaths/min, with 5.5 the most common, and the identification protocol steps 4.5, 5.0, 5.5, 6.0, 6.5, 7.0 (Steffen et al. 2017, Front Public Health, https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449). It was 4.0, which that source does not support, so it is 4.5 (the principal's rule, 2026-11-20: a range is enforced only on a documented reason). Enforced when the protocol is edited or compiled (REQ-NPPS-23)."
         },
         {
           "name": "BREATHING_MAX_BPM",
           "value": 7.0,
-          "note": "Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082)."
+          "note": "Resonance-frequency breathing rate, upper end, breaths per minute: 7.0, the top of the range Steffen et al. 2017 give (see BREATHING_MIN_BPM). Enforced when the protocol is edited or compiled (REQ-NPPS-23)."
         },
         {
           "name": "VISUAL_MAX_HZ",

@@ -802,7 +802,7 @@ static void blob_eeg_gain(blob_t *b, uint8_t gain)
     blob_make(b, 1U, 60000U, NP_MOD_EEG, NP_HUB_SLOT_EEG, p, sizeof p);
 }
 
-static void blob_clin_tacs(blob_t *b, uint16_t freq_mhz)
+static void blob_clin_tacs(blob_t *b, uint32_t freq_mhz)
 {
     np_mod_clin_tacs_params_t p;
     memset(&p, 0, sizeof p);
@@ -870,8 +870,11 @@ static void test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_
     blob_eeg_gain(&b, 7U);    expect_refused_at_load(&b, false, "EEG: gain code 7");
     blob_eeg_gain(&b, 6U);    expect_loads(&b, false, "EEG: gain code 6");
 
-    blob_clin_tacs(&b, 499U); expect_refused_at_load(&b, true, "clinical tACS: 0.499 Hz");
+    /* The 0.5 Hz floor was an unsourced default (UC-082, 2026-11-20): only 0 Hz, a division by zero, is refused. */
+    blob_clin_tacs(&b, 0U);   expect_refused_at_load(&b, true, "clinical tACS: 0 Hz");
+    blob_clin_tacs(&b, 499U); expect_loads(&b, true, "clinical tACS: 0.499 Hz");
     blob_clin_tacs(&b, 500U); expect_loads(&b, true, "clinical tACS: exactly 0.5 Hz");
+    blob_clin_tacs(&b, 70000U); expect_loads(&b, true, "clinical tACS: 70 Hz, above what 16 bits of mHz could carry");
 }
 
 /* The predicate itself, for the commands a slot-target blob cannot carry (socket-addressed PBM) and for one bad
