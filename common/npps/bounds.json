@@ -1,0 +1,953 @@
+{
+  "note": "EVERY range a control applies, in every app, and the one place to change one (the principal, 2026-11-15). scripts/sync-constants.ts writes it into common/lib/bounds.generated.ts (web), NppsBounds.generated.kt (Compose and Android) and NppsBounds.generated.swift (iOS); `bun scripts/sync-constants.ts --check` fails CI if any is stale or hand-edited. An id is <namespace>.<group>.<field>: `param` is a modality parameter, `limit` a clinician limit, `interval` and `protocol` the timing fields. An edge is { value } or { ref }, where ref names a constant in common/npps/constants.json so a hardware or safety figure still has one copy. basis is natural (cannot be otherwise), hardware (the device or its wire format), practical (what a person can perceive or do), safety (a health or safety limit, with its source) or unestablished (carried over with no source on record: a question for the principal, register row UC-191). A side with no edge is open on purpose and `unbounded` says why. A range bounded on both sides is a slider and any other range is a typed field.",
+  "bounds": [
+    {
+      "id": "interval.onSeconds",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A time cannot be below 0."
+      },
+      "step": 1,
+      "unbounded": "No maximum: the former 3,600 s (and 1,000 repeats) was a form figure with no hardware, practical or safety source. The protocol timing is checked by the validator."
+    },
+    {
+      "id": "interval.offSeconds",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A time cannot be below 0."
+      },
+      "step": 1,
+      "unbounded": "No maximum: the former 3,600 s (and 1,000 repeats) was a form figure with no hardware, practical or safety source. The protocol timing is checked by the validator."
+    },
+    {
+      "id": "interval.repeatCount",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A count cannot be below 0."
+      },
+      "step": 1,
+      "unbounded": "No maximum: the former 3,600 s (and 1,000 repeats) was a form figure with no hardware, practical or safety source. The protocol timing is checked by the validator."
+    },
+    {
+      "id": "param.pbmTranscranial.irradiance",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "An irradiance cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_PULSED_PEAK_MW_CM2",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: 400 mW/cm² peak is a hazard control (OI-BIBPBM-03)."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.pbmTranscranial.frequency",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A frequency cannot be below 0."
+      },
+      "step": 0.5,
+      "unbounded": "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet."
+    },
+    {
+      "id": "param.pbmTranscranial.duty",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A duty cycle cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_DUTY_CYCLE_MAX_PERCENT",
+        "basis": "safety",
+        "source": "The hub, the compiler and the validator refuse a duty above 25 % (REQ-NPPS-33(a))."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.pbmIntranasal.irradiance",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "An irradiance cannot be below 0."
+      },
+      "max": {
+        "value": 400,
+        "basis": "unestablished",
+        "source": "Copied from the scalp figure; the intranasal probe has no owning specification (OI-ART-04)."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.pbmIntranasal.frequency",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A frequency cannot be below 0."
+      },
+      "step": 0.5,
+      "unbounded": "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet."
+    },
+    {
+      "id": "param.pbmIntranasal.duty",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A duty cycle cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_DUTY_CYCLE_MAX_PERCENT",
+        "basis": "safety",
+        "source": "The hub, the compiler and the validator refuse a duty above 25 % (REQ-NPPS-33(a))."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.pbmDeep.intensity",
+      "min": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "PBM_DEEP_MAX_MW_CM2",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: 1,000 mW/cm², 1170 nm, TEC-stabilised."
+      },
+      "step": 50
+    },
+    {
+      "id": "param.pbmDeep.frequency",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A frequency cannot be below 0."
+      },
+      "step": 0.5,
+      "unbounded": "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to 255 Hz and the driver limit is not established, so no hardware figure is applied yet."
+    },
+    {
+      "id": "param.pbmDeep.duty",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A duty cycle cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_DUTY_CYCLE_MAX_PERCENT",
+        "basis": "safety",
+        "source": "The hub, the compiler and the validator refuse a duty above 25 % (REQ-NPPS-33(a))."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.bes.frequency",
+      "min": {
+        "ref": "BES_TACS_MIN_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "max": {
+        "ref": "BES_TACS_MAX_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.bes.intensity",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "BES_TACS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: 1 mA for BES / tACS (T1), with the 40 µC/cm² per-phase charge limit."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.tdcs.intensity",
+      "min": {
+        "ref": "TDCS_MIN_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: tDCS 0.1 to 2 mA."
+      },
+      "max": {
+        "ref": "TDCS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: tDCS 0.1 to 2 mA; 150 mC/cm² per session."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.tdcs.ramp",
+      "min": {
+        "ref": "TDCS_RAMP_SECONDS",
+        "basis": "safety",
+        "source": "The hardware-enforced minimum ramp (CLAUDE.md §3: 30 s)."
+      },
+      "step": 1,
+      "unbounded": "No maximum: the former 120 s was a form figure with no hardware, practical or safety source."
+    },
+    {
+      "id": "param.tdcs.electrodeArea",
+      "min": {
+        "value": 0.001,
+        "basis": "hardware",
+        "source": "The descriptor writes an area under 0.001 cm² as 0, which the compiler refuses (REQ-NPPS-33(c))."
+      },
+      "max": {
+        "ref": "TDCS_MAX_ELECTRODE_AREA_CM2",
+        "basis": "hardware",
+        "source": "Width of the descriptor field (np_mod_tdcs_params_t.electrode_area_mcm2, uint16)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.vns.frequency",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A frequency cannot be below 0."
+      },
+      "step": 0.5,
+      "unbounded": "No floor above 0 and no ceiling: the former 1 Hz floor and 25 Hz ceiling were equivalence bounds with no derivation and were removed (OI-VNSCLIP-08)."
+    },
+    {
+      "id": "param.vns.intensity",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "value": 2,
+        "basis": "unestablished",
+        "source": "Form figure, below the 40 mA hardware stop-gap (VNS_MAX_MILLIAMPS); no source on record."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.vns.breathingRate",
+      "min": {
+        "ref": "BREATHING_MIN_BPM",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)."
+      },
+      "max": {
+        "ref": "BREATHING_MAX_BPM",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.6, no derivation (UC-082)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.audio.beatRate",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A rate cannot be below 0."
+      },
+      "step": 0.5,
+      "unbounded": "No maximum: the former 100 Hz is register UC-082, with no derivation. A binaural beat has a perceptual limit (NP-HW-AUDIO-001 §8.2.7 A), which is not a source for 100."
+    },
+    {
+      "id": "param.audio.carrier",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A frequency cannot be below 0."
+      },
+      "step": 1,
+      "unbounded": "No maximum in the form: the validator holds the 1,000 Hz tone bound (REQ-AUDIO-25). The headphone driver, once selected, and the 20 kHz hearing limit are both above it."
+    },
+    {
+      "id": "param.audio.volume",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A level cannot be below 0."
+      },
+      "max": {
+        "ref": "AUDIO_MAX_DB_SPL",
+        "basis": "safety",
+        "source": "NP-HW-AUDIO-001 REQ-AUDIO-19: 85 dB SPL at the ear."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.visual.frequency",
+      "min": {
+        "value": 0.5,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "VISUAL_MAX_HZ",
+        "basis": "hardware",
+        "source": "VISUAL_MAX_HZ, the hardware ceiling (constants.json)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.visual.emdrCadence",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A cadence cannot be below 0."
+      },
+      "step": 0.1,
+      "unbounded": "No maximum: the former 4 Hz was a form figure with no hardware, practical or safety source."
+    },
+    {
+      "id": "param.tms.frequency",
+      "min": {
+        "ref": "TMS_MIN_HZ",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)."
+      },
+      "max": {
+        "ref": "TMS_MAX_HZ",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.10, no derivation (UC-082)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.tms.intensity",
+      "min": {
+        "value": 80,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "value": 130,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record (the validator warns above 120 % MT, TMS_HIGH_INTENSITY_PERCENT_MT)."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.tms.pulseCount",
+      "min": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "value": 6000,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record. A pulse count is a dose, so its status is a question for the principal."
+      },
+      "step": 100
+    },
+    {
+      "id": "param.clinicalTacs.frequency",
+      "min": {
+        "ref": "CLINICAL_TACS_MIN_HZ",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)."
+      },
+      "max": {
+        "ref": "CLINICAL_TACS_MAX_HZ",
+        "basis": "unestablished",
+        "source": "Authorable range of NP-NPPS-REF-001 §4.12, no derivation (UC-082)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.clinicalTacs.intensity",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "CLINICAL_TACS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: clinical tACS up to 4 mA (T2)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.clinicalTacs.channelCount",
+      "min": {
+        "value": 2,
+        "basis": "natural",
+        "source": "A current needs two electrodes."
+      },
+      "max": {
+        "ref": "CLINICAL_TACS_MAX_CHANNELS",
+        "basis": "hardware",
+        "source": "One driver channel per T2 cap electrode (NP-FW-HD-001 §6.4)."
+      },
+      "step": 1
+    },
+    {
+      "id": "param.hdTdcs.intensity",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE",
+        "basis": "safety",
+        "source": "HD-tDCS per-electrode current ceiling (constants.json)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.cervicalVns.frequency",
+      "min": {
+        "ref": "CERVICAL_VNS_MIN_HZ",
+        "basis": "hardware",
+        "source": "Cervical VNS range 1 to 25 Hz, from the gammaCore predicate (K163334)."
+      },
+      "max": {
+        "ref": "CERVICAL_VNS_MAX_HZ",
+        "basis": "hardware",
+        "source": "Cervical VNS range 1 to 25 Hz, from the gammaCore predicate (K163334)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "param.cervicalVns.intensity",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "ref": "CERVICAL_VNS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "Cervical VNS current ceiling (constants.json); cardiac interlock always active."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "param.vibrotactile.intensity",
+      "min": {
+        "ref": "VIBROTACTILE_MIN_G",
+        "basis": "hardware",
+        "source": "VIBROTACTILE_MIN_G, the accessory range (constants.json; the accessory is provisional)."
+      },
+      "max": {
+        "ref": "VIBROTACTILE_MAX_G",
+        "basis": "hardware",
+        "source": "VIBROTACTILE_MAX_G, the accessory range (constants.json; the accessory is provisional)."
+      },
+      "step": 0.05
+    },
+    {
+      "id": "protocol.timingValue",
+      "min": {
+        "value": 1,
+        "basis": "unestablished",
+        "source": "Form figure: at least 1 second or 1 repeat; no source on record."
+      },
+      "step": 1,
+      "unbounded": "No maximum: no hardware, practical or safety source."
+    },
+    {
+      "id": "protocol.layerStartOffsetSeconds",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A time cannot be below 0."
+      },
+      "step": 1,
+      "unbounded": "No maximum: no hardware, practical or safety source."
+    },
+    {
+      "id": "protocol.layerDurationSeconds",
+      "min": {
+        "value": 60,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "step": 1,
+      "unbounded": "No maximum: no hardware, practical or safety source."
+    },
+    {
+      "id": "protocol.layerIntensityScale",
+      "min": {
+        "value": 0.1,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record."
+      },
+      "max": {
+        "value": 2,
+        "basis": "unestablished",
+        "source": "Form figure, no source on record. The modality ceilings still apply to the scaled value."
+      },
+      "step": 0.05
+    },
+    {
+      "id": "limit.pbmTranscranial.maxIrradianceMWcm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 400,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 5
+    },
+    {
+      "id": "limit.pbmTranscranial.maxFrequencyHz",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.pbmTranscranial.maxDutyCyclePercent",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_DUTY_CYCLE_MAX_PERCENT",
+        "basis": "safety",
+        "source": "The hub, the compiler and the validator refuse a duty above 25 %."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.pbmTranscranial.maxSessionDoseJCm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 200,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 5
+    },
+    {
+      "id": "limit.pbmTranscranial.maxDailyDoseJCm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 500,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 10
+    },
+    {
+      "id": "limit.pbmIntranasal.maxIrradianceMWcm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 400,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 5
+    },
+    {
+      "id": "limit.pbmIntranasal.maxSessionDurationSeconds",
+      "min": {
+        "value": 60,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 3600,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 60
+    },
+    {
+      "id": "limit.pbmIntranasal.maxSessionDoseJCm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 500,
+        "basis": "unestablished",
+        "source": "Form figure carried by the Compose and iOS limits editors, no source on record."
+      },
+      "step": 5
+    },
+    {
+      "id": "limit.pbmDeep1170nm.maxIntensityMWcm2",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "PBM_DEEP_MAX_MW_CM2",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: 1,000 mW/cm², 1170 nm, TEC-stabilised."
+      },
+      "step": 50
+    },
+    {
+      "id": "limit.besTacs.maxIntensityMilliamps",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "BES_TACS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: 1 mA for BES / tACS (T1)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "limit.besTacs.minFrequencyHz",
+      "min": {
+        "ref": "BES_TACS_MIN_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "max": {
+        "ref": "BES_TACS_MAX_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.besTacs.maxFrequencyHz",
+      "min": {
+        "ref": "BES_TACS_MIN_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "max": {
+        "ref": "BES_TACS_MAX_HZ",
+        "basis": "unestablished",
+        "source": "CLAUDE.md §3 locked table; no derivation (UC-143)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.besTacs.maxSessionDurationSeconds",
+      "min": {
+        "value": 60,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 7200,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 60
+    },
+    {
+      "id": "limit.besTacs.maxSessionsPerDay",
+      "min": {
+        "value": 1,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 10,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.tdcs.maxIntensityMilliamps",
+      "min": {
+        "ref": "TDCS_MIN_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: tDCS 0.1 to 2 mA."
+      },
+      "max": {
+        "ref": "TDCS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: tDCS 0.1 to 2 mA."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "limit.tdcs.maxSessionDurationSeconds",
+      "min": {
+        "value": 60,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 3600,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 60
+    },
+    {
+      "id": "limit.tdcs.maxSessionsPerDay",
+      "min": {
+        "value": 1,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 5,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.vnsHrv.maxIntensityMilliamps",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "VNS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "Auricular VNS 40 mA stop-gap derived from the charge limit (OI-VNSCLIP-09)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "limit.vnsHrv.maxFrequencyHz",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "step": 0.1,
+      "unbounded": "No ceiling: the hardware states none (OI-VNSCLIP-08)."
+    },
+    {
+      "id": "limit.audioEntrainment.maxVolumeDb",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "AUDIO_MAX_DB_SPL",
+        "basis": "safety",
+        "source": "NP-HW-AUDIO-001 REQ-AUDIO-19: a limits block may lower the 85 dB SPL ceiling and never raise it."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.audioEntrainment.maxBinauralBeatsHz",
+      "min": {
+        "value": 0.5,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.audioEntrainment.maxIsochronicTonesHz",
+      "min": {
+        "value": 0.5,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.visualStimulation.minFrequencyHz",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.visualStimulation.maxFrequencyHz",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "VISUAL_MAX_HZ",
+        "basis": "hardware",
+        "source": "VISUAL_MAX_HZ, the hardware ceiling (constants.json)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.tms.maxIntensityPercentMT",
+      "min": {
+        "value": 80,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 200,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 5
+    },
+    {
+      "id": "limit.tms.maxPulsesPerSession",
+      "min": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 10000,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 100
+    },
+    {
+      "id": "limit.tms.maxPulsesPerDay",
+      "min": {
+        "value": 100,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 30000,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 100
+    },
+    {
+      "id": "limit.tms.maxSessionsPerWeek",
+      "min": {
+        "value": 1,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 7,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 1
+    },
+    {
+      "id": "limit.clinicalTacs.maxIntensityMilliamps",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "CLINICAL_TACS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "CLAUDE.md §3: clinical tACS up to 4 mA (T2)."
+      },
+      "step": 0.5
+    },
+    {
+      "id": "limit.hdTdcs.maxIntensityMilliamps",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "HD_TDCS_MAX_MILLIAMPS_PER_ELECTRODE",
+        "basis": "safety",
+        "source": "HD-tDCS per-electrode current ceiling (constants.json)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "limit.cervicalVns.maxIntensityMilliamps",
+      "min": {
+        "value": 0,
+        "basis": "natural",
+        "source": "A limit cannot be below 0."
+      },
+      "max": {
+        "ref": "CERVICAL_VNS_MAX_MILLIAMPS",
+        "basis": "safety",
+        "source": "Cervical VNS current ceiling (constants.json)."
+      },
+      "step": 0.1
+    },
+    {
+      "id": "limit.cervicalVns.maxSessionDurationSeconds",
+      "min": {
+        "value": 60,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "max": {
+        "value": 1800,
+        "basis": "unestablished",
+        "source": "Form figure for a clinician limit, no source on record."
+      },
+      "step": 60
+    },
+    {
+      "id": "limit.vibrotactile40hz.maxIntensityG",
+      "min": {
+        "ref": "VIBROTACTILE_MIN_G",
+        "basis": "hardware",
+        "source": "VIBROTACTILE_MIN_G, the accessory range (provisional accessory)."
+      },
+      "max": {
+        "ref": "VIBROTACTILE_MAX_G",
+        "basis": "hardware",
+        "source": "VIBROTACTILE_MAX_G, the accessory range (provisional accessory)."
+      },
+      "step": 0.05
+    }
+  ]
+}

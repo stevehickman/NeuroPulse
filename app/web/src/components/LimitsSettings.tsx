@@ -1460,7 +1460,7 @@ function LimitField({
   label: string;
   value: number | undefined;
   unit: string;
-  /** The range, from lib/paramBounds.ts. A bound with no maximum (auricular VNS frequency, OI-VNSCLIP-08) gets a typed
+  /** The range, from common/npps/bounds.json. A bound with no maximum (auricular VNS frequency, OI-VNSCLIP-08) gets a typed
    *  field and no slider, and a newly ticked limit starts at the minimum. */
   bound: ParamBound;
   hint?: string;
