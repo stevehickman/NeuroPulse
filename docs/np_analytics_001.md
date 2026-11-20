@@ -125,9 +125,17 @@ Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/p
 | Setting | Value | Why |
 |---------|-------|-----|
 | Event retention | **30 days** (`EVENT_RETENTION_DAYS`, §7.1) | `NP-APP-TELEMETRY-001` §5: a withdrawn person's analytics ID is deleted from the vendor within 30 days. The principal set 30 on 2026-11-20 (`OI-ANALYTICS-01` (3)). Enforced by `infra/posthog/apply_event_retention.py`, not by the PostHog UI. |
-| Person retention | **30 days** | Anonymous person records only; matches event retention. A PostHog UI setting, so manual. |
+| Person retention | **30 days** | Anonymous person records only; matches event retention. **Manual UI step, no script and no check:** procedure in the note below. |
 
 > **Retention is enforced by a ClickHouse TTL, not by the UI setting (`REQ-SW03-34`).** `apply_event_retention.py --apply` sets `TTL toDate(timestamp) + toIntervalDay(N)` on the events table and reads it back; `--check` verifies it, and must be run after every PostHog upgrade (a recreated table loses its TTL). It has not been run against a real stack (`OI-ANALYTICS-01` (2)). The person-retention row stays a manual UI step.
+
+> **Manual step: person retention (no script covers it).** `apply_event_retention.py` sets the TTL on the *events* table only, and `apply_project_settings.py` has no field for person retention (no API field was confirmed), so this one is done by hand in PostHog and nothing checks it.
+> 1. Open **Project Settings → Data Management → Data Retention**.
+> 2. Set **Person retention** to the same number of days as `EVENT_RETENTION_DAYS` (30 by default). Do not set it longer: a person record outliving its events keeps the anonymous ID after the events are gone, which is the ID `NP-APP-TELEMETRY-001` §5 promises to delete within 30 days.
+> 3. Save, and write the date and the value in the deployment's change log. That record is the only evidence the step was done.
+> 4. **Repeat it, and re-check it, whenever `EVENT_RETENTION_DAYS` changes, after every PostHog upgrade, and when the project is recreated.** A recreated project starts with PostHog's default, not this value.
+>
+> The app sets `personProfiles = .never` (§7.6), so PostHog may hold no person record for an ID at all, and then this setting has nothing to delete. It is kept as a second line behind the events TTL and is not what meets the 30 days. As with event retention, a self-hosted PostHog may not enforce the setting (below), so a saved value is a record of intent, not proof of deletion.
 
 > **Retention is unverified in PostHog itself (Rev 3).** The Data Retention settings above are what this document has always asked for, but I could not confirm from PostHog's documentation that a **self-hosted** instance enforces them at all: the retention feature may exist only on PostHog Cloud. Until it is shown to delete old events on this stack, treat the 90 days (and the 30 of `NP-APP-TELEMETRY-001` §5) as a wish, not a control (`OI-ANALYTICS-02`).
 
