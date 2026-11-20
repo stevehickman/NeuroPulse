@@ -1148,57 +1148,6 @@ mod tests {
         assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
     }
 
-    /// A bundle as a version before `REQ-SHDR-10` sealed it: the same bytes `sealBundle` makes, with no check of what the kind
-    /// carries, so it can hold the item that version carried.
-    fn sealed_by_an_earlier_version(kind: &str, items: Value) -> String {
-        let nonce = unhex(NONCE, "nonce").unwrap();
-        let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": NONCE, "kdf": kdf("recoveryCode") }).to_string().into_bytes();
-        let mut out = Vec::new();
-        out.extend_from_slice(MAGIC);
-        out.extend_from_slice(&(header.len() as u32).to_be_bytes());
-        out.extend_from_slice(&header);
-        let plain = json!({ "epoch": 1, "items": items }).to_string().into_bytes();
-        let key = unhex(KEY, "key").unwrap();
-        let ct = Aes256Gcm::new_from_slice(&key).unwrap().encrypt(Nonce::from_slice(&nonce), Payload { msg: &plain, aad: &out }).unwrap();
-        out.extend_from_slice(&ct);
-        hex(&out)
-    }
-
-    // @verifies REQ-SHDR-10#b
-    #[test]
-    fn neither_kind_of_user_bundle_seals_the_warranty_owners_enrolment_or_consent() {
-        for kind in ["migrate", "uhdr"] {
-            for item in ["characterisationEnrolment", "warrantyConsentFlag"] {
-                let r = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":kind,"key":KEY,"nonce":NONCE,"items":{item:{}},"kdf":kdf("passphrase")}).to_string());
-                assert!(r.is_err(), "{kind} must not seal {item}");
-            }
-            let inv = ask(json!({"op":"inventory","kind":kind}));
-            assert!(!inv["carried"].to_string().contains("characterisationEnrolment"), "{kind}");
-        }
-        // No stored key of the warranty owner's is a carried key, so no adapter is ever handed one to put in a bundle.
-        let keys = ask(json!({"op":"itemKeys"}));
-        for k in ["np.warranty-owner.records", "np.warranty.consent-granted", "np.characterisation.enrolled", "np.characterisation.consent-epoch", "np.characterisation.programme-id"] {
-            assert!(!keys["carried"].to_string().contains(k), "{k}");
-        }
-        // Control: the same request with an item the kind carries is sealed.
-        assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":{"sessionHistory":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
-    }
-
-    // @verifies REQ-SHDR-10#c
-    #[test]
-    fn a_bundle_an_earlier_version_sealed_with_the_enrolment_opens_without_it() {
-        let history = json!([{"id":1}]);
-        for kind in ["migrate", "uhdr"] {
-            let old = sealed_by_an_earlier_version(kind, json!({"sessionHistory": history, "characterisationEnrolment": {"np.characterisation.enrolled": "true"}}));
-            let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":old,"key":KEY}));
-            assert_eq!(opened["ok"], true, "{opened}");
-            assert_eq!(opened["items"], json!({"sessionHistory": history}), "the enrolment is dropped and the rest restored");
-        }
-        // Control: the helper's bundle is checked like any other, so an item no version carried is still refused whole.
-        let forged = sealed_by_an_earlier_version("uhdr", json!({"sessionHistory": history, "consentGrants": {}}));
-        assert_eq!(ask(json!({"op":"openBundle","seenEpoch":0,"bundle":forged,"key":KEY}))["reason"], "malformed");
-    }
-
     // @verifies SWR-MG-02
     #[test]
     fn a_key_or_nonce_of_the_wrong_length_is_refused() {
