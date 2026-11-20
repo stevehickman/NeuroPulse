@@ -22,6 +22,7 @@ import life.neurone.core.analytics.AnalyticsErasureQueue
 import life.neurone.core.analytics.PostHogAnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
+import life.neurone.core.analytics.WarrantyOwnerStore
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.PassphraseKey
@@ -200,7 +201,9 @@ class AppServices(
         } ?: platform.analyticsBackend
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, analyticsBackend, analyticsErasureQueue, scope)
-    val warrantyAnalyticsGate = WarrantyAnalyticsGate(keyValueStore)
+    /** The warranty owner's records, one per helmet, apart from every user's data (`REQ-SHDR-10`). */
+    val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore)
+    val warrantyAnalyticsGate = WarrantyAnalyticsGate(warrantyOwnerStore)
 
     /**
      * The SHDR fleet uploader, gated only by the warranty owner's consent (`REQ-SHDR-01`), on a host that can pin the relay's
@@ -428,7 +431,8 @@ class AppServices(
         scope.launch {
             // One attempt per notification of 0x01 (a repeat is a retry the hub asked for); attempts never overlap, as this collects in turn.
             gattManager.shdrUploadSignal.collect {
-                val gateOpen = warrantyAnalyticsGate.isOpen
+                // The consent of the helmet the link is to, and of no other (`REQ-SHDR-08`).
+                val gateOpen = warrantyAnalyticsGate.isOpen(gattManager.hubIdentifier.value)
                 val payload = if (gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
                 FleetUploadWiring.applyUploadPending(true, gateOpen, payload, uploader) { if (it) staging.clear() }
             }
