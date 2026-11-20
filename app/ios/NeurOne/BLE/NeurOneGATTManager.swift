@@ -539,7 +539,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// and not what was asked for. Returns false when the helmet publishes none.
     @discardableResult
     func writePauseLimit(seconds: UInt32) -> Bool {
-        guard let char = pauseLimitChar, let p = peripheral else { return false }
+        // Not before the encrypted-only serial read has succeeded on this link (OI-PRIV-17).
+        guard encryptedReadShown, let char = pauseLimitChar, let p = peripheral else { return false }
         p.writeValue(PauseLimit.wire(seconds: seconds), for: char, type: .withResponse)
         p.readValue(for: char)
         return true
@@ -623,7 +624,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     }
 
     private func sendActiveUserTag() {
-        guard let tag = activeUserTag, let char = activeUserChar, let p = peripheral else { return }
+        guard encryptedReadShown, let tag = activeUserTag, let char = activeUserChar, let p = peripheral else { return }
         var le = tag.littleEndian
         p.writeValue(Data(bytes: &le, count: 4), for: char, type: .withResponse)
     }
@@ -642,6 +643,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         guard let char = cvnsReenableConfirmChar, let p = peripheral else {
             completion(.failure(.notConnected)); return
         }
+        guard encryptedReadShown else { completion(.failure(.linkNotEncrypted)); return }
         onCervicalReenableConfirmAck = completion
         p.writeValue(Data([0x01]), for: char, type: .withResponse)
     }
@@ -657,7 +659,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     }
 
     private func flushConsumableResets() {
-        guard let char = consumableStatusChar, let p = peripheral else { return }
+        // Held, not dropped, until the encrypted-only read has succeeded: the queue drains when it does (OI-PRIV-17).
+        guard encryptedReadShown, let char = consumableStatusChar, let p = peripheral else { return }
         ConsumableResetQueue(defaults: consumableResetDefaults).drain { value in
             p.writeValue(value, for: char, type: .withResponse)
         }
@@ -925,7 +928,13 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             // Exactly 32 bytes or nothing: a short read must not be zero-padded into a serial
             // that no hub holds.
             deviceSerial = data.count == 32 ? data : nil
+            let wasShown = encryptedReadShown
             encryptedReadShown = deviceSerial != nil
+            // What was held at the gate goes now: the active user's tag, and replacements marked meanwhile.
+            if encryptedReadShown && !wasShown {
+                sendActiveUserTag()
+                flushConsumableResets()
+            }
             return
         }
 
