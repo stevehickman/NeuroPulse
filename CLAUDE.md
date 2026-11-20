@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 83 (current)  
+**Revision:** 84 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -421,8 +421,13 @@ derivation exists but is uncited. **"I could not find the derivation" means rais
 never retire.** Removing a safety control is an ISO 14971 decision.
 
 **A derived bound is computed from its foundational value, never stated beside it.** A limit rests on
-research literature, an external standard, or a mechanical or implementation reason, and a limit with none
-of these is a default, not an enforced limit. When one value follows from another (a session needs a ramp
+research literature, an external standard, a mechanical or implementation reason, or an economic reason
+(regulatory equivalence is one), and a limit with none of these is a default, not an enforced limit. **The
+reasons rank:** research is the strongest, an economic reason is weaker, and either is better than none. An
+economic bound has its reason and its cost of change written beside it, so a later decision to change it is
+made knowing the price, and it is the first to revisit when the economics change or research appears (the
+principal, 2026-11-20; the cervical VNS 1–25 Hz range is the worked case, `constants.json`
+`CERVICAL_VNS_MIN_HZ`). When one value follows from another (a session needs a ramp
 up and a ramp down, so its minimum is twice the ramp), the bound is a function of that foundational value
 and moves when it moves (`np_hd_min_session_s(ramp_s)`). **If the foundational value is fixed, the reason
 it is fixed is written beside its definition** (the principal, 2026-11-19).
