@@ -11,6 +11,8 @@ enum UploadError: LocalizedError {
     case bleNotReady
     case hubRejected(String)
     case timeout
+    /// The encrypted-only serial has not been read on this link, so nothing was written (`OI-PRIV-17`).
+    case linkNotEncrypted
     case validationFailed([NPValidationIssue])
     /// A PBM target could not be resolved to helmet sockets. Distinct from
     /// `validationFailed` so it is obvious when the backstop fired rather than
@@ -32,6 +34,8 @@ enum UploadError: LocalizedError {
             return "Hub not connected. Please connect via USB-C or Bluetooth."
         case .hubRejected(let r):
             return "Hub rejected protocol: \(r)"
+        case .linkNotEncrypted:
+            return String(localized: "BLE_PAIRING_REQUIRED_BODY")
         case .timeout:
             return "Upload timed out. Check hub connection and try again."
         case .validationFailed(let issues):
@@ -189,6 +193,12 @@ final class SessionProtocolUploader: ObservableObject {
     // entry point was a way round that gate (NP-SW-FAULTMSG-001 §9.5).
     private func send(_ descriptor: HubDescriptor) async throws -> String {
         guard gatt.isHubConnected else { throw UploadError.bleNotReady }
+        guard gatt.encryptedReadShown else {
+            gatt.requestEncryptedRead()
+            let err = UploadError.linkNotEncrypted
+            lastError = err
+            throw err
+        }
         isUploading = true
         lastError = nil
         defer { isUploading = false }

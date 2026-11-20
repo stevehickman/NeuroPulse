@@ -39,12 +39,11 @@ use std::collections::BTreeSet;
 type R<T> = Result<T, String>;
 
 /// The bundle format version this build reads and writes (`SWR-MG-05`). The scheme beyond "one number, a newer one is
-/// refused whole" is open (`OI-UI-KMP-11` open question 5). Version 2 added the epoch inside the sealed body (`SWR-MG-29`,
-/// `OI-PRIV-09`); a version-1 bundle has none and is read as epoch 0, the oldest there can be.
-pub const FORMAT_VERSION: u64 = 2;
-
-/// The first format version whose sealed body carries an epoch.
-const EPOCH_FROM_VERSION: u64 = 2;
+/// refused whole" is open (`OI-UI-KMP-11` open question 5). The epoch joined the sealed body (`SWR-MG-29`, `OI-PRIV-09`)
+/// and the number stayed 1, by ruling (the principal, 2026-11-19): no build that sealed a bundle without an epoch was
+/// released, so no such bundle should exist and there is no older reader to refuse this one. A body with no epoch, were one
+/// to turn up, is `malformed`. The next change to the format after a release bumps the version.
+pub const FORMAT_VERSION: u64 = 1;
 
 /// The stored keys, sorted (`common/npps/migration-keys.json`, one file for every app and the gate that reads every app).
 const KEY_MAP: &str = include_str!("../../npps/migration-keys.json");
@@ -416,7 +415,7 @@ fn probe_result(req: &Value) -> R<Value> {
 //
 // The epoch (`SWR-MG-29` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
 // hand back any bundle it was ever given: an older one is as authentic as the newest. So the sealed body is
-// `{"epoch": n, "items": {…}}` (format version 2), where the epoch is a count that only rises: a phone seals each bundle
+// `{"epoch": n, "items": {…}}`, where the epoch is a count that only rises: a phone seals each bundle
 // with one more than the highest epoch it has sealed or opened. It is inside the ciphertext, so it is authenticated and the
 // backup location cannot read it or count backups by it. `openBundle` is told the highest epoch the phone has seen
 // (`seenEpoch`, required, 0 for none) and refuses a bundle below it whole (`older_bundle`), with no items in the answer.
@@ -543,7 +542,7 @@ fn seal_bundle(req: &Value) -> R<Value> {
 ///
 /// `SWR-MG-29` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
 /// none). It is required, so no caller opens a bundle without the check by leaving it out. A bundle whose epoch is lower is
-/// refused whole (`older_bundle`) and its items are not returned. A version-1 bundle carries no epoch and counts as 0.
+/// refused whole (`older_bundle`) and its items are not returned. A body with no epoch does not open (`malformed`).
 fn open_bundle(req: &Value) -> R<Value> {
     let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
     let seen = req["seenEpoch"].as_u64().ok_or("seenEpoch is required (0 for a phone that has seen no bundle)")?;
@@ -567,14 +566,10 @@ fn open_bundle(req: &Value) -> R<Value> {
     let Ok(body) = serde_json::from_slice::<Value>(&plain) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
-    let epoch = if checked["formatVersion"].as_u64().is_some_and(|v| v >= EPOCH_FROM_VERSION) {
-        // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make.
-        let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
-            return Ok(json!({ "ok": false, "reason": "malformed" }));
-        };
-        epoch
-    } else {
-        0
+    // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make: it gets no place in
+    // the order, and is never read as "the oldest".
+    let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
     if epoch < seen {
         return Ok(json!({ "ok": false, "reason": "older_bundle", "epoch": epoch, "seenEpoch": seen }));
@@ -1111,30 +1106,20 @@ mod tests {
     // @verifies SWR-MG-05
     // @verifies SWR-MG-29#b
     #[test]
-    fn the_format_version_rose_with_the_epoch_so_the_older_reader_refuses_this_bundle() {
-        // The reader before this change took versions up to 1 and refused anything above whole (`newer_version`).
+    fn the_format_version_stays_1_and_a_body_with_no_epoch_does_not_open() {
+        // No version bump (the principal, 2026-11-19): no bundle from before the epoch should exist.
         let b = sealed_at(1, json!({}));
-        assert_eq!(b["formatVersion"], 2);
-        let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
-        assert_eq!(h["formatVersion"], 2);
-        const OLDER_READER_SUPPORTS: u64 = 1;
-        assert!(h["formatVersion"].as_u64().unwrap() > OLDER_READER_SUPPORTS);
+        assert_eq!(b["formatVersion"], 1);
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}))["formatVersion"], 1);
         assert_eq!(ask(json!({"op":"readHeader","header":{"kind":"uhdr","formatVersion":FORMAT_VERSION + 1}}))["reason"], "newer_version");
-    }
-
-    // @verifies SWR-MG-29#c
-    #[test]
-    fn a_version_1_bundle_has_no_epoch_and_counts_as_the_oldest() {
-        let v1 = sealed_raw(1, json!({"items":{"sessionHistory":[]}}));
-        // A phone that has seen nothing opens it, as epoch 0; a phone that has sealed anything since refuses it.
-        let fresh = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":v1,"key":KEY}));
-        assert_eq!((fresh["ok"].clone(), fresh["epoch"].clone()), (json!(true), json!(0)));
-        assert_eq!(ask(json!({"op":"openBundle","seenEpoch":1,"bundle":v1,"key":KEY}))["reason"], "older_bundle");
-        // A version-1 body cannot claim an epoch, and a version-2 body cannot go without one or name 0.
-        let claims = ask(json!({"op":"openBundle","seenEpoch":1,"bundle":sealed_raw(1, json!({"epoch":99,"items":{}})),"key":KEY}));
-        assert_eq!(claims["reason"], "older_bundle");
-        for body in [json!({"items":{}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
-            assert_eq!(ask(json!({"op":"openBundle","seenEpoch":0,"bundle":sealed_raw(2, body.clone()),"key":KEY}))["reason"], "malformed", "{body}");
+        // If one did exist, or a body named no usable epoch, it is not opened, whatever the phone has seen: it is not
+        // taken for "the oldest", which a phone that has seen nothing would accept.
+        for body in [json!({"items":{"sessionHistory":[]}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
+            for seen in [0, 1] {
+                let r = ask(json!({"op":"openBundle","seenEpoch":seen,"bundle":sealed_raw(1, body.clone()),"key":KEY}));
+                assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("malformed")), "{body} seen {seen}");
+                assert!(r.get("items").is_none());
+            }
         }
     }
 

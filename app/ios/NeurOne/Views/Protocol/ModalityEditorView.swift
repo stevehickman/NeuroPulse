@@ -290,7 +290,7 @@ struct PBMTranscranialParamsView: View {
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
                 value: $params.irradianceMWcm2,
-                range: 1...400,
+                range: NPBounds.Param.PbmTranscranial.irradiance.range,
                 format: { "\(Int($0)) mW/cm²" }
             )
 
@@ -320,8 +320,8 @@ struct PBMTranscranialParamsView: View {
             if params.frequencyHz > 0 {
                 Stepper(
                     value: $params.dutyCyclePercent,
-                    in: 5...25,
-                    step: 5
+                    in: NPBounds.Param.PbmTranscranial.duty.intRange,
+                    step: NPBounds.Param.PbmTranscranial.duty.intStep
                 ) {
                     HStack {
                         Text(String(localized: "MODALITY_DUTY_CYCLE"))
@@ -358,17 +358,21 @@ struct PBMIntranasalParamsView: View {
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_IRRADIANCE"),
                 value: $params.irradianceMWcm2,
-                range: 1...400,
+                range: NPBounds.Param.PbmIntranasal.irradiance.range,
                 format: { "\(Int($0)) mW/cm²" }
             )
-            SliderRow(
+            // No stated ceiling (the former 0 to 40 Hz is register UC-082), so the frequency is typed, not a slider.
+            NumberFieldRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
-                value: $params.frequencyHz,
-                range: 0...40,
-                format: { "\(Int($0))Hz" }
+                unit: "Hz",
+                value: $params.frequencyHz
             )
             if params.frequencyHz > 0 {
-                Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
+                Stepper(
+                    value: $params.dutyCyclePercent,
+                    in: NPBounds.Param.PbmIntranasal.duty.intRange,
+                    step: NPBounds.Param.PbmIntranasal.duty.intStep
+                ) {
                     HStack {
                         Text(String(localized: "MODALITY_DUTY_CYCLE")).font(.caption).foregroundColor(.secondary)
                         Spacer()
@@ -426,13 +430,13 @@ struct BESTacsParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
-                range: 0.5...40,
+                range: NPBounds.Param.Bes.frequency.range,
                 format: { String(format: "%.1f Hz", $0) }
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0...1,
+                range: NPBounds.Param.Bes.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
             VStack(alignment: .leading, spacing: 4) {
@@ -459,7 +463,7 @@ struct TDCSParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0.1...2.0,
+                range: NPBounds.Param.Tdcs.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
             HStack {
@@ -476,7 +480,7 @@ struct TDCSParamsView: View {
                 SliderRow(
                     label: String(localized: "MODALITY_TDCS_ELECTRODE_AREA_LABEL"),
                     value: $params.electrodeAreaCm2,
-                    range: 1.0...65.0,
+                    range: NPBounds.Param.Tdcs.electrodeArea.range,
                     format: { String(format: "%.1f cm²", $0) }
                 )
                 Text("MODALITY_TDCS_ELECTRODE_AREA_HELP")
@@ -538,7 +542,7 @@ struct VNSHRVParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0...2,
+                range: NPBounds.Param.Vns.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
 
@@ -560,7 +564,11 @@ struct VNSHRVParamsView: View {
                                 String(format: "%.1f", params.resonanceBreathingRate)))
                         .font(.caption)
                 }
-                Slider(value: $params.resonanceBreathingRate, in: 4...7, step: 0.5)
+                Slider(
+                    value: $params.resonanceBreathingRate,
+                    in: NPBounds.Param.Vns.breathingRate.range,
+                    step: NPBounds.Param.Vns.breathingRate.step
+                )
             }
         }
     }
@@ -583,14 +591,14 @@ struct AudioEntrainmentParamsView: View {
                 ))
                 .font(.caption)
                 if params.binauralBeatsHz != nil {
-                    SliderRow(
+                    // No stated ceiling (the former 0.5 to 40 Hz is register UC-082), so the rate is typed.
+                    NumberFieldRow(
                         label: String(localized: "MODEDIT_BINAURAL_HZ"),
+                        unit: "Hz",
                         value: Binding(
                             get: { params.binauralBeatsHz ?? 20 },
                             set: { params.binauralBeatsHz = $0 }
-                        ),
-                        range: 0.5...40,
-                        format: { String(format: "%.1f Hz", $0) }
+                        )
                     )
                 }
             }
@@ -603,14 +611,13 @@ struct AudioEntrainmentParamsView: View {
                 ))
                 .font(.caption)
                 if params.isochronicTonesHz != nil {
-                    SliderRow(
+                    NumberFieldRow(
                         label: String(localized: "MODEDIT_ISOCHRONIC_HZ"),
+                        unit: "Hz",
                         value: Binding(
                             get: { params.isochronicTonesHz ?? 40 },
                             set: { params.isochronicTonesHz = $0 }
-                        ),
-                        range: 0.5...40,
-                        format: { String(format: "%.1f Hz", $0) }
+                        )
                     )
                 }
             }
@@ -636,7 +643,7 @@ struct AudioEntrainmentParamsView: View {
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_VOLUME"),
                 value: $params.volumeDb,
-                range: 0...NPAudioLimits.maxLevelDbSpl,
+                range: NPBounds.Param.Audio.volume.range,
                 format: { "\(Int($0)) \(String(localized: "UNIT_DB_SPL"))" }
             )
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
@@ -655,7 +662,7 @@ struct VisualStimParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
-                range: 0.5...100,
+                range: NPBounds.Param.Visual.frequency.range,
                 format: { String(format: "%.1f Hz", $0) }
             )
 
@@ -670,11 +677,11 @@ struct VisualStimParamsView: View {
             }
 
             if params.mode == .emdr {
-                SliderRow(
+                // No stated ceiling (the former 0.5 to 4 Hz was a form figure with no source), so the cadence is typed.
+                NumberFieldRow(
                     label: String(localized: "MODEDIT_EMDR_CADENCE_HZ"),
-                    value: $params.emdrCadenceHz,
-                    range: 0.5...4,
-                    format: { String(format: "%.1f Hz", $0) }
+                    unit: "Hz",
+                    value: $params.emdrCadenceHz
                 )
             }
 
@@ -740,7 +747,7 @@ struct TMSParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
-                range: 1...20,
+                range: NPBounds.Param.Tms.frequency.range,
                 format: { "\(Int($0)) Hz" }
             )
             SliderRow(
@@ -749,7 +756,7 @@ struct TMSParamsView: View {
                     get: { Double(params.intensityPercentMT) },
                     set: { params.intensityPercentMT = Int($0) }
                 ),
-                range: 60...120,
+                range: NPBounds.Param.Tms.intensity.range,
                 format: { "\(Int($0))%MT" }
             )
             VStack(alignment: .leading, spacing: 4) {
@@ -761,7 +768,7 @@ struct TMSParamsView: View {
                 }
                 .pickerStyle(.menu)
             }
-            Stepper(value: $params.pulseCount, in: 100...3000, step: 100) {
+            Stepper(value: $params.pulseCount, in: NPBounds.Param.Tms.pulseCount.intRange, step: NPBounds.Param.Tms.pulseCount.intStep) {
                 HStack {
                     Text("UI_MOD_PULSE_COUNT").font(.caption).foregroundColor(.secondary)
                     Spacer()
@@ -782,17 +789,21 @@ struct DeepPBMParamsView: View {
             SliderRow(
                 label: String(localized: "MODEDIT_INTENSITY_MW_CM"),
                 value: $params.intensityMWcm2,
-                range: 100...1000,
+                range: NPBounds.Param.PbmDeep.intensity.range,
                 format: { "\(Int($0)) mW/cm²" }
             )
-            SliderRow(
+            // No stated ceiling (the former 0 to 40 Hz is register UC-082), so the frequency is typed.
+            NumberFieldRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
-                value: $params.frequencyHz,
-                range: 0...40,
-                format: { "\(Int($0)) Hz" }
+                unit: "Hz",
+                value: $params.frequencyHz
             )
             if params.frequencyHz > 0 {
-                Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
+                Stepper(
+                    value: $params.dutyCyclePercent,
+                    in: NPBounds.Param.PbmDeep.duty.intRange,
+                    step: NPBounds.Param.PbmDeep.duty.intStep
+                ) {
                     HStack {
                         Text(String(localized: "MODALITY_DUTY_CYCLE")).font(.caption).foregroundColor(.secondary)
                         Spacer()
@@ -814,19 +825,23 @@ struct ClinicalTacsParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
-                range: 0.5...40,
+                range: NPBounds.Param.ClinicalTacs.frequency.range,
                 format: { String(format: "%.1f Hz", $0) }
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0...4,
+                range: NPBounds.Param.ClinicalTacs.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
             // OI-TACS-01: the ceiling is the driver's channel count, one per T2 cap
             // electrode, and it is odd — so the step is 1. It read `2...16, step: 2`
             // while the hub wire mask was 16 bits wide, which could not express 21.
-            Stepper(value: $params.channelCount, in: 2...NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS, step: 1) {
+            Stepper(
+                value: $params.channelCount,
+                in: NPBounds.Param.ClinicalTacs.channelCount.intRange,
+                step: NPBounds.Param.ClinicalTacs.channelCount.intStep
+            ) {
                 HStack {
                     Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
                     Spacer()
@@ -865,7 +880,7 @@ struct HDTdcsParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0.5...2.0,
+                range: NPBounds.Param.HdTdcs.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
         }
@@ -882,13 +897,13 @@ struct CervicalVnsParamsView: View {
             SliderRow(
                 label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
-                range: 1...25,
+                range: NPBounds.Param.CervicalVns.frequency.range,
                 format: { "\(Int($0)) Hz" }
             )
             SliderRow(
                 label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
-                range: 0...2,
+                range: NPBounds.Param.CervicalVns.intensity.range,
                 format: { String(format: "%.2f mA", $0) }
             )
             Label("MODALITY_CARDIAC_RHYTHM_INTERLOCK_IS_ALWAYS_ACTIVE_EN", systemImage: "heart.fill")
@@ -915,7 +930,7 @@ struct VibrotactileParamsView: View {
             SliderRow(
                 label: String(localized: "MODEDIT_INTENSITY_G"),
                 value: $params.intensityG,
-                range: 0.6...1.2,
+                range: NPBounds.Param.Vibrotactile.intensity.range,
                 format: { String(format: "%.2f G", $0) }
             )
             Toggle("MODALITY_SYNC_TO_AUDIO_SESSION", isOn: $params.syncToAudio).font(.caption)
@@ -947,33 +962,25 @@ struct IntervalConfigView: View {
             .font(.caption)
 
             if !interval.isContinuous {
-                Stepper(
+                // No stated ceiling on the on time, the off time or the repeat count (the former 120 minutes and 1,000
+                // repeats were form figures with no source), so each is typed.
+                IntFieldRow(
+                    label: String(localized: "MODALITY_ON_TIME"),
+                    unit: "min",
                     value: Binding(
                         get: { interval.intervalOnSeconds / 60 },
                         set: { interval.intervalOnSeconds = $0 * 60 }
-                    ),
-                    in: 1...120
-                ) {
-                    HStack {
-                        Text("MODALITY_ON_TIME").font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Text(formatTime(interval.intervalOnSeconds)).font(.caption)
-                    }
-                }
+                    )
+                )
 
-                Stepper(
+                IntFieldRow(
+                    label: String(localized: "MODALITY_OFF_TIME"),
+                    unit: "min",
                     value: Binding(
                         get: { interval.intervalOffSeconds / 60 },
                         set: { interval.intervalOffSeconds = $0 * 60 }
-                    ),
-                    in: 0...120
-                ) {
-                    HStack {
-                        Text("MODALITY_OFF_TIME").font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Text(formatTime(interval.intervalOffSeconds)).font(.caption)
-                    }
-                }
+                    )
+                )
 
                 HStack {
                     Text("UI_MOD_REPEAT").font(.caption).foregroundColor(.secondary)
@@ -992,19 +999,14 @@ struct IntervalConfigView: View {
                 }
 
                 if interval.repeatCount != nil {
-                    Stepper(
+                    IntFieldRow(
+                        label: String(localized: "MODALITY_COUNT"),
+                        unit: "×",
                         value: Binding(
                             get: { interval.repeatCount ?? 1 },
                             set: { interval.repeatCount = $0 }
-                        ),
-                        in: 1...1000
-                    ) {
-                        HStack {
-                            Text("MODALITY_COUNT").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(interval.repeatCount ?? 1)×").font(.caption)
-                        }
-                    }
+                        )
+                    )
                 }
             }
         }
@@ -1018,14 +1020,6 @@ struct IntervalConfigView: View {
 }
 
 // MARK: - Reusable Slider Row
-
-/// Audio level ceiling, dB SPL at the ear (NP-HW-AUDIO-001 REQ-AUDIO-19). The compiler and the hub refuse a level
-/// above it, and a limits block may lower it and never raise it, so no control offers more. The generated Swift
-/// constants do not carry it, so this is the one copy the iOS app has; it equals `AUDIO_MAX_DB_SPL` in
-/// `common/npps/constants.json`, which `app/web/src/lib/appBounds.test.ts` checks.
-enum NPAudioLimits {
-    static let maxLevelDbSpl: Double = 85
-}
 
 /// A typed number, for a value whose range has no end on one side or both: such a range has no slider track.
 /// The typed value is kept as typed and never clamped.
@@ -1063,6 +1057,45 @@ struct NumberFieldRow: View {
 
     private func syncText() {
         text = String(format: "%g", value)
+    }
+}
+
+/// A typed whole number, for a count or a number of minutes whose range has no end. The typed value is kept as
+/// typed and never clamped.
+struct IntFieldRow: View {
+    let label: String
+    let unit: String
+    @Binding var value: Int
+
+    @State private var text: String = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            TextField("", text: $text)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 90)
+                .focused($focused)
+                .onChange(of: text) { _, newText in
+                    if let typed = Int(newText) { value = typed }
+                }
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { syncText() }
+                }
+                .onAppear { syncText() }
+            Text(unit)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func syncText() {
+        text = String(value)
     }
 }
 

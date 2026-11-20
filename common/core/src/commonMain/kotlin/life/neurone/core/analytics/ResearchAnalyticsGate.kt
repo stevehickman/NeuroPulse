@@ -71,6 +71,22 @@ class ResearchAnalyticsGate(
         return queue.pending.size
     }
 
+    /**
+     * The IDs the vendor holds events under on this install, for a device-replacement clear (`OI-ANALYTICS-01` (5c)): the current
+     * one and any still queued by an earlier withdrawal. **Changes nothing**: the person has not withdrawn, and a clear the core
+     * refuses must not rotate a consenting person's ID. The per-install keys never move to the new phone, so these IDs end here.
+     */
+    fun idsOnThisInstall(): List<String> = (listOfNotNull(backend.distinctId) + (erasureQueue?.pending ?: emptyList())).distinct()
+
+    /**
+     * Ask the relay to erase [ids], after the core has accepted the clear and the store is wiped. Returns how many it did not
+     * take. Never throws and never queues (the store is empty; an ID written back would outlive the wipe).
+     */
+    suspend fun eraseAfterClear(ids: List<String>): Int {
+        val queue = erasureQueue ?: return 0
+        return ids.count { id -> !(try { queue.eraseNow(id) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }) }
+    }
+
     /** True when an ID was queued. */
     private fun forgetAndQueue(): Boolean {
         // Read the pseudonymous ID BEFORE the backend resets it: `reset()` forgets it, and it is what the vendor holds this

@@ -56,6 +56,34 @@ final class SessionProtocolUploaderTests: XCTestCase {
         )
     }
 
+    // MARK: - OI-PRIV-17: nothing is written before the encrypted-only serial read has succeeded
+
+    // @verifies REQ-SW03-31#b
+    func testUploadWritesNothingUntilTheEncryptedReadHasSucceeded() async throws {
+        let gateway = MockProtocolUploadGateway()
+        gateway.encryptedReadShown = false
+        let uploader = SessionProtocolUploader(gatt: gateway)
+        let definition = NPProtocolDefinition(
+            name: "Gate", timingMode: .duration(60),
+            modalities: [NPProtocolModality(
+                params: .pbmTranscranial(NPPBMTranscranialParams(
+                    irradianceMWcm2: 302, frequencyHz: 20, dutyCyclePercent: 25)),
+                interval: .continuous, enabled: true)])
+
+        do {
+            try await uploader.upload(definition)
+            XCTFail("an upload before the encrypted read must be refused")
+        } catch UploadError.linkNotEncrypted {
+            // expected
+        }
+        XCTAssertEqual(gateway.uploadCallCount, 0, "no chunk is written")
+        XCTAssertEqual(gateway.encryptedReadRequests, 1, "the held upload asks for the read again")
+
+        gateway.encryptedReadShown = true
+        try await uploader.upload(definition)
+        XCTAssertGreaterThan(gateway.uploadCallCount, 0, "the same upload goes once the read has succeeded")
+    }
+
     // MARK: - OI-AND-WIRE-02: the hub's serial reaches the descriptor header
 
     // The serial the gateway read from the hub is stamped at header offset 28 (§4.2), so the
@@ -373,6 +401,9 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
     var cervicalRestartBlocked = false
     var cervicalOutstandingForAnotherUser = false
     var deviceSerial: Data?
+    var encryptedReadShown = true
+    private(set) var encryptedReadRequests = 0
+    func requestEncryptedRead() { encryptedReadRequests += 1 }
     var maximumWriteLength: Int = BleTransfer.MAX_WRITE_SIZE
     private(set) var uploadCallCount = 0
     private var chunks: [Data] = []

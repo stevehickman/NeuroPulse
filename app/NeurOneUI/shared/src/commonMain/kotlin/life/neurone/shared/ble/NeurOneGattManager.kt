@@ -128,7 +128,7 @@ class NeurOneGattManager(
     fun writePauseLimit(seconds: Long): Boolean {
         val bytes = PauseLimit.toWire(seconds) ?: return false
         if (!pauseLimitCharPresent) return false
-        central.write(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID), bytes)
+        if (!writeEncrypted(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID), bytes)) return false
         central.read(UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID))
         return true
     }
@@ -160,7 +160,7 @@ class NeurOneGattManager(
      */
     fun writePpxConfig(stopOnOccipitalOnly: Boolean, manualOverride: Boolean): Boolean {
         if (!ppxConfigCharPresent) return false
-        central.write(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID), PpxConfig.toWire(stopOnOccipitalOnly, manualOverride))
+        if (!writeEncrypted(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID), PpxConfig.toWire(stopOnOccipitalOnly, manualOverride))) return false
         central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
         return true
     }
@@ -197,7 +197,7 @@ class NeurOneGattManager(
     fun writePpxSensitivity(level: Int): Boolean {
         val bytes = PpxSensitivity.toWire(level) ?: return false
         if (!ppxSensitivityCharPresent) return false
-        central.write(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID), bytes)
+        if (!writeEncrypted(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID), bytes)) return false
         central.read(UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID))
         return true
     }
@@ -226,7 +226,7 @@ class NeurOneGattManager(
     fun writeCardiacSensitivity(level: Int): Boolean {
         val bytes = CardiacSensitivity.toWire(level) ?: return false
         if (!cardiacSensitivityCharPresent) return false
-        central.write(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID), bytes)
+        if (!writeEncrypted(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID), bytes)) return false
         central.read(UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID))
         return true
     }
@@ -528,7 +528,15 @@ class NeurOneGattManager(
             // through one callback, so the iOS central reports a read as a change. The hub never notifies this
             // characteristic and the app never subscribes to it, so a value here is the answer to a read.
             // Only the 32-byte serial counts: a short or long value is not the hub's answer and shows nothing.
-            if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) _encryptedReadShown.value = true
+            if (value.size == 32 && _connectionState.value == ConnectionState.CONNECTED) {
+                val wasShown = _encryptedReadShown.value
+                _encryptedReadShown.value = true
+                // What was held at the gate goes now (OI-PRIV-17): the active user's tag, and replacements marked meanwhile.
+                if (!wasShown) {
+                    sendActiveUserTag()
+                    flushConsumableResets()
+                }
+            }
             return
         }
         if (uuid == UUID.fromString(GattUuidStrings.SHDR_UPLOAD_STATUS_ID)) {
@@ -634,6 +642,18 @@ class NeurOneGattManager(
     }
 
     // ── Commands ─────────────────────────────────────────────────────────
+
+    /**
+     * A write to a characteristic that demands an encrypted link, made only once the encrypted-only serial read has succeeded on
+     * this link (OI-PRIV-17, CLAUDE.md §23): a peer that only advertises the service receives none of them. False, with nothing
+     * written, before that. **Never used for stopping stimulation** (stop, pause, panic, resume): those are not held behind a
+     * read, and a refused one is shown by its own refusal event.
+     */
+    private fun writeEncrypted(uuid: UUID, value: ByteArray): Boolean {
+        if (!_encryptedReadShown.value) return false
+        central.write(uuid, value)
+        return true
+    }
 
     /** The write size the upload is cut at: what the link carries now (the negotiated MTU less 3), at most the hub characteristic's 512. */
     val writeLength: Int get() = central.writeLength.coerceIn(1, BleTransfer.MAX_WRITE_SIZE)
@@ -759,8 +779,7 @@ class NeurOneGattManager(
         if (_connectionState.value != ConnectionState.CONNECTED ||
             _cervicalFaultStatus.value?.reenableState != CervicalFaultStatus.ReenableState.AWAIT_CONFIRM
         ) return false
-        central.write(UUID.fromString(GattUuidStrings.CVNS_REENABLE_CONFIRM_ID), byteArrayOf(0x01))
-        return true
+        return writeEncrypted(UUID.fromString(GattUuidStrings.CVNS_REENABLE_CONFIRM_ID), byteArrayOf(0x01))
     }
 
     /**
@@ -775,7 +794,8 @@ class NeurOneGattManager(
     // ── Internals ────────────────────────────────────────────────────────
 
     private fun flushConsumableResets() {
-        if (!consumableCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
+        // Held, not dropped, until the encrypted-only read has succeeded: the queue drains when it does.
+        if (!consumableCharPresent || _connectionState.value != ConnectionState.CONNECTED || !_encryptedReadShown.value) return
         consumableResets.drain { central.write(UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID), it) }
     }
 
@@ -793,7 +813,7 @@ class NeurOneGattManager(
     private fun sendActiveUserTag() {
         val tag = activeUserTag ?: return
         if (!activeUserCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
-        central.write(UUID.fromString(GattUuidStrings.ACTIVE_USER_ID), ActiveUserTag.toWire(tag))
+        writeEncrypted(UUID.fromString(GattUuidStrings.ACTIVE_USER_ID), ActiveUserTag.toWire(tag))
     }
 
     /** A failure raises the alert; a both-pads-pass frame clears it; a malformed frame changes nothing. */
