@@ -113,7 +113,18 @@ class EraseDeviceModel(
      * **never stops the erase**: a throw reads as "may remain", and the stored credentials go with every other key in the plan below.
      */
     private val endCloudAccess: (suspend () -> Boolean)? = null,
+    /**
+     * How many analytics values this run cannot read (`unreadableAnalyticsIds`), asked BEFORE the person confirms. A locked run
+     * (`StorageProtection.LOCKED`) cannot send the vendor the ID, but the sealed value stays on disk and opens again on a run where
+     * the keystore works, so the person can still choose to erase from there. Told after the wipe it is only an apology
+     * (`OI-ANALYTICS-01` (5) (b), `REQ-SW03-19` (f)). Null where there is nothing to ask.
+     */
+    private val unreadableBeforeErase: (() -> Int)? = null,
 ) {
+    /** Zero unless this run holds analytics values it cannot read. Never throws: a store that cannot answer says nothing, and the post-wipe count still stands. */
+    val analyticsUnreadable: Int
+        get() = try { unreadableBeforeErase?.invoke() ?: 0 } catch (ignored: Exception) { 0 }
+
     private val state = MutableStateFlow<EraseStep>(EraseStep.Idle)
     val step: StateFlow<EraseStep> = state.asStateFlow()
 

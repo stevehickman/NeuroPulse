@@ -201,6 +201,16 @@ class EraseDeviceTest {
         }
     }
 
+    // OI-ANALYTICS-01 (5) (b): the warning is asked before the person confirms, and never throws.
+    // @verifies REQ-SW03-19#f
+    @Test fun a_locked_run_can_say_before_the_erase_that_it_holds_analytics_values_it_cannot_read() {
+        val kv = InMemoryKeyValueStore()
+        assertEquals(0, EraseDeviceModel(kv, null, null, gatt(kv)).analyticsUnreadable, "a host that does not ask has nothing to say")
+        assertEquals(2, EraseDeviceModel(kv, null, null, gatt(kv), unreadableBeforeErase = { 2 }).analyticsUnreadable)
+        assertEquals(0, EraseDeviceModel(kv, null, null, gatt(kv), unreadableBeforeErase = { 0 }).analyticsUnreadable, "a readable run says nothing")
+        assertEquals(0, EraseDeviceModel(kv, null, null, gatt(kv), unreadableBeforeErase = { throw IllegalStateException("store") }).analyticsUnreadable, "a store that cannot answer does not block the screen")
+    }
+
     private val used = listOf(
         Res.string.settings_erase_device_title, Res.string.settings_erase_device_confirm,
         Res.string.settings_erase_device_button, Res.string.settings_erase_device_close,

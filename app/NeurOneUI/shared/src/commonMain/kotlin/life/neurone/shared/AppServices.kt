@@ -353,6 +353,8 @@ class AppServices(
                     researchAnalyticsGate.resetForErase() +
                         life.neurone.shared.migration.unreadableAnalyticsIds(storageProtection, platform.keyValueStore)
                 },
+                // Asked before the person confirms, so a locked run can say that erasing from a run where the keystore works would also reach the vendor.
+                unreadableBeforeErase = { life.neurone.shared.migration.unreadableAnalyticsIds(storageProtection, platform.keyValueStore) },
                 // Each provider is asked to end the app's access before the credentials are erased (SWR-MG-30 (d)); anything but a confirmation is told to the person.
                 endCloudAccess = cloudAuth?.let { auth -> { auth.signOutAll().any { it.second != life.neurone.core.cloudauth.Revocation.REVOKED } } },
             )
