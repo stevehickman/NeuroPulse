@@ -37,7 +37,7 @@
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
 #define NP_AUDIO_MODE_BINAURAL  0U   /* np_mod_audio_params_t.mode */
 
-static const uint16_t BAND_BEAT_MHZ[5] = {
+static const uint32_t BAND_BEAT_MHZ[5] = {
     2000U,   /* delta: 2Hz */
     6000U,   /* theta: 6Hz */
     10000U,  /* alpha: 10Hz */
@@ -50,7 +50,7 @@ static const uint16_t BAND_BEAT_MHZ[5] = {
 typedef struct {
     uint8_t  mode;
     uint16_t carrier_hz;
-    uint16_t beat_mhz;
+    uint32_t beat_mhz;
     uint8_t  level_half_db;
     bool     bone_on;
     bool     eeg_adaptive;

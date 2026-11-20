@@ -938,15 +938,17 @@ the stop command. Each modality has exactly one target form.
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
 | `0x06` | `NP_MOD_TDCS` | `np_mod_tdcs_params_t` | 8 | `NP_HUB_SLOT_TDCS` (18) |
 | `0x07` | `NP_MOD_VNS_HRV` | `np_mod_vns_hrv_params_t` | 12 | `NP_HUB_SLOT_VNS_HRV` (8) |
-| `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 8 | `NP_HUB_SLOT_AUDIO` (6) |
+| `0x08` | `NP_MOD_AUDIO` | `np_mod_audio_params_t` | 10 | `NP_HUB_SLOT_AUDIO` (6) |
 | `0x09` | `NP_MOD_VISUAL` | `np_mod_visual_params_t` | 9 | `NP_HUB_SLOT_VISUAL` (7) |
 | `0x0A` | `NP_MOD_CVNS` | `np_mod_cvns_params_t` | 10 | `NP_HUB_SLOT_CVNS` (10) |
 | `0x0B` | `NP_MOD_QEEG_21CH` | `np_mod_qeeg_21ch_params_t` | 8 | `NP_HUB_SLOT_QEEG` (11) |
-| `0x0C` | `NP_MOD_TMS` | `np_mod_tms_params_t` | 12 | `NP_HUB_SLOT_TMS` (12) |
+| `0x0C` | `NP_MOD_TMS` | `np_mod_tms_params_t` | 14 | `NP_HUB_SLOT_TMS` (12) |
 | `0x0D` | `NP_MOD_PBM_1170NM` | `np_mod_pbm_1170nm_params_t` | 5 | `NP_HUB_SLOT_PBM_1170NM` (13) |
-| `0x0E` | `NP_MOD_CLIN_TACS` | `np_mod_clin_tacs_params_t` | 8 | `NP_HUB_SLOT_CLIN_TACS` (14) |
+| `0x0E` | `NP_MOD_CLIN_TACS` | `np_mod_clin_tacs_params_t` | 10 | `NP_HUB_SLOT_CLIN_TACS` (14) |
 | `0x0F` | `NP_MOD_HD_TDCS` | `np_mod_hd_tdcs_params_t` | 6 | `NP_HUB_SLOT_HD_TDCS` (15) |
 | `0x10` | `NP_MOD_VIBROTACTILE` | `np_mod_vibrotactile_params_t` | 4 | `NP_HUB_SLOT_VIBROTACTILE` (16) |
+
+**The TMS, clinical tACS and audio frequencies are 32 bits (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_tms_params_t.freq_mhz`, `np_mod_clin_tacs_params_t.freq_mhz` and `np_mod_audio_params_t.beat_mhz` were 16 bits, which topped out at 65.535 Hz, a width no research sets. The three blocks grow by two bytes (TMS 12 to 14, clinical tACS 8 to 10, audio 8 to 10), every later field moves with them, and `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The authorable ranges the validator enforces (`TMS_MAX_HZ`, `CLINICAL_TACS_MAX_HZ`, `AUDIO_BEAT_MAX_HZ`) are separate and unchanged (`UC-082`).
 
 **This table, `np_hub_types.h` and `hubCompiler.ts` are diffed, not read.** `scripts/check-hub-wire-format.ts`
 checks three sources against each other. The first is this section's constants (§4.1), target kinds (§4.3),

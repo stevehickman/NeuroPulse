@@ -150,7 +150,8 @@ typedef struct {
     /* the audio path (NP_SIM_KIND_AUDIO) */
     bool              audio_inited;
     uint8_t           audio_mode;                      /* 0 off, 1 binaural, 2 isochronic, 3 pink noise, 4 brown noise */
-    uint16_t          audio_carrier_hz, audio_beat_mhz;
+    uint16_t          audio_carrier_hz;
+    uint32_t          audio_beat_mhz;
     uint8_t           audio_level_half_db;
     bool              audio_bone_on;
     uint16_t          audio_bone_hz;

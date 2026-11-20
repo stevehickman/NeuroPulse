@@ -389,7 +389,8 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  mode;           /* 0=binaural, 1=isochronic, 2=pink, 3=brown, 4=off */
     uint16_t carrier_hz;     /* carrier frequency Hz (binaural/isochronic) */
-    uint16_t beat_mhz;       /* beat / modulation frequency mHz */
+    uint32_t beat_mhz;       /* beat / modulation frequency mHz; 32 bits so no beat frequency the descriptor can author is cut
+                              * off (a 16-bit field topped out at 65.535 Hz, a width no research sets: OI-UINT16-01) */
     uint8_t  level_half_db;     /* ABSOLUTE level, dB SPL at the ear (re 20 uPa) in 0.5 dB steps: 2 x dB.
                                  * 0 = output off; > NP_AUDIO_MAX_LEVEL_HALF_DB is refused (REQ-AUDIO-19,20).
                                  * Never a percentage or any scale relative to a component. */
@@ -442,7 +443,8 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint8_t  protocol;          /* 0=rTMS, 1=TBS, 2=iTBS */
     uint8_t  target;            /* 0=DLPFC_L 1=DLPFC_R 2=VLPFC_L 3=ACC 4=MPFC 5=M1_L 6=M1_R */
-    uint16_t freq_mhz;          /* stim freq mHz (10000=10Hz, 50000=50Hz for TBS) */
+    uint32_t freq_mhz;          /* stim freq mHz (10000=10Hz, 50000=50Hz for TBS); 32 bits, no frequency the descriptor can author is
+                                 * cut off (a 16-bit field topped out at 65.535 Hz: OI-UINT16-01) */
     uint8_t  intensity_pct_mt;  /* % motor threshold; safety MCU enforces ceiling */
     uint32_t pulse_count;       /* total pulses this command; 32-bit so no count can overflow (OI-UINT16-01) */
     uint16_t inter_train_ms;    /* inter-train interval ms */
@@ -481,14 +483,15 @@ typedef struct __attribute__((packed)) {
 #define NP_CLIN_TACS_MASK_EXT_BITS  (NP_CLIN_TACS_CHANNELS - 16U)  /* 5 */
 
 typedef struct __attribute__((packed)) {
-    uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU; below 500 refused at load (REQ-FWHUB-78) */
+    uint32_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU; below 500 refused at load (REQ-FWHUB-78); 32 bits, a
+                                 * 16-bit field topped out at 65.535 Hz (OI-UINT16-01) */
     uint16_t amplitude_ua;      /* peak µA per channel; limit 4000. No driver exists (np_mod_t2_stubs.c); when built it
                                  * REFUSES above the limit and never clamps (REQ-FWHUB-78 (i)) */
     uint8_t  channel_mask_lo;   /* channels 0–7 enable bitmask */
     uint8_t  channel_mask_hi;   /* channels 8–15 enable bitmask */
     uint8_t  channel_mask_ext;  /* channels 16–20 in bits 0–4; bits 5–7 reserved, must be 0 */
     uint8_t  waveform;          /* 0=sinusoidal, 1=biphasic square, 2=triangular */
-} np_mod_clin_tacs_params_t;    /* 8 bytes packed */
+} np_mod_clin_tacs_params_t;    /* 10 bytes packed */
 
 /* ── T2: sLORETA-guided 4×1 HD-tDCS (NP_MOD_HD_TDCS) ──────────────────────── */
 
