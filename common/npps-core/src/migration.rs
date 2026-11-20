@@ -765,6 +765,7 @@ mod tests {
 
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_confirmation_tag_needs_the_bundle_key_and_is_bound_to_the_bundle() {
         let tag = |key: &str, hash: &str| ask(json!({"op":"confirmationTag","key":key,"bundleHash":hash}))["tag"].as_str().unwrap().to_string();
         let (k1, k2) = ("11".repeat(32), "12".repeat(32));
@@ -960,6 +961,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_sealed_bundle_opens_with_the_key_and_returns_what_was_sealed() {
         let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01#000001"}});
         let b = sealed("uhdr", items.clone());
@@ -971,6 +973,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_bundle_is_unreadable_without_the_key_and_its_plaintext_is_not_in_it() {
         let b = sealed("uhdr", json!({"sessionHistory":["a-very-distinctive-session-note"]}));
         let bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
@@ -983,6 +986,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn an_edited_bundle_is_refused_and_a_relabelled_kind_does_not_authenticate() {
         let b = sealed("uhdr", json!({"sessionHistory":[]}));
         let mut bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
@@ -1004,6 +1008,7 @@ mod tests {
 
     // @verifies SWR-MG-05
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_kind_and_version_are_readable_before_restore_with_no_key() {
         for kind in ["uhdr", "migrate"] {
             let b = sealed(kind, json!({}));
@@ -1049,6 +1054,7 @@ mod tests {
 
     // @verifies SWR-MG-29#b
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_bundle_carries_its_epoch_inside_the_seal_and_not_in_the_clear() {
         let b = sealed_at(41, json!({"sessionHistory":[]}));
         assert_eq!(b["epoch"], 41);
@@ -1074,6 +1080,7 @@ mod tests {
 
     // @verifies SWR-MG-29#c
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_phone_that_has_seen_a_later_epoch_refuses_an_older_bundle_whole() {
         let old = sealed_at(3, json!({"sessionHistory":["from-before-the-withdrawal"]}));
         // A phone that sealed or opened epoch 5 is handed the bundle of epoch 3 by the backup location.
@@ -1094,6 +1101,7 @@ mod tests {
 
     // @verifies SWR-MG-29#d
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_phone_that_has_seen_nothing_opens_an_old_bundle_and_the_epoch_does_not_stop_it() {
         // The limit of the epoch, pinned so nobody reads more into it: with nothing seen, an old bundle is as good as the
         // newest. A new phone, a fresh install and a phone after an erase all hold 0.
@@ -1106,6 +1114,7 @@ mod tests {
     // @verifies SWR-MG-05
     // @verifies SWR-MG-29#b
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_format_version_rose_with_the_epoch_so_the_older_reader_refuses_this_bundle() {
         // The reader before this change took versions up to 1 and refused anything above whole (`newer_version`).
         let b = sealed_at(1, json!({}));
@@ -1119,6 +1128,7 @@ mod tests {
 
     // @verifies SWR-MG-29#c
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_version_1_bundle_has_no_epoch_and_counts_as_the_oldest() {
         let v1 = sealed_raw(1, json!({"items":{"sessionHistory":[]}}));
         // A phone that has seen nothing opens it, as epoch 0; a phone that has sealed anything since refuses it.
@@ -1135,6 +1145,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_bundle_cannot_carry_what_its_kind_omits_or_what_belongs_to_the_install() {
         for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
             let r = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]},"kdf":kdf("passphrase")}).to_string());
@@ -1154,6 +1165,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_recovery_code_round_trips_through_its_text_and_survives_eye_and_case_errors() {
         let bytes: Vec<u8> = (0u8..32).map(|i| i.wrapping_mul(37).wrapping_add(11)).collect();
         let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().to_string();
@@ -1169,6 +1181,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_mistyped_recovery_code_is_a_typing_error_and_not_a_wrong_key() {
         let bytes = vec![7u8; 32];
         let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().to_string();
@@ -1183,6 +1196,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn two_texts_never_name_one_code_because_the_padding_bits_are_zero() {
         let bytes = vec![0u8; 32];
         let code = ask(json!({"op":"encodeRecoveryCode","bytes":hex(&bytes)}))["code"].as_str().unwrap().replace('-', "");
@@ -1195,6 +1209,7 @@ mod tests {
 
     // @verifies SWR-MG-02
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_passphrase_is_normalised_and_must_be_long_enough() {
         // NFKC: the full-width form and the plain form are one secret, so another phone's keyboard gives the same key.
         let plain = ask(json!({"op":"passphraseSecret","passphrase":"correct horse battery"}));
@@ -1214,6 +1229,7 @@ mod tests {
 
     // @verifies SWR-MG-05
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_header_names_how_the_key_was_made_before_any_key_exists() {
         for method in ["recoveryCode", "passphrase"] {
             let b = ask(json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":kdf(method)}));

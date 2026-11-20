@@ -299,6 +299,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_recording_round_trips_at_every_size_around_the_chunk() {
         let h = header(false);
         for len in [0, 1, CHUNK_BYTES - 1, CHUNK_BYTES, CHUNK_BYTES + 1, 3 * CHUNK_BYTES, 3 * CHUNK_BYTES + 7] {
@@ -310,6 +311,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_header_carries_the_kdf_block_and_reads_back() {
         let file = seal(b"index", KEY, &header(true));
         let head = ask(json!({"op":"archiveReadHeader","bytes":hex(&file[..file.len().min(HEADER_BYTES + MAX_KDF)])}));
@@ -323,6 +325,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_wrong_key_and_an_edited_chunk_are_not_told_apart() {
         let file = seal(&sample(2 * CHUNK_BYTES + 5), KEY, &header(false));
         assert_eq!(open(&file, OTHER).unwrap_err(), "authentication_failed");
@@ -334,6 +337,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_recording_cut_short_repeated_or_reordered_does_not_open() {
         let h = header(false);
         let hl = unhex(&h, "h").unwrap().len();
@@ -356,6 +360,7 @@ mod tests {
 
     // @verifies SWR-MG-03
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_header_that_is_edited_is_refused_and_so_is_a_chunk_sealed_under_another_header() {
         let file = seal(b"abc", KEY, &header(false));
         let mut edited = file.clone();
@@ -389,6 +394,7 @@ mod tests {
 
     // @verifies SWR-MG-29#a
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_file_sealed_as_one_object_does_not_open_as_another() {
         // Two recordings and the index of one backup: one key, and (the worst case) one header.
         let h = header(false);
@@ -408,6 +414,7 @@ mod tests {
 
     // @verifies SWR-MG-29#a
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn an_object_id_is_required_and_its_length_is_bound_with_it() {
         let h = header(false);
         for bad in [json!(null), json!(""), json!(7), json!("x".repeat(usize::from(u16::MAX) + 1))] {
@@ -428,6 +435,7 @@ mod tests {
 
     // @verifies SWR-MG-29#a
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_version_1_archive_is_refused_by_name_and_this_build_writes_a_version_the_older_reader_refuses() {
         let file = seal(b"abc", KEY, &header(false));
         // The older reader took version 1 only and called anything above it newer: this file is refused by it whole.

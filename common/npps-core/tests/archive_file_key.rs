@@ -64,6 +64,7 @@ fn nonce(counter: u32) -> [u8; 12] {
 
 // @verifies SWR-MG-31#a
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_chunk_opens_under_the_files_own_key_with_its_number_as_the_nonce_and_not_under_the_backup_key() {
     let h = header(&[0xa1; 16]);
     assert_eq!(h.len(), 23, "magic, version, a 16-byte salt and the kdf length");
@@ -87,6 +88,7 @@ fn a_chunk_opens_under_the_files_own_key_with_its_number_as_the_nonce_and_not_un
 
 // @verifies SWR-MG-31#b
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn two_files_of_one_backup_are_sealed_under_different_keys() {
     let (a, b) = (header(&[0x01; 16]), header(&[0x02; 16]));
     assert_ne!(file_key(&a), file_key(&b));
@@ -104,6 +106,7 @@ fn two_files_of_one_backup_are_sealed_under_different_keys() {
 
 // @verifies SWR-MG-31#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_file_sealed_the_old_way_is_not_opened_and_a_salt_of_another_length_is_refused() {
     // The form before the file key: the backup key itself, nonce = 8 random bytes then the count. Built here by hand
     // against today's header, it must not open: there is one way to seal a recording, not two.

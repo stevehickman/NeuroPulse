@@ -190,6 +190,7 @@ mod tests {
 
     // @verifies-none a primitive of the core, checked against four of Amazon's published S3 signing examples here and by an independent implementation; no requirement row names it yet.
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn amazons_published_s3_examples_are_reproduced() {
         let put_hash = hex(&Sha256::digest(b"Welcome to Amazon S3."));
         let cases = [
@@ -217,6 +218,7 @@ mod tests {
 
     // @verifies-none a primitive of the core; the headers a caller must add are part of the signing contract.
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_answer_names_the_headers_the_caller_must_add() {
         let a = ask(base("GET", "/test.txt", json!([]), json!({}), "UNSIGNED-PAYLOAD")).unwrap();
         assert_eq!(a["headers"]["x-amz-date"], "20130524T000000Z");
@@ -228,6 +230,7 @@ mod tests {
 
     // @verifies-none a primitive of the core.
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_session_token_is_signed_and_returned() {
         let mut r = base("GET", "/", json!([]), json!({}), EMPTY);
         let plain = ask(r.clone()).unwrap();
@@ -240,6 +243,7 @@ mod tests {
 
     // @verifies-none a primitive of the core.
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn query_values_are_encoded_once_and_header_values_are_trimmed() {
         let a = ask(base("GET", "/", json!([["prefix", "a b/c+d"]]), json!({ "X-Note": "  two   words  " }), EMPTY)).unwrap();
         let b = ask(base("GET", "/", json!([["prefix", "a b/c+d"]]), json!({ "x-note": "two words" }), EMPTY)).unwrap();
