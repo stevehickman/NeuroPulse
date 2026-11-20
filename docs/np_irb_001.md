@@ -75,7 +75,7 @@ Full technical detail lives in NP-FW-ANON-001 and CLAUDE.md §5.3; this section 
 
 - All anonymization occurs **on-device**, before any data leaves the device. NeurOne infrastructure never holds the biometric-derived UHDR decryption key and cannot access raw UHDR at any point, including for research.
 - Each study receives a signed study descriptor (approved element list, k≥10, l≥3 l-diversity, ε≤1.0 differential privacy per NP-FW-ANON-001) before any device processes it.
-- Extracts are transmitted keyed to study ID only — no device identifier, no persistent per-user identifier, no linkage table (CLAUDE.md §5.3 step 4; `OI-PRIV-21`).
+- Extracts are transmitted keyed to study ID only — no device identifier, no linkage table (CLAUDE.md §5.3 step 4; `OI-PRIV-21`). **Exception, under review (`OI-PRIV-24`):** a study that declares tracking over time in its signed descriptor sends an identifier unique to the person and the study, so that study's extracts are coded and not de-identified. The exemption argument below does not yet cover such a study; the IRB adviser is asked (`docs/human-input/oi-priv-24-tracking-declaration.md`).
 - This architecture is the basis for the 45 CFR §46.104(d)(4) exemption application in Type B studies: the data is de-identified *before* the researcher (or NeurOne) ever receives it, not de-identified afterward by a party who once held identifiable data.
 
 ---

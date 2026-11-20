@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 87 (2026-11-20) — §5.3: a study declares up front whether it needs tracking over time; with none an extract carries no identifier and a study asks once (the principal, `OI-PRIV-24`). No other locked decision changed.**
+
+**What changed.** §5.3 gains the declaration in the signed descriptor (default none), the per-person-and-study identifier (never the same across studies) for a study that declares it, the plain-words consent, k-anonymity on the linked series, and the rule that the declaration is fixed for a study.
+
+**Why.** Researchers sometimes need to follow a participant across tranches (a protocol changed midstream), and a device-side marker alone gives them nothing to link. The principal ruled that this is the exception, not the default, and that a study must say so before it starts. A study that does not declare it asks once, because a second request could not avoid duplicates.
+
+**What it leaves.** The IRB adviser's answer on what a researcher must show to declare tracking, and on the exemption argument of `NP-IRB-001` §5 for a coded identifier (`docs/human-input/oi-priv-24-tracking-declaration.md`, not sent). The descriptor field is the study service's format (`OI-CONSENT-07`); nothing is built.
+
 **Rev 86 (2026-11-20) — §5.3, §6.3: no device identifier in the research store, and study requests are broadcast to each consenter's current device (the principal, `OI-PRIV-21`, `OI-PRIV-22`). No other locked decision changed.**
 
 **What changed.** §5.3 says the research store is keyed to study ID only and a person's extracts come only from their current device. §6.3 says a request is broadcast to the current device of every person who consented to any research, the server never filters by topic, and the current-device record is delivery-only and kept apart from the research store, SHDR and the warranty database.

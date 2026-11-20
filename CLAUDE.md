@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 86 (current)  
+**Revision:** 87 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -318,7 +318,7 @@ withdrawal**; already-published extracts cannot be individually removed (irrever
 at consent time). The audit trail (study ID, descriptor hash, enrolment day,
 transmission day, byte count, withdrawal day) is **UHDR**, held on the device under the person's key; SHDR
 carries nothing that names a study or says a wearer takes part in research (the principal, 2026-11-20,
-`OI-PRIV-07`). It is never shared with researchers. **No device identifier reaches the research store**, which is keyed to study ID only (the principal, 2026-11-20, `OI-PRIV-21`); a person's extracts come only from their *current* device (§6.3). Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
+`OI-PRIV-07`). It is never shared with researchers. **No device identifier reaches the research store** (the principal, 2026-11-20, `OI-PRIV-21`); a person's extracts come only from their *current* device (§6.3). **A study states up front, in its signed descriptor, whether it needs tracking over time; the default is none** (the principal, 2026-11-20, `OI-PRIV-24`). Without it, an extract carries no identifier and a study makes no second request for it. With it, the device sends an identifier unique to that person and that study (never the same across studies), the person is told in plain words that their releases can be linked and consents to that study knowingly, k-anonymity applies to the linked series, and the declaration is fixed for the study. The identifier links one person's releases within one study only. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
 
 ---
 
