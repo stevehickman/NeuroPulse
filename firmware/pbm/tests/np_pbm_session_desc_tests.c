@@ -24,6 +24,7 @@
 #include "np_pbm_fai.h"
 #include "np_pbm_dose.h"
 #include "np_pbm_hal.h"
+#include "np_pbm_drive.h"
 
 static int g_failures = 0;
 
@@ -804,6 +805,40 @@ static void test_session_start_refuses_a_preset_duty_above_the_limit(void)
           "session_start: with every preset at or below the limit the session starts");
 }
 
+/*
+ * REQ-SW02-11: an EEG-adaptive PBM frequency is the tile code nearest the dominant frequency in hertz, and no EEG band
+ * picks it.  The old classification sent 12.0 to 29.9 Hz to the 20 Hz code (the beta band) and 8.0 to 11.9 Hz to the
+ * 10 Hz code; by distance, 12 Hz is nearer 10 Hz than 20 Hz, and 14.9 Hz is the first value nearer 20 Hz.
+ */
+/* @verifies REQ-SW02-11 */
+static void test_the_eeg_adaptive_code_is_the_nearest_tile_frequency_not_a_band(void)
+{
+    uint8_t n = 0U;
+    /* hysteresis: hold NP_PBM_EEG_HYSTERESIS_TICKS ticks of difference, then change. */
+    #define ADAPT(freq, cur, expect, what) do { \
+        n = 0U; \
+        uint8_t r = 0xFFU; \
+        for (uint8_t t = 0U; t < NP_PBM_EEG_HYSTERESIS_TICKS; t++) { r = np_pbm_drive_map_eeg_freq((freq), (cur), &n); } \
+        check(r == (expect), what); } while (0)
+    ADAPT(3.5f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_2HZ,  "3.5 Hz is nearest the 2 Hz code");
+    ADAPT(4.5f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_6HZ,  "4.5 Hz is nearest the 6 Hz code (the old delta/theta edge was 4.0)");
+    ADAPT(7.9f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_6HZ,  "7.9 Hz is nearest 6 Hz");
+    ADAPT(8.1f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "8.1 Hz is nearest 10 Hz");
+    ADAPT(12.0f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "12 Hz is nearest 10 Hz (the old alpha/beta edge sent it to 20 Hz)");
+    ADAPT(14.9f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "14.9 Hz is still nearest 10 Hz");
+    ADAPT(15.1f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_20HZ, "15.1 Hz is nearest 20 Hz");
+    ADAPT(29.9f, NP_PBM_FREQ_CODE_2HZ,  NP_PBM_FREQ_CODE_20HZ, "29.9 Hz is nearest 20 Hz, 0.1 Hz from the midpoint (the old beta/gamma edge was 30.0)");
+    ADAPT(30.1f, NP_PBM_FREQ_CODE_2HZ,  NP_PBM_FREQ_CODE_40HZ, "30.1 Hz is nearest 40 Hz");
+    ADAPT(15.0f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "a tie takes the lower frequency");
+    #undef ADAPT
+    /* The code the session already runs is left alone, and the hysteresis holds a change back. */
+    n = 0U;
+    check(np_pbm_drive_map_eeg_freq(10.0f, NP_PBM_FREQ_CODE_10HZ, &n) == 0xFFU && n == 0U, "the current code is kept");
+    n = 0U;
+    check(np_pbm_drive_map_eeg_freq(40.0f, NP_PBM_FREQ_CODE_10HZ, &n) == 0xFFU && n == 1U,
+          "a different nearest code is held back for the first tick of the hysteresis");
+}
+
 int main(void)
 {
     test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_count_it();
@@ -830,6 +865,7 @@ int main(void)
 
     test_set_duty_above_the_limit_is_refused_and_writes_nothing();
     test_session_start_refuses_a_preset_duty_above_the_limit();
+    test_the_eeg_adaptive_code_is_the_nearest_tile_frequency_not_a_band();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

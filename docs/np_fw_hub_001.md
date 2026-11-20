@@ -2001,9 +2001,7 @@ returns 0 for it so no enable is requested. Audio delivers no current, no light 
 
 **Level.** The command's level is absolute: dB SPL at the ear × 2 (`level_half_db`), never a percentage. The driver refuses a level above `NP_AUDIO_MAX_LEVEL_HALF_DB` (85 dB SPL) before anything changes; the HAL owns each component's calibration (`NP-HW-AUDIO-001` `REQ-AUDIO-19`, `-20`).
 
-EEG-adaptive mode retunes the binaural carrier every `NP_AUDIO_ADAPT_INTERVAL_MS` to track the
-dominant EEG band, which the EEG driver posts via `np_mod_audio_set_eeg_band()`. The band→beat table
-(`k_band_beat_mhz`) maps delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz. **Only a running binaural command (mode 0) is retuned; any other mode is left as commanded** (`OI-SIMFW-19`, `REQ-AUDIO-18`). **`volume_pct` above 100 is refused with `NP_HUB_ERR_INVALID_ARG` before anything is commanded** (`REQ-AUDIO-17`); new host test `np_mod_audio_tests`.
+EEG-adaptive mode retunes the binaural **beat** to the dominant EEG **frequency**, which the EEG layer posts via `np_mod_audio_set_eeg_dominant_freq()` (millihertz). No EEG band picks the beat: the former `np_mod_audio_set_eeg_band()` and its band→beat table (`k_band_beat_mhz`, delta/theta/alpha/beta/gamma to 2/6/10/20/40 Hz) are removed (the principal, 2026-11-20), because a band is a label for a range and never the choice. A frequency of 0, or one that would put carrier plus beat above the planar tone bound (`REQ-AUDIO-25`), is refused and the beat stays as it was. The EEG module's HAL reports a dominant **band** today, so nothing calls the new function until the EEG layer can report a dominant frequency (open item). **Only a running binaural command (mode 0) is retuned; any other mode is left as commanded** (`OI-SIMFW-19`, `REQ-AUDIO-18`). **`volume_pct` above 100 is refused with `NP_HUB_ERR_INVALID_ARG` before anything is commanded** (`REQ-AUDIO-17`); new host test `np_mod_audio_tests`.
 
 ### 8.6 Visual — `np_mod_visual.c`
 
