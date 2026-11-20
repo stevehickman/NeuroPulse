@@ -17,14 +17,16 @@ fn main() {
         let path = args.get(2).unwrap_or_else(|| die("--generate needs a file name"));
         let mut seed = [0u8; 32];
         std::fs::File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut seed)).unwrap_or_else(|_| die("no random source"));
-        let hex: String = seed.iter().map(|b| format!("{b:02x}")).collect();
-        let out = neurone_npps_core::migration::migration_json(&format!(r#"{{"op":"ohttpGenerateKey","seed":"{hex}","keyId":1}}"#))
+        // The seed goes to the core as bytes and the private key comes back as bytes, never as text (`SWR-MG-32`); only the
+        // file, which is the configuration, holds it as hex.
+        let (v, beside) = neurone_fleet_gateway::ask_with_secrets(serde_json::json!({ "op": "ohttpGenerateKey", "seed": { "$secret": 0 }, "keyId": 1 }), &[&seed])
             .unwrap_or_else(|e| die(&e));
-        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        seed.fill(0);
+        let private_key: String = beside.first().unwrap_or_else(|| die("the core gave no private key")).iter().map(|b| format!("{b:02x}")).collect();
         use std::os::unix::fs::OpenOptionsExt;
         let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path).unwrap_or_else(|e| die(&format!("{path}: {e}")));
         use std::io::Write;
-        writeln!(f, "{}\n{}", v["keyConfig"].as_str().unwrap(), v["privateKey"].as_str().unwrap()).unwrap();
+        writeln!(f, "{}\n{}", v["keyConfig"].as_str().unwrap(), private_key).unwrap();
         println!("key configuration (publish this, and set it in the apps): {}", v["keyConfig"].as_str().unwrap());
         return;
     }

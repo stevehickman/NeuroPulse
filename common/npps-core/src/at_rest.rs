@@ -145,6 +145,7 @@ mod tests {
 
     // @verifies SWR-MG-06
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_sealed_value_opens_under_its_key_and_its_name_and_the_text_is_not_in_it() {
         let s = sealed("np.session.history", "history of the person", KEY);
         let plain_hex = hex(b"history of the person");
@@ -156,6 +157,7 @@ mod tests {
 
     // @verifies SWR-MG-06
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_wrong_key_another_name_or_an_edited_value_does_not_open() {
         let s = sealed("np.a", "value", KEY);
         let other_key = "ff".repeat(32);
@@ -169,6 +171,7 @@ mod tests {
 
     // @verifies SWR-MG-06
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_value_too_short_to_hold_a_nonce_or_not_hex_is_malformed_and_a_bad_key_or_nonce_is_an_error() {
         assert_eq!(opened("np.a", "abcd", KEY)["reason"], "malformed");
         assert_eq!(opened("np.a", "zz", KEY)["reason"], "malformed");

@@ -67,7 +67,6 @@ final class SessionHistoryStore: ObservableObject {
     @Published private(set) var records: [SessionRecord] = []
 
     private let defaults: ProtectedDefaults
-    private static let MAX_RECORDS = 100
     // Monotonically increasing; tiebreaks same-day records newest-first.
     private var nextInsertionIndex = 0
 
@@ -78,7 +77,7 @@ final class SessionHistoryStore: ObservableObject {
         load()
     }
 
-    // Append a completed session, persist, trim, and keep newest-first.
+    // Append a completed session, persist, and keep newest-first.
     func record(_ session: CompletedSessionSummary) {
         let new = SessionRecord(
             protocolName: session.protocolName,
@@ -93,9 +92,6 @@ final class SessionHistoryStore: ObservableObject {
         nextInsertionIndex += 1
         records.insert(new, at: 0)
         records.sort(by: Self.newestFirst)
-        if records.count > Self.MAX_RECORDS {
-            records = Array(records.prefix(Self.MAX_RECORDS))
-        }
         persist()
     }
 

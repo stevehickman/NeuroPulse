@@ -60,6 +60,7 @@ fn kdf(method: &str) -> Value {
 
 // @verifies SWR-MG-32#a
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_key_given_beside_the_request_does_what_the_same_key_in_hex_did_and_is_in_no_text() {
     let _one = one();
     let old = ask(json!({ "op": "sealValue", "key": hex(&KEY), "nonce": NONCE, "name": "np.n", "value": "history" }));
@@ -84,6 +85,7 @@ fn a_key_given_beside_the_request_does_what_the_same_key_in_hex_did_and_is_in_no
 
 // @verifies SWR-MG-32#a
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_key_in_an_answer_is_beside_it_as_bytes_and_never_in_its_text() {
     let _one = one();
     let secret = b"a secret of the right length ...";
@@ -121,6 +123,7 @@ fn a_secret_the_call_was_not_given_and_a_buffer_that_is_not_framed_are_refused()
 
 // @verifies SWR-MG-32#b
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_derived_key_is_kept_in_the_core_and_used_by_its_handle() {
     let _one = one();
     let secret = b"a secret of the right length ...";
@@ -203,6 +206,7 @@ fn a_handle_is_typed_never_reused_never_exported_bounded_and_gone_when_released(
 
 // @verifies SWR-MG-32#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret_never_comes_out() {
     let _one = one();
     let typed = "ｃｏｒｒｅｃｔ ｈｏｒｓｅ ｂａｔｔｅｒｙ"; // full-width: the secret it stands for is the plain ASCII
@@ -239,6 +243,7 @@ fn a_passphrase_or_a_recovery_code_becomes_a_kept_key_in_one_call_and_its_secret
 
 // @verifies SWR-MG-32#d
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_key_is_wrapped_and_unwrapped_as_bytes_in_the_form_the_older_records_have() {
     let _one = one();
     let wrapping = [0x5au8; 32];
@@ -272,6 +277,7 @@ fn a_key_is_wrapped_and_unwrapped_as_bytes_in_the_form_the_older_records_have() 
 
 // @verifies SWR-MG-32#g
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn an_oblivious_request_s_response_secret_is_kept_in_the_core_used_once_and_its_entropy_goes_in_as_bytes() {
     let _one = one();
     let held = || ask(json!({ "op": "keyCount" }))["count"].as_u64().unwrap();

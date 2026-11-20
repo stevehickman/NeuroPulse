@@ -936,6 +936,7 @@ mod tests {
     // @verifies SWR-MG-02
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_migration_moves_every_carried_item_and_the_route_holds_ciphertext_a_claim_and_a_confirmation() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -961,6 +962,7 @@ mod tests {
 
     // @verifies SWR-MG-01
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn only_the_keys_of_a_carried_item_move_and_per_install_keys_never_do() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -978,6 +980,7 @@ mod tests {
     // @verifies SWR-MG-03
     // @verifies SWR-MG-07
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_nightly_backup_leaves_out_protocols_and_limits_and_is_never_claimed() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -1008,6 +1011,7 @@ mod tests {
 
     // @verifies SWR-MG-07
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_wrong_secret_opens_nothing_and_does_not_take_the_claim() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -1020,6 +1024,7 @@ mod tests {
 
     // @verifies SWR-MG-07
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_second_phone_cannot_restore_a_claimed_bundle_until_the_person_releases_it() {
         let (mut route, mut old, mut first, mut second) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 90));
         fill(&mut old);
@@ -1034,6 +1039,7 @@ mod tests {
 
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_confirmation_that_does_not_land_is_written_again_and_an_unconfirmed_restore_says_so() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
@@ -1053,6 +1059,7 @@ mod tests {
 
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_key_that_does_not_read_back_as_written_stops_the_restore_before_any_confirmation() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
@@ -1066,6 +1073,7 @@ mod tests {
 
     // @verifies SWR-MG-01
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_bundle_item_that_names_a_key_it_does_not_own_is_refused_before_any_claim_or_write() {
         // Seal a bundle by hand whose sessionHistory item carries another item's key: the core refuses it on restore.
         let mut route = Route::default();
@@ -1084,6 +1092,7 @@ mod tests {
 
     // @verifies SWR-MG-04
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_restore_never_resets_a_withdrawal_and_an_item_with_nowhere_to_go_is_reported_not_applied() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
@@ -1113,6 +1122,7 @@ mod tests {
 
     // @verifies SWR-MG-05
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_kind_and_how_the_key_was_made_are_read_before_any_secret_is_asked() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         let none = run("inspect", json!({}), &mut route, &mut old, SECRET);
@@ -1134,6 +1144,7 @@ mod tests {
     // @verifies SWR-MG-08
     // @verifies SWR-MG-09
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_old_phone_clears_only_after_the_matching_confirmation_key_first_and_pairing_included() {
         let (mut route, mut old, hash) = confirmed_route();
         let none = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
@@ -1159,6 +1170,7 @@ mod tests {
 
     // @verifies SWR-MG-29#b
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn each_backup_is_sealed_one_epoch_later_and_the_phone_records_it_before_the_bundle_leaves() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
@@ -1184,6 +1196,7 @@ mod tests {
     // 2026-11-15, Finding 23; `OI-PRIV-09`).
     // @verifies SWR-MG-29#c
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_phone_handed_an_older_bundle_than_it_has_seen_refuses_it_and_changes_nothing() {
         let (mut route, mut phone_a) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut phone_a);
@@ -1218,6 +1231,7 @@ mod tests {
 
     // @verifies SWR-MG-29#c
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_restore_records_the_epoch_it_opened_so_the_new_phone_seals_later_and_refuses_earlier() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -1238,6 +1252,7 @@ mod tests {
     // The limit of the epoch, pinned so that nothing claims more for it (`SWR-MG-29` (d)).
     // @verifies SWR-MG-29#d
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_phone_that_has_seen_nothing_restores_an_old_bundle_and_the_old_phone_does_not_clear_against_it() {
         let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
         fill(&mut old);
@@ -1271,6 +1286,7 @@ mod tests {
 
     // @verifies SWR-MG-29#c
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_stored_epoch_that_is_not_a_count_stops_the_backup_and_the_restore_and_is_not_read_as_zero() {
         let (mut route, mut old) = (Route::default(), phone(&ADAPTER, 1));
         fill(&mut old);
@@ -1302,6 +1318,7 @@ mod tests {
     // not clear on it (privacy review of `common/`, 2026-11-15, Finding 1).
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_confirmation_forged_at_the_backup_location_clears_nothing() {
         let (mut route, mut old, hash) = confirmed_route();
         let before = old.kv.clone();
@@ -1328,6 +1345,7 @@ mod tests {
 
     // @verifies SWR-MG-17#a
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn an_erase_runs_the_whole_plan_with_no_backup_and_no_confirmation_and_the_key_first() {
         let (mut route, mut old, _hash) = confirmed_route();
         with_files(&mut old);
@@ -1340,6 +1358,7 @@ mod tests {
 
     // @verifies SWR-MG-17#a
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn without_the_erase_flag_a_clear_still_waits_for_the_matching_confirmation() {
         let (mut route, mut old, hash) = confirmed_route();
         let r = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
@@ -1349,6 +1368,7 @@ mod tests {
 
     // @verifies SWR-MG-06
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_files_are_overwritten_in_full_synced_and_deleted_after_the_key_is_destroyed() {
         let (mut route, mut old, hash) = confirmed_route();
         with_files(&mut old);
@@ -1380,6 +1400,7 @@ mod tests {
     // @verifies SWR-MG-06
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_file_call_that_fails_stops_the_clear_at_that_step_and_the_next_launch_finishes_what_is_left() {
         let (mut route, mut old, hash) = confirmed_route();
         with_files(&mut old);
@@ -1401,6 +1422,7 @@ mod tests {
 
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_clear_that_stops_part_way_resumes_from_the_step_it_reached_without_asking_again() {
         let (mut route, mut old, hash) = confirmed_route();
         assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
@@ -1430,6 +1452,7 @@ mod tests {
 
     // @verifies SWR-MG-08
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_phone_that_is_reused_and_cleared_again_starts_its_clear_from_the_first_step() {
         let (mut route, mut old, hash) = confirmed_route();
         assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
@@ -1460,6 +1483,7 @@ mod tests {
     // @verifies SWR-MG-11
     // @verifies SWR-MG-07
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_migration_runs_over_a_plain_object_store_and_a_second_restore_is_refused() {
         let (mut route, mut old, mut fresh, mut other) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 90));
         let done = run("backup", object_params(&old, json!({ "kind": "migrate", "method": "passphrase" })), &mut route, &mut old, SECRET);
@@ -1484,6 +1508,7 @@ mod tests {
 
     // @verifies SWR-MG-11
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn an_object_call_that_fails_ends_the_flow_with_the_route_unavailable() {
         for failing in ["objectPut", "objectGet", "objectCreate"] {
             let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
@@ -1603,6 +1628,7 @@ mod tests {
     // @verifies SWR-MG-11
     // @verifies SWR-MG-07
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_migration_runs_over_a_direct_link_in_small_pieces_and_a_second_restore_is_refused() {
         let (mut store, mut old, mut fresh, mut other) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 90));
         let (mut srv_phone, mut quiet) = (phone(&ADAPTER, 3), phone(&ADAPTER, 4));
@@ -1646,6 +1672,7 @@ mod tests {
 
     // @verifies SWR-MG-28#d
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn once_two_phones_are_paired_neither_state_holds_the_code_the_seed_or_the_request_it_came_in() {
         let (mut store, mut old, mut fresh, mut srv_phone) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 3));
         fill(&mut old);
@@ -1694,6 +1721,7 @@ mod tests {
 
     // @verifies SWR-MG-10
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_wrong_code_expired_or_spent_code_pairs_nothing_and_each_session_costs_a_try() {
         let (mut store, mut old, mut srv) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 3));
         fill(&mut old);
@@ -1735,6 +1763,7 @@ mod tests {
 
     // @verifies SWR-MG-11
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_link_that_closes_or_breaks_during_a_restore_ends_it_with_the_route_unavailable() {
         for closing in [json!({ "chunk": null }), json!({ "failed": true })] {
             let (mut store, mut old, mut srv) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 3));

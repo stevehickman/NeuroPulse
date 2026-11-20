@@ -275,11 +275,11 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
             let b = crate::secret_io::secret(req, "bytes", &[])?;
             Ok(json!({ "code": encode_recovery_code(&b)? }))
         })(),
-        "parseRecoveryCode" => Ok(match crate::secret_io::secret_text(req, "code", &[]).map_err(|_| "malformed").and_then(|c| parse_recovery_code(&c)) {
+        "parseRecoveryCode" => Ok(match crate::secret_io::secret_text(req, "code", &[]).map_err(|e| if e.starts_with("hex_key_refused") { e } else { "malformed".to_string() }).and_then(|c| parse_recovery_code(&c).map_err(String::from)) {
             Ok(b) => json!({ "ok": true, "secret": crate::secret_io::answer_secret(&b) }),
             Err(reason) => json!({ "ok": false, "reason": reason }),
         }),
-        "passphraseSecret" => Ok(match crate::secret_io::secret_text(req, "passphrase", &[]).map_err(|_| "too_short").and_then(|p| passphrase_secret(&p)) {
+        "passphraseSecret" => Ok(match crate::secret_io::secret_text(req, "passphrase", &[]).map_err(|e| if e.starts_with("hex_key_refused") { e } else { "too_short".to_string() }).and_then(|p| passphrase_secret(&p).map_err(String::from)) {
             Ok(b) => json!({ "ok": true, "secret": crate::secret_io::answer_secret(&b), "minChars": PASSPHRASE_MIN_CHARS }),
             Err(reason) => json!({ "ok": false, "reason": reason, "minChars": PASSPHRASE_MIN_CHARS }),
         }),

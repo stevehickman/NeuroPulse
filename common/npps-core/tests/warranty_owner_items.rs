@@ -46,6 +46,7 @@ fn open(bundle: &str) -> Value {
 
 // @verifies REQ-SHDR-10#b
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn neither_kind_of_user_bundle_seals_the_warranty_owners_enrolment_or_consent() {
     for kind in ["migrate", "uhdr"] {
         for item in ["characterisationEnrolment", "warrantyConsentFlag"] {
@@ -69,6 +70,7 @@ fn neither_kind_of_user_bundle_seals_the_warranty_owners_enrolment_or_consent() 
 
 // @verifies REQ-SHDR-10#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_bundle_an_earlier_version_sealed_with_the_enrolment_opens_without_it() {
     let history = json!([{"id": 1}]);
     // Control: the helper makes the bundle the core makes, byte for byte, when the items are ones it seals.

@@ -186,6 +186,21 @@ class EraseDeviceTest {
         assertNull(kv.getString("np.session.history"))
     }
 
+    // A locked run reads its sealed keys as absent, so the gate reports nothing left while the raw store still holds them.
+    // @verifies REQ-SW03-19#d
+    @Test fun a_locked_run_counts_the_sealed_analytics_values_it_could_not_read_and_any_other_run_counts_none() {
+        val locked = life.neurone.core.common.StorageProtection.LOCKED
+        val raw = InMemoryKeyValueStore()
+        assertEquals(0, life.neurone.shared.migration.unreadableAnalyticsIds(locked, raw), "nothing stored, nothing unsent")
+        raw.putString("np.analytics.distinct-id", "np-enc:1:sealed")
+        assertEquals(1, life.neurone.shared.migration.unreadableAnalyticsIds(locked, raw))
+        raw.putString("np.analytics.pending-erasures", "np-enc:1:sealed")
+        assertEquals(2, life.neurone.shared.migration.unreadableAnalyticsIds(locked, raw))
+        for (readable in life.neurone.core.common.StorageProtection.entries.filter { it != locked }) {
+            assertEquals(0, life.neurone.shared.migration.unreadableAnalyticsIds(readable, raw), "$readable: the gate read them, so its own count stands")
+        }
+    }
+
     private val used = listOf(
         Res.string.settings_erase_device_title, Res.string.settings_erase_device_confirm,
         Res.string.settings_erase_device_button, Res.string.settings_erase_device_close,

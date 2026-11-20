@@ -1521,4 +1521,19 @@ class ConsentStoreTests {
         assertFalse(s.researchConsent.suggestionPortalOptIn)
         assertEquals(1, calls())
     }
+
+    // The callback's default does nothing, so the stored token must not depend on a host having wired it.
+    // @verifies REQ-SW03-12#f
+    @Test
+    fun theStoredAuthorTokenIsRemovedOnAWithdrawalEvenWhenNothingListens() {
+        val tokenKey = life.neurone.core.research.ResearchSuggestionStore.TOKEN_KEY
+        val kv = InMemoryKeyValueStore()
+        val s = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()))
+        s.updateResearchConsent(ResearchConsentState(suggestionPortalOptIn = true))
+        kv.putString(tokenKey, "author-token")
+        s.updateResearchConsent(s.researchConsent.copy(resultsOptIn = true))
+        assertEquals("author-token", kv.getString(tokenKey), "an edit that withdraws nothing keeps it")
+        s.updateResearchConsent(s.researchConsent.copy(suggestionPortalOptIn = false))
+        assertNull(kv.getString(tokenKey))
+    }
 }
