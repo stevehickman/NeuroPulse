@@ -104,7 +104,7 @@ teardown — the same regression inverted.
 
 ### 6.3 Research suggestion portal (three functions)
 
-> **Delivery (the principal, 2026-11-20, `OI-PRIV-22`):** a study request is broadcast to the *current* device of every person who consented to any research. The server does not filter by topic or category; the device compares the descriptor with the person's detailed consents (`ConsentEngine.admit()`). The current-device record is delivery-only, kept apart from the research store, SHDR and the warranty database. See `data-architecture-detail.md` §5.3 step 1a.
+> **Delivery (the principal, 2026-11-20, `OI-PRIV-22`):** a study request is broadcast to the *current* device of every person who consented to any research. The server does not filter by topic or category; the device compares the descriptor with the person's detailed consents (`ConsentEngine.admit()`). The current-device record is delivery-only, kept apart from the research store, SHDR and the warranty database. One current install per person: the last one registered takes over (restore or transfer carrying the subscription secret), and people with several installs must be told that research follows it. See `data-architecture-detail.md` §5.3 step 1a.
 
 1. **Patient research agenda:** Patients submit study ideas in plain language, community votes ("interested"), comments, expresses participation intent. Top suggestions visible to researcher community.
 
