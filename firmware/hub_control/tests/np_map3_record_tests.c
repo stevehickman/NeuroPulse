@@ -14,22 +14,19 @@
  * check_no_record_lost(reader) builds journal images and requires the reader
  * to return every row, with every version-1 field intact, in order:
  *
- *   S1 upgrade     rows written under v1 (np_map3_encode, the real writer),
- *                  read after the update.  The reader of n+1 is the same scan
- *                  code: version tolerance is a property of the scan, not a
- *                  per-version branch, which is what makes the check mean
- *                  anything before n+1 exists.
- *   S2 appended    v1 rows followed by v2 rows (the real writer) and by rows the
- *                  NEXT two versions would write
- *                  (+8 and +16 tail bytes), exactly as the journal looks after
- *                  an update adds rows to an unsynced history.
- *   S3 rollback    S2's image read by this reader, which knows only v1: the
- *                  boot-bank fallback case.  Newer rows are decoded for their
- *                  v1 fields, never dropped.
+ *   S1 current     rows written by the real writer (np_map3_encode), version 1.
+ *   S2 appended    version-1 rows followed by rows the NEXT two versions would
+ *                  write (+8 and +16 tail bytes), exactly as the journal looks
+ *                  after an update adds rows to an unsynced history.  The
+ *                  reader of n+1 is the same scan code: version tolerance is a
+ *                  property of the scan, not a per-version branch, which is
+ *                  what makes the check mean anything before n+1 exists.
+ *   S3 rollback    S2's image read by this reader, which knows only version 1:
+ *                  the boot-bank fallback case.  Newer rows are decoded for
+ *                  their version-1 fields, never dropped.
  *   S4 torn tail   S2 with a partial last row: costs that row only (L-4).
- *   S5 file bound  1,536 v1 rows fill the 49,152-byte file exactly (D-24) and
- *                  all of them come back.
- *   S6 v2 bound    768 v2 rows (64 bytes, OI-UINT16-01) fill it exactly too.
+ *   S5 file bound  768 rows (64 bytes, OI-UINT16-01) fill the 49,152-byte
+ *                  file exactly (D-24) and all of them come back.
  *
  * ── Falsified in both directions (NP-CONV-001 §8) ────────────────────────────
  *
@@ -41,7 +38,7 @@
  *                          version discards the journal.  RISK-NVRAM-01's cause.
  *   M2 fixed stride        steps by the size it would write, not by `len`: a
  *                          longer row desynchronises every row after it.
- *   M3 exact length        stops at a row whose `len` is not the v1 size.
+ *   M3 exact length        stops at a row whose `len` is not the row size.
  *   M4 version ceiling     "refuse rows from firmware newer than me": loses
  *                          everything an updated bank wrote once rolled back.
  *
@@ -69,8 +66,8 @@ static int g_fail_count;
 
 /* ── Journal images ────────────────────────────────────────────────────────── */
 
-#define MAX_ROWS   1600U
-#define IMG_BYTES  (MAX_ROWS * 48U)
+#define MAX_ROWS   800U
+#define IMG_BYTES  (MAX_ROWS * 96U)
 
 static uint8_t       g_img[IMG_BYTES];
 static np_map3_rec_t g_want[MAX_ROWS];
@@ -99,49 +96,22 @@ static void put_u32(uint8_t *p, uint32_t v)
 }
 
 /*
- * The version-1 row exactly as the version-1 firmware wrote it (32 bytes, the counts 16-bit).  The production writer
- * now writes version 2, so the check that a journal written under version 1 loses nothing needs its own writer for
- * the old layout.  Returns 0 for a count a version-1 row cannot hold: this model never truncates one.
- */
-static size_t encode_v1(const np_map3_rec_t *r, uint8_t *out)
-{
-    if (r->session_count > 0xFFFFU || r->throttle_count > 0xFFFFU) {
-        return 0U;
-    }
-    memset(out, 0, NP_MAP3_V1_BYTES);
-    out[0] = (uint8_t)NP_MAP3_V1_BYTES;
-    out[1] = 1U;
-    memcpy(&out[2], r->uid, NP_MAP3_UID_LEN);
-    put_u32(&out[10], r->seq);
-    put_u32(&out[14], r->ordinal);
-    out[18] = (uint8_t)r->session_count;
-    out[19] = (uint8_t)(r->session_count >> 8);
-    put_u32(&out[20], r->dose_accum);
-    out[24] = (uint8_t)r->throttle_count;
-    out[25] = (uint8_t)(r->throttle_count >> 8);
-    out[26] = r->fault_flags;
-    put_u32(&out[NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES],
-            np_crc32(out, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES));
-    return NP_MAP3_V1_BYTES;
-}
-
-/*
- * What firmware version `ver` (3 or later) would write, built the only way §7.2 permits: the version-2 row, unchanged,
+ * What firmware version `ver` (2 or later) would write, built the only way §7.2 permits: the version-1 row, unchanged,
  * with `tail` bytes appended before the CRC.  This is the model of n+1 the check needs, and it is built from the real
  * writer rather than a copy of its layout.
  */
 static size_t encode_future(const np_map3_rec_t *r, uint8_t ver, uint8_t tail,
                             uint8_t *out)
 {
-    size_t n = np_map3_encode(r, out, NP_MAP3_V2_BYTES);
-    if (n != NP_MAP3_V2_BYTES) {
+    size_t n = np_map3_encode(r, out, NP_MAP3_ROW_BYTES);
+    if (n != NP_MAP3_ROW_BYTES) {
         return 0U;
     }
-    size_t len = NP_MAP3_V2_BYTES + tail;
+    size_t len = NP_MAP3_ROW_BYTES + tail;
     /* Move nothing: fields [2, 60) stay where they are.  The tail sits
      * between them and the CRC. */
     for (size_t k = 0U; k < tail; k++) {
-        out[NP_MAP3_V2_FIELDS_END + k] = (uint8_t)(0x5AU ^ k ^ ver);
+        out[NP_MAP3_FIELDS_END + k] = (uint8_t)(0x5AU ^ k ^ ver);
     }
     out[0] = (uint8_t)len;
     out[1] = ver;
@@ -156,27 +126,23 @@ typedef struct {
 } img_t;
 
 /*
- * n1 rows at version 1 (the old writer, counts within 16 bits), then n2 at version 2 (the real writer, counts above
- * 16 bits), then n3 at version 3 (+8 tail bytes), then n4 at version 4 (+16).
+ * n1 rows at version 1 (the real writer), then n2 at version 2 (+8 tail bytes), then n3 at version 3 (+16).  The counts
+ * are above 16 bits, so a field narrower than 32 bits would lose them.
  */
-static img_t build(uint32_t n1, uint32_t n2, uint32_t n3, uint32_t n4)
+static img_t build(uint32_t n1, uint32_t n2, uint32_t n3)
 {
     img_t im = { 0U, 0U };
-    for (uint32_t i = 0U; i < n1 + n2 + n3 + n4; i++) {
+    for (uint32_t i = 0U; i < n1 + n2 + n3; i++) {
         make_rec(&g_want[i], i);
+        g_want[i].session_count  = 70000U + i;
+        g_want[i].throttle_count = 100000U + i % 5U;
         size_t n;
         if (i < n1) {
-            n = encode_v1(&g_want[i], &g_img[im.bytes]);
+            n = np_map3_encode(&g_want[i], &g_img[im.bytes], NP_MAP3_ROW_BYTES);
+        } else if (i < n1 + n2) {
+            n = encode_future(&g_want[i], 2U, 8U, &g_img[im.bytes]);
         } else {
-            g_want[i].session_count  = 70000U + i;      /* above 16 bits: the tail carries it whole */
-            g_want[i].throttle_count = 100000U + i % 5U;
-            if (i < n1 + n2) {
-                n = np_map3_encode(&g_want[i], &g_img[im.bytes], NP_MAP3_V2_BYTES);
-            } else if (i < n1 + n2 + n3) {
-                n = encode_future(&g_want[i], 3U, 8U, &g_img[im.bytes]);
-            } else {
-                n = encode_future(&g_want[i], 4U, 16U, &g_img[im.bytes]);
-            }
+            n = encode_future(&g_want[i], 3U, 16U, &g_img[im.bytes]);
         }
         im.bytes += n;
         im.rows++;
@@ -229,25 +195,25 @@ static uint32_t reader_reject_rebuild(const uint8_t *buf, size_t len,
     return n;
 }
 
-/* M2 — fixed stride: steps by the v1 size and checks the CRC where a v1 row
+/* M2 — fixed stride: steps by the row size and checks the CRC where a version-1 row
  * would have it.  Written without np_map3_scan, as a hand-rolled reader would
  * be. */
 static uint32_t reader_fixed_stride(const uint8_t *buf, size_t len,
                                     np_map3_row_t *out, uint32_t cap)
 {
     uint32_t n = 0U;
-    for (size_t off = 0U; off + NP_MAP3_V1_BYTES <= len && n < cap;
-         off += NP_MAP3_V1_BYTES) {
+    for (size_t off = 0U; off + NP_MAP3_ROW_BYTES <= len && n < cap;
+         off += NP_MAP3_ROW_BYTES) {
         const uint8_t *p = buf + off;
-        uint32_t crc = (uint32_t)p[28] | ((uint32_t)p[29] << 8) |
-                       ((uint32_t)p[30] << 16) | ((uint32_t)p[31] << 24);
-        if (crc != np_crc32(p, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES)) {
+        uint32_t crc = (uint32_t)p[60] | ((uint32_t)p[61] << 8) |
+                       ((uint32_t)p[62] << 16) | ((uint32_t)p[63] << 24);
+        if (crc != np_crc32(p, NP_MAP3_ROW_BYTES - NP_MAP3_CRC_BYTES)) {
             break;
         }
-        /* Decode exactly as the real scan would, from this 32-byte window. */
-        uint8_t tmp[NP_MAP3_V1_BYTES];
+        /* Decode exactly as the real scan would, from this 64-byte window. */
+        uint8_t tmp[NP_MAP3_ROW_BYTES];
         memcpy(tmp, p, sizeof(tmp));
-        tmp[0] = (uint8_t)NP_MAP3_V1_BYTES;
+        tmp[0] = (uint8_t)NP_MAP3_ROW_BYTES;
         if (reader_real(tmp, sizeof(tmp), &out[n], 1U) != 1U) {
             break;
         }
@@ -256,13 +222,13 @@ static uint32_t reader_fixed_stride(const uint8_t *buf, size_t len,
     return n;
 }
 
-/* M3 — exact length: stops at the first row that is not the v1 size. */
+/* M3 — exact length: stops at the first row that is not the row size. */
 static uint32_t reader_exact_len(const uint8_t *buf, size_t len,
                                  np_map3_row_t *out, uint32_t cap)
 {
     uint32_t n = reader_real(buf, len, out, cap);
     for (uint32_t i = 0U; i < n; i++) {
-        if (out[i].len != NP_MAP3_V1_BYTES) {
+        if (out[i].len != NP_MAP3_ROW_BYTES) {
             return i;
         }
     }
@@ -284,7 +250,7 @@ static uint32_t reader_version_ceiling(const uint8_t *buf, size_t len,
 
 /* ── The check ─────────────────────────────────────────────────────────────── */
 
-static bool same_v1_fields(const np_map3_rec_t *a, const np_map3_rec_t *b)
+static bool same_fields(const np_map3_rec_t *a, const np_map3_rec_t *b)
 {
     return memcmp(a->uid, b->uid, NP_MAP3_UID_LEN) == 0 && a->seq == b->seq &&
            a->ordinal == b->ordinal && a->session_count == b->session_count &&
@@ -293,7 +259,7 @@ static bool same_v1_fields(const np_map3_rec_t *a, const np_map3_rec_t *b)
            a->fault_flags == b->fault_flags;
 }
 
-/* Every expected row back, in order, v1 fields intact.  Reports the first
+/* Every expected row back, in order, version-1 fields intact.  Reports the first
  * shortfall under `what` when `loud`. */
 static bool all_back(reader_fn rd, const img_t *im, size_t bytes, uint32_t want,
                      const char *what, bool loud)
@@ -306,7 +272,7 @@ static bool all_back(reader_fn rd, const img_t *im, size_t bytes, uint32_t want,
         return false;
     }
     for (uint32_t i = 0U; i < want; i++) {
-        if (!same_v1_fields(&g_got[i].rec, &g_want[i])) {
+        if (!same_fields(&g_got[i].rec, &g_want[i])) {
             if (loud) {
                 printf("    %s: row %u recovered with wrong fields\n", what, i);
             }
@@ -322,41 +288,30 @@ static bool check_no_record_lost(reader_fn rd, bool loud)
     bool ok = true;
     img_t im;
 
-    /* S1 — upgrade: a v1 journal read after the update. */
-    im = build(40U, 0U, 0U, 0U);
-    ok &= all_back(rd, &im, im.bytes, im.rows, "S1 upgrade", loud);
+    /* S1 — the rows the real writer writes. */
+    im = build(40U, 0U, 0U);
+    ok &= all_back(rd, &im, im.bytes, im.rows, "S1 current", loud);
 
     /* S2 — the updated firmware appends to the unsynced history. */
-    im = build(40U, 10U, 20U, 5U);
+    im = build(40U, 20U, 5U);
     ok &= all_back(rd, &im, im.bytes, im.rows, "S2 appended", loud);
 
-    /* S3 — rollback: the same image, read by a reader that knows only v1.
+    /* S3 — rollback: the same image, read by a reader that knows only version 1.
      * For the production reader the tail must be reported, not decoded. */
     ok &= all_back(rd, &im, im.bytes, im.rows, "S3 rollback", loud);
 
     /* S4 — a torn last row costs that row and nothing before it. */
     ok &= all_back(rd, &im, im.bytes - 5U, im.rows - 1U, "S4 torn tail", loud);
 
-    /* S5 — the D-24 bound: 1,536 v1 rows, exactly 49,152 bytes. */
-    im = build(NP_MAP3_V1_ROWS, 0U, 0U, 0U);
+    /* S5 — the D-24 bound: 768 rows of 64 bytes, exactly 49,152 bytes. */
+    im = build(NP_MAP3_ROWS, 0U, 0U);
     if (im.bytes != NP_MAP3_FILE_BYTES) {
         if (loud) {
-            printf("    S5 bound: %zu bytes, D-24 says %u\n", im.bytes,
-                   NP_MAP3_FILE_BYTES);
+            printf("    S5 bound: %zu bytes, the file is %u\n", im.bytes, NP_MAP3_FILE_BYTES);
         }
         ok = false;
     }
     ok &= all_back(rd, &im, im.bytes, im.rows, "S5 file bound", loud);
-
-    /* S6 — the same bound at version 2: 768 rows of 64 bytes fill the file exactly. */
-    im = build(0U, NP_MAP3_V2_ROWS, 0U, 0U);
-    if (im.bytes != NP_MAP3_FILE_BYTES) {
-        if (loud) {
-            printf("    S6 bound: %zu bytes, the file is %u\n", im.bytes, NP_MAP3_FILE_BYTES);
-        }
-        ok = false;
-    }
-    ok &= all_back(rd, &im, im.bytes, im.rows, "S6 v2 file bound", loud);
 
     return ok;
 }
@@ -366,18 +321,17 @@ static bool check_no_record_lost(reader_fn rd, bool loud)
 /* @verifies REQ-FWHUB-51 */
 static void test_the_production_reader_loses_nothing(void)
 {
-    printf("[OI-NVRAM-08] a journal written under v1 loses no record under v1+1\n");
+    printf("[OI-NVRAM-08] a journal written under version 1 loses no record under version 1+1\n");
     ASSERT(check_no_record_lost(reader_real, true),
            "the production reader lost a record across a version change");
 
-    /* And S3's detail: newer rows carry their tail length, older ones none. */
-    img_t im = build(2U, 1U, 1U, 1U);
+    /* And S3's detail: newer rows carry their tail length, current ones none. */
+    img_t im = build(2U, 1U, 1U);
     uint32_t n = reader_real(g_img, im.bytes, g_got, MAX_ROWS);
-    ASSERT(n == 5U, "mixed image did not yield five rows");
-    ASSERT(g_got[0].ver == 1U && g_got[0].tail_len == 0U, "v1 row misreported");
-    ASSERT(g_got[2].ver == 2U && g_got[2].tail_len == 0U, "v2 row misreported");
-    ASSERT(g_got[3].ver == 3U && g_got[3].tail_len == 8U, "v3 tail not reported");
-    ASSERT(g_got[4].ver == 4U && g_got[4].tail_len == 16U, "v4 tail not reported");
+    ASSERT(n == 4U, "mixed image did not yield four rows");
+    ASSERT(g_got[0].ver == 1U && g_got[0].tail_len == 0U, "version-1 row misreported");
+    ASSERT(g_got[2].ver == 2U && g_got[2].tail_len == 8U, "version-2 tail not reported");
+    ASSERT(g_got[3].ver == 3U && g_got[3].tail_len == 16U, "version-3 tail not reported");
 }
 
 /* @verifies REQ-FWHUB-51 */
@@ -394,55 +348,54 @@ static void test_the_check_fails_every_rule_breaking_reader(void)
     ASSERT(!check_no_record_lost(reader_version_ceiling, false),
            "M4 version ceiling passed the check — it has no teeth");
 
-    /* And the other half: each mutant is RIGHT on a pure-v1 journal.  Without
-     * this, a mutant that was simply broken would falsify nothing about
-     * versioning. */
-    img_t im = build(0U, 40U, 0U, 0U);   /* M1 accepts only the current version, so it is judged on a current journal */
-    ASSERT(all_back(reader_reject_rebuild, &im, im.bytes, im.rows, "M1 v2", true),
-           "M1 fails on a pure-current journal — it is broken, not version-intolerant");
-    im = build(40U, 0U, 0U, 0U);          /* M2 to M4 step by, or expect, the v1 row */
-    ASSERT(all_back(reader_fixed_stride, &im, im.bytes, im.rows, "M2 v1", true),
-           "M2 fails on a pure-v1 journal — it is broken, not version-intolerant");
-    ASSERT(all_back(reader_exact_len, &im, im.bytes, im.rows, "M3 v1", true),
-           "M3 fails on a pure-v1 journal — it is broken, not version-intolerant");
-    ASSERT(all_back(reader_version_ceiling, &im, im.bytes, im.rows, "M4 v1", true),
-           "M4 fails on a pure-v1 journal — it is broken, not version-intolerant");
+    /* And the other half: each mutant is RIGHT on a journal of current rows.
+     * Without this, a mutant that was simply broken would falsify nothing
+     * about versioning. */
+    img_t im = build(40U, 0U, 0U);
+    ASSERT(all_back(reader_reject_rebuild, &im, im.bytes, im.rows, "M1 current", true),
+           "M1 fails on a current-only journal — it is broken, not version-intolerant");
+    ASSERT(all_back(reader_fixed_stride, &im, im.bytes, im.rows, "M2 current", true),
+           "M2 fails on a current-only journal — it is broken, not version-intolerant");
+    ASSERT(all_back(reader_exact_len, &im, im.bytes, im.rows, "M3 current", true),
+           "M3 fails on a current-only journal — it is broken, not version-intolerant");
+    ASSERT(all_back(reader_version_ceiling, &im, im.bytes, im.rows, "M4 current", true),
+           "M4 fails on a current-only journal — it is broken, not version-intolerant");
 }
 
 /* @verifies REQ-FWHUB-51 */
 static void test_a_row_that_does_not_verify_ends_the_prefix(void)
 {
     printf("[§4.2(b)] a bad row ends the valid prefix; nothing after it is trusted\n");
-    img_t im = build(10U, 0U, 0U, 0U);
+    img_t im = build(10U, 0U, 0U);
     np_map3_scan_t s;
 
-    g_img[5U * NP_MAP3_V1_BYTES + 12U] ^= 0x01U;   /* a payload bit in row 5 */
+    g_img[5U * NP_MAP3_ROW_BYTES + 12U] ^= 0x01U;   /* a payload bit in row 5 */
     np_map3_scan(g_img, im.bytes, NULL, NULL, &s);
     ASSERT(s.rows == 5U && s.end == NP_MAP3_END_BAD_CRC,
            "a corrupted payload was accepted, or ended the scan in the wrong place");
 
-    im = build(10U, 0U, 0U, 0U);
-    g_img[5U * NP_MAP3_V1_BYTES] = 40U;              /* a flipped length */
+    im = build(10U, 0U, 0U);
+    g_img[5U * NP_MAP3_ROW_BYTES] = 72U;             /* a flipped length */
     np_map3_scan(g_img, im.bytes, NULL, NULL, &s);
     ASSERT(s.rows == 5U && s.end == NP_MAP3_END_BAD_CRC,
            "a corrupted length walked the scan into the next row");
 
-    im = build(10U, 0U, 0U, 0U);
-    g_img[5U * NP_MAP3_V1_BYTES] = 8U;               /* shorter than any row */
+    im = build(10U, 0U, 0U);
+    g_img[5U * NP_MAP3_ROW_BYTES] = 8U;              /* shorter than any row */
     np_map3_scan(g_img, im.bytes, NULL, NULL, &s);
     ASSERT(s.rows == 5U && s.end == NP_MAP3_END_BAD_LEN, "an impossible length was accepted");
 
     /* ver == 0 is written by no firmware, even under a valid CRC. */
-    im = build(10U, 0U, 0U, 0U);
-    uint8_t *p = &g_img[5U * NP_MAP3_V1_BYTES];
+    im = build(10U, 0U, 0U);
+    uint8_t *p = &g_img[5U * NP_MAP3_ROW_BYTES];
     p[1] = 0U;
-    put_u32(&p[28], np_crc32(p, 28U));
+    put_u32(&p[NP_MAP3_ROW_BYTES - NP_MAP3_CRC_BYTES], np_crc32(p, NP_MAP3_ROW_BYTES - NP_MAP3_CRC_BYTES));
     np_map3_scan(g_img, im.bytes, NULL, NULL, &s);
     ASSERT(s.rows == 5U && s.end == NP_MAP3_END_BAD_VER, "a version-0 row was accepted");
 
     /* The UID is under the CRC: a row moved to another module's UID fails. */
-    im = build(10U, 0U, 0U, 0U);
-    g_img[5U * NP_MAP3_V1_BYTES + 2U] ^= 0xFFU;
+    im = build(10U, 0U, 0U);
+    g_img[5U * NP_MAP3_ROW_BYTES + 2U] ^= 0xFFU;
     np_map3_scan(g_img, im.bytes, NULL, NULL, &s);
     ASSERT(s.rows == 5U, "a row with a rewritten UID verified");
 
@@ -452,72 +405,45 @@ static void test_a_row_that_does_not_verify_ends_the_prefix(void)
 }
 
 /* @verifies REQ-FWHUB-51 */
-static void test_the_v1_row_is_the_budgeted_row(void)
+static void test_the_row_is_64_bytes_and_carries_the_counts_whole(void)
 {
-    printf("[§3.3.1.5] the v1 row is 32 bytes and none straddles a 256-byte "
-           "program unit\n");
-    ASSERT(NP_MAP3_V1_BYTES == 32U, "the v1 row is not 32 bytes (D-24)");
-    ASSERT(256U % NP_MAP3_V1_BYTES == 0U, "a v1 row can straddle a program unit");
-    ASSERT(NP_MAP3_V1_ROWS == 1536U, "the file does not hold 1,536 v1 rows (D-24)");
-
-    np_map3_rec_t r;
-    make_rec(&r, 7U);
-    uint8_t buf[NP_MAP3_V1_BYTES];
-    ASSERT(encode_v1(&r, buf) == NP_MAP3_V1_BYTES, "the version-1 model failed to encode");
-    ASSERT(buf[0] == NP_MAP3_V1_BYTES && buf[1] == 1U, "the v1 header does not describe the row");
-    ASSERT(buf[27] == 0U, "the reserved byte is not written 0");
-}
-
-/* @verifies REQ-FWHUB-51 */
-static void test_the_v2_row_is_64_bytes_and_carries_the_counts_whole(void)
-{
-    printf("[OI-UINT16-01] the v2 row is 64 bytes, none straddles a program unit, and the counts are 32-bit\n");
-    ASSERT(NP_MAP3_V2_BYTES == 64U, "the v2 row is not 64 bytes");
-    ASSERT(256U % NP_MAP3_V2_BYTES == 0U, "a v2 row can straddle a program unit (NP-FW-NVRAM-001 §4.2(b))");
-    ASSERT(NP_MAP3_V2_ROWS == 768U, "the file does not hold 768 v2 rows");
+    printf("[OI-UINT16-01] the row is 64 bytes, none straddles a program unit, and the counts are 32-bit\n");
+    ASSERT(NP_MAP3_ROW_BYTES == 64U, "the row is not 64 bytes");
+    ASSERT(256U % NP_MAP3_ROW_BYTES == 0U, "a row can straddle a program unit (NP-FW-NVRAM-001 §4.2(b))");
+    ASSERT(NP_MAP3_ROWS == 768U, "the file does not hold 768 rows");
 
     np_map3_rec_t r;
     make_rec(&r, 7U);
     r.session_count  = 4000000000U;      /* far above 16 bits */
     r.throttle_count = 70000U;
-    uint8_t buf[NP_MAP3_V2_BYTES];
+    uint8_t buf[NP_MAP3_ROW_BYTES];
     ASSERT(np_map3_encode(&r, buf, sizeof(buf) - 1U) == 0U, "the encoder wrote into a buffer too small for a row");
-    ASSERT(np_map3_encode(&r, buf, sizeof(buf)) == NP_MAP3_V2_BYTES, "encode failed");
-    ASSERT(buf[0] == NP_MAP3_V2_BYTES && buf[1] == NP_MAP3_VERSION, "the header does not describe the row");
-    ASSERT(buf[27] == 0U, "the reserved byte is not written 0");
-    for (unsigned k = 36U; k < NP_MAP3_V2_FIELDS_END; k++) {
-        ASSERT(buf[k] == 0U, "a reserved byte of the v2 tail is not written 0");
+    ASSERT(np_map3_encode(&r, buf, sizeof(buf)) == NP_MAP3_ROW_BYTES, "encode failed");
+    ASSERT(buf[0] == NP_MAP3_ROW_BYTES && buf[1] == NP_MAP3_VERSION, "the header does not describe the row");
+    for (unsigned k = 31U; k < NP_MAP3_FIELDS_END; k++) {
+        ASSERT(buf[k] == 0U, "a reserved byte is not written 0");
     }
-    /* A version-1 reader decodes only the old fields: 0xFFFF where the count is larger, never a wrapped number. */
-    ASSERT(buf[18] == 0xFFU && buf[19] == 0xFFU && buf[24] == 0xFFU && buf[25] == 0xFFU,
-           "the version-1 fields do not hold 0xFFFF for a count above 16 bits");
     np_map3_scan_t sc;
     collect_t c = { g_got, MAX_ROWS, 0U };
     np_map3_scan(buf, sizeof(buf), collect, &c, &sc);
-    ASSERT(c.n == 1U && sc.end == NP_MAP3_END_CLEAN, "the v2 row did not scan");
+    ASSERT(c.n == 1U && sc.end == NP_MAP3_END_CLEAN, "the row did not scan");
     ASSERT(g_got[0].rec.session_count == 4000000000U && g_got[0].rec.throttle_count == 70000U,
            "the counts did not come back whole");
 
-    /* A count that fits is the same in both places. */
-    make_rec(&r, 9U);
-    ASSERT(np_map3_encode(&r, buf, sizeof(buf)) == NP_MAP3_V2_BYTES, "encode failed");
-    ASSERT(buf[18] == (uint8_t)r.session_count && buf[19] == 0U, "a small count differs between the two fields");
-
-    /* A row that claims version 2 but is shorter than a version-2 row is not a row any firmware writes. */
-    uint8_t shortrow[NP_MAP3_V1_BYTES];
-    ASSERT(encode_v1(&r, shortrow) == NP_MAP3_V1_BYTES, "the v1 model failed to encode");
-    shortrow[1] = 2U;
-    put_u32(&shortrow[NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES], np_crc32(shortrow, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES));
+    /* A row shorter than the row is not a row any firmware writes. */
+    uint8_t shortrow[NP_MAP3_ROW_BYTES - 1U];
+    memcpy(shortrow, buf, sizeof(shortrow));
+    shortrow[0] = (uint8_t)sizeof(shortrow);
+    put_u32(&shortrow[sizeof(shortrow) - NP_MAP3_CRC_BYTES], np_crc32(shortrow, sizeof(shortrow) - NP_MAP3_CRC_BYTES));
     np_map3_scan(shortrow, sizeof(shortrow), NULL, NULL, &sc);
-    ASSERT(sc.rows == 0U && sc.end == NP_MAP3_END_BAD_LEN, "a short row claiming version 2 was accepted");
+    ASSERT(sc.rows == 0U && sc.end != NP_MAP3_END_CLEAN, "a row shorter than the row was accepted");
 }
 
 int main(void)
 {
     printf("np_map3_record_tests — NP-FW-NVRAM-001 Rev 3 §7.2 (OI-NVRAM-08)\n");
 
-    test_the_v1_row_is_the_budgeted_row();
-    test_the_v2_row_is_64_bytes_and_carries_the_counts_whole();
+    test_the_row_is_64_bytes_and_carries_the_counts_whole();
     test_a_row_that_does_not_verify_ends_the_prefix();
     test_the_production_reader_loses_nothing();
     test_the_check_fails_every_rule_breaking_reader();

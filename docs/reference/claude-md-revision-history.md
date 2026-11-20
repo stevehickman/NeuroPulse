@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 83 (2026-11-19) — §18: a derived bound is a function of its foundational value, and a fixed foundational value states why (the principal). No other locked decision changed.**
+
+**What changed.** §18 gains one paragraph. A limit rests on research literature, an external standard, or a mechanical or implementation reason; with none of these it is a default and is not enforced. A bound that follows from another value is computed from it and moves with it. A foundational value that is fixed carries the reason beside its definition.
+
+**Why.** Setting the HD-tDCS session range (120 to 1,800 s) as defaults left one real bound: a session needs a ramp up and a ramp down. The principal ruled that the minimum is a derivative of the ramp, so it changes when the ramp does, and that the same holds wherever a derived bound exists. Implemented as `np_hd_min_session_s(ramp_s)` with the ramp fixed at 30 s for the hardware-specified tDCS ramp (`NP_TDCS_MIN_RAMP_S`).
+
+**What it leaves.** Existing derived bounds elsewhere are not audited by this change. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
 **Rev 82 (2026-11-19) — §5.3: suppression is the device's fixed rule, not a descriptor field, and a descriptor carries an expiry day (the principal). No other locked decision changed.**
 
 **What changed.** §5.3 said a signed study descriptor carries "k≥10, date rounding ≥1 week, suppression rules". It now says the descriptor carries k, the date rounding and an expiry day the issuer signs, and that suppression is the device's own rule, the same for every study: a record whose group is smaller than k is dropped, not sent. `docs/reference/data-architecture-detail.md` §5.3 steps 1 and 2 are changed to match.

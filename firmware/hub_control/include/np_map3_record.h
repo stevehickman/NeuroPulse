@@ -10,7 +10,7 @@
  * one: a record may be extended at the TAIL only, and the reader accepts every
  * version, decodes the fields it knows and skips the ones it does not.
  *
- * ── The row (§3.3.1.5, 32 bytes at version 1) ─────────────────────────────────
+ * ── The row (§3.3.1.5, 64 bytes at version 1) ─────────────────────────────────
  *
  *   off  size  field
  *     0     1  len              total record bytes, CRC included
@@ -18,23 +18,21 @@
  *     2     8  uid              module UID (SHDR class, never uploaded raw)
  *    10     4  seq              monotonic per record (§5.2)
  *    14     4  ordinal          session ordinal (§5.2)
- *    18     2  session_count      version 1 field; see "Counts above 16 bits" below
- *    20     4  dose_accum
- *    24     2  throttle_count     version 1 field; see "Counts above 16 bits" below
- *    26     1  fault_flags
- *    27     1  reserved         written 0, ignored on read
- *    28     4  session_count_32   version 2 tail: the count, whole
- *    32     4  throttle_count_32  version 2 tail: the count, whole
- *    36    24  reserved           version 2: written 0, ignored on read, never reused
+ *    18     4  session_count
+ *    22     4  dose_accum
+ *    26     4  throttle_count
+ *    30     1  fault_flags
+ *    31     1  reserved         written 0, ignored on read, never reused
+ *    32    28  reserved         written 0, ignored on read, never reused
  *    60   ...  (a later version's tail fields)
  *  len-4    4  crc32            over bytes [0, len-4): header ‖ uid ‖ payload
  *
- * All multi-byte fields are little-endian.  `len` and `ver` occupy the two
- * bytes §3.3.1.5 left as padding (30 B of fields padded to 32), so version 1 is
- * exactly the budgeted row.  They are what make the row self-describing: a
- * reader steps by the record's own `len`, never by the size it expects, so a
- * longer row written by newer firmware neither shifts every record after it
- * nor stops the scan (D-25).
+ * All multi-byte fields are little-endian.  The row is 64 bytes so that four rows fill a 256-byte program unit and
+ * none straddles one (NP-FW-NVRAM-001 §4.2(b) requirement 1; OI-UINT16-01, the principal, 2026-11-13).  The counts are
+ * 32 bits and are stored as they are: no field holds a ceiling (OI-UINT16-01).  No hardware has shipped and no journal
+ * has been written, so there is exactly one layout, and it is version 1.  `len` and `ver` make the row self-describing:
+ * a reader steps by the record's own `len`, never by the size it expects, so a longer row written by newer firmware
+ * neither shifts every record after it nor stops the scan (D-25).
  *
  * The CRC binds the UID (§4.2(b) item 2): a record recovered into the wrong
  * module's history fails validation instead of transferring one part's usage
@@ -43,7 +41,7 @@
  *
  * ── The version rule (§7.2 item 2) ────────────────────────────────────────────
  *
- *   1. Fields at offsets [2, 28) are fixed for ever.  A new version APPENDS
+ *   1. Fields at offsets [2, 60) are fixed for ever.  A new version APPENDS
  *      before the CRC and raises `ver`; it never moves, resizes or reuses a
  *      version-1 field, including `reserved`.
  *   2. The reader accepts any ver >= 1.  A record newer than the reader is
@@ -75,27 +73,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* The layout version this firmware writes. */
-#define NP_MAP3_VERSION          2U
+/* The layout version this firmware writes: the only one there is. */
+#define NP_MAP3_VERSION          1U
 
-/* Version-1 row: header 2 + fields 26 + CRC 4. */
-#define NP_MAP3_V1_BYTES         32U
-#define NP_MAP3_V1_FIELDS_END    28U   /* first byte after the v1 fields */
+/* The row: header 2 + fields 56 + CRC 4 = 64 bytes (the layout above). */
+#define NP_MAP3_ROW_BYTES        64U
+#define NP_MAP3_FIELDS_END       60U   /* first byte after the version-1 fields */
 
-/* Version-2 row (OI-UINT16-01, the principal, 2026-11-13): 64 bytes, so four rows fill a 256-byte program unit and
- * none straddles one (NP-FW-NVRAM-001 §4.2(b) requirement 1).  A 40-byte row would straddle.  Header 2 + the v1
- * fields 26 + the two 32-bit counts 8 + 24 reserved + CRC 4. */
-#define NP_MAP3_V2_BYTES         64U
-#define NP_MAP3_V2_FIELDS_END    60U   /* first byte after the v2 fields */
+/* The program unit is the NAND's (NP-FW-NVRAM-001 §3.3.1.5: 256 B), so it is the foundational value and the row size is held to it. */
+#define NP_MAP3_PROGRAM_UNIT_BYTES 256U
+_Static_assert(NP_MAP3_PROGRAM_UNIT_BYTES % NP_MAP3_ROW_BYTES == 0U, "a row would straddle a program unit");
 #define NP_MAP3_CRC_BYTES        4U
 
 /* `len` is one byte, so no version can exceed this. */
 #define NP_MAP3_MAX_BYTES        255U
 
-/* §3.3.1.5 / D-24: the file bound and the row count it gives at version 1. */
+/* §3.3.1.5 / D-24: the file bound and the row count it gives. */
 #define NP_MAP3_FILE_BYTES       49152U
-#define NP_MAP3_V1_ROWS          (NP_MAP3_FILE_BYTES / NP_MAP3_V1_BYTES)   /* 1,536 */
-#define NP_MAP3_V2_ROWS          (NP_MAP3_FILE_BYTES / NP_MAP3_V2_BYTES)   /* 768 */
+#define NP_MAP3_ROWS             (NP_MAP3_FILE_BYTES / NP_MAP3_ROW_BYTES)   /* 768 */
 
 #define NP_MAP3_UID_LEN          8U
 
@@ -109,17 +104,6 @@
  */
 #define NP_MAP3_FAULT_UNSEATED_AT_CLOSE  0x01U
 
-/*
- * Counts above 16 bits (OI-UINT16-01).  The two counts were 16 bits in version 1, and the version rule fixes every
- * version-1 offset for ever, so a version-2 row carries each count again, whole, in the tail.  The in-memory record
- * holds the real 32-bit value either way: the decoder reads the tail from a version-2 row and the 16-bit field from
- * a version-1 row.
- *
- * The one place a value is held at a ceiling: in a version-2 row the version-1 fields hold the count, or 0xFFFF when
- * it is larger.  The reason is compatibility.  Rows are read under the previous version after a rollback (D-25), a
- * version-1 reader decodes only those fields, and a wrapped number would be a wrong count where 0xFFFF is plainly
- * "65535 or more".  Every reader of version 2 or later uses the tail, which never saturates.
- */
 typedef struct {
     uint8_t  uid[NP_MAP3_UID_LEN];
     uint32_t seq;
@@ -143,7 +127,7 @@ typedef struct {
 typedef enum {
     NP_MAP3_END_CLEAN = 0,     /* consumed every byte                           */
     NP_MAP3_END_TORN,          /* a partial row at the tail (L-4: costs one row) */
-    NP_MAP3_END_BAD_LEN,       /* `len` below the v1 row, or past the end        */
+    NP_MAP3_END_BAD_LEN,       /* `len` below the row, or past the end           */
     NP_MAP3_END_BAD_CRC,       /* the row does not verify                        */
     NP_MAP3_END_BAD_VER,       /* ver == 0: never written by any firmware        */
     NP_MAP3_END_STOPPED,       /* the callback asked to stop                     */
@@ -159,7 +143,7 @@ typedef struct {
 typedef bool (*np_map3_row_fn)(const np_map3_row_t *row, void *ctx);
 
 /*
- * Encode `rec` as a version-NP_MAP3_VERSION row into out[NP_MAP3_V2_BYTES].
+ * Encode `rec` as a version-NP_MAP3_VERSION row into out[NP_MAP3_ROW_BYTES].
  * Returns the number of bytes written.
  */
 size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap);

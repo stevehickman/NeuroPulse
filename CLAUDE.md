@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 82 (current)  
+**Revision:** 83 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -419,6 +419,13 @@ downgrade it. Mark it retired in place, and do not delete it.**
 IEC 62471, the §3 charge ceilings) or a hazard control. It also does not reach a requirement whose
 derivation exists but is uncited. **"I could not find the derivation" means raise an open item,
 never retire.** Removing a safety control is an ISO 14971 decision.
+
+**A derived bound is computed from its foundational value, never stated beside it.** A limit rests on
+research literature, an external standard, or a mechanical or implementation reason, and a limit with none
+of these is a default, not an enforced limit. When one value follows from another (a session needs a ramp
+up and a ramp down, so its minimum is twice the ramp), the bound is a function of that foundational value
+and moves when it moves (`np_hd_min_session_s(ramp_s)`). **If the foundational value is fixed, the reason
+it is fixed is written beside its definition** (the principal, 2026-11-19).
 
 ## 19. UNJUSTIFIED CHOICES — THE REGISTER IS KEPT CURRENT (locked) → `docs/status/unjustified-choices.md`
 
