@@ -125,8 +125,9 @@ services:
   # are written here. np-privacy.xml applies short TTLs to ClickHouse system
   # logs and disables verbose query logging.
   #
-  # Data retention for PostHog event tables is configured separately in the
-  # PostHog UI: Project Settings → Data Retention. See §3.4 of the config doc.
+  # Data retention for PostHog event tables is NOT set by this file. EVENT_RETENTION_DAYS (.env, default 30, from
+  # NP-APP-TELEMETRY-001 §5: a withdrawn person's ID is deleted within 30 days) is applied as a ClickHouse TTL by
+  # apply_event_retention.py, and checked with --check. Read the warning in .env.example before raising it. See §3.4 and §7.1.
   clickhouse:
     image: clickhouse/clickhouse-server:23.12-alpine
     restart: unless-stopped
