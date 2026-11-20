@@ -1265,6 +1265,8 @@ fn encode_hd_tdcs(p: &Value) -> R<Encoded> {
 }
 
 fn encode_cvns(p: &Value) -> R<Encoded> {
+    // 25 Hz is an economic bound: the 510(k) rests on equivalence to the predicate's fixed 25 Hz (NP-REG-CVNS-001 section 3.2); a
+    // higher frequency would need a new equivalence analysis. See CERVICAL_VNS_MIN_HZ in constants.json for the cost of change.
     let freq_mhz = scaled(p, "frequencyHz", "Cervical VNS", 1000.0, 25000.0, "Hz")?;
     let amp_ua = scaled(p, "intensityMilliamps", "Cervical VNS", 1000.0, 2000.0, "mA")?;
     let mut buf = vec![0u8; 10];

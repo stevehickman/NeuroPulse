@@ -97,10 +97,18 @@ export const NPHardwareLimits = {
   // Whether any ceiling is needed, what hazard it is for, and whether the safety MCU should enforce a pulse-width
   // and frequency dependent cap instead are open: GitHub #554 and #559 (OI-VNSCLIP-09, UC-079).
   VNS_MAX_MILLIAMPS: 40.0,
-  // Cervical VNS (T2) frequency range, 1-25 Hz, from the gammaCore predicate (K163334, fixed 25 Hz;
-  // NP-REG-CVNS-001 section 3). This one stays: it is the equivalence claim the regulatory argument rests on. It
-  // was the same constant as the auricular range until OI-VNSCLIP-08.
+  // Cervical VNS (T2) frequency range, 1-25 Hz. THE REASON IS ECONOMIC, NOT RESEARCH, AND IT IS A REAL ONE (the
+  // principal, 2026-11-20): the 510(k) pathway rests on substantial equivalence to gammaCore (K163334, K173323),
+  // which delivers a fixed 25 Hz, and NP-REG-CVNS-001 section 3.2 argues that 1-25 Hz sits inside the predicate's
+  // modality and that the lower frequencies add no new safety question. COST OF CHANGE: a frequency above 25 Hz
+  // would be a technological difference from the predicate that the equivalence argument does not cover, so the
+  // submission would need a new analysis (likely performance or clinical evidence and a Q-Sub question;
+  // NP-REG-CVNS-001 section 4), and the pathway itself could change; the cost has not been estimated. Lowering the
+  // 1 Hz floor has the same standing. The auricular range has no such reason and was removed (OI-VNSCLIP-08). It
+  // was the same constant as the auricular range until then.
   CERVICAL_VNS_MIN_HZ: 1.0,
+  // The upper end of the range above: the predicate's fixed 25 Hz. Same reason, same cost of change (see
+  // CERVICAL_VNS_MIN_HZ).
   CERVICAL_VNS_MAX_HZ: 25.0,
   // Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span (Matsuoka
   // 2025 Table 3b, 50–500 µs), not a derived or standard limit. The charge ceiling (40 µC/cm² per phase) is what
