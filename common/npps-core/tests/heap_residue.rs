@@ -92,6 +92,7 @@ fn the_detector_counts_a_block_released_with_the_bytes_in_it() {
 
 // @verifies SWR-MG-28#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn the_data_key_is_cleared_after_a_value_is_sealed_and_after_it_is_opened() {
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     let key = hex(&RAW_KEY);
@@ -109,6 +110,7 @@ fn the_data_key_is_cleared_after_a_value_is_sealed_and_after_it_is_opened() {
 
 // @verifies SWR-MG-28#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn the_backup_key_is_cleared_after_a_bundle_and_a_recording_chunk_are_sealed_and_opened() {
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     let key = hex(&RAW_KEY);
@@ -139,6 +141,7 @@ fn the_backup_key_is_cleared_after_a_bundle_and_a_recording_chunk_are_sealed_and
 
 // @verifies SWR-MG-28#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn the_secret_a_passphrase_stands_for_is_cleared() {
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     // Typed in full-width letters, so the normalised secret (plain ASCII) is not the text of the request: every copy of
@@ -154,6 +157,7 @@ fn the_secret_a_passphrase_stands_for_is_cleared() {
 
 // @verifies SWR-MG-28#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn the_prefixed_aws_secret_is_cleared_after_a_request_is_signed() {
     let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
     let secret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
