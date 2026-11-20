@@ -61,6 +61,15 @@ int32_t npps_validate_json(const uint8_t *req, size_t req_len, uint8_t **out, si
 
 int32_t npps_resolve_limits_json(const uint8_t *req, size_t req_len, uint8_t **out, size_t *out_len);
 
+/* npps_migration_json for an operation that takes or returns a key (SWR-MG-32). The request's secrets travel beside
+ * it in `secrets`: each is a 4-byte big-endian length and then the bytes, and the n-th is named in the JSON as
+ * {"$secret": n}. The answer's secrets come back beside the answer in `secret_out`, framed the same way, and are named
+ * {"$secret": n} in the answer. A secret is never text in either direction. `secrets` is the caller's buffer: overwrite
+ * it when the call returns. Release `out` and `secret_out` with npps_free(), which wipes them; `secret_out` is null with
+ * length 0 when the answer has no secret, and on a refusal. `secrets` may be null when `secrets_len` is 0. */
+int32_t npps_migration_secret_json(const uint8_t *req, size_t req_len, const uint8_t *secrets, size_t secrets_len,
+                                   uint8_t **out, size_t *out_len, uint8_t **secret_out, size_t *secret_out_len);
+
 /* Allocate `len` zeroed bytes for a host that cannot hand this library its own memory (WebAssembly:
  * the host writes the input here, passes it to a call, then releases it with npps_free(ptr, len)). */
 uint8_t *npps_alloc(size_t len);

@@ -21,7 +21,7 @@ import { ConditionChips } from './ConditionLinkDialog';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
 import type { NPConditionDefinition } from '../../../../common/types/protocol';
 import { t, tPlural } from '../../../../common/lib/i18n';
-import { BACKUP_FILE_NAME, backupText, openBackup } from '../lib/protocolBackup';
+import { BACKUP_FILE_NAME, SHARE_FILE_NAME, backupText, shareText, openBackup } from '../lib/protocolBackup';
 
 // Stable identity so ConditionChips doesn't see a new Map every render.
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
@@ -68,7 +68,15 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 
   // The app keeps nothing in the browser (REQ-SW03-18 (b)); these two are how the person keeps their protocols.
   function saveBackup() {
-    const text = backupText(protocolLibrary);
+    download(backupText(protocolLibrary), BACKUP_FILE_NAME);
+  }
+
+  // A copy for someone else: the share form (SWR-WO-07), under its own file name.
+  function shareCopy() {
+    download(shareText(protocolLibrary), SHARE_FILE_NAME);
+  }
+
+  function download(text: string | null, name: string) {
     if (text === null) {
       setBackupMessage(t('WEB_PROTOCOLS_BACKUP_NONE'));
       return;
@@ -76,7 +84,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = BACKUP_FILE_NAME;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
     setBackupMessage(null);
@@ -222,8 +230,11 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           >
             {t('UI_LIMITS')}
           </button>
-          <button className="btn btn-secondary" onClick={saveBackup} style={{ fontSize: 13 }}>
+          <button className="btn btn-secondary" onClick={saveBackup} title={t('WEB_PROTOCOLS_BACKUP_NOTE')} style={{ fontSize: 13 }}>
             {t('WEB_PROTOCOLS_BACKUP_SAVE')}
+          </button>
+          <button className="btn btn-secondary" onClick={shareCopy} title={t('WEB_PROTOCOLS_BACKUP_NOTE')} style={{ fontSize: 13 }}>
+            {t('WEB_PROTOCOLS_SHARE_COPY')}
           </button>
           <button className="btn btn-secondary" onClick={openBackupFile} style={{ fontSize: 13 }}>
             {t('WEB_PROTOCOLS_BACKUP_OPEN')}

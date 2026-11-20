@@ -22,6 +22,7 @@ const corpus = JSON.parse(readFileSync(new URL('../../app/NeurOneShared/TestData
   tooShort: Case[];
 };
 
+const hexBytes = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 const hexOf = (text: string) => [...new TextEncoder().encode(text)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 describe('the NFKC corpus', () => {
@@ -32,11 +33,11 @@ describe('the NFKC corpus', () => {
     for (const c of corpus.cases) {
       const got = passphraseSecret(corpus.padding + c.input);
       const want = hexOf(corpus.padding + c.expected);
-      if (!got.ok || got.secret !== want) wrong.push(`${c.name}: ${JSON.stringify(got)} != ${want}`);
+      if (!got.ok || hexBytes(got.secret) !== want) wrong.push(`${c.name}: ${got.ok ? hexBytes(got.secret) : got.reason} != ${want}`);
     }
     for (const c of corpus.exact) {
       const got = passphraseSecret(c.input);
-      if (!got.ok || got.secret !== hexOf(c.expected as string)) wrong.push(`${c.name}: the floor is counted wrongly`);
+      if (!got.ok || hexBytes(got.secret) !== hexOf(c.expected as string)) wrong.push(`${c.name}: the floor is counted wrongly`);
     }
     for (const c of corpus.tooShort) {
       const got = passphraseSecret(c.input);

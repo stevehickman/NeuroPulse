@@ -8,6 +8,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import life.neurone.core.data.BundleKey
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.BundleSecretResult
@@ -138,15 +139,17 @@ class PassphraseGatedSecretKeyStore(
         Record(o["kdf"]!!.jsonObject, o["sealed"]!!.jsonPrimitive.content)
     }.getOrNull()
 
-    /** The wrapping key for [passphrase] under [kdf], as hex, or the reason it cannot be had. */
-    private fun wrappingKey(passphrase: String, kdf: JsonObject): Pair<String?, PassphraseResult> {
+    /**
+     * The wrapping key for [passphrase] under [kdf], or the reason it cannot be had. The key is made and kept in the shared
+     * core (SWR-MG-32): what comes back is its handle, and the caller destroys it.
+     */
+    private fun wrappingKey(passphrase: String, kdf: JsonObject): Pair<BundleKey?, PassphraseResult> {
         val secret = when (val s = BundleKeyDerivation.passphraseSecret(passphrase)) {
             is BundleSecretResult.Ok -> s.secret
             is BundleSecretResult.Rejected -> return null to (if (s.reason == "too_short") PassphraseResult.TOO_SHORT else PassphraseResult.FAILED)
         }
         return try {
-            val key = BundleKeyDerivation.deriveKey(secret, kdf)
-            try { key.hex() to PassphraseResult.OK } finally { key.destroy() }
+            BundleKeyDerivation.deriveKey(secret, kdf, BundleKeyDerivation.PURPOSE_WRAPPING) to PassphraseResult.OK
         } catch (ex: IllegalArgumentException) {
             null to PassphraseResult.FAILED
         } finally {
@@ -155,27 +158,40 @@ class PassphraseGatedSecretKeyStore(
     }
 
     private fun open(passphrase: String, record: Record): Opened {
-        val (keyHex, status) = wrappingKey(passphrase, record.kdf)
-        if (keyHex == null) return Opened.Refused(status)
-        val r = NppsCore.migration(buildJsonObject {
-            put("op", "openValue"); put("key", keyHex); put("name", WRAP_NAME); put("sealed", record.sealed)
-        })
-        if (!r["ok"]!!.jsonPrimitive.boolean) {
-            return Opened.Refused(if (r["reason"]?.jsonPrimitive?.contentOrNull == "authentication_failed") PassphraseResult.WRONG else PassphraseResult.FAILED)
+        val (key, status) = wrappingKey(passphrase, record.kdf)
+        if (key == null) return Opened.Refused(status)
+        // `unwrapKey`: the data key comes back beside the answer as bytes. It was `openValue`, whose answer held the key as text.
+        val r = try {
+            NppsCore.migrationSecret(buildJsonObject { put("op", "unwrapKey"); put("key", key.ref()); put("name", WRAP_NAME); put("sealed", record.sealed) }, emptyList())
+        } finally {
+            key.destroy()
         }
-        val bytes = runCatching { r["value"]!!.jsonPrimitive.content.hexBytes() }.getOrNull()
-        return if (bytes != null && bytes.size == DATA_KEY_BYTES) Opened.Key(bytes) else Opened.Refused(PassphraseResult.FAILED)
+        try {
+            if (!r.answer["ok"]!!.jsonPrimitive.boolean) {
+                return Opened.Refused(if (r.answer["reason"]?.jsonPrimitive?.contentOrNull == "authentication_failed") PassphraseResult.WRONG else PassphraseResult.FAILED)
+            }
+            val bytes = NppsCore.secretAt(r, "key")
+            return if (bytes != null && bytes.size == DATA_KEY_BYTES) Opened.Key(bytes.copyOf()) else Opened.Refused(PassphraseResult.FAILED)
+        } finally {
+            r.clear()
+        }
     }
 
     /** Wrap [data] under a new salt and [passphrase], and keep the record. Nothing is written unless every step worked. */
     private fun wrap(passphrase: String, data: ByteArray): PassphraseResult {
         val kdf = BundleKeyDerivation.newKdf(BundleKeyMethod.PASSPHRASE, random)
-        val (keyHex, status) = wrappingKey(passphrase, kdf)
-        if (keyHex == null) return status
+        val (key, status) = wrappingKey(passphrase, kdf)
+        if (key == null) return status
         val nonce = random.nextBytes(NONCE_BYTES)
-        val r = NppsCore.migration(buildJsonObject {
-            put("op", "sealValue"); put("key", keyHex); put("nonce", nonce.hexString()); put("name", WRAP_NAME); put("value", data.hexString())
-        })
+        // `wrapKey`: the data key goes in beside the request as bytes. The record is the same bytes `sealValue` made of its hex.
+        val r = try {
+            NppsCore.migrationSecret(
+                buildJsonObject { put("op", "wrapKey"); put("key", key.ref()); put("nonce", nonce.hexString()); put("name", WRAP_NAME); put("data", NppsCore.secretRef(0)) },
+                listOf(data),
+            ).answer
+        } finally {
+            key.destroy()
+        }
         val sealed = r["sealed"]?.jsonPrimitive?.contentOrNull ?: return PassphraseResult.FAILED
         host.putString(WRAP_KEY, buildJsonObject { put("kdf", kdf); put("sealed", sealed) }.toString())
         return PassphraseResult.OK

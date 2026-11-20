@@ -4,7 +4,7 @@
  * answers itself (the core's key, the key-value store) and the effect shapes the host sees.
  */
 import { describe, expect, it } from 'vitest';
-import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey } from './bundleKey';
+import { newRecoveryCode, newKdf, passphraseSecret, recoveryCodeSecret, deriveBundleKey, releaseBundleKey, type BundleKey } from './bundleKey';
 import { type FlowEffect, type MigrationHost, type FileStore, type KeyValueStore, type Link, MigrationFlow, type ObjectStore, type StoredFile } from './migrationFlow';
 import { initNppsCore, nppsMigration } from './nppsCore';
 
@@ -149,7 +149,15 @@ function filled(): Store {
   return store;
 }
 
-const secretOf = (text: string): string => {
+/**
+ * A key the core keeps cannot be read, so two keys are compared by what only the same key can make: the confirmation tag
+ * (HMAC-SHA-256 under a key derived from it, SWR-MG-08) over a fixed text. The key is released once marked.
+ */
+const markOf = (key: BundleKey): string => {
+  try { return nppsMigration({ op: 'confirmationTag', key, bundleHash: 'a fixed text' }).tag; } finally { releaseBundleKey(key); }
+};
+
+const secretOf = (text: string): Uint8Array => {
   const r = passphraseSecret(text);
   if (!r.ok) throw new Error(r.reason);
   return r.secret;
@@ -368,6 +376,47 @@ describe('MigrationFlow.run', () => {
     expect(MigrationFlow.parsePairingCode('1234 567')).toBeNull();
   });
 
+  // @verifies SWR-MG-32#f
+  it('keeps a link\'s channel keys in the core while it runs, and leaves none when it ends or its driver stops part-way', async () => {
+    await initNppsCore();
+    const held = (): number => nppsMigration({ op: 'keyCount' }).count;
+    const store = new MemoryStore();
+    await MigrationFlow.run('backup', { kind: 'migrate', method: 'passphrase', route: ROUTE }, new Host(new Route()), {
+      secret: secretOf('a long enough passphrase'), keys: filled(), store,
+    });
+    const before = held();
+
+    // A flow that ends by itself. While it runs, each phone has two keys in the core and none in its state.
+    let most = 0;
+    {
+      const [client, server] = pipe();
+      const send = client.send.bind(client);
+      client.send = async (data: string) => { most = Math.max(most, held()); return send(data); };
+      const serving = MigrationFlow.serve(server, store, offer());
+      const r = await MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
+        secret: secretOf('a long enough passphrase'), keys: new Store(), link: client,
+      });
+      expect(r).toMatchObject({ ok: true });
+      client.close();
+      expect(await serving).toMatchObject({ paired: true });
+    }
+    expect(most).toBeGreaterThanOrEqual(before + 4);
+    expect(held()).toBe(before);
+
+    // A driver that stops part-way: no secret was given, so the driver throws once the phones are paired and the bundle's
+    // header has come over the link. The restoring phone's keys are wiped all the same.
+    {
+      const [client, server] = pipe();
+      const serving = MigrationFlow.serve(server, store, offer());
+      await expect(MigrationFlow.run('restore', { route: ROUTE, pairing: { code: '12345678' } }, new Host(new Route()), {
+        keys: new Store(), link: client,
+      })).rejects.toThrow('no secret');
+      client.close();
+      expect(await serving).toMatchObject({ paired: true });
+    }
+    expect(held()).toBe(before);
+  }, 60_000);
+
   // @verifies SWR-MG-11
   it('ends a restore with the route unavailable when the link breaks', async () => {
     await initNppsCore();
@@ -445,7 +494,7 @@ describe('bundleKey', () => {
     const kdf = newKdf('recoveryCode', steps);
     const typed = recoveryCodeSecret(made.text.toLowerCase().replace(/-/g, ' '));
     expect(typed.ok).toBe(true);
-    if (typed.ok) expect(deriveBundleKey(typed.secret, kdf)).toBe(deriveBundleKey(made.secret, kdf));
+    if (typed.ok) expect(markOf(deriveBundleKey(typed.secret, kdf))).toBe(markOf(deriveBundleKey(made.secret, kdf)));
     const flipped = (made.text[0] === '2' ? '3' : '2') + made.text.slice(1);
     expect(recoveryCodeSecret(flipped)).toEqual({ ok: false, reason: 'bad_checksum' });
   }, 60_000);
@@ -457,6 +506,20 @@ describe('bundleKey', () => {
     expect(kdf).toMatchObject({ algorithm: 'argon2id', memoryKiB: 65536, iterations: 4, parallelism: 1, outputLength: 32 });
     expect(() => deriveBundleKey(secretOf('a long enough passphrase'), { ...kdf, memoryKiB: 8 })).toThrow();
   });
+
+  // @verifies SWR-MG-32#b
+  it('gives a handle for the key and never the key, and the core holds none of them once the flows and these tests are done', async () => {
+    await initNppsCore();
+    const kdf = newKdf('passphrase', steps);
+    const key = deriveBundleKey(secretOf('a long enough passphrase'), kdf);
+    expect(Object.keys(key)).toEqual(['$handle']);
+    expect(nppsMigration({ op: 'keyCount' }).count).toBe(1);
+    releaseBundleKey(key);
+    releaseBundleKey(key);   // twice is safe
+    // Every flow above derived a key for a turn and released it: nothing is left behind.
+    expect(nppsMigration({ op: 'keyCount' }).count).toBe(0);
+    expect(() => nppsMigration({ op: 'confirmationTag', key, bundleHash: 'x' })).toThrow('unknown_key');
+  }, 60_000);
 
   // @verifies SWR-MG-02
   it('normalises a passphrase and refuses a short one', async () => {

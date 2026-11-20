@@ -16,6 +16,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.models.ContactFrequency
+import life.neurone.core.models.ResearchContact
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
 import org.jetbrains.compose.resources.stringResource
@@ -67,6 +69,9 @@ fun ConsentOnboardingScreen(
     // Seed from committed state: this screen is re-entrant as Research Preferences, so
     // starting blank would silently clear every prior consent decision on Finish.
     var state by remember { mutableStateOf(store.researchConsent) }
+    // L1 on needs a contact method the app can use (`REQ-CONSENT-23`). The store would not turn L1 on
+    // without one, so the screen does not let the person go on believing it did.
+    val contactOk = !state.contactConsentGranted || ResearchContact.parse(state.contactMethod) != null
 
     Column(
         modifier = modifier
@@ -97,7 +102,7 @@ fun ConsentOnboardingScreen(
             if (step > 0) {
                 OutlinedButton(onClick = { step-- }) { Text(stringResource(Res.string.consent_back_button)) }
             }
-            Button(onClick = {
+            Button(enabled = contactOk, onClick = {
                 if (step < SCREEN_COUNT - 1) {
                     step++
                 } else {
@@ -176,6 +181,17 @@ private fun ScreenWhatYouGetBack(
     }
     WithdrawnNote(withdrawnDay(state.contactConsentGranted, state.contactConsentWithdrawnAt))
     if (state.contactConsentGranted) {
+        Spacer(Modifier.height(12.dp))
+        val unusable = state.contactMethod.isNotBlank() && ResearchContact.parse(state.contactMethod) == null
+        OutlinedTextField(
+            value = state.contactMethod,
+            onValueChange = { onChange(state.copy(contactMethod = it)) },
+            label = { Text(stringResource(Res.string.consent_l1_contact_label)) },
+            supportingText = if (unusable) ({ Text(stringResource(Res.string.consent_l1_contact_invalid)) }) else null,
+            isError = unusable,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(12.dp))
         Text(stringResource(Res.string.consent_how_often_at_most), style = MaterialTheme.typography.bodyMedium)
         ContactFrequency.entries.forEach { freq ->

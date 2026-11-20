@@ -57,5 +57,33 @@ int main(void) {
 
     CHECK(npps_parse_json(NULL, 0, &out, &len) == NPPS_STATUS_BAD_ARGUMENT, "null input is a bad argument");
     puts("ok");
+    /* A key beside the request, never in it (SWR-MG-32): one secret, framed as a 4-byte big-endian length and the bytes. */
+    uint8_t secrets[4 + 32] = {0, 0, 0, 32};
+    memset(secrets + 4, 0x42, 32);
+    const char *seal = "{\"op\":\"sealValue\",\"key\":{\"$secret\":0},\"nonce\":\"a0a1a2a3a4a5a6a7a8a9aaab\",\"name\":\"np.n\",\"value\":\"v\"}";
+    uint8_t *beside = (uint8_t *)1; size_t beside_len = 7;
+    rc = npps_migration_secret_json((const uint8_t *)seal, strlen(seal), secrets, sizeof secrets, &out, &len, &beside, &beside_len);
+    CHECK(rc == NPPS_STATUS_OK, "sealValue with the key beside the request succeeds");
+    CHECK(memmem(out, len, "\"sealed\"", 8) != NULL, "and answers with the sealed value");
+    CHECK(beside == NULL && beside_len == 0, "an answer with no secret has nothing beside it");
+    npps_free(out, len);
+    memset(secrets, 0, sizeof secrets); /* the caller's buffer, the caller's to clear */
+
+    /* A derived key comes back beside the answer as bytes, and the answer only names it. */
+    uint8_t seed[4 + 32] = {0, 0, 0, 32};
+    memset(seed + 4, 7, 32);
+    const char *derive = "{\"op\":\"deriveUhdrKey\",\"seed\":{\"$secret\":0},\"salt\":\"0909090909090909090909090909090909090909090909090909090909090909\"}";
+    rc = npps_migration_secret_json((const uint8_t *)derive, strlen(derive), seed, sizeof seed, &out, &len, &beside, &beside_len);
+    CHECK(rc == NPPS_STATUS_OK, "deriveUhdrKey with the seed beside the request succeeds");
+    CHECK(memmem(out, len, "{\"$secret\":0}", 13) != NULL, "the answer names the key");
+    CHECK(beside != NULL && beside_len == 4 + 64 && beside[3] == 64, "and the 64-byte key is beside it, framed");
+    npps_free(out, len);
+    npps_free(beside, beside_len);
+
+    /* A secret the call was not given is refused, with nothing beside the refusal. */
+    rc = npps_migration_secret_json((const uint8_t *)seal, strlen(seal), NULL, 0, &out, &len, &beside, &beside_len);
+    CHECK(rc == NPPS_STATUS_REFUSED && beside == NULL && beside_len == 0, "a secret that was not given is refused");
+    npps_free(out, len);
+
     return 0;
 }

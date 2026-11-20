@@ -58,6 +58,7 @@ object StudyDescriptorCanonicalForm {
         field(descriptor.kAnonymity.toString())
         field(descriptor.dateRoundingDays.toString())
         field(descriptor.issuedOnDay)
+        field(descriptor.expiresOnDay)
         return out.toString().encodeToByteArray()
     }
 
