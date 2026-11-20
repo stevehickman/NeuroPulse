@@ -95,17 +95,6 @@ fn f(p: &Value, k: &str) -> f64 {
 }
 
 /// A dosage ceiling at this limits level, or None when it is not set.
-/// A nonzero frequency outside MIN–MAX Hz (0 is continuous wave) is an error that names the range
-/// (NP-NPPS-REF-001 §4.1, §4.2, §4.11; REQ-NPPS-23).
-fn pbm_frequency_range(out: &mut Issues, kind: &str, p: &Value) {
-    let freq = f(p, "frequencyHz");
-    if freq != 0.0 && (freq < hw::PBM_MIN_HZ || freq > hw::PBM_MAX_HZ) {
-        out.push(Sev::Error, Some(kind), "frequencyHz", "VALIDATE_PARAM_FREQUENCY", s(format!("{} Hz", num_string(freq))),
-            s(format!("0 or {}–{} Hz", num_string(hw::PBM_MIN_HZ), num_string(hw::PBM_MAX_HZ))), "hardware",
-            msg("VALIDATE_MSG_PBM_FREQUENCYHZ", vec![n(freq), n(hw::PBM_MIN_HZ), n(hw::PBM_MAX_HZ)]));
-    }
-}
-
 /// A value outside LO–HI is an error that names the range (REQ-NPPS-23). `field` is the block's JSON key and
 /// `param` the locale key of its name; an absent field is not checked here.
 #[allow(clippy::too_many_arguments)]
@@ -244,7 +233,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     s(format!("{}%", num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT))), "hardware",
                     msg("VALIDATE_MSG_PBM_TRANSCRANIAL_DUTYCYCLEPERCENT", vec![n(duty), n(hw::PBM_DUTY_CYCLE_MAX_PERCENT)]));
             }
-            pbm_frequency_range(out, kind, p);
             // Irradiance is absolute, so the 400 mW/cm² peak (CLAUDE.md §3) is checked directly.
             if irr > hw::PBM_PULSED_PEAK_MW_CM2 {
                 out.push(Error, k, "irradianceMWcm2", "VALIDATE_PARAM_IRRADIANCE", s(format!("{} mW/cm²", num_string(irr))),
@@ -279,7 +267,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let duty = f(p, "dutyCyclePercent");
             let irr = f(p, "irradianceMWcm2");
             continuous_wave(out, kind, p);
-            pbm_frequency_range(out, kind, p);
             if duty > hw::PBM_DUTY_CYCLE_MAX_PERCENT {
                 out.push(Error, k, "dutyCyclePercent", "VALIDATE_PARAM_DUTY_CYCLE", s(format!("{}%", num_string(duty))),
                     s(format!("{}%", num_string(hw::PBM_DUTY_CYCLE_MAX_PERCENT))), "hardware",
@@ -412,10 +399,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 out.push(Error, k, "volumeDb", "VALIDATE_PARAM_VOLUME", s(format!("{} dB SPL", num_string(vol))),
                     s(format!("{} dB SPL", num_string(m))), "@maxVolumeDb", msg("VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEDB", vec![n(vol), n(m)]));
             }
-            range_error(out, kind, p, "binauralBeatsHz", "VALIDATE_PARAM_BINAURAL_BEAT", (hw::AUDIO_BEAT_MIN_HZ, hw::AUDIO_BEAT_MAX_HZ), "Hz",
-                "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ_RANGE");
-            range_error(out, kind, p, "isochronicTonesHz", "VALIDATE_PARAM_ISOCHRONIC_TONE", (hw::AUDIO_BEAT_MIN_HZ, hw::AUDIO_BEAT_MAX_HZ), "Hz",
-                "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_RANGE");
             // REQ-AUDIO-25: the compiler refuses a binaural or isochronic tone above the bound, the carrier and the carrier
             // plus the beat or pulse rate, so the validator says so before the protocol is compiled and signed. The mode is
             // the compiler's: a binaural beat wins over an isochronic tone, and a noise block has no tone.
@@ -484,7 +467,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
             let l = &limits["tms"];
             let pct = f(p, "intensityPercentMT");
             let pulses = f(p, "pulseCount");
-            range_error(out, kind, p, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", (hw::TMS_MIN_HZ, hw::TMS_MAX_HZ), "Hz", "VALIDATE_MSG_TMS_FREQUENCYHZ");
             if let Some(m) = lim(l, "maxIntensityPercentMT").filter(|m| pct > *m) {
                 out.push(Error, k, "intensityPercentMT", "VALIDATE_PARAM_INTENSITY", s(format!("{}% MT", num_string(pct))),
                     s(format!("{}% MT", num_string(m))), "@maxIntensityPercentMT", msg("VALIDATE_MSG_TMS_INTENSITYPERCENTMT", vec![n(pct), n(m)]));
@@ -518,7 +500,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     msg("VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2", vec![n(i.trunc()), n(hw::PBM_DEEP_MAX_MW_CM2)]));
             }
             continuous_wave(out, kind, p);
-            pbm_frequency_range(out, kind, p);
             if let Some(m) = lim(l, "maxIntensityMWcm2").filter(|m| i > *m) {
                 out.push(Error, k, "intensityMWcm2", "VALIDATE_PARAM_INTENSITY", s(format!("{} mW/cm²", num_string(i))),
                     s(format!("{} mW/cm²", num_string(m))), "@maxIntensityMWcm2", msg("VALIDATE_MSG_PBM_DEEP_1170NM_INTENSITYMWCM2", vec![n(i), n(m)]));
@@ -539,8 +520,6 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                     s(format!("{} mA", num_string(hw::CLINICAL_TACS_MAX_MILLIAMPS))), "hardware",
                     msg("VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS", vec![n(ma), n(hw::CLINICAL_TACS_MAX_MILLIAMPS)]));
             }
-            range_error(out, kind, p, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", (hw::CLINICAL_TACS_MIN_HZ, hw::CLINICAL_TACS_MAX_HZ), "Hz",
-                "VALIDATE_MSG_CLINICAL_TACS_FREQUENCYHZ");
             // OI-TACS-01: an out-of-range count is an error, not a quiet reduction: a clinician who authored 24
             // gets told, not obeyed in part.
             if ch > hw::CLINICAL_TACS_MAX_CHANNELS || ch < 1.0 {

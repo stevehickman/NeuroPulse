@@ -47,7 +47,8 @@ void            np_mod_audio_set_eeg_band(uint8_t band);
 
 typedef struct {
     int      binaural_calls, iso_calls, noise_calls, stop_calls, bone_set_calls, bone_stop_calls;
-    uint16_t carrier_hz, beat_mhz;
+    uint16_t carrier_hz;
+    uint32_t beat_mhz;
     uint8_t  planar_vol, bone_vol, max_vol_seen;
 } audio_log_t;
 
@@ -56,7 +57,7 @@ static audio_log_t g;
 static void note_vol(uint8_t v) { if (v > g.max_vol_seen) { g.max_vol_seen = v; } }
 
 np_hub_status_t np_mod_audio_hal_codec_init(void) { return NP_HUB_OK; }
-void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t level_half_db)
+void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint32_t beat_mhz, uint8_t level_half_db)
 {
     g.binaural_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = beat_mhz; g.planar_vol = level_half_db;
     note_vol(level_half_db);

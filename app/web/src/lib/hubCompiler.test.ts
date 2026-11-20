@@ -430,13 +430,13 @@ describe('parameter block sizes match the firmware structs', () => {
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
     tdcs:               { size: 8,  slot: 18,   params: { intensityMilliamps: 1.5, electrodePairs: [['F3', 'F4']], rampSeconds: 30, electrodeAreaCm2: 35 } },
-    vns_hrv:            { size: 12, slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
-    audio_entrainment:  { size: 8,  slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
+    vns_hrv:            { size: 14, slot: 8,    params: { frequencyHz: 20, intensityMilliamps: 1, hrvProtocol: 'standalone' } },
+    audio_entrainment:  { size: 10, slot: 6,    params: { carrierHz: 200, binauralBeatsHz: 10, volumeDb: 65, boneConductionPacer: false, eegAdaptive: false } },
     visual_stimulation: { size: 9,  slot: 7,    params: { mode: 'binocular', frequencyHz: 10, emdrCadenceHz: 1, enableModeF: false } },
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
-    tms:                { size: 12, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
+    tms:                { size: 14, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
     pbm_deep_1170nm:    { size: 5,  slot: 13,   params: { intensityMWcm2: 500, frequencyHz: 40, dutyCyclePercent: 25 } },
-    clinical_tacs:      { size: 8,  slot: 14,   params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount: 21 } },
+    clinical_tacs:      { size: 10, slot: 14,   params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount: 21 } },
     hd_tdcs:            { size: 6,  slot: 15,   params: { target: 'DLPFC_L', montage: 'ring_4x1', intensityMilliamps: 2 } },
     cervical_vns:       { size: 10, slot: 10,   params: { frequencyHz: 25, intensityMilliamps: 1.5 } },
     vibrotactile_40hz:  { size: 4,  slot: 16,   params: { intensityG: 0.9, syncToAudio: true, syncToVisual: false } },
@@ -483,18 +483,18 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
   // @verifies REQ-FWHUB-08
   it('spans all 21 driver channels across three mask bytes', () => {
     const params = tacsParams(NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS);
-    expect(params).toHaveLength(8);
-    // channel_mask_lo / _hi / _ext at offsets 4, 5, 6.
-    expect(params[4]).toBe(0xFF);
-    expect(params[5]).toBe(0xFF);
-    expect(params[6]).toBe(0x1F);   // channels 16–20, bits 0–4
-    expect(params[7]).toBe(0);      // waveform moved from offset 6 to 7
+    expect(params).toHaveLength(10);
+    // channel_mask_lo / _hi / _ext at offsets 6, 7, 8 (the frequency is 32 bits, OI-UINT16-01).
+    expect(params[6]).toBe(0xFF);
+    expect(params[7]).toBe(0xFF);
+    expect(params[8]).toBe(0x1F);   // channels 16–20, bits 0–4
+    expect(params[9]).toBe(0);      // waveform
   });
 
   // @verifies REQ-FWHUB-08
   it('leaves the reserved top three bits of channel_mask_ext clear', () => {
     for (let n = 1; n <= NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS; n++) {
-      expect(tacsParams(n)[6] & 0xE0).toBe(0);
+      expect(tacsParams(n)[8] & 0xE0).toBe(0);
     }
   });
 
@@ -502,7 +502,7 @@ describe('clinical tACS channel mask (OI-TACS-01)', () => {
   it('enables exactly the first N channels', () => {
     for (const n of [1, 8, 15, 16, 17, 21]) {
       const params = tacsParams(n);
-      const mask = params[4] | (params[5] << 8) | (params[6] << 16);
+      const mask = params[6] | (params[7] << 8) | (params[8] << 16);
       expect(mask).toBe(2 ** n - 1);
     }
   });

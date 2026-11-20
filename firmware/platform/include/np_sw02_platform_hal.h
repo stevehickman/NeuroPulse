@@ -264,7 +264,7 @@ extern uint32_t np_mod_stim_hal_read_charge(uint8_t pair);
 /* ── Auricular VNS + PPG/HRV (np_mod_vns.c) ─────────────────────────────── */
 extern float           np_mod_vns_hal_impedance_check(void);
 extern np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz,
-                                               uint16_t amp_ua, uint16_t pw_us);
+                                               uint32_t amp_ua, uint16_t pw_us);
 extern np_hub_status_t np_mod_vns_hal_stim_stop(uint8_t side);
 extern void            np_mod_vns_hal_ppg_start(void);
 extern void            np_mod_vns_hal_ppg_stop(void);
@@ -281,7 +281,7 @@ extern uint32_t        np_mod_vns_hal_now_ms(void);                 /* OI-VNS-10
  * (NP-HW-AUDIO-001 OI-AUDIOHW-02); it receives the same number as an upper bound on its drive, not a measured level. */
 extern np_hub_status_t np_mod_audio_hal_codec_init(void);
 extern void  np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
-                                           uint16_t beat_mhz, uint8_t level_half_db);
+                                           uint32_t beat_mhz, uint8_t level_half_db);
 extern void  np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db);
 extern void  np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db);
 extern void  np_mod_audio_hal_stop_planar(void);

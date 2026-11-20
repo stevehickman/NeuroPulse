@@ -98,11 +98,15 @@ bool np_hrv_ppg_process_sample(np_ppg_detector_t *det,
             /* Enforce minimum R-R separation */
             uint32_t dt = det->peak_candidate_time_ms - det->last_peak_time_ms;
             if (dt >= NP_RR_MIN_MS) {
-                uint16_t rr_ms = (dt > 0xFFFFU) ? 0xFFFFU : (uint16_t)dt;
-                np_hrv_rr_push(rr_buf, rr_ms, det->peak_candidate_time_ms);
+                /* A gap longer than NP_RR_MAX_MS is a lost signal, not a beat (the principal, 2026-11-20): it is not
+                 * stored, and it is never narrowed to the 16-bit interval field, so no value stands in for it.  The
+                 * next peak starts a new interval from here either way. */
+                if (dt <= NP_RR_MAX_MS) {
+                    np_hrv_rr_push(rr_buf, (uint16_t)dt, det->peak_candidate_time_ms);
+                    new_rr = true;
+                }
                 det->last_peak_time_ms = det->peak_candidate_time_ms;
                 det->refractory_count  = NP_PPG_REFRACTORY_SAMPLES;
-                new_rr = true;
             }
 
             det->peak_candidate         = 0;

@@ -11,7 +11,12 @@
 
 /* ── Stimulation parameters ─────────────────────────────────────────────────── */
 #define NP_CVNS_FREQ_HZ_MIN           1u      /* Hz; CLAUDE.md §3 T2            */
-#define NP_CVNS_FREQ_HZ_MAX           25u     /* Hz; matches gammaCore range     */
+/* 25 Hz: an ECONOMIC bound, not a research one (the principal, 2026-11-20).  The 510(k) rests on equivalence to gammaCore
+ * (K163334, fixed 25 Hz; NP-REG-CVNS-001 §3.2).  Cost of change: a frequency above 25 Hz is a difference from the predicate
+ * the equivalence argument does not cover, so it needs a new analysis and possibly new evidence or a different pathway
+ * (NP-REG-CVNS-001 §4); the cost is not estimated.  The 1 Hz minimum above has the same standing.  Held equal to
+ * constants.json CERVICAL_VNS_MAX_HZ. */
+#define NP_CVNS_FREQ_HZ_MAX           25u     /* Hz */
 #define NP_CVNS_CURRENT_UA_MAX        2000u   /* µA; 2 mA absolute limit         */
 #define NP_CVNS_PULSE_WIDTH_US_MIN    200u    /* µs                              */
 #define NP_CVNS_PULSE_WIDTH_US_MAX    1000u   /* µs                              */

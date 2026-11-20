@@ -71,7 +71,7 @@ float np_mod_vns_hal_get_hr_bpm(void)
 
 uint32_t np_mod_vns_hal_now_ms(void) { return np_sim_now_ms(); }
 
-np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz, uint16_t amp_ua, uint16_t pw_us)
+np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz, uint32_t amp_ua, uint16_t pw_us)
 {
     np_sim_module_t *m = resolve("vns_stim_set");
     if (m == NULL) { return NP_HUB_ERR_NOT_PRESENT; }

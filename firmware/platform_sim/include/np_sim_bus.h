@@ -145,12 +145,14 @@ typedef struct {
     float             vns_rmssd_ms, vns_coherence, vns_hr_bpm;   /* the readouts the scenario gave it           */
     bool              vns_side_on[2];                  /* left, right: what the stimulator is told to drive      */
     uint32_t          vns_freq_mhz;
-    uint16_t          vns_amp_ua, vns_pw_us;
+    uint32_t          vns_amp_ua;
+    uint16_t          vns_pw_us;
     bool              vns_ppg_on, vns_eeg_ref;
     /* the audio path (NP_SIM_KIND_AUDIO) */
     bool              audio_inited;
     uint8_t           audio_mode;                      /* 0 off, 1 binaural, 2 isochronic, 3 pink noise, 4 brown noise */
-    uint16_t          audio_carrier_hz, audio_beat_mhz;
+    uint16_t          audio_carrier_hz;
+    uint32_t          audio_beat_mhz;
     uint8_t           audio_level_half_db;
     bool              audio_bone_on;
     uint16_t          audio_bone_hz;

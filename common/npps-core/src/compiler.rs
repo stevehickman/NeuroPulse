@@ -218,20 +218,22 @@ fn freq_code(hz: f64, what: &str) -> R<u8> {
     if !hz.is_finite() {
         return Err(format!("{what}: frequencyHz is required and must be a finite number. The protocol is refused, not given a default."));
     }
-    let r = js_round(hz);
-    if hz < 0.0 || r > 255.0 {
+    if hz < 0.0 || hz > 255.0 {
         return Err(format!(
             "{what}: frequencyHz {} Hz is outside what the descriptor can carry (0 for continuous wave, or 1–255 Hz). The protocol is refused, not reduced or wrapped to fit.",
             num_string(hz)
         ));
     }
-    if hz > 0.0 && r < 1.0 {
+    // The descriptor carries whole hertz in one byte, so a frequency that is not whole would run as another one: 0.75 Hz as
+    // 1 Hz, 2.4 Hz as 2 Hz. It is refused, not rounded (the principal, 2026-11-20, OI-NPPS-CLAMP-01 (b)). That also leaves
+    // no value above zero that could be written as 0, which is continuous wave.
+    if hz.fract() != 0.0 {
         return Err(format!(
-            "{what}: frequencyHz {} Hz would be encoded as 0, which is continuous wave. The smallest pulse frequency the descriptor can carry is 1 Hz. The protocol is refused, not run as continuous wave.",
+            "{what}: frequencyHz {} Hz is not a whole number of hertz, which is all the descriptor carries (one byte, 1–255 Hz, or 0 for continuous wave). The protocol is refused, not rounded to a frequency nobody authored.",
             num_string(hz)
         ));
     }
-    Ok(r as u8)
+    Ok(hz as u8)
 }
 
 /// The PBM duty register, 0.5 % per step. A duty above `PBM_DUTY_CYCLE_MAX_PERCENT` (25 %) is refused, as the validator
@@ -1064,14 +1066,14 @@ fn encode_vns(p: &Value) -> R<Encoded> {
         "eeg_biofeedback" => 3,
         _ => 0,
     };
-    let mut buf = vec![0u8; 12];
+    let mut buf = vec![0u8; 14];
     buf[0] = side;
     put32(&mut buf, 1, freq_mhz, "VNS frequencyHz")?;
-    put16(&mut buf, 5, amp_ua, "VNS intensityMilliamps")?;
-    put16(&mut buf, 7, pulse_width_us, "VNS pulseWidthUs")?;
-    buf[9] = 1;
-    buf[10] = 1;
-    buf[11] = proto;
+    put32(&mut buf, 5, amp_ua, "VNS intensityMilliamps")?;
+    put16(&mut buf, 9, pulse_width_us, "VNS pulseWidthUs")?;
+    buf[11] = 1;
+    buf[12] = 1;
+    buf[13] = proto;
     Ok(slot(MOD_VNS_HRV, SLOT_VNS_HRV, buf))
 }
 
@@ -1082,10 +1084,10 @@ fn encode_audio(p: &Value) -> R<Encoded> {
     let mut beat_mhz = 0.0;
     if p["binauralBeatsHz"].as_f64().is_some() {
         mode = 0;
-        beat_mhz = carried(p, "binauralBeatsHz", "Audio", 1000.0, 65535.0, "Hz")?;
+        beat_mhz = carried(p, "binauralBeatsHz", "Audio", 1000.0, u32::MAX as f64, "Hz")?;
     } else if p["isochronicTonesHz"].as_f64().is_some() {
         mode = 1;
-        beat_mhz = carried(p, "isochronicTonesHz", "Audio", 1000.0, 65535.0, "Hz")?;
+        beat_mhz = carried(p, "isochronicTonesHz", "Audio", 1000.0, u32::MAX as f64, "Hz")?;
     } else if s(p, "noiseType") == "pink" {
         mode = 2;
     } else if s(p, "noiseType") == "brown" {
@@ -1105,13 +1107,13 @@ fn encode_audio(p: &Value) -> R<Encoded> {
             ));
         }
     }
-    let mut buf = vec![0u8; 8];
+    let mut buf = vec![0u8; 10];
     buf[0] = mode;
     put16(&mut buf, 1, carrier, "Audio carrierHz")?;
-    put16(&mut buf, 3, beat_mhz, "Audio beat")?;
-    buf[5] = vol;
-    buf[6] = b(p, "boneConductionPacer") as u8;
-    buf[7] = b(p, "eegAdaptive") as u8;
+    put32(&mut buf, 3, beat_mhz, "Audio beat")?;
+    buf[7] = vol;
+    buf[8] = b(p, "boneConductionPacer") as u8;
+    buf[9] = b(p, "eegAdaptive") as u8;
     Ok(slot(MOD_AUDIO, SLOT_AUDIO, buf))
 }
 
@@ -1173,7 +1175,7 @@ fn encode_tms(p: &Value) -> R<Encoded> {
     // The frequency, pulse count and inter-train interval travel as authored. Each used to be capped at 65535 (so a
     // missing frequency or pulse count became 65535), and a frequency under 0.1 Hz was raised to 0.1 Hz for the
     // interval; each is refused (REQ-NPPS-33 (a)).
-    let freq_mhz = carried(p, "frequencyHz", "TMS", 1000.0, 65535.0, "Hz")?;
+    let freq_mhz = carried(p, "frequencyHz", "TMS", 1000.0, u32::MAX as f64, "Hz")?;
     let hz = f(p, "frequencyHz");
     let intensity = scaled(p, "intensityPercentMT", "TMS", 1.0, 255.0, "% MT")?;
     let pulses = required(p, "pulseCount", "TMS")?;
@@ -1198,14 +1200,14 @@ fn encode_tms(p: &Value) -> R<Encoded> {
         inter
     };
     // pulse_count is 32 bits (OI-UINT16-01), so the inter-train interval and the burst frequency follow it.
-    let mut buf = vec![0u8; 12];
+    let mut buf = vec![0u8; 14];
     buf[0] = proto;
     buf[1] = target_index(s(p, "target"));
-    put16(&mut buf, 2, freq_mhz, "TMS frequencyHz")?;
-    buf[4] = intensity as u8;
-    put32(&mut buf, 5, pulses, "TMS pulseCount")?;
-    put16(&mut buf, 9, inter, "TMS inter-train interval")?;
-    buf[11] = if tbs { 50 } else { 0 };
+    put32(&mut buf, 2, freq_mhz, "TMS frequencyHz")?;
+    buf[6] = intensity as u8;
+    put32(&mut buf, 7, pulses, "TMS pulseCount")?;
+    put16(&mut buf, 11, inter, "TMS inter-train interval")?;
+    buf[13] = if tbs { 50 } else { 0 };
     Ok(slot(MOD_TMS, SLOT_TMS, buf))
 }
 
@@ -1222,7 +1224,7 @@ fn encode_deep(p: &Value) -> R<Encoded> {
 }
 
 fn encode_clinical_tacs(p: &Value) -> R<Encoded> {
-    let freq_mhz = scaled(p, "frequencyHz", "Clinical tACS", 1000.0, 65535.0, "Hz")?;
+    let freq_mhz = scaled(p, "frequencyHz", "Clinical tACS", 1000.0, u32::MAX as f64, "Hz")?;
     let amp_ua = scaled(p, "intensityMilliamps", "Clinical tACS", 1000.0, 4000.0, "mA")?;
     let wf = match s(p, "waveform") {
         "sinusoidal" => 0,
@@ -1239,13 +1241,13 @@ fn encode_clinical_tacs(p: &Value) -> R<Encoded> {
         ));
     }
     let mask: u32 = if n == 0.0 { 0 } else { (1u64 << (n as u64)) as u32 - 1 };
-    let mut buf = vec![0u8; 8];
-    put16(&mut buf, 0, freq_mhz, "Clinical tACS frequencyHz")?;
-    put16(&mut buf, 2, amp_ua, "Clinical tACS intensityMilliamps")?;
-    buf[4] = (mask & 0xFF) as u8;
-    buf[5] = ((mask >> 8) & 0xFF) as u8;
-    buf[6] = ((mask >> 16) & 0x1F) as u8;
-    buf[7] = wf;
+    let mut buf = vec![0u8; 10];
+    put32(&mut buf, 0, freq_mhz, "Clinical tACS frequencyHz")?;
+    put16(&mut buf, 4, amp_ua, "Clinical tACS intensityMilliamps")?;
+    buf[6] = (mask & 0xFF) as u8;
+    buf[7] = ((mask >> 8) & 0xFF) as u8;
+    buf[8] = ((mask >> 16) & 0x1F) as u8;
+    buf[9] = wf;
     Ok(slot(MOD_CLIN_TACS, SLOT_CLIN_TACS, buf))
 }
 
@@ -1265,6 +1267,8 @@ fn encode_hd_tdcs(p: &Value) -> R<Encoded> {
 }
 
 fn encode_cvns(p: &Value) -> R<Encoded> {
+    // 25 Hz is an economic bound: the 510(k) rests on equivalence to the predicate's fixed 25 Hz (NP-REG-CVNS-001 section 3.2); a
+    // higher frequency would need a new equivalence analysis. See CERVICAL_VNS_MIN_HZ in constants.json for the cost of change.
     let freq_mhz = scaled(p, "frequencyHz", "Cervical VNS", 1000.0, 25000.0, "Hz")?;
     let amp_ua = scaled(p, "intensityMilliamps", "Cervical VNS", 1000.0, 2000.0, "mA")?;
     let mut buf = vec![0u8; 10];

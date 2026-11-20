@@ -87,15 +87,15 @@ static uint16_t g_published_ua;
 
 void np_safety_spi_request_enable(uint16_t bits)  { g_req_mask |= bits; }
 void np_safety_spi_request_disable(uint16_t bits) { g_req_mask &= (uint16_t)~bits; }
-void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua)
 {
     if (channel == NP_SAFETY_CH_VNS_HRV) { g_published_ua = current_ua; }
 }
 
-static uint16_t g_stim_amp_ua;          /* the amplitude the stimulator was last told */
+static uint32_t g_stim_amp_ua;          /* the amplitude the stimulator was last told */
 float np_mod_vns_hal_impedance_check(void) { return g_impedance; }
 np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz,
-                                        uint16_t amp_ua, uint16_t pw_us)
+                                        uint32_t amp_ua, uint16_t pw_us)
 {
     (void)side; (void)freq_mhz; (void)pw_us;
     g_stim_set_calls++;

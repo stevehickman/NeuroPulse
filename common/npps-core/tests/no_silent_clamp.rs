@@ -121,21 +121,24 @@ fn a_tdcs_ramp_under_30_seconds_or_missing_is_refused_not_lengthened() {
 #[test]
 fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not_capped() {
     let p = ok("tms", tms("rTMS", 65.535, 65535.0));
-    assert_eq!(u16_at(&p, 2), 65535);
-    assert_eq!(u32_at(&p, 5), 65535);
-    assert_eq!(u16_at(&p, 9), 15); // 1000 / 65.535 Hz
-    refused(compile("tms", tms("rTMS", 65.536, 600.0)), &["TMS", "frequencyHz 65.536 Hz", "0–65.535 Hz"]);
-    refused(compile("tms", tms("iTBS", 66.0, 600.0)), &["frequencyHz 66 Hz", "0–65.535 Hz"]);
+    // The frequency is 32 bits (OI-UINT16-01): 65.536 Hz and 66 Hz are carried, and only a value past 32 bits is refused.
+    assert_eq!(u32_at(&p, 2), 65535);
+    assert_eq!(u32_at(&p, 7), 65535);
+    assert_eq!(u16_at(&p, 11), 15); // 1000 / 65.535 Hz
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 65.536, 600.0)), 2), 65536);
+    assert_eq!(u32_at(&ok("tms", tms("iTBS", 66.0, 600.0)), 2), 66000);
+    refused(compile("tms", tms("rTMS", 4294967.296, 600.0)), &["TMS", "frequencyHz 4294967.296 Hz", "0–4294967.295 Hz"]);
+    refused(compile("tms", tms("iTBS", 4294968.0, 600.0)), &["frequencyHz 4294968 Hz", "0–4294967.295 Hz"]);
     // pulse_count is 32 bits (OI-UINT16-01): 65536 is carried, and only a value past 32 bits is refused.
-    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 65536.0)), 5), 65536);
-    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 4294967295.0)), 5), 4294967295);
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 65536.0)), 7), 65536);
+    assert_eq!(u32_at(&ok("tms", tms("rTMS", 10.0, 4294967295.0)), 7), 4294967295);
     refused(compile("tms", tms("rTMS", 10.0, 4294967296.0)), &["TMS", "pulseCount 4294967296", "0–4294967295"]);
     refused(compile("tms", tms("rTMS", 10.0, 10.5)), &["pulseCount 10.5"]);
     refused(compile("tms", tms("rTMS", 10.0, -1.0)), &["pulseCount -1"]);
     // rTMS: the interval is one period. 0.016 Hz is 62500 ms and fits; 0.015 Hz is 66667 ms and does not; it used to be
     // computed at 0.1 Hz whatever was authored below that.
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 9), 62500);
-    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 9), 20000);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.016, 600.0)), 11), 62500);
+    assert_eq!(u16_at(&ok("tms", tms("rTMS", 0.05, 600.0)), 11), 20000);
     refused(compile("tms", tms("rTMS", 0.015, 600.0)), &["TMS", "frequencyHz 0.015 Hz", "inter-train interval", "65535 ms"]);
     refused(compile("tms", tms("rTMS", 0.0, 600.0)), &["frequencyHz 0 Hz", "inter-train interval"]);
     // A missing frequency or pulse count used to be written as 65535.
@@ -148,10 +151,14 @@ fn a_tms_frequency_pulse_count_or_interval_the_field_cannot_carry_is_refused_not
 fn an_audio_beat_or_carrier_the_field_cannot_carry_is_refused_not_capped() {
     let p = ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.535, "carrierHz": 440 })));
     assert_eq!(u16_at(&p, 1), 440);
-    assert_eq!(u16_at(&p, 3), 65535);
-    assert_eq!(u16_at(&ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 65.535 }))), 3), 65535);
-    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.536 }))), &["Audio", "binauralBeatsHz 65.536 Hz", "0–65.535 Hz"]);
-    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 100 }))), &["Audio", "isochronicTonesHz 100 Hz", "0–65.535 Hz"]);
+    // The beat is 32 bits (OI-UINT16-01): 65.536 Hz and 100 Hz are carried, and only a value past 32 bits is refused. (The
+    // planar path's own tone ceiling, REQ-AUDIO-25, is a separate refusal.)
+    assert_eq!(u32_at(&p, 3), 65535);
+    assert_eq!(u32_at(&ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 65.535 }))), 3), 65535);
+    assert_eq!(u32_at(&ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 65.536 }))), 3), 65536);
+    assert_eq!(u32_at(&ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 100 }))), 3), 100000);
+    refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": 4294967.296 }))), &["Audio", "binauralBeatsHz 4294967.296 Hz", "0–4294967.295 Hz"]);
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 4294968 }))), &["Audio", "isochronicTonesHz 4294968 Hz", "0–4294967.295 Hz"]);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "carrierHz": 65536 }))), &["Audio", "carrierHz 65536 Hz", "0–65535 Hz"]);
     refused(compile("audio_entrainment", audio(json!({ "binauralBeatsHz": -1 }))), &["binauralBeatsHz -1 Hz"]);
     // A missing carrier used to be written as 65535 Hz.
@@ -231,7 +238,7 @@ fn a_value_under_half_a_register_step_is_refused_not_raised_to_the_first_step() 
     assert_eq!(ok("pbm_intranasal", nasal(10.0, 25.0, 0.2))[3], 1);
     refused(compile("pbm_intranasal", nasal(10.0, 25.0, 0.19)), &["PBM irradiance 0.19 mW/cm²", "0.39 mW/cm²"]);
     // The audio level byte is 0.5 dB per step and 0 is "off".
-    assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 0.25 })))[5], 1);
+    assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 0.25 })))[7], 1);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 0.2 }))), &["Audio level 0.2 dB SPL", "smallest step", "0.5 dB"]);
     // The duty register is 0.5 % per step.
     assert_eq!(ok("pbm_transcranial", pbm(10.0, 0.25, 100.0))[1], 1);
@@ -241,9 +248,14 @@ fn a_value_under_half_a_register_step_is_refused_not_raised_to_the_first_step() 
 // @verifies REQ-NPPS-33#c
 #[test]
 fn a_value_above_zero_that_would_be_written_as_zero_is_refused() {
-    // Frequency code 0 is continuous wave: 0.4 Hz used to compile to it.
-    assert_eq!(ok("pbm_transcranial", pbm(0.5, 25.0, 100.0))[0], 1);
-    refused(compile("pbm_transcranial", pbm(0.4, 25.0, 100.0)), &["PBM", "frequencyHz 0.4 Hz", "continuous wave", "1 Hz"]);
+    // Frequency code 0 is continuous wave: 0.4 Hz used to compile to it, and 0.5 to 0.99 Hz to code 1. The descriptor
+    // carries whole hertz, so a frequency that is not whole is refused, not rounded (the principal, 2026-11-20).
+    refused(compile("pbm_transcranial", pbm(0.4, 25.0, 100.0)), &["PBM", "frequencyHz 0.4 Hz", "not a whole number of hertz", "not rounded"]);
+    refused(compile("pbm_transcranial", pbm(0.5, 25.0, 100.0)), &["frequencyHz 0.5 Hz", "not a whole number"]);
+    refused(compile("pbm_transcranial", pbm(0.75, 25.0, 100.0)), &["frequencyHz 0.75 Hz"]);
+    refused(compile("pbm_intranasal", nasal(2.4, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 2.4 Hz", "not a whole number"]);
+    refused(compile("pbm_deep_1170nm", deep(39.9, 25.0)), &["1170 nm PBM", "frequencyHz 39.9 Hz", "not a whole number"]);
+    assert_eq!(ok("pbm_transcranial", pbm(1.0, 25.0, 100.0))[0], 1);
     // A current under half a microamp used to compile to 0 µA.
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 0.0004 })), &["BES/tACS", "intensityMilliamps 0.0004 mA", "smallest step", "0.001 mA"]);
     refused(compile("visual_stimulation", visual(json!(0.4), json!(1))), &["Visual", "frequencyHz 0.4 Hz", "smallest step"]);
@@ -354,7 +366,7 @@ fn the_cores_limits_are_the_hubs_limits() {
     assert_eq!(170, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_LEVEL_HALF_DB"));
     assert_eq!(hw::AUDIO_MAX_TONE_HZ, f64::from(hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_TONE_HZ")));
     // The audio level at the ceiling compiles to the hub's ceiling byte, and above it is refused.
-    assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85 })))[5], 170);
+    assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85 })))[7], 170);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);
 }
 

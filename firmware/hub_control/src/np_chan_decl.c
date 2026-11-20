@@ -19,21 +19,24 @@
  * e.g. 0.5 Hz (freq_mhz = 500) → 1,000,000 µs; 40 Hz → 12,500 µs.
  *
  * The value is the exact half period: nothing is clamped (NP_CHARGE_MAX_PHASE_US is removed: the principal,
- * 2026-11-11).  It needs no bound here.  The frequency is 16 bits, so for any frequency above zero the result is
- * at most 500,000,000 us (at 1 mHz), which fits the wire's 32-bit phase_us with room to spare, and the safety MCU
- * proves at compile time that its per-phase arithmetic cannot overflow for any 32-bit phase.
+ * 2026-11-11).  It needs no bound here.  The frequency is 32 bits (the clinical tACS block, OI-UINT16-01), so for any
+ * frequency above zero the result is at most 500,000,000 us (at 1 mHz), which fits the wire's 32-bit phase_us with
+ * room to spare, and the safety MCU proves at compile time that its per-phase arithmetic cannot overflow for any
+ * 32-bit phase.  Above 500 kHz the exact half period is under 1 us, which a whole-microsecond field cannot carry;
+ * it is declared as 1 us, never 0, because 0 means "not declared".
  *
  * A zero frequency is a division by zero, not a phase.  The hub refuses it before this runs (REQ-FWHUB-78 (j): at
  * load and in the driver), so this is a guard for a descriptor that somehow got past both, and it answers with the
  * LONGEST phase the field can carry.  Longest phase means largest per-phase charge, so the safety MCU's verdict is
  * the strictest it can reach and the channel is cut: the guard fails closed.
  */
-uint32_t np_chan_decl_half_period_us(uint16_t freq_mhz)
+uint32_t np_chan_decl_half_period_us(uint32_t freq_mhz)
 {
     if (freq_mhz == 0U) {
         return UINT32_MAX;
     }
-    return 500000000UL / (uint32_t)freq_mhz;
+    const uint32_t us = 500000000UL / freq_mhz;
+    return (us == 0U) ? 1U : us;
 }
 
 /*

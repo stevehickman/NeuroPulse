@@ -482,7 +482,7 @@ float np_mod_vns_hal_impedance_check(void)
 }
 
 np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint32_t freq_mhz,
-                                        uint16_t amp_ua, uint16_t pw_us)
+                                        uint32_t amp_ua, uint16_t pw_us)
 {
     (void)side;
     (void)freq_mhz;
@@ -543,7 +543,7 @@ np_hub_status_t np_mod_audio_hal_codec_init(void)
 }
 
 void np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
-                                   uint16_t beat_mhz, uint8_t level_half_db)
+                                   uint32_t beat_mhz, uint8_t level_half_db)
 {
     (void)carrier_hz;
     (void)beat_mhz;
