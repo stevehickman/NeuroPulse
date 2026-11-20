@@ -199,4 +199,5 @@ def self_test() -> int:
 if __name__ == "__main__":
     if "--self-test" in sys.argv[1:]:
         sys.exit(self_test())
+    print(f"scanned: {unittest.defaultTestLoader.loadTestsFromTestCase(Retention).countTestCases()} retention cases")
     unittest.main(verbosity=2)
