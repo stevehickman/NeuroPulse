@@ -2,13 +2,39 @@
 //! directions, through the gateway and on the wire (`REQ-SHDR-07`; `NP-SOUP-RUST-001` §6.2).
 //! A matching mistake made on both sides of the core's own tests would pass them; it cannot pass these.
 
-use neurone_npps_core::migration::migration_json;
 use ohttp::hpke::{Aead, Kdf, Kem};
 use ohttp::{ClientRequest, KeyConfig, Server, SymmetricSuite};
 use serde_json::{json, Value};
 
-fn ask(v: Value) -> Result<Value, String> {
-    migration_json(&v.to_string()).map(|s| serde_json::from_str(&s).unwrap())
+/// A client's request, with every secret field moved beside the request as bytes, and every `{"$secret": n}` in the answer put
+/// back as hex for the assertions. The core is then asked the way a host asks (`SWR-MG-32` (a)), so these tests also run in a
+/// core built to refuse a key given as hex (`--features refuse-hex-keys`, `SWR-MG-32` (h)).
+fn ask(mut v: Value) -> Result<Value, String> {
+    let mut secrets: Vec<Vec<u8>> = vec![];
+    for field in ["seed", "entropy", "privateKey", "secret"] {
+        // The response nonce `ohttpGatewaySeal` takes is public; only the request's entropy is a secret.
+        if field == "entropy" && v["op"] != "ohttpSeal" {
+            continue;
+        }
+        if let Some(text) = v[field].as_str().filter(|t| !t.is_empty() && t.len() % 2 == 0 && t.bytes().all(|b| b.is_ascii_hexdigit())) {
+            secrets.push(unhex(text));
+            v[field] = json!({ "$secret": secrets.len() - 1 });
+        }
+    }
+    let refs: Vec<&[u8]> = secrets.iter().map(Vec::as_slice).collect();
+    let (mut out, beside) = neurone_fleet_gateway::ask_with_secrets(v, &refs)?;
+    fn back(v: &mut Value, beside: &[Vec<u8>]) {
+        match v {
+            Value::Object(o) if o.len() == 1 && o.contains_key("$secret") => {
+                *v = Value::String(beside[o["$secret"].as_u64().unwrap() as usize].iter().map(|b| format!("{b:02x}")).collect());
+            }
+            Value::Object(o) => o.values_mut().for_each(|x| back(x, beside)),
+            Value::Array(a) => a.iter_mut().for_each(|x| back(x, beside)),
+            _ => {}
+        }
+    }
+    back(&mut out, &beside);
+    Ok(out)
 }
 
 fn hex(b: &[u8]) -> String {

@@ -466,6 +466,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_request_goes_through_and_the_answer_comes_back() {
         let (config, sk) = key();
         let s = sealed(&config, &hex(b"the record"));
@@ -482,6 +483,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn the_request_does_not_show_what_it_carries_and_its_length_is_a_bucket() {
         let (config, _) = key();
         let short = sealed(&config, &hex(b"x"));
@@ -495,6 +497,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn a_wrong_key_a_tampered_request_and_a_tampered_response_are_refused() {
         let (config, sk) = key();
         let s = sealed(&config, &hex(b"r"));
@@ -515,6 +518,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn only_the_one_suite_is_accepted_and_entropy_is_checked() {
         let (config, _) = key();
         let mut other = unhex(&config, "c").unwrap();
@@ -568,6 +572,7 @@ mod tests {
     const A_RESPONSE: &str = "c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd";
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn rfc_9458_appendix_a_request_opens_to_the_published_message() {
         let g = ask("ohttpGatewayOpen", json!({ "keyConfig": A_CONFIG, "privateKey": A_SK, "request": A_REQUEST })).unwrap();
         // 00034745540568747470730b6578616d706c652e636f6d012f: GET https://example.com/
@@ -589,6 +594,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn rfc_9458_appendix_a_response_opens_to_a_200() {
         let o = ask("ohttpOpen", json!({ "enc": A_ENC, "secret": A_SECRET, "response": A_RESPONSE })).unwrap();
         assert_eq!(o["status"], 200);

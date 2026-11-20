@@ -224,6 +224,7 @@ fn a_driver_that_gives_fewer_random_bytes_than_a_pairing_asked_for_is_refused_at
 
 // @verifies SWR-MG-28#c
 #[test]
+#[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
 fn a_passphrase_that_outgrows_its_buffer_when_normalised_is_still_exactly_its_nfkc_form() {
     // U+FDFA is 3 bytes and normalises to 33. The secret's buffer is outgrown several times, and each time it is moved
     // by hand into a new wiped buffer instead of being reallocated; the bytes must be what one pass of NFKC gives.
