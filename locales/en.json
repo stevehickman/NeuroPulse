@@ -757,6 +757,7 @@
   "MIGRATION_REASON_AUTHENTICATION_FAILED": "That recovery code or passphrase does not open this backup, or the backup has been changed.",
   "MIGRATION_REASON_CLAIMED": "This backup has already been claimed by another phone.",
   "MIGRATION_REASON_CLAIM_NOT_OWNED": "Another phone has already claimed this backup, so this phone did not restore it.",
+  "MIGRATION_REASON_CLAIM_UNAUTHENTIC": "A marker is in the way at this backup location that no phone holding this backup made. No other phone has taken your data. Remove the marker from the backup location, then try again.",
   "MIGRATION_REASON_CODE_EXPIRED": "That code has expired. Ask the other phone for a new one.",
   "MIGRATION_REASON_CODE_SPENT": "That code has been used up. Ask the other phone for a new one.",
   "MIGRATION_REASON_LINK_FAILED": "The link to the other phone was lost.",

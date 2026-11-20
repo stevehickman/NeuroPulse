@@ -435,6 +435,7 @@ describe('MigrationFlow.run', () => {
     await initNppsCore();
     const keys = MigrationFlow.messageKeys();
     expect(keys.reasons.claimed).toBe('MIGRATION_REASON_CLAIMED');
+    expect(keys.reasons.claim_unauthentic).toBe('MIGRATION_REASON_CLAIM_UNAUTHENTIC');
     expect(keys.secret.bad_checksum).toBe('MIGRATION_SECRET_BAD_CHECKSUM');
     expect(keys.probe.backup_only).toBe('MIGRATION_PROBE_BACKUP_ONLY');
     expect(keys.items.sessionHistory).toBe('MIGRATION_ITEM_SESSION_HISTORY');
