@@ -100,12 +100,13 @@ class FleetUploader(
     }
 
     /**
-     * Upload an SHDR payload; true only when the fleet service itself took it. No-ops (false) unless the warranty owner has
-     * consented, a helmet is connected and a gateway key is set. The payload is device telemetry only: the SHDR schema contains no
+     * Upload an SHDR payload; true only when the fleet service itself took it. No-ops (false) unless the connected helmet's warranty owner
+     * has consented, a helmet is connected and a gateway key is set. The payload is device telemetry only: the SHDR schema contains no
      * user biology by construction (`CLAUDE.md` §5.1), and this class does not inspect it.
      */
     suspend fun upload(shdrPayload: ByteArray): Boolean {
-        if (!warrantyGate.isOpen) return false
+        // The consent asked for is the connected helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
+        if (!warrantyGate.isOpen(hubIdentifier)) return false
         val token = deviceToken ?: return false
         if (gatewayKeyConfigHex.isEmpty()) return false
         val sealed = try {
