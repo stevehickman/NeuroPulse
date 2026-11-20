@@ -1770,15 +1770,20 @@ static int fai_safety_constants(void)
 
 /* ── A session shorter than its two ramps is refused (OI-UINT16-01) ────────────
  *
+ * That minimum is derived, not chosen: NP_HD_MIN_SESSION_S = 2 x NP_HD_RAMP_DURATION_S (a ramp up and a ramp down).
+ *
  * np_hd_stim_start() computed the end of the steady phase as now + duration - ramp in unsigned arithmetic, which wrapped
  * for a duration under one ramp and, between one and two, put the end of the steady phase before the end of the ramp up.
- * It is refused before anything is set or requested.  The 120 to 1,800 s range of np_hd_config.h is NOT what is tested:
- * nothing enforces it.
+ * It is refused before anything is set or requested.  The 120 to 1,800 s of np_hd_config.h are defaults, not limits (the
+ * principal, 2026-11-19): a session above them is accepted, as one below them that still holds two ramps is.
  */
 static void fai_stim_start_short_session(void)
 {
     printf("[OI-UINT16-01] a session shorter than its two ramps is refused, and one of exactly two ramps is not\n");
-    const uint16_t two_ramps_s = (uint16_t)(2U * NP_HD_RAMP_DURATION_S);
+    const uint16_t two_ramps_s = (uint16_t)NP_HD_MIN_SESSION_S;
+    ASSERT_EQ(NP_HD_MIN_SESSION_S, 2U * NP_HD_RAMP_DURATION_S);
+    ASSERT_EQ(np_hd_min_session_s(45U), 90U);      /* the minimum follows whatever ramp it is given */
+    ASSERT_EQ(np_hd_min_session_s(0U), 0U);
     np_hd_stim_ctx_t ctx;
 
     memset(&ctx, 0, sizeof ctx);
@@ -1792,6 +1797,17 @@ static void fai_stim_start_short_session(void)
     ASSERT_OK(np_hd_stim_start(&ctx, 1000U, two_ramps_s, 5000U));
     ASSERT(ctx.phase == NP_HD_STIM_RAMP_UP, "exactly two ramps starts");
     ASSERT_EQ(ctx.steady_end_ms, 5000U + (uint32_t)NP_HD_RAMP_DURATION_S * 1000U);
+
+    /* The default range is not a limit: below its first figure but over two ramps, and above its second, are both taken. */
+    const uint16_t lengths[3] = { (uint16_t)(NP_HD_DEFAULT_SESSION_MIN_S - 1U), (uint16_t)(NP_HD_DEFAULT_SESSION_MAX_S + 1U), UINT16_MAX };
+    for (unsigned i = 0U; i < 3U; i++) {
+        np_hd_stim_ctx_t fresh;
+        memset(&fresh, 0, sizeof fresh);
+        fresh.impedance_ok = true;
+        fresh.phase        = NP_HD_STIM_IDLE;
+        ASSERT_OK(np_hd_stim_start(&fresh, 1000U, lengths[i], 0U));
+        ASSERT_EQ(fresh.steady_end_ms, (uint32_t)lengths[i] * 1000U - (uint32_t)NP_HD_RAMP_DURATION_S * 1000U);
+    }
 }
 
 int main(void)

@@ -10,6 +10,7 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileSize
 import platform.Foundation.NSFileType
 import platform.Foundation.NSFileTypeRegular
+import platform.Foundation.NSFileTypeSymbolicLink
 import platform.Foundation.NSNumber
 import platform.posix.SEEK_SET
 import platform.posix.fclose
@@ -35,6 +36,13 @@ class IosDirectoryFileStore(root: String) : FileStore {
     private fun resolve(path: String): String {
         val segments = path.split('/')
         require(path.isNotEmpty() && segments.none { it.isEmpty() || it == "." || it == ".." }) { "unsafe path '$path'" }
+        // No segment on the way may be a symbolic link: `fopen` follows one, and the clear's overwrite would then land in a file
+        // outside the folder (OI-PRIV-10 point 3). The attributes are those of the item itself, never of what a link points at.
+        var at = base
+        for (segment in segments) {
+            at = "$at/$segment"
+            require(manager.attributesOfItemAtPath(at, error = null)?.get(NSFileType) != NSFileTypeSymbolicLink) { "path goes through a link: '$path'" }
+        }
         return "$base/$path"
     }
 

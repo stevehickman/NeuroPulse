@@ -124,7 +124,7 @@ It is specified in code — `StudyDescriptorCanonicalForm` on both platforms —
 bytes in a test on each, because a form described in prose twice is a form that drifts.
 
 ```
-NP-STUDY-DESCRIPTOR-V1\n
+NP-STUDY-DESCRIPTOR-V2\n
 <byte length>:<studyID>\n
 <byte length>:<studyTitle>\n
 <byte length>:<researchCategories, in issued order, comma-joined>\n
@@ -132,6 +132,7 @@ NP-STUDY-DESCRIPTOR-V1\n
 <byte length>:<kAnonymity>\n
 <byte length>:<dateRoundingDays>\n
 <byte length>:<issued day, YYYY-MM-DD, UTC>\n
+<byte length>:<expiry day, YYYY-MM-DD, UTC>\n
 ```
 
 Four properties are load-bearing, and each is a decision rather than a formatting choice.

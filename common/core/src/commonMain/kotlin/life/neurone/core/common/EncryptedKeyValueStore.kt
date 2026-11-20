@@ -87,13 +87,14 @@ class EncryptedKeyValueStore(
         return fresh
     }
 
-    private fun ask(op: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
-        NppsCore.migration(buildJsonObject { put("op", op); build() })
+    /** A request that uses [key]: the key goes to the core beside the request as bytes, never as hex in it (SWR-MG-32). */
+    private fun ask(op: String, key: ByteArray, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
+        NppsCore.migrationSecret(buildJsonObject { put("op", op); put("key", NppsCore.secretRef(0)); build() }, listOf(key)).answer
 
     private fun seal(name: String, value: String): String {
         val nonce = random.nextBytes(NONCE_BYTES)
         require(nonce.size == NONCE_BYTES) { "The random source gave ${nonce.size} bytes, not $NONCE_BYTES" }
-        val sealed = ask("sealValue") { put("key", ensureKey().toHex()); put("nonce", nonce.toHex()); put("name", name); put("value", value) }
+        val sealed = ask("sealValue", ensureKey()) { put("nonce", nonce.toHex()); put("name", name); put("value", value) }
         return PREFIX + sealed["sealed"]!!.jsonPrimitive.content
     }
 
@@ -106,7 +107,7 @@ class EncryptedKeyValueStore(
     }
 
     private fun open(name: String, stored: String, k: ByteArray): String? {
-        val r = ask("openValue") { put("key", k.toHex()); put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
+        val r = ask("openValue", k) { put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
         return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
     }
 

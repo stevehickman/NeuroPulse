@@ -1,9 +1,10 @@
 package life.neurone.core.migration
 
-import java.io.RandomAccessFile
+import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -104,6 +105,11 @@ class DirectoryObjectStore(private val root: Path) : ObjectStore {
 /**
  * A [FileStore] over one folder tree: [list] reports every regular file under it with its path relative to the folder (forward
  * slashes), and no path may leave the folder. [write] overwrites in place and [sync] forces the file to storage.
+ *
+ * **No call follows a symbolic link** (`OI-PRIV-10` (3)). The clear overwrites every file [list] reports, so a link planted in the
+ * folder would otherwise have it overwrite a file somewhere else. A link is not a regular file and is not listed; a path is refused
+ * when its folder, once links are resolved, is outside this one, or when the file itself is a link; and the file is opened with
+ * `NOFOLLOW_LINKS`, so a link put there after the check is refused by the operating system.
  */
 class DirectoryFileStore(root: Path) : FileStore {
     private val base: Path = root.toAbsolutePath().normalize()
@@ -111,30 +117,40 @@ class DirectoryFileStore(root: Path) : FileStore {
     private fun resolve(path: String): Path {
         val p = base.resolve(path).normalize()
         require(p.startsWith(base) && p != base) { "path leaves the folder: '$path'" }
+        // The check above is on the text of the path. This one is on where it really is: a folder on the way that is a link
+        // (or a Windows junction) to somewhere else has a real path outside the real folder.
+        val parent = p.parent
+        if (Files.exists(parent)) {
+            require(parent.toRealPath().startsWith(base.toRealPath())) { "path leaves the folder through a link: '$path'" }
+        }
+        require(!Files.isSymbolicLink(p)) { "path is a link: '$path'" }
         return p
     }
 
     override suspend fun list(): List<StoredFile> {
         if (!Files.isDirectory(base)) return emptyList()
+        // `Files.walk` does not enter a linked folder, and NOFOLLOW_LINKS keeps a link to a file from counting as that file.
         return Files.walk(base).use { s ->
-            s.iterator().asSequence().filter { Files.isRegularFile(it) }
+            s.iterator().asSequence().filter { Files.isRegularFile(it, LinkOption.NOFOLLOW_LINKS) }
                 .map { StoredFile(base.relativize(it).joinToString("/") { seg -> seg.toString() }, Files.size(it)) }
                 .sortedBy { it.path }.toList()
         }
     }
 
     override suspend fun write(path: String, offset: Long, bytes: ByteArray) {
-        RandomAccessFile(resolve(path).toFile(), "rw").use { f ->
-            f.seek(offset)
-            f.write(bytes)
+        FileChannel.open(resolve(path), setOf(StandardOpenOption.WRITE, StandardOpenOption.CREATE, LinkOption.NOFOLLOW_LINKS)).use { f ->
+            val buffer = ByteBuffer.wrap(bytes)
+            var at = offset
+            while (buffer.hasRemaining()) at += f.write(buffer, at)
         }
     }
 
     override suspend fun sync(path: String) {
-        FileChannel.open(resolve(path), StandardOpenOption.WRITE).use { it.force(true) }
+        FileChannel.open(resolve(path), setOf(StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)).use { it.force(true) }
     }
 
     override suspend fun delete(path: String) {
+        // Deleting a link removes the link and never what it points at, so the last name need not be checked twice.
         Files.deleteIfExists(resolve(path))
     }
 }

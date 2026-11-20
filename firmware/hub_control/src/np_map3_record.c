@@ -27,23 +27,12 @@ static uint32_t crc32_le(const uint8_t *data, size_t len)
     return ~crc;
 }
 
-static void put_u16(uint8_t *p, uint16_t v)
-{
-    p[0] = (uint8_t)(v & 0xFFU);
-    p[1] = (uint8_t)((v >> 8) & 0xFFU);
-}
-
 static void put_u32(uint8_t *p, uint32_t v)
 {
     p[0] = (uint8_t)(v & 0xFFU);
     p[1] = (uint8_t)((v >> 8) & 0xFFU);
     p[2] = (uint8_t)((v >> 16) & 0xFFU);
     p[3] = (uint8_t)((v >> 24) & 0xFFU);
-}
-
-static uint16_t get_u16(const uint8_t *p)
-{
-    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
 static uint32_t get_u32(const uint8_t *p)
@@ -54,27 +43,22 @@ static uint32_t get_u32(const uint8_t *p)
 
 size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap)
 {
-    if (rec == NULL || out == NULL || cap < NP_MAP3_V2_BYTES) {
+    if (rec == NULL || out == NULL || cap < NP_MAP3_ROW_BYTES) {
         return 0U;
     }
-    memset(out, 0, NP_MAP3_V2_BYTES);
-    out[0] = (uint8_t)NP_MAP3_V2_BYTES;
+    memset(out, 0, NP_MAP3_ROW_BYTES);   /* the reserved bytes [31, 60) are written 0 and never reused (§7.2 rule 1) */
+    out[0] = (uint8_t)NP_MAP3_ROW_BYTES;
     out[1] = (uint8_t)NP_MAP3_VERSION;
     memcpy(&out[2], rec->uid, NP_MAP3_UID_LEN);
     put_u32(&out[10], rec->seq);
     put_u32(&out[14], rec->ordinal);
-    /* The version-1 fields: the count, or 0xFFFF above it, for a version-1 reader (np_map3_record.h). */
-    put_u16(&out[18], (rec->session_count > 0xFFFFU) ? 0xFFFFU : (uint16_t)rec->session_count);
-    put_u32(&out[20], rec->dose_accum);
-    put_u16(&out[24], (rec->throttle_count > 0xFFFFU) ? 0xFFFFU : (uint16_t)rec->throttle_count);
-    out[26] = rec->fault_flags;
-    out[27] = 0U;   /* reserved: written 0, never reused (§7.2 rule 1) */
-    put_u32(&out[28], rec->session_count);     /* version 2 tail: the counts, whole */
-    put_u32(&out[32], rec->throttle_count);
-    /* [36, 60) reserved, written 0 by the memset above and never reused (§7.2 rule 1). */
-    put_u32(&out[NP_MAP3_V2_BYTES - NP_MAP3_CRC_BYTES],
-            crc32_le(out, NP_MAP3_V2_BYTES - NP_MAP3_CRC_BYTES));
-    return NP_MAP3_V2_BYTES;
+    put_u32(&out[18], rec->session_count);
+    put_u32(&out[22], rec->dose_accum);
+    put_u32(&out[26], rec->throttle_count);
+    out[30] = rec->fault_flags;
+    put_u32(&out[NP_MAP3_ROW_BYTES - NP_MAP3_CRC_BYTES],
+            crc32_le(out, NP_MAP3_ROW_BYTES - NP_MAP3_CRC_BYTES));
+    return NP_MAP3_ROW_BYTES;
 }
 
 /*
@@ -84,14 +68,14 @@ size_t np_map3_encode(const np_map3_rec_t *rec, uint8_t *out, size_t cap)
  */
 static size_t row_check(const uint8_t *p, size_t left, np_map3_end_t *end)
 {
-    if (left < NP_MAP3_V1_BYTES) {
+    if (left < NP_MAP3_ROW_BYTES) {
         *end = NP_MAP3_END_TORN;
         return 0U;
     }
     /* Step by the row's own length — never by the length this reader would
-     * have written.  A row shorter than version 1 cannot exist. */
+     * have written.  A row shorter than the row cannot exist. */
     size_t rl = p[0];
-    if (rl < NP_MAP3_V1_BYTES) {
+    if (rl < NP_MAP3_ROW_BYTES) {
         *end = NP_MAP3_END_BAD_LEN;
         return 0U;
     }
@@ -107,11 +91,6 @@ static size_t row_check(const uint8_t *p, size_t left, np_map3_end_t *end)
     }
     if (p[1] == 0U) {
         *end = NP_MAP3_END_BAD_VER;
-        return 0U;
-    }
-    if (p[1] >= 2U && rl < NP_MAP3_V2_BYTES) {
-        /* A row that says it is version 2 or later carries the version-2 tail; no firmware writes one without it. */
-        *end = NP_MAP3_END_BAD_LEN;
         return 0U;
     }
     return rl;
@@ -136,26 +115,20 @@ void np_map3_scan(const uint8_t *buf, size_t len, np_map3_row_fn cb, void *ctx,
             break;
         }
 
-        /* Any ver >= 1 is accepted.  The version-1 fields are at fixed
-         * offsets in every version; anything between them and the CRC is a
-         * later version's tail, which this reader skips (D-25). */
+        /* Any ver >= 1 is accepted.  The version-1 fields are at fixed offsets in every version; anything between
+         * them and the CRC is a later version's tail, which this reader skips (D-25). */
         np_map3_row_t row;
         memset(&row, 0, sizeof(row));
         memcpy(row.rec.uid, &p[2], NP_MAP3_UID_LEN);
         row.rec.seq            = get_u32(&p[10]);
         row.rec.ordinal        = get_u32(&p[14]);
-        row.rec.dose_accum     = get_u32(&p[20]);
-        row.rec.fault_flags    = p[26];
-        if (p[1] >= 2U) {
-            row.rec.session_count  = get_u32(&p[28]);   /* version 2 tail: whole */
-            row.rec.throttle_count = get_u32(&p[32]);
-        } else {
-            row.rec.session_count  = get_u16(&p[18]);
-            row.rec.throttle_count = get_u16(&p[24]);
-        }
+        row.rec.session_count  = get_u32(&p[18]);
+        row.rec.dose_accum     = get_u32(&p[22]);
+        row.rec.throttle_count = get_u32(&p[26]);
+        row.rec.fault_flags    = p[30];
         row.ver      = p[1];
         row.len      = (uint8_t)rl;
-        row.tail_len = (uint8_t)(rl - ((p[1] >= 2U) ? NP_MAP3_V2_BYTES : NP_MAP3_V1_BYTES));
+        row.tail_len = (uint8_t)(rl - NP_MAP3_ROW_BYTES);
         row.offset   = (uint32_t)off;
 
         s.rows++;

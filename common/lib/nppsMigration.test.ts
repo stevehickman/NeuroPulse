@@ -29,9 +29,9 @@ describe('nppsMigration', () => {
     const r = nppsMigration({
       op: 'mergeWithdrawal',
       local: {},
-      incoming: { blanketConsentWithdrawnAt: '2026-03-01T00:00:00Z' },
+      incoming: { blanketConsentWithdrawnAt: '2026-03-01#000001' },
     });
-    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01T00:00:00Z');
+    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01#000001');
   });
 
   // @verifies SWR-MG-02

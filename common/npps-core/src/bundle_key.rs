@@ -234,30 +234,53 @@ pub fn op(name: &str, req: &Value) -> Option<R<Value>> {
             Ok(json!({ "kdf": kdf_block(req["method"].as_str().ok_or("method is required")?, &salt)? }))
         })(),
         "deriveBundleKey" => (|| {
-            let secret = Zeroizing::new(unhex(req["secret"].as_str().ok_or("secret is required")?, "secret")?);
+            // The secret, or what it is made from: a passphrase or a recovery code given here is normalised and used in
+            // this one call, so the secret it stands for never leaves the core (`SWR-MG-32` (c)).
+            let secret = if !req["passphrase"].is_null() {
+                match passphrase_secret(&crate::secret_io::secret_text(req, "passphrase", &[])?) {
+                    Ok(s) => s,
+                    Err(reason) => return Ok(json!({ "ok": false, "reason": reason, "minChars": PASSPHRASE_MIN_CHARS })),
+                }
+            } else if !req["recoveryCode"].is_null() {
+                match parse_recovery_code(&crate::secret_io::secret_text(req, "recoveryCode", &[])?) {
+                    Ok(s) => Zeroizing::new(s),
+                    Err(reason) => return Ok(json!({ "ok": false, "reason": reason })),
+                }
+            } else {
+                crate::secret_io::secret(req, "secret", &[])?
+            };
+            let keep = match &req["keep"] {
+                Value::Null => None,
+                Value::String(p) if crate::secret_io::DERIVED.contains(&p.as_str()) => Some(p.as_str()),
+                other => return Err(format!("a derived key is not kept under {other}")),
+            };
             Ok(match derive_key(&secret, &req["kdf"]) {
-                Ok(k) => json!({ "ok": true, "key": hex(&k) }),
+                Ok(k) => match keep {
+                    Some(purpose) => json!({ "ok": true, "key": crate::secret_io::keep(purpose, k)? }),
+                    None => json!({ "ok": true, "key": crate::secret_io::answer_secret(&k) }),
+                },
                 Err(reason) => json!({ "ok": false, "reason": reason }),
             })
         })(),
         "deriveUhdrKey" => (|| {
-            let seed = Zeroizing::new(unhex(req["seed"].as_str().ok_or("seed is required")?, "seed")?);
+            let seed = crate::secret_io::secret(req, "seed", &[])?;
             let salt = unhex(req["salt"].as_str().ok_or("salt is required")?, "salt")?;
             Ok(match derive_uhdr_key(&seed, &salt) {
-                Ok(k) => json!({ "ok": true, "key": hex(&k) }),
+                Ok(k) => json!({ "ok": true, "key": crate::secret_io::answer_secret(&k) }),
                 Err(reason) => json!({ "ok": false, "reason": reason }),
             })
         })(),
         "encodeRecoveryCode" => (|| {
-            let b = unhex(req["bytes"].as_str().ok_or("bytes is required")?, "bytes")?;
+            // The bytes are the secret the code stands for; the code itself is text by purpose (it is shown to the person).
+            let b = crate::secret_io::secret(req, "bytes", &[])?;
             Ok(json!({ "code": encode_recovery_code(&b)? }))
         })(),
-        "parseRecoveryCode" => Ok(match parse_recovery_code(req["code"].as_str().unwrap_or("")) {
-            Ok(b) => json!({ "ok": true, "secret": hex(&b) }),
+        "parseRecoveryCode" => Ok(match crate::secret_io::secret_text(req, "code", &[]).map_err(|_| "malformed").and_then(|c| parse_recovery_code(&c)) {
+            Ok(b) => json!({ "ok": true, "secret": crate::secret_io::answer_secret(&b) }),
             Err(reason) => json!({ "ok": false, "reason": reason }),
         }),
-        "passphraseSecret" => Ok(match passphrase_secret(req["passphrase"].as_str().unwrap_or("")) {
-            Ok(b) => json!({ "ok": true, "secret": hex(&b), "minChars": PASSPHRASE_MIN_CHARS }),
+        "passphraseSecret" => Ok(match crate::secret_io::secret_text(req, "passphrase", &[]).map_err(|_| "too_short").and_then(|p| passphrase_secret(&p)) {
+            Ok(b) => json!({ "ok": true, "secret": crate::secret_io::answer_secret(&b), "minChars": PASSPHRASE_MIN_CHARS }),
             Err(reason) => json!({ "ok": false, "reason": reason, "minChars": PASSPHRASE_MIN_CHARS }),
         }),
         _ => return None,

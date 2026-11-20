@@ -187,6 +187,83 @@ data class ClinicianAccessExpansionRequest(
 
 enum class ContactFrequency { WEEKLY, MONTHLY, QUARTERLY }
 
+/** How the person asked to be reached about research (§6.2 L1): the two channels the L1 screen names. */
+enum class ContactChannel { EMAIL, PHONE }
+
+/**
+ * A research contact method the app can use: a channel and a value in that channel's form
+ * (`REQ-CONSENT-23`). The L1 field takes "email or phone", so the channel is read from what was typed.
+ *
+ * It used to be stored as whatever was typed, so the field could hold anything, including text about
+ * the person's health, and L1 could be on with nothing in it (`OI-PRIV-06` point 8).
+ */
+data class ResearchContact(val channel: ContactChannel, val value: String) {
+    companion object {
+        /** RFC 5321 §4.5.3.1.3: a path is at most 256 octets with its angle brackets, so an address is at most 254. */
+        private const val MAX_EMAIL_LENGTH = 254
+
+        /** ITU-T E.164: an international number has at most 15 digits. */
+        private const val MAX_PHONE_DIGITS = 15
+
+        private val phoneSeparators = setOf(' ', '-', '(', ')', '.')
+
+        /**
+         * [text] as a contact, or null if it is neither an email address nor a phone number. An address has
+         * one `@`, something before it, a dotted domain after it and no whitespace. A number is digits with
+         * an optional leading `+`, once spaces, hyphens, dots and brackets are dropped; it is stored without
+         * them.
+         */
+        fun parse(text: String): ResearchContact? {
+            val trimmed = text.trim()
+            if ('@' in trimmed) {
+                val local = trimmed.substringBefore('@')
+                val domain = trimmed.substringAfter('@')
+                val ok = trimmed.length <= MAX_EMAIL_LENGTH && trimmed.none { it.isWhitespace() } &&
+                    local.isNotEmpty() && '@' !in domain &&
+                    domain.split('.').let { labels -> labels.size >= 2 && labels.all { it.isNotEmpty() } }
+                return if (ok) ResearchContact(ContactChannel.EMAIL, trimmed) else null
+            }
+            val compact = trimmed.filterNot { it in phoneSeparators }
+            val digits = compact.removePrefix("+")
+            val ok = digits.isNotEmpty() && digits.length <= MAX_PHONE_DIGITS && digits.all { it in '0'..'9' }
+            return if (ok) ResearchContact(ContactChannel.PHONE, compact) else null
+        }
+    }
+}
+
+/**
+ * When a consent was last withdrawn: the day, and how many times that one decision has been withdrawn,
+ * as `yyyy-MM-dd#NNNNNN` (`REQ-CONSENT-24`, `SWR-MG-04`).
+ *
+ * A withdrawal has to be ordered against another withdrawal of the same decision, on this phone or on
+ * the person's other one, and nothing else. A day and a count do that: the text orders by day and then
+ * by count, the count travels in a migration bundle so the two phones count the same decision, and two
+ * equal marks mean both sides already stopped. It used to be a UTC instant to the second, which is finer
+ * time than the decision needs (`OI-PRIV-06` point 7).
+ */
+object WithdrawalMark {
+    private const val COUNT_DIGITS = 6
+    private const val MAX_COUNT = 999_999
+
+    /** The mark for a withdrawal on [today], after [previous] (the mark this decision already holds, if any). */
+    fun next(previous: String?, today: String): String {
+        val count = ((previous?.let(::countOf) ?: 0) + 1).coerceAtMost(MAX_COUNT)
+        return today + "#" + count.toString().padStart(COUNT_DIGITS, '0')
+    }
+
+    fun dayOf(mark: String): String = mark.substringBefore('#')
+
+    fun countOf(mark: String): Int = mark.substringAfter('#', "").toIntOrNull() ?: 0
+
+    /** [mark] has the one form that orders as text: a real day, `#`, and a six-digit count above zero. */
+    fun isValid(mark: String): Boolean {
+        val day = dayOf(mark)
+        val count = mark.substringAfter('#', "")
+        return runCatching { kotlinx.datetime.LocalDate.parse(day).toString() == day }.getOrDefault(false) &&
+            count.length == COUNT_DIGITS && count.all { it in '0'..'9' } && count.toInt() > 0
+    }
+}
+
 /**
  * The four consent layers (CLAUDE.md §6.2).
  *
@@ -203,7 +280,13 @@ enum class ContactFrequency { WEEKLY, MONTHLY, QUARTERLY }
 data class ResearchConsentState(
     // L1: Contact consent
     val contactConsentGranted: Boolean = false,
+    /**
+     * The contact method, in the form [ResearchContact.parse] stores, or empty. `ConsentStore` writes it
+     * with [contactChannel]: a commit with L1 on and no usable method does not turn L1 on, and turning L1
+     * off erases the method (`REQ-CONSENT-23`).
+     */
     val contactMethod: String = "",
+    val contactChannel: ContactChannel? = null,
     val contactFrequency: ContactFrequency = ContactFrequency.MONTHLY,
     // `isPoaHolder` was here with no reader and no writer (`OI-PRIV-06` point 8). The POA workflow is not built
     // (`REQ-CONSENT-17`); its fields arrive with it. A stored record that still carries the key decodes without it.
@@ -231,7 +314,8 @@ data class ResearchConsentState(
     val suggestionPortalOptIn: Boolean = false,
 
     /**
-     * The instant (UTC, `yyyy-MM-ddTHH:mm:ssZ`) each consent was last withdrawn, or null if it never was (`SWR-MG-04`).
+     * The [WithdrawalMark] (day and count, `yyyy-MM-dd#NNNNNN`) of each consent's last withdrawal, or null if it never
+     * was withdrawn (`SWR-MG-04`).
      * Like [blanketConsentWithdrawnOnDay] these are the store's to set on a true→false transition and nothing else's, and
      * a later re-grant does not clear them: a withdrawal is a record that stays (ruling, issue #569). They exist so a
      * restore can carry "said stop" to another phone, where the later time wins and a grant is never added. They are
@@ -400,6 +484,13 @@ data class StudyDescriptor(
     val dateRoundingDays: Int,
     val issuedOnDay: String,
     /**
+     * The last day the device may act on this descriptor ("yyyy-MM-dd"), set and signed by the issuer. After it
+     * the descriptor is refused and an invitation made from it can no longer be accepted (`REQ-CONSENT-09` i).
+     * The issuer sets it because how long a study recruits is the study's fact; a maximum age chosen on the
+     * device would be a number with no derivation (`OI-PRIV-06` point 5).
+     */
+    val expiresOnDay: String,
+    /**
      * Detached signature over the canonical descriptor bytes. Never parsed here: it is the
      * verifier's input, and nothing derived from an unverified descriptor may reach the user.
      */
@@ -477,6 +568,12 @@ sealed interface StudyDescriptorAdmission {
         ANONYMISATION_BELOW_FLOOR,
 
         /**
+         * The descriptor's expiry day has passed, is not a day, or is before its issue day
+         * (`REQ-CONSENT-09` i). An issuer's undertaking does not stand for ever.
+         */
+        DESCRIPTOR_EXPIRED,
+
+        /**
          * L1 is the shared precondition for every delivery path, invitations and engagement
          * notifications alike (§6.2.1).
          */
@@ -538,6 +635,8 @@ data class StudyInvitation(
     val dateRoundingDays: Int,
     val posture: Posture,
     val receivedOnDay: String,
+    /** The descriptor's expiry day. Null only on an invitation stored before descriptors carried one. */
+    val expiresOnDay: String? = null,
     val decision: StudyDecision? = null,
 ) {
     /**

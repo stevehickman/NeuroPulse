@@ -5,10 +5,10 @@ import {
   NPIndividualProfile,
   LimitLevel,
 } from '../../../../common/types/limits';
-import { serializeNPPSLimits } from '../../../../common/lib/nppsSerializer';
+import { shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
 import { limitsStore } from '../lib/limitsStore';
-import { NPHardwareLimits } from '../../../../common/lib/constants.generated';
+import { NPHardwareLimits, ProfileLimits } from '../../../../common/lib/constants.generated';
 import { LIMIT_BOUNDS, limitsOutOfRange } from '../lib/paramBounds';
 import type { ParamBound } from '../lib/paramBounds';
 import { RangeEditor } from './ParamInputs';
@@ -63,7 +63,6 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
   const [showNewProfile, setShowNewProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profileNotes, setProfileNotes] = useState('');
-  const [profileDob, setProfileDob] = useState('');
 
   // New helmet state
   const [showNewHelmet, setShowNewHelmet] = useState(false);
@@ -111,14 +110,11 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
       id: crypto.randomUUID(),
       name: profileName.trim(),
       notes: profileNotes.trim(),
-      dateOfBirth: profileDob || undefined,
-      createdAt: new Date().toISOString(),
     };
-    limitsStore.saveProfile(profile);
+    if (!limitsStore.saveProfile(profile)) return;
     setShowNewProfile(false);
     setProfileName('');
     setProfileNotes('');
-    setProfileDob('');
   }
 
   function handleAddHelmet() {
@@ -285,15 +281,13 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
               showNewProfile={showNewProfile}
               profileName={profileName}
               profileNotes={profileNotes}
-              profileDob={profileDob}
               onSetActive={id => limitsStore.setActiveProfile(id === limitsStore.activeProfileId ? undefined : id)}
               onEditLimits={openIndividualEditor}
               onDelete={handleDeleteProfile}
               onShowNew={() => setShowNewProfile(true)}
-              onCancelNew={() => { setShowNewProfile(false); setProfileName(''); setProfileNotes(''); setProfileDob(''); }}
+              onCancelNew={() => { setShowNewProfile(false); setProfileName(''); setProfileNotes(''); }}
               onNameChange={setProfileName}
               onNotesChange={setProfileNotes}
-              onDobChange={setProfileDob}
               onSaveProfile={handleSaveProfile}
             />
           )}
@@ -513,7 +507,6 @@ function IndividualTab({
   showNewProfile,
   profileName,
   profileNotes,
-  profileDob,
   onSetActive,
   onEditLimits,
   onDelete,
@@ -521,7 +514,6 @@ function IndividualTab({
   onCancelNew,
   onNameChange,
   onNotesChange,
-  onDobChange,
   onSaveProfile,
 }: {
   profiles: readonly NPIndividualProfile[];
@@ -530,7 +522,6 @@ function IndividualTab({
   showNewProfile: boolean;
   profileName: string;
   profileNotes: string;
-  profileDob: string;
   onSetActive: (id: string) => void;
   onEditLimits: (profileId: string) => void;
   onDelete: (id: string, name: string) => void;
@@ -538,7 +529,6 @@ function IndividualTab({
   onCancelNew: () => void;
   onNameChange: (s: string) => void;
   onNotesChange: (s: string) => void;
-  onDobChange: (s: string) => void;
   onSaveProfile: () => void;
 }) {
   // Active profile first
@@ -575,17 +565,11 @@ function IndividualTab({
               style={INPUT_STYLE}
               autoFocus
             />
-            <input
-              type="date"
-              placeholder={t('WEB_PROFILE_DOB_PLACEHOLDER')}
-              value={profileDob}
-              onChange={e => onDobChange(e.target.value)}
-              style={INPUT_STYLE}
-            />
             <textarea
               placeholder={t('WEB_PROFILE_NOTES_PLACEHOLDER')}
               value={profileNotes}
               onChange={e => onNotesChange(e.target.value)}
+              maxLength={ProfileLimits.PROFILE_NOTES_MAX_CHARS}
               rows={2}
               style={{ ...INPUT_STYLE, resize: 'vertical' }}
             />
@@ -636,11 +620,6 @@ function IndividualTab({
                   borderRadius: 10,
                   fontWeight: 700,
                 }}>{t('WEB_ACTIVE')}</span>
-              )}
-              {profile.dateOfBirth && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {t('WEB_DOB_LABEL', { 0: profile.dateOfBirth })}
-                </span>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => onSetActive(profile.id)}>
@@ -772,7 +751,9 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
 
   // Generate script text from current limits whenever switching to script tab
   function handleSwitchToScript() {
-    setScriptText(serializeNPPSLimits(limits));
+    // The script a person sees and can copy is the share form: no helmet serial, no individual id (SWR-WO-07 (f)).
+    // Saving it back stamps the tier's own id (limitsStore.saveHelmetLimits, saveIndividualLimits).
+    setScriptText(shareNPPSLimits(limits));
     setScriptError(null);
     setEditorTab('script');
   }
