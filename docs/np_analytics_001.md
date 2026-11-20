@@ -124,14 +124,16 @@ Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/p
 
 | Setting | Value | Why |
 |---------|-------|-----|
-| Event retention | **90 days** | Balances product insight needs with data minimisation. See §7.1 to adjust. |
-| Person retention | **90 days** | Anonymous person records only; matches event retention |
+| Event retention | **30 days** (`EVENT_RETENTION_DAYS`, §7.1) | `NP-APP-TELEMETRY-001` §5: a withdrawn person's analytics ID is deleted from the vendor within 30 days. The principal set 30 on 2026-11-20 (`OI-ANALYTICS-01` (3)). Enforced by `infra/posthog/apply_event_retention.py`, not by the PostHog UI. |
+| Person retention | **30 days** | Anonymous person records only; matches event retention. A PostHog UI setting, so manual. |
 
-> **Retention is unverified (Rev 3).** The Data Retention settings above are what this document has always asked for, but I could not confirm from PostHog's documentation that a **self-hosted** instance enforces them at all: the retention feature may exist only on PostHog Cloud. Until it is shown to delete old events on this stack, treat the 90 days (and the 30 of `NP-APP-TELEMETRY-001` §5) as a wish, not a control (`OI-ANALYTICS-02`).
+> **Retention is enforced by a ClickHouse TTL, not by the UI setting (`REQ-SW03-34`).** `apply_event_retention.py --apply` sets `TTL toDate(timestamp) + toIntervalDay(N)` on the events table and reads it back; `--check` verifies it, and must be run after every PostHog upgrade (a recreated table loses its TTL). It has not been run against a real stack (`OI-ANALYTICS-01` (2)). The person-retention row stays a manual UI step.
 
-> **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeurOne account or any UHDR data. However, 90-day retention still satisfies data minimisation.
+> **Retention is unverified in PostHog itself (Rev 3).** The Data Retention settings above are what this document has always asked for, but I could not confirm from PostHog's documentation that a **self-hosted** instance enforces them at all: the retention feature may exist only on PostHog Cloud. Until it is shown to delete old events on this stack, treat the 90 days (and the 30 of `NP-APP-TELEMETRY-001` §5) as a wish, not a control (`OI-ANALYTICS-02`).
 
-> **Retention against the withdrawal rule (Rev 2).** `NP-APP-TELEMETRY-001` §5 says a withdrawn person's analytics ID is deleted from the vendor within **30 days**. With 90-day retention, and the erasure relay of §7.6 not built, the events of a person who withdrew stay for up to 90 days: **the policy is not met today.** Either the retention is set to 30 days (§7.1; shorter retention loses long-term trend data) or the relay is built; the choice is the principal's (`OI-ANALYTICS-01`).
+> **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeurOne account or any UHDR data. 30-day retention satisfies data minimisation.
+
+> **Retention against the withdrawal rule (Rev 2).** `NP-APP-TELEMETRY-001` §5 says a withdrawn person's analytics ID is deleted from the vendor within **30 days**. With 90-day retention the events of a person who withdrew could stay for up to 90 days. **The principal decided on 2026-11-20 to set retention to 30 days** (`OI-ANALYTICS-01` (3)), which meets the 30 days whether or not the erasure relay of §7.6 works; the cost is trend data older than 30 days.
 
 **Navigate to: Project Settings → Autocapture & Heatmaps**
 
@@ -336,16 +338,18 @@ For T2 clinical cloud (NP-PRIV-REM-001 STEP-19 — EU data residency):
 
 ### 7.1 Adjusting event retention
 
-Event retention is set per-project in PostHog UI at Project Settings → Data Management → Data Retention. The default configured in §3.4 is 90 days.
+Event retention is `EVENT_RETENTION_DAYS` in `.env` (default **30**), applied as a ClickHouse TTL by `infra/posthog/apply_event_retention.py` (`REQ-SW03-34`). It is not the PostHog UI slider, which a self-hosted instance may not enforce (§3.4).
+
+**Why 30, and what changing it means.** `NP-APP-TELEMETRY-001` §5 promises that a person who withdraws research consent has their pseudonymous analytics ID deleted from the vendor within **30 days**. Retention is what keeps that true while the erasure relay is unverified (`OI-ANALYTICS-01`). **Raising the value above 30 breaks that promise for each day over 30**, and the script says so on stderr; that is the principal's decision, not a tuning choice. Lowering it only loses trend data.
 
 To change:
-- Go to Project Settings → Data Management → Data Retention
-- Adjust the slider
-- Changes apply to new data writes immediately; existing data is purged on the next ClickHouse TTL run (typically within 24 hours)
+- Set `EVENT_RETENTION_DAYS` in `.env`, then run `python3 apply_event_retention.py --url <clickhouse> --apply` and then `--check`
+- A TTL removes rows when ClickHouse next merges the parts, not at the instant they expire
+- Re-run `--check` after every PostHog upgrade
 
 **Considerations for changing retention:**
-- Shorter retention (30 days): stronger data minimisation, but loses long-term trend data
-- Longer retention (180 days): more trend visibility for product decisions, but higher storage and higher privacy liability
+- 30 days (the default): meets the telemetry policy's 30-day deletion promise, but loses trend data older than that
+- Longer (e.g. 180 days): more trend visibility, but **breaks that promise** and carries higher storage and privacy liability
 - **Never exceed 365 days** without a formal DPA review — this exceeds what NP-APP-TELEMETRY-001 currently justifies
 
 ### 7.2 Responding to a right-to-erasure request
@@ -404,7 +408,7 @@ docker compose exec clickhouse clickhouse-client \
 
 ### 7.5 Disk usage
 
-Expected steady-state disk usage at 90-day retention with ~10,000 MAU:
+Expected steady-state disk usage at 90-day retention (the former default; 30 days needs about a third of the event storage) with ~10,000 MAU:
 - ClickHouse data: 5–20 GB (events compress well in ClickHouse columnar storage)
 - PostgreSQL data: <1 GB
 - Kafka logs: <5 GB (24-hour retention, consumed quickly)

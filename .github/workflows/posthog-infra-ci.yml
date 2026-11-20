@@ -41,6 +41,7 @@ jobs:
         ci/test_posthog_infra.py
         ci/test_posthog_project_settings.py
         ci/test_posthog_erase_relay.py
+        ci/test_posthog_event_retention.py
         .github/workflows/posthog-infra-ci.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
@@ -118,6 +119,10 @@ jobs:
         run: python3 ci/test_posthog_project_settings.py --self-test
       - name: Project-settings script against a fake PostHog
         run: python3 ci/test_posthog_project_settings.py
+      - name: Event-retention self-test (prove the suite goes red on a broken script)
+        run: python3 ci/test_posthog_event_retention.py --self-test
+      - name: Event-retention script against a fake ClickHouse
+        run: python3 ci/test_posthog_event_retention.py
       - name: Erasure-relay self-test (prove the suite goes red on a broken relay)
         run: python3 ci/test_posthog_erase_relay.py --self-test
       - name: Erasure relay against a fake ClickHouse
