@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -44,7 +46,16 @@ object NppsCore {
     private fun nativeContentHash(request: String): String = backend.contentHash(request)
 
     private fun nativeLibrary(request: String): String = backend.library(request)
-    private fun nativeMigration(request: String): String = backend.migration(request)
+    private fun nativeMigration(request: String): String {
+        requestObserver?.invoke(request)
+        return backend.migration(request)
+    }
+
+    /**
+     * For tests that no key is ever text on its way to the core (`SWR-MG-32` (e)): shown the JSON of every migration request,
+     * through either entry point, exactly as it is handed to the binding. Nothing in the apps sets it.
+     */
+    internal var requestObserver: ((String) -> Unit)? = null
 
     /**
      * Parse NPPS text into everything the file declares:
@@ -73,6 +84,19 @@ object NppsCore {
      */
     fun serialize(items: List<JsonObject>): String {
         val request = buildJsonObject { put("items", JsonArray(items)) }
+        return nativeSerialize(request.toString())
+    }
+
+    /**
+     * As [serialize], in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+     * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from [random], 32 bytes
+     * from the platform's secure source. The rule is the core's; nothing here or in an app decides what is stripped.
+     */
+    fun serializeShare(items: List<JsonObject>, random: ByteArray): String {
+        val request = buildJsonObject {
+            put("items", JsonArray(items))
+            put("share", buildJsonObject { put("randomHex", random.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }) })
+        }
         return nativeSerialize(request.toString())
     }
 
@@ -119,6 +143,75 @@ object NppsCore {
      * [IllegalArgumentException]; a rule that says no is an ordinary answer.
      */
     fun migration(request: JsonObject): JsonObject = Json.parseToJsonElement(nativeMigration(request.toString())) as JsonObject
+
+    /**
+     * What [migrationSecret] answers: the JSON, and the secrets it names as `{"$secret": n}`, as bytes. Call [clear] when the
+     * secrets have been used or handed to something that keeps them (a keystore): it overwrites them.
+     */
+    class SecretAnswer(val answer: JsonObject, val secrets: List<ByteArray>) {
+        fun clear() = secrets.forEach { it.fill(0) }
+        override fun toString(): String = "SecretAnswer(${secrets.size} secret(s), <redacted>)"
+    }
+
+    /**
+     * [migration] for an operation that takes or returns a key (`SWR-MG-32`). The request names a secret as
+     * `{"$secret": n}` and `secrets[n]` holds its bytes; a secret in the answer comes back the same way. **A key is never
+     * text on this path**: not in the request, not in the answer, not in a `String` this function makes. The arrays in
+     * [secrets] are the caller's to overwrite; the framed copy made here is overwritten before this returns, whether the
+     * core answered or refused. A key the core keeps is named `{"$handle": n}` and needs no bytes: it goes through
+     * [migration].
+     */
+    fun migrationSecret(request: JsonObject, secrets: List<ByteArray>): SecretAnswer {
+        val framed = ByteArray(secrets.sumOf { 4 + it.size })
+        var at = 0
+        for (s in secrets) {
+            putLength(framed, at, s.size)
+            s.copyInto(framed, at + 4)
+            at += 4 + s.size
+        }
+        val out = try {
+            val text = request.toString()
+            requestObserver?.invoke(text)
+            backend.migrationSecret(text, framed)
+        } finally {
+            framed.fill(0)
+        }
+        try {
+            val answerLength = length(out, 0)
+            val answer = Json.parseToJsonElement(out.decodeToString(4, 4 + answerLength)) as JsonObject
+            val answered = mutableListOf<ByteArray>()
+            var i = 4 + answerLength
+            while (i < out.size) {
+                val n = length(out, i)
+                answered += out.copyOfRange(i + 4, i + 4 + n)
+                i += 4 + n
+            }
+            return SecretAnswer(answer, answered)
+        } finally {
+            out.fill(0)
+        }
+    }
+
+    /** How a request names the n-th secret given beside it. */
+    fun secretRef(n: Int): JsonObject = buildJsonObject { put("\$secret", n) }
+
+    /** The bytes of the secret [answer] names at [field], or null if it names none there. The array is the answer's: [SecretAnswer.clear] overwrites it. */
+    fun secretAt(answer: SecretAnswer, field: String): ByteArray? {
+        val n = (answer.answer[field] as? JsonObject)?.get("\$secret")?.jsonPrimitive?.intOrNull ?: return null
+        return answer.secrets.getOrNull(n)
+    }
+
+    private fun putLength(into: ByteArray, at: Int, n: Int) {
+        for (k in 0..3) into[at + k] = (n ushr (24 - 8 * k)).toByte()
+    }
+
+    private fun length(from: ByteArray, at: Int): Int {
+        require(at + 4 <= from.size) { "The core's answer is cut short" }
+        var n = 0
+        for (k in 0..3) n = (n shl 8) or (from[at + k].toInt() and 0xff)
+        require(n >= 0 && at + 4 + n <= from.size) { "The core's answer is cut short" }
+        return n
+    }
 
     /** What a compile needs that is not in the protocol. Everything non-deterministic is an input. */
     class CompileOptions(

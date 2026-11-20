@@ -3,6 +3,7 @@ package life.neurone.core.consent
 import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
+import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
 import life.neurone.core.models.StudyDescriptor
 import life.neurone.core.models.StudyDescriptorAdmission
@@ -108,8 +109,11 @@ object ConsentEngine {
      * would newly show, what it already shows, and what stays out of reach either way.
      *
      * Returns null when the change is not an expansion, and the caller must treat that as a
-     * refusal rather than a formatting problem. Three cases are not expansions:
+     * refusal rather than a formatting problem. Four cases are not expansions:
      *
+     *  - **The grant is not in force on [today]** (`REQ-CONSENT-18`). An expired grant, or one
+     *    with no expiry, reaches nothing, so there is nothing to widen; the clinician needs a new
+     *    grant, which is asked for whole.
      *  - **Nothing new.** The target tier adds no element the grant does not already reach, so
      *    there is nothing to consent to.
      *  - **Something lost.** The target tier does not contain everything the grant already
@@ -127,7 +131,9 @@ object ConsentEngine {
     fun accessDifferential(
         grant: ClinicianConsentGrant,
         newTier: ClinicianUseCaseTier,
+        today: String,
     ): ClinicianAccessDifferential? {
+        if (!grant.isInForce(today)) return null
         if (grant.tier == ClinicianUseCaseTier.RESEARCH ||
             newTier == ClinicianUseCaseTier.RESEARCH
         ) {
@@ -158,6 +164,46 @@ object ConsentEngine {
     // §5.3's anonymisation floors are `ConsentLimits` (common/npps/constants.json), generated for every runtime.
 
     /**
+     * UHDR elements no research extract may carry, whatever `k` a descriptor declares.
+     *
+     * §5.3 promises a k-anonymous extract. k-anonymity groups records that share their quasi-identifiers, and a
+     * recorded signal is one the person alone has: there is no group of ten to put it in without ceasing to be
+     * the signal. A study that asks for one is asking for something the device cannot anonymise, so the person
+     * is not asked about it (`REQ-CONSENT-09` h).
+     *
+     * **The three recorded signals are handled alike** (the principal, 2026-11-18: a person expects EEG, PPG and
+     * HRV data to be treated the same way). The argument above was made for EEG waveforms and holds for the PPG
+     * optical signal and the HRV time series, so all three are here. A signal element added later joins them.
+     */
+    /** [day] is a real calendar day written "yyyy-MM-dd", the only form that orders as text. */
+    fun isIsoDay(day: String): Boolean =
+        runCatching { kotlinx.datetime.LocalDate.parse(day).toString() == day }.getOrDefault(false)
+
+    /**
+     * Whether a descriptor or invitation that expires on [expiresOnDay] may still be acted on [today].
+     * The expiry day is the last day. No expiry (an invitation stored before descriptors carried one)
+     * does not bar it.
+     */
+    fun notExpired(expiresOnDay: String?, today: String): Boolean = expiresOnDay == null || today <= expiresOnDay
+
+    val ELEMENTS_NO_EXTRACT_MAY_CARRY: Set<UHDRElement> = setOf(
+        UHDRElement.EEG_WAVEFORMS, UHDRElement.PPG_OPTICAL_SIGNAL, UHDRElement.HRV_TIME_SERIES,
+    )
+
+    /**
+     * Whether [consent] covers a study in [categories]: blanket consent is on, or one of the study's categories
+     * is consented, and blanket consent has not been withdrawn (which outranks the L2 ticks, §6.0).
+     *
+     * One rule for the three places it is needed: a participation stays active only while this holds
+     * (`REQ-CONSENT-19`), a consent request can be accepted only while it holds, and the dashboard offers only
+     * the invitations for which it holds. [categories] is null when the study's categories are not on record,
+     * and then only blanket consent covers it.
+     */
+    fun covers(consent: ResearchConsentState, categories: List<ResearchCategory>?): Boolean =
+        !consent.blanketConsentWithdrawn &&
+            (consent.blanketConsentGranted || categories.orEmpty().any { consent.categoryConsents[it] == true })
+
+    /**
      * The **ingestion gate**: whether a signed study descriptor may become something the user
      * sees, and if so which of §6.2's two postures it arrives in.
      *
@@ -166,19 +212,30 @@ object ConsentEngine {
      *
      * **Order is load-bearing.** The signature is checked first, so nothing a descriptor *claims*
      * — its categories, its element list, its title — can influence any later step of an
-     * unverified descriptor. Then §5.3's floors, which are properties of the study itself. Only
-     * then the user's consent state, which is the part that varies per device.
+     * unverified descriptor. Then §5.3's floors and what the study asks for, which are properties
+     * of the study itself. Only then the user's consent state, which is the part that varies per
+     * device, and first of all whether that state could be read.
+     *
+     * **Suppression is not a descriptor field** (the principal, 2026-11-19; `OI-PRIV-06` point 5).
+     * The rule is the device's and is the same for every study: a record whose group is smaller
+     * than `k` is dropped, never sent (`REQ-CONSENT-13` e, with the extractor, `OI-CONSENT-07`).
+     * So there is nothing about suppression for this gate to check.
      *
      * @param verification the result of checking the descriptor's signature.
      * @param consent the user's current research consent (L1–L4).
      * @param studyAlreadyDecided whether this study ID has already been answered, joined or
      *   withdrawn from on this device.
+     * @param today the day the descriptor is being admitted on ("yyyy-MM-dd"), for its expiry.
+     * @param consentRecordReadable false while a stored consent record could not be read and the
+     *   person has not decided again (`REQ-CONSENT-20`).
      */
     fun admit(
         descriptor: StudyDescriptor,
         verification: StudyDescriptorVerification,
         consent: ResearchConsentState,
         studyAlreadyDecided: Boolean,
+        consentRecordReadable: Boolean,
+        today: String,
     ): StudyDescriptorAdmission {
         val descriptorHash = when (verification) {
             StudyDescriptorVerification.Unavailable ->
@@ -197,6 +254,29 @@ object ConsentEngine {
         ) {
             return StudyDescriptorAdmission.Refused(
                 StudyDescriptorAdmission.Reason.ANONYMISATION_BELOW_FLOOR,
+            )
+        }
+
+        // The issuer signs how long the descriptor stands. An expiry that is not a day, or that
+        // precedes the issue day, is not one the device can hold the issuer to.
+        if (!isIsoDay(descriptor.expiresOnDay) || descriptor.expiresOnDay < descriptor.issuedOnDay ||
+            !notExpired(descriptor.expiresOnDay, today)
+        ) {
+            return StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.DESCRIPTOR_EXPIRED)
+        }
+
+        // An element that cannot be made k-anonymous makes the declared k meaningless for it.
+        if (descriptor.requestedElements.any { it in ELEMENTS_NO_EXTRACT_MAY_CARRY }) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.REQUESTS_ELEMENT_NO_EXTRACT_MAY_CARRY,
+            )
+        }
+
+        // An unreadable record reads as defaults, which is "never asked". The person may have said
+        // stop, so until they decide again nothing is admitted, and the refusal says why.
+        if (!consentRecordReadable) {
+            return StudyDescriptorAdmission.Refused(
+                StudyDescriptorAdmission.Reason.CONSENT_RECORD_UNREADABLE,
             )
         }
 
@@ -276,6 +356,7 @@ object ConsentEngine {
         dateRoundingDays = descriptor.dateRoundingDays,
         posture = posture,
         receivedOnDay = receivedOnDay,
+        expiresOnDay = descriptor.expiresOnDay,
         decision = null,
     )
 }

@@ -11,14 +11,18 @@
 //!
 //! # Items
 //! The state a migration may move is named in `SWR-MG-01`. **Moved by a migration:** protocols and their used flags
-//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`), characterisation enrolment
-//! (`characterisationEnrolment`) and limits profiles (`limitsProfiles`). **Never moved, because it belongs to the install:**
-//! the research device token, the warranty consent flag, the last paired helmet id and the launch count. **Never moved, by
+//! (`protocols`), session history (`sessionHistory`), the withdrawal state (`withdrawalState`) and limits profiles
+//! (`limitsProfiles`). **Never moved, because it belongs to the install:**
+//! the research device token, the last paired helmet id and the launch count. **Never moved with a user's data, because it is
+//! the warranty owner's and not a user's** (`REQ-SHDR-10`; the principal, 2026-11-20): the warranty consent
+//! (`warrantyConsentFlag`) and characterisation enrolment (`characterisationEnrolment`). A bundle an earlier version sealed
+//! may hold `characterisationEnrolment`; it is dropped when the bundle is opened and the rest is restored (`RETIRED_ITEMS`).
+//! **Never moved, by
 //! ruling:** the consent grants (`consentGrants`). A grant is stated on each device, so an out-of-date one can never be
 //! restored; a restore can only reduce what a phone is consented to, never add to it (`SWR-MG-04`). **Not yet sorted, and neither moved nor dropped by this row:** the consumable counters,
 //! the cervical fault acknowledgement ledger and the onboarding flags.
 //!
-//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history, characterisation enrolment and the
+//! The UHDR-only kind is the nightly backup (`SWR-MG-03`). It carries session history and the
 //! withdrawal state; it omits protocols and limits profiles. The withdrawal state is in both kinds so a
 //! restore never resets it (`SWR-MG-04`). Which items the UHDR-only kind carries is not stated by the requirements beyond
 //! that, so the list is `UC-085` in `docs/status/unjustified-choices.md`.
@@ -35,7 +39,10 @@ use std::collections::BTreeSet;
 type R<T> = Result<T, String>;
 
 /// The bundle format version this build reads and writes (`SWR-MG-05`). The scheme beyond "one number, a newer one is
-/// refused whole" is open (`OI-UI-KMP-11` open question 5).
+/// refused whole" is open (`OI-UI-KMP-11` open question 5). The epoch joined the sealed body (`SWR-MG-29`, `OI-PRIV-09`)
+/// and the number stayed 1, by ruling (the principal, 2026-11-19): no build that sealed a bundle without an epoch was
+/// released, so no such bundle should exist and there is no older reader to refuse this one. A body with no epoch, were one
+/// to turn up, is `malformed`. The next change to the format after a release bumps the version.
 pub const FORMAT_VERSION: u64 = 1;
 
 /// The stored keys, sorted (`common/npps/migration-keys.json`, one file for every app and the gate that reads every app).
@@ -90,15 +97,14 @@ pub(crate) fn device_tier() -> Vec<String> {
     v
 }
 
-const MIGRATE_ITEMS: [&str; 5] = [
-    "protocols",
-    "sessionHistory",
-    "withdrawalState",
-    "characterisationEnrolment",
-    "limitsProfiles",
-];
-const UHDR_ITEMS: [&str; 3] = ["sessionHistory", "characterisationEnrolment", "withdrawalState"];
-const PER_INSTALL: [&str; 5] = ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"];
+const MIGRATE_ITEMS: [&str; 4] = ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"];
+const UHDR_ITEMS: [&str; 2] = ["sessionHistory", "withdrawalState"];
+const PER_INSTALL: [&str; 6] =
+    ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"];
+/// `REQ-SHDR-10` (c): items an earlier version carried and no bundle carries now. One met in a bundle that is being opened is
+/// dropped, never restored, and the rest of the bundle is restored; sealing one is refused like any item a kind does not carry.
+/// Characterisation enrolment is the warranty owner's decision about a helmet and was once carried with a user's data.
+const RETIRED_ITEMS: [&str; 1] = ["characterisationEnrolment"];
 const UNSORTED: [&str; 3] = ["consumableCounters", "cervicalFaultLedger", "onboardingFlags"];
 
 fn kind_items(kind: &str) -> R<&'static [&'static str]> {
@@ -159,7 +165,8 @@ fn restore_report(req: &Value) -> R<Value> {
 }
 
 fn later(a: Option<&str>, b: Option<&str>) -> Option<String> {
-    // ISO-8601 timestamps of one format order as text; the later one is the withdrawal that stands.
+    // A withdrawal mark is a day and that decision's withdrawal count, `yyyy-MM-dd#NNNNNN` (`REQ-CONSENT-24`). Marks order
+    // as text, by day and then by count; the later one is the withdrawal that stands. The core never parses one.
     match (a, b) {
         (Some(x), Some(y)) => Some(if x >= y { x } else { y }.to_string()),
         (Some(x), None) | (None, Some(x)) => Some(x.to_string()),
@@ -180,8 +187,8 @@ const WITHDRAWAL_BY_ID: [&str; 2] = ["categoryWithdrawals", "studyWithdrawals"];
 
 /// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings, and a withdrawal
 /// is sticky: it is never undone. A restore keeps the later time of every withdrawal and every id withdrawn on either side, and
-/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. Times are UTC
-/// instants of one fixed form (`2026-03-01T00:00:00Z`), which order as text. The app switches off whatever the merged state
+/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. A time is a
+/// withdrawal mark, a day and that decision's count in one fixed form (`2026-03-01#000001`), which orders as text. The app switches off whatever the merged state
 /// withdraws that the phone had not: a restore can only reduce what a phone is consented to.
 fn merge_withdrawal(req: &Value) -> R<Value> {
     let (local, incoming) = (&req["local"], &req["incoming"]);
@@ -317,7 +324,7 @@ const CONFIRMATION_LABEL: &[u8] = b"np-migration-confirmation-v1";
 /// keeps it (not the key), and the new phone makes it when it has opened the bundle. The bundle hash is computed from
 /// ciphertext the backup location already holds, so without the tag anyone who can write there could confirm.
 fn confirmation_tag(req: &Value) -> R<Value> {
-    let key = zeroize::Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -330,7 +337,7 @@ fn confirmation_tag(req: &Value) -> R<Value> {
 }
 
 /// Whether two tags are the same, in time that does not depend on where they differ. An empty tag matches nothing.
-fn same_tag(a: &str, b: &str) -> bool {
+pub(crate) fn same_tag(a: &str, b: &str) -> bool {
     !a.is_empty() && a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
@@ -399,12 +406,27 @@ fn probe_result(req: &Value) -> R<Value> {
 // ─── The encrypted bundle container (`SWR-MG-02`, `SWR-MG-05`) ───────────────────────────────────────────────────────────
 //
 // Layout, in bytes:  `"NPBK"` (4) · header length, big-endian u32 (4) · header JSON · ciphertext with its 16-byte tag.
-// The header is `{"kind","formatVersion","nonce"}`, in the clear so a restore can identify the kind and refuse a newer
+// The header is `{"kind","formatVersion","nonce","kdf"}`, in the clear so a restore can identify the kind and refuse a newer
 // version before it asks for a key (`SWR-MG-05`). The body is AES-256-GCM (`CLAUDE.md` §5.1) of `{"items":{name: value}}`,
 // with the magic, the length and the header as associated data, so an edited header or kind fails authentication and a
 // bundle cannot be re-labelled. The key is the user's: the platform derives it and hands it in for this one call, and the
 // core keeps nothing (`SWR-MG-02`: NeurOne holds no key and sees no plaintext). The nonce is also handed in, from the
 // platform's CSPRNG, because the core is pure and has no source of randomness; a nonce is used once per key.
+//
+// The epoch (`SWR-MG-29` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
+// hand back any bundle it was ever given: an older one is as authentic as the newest. So the sealed body is
+// `{"epoch": n, "items": {…}}`, where the epoch is a count that only rises: a phone seals each bundle
+// with one more than the highest epoch it has sealed or opened. It is inside the ciphertext, so it is authenticated and the
+// backup location cannot read it or count backups by it. `openBundle` is told the highest epoch the phone has seen
+// (`seenEpoch`, required, 0 for none) and refuses a bundle below it whole (`older_bundle`), with no items in the answer.
+// An equal epoch opens: it is the bundle the phone last sealed or opened. The phone keeps the number, not the core
+// (`migration_flow`).
+//
+// **What this does not do.** A phone that has seen nothing (a new phone, a fresh install, a phone after an erase) holds 0
+// and opens any authentic bundle, an old one included: nothing on it says a newer one ever existed. So the epoch protects
+// a phone that still holds its state from being taken back, and does not protect the first restore on a new phone, which
+// is the device-replacement case. There, the old phone refuses to clear against any bundle but the one it sealed
+// (`clearDecision`), so the person keeps the newer state on the old phone; the new phone is not told.
 
 const MAGIC: &[u8; 4] = b"NPBK";
 const NONCE_LEN: usize = 12;
@@ -418,7 +440,19 @@ pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+    // Decoded into one buffer of its final size (`SWR-MG-28` (c)). Collecting through a `Result` starts small and grows,
+    // and each growth releases the shorter copy as it is: for a key, its first bytes, whatever wraps the result afterwards.
+    let mut out = Vec::with_capacity(s.len() / 2);
+    for i in (0..s.len()).step_by(2) {
+        match u8::from_str_radix(&s[i..i + 2], 16) {
+            Ok(b) => out.push(b),
+            Err(_) => {
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(format!("{what} is not hex"));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.
@@ -460,8 +494,10 @@ fn read_bundle_header(req: &Value) -> R<Value> {
     Ok(out)
 }
 
+/// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
+/// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = unhex(req["key"].as_str().ok_or("key is required")?, "key")?;
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -484,25 +520,32 @@ fn seal_bundle(req: &Value) -> R<Value> {
     // The header says how the key was made, so a restore on a new phone knows what to ask for (`SWR-MG-02`, `SWR-MG-05`).
     let kdf = &req["kdf"];
     bundle_key::check_kdf(kdf).map_err(|e| format!("kdf: {e}"))?;
+    // `SWR-MG-29` (b): the epoch is named by the caller, which holds the count, and is at least 1 (0 means "seen nothing").
+    let epoch = req["epoch"].as_u64().filter(|e| *e >= 1).ok_or("epoch is required and is at least 1")?;
     let header = json!({ "kind": kind, "formatVersion": FORMAT_VERSION, "nonce": hex(&nonce), "kdf": kdf }).to_string().into_bytes();
     let mut aad = Vec::with_capacity(8 + header.len());
     aad.extend_from_slice(MAGIC);
     aad.extend_from_slice(&(header.len() as u32).to_be_bytes());
     aad.extend_from_slice(&header);
-    let plain = json!({ "items": items }).to_string().into_bytes();
+    let plain = json!({ "epoch": epoch, "items": items }).to_string().into_bytes();
     let ct = cipher(req)?
         .encrypt(Nonce::from_slice(&nonce), Payload { msg: &plain, aad: &aad })
         .map_err(|_| "encryption failed".to_string())?;
     aad.extend_from_slice(&ct);
-    Ok(json!({ "bundle": hex(&aad), "bundleHash": bundle_hash(&aad), "kind": kind, "formatVersion": FORMAT_VERSION }))
+    Ok(json!({ "bundle": hex(&aad), "bundleHash": bundle_hash(&aad), "kind": kind, "formatVersion": FORMAT_VERSION, "epoch": epoch }))
 }
 
 /// `SWR-MG-02`, `SWR-MG-05`: open a bundle with the user's key. A newer version or an unknown kind is refused before any
 /// decryption; a wrong key and an edited bundle are indistinguishable by design (`authentication_failed`), and nothing is
 /// returned from either. The items it returns are checked against the kind's list, so a forged body cannot bring an item
 /// the kind does not carry.
+///
+/// `SWR-MG-29` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
+/// none). It is required, so no caller opens a bundle without the check by leaving it out. A bundle whose epoch is lower is
+/// refused whole (`older_bundle`) and its items are not returned. A body with no epoch does not open (`malformed`).
 fn open_bundle(req: &Value) -> R<Value> {
     let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
+    let seen = req["seenEpoch"].as_u64().ok_or("seenEpoch is required (0 for a phone that has seen no bundle)")?;
     let Ok((aad, header, ct)) = split_bundle(&bundle) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
@@ -520,14 +563,26 @@ fn open_bundle(req: &Value) -> R<Value> {
     let Ok(plain) = cipher(req)?.decrypt(Nonce::from_slice(&nonce), Payload { msg: ct, aad }) else {
         return Ok(json!({ "ok": false, "reason": "authentication_failed" }));
     };
-    let Some(items) = serde_json::from_slice::<Value>(&plain).ok().and_then(|v| v["items"].as_object().cloned()) else {
+    let Ok(body) = serde_json::from_slice::<Value>(&plain) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
+    // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make: it gets no place in
+    // the order, and is never read as "the oldest".
+    let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    if epoch < seen {
+        return Ok(json!({ "ok": false, "reason": "older_bundle", "epoch": epoch, "seenEpoch": seen }));
+    }
+    let Some(mut items) = body["items"].as_object().cloned() else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    items.retain(|k, _| !RETIRED_ITEMS.contains(&k.as_str()));
     let carried = kind_items(kind)?;
     if items.keys().any(|k| !carried.contains(&k.as_str())) {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     }
-    Ok(json!({ "ok": true, "kind": kind, "formatVersion": checked["formatVersion"], "items": items, "bundleHash": bundle_hash(&bundle) }))
+    Ok(json!({ "ok": true, "kind": kind, "formatVersion": checked["formatVersion"], "epoch": epoch, "items": items, "bundleHash": bundle_hash(&bundle) }))
 }
 
 pub fn migration_json(request: &str) -> Result<String, String> {
@@ -572,7 +627,8 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "readBundleHeader" => read_bundle_header(req)?,
         "openBundle" => open_bundle(req)?,
         other => {
-            return crate::link::op(other, req)
+            return crate::secret_io::op(other, req)
+                .or_else(|| crate::link::op(other, req))
                 .or_else(|| crate::migration_text::op(other, req))
                 .or_else(|| crate::at_rest::op(other, req))
                 .or_else(|| crate::archive::op(other, req))
@@ -762,10 +818,11 @@ mod tests {
     fn a_migration_carries_the_users_state_and_none_of_the_per_install_state() {
         let inv = ask(json!({"op":"inventory","kind":"migrate"}));
         let carried: Vec<&str> = inv["carried"].as_array().unwrap().iter().map(|s| s.as_str().unwrap()).collect();
-        for want in ["protocols", "sessionHistory", "withdrawalState", "characterisationEnrolment", "limitsProfiles"] {
+        for want in ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"] {
             assert!(carried.contains(&want), "{want}");
         }
-        for never in ["researchDeviceToken", "warrantyConsentFlag", "lastPairedHelmetId", "launchCount", "consentGrants"] {
+        // The warranty owner's two items are among the never-moved: they are not a user's (`REQ-SHDR-10`).
+        for never in ["researchDeviceToken", "warrantyConsentFlag", "characterisationEnrolment", "lastPairedHelmetId", "launchCount", "consentGrants"] {
             assert!(!carried.contains(&never), "{never}");
             assert!(inv["perInstall"].to_string().contains(never));
         }
@@ -788,7 +845,7 @@ mod tests {
         let r = ask(json!({"op":"restoreReport","kind":"migrate","present":["protocols","sessionHistory"]}));
         assert_eq!(r["restored"].as_array().unwrap().len(), 2);
         assert!(r["missing"].to_string().contains("limitsProfiles"));
-        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState","characterisationEnrolment"]}));
+        let u = ask(json!({"op":"restoreReport","kind":"uhdr","present":["sessionHistory","withdrawalState"]}));
         assert_eq!(u["missing"].as_array().unwrap().len(), 0);
         assert!(u["omitted"].to_string().contains("protocols"));
     }
@@ -796,32 +853,32 @@ mod tests {
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_never_resets_a_withdrawal() {
-        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","studyWithdrawals":{"s2":"2026-03-02T00:00:00Z","s1":"2026-01-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-03-03T00:00:00Z"},"contactConsentWithdrawnAt":"2026-03-04T00:00:00Z"});
+        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","studyWithdrawals":{"s2":"2026-03-02#000001","s1":"2026-01-01#000001"},"categoryWithdrawals":{"c1":"2026-03-03#000001"},"contactConsentWithdrawnAt":"2026-03-04#000001"});
         let m = ask(json!({"op":"mergeWithdrawal","local":local,"incoming":incoming}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01T00:00:00Z");
-        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"}), "the later time per id stands");
-        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03T00:00:00Z"}));
-        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04T00:00:00Z");
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01#000001");
+        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01#000001","s2":"2026-03-02#000001"}), "the later time per id stands");
+        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03#000001"}));
+        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04#000001");
         // The other way round: a fresh install brings none, the bundle's stands; an older one never replaces a later one.
-        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
+        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01#000001"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01#000001");
     }
 
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_applies_only_a_later_withdrawal_and_never_a_grant() {
-        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z","contactConsentWithdrawnAt":null,
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-04-01T00:00:00Z"}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","contactConsentWithdrawnAt":"2026-03-04T00:00:00Z",
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-06-01T00:00:00Z"}});
+        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01#000001","contactConsentWithdrawnAt":null,
+            "studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{"c1":"2026-04-01#000001"}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","contactConsentWithdrawnAt":"2026-03-04#000001",
+            "studyWithdrawals":{"s1":"2026-02-01#000001","s2":"2026-03-02#000001"},"categoryWithdrawals":{"c1":"2026-06-01#000001"}});
         let r = ask(json!({"op":"applyWithdrawal","held":held,"incoming":incoming}));
         // Older than the held blanket withdrawal and equal for s1: not applied. New, or later: applied.
         assert_eq!(r["applied"]["times"], json!(["contactConsentWithdrawnAt"]));
         assert_eq!(r["applied"]["studyWithdrawals"], json!(["s2"]));
         assert_eq!(r["applied"]["categoryWithdrawals"], json!(["c1"]));
-        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
-        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01T00:00:00Z");
+        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01#000001");
+        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01#000001");
         let none = ask(json!({"op":"applyWithdrawal","held":{},"incoming":{}}));
         assert_eq!(none["applied"]["times"], json!([]));
     }
@@ -831,7 +888,7 @@ mod tests {
     fn never_asked_and_said_stop_stay_apart() {
         let never = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{}}));
         assert!(never["blanketConsentWithdrawnAt"].is_null(), "never asked stays null");
-        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
+        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
         assert!(!stopped["blanketConsentWithdrawnAt"].is_null());
     }
 
@@ -898,15 +955,15 @@ mod tests {
     }
 
     fn sealed(kind: &str, items: Value) -> Value {
-        ask(json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":items,"kdf":kdf("recoveryCode")}))
+        ask(json!({"op":"sealBundle","epoch":1,"kind":kind,"key":KEY,"nonce":NONCE,"items":items,"kdf":kdf("recoveryCode")}))
     }
 
     // @verifies SWR-MG-02
     #[test]
     fn a_sealed_bundle_opens_with_the_key_and_returns_what_was_sealed() {
-        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01T00:00:00Z"}});
+        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01#000001"}});
         let b = sealed("uhdr", items.clone());
-        let opened = ask(json!({"op":"openBundle","bundle":b["bundle"],"key":KEY}));
+        let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":b["bundle"],"key":KEY}));
         assert_eq!(opened["ok"], true);
         assert_eq!(opened["items"], items);
         assert_eq!(opened["bundleHash"], b["bundleHash"]);
@@ -919,7 +976,7 @@ mod tests {
         let bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
         assert!(!bytes.windows(10).any(|w| w == b"distinctiv"), "plaintext must not appear in the bundle");
         let wrong = "ff".repeat(32);
-        let r = ask(json!({"op":"openBundle","bundle":b["bundle"],"key":wrong}));
+        let r = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":b["bundle"],"key":wrong}));
         assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("authentication_failed")));
         assert!(r.get("items").is_none());
     }
@@ -931,7 +988,7 @@ mod tests {
         let mut bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
         let last = bytes.len() - 1;
         bytes[last] ^= 1;
-        let r = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        let r = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":hex(&bytes),"key":KEY}));
         assert_eq!(r["reason"], "authentication_failed");
         // Re-label the cleartext kind as migrate: the header is associated data, so the tag no longer verifies.
         let orig = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
@@ -941,7 +998,7 @@ mod tests {
         relabelled.extend_from_slice(&(header.len() as u32).to_be_bytes());
         relabelled.extend_from_slice(&header);
         relabelled.extend_from_slice(&orig[8 + h..]);
-        let r = ask(json!({"op":"openBundle","bundle":hex(&relabelled),"key":KEY}));
+        let r = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":hex(&relabelled),"key":KEY}));
         assert_eq!(r["reason"], "authentication_failed");
     }
 
@@ -951,7 +1008,7 @@ mod tests {
         for kind in ["uhdr", "migrate"] {
             let b = sealed(kind, json!({}));
             let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
-            assert_eq!((h["ok"].clone(), h["kind"].clone(), h["formatVersion"].clone()), (json!(true), json!(kind), json!(1)));
+            assert_eq!((h["ok"].clone(), h["kind"].clone(), h["formatVersion"].clone()), (json!(true), json!(kind), json!(FORMAT_VERSION)));
             assert_eq!(h["bundleHash"], b["bundleHash"]);
         }
         assert_eq!(ask(json!({"op":"readBundleHeader","bundle":"00"}))["reason"], "malformed");
@@ -966,27 +1023,122 @@ mod tests {
         bytes.extend_from_slice(&(header.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&header);
         bytes.extend_from_slice(&[0u8; 32]);
-        let r = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        let r = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":hex(&bytes),"key":KEY}));
         assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("newer_version")));
         assert!(r.get("items").is_none());
+    }
+
+    /// A bundle of any version with any body, sealed under `KEY` the way `sealBundle` does: what an older or a foreign
+    /// build that holds the key could have written.
+    fn sealed_raw(version: u64, body: Value) -> String {
+        let header = json!({"kind":"uhdr","formatVersion":version,"nonce":NONCE,"kdf":kdf("recoveryCode")}).to_string().into_bytes();
+        let mut bytes = b"NPBK".to_vec();
+        bytes.extend_from_slice(&(header.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&header);
+        let ct = Aes256Gcm::new_from_slice(&unhex(KEY, "key").unwrap())
+            .unwrap()
+            .encrypt(Nonce::from_slice(&unhex(NONCE, "nonce").unwrap()), Payload { msg: body.to_string().as_bytes(), aad: &bytes })
+            .unwrap();
+        bytes.extend_from_slice(&ct);
+        hex(&bytes)
+    }
+
+    fn sealed_at(epoch: u64, items: Value) -> Value {
+        ask(json!({"op":"sealBundle","epoch":epoch,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":items,"kdf":kdf("recoveryCode")}))
+    }
+
+    // @verifies SWR-MG-29#b
+    #[test]
+    fn a_bundle_carries_its_epoch_inside_the_seal_and_not_in_the_clear() {
+        let b = sealed_at(41, json!({"sessionHistory":[]}));
+        assert_eq!(b["epoch"], 41);
+        let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":b["bundle"],"key":KEY}));
+        assert_eq!((opened["ok"].clone(), opened["epoch"].clone()), (json!(true), json!(41)));
+        // The backup location reads the header and nothing else: neither it nor the keyless answer names the epoch.
+        let bytes = unhex(b["bundle"].as_str().unwrap(), "bundle").unwrap();
+        let h = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as usize;
+        let header: Value = serde_json::from_slice(&bytes[8..8 + h]).unwrap();
+        assert!(header.get("epoch").is_none(), "{header}");
+        assert!(ask(json!({"op":"readBundleHeader","bundle":b["bundle"]})).get("epoch").is_none());
+        // Two bundles that differ only in epoch are the same length, so the size does not count backups either.
+        assert_eq!(sealed_at(7, json!({}))["bundle"].as_str().unwrap().len(), sealed_at(8, json!({}))["bundle"].as_str().unwrap().len());
+        // The epoch is the caller's count and is never left out or zero: 0 is what a phone that has seen nothing holds.
+        for bad in [json!(null), json!(0), json!(-1), json!("3"), json!(1.5)] {
+            let mut req = json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":kdf("recoveryCode")});
+            if !bad.is_null() {
+                req["epoch"] = bad.clone();
+            }
+            assert!(migration_json(&req.to_string()).is_err(), "sealed with epoch {bad}");
+        }
+    }
+
+    // @verifies SWR-MG-29#c
+    #[test]
+    fn a_phone_that_has_seen_a_later_epoch_refuses_an_older_bundle_whole() {
+        let old = sealed_at(3, json!({"sessionHistory":["from-before-the-withdrawal"]}));
+        // A phone that sealed or opened epoch 5 is handed the bundle of epoch 3 by the backup location.
+        let r = ask(json!({"op":"openBundle","seenEpoch":5,"bundle":old["bundle"],"key":KEY}));
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("older_bundle")));
+        assert_eq!((r["epoch"].clone(), r["seenEpoch"].clone()), (json!(3), json!(5)));
+        assert!(r.get("items").is_none(), "nothing of an older bundle is returned");
+        // The bundle it last sealed or opened, and any later one, open.
+        for seen in [3, 2, 0] {
+            assert_eq!(ask(json!({"op":"openBundle","seenEpoch":seen,"bundle":old["bundle"],"key":KEY}))["ok"], true, "seen {seen}");
+        }
+        // The check cannot be skipped by leaving the number out, and a wrong key learns nothing about the epoch.
+        assert!(migration_json(&json!({"op":"openBundle","bundle":old["bundle"],"key":KEY}).to_string()).is_err());
+        let wrong = ask(json!({"op":"openBundle","seenEpoch":5,"bundle":old["bundle"],"key":"ff".repeat(32)}));
+        assert_eq!(wrong["reason"], "authentication_failed");
+        assert!(wrong.get("epoch").is_none());
+    }
+
+    // @verifies SWR-MG-29#d
+    #[test]
+    fn a_phone_that_has_seen_nothing_opens_an_old_bundle_and_the_epoch_does_not_stop_it() {
+        // The limit of the epoch, pinned so nobody reads more into it: with nothing seen, an old bundle is as good as the
+        // newest. A new phone, a fresh install and a phone after an erase all hold 0.
+        let old = sealed_at(1, json!({"sessionHistory":[]}));
+        let _newer = sealed_at(9, json!({"sessionHistory":[]}));
+        let r = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":old["bundle"],"key":KEY}));
+        assert_eq!((r["ok"].clone(), r["epoch"].clone()), (json!(true), json!(1)));
+    }
+
+    // @verifies SWR-MG-05
+    // @verifies SWR-MG-29#b
+    #[test]
+    fn the_format_version_stays_1_and_a_body_with_no_epoch_does_not_open() {
+        // No version bump (the principal, 2026-11-19): no bundle from before the epoch should exist.
+        let b = sealed_at(1, json!({}));
+        assert_eq!(b["formatVersion"], 1);
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}))["formatVersion"], 1);
+        assert_eq!(ask(json!({"op":"readHeader","header":{"kind":"uhdr","formatVersion":FORMAT_VERSION + 1}}))["reason"], "newer_version");
+        // If one did exist, or a body named no usable epoch, it is not opened, whatever the phone has seen: it is not
+        // taken for "the oldest", which a phone that has seen nothing would accept.
+        for body in [json!({"items":{"sessionHistory":[]}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
+            for seen in [0, 1] {
+                let r = ask(json!({"op":"openBundle","seenEpoch":seen,"bundle":sealed_raw(1, body.clone()),"key":KEY}));
+                assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("malformed")), "{body} seen {seen}");
+                assert!(r.get("items").is_none());
+            }
+        }
     }
 
     // @verifies SWR-MG-03
     #[test]
     fn a_bundle_cannot_carry_what_its_kind_omits_or_what_belongs_to_the_install() {
         for (kind, item) in [("uhdr","protocols"),("uhdr","limitsProfiles"),("uhdr","consentGrants"),("migrate","consentGrants"),("migrate","researchDeviceToken"),("migrate","lastPairedHelmetId")] {
-            let r = migration_json(&json!({"op":"sealBundle","kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]},"kdf":kdf("passphrase")}).to_string());
+            let r = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":kind,"key":KEY,"nonce":NONCE,"items":{item:[]},"kdf":kdf("passphrase")}).to_string());
             assert!(r.is_err(), "{kind} must not seal {item}");
         }
-        assert!(migration_json(&json!({"op":"sealBundle","kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
+        assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"migrate","key":KEY,"nonce":NONCE,"items":{"protocols":[]},"kdf":kdf("passphrase")}).to_string()).is_ok());
     }
 
     // @verifies SWR-MG-02
     #[test]
     fn a_key_or_nonce_of_the_wrong_length_is_refused() {
-        let short = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":"00","nonce":NONCE,"items":{},"kdf":kdf("passphrase")}).to_string());
+        let short = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":"00","nonce":NONCE,"items":{},"kdf":kdf("passphrase")}).to_string());
         assert!(short.is_err());
-        let nonce = migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":"00","items":{},"kdf":kdf("passphrase")}).to_string());
+        let nonce = migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":"00","items":{},"kdf":kdf("passphrase")}).to_string());
         assert!(nonce.is_err());
     }
 
@@ -1054,7 +1206,7 @@ mod tests {
     #[test]
     fn the_header_names_how_the_key_was_made_before_any_key_exists() {
         for method in ["recoveryCode", "passphrase"] {
-            let b = ask(json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":kdf(method)}));
+            let b = ask(json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":kdf(method)}));
             let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
             assert_eq!(h["method"], method);
             assert_eq!(h["kdf"]["salt"], "5a".repeat(32));
@@ -1067,7 +1219,7 @@ mod tests {
     fn a_bundle_cannot_ask_the_restoring_phone_for_a_cheaper_derivation() {
         let mut weak = kdf("passphrase");
         weak["memoryKiB"] = json!(8);
-        assert!(migration_json(&json!({"op":"sealBundle","kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":weak}).to_string()).is_err());
+        assert!(migration_json(&json!({"op":"sealBundle","epoch":1,"kind":"uhdr","key":KEY,"nonce":NONCE,"items":{},"kdf":weak}).to_string()).is_err());
         // A header carrying such a block is refused whole on read, with no key needed.
         let header = json!({"kind":"uhdr","formatVersion":1,"nonce":NONCE,"kdf":weak}).to_string().into_bytes();
         let mut bytes = b"NPBK".to_vec();
@@ -1076,7 +1228,7 @@ mod tests {
         bytes.extend_from_slice(&[0u8; 32]);
         let r = ask(json!({"op":"readBundleHeader","bundle":hex(&bytes)}));
         assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("unsupported_kdf")));
-        let o = ask(json!({"op":"openBundle","bundle":hex(&bytes),"key":KEY}));
+        let o = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":hex(&bytes),"key":KEY}));
         assert_eq!(o["reason"], "unsupported_kdf");
         // No kdf at all is not a bundle this build wrote.
         let none = json!({"kind":"uhdr","formatVersion":1,"nonce":NONCE}).to_string().into_bytes();

@@ -44,6 +44,7 @@ class CloudAccountsScreenTest {
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
+            override val secretKeyStore: life.neurone.core.common.SecretKeyStore? = life.neurone.core.common.InMemorySecretKeyStore() // a host that seals: the vault needs one (SWR-MG-19 (l))
             override val httpTransport: HttpTransport? = if (!withCloud) null else object : HttpTransport {
                 override suspend fun post(request: HttpRequest) =
                     if ("revoke" in request.url) HttpResponse(200, emptyMap(), ByteArray(0))
@@ -195,7 +196,7 @@ class CloudAccountsScreenTest {
         assertEquals(1, fields.fetchSemanticsNodes().size, "one field")
         assertEquals(1, onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password)).fetchSemanticsNodes().size, "and it is masked")
         onNodeWithText(save).performScrollTo().assertIsNotEnabled()
-        fields[0].performScrollTo().performTextInput("sv=2024-11-04&sr=c&sp=rcwdl&sig=abc")
+        fields[0].performScrollTo().performTextInput("sv=2024-11-04&spr=https&se=2099-01-01&sr=c&sp=rcwdl&sig=abc")
         onNodeWithText(save).performScrollTo().assertIsEnabled().performClick()
         waitUntil(timeoutMillis = 10_000) { onAllNodesWithText(saved).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty(), "the field is gone, and with it what was pasted")

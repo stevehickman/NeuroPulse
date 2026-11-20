@@ -113,9 +113,12 @@ fun ConsentDashboardScreen(app: AppServices, modifier: Modifier = Modifier) {
 
         is DashboardRoute.NewClinicianGrant -> NewClinicianGrantScreen(
             onGrant = { grant ->
-                store.grantClinicianAccess(grant)
-                version++
-                route = DashboardRoute.Dashboard
+                // False when the store refused the grant, which the form's own check makes rare (the day
+                // changed while it was open). The form then stays up, with its end date marked.
+                if (store.grantClinicianAccess(grant)) {
+                    version++
+                    route = DashboardRoute.Dashboard
+                }
             },
             onCancel = { route = DashboardRoute.Dashboard },
             modifier = modifier,
@@ -175,7 +178,17 @@ private fun DashboardContent(
     val grants = remember(version) { store.clinicianGrants }
     val research = remember(version) { store.researchConsent }
     val participations = remember(version) { store.studyParticipations }
-    val invitations = remember(version) { store.pendingInvitations.filter { it.isOpen } }
+    // An invitation is offered only while it can be answered: the record of the person's choices is readable
+    // and their consent still covers the study (`REQ-CONSENT-19` d, `REQ-CONSENT-20` b). acceptInvitation
+    // refuses on the same condition, so nothing is shown that the person could only answer in vain.
+    val recordUnreadable = remember(version) { store.consentRecordUnreadable }
+    val invitations = remember(version) {
+        store.pendingInvitations.filter {
+            it.isOpen && !store.consentRecordUnreadable &&
+                ConsentEngine.covers(store.researchConsent, it.researchCategories) &&
+                ConsentEngine.notExpired(it.expiresOnDay, todayIso())
+        }
+    }
     val expansions = remember(version) { store.expansionRequests.filter { it.isPending } }
 
     var grantPendingRevoke by remember { mutableStateOf<ClinicianConsentGrant?>(null) }
@@ -230,9 +243,9 @@ private fun DashboardContent(
         } else {
             for (request in expansions) {
                 val grant = grants.firstOrNull { it.id == request.grantId }
-                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
-                // A pending request whose differential no longer holds — the grant was revoked or
-                // already widened — is not rendered. approveExpansion fails closed on the same
+                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, todayIso()) }
+                // A pending request whose differential no longer holds — the grant was revoked,
+                // already widened, or is no longer in force — is not rendered. approveExpansion fails closed on the same
                 // condition, so there is nothing here the user could usefully answer.
                 if (differential != null) {
                     Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -280,6 +293,16 @@ private fun DashboardContent(
 
         // ── Research consent (§6.2) ──────────────────────────────────────
         SectionHeader(stringResource(Res.string.dashboard_section_research))
+        // The stored record could not be read, so what follows shows defaults, not what the person chose.
+        // Said first and plainly: until they choose again nothing is admitted (`REQ-CONSENT-20`).
+        if (recordUnreadable) {
+            Text(
+                stringResource(Res.string.dashboard_consent_unreadable),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
         // Contact status first: it belongs to the section, not to the category list below it.
         Text(
             if (research.contactConsentGranted) {
@@ -583,12 +606,17 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                 stringResource(Res.string.dashboard_granted_format, grant.grantedAtDay),
                 style = MaterialTheme.typography.labelSmall,
             )
-            grant.expiresAtDay?.let { expiry ->
-                Text(
-                    stringResource(Res.string.dashboard_expires_format, expiry),
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            // §5.1: clinician access is time-limited. A grant past its last day, or one stored with none,
+            // reaches nothing (`REQ-CONSENT-18`), and the card says which rather than looking current.
+            val expiry = grant.expiresAtDay
+            Text(
+                when {
+                    expiry == null -> stringResource(Res.string.dashboard_grant_no_end_date)
+                    grant.isInForce(todayIso()) -> stringResource(Res.string.dashboard_expires_format, expiry)
+                    else -> stringResource(Res.string.dashboard_grant_ended_format, expiry)
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -606,10 +634,20 @@ private fun StudyParticipationCard(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(record.studyId, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    stringResource(Res.string.dashboard_data_shared_format, record.transmittedAtDay),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                // Joining and sending are different facts (`REQ-CONSENT-21`): the second line appears only
+                // once an extract has gone out.
+                record.enrolledOnDay?.let { joined ->
+                    Text(
+                        stringResource(Res.string.dashboard_study_joined_format, joined),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                record.transmittedAtDay?.let { sent ->
+                    Text(
+                        stringResource(Res.string.dashboard_data_shared_format, sent),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 if (!record.isActive) {
                     Text(
                         stringResource(Res.string.dashboard_withdrawn_label),
@@ -829,7 +867,7 @@ private fun ClinicianExpansionRequestScreen(
     var questionSent by remember { mutableStateOf(false) }
 
     val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
-    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
+    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, todayIso()) }
     if (differential == null) {
         // Stale request: the grant went away or was already widened past this tier. Nothing here
         // can be answered honestly, so the screen renders nothing and leaves. The navigation is a
@@ -1033,6 +1071,10 @@ private fun NewClinicianGrantScreen(
     var tier by remember { mutableStateOf(ClinicianUseCaseTier.MONITOR) }
     var selectedUseCaseIds by remember { mutableStateOf(emptySet<String>()) }
     var askingHistory by remember { mutableStateOf(false) }
+    // The last day of access. Empty to start with: §5.1 makes access time-limited, and how long is the
+    // person's decision, so no end date is filled in for them (`REQ-CONSENT-18`).
+    var expiresAtDay by remember { mutableStateOf("") }
+    val expiryValid = ConsentStore.isIsoDay(expiresAtDay) && expiresAtDay >= todayIso()
 
     val availableUseCases = ConsentEngine.useCasesAvailableFor(tier)
     // The scope the grant would carry. Built with includesPriorData = false only to read its
@@ -1046,7 +1088,7 @@ private fun NewClinicianGrantScreen(
     val withheld = UHDRElement.entries.filterNot { it in approved }.toSet()
     // The Research tier has no library to pick from — its elements are IRB-defined per study
     // descriptor (§6.3) — so it is the one tier a grant may be made at with nothing selected.
-    val canProceed = name.isNotBlank() && organization.isNotBlank() &&
+    val canProceed = name.isNotBlank() && organization.isNotBlank() && expiryValid &&
         (tier == ClinicianUseCaseTier.RESEARCH || selectedUseCaseIds.isNotEmpty())
 
     fun commit(includePriorData: Boolean) {
@@ -1058,7 +1100,7 @@ private fun NewClinicianGrantScreen(
                 clinicianOrganization = organization.trim(),
                 tier = tier,
                 grantedAtDay = today,
-                expiresAtDay = null,
+                expiresAtDay = expiresAtDay,
                 isActive = true,
                 accessScopes = listOf(
                     ConsentEngine.initialAccessScope(
@@ -1121,6 +1163,23 @@ private fun NewClinicianGrantScreen(
             onValueChange = { organization = it },
             label = { Text(stringResource(Res.string.clinician_grant_org_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(20.dp))
+        SectionHeader(stringResource(Res.string.clinician_grant_section_expiry))
+        OutlinedTextField(
+            value = expiresAtDay,
+            onValueChange = { expiresAtDay = it.trim() },
+            label = { Text(stringResource(Res.string.clinician_grant_expiry_label)) },
+            supportingText = { Text(stringResource(Res.string.clinician_grant_expiry_format_hint)) },
+            isError = expiresAtDay.isNotEmpty() && !expiryValid,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(Res.string.clinician_grant_expiry_footer),
+            style = MaterialTheme.typography.bodySmall,
         )
 
         Spacer(Modifier.height(20.dp))

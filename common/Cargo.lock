@@ -35,6 +35,7 @@ dependencies = [
  "ctr",
  "ghash",
  "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -745,6 +746,7 @@ version = "0.1.0"
 dependencies = [
  "neurone-npps-core",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -753,6 +755,7 @@ version = "0.1.0"
 dependencies = [
  "jni 0.21.1",
  "neurone-npps-core",
+ "zeroize",
 ]
 
 [[package]]

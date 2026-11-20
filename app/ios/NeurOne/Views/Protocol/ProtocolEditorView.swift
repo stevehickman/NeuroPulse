@@ -181,35 +181,24 @@ struct ProtocolEditorView: View {
 
             switch draft.timingMode {
             case .duration(let seconds):
-                Stepper(
+                // No stated ceiling on a protocol's length (the former 240 minutes was a form figure), so it is typed.
+                IntFieldRow(
+                    label: String(localized: "PROTOCOL_DURATION"),
+                    unit: "min",
                     value: Binding(
                         get: { seconds / 60 },
                         set: { draft.timingMode = .duration($0 * 60) }
-                    ),
-                    in: 1...240
-                ) {
-                    HStack {
-                        Text(String(localized: "PROTOCOL_DURATION"))
-                        Spacer()
-                        Text(formatDuration(seconds))
-                            .foregroundColor(.secondary)
-                    }
-                }
+                    )
+                )
             case .intervalCount(let n):
-                Stepper(
+                IntFieldRow(
+                    label: String(localized: "PROTOCOL_INTERVAL_COUNT"),
+                    unit: "×",
                     value: Binding(
                         get: { n },
                         set: { draft.timingMode = .intervalCount($0) }
-                    ),
-                    in: 1...1000
-                ) {
-                    HStack {
-                        Text(String(localized: "PROTOCOL_INTERVAL_COUNT"))
-                        Spacer()
-                        Text("\(n)")
-                            .foregroundColor(.secondary)
-                    }
-                }
+                    )
+                )
             }
         }
     }

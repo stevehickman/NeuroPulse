@@ -121,11 +121,18 @@ final class AnalyticsErasureTests: XCTestCase {
     }
 
     // @verifies REQ-SW03-19#b
-    func testARefusedIDLeavesTheQueueBecauseRetryingCannotChangeTheAnswer() async {
-        let q = queue(FakeErasureRelay(outcome: .refused))
+    func testARefusedIDStaysQueuedAndTheOnesBehindItAreStillAsked() async {
+        // OI-PRIV-08 (2): the queue holds the only copy, and a misdeployed relay answers 401, 403 or 404.
+        let relay = FakeErasureRelay(outcome: .refused)
+        let q = queue(relay)
         q.enqueue("id-1")
+        q.enqueue("id-2")
         await q.drain()
-        XCTAssertEqual(q.pending, [])
+        XCTAssertEqual(q.pending, ["id-1", "id-2"], "a refusal never drops the only copy")
+        XCTAssertEqual(relay.asked, ["id-1", "id-2"], "each is asked about once, and a refusal does not hold back the next")
+        relay.outcome = .done
+        await q.drain()
+        XCTAssertEqual(q.pending, [], "the relay, once repaired, still gets them")
     }
 
     // @verifies REQ-SW03-19#b

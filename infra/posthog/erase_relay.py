@@ -9,9 +9,10 @@ and this service deletes the events the analytics store holds under that ID. The
 final, so the answers are the contract (the app's side is AnalyticsErasureQueue, REQ-SW03-19):
 
     200  the events were deleted, or there were none (the call is idempotent); the app drops the ID
-    400  the request is malformed (not one JSON object with one well-formed distinct_id); the app drops the ID for good
-    404  any other path; 405 any other method
-    413  the body is too large
+    400  the request is malformed (not one JSON object with one well-formed distinct_id); the app keeps the ID and asks again
+         at its next launch (it queues only well-formed IDs, so this is a fault to find, not a verdict on the ID)
+    404  any other path; 405 any other method; 413 the body is too large. The app keeps the ID on these and on every other
+         4xx too: only a 200 makes it drop one (REQ-SW03-19 (b)), so a relay deployed at the wrong path loses nothing
     429  too many requests just now; the app keeps the ID and asks again at its next launch
     502  the store did not take the deletion; the app keeps the ID and asks again later
 

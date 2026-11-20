@@ -36,6 +36,11 @@ class ProtocolUploader internal constructor(
         /** Every chunk was written. [sentHash] is the SHA-256 of the exact bytes sent, which [verify] waits for the helmet to echo. */
         data class Success(val sentHash: String) : Result
         data class Failure(val message: String) : Result
+        /**
+         * Nothing was written: the hub's encrypted-only `DEVICE_SERIAL` has not been read on this link, so the link is not
+         * shown to be one the hub encrypts (`REQ-SW03-31`). Pairing the hub, then sending again, is the way through.
+         */
+        data object LinkNotEncrypted : Result
         /** An unread cardiac cutoff from an offline session — read the summary first. */
         data object CervicalRestartBlocked : Result
         /** Another person on this device has an outstanding cutoff — confirm the profile is yours. */
@@ -69,6 +74,7 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
+        linkGate()?.let { return it }
         checkCervicalGate(definition)?.let { return it }
         return try {
             val blob = compiler.compile(
@@ -77,7 +83,7 @@ class ProtocolUploader internal constructor(
                 hardwareVersion = gatt.hardwareVersion.value,
                 autonomous = autonomous,
             )
-            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
+            if (!send(blob.blob)) return Result.LinkNotEncrypted
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
@@ -98,17 +104,31 @@ class ProtocolUploader internal constructor(
         if (gatt.connectionState.value != ConnectionState.CONNECTED) {
             return Result.Failure("Hub not connected. Connect via USB-C or Bluetooth first.")
         }
+        linkGate()?.let { return it }
         members.firstNotNullOfOrNull { checkCervicalGate(it) }?.let { return it }
         return try {
             val blob = compiler.compileComposite(
                 composite, members, deviceSerial ?: gatt.deviceSerial, acknowledgedCautions,
                 hardwareVersion = gatt.hardwareVersion.value,
             )
-            ProtocolChunker.chunk(blob.blob, gatt.writeLength).forEach { gatt.writeProtocolChunk(it) }
+            if (!send(blob.blob)) return Result.LinkNotEncrypted
             Result.Success(UploadCheck.hashOf(blob.blob))
         } catch (e: Exception) {
             Result.Failure(e.message ?: "Protocol upload failed.")
         }
+    }
+
+    /** Holds an upload back until the encrypted-only read has succeeded on the link, and asks for that read again in case the hub was paired since. */
+    private fun linkGate(): Result? {
+        if (gatt.encryptedReadShown.value) return null
+        gatt.requestEncryptedRead()
+        return Result.LinkNotEncrypted
+    }
+
+    /** Writes the stream in order. False as soon as the manager refuses a chunk (the link dropped mid-upload), and no later chunk is written. */
+    private fun send(blob: ByteArray): Boolean {
+        gatt.beginProtocolUpload()
+        return ProtocolChunker.chunk(blob, gatt.writeLength).all { gatt.writeProtocolChunk(it) }
     }
 
     /**
@@ -120,6 +140,9 @@ class ProtocolUploader internal constructor(
      * empty or a pending one is no answer. What each of those means for the used mark is the library's rule
      * (`NPProtocolLibrary.recordUploadResult`), not decided here.
      */
+    /** True when the link refused a write of the upload last sent: the helmet does not hold it, whatever it reports of an earlier one. */
+    val writeRefused: Boolean get() = gatt.uploadWriteRefused.value
+
     suspend fun verify(sentHash: String, timeoutMs: Long = 10_000L, pollMs: Long = 500L): UploadVerdict {
         fun forThisUpload(c: UploadCheck?) =
             c != null && c.receivedHash == sentHash && c.status != UploadCheckStatus.PENDING && c.status != UploadCheckStatus.NONE

@@ -1270,7 +1270,7 @@ requires `cache_size` to be a multiple of `prog_size`, and 512 is the smallest t
 | `inline_max` (derived) | 256 | 512 | — |
 | Static RAM | 1,024 B + 256 B per open file | **1,536 B + 512 B per open file** | — |
 
-**What it does not move.** `ukmd.rec` (a 208-byte envelope) and Map 3's 32-byte records stay inline:
+**What it does not move.** `ukmd.rec` (a 208-byte envelope) and Map 3's 64-byte records stay inline:
 `inline_max` rose to 512 B. The file layout, the store and its caller rules are unchanged.
 `ECR-EMMC-002` now covers the Config column's `read_size`/`prog_size` as well as UHDR and SHDR.
 
@@ -1306,7 +1306,7 @@ covers an eighth of it — and all three need either adopting or an ECR.
 | `lookahead_size` | 512 (whole partition per pass) | **64** (512 blocks, 2 MiB, per pass) | the allocator traverses once per 512 blocks allocated; on a partition holding a handful of files, a traversal reads a few metadata pairs and CTZ pointers |
 | `block_cycles` | 500 | **200** | metadata pairs relocate more often — more even wear, slightly more writes; still explicit, still neither 0 nor −1 (`L-6`) |
 | `name_max` | unset (255) | **64** | recorded in the superblock at format; the longest Config name is `ukmd.rec` |
-| `attr_max` | unset (1,022) | **256** | bounds `inline_max`, which falls from 512 to **256 B** — Map 3 records (32 B) and `ukmd.rec`'s 208-byte envelope stay inline |
+| `attr_max` | unset (1,022) | **256** | bounds `inline_max`, which falls from 512 to **256 B** — Map 3 records (64 B) and `ukmd.rec`'s 208-byte envelope stay inline |
 | `metadata_max` | unset (= `block_size`) | **4,096**, stated | no behavioural change; now validated rather than defaulted |
 
 `np_lfs_config_apply()` sets all five and `np_lfs_config_validate()` refuses any other value —

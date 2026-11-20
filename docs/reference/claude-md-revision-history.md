@@ -19,6 +19,30 @@
 
 ## Current revision
 
+**Rev 84 (2026-11-20) — §6.0: warranty-owner consent is per helmet, and the warranty owner's data has its own store that never travels with a user's (the principal, `OI-PRIV-04`). No other locked decision changed.**
+
+**What changed.** §6.0 gains two bullets. Consent to SHDR upload is recorded per helmet; consent for one helmet opens nothing for another; revoking it ends that helmet's characterisation enrolment. The warranty owner's data (helmet health data, the owner's consents, the study enrolment) is kept in a store of its own, is backed up, restored and transferred independently of any user's data, and is collected on one warranty-owner page that is the first page when a new helmet is registered.
+
+**Why.** The privacy review of `common/` found one consent flag per install while uploads are per helmet, so one owner's consent sent another owner's device record (a clinic's helmet on a patient's phone), and found the study enrolment carried to a new phone inside the user's migration and health-data backup. The principal ruled (2026-11-20; brief `docs/human-input/oi-priv-04-warranty-consent-per-helmet.md`): per helmet (Q1); the old single flag counts as not granted and the owner is asked again (Q2); a revoke ends enrolment and enrolment is per helmet (Q3); and, on Q4, that helmet health data and study enrolment are not related to users and do not move with user data, that the warranty owner has a separate store and a separate page, and that the two kinds of data are backed up, restored and transferred independently. In a clinic several users share a helmet and the owner may never wear it; at home the owner is usually also a user and the two may run in parallel.
+
+**What it leaves.** Built: the per-helmet store and gates in the Kotlin core, the screen's per-helmet choice, and enrolment out of the user bundles (`REQ-SHDR-08` to `-10`). Not built, `OI-PRIV-20`: the owner's own backup, restore and transfer; the page as the first step of registering a helmet (no registration flow exists); a helmet identity that survives a change of phone; whether the owner's records are readable while the app is locked; the Swift app's gates. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
+**Rev 83 (2026-11-19) — §18: a derived bound is a function of its foundational value, and a fixed foundational value states why (the principal). No other locked decision changed.**
+
+**What changed.** §18 gains one paragraph. A limit rests on research literature, an external standard, or a mechanical or implementation reason; with none of these it is a default and is not enforced. A bound that follows from another value is computed from it and moves with it. A foundational value that is fixed carries the reason beside its definition.
+
+**Why.** Setting the HD-tDCS session range (120 to 1,800 s) as defaults left one real bound: a session needs a ramp up and a ramp down. The principal ruled that the minimum is a derivative of the ramp, so it changes when the ramp does, and that the same holds wherever a derived bound exists. Implemented as `np_hd_min_session_s(ramp_s)` with the ramp fixed at 30 s for the hardware-specified tDCS ramp (`NP_TDCS_MIN_RAMP_S`).
+
+**What it leaves.** Existing derived bounds elsewhere are not audited by this change. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
+**Rev 82 (2026-11-19) — §5.3: suppression is the device's fixed rule, not a descriptor field, and a descriptor carries an expiry day (the principal). No other locked decision changed.**
+
+**What changed.** §5.3 said a signed study descriptor carries "k≥10, date rounding ≥1 week, suppression rules". It now says the descriptor carries k, the date rounding and an expiry day the issuer signs, and that suppression is the device's own rule, the same for every study: a record whose group is smaller than k is dropped, not sent. `docs/reference/data-architecture-detail.md` §5.3 steps 1 and 2 are changed to match.
+
+**Why.** `OI-PRIV-06` point 5 found that `ConsentEngine.admit` could check neither suppression rules nor a descriptor's age, because the descriptor had no field for either. No document says which quasi-identifiers exist to suppress, so a per-study rule had no vocabulary to be written in. Asked on 2026-11-19, the principal chose the fixed device rule over a signed list. The expiry is the issuer's to set because how long a study recruits is the study's fact; a maximum age chosen on the device would be a number with no derivation (§18).
+
+**What it leaves.** The rule is stated as `REQ-CONSENT-13` (e) and is not built: no extractor exists (`OI-CONSENT-07`). Naming quasi-identifiers per study can return with the extractor's design, as a new decision. The expiry is built: it is in the signed canonical form (`NP-STUDY-DESCRIPTOR-V2`, `NP-SW-PORTAL-API-001` §4a) and `admit` refuses a descriptor past it (`REQ-CONSENT-09` i). The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
+
 **Rev 81 (2026-11-11) — §22: the hub's main processor may include `no_std` Rust (the principal). No other locked decision changed.**
 
 **What changed.** §22's bullet "The hub firmware is C (§4.1, §4.2)" now also says the main processor's firmware may include `no_std` Rust, and never the safety MCU's. `docs/reference/engineering-rules.md` §22 detail and `docs/np_soup_kotlin_001.md` said the same thing in their own words and are changed to match. Nothing else in this file changed.

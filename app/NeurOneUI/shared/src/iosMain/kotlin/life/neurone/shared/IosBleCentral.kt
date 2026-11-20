@@ -154,9 +154,23 @@ private class HubDelegate(private val owner: IosBleCentral) : NSObject(), CBCent
         owner.listener?.onCharacteristicsDiscovered(owner.characteristics.keys.map(UUID::fromString).toSet())
     }
 
+    @ObjCSignatureOverride
     override fun peripheral(peripheral: CBPeripheral, didUpdateValueForCharacteristic: CBCharacteristic, error: NSError?) {
+        val uuid = UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString)
+        // A refused read (an encrypted-only characteristic on an unpaired link) is reported as a failure and never as a value:
+        // `value` still holds the last one, and passing it on would open the upload gate (OI-PRIV-17). The error's text is not kept.
+        if (error != null) {
+            owner.listener?.onCharacteristicReadFailed(uuid)
+            return
+        }
         val data = didUpdateValueForCharacteristic.value ?: return
         // A read and a notification arrive here alike, and the manager treats them alike.
-        owner.listener?.onCharacteristicChanged(UUID.fromString(didUpdateValueForCharacteristic.UUID.UUIDString), data.toByteArray())
+        owner.listener?.onCharacteristicChanged(uuid, data.toByteArray())
+    }
+
+    @ObjCSignatureOverride
+    override fun peripheral(peripheral: CBPeripheral, didWriteValueForCharacteristic: CBCharacteristic, error: NSError?) {
+        // A write with response is answered once: an error is a refused write (OI-PRIV-17). Only the characteristic is reported.
+        if (error != null) owner.listener?.onCharacteristicWriteFailed(UUID.fromString(didWriteValueForCharacteristic.UUID.UUIDString))
     }
 }

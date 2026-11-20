@@ -1,10 +1,9 @@
 {
-  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are never moved by key: grants are never carried (ruling, issue #569) and only the withdrawal records inside them travel, through the consent adapter (SWR-MG-04). 'perInstall' keys belong to a device, an install or a warranty registration and never move. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
+  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are never moved by key: grants are never carried (ruling, issue #569) and only the withdrawal records inside them travel, through the consent adapter (SWR-MG-04). 'perInstall' keys belong to a device, an install or a warranty owner and never move with a user's data: the warranty owner's records ('np.warranty-owner.records', REQ-SHDR-10) are not user data, and the four keys an earlier version kept them under are listed only so they are sealed until removed. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
   "carried": {
     "protocols": ["np.user-protocols.npps", "np.used-families", "np.archived-families", "np.clone-sources"],
-    "sessionHistory": ["np.session.history"],
-    "limitsProfiles": ["np.limits.global", "np.limits.profiles", "np.limits.active-profile", "np.limits.individuals", "np.wavelength-rules.user"],
-    "characterisationEnrolment": ["np.characterisation.enrolled", "np.characterisation.consent-epoch", "np.characterisation.programme-id"]
+    "sessionHistory": ["np.session.history", "np.session.history-retention"],
+    "limitsProfiles": ["np.limits.global", "np.limits.profiles", "np.limits.active-profile", "np.limits.individuals", "np.wavelength-rules.user"]
   },
   "consent": [
     "np.consent.research",
@@ -13,6 +12,7 @@
     "np.consent.study-invitations",
     "np.consent.study-participations",
     "np.consent.study-withdrawals",
+    "np.consent.quarantine",
     "np.research.consent-granted",
     "np.research.suggestions"
   ],
@@ -21,6 +21,10 @@
     "np.shdr.device-token",
     "np.analytics.launch-count",
     "np.warranty.consent-granted",
+    "np.warranty-owner.records",
+    "np.characterisation.enrolled",
+    "np.characterisation.consent-epoch",
+    "np.characterisation.programme-id",
     "np.backup.destination",
     "np.backup.folder",
     "np.backup.last-epoch",
@@ -35,7 +39,8 @@
     "np.cloud.accounts",
     "np.backup.cloud-account",
     "np.backup.cloud-target",
-    "np.migration.pending-clear"
+    "np.migration.pending-clear",
+    "np.migration.seen-epoch"
   ],
   "unsorted": [
     "np.consumable.snooze-counts",

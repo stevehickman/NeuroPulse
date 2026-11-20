@@ -15,7 +15,10 @@ import life.neurone.core.npps.NppsCore
  */
 class NppsAwsSigV4 : AwsSigV4 {
     override fun sign(request: AwsSigningRequest): Map<String, String> {
-        val answer = NppsCore.migration(
+        // The secret and the session token are strings when the credential store hands them over. From here they are
+        // bytes beside the request, never text in it (SWR-MG-32); the copies made here are overwritten when the call ends.
+        val secrets = listOfNotNull(request.credentials.secretAccessKey.encodeToByteArray(), request.credentials.sessionToken?.encodeToByteArray())
+        val answer = try { NppsCore.migrationSecret(
             buildJsonObject {
                 put("op", "awsSigV4")
                 put("method", request.method)
@@ -27,11 +30,12 @@ class NppsAwsSigV4 : AwsSigV4 {
                 put("region", request.region)
                 put("service", request.service)
                 put("accessKeyId", request.credentials.accessKeyId)
-                put("secretAccessKey", request.credentials.secretAccessKey)
-                request.credentials.sessionToken?.let { put("sessionToken", it) }
+                put("secretAccessKey", NppsCore.secretRef(0))
+                if (secrets.size > 1) put("sessionToken", NppsCore.secretRef(1))
                 put("amzDate", request.amzDate)
             },
-        )
+            secrets,
+        ).answer } finally { secrets.forEach { it.fill(0) } }
         return answer["headers"]!!.jsonObject.mapValues { it.value.jsonPrimitive.content }
     }
 

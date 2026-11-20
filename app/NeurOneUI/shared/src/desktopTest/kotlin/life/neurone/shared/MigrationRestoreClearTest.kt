@@ -186,6 +186,40 @@ class MigrationRestoreClearTest {
         assertNotNull(old.getString("np.migration.cleared"))
     }
 
+    // OI-ANALYTICS-01 (5c): the vendor is asked about the old phone's analytics IDs only once the core has accepted the clear.
+    // @verifies REQ-SW03-19#e
+    @Test fun the_old_phones_analytics_ids_are_sent_to_the_relay_only_after_the_clear_is_accepted() = runTest {
+        val store = MemoryStore()
+        val old = filled()
+        backUp(store, old)
+        val asked = mutableListOf<List<String>>()
+        // No confirmation yet: the core refuses, so nothing is asked.
+        val refused = MigrationClearModel(place(store), old, RecordingActions(), idsBeforeClear = { listOf("id-1") }, afterClear = { asked += it })
+        refused.look()
+        refused.clear()
+        assertTrue(refused.step.value is ClearStep.Failed)
+        assertTrue(asked.isEmpty(), "a refused clear leaves the ID in use and asks nothing")
+
+        assertTrue((restoreOnto(store, InMemoryKeyValueStore()).step.value as RestoreStep.Done).report.confirmed)
+        val m = MigrationClearModel(place(store), old, RecordingActions(), idsBeforeClear = { listOf("id-1", "id-2") }, afterClear = { asked += it })
+        m.look()
+        m.clear()
+        assertTrue(m.step.value is ClearStep.Done)
+        assertEquals(listOf(listOf("id-1", "id-2")), asked)
+    }
+
+    // @verifies REQ-SW03-19#e
+    @Test fun a_relay_that_throws_does_not_fail_the_clear() = runTest {
+        val store = MemoryStore()
+        val old = filled()
+        backUp(store, old)
+        assertTrue((restoreOnto(store, InMemoryKeyValueStore()).step.value as RestoreStep.Done).report.confirmed)
+        val m = MigrationClearModel(place(store), old, RecordingActions(), idsBeforeClear = { listOf("id-1") }, afterClear = { error("relay down") })
+        m.look()
+        m.clear()
+        assertTrue(m.step.value is ClearStep.Done)
+    }
+
     // @verifies SWR-MG-08
     @Test fun a_confirmation_of_another_backup_does_not_clear_the_phone() = runTest {
         val store = MemoryStore()

@@ -74,16 +74,31 @@ class CloudAuthWiringTest {
     // @verifies SWR-MG-19#k
     @Test fun a_host_with_a_transport_and_a_launcher_has_a_cloud_sign_in_and_one_missing_either_has_none() {
         val fakes = Fakes()
-        assertNotNull(services(http = fakes.transport, launcher = fakes.launcher).cloudAuth)
-        assertNull(services(http = fakes.transport, launcher = null).cloudAuth, "no way to show the page")
-        assertNull(services(http = null, launcher = fakes.launcher).cloudAuth, "no way to reach the provider (the browser)")
+        assertNotNull(services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher).cloudAuth)
+        assertNull(services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = null).cloudAuth, "no way to show the page")
+        assertNull(services(secrets = InMemorySecretKeyStore(), http = null, launcher = fakes.launcher).cloudAuth, "no way to reach the provider (the browser)")
         assertNull(services().cloudAuth)
+    }
+
+    // @verifies SWR-MG-19#l
+    @Test fun a_host_with_no_keystore_has_no_cloud_sign_in_says_so_and_removes_credentials_left_in_the_clear() {
+        val fakes = Fakes()
+        val raw = InMemoryKeyValueStore().apply { putString("np.cloud.accounts", """{"version":1,"accounts":[]}""") }
+        val unsealed = services(raw, secrets = null, http = fakes.transport, launcher = fakes.launcher)
+        assertEquals(life.neurone.core.common.StorageProtection.UNSEALED, unsealed.storageProtection)
+        assertNull(unsealed.cloudAuth, "nowhere protected to keep what a sign-in returns")
+        assertNull(unsealed.cloudAccounts); assertNull(unsealed.cloudBackup)
+        assertTrue(unsealed.cloudUnavailableUnprotected, "Settings says why")
+        assertNull(raw.getString("np.cloud.accounts"), "a document left in the clear is removed")
+
+        assertFalse(services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher).cloudUnavailableUnprotected)
+        assertFalse(services().cloudUnavailableUnprotected, "a host that could not sign in anyway is told nothing")
     }
 
     // @verifies SWR-MG-19#d
     @Test fun the_build_with_no_registered_client_fails_a_sign_in_naming_the_provider_and_sends_nothing() = runTest {
         val fakes = Fakes()
-        val auth = services(http = fakes.transport, launcher = fakes.launcher).cloudAuth!!
+        val auth = services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher).cloudAuth!!
         val e = assertFailsWith<CloudAuthException> { auth.signIn(CloudService.GOOGLE_DRIVE) }
         assertEquals(CloudAuthProblem.NOT_CONFIGURED, e.problem)
         assertTrue(fakes.posts.isEmpty())
@@ -106,11 +121,11 @@ class CloudAuthWiringTest {
     @Test fun the_hosts_platform_reaches_the_sign_in_so_an_unreceivable_redirect_reads_not_set_up() {
         val fakes = Fakes()
         val config = CloudAuthConfig(google = OAuthClientConfig("g", redirect)) // a loopback address: right for a computer, wrong for a phone
-        val desktop = services(http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.DESKTOP)
+        val desktop = services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.DESKTOP)
         assertTrue(desktop.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE))
-        val android = services(http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.ANDROID)
+        val android = services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher, config = config, redirectPlatform = life.neurone.core.cloudauth.RedirectPlatform.ANDROID)
         assertTrue(!android.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE))
-        val unchecked = services(http = fakes.transport, launcher = fakes.launcher, config = config)
+        val unchecked = services(secrets = InMemorySecretKeyStore(), http = fakes.transport, launcher = fakes.launcher, config = config)
         assertTrue(unchecked.cloudAuth!!.isConfigured(life.neurone.core.cloudauth.CloudService.GOOGLE_DRIVE), "a host that names no platform checks nothing")
     }
 }

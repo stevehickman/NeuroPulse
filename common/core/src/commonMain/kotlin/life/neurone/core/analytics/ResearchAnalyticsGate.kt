@@ -49,19 +49,55 @@ class ResearchAnalyticsGate(
      * concurrent configure() cannot re-initialize before shutdown completes
      * (order preserved from the iOS implementation).
      * Does NOT affect [WarrantyAnalyticsGate] or SHDR fleet uploads.
+     *
+     * It does not depend on [configure] having run in this process (`OI-PRIV-08` (1)): the backend keeps its ID across runs, so a
+     * withdrawal made before the gate was configured still has an ID the vendor holds events under, and it is forgotten and
+     * queued all the same. A backend that never sent anything has no ID and nothing is queued.
      */
     fun reset() {
-        if (!isConfigured) return
-        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` makes a new one, and the old one is what the vendor
-        // holds this person's events under. It is queued, durably, and erased from the vendor within 30 days
+        if (forgetAndQueue()) scope?.launch { erasureQueue?.drain() }
+    }
+
+    /**
+     * [reset] for an erase of this device: the same teardown, and then the relay is asked now and the answer waited for, because
+     * the erase deletes the queue with everything else and an ID still in it could never be erased from the vendor afterwards.
+     * IDs queued by earlier withdrawals are asked about too. Returns how many IDs the relay has not accepted (it could not be
+     * reached, or it refused): the erase goes on regardless, since the person's erase is never held back, and the caller can say so.
+     */
+    suspend fun resetForErase(): Int {
+        forgetAndQueue()
+        val queue = erasureQueue ?: return 0
+        queue.drain()
+        return queue.pending.size
+    }
+
+    /**
+     * The IDs the vendor holds events under on this install, for a device-replacement clear (`OI-ANALYTICS-01` (5c)): the current
+     * one and any still queued by an earlier withdrawal. **Changes nothing**: the person has not withdrawn, and a clear the core
+     * refuses must not rotate a consenting person's ID. The per-install keys never move to the new phone, so these IDs end here.
+     */
+    fun idsOnThisInstall(): List<String> = (listOfNotNull(backend.distinctId) + (erasureQueue?.pending ?: emptyList())).distinct()
+
+    /**
+     * Ask the relay to erase [ids], after the core has accepted the clear and the store is wiped. Returns how many it did not
+     * take. Never throws and never queues (the store is empty; an ID written back would outlive the wipe).
+     */
+    suspend fun eraseAfterClear(ids: List<String>): Int {
+        val queue = erasureQueue ?: return 0
+        return ids.count { id -> !(try { queue.eraseNow(id) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }) }
+    }
+
+    /** True when an ID was queued. */
+    private fun forgetAndQueue(): Boolean {
+        // Read the pseudonymous ID BEFORE the backend resets it: `reset()` forgets it, and it is what the vendor holds this
+        // person's events under. It is queued, durably, and erased from the vendor within 30 days
         // (NP-APP-TELEMETRY-001 §5, REQ-SW03-19).
         val withdrawnId = backend.distinctId
         backend.reset()
         isConfigured = false
-        if (withdrawnId != null && erasureQueue != null) {
-            erasureQueue.enqueue(withdrawnId)
-            scope?.launch { erasureQueue.drain() }
-        }
+        if (withdrawnId == null || erasureQueue == null) return false
+        erasureQueue.enqueue(withdrawnId)
+        return true
     }
 
     /**

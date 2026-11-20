@@ -12,3 +12,5 @@ crate-type = ["cdylib"]
 [dependencies]
 neurone-npps-core = { path = "../npps-core" }
 jni = "0.21"
+# Wipes the copy of the secrets read from a Java array (SWR-MG-32). Already in the tree through the core.
+zeroize = "1"

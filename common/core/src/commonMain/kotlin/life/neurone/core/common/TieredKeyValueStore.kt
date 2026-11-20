@@ -76,6 +76,18 @@ class TieredKeyValueStore(
         if (key in deviceKeys || isUhdr(key)) putString(key, value.toString()) else inner.putBoolean(key, value)
     }
 
+    /**
+     * **A removal works while locked, and that is deliberate** (`REQ-PRES-01` (b); ruled at `OI-PRIV-10` (4)). It deletes the sealed value
+     * from the host store at once and drops any write held for the key, without the gated key and without asking for presence:
+     *  - it discloses nothing: no value is read, opened or returned, so the gate's purpose (who may *read* UHDR) is untouched;
+     *  - an erase must not depend on the credential: a person who has lost it, or whose keystore key is gone, must still be able to
+     *    destroy their record, and an erase is not a weakening (`CLAUDE.md` §5.1, `OI-PRES-10`; the key's own `destroy` needs no presence);
+     *  - holding a removal until unlock would leave data the person asked to be rid of on disk, and bring it back if the run ended first.
+     * What it costs: whoever holds the unlocked phone and the app can destroy UHDR they cannot read. The gate was never a guard against
+     * that (uninstalling the app does the same), and the backup the gate insists on first is the way back (`REQ-PRES-08`).
+     * **Do not "fix" this by holding removals.** A caller that removes a key as a step of an ordinary edit, and not to erase, must
+     * not do so while locked; this store cannot tell the two apart.
+     */
     override fun remove(key: String) {
         pending.remove(key)
         inner.remove(key)

@@ -50,7 +50,7 @@ object RedirectRules {
     }
 
     /** `http://127.0.0.1:<port>` or `http://localhost:<port>`, the form [LoopbackAuthorizationLauncher] can bind. */
-    private fun isLoopback(redirectUri: String): Boolean {
+    internal fun isLoopback(redirectUri: String): Boolean {
         if (!redirectUri.startsWith("http://")) return false
         val authority = redirectUri.removePrefix("http://").substringBefore('/').substringBefore('?').substringBefore('#')
         val host = authority.substringBeforeLast(':', "")

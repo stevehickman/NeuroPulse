@@ -14,10 +14,20 @@ class ResearchSuggestionStore(
     private val store: KeyValueStore,
     private val json: Json = Json { ignoreUnknownKeys = true },
     private val today: () -> String = { todayIso() },
+    /**
+     * Whether the person has opted into the suggestion portal (L4, `ResearchConsentState.suggestionPortalOptIn`). Without it
+     * there is "no portal" (`consent-engine.md` §6.2), so nothing is authored and no author token is made (`OI-PRIV-08` (3)).
+     * The default refuses: a store built without the consent state accepts no suggestion.
+     */
+    private val portalOptedIn: () -> Boolean = { false },
 ) {
     companion object {
         const val TOKEN_KEY = "np.research.device-token"
     }
+
+    /** Whether [submit] would accept a valid draft: the person is opted into the portal. */
+    val canSubmit: Boolean
+        get() = portalOptedIn()
 
     var suggestions: List<ResearchSuggestion> = emptyList()
         private set
@@ -26,8 +36,9 @@ class ResearchSuggestionStore(
         load()
     }
 
-    /** Function 1 — submit a new idea. Returns false for an invalid draft (no insert). */
+    /** Function 1 — submit a new idea. Returns false for an invalid draft, or when the person is not opted into the portal (no insert, no token). */
     fun submit(draft: ResearchSuggestionDraft): Boolean {
+        if (!portalOptedIn()) return false
         if (!draft.isValid) return false
         val suggestion = ResearchSuggestion(
             title = draft.title.trim(),
@@ -69,6 +80,21 @@ class ResearchSuggestionStore(
     private inline fun mutate(id: String, transform: (ResearchSuggestion) -> ResearchSuggestion) {
         suggestions = suggestions.map { if (it.id == id) transform(it) else it }
         save()
+    }
+
+    /**
+     * The person withdrew the portal opt-in or blanket research consent (`OI-PRIV-08` (3)). The author token is the one value
+     * that joins everything a person wrote, so it does not outlive the consent it was made under: it is forgotten here, and a
+     * suggestion submitted after a later opt-in gets a new one that cannot be joined to the old. The suggestions already on this
+     * device stay (they are the person's own record) but no longer name an author, so a sync written later has no token to send
+     * for them and cannot join them to each other or to anything newer.
+     */
+    fun forgetAuthorToken() {
+        store.remove(TOKEN_KEY)
+        if (suggestions.any { it.authorDeviceToken.isNotEmpty() }) {
+            suggestions = suggestions.map { it.copy(authorDeviceToken = "") }
+            save()
+        }
     }
 
     // MARK: Device token (opaque, persisted, no identity)

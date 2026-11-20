@@ -20,7 +20,7 @@ export class NppsRefusal extends Error {
   }
 }
 
-interface CoreExports {
+export interface CoreExports {
   memory: WebAssembly.Memory;
   npps_alloc(len: number): number;
   npps_free(ptr: number, len: number): void;
@@ -33,6 +33,7 @@ interface CoreExports {
   npps_content_hash_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_library_json(req: number, reqLen: number, out: number, outLen: number): number;
   npps_migration_json(req: number, reqLen: number, out: number, outLen: number): number;
+  npps_migration_secret_json(req: number, reqLen: number, secrets: number, secretsLen: number, out: number, outLen: number, secretOut: number, secretOutLen: number): number;
 }
 
 // common/generated/ is a git-ignored build output directory (CLAUDE.md §20). In the simulator's bundle
@@ -66,6 +67,16 @@ function nodeFileSystem(): { readFileSync(path: string): Uint8Array<ArrayBuffer>
 function nodeFilePath(): string {
   const proc = (globalThis as { process: { getBuiltinModule(id: string): unknown } }).process;
   return (proc.getBuiltinModule('node:url') as { fileURLToPath(u: URL): string }).fileURLToPath(WASM_URL);
+}
+
+/**
+ * For tests only: put `wrap(core)` in the core's place, so a test can see what a call does to the module's memory (the
+ * exports of a WebAssembly instance cannot be patched). Returns a function that puts the real core back.
+ */
+export function wrapNppsCoreForTest(wrap: (real: CoreExports) => CoreExports): () => void {
+  const real = core();
+  instance = wrap(real);
+  return () => { instance = real; };
 }
 
 function core(): CoreExports {
@@ -117,8 +128,17 @@ function call(
         throw new NppsRefusal('the NPPS core was given an argument it cannot read');
     }
   } finally {
-    wasm.npps_free(inPtr, bytes.length + 1);
-    wasm.npps_free(cells, 8);
+    // SWR-MG-28 (b): the request can hold a passphrase, a key or UHDR items, and WebAssembly linear memory is never given
+    // back, so the copy made here is wiped here, before it is released, and not left to the callee. The memory may have
+    // grown during the call, which detaches every earlier view: take a new one. `bytes`, the encoder's copy on the JS heap,
+    // is wiped too; the string it was made from is the caller's and cannot be (OI-PRIV-12 stage 2).
+    new Uint8Array(wasm.memory.buffer, inPtr, bytes.length + 1).fill(0);
+    bytes.fill(0);
+    // After a trap the instance was dropped above and is not called again; its memory goes with it.
+    if (instance === wasm) {
+      wasm.npps_free(inPtr, bytes.length + 1);
+      wasm.npps_free(cells, 8);
+    }
   }
 }
 
@@ -148,6 +168,16 @@ export function nppsNamespace(files: readonly object[]): NppsNamespace {
  */
 export function nppsSerialize(items: readonly object[]): string {
   return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items })));
+}
+
+/**
+ * As nppsSerialize, in the share form: the form of a file given to someone else (NP-SW-001 SWR-WO-07). The core strips the
+ * used flag, the helmet serial and the individual id, and mints a new protocol id and family id from `random`, 32 bytes
+ * from a secure source (crypto.getRandomValues by default). The rule is the core's; no caller decides what is stripped.
+ */
+export function nppsSerializeShare(items: readonly object[], random: Uint8Array = crypto.getRandomValues(new Uint8Array(32))): string {
+  const randomHex = Array.from(random, (b) => b.toString(16).padStart(2, '0')).join('');
+  return new TextDecoder().decode(call('npps_serialize_json', JSON.stringify({ items, share: { randomHex } })));
 }
 
 /** A localizable text from the validator: a plain string, or a locale key with positional arguments. */
@@ -246,4 +276,76 @@ export interface NppsNamespace {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function nppsMigration(request: { op: string; [field: string]: unknown }): any {
   return JSON.parse(new TextDecoder().decode(call('npps_migration_json', JSON.stringify(request))));
+}
+
+/** What `nppsMigrationSecret` answers: the JSON, and the secrets it names as `{"$secret": n}`, as bytes the caller clears. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface NppsSecretAnswer { answer: any; secrets: Uint8Array[] }
+
+/**
+ * `nppsMigration` for an operation that takes or returns a key (neurone_npps_core::secret_io, SWR-MG-32). The request
+ * names a secret as `{"$secret": n}` and `secrets[n]` holds its bytes; a secret in the answer comes back the same way.
+ * A key is never text here: not in the request string, not in the answer. The caller owns `secrets` and the arrays
+ * returned, and overwrites them (`fill(0)`) when it is done; every copy this function makes is overwritten before it
+ * returns. A key the core keeps is named `{"$handle": n}` and needs no bytes at all.
+ */
+export function nppsMigrationSecret(request: { op: string; [field: string]: unknown }, secrets: readonly Uint8Array[]): NppsSecretAnswer {
+  const wasm = core();
+  const req = new TextEncoder().encode(JSON.stringify(request));
+  const framedLen = secrets.reduce((n, s) => n + 4 + s.length, 0);
+  // Never empty, so no pointer handed over is null.
+  const reqPtr = wasm.npps_alloc(req.length + 1);
+  const secPtr = wasm.npps_alloc(framedLen + 1);
+  const cells = wasm.npps_alloc(16);   // out pointer, out length, secret-out pointer, secret-out length
+  try {
+    new Uint8Array(wasm.memory.buffer, reqPtr, req.length).set(req);
+    // Each secret is written straight into the module's memory: a 4-byte big-endian length, then the bytes.
+    const framed = new DataView(wasm.memory.buffer, secPtr, framedLen + 1);
+    let at = 0;
+    for (const s of secrets) {
+      framed.setUint32(at, s.length, false);
+      new Uint8Array(wasm.memory.buffer, secPtr + at + 4, s.length).set(s);
+      at += 4 + s.length;
+    }
+    let code: number;
+    try {
+      code = wasm.npps_migration_secret_json(reqPtr, req.length, secPtr, framedLen, cells, cells + 4, cells + 8, cells + 12);
+    } catch (e) {
+      instance = null;
+      throw new Error(`the NPPS core failed: ${(e as Error).message}`);
+    }
+    const view = new DataView(wasm.memory.buffer);
+    const [outPtr, outLen, besidePtr, besideLen] = [view.getUint32(cells, true), view.getUint32(cells + 4, true), view.getUint32(cells + 8, true), view.getUint32(cells + 12, true)];
+    const out = outPtr === 0 ? new Uint8Array(0) : new Uint8Array(wasm.memory.buffer, outPtr, outLen).slice();
+    if (outPtr !== 0) wasm.npps_free(outPtr, outLen);
+    const answered: Uint8Array[] = [];
+    if (besidePtr !== 0) {
+      const beside = new DataView(wasm.memory.buffer, besidePtr, besideLen);
+      for (let i = 0; i < besideLen;) {
+        const n = beside.getUint32(i, false);
+        answered.push(new Uint8Array(wasm.memory.buffer, besidePtr + i + 4, n).slice());
+        i += 4 + n;
+      }
+      wasm.npps_free(besidePtr, besideLen);   // wipes it (SWR-MG-28 (a))
+    }
+    switch (code) {
+      case NppsStatus.OK: return { answer: JSON.parse(new TextDecoder().decode(out)), secrets: answered };
+      case NppsStatus.REFUSED:
+      case NppsStatus.INTERNAL_ERROR:
+        throw new NppsRefusal(out.length > 0 ? new TextDecoder().decode(out) : 'the NPPS core refused the input');
+      default:
+        throw new NppsRefusal('the NPPS core was given an argument it cannot read');
+    }
+  } finally {
+    // As in `call`: every copy made here is overwritten here, on success, refusal and trap alike (SWR-MG-28 (b)).
+    new Uint8Array(wasm.memory.buffer, reqPtr, req.length + 1).fill(0);
+    new Uint8Array(wasm.memory.buffer, secPtr, framedLen + 1).fill(0);
+    new Uint8Array(wasm.memory.buffer, cells, 16).fill(0);
+    req.fill(0);
+    if (instance === wasm) {
+      wasm.npps_free(reqPtr, req.length + 1);
+      wasm.npps_free(secPtr, framedLen + 1);
+      wasm.npps_free(cells, 16);
+    }
+  }
 }

@@ -10,6 +10,8 @@
 #ifndef NP_HD_CONFIG_H
 #define NP_HD_CONFIG_H
 
+#include <stdint.h>
+
 #include "../../common/include/np_shared_constants.h"
 
 /* ── EEG acquisition ────────────────────────────────────────────────────────── */
@@ -102,7 +104,12 @@
  * current.  A declared limit that nothing enforces reads as a control in a
  * design review and is not one.  Give it a consumer or retire it. */
 #define NP_HD_MAX_ELECTRODE_DENSITY_A_M2   6.0f /* tissue current density limit  */
-#define NP_HD_RAMP_DURATION_S       30U     /* 30 s ramp up and ramp down        */
+/* The HD-tDCS ramp is a fixed 30 s, up and down.  It is fixed because it is the tDCS ramp the hardware specifies
+ * (CLAUDE.md §3), not a value tuned for HD; it may not be shorter than the hardware minimum, which the assertion holds, so
+ * a change to that minimum cannot leave this one under it. */
+#define NP_HD_RAMP_DURATION_S       30U
+_Static_assert(NP_HD_RAMP_DURATION_S >= NP_TDCS_MIN_RAMP_S, "the HD-tDCS ramp is under the hardware minimum tDCS ramp");
+#define NP_HD_RAMP_MS               ((uint32_t)NP_HD_RAMP_DURATION_S * 1000U)   /* the one place the ramp is read in ms */
 
 /* Charge per phase limit (hardware enforcement):                                */
 /* Q_ph = 40 µC/cm² × 0.0962 cm² = 3.85 µC                                     */
@@ -139,8 +146,30 @@
 
 /* ── Stimulation session parameters ─────────────────────────────────────────── */
 #define NP_HD_DEFAULT_CURRENT_UA    1000U   /* 1 mA anode (within 2 mA limit)   */
-#define NP_HD_MIN_SESSION_S         120U    /* 2 minutes minimum                 */
-#define NP_HD_MAX_SESSION_S         1800U   /* 30 minutes maximum                */
+/* The one limit on session length, and it is DERIVED (the principal, 2026-11-19: a limit may rest on a mechanical or
+ * implementation reason).  A session holds a ramp up and a ramp down of NP_HD_RAMP_DURATION_S each, and the ramp down
+ * starts at (length - one ramp), so a session shorter than two ramps would start ramping down before it finished ramping
+ * up, and its steady-phase end would wrap below zero.  np_hd_stim_start refuses it. */
+/* The formula is written once, as a macro, because _Static_assert needs a constant expression and a function call is not
+ * one.  The function and every compile-time check use this macro, so they cannot disagree. */
+#define NP_HD_MIN_SESSION_FOR_RAMP_S(ramp_s)   (2U * (uint32_t)(ramp_s))   /* a ramp up and a ramp down */
+static inline uint32_t np_hd_min_session_s(uint32_t ramp_s)
+{
+    return NP_HD_MIN_SESSION_FOR_RAMP_S(ramp_s);
+}
+/* With today's fixed ramp.  The minimum is a function of the ramp, so it moves with it: change NP_HD_RAMP_DURATION_S and this
+ * changes, and a ramp that becomes a per-session value passes its own length to np_hd_min_session_s() where the session is
+ * checked (np_hd_stim_start). */
+#define NP_HD_MIN_SESSION_S         NP_HD_MIN_SESSION_FOR_RAMP_S(NP_HD_RAMP_DURATION_S)   /* 60 s today */
+
+/* Session length DEFAULTS, not limits (the principal, 2026-11-19).  Nothing refuses a session for being shorter than the
+ * first or longer than the second: a limit needs research literature that documents why it should exist (or a mechanical
+ * reason, as above), and none is cited for either figure (register row UC-190).  What bounds the dose is the safety MCU's
+ * per-session charge ceiling (CLAUDE.md §3), whatever the length.  The first is also the length used when a session is
+ * configured with none. */
+#define NP_HD_DEFAULT_SESSION_MIN_S 120U    /* 2 minutes: the shortest the defaults suggest */
+#define NP_HD_DEFAULT_SESSION_MAX_S 1800U   /* 30 minutes: the longest the defaults suggest; no firmware path reads it */
+_Static_assert(NP_HD_DEFAULT_SESSION_MIN_S >= NP_HD_MIN_SESSION_S, "the default session must be one that can run");
 
 /* ── Safety MCU heartbeat ───────────────────────────────────────────────────── */
 /* HD-tDCS shares the 200 ms SPI heartbeat from the main safety architecture.   */

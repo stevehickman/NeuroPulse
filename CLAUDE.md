@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 81 (current)  
+**Revision:** 84 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -310,7 +310,9 @@ are in `docs/reference/data-architecture-detail.md` §5.2.
 **All anonymization happens on-device, in the app, before anything leaves the device** — NeurOne
 cannot access raw UHDR even for research, because the biometric-derived AES-256 key is never held by
 NeurOne infrastructure. Studies arrive as cryptographically signed descriptors (k≥10, date rounding
-≥1 week, suppression rules); only the anonymized extract is transmitted; no linkage table exists.
+≥1 week, an expiry day the issuer signs). **Suppression is the device's own rule, the same for every
+study, never a descriptor field:** a record whose group is smaller than k is dropped, not sent (the
+principal, 2026-11-19). Only the anonymized extract is transmitted; no linkage table exists.
 **Withdrawal permanently blocks future extracts for every data period, including sessions predating
 withdrawal**; already-published extracts cannot be individually removed (irreversibility notice given
 at consent time). Study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR
@@ -333,6 +335,18 @@ and never shared with researchers. Full data flow: `docs/reference/data-architec
   `ConsentStore`, and revoking either consent does not affect the other.
 - Withdrawing from a study or category stops only that flow. **Withdrawing blanket consent (L3)
   stops all research flows and tears down research analytics.**
+- **Warranty-owner consent is per helmet** (the principal, 2026-11-20). Consent recorded for one
+  helmet opens no upload for another, and with no helmet connected nothing is open
+  (`REQ-SHDR-08`). Revoking it ends that helmet's characterisation enrolment, and a later grant
+  does not bring the enrolment back (`REQ-SHDR-09`).
+- **The warranty owner's data has its own store and never travels with a user's** (the principal,
+  2026-11-20; `REQ-SHDR-10`). Helmet health data, the owner's consents and the study enrolment are
+  not related to users. Backup, restore and transfer of the owner's data are independent of any
+  user's: another place, another device, another schedule. The two may share a medium and are
+  never commingled. The app has one warranty-owner page for everything collected from the owner,
+  consents included, and it is the first page when a new helmet is registered. **Built:** the
+  store. **Not built:** the owner's backup, restore and transfer, and the page at registration
+  (`OI-PRIV-20`).
 - **"Never asked" and "said stop" must stay distinguishable.** `blanketConsentWithdrawnAt` is set
   by the store, never by a screen, and it outranks stale L2 ticks at the §6.3 gate.
 
@@ -417,6 +431,13 @@ downgrade it. Mark it retired in place, and do not delete it.**
 IEC 62471, the §3 charge ceilings) or a hazard control. It also does not reach a requirement whose
 derivation exists but is uncited. **"I could not find the derivation" means raise an open item,
 never retire.** Removing a safety control is an ISO 14971 decision.
+
+**A derived bound is computed from its foundational value, never stated beside it.** A limit rests on
+research literature, an external standard, or a mechanical or implementation reason, and a limit with none
+of these is a default, not an enforced limit. When one value follows from another (a session needs a ramp
+up and a ramp down, so its minimum is twice the ramp), the bound is a function of that foundational value
+and moves when it moves (`np_hd_min_session_s(ramp_s)`). **If the foundational value is fixed, the reason
+it is fixed is written beside its definition** (the principal, 2026-11-19).
 
 ## 19. UNJUSTIFIED CHOICES — THE REGISTER IS KEPT CURRENT (locked) → `docs/status/unjustified-choices.md`
 

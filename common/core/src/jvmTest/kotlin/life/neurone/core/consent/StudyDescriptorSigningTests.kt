@@ -35,6 +35,7 @@ class StudyDescriptorSigningTests {
         k: Int = 10,
         rounding: Int = 7,
         day: String = "2026-09-14",
+        expires: String = "2026-12-14",
         signature: String = "",
     ) = StudyDescriptor(
         studyId = studyId,
@@ -44,6 +45,7 @@ class StudyDescriptorSigningTests {
         kAnonymity = k,
         dateRoundingDays = rounding,
         issuedOnDay = day,
+        expiresOnDay = expires,
         signature = signature,
     )
 
@@ -78,14 +80,15 @@ class StudyDescriptorSigningTests {
             ),
         )
         assertEquals(
-            "NP-STUDY-DESCRIPTOR-V1\n" +
+            "NP-STUDY-DESCRIPTOR-V2\n" +
                 "2:S1\n" +
                 "5:Trial\n" +
                 "15:Sleep Disorders\n" +
                 "30:EEG Waveforms,Session Duration\n" +
                 "2:10\n" +
                 "1:7\n" +
-                "10:2026-09-14\n",
+                "10:2026-09-14\n" +
+                "10:2026-12-14\n",
             bytes.decodeToString(),
         )
     }
@@ -156,6 +159,7 @@ class StudyDescriptorSigningTests {
             signed.copy(kAnonymity = 1),
             signed.copy(dateRoundingDays = 0),
             signed.copy(issuedOnDay = "2026-09-15"),
+            signed.copy(expiresOnDay = "2027-12-14"),
         )
         for (d in tampered) {
             assertEquals(

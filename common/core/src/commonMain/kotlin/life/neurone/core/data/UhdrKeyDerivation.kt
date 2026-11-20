@@ -61,17 +61,21 @@ object UhdrKeyDerivation {
     fun deriveKey(credentialSeed: ByteArray, salt: ByteArray): UhdrKey {
         require(salt.size == SALT_LENGTH) { "Salt must be $SALT_LENGTH bytes" }
         require(credentialSeed.isNotEmpty()) { "Credential seed must not be empty" }
-        val r = NppsCore.migration(
+        // The seed goes in beside the request and the key comes back beside the answer, both as bytes (SWR-MG-32): this
+        // key is the one the device's storage is opened with, so the host must hold it, and it holds it only as bytes.
+        val r = NppsCore.migrationSecret(
             buildJsonObject {
                 put("op", "deriveUhdrKey")
-                put("seed", credentialSeed.toHex())
+                put("seed", NppsCore.secretRef(0))
                 put("salt", salt.toHex())
             },
+            listOf(credentialSeed),
         )
-        require(r["ok"]!!.jsonPrimitive.boolean) { "UHDR key derivation failed: ${r["reason"]?.jsonPrimitive?.content}" }
-        val raw = r["key"]!!.jsonPrimitive.content.hexToBytes()
-        val key = UhdrKey(raw)
-        raw.fill(0)
-        return key
+        try {
+            require(r.answer["ok"]!!.jsonPrimitive.boolean) { "UHDR key derivation failed: ${r.answer["reason"]?.jsonPrimitive?.content}" }
+            return UhdrKey(NppsCore.secretAt(r, "key") ?: error("the core answered ok with no key"))
+        } finally {
+            r.clear()
+        }
     }
 }

@@ -36,7 +36,8 @@ final class ConsentStoreTests: XCTestCase {
 
     private func clearConsentDefaults() {
         let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
-                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals"]
+                    "np.consent.clinician-expansions", "np.consent.study-invitations", "np.consent.study-withdrawals",
+                    "np.consent.quarantine"]
         keys.forEach { ProtectedDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -130,6 +131,7 @@ final class ConsentStoreTests: XCTestCase {
     private var categoryConsent: ResearchConsentState {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
+        state.contactMethod = "person@example.org"
         state.categoryConsents[.depression] = true
         return state
     }
@@ -137,6 +139,7 @@ final class ConsentStoreTests: XCTestCase {
     private var blanketConsent: ResearchConsentState {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
+        state.contactMethod = "person@example.org"
         state.blanketConsentGranted = true
         return state
     }
@@ -150,9 +153,15 @@ final class ConsentStoreTests: XCTestCase {
         return store
     }
 
+    /// Every element a study may ask for: a descriptor that asks for one no extract may carry is refused for
+    /// that, before the consent state is looked at (`REQ-CONSENT-09` h).
+    private var everyElementAnExtractMayCarry: Set<UHDRElement> {
+        Set(UHDRElement.allCases).subtracting(ConsentEngine.elementsNoExtractMayCarry)
+    }
+
     private func makeDescriptor(
         categories: [ResearchCategory] = [.depression],
-        elements: Set<UHDRElement> = [.sessionTimestamps, .eegWaveforms],
+        elements: Set<UHDRElement> = [.sessionTimestamps, .neurofeedbackScores],
         k: Int = 10,
         rounding: Int = 7
     ) -> StudyDescriptor {
@@ -164,6 +173,7 @@ final class ConsentStoreTests: XCTestCase {
             kAnonymity: k,
             dateRoundingDays: rounding,
             issuedAt: Date(),
+            expiresAt: Date().addingTimeInterval(30 * 86_400),
             signature: "sig"
         )
     }
@@ -511,9 +521,10 @@ final class ConsentStoreTests: XCTestCase {
                       Date().addingTimeInterval(30 * day)]
         for (i, date) in issued.enumerated() {
             var d = makeDescriptor(categories: ResearchCategory.allCases,
-                                   elements: Set(UHDRElement.allCases))
+                                   elements: everyElementAnExtractMayCarry)
             d.studyID = "AFTER-WITHDRAWAL-\(i)"
             d.issuedAt = date
+            d.expiresAt = max(d.expiresAt, date)   // never before the issue day, or that is the refusal
             XCTAssertEqual(store.ingestStudyDescriptor(d), .refused(.researchConsentWithdrawn),
                            "a study issued \(date) must not be processed after withdrawal")
         }
@@ -530,7 +541,7 @@ final class ConsentStoreTests: XCTestCase {
         store.ingestStudyDescriptor(makeDescriptor())
         store.withdrawBlanketResearchConsent()
 
-        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        var reissued = makeDescriptor(elements: everyElementAnExtractMayCarry)
         reissued.issuedAt = Date().addingTimeInterval(86_400)
         XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.researchConsentWithdrawn))
     }
@@ -564,8 +575,9 @@ final class ConsentStoreTests: XCTestCase {
         store.withdrawFromStudy(studyID: studyID)
         XCTAssertFalse(store.studyParticipations[0].isActive)
 
-        var reissued = makeDescriptor(elements: Set(UHDRElement.allCases))
+        var reissued = makeDescriptor(elements: everyElementAnExtractMayCarry)
         reissued.issuedAt = Date().addingTimeInterval(30 * 86_400)
+        reissued.expiresAt = reissued.issuedAt.addingTimeInterval(30 * 86_400)
         XCTAssertEqual(store.ingestStudyDescriptor(reissued), .refused(.studyAlreadyDecided))
 
         let reloaded = ConsentStore(
@@ -591,7 +603,7 @@ final class ConsentStoreTests: XCTestCase {
     func testRevokeClinicianAccess_removesGrant() {
         let grant = ClinicianConsentGrant(
             id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: .monitor, grantedAt: Date(), expiresAt: nil, isActive: true
+            tier: .monitor, grantedAt: Date(), expiresAt: Date().addingTimeInterval(30 * 86_400), isActive: true
         )
         store.grantClinicianAccess(grant)
         XCTAssertEqual(store.clinicianGrants.count, 1)
@@ -704,6 +716,7 @@ final class ConsentStoreTests: XCTestCase {
         // touching the others.
         var state = ResearchConsentState()
         state.contactConsentGranted = true            // L1
+        state.contactMethod = "person@example.org"    // L1 is not taken without one (REQ-CONSENT-23)
         state.categoryConsents[.ptsd] = true          // L2
         state.blanketConsentGranted = true            // L3
         state.resultsOptIn = true                     // L4
@@ -731,7 +744,11 @@ final class ConsentStoreTests: XCTestCase {
     private func makeGrant(_ tier: ClinicianUseCaseTier) -> ClinicianConsentGrant {
         ClinicianConsentGrant(
             id: grantID, clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
-            tier: tier, grantedAt: yesterday
+            tier: tier, grantedAt: yesterday, expiresAt: Date().addingTimeInterval(30 * 86_400),
+            // As the form makes it: the tier's elements, with "include my earlier sessions" answered yes.
+            accessScopes: [
+                ClinicianAccessScope(elements: tier.uhdrElements, effectiveFrom: yesterday, includesPriorData: true)
+            ]
         )
     }
 
@@ -756,14 +773,14 @@ final class ConsentStoreTests: XCTestCase {
         // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
         XCTAssertEqual(grant.tier, .assess)
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date()),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(), on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
 
         // ...but yesterday's sessions still show only what Monitor ever reached. This is the
         // assertion the old implementation could not have passed.
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.monitor.uhdrElements)
-        XCTAssertFalse(grant.elementsVisible(forDataRecordedAt: yesterday).contains(.eegWaveforms))
+        XCTAssertFalse(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()).contains(.eegWaveforms))
         XCTAssertEqual(
             grant.forwardOnlyElements,
             ClinicianUseCaseTier.assess.uhdrElements
@@ -779,7 +796,7 @@ final class ConsentStoreTests: XCTestCase {
         store.approveExpansion(requestID: requestID, includePriorData: true)
 
         let grant = store.clinicianGrants[0]
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
         XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
     }
@@ -891,38 +908,39 @@ final class ConsentStoreTests: XCTestCase {
             return XCTFail("Expected the approval to survive a reload.")
         }
         XCTAssertFalse(includesPriorData)
-        XCTAssertEqual(reloaded.clinicianGrants[0].elementsVisible(forDataRecordedAt: yesterday),
+        XCTAssertEqual(reloaded.clinicianGrants[0].elementsVisible(forDataRecordedAt: yesterday, on: Date()),
                        ClinicianUseCaseTier.monitor.uhdrElements)
     }
 
     // @verifies REQ-CONSENT-16#c
-    func testAGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
-        // A grant written before the workflow existed has no scopes. Introducing the workflow must
-        // not silently re-scope it: a bare tier has always meant "these elements, all history".
-        let grant = makeGrant(.assess)
-        XCTAssertNil(grant.accessScopes)
+    func testAGrantWithNoScopesReachesNoEarlierSessions() {
+        // Nobody was asked the history question for a grant built without a scope, so it takes the
+        // answer that reaches least. No grant predates the workflow (OI-PRIV-06 point 6).
+        var grant = makeGrant(.assess)
+        grant.accessScopes = nil
         XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0)),
+        XCTAssertTrue(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0), on: Date()).isEmpty)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(), on: Date()),
                        ClinicianUseCaseTier.assess.uhdrElements)
-        XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
+        XCTAssertEqual(grant.forwardOnlyElements, ClinicianUseCaseTier.assess.uhdrElements)
     }
 
     // @verifies REQ-CONSENT-16
     func testAChangeThatIsNotAnExpansionHasNoDifferential() {
         let monitor = makeGrant(.monitor)
         // Nothing new.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .monitor))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .monitor, on: Date()))
         // Something lost — a re-scope, not a widening.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.fullClinical), expandingTo: .assess))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.fullClinical), expandingTo: .assess, on: Date()))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .research))
-        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .research, on: Date()))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical, on: Date()))
     }
 
     // @verifies REQ-CONSENT-16
     func testTheDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
-        guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess) else {
+        guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess, on: Date()) else {
             return XCTFail("Monitor → Assess is an expansion.")
         }
         XCTAssertEqual(d.newlyVisibleElements,
@@ -1004,17 +1022,24 @@ final class ConsentStoreTests: XCTestCase {
 
     // MARK: - Withdrawal records (SWR-MG-04)
 
-    private func storeWithClock(_ times: [String]) -> ConsentStore {
-        var remaining = times.map { ConsentTime.date($0)! }
-        return ConsentStore(now: { remaining.isEmpty ? Date() : remaining.removeFirst() })
+    private func storeWithClock(_ days: [String]) -> ConsentStore {
+        var remaining = days
+        return ConsentStore(today: { remaining.isEmpty ? ConsentDay.today() : remaining.removeFirst() })
     }
 
-    /// The store alone stamps a withdrawal, on a true→false transition, for every decision it records.
-    // @verifies SWR-MG-04
-    func testEveryWithdrawalIsStampedByTheStoreOnTheTransition() {
-        store = storeWithClock(["2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z"])
+    /// L1 on, with the method it needs (`REQ-CONSENT-23`).
+    private var reachable: ResearchConsentState {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
+        state.contactMethod = "person@example.org"
+        return state
+    }
+
+    /// The store alone marks a withdrawal, on a true→false transition, for every decision it records.
+    // @verifies SWR-MG-04
+    func testEveryWithdrawalIsStampedByTheStoreOnTheTransition() {
+        store = storeWithClock(["2026-03-01", "2026-03-02"])
+        var state = reachable
         state.resultsOptIn = true
         state.suggestionPortalOptIn = true
         state.categoryConsents[.ptsd] = true
@@ -1027,19 +1052,18 @@ final class ConsentStoreTests: XCTestCase {
         store.updateResearchConsent(state)
 
         let r = store.researchConsent
-        XCTAssertEqual(r.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
-        XCTAssertEqual(r.resultsOptInWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertEqual(r.contactConsentWithdrawnAt, "2026-03-01#000001")
+        XCTAssertEqual(r.resultsOptInWithdrawnAt, "2026-03-01#000001")
         XCTAssertNil(r.suggestionPortalOptInWithdrawnAt, "still granted")
-        XCTAssertEqual(r.categoryWithdrawnAt?[ResearchCategory.ptsd.rawValue].map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertEqual(r.categoryWithdrawnAt?[ResearchCategory.ptsd.rawValue], "2026-03-01#000001")
         XCTAssertNil(r.categoryWithdrawnAt?[ResearchCategory.sleep.rawValue], "never granted, so never withdrawn")
     }
 
-    /// A screen that commits a state with the times cleared cannot erase the record, and a re-grant keeps it.
+    /// A screen that commits a state with the marks cleared cannot erase the record, and a re-grant keeps it.
     // @verifies SWR-MG-04
     func testAScreenCannotEraseAWithdrawalAndARegrantKeepsIt() {
-        store = storeWithClock(["2026-03-01T00:00:00Z"])
-        var state = ResearchConsentState()
-        state.contactConsentGranted = true
+        store = storeWithClock(["2026-03-01"])
+        var state = reachable
         store.updateResearchConsent(state)
         state.contactConsentGranted = false
         store.updateResearchConsent(state)
@@ -1049,7 +1073,7 @@ final class ConsentStoreTests: XCTestCase {
         store.updateResearchConsent(state)
 
         XCTAssertTrue(store.researchConsent.contactConsentGranted)
-        XCTAssertEqual(store.researchConsent.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-03-01T00:00:00Z")
+        XCTAssertEqual(store.researchConsent.contactConsentWithdrawnAt, "2026-03-01#000001")
     }
 
     // @verifies SWR-MG-04
@@ -1060,7 +1084,7 @@ final class ConsentStoreTests: XCTestCase {
 
         store.withdrawFromStudy(studyID: studyID)
 
-        XCTAssertNotNil(store.studyWithdrawals[studyID])
+        XCTAssertEqual(store.studyWithdrawals[studyID].map(WithdrawalMark.isValid), true)
         XCTAssertFalse(store.studyParticipations[0].isActive)
         XCTAssertNotNil(ConsentStore().studyWithdrawals[studyID], "the record is persisted and outlives the participation row")
     }
@@ -1069,9 +1093,8 @@ final class ConsentStoreTests: XCTestCase {
     /// here after an older withdrawal stands. The comparison is the core's.
     // @verifies SWR-MG-04
     func testARestoreOnlyReducesConsent() throws {
-        store = storeWithClock(["2026-05-01T00:00:00Z"])
-        var state = ResearchConsentState()
-        state.contactConsentGranted = true
+        store = storeWithClock(["2026-05-01"])
+        var state = reachable
         state.resultsOptIn = true
         state.categoryConsents[.depression] = true
         store.updateResearchConsent(state)
@@ -1079,19 +1102,19 @@ final class ConsentStoreTests: XCTestCase {
         store.updateResearchConsent(state)   // results withdrawn 2026-05-01
 
         try store.applyWithdrawals([
-            "contactConsentWithdrawnAt": "2026-04-01T00:00:00Z",
-            "resultsOptInWithdrawnAt": "2026-04-02T00:00:00Z",
-            "categoryWithdrawals": [ResearchCategory.depression.rawValue: "2026-04-03T00:00:00Z"],
-            "studyWithdrawals": ["study-z": "2026-04-04T00:00:00Z"],
+            "contactConsentWithdrawnAt": "2026-04-01#000001",
+            "resultsOptInWithdrawnAt": "2026-04-02#000001",
+            "categoryWithdrawals": [ResearchCategory.depression.rawValue: "2026-04-03#000001"],
+            "studyWithdrawals": ["study-z": "2026-04-04#000001"],
         ])
 
         let r = store.researchConsent
         XCTAssertFalse(r.contactConsentGranted, "the incoming withdrawal is later than none held")
-        XCTAssertEqual(r.contactConsentWithdrawnAt.map(ConsentTime.string), "2026-04-01T00:00:00Z")
-        XCTAssertEqual(r.resultsOptInWithdrawnAt.map(ConsentTime.string), "2026-05-01T00:00:00Z", "the later held time stands")
+        XCTAssertEqual(r.contactConsentWithdrawnAt, "2026-04-01#000001")
+        XCTAssertEqual(r.resultsOptInWithdrawnAt, "2026-05-01#000001", "the later held mark stands")
         XCTAssertFalse(r.categoryConsents[.depression] ?? true)
         XCTAssertFalse(r.blanketConsentGranted, "nothing here turns a grant on")
-        XCTAssertEqual(store.studyWithdrawals["study-z"].map(ConsentTime.string), "2026-04-04T00:00:00Z")
+        XCTAssertEqual(store.studyWithdrawals["study-z"], "2026-04-04#000001")
         XCTAssertNotNil(store.exportWithdrawals()["studyWithdrawals"])
     }
 }

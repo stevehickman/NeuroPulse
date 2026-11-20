@@ -2,6 +2,7 @@ package life.neurone.shared.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -34,6 +37,9 @@ import life.neurone.shared.migration.EraseStep
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 import life.neurone.core.protocol.PersistedKeys
+
+/** The Settings line that says cloud accounts are unavailable because nothing protected can hold the credentials. */
+const val CLOUD_UNAVAILABLE_TAG = "cloud_accounts_unavailable_unprotected"
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).
@@ -300,6 +306,10 @@ private fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
 
+        // How long the session history is kept, and clearing it: the person's choice, never a period set for them (REQ-SW03-33).
+        SessionHistorySection(app.sessionHistoryStore)
+        Spacer(Modifier.height(24.dp))
+
         // Ask for the person's presence before showing UHDR, where the host offers it (NP-APP-PRESENCE-001); the backup comes first (REQ-PRES-08).
         PresenceSettingsSection(app, onMakeBackup = onManageMigration)
         Spacer(Modifier.height(24.dp))
@@ -321,6 +331,15 @@ private fun SettingsContent(
             Text(stringResource(Res.string.cloud_accounts_settings_body), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onManageCloud) { Text(stringResource(Res.string.cloud_accounts_button)) }
+        }
+        // A host that could sign in, on a run with nowhere protected to keep the credentials: said, and no sign-in offered (SWR-MG-19 (l)).
+        if (app.cloudUnavailableUnprotected) {
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(Res.string.cloud_accounts_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(Res.string.cloud_accounts_unavailable_unprotected),
+                modifier = Modifier.testTag(CLOUD_UNAVAILABLE_TAG), style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         // Erase what this host keeps, where it offers that (the browser does): the person's own way to empty it.
@@ -367,6 +386,50 @@ private fun SettingsContent(
 }
 
 /**
+ * The session history's retention and its clear (`REQ-SW03-33`; the principal, 2026-11-19, `OI-PRIV-10` (2)). The person picks how long a
+ * session stays in the list, with no age limit as the default, and can clear the list after confirming. This content is composed only
+ * while the person's presence stands ([PresenceGate]), so the choice shown is the stored one.
+ */
+@Composable
+internal fun SessionHistorySection(store: life.neurone.core.session.SessionHistoryStore) {
+    val retention by store.retention.collectAsState()
+    val records by store.recordsFlow.collectAsState()
+    var confirming by remember { mutableStateOf(false) }
+    Text(stringResource(Res.string.history_session_history), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.history_retention_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    for (choice in life.neurone.core.session.HistoryRetention.entries) {
+        Row(
+            Modifier.fillMaxWidth().clickable { store.setRetention(choice) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.RadioButton(selected = choice == retention, onClick = { store.setRetention(choice) })
+            Text(stringResource(retentionLabel(choice)))
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(enabled = records.isNotEmpty(), onClick = { confirming = true }) { Text(stringResource(Res.string.history_clear_button)) }
+    if (confirming) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(Res.string.history_clear_title)) },
+            text = { Text(stringResource(Res.string.history_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { store.clearHistory(); confirming = false }) { Text(stringResource(Res.string.history_clear_button)) }
+            },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+}
+
+private fun retentionLabel(choice: life.neurone.core.session.HistoryRetention) = when (choice) {
+    life.neurone.core.session.HistoryRetention.NO_LIMIT -> Res.string.history_retention_no_limit
+    life.neurone.core.session.HistoryRetention.DAYS_30 -> Res.string.history_retention_30_days
+    life.neurone.core.session.HistoryRetention.DAYS_90 -> Res.string.history_retention_90_days
+    life.neurone.core.session.HistoryRetention.DAYS_365 -> Res.string.history_retention_1_year
+}
+
+/**
  * Erase everything this host keeps and start afresh. It cannot be undone, so the button stays disabled until the person has said
  * they understand that; the host does its own restart once [erase] returns.
  */
@@ -401,6 +464,8 @@ internal fun EraseDeviceSection(model: EraseDeviceModel, endRun: () -> Unit) {
         is EraseStep.Done -> {
             Text(stringResource(Res.string.settings_erase_device_done))
             if (s.keyKept) Text(stringResource(Res.string.settings_erase_device_key_kept), style = MaterialTheme.typography.bodySmall)
+            if (s.analyticsIdsNotErased > 0) Text(stringResource(Res.string.settings_erase_device_analytics_kept), style = MaterialTheme.typography.bodySmall)
+            if (s.cloudAccessMayRemain) Text(stringResource(Res.string.settings_erase_device_cloud_kept), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             Button(onClick = endRun) { Text(stringResource(Res.string.settings_erase_device_close)) }
         }

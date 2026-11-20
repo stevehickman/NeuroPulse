@@ -73,7 +73,9 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     val sensitivityPublished by gatt.ppxSensitivityPublished.collectAsState()
     val sensitivity by gatt.ppxSensitivity.collectAsState()
 
-    var fleetOn by remember { mutableStateOf(app.warrantyAnalyticsGate.isOpen) }
+    // The helmet health reports choice is the connected helmet's, and each helmet has its own (`REQ-SHDR-08`).
+    val hub by gatt.hubIdentifier.collectAsState()
+    var fleetOn by remember(hub) { mutableStateOf(app.warrantyAnalyticsGate.isOpen(hub)) }
 
     val offeredLabel = stringResource(Res.string.warranty_owner_offered_switch)
 
@@ -164,9 +166,10 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
 
         Spacer(Modifier.height(24.dp))
         FleetReportsSection(
+            helmetConnected = hub != null,
             isOn = fleetOn,
-            onGrant = { app.warrantyAnalyticsGate.grant(); fleetOn = app.warrantyAnalyticsGate.isOpen },
-            onRevoke = { app.warrantyAnalyticsGate.revoke(); fleetOn = app.warrantyAnalyticsGate.isOpen },
+            onGrant = { app.warrantyAnalyticsGate.grant(hub); fleetOn = app.warrantyAnalyticsGate.isOpen(hub) },
+            onRevoke = { app.warrantyAnalyticsGate.revoke(hub); fleetOn = app.warrantyAnalyticsGate.isOpen(hub) },
         )
 
         Spacer(Modifier.height(24.dp))
@@ -182,13 +185,19 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
  * and asks the person to confirm they may decide this for the helmet; turning off needs no dialog and takes effect at once.
  */
 @Composable
-private fun FleetReportsSection(isOn: Boolean, onGrant: () -> Unit, onRevoke: () -> Unit) {
+private fun FleetReportsSection(helmetConnected: Boolean, isOn: Boolean, onGrant: () -> Unit, onRevoke: () -> Unit) {
     var asking by remember { mutableStateOf(false) }
     var mayDecide by remember { mutableStateOf(false) }
 
     Text(stringResource(Res.string.warranty_fleet_title), style = MaterialTheme.typography.titleMedium)
     Text(stringResource(Res.string.warranty_fleet_body), style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(Res.string.warranty_fleet_per_helmet), style = MaterialTheme.typography.bodySmall)
     Spacer(Modifier.height(8.dp))
+    if (!helmetConnected) {
+        // No helmet, no choice to show or make: a choice with no helmet would be a choice for whichever connects next.
+        Text(stringResource(Res.string.warranty_fleet_no_helmet), style = MaterialTheme.typography.bodyLarge)
+        return
+    }
     Text(
         stringResource(if (isOn) Res.string.warranty_fleet_status_on else Res.string.warranty_fleet_status_off),
         style = MaterialTheme.typography.bodyLarge,
