@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-21, what identifies a device in the research store
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-20: Q1 A; Q2 no reword needed (the principal). Originally DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** none yet.
 **From:** NeurOne Software Engineering (`OI-PRIV-21` in `docs/status/pending-decisions.md`; raised by the principal's ruling on `OI-PRIV-07` Q3, 2026-11-20)
 **To:** the principal
