@@ -710,7 +710,7 @@ the person to choose a short expiry and that the signature cannot be cancelled f
 
 - No provider was contacted, so every "refused" above is this code's refusal of a stand-in's reply.
 - `se` is read in the forms Microsoft's "Formatting DateTime values" page lists (a date alone, or a date and time with or without seconds, with `Z`, an offset or nothing); anything else is refused, not misread.
-- `OkHttpTransportTest` is written and **was not run** (no Android SDK in the session). The iOS transport (`IosHttpTransport`) has no test of the contract line: it answers a malformed address with no answer and writes no log, by reading. The web app has no transport.
+- `OkHttpTransportTest` was written with no Android SDK in the session and not run then; **it ran on 2026-11-19** (CI job "Gradle unit tests (:core + :app)", `:app:testDebugUnitTest`, passed on the head of #891). The iOS transport (`IosHttpTransport`) has no test of the contract line: it answers a malformed address with no answer and writes no log, by reading. The web app has no transport.
 - The transport check sees the console and `java.util.logging`. It cannot see another logging library or a file.
 - An erase in a **locked** run works on the raw store and cannot read the credentials, so it revokes nothing and has nothing to tell the person.
 - Google's wording suggests that revoking one grant ends the others of the same Google account and project (a person signed in to both Google Drive and Google Cloud Storage). That account would then ask for sign-in again. Not tested against Google.
