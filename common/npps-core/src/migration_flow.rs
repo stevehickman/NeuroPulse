@@ -422,6 +422,8 @@ fn restore(req: &Value) -> R<Value> {
             if st["kind"] == "migrate" {
                 // SWR-MG-08: the tag the confirmation will carry is made now, while the key is here; the key is not kept.
                 st2["tag"] = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
+                // OI-PRIV-02: likewise the tag a claim of this bundle carries; a marker without it was not made by a key holder.
+                st2["claimTag"] = dispatch("claimTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
             }
             // SWR-MG-29 (c): the phone has now opened this epoch, and records it before it takes a claim or changes anything,
             // so a restore that stops part way still leaves it refusing anything older. The same bundle opens again.
@@ -447,16 +449,17 @@ fn restore(req: &Value) -> R<Value> {
                 "claimDecision",
                 &json!({
                     "kind": st["kind"], "route": { "atomicClaim": st["route"]["atomicClaim"] }, "token": st["token"],
-                    "bundleHash": st["hash"], "existingClaim": req["result"]["claim"],
+                    "bundleHash": st["hash"], "claimTag": st["claimTag"], "existingClaim": req["result"]["claim"],
                 }),
             )?;
             match d["action"].as_str().unwrap_or_default() {
                 "already_ours" | "no_claim_needed" => next_item(st),
                 "route_not_offered" => refused("route_not_offered"),
                 "refuse_claimed" => refused("claimed"),
+                "refuse_unauthentic" => refused("claim_unauthentic"),
                 _ => {
                     st["step"] = json!("claimW");
-                    let claim = json!({ "token": st["token"], "bundleHash": st["hash"] });
+                    let claim = json!({ "token": st["token"], "bundleHash": st["hash"], "tag": st["claimTag"] });
                     effect(st, json!({ "type": "createClaim", "claim": claim }))
                 }
             }
@@ -466,7 +469,7 @@ fn restore(req: &Value) -> R<Value> {
             effect(st, json!({ "type": "readClaim" }))
         }
         "claimBack" => {
-            let own = dispatch("claimReadback", &json!({ "token": st["token"], "bundleHash": st["hash"], "readBack": req["result"]["claim"] }))?;
+            let own = dispatch("claimReadback", &json!({ "token": st["token"], "bundleHash": st["hash"], "claimTag": st["claimTag"], "readBack": req["result"]["claim"] }))?;
             if own["owned"] == true {
                 next_item(st)
             } else {
@@ -933,6 +936,25 @@ mod tests {
         run("restore", params, route, p, secret)
     }
 
+    // @verifies SWR-MG-07
+    #[test]
+    fn a_planted_marker_is_refused_as_unauthentic_and_left_in_place() {
+        let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+        fill(&mut old);
+        backup("migrate", &mut route, &mut old, ATOMIC());
+        let planted = json!({"token":"anyone","bundleHash":"00"});
+        route.claim = Some(planted.clone());
+        let r = restore(&mut route, &mut fresh, SECRET);
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("claim_unauthentic")));
+        assert_eq!(route.claim, Some(planted), "the restore does not touch it");
+        assert!(holds_only_the_epoch(&fresh));
+        // A claim a key holder made is claimed, not planted.
+        let (mut other, mut first) = (Route::default(), phone(&ADAPTER, 90));
+        backup("migrate", &mut other, &mut old, ATOMIC());
+        assert_eq!(restore(&mut other, &mut first, SECRET)["ok"], true);
+        assert_eq!(restore(&mut other, &mut fresh, SECRET)["reason"], "claimed");
+    }
+
     // @verifies SWR-MG-02
     // @verifies SWR-MG-08
     #[test]
@@ -956,7 +978,7 @@ mod tests {
         assert_eq!(record, confirmation);
         assert!(!fresh.kv.contains_key("np.migration.pending-clear"), "the record never moves");
         let claim = route.claim.clone().unwrap();
-        assert_eq!(claim.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "token"]);
+        assert_eq!(claim.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "tag", "token"]);
     }
 
     // @verifies SWR-MG-01

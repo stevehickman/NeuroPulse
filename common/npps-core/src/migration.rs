@@ -294,12 +294,19 @@ fn claim_decision(req: &Value) -> R<Value> {
     if token.is_empty() || hash.is_empty() {
         return Err("a claim carries a token and a bundle hash".into());
     }
+    let tag = req["claimTag"].as_str().filter(|t| !t.is_empty()).ok_or("a claim carries a tag")?;
     let claim = &req["existingClaim"];
     if claim.is_null() {
         return Ok(json!({ "action": "write_claim" }));
     }
-    // A claim that is ours (written, then the restore was resumed) stands; anyone else's refuses.
-    if claim["token"].as_str() == Some(token) && claim["bundleHash"].as_str() == Some(hash) {
+    // OI-PRIV-02 (option A): a marker is a claim only when it is for this bundle and carries the tag a holder of the bundle
+    // key makes. Any other marker was planted, is refused with its own reason and is never touched.
+    let genuine = claim["bundleHash"].as_str() == Some(hash) && same_tag(claim["tag"].as_str().unwrap_or(""), tag);
+    if !genuine {
+        return Ok(json!({ "action": "refuse_unauthentic" }));
+    }
+    // A claim that is ours (written, then the restore was resumed) stands; another phone's refuses.
+    if claim["token"].as_str() == Some(token) {
         return Ok(json!({ "action": "already_ours" }));
     }
     Ok(json!({ "action": "refuse_claimed" }))
@@ -311,7 +318,11 @@ fn claim_decision(req: &Value) -> R<Value> {
 fn claim_readback(req: &Value) -> R<Value> {
     let (token, hash) = (req["token"].as_str().unwrap_or(""), req["bundleHash"].as_str().unwrap_or(""));
     let back = &req["readBack"];
-    let owned = !back.is_null() && back["token"].as_str() == Some(token) && back["bundleHash"].as_str() == Some(hash);
+    let tag = req["claimTag"].as_str().unwrap_or("");
+    let owned = !back.is_null()
+        && back["token"].as_str() == Some(token)
+        && back["bundleHash"].as_str() == Some(hash)
+        && same_tag(back["tag"].as_str().unwrap_or(""), tag);
     Ok(json!({ "owned": owned, "reason": if back.is_null() { "not_read_back" } else if owned { "ours" } else { "someone_elses" } }))
 }
 
@@ -331,6 +342,26 @@ fn confirmation_tag(req: &Value) -> R<Value> {
     let hash = req["bundleHash"].as_str().filter(|h| !h.is_empty()).ok_or("bundleHash is required")?;
     let mut mac_key = zeroize::Zeroizing::new([0u8; 32]);
     Hkdf::<Sha256>::new(None, &key).expand(CONFIRMATION_LABEL, &mut *mac_key).map_err(|_| "key derivation failed".to_string())?;
+    let mut m = <Hmac<Sha256> as Mac>::new_from_slice(&*mac_key).map_err(|_| "bad key".to_string())?;
+    m.update(hash.as_bytes());
+    Ok(json!({ "tag": hex(&m.finalize().into_bytes()) }))
+}
+
+/// `SWR-MG-07`: the label under which the claim key is derived from the bundle key (`OI-PRIV-02`).
+const CLAIM_LABEL: &[u8] = b"np-migration-claim-v1";
+
+/// `SWR-MG-07`: the tag a claim carries: HMAC-SHA-256 over the bundle hash under an HKDF-SHA-256 key from the bundle key with
+/// its own label. Only a phone that holds the bundle key can make it, so a marker planted by anyone else has none. It is
+/// published at the location and is not a secret; it is per bundle, not per token, so the restoring phone can check a
+/// marker without keeping the key past the step that opened the bundle.
+fn claim_tag(req: &Value) -> R<Value> {
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
+    if key.len() != KEY_LEN {
+        return Err(format!("the key is {KEY_LEN} bytes"));
+    }
+    let hash = req["bundleHash"].as_str().filter(|h| !h.is_empty()).ok_or("bundleHash is required")?;
+    let mut mac_key = zeroize::Zeroizing::new([0u8; 32]);
+    Hkdf::<Sha256>::new(None, &key).expand(CLAIM_LABEL, &mut *mac_key).map_err(|_| "key derivation failed".to_string())?;
     let mut m = <Hmac<Sha256> as Mac>::new_from_slice(&*mac_key).map_err(|_| "bad key".to_string())?;
     m.update(hash.as_bytes());
     Ok(json!({ "tag": hex(&m.finalize().into_bytes()) }))
@@ -620,6 +651,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "claimReadback" => claim_readback(req)?,
         "clearDecision" => clear_decision(req)?,
         "confirmationTag" => confirmation_tag(req)?,
+        "claimTag" => claim_tag(req)?,
         "clearPlan" => clear_plan(req)?,
         "probeResult" => probe_result(req)?,
         "objectNames" => crate::object_route::names(),
@@ -670,14 +702,16 @@ mod tests {
     }
 
     // One restore, as the app would run it: decide, write conditionally, read back, decide again.
+    const TAG: &str = "aa";
+
     fn try_claim(store: &Store, token: &str, hash: &str) -> bool {
         let existing = store.get("claim").unwrap_or(Value::Null);
-        let d = ask(json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":true},"token":token,"bundleHash":hash,"existingClaim":existing}));
+        let d = ask(json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":true},"token":token,"bundleHash":hash,"claimTag":TAG,"existingClaim":existing}));
         if d["action"] != "write_claim" {
             return d["action"] == "already_ours";
         }
-        store.create_if_absent("claim", json!({"token":token,"bundleHash":hash}));
-        ask(json!({"op":"claimReadback","token":token,"bundleHash":hash,"readBack":store.get("claim").unwrap_or(Value::Null)}))["owned"] == true
+        store.create_if_absent("claim", json!({"token":token,"bundleHash":hash,"tag":TAG}));
+        ask(json!({"op":"claimReadback","token":token,"bundleHash":hash,"claimTag":TAG,"readBack":store.get("claim").unwrap_or(Value::Null)}))["owned"] == true
     }
 
     // @verifies SWR-MG-07
@@ -712,20 +746,50 @@ mod tests {
     // @verifies SWR-MG-07
     #[test]
     fn a_uhdr_bundle_is_not_claimed_and_a_route_without_an_atomic_claim_is_not_used_to_migrate() {
-        let r = ask(json!({"op":"claimDecision","kind":"uhdr","route":{"atomicClaim":false},"token":"t","bundleHash":"h","existingClaim":null}));
+        let r = ask(json!({"op":"claimDecision","kind":"uhdr","route":{"atomicClaim":false},"token":"t","bundleHash":"h","claimTag":TAG,"existingClaim":null}));
         assert_eq!(r["action"], "no_claim_needed");
-        let r = ask(json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":false},"token":"t","bundleHash":"h","existingClaim":null}));
+        let r = ask(json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":false},"token":"t","bundleHash":"h","claimTag":TAG,"existingClaim":null}));
         assert_eq!(r["action"], "route_not_offered");
     }
 
     // @verifies SWR-MG-07
     #[test]
     fn a_claim_written_but_not_read_back_is_not_owned() {
-        let r = ask(json!({"op":"claimReadback","token":"t","bundleHash":"h","readBack":null}));
+        let r = ask(json!({"op":"claimReadback","token":"t","bundleHash":"h","claimTag":TAG,"readBack":null}));
         assert_eq!(r["owned"], false);
         assert_eq!(r["reason"], "not_read_back");
-        let r = ask(json!({"op":"claimReadback","token":"t","bundleHash":"h","readBack":{"token":"u","bundleHash":"h"}}));
+        let r = ask(json!({"op":"claimReadback","token":"t","bundleHash":"h","claimTag":TAG,"readBack":{"token":"u","bundleHash":"h","tag":TAG}}));
         assert_eq!(r["owned"], false);
+    }
+
+    // @verifies SWR-MG-07
+    #[test]
+    fn a_marker_with_no_tag_a_wrong_tag_or_another_bundle_is_refused_as_unauthentic_and_a_genuine_other_claim_as_claimed() {
+        let d = |claim: Value| ask(json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":true},"token":"t","bundleHash":"h","claimTag":TAG,"existingClaim":claim}))["action"].clone();
+        assert_eq!(d(json!({"token":"x","bundleHash":"h"})), "refuse_unauthentic", "no tag");
+        assert_eq!(d(json!({"token":"x","bundleHash":"h","tag":"bb"})), "refuse_unauthentic", "wrong tag");
+        assert_eq!(d(json!({"token":"t","bundleHash":"h","tag":"bb"})), "refuse_unauthentic", "our token is no proof");
+        assert_eq!(d(json!({"token":"x","bundleHash":"g","tag":TAG})), "refuse_unauthentic", "another bundle");
+        assert_eq!(d(json!({"token":"x","bundleHash":"h","tag":TAG})), "refuse_claimed", "another phone with the key");
+        assert_eq!(d(json!({"token":"t","bundleHash":"h","tag":TAG})), "already_ours");
+        assert!(migration_json(&json!({"op":"claimDecision","kind":"migrate","route":{"atomicClaim":true},"token":"t","bundleHash":"h","existingClaim":null}).to_string()).is_err(), "no tag, no claim");
+    }
+
+    // @verifies SWR-MG-07
+    #[test]
+    fn the_claim_tag_needs_the_bundle_key_and_is_bound_to_the_bundle_and_apart_from_the_confirmation_tag() {
+        let tag = |op: &str, key: &str, hash: &str| ask(json!({"op":op,"key":key,"bundleHash":hash}))["tag"].as_str().unwrap().to_string();
+        let (k1, k2) = (hex(&[0x11; 32]), hex(&[0x12; 32]));
+        let t = tag("claimTag", &k1, "h");
+        assert_eq!(t, tag("claimTag", &k1, "h"));
+        assert_ne!(t, tag("claimTag", &k2, "h"));
+        assert_ne!(t, tag("claimTag", &k1, "g"));
+        assert_ne!(t, tag("confirmationTag", &k1, "h"), "a confirmation tag is no claim tag");
+        let mut mk = [0u8; 32];
+        hkdf::Hkdf::<sha2::Sha256>::new(None, &[0x11; 32]).expand(b"np-migration-claim-v1", &mut mk).unwrap();
+        let mut m = <Hmac<Sha256> as Mac>::new_from_slice(&mk).unwrap();
+        m.update(b"h");
+        assert_eq!(t, hex(&m.finalize().into_bytes()));
     }
 
     // @verifies SWR-MG-08
