@@ -1120,7 +1120,7 @@ mod tests {
         fill(&mut old);
         backup("uhdr", &mut route, &mut old, ATOMIC());
         let found = run("inspect", json!({}), &mut route, &mut old, SECRET);
-        assert_eq!((found["kind"].clone(), found["method"].clone(), found["formatVersion"].clone()), (json!("uhdr"), json!("passphrase"), json!(2)));
+        assert_eq!((found["kind"].clone(), found["method"].clone(), found["formatVersion"].clone()), (json!("uhdr"), json!("passphrase"), json!(1)));
     }
 
     fn confirmed_route() -> (Route, Phone, String) {

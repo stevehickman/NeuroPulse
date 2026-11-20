@@ -30,9 +30,6 @@ enum class ArchiveProblem {
 
     /** Made by a newer build than this one. */
     NEWER_VERSION,
-
-    /** Made by a build from before files were sealed as named objects. It is not opened; the next backup seals the recordings again. */
-    OLDER_VERSION,
 }
 
 sealed interface ArchiveOpened {
@@ -114,11 +111,7 @@ object RecordingArchive {
 
     private fun headerProblem(archive: ByteArray): ArchiveProblem {
         val r = ask("archiveReadHeader") { put("bytes", archive.copyOfRange(0, minOf(archive.size, headerBytes + maxKdfBytes)).toHex()) }
-        return when (r["reason"]?.jsonPrimitive?.content) {
-            "newer_version" -> ArchiveProblem.NEWER_VERSION
-            "older_version" -> ArchiveProblem.OLDER_VERSION
-            else -> ArchiveProblem.MALFORMED
-        }
+        return if (r["reason"]?.jsonPrimitive?.content == "newer_version") ArchiveProblem.NEWER_VERSION else ArchiveProblem.MALFORMED
     }
 
     private fun join(parts: List<ByteArray>): ByteArray {

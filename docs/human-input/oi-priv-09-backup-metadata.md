@@ -34,7 +34,7 @@
 - **C. Pad to geometric buckets** (each bucket a fixed fraction larger than the last; "Padmé" from the PURBs paper, Nikitin et al., PETS 2019, is one published rule with at most about 12 % overhead; the sender has not checked the paper). Cost: about a tenth more space; the size changes rarely and a change says less each time. No block size to choose, but the rule itself needs its source checked.
 - **D. A fixed size,** refused when the history outgrows it. Cost: either wasteful or a limit on history. Not recommended.
 
-All of B to D change the bundle format (version 3; a version-2 reader refuses it whole, as the version-1 reader now refuses version 2).
+All of B to D change the bundle format. Whether that needs a version bump depends on whether a build that writes the present form has been released by then: the epoch and the object ID were added with no bump, because no copy of the earlier form should exist (the principal, 2026-11-19).
 
 **Q2. Are the recordings padded, and is their number hidden?** (`OI-BACKUP-01` item 1.)
 - **A. No.** Keep "not claimed hidden". Cost: the count and durations of sessions stay readable from the folder.
@@ -53,7 +53,7 @@ The sender's reading: B buys nothing unless the magic bytes and the clear header
 
 **Q5. Do `kind` and `method` leave the clear header?**
 - **A. No. Record that the header shows them.** Cost: the location knows which backups are locked by a passphrase, which are the only ones worth a guessing attack (a recovery code is 256 random bits), and when a move is under way.
-- **B. Move `kind` inside the seal and drop `method`.** The restore asks for "your recovery code or passphrase" and tells them apart by form (a recovery code has a fixed shape and a checksum, `bundle_key.rs`); the kind is shown after the bundle opens and before anything is applied, which still meets the words of `SWR-MG-05` ("readable before the bundle is restored") but changes the restore screen, which today shows the kind before asking for the secret. Cost: format version 3, a reworded screen, and one ambiguity to settle (a passphrase typed in the shape of a recovery code).
+- **B. Move `kind` inside the seal and drop `method`.** The restore asks for "your recovery code or passphrase" and tells them apart by form (a recovery code has a fixed shape and a checksum, `bundle_key.rs`); the kind is shown after the bundle opens and before anything is applied, which still meets the words of `SWR-MG-05` ("readable before the bundle is restored") but changes the restore screen, which today shows the kind before asking for the secret. Cost: a format change, a reworded screen, and one ambiguity to settle (a passphrase typed in the shape of a recovery code).
 - **C. Drop `method` only.** Removes the more useful of the two facts for the smaller change.
 
 The salt and the format version stay in the clear under every option.
