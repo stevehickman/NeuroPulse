@@ -19,15 +19,14 @@
 
 ## Current revision
 
-<<<<<<< HEAD
-**Rev 84 (2026-11-20) — §18: an economic reason also justifies a bound, and the reasons rank (the principal). No other locked decision changed.**
+**Rev 85 (2026-11-20) — §18: an economic reason also justifies a bound, and the reasons rank (the principal). No other locked decision changed.**
 
 **What changed.** §18's paragraph on derived bounds named three reasons a limit may rest on: research literature, an external standard, and a mechanical or implementation reason. It now names a fourth, an economic reason, with regulatory equivalence as the example, and ranks them: research is strongest, an economic reason is weaker, and either is better than none. An economic bound carries its reason and its cost of change beside it.
 
 **Why.** Asked whether the cervical VNS 1–25 Hz range should go for want of research, the principal ruled that an equivalence argument is an economic reason, not a research one, and still a reason, so the bound may stand if what it costs to change is on record. The range rests on the 510(k) equivalence to gammaCore's fixed 25 Hz (`NP-REG-CVNS-001` §3.2). Its reason and cost of change are now written in `common/npps/constants.json`, `np_cvns_config.h` and the compiler.
 
 **What it leaves.** The cost of changing the cervical VNS range has not been estimated; the notes say so. The authoring ranges listed in `UC-082` (TMS, clinical tACS and audio beat) have no reason of any kind yet and are not changed by this revision. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
-=======
+
 **Rev 84 (2026-11-20) — §6.0: warranty-owner consent is per helmet, and the warranty owner's data has its own store that never travels with a user's (the principal, `OI-PRIV-04`). No other locked decision changed.**
 
 **What changed.** §6.0 gains two bullets. Consent to SHDR upload is recorded per helmet; consent for one helmet opens nothing for another; revoking it ends that helmet's characterisation enrolment. The warranty owner's data (helmet health data, the owner's consents, the study enrolment) is kept in a store of its own, is backed up, restored and transferred independently of any user's data, and is collected on one warranty-owner page that is the first page when a new helmet is registered.
@@ -35,7 +34,6 @@
 **Why.** The privacy review of `common/` found one consent flag per install while uploads are per helmet, so one owner's consent sent another owner's device record (a clinic's helmet on a patient's phone), and found the study enrolment carried to a new phone inside the user's migration and health-data backup. The principal ruled (2026-11-20; brief `docs/human-input/oi-priv-04-warranty-consent-per-helmet.md`): per helmet (Q1); the old single flag counts as not granted and the owner is asked again (Q2); a revoke ends enrolment and enrolment is per helmet (Q3); and, on Q4, that helmet health data and study enrolment are not related to users and do not move with user data, that the warranty owner has a separate store and a separate page, and that the two kinds of data are backed up, restored and transferred independently. In a clinic several users share a helmet and the owner may never wear it; at home the owner is usually also a user and the two may run in parallel.
 
 **What it leaves.** Built: the per-helmet store and gates in the Kotlin core, the screen's per-helmet choice, and enrolment out of the user bundles (`REQ-SHDR-08` to `-10`). Not built, `OI-PRIV-20`: the owner's own backup, restore and transfer; the page as the first step of registering a helmet (no registration flow exists); a helmet identity that survives a change of phone; whether the owner's records are readable while the app is locked; the Swift app's gates. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
->>>>>>> origin/main
 
 **Rev 83 (2026-11-19) — §18: a derived bound is a function of its foundational value, and a fixed foundational value states why (the principal). No other locked decision changed.**
 
