@@ -30,7 +30,7 @@ import Foundation
 /// issuer must not rely on it to distinguish two descriptors — `studyID` is what does that.
 enum StudyDescriptorCanonicalForm {
 
-    /// `issuedAt` rendered the way Android already stores it. Fixed to UTC and to the POSIX
+    /// `issuedAt` or `expiresAt` rendered the way Android already stores it. Fixed to UTC and to the POSIX
     /// calendar: a device's locale must not change what a signature is checked against.
     static func day(from date: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
@@ -52,6 +52,7 @@ enum StudyDescriptorCanonicalForm {
         field(String(descriptor.kAnonymity))
         field(String(descriptor.dateRoundingDays))
         field(day(from: descriptor.issuedAt))
+        field(day(from: descriptor.expiresAt))
         return Data(out.utf8)
     }
 

@@ -75,6 +75,10 @@ class LoopbackRedirectTests {
         assertEquals(400, r.reply(head("nonsense")).status)
         assertEquals(400, r.reply(head("GET http://evil.example/cb HTTP/1.1")).status, "an absolute-form target")
         assertNull(r.reply(head("GET /cb HTTP/1.1", "evil.example:9004")).address)
+        // An address the caller says is not its answer is refused, and is no answer.
+        val forged = r.reply(head("GET /cb?error=access_denied HTTP/1.1")) { "state=s" in it }
+        assertEquals(400, forged.status); assertNull(forged.address)
+        assertEquals(200, r.reply(head("GET /cb?error=access_denied&state=s HTTP/1.1")) { "state=s" in it }.status)
         // A redirect with no path takes "/".
         assertEquals("http://127.0.0.1:9004/?code=c", LoopbackRedirect.parse("http://127.0.0.1:9004").reply(head("GET /?code=c HTTP/1.1")).address)
     }
@@ -168,5 +172,25 @@ class LoopbackAuthorizationLauncherTests {
         assertTrue(up)
         wait.cancelAndJoin()
         assertTrue(isClosed(port), "the listener was closed")
+    }
+
+    // @verifies SWR-MG-19#h
+    @Test
+    fun aRequestForTheRedirectWithoutThisRequestsStateDoesNotEndTheSignIn() = runBlocking {
+        val port = freePort()
+        val redirect = "http://127.0.0.1:$port/cb"
+        val statuses = mutableListOf<String>()
+        val launcher = LoopbackAuthorizationLauncher {
+            Thread {
+                // What a page open in the person's browser can make it request while a sign-in waits.
+                statuses += get(port, "/cb?error=access_denied").lineSequence().first()
+                statuses += get(port, "/cb?code=theirs&state=forged").lineSequence().first()
+                statuses += get(port, "/cb?code=real&state=mine").lineSequence().first()
+            }.start()
+        }
+        val back = withTimeout(10_000) { launcher.authorize("https://idp.example/auth", redirect) { CloudAuth.queryParams(it, true)["state"] == "mine" } }
+        assertEquals("$redirect?code=real&state=mine", back, "the forged requests did not end the sign-in")
+        for (i in 0 until 100) { if (statuses.size == 3) break; Thread.sleep(20) }
+        assertEquals(listOf("HTTP/1.1 400 Bad Request", "HTTP/1.1 400 Bad Request", "HTTP/1.1 200 OK"), statuses)
     }
 }

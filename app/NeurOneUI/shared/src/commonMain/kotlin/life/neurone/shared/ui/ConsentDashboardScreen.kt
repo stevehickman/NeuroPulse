@@ -185,7 +185,8 @@ private fun DashboardContent(
     val invitations = remember(version) {
         store.pendingInvitations.filter {
             it.isOpen && !store.consentRecordUnreadable &&
-                ConsentEngine.covers(store.researchConsent, it.researchCategories)
+                ConsentEngine.covers(store.researchConsent, it.researchCategories) &&
+                ConsentEngine.notExpired(it.expiresOnDay, todayIso())
         }
     }
     val expansions = remember(version) { store.expansionRequests.filter { it.isPending } }

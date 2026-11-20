@@ -11,6 +11,13 @@
  *   - app/windows/NeurOne/Protocol/NppsConstants.generated.cs
  *   - common/npps-ffi/include/neurone_npps_status.h                              (the C ABI's return codes)
  *
+ * It also writes the control bounds, from common/npps/bounds.json: every range the web, Compose and iOS apps apply
+ * to a parameter, a clinician limit or a timing field, in one file (the principal, 2026-11-15):
+ *
+ *   - common/lib/bounds.generated.ts                                             (web app)
+ *   - common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsBounds.generated.kt   (Compose, Android)
+ *   - app/ios/NeurOne/Protocol/NppsBounds.generated.swift                        (iOS)
+ *
  *   bun scripts/sync-constants.ts           # rewrite the outputs
  *   bun scripts/sync-constants.ts --check   # fail, writing nothing, if any is stale (CI)
  *
@@ -164,19 +171,222 @@ function cGatt(): string {
   return `/* ${BANNER} */\n#ifndef NP_APP_WIRE_CONSTANTS_H\n#define NP_APP_WIRE_CONSTANTS_H\n\n${base}\n${ids}\n${sizes}\n#endif /* NP_APP_WIRE_CONSTANTS_H */\n`;
 }
 
+// ─── Control bounds (common/npps/bounds.json) ────────────────────────────────
+
+const BOUNDS_SOURCE = 'common/npps/bounds.json';
+const BASES = ['natural', 'hardware', 'practical', 'safety', 'unestablished'] as const;
+interface RawEdge { value?: number; ref?: string; basis: string; source: string }
+interface RawBound { id: string; min?: RawEdge; max?: RawEdge; step: number; unbounded?: string }
+interface Edge { value: number; ref?: string; basis: string; source: string }
+interface Bound { id: string; min?: Edge; max?: Edge; step: number; unbounded?: string }
+
+/** The namespace of an id, as the name every language gives it. `protocol` is `ProtocolFields` because `Protocol` is a Swift keyword. */
+const NAMESPACES: Record<string, { display: string; depth: number; ts: string }> = {
+  interval: { display: 'Interval', depth: 2, ts: 'INTERVAL_BOUNDS' },
+  param: { display: 'Param', depth: 3, ts: 'PARAM_BOUNDS' },
+  protocol: { display: 'ProtocolFields', depth: 2, ts: 'PROTOCOL_BOUNDS' },
+  limit: { display: 'Limit', depth: 3, ts: 'LIMIT_BOUNDS' },
+};
+
+const constantValue = new Map<string, number>();
+for (const g of groups) for (const k of g.constants) if (typeof k.value === 'number') constantValue.set(k.name, k.value);
+
+function readBounds(): Bound[] {
+  const raw = (JSON.parse(readFileSync(join(ROOT, BOUNDS_SOURCE), 'utf8')) as { bounds: RawBound[] }).bounds;
+  const seen = new Set<string>();
+  const resolve = (id: string, side: string, e: RawEdge | undefined): Edge | undefined => {
+    if (e === undefined) return undefined;
+    if (!(BASES as readonly string[]).includes(e.basis)) fail(`${id}.${side}: basis "${e.basis}" is not one of ${BASES.join(', ')}`);
+    if (!e.source || !e.source.trim()) fail(`${id}.${side}: an edge states its source`);
+    if ((e.value === undefined) === (e.ref === undefined)) fail(`${id}.${side}: an edge has exactly one of value and ref`);
+    if (e.ref !== undefined) {
+      const v = constantValue.get(e.ref);
+      if (v === undefined) fail(`${id}.${side}: ref ${e.ref} is not a numeric constant in ${SOURCE}`);
+      return { value: v, ref: e.ref, basis: e.basis, source: e.source };
+    }
+    if (!Number.isFinite(e.value)) fail(`${id}.${side}: value is not a finite number`);
+    return { value: e.value as number, basis: e.basis, source: e.source };
+  };
+  return raw.map(b => {
+    if (seen.has(b.id)) fail(`${BOUNDS_SOURCE}: ${b.id} is listed twice`);
+    seen.add(b.id);
+    const parts = b.id.split('.');
+    const ns = NAMESPACES[parts[0]];
+    if (!ns || parts.length !== ns.depth) fail(`${BOUNDS_SOURCE}: ${b.id} is not <namespace>.${ns && ns.depth === 3 ? '<group>.' : ''}<field> in interval, param, protocol or limit`);
+    if (parts.some(x => !/^[a-z][A-Za-z0-9]*$/.test(x))) fail(`${BOUNDS_SOURCE}: ${b.id} has a segment that is not a camelCase identifier`);
+    if (!(b.step > 0)) fail(`${b.id}: step must be above 0`);
+    const min = resolve(b.id, 'min', b.min);
+    const max = resolve(b.id, 'max', b.max);
+    if (min && max && !(min.value < max.value)) fail(`${b.id}: min ${min.value} is not below max ${max.value}`);
+    if ((!min || !max) && !(b.unbounded && b.unbounded.trim())) fail(`${b.id}: a side left open says why in "unbounded"`);
+    return { id: b.id, min, max, step: b.step, unbounded: b.unbounded };
+  });
+}
+
+const BOUNDS = readBounds();
+const upperFirst = (x: string) => x[0].toUpperCase() + x.slice(1);
+const num = (v: number) => (Number.isInteger(v) ? `${v}.0` : String(v));
+const kt = (text: string) => JSON.stringify(text).replace(/\$/g, '\\$');
+
+/** The bounds of one namespace as a tree: group -> field -> bound for a three-part id, field -> bound for a two-part one. */
+function tree(ns: string): Array<{ group?: string; fields: Bound[] }> {
+  const rows = BOUNDS.filter(b => b.id.startsWith(`${ns}.`));
+  if (NAMESPACES[ns].depth === 2) return [{ fields: rows }];
+  const groups: Array<{ group?: string; fields: Bound[] }> = [];
+  for (const b of rows) {
+    const group = b.id.split('.')[1];
+    let g = groups.find(x => x.group === group);
+    if (!g) { g = { group, fields: [] }; groups.push(g); }
+    g.fields.push(b);
+  }
+  return groups;
+}
+const fieldOf = (b: Bound) => b.id.split('.').pop()!;
+
+function boundsTs(): string {
+  const edge = (e: Edge | undefined, key: string, indent: string) =>
+    e ? `${indent}${key}: { value: ${e.value}${e.ref ? ` /* ${e.ref} */` : ''}, basis: '${e.basis}', source: ${JSON.stringify(e.source)} },\n` : '';
+  const one = (b: Bound, indent: string) =>
+    `${indent}${fieldOf(b)}: {\n${edge(b.min, 'min', indent + '  ')}${edge(b.max, 'max', indent + '  ')}${indent}  step: ${b.step},\n${b.unbounded ? `${indent}  unbounded: ${JSON.stringify(b.unbounded)},\n` : ''}${indent}},\n`;
+  const body = Object.keys(NAMESPACES).map(ns => {
+    const t = tree(ns);
+    const rows = NAMESPACES[ns].depth === 2
+      ? t[0].fields.map(b => one(b, '  ')).join('')
+      : t.map(g => `  ${g.group}: {\n${g.fields.map(b => one(b, '    ')).join('')}  },\n`).join('');
+    const shape = NAMESPACES[ns].depth === 2 ? 'NPBound' : 'Record<string, NPBound>';
+    return `export const ${NAMESPACES[ns].ts} = {\n${rows}} as const satisfies Record<string, ${shape}>;\n`;
+  }).join('\n');
+  return `// ${BOUNDS_BANNER}
+
+export type NPBoundBasis = 'natural' | 'hardware' | 'practical' | 'safety' | 'unestablished';
+
+export interface NPBoundEdge {
+  readonly value: number;
+  readonly basis: NPBoundBasis;
+  /** Where the figure comes from, or why it is carried without one. */
+  readonly source: string;
+}
+
+export interface NPBound {
+  readonly min?: NPBoundEdge;
+  readonly max?: NPBoundEdge;
+  /** The smallest change a person can make with the control, in the control's own unit. */
+  readonly step: number;
+  /** For a side left open on purpose: why it is open. */
+  readonly unbounded?: string;
+}
+
+${body}`;
+}
+
+function boundsKotlin(): string {
+  const edge = (e: Edge | undefined) => (e ? `NPBoundEdge(${num(e.value)}, "${e.basis}", ${kt(e.source)})` : 'null');
+  const one = (b: Bound, indent: string) =>
+    `${indent}val ${fieldOf(b)} = NPBound(\n${indent}    min = ${edge(b.min)},\n${indent}    max = ${edge(b.max)},\n${indent}    step = ${num(b.step)},\n${b.unbounded ? `${indent}    unbounded = ${kt(b.unbounded)},\n` : ''}${indent})\n`;
+  const body = Object.keys(NAMESPACES).map(ns => {
+    const t = tree(ns);
+    const rows = NAMESPACES[ns].depth === 2
+      ? t[0].fields.map(b => one(b, '        ')).join('')
+      : t.map(g => `        object ${upperFirst(g.group!)} {\n${g.fields.map(b => one(b, '            ')).join('')}        }\n`).join('');
+    return `    object ${NAMESPACES[ns].display} {\n${rows}    }\n`;
+  }).join('');
+  return `package life.neurone.core.protocol
+
+// ${BOUNDS_BANNER}
+
+class NPBoundEdge(val value: Double, val basis: String, val source: String)
+
+/** One range a control applies. A side with no edge is open on purpose and \`unbounded\` says why. */
+class NPBound(val min: NPBoundEdge?, val max: NPBoundEdge?, val step: Double, val unbounded: String? = null) {
+    /** Both sides as a range; an open side is infinite, so a typed field can hold it and a slider cannot. */
+    val range: ClosedFloatingPointRange<Double>
+        get() = (min?.value ?: Double.NEGATIVE_INFINITY)..(max?.value ?: Double.POSITIVE_INFINITY)
+
+    /** The range of a whole-number field. Needs both sides. */
+    val intRange: IntRange
+        get() {
+            val lo = requireNotNull(min) { "intRange needs both sides of the range" }
+            val hi = requireNotNull(max) { "intRange needs both sides of the range" }
+            return lo.value.toInt()..hi.value.toInt()
+        }
+}
+
+object NPBounds {
+${body}}
+`;
+}
+
+function boundsSwift(): string {
+  const sw = (text: string) => JSON.stringify(text);
+  const edge = (e: Edge | undefined) => (e ? `NPBoundEdge(value: ${num(e.value)}, basis: "${e.basis}", source: ${sw(e.source)})` : 'nil');
+  const one = (b: Bound, indent: string) =>
+    `${indent}static let ${fieldOf(b)} = NPBound(\n${indent}    min: ${edge(b.min)},\n${indent}    max: ${edge(b.max)},\n${indent}    step: ${num(b.step)},\n${indent}    unbounded: ${b.unbounded ? sw(b.unbounded) : 'nil'}\n${indent})\n`;
+  const body = Object.keys(NAMESPACES).map(ns => {
+    const t = tree(ns);
+    const rows = NAMESPACES[ns].depth === 2
+      ? t[0].fields.map(b => one(b, '        ')).join('')
+      : t.map(g => `        enum ${upperFirst(g.group!)} {\n${g.fields.map(b => one(b, '            ')).join('')}        }\n`).join('');
+    return `    enum ${NAMESPACES[ns].display} {\n${rows}    }\n`;
+  }).join('');
+  return `import Foundation
+
+// ${BOUNDS_BANNER}
+
+// swiftlint:disable file_length line_length nesting
+
+struct NPBoundEdge {
+    let value: Double
+    let basis: String
+    let source: String
+}
+
+/// One range a control applies. A side with no edge is open on purpose and \`unbounded\` says why.
+struct NPBound {
+    let min: NPBoundEdge?
+    let max: NPBoundEdge?
+    let step: Double
+    let unbounded: String?
+
+    /// Both sides as a range; an open side is infinite, so a typed field can hold it and a slider cannot.
+    var range: ClosedRange<Double> {
+        (min?.value ?? -Double.infinity)...(max?.value ?? Double.infinity)
+    }
+
+    /// The range of a whole-number field. Needs both sides.
+    var intRange: ClosedRange<Int> {
+        guard let lo = min, let hi = max else { preconditionFailure("intRange needs both sides of the range") }
+        return Int(lo.value)...Int(hi.value)
+    }
+
+    /// The step of a whole-number field.
+    var intStep: Int { Int(step) }
+}
+
+enum NPBounds {
+${body}}
+
+// swiftlint:enable file_length line_length nesting
+`;
+}
+
+const BOUNDS_BANNER = `GENERATED by scripts/sync-constants.ts from ${BOUNDS_SOURCE}. DO NOT EDIT: change the JSON and re-run it.`;
+
 const OUTPUTS: Array<[string, string]> = [
   ['common/lib/constants.generated.ts', ts()],
   ['common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt', kotlin()],
   ['app/windows/NeurOne/Protocol/NppsConstants.generated.cs', csharp()],
   ['common/npps-ffi/include/neurone_npps_status.h', c()],
   ['firmware/common/include/np_app_wire_constants.h', cGatt()],
+  ['common/lib/bounds.generated.ts', boundsTs()],
+  ['common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsBounds.generated.kt', boundsKotlin()],
+  ['app/ios/NeurOne/Protocol/NppsBounds.generated.swift', boundsSwift()],
 ];
 
 if (process.argv.includes('--check')) {
   const stale = OUTPUTS.filter(([p, text]) => !existsSync(join(ROOT, p)) || readFileSync(join(ROOT, p), 'utf8') !== text).map(([p]) => p);
   if (stale.length) fail(`stale (run: bun scripts/sync-constants.ts)\n  ${stale.join('\n  ')}`);
-  console.log(`sync-constants: ${groups.reduce((n, g) => n + g.constants.length, 0)} constants in ${groups.length} groups, ${OUTPUTS.length} outputs up to date`);
+  console.log(`sync-constants: ${groups.reduce((n, g) => n + g.constants.length, 0)} constants in ${groups.length} groups and ${BOUNDS.length} bounds, ${OUTPUTS.length} outputs up to date`);
 } else {
   for (const [p, text] of OUTPUTS) writeFileSync(join(ROOT, p), text);
-  console.log(`sync-constants: wrote ${OUTPUTS.length} files from ${groups.length} groups`);
+  console.log(`sync-constants: wrote ${OUTPUTS.length} files from ${groups.length} groups and ${BOUNDS.length} bounds`);
 }

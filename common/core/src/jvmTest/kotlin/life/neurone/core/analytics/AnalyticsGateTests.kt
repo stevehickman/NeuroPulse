@@ -59,11 +59,11 @@ class AnalyticsGateTests {
         val props = mapOf(
             "app_version" to "1.0.3", "os_version" to "Android 15.0", "device_class" to "Android_mid",
             "screen_name" to "protocol_detail", "engagement_tier" to "established", "app_start_type" to "warm_start",
-            "onboarding_step" to "consent_flow_step_2", "error_code" to "12", "connectivity_type" to "cellular",
+            "onboarding_step" to "consent_flow_step_2", "error_code" to "1001", "connectivity_type" to "cellular",
         )
         gate.track("app_opened", props)
-        gate.track("app_foregrounded", emptyMap())
-        assertEquals(listOf("app_opened" to props, "app_foregrounded" to emptyMap()), backend.trackedEvents)
+        gate.track("screen_viewed", emptyMap())
+        assertEquals(listOf("app_opened" to props, "screen_viewed" to emptyMap()), backend.trackedEvents)
     }
 
     // @verifies REQ-SW03-07
@@ -76,23 +76,32 @@ class AnalyticsGateTests {
             "imp", "impedance", "impedance_flags", "pass_flags",
             "heart_rate", "alpha_power", "electrode_site", "condition", "email", "duration_s", "timestamp",
         )) {
-            gate.track("evt", mapOf(key to "1", "engagement_tier" to "new"))
+            gate.track("app_opened", mapOf(key to "1", "engagement_tier" to "new"))
         }
         assertTrue(backend.trackedEvents.isEmpty())
-        gate.track("evt", mapOf("engagement_tier" to "new"))
+        gate.track("app_opened", mapOf("engagement_tier" to "new"))
         assertEquals(1, backend.trackedEvents.size)
     }
 
     // @verifies REQ-SW03-07
     @Test
-    fun trackDropsAnEventWithAValueNotOfItsPropertysFormOrAnEventNameThatCarriesAHealthTerm() {
+    fun trackDropsAnEventWithAValueNotOfItsPropertysFormOrANameThatIsNotOnTheList() {
         val (gate, backend) = openGate()
-        gate.track("evt", mapOf("engagement_tier" to "42"))            // the raw count the tier replaced
-        gate.track("evt", mapOf("screen_name" to "tdcs_depression"))   // a protocol or condition as a screen
-        gate.track("evt", mapOf("error_code" to "1746000000000"))      // a timestamp in an error code
-        gate.track("evt", mapOf("os_version" to "Android 15.0.1"))     // a patch version
-        gate.track("tdcs_started", emptyMap())                         // a modality in the event name
-        gate.track("User Email Sent", emptyMap())                      // not snake_case
+        gate.track("app_opened", mapOf("engagement_tier" to "42"))            // the raw count the tier replaced
+        gate.track("app_opened", mapOf("screen_name" to "tdcs_depression"))   // a protocol or condition as a screen
+        gate.track("app_opened", mapOf("error_code" to "1746000000000"))      // a timestamp in an error code
+        gate.track("app_opened", mapOf("os_version" to "Android 15.0.1"))     // a patch version
+        gate.track("tdcs_started", emptyMap())                                // a modality in the event name
+        gate.track("User Email Sent", emptyMap())                             // not a listed name
+        // OI-PRIV-05: a well-shaped name nobody listed, a session or consent screen, and a helmet fault slot as an error code.
+        gate.track("stim_2ma_done", emptyMap())
+        gate.track("evt", mapOf("engagement_tier" to "new"))
+        for (screen in listOf("session_setup", "session_active", "session_results", "research_consent", "clinical_consent")) {
+            gate.track("screen_viewed", mapOf("screen_name" to screen))
+        }
+        for (code in listOf("3", "42", "251", "255")) {
+            gate.track("error_reported", mapOf("error_code" to code))
+        }
         assertTrue(backend.trackedEvents.isEmpty())
     }
 
@@ -185,78 +194,116 @@ class AnalyticsGateTests {
     @Test
     fun warrantyGateIndependentOfResearchKey() {
         val store = InMemoryKeyValueStore()
-        val warranty = WarrantyAnalyticsGate(store)
-        warranty.grant()
-        assertTrue(warranty.isOpen)
+        val warranty = WarrantyAnalyticsGate(WarrantyOwnerStore(store))
+        warranty.grant(HELMET_A)
+        assertTrue(warranty.isOpen(HELMET_A))
         // Clearing the research key has no effect on warranty consent.
         store.remove(PersistedKeys.RESEARCH_ANALYTICS_KEY)
-        assertTrue(warranty.isOpen)
-        warranty.revoke()
-        assertFalse(warranty.isOpen)
+        assertTrue(warranty.isOpen(HELMET_A))
+    }
+}
+
+private const val HELMET_A = "AA:BB:CC:00:00:01"
+private const val HELMET_B = "AA:BB:CC:00:00:02"
+
+// ── WarrantyAnalyticsGate and the warranty owner's store (OI-PRIV-04) ─────
+//
+// As below, every refusal is asserted beside a control that succeeds.
+
+class WarrantyOwnerConsentTests {
+
+    private fun gate(store: InMemoryKeyValueStore = InMemoryKeyValueStore()) = WarrantyAnalyticsGate(WarrantyOwnerStore(store))
+
+    // @verifies REQ-SHDR-08#a
+    @Test
+    fun consentForOneHelmetOpensNothingForAnother() {
+        val warranty = gate()
+        assertTrue(warranty.grant(HELMET_A))
+        assertTrue(warranty.isOpen(HELMET_A))
+        assertFalse(warranty.isOpen(HELMET_B), "a clinic's helmet met by a phone whose own helmet is consented")
+        assertFalse(warranty.isDecided(HELMET_B), "the second helmet's owner has not been asked")
+        assertTrue(warranty.isDecided(HELMET_A))
     }
 
-    // ── EngagementTier boundaries (ISC-25) ───────────────────────────────
-
-    // @verifies REQ-SW03-07
+    // @verifies REQ-SHDR-08#b
     @Test
-    fun engagementTierBucketsMatchSpec() {
+    fun withNoHelmetNamedTheGateIsClosedAndAGrantIsRefused() {
         val store = InMemoryKeyValueStore()
-        fun tierAt(count: Int): EngagementTier {
-            store.putInt(EngagementTier.LAUNCH_COUNT_KEY, count)
-            return EngagementTier.current(store)
+        val warranty = gate(store)
+        assertFalse(warranty.grant(null), "consent with no helmet would be consent for whichever connects next")
+        assertFalse(warranty.isOpen(null))
+        assertNull(store.getString(WarrantyOwnerStore.RECORDS_KEY), "nothing was recorded")
+        warranty.revoke(null)
+        assertNull(store.getString(WarrantyOwnerStore.RECORDS_KEY))
+        // Control: the same gate records a grant once a helmet is named, and it does not open the gate for "no helmet".
+        assertTrue(warranty.grant(HELMET_A))
+        assertTrue(warranty.isOpen(HELMET_A))
+        assertFalse(warranty.isOpen(null))
+    }
+
+    // @verifies REQ-SHDR-08#c
+    @Test
+    fun revokingOneHelmetLeavesTheOtherAsItWas() {
+        val warranty = gate()
+        warranty.grant(HELMET_A)
+        warranty.grant(HELMET_B)
+        warranty.revoke(HELMET_A)
+        assertFalse(warranty.isOpen(HELMET_A))
+        assertTrue(warranty.isOpen(HELMET_B))
+        assertTrue(warranty.isDecided(HELMET_A), "a revoke is a decision, not a return to never asked")
+    }
+
+    // @verifies REQ-SHDR-08#d
+    @Test
+    fun theOneFlagAnEarlierVersionKeptOpensNothingAndIsRemoved() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(PersistedKeys.WARRANTY_CONSENT_KEY, true)
+        val warranty = gate(store)
+        assertFalse(warranty.isOpen(HELMET_A), "the old consent cannot be attributed to a helmet, so the owner is asked again")
+        assertFalse(warranty.isDecided(HELMET_A))
+        assertFalse(store.getBoolean(PersistedKeys.WARRANTY_CONSENT_KEY), "the old flag is removed")
+        // Even if the flag comes back (a run that could not write), nothing reads it.
+        store.putBoolean(PersistedKeys.WARRANTY_CONSENT_KEY, true)
+        assertFalse(warranty.isOpen(HELMET_A))
+        // Control: asking again works.
+        warranty.grant(HELMET_A)
+        assertTrue(warranty.isOpen(HELMET_A))
+    }
+
+    // @verifies REQ-SHDR-10#a
+    @Test
+    fun theOwnersRecordsAreOneValueOfTheirOwnKeyedByASaltedHashAndNeverByTheIdentifier() {
+        val store = InMemoryKeyValueStore()
+        val warranty = gate(store)
+        val enrolment = CharacterisationEnrolmentGate(WarrantyOwnerStore(store), warranty)
+        warranty.grant(HELMET_A)
+        enrolment.grant(HELMET_A)
+        warranty.grant(HELMET_B)
+        val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
+        assertFalse(HELMET_A in value || HELMET_B in value, "the helmet's Bluetooth address is not stored")
+        val lines = value.lines()
+        assertEquals(3, lines.size, "a salt and one line per helmet")
+        assertTrue(lines.drop(1).all { it.substringBefore('\t').matches(Regex("^[0-9a-f]{64}$")) })
+        // Consent and enrolment are in this one value and under none of the keys an earlier version used.
+        WarrantyOwnerStore.LEGACY_KEYS.forEach { assertNull(store.getString(it)); assertFalse(store.getBoolean(it)); assertEquals(0, store.getInt(it)) }
+        // The device tokens are another value with another salt: the two tables do not share a line.
+        assertNull(store.getString(FleetUploader.TOKEN_PREF))
+        // The key is no user's or research key.
+        assertTrue(WarrantyOwnerStore.RECORDS_KEY !in listOf(PersistedKeys.RESEARCH_ANALYTICS_KEY, FleetUploader.TOKEN_PREF))
+    }
+
+    // @verifies REQ-SHDR-10#a
+    @Test
+    fun aLineThatDoesNotReadAsARecordGrantsNothing() {
+        val store = InMemoryKeyValueStore()
+        val warranty = gate(store)
+        warranty.grant(HELMET_A)
+        assertTrue(warranty.isOpen(HELMET_A))
+        val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
+        for (bad in listOf("v1,2,0,0,0", "v2,1,0,0,0", "v1,1,0,-1,0", "v1,1,0,0", "true")) {
+            store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace("v1,1,0,0,0", bad))
+            assertFalse(warranty.isOpen(HELMET_A), bad)
         }
-        assertEquals(EngagementTier.NEW, tierAt(0))
-        assertEquals(EngagementTier.NEW, tierAt(5))
-        assertEquals(EngagementTier.ACTIVE, tierAt(6))
-        assertEquals(EngagementTier.ACTIVE, tierAt(50))
-        assertEquals(EngagementTier.ESTABLISHED, tierAt(51))
-    }
-
-    // @verifies REQ-SW03-07
-    @Test
-    fun theTierLabelsAreTheExactStringsTheTelemetrySpecNames() {
-        assertEquals("new", EngagementTier.NEW.label)
-        assertEquals("active", EngagementTier.ACTIVE.label)
-        assertEquals("established", EngagementTier.ESTABLISHED.label)
-    }
-
-    // @verifies REQ-SW03-07
-    @Test
-    fun aVeryLargeLaunchCountIsStillEstablished() {
-        val store = InMemoryKeyValueStore()
-        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 1_000_000)
-        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store))
-    }
-
-    // @verifies REQ-SW03-07
-    @Test
-    fun theLaunchThatCrossesABoundaryMovesTheTier() {
-        val store = InMemoryKeyValueStore()
-        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 5)
-        EngagementTier.incrementLaunchCount(store)
-        assertEquals(EngagementTier.ACTIVE, EngagementTier.current(store), "the 6th launch")
-        store.putInt(EngagementTier.LAUNCH_COUNT_KEY, 50)
-        EngagementTier.incrementLaunchCount(store)
-        assertEquals(EngagementTier.ESTABLISHED, EngagementTier.current(store), "the 51st launch")
-    }
-
-    // @verifies REQ-SW03-07
-    @Test
-    fun incrementingFromAbsentYieldsOneAndTenIncrementsAccumulate() {
-        val store = InMemoryKeyValueStore()
-        EngagementTier.incrementLaunchCount(store)
-        assertEquals(1, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
-        repeat(10) { EngagementTier.incrementLaunchCount(store) }
-        assertEquals(11, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
-    }
-
-    // @verifies REQ-SW03-07
-    @Test
-    fun incrementLaunchCountIncrements() {
-        val store = InMemoryKeyValueStore()
-        EngagementTier.incrementLaunchCount(store)
-        EngagementTier.incrementLaunchCount(store)
-        assertEquals(2, store.getInt(EngagementTier.LAUNCH_COUNT_KEY))
     }
 }
 
@@ -271,98 +318,162 @@ class CharacterisationEnrolmentGateTests {
     private fun gates(warrantyOpen: Boolean = true):
         Triple<InMemoryKeyValueStore, WarrantyAnalyticsGate, CharacterisationEnrolmentGate> {
         val store = InMemoryKeyValueStore()
-        val warranty = WarrantyAnalyticsGate(store)
-        if (warrantyOpen) warranty.grant()
-        return Triple(store, warranty, CharacterisationEnrolmentGate(store, warranty))
+        val records = WarrantyOwnerStore(store)
+        val warranty = WarrantyAnalyticsGate(records)
+        if (warrantyOpen) warranty.grant(HELMET_A)
+        return Triple(store, warranty, CharacterisationEnrolmentGate(records, warranty))
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun closedUntilAffirmativelyGranted() {
         val (_, _, char) = gates()
-        assertFalse(char.isOpen, "warranty consent alone must not enrol a device")
-        assertEquals(0, char.consentEpoch)
+        assertFalse(char.isOpen(HELMET_A), "warranty consent alone must not enrol a device")
+        assertEquals(0, char.consentEpoch(HELMET_A))
 
         // Control: the path works when the owner actually opts in.
-        assertEquals(1, char.grant())
-        assertTrue(char.isOpen)
+        assertEquals(1, char.grant(HELMET_A))
+        assertTrue(char.isOpen(HELMET_A))
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun grantIsRefusedWithoutWarrantyConsent() {
         val (_, _, char) = gates(warrantyOpen = false)
-        assertNull(char.grant(), "enrolling a device with no SHDR consent is incoherent")
-        assertFalse(char.isOpen)
+        assertNull(char.grant(HELMET_A), "enrolling a device with no SHDR consent is incoherent")
+        assertFalse(char.isOpen(HELMET_A))
     }
 
-    // @verifies REQ-SW02-04
+    // @verifies REQ-SHDR-09#a
     @Test
-    fun revokingWarrantyConsentClosesCharacterisation() {
+    fun enrolmentOfOneHelmetEnrolsNoOtherAndNeedsThatHelmetsWarrantyConsent() {
         val (_, warranty, char) = gates()
-        char.grant()
-        assertTrue(char.isOpen)
-        warranty.revoke()
-        assertFalse(char.isOpen, "the extended set must not outlive SHDR consent itself")
+        assertEquals(1, char.grant(HELMET_A))
+        assertFalse(char.isOpen(HELMET_B))
+        assertNull(char.grant(HELMET_B), "helmet A's warranty consent does not let helmet B be enrolled")
+        assertNull(char.grant(null))
+        assertFalse(char.isOpen(null))
+        // Even with its own warranty consent, B is not enrolled by A's enrolment.
+        warranty.grant(HELMET_B)
+        assertFalse(char.isOpen(HELMET_B))
+        assertEquals(0, char.consentEpoch(HELMET_B))
+        // Control: B enrols by its own opt-in, with its own epoch, and A is untouched.
+        assertEquals(1, char.grant(HELMET_B))
+        assertTrue(char.isOpen(HELMET_B) && char.isOpen(HELMET_A))
+        char.withdraw(HELMET_B)
+        assertTrue(char.isOpen(HELMET_A))
+    }
+
+    // @verifies REQ-SHDR-09#b
+    @Test
+    fun revokingWarrantyConsentWithdrawsTheEnrolmentAndARegrantDoesNotBringItBack() {
+        val (_, warranty, char) = gates()
+        char.grant(HELMET_A)
+        assertTrue(char.isOpen(HELMET_A))
+        warranty.revoke(HELMET_A)
+        assertFalse(char.isOpen(HELMET_A), "the extended set must not outlive SHDR consent itself")
+
+        // The re-grant may be a new owner's: it opens ordinary reports and nothing more.
+        warranty.grant(HELMET_A)
+        assertTrue(warranty.isOpen(HELMET_A))
+        assertFalse(char.isOpen(HELMET_A), "no fresh opt-in was given")
+        assertEquals(1, char.consentEpoch(HELMET_A), "the epoch is kept")
+
+        // Control: a fresh opt-in enrols again, as a later grant.
+        assertEquals(2, char.grant(HELMET_A))
+        assertTrue(char.isOpen(HELMET_A))
+    }
+
+    // @verifies REQ-SHDR-09#b
+    @Test
+    fun revokingOneHelmetsWarrantyConsentLeavesAnotherHelmetsEnrolment() {
+        val (_, warranty, char) = gates()
+        warranty.grant(HELMET_B)
+        char.grant(HELMET_A)
+        char.grant(HELMET_B)
+        warranty.revoke(HELMET_A)
+        assertFalse(char.isOpen(HELMET_A))
+        assertTrue(char.isOpen(HELMET_B))
+    }
+
+    // @verifies REQ-SHDR-09#c
+    @Test
+    fun theEnrolmentAnEarlierVersionKeptEnrolsNothingAndIsRemoved() {
+        val store = InMemoryKeyValueStore()
+        store.putBoolean(PersistedKeys.WARRANTY_CONSENT_KEY, true)
+        store.putBoolean(PersistedKeys.ENROLMENT_KEY, true)
+        store.putInt(PersistedKeys.CONSENT_EPOCH_KEY, 3)
+        store.putInt(PersistedKeys.PROGRAMME_ID_KEY, PersistedKeys.CURRENT_PROGRAMME_ID)
+        val records = WarrantyOwnerStore(store)
+        val warranty = WarrantyAnalyticsGate(records)
+        val char = CharacterisationEnrolmentGate(records, warranty)
+        warranty.grant(HELMET_A)
+        assertFalse(char.isOpen(HELMET_A), "an install-wide enrolment cannot be attributed to a helmet")
+        assertEquals(0, char.consentEpoch(HELMET_A))
+        assertFalse(store.getBoolean(PersistedKeys.ENROLMENT_KEY))
+        assertEquals(0, store.getInt(PersistedKeys.CONSENT_EPOCH_KEY))
+        assertEquals(0, store.getInt(PersistedKeys.PROGRAMME_ID_KEY))
+        // Control: the owner's own opt-in for this helmet enrols it.
+        assertEquals(1, char.grant(HELMET_A))
+        assertTrue(char.isOpen(HELMET_A))
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun withdrawalStopsCollectionButKeepsTheEpochMonotone() {
         val (_, _, char) = gates()
-        assertEquals(1, char.grant())
-        char.withdraw()
-        assertFalse(char.isOpen)
-        assertEquals(1, char.consentEpoch, "withdrawal must not reset the epoch")
+        assertEquals(1, char.grant(HELMET_A))
+        char.withdraw(HELMET_A)
+        assertFalse(char.isOpen(HELMET_A))
+        assertEquals(1, char.consentEpoch(HELMET_A), "withdrawal must not reset the epoch")
 
         // Re-enrolment is a NEW grant and must be distinguishable from the first.
-        assertEquals(2, char.grant())
-        assertTrue(char.isOpen)
+        assertEquals(2, char.grant(HELMET_A))
+        assertTrue(char.isOpen(HELMET_A))
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun enrolmentDoesNotSurviveDeviceTransfer() {
         val (_, _, char) = gates()
-        char.grant()
-        assertTrue(char.isOpen)
-        char.clearForDeviceTransfer()
-        assertFalse(char.isOpen, "a previous registrant's consent must not bind a new owner")
-        assertEquals(0, char.consentEpoch, "the new owner's first enrolment is genuinely their first")
+        char.grant(HELMET_A)
+        assertTrue(char.isOpen(HELMET_A))
+        char.clearForDeviceTransfer(HELMET_A)
+        assertFalse(char.isOpen(HELMET_A), "a previous registrant's consent must not bind a new owner")
+        assertEquals(0, char.consentEpoch(HELMET_A), "the new owner's first enrolment is genuinely their first")
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun consentToOneProgrammeDoesNotAuthoriseAnother() {
         val (store, _, char) = gates()
-        char.grant()
-        assertTrue(char.isOpen)
-        store.putInt(PersistedKeys.PROGRAMME_ID_KEY,
-                     PersistedKeys.CURRENT_PROGRAMME_ID + 1)
-        assertFalse(char.isOpen, "enrolment in programme N must not carry into N+1")
+        char.grant(HELMET_A)
+        assertTrue(char.isOpen(HELMET_A))
+        // The record as a later programme's enrolment would be written: the last field is the programme.
+        val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
+        val enrolled = "v1,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID}"
+        assertTrue(enrolled in value)
+        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(enrolled, "v1,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID + 1}"))
+        assertFalse(char.isOpen(HELMET_A), "enrolment in programme N must not carry into N+1")
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun grantingCharacterisationNeverGrantsWarrantyConsent() {
         // The subset relation runs one way only.
-        val (store, warranty, char) = gates(warrantyOpen = false)
-        char.grant()
-        assertFalse(warranty.isOpen)
-        assertFalse(store.getBoolean(WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY))
+        val (_, warranty, char) = gates(warrantyOpen = false)
+        char.grant(HELMET_A)
+        assertFalse(warranty.isOpen(HELMET_A))
+        assertFalse(warranty.isDecided(HELMET_A), "a refused enrolment records nothing")
     }
 
     // @verifies REQ-SW02-04
     @Test
     fun keysAreDistinctFromEveryOtherConsentSurface() {
-        // CLAUDE.md §6.0: a shared key would make two consents one consent.
-        val keys = listOf(
-            PersistedKeys.ENROLMENT_KEY,
-            PersistedKeys.CONSENT_EPOCH_KEY,
-            PersistedKeys.PROGRAMME_ID_KEY,
-        )
+        // CLAUDE.md §6.0: a shared key would make two consents one consent. Warranty consent and enrolment are two fields of
+        // the warranty owner's one record (the same subject); neither shares a key with a user's consent.
+        val keys = WarrantyOwnerStore.LEGACY_KEYS + WarrantyOwnerStore.RECORDS_KEY
         assertEquals(keys.size, keys.toSet().size)
-        assertFalse(WarrantyAnalyticsGate.WARRANTY_CONSENT_KEY in keys)
         assertFalse(PersistedKeys.RESEARCH_ANALYTICS_KEY in keys)
     }
 }

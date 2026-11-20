@@ -37,10 +37,17 @@ import life.neurone.core.platform.toHex
  *   [accessToken] refreshes silently. A refresh the provider refuses (`invalid_grant`) marks the account [CloudAccount.needsSignIn]; a
  *   refresh that gets no answer does not.
  * - **Apple (CloudKit Web Services):** the web-authentication token Apple's sign-in page returns, kept beside the container's API token.
+ *   Apple's flow has no `state` and no PKCE, so a sign-in runs only where the callback is bound to the request ([CloudKitConfig],
+ *   [ConfinedCallbackLauncher]); elsewhere CloudKit reads as not configured.
  * - **AWS:** the access key, secret and optional session token the person types ([addAwsKeys]); no browser sign-in exists.
  *
- * The identity of the person is never requested (no `openid`, `email` or `profile` scope): NeurOne needs a grant to a folder, not to know who
- * holds it, and an account is shown by the local id, which the host may label with whatever the person types.
+ * The identity of the person is never requested (no `openid`, `email` or `profile` scope, and not Dropbox's `account_info.read`): NeurOne needs a
+ * grant to a folder, not to know who holds it, and an account is shown by the local id, which the host may label with whatever the person types.
+ *
+ * **A credential that leaves this install is ended at the provider where the provider has a call for it** (SWR-MG-30 (d)): at [signOut], when a
+ * sign-in replaces an earlier one ([signIn] with `replacing`; the earlier grant is revoked **before** the browser opens, because Google's page says a
+ * revocation ends every token of the project's grant, so revoking afterwards could end the new one), and at [signOutAll] for an erase. Where
+ * there is no call (Microsoft, Apple, and every credential the person typed), or it fails, the result says so and the host tells the person.
  */
 class CloudAuth(
     private val transport: HttpTransport,
@@ -69,7 +76,7 @@ class CloudAuth(
     fun isConfigured(service: CloudService): Boolean = when (service.family) {
         AccountFamily.GOOGLE -> config.google != null && redirectWorks(AccountFamily.GOOGLE, config.google.redirectUri)
         AccountFamily.MICROSOFT -> config.microsoft != null && redirectWorks(AccountFamily.MICROSOFT, config.microsoft.redirectUri)
-        AccountFamily.APPLE -> config.cloudKit != null
+        AccountFamily.APPLE -> config.cloudKit != null && cloudKitCallbackIsBound(config.cloudKit)
         AccountFamily.AWS -> true
         AccountFamily.DROPBOX -> config.dropbox != null && redirectWorks(AccountFamily.DROPBOX, config.dropbox.redirectUri)
         AccountFamily.WEBDAV -> true
@@ -93,7 +100,10 @@ class CloudAuth(
     suspend fun signIn(service: CloudService, replacing: String? = null): CloudAccount {
         replacing?.let { checkReplacing(it, service) }
         return when (service.family) {
-            AccountFamily.GOOGLE, AccountFamily.MICROSOFT, AccountFamily.DROPBOX -> oauthSignIn(service, replacing)
+            AccountFamily.GOOGLE, AccountFamily.MICROSOFT, AccountFamily.DROPBOX -> {
+                endpoints(service) // a provider that is not set up fails here, before the earlier grant is touched
+                oauthSignIn(service, replacing, replacing?.let { endReplacedGrant(it) })
+            }
             AccountFamily.APPLE -> cloudKitSignIn(replacing)
             AccountFamily.AWS -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "AWS has no browser sign-in; the person's access key is added with addAwsKeys")
             AccountFamily.WEBDAV -> throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "WebDAV has no browser sign-in; the person's login is added with addWebDavLogin")
@@ -152,7 +162,26 @@ class CloudAuth(
         }
     }
 
-    private suspend fun oauthSignIn(service: CloudService, replacing: String?): CloudAccount {
+    /**
+     * Ask the provider to end the grant the account [id] holds, before a new sign-in takes its place. When the provider confirms, the dead tokens
+     * are dropped and the account reads as needing sign-in, so a browser the person then closes leaves no credential that looks alive. When it
+     * has no call or the call failed, the record is left as it is: the grant may stand, and a later sign-out can still try to end it.
+     */
+    private suspend fun endReplacedGrant(id: String): Revocation {
+        val old = lock.withLock { credentials.load().accounts.firstOrNull { it.id == id } } ?: return Revocation.NOT_AVAILABLE
+        val result = revokeGrant(old)
+        if (result == Revocation.REVOKED) {
+            lock.withLock {
+                val vault = credentials.load()
+                credentials.save(
+                    Vault(vault.version, vault.accounts.map { if (it.id == id) it.copyWith(needsSignIn = true, accessToken = null, accessTokenExpiresAt = 0, refreshToken = null) else it }),
+                )
+            }
+        }
+        return result
+    }
+
+    private suspend fun oauthSignIn(service: CloudService, replacing: String?, replaced: Revocation?): CloudAccount {
         val e = endpoints(service)
         val pkce = Pkce.create(random, sha256)
         val state = Base64Url.encode(random.nextBytes(16))
@@ -167,7 +196,7 @@ class CloudAuth(
             // Dropbox gives a refresh token only to a request that asks for offline access.
             *(if (service.family == AccountFamily.DROPBOX) arrayOf("token_access_type" to "offline") else emptyArray()),
         )
-        val back = launcher.authorize(url, e.redirectUri)
+        val back = launch(url, e.redirectUri) { ExternalBrowserLauncher.isRedirect(it, e.redirectUri) && queryParams(it, plusIsSpace = true)["state"] == state }
         val code = codeFrom(back, e.redirectUri, state)
         val reply = tokenReply(
             postForm(
@@ -187,7 +216,7 @@ class CloudAuth(
         val refresh = reply["refresh_token"]?.jsonPrimitive?.contentOrNull
             ?: throw CloudAuthException(CloudAuthProblem.PROVIDER, "the provider returned no refresh token")
         val at = now()
-        return store(service, replacing) { id, created ->
+        return store(service, replacing, replaced) { id, created ->
             StoredAccount(
                 id, service, created, false,
                 accessToken = reply["access_token"]!!.jsonPrimitive.content,
@@ -197,18 +226,41 @@ class CloudAuth(
         }
     }
 
+    /** Through a [SelectiveAuthorizationLauncher] an address that is not this request's answer does not end the wait; any other launcher hands back what it gets. */
+    private suspend fun launch(url: String, redirectUri: String, isAnswer: (String) -> Boolean): String =
+        (launcher as? SelectiveAuthorizationLauncher)?.authorize(url, redirectUri, isAnswer) ?: launcher.authorize(url, redirectUri)
+
+    /**
+     * The authorization code of a redirect. `state` is checked **before anything else in the address is read** (`OI-PRIV-13`): an address
+     * without this request's `state` did not come from the provider's answer to it, so its `error` and its `code` mean nothing. The provider's
+     * error text is never quoted: it is mapped to [OAuthRedirectError].
+     */
     private fun codeFrom(redirect: String, redirectUri: String, state: String): String {
-        if (!redirect.startsWith(redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
+        if (!ExternalBrowserLauncher.isRedirect(redirect, redirectUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the redirect")
         val p = queryParams(redirect, plusIsSpace = true)
-        p["error"]?.let { err ->
-            throw CloudAuthException(if (err == "access_denied") CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER, "sign-in was refused: $err")
-        }
         if (p["state"] != state) throw CloudAuthException(CloudAuthProblem.STATE_MISMATCH, "the answer is not for this sign-in request")
+        p["error"]?.let { err ->
+            val kind = OAuthRedirectError.of(err)
+            throw CloudAuthException(if (kind == OAuthRedirectError.ACCESS_DENIED) CloudAuthProblem.DENIED else CloudAuthProblem.PROVIDER, "sign-in was refused: ${kind.name}")
+        }
         return p["code"] ?: throw CloudAuthException(CloudAuthProblem.PROVIDER, "the redirect carried no authorization code")
     }
 
+    /** The nonce parameter of [c] when it is one that can be sent: a plain name that is not the token's own. */
+    private fun cloudKitNonceParameter(c: CloudKitConfig): String? = c.callbackNonceParameter?.takeIf { name ->
+        name.isNotEmpty() && name != CK_TOKEN && name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' || it == '-' }
+    }
+
+    /** Whether a CloudKit callback can be tied to the request that opened it here (`OI-PRIV-13`); when it cannot, CloudKit is not offered. */
+    private fun cloudKitCallbackIsBound(c: CloudKitConfig): Boolean = launcher is ConfinedCallbackLauncher || cloudKitNonceParameter(c) != null
+
     private suspend fun cloudKitSignIn(replacing: String?): CloudAccount {
         val c = config.cloudKit ?: throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "no CloudKit container is configured")
+        // Before anything is sent. The callback's token is the credential itself: accepted unbound, anything that can deliver an address to the
+        // callback attaches an iCloud account of its own and the backup goes there.
+        if (!cloudKitCallbackIsBound(c)) {
+            throw CloudAuthException(CloudAuthProblem.NOT_CONFIGURED, "a CloudKit sign-in cannot be tied to its request on this host, so it is not offered")
+        }
         val probe = transport.post(
             HttpRequest(
                 "${c.baseUrl}/database/1/${percentEncode(c.container)}/${c.environment}/private/users/current?ckAPIToken=${percentEncode(c.apiToken)}",
@@ -220,14 +272,27 @@ class CloudAuth(
         if (body?.get("serverErrorCode")?.jsonPrimitive?.contentOrNull != "AUTHENTICATION_REQUIRED" || signInUrl == null) {
             throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit did not ask for sign-in (status ${probe.status})")
         }
-        val back = launcher.authorize(signInUrl, c.signInCallbackUri)
-        if (!back.startsWith(c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
+        // The sign-in page is an address the reply named: opened only when it is https (SWR-MG-30 (b)). The message does not hold it.
+        if (!signInUrl.startsWith("https://")) throw CloudAuthException(CloudAuthProblem.PROVIDER, "CloudKit named a sign-in page that is not an https address")
+        // 16 random bytes, as the OAuth `state` is: RFC 6749 section 10.10 asks that a guess succeed with probability of at most 2^-128.
+        val parameter = cloudKitNonceParameter(c)
+        val nonce = parameter?.let { Base64Url.encode(random.nextBytes(16)) }
+        val carriesNonce = { address: String -> nonce == null || queryParams(address, plusIsSpace = false)[parameter] == nonce }
+        val url = if (nonce == null) signInUrl else {
+            val page = signInUrl.substringBefore('#')
+            page + (if ('?' in page) "&" else "?") + "$parameter=$nonce" + signInUrl.substring(page.length)
+        }
+        val back = launch(url, c.signInCallbackUri) { ExternalBrowserLauncher.isRedirect(it, c.signInCallbackUri) && carriesNonce(it) }
+        if (!ExternalBrowserLauncher.isRedirect(back, c.signInCallbackUri)) throw CloudAuthException(CloudAuthProblem.PROVIDER, "the browser came back to an address that is not the sign-in callback")
+        // Before the token is read: a callback without this request's nonce is not Apple's answer to it, whatever token it carries.
+        if (!carriesNonce(back)) throw CloudAuthException(CloudAuthProblem.STATE_MISMATCH, "the answer is not for this sign-in request")
         // The token holds '+', '/' and '=' and may arrive encoded or not; '+' here is a plus, not a space.
-        val token = queryParams(back, plusIsSpace = false)["ckWebAuthToken"]
+        val token = queryParams(back, plusIsSpace = false)[CK_TOKEN]
             ?: throw CloudAuthException(CloudAuthProblem.DENIED, "sign-in returned no web authentication token")
         // Not verified here: Apple says a token serves one round trip and the next comes in the reply, so a probe would spend it. The first
         // adapter call is the check, and a refusal comes back as status 421 (needsSignIn).
-        return store(CloudService.ICLOUD_CLOUDKIT, replacing) { id, created ->
+        // Apple's pages name no call that ends a web authentication token, so an earlier one is only forgotten here.
+        return store(CloudService.ICLOUD_CLOUDKIT, replacing, replacing?.let { Revocation.NOT_AVAILABLE }) { id, created ->
             StoredAccount(id, CloudService.ICLOUD_CLOUDKIT, created, false, webAuthToken = token)
         }
     }
@@ -249,7 +314,7 @@ class CloudAuth(
         }
         if (expiresAtEpochSeconds != 0L && expiresAtEpochSeconds <= now()) throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "these AWS keys have already expired")
         replacing?.let { checkReplacing(it, CloudService.AWS_S3) }
-        return store(CloudService.AWS_S3, replacing) { id, created ->
+        return store(CloudService.AWS_S3, replacing, typed = true) { id, created ->
             StoredAccount(
                 id, CloudService.AWS_S3, created, false,
                 awsAccessKeyId = accessKeyId, awsSecretAccessKey = secretAccessKey, awsSessionToken = sessionToken, awsExpiresAt = expiresAtEpochSeconds,
@@ -271,7 +336,7 @@ class CloudAuth(
             throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "a WebDAV password may not be empty or contain a control character")
         }
         replacing?.let { checkReplacing(it, CloudService.WEBDAV) }
-        return store(CloudService.WEBDAV, replacing) { id, created ->
+        return store(CloudService.WEBDAV, replacing, typed = true) { id, created ->
             StoredAccount(id, CloudService.WEBDAV, created, false, webdavUrl = address, webdavUser = user, webdavPassword = password)
         }
     }
@@ -283,7 +348,7 @@ class CloudAuth(
     suspend fun addAzureSas(sas: String, replacing: String? = null): CloudAccount {
         val parsed = AzureSas.parse(sas, now()) ?: throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "that is not a usable shared access signature")
         replacing?.let { checkReplacing(it, CloudService.AZURE_BLOB_SAS) }
-        return store(CloudService.AZURE_BLOB_SAS, replacing) { id, created ->
+        return store(CloudService.AZURE_BLOB_SAS, replacing, typed = true) { id, created ->
             StoredAccount(id, CloudService.AZURE_BLOB_SAS, created, false, azureSas = parsed.query, azureSasExpiresAt = parsed.expiresAtEpochSeconds)
         }
     }
@@ -293,10 +358,12 @@ class CloudAuth(
         lock.withLock {
             val acc = credentials.load().accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
             if (acc.service != CloudService.AZURE_BLOB_SAS) throw CloudAuthException(CloudAuthProblem.INVALID_INPUT, "${acc.service.name} is not an access-signature account")
-            if (acc.needsSignIn || (acc.azureSasExpiresAt != 0L && acc.azureSasExpiresAt <= now())) {
-                throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the access signature has expired or was refused; a new one is needed")
+            // Checked again at every call, by the rules in force now: a signature kept under an earlier, looser check (no expiry read, no `sr`) is not used.
+            val checked = acc.azureSas?.let { AzureSas.parse(it, now()) }
+            if (acc.needsSignIn || checked == null) {
+                throw CloudAuthException(CloudAuthProblem.SIGN_IN_REQUIRED, "the access signature has expired, was refused or is not one a backup may use; a new one is needed")
             }
-            acc.azureSas!!
+            checked.query
         }
     }
 
@@ -310,14 +377,20 @@ class CloudAuth(
         }
     }
 
-    private suspend fun store(service: CloudService, replacing: String?, make: (String, Long) -> StoredAccount): CloudAccount =
+    /**
+     * Keep the account [make] builds, in place of [replacing] when given. [replaced] is what was done at the provider about the credential it takes
+     * the place of. With [typed] (a key, login or signature the person typed) that is worked out here: nothing can end such a credential from this
+     * app, so replacing one with a different one is [Revocation.NOT_AVAILABLE], and typing the same one again replaces nothing.
+     */
+    private suspend fun store(service: CloudService, replacing: String?, replaced: Revocation? = null, typed: Boolean = false, make: (String, Long) -> StoredAccount): CloudAccount =
         lock.withLock {
             val vault = credentials.load()
             val old = replacing?.let { id -> vault.accounts.firstOrNull { it.id == id } }
             val id = old?.id ?: random.nextBytes(16).toHex()
             val made = make(id, old?.createdAtEpochSeconds ?: now())
             credentials.save(Vault(vault.version, vault.accounts.filter { it.id != id } + made))
-            made.view()
+            val outcome = if (typed) (if (old != null && !old.sameTypedCredential(made)) Revocation.NOT_AVAILABLE else null) else replaced
+            CloudAccount(made.id, made.service, made.createdAtEpochSeconds, made.needsSignIn, outcome)
         }
 
     // ── What the adapters take ─────────────────────────────────────────────────────────────────────────────────────
@@ -408,41 +481,67 @@ class CloudAuth(
     // ── Sign-out ───────────────────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Forget the account and its credential here, then ask the provider to revoke the grant where it has a call for it (Google does; the
+     * Forget the account and its credential here, then ask the provider to revoke the grant where it has a call for it (Google and Dropbox do; the
      * result says so). The local credential is deleted whatever the provider answers.
      */
     suspend fun signOut(accountId: String): Revocation {
-        // Dropbox's revoke call is authenticated with an access token, so a current one is got before the account is forgotten (a refresh that fails
-        // leaves nothing to revoke with, and the local credential is deleted all the same).
-        val dropboxToken = try {
-            if (credentials.load().accounts.firstOrNull { it.id == accountId }?.service?.family == AccountFamily.DROPBOX) freshAccessToken(accountId) else null
-        } catch (e: CloudAuthException) {
-            null
-        }
         val removed = lock.withLock {
             val vault = credentials.load()
             val acc = vault.accounts.firstOrNull { it.id == accountId } ?: throw CloudAuthException(CloudAuthProblem.UNKNOWN_ACCOUNT, "no such account")
             credentials.save(Vault(vault.version, vault.accounts.filter { it.id != accountId }))
             acc
         }
-        if (removed.service.family == AccountFamily.DROPBOX) {
-            // `auth/token/revoke` takes no argument: "Disables the access token used to authenticate the call" and its refresh token (Dropbox API spec, auth.stone).
-            val token = dropboxToken ?: return Revocation.FAILED
-            return try {
-                val r = transport.post(HttpRequest(DROPBOX_REVOKE, mapOf("Authorization" to "Bearer $token"), ByteArray(0), "POST", timeoutSeconds))
-                if (r != null && r.status == 200) Revocation.REVOKED else Revocation.FAILED
-            } catch (e: CloudStoreException) {
-                Revocation.FAILED
+        return revokeGrant(removed)
+    }
+
+    /**
+     * Forget **every** account and credential here, then ask each provider to end its grant: what an erase of this install calls (SWR-MG-17), so
+     * that a refresh token is not left working at a provider after the device that held it was wiped. The credentials are deleted first and
+     * whatever the providers answer; the result is one entry per account that was held, for the host to tell the person what may remain.
+     * Credentials that cannot be read ([CloudAuthProblem.STORE_UNREADABLE]) are not deleted here and the call throws: nothing in them can be sent.
+     */
+    suspend fun signOutAll(): List<Pair<CloudService, Revocation>> {
+        val held = lock.withLock {
+            val accounts = credentials.load().accounts
+            credentials.clear()
+            accounts
+        }
+        return held.map { it.service to revokeGrant(it) }
+    }
+
+    /**
+     * Ask the provider to end the grant [acc] holds, from the record alone: nothing is read from or written to the store, so it works on an account
+     * that has just been removed. It never throws; a call that could not be made or was not confirmed is [Revocation.FAILED].
+     */
+    private suspend fun revokeGrant(acc: StoredAccount): Revocation = try {
+        when (acc.service.family) {
+            AccountFamily.DROPBOX -> {
+                // `auth/token/revoke` takes no argument: "Disables the access token used to authenticate the call" and its refresh token (Dropbox API
+                // spec, auth.stone). So a current access token is needed: the kept one, or one refreshed for this call and not stored.
+                val cached = acc.accessToken?.takeIf { acc.accessTokenExpiresAt - expirySkewSeconds > now() }
+                val token = cached ?: acc.refreshToken?.let { refresh ->
+                    val e = endpoints(acc.service)
+                    tokenReply(postForm(e.token, listOf("client_id" to e.clientId, "grant_type" to "refresh_token", "refresh_token" to refresh)), refreshing = true)["access_token"]!!.jsonPrimitive.content
+                }
+                if (token == null) {
+                    Revocation.FAILED
+                } else {
+                    val r = transport.post(HttpRequest(DROPBOX_REVOKE, mapOf("Authorization" to "Bearer $token"), ByteArray(0), "POST", timeoutSeconds))
+                    if (r != null && r.status == 200) Revocation.REVOKED else Revocation.FAILED
+                }
             }
+            AccountFamily.GOOGLE -> {
+                val token = acc.refreshToken ?: acc.accessToken
+                val revoke = endpoints(acc.service).revoke
+                if (token == null || revoke == null) Revocation.NOT_AVAILABLE
+                else if (postForm(revoke, listOf("token" to token)).status == 200) Revocation.REVOKED else Revocation.FAILED
+            }
+            // Microsoft's identity platform pages (read 2026-11-18) document no call by which a public client ends a refresh token; Apple's name none
+            // for a web authentication token; a key, login or signature the person typed is theirs to rotate at the service.
+            else -> Revocation.NOT_AVAILABLE
         }
-        val revoke = if (removed.service.family == AccountFamily.GOOGLE) endpoints(removed.service).revoke else null
-        val token = removed.refreshToken ?: removed.accessToken
-        if (revoke == null || token == null) return Revocation.NOT_AVAILABLE
-        return try {
-            if (postForm(revoke, listOf("token" to token)).status == 200) Revocation.REVOKED else Revocation.FAILED
-        } catch (e: CloudAuthException) {
-            Revocation.FAILED
-        }
+    } catch (e: CloudStoreException) {
+        Revocation.FAILED
     }
 
     // ── Wire ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -481,6 +580,7 @@ class CloudAuth(
 
     companion object {
         private const val DROPBOX_REVOKE = "https://api.dropboxapi.com/2/auth/token/revoke"
+        private const val CK_TOKEN = "ckWebAuthToken"
 
         /** OAuth errors on a refresh that mean the person must sign in again (RFC 6749 `invalid_grant`; Microsoft's `interaction_required` and kin). */
         private val SIGN_IN_ERRORS = setOf("invalid_grant", "interaction_required", "consent_required", "login_required")

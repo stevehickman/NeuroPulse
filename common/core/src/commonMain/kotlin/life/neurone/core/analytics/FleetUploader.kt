@@ -100,12 +100,13 @@ class FleetUploader(
     }
 
     /**
-     * Upload an SHDR payload; true only when the fleet service itself took it. No-ops (false) unless the warranty owner has
-     * consented, a helmet is connected and a gateway key is set. The payload is device telemetry only: the SHDR schema contains no
+     * Upload an SHDR payload; true only when the fleet service itself took it. No-ops (false) unless the connected helmet's warranty owner
+     * has consented, a helmet is connected and a gateway key is set. The payload is device telemetry only: the SHDR schema contains no
      * user biology by construction (`CLAUDE.md` §5.1), and this class does not inspect it.
      */
     suspend fun upload(shdrPayload: ByteArray): Boolean {
-        if (!warrantyGate.isOpen) return false
+        // The consent asked for is the connected helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
+        if (!warrantyGate.isOpen(hubIdentifier)) return false
         val token = deviceToken ?: return false
         if (gatewayKeyConfigHex.isEmpty()) return false
         val sealed = try {
@@ -116,8 +117,14 @@ class FleetUploader(
         } catch (e: IllegalArgumentException) {
             return false
         }
-        val answer = transport.post(HttpRequest(relayUrl, mapOf("Content-Type" to FleetOhttp.REQUEST_MEDIA_TYPE), sealed.request))
-        return FleetOhttp.accepted(sealed, relayOk = answer != null && answer.status in 200..299, answer?.header("Content-Type"), answer?.body)
+        // The response secret is in the core until the answer is opened. If the post throws or is cancelled there is no
+        // answer, so the secret is released here; after `accepted` it is already gone and this does nothing.
+        try {
+            val answer = transport.post(HttpRequest(relayUrl, mapOf("Content-Type" to FleetOhttp.REQUEST_MEDIA_TYPE), sealed.request))
+            return FleetOhttp.accepted(sealed, relayOk = answer != null && answer.status in 200..299, answer?.header("Content-Type"), answer?.body)
+        } finally {
+            sealed.close()
+        }
     }
 
     companion object {

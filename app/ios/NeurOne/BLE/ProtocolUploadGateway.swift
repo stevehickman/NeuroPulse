@@ -29,6 +29,13 @@ protocol ProtocolUploadGateway: AnyObject {
     /// link, else nil (OI-AND-WIRE-02). Stamped into every descriptor the uploader compiles.
     var deviceSerial: Data? { get }
 
+    /// True once the hub's encrypted-only serial has been read on this link (`OI-PRIV-17`). No upload is written before it.
+    /// No default: a gateway must say, so a new one cannot pass the gate by omission.
+    var encryptedReadShown: Bool { get }
+
+    /// Ask for that read again; the uploader calls it when it holds an upload at the gate.
+    func requestEncryptedRead()
+
     /// The helmet's hardware version (SWR-HV-06), 1 until it is read.
     var hardwareVersion: Int { get }
 
@@ -53,6 +60,7 @@ extension ProtocolUploadGateway {
     var hardwareVersion: Int { 1 }
     var uploadCheck: UploadCheck? { nil }
     func requestUploadCheck() {}
+    func requestEncryptedRead() {}
 }
 
 extension ProtocolUploadGateway {

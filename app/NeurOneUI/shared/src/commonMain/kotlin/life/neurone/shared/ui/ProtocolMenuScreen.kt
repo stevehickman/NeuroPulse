@@ -69,6 +69,9 @@ private sealed interface ProtocolEditor {
 /** The name a person's saved protocols file is offered under. */
 internal const val PROTOCOLS_FILE_NAME = "neurone-protocols.npps"
 
+/** The name a copy for someone else is offered under (the share form, SWR-WO-07). */
+internal const val PROTOCOLS_SHARE_FILE_NAME = "neurone-protocols-shared.npps"
+
 @Composable
 fun ProtocolMenuScreen(
     library: NPProtocolLibrary,
@@ -184,6 +187,15 @@ fun ProtocolMenuScreen(
                                 fileTransfer.save(PROTOCOLS_FILE_NAME, text.encodeToByteArray())
                             }
                         }) { Text(stringResource(Res.string.web_protocols_backup_save)) }
+                        // A copy for someone else: the share form (SWR-WO-07), which the core writes with no used flag and new ids.
+                        TextButton(onClick = {
+                            val text = library.shareAllScript()
+                            if (text == null) { fileMessage = Res.string.web_protocols_backup_none; fileCounts = null }
+                            else scope.launch {
+                                fileMessage = null; fileCounts = null
+                                fileTransfer.save(PROTOCOLS_SHARE_FILE_NAME, text.encodeToByteArray())
+                            }
+                        }) { Text(stringResource(Res.string.web_protocols_share_copy)) }
                         TextButton(onClick = {
                             scope.launch {
                                 val bytes = fileTransfer.open() ?: return@launch
@@ -194,6 +206,10 @@ fun ProtocolMenuScreen(
                             }
                         }) { Text(stringResource(Res.string.web_protocols_backup_open)) }
                     }
+                    Text(
+                        stringResource(Res.string.web_protocols_backup_note),
+                        modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
+                    )
                     fileMessage?.let { m ->
                         val c = fileCounts
                         Text(
@@ -220,6 +236,10 @@ fun ProtocolMenuScreen(
                             archived = isArchived,
                             onClick = { if (availability.isAvailable && !isArchived) tryUpload(entry) },
                             onCopy = { library.cloneFamily(entry.id); version++ },
+                            // One protocol of the person's own as a copy for someone else (SWR-WO-07).
+                            onShare = if (fileTransfer == null || entry !in library.userProtocols) null else {
+                                { scope.launch { fileTransfer.save(PROTOCOLS_SHARE_FILE_NAME, library.shareScript(entry).encodeToByteArray()) } }
+                            },
                             onArchive = if (isArchived) null else { { library.archiveFamily(entry); version++ } },
                             onRestore = if (isArchived) { { library.unarchiveFamily(entry); version++ } } else null,
                             onEdit = if (!editable) null else {
@@ -287,6 +307,7 @@ private fun ProtocolRow(
     onClick: () -> Unit,
     archived: Boolean = false,
     onCopy: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
     onArchive: (() -> Unit)? = null,
     onRestore: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
@@ -348,10 +369,11 @@ private fun ProtocolRow(
             }
 
             // Edit / delete for user (non-read-only) protocols.
-            if (onEdit != null || onDelete != null || onCopy != null || onArchive != null || onRestore != null) {
+            if (onEdit != null || onDelete != null || onCopy != null || onShare != null || onArchive != null || onRestore != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     onCopy?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_copy_to_edit_action)) } }
+                    onShare?.let { TextButton(onClick = it) { Text(stringResource(Res.string.web_protocols_share_copy)) } }
                     onArchive?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_archive_action)) } }
                     onRestore?.let { TextButton(onClick = it) { Text(stringResource(Res.string.protocol_library_unarchive_action)) } }
                     onEdit?.let { TextButton(onClick = it) { Text(stringResource(Res.string.ui_edit)) } }

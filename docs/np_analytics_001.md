@@ -110,6 +110,8 @@ docker compose logs -f posthog
 
 Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/posthog/apply_project_settings.py --check` reads the project's `anonymize_ips`, `session_recording_opt_in` and `autocapture_opt_out` and exits non-zero if one differs, and `--apply` sets them and reads them back (`POSTHOG_PERSONAL_API_KEY` from the environment). **The script has not been run against a real PostHog instance** (`OI-ANALYTICS-02`); run `--check` against yours before relying on it. Heatmaps, web analytics, event and person retention, and the Property Filter transformation are not covered and stay manual. They are not configurable via environment variables. Complete them immediately after project creation.
 
+**The network address (Rev {NP-ANALYTICS-001 to}; `NP-APP-TELEMETRY-001` §4.1, `OI-PRIV-05` (5)).** The principal decided on 2026-11-19 that analytics events are to reach this host through an Oblivious HTTP relay, so that it never receives the sender's address; that is not built, and nothing in this stack provides it yet. Until it is, the floor is the proxy's: `caddy/Caddyfile` removes `X-Forwarded-For` and `X-Real-IP` before PostHog (it already did), and from this revision neither of its logs keeps the client's address, its port or those headers. `ci/test_posthog_infra.py` checks the header removal (P6), the log filter on both logs (P8) and that Caddy accepts the file (P9). The setting below is a second layer behind that floor.
+
 **Navigate to: Project Settings → Privacy**
 
 | Setting | Value | Why |
@@ -245,16 +247,18 @@ The SDK must not be initialized until after the user completes the consent flow.
 
 **Permitted events:**
 
-Only these event types may be sent. No other events should be captured:
+Only the event names `NP-APP-TELEMETRY-001` §3.3 lists may be sent, and the list is enforced in the shared core (`events` in `common/npps/analytics-properties.json`, `REQ-SW03-07`; Rev {NP-ANALYTICS-001 to}, `OI-PRIV-05`). That section is the authority; this table repeats it:
 
 | Event name | When fired | Permitted properties |
 |------------|-----------|---------------------|
-| `app_opened` | App foreground | `engagement_tier` |
-| `onboarding_step_completed` | Each onboarding screen | `step_name`, `engagement_tier` |
-| `consent_granted` | Consent flow completed | `engagement_tier` |
-| `consent_revoked` | User revokes consent | `engagement_tier` |
-| `feature_used` | Feature tap (non-health) | `feature_name`, `engagement_tier` |
-| `app_crashed` | On next launch after crash | `engagement_tier` (no stack trace — crash traces are local-only) |
+| `app_opened` | App foreground | Any of `NP-APP-TELEMETRY-001` §3 |
+| `onboarding_step_completed` | Each onboarding screen | `onboarding_step` and any other of §3 |
+| `screen_viewed` | One of the four screens of §3.1 | `screen_name` and any other of §3 |
+| `feature_used` | Feature tap (non-health) | Any of §3. No property names the feature |
+| `error_reported` | One of the app failures of §3.4 | `error_code` and any other of §3 |
+| `app_crashed` | On next launch after crash | Any of §3 (no stack trace — crash traces are local-only) |
+
+**`consent_granted` and `consent_revoked` are removed** (they were listed here through Rev {NP-ANALYTICS-001 from}): no event is named for a consent, a session or a clinician. **`step_name` and `feature_name` were never permitted properties**: `NP-APP-TELEMETRY-001` §3 names neither, so the core drops an event that carries one. The onboarding step is `onboarding_step`.
 
 **Prohibited in all events:** any property in the NP-APP-TELEMETRY-001 prohibited list. The iOS SDK's `PostHogSDK.shared.capture()` must never be called with these properties. The server-side Property Filter (§4) is a backstop, not the primary control.
 
@@ -444,6 +448,8 @@ engagement_tier          "new" | "active" | "established" — never raw count
 step_name                onboarding step identifier (string enum)
 feature_name             non-health feature name (string enum)
 ```
+
+**This list is out of date and is not the authority** (Rev {NP-ANALYTICS-001 to}): the permitted properties are the nine of `NP-APP-TELEMETRY-001` §3, which name neither `step_name` nor `feature_name`, and the core drops an event that carries either.
 
 `engagement_tier` is the only property permitted to describe app usage intensity. It is defined as:
 - `"new"` — 1–5 app launches

@@ -27,9 +27,10 @@ enum class CloudService(val family: AccountFamily, val scope: String?) {
     /**
      * The app folder only (the app is registered with the "App folder" access type), and a refresh token (`token_access_type=offline`). The scopes are
      * the ones the routes the store calls declare in Dropbox's API spec (read 2026-10-28, `UC-116`): `files.content.write` for upload and delete,
-     * `files.content.read` for download, `files.metadata.read` for listing the folder, `account_info.read` for the space figure.
+     * `files.content.read` for download, `files.metadata.read` for listing the folder. **Not `account_info.read`**: it is the scope of
+     * `users/get_current_account` (the person's name and e-mail address) as well as of the space figure, and no identity is requested (SWR-MG-30 (c)).
      */
-    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read account_info.read"),
+    DROPBOX(AccountFamily.DROPBOX, "files.content.write files.content.read files.metadata.read"),
 
     /**
      * Azure Blob authorized by a **shared access signature** the person makes in Azure and pastes in (SWR-MG-26): no Entra sign-in, so a personal Azure
@@ -99,6 +100,16 @@ class MicrosoftClientConfig(
  * **[apiToken] is public by design.** It identifies the container to CloudKit Web Services and goes in every request's address; it opens
  * nothing by itself, because the person's private database needs the `ckWebAuthToken` their own sign-in returns. It is compiled into the
  * app like a client ID. A server-to-server key is the confidential credential, and one is never put here (`NP-SW-CLOUDSTORE-001` §4c.13).
+ *
+ * **The callback carries the credential itself, and nothing in Apple's flow ties it to the request that opened the sign-in** (`OI-PRIV-13`):
+ * there is no `state` and no code to redeem with a verifier, so whoever can deliver an address to the callback can hand in a token for an
+ * iCloud account of their own. [CloudAuth] therefore signs in to CloudKit only when the callback is bound to the request, one of two ways:
+ * the launcher is a [ConfinedCallbackLauncher], or [callbackNonceParameter] is set.
+ *
+ * [callbackNonceParameter] is the name of a query parameter that, added to Apple's sign-in address, comes back unchanged on the callback.
+ * **None is known, so the default is null.** Apple's "Setting Up Web Services" page (read 2026-11-18) documents `ckWebAuthToken` as the only
+ * thing on the callback and says nothing of a value of the caller's being returned. Set it only after a run against a real container has
+ * shown the parameter return; a name Apple does not return makes every sign-in fail with [CloudAuthProblem.STATE_MISMATCH], never succeed unbound.
  */
 class CloudKitConfig(
     val container: String,
@@ -106,6 +117,7 @@ class CloudKitConfig(
     val signInCallbackUri: String,
     val environment: String = "production",
     val baseUrl: String = "https://api.apple-cloudkit.com",
+    val callbackNonceParameter: String? = null,
 )
 
 /** Why a sign-in step failed, in terms a host can act on (Gap 2 of `docs/np_sw_cloudstore_001.md`). */
@@ -119,7 +131,7 @@ enum class CloudAuthProblem {
     /** The person, or the provider, refused (`access_denied`). */
     DENIED,
 
-    /** The redirect did not carry the `state` that was sent: not the answer to this request. */
+    /** The redirect did not carry the `state` (OAuth) or the nonce (CloudKit) that was sent: not the answer to this request. */
     STATE_MISMATCH,
 
     /** The stored credential no longer works (revoked, expired, a refresh the provider refused): the person must sign in again. */
@@ -159,6 +171,36 @@ fun interface AuthorizationLauncher {
     suspend fun authorize(authorizationUrl: String, redirectUri: String): String
 }
 
+/**
+ * A launcher that can keep waiting past an address that is the redirect but is not the answer to this request. [isAnswer] is [CloudAuth]'s:
+ * true only for an address that carries this request's `state` (or CloudKit nonce). An address it refuses is not handed back and does not
+ * end the wait, so a page or another app that can reach the redirect cannot end somebody's sign-in (`OI-PRIV-13`). [CloudAuth] checks the
+ * address it is handed again, so a launcher that does not implement this is no less safe, only easier to interrupt.
+ */
+interface SelectiveAuthorizationLauncher : AuthorizationLauncher {
+    suspend fun authorize(authorizationUrl: String, redirectUri: String, isAnswer: (String) -> Boolean): String
+}
+
+/**
+ * Marks a launcher whose answer can only be an address that **the browser session it opened was itself sent to**, so nothing outside that
+ * session (another app, a page in another tab, a local process) can deliver one. iOS's `ASWebAuthenticationSession` is such a session by
+ * Apple's description of it. A launcher that takes its answer from the system at large (an Android intent, a loopback listener, a page's
+ * `BroadcastChannel`) is not, and must not be marked: the mark is what lets a CloudKit sign-in run with no nonce ([CloudKitConfig]).
+ */
+interface ConfinedCallbackLauncher : AuthorizationLauncher
+
+/**
+ * The `error` of an authorization redirect as one of a fixed set (RFC 6749 section 4.1.2.1), so the provider's text, which arrives in an
+ * address anything on the device may have written, never reaches an exception message, a log or a screen.
+ */
+internal enum class OAuthRedirectError {
+    ACCESS_DENIED, INVALID_REQUEST, UNAUTHORIZED_CLIENT, UNSUPPORTED_RESPONSE_TYPE, INVALID_SCOPE, SERVER_ERROR, TEMPORARILY_UNAVAILABLE, OTHER;
+
+    companion object {
+        fun of(code: String): OAuthRedirectError = values().firstOrNull { it != OTHER && it.name.lowercase() == code } ?: OTHER
+    }
+}
+
 /** An account as the host may see it: never a token. */
 class CloudAccount(
     val id: String,
@@ -166,6 +208,12 @@ class CloudAccount(
     val createdAtEpochSeconds: Long,
     /** True once the provider refused the stored credential: the person must sign in again ([CloudAuth.signIn] with `replacing`). */
     val needsSignIn: Boolean,
+    /**
+     * Set only on the account a sign-in or an add **returned**, and only when it took the place of an earlier credential: what was done about
+     * that earlier one at the provider. Anything but [Revocation.REVOKED] means it may still work there, and the host tells the person
+     * (SWR-MG-30 (d)). Null when nothing was replaced.
+     */
+    val replaced: Revocation? = null,
 )
 
 /** What signing out did at the provider. */
@@ -173,7 +221,7 @@ enum class Revocation {
     /** The provider confirmed the grant is revoked. */
     REVOKED,
 
-    /** The provider has no call for it (Microsoft's v2 endpoint, Apple, AWS), so the grant stands until the person removes it in their account. */
+    /** The provider has no call for it (Microsoft's v2 endpoint, Apple, and any key, login or signature the person typed), so it stands until the person removes it in their account. */
     NOT_AVAILABLE,
 
     /** The call was made and failed or got no answer: the local credential is deleted, the grant may stand. */

@@ -1207,7 +1207,7 @@ static void put_le32(uint8_t *p, uint32_t v)
     p[3] = (uint8_t)(v >> 24);
 }
 
-/* tail == 0: the 32-byte version-1 row; tail > 0: the 64-byte version-2 row with `tail` bytes more, as version 3. */
+/* tail == 0: the 64-byte row; tail > 0: the same row with `tail` bytes more, as version 2. */
 static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
 {
     np_map3_rec_t r;
@@ -1217,27 +1217,18 @@ static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
     }
     r.seq = 100U + i;
     r.session_count = i;
-    if (tail == 0U) {
-        /* The version-1 layout, written out: the production writer no longer writes it. */
-        memset(out, 0, NP_MAP3_V1_BYTES);
-        out[0] = (uint8_t)NP_MAP3_V1_BYTES;
-        out[1] = 1U;
-        memcpy(&out[2], r.uid, NP_MAP3_UID_LEN);
-        put_le32(&out[10], r.seq);
-        out[18] = (uint8_t)r.session_count;
-        put_le32(&out[NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES],
-                 np_crc32(out, NP_MAP3_V1_BYTES - NP_MAP3_CRC_BYTES));
-        return NP_MAP3_V1_BYTES;
-    }
-    if (np_map3_encode(&r, out, NP_MAP3_V2_BYTES) != NP_MAP3_V2_BYTES) {
+    if (np_map3_encode(&r, out, NP_MAP3_ROW_BYTES) != NP_MAP3_ROW_BYTES) {
         return 0U;
     }
-    size_t len = NP_MAP3_V2_BYTES + tail;
+    if (tail == 0U) {
+        return NP_MAP3_ROW_BYTES;
+    }
+    size_t len = NP_MAP3_ROW_BYTES + tail;
     for (size_t k = 0U; k < tail; k++) {
-        out[NP_MAP3_V2_FIELDS_END + k] = (uint8_t)(0xC0U + k);
+        out[NP_MAP3_FIELDS_END + k] = (uint8_t)(0xC0U + k);
     }
     out[0] = (uint8_t)len;
-    out[1] = 3U;
+    out[1] = 2U;
     put_le32(&out[len - NP_MAP3_CRC_BYTES],
              np_crc32(out, (uint32_t)(len - NP_MAP3_CRC_BYTES)));
     return len;
@@ -1300,7 +1291,7 @@ static void test_journal_rows_of_differing_length(void)
                "append");
         want_bytes += n;
     }
-    ASSERT(want_bytes == (ROWS - 1U) * NP_MAP3_V1_BYTES + NP_MAP3_V2_BYTES + TAIL, "the fixture has one grown row");
+    ASSERT(want_bytes == (ROWS - 1U) * NP_MAP3_ROW_BYTES + NP_MAP3_ROW_BYTES + TAIL, "the fixture has one grown row");
 
     /* The reader stepping by each row's own length gets every row back. */
     uint32_t count = 0U;
@@ -1322,7 +1313,7 @@ static void test_journal_rows_of_differing_length(void)
      * above proves nothing. */
     uint32_t fixed = 0U;
     ASSERT(np_cfg_store_journal_read(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                     NP_MAP3_V1_BYTES, &fixed,
+                                     NP_MAP3_ROW_BYTES, &fixed,
                                      map3_fixed_verify, NULL) == NP_HUB_OK,
            "fixed-length read");
     ASSERT(fixed == GROWN, "the fixed-length reader did not lose the rows after the "
