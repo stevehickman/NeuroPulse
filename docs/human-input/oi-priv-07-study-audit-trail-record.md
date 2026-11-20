@@ -32,11 +32,11 @@ Each of these was searched on 2026-11-15 for `study`, `studyId`, `descriptor has
 
 ### 2.2 The record exists only in the app, and it is already handled as UHDR
 
-- `StudyParticipationRecord` (`common/core/.../models/ConsentModels.kt`) holds `studyId`, `descriptorHash`, `transmittedAtDay`, `extractBytes` and `withdrawnAtDay`. Its comment says "audit trail — SHDR-class, not UHDR". `ConsentStore.kt` repeats the label in two places.
+- `StudyParticipationRecord` (`common/core/.../models/ConsentModels.kt`) holds `studyId`, `descriptorHash`, `enrolledOnDay`, `transmittedAtDay`, `extractBytes` and `withdrawnAtDay`. **Updated 2026-11-20:** the `OI-PRIV-06` work (closed 2026-11-19) replaced the record's "audit trail — SHDR-class, not UHDR" comment with one that says the enrolment and withdrawal days are the person's decisions, are not in §5.3's list, and that whether any of the record may leave the device as SHDR is this item. `ConsentStore.kt` still says "SHDR-class" in two places.
 - It is stored on the phone under `np.consent.study-participations`. That key is sealed at rest like every stored key (`docs/np_app_presence_001.md` §4), and it sits in the `consent` group of `common/npps/migration-keys.json`, so it travels with the person's consent state in a migration backup. **Only the label says SHDR. The handling is UHDR.**
 - `ConsentStore` already keeps a second list, `studyWithdrawals` (`np.consent.study-withdrawals`), commented "UHDR-class and kept apart from `studyParticipations`, which is SHDR-class". The withdrawal day is therefore held twice, once under each label.
-- The retiring SwiftUI app (`app/ios/NeurOne/Models/ConsentModels.swift`) has the same record, commented "stored in SHDR, not UHDR", with a full `Date` where the shared core stores a day.
-- **No record has ever described a real transmission.** No extractor exists. The record is written when an invitation is accepted, with `extractBytes = 0` (`OI-PRIV-06` item 4).
+- The retiring SwiftUI app (`app/ios/NeurOne/Models/ConsentModels.swift`) has the same record with a full `Date` where the shared core stores a day. Its comment was changed the same way; `app/ios/NeurOne/Consent/ConsentStore.swift` still says "study audit trail written to SHDR" and "SHDR-class".
+- **No record has ever described a real transmission.** No extractor exists. The record is written when an invitation is accepted, with the enrolment day and no transmission (`transmittedAtDay` null, 0 bytes) since `OI-PRIV-06` point 4 was fixed.
 
 ### 2.3 No gate would stop a study identifier entering SHDR
 
@@ -71,7 +71,7 @@ Each of these was searched on 2026-11-15 for `study`, `studyId`, `descriptor has
 
 **Q1. Which record does the study audit trail belong to?**
 
-- **A. UHDR. The whole record stays with the person.** Study ID, descriptor hash, transmission day, byte count and withdrawal day are UHDR, held in the app under the person's key. The person still inspects every study they contributed to, as §5.3 promises, from that record. SHDR gets nothing that names a study. Whether it gets a study-free total is Q2.
+- **A. UHDR. The whole record stays with the person.** Study ID, descriptor hash, enrolment day, transmission day, byte count and withdrawal day are UHDR, held in the app under the person's key. The person still inspects every study they contributed to, as §5.3 promises, from that record. SHDR gets nothing that names a study. Whether it gets a study-free total is Q2.
   - *Cost:* NeurOne has no device-side account of extracts in the fleet database (§4). §5.3 and its restatements change. `NP-FW-ANON-001` §8.1 and §8.2 need a class stated for the budget record and a decision on the withdrawal event.
 - **B. SHDR, as §5.3 says.** The argument for it: a study ID is an administrative identifier NeurOne assigned. The record holds no measurement of anyone. It describes what the device did (sent N bytes under descriptor H). NeurOne already holds (study, device) in the research store (§2.6), so the log tells NeurOne nothing new. Study invitations are built from device ID and contact preferences with no UHDR, so being in a study is not a diagnosis.
   - *Cost:* the argument has to carry four points it does not carry today.
@@ -80,7 +80,7 @@ Each of these was searched on 2026-11-15 for `study`, `studyId`, `descriptor has
     3. SHDR is per device. On a shared device the log mixes several wearers' studies, and "the user can inspect" would show one wearer the others'.
     4. The withdrawal day is a personal decision and cannot be argued to be device condition. B would need it removed from the record at least. So would the timestamp (§2.3).
   - B also needs §5.1 rule 1's positive demonstration written down, and a reason why this record differs from `failed_step` (§2.5).
-- **C. A split, row by row.** Study identity (study ID, descriptor hash, withdrawal day) is UHDR. SHDR gets one row per extract with the byte count and nothing that names the study.
+- **C. A split, row by row.** Study identity (study ID, descriptor hash, enrolment day, withdrawal day) is UHDR. SHDR gets one row per extract with the byte count and nothing that names the study.
   - *Cost:* the descriptor hash must go with the study ID, because NeurOne issued the descriptor and can look the hash up. A per-extract byte count can fingerprint a study, since each study's element list gives a characteristic size. Per-extract rows are dated by the upload they arrive in, which is the per-window delta that `NP-FW-NVRAM-001` D-18 forbids. With few studies running, a row in a given upload narrows to one study. So C gives NeurOne little that A with Q2 option B does not, and carries more risk.
 
 **Q2. Under A or C, what may SHDR hold about research extracts at all?**
@@ -120,7 +120,7 @@ Nothing below is done until the ruling is recorded.
 
 | Ruling | Changes |
 |--------|---------|
-| Q1 A | `data-architecture-detail.md` §5.1 gains the per-field ruling and §5.3's "Audit trail (SHDR)" paragraph is rewritten. `CLAUDE.md` §5.3's last sentence changes. Entries in `completed-decisions.md` and `claude-md-revision-history.md`. The three code comments (and the Swift one) say UHDR. `withdrawnAtDay` and `studyWithdrawals` can be reconciled. `NP-SW-PORTAL-API-001` §4a and `NP-FW-ANON-001` §8 follow, with revision fragments. A pattern for `study` and `descriptor` is added to `ci/test_shdr_schema.py` so the ruling is gated. |
+| Q1 A | `data-architecture-detail.md` §5.1 gains the per-field ruling and §5.3's "Audit trail (SHDR)" paragraph is rewritten. `CLAUDE.md` §5.3's last sentence changes. Entries in `completed-decisions.md` and `claude-md-revision-history.md`. The remaining "SHDR-class" comments (two in `ConsentStore.kt`, two in `ConsentStore.swift`) say UHDR. `withdrawnAtDay` and `studyWithdrawals` can be reconciled. `NP-SW-PORTAL-API-001` §4a and `NP-FW-ANON-001` §8 follow, with revision fragments. A pattern for `study` and `descriptor` is added to `ci/test_shdr_schema.py` so the ruling is gated. |
 | Q1 B | `data-architecture-detail.md` §5.1 gains the ruling with the positive demonstration. The withdrawal day leaves the record. The timestamp becomes a month. The app comments stay. An upload path and schema table are then design work. |
 | Q1 C | As A for the identity fields, plus a new SHDR table and its schema rules. |
 | Q2 B | A new SHDR field pair and schema rows, with a running-total rule. |
