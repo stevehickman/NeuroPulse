@@ -47,6 +47,10 @@ class MigrationClearModel(
     private val files: FileStore? = null,
     private val items: List<MigrationItemStore> = emptyList(),
     private val random: RandomSource = SystemRandomSource,
+    /** Read before the clear, with no side effect: the analytics IDs this install holds events under (`OI-ANALYTICS-01` (5c)). */
+    private val idsBeforeClear: (() -> List<String>)? = null,
+    /** Run only once the core has accepted the clear, with the IDs read before it; best effort, never fails the clear. */
+    private val afterClear: (suspend (List<String>) -> Unit)? = null,
 ) {
     private val state = MutableStateFlow<ClearStep>(if (place == null || actions == null) ClearStep.NotAvailable else ClearStep.Looking)
     val step: StateFlow<ClearStep> = state.asStateFlow()
@@ -69,13 +73,19 @@ class MigrationClearModel(
         val actions = actions ?: return
         val shown = (state.value as? ClearStep.Confirm)?.info ?: info ?: return
         state.value = ClearStep.Running
+        val ids = try { idsBeforeClear?.invoke().orEmpty() } catch (ignored: Exception) { emptyList() }
         val host = StandardMigrationHost(items, null, actions)
         val params = buildJsonObject {
             put("bundleHash", shown.bundleHash)
             put("canRemoveOsBond", false)
         }
         val done = MigrationFlow.run("clear", params, host, null, keys, place.store, files, random = random)
-        state.value = if (done["ok"]!!.jsonPrimitive.boolean) {
+        val ok = done["ok"]!!.jsonPrimitive.boolean
+        // Only an accepted clear asks the vendor: a refused one leaves this phone's data, and its ID, as they were.
+        if (ok && ids.isNotEmpty()) {
+            try { afterClear?.invoke(ids) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (ignored: Exception) { }
+        }
+        state.value = if (ok) {
             ClearStep.Done(done["removeOsBond"]?.jsonPrimitive?.boolean == true)
         } else {
             ClearStep.Failed(done["reason"]!!.jsonPrimitive.content)

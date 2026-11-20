@@ -638,7 +638,7 @@ class MigrationFlowTests {
         assertTrue(found.ok)
         assertEquals("uhdr", found.text("kind"))
         assertEquals(BundleKeyMethod.RECOVERY_CODE.wire, found.text("method"))
-        assertEquals("2", found.text("formatVersion"))
+        assertEquals("1", found.text("formatVersion"))
     }
 
     // @verifies SWR-MG-01

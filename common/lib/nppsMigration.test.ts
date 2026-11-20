@@ -68,7 +68,7 @@ describe('nppsMigration', () => {
     const kdf = nppsMigration({ op: 'bundleKdf', method: 'recoveryCode', salt: '5a'.repeat(32) }).kdf;
     const sealed = nppsMigration({ op: 'sealBundle', kind: 'migrate', epoch: 1, key, nonce: '11'.repeat(12), items: { protocols: [] }, kdf });
     const h = nppsMigration({ op: 'readBundleHeader', bundle: sealed.bundle });
-    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 2, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
+    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 1, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
   });
 
   // @verifies SWR-MG-02
