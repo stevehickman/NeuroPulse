@@ -9,6 +9,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import life.neurone.shared.ui.parseDuration
 import life.neurone.shared.ui.formatDuration
+import life.neurone.shared.ui.limitsOutOfRange
+import life.neurone.core.protocol.NPAudioEntrainmentLimits
+import life.neurone.core.protocol.NPLimitsSet
+import life.neurone.core.protocol.NPTMSLimits
 import androidx.compose.ui.test.runComposeUiTest
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.protocol.NPIndividualProfile
@@ -19,6 +23,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 /** The Limits screen edits all three tiers, and a helmet's tier is the connected hub's (REQ-NPPS-12). */
@@ -124,5 +130,21 @@ class LimitsTiersTest {
         assertEquals("20m", formatDuration(1200))
         assertEquals("2h", formatDuration(7200))
         assertEquals("90s", formatDuration(90))
+    }
+
+    // @verifies SWR-UI-01#f
+    @Test
+    fun aLimitOutsideItsRange_isReported_andNeverChanged() {
+        // 85 dB SPL is the ceiling a volume limit may not exceed, and 10,000 % MT is far outside the TMS field's range.
+        val loud = NPLimitsSet(name = "t", audioEntrainment = NPAudioEntrainmentLimits(maxVolumeDb = 120.0))
+        val fine = NPLimitsSet(name = "t", audioEntrainment = NPAudioEntrainmentLimits(maxVolumeDb = 80.0))
+        val tmsTooHigh = NPLimitsSet(name = "t", tms = NPTMSLimits(maxIntensityPercentMT = 10_000))
+        assertTrue(limitsOutOfRange(loud))
+        assertTrue(limitsOutOfRange(tmsTooHigh))
+        assertFalse(limitsOutOfRange(fine))
+        // An absent limit is "no limit", not a failure, and a check reads a set and changes nothing in it.
+        assertFalse(limitsOutOfRange(NPLimitsSet(name = "t")))
+        assertEquals(120.0, loud.audioEntrainment!!.maxVolumeDb)
+        assertEquals(10_000, tmsTooHigh.tms!!.maxIntensityPercentMT)
     }
 }

@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPAudioEntrainmentLimits
@@ -249,6 +248,22 @@ private enum class EditorMode(val label: StringResource) {
 }
 
 /**
+ * True when any numeric limit in [limits] is outside the range its field states (the web's `limitsOutOfRange`,
+ * SWR-UI-01 (f)). Such a set is refused when it is saved, never changed: the limit a clinician typed is the limit
+ * they meant, and holding it inside its range would save one they did not choose. An absent limit is "no limit"
+ * and never fails. It reads the section table, so it checks exactly the ranges the fields show.
+ */
+internal fun limitsOutOfRange(limits: NPLimitsSet): Boolean = sections.any { section ->
+    section.fields.any { field ->
+        when (field) {
+            is LimitField.Num -> field.get(limits)?.let { !it.isFinite() || it !in field.range } ?: false
+            is LimitField.Whole -> field.get(limits)?.let { it !in field.range } ?: false
+            else -> false
+        }
+    }
+}
+
+/**
  * The editor for one tier's [initial] limits (null = none yet): the modality sections, or the same limits as
  * an `.npps` script that is parsed as it is typed. [exportScript] and [importScript] are the store's.
  */
@@ -296,7 +311,12 @@ internal fun LimitsTierEditor(
             )
         }
         Spacer(Modifier.height(16.dp))
-        Button(onClick = { onSave(working.copy(name = name)) }, modifier = Modifier.fillMaxWidth()) {
+        val outOfRange = limitsOutOfRange(working)
+        if (outOfRange) {
+            Text(stringResource(Res.string.web_limits_out_of_range), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(4.dp))
+        }
+        Button(onClick = { onSave(working.copy(name = name)) }, enabled = !outOfRange, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(Res.string.protocol_composer_save))
         }
         Spacer(Modifier.height(8.dp))
@@ -378,8 +398,9 @@ private fun FieldRow(field: LimitField, working: NPLimitsSet, update: (NPLimitsS
 }
 
 /**
- * A number that is either unset ("Set limit") or typed. The value is committed as it is typed, and pulled into
- * [min]..[max] when the field loses focus, as on iOS.
+ * A number that is either unset ("Set limit") or typed. The value is committed as it is typed and is never pulled
+ * into [min]..[max]: a value outside them is marked as an error, and the limits cannot be saved until it is fixed
+ * (SWR-UI-01 (f), as on the web).
  */
 @Composable
 private fun OptionalNumber(
@@ -387,7 +408,7 @@ private fun OptionalNumber(
     toValue: (String) -> Double?, onChange: (Double?) -> Unit,
 ) {
     var text by remember(current == null) { mutableStateOf(current ?: "") }
-    var hadFocus by remember { mutableStateOf(false) }
+    val outOfRange = current?.let(toValue)?.let { it < min || it > max } ?: false
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         if (current == null) {
@@ -402,15 +423,10 @@ private fun OptionalNumber(
                     text = filtered
                     toValue(filtered)?.let { onChange(it) }
                 },
+                isError = outOfRange,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.width(110.dp).onFocusChanged { f ->
-                    if (hadFocus && !f.isFocused) {
-                        val clamped = toValue(text)?.coerceIn(min, max)
-                        if (clamped != null) { text = formatNumber(clamped); onChange(clamped) }
-                    }
-                    hadFocus = f.isFocused
-                },
+                modifier = Modifier.width(110.dp),
             )
             Text(unit, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { text = ""; onChange(null) }) { Text("✕") }
