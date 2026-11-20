@@ -9,6 +9,10 @@ publish = false
 name = "neurone_npps_jni"
 crate-type = ["cdylib"]
 
+[features]
+# Passes `refuse-hex-keys` to the core (SWR-MG-32 (h)). Off by default.
+refuse-hex-keys = ["neurone-npps-core/refuse-hex-keys"]
+
 [dependencies]
 neurone-npps-core = { path = "../npps-core" }
 jni = "0.21"

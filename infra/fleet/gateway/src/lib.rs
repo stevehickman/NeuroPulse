@@ -15,7 +15,7 @@
 //! | `GET /ohttp-keys` | `200 application/ohttp-keys`: the key configuration, length-prefixed |
 //! | `GET /healthz` | `200` |
 
-use neurone_npps_core::migration::migration_json;
+use neurone_npps_core::api::migration_secret_json;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
@@ -49,9 +49,34 @@ pub struct Counters {
     pub ingest_failed: AtomicU64,
 }
 
-fn ask(request: Value) -> Result<Value, String> {
-    let out = migration_json(&request.to_string())?;
-    serde_json::from_str(&out).map_err(|e| e.to_string())
+/// As [`ask`], with the request's secrets beside it as bytes and the answer's secrets beside the answer (`SWR-MG-32` (a)):
+/// the gateway's private key and the response secret are never text, so it keeps working in a core built to refuse a key
+/// given as hex (`refuse-hex-keys`, `SWR-MG-32` (h)). The secrets are bytes in a buffer this overwrites; no table slot is
+/// used, so a gateway answering many requests at once is not bounded by the table's cap (`UC-197`).
+pub fn ask_with_secrets(request: Value, secrets: &[&[u8]]) -> Result<(Value, Vec<Vec<u8>>), String> {
+    let mut framed: Vec<u8> = vec![];
+    for s in secrets {
+        framed.extend_from_slice(&(s.len() as u32).to_be_bytes());
+        framed.extend_from_slice(s);
+    }
+    let result = migration_secret_json(&request.to_string(), &framed);
+    framed.fill(0);
+    let (text, beside) = result?;
+    let mut out = vec![];
+    let mut rest: &[u8] = &beside;
+    while rest.len() >= 4 {
+        let n = u32::from_be_bytes([rest[0], rest[1], rest[2], rest[3]]) as usize;
+        if rest.len() - 4 < n {
+            return Err("the core's secrets are not framed".into());
+        }
+        out.push(rest[4..4 + n].to_vec());
+        rest = &rest[4 + n..];
+    }
+    Ok((serde_json::from_str(&text).map_err(|e| e.to_string())?, out))
+}
+
+fn unhex(text: &str) -> Vec<u8> {
+    text.as_bytes().chunks(2).map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap_or("0"), 16).unwrap_or(0)).collect()
 }
 
 fn random(count: usize) -> Vec<u8> {
@@ -198,10 +223,13 @@ fn handle(mut stream: TcpStream, cfg: &Config, counters: &Counters) {
             if head.content_length.is_none() {
                 return reply(&mut stream, 411, "text/plain", b"");
             }
-            let opened = ask(json!({
-                "op": "ohttpGatewayOpen", "keyConfig": cfg.key_config_hex, "privateKey": cfg.private_key_hex, "request": hex(&body),
-            }));
-            let Ok(o) = opened else {
+            let mut private_key = unhex(&cfg.private_key_hex);
+            let opened = ask_with_secrets(
+                json!({ "op": "ohttpGatewayOpen", "keyConfig": cfg.key_config_hex, "privateKey": { "$secret": 0 }, "request": hex(&body) }),
+                &[&private_key],
+            );
+            private_key.fill(0);
+            let Ok((o, mut response_secret)) = opened else {
                 counters.refused.fetch_add(1, Ordering::Relaxed);
                 return reply(&mut stream, 400, "text/plain", b"");
             };
@@ -224,10 +252,18 @@ fn handle(mut stream: TcpStream, cfg: &Config, counters: &Counters) {
                 }
                 s
             };
-            let sealed = ask(json!({
-                "op": "ohttpGatewaySeal", "enc": o["enc"], "secret": o["secret"], "status": status, "headers": [], "body": "",
-                "entropy": hex(&random(16)),
-            }));
+            let sealed = match response_secret.first() {
+                Some(secret) => ask_with_secrets(
+                    json!({
+                        "op": "ohttpGatewaySeal", "enc": o["enc"], "secret": { "$secret": 0 }, "status": status, "headers": [], "body": "",
+                        "entropy": hex(&random(16)),
+                    }),
+                    &[secret],
+                )
+                .map(|(v, _)| v),
+                None => Err("the core gave no response secret".to_string()),
+            };
+            response_secret.iter_mut().for_each(|s| s.fill(0));
             match sealed.ok().and_then(|s| s["response"].as_str().map(str::to_string)) {
                 Some(r) => {
                     let bytes: Vec<u8> = r.as_bytes().chunks(2).map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap_or("0"), 16).unwrap_or(0)).collect();

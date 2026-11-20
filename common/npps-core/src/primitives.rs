@@ -77,6 +77,7 @@ mod tests {
 
     // @verifies-none a primitive of the core, checked against RFC 8032 section 7.1 here and against the JDK from Kotlin; no requirement row names it yet.
     #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
     fn ed25519_matches_rfc_8032_test_1_and_refuses_what_it_should() {
         let seed = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
         let public = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
