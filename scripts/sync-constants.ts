@@ -332,7 +332,7 @@ function boundsSwift(): string {
 
 // ${BOUNDS_BANNER}
 
-// swiftlint:disable file_length line_length
+// swiftlint:disable file_length line_length nesting
 
 struct NPBoundEdge {
     let value: Double
@@ -364,6 +364,8 @@ struct NPBound {
 
 enum NPBounds {
 ${body}}
+
+// swiftlint:enable file_length line_length nesting
 `;
 }
 
