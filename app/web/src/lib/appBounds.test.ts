@@ -92,3 +92,42 @@ describe('the auricular VNS frequency', () => {
     expect(swiftStruct(read(IOS_EDITOR), 'CervicalVnsParamsView')).toContain('NPBounds.Param.CervicalVns.frequency.range');
   });
 });
+
+describe('a typed clinician limit in the Compose and iOS apps', () => {
+  const swiftFields = read(IOS_LIMITS);
+  const checker = read('app/ios/NeurOne/Protocol/NPLimitRangeCheck.swift');
+  const compose = read(COMPOSE_LIMITS);
+
+  // @verifies SWR-UI-01#f
+  it('is never pulled into its range by the iOS limit fields', () => {
+    for (const name of ['OptionalDoubleField', 'OptionalIntField']) {
+      const body = swiftStruct(swiftFields, name);
+      expect(body, `${name} clamps a typed value`).not.toMatch(/max\(range\.lowerBound,\s*min\(/);
+      expect(body, `${name} marks a value outside its range`).toMatch(/isOutOfRange/);
+    }
+  });
+
+  // @verifies SWR-UI-01#f
+  it('is never pulled into its range by the Compose limit field, which marks it as an error instead', () => {
+    expect(compose).not.toMatch(/coerceIn/);
+    expect(compose).not.toMatch(/onFocusChanged/);
+    expect(compose).toMatch(/isError = outOfRange/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('blocks Save and a script import in iOS, and Save in Compose, while a limit is outside its range', () => {
+    expect(swiftFields).toMatch(/\.disabled\(!outOfRange\.isEmpty\)/);
+    expect(swiftFields).toMatch(/\.disabled\(parsedLimits == nil \|\| parsedOutOfRange\)/);
+    expect(compose).toMatch(/enabled = !outOfRange/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('is checked in iOS for every range the iOS limit fields read, so the check cannot drift from the fields', () => {
+    const ref = /NPBounds\.Limit\.(\w+)\.(\w+)/g;
+    const fields = new Set([...swiftFields.matchAll(ref)].map(m => `${m[1]}.${m[2]}`));
+    const checked = new Set([...checker.matchAll(ref)].map(m => `${m[1]}.${m[2]}`));
+    expect(fields.size).toBeGreaterThan(0);
+    expect([...fields].filter(f => !checked.has(f))).toEqual([]);
+    expect([...checked].filter(f => !fields.has(f))).toEqual([]);
+  });
+});

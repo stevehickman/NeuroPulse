@@ -391,6 +391,9 @@ struct LimitsEditorView: View {
     @State private var scriptError: String? = nil
     @State private var workingLimits: NPLimitsSet = .unlimited
 
+    /// The limits outside the range their field states. Any one blocks Save; none is changed (SWR-UI-01 (f)).
+    private var outOfRange: [String] { NPLimitRangeCheck.outOfRange(workingLimits) }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -401,6 +404,14 @@ struct LimitsEditorView: View {
                 }
                 .pickerStyle(.segmented)
                 .padding()
+
+                if !outOfRange.isEmpty {
+                    Text("WEB_LIMITS_OUT_OF_RANGE")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                        .padding(.bottom, 6)
+                }
 
                 if viewMode == .visual {
                     visualEditor
@@ -419,6 +430,7 @@ struct LimitsEditorView: View {
                         onSave(workingLimits)
                         dismiss()
                     }
+                    .disabled(!outOfRange.isEmpty)
                 }
             }
             .onAppear {
@@ -885,6 +897,12 @@ struct OptionalDoubleField: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
 
+    /// True when the typed value is outside the range: marked red, and the limits cannot be saved until it is fixed.
+    private var isOutOfRange: Bool {
+        guard let v = value else { return false }
+        return !v.isFinite || !range.contains(v)
+    }
+
     var body: some View {
         HStack {
             Text(label)
@@ -902,12 +920,12 @@ struct OptionalDoubleField: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
                     .focused($focused)
+                    .foregroundColor(isOutOfRange ? .red : .primary)
                     .onChange(of: text) { _, v in value = Double(v) }
                     .onChange(of: focused) { _, isFocused in
+                        // Only the display is tidied. A value outside the range is marked and refused when the
+                        // limits are saved, never pulled into the range (SWR-UI-01 (f)).
                         guard !isFocused else { return }
-                        if let v = value {
-                            value = max(range.lowerBound, min(v, range.upperBound))
-                        }
                         syncText()
                     }
                     .onAppear { syncText() }
@@ -939,6 +957,12 @@ struct OptionalIntField: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
 
+    /// True when the typed value is outside the range: marked red, and the limits cannot be saved until it is fixed.
+    private var isOutOfRange: Bool {
+        guard let v = value else { return false }
+        return !range.contains(v)
+    }
+
     var body: some View {
         HStack {
             Text(label)
@@ -953,12 +977,12 @@ struct OptionalIntField: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
                     .focused($focused)
+                    .foregroundColor(isOutOfRange ? .red : .primary)
                     .onChange(of: text) { _, v in value = Int(v) }
                     .onChange(of: focused) { _, isFocused in
+                        // Only the display is tidied. A value outside the range is marked and refused when the
+                        // limits are saved, never pulled into the range (SWR-UI-01 (f)).
                         guard !isFocused else { return }
-                        if let v = value {
-                            value = max(range.lowerBound, min(v, range.upperBound))
-                        }
                         syncText()
                     }
                     .onAppear { syncText() }
@@ -1219,6 +1243,12 @@ struct ScriptImportView: View {
                     .padding(.horizontal).padding(.vertical, 6)
                     .background(Color.red.opacity(0.1))
                 }
+                if parsedOutOfRange {
+                    Text("WEB_LIMITS_OUT_OF_RANGE")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal).padding(.vertical, 6)
+                }
                 if parsedLimits != nil {
                     HStack {
                         Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
@@ -1252,9 +1282,15 @@ struct ScriptImportView: View {
                         if let l = parsedLimits { onImport(l) }
                         dismiss()
                     }
-                    .disabled(parsedLimits == nil)
+                    .disabled(parsedLimits == nil || parsedOutOfRange)
                 }
             }
         }
+    }
+
+    /// A script whose limits are outside their ranges is refused whole, not imported with values changed.
+    private var parsedOutOfRange: Bool {
+        guard let l = parsedLimits else { return false }
+        return !NPLimitRangeCheck.outOfRange(l).isEmpty
     }
 }
