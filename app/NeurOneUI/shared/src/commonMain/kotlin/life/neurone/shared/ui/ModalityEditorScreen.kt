@@ -237,8 +237,8 @@ private fun Vns(p: NPVNSHRVParams, on: (NPVNSHRVParams) -> Unit) {
 
 @Composable
 private fun Audio(p: NPAudioEntrainmentParams, on: (NPAudioEntrainmentParams) -> Unit) {
-    NumField(stringResource(Res.string.and_modality_binaural_beat_hz), p.binauralBeatsHz ?: 0.0) { on(p.copy(binauralBeatsHz = it.takeIf { v -> v > 0 })) }
-    NumField(stringResource(Res.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz ?: 0.0) { on(p.copy(isochronicTonesHz = it.takeIf { v -> v > 0 })) }
+    OptionalTone(stringResource(Res.string.modality_binaural_beats), stringResource(Res.string.and_modality_binaural_beat_hz), p.binauralBeatsHz, BINAURAL_START_HZ) { on(p.copy(binauralBeatsHz = it)) }
+    OptionalTone(stringResource(Res.string.modality_isochronic_tones), stringResource(Res.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz, ISOCHRONIC_START_HZ) { on(p.copy(isochronicTonesHz = it)) }
     NumField(stringResource(Res.string.and_modality_volume_db), p.volumeDb) { on(p.copy(volumeDb = it)) }
     ToggleRow(stringResource(Res.string.and_modality_eeg_adaptive), p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
     ToggleRow(stringResource(Res.string.and_modality_bone_conduction_pacer), p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
@@ -318,6 +318,22 @@ private fun IntField(label: String, value: Int, onChange: (Int) -> Unit) {
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
     )
+}
+
+/** The rate a tone starts at when it is switched on, as on iOS (20 Hz binaural, 40 Hz isochronic). */
+private const val BINAURAL_START_HZ = 20.0
+private const val ISOCHRONIC_START_HZ = 40.0
+
+/**
+ * A tone that is either absent (null: the switch is off) or present at a typed rate, as on iOS. Absent and a rate of 0 Hz
+ * are different protocols: the compiler uses a tone only when it is present, so the switch is the only way to say "none",
+ * and a typed 0 is stored as 0, never turned into none (`NP-SW-001` SWR-UI-01 (f)). The rate has no stated bounds beyond
+ * not being below 0 (`NPBounds.Param.Audio.beatRate`), so it is a typed field.
+ */
+@Composable
+private fun OptionalTone(toggleLabel: String, rateLabel: String, rateHz: Double?, startHz: Double, onChange: (Double?) -> Unit) {
+    ToggleRow(toggleLabel, rateHz != null) { on -> onChange(if (on) startHz else null) }
+    if (rateHz != null) NumField(rateLabel, rateHz) { onChange(it) }
 }
 
 @Composable
