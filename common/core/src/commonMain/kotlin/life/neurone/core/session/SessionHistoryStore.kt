@@ -131,12 +131,6 @@ class SessionHistoryStore(
     private val today: () -> LocalDate = { Clock.System.todayIn(TimeZone.currentSystemDefault()) },
 ) {
     companion object {
-        /**
-         * The newest this many records are kept, whatever [retention] says. The principal ruled (2026-11-19) that it stays only as a
-         * bound on the stored value's size; nothing has yet traced it to one (`UC-193`, `OI-PRIV-10` (2)).
-         */
-        const val MAX_RECORDS = 100
-
         // Companion-scoped so it exists before the instance init block runs
         // (a body-declared val would still be null during init { load() }).
         private val newestFirst = Comparator<SessionRecord> { a, b ->
@@ -273,7 +267,7 @@ class SessionHistoryStore(
             edfSessionId = session.edfSessionId,
         )
         nextInsertionIndex += 1
-        records = withinRetention((records + new).sortedWith(newestFirst), _retention.value).take(MAX_RECORDS)
+        records = withinRetention((records + new).sortedWith(newestFirst), _retention.value)
     }
 
     /** The records whose day is within [choice] of today; all of them when the choice has no age limit. */
