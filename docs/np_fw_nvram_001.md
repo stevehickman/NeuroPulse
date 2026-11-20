@@ -131,7 +131,7 @@
 > the length a caller-supplied check returns, never by one length fixed at the call.
 > `np_map3_row_len()` is that check for Map 3. It is the same single-row test `np_map3_scan()` makes,
 > so the store and the codec cannot disagree about where a row ends. `check-lfs-caller-rules.ts` R5 now
-> governs both journal readers. `np_cfg_store_tests` case 9 appends a v2 (40-byte) row between v1 rows
+> governs both journal readers. `np_cfg_store_tests` case 9 appends a grown row (64 bytes plus a tail) between 64-byte rows
 > through the real store and reads every row back. The same file read through the fixed-length reader
 > loses every row from the grown one on, which is the falsifying direction (§7.2.1). Nothing calls
 > either reader yet, because Map 3's owner is not written. **Still open under #444:** `OI-NVRAM-04`
@@ -418,9 +418,9 @@ That premise is testable against `EMMC-FS-01`'s own numbers.
 
 ```
 EMMC-FS-01 (Config):  block_size 4,096 B   prog_size 256 B   file_max 65,536 B
-Map 3 record (D-24):  32 B, prog-unit aligned
+Map 3 record (D-34):  64 B, prog-unit aligned
 
-one 256 B program unit  = 8 records
+one 256 B program unit  = 4 records
 one 4,096 B block       = 16 program units = 128 records, on ONE erase
 ```
 
@@ -495,44 +495,39 @@ has the whole of it rather than competing with the 14,012-byte inventory blob. �
 a shared file would give 644 bytes per module with nothing warning until a run-time write failure —
 does not arise.
 
-**Record: 32 bytes**, chosen so that eight records fit exactly one 256-byte program unit and **no
-record straddles a program unit**, which is requirement 1 of §4.2(b):
+**Record: 64 bytes**, chosen so that four records fit exactly one 256-byte program unit and **no
+record straddles a program unit**, which is requirement 1 of §4.2(b). A 40-byte row would straddle one.
+(D-34: the row was 32 bytes with 16-bit counts in Rev 2 to Rev 12 of this document; no hardware had shipped and no
+row had been written, so the 64-byte row replaced it and there is no second layout.)
 
 ```
-uid           8 B      seq            4 B      ordinal              4 B
-session_count 2 B      dose_accum     4 B      throttle_count       2 B
-fault_flags   1 B      reserved       1 B      crc32(uid ‖ payload) 4 B
-                                                                  ── 30 B → padded to 32
+len           1 B      ver            1 B      uid                  8 B
+seq           4 B      ordinal        4 B      session_count        4 B
+dose_accum    4 B      throttle_count 4 B      fault_flags          1 B
+reserved     29 B      crc32(len ‖ ver ‖ uid ‖ payload)             4 B
+                                                                  ── 64 B
 ```
 
-> **Rev 3 (D-25): the two padding bytes are a header.** Offset 0 is `len` (the row's total bytes,
-> CRC included) and offset 1 is `ver` (the layout version, ≥ 1). Version 1 is still exactly this
-> 32-byte row. The CRC is still the last four bytes, now over `len ‖ ver ‖ uid ‖ payload`. The header
-> is what lets a reader step by the row's own length, so a longer row written by newer firmware
-> neither shifts every row after it nor ends the scan. `np_map3_record.h` holds the byte map.
+> **The header (D-25).** Offset 0 is `len` (the row's total bytes, CRC included) and offset 1 is `ver` (the layout
+> version, ≥ 1, today 1). The CRC is the last four bytes, over `len ‖ ver ‖ uid ‖ payload`. The header is what lets a
+> reader step by the row's own length, so a longer row written by newer firmware neither shifts every row after it nor
+> ends the scan. The counts are 32 bits and are stored whole: no field holds a ceiling (`OI-UINT16-01`, the principal,
+> 2026-11-13). `np_map3_record.h` holds the byte map.
 
-> **Version 2 is a 64-byte row (D-33, `OI-UINT16-01`, the principal, 2026-11-13).** The two counts were 16 bits,
-> and version 1's offsets are fixed for ever, so version 2 carries `session_count` and `throttle_count` again as
-> 32-bit values in a tail at offsets 28 and 32, then 24 reserved bytes, then the CRC: 64 bytes in all, four to a
-> program unit, so **no row straddles one** and requirement 1 of §4.2(b) holds. A 40-byte row would straddle.
-> In a version-2 row the version-1 fields hold the count or 0xFFFF above it, for a reader that knows only version 1
-> (D-25 rollback); every version-2 reader uses the tail. The file holds **768** version-2 rows, or 1,536 version-1
-> rows; the bound is unchanged, and the margin below is for version 2 about half the 19 rows per socket.
-
-**File bound: 49,152 B (48 KiB) = 1,536 rows.** Not `file_max`, deliberately: 16,384 B of headroom
-means a future version that grows the row to 40 B still fits (1,536 × 40 = 61,440 < 65,536) without
+**File bound: 49,152 B (48 KiB) = 768 rows.** Not `file_max`, deliberately: 16,384 B of headroom
+means a future version that grows the row by up to 21 B still fits (768 × 85 = 65,280 < 65,536) without
 re-deciding the bound, and §7.2's rule is that a **record's** version policy is tail-additive forever
 — so the bound must survive a growth the blob's policy would simply discard through.
 
 **Sessions-between-sync assumption, stated because `OI-NVRAM-13` requires one to be:** one row per
-module per session, worst case all 80 sockets. 1,536 ÷ 80 = **19 rows per socket.**
+module per session, worst case all 80 sockets. 768 ÷ 80 = **9 rows per socket.**
 
 | Use pattern | Sessions/day | Margin before `detail_lost` |
 |---|---|---|
-| Home, daily | 1 | **19 days** |
-| Clinic | 12 | **1.6 days** |
+| Home, daily | 1 | **9 days** |
+| Clinic | 12 | **0.8 days** |
 
-The clinic figure is tight and is stated rather than rounded away. Three things make it acceptable
+The clinic figure is tight and is stated rather than rounded away. (It was 19 days and 1.6 days at the 32-byte row; the 64-byte row halves the row count, D-34.) Three things make it acceptable
 and none of them is optimism: **(i)** a clinic device is on USB-C with the control software attached
 for most of its duty cycle, so the sync interval there is hours, not days; **(ii)** exceeding the
 assumption costs **detail, never a session and never a total** — §6.3's journal-full policy keeps the
@@ -1272,25 +1267,24 @@ five scenarios:
 
 | | Scenario | What it models |
 |---|---|---|
-| S1 | 40 rows written under v1, read after the update | The version bump over an unsynced history |
-| S2 | S1 plus 20 v2 rows (+8 B) and 5 v3 rows (+16 B) | The updated firmware appending to that history |
-| S3 | S2, read by a reader that knows only v1 | Boot-bank rollback after an update |
+| S1 | 40 rows written by the real writer (version 1) | The journal as written |
+| S2 | S1 plus 20 version-2 rows (+8 B) and 5 version-3 rows (+16 B) | A later firmware appending to that history |
+| S3 | S2, read by a reader that knows only version 1 | Boot-bank rollback after an update |
 | S4 | S2 with a partial last row | A torn append costs that row and no earlier one (L-4) |
-| S5 | 1,536 v1 rows, exactly 49,152 bytes | D-24's bound, all rows back |
-| S6 | 768 v2 rows (64 bytes), exactly 49,152 bytes | The same bound at version 2 (D-33), all rows back |
+| S5 | 768 rows of 64 bytes, exactly 49,152 bytes | D-24's bound at D-34's row size, all rows back |
 
-The future rows are built only as §7.2 allows. The real v1 encoder writes the row, the tail goes
+The future rows are built only as §7.2 allows. The real encoder writes the row, the tail goes
 between the v1 fields and the CRC, and the header and CRC are rewritten. The check is **falsified in
 both directions**. It passes the production reader, and it **fails** each of four readers that break
 the rule in a way someone could plausibly write: **M1** reject-and-rebuild (the blob's policy,
 RISK-NVRAM-01's cause), **M2** fixed stride, **M3** exact length and **M4** version ceiling. Each
-mutant is also shown to read a pure-v1 journal correctly, so a failure is proven to come from
+mutant is also shown to read a journal of current rows correctly, so a failure is proven to come from
 versioning and not from a broken mutant. By hand, the production scan was patched to refuse
 `ver > NP_MAP3_VERSION`, and the check failed.
 
 **What it does not cover.** The check is on the codec. It does not go through `np_cfg_store`, whose
 `np_cfg_store_journal_read()` takes a fixed `rec_len` and so cannot read a journal whose rows differ
-in length. At version 1 every row is 32 B and nothing is lost. **Before any version grows the row,
+in length. At version 1 every row is 64 B and nothing is lost. **Before any version grows the row,
 the store needs a variable-length journal read, or the file needs a converter per rule 2.**
 `OI-NVRAM-16`.
 
@@ -1302,15 +1296,15 @@ the store needs a variable-length journal read, or the file needs a converter pe
 > `np_cfg_store_journal_read()` stays for journals whose records are all one length. **Map 3 must not
 > use it**, because it is exactly the reader this paragraph describes as losing rows.
 >
-> `np_cfg_store_tests` case 9 is the check. It appends four v1 rows, one grown row (the 64-byte version-2 row plus an 8-byte tail, as version 3) and five
-> more v1 rows **through the store**, then reads all ten back, in order, with the prefix ending at
+> `np_cfg_store_tests` case 9 is the check. It appends four 64-byte rows, one grown row (the 64-byte row plus an 8-byte tail, as version 2) and five
+> more 64-byte rows **through the store**, then reads all ten back, in order, with the prefix ending at
 > the journal's last byte. It is falsified in both directions:
 >
 > - **The fixture is required to break the old reader.** The same file read through the fixed-length
 >   reader must return exactly four rows. If it ever returned ten, the fixture would hold no grown row
 >   and the pass would prove nothing.
-> - **The new reader is required to fail when broken.** By hand, clamping the step's `left` to 32
->   bytes (a reader that cannot see past one v1 row) fails five of the case's assertions.
+> - **The new reader is required to fail when broken.** By hand, clamping the step's `left` to 64
+>   bytes (a reader that cannot see past one row) fails five of the case's assertions.
 >
 > The case also shows that a step of 0 or of more than `left` ends the prefix, that a torn half-row
 > costs only itself (L-4), and that the reader refuses a rebuild-cache file and a missing check.
@@ -1656,14 +1650,15 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-22** *(Rev 2)* | **The UKMD record is a named LittleFS file, not "Config partition offset 0x1000".** A byte offset into a mounted partition names a block the filesystem owns and may relocate. Safe to correct because no code ever used it — `np_uhdr_hal_config_read_ukmd()` has always abstracted it. `NP-FW-EMMC-002` §C.3 corrected in the same change. §3.3.1.4 |
 | **D-23** *(Rev 2)* | **Widen the Config specification, do not forbid the write.** `EMMC-CFG-01`'s contents list and `EMMC-CFG-02`'s normal-operation whitelist gain the `"NPMP"` blob and the Map 3 journal. `np_module_map_persist()` is correct and the specification predates the hex-tile architecture; the divergence had to become a decision rather than stay silent. §3.3.1.4 |
 | **D-24** *(Rev 2)* | **Map 3 is a 32-byte record in a 49,152-byte file — 1,536 rows, ~19 per socket at 80 sockets.** 32 B so eight records fit one program unit and none straddles it; 48 KiB not `file_max` so a future 40-byte row still fits without re-deciding the bound. Stated assumption: one row per module per session — 19 days of margin at home cadence, 1.6 days at clinic cadence, beyond which §6.3 degrades to totals-plus-`detail_lost` rather than failing. Closes `OI-NVRAM-13`. §3.3.1.5 |
-| **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 stays exactly 32 B. A later version appends before the CRC; offsets [2, 28) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) |
+| **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 is the row of D-34 (64 B). A later version appends before the CRC; offsets [2, 60) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) |
 | **D-26** *(Rev 3)* | **Map 2's code carries `Map2` as a word in the name of every file, type and module that holds it.** `check-map2-shdr-boundary.ts` clause A finds Map 2 by that name and cannot find it otherwise (`OI-NVRAM-09`, §8.3.1) |
 | **D-27** *(Rev 3, principal 2026-09-26)* | **A factory reset keeps durable evidence that it started, in the Config partition it erases last (§3.4.1 option A).** Written at R-3 before any erase, and a reset that cannot write it does not start. At boot, the SNVS flag, the marker **or a Config with no filesystem** completes the reset from R-5. An unreadable Config does not. Accepted consequence: a Config lost for any other reason also resets the device and mints a new warranty token (`OI-NVRAM-05`) |
 | **D-28** *(Rev 7)* | **Every per-session value `NP-MOD-ID-001` §7.2 admits is accumulated by the hub while the session runs, never read from `U1` once at session end and never computed as a difference of Map 4 reads.** Map 4 has no socket field and loses the session an extraction interrupts, so any other source drops those sessions from §7.4's exposure covariate, possibly not at random. With this rule the Map 4 loss reaches §7.4's model only through the carried-in baseline, within MODID-6's 250-session rounding. No polling interval is set (`OI-NVRAM-06`, §6.5.1) |
 | **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
 | **D-30** *(Rev 8)* | **`NP-MOD-ID-001` §7.4's fit carries presence (`module_session_count`) and calendar age (`last_seen_month` − `module_manufacture_date`, months, same `module_life` row) as covariates beside exposure.** Without them, idle aging in a rarely-driven socket reads as a socket effect, the false positive §7.4's decision rule turns on. Both are already in SHDR: **no field, no clock finer than `TIME-01`'s month and no Map 3 change** is added, and sub-month cadence stays unrecoverable (D-18). The gate states the assumption it cannot test: cadence acts only through the measured thermal fields. §5.3.1 |
 | **D-32** *(Rev 11)* | **`REQ-LFS-02` is a property of `np_module_map`, not of the boot sequence.** Every socket record carries a RAM-only `confirmed` flag. `load()` leaves it false, and it is set only when `apply_poll()` sees the record's UID in that socket or inventories a new module there. Every reader (resolve, resolve_group, check_placement, get_cal, set_cal, socket_uid) answers only from a record that is present **and** confirmed. The alternative, an ordering rule on the boot integration ("poll before anything reads the map"), was rejected. Nothing enforces an ordering but its callers, and the failure it guards against, a valid old blob, is invisible to every check below it. §4.2.1 |
-| **D-33** *(Rev {NP-FW-NVRAM-001 to}, `OI-UINT16-01`)* | **Map 3 version 2 is a 64-byte row, so its counts can be 32-bit and no row straddles a program unit.** Version 1's `session_count` and `throttle_count` are 16 bits at offsets that are fixed for ever, so version 2 adds each count whole as a tail (offsets 28 and 32), reserves 24 bytes and ends in the CRC. 64 B because four rows fill a 256-byte program unit and a 40-byte row would straddle one, against §4.2(b) requirement 1. A version-2 row's version-1 fields hold the count or 0xFFFF above it, for a version-1 reader after a rollback; that is the one ceiling, kept for compatibility. File bound unchanged: 768 version-2 rows. Nothing wrote Map 3 rows before this, so no stored row is at risk. §3.3.1.5 |
+| **D-33** *(Rev {NP-FW-NVRAM-001 to}, `OI-UINT16-01`)* | **SUPERSEDED by D-34.** It made Map 3 a 64-byte version-2 row beside a 32-byte version 1, with the version-1 count fields holding 0xFFFF above 16 bits. There is no version 2 or ceiling now. The 64-byte size and its reason (four rows to a program unit; a 40-byte row would straddle one) stand. §3.3.1.5 |
+| **D-34** *(Rev {NP-FW-NVRAM-001 to}, `OI-UINT16-01`)* | **Map 3 has one layout: a 64-byte row, version 1, with 32-bit counts stored whole and no ceiling field.** No hardware has shipped and no Map 3 row has ever been written, so there is no stored history and nothing to read in an older layout (the principal, 2026-11-19). The 32-byte row, its 16-bit counts, the duplicate 32-bit tail and the 0xFFFF compatibility ceiling are removed. Offsets: `len` 0, `ver` 1, `uid` 2, `seq` 10, `ordinal` 14, `session_count` 18, `dose_accum` 22, `throttle_count` 26, `fault_flags` 30, reserved [31, 60), CRC 60. §7.2's tail-additive rule is unchanged: a later version appends before the CRC and offsets [2, 60) are fixed for ever. File bound unchanged: 768 rows, 9 per socket at 80 sockets. §3.3.1.5 |
 | **D-31** *(Rev 10)* | **A mate is decided by the hub and applied by `U1`, and is written when it happens, not at session end.** The hub counts a mate when a poll returns a UID and its previous observation of that socket (this power-on, or the valid inventory cache at boot) was empty or a different UID. It never counts a first observation. `U1` honours the increment at most once per power-up, because every genuine mate power-cycles it (`VCC_3V3` is in contact group 3). A count of `U1` power-ups alone was rejected, because every hub power cycle would add a mate to every seated tile. The count is a lower bound, and it adds no field. **D-20** holds: nothing about the event is stored. `NP-MOD-ID-001` §5.3.1 |
 
 ---

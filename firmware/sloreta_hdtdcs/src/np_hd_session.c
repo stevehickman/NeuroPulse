@@ -357,7 +357,7 @@ np_hd_status_t np_hd_session_start_stim(np_hd_session_t *sess, uint32_t now_ms)
 
     uint16_t current_ua = sess->montage.anode_current_ua;
     uint16_t duration_s = sess->config.stim_duration_s
-                          ? sess->config.stim_duration_s : NP_HD_MIN_SESSION_S;
+                          ? sess->config.stim_duration_s : NP_HD_DEFAULT_SESSION_MIN_S;
 
     np_hd_status_t ret = np_hd_stim_start(&sess->stim, current_ua, duration_s, now_ms);
     if (ret != NP_HD_OK) {
@@ -418,7 +418,7 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms)
         np_hd_stim_phase_t sp = np_hd_stim_phase(&sess->stim);
 
         /* Update display state. */
-        uint32_t ramp_ms  = (uint32_t)NP_HD_RAMP_DURATION_S * 1000U;
+        uint32_t ramp_ms  = NP_HD_RAMP_MS;
         uint32_t total_ms = (uint32_t)sess->config.stim_duration_s * 1000U;
         uint32_t elapsed  = now_ms - sess->stage_start_ms;
         float progress    = (total_ms > 0U)

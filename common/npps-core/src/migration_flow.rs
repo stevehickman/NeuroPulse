@@ -13,17 +13,18 @@
 //! `{"effect":{"type":…,…},"state":…}`, meaning "do this and call me again with the outcome", or `{"done":{…}}`. The state
 //! is opaque to the platform, is never persisted by it, and holds the flow's working data (items, the bundle) for the
 //! length of the flow only. **No secret of the backup and no key of it is ever in a state**: the driver holds the secret and
-//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped.
+//! asks `deriveBundleKey` for the key; the key arrives in a `result`, is used in the same call and is dropped. A driver that has moved to `secret_io` (`SWR-MG-32`) answers `deriveKey` with the handle of a key the core keeps (`deriveBundleKey` with `"keep": "bundle"`), so the `result` names the key and holds none of it.
 //!
-//! **A flow over a direct link is the one exception, and it is bounded** (`link.rs`, `SWR-MG-28` (d)). The core keeps
-//! nothing between calls, so what a pairing needs from one call to the next can only be in the state:
+//! **A flow over a direct link is the one exception, and it is bounded** (`link.rs`, `SWR-MG-28` (d), `SWR-MG-32` (f)):
 //! * until the shared key is made: the pairing code, and on the restoring phone the SPAKE2 seed and its own SPAKE2
-//!   message. They are taken out in the call that makes the shared key;
-//! * from then on: the two channel keys (one per direction) and their message counts, because every later frame is sealed
-//!   or opened with them. Nothing else of the pairing stays. The shared key itself is never in a state, and the request a
-//!   restore starts from is kept without the code and dropped when the restore starts.
+//!   message, are in the state. They are taken out in the call that makes the shared key;
+//! * from then on the state holds **no secret**: the two channel keys (one per direction) are kept in the core and the
+//!   state names them by handle, beside their message counts. The shared key itself is never in a state, and the request
+//!   a restore starts from is kept without the code and dropped when the restore starts.
 //!
-//! A host therefore treats a link flow's state as it treats a key: in memory only, never logged, never persisted.
+//! A host still keeps a link flow's state in memory only, never logged and never persisted: during the pairing it holds
+//! the code, and afterwards a persisted state would name keys that no longer exist. A driver that stops a link flow
+//! part-way asks `linkRelease` with the last state it holds, so the core wipes that flow's keys.
 //!
 //! # Effects
 //! | type | args | result |
