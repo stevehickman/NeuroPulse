@@ -295,6 +295,8 @@ fn hub_const(header: &str, name: &str) -> u32 {
 }
 
 const LIMITS_H: &str = "hub_control/include/np_cmd_limits.h";
+/// The one firmware definition of the minimum tDCS ramp: `STIM_MIN_RAMP_S` in the limits header reads it (OI-UINT16-01).
+const SHARED_H: &str = "common/include/np_shared_constants.h";
 
 // @verifies REQ-NPPS-33#e
 #[test]
@@ -306,7 +308,7 @@ fn a_value_at_each_hub_limit_compiles_to_a_register_the_hub_admits_and_one_step_
     refused(compile("bes_tacs", bes(bes_max + 1)), &["BES/tACS", "intensityMilliamps"]);
 
     // tDCS current and ramp: refuses current_ua > STIM_MAX_AMP_TDCS_UA or ramp_s < STIM_MIN_RAMP_S.
-    let (tdcs_max, ramp_min) = (hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA"), hub_const(LIMITS_H, "STIM_MIN_RAMP_S"));
+    let (tdcs_max, ramp_min) = (hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA"), hub_const(SHARED_H, "NP_TDCS_MIN_RAMP_S"));
     let p = ok("tdcs", tdcs(f64::from(tdcs_max) / 1000.0, json!(ramp_min)));
     assert_eq!(u32::from(u16_at(&p, 1)), tdcs_max);
     assert_eq!(u32::from(u16_at(&p, 4)), ramp_min);
@@ -346,7 +348,7 @@ fn the_cores_limits_are_the_hubs_limits() {
     // The limit the compiler refuses at is the one the hub refuses at, so neither can drift without this failing.
     assert_eq!(hw::PBM_DUTY_CYCLE_MAX_PERCENT * 2.0, f64::from(hub_const("pbm/include/np_pbm_config.h", "NP_PBM_DUTY_MAX_REG")));
     assert_eq!(hw::PBM_DUTY_CYCLE_MAX_PERCENT * 2.0, f64::from(hub_const(LIMITS_H, "INS_DUTY_MAX")));
-    assert_eq!(hw::TDCS_RAMP_SECONDS, f64::from(hub_const(LIMITS_H, "STIM_MIN_RAMP_S")));
+    assert_eq!(hw::TDCS_RAMP_SECONDS, f64::from(hub_const(SHARED_H, "NP_TDCS_MIN_RAMP_S")));
     assert_eq!(hw::TDCS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const(LIMITS_H, "STIM_MAX_AMP_TDCS_UA")));
     assert_eq!(hw::VNS_MAX_MILLIAMPS * 1000.0, f64::from(hub_const("common/include/np_shared_constants.h", "NP_VNS_MAX_CURRENT_UA")));
     assert_eq!(170, hub_const("hub_control/include/np_hub_config.h", "NP_AUDIO_MAX_LEVEL_HALF_DB"));

@@ -55,8 +55,12 @@ sealed interface OtaError {
     data object VerificationFailed : OtaError
 }
 
-/** The chunk payload carries a 16-bit index, so indices run 0..65535: at most 65536 chunks (OI-UINT16-01). */
-internal const val MAX_CHUNKS = 65536
+/**
+ * The chunk payload carries a 16-bit index, so indices run 0..65535 and there are at most 65536 chunks (OI-UINT16-01). Derived
+ * from that width, which is fixed because it is the wire format's (the hub reads two bytes); a wider index would change this.
+ */
+internal const val CHUNK_INDEX_MAX = 0xFFFF
+internal const val MAX_CHUNKS = CHUNK_INDEX_MAX + 1
 
 class OtaException(val error: OtaError) : Exception(error.toString())
 

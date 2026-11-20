@@ -33,9 +33,9 @@ final class NppsMigrationTests: XCTestCase {
     func testAWithdrawalSurvivesARestoreAndNeverAskedStaysNull() throws {
         let merged = try NppsCore.migration([
             "op": "mergeWithdrawal", "local": [String: Any](),
-            "incoming": ["blanketConsentWithdrawnAt": "2026-03-01T00:00:00Z"],
+            "incoming": ["blanketConsentWithdrawnAt": "2026-03-01#000001"],
         ])
-        XCTAssertEqual(merged["blanketConsentWithdrawnAt"] as? String, "2026-03-01T00:00:00Z")
+        XCTAssertEqual(merged["blanketConsentWithdrawnAt"] as? String, "2026-03-01#000001")
         let never = try NppsCore.migration(["op": "mergeWithdrawal", "local": [String: Any](), "incoming": [String: Any]()])
         XCTAssertTrue(never["blanketConsentWithdrawnAt"] is NSNull)
     }

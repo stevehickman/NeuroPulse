@@ -5,8 +5,13 @@
 //  ends (`REQ-CONSENT-18`), a stored record that cannot be read (`REQ-CONSENT-20`), and a
 //  participation record that says only what happened (`REQ-CONSENT-21`).
 //
+//  Then the rest of that item: a descriptor that expires (`REQ-CONSENT-09` i), a typed contact method
+//  (`REQ-CONSENT-23`), a withdrawal marked with a day and a count (`REQ-CONSENT-24`), and the marks
+//  recovered from an unreadable record (`REQ-CONSENT-20` e).
+//
 //  The twin of common/core/src/jvmTest/.../consent/ConsentRepairTests.kt. Where Kotlin compares
-//  "yyyy-MM-dd" day strings, these compare calendar days of a `Date`.
+//  "yyyy-MM-dd" day strings, these compare calendar days of a `Date`, except for a withdrawal mark,
+//  which is the same text on both.
 //
 //  Subject under test: ConsentStore, ConsentEngine, ClinicianConsentGrant, StudyParticipationRecord
 
@@ -32,6 +37,8 @@ final class ConsentRepairTests: XCTestCase {
     private let grantsKey = "np.consent.clinician-grants"
     private let researchKey = "np.consent.research"
     private let quarantineKey = "np.consent.quarantine"
+    private let invitationsKey = "np.consent.study-invitations"
+    private let studyWithdrawalsKey = "np.consent.study-withdrawals"
 
     override func setUp() {
         super.setUp()
@@ -64,6 +71,7 @@ final class ConsentRepairTests: XCTestCase {
     private func categories(_ granted: ResearchCategory...) -> ResearchConsentState {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
+        state.contactMethod = "person@example.org"
         granted.forEach { state.categoryConsents[$0] = true }
         return state
     }
@@ -71,6 +79,7 @@ final class ConsentRepairTests: XCTestCase {
     private var blanket: ResearchConsentState {
         var state = ResearchConsentState()
         state.contactConsentGranted = true
+        state.contactMethod = "person@example.org"
         state.blanketConsentGranted = true
         return state
     }
@@ -84,6 +93,7 @@ final class ConsentRepairTests: XCTestCase {
             kAnonymity: 10,
             dateRoundingDays: 7,
             issuedAt: Date(),
+            expiresAt: Date().addingTimeInterval(30 * 86_400),
             signature: "sig"
         )
     }
@@ -183,7 +193,7 @@ final class ConsentRepairTests: XCTestCase {
         let store = storeWith(blanket)
         store.ingestStudyDescriptor(study("A", .depression))
 
-        try store.applyWithdrawals(["blanketConsentWithdrawnAt": "2099-01-01T00:00:00Z"])
+        try store.applyWithdrawals(["blanketConsentWithdrawnAt": "2099-01-01#000001"])
 
         XCTAssertTrue(active(store).isEmpty)
     }
@@ -195,7 +205,7 @@ final class ConsentRepairTests: XCTestCase {
         // What the store wrote before the repair: consent withdrawn, participation untouched.
         var withdrawn = ResearchConsentState()
         withdrawn.contactConsentGranted = true
-        withdrawn.blanketConsentWithdrawnAt = day(2026, 1, 1)
+        withdrawn.blanketConsentWithdrawnAt = "2026-01-01#000001"
         ProtectedDefaults.standard.set(try JSONEncoder().encode(withdrawn), forKey: researchKey)
 
         let reopened = open()
@@ -480,5 +490,246 @@ final class ConsentRepairTests: XCTestCase {
         XCTAssertTrue(store.pendingInvitations.isEmpty)
         XCTAssertEqual(store.ingestStudyDescriptor(study("B")),
                        .admitted(posture: .engagementNotification, descriptorHash: "sha256:abc"))
+    }
+
+    // MARK: - REQ-CONSENT-09 i: a descriptor stands only until the day its issuer signed
+
+    /// Noon UTC on this device's calendar day, moved by `offset` days: a `Date` whose signed (UTC) day is
+    /// that day whatever zone the test runs in. Kotlin writes the day as text; here it has to be built.
+    private func signedDay(_ offset: Int = 0) -> Date {
+        var device = Calendar(identifier: .gregorian)
+        device.timeZone = .current
+        let local = device.dateComponents([.year, .month, .day], from: Date())
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let noon = utc.date(from: DateComponents(year: local.year, month: local.month, day: local.day, hour: 12))!
+        return utc.date(byAdding: .day, value: offset, to: noon)!
+    }
+
+    // Kotlin also refuses an expiry that is not a real "yyyy-MM-dd" day. A `Date` cannot be malformed, so
+    // that case has no twin here.
+    // @verifies REQ-CONSENT-09#i
+    func testADescriptorIsRefusedAfterItsExpiryDayOrWithAnExpiryThatCannotBeHeldTo() {
+        let store = storeWith(blanket)
+
+        var longOver = study("A")
+        longOver.issuedAt = day(2026, 1, 1)
+        longOver.expiresAt = signedDay(-1)
+        XCTAssertEqual(store.ingestStudyDescriptor(longOver), .refused(.descriptorExpired))
+
+        var endsBeforeItStarts = study("C")
+        endsBeforeItStarts.issuedAt = signedDay()
+        endsBeforeItStarts.expiresAt = signedDay(-1)
+        XCTAssertEqual(store.ingestStudyDescriptor(endsBeforeItStarts), .refused(.descriptorExpired))
+
+        var lastDay = study("D")
+        lastDay.issuedAt = signedDay()
+        lastDay.expiresAt = signedDay()
+        XCTAssertTrue(isAdmitted(store.ingestStudyDescriptor(lastDay)), "the expiry day is the last day")
+    }
+
+    // @verifies REQ-CONSENT-09#i
+    func testARequestCannotBeAcceptedAfterItsDescriptorExpired() throws {
+        let store = storeWith(categories(.depression))
+        store.ingestStudyDescriptor(study("A", .depression))
+        // The invitation as it will be once its expiry day has passed.
+        var stored = store.pendingInvitations
+        XCTAssertEqual(stored.count, 1)
+        XCTAssertNotNil(stored.first?.expiresAt, "the invitation carries the descriptor's expiry")
+        for idx in stored.indices { stored[idx].expiresAt = day(2020, 1, 1) }
+        ProtectedDefaults.standard.set(try JSONEncoder().encode(stored), forKey: invitationsKey)
+
+        let reopened = open()
+        reopened.acceptInvitation(studyID: "A")
+
+        XCTAssertTrue(reopened.studyParticipations.isEmpty)
+        XCTAssertEqual(reopened.pendingInvitations.count, 1)
+        XCTAssertEqual(reopened.pendingInvitations.first?.isOpen, true)
+    }
+
+    // MARK: - REQ-CONSENT-23: the contact method is typed, needed for L1, and erased with it
+
+    // @verifies REQ-CONSENT-23#a
+    func testAContactIsAnEmailAddressOrAPhoneNumberAndNothingElse() {
+        XCTAssertEqual(ResearchContact.parse("  a.b@example.org "),
+                       ResearchContact(channel: .email, value: "a.b@example.org"))
+        XCTAssertEqual(ResearchContact.parse("+1 (555) 123-4567"),
+                       ResearchContact(channel: .phone, value: "+15551234567"))
+        let notOne = ["", "call me after my EEG results", "a@b", "a@@example.org", "a b@example.org", "@example.org",
+                      "+1234567890123456", "555-CALL"]
+        for text in notOne {
+            XCTAssertNil(ResearchContact.parse(text), text)
+        }
+    }
+
+    // @verifies REQ-CONSENT-23#b
+    func testContactConsentIsNotTakenWithoutAUsableMethod() {
+        let store = open()
+
+        var asked = ResearchConsentState()
+        asked.contactConsentGranted = true
+        asked.contactMethod = "ask my sister"
+        store.updateResearchConsent(asked)
+        XCTAssertFalse(store.researchConsent.contactConsentGranted)
+        XCTAssertEqual(store.researchConsent.contactMethod, "", "and what was typed is not kept")
+        XCTAssertNil(store.researchConsent.contactConsentWithdrawnAt, "nothing was granted, so nothing was withdrawn")
+
+        asked.contactMethod = "+44 20 7946 0000"
+        store.updateResearchConsent(asked)
+        XCTAssertTrue(store.researchConsent.contactConsentGranted)
+        XCTAssertEqual(store.researchConsent.contactMethod, "+442079460000")
+        XCTAssertEqual(store.researchConsent.contactChannel, .phone)
+
+        // An unusable replacement does not displace the method held, and does not read as a withdrawal.
+        var replaced = store.researchConsent
+        replaced.contactMethod = "nope"
+        store.updateResearchConsent(replaced)
+        XCTAssertTrue(store.researchConsent.contactConsentGranted)
+        XCTAssertEqual(store.researchConsent.contactMethod, "+442079460000")
+        XCTAssertNil(store.researchConsent.contactConsentWithdrawnAt)
+    }
+
+    // @verifies REQ-CONSENT-23#c
+    func testWithdrawingContactConsentErasesTheMethod() throws {
+        let store = storeWith(blanket)
+        XCTAssertEqual(store.researchConsent.contactMethod, "person@example.org")
+
+        var withdrawn = store.researchConsent
+        withdrawn.contactConsentGranted = false
+        store.updateResearchConsent(withdrawn)
+
+        XCTAssertEqual(store.researchConsent.contactMethod, "")
+        XCTAssertNil(store.researchConsent.contactChannel)
+        let stored = try XCTUnwrap(ProtectedDefaults.standard.data(forKey: researchKey))
+        XCTAssertFalse(String(decoding: stored, as: UTF8.self).contains("person@example.org"))
+    }
+
+    // @verifies REQ-CONSENT-23#c
+    func testARestoredContactWithdrawalErasesTheMethodHereToo() throws {
+        let store = storeWith(blanket)
+
+        try store.applyWithdrawals(["contactConsentWithdrawnAt": "2099-01-01#000001"])
+
+        XCTAssertFalse(store.researchConsent.contactConsentGranted)
+        XCTAssertEqual(store.researchConsent.contactMethod, "")
+    }
+
+    // MARK: - REQ-CONSENT-24: a withdrawal is marked with a day and a count
+
+    /// A store whose withdrawals fall on `days`, in order, and on the device's day once they run out.
+    private func onDays(_ days: String...) -> ConsentStore {
+        var remaining = days
+        return ConsentStore(
+            descriptorVerifier: AcceptingVerifier(),
+            today: { remaining.isEmpty ? ConsentDay.today() : remaining.removeFirst() }
+        )
+    }
+
+    private var blanketOff: ResearchConsentState {
+        var state = blanket
+        state.blanketConsentGranted = false
+        return state
+    }
+
+    // @verifies REQ-CONSENT-24#a
+    func testAMarkHoldsADayAndACountAndNoTimeOfDay() {
+        let store = onDays("2026-03-01")
+        store.updateResearchConsent(blanket)
+
+        store.updateResearchConsent(blanketOff)
+
+        XCTAssertEqual(store.researchConsent.blanketConsentWithdrawnAt, "2026-03-01#000001")
+        XCTAssertTrue(WithdrawalMark.isValid("2026-03-01#000001"))
+        XCTAssertFalse(WithdrawalMark.isValid("2026-03-01T10:15:30Z"), "an instant is not a mark")
+    }
+
+    // @verifies REQ-CONSENT-24#a
+    func testARestoreTakesOnlyWellFormedMarks() throws {
+        let store = onDays()
+        store.updateResearchConsent(blanket)
+
+        try store.applyWithdrawals([
+            "blanketConsentWithdrawnAt": "2099-01-01T00:00:00Z",
+            "studyWithdrawals": ["S-1": "yesterday", "S-2": "2026-01-20#000001"],
+        ])
+
+        XCTAssertTrue(store.researchConsent.blanketConsentGranted, "an instant is not a mark, so it withdraws nothing")
+        XCTAssertEqual(store.studyWithdrawals, ["S-2": "2026-01-20#000001"])
+    }
+
+    // @verifies REQ-CONSENT-24#b
+    func testTwoWithdrawalsOfOneDecisionOnOneDayAreOrderedByTheirCount() throws {
+        let store = onDays("2026-03-01", "2026-03-01", "2026-03-05")
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanketOff)
+        let first = try XCTUnwrap(store.researchConsent.blanketConsentWithdrawnAt)
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanketOff)
+        let second = try XCTUnwrap(store.researchConsent.blanketConsentWithdrawnAt)
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanketOff)
+        let third = try XCTUnwrap(store.researchConsent.blanketConsentWithdrawnAt)
+
+        XCTAssertEqual(second, "2026-03-01#000002")
+        XCTAssertEqual(third, "2026-03-05#000003")
+        XCTAssertTrue(first < second && second < third, "the text orders them")
+    }
+
+    // @verifies REQ-CONSENT-24#c
+    func testASecondWithdrawalOnTheOtherPhoneTheSameDayIsLaterAndIsApplied() throws {
+        // This phone holds the first withdrawal and consent was granted again here. The other phone
+        // withdrew again the same day: its count is higher, so the restore switches the grant off.
+        let store = onDays("2026-03-01")
+        store.updateResearchConsent(blanket)
+        store.updateResearchConsent(blanketOff)
+        store.updateResearchConsent(blanket)
+
+        try store.applyWithdrawals(["blanketConsentWithdrawnAt": "2026-03-01#000001"])
+        XCTAssertTrue(store.researchConsent.blanketConsentGranted, "the same withdrawal again changes nothing")
+
+        try store.applyWithdrawals(["blanketConsentWithdrawnAt": "2026-03-01#000002"])
+        XCTAssertFalse(store.researchConsent.blanketConsentGranted)
+        XCTAssertEqual(store.researchConsent.blanketConsentWithdrawnAt, "2026-03-01#000002")
+    }
+
+    // MARK: - REQ-CONSENT-20 e: marks are read out of a record that did not decode
+
+    private let unreadableWithdrawalList = Data(#"{"S-1":"2026-01-20#000001","S-2":17}"#.utf8)
+
+    // A category is stored under `ResearchCategory.rawValue` here, where Kotlin stores the enum's name.
+    // @verifies REQ-CONSENT-20#e
+    func testWithdrawalMarksAreRecoveredFromAnUnreadableRecordAndGrantsNeverAre() {
+        let record = #"{"blanketConsentGranted":"perhaps","contactConsentGranted":true,"#
+            + #""contactMethod":"person@example.org","blanketConsentWithdrawnAt":"2026-02-01#000002","#
+            + #""resultsOptInWithdrawnAt":"2026-02-01T10:00:00Z","#
+            + #""categoryWithdrawnAt":{"Sleep Disorders":"2026-01-15#000001","NOT_A_CATEGORY":"2026-01-15#000001"}}"#
+        ProtectedDefaults.standard.set(Data(record.utf8), forKey: researchKey)
+        ProtectedDefaults.standard.set(unreadableWithdrawalList, forKey: studyWithdrawalsKey)
+
+        let store = open()
+
+        XCTAssertTrue(store.consentRecordUnreadable)
+        XCTAssertTrue(store.researchConsent.blanketConsentWithdrawn, "said stop is held from the start")
+        XCTAssertEqual(store.researchConsent.blanketConsentWithdrawnAt, "2026-02-01#000002")
+        XCTAssertEqual(store.researchConsent.categoryWithdrawnAt, [ResearchCategory.sleep.rawValue: "2026-01-15#000001"])
+        XCTAssertNil(store.researchConsent.resultsOptInWithdrawnAt, "a value that is not a mark is left behind")
+        XCTAssertFalse(store.researchConsent.contactConsentGranted, "a grant is never read out of an unreadable record")
+        XCTAssertEqual(store.researchConsent.contactMethod, "")
+        XCTAssertEqual(store.exportWithdrawals()["blanketConsentWithdrawnAt"] as? String, "2026-02-01#000002")
+
+        // After the person decides again the recovered marks are still the record.
+        store.updateResearchConsent(categories(.depression))
+        XCTAssertFalse(store.consentRecordUnreadable)
+        XCTAssertEqual(open().researchConsent.blanketConsentWithdrawnAt, "2026-02-01#000002")
+    }
+
+    // @verifies REQ-CONSENT-20#e
+    func testStudyWithdrawalsAreRecoveredFromAnUnreadableList() {
+        ProtectedDefaults.standard.set(unreadableWithdrawalList, forKey: studyWithdrawalsKey)
+
+        let store = open()
+
+        XCTAssertEqual(store.studyWithdrawals, ["S-1": "2026-01-20#000001"])
+        XCTAssertTrue(store.consentRecordUnreadable)
     }
 }

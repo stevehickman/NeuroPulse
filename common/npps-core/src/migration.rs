@@ -31,17 +31,15 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 
 /// The bundle format version this build reads and writes (`SWR-MG-05`). The scheme beyond "one number, a newer one is
-/// refused whole" is open (`OI-UI-KMP-11` open question 5). Version 2 added the epoch inside the sealed body (`SWR-MG-29`,
-/// `OI-PRIV-09`); a version-1 bundle has none and is read as epoch 0, the oldest there can be.
-pub const FORMAT_VERSION: u64 = 2;
-
-/// The first format version whose sealed body carries an epoch.
-const EPOCH_FROM_VERSION: u64 = 2;
+/// refused whole" is open (`OI-UI-KMP-11` open question 5). The epoch joined the sealed body (`SWR-MG-29`, `OI-PRIV-09`)
+/// and the number stayed 1, by ruling (the principal, 2026-11-19): no build that sealed a bundle without an epoch was
+/// released, so no such bundle should exist and there is no older reader to refuse this one. A body with no epoch, were one
+/// to turn up, is `malformed`. The next change to the format after a release bumps the version.
+pub const FORMAT_VERSION: u64 = 1;
 
 /// The stored keys, sorted (`common/npps/migration-keys.json`, one file for every app and the gate that reads every app).
 const KEY_MAP: &str = include_str!("../../npps/migration-keys.json");
@@ -164,7 +162,8 @@ fn restore_report(req: &Value) -> R<Value> {
 }
 
 fn later(a: Option<&str>, b: Option<&str>) -> Option<String> {
-    // ISO-8601 timestamps of one format order as text; the later one is the withdrawal that stands.
+    // A withdrawal mark is a day and that decision's withdrawal count, `yyyy-MM-dd#NNNNNN` (`REQ-CONSENT-24`). Marks order
+    // as text, by day and then by count; the later one is the withdrawal that stands. The core never parses one.
     match (a, b) {
         (Some(x), Some(y)) => Some(if x >= y { x } else { y }.to_string()),
         (Some(x), None) | (None, Some(x)) => Some(x.to_string()),
@@ -185,8 +184,8 @@ const WITHDRAWAL_BY_ID: [&str; 2] = ["categoryWithdrawals", "studyWithdrawals"];
 
 /// `SWR-MG-04`: the withdrawal state is the union of what the install holds and what the bundle brings, and a withdrawal
 /// is sticky: it is never undone. A restore keeps the later time of every withdrawal and every id withdrawn on either side, and
-/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. Times are UTC
-/// instants of one fixed form (`2026-03-01T00:00:00Z`), which order as text. The app switches off whatever the merged state
+/// a time is null only when that decision was never withdrawn, so "never asked" and "said stop" stay apart. A time is a
+/// withdrawal mark, a day and that decision's count in one fixed form (`2026-03-01#000001`), which orders as text. The app switches off whatever the merged state
 /// withdraws that the phone had not: a restore can only reduce what a phone is consented to.
 fn merge_withdrawal(req: &Value) -> R<Value> {
     let (local, incoming) = (&req["local"], &req["incoming"]);
@@ -322,7 +321,7 @@ const CONFIRMATION_LABEL: &[u8] = b"np-migration-confirmation-v1";
 /// keeps it (not the key), and the new phone makes it when it has opened the bundle. The bundle hash is computed from
 /// ciphertext the backup location already holds, so without the tag anyone who can write there could confirm.
 fn confirmation_tag(req: &Value) -> R<Value> {
-    let key = zeroize::Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -413,7 +412,7 @@ fn probe_result(req: &Value) -> R<Value> {
 //
 // The epoch (`SWR-MG-29` (b) to (d), `OI-PRIV-09`). The place that keeps a bundle is not trusted, and without more it can
 // hand back any bundle it was ever given: an older one is as authentic as the newest. So the sealed body is
-// `{"epoch": n, "items": {…}}` (format version 2), where the epoch is a count that only rises: a phone seals each bundle
+// `{"epoch": n, "items": {…}}`, where the epoch is a count that only rises: a phone seals each bundle
 // with one more than the highest epoch it has sealed or opened. It is inside the ciphertext, so it is authenticated and the
 // backup location cannot read it or count backups by it. `openBundle` is told the highest epoch the phone has seen
 // (`seenEpoch`, required, 0 for none) and refuses a bundle below it whole (`older_bundle`), with no items in the answer.
@@ -438,7 +437,19 @@ pub(crate) fn unhex(s: &str, what: &str) -> R<Vec<u8>> {
     if s.len() % 2 != 0 || !s.is_ascii() {
         return Err(format!("{what} is not hex"));
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| format!("{what} is not hex"))).collect()
+    // Decoded into one buffer of its final size (`SWR-MG-28` (c)). Collecting through a `Result` starts small and grows,
+    // and each growth releases the shorter copy as it is: for a key, its first bytes, whatever wraps the result afterwards.
+    let mut out = Vec::with_capacity(s.len() / 2);
+    for i in (0..s.len()).step_by(2) {
+        match u8::from_str_radix(&s[i..i + 2], 16) {
+            Ok(b) => out.push(b),
+            Err(_) => {
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(format!("{what} is not hex"));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// `SWR-MG-07`, `SWR-MG-08`: the bundle hash a claim and a confirmation carry: SHA-256 of the whole bundle, as 64 hex digits.
@@ -483,7 +494,7 @@ fn read_bundle_header(req: &Value) -> R<Value> {
 /// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
 /// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = Zeroizing::new(unhex(req["key"].as_str().ok_or("key is required")?, "key")?);
+    let key = crate::secret_io::secret(req, "key", &["bundle"])?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -528,7 +539,7 @@ fn seal_bundle(req: &Value) -> R<Value> {
 ///
 /// `SWR-MG-29` (c): the caller says the highest epoch this phone has sealed or opened (`seenEpoch`; 0 when it has seen
 /// none). It is required, so no caller opens a bundle without the check by leaving it out. A bundle whose epoch is lower is
-/// refused whole (`older_bundle`) and its items are not returned. A version-1 bundle carries no epoch and counts as 0.
+/// refused whole (`older_bundle`) and its items are not returned. A body with no epoch does not open (`malformed`).
 fn open_bundle(req: &Value) -> R<Value> {
     let bundle = unhex(req["bundle"].as_str().ok_or("bundle is required")?, "bundle")?;
     let seen = req["seenEpoch"].as_u64().ok_or("seenEpoch is required (0 for a phone that has seen no bundle)")?;
@@ -552,14 +563,10 @@ fn open_bundle(req: &Value) -> R<Value> {
     let Ok(body) = serde_json::from_slice::<Value>(&plain) else {
         return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
-    let epoch = if checked["formatVersion"].as_u64().is_some_and(|v| v >= EPOCH_FROM_VERSION) {
-        // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make.
-        let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
-            return Ok(json!({ "ok": false, "reason": "malformed" }));
-        };
-        epoch
-    } else {
-        0
+    // The key holder sealed this body, so a missing or zero epoch is a bundle this build did not make: it gets no place in
+    // the order, and is never read as "the oldest".
+    let Some(epoch) = body["epoch"].as_u64().filter(|e| *e >= 1) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
     };
     if epoch < seen {
         return Ok(json!({ "ok": false, "reason": "older_bundle", "epoch": epoch, "seenEpoch": seen }));
@@ -616,7 +623,8 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
         "readBundleHeader" => read_bundle_header(req)?,
         "openBundle" => open_bundle(req)?,
         other => {
-            return crate::link::op(other, req)
+            return crate::secret_io::op(other, req)
+                .or_else(|| crate::link::op(other, req))
                 .or_else(|| crate::migration_text::op(other, req))
                 .or_else(|| crate::at_rest::op(other, req))
                 .or_else(|| crate::archive::op(other, req))
@@ -840,32 +848,32 @@ mod tests {
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_never_resets_a_withdrawal() {
-        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","studyWithdrawals":{"s2":"2026-03-02T00:00:00Z","s1":"2026-01-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-03-03T00:00:00Z"},"contactConsentWithdrawnAt":"2026-03-04T00:00:00Z"});
+        let local = json!({"blanketConsentWithdrawnAt":null,"studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","studyWithdrawals":{"s2":"2026-03-02#000001","s1":"2026-01-01#000001"},"categoryWithdrawals":{"c1":"2026-03-03#000001"},"contactConsentWithdrawnAt":"2026-03-04#000001"});
         let m = ask(json!({"op":"mergeWithdrawal","local":local,"incoming":incoming}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01T00:00:00Z");
-        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"}), "the later time per id stands");
-        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03T00:00:00Z"}));
-        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04T00:00:00Z");
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-03-01#000001");
+        assert_eq!(m["studyWithdrawals"], json!({"s1":"2026-02-01#000001","s2":"2026-03-02#000001"}), "the later time per id stands");
+        assert_eq!(m["categoryWithdrawals"], json!({"c1":"2026-03-03#000001"}));
+        assert_eq!(m["contactConsentWithdrawnAt"], "2026-03-04#000001");
         // The other way round: a fresh install brings none, the bundle's stands; an older one never replaces a later one.
-        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
-        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
+        let m = ask(json!({"op":"mergeWithdrawal","local":{"blanketConsentWithdrawnAt":"2026-05-01#000001"},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
+        assert_eq!(m["blanketConsentWithdrawnAt"], "2026-05-01#000001");
     }
 
     // @verifies SWR-MG-04
     #[test]
     fn a_restore_applies_only_a_later_withdrawal_and_never_a_grant() {
-        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01T00:00:00Z","contactConsentWithdrawnAt":null,
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-04-01T00:00:00Z"}});
-        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z","contactConsentWithdrawnAt":"2026-03-04T00:00:00Z",
-            "studyWithdrawals":{"s1":"2026-02-01T00:00:00Z","s2":"2026-03-02T00:00:00Z"},"categoryWithdrawals":{"c1":"2026-06-01T00:00:00Z"}});
+        let held = json!({"blanketConsentWithdrawnAt":"2026-05-01#000001","contactConsentWithdrawnAt":null,
+            "studyWithdrawals":{"s1":"2026-02-01#000001"},"categoryWithdrawals":{"c1":"2026-04-01#000001"}});
+        let incoming = json!({"blanketConsentWithdrawnAt":"2026-03-01#000001","contactConsentWithdrawnAt":"2026-03-04#000001",
+            "studyWithdrawals":{"s1":"2026-02-01#000001","s2":"2026-03-02#000001"},"categoryWithdrawals":{"c1":"2026-06-01#000001"}});
         let r = ask(json!({"op":"applyWithdrawal","held":held,"incoming":incoming}));
         // Older than the held blanket withdrawal and equal for s1: not applied. New, or later: applied.
         assert_eq!(r["applied"]["times"], json!(["contactConsentWithdrawnAt"]));
         assert_eq!(r["applied"]["studyWithdrawals"], json!(["s2"]));
         assert_eq!(r["applied"]["categoryWithdrawals"], json!(["c1"]));
-        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01T00:00:00Z");
-        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01T00:00:00Z");
+        assert_eq!(r["merged"]["blanketConsentWithdrawnAt"], "2026-05-01#000001");
+        assert_eq!(r["merged"]["categoryWithdrawals"]["c1"], "2026-06-01#000001");
         let none = ask(json!({"op":"applyWithdrawal","held":{},"incoming":{}}));
         assert_eq!(none["applied"]["times"], json!([]));
     }
@@ -875,7 +883,7 @@ mod tests {
     fn never_asked_and_said_stop_stay_apart() {
         let never = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{}}));
         assert!(never["blanketConsentWithdrawnAt"].is_null(), "never asked stays null");
-        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01T00:00:00Z"}}));
+        let stopped = ask(json!({"op":"mergeWithdrawal","local":{},"incoming":{"blanketConsentWithdrawnAt":"2026-03-01#000001"}}));
         assert!(!stopped["blanketConsentWithdrawnAt"].is_null());
     }
 
@@ -948,7 +956,7 @@ mod tests {
     // @verifies SWR-MG-02
     #[test]
     fn a_sealed_bundle_opens_with_the_key_and_returns_what_was_sealed() {
-        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01T00:00:00Z"}});
+        let items = json!({"sessionHistory":[{"id":1}],"withdrawalState":{"blanketConsentWithdrawnAt":"2026-10-01#000001"}});
         let b = sealed("uhdr", items.clone());
         let opened = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":b["bundle"],"key":KEY}));
         assert_eq!(opened["ok"], true);
@@ -1093,30 +1101,20 @@ mod tests {
     // @verifies SWR-MG-05
     // @verifies SWR-MG-29#b
     #[test]
-    fn the_format_version_rose_with_the_epoch_so_the_older_reader_refuses_this_bundle() {
-        // The reader before this change took versions up to 1 and refused anything above whole (`newer_version`).
+    fn the_format_version_stays_1_and_a_body_with_no_epoch_does_not_open() {
+        // No version bump (the principal, 2026-11-19): no bundle from before the epoch should exist.
         let b = sealed_at(1, json!({}));
-        assert_eq!(b["formatVersion"], 2);
-        let h = ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}));
-        assert_eq!(h["formatVersion"], 2);
-        const OLDER_READER_SUPPORTS: u64 = 1;
-        assert!(h["formatVersion"].as_u64().unwrap() > OLDER_READER_SUPPORTS);
+        assert_eq!(b["formatVersion"], 1);
+        assert_eq!(ask(json!({"op":"readBundleHeader","bundle":b["bundle"]}))["formatVersion"], 1);
         assert_eq!(ask(json!({"op":"readHeader","header":{"kind":"uhdr","formatVersion":FORMAT_VERSION + 1}}))["reason"], "newer_version");
-    }
-
-    // @verifies SWR-MG-29#c
-    #[test]
-    fn a_version_1_bundle_has_no_epoch_and_counts_as_the_oldest() {
-        let v1 = sealed_raw(1, json!({"items":{"sessionHistory":[]}}));
-        // A phone that has seen nothing opens it, as epoch 0; a phone that has sealed anything since refuses it.
-        let fresh = ask(json!({"op":"openBundle","seenEpoch":0,"bundle":v1,"key":KEY}));
-        assert_eq!((fresh["ok"].clone(), fresh["epoch"].clone()), (json!(true), json!(0)));
-        assert_eq!(ask(json!({"op":"openBundle","seenEpoch":1,"bundle":v1,"key":KEY}))["reason"], "older_bundle");
-        // A version-1 body cannot claim an epoch, and a version-2 body cannot go without one or name 0.
-        let claims = ask(json!({"op":"openBundle","seenEpoch":1,"bundle":sealed_raw(1, json!({"epoch":99,"items":{}})),"key":KEY}));
-        assert_eq!(claims["reason"], "older_bundle");
-        for body in [json!({"items":{}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
-            assert_eq!(ask(json!({"op":"openBundle","seenEpoch":0,"bundle":sealed_raw(2, body.clone()),"key":KEY}))["reason"], "malformed", "{body}");
+        // If one did exist, or a body named no usable epoch, it is not opened, whatever the phone has seen: it is not
+        // taken for "the oldest", which a phone that has seen nothing would accept.
+        for body in [json!({"items":{"sessionHistory":[]}}), json!({"epoch":0,"items":{}}), json!({"epoch":"4","items":{}})] {
+            for seen in [0, 1] {
+                let r = ask(json!({"op":"openBundle","seenEpoch":seen,"bundle":sealed_raw(1, body.clone()),"key":KEY}));
+                assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("malformed")), "{body} seen {seen}");
+                assert!(r.get("items").is_none());
+            }
         }
     }
 

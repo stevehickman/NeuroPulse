@@ -37,7 +37,8 @@
       "a": "After blanket withdrawal the device processes no study descriptor, whatever its issue date, categories or elements",
       "b": "After withdrawing from a study, that study is never processed again, whatever a re-issue says",
       "c": "No further extract is generated or transmitted for any data period, including sessions that predate the withdrawal (not built)",
-      "d": "Results notifications for studies already joined continue and carry no new data (not built)"
+      "d": "Results notifications for studies already joined continue and carry no new data (not built)",
+      "e": "Suppression is the device's fixed rule: a record whose group is smaller than k is dropped, not sent (not built)"
     },
     "DI-SAFE-02": {
       "a": "The safety MCU receives a heartbeat every 200 ms",

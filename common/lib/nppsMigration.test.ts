@@ -29,9 +29,9 @@ describe('nppsMigration', () => {
     const r = nppsMigration({
       op: 'mergeWithdrawal',
       local: {},
-      incoming: { blanketConsentWithdrawnAt: '2026-03-01T00:00:00Z' },
+      incoming: { blanketConsentWithdrawnAt: '2026-03-01#000001' },
     });
-    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01T00:00:00Z');
+    expect(r.blanketConsentWithdrawnAt).toBe('2026-03-01#000001');
   });
 
   // @verifies SWR-MG-02
@@ -68,7 +68,7 @@ describe('nppsMigration', () => {
     const kdf = nppsMigration({ op: 'bundleKdf', method: 'recoveryCode', salt: '5a'.repeat(32) }).kdf;
     const sealed = nppsMigration({ op: 'sealBundle', kind: 'migrate', epoch: 1, key, nonce: '11'.repeat(12), items: { protocols: [] }, kdf });
     const h = nppsMigration({ op: 'readBundleHeader', bundle: sealed.bundle });
-    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 2, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
+    expect(h).toMatchObject({ ok: true, kind: 'migrate', formatVersion: 1, bundleHash: sealed.bundleHash, method: 'recoveryCode' });
   });
 
   // @verifies SWR-MG-02

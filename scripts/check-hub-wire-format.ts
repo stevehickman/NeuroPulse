@@ -75,6 +75,7 @@ const WIRE = "firmware/common/include/np_app_wire_constants.h";
 /** The compiler: the Rust core, whose constants are read statically. */
 const COMPILER = "common/npps-core/src/compiler.rs";
 const LIMITS = "firmware/hub_control/include/np_cmd_limits.h";
+const SHARED = "firmware/common/include/np_shared_constants.h";
 const CONSTANTS = "common/npps/constants.json";
 /** A hub limit that restates a shared constant: the firmware macro, the JSON constant, and the factor from the JSON's unit to the wire's. */
 const SHARED_LIMITS: [string, string, number, string?][] = [
@@ -86,6 +87,8 @@ const SHARED_LIMITS: [string, string, number, string?][] = [
   // The acoustic ceiling is in np_hub_config.h, not np_cmd_limits.h; the wire carries half-dB (OI-NPPS-ABS-02).
   ["NP_AUDIO_MAX_LEVEL_HALF_DB", "AUDIO_MAX_DB_SPL", 2, CONFIG],
   ["NP_AUDIO_MAX_TONE_HZ", "AUDIO_MAX_TONE_HZ", 1, CONFIG],
+  // The tDCS ramp every ramp-derived bound rests on lives in the shared header (np_cmd_limits.h and np_hd_config.h read it).
+  ["NP_TDCS_MIN_RAMP_S", "TDCS_RAMP_SECONDS", 1, SHARED],
 ];
 /** What runs it: the web wrapper over the WebAssembly build. Always the real tree's, since the self-test cannot rebuild Rust. */
 const RUNNER = "app/web/src/lib/hubCompiler.ts";
@@ -539,8 +542,9 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
     const shared = new Map<string, unknown>();
     for (const g of groups) for (const k of g.constants ?? []) shared.set(k.name, k.value);
     const configDefs = parseDefines(read(root, CONFIG));
+    const sharedDefs = parseDefines(read(root, SHARED));
     for (const [macro, name, factor, file] of SHARED_LIMITS) {
-      const fwVal = (file === CONFIG ? configDefs : limitDefs).get(macro);
+      const fwVal = (file === CONFIG ? configDefs : file === SHARED ? sharedDefs : limitDefs).get(macro);
       const json = shared.get(name);
       if (fwVal === undefined) { v.push(`${file ?? LIMITS}: ${macro} did not parse`); continue; }
       if (typeof json !== "number") { v.push(`${CONSTANTS}: ${name} is not a number`); continue; }
@@ -561,7 +565,7 @@ export async function audit(root: string, tamper?: Tamper): Promise<{ violations
 // each, and must pass on the unperturbed copy.
 if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-wirefmt-"));
-  const FILES = [DOC, CONFIG, TYPES, WIRE, COMPILER, LIMITS, CONSTANTS];
+  const FILES = [DOC, CONFIG, TYPES, WIRE, COMPILER, LIMITS, SHARED, CONSTANTS];
   let n = 0;
   const build = (edit?: { file: string; from: string | RegExp; to: string }): string => {
     const root = join(box, `t${n++}`);
@@ -609,6 +613,7 @@ if (process.argv.includes("--self-test")) {
     ["limits: the shared BES ceiling moved", { file: CONSTANTS, from: /("name": "BES_TACS_MAX_HZ",\s*"value": )40\.0/, to: "$1" + "45.0" }, "NP_BES_FREQ_MHZ_MAX is 40000"],
     ["limits: the shared audio ceiling moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_DB_SPL",\s*"value": )85\.0/, to: "$1" + "90.0" }, "NP_AUDIO_MAX_LEVEL_HALF_DB is 170"],
     ["limits: the shared audio tone bound moved", { file: CONSTANTS, from: /("name": "AUDIO_MAX_TONE_HZ",\s*"value": )1000\.0/, to: "$1" + "1200.0" }, "NP_AUDIO_MAX_TONE_HZ is 1000"],
+    ["limits: the shared tDCS ramp moved", { file: CONSTANTS, from: /("name": "TDCS_RAMP_SECONDS",\s*"value": )30/, to: "$1" + "45" }, "NP_TDCS_MIN_RAMP_S is 30"],
     ["limits: the hub's tDCS ceiling moved", { file: LIMITS, from: "#define STIM_MAX_AMP_TDCS_UA  2000U", to: "#define STIM_MAX_AMP_TDCS_UA  2500U" }, "STIM_MAX_AMP_TDCS_UA is 2500"],
     // COMPILER corner, the Rust source, read statically.
     ["compiler: version constant stale", { file: COMPILER, from: "const VERSION: u16 = 3;", to: "const VERSION: u16 = 4;" }, "VERSION = 4"],

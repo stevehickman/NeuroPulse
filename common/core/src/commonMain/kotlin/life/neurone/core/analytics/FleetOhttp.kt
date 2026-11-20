@@ -1,6 +1,7 @@
 package life.neurone.core.analytics
 
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
@@ -24,8 +25,19 @@ object FleetOhttp {
     const val REQUEST_MEDIA_TYPE = "message/ohttp-req"
     const val RESPONSE_MEDIA_TYPE = "message/ohttp-res"
 
-    /** A sealed request. [enc] and [secret] are needed once, for the answer; keep them in memory and drop them. */
-    class Sealed(val request: ByteArray, internal val enc: String, internal val secret: String)
+    /**
+     * A sealed request. [enc] and the response secret are needed once, for the answer. **The secret is not here**: the
+     * shared core made it and keeps it, and this holds its handle (`SWR-MG-32` (g)). Opening the answer uses the secret
+     * up, right or wrong; a caller that never gets an answer calls [close], which has the core wipe it. [close] after
+     * the answer was opened does nothing.
+     */
+    class Sealed internal constructor(val request: ByteArray, internal val enc: String, internal val secret: JsonObject) {
+        fun close() {
+            runCatching { NppsCore.migration(buildJsonObject { put("op", "keyRelease"); put("key", secret) }) }
+        }
+
+        override fun toString(): String = "Sealed(${request.size} bytes, <the secret is in the core>)"
+    }
 
     /** What the gateway said the fleet service answered. */
     class Answer(val status: Int, val body: ByteArray) {
@@ -45,9 +57,12 @@ object FleetOhttp {
         payload: ByteArray,
         entropy: ByteArray = secureRandomBytes(32),
     ): Sealed {
-        val r = NppsCore.migration(
+        // The entropy makes the ephemeral key the response secret comes from, so it goes beside the request as bytes; the
+        // secret stays in the core (`keep`), and the answer names it.
+        val r = NppsCore.migrationSecret(
             buildJsonObject {
                 put("op", "ohttpSeal")
+                put("keep", true)
                 put("keyConfig", keyConfigHex)
                 put("method", "POST")
                 put("scheme", "https")
@@ -63,17 +78,21 @@ object FleetOhttp {
                     ),
                 )
                 put("body", payload.toHex())
-                put("entropy", entropy.toHex())
+                put("entropy", NppsCore.secretRef(0))
             },
-        )
+            listOf(entropy),
+        ).answer
         return Sealed(
             r["request"]!!.jsonPrimitive.content.hexToBytes(),
             r["enc"]!!.jsonPrimitive.content,
-            r["secret"]!!.jsonPrimitive.content,
+            r["secret"] as JsonObject,
         )
     }
 
-    /** The gateway's answer to [sealed]; throws [IllegalArgumentException] when it does not authenticate. */
+    /**
+     * The gateway's answer to [sealed]; throws [IllegalArgumentException] when it does not authenticate. Either way the
+     * response secret is used up: a sealed request has one answer, and a second call for the same one is refused.
+     */
     fun open(sealed: Sealed, response: ByteArray): Answer {
         val r = NppsCore.migration(
             buildJsonObject {
@@ -92,7 +111,11 @@ object FleetOhttp {
      * is not `message/ohttp-res`, or does not authenticate, is not an acceptance, and neither is the fleet service's refusal.
      */
     fun accepted(sealed: Sealed, relayOk: Boolean, contentType: String?, body: ByteArray?): Boolean {
-        if (!relayOk || contentType != RESPONSE_MEDIA_TYPE || body == null) return false
+        if (!relayOk || contentType != RESPONSE_MEDIA_TYPE || body == null) {
+            // No answer to open, so nothing will use the secret up: have the core wipe it.
+            sealed.close()
+            return false
+        }
         return try {
             open(sealed, body).accepted
         } catch (e: IllegalArgumentException) {

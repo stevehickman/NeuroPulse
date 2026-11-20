@@ -166,8 +166,14 @@ struct ConsentOnboardingView: View {
                         Text("CONSENT_L1_CONTACT_LABEL").font(.caption).foregroundColor(.secondary)
                         TextField("CONSENT_L1_CONTACT_PLACEHOLDER", text: $draft.contactMethod)
                             .textContentType(.emailAddress)
-                            .keyboardType(.emailAddress)
+                            .keyboardType(.default)
                             .textFieldStyle(.roundedBorder)
+                        if contactIsUnusable {
+                            Text("CONSENT_L1_CONTACT_INVALID")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Picker("CONSENT_CONTACT_FREQUENCY", selection: $draft.contactFrequency) {
                             ForEach(ContactFrequency.allCases, id: \.self) { freq in
                                 Text(freq.displayName).tag(freq)
@@ -305,6 +311,13 @@ struct ConsentOnboardingView: View {
 
     // MARK: - Navigation
 
+    /// L1 is on and what is in the contact field is neither an email address nor a phone number
+    /// (`REQ-CONSENT-23`). The store would not turn L1 on with it, so S1 does not advance until the person
+    /// gives a usable method or turns L1 off.
+    private var contactIsUnusable: Bool {
+        draft.contactConsentGranted && ResearchContact.parse(draft.contactMethod) == nil
+    }
+
     private var navigationButtons: some View {
         HStack(spacing: 12) {
             if screen != .s1Reciprocity && screen != .complete {
@@ -318,6 +331,7 @@ struct ConsentOnboardingView: View {
             } else {
                 Button("CONSENT_CONTINUE_BUTTON") { withAnimation { advance() } }
                     .buttonStyle(.borderedProminent)
+                    .disabled(screen == .s1Reciprocity && contactIsUnusable)
             }
         }
     }

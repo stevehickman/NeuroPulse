@@ -544,3 +544,70 @@ pub fn serialize_item(item: &Value) -> R<String> {
         other => Err(format!("unknown serialize item kind '{other}'")),
     }
 }
+
+// ── The share form (NP-SW-001 SWR-WO-07; OI-PRIV-11 part 2, the principal, 2026-11-16) ──────────────────────────────────
+
+/// Mints the new ids of one share export from the caller's random bytes. The core has no entropy source of its own
+/// (as for a session uuid, the caller supplies it); each id is 16 bytes of HKDF-SHA-256 output over those bytes, written
+/// as a version 4 UUID, so one 32-byte seed serves a file of any length and no id repeats.
+pub struct ShareIds {
+    seed: [u8; 32],
+    minted: u32,
+    families: Vec<(String, String)>,
+}
+
+impl ShareIds {
+    pub fn new(seed: [u8; 32]) -> Self {
+        Self { seed, minted: 0, families: Vec::new() }
+    }
+
+    fn mint(&mut self) -> String {
+        let mut b = [0u8; 16];
+        let info = [b"neurone share id ".as_slice(), &self.minted.to_be_bytes()].concat();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, &self.seed).expand(&info, &mut b).expect("16 bytes is a valid HKDF output length");
+        self.minted += 1;
+        b[6] = (b[6] & 0x0f) | 0x40;
+        b[8] = (b[8] & 0x3f) | 0x80;
+        let h: String = b.iter().map(|x| format!("{x:02x}")).collect();
+        format!("{}-{}-{}-{}-{}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32])
+    }
+
+    /// The new family id for `old`: variants of one family in one file stay one family.
+    fn family(&mut self, old: &str) -> String {
+        if let Some((_, new)) = self.families.iter().find(|(o, _)| o == old) {
+            return new.clone();
+        }
+        let new = self.mint();
+        self.families.push((old.to_string(), new.clone()));
+        new
+    }
+}
+
+/// An item as it is written for someone else. A protocol or composite loses its used flag and gets a new `id`, and a new
+/// `family_id` where it has one, so a copy says nothing about what the sender ran and cannot be matched to the sender's
+/// library or to another recipient's copy by id. A limits set keeps its level and loses `helmet_id` and `individual_id`.
+/// Every other field, and every other kind of item, is written as it is: the name, description, author, tags and
+/// conditions are the sender's own words. The content is unchanged, so the content hash is too.
+pub fn share_item(item: &Value, ids: &mut ShareIds) -> R<Value> {
+    let kind = item["kind"].as_str().ok_or("a serialize item needs a kind")?;
+    let mut out = item.clone();
+    match kind {
+        "single" | "composite" => {
+            let key = if kind == "single" { "protocol" } else { "composite" };
+            let def = out[key].as_object_mut().ok_or_else(|| format!("a '{kind}' item needs a '{key}'"))?;
+            def.remove("isUsed");
+            def.insert("id".into(), Value::String(ids.mint()));
+            let family = def.get("familyId").and_then(Value::as_str).unwrap_or("").to_string();
+            if !family.is_empty() {
+                def.insert("familyId".into(), Value::String(ids.family(&family)));
+            }
+        }
+        "limits" => {
+            let l = out["limits"].as_object_mut().ok_or("a 'limits' item needs a 'limits'")?;
+            l.remove("helmetId");
+            l.remove("individualId");
+        }
+        _ => {}
+    }
+    Ok(out)
+}

@@ -755,6 +755,7 @@ version = "0.1.0"
 dependencies = [
  "jni 0.21.1",
  "neurone-npps-core",
+ "zeroize",
 ]
 
 [[package]]

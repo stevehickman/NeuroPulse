@@ -35,21 +35,33 @@
 //! The server's driver answers `now` (`{seconds}`, Unix time) for the expiry, as well as `random`; the host keeps the code,
 //! its expiry and the tries left across connections and passes them to each `serve`, whose result says what is left.
 //!
-//! # What a state holds (`SWR-MG-28` (d))
-//! The flow is sans-IO and the core keeps nothing between calls, so a pairing's working secrets are in the state the host
-//! holds, and each is taken out in the call that stops needing it:
+//! # What a state holds (`SWR-MG-28` (d), `SWR-MG-32` (f))
+//! The flow is sans-IO, so what a pairing needs from one call to the next is in the state the host holds, and each secret
+//! is taken out in the call that stops needing it. **The channel keys are never in it**: the core keeps them (`secret_io`,
+//! purpose `link`) and the state names them by handle.
 //!
 //! | secret | restoring phone | serving phone |
 //! |--------|-----------------|---------------|
 //! | the pairing code | from the start until the server's reply is read (the shared key is made there) | from the start until the session's random bytes arrive (the shared key is made there); the host still holds the offer |
 //! | the SPAKE2 seed | from `random` until the server's reply is read: the session is re-made from it | never: it is used in the call it arrives in |
 //! | the shared key | never | never: the tag the other phone must send and the channel keys are made in the same call |
-//! | the channel keys | from the server's reply on | from the session's random bytes on (unused until the confirmation is right, and removed if it is wrong) |
+//! | the channel keys | never: their handles, from the server's reply on | never: their handles, from the session's random bytes on (unused until the confirmation is right, and wiped if it is wrong) |
 //!
-//! **The channel keys and their message counts must remain** for as long as the link is used: every frame is sealed or
-//! opened with them and there is nowhere else to keep them. The request the restore was started with stays, without the
-//! code, until the server's `ok`, because the restore is started from it then. Moving the channel keys out of the state
-//! needs the core to hold them (a key handle), which is `OI-PRIV-12` stage 2 (`docs/human-input/oi-priv-12-key-boundary-design.md`).
+//! **What remains once paired** is the two handles and the two message counts (`ctx`), which are not secret, and on the
+//! serving phone the offer's expiry and tries. The request the restore was started with stays, without the code, until
+//! the server's `ok`, because the restore is started from it then. A state that carries a channel key as text is refused.
+//!
+//! # When the channel keys are wiped
+//! The core wipes them wherever it ends a link flow itself: a pairing refused or failed, a serve that closes or breaks,
+//! the inner flow done or stopped on an error. It cannot see a driver stop: one that abandons a flow part-way (the person
+//! cancelled, the link or the host threw) asks `linkRelease` with the last state it holds. **A state is therefore no
+//! longer the whole of a flow**: one whose flow has ended, or that is handed to another process or to a core that has
+//! restarted (a browser's WebAssembly instance after a trap), names keys that are gone, and the link is over
+//! (`malformed_frame` on the serving phone, the route unavailable on the restoring one). The phones pair again.
+//!
+//! | operation | arguments | result |
+//! |-----------|-----------|--------|
+//! | `linkRelease` | `state`: the last state of a link flow the driver is abandoning | `{released}`: how many keys were wiped (0 if the flow had ended, or was not a link's) |
 //!
 //! | type | args | result |
 //! |------|------|--------|
@@ -145,6 +157,9 @@ pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
             Ok(code) => json!({ "ok": true, "code": code }),
             Err(reason) => json!({ "ok": false, "reason": reason }),
         }),
+        // For a driver that stops a link flow part-way (the person cancelled, the link threw): the channel keys the last
+        // state it holds names are wiped. A flow that ends on its own has already done this.
+        "linkRelease" => Ok(json!({ "released": release(&req["state"]) })),
         _ => return None,
     })
 }
@@ -239,11 +254,33 @@ fn nonce(counter: u64) -> [u8; 12] {
     n
 }
 
-/// The sealed channel one phone holds after pairing: a key and a message count for each direction. These two keys are the
-/// one secret a link's state keeps once it is paired (see `strip`): the flow is sans-IO, the core keeps nothing between
-/// calls, and every later frame is sealed or opened with them.
-fn ctx(send: &[u8; 32], recv: &[u8; 32]) -> Value {
-    json!({ "sk": hex(send), "rk": hex(recv), "sn": 0, "rn": 0 })
+/// The sealed channel one phone holds after pairing: a key and a message count for each direction. **The two keys are
+/// kept in the core** (`secret_io`, purpose `link`) and the state holds their handles (`SWR-MG-32` (f)): the flow is
+/// sans-IO and the state is the host's to hold between calls, so a key in it would be a string in the host's memory for
+/// the whole migration. The message counts are not secret and stay in the state.
+fn ctx(send: &[u8; 32], recv: &[u8; 32]) -> R<Value> {
+    let keep = |key: &[u8; 32]| {
+        let mut copy = Zeroizing::new(Vec::with_capacity(32));
+        copy.extend_from_slice(key);
+        crate::secret_io::keep("link", copy)
+    };
+    let sk = keep(send)?;
+    let rk = keep(recv).inspect_err(|_| {
+        crate::secret_io::release(&sk);
+    })?;
+    Ok(json!({ "sk": sk, "rk": rk, "sn": 0, "rn": 0 }))
+}
+
+/// Have the core wipe the channel keys a state names, the channel in use (`ctx`) and the one waiting to start (`after`).
+/// Called wherever a link flow ends, and by `linkRelease` for a driver that stops part-way. Returns how many it wiped.
+fn release(st: &Value) -> usize {
+    let mut n = 0;
+    for channel in ["ctx", "after"] {
+        for key in ["sk", "rk"] {
+            n += usize::from(crate::secret_io::release(&st[channel][key]));
+        }
+    }
+    n
 }
 
 /// Take `fields` out of a state: what the pairing needed and the channel does not (`SWR-MG-28` (d)). The state is the
@@ -262,7 +299,7 @@ fn seal(st: &mut Value, msg: &Value) -> R<Vec<u8>> {
     if c.is_null() {
         return Ok(framed(&body));
     }
-    let (key, n) = (Zeroizing::new(unhex(c["sk"].as_str().unwrap_or(""), "key")?), c["sn"].as_u64().unwrap_or(0));
+    let (key, n) = (crate::secret_io::kept(c, "sk", &["link"])?, c["sn"].as_u64().unwrap_or(0));
     let ct = Aes256Gcm::new_from_slice(&key)
         .map_err(|e| e.to_string())?
         .encrypt(Nonce::from_slice(&nonce(n)), Payload { msg: &body, aad: AAD })
@@ -276,7 +313,7 @@ fn unseal(st: &mut Value, body: &[u8]) -> R<Value> {
     let plain = if c.is_null() {
         body.to_vec()
     } else {
-        let (key, n) = (Zeroizing::new(unhex(c["rk"].as_str().unwrap_or(""), "key")?), c["rn"].as_u64().unwrap_or(0));
+        let (key, n) = (crate::secret_io::kept(c, "rk", &["link"])?, c["rn"].as_u64().unwrap_or(0));
         let p = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| e.to_string())?
             .decrypt(Nonce::from_slice(&nonce(n)), Payload { msg: body, aad: AAD })
@@ -383,7 +420,10 @@ pub(crate) fn flow(req: &Value, inner: fn(&Value) -> R<Value>) -> R<Value> {
     }
     let down = |st: &Value, result: Value| -> R<Value> {
         let next = json!({ "flow": req["flow"], "state": st["inner"], "result": result });
-        let answer = inner(&next)?;
+        // A flow that stops on an error has ended as surely as one that is done: its channel keys go with it.
+        let answer = inner(&next).inspect_err(|_| {
+            release(st);
+        })?;
         intercept(answer, carry(st))
     };
     match phase.as_str() {
@@ -463,9 +503,12 @@ fn client_pair(req: &Value, mut st: Value, phase: &str, inner: fn(&Value) -> R<V
                     if !tag_ok(&key, "server", &a, &b, &m["tag"]) {
                         return wrong();
                     }
+                    // The channel waits in `after` until the other phone says `ok`; its keys are in the core from here.
                     let (c2s, s2c) = channel_keys(&key);
-                    st["keys"] = json!({ "c2s": hex(&*c2s), "s2c": hex(&*s2c) });
-                    let f = seal(&mut st, &json!({ "pair": "confirm", "tag": tag(&key, "client", &a, &b) }))?;
+                    st["after"] = ctx(&c2s, &s2c)?;
+                    let f = seal(&mut st, &json!({ "pair": "confirm", "tag": tag(&key, "client", &a, &b) })).inspect_err(|_| {
+                        release(&st);
+                    })?;
                     step(st, "pair_confirm_sent", json!({ "type": "linkSend", "frame": hex(&f) }))
                 }
                 _ => refuse("malformed_frame"),
@@ -473,32 +516,34 @@ fn client_pair(req: &Value, mut st: Value, phase: &str, inner: fn(&Value) -> R<V
         }
         "pair_confirm_sent" => {
             if result["failed"] == true || result["ok"] != true {
+                release(&st);
                 return refuse("link_failed");
             }
             step(st, "pair_ok", json!({ "type": "linkRecv" }))
         }
         "pair_ok" => {
+            // From here every way out that is not the channel starting ends the pairing, and the waiting keys go with it.
+            let ended = |st: &Value, reason: &str| {
+                release(st);
+                refuse(reason)
+            };
             let chunk = &result["chunk"];
             if result["failed"] == true || chunk.is_null() {
-                return refuse("link_failed");
+                return ended(&st, "link_failed");
             }
-            let Ok(bodies) = pull(&mut st, chunk, false) else { return refuse("malformed_frame") };
+            let Ok(bodies) = pull(&mut st, chunk, false) else { return ended(&st, "malformed_frame") };
             let Some(body) = bodies.first() else { return step(st, "pair_ok", json!({ "type": "linkRecv" })) };
-            let Ok(m) = unseal(&mut st, body) else { return refuse("malformed_frame") };
+            let Ok(m) = unseal(&mut st, body) else { return ended(&st, "malformed_frame") };
             if m["pair"] != "ok" {
-                return wrong();
+                return ended(&st, "wrong_code");
             }
-            let (c2s, s2c) = (Zeroizing::new(unhex(st["keys"]["c2s"].as_str().unwrap_or(""), "key")?), Zeroizing::new(unhex(st["keys"]["s2c"].as_str().unwrap_or(""), "key")?));
-            if c2s.len() != 32 || s2c.len() != 32 {
-                return Err("the channel keys are not 32 bytes".into());
-            }
-            let (mut a, mut b) = (Zeroizing::new([0u8; 32]), Zeroizing::new([0u8; 32]));
-            a.copy_from_slice(&c2s);
-            b.copy_from_slice(&s2c);
-            // Nothing of the pairing is carried on: not the code, the seed, the request it came in, or the keys' first copy.
-            let mut next = json!({ "link": true, "buf": st["buf"], "id": 0, "ctx": ctx(&a, &b) });
+            // Nothing of the pairing is carried on: not the code, the seed or the request it came in. The channel that
+            // waited becomes the channel in use; its keys stay where they are, in the core.
+            let mut next = json!({ "link": true, "buf": st["buf"], "id": 0, "ctx": st["after"] });
             // The inner flow starts now, with its object calls on the sealed channel.
-            let answer = inner(&st["origin"])?;
+            let answer = inner(&st["origin"]).inspect_err(|_| {
+                release(&next);
+            })?;
             next["inner"] = Value::Null;
             intercept(answer, next)
         }
@@ -508,13 +553,19 @@ fn client_pair(req: &Value, mut st: Value, phase: &str, inner: fn(&Value) -> R<V
 
 /// The inner flow's next effect: an object call goes over the link; anything else is the driver's.
 fn intercept(answer: Value, mut st: Value) -> R<Value> {
-    let Some(e) = answer.get("effect") else { return Ok(answer) };
+    // The inner flow is done: so is the link, and its channel keys are wiped.
+    let Some(e) = answer.get("effect") else {
+        release(&st);
+        return Ok(answer);
+    };
     st["inner"] = answer["state"].clone();
     if OBJECT_CALLS.contains(&e["type"].as_str().unwrap_or("")) {
         let id = st["id"].as_u64().unwrap_or(0) + 1;
         st["id"] = json!(id);
         st["phase"] = json!("sent");
-        let f = seal(&mut st, &json!({ "id": id, "call": e }))?;
+        let f = seal(&mut st, &json!({ "id": id, "call": e })).inspect_err(|_| {
+            release(&st);
+        })?;
         return effect(st, json!({ "type": "linkSend", "frame": hex(&f) }));
     }
     st["phase"] = json!("call");
@@ -523,7 +574,9 @@ fn intercept(answer: Value, mut st: Value) -> R<Value> {
 
 // ─── the serving phone ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+/// The serve has ended: say how, and wipe the channel keys it held or had waiting.
 fn sdone(st: &Value, ok: bool, reason: &str) -> R<Value> {
+    release(st);
     done(json!({ "ok": ok, "reason": reason, "paired": !st["ctx"].is_null(), "triesLeft": st["pairing"]["triesLeft"] }))
 }
 
@@ -570,6 +623,7 @@ fn serve(req: &Value) -> R<Value> {
             strip(&mut st, &["expect"]);
             if m["pair"] != "confirm" || !same_tag(&expected, &given) {
                 // No channel: the keys made for one go with the refusal.
+                release(&st);
                 strip(&mut st, &["after"]);
                 return send(st, "fail_sent", &json!({ "pair": "fail" }));
             }
@@ -605,10 +659,10 @@ fn serve(req: &Value) -> R<Value> {
             let (state, a) = spake(true, &code, &seed);
             let Ok(key) = state.finish(&b).map(Zeroizing::new) else { return send(st, "fail_sent", &json!({ "pair": "fail" })) };
             // Everything the shared key is for is made now, so the key itself is never in the state: the tag the other
-            // phone must answer with, and the two channel keys, which are the one secret that has to stay (`ctx`).
+            // phone must answer with, and the two channel keys, which go into the core: the state gets their handles.
             let (c2s, s2c) = channel_keys(&key);
             st["expect"] = json!(tag(&key, "client", &a, &b));
-            st["after"] = ctx(&s2c, &c2s);
+            st["after"] = ctx(&s2c, &c2s)?;
             let t = tag(&key, "server", &a, &b);
             send(st, "reply_sent", &json!({ "pair": "reply", "msg": hex(&a), "tag": t }))
         }
@@ -627,8 +681,8 @@ fn serve(req: &Value) -> R<Value> {
             if result["failed"] == true || result["ok"] != true {
                 return sdone(&st, false, "link_failed");
             }
-            st["ctx"] = st["after"].clone();
-            st["after"] = Value::Null;
+            // The channel starts: it moves from `after` to `ctx`, and is in the state once, not twice.
+            st["ctx"] = st.as_object_mut().and_then(|o| o.remove("after")).unwrap_or(Value::Null);
             // Frames that came after the confirmation are the sealed channel's.
             recv(st, "recv")
         }
@@ -730,7 +784,14 @@ mod tests {
         let confirm = json!({ "pair": "confirm", "tag": tag(&key, "client", &theirs, &mine) });
         a = step(&a, chunk(&framed(&confirm.to_string().into_bytes())));
         let (c2s, s2c) = channel_keys(&key);
-        (a, json!({ "ctx": ctx(&c2s, &s2c) }))
+        (a, json!({ "ctx": ctx(&c2s, &s2c).unwrap() }))
+    }
+
+    /// The channel keys of a test's two ends are in the core's table, which is one per process and holds only so many:
+    /// a test that pairs gives them back when it is done with them.
+    fn forget(server: &Value, client: &Value) {
+        release(&server["state"]);
+        release(client);
     }
 
     fn paired_server() -> (Value, Value) {
@@ -788,18 +849,27 @@ mod tests {
         a = step(&a, chunk(&framed(&confirm.to_string().into_bytes())));
         a = step(&a, json!({ "ok": true }));
         assert_eq!(a["effect"]["type"], "linkRecv");
-        assert_eq!(top_keys(&a["state"]), ["after", "buf", "ctx", "pairing", "queue", "step"]);
-        assert!(a["state"]["after"].is_null());
+        assert_eq!(top_keys(&a["state"]), ["buf", "ctx", "pairing", "queue", "step"], "the channel is in the state once, not also where it waited");
+        // The channel keys are not in the state either (`SWR-MG-32` (f)): it names them by handle and holds the counts.
         let (c2s, s2c) = channel_keys(&key);
-        assert_eq!(a["state"]["ctx"], json!({ "sk": hex(&*s2c), "rk": hex(&*c2s), "sn": 0, "rn": 0 }), "the one secret that must remain");
         let text = a["state"].to_string();
         assert!(!text.contains(CODE) && !text.contains(&hex(&key)));
+        assert!(!text.contains(&hex(&*c2s)) && !text.contains(&hex(&*s2c)), "a channel key is in the state: {text}");
+        let c = &a["state"]["ctx"];
+        assert!(c["sk"]["$handle"].is_u64() && c["rk"]["$handle"].is_u64() && c["sk"] != c["rk"], "{c}");
+        assert_eq!((c["sn"].clone(), c["rn"].clone()), (json!(0), json!(0)));
+        // And they are the right keys: a frame sealed under the keys this test made itself is opened and answered.
+        let mut client = json!({ "ctx": ctx(&c2s, &s2c).unwrap() });
+        let f = seal(&mut client, &json!({ "id": 1, "call": { "type": "objectSpace" } })).unwrap();
+        let served = step(&a, chunk(&f));
+        assert_eq!(served["effect"]["type"], "objectSpace");
+        forget(&served, &client);
     }
 
     // @verifies SWR-MG-28#d
     #[test]
     fn a_refused_confirmation_leaves_no_channel_key_in_the_serving_phone_s_state() {
-        let (a, _) = pair("87654321", 3);
+        let (a, client) = pair("87654321", 3);
         assert_eq!(serde_json::from_slice::<Value>(&body_of(&a["effect"])).unwrap(), json!({ "pair": "fail" }));
         let mut keys = vec![];
         keys_of(&a["state"], &mut keys);
@@ -807,6 +877,7 @@ mod tests {
             assert!(!keys.iter().any(|k| k == gone) || a["state"][gone].is_null(), "'{gone}' is in the state: {}", a["state"]);
         }
         assert!(!a["state"].to_string().contains(CODE));
+        forget(&a, &client);
     }
 
     // @verifies SWR-MG-28#e
@@ -872,6 +943,7 @@ mod tests {
             assert_eq!(a["effect"]["type"], "linkSend", "{call}");
             let reply = unseal(&mut client, &body_of(&a["effect"])).unwrap();
             assert_eq!(reply, json!({ "id": 9, "result": { "failed": true } }), "{call}");
+            forget(&a, &client);
         }
         let names = ask(json!({ "op": "objectNames" }));
         for call in [
@@ -885,41 +957,52 @@ mod tests {
             let f = seal(&mut client, &json!({ "id": 1, "call": call })).unwrap();
             let a = step(&a, chunk(&f));
             assert_eq!(a["effect"]["type"], call["type"], "{call} is for the driver to apply");
+            forget(&a, &client);
         }
     }
 
     // @verifies SWR-MG-10
     #[test]
     fn a_sealed_frame_cannot_be_read_altered_replayed_or_swapped_for_a_plain_one() {
-        let (a, mut client) = paired_server();
         let call = json!({ "id": 1, "call": { "type": "objectSpace" } });
+        // A serve that ends wipes its channel keys, so each way of ending one is tried on a pairing of its own.
+        // Altered.
+        let (a, mut client) = paired_server();
         let f = seal(&mut client, &call).unwrap();
         assert!(!String::from_utf8_lossy(&f).contains("objectSpace"), "the request is not on the wire in the clear");
-        // Altered.
         let mut bad = f.clone();
         let last = bad.len() - 1;
         bad[last] ^= 1;
         assert_eq!(step(&a, chunk(&bad))["done"]["reason"], "malformed_frame");
+        // The serve is over, so its keys are gone: the frame that would have been right is not opened now either.
+        assert_eq!(step(&a, chunk(&f))["done"]["reason"], "malformed_frame", "a state whose serve has ended opens nothing");
+        forget(&a, &client);
         // Plain, as a bystander who never paired would send it.
+        let (a, client) = paired_server();
         let plain = framed(&call.to_string().into_bytes());
         assert_eq!(step(&a, chunk(&plain))["done"]["reason"], "malformed_frame");
+        forget(&a, &client);
         // Replayed: the first goes through, the same bytes again do not.
+        let (a, mut client) = paired_server();
+        let f = seal(&mut client, &call).unwrap();
         let first = step(&a, chunk(&f));
         assert_eq!(first["effect"]["type"], "objectSpace");
         let sent = step(&first, json!({ "free": 1 }));
         assert_eq!(sent["effect"]["type"], "linkSend");
         let again = step(&step(&sent, json!({ "ok": true })), chunk(&f));
         assert_eq!(again["done"]["reason"], "malformed_frame", "{again}");
+        forget(&a, &client);
     }
 
     // @verifies SWR-MG-10
     #[test]
     fn a_phone_that_does_not_know_the_code_is_sent_no_bundle_and_the_session_costs_a_try() {
-        let (a, _) = pair("87654321", 3);
+        let (a, client) = pair("87654321", 3);
         let m: Value = serde_json::from_slice(&body_of(&a["effect"])).unwrap();
         assert_eq!(m, json!({ "pair": "fail" }), "the server refuses a confirmation made under another code");
         let end = step(&a, json!({ "ok": true }));
         assert_eq!(end["done"], json!({ "ok": false, "reason": "wrong_code", "paired": false, "triesLeft": 2 }));
+        forget(&a, &client);
     }
 
     // @verifies SWR-MG-10
