@@ -122,7 +122,8 @@ typedef struct {
     bool              present;      /* false: detection reports NOT_PRESENT   */
     float             ntc_c;        /* the model's temperature (caller-set)   */
     /* what the firmware last commanded */
-    uint8_t           cur_a, cur_b, freq_code, duty;
+    uint8_t           cur_a, cur_b, duty;
+    uint32_t          freq_mhz;   /* PBM pulse frequency, millihertz */
     bool              driven;
     /* stimulation pair (NP_SIM_KIND_STIM_PAIR): what the firmware last commanded, and the model's delivery */
     float             impedance_kohm; /* the model's electrode impedance (caller-set)            */

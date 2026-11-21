@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -1027,6 +1027,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 2 | 2026-08-12 | **§H added — SHDR accelerometer characterisation programme.** Principal decision: raw impact data may be collected into SHDR under a time-boxed, opt-in, warranty-owner-consented programme fed only into predictive-maintenance model training, because §G's two thresholds are unvalidated guesses and §G.3 prohibits every field that could validate them — the spec forecloses the evidence needed to make itself correct. Follows `NP-MOD-ID-001` §7's four decisions (CHAR-1…CHAR-4) and adds five of its own (CHAR-A1…CHAR-A5). **The consent argument rests on there being no identifiable subject** (`NP-MOD-ID-001` §7.5.1) and is *stronger* here than in the precedent: a duty map at least requires the device to be worn; **a drop does not**, so an impact histogram is frequently not a record of the wearer's behaviour at all. **§G.2's thresholds are now labelled UNVALIDATED PLACEHOLDERS** wherever they appear (this document, `firmware/shdr/include/np_accel_shdr.h`, `ci/shdr/shdr_fleet_schema.sql`) — OI-EMMC2-09. **The rolling maintenance window is corrected from days to session gaps** (OI-EMMC2-10): "7-day" is not implementable on a device with no clock that survives a disconnect, which is the same fact that makes §H.3's expiry a record budget rather than a calendar. **§H.7 records that §G.3's prohibition is already defeated by aggregation** over `shdr_accel_records`' per-gap rows (OI-EMMC2-11) — stated so the description of §H is honest, deliberately not fixed. Implementation landed with the specification: `firmware/shdr/` (§G and §H modes from the first line), SHDR schema Rev E, `CHAR-01` CI gate whose exemption is *derived from* its own verdict and therefore self-revoking, falsified in both directions by `ci/test_shdr_char_gate_selftest.py`. Provenance discrepancy in the Rev 1 front matter noted, not resolved (OI-EMMC2-14). |
 | 1 | 2026-06-02 (§G: 2026-06-03) | Initial release. §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F. §G added 2026-06-03. |
 | 6 | 2026-11-21 | **§G, §H: the accelerometer characterisation bins and `impact_event_count` are 32-bit and never saturate, so the sum always holds; the fleet columns are `BIGINT` (`OI-UINT16-01`).** |
+| 7 | 2026-11-21 | **§H.3.4: the spent budget is persisted before the extended record is written, and a failed budget write sends nothing and returns `NP_ACCEL_ERR_BUDGET`; a failed record write leaves the slot spent (CHAR-2; `OI-PRIV-36` (NP-PRIV-ANALYSIS-004), GitHub #964).** |
 
 Open items created by this document:
 
