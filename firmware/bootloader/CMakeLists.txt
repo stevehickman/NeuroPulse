@@ -52,7 +52,7 @@ set(BOOTLOADER_SOURCES
     src/np_mem.c        # freestanding memcpy/memset (NP-SW-CI-001 §4.2)
     src/np_app_image.c  # OCRAM staging limits from the linker (NP-SW-CI-001 §4.3)
     src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
-    src/np_rollback.c   # anti-rollback floor check (REQ-SW02-12, OI-PRIV-32)
+    src/np_rollback.c   # anti-rollback floor check (REQ-SW02-15, OI-PRIV-32)
     src/np_rollback_store_unbuilt.c  # floor store not chosen: refuses every image (OI-PRIV-32)
 )
 
@@ -270,7 +270,7 @@ if(NP_BUILD_TESTS)
         NP_APP_IMAGE_HOST_TEST
         NP_LINKER_SCRIPT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/linker/bootloader_imxrt1062.ld")
 
-    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-12: anti-rollback.  The REAL
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15: anti-rollback.  The REAL
     # np_ota.c install paths (Scratch verify, which USB DFU also takes, and the
     # boot trial) and np_signature.c, against a sparse fake eMMC, a fake SNVS
     # selector and a fake floor store defined in the test.  The test key is

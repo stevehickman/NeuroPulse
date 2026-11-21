@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — firmware anti-rollback, host tests (OI-PRIV-32, NP-PRIV-ANALYSIS-004 Finding M5)
- * Requirement: REQ-SW02-12 (NP-SW-001 §5.2.2)
+ * Requirement: REQ-SW02-15 (NP-SW-001 §5.2.2)
  *
  * Runs the REAL np_ota.c install paths — np_ota_verify_scratch() (the OTA app
  * path and USB DFU's manifest step) and np_ota_handle_boot_verification() —
@@ -189,7 +189,7 @@ static void setup_key(void)
 
 /* ── Tests ────────────────────────────────────────────────────────────────── */
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-15#a */
 static void test_rule_boundaries(void)
 {
     CHECK(np_rollback_version_ok(5U, 5U), "a version equal to the floor is admitted (reinstall)");
@@ -200,7 +200,7 @@ static void test_rule_boundaries(void)
     CHECK(np_rollback_version_ok(0xFFFFFFFFU, 0xFFFFFFFFU), "the top version meets the top floor");
 }
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-15#a */
 static void test_scratch_path_refuses_older_signed_image(void)
 {
     reset_world(0x00020000U);
@@ -217,7 +217,7 @@ static void test_scratch_path_refuses_older_signed_image(void)
     CHECK(np_ota_verify_scratch() == NP_OK, "OTA/DFU verify: a signed image above the floor is admitted");
 }
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-15#a */
 static void test_version_is_trusted_only_under_the_signature(void)
 {
     /* Sign version 1, then raise the header's version past the floor and fix
@@ -233,7 +233,7 @@ static void test_version_is_trusted_only_under_the_signature(void)
           "a header whose version was raised after signing fails the signature, not the floor");
 }
 
-/* @verifies REQ-SW02-12#b */
+/* @verifies REQ-SW02-15#b */
 static void test_unreadable_floor_refuses_every_image(void)
 {
     reset_world(0U);
@@ -244,7 +244,7 @@ static void test_unreadable_floor_refuses_every_image(void)
     CHECK(np_rollback_admit(0U) == NP_ERR_ROLLBACK_STORE, "admit fails closed on an unreadable store");
 }
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-15#a */
 static void test_boot_trial_rolls_back_a_staged_bank_below_the_floor(void)
 {
     /* A bank written below the floor by any means (not through the scratch
@@ -269,7 +269,7 @@ static void test_boot_trial_rolls_back_a_staged_bank_below_the_floor(void)
           "boot trial: a signed staged bank at the floor is booted");
 }
 
-/* @verifies REQ-SW02-12#b */
+/* @verifies REQ-SW02-15#b */
 static void test_boot_trial_with_unreadable_floor_rolls_back(void)
 {
     np_image_header_t h;
@@ -283,7 +283,7 @@ static void test_boot_trial_with_unreadable_floor_rolls_back(void)
           "boot trial: an unreadable floor refuses the candidate and rolls back");
 }
 
-/* @verifies REQ-SW02-12#c */
+/* @verifies REQ-SW02-15#c */
 static void test_floor_rises_at_confirmation_not_at_staging(void)
 {
     reset_world(4U);
@@ -305,7 +305,7 @@ static void test_floor_rises_at_confirmation_not_at_staging(void)
     CHECK(np_ota_verify_scratch() == NP_ERR_ROLLBACK, "the replaced release is refused once the newer one is confirmed");
 }
 
-/* @verifies REQ-SW02-12#c */
+/* @verifies REQ-SW02-15#c */
 static void test_floor_is_never_lowered(void)
 {
     np_image_header_t h;

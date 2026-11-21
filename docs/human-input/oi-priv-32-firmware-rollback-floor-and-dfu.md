@@ -25,7 +25,7 @@ Both findings hold as written.
 
 ## 3. What this change has already done (no decision was needed)
 
-- **The rule is built** (`REQ-SW02-12`, `NP-SW-001` §5.2.2). The code is `firmware/bootloader/src/np_rollback.c`, called from both install verify paths in `np_ota.c`:
+- **The rule is built** (`REQ-SW02-15`, `NP-SW-001` §5.2.2). The code is `firmware/bootloader/src/np_rollback.c`, called from both install verify paths in `np_ota.c`:
   - An image is admitted only once its signature verifies, and only if its signed version is at or above the floor. Equal is admitted, so the same build can be reinstalled.
   - A floor that cannot be read refuses every image.
   - The floor rises only when an image is confirmed healthy (`np_ota_confirm_boot`), never at staging. A candidate that fails its boot trial can therefore still roll back to the bank it replaced. The floor is never lowered.

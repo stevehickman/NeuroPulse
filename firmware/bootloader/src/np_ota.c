@@ -474,7 +474,7 @@ np_status_t np_ota_verify_scratch(void)
     /* via streaming SHA-256 above (constant-time comparison).                */
     if (sig_ret != NP_OK) return sig_ret;
 
-    /* Anti-rollback (REQ-SW02-12, OI-PRIV-32): the version is trusted only   */
+    /* Anti-rollback (REQ-SW02-15, OI-PRIV-32): the version is trusted only   */
     /* now that the signature over it has verified. This is the path both the */
     /* OTA app and USB DFU (np_dfu.c) take, so an older signed image is       */
     /* refused before any byte reaches a bank.                                */
@@ -545,7 +545,7 @@ np_status_t np_ota_stage_swap(np_bank_t target)
 /* Step 9 (app side): Confirm successful boot.                                */
 /* The rollback floor is raised here, to the confirmed image's signed        */
 /* version, and not at staging: a candidate that fails its boot trial must    */
-/* still roll back to the bank it replaced (REQ-SW02-12, OI-PRIV-32). The     */
+/* still roll back to the bank it replaced (REQ-SW02-15, OI-PRIV-32). The     */
 /* header is re-authenticated before its version is trusted. A floor that     */
 /* cannot be raised does not undo the confirmation (the image is healthy);    */
 /* the error is returned so the caller can report it, and the floor is never  */
@@ -636,7 +636,7 @@ np_status_t np_ota_handle_boot_verification(np_bank_t *boot_bank)
         return ret;
     }
 
-    /* Anti-rollback (REQ-SW02-12, OI-PRIV-32): a staged bank below the floor */
+    /* Anti-rollback (REQ-SW02-15, OI-PRIV-32): a staged bank below the floor */
     /* is not booted, whoever wrote it. Same handling as a bad signature.     */
     ret = np_rollback_admit(hdr.version);
     if (ret != NP_OK) {

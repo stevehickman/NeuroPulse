@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — firmware anti-rollback (OI-PRIV-32, NP-PRIV-ANALYSIS-004 Finding M5)
- * Requirement: REQ-SW02-12. The rule and where it is enforced: np_rollback.h.
+ * Requirement: REQ-SW02-15. The rule and where it is enforced: np_rollback.h.
  */
 #include "np_rollback.h"
 #include "np_rollback_store.h"

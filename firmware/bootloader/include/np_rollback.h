@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — firmware anti-rollback (OI-PRIV-32, NP-PRIV-ANALYSIS-004 Finding M5)
- * Requirement: REQ-SW02-12 (NP-SW-001 §5.2.2)
+ * Requirement: REQ-SW02-15 (NP-SW-001 §5.2.2)
  *
  * The image header's `version` is covered by the Ed25519 signature, so it can
  * be trusted once the signature verifies. Before this module nothing compared
