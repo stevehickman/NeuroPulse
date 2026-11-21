@@ -77,8 +77,14 @@ class FleetUploader(
     @Volatile
     private var hubIdentifier: String? = null
 
+    // A token the hub delivered for a helmet whose warranty owner has not consented on this install: held in memory for that
+    // helmet's link only, never stored (`REQ-SHDR-08` (e); `OI-PRIV-33` (NP-PRIV-ANALYSIS-004)).
+    @Volatile
+    private var heldHubToken: Pair<String, String>? = null
+
     /** The helmet the link is to, or `null` after a disconnect. Set by the wiring from the GATT manager. */
     fun setHubIdentifier(hub: String?) {
+        if (hub != hubIdentifier) heldHubToken = null
         hubIdentifier = hub
     }
 
@@ -92,11 +98,32 @@ class FleetUploader(
             return tokenStore.load(hub) ?: randomBytes(32).toHex().also { tokenStore.save(hub, it) }
         }
 
-    /** OI-BLE-01: swap in the hub-provisioned TRNG warranty token (exactly 32 bytes) for the connected helmet. */
+    /**
+     * OI-BLE-01: swap in the hub-provisioned TRNG warranty token (exactly 32 bytes) for the connected helmet.
+     *
+     * The hub serves its token to any paired phone, not only the warranty owner's (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004)), and the
+     * token is what links the helmet's fleet records to its warranty registration. So it is stored only for a helmet whose warranty
+     * owner has consented on this install (`REQ-SHDR-08` (e)). Otherwise it is held for this link only, and stored by the first
+     * upload after the consent opens; a disconnect or another helmet drops it. A phone that never uploads for the helmet, a patient's
+     * on a clinic helmet, keeps no copy of the owner's token.
+     */
     fun upgradeDeviceToken(hubToken: ByteArray) {
         if (hubToken.size != 32) return
         val hub = hubIdentifier ?: return
-        tokenStore.save(hub, hubToken.toHex())
+        if (warrantyGate.isOpen(hub)) {
+            heldHubToken = null
+            tokenStore.save(hub, hubToken.toHex())
+        } else {
+            heldHubToken = hub to hubToken.toHex()
+        }
+    }
+
+    /** A token held for this helmet's link is stored, now that its consent is open. Called only after the gate was checked. */
+    private fun storeHeldToken(hub: String) {
+        val held = heldHubToken ?: return
+        if (held.first != hub) return
+        tokenStore.save(hub, held.second)
+        heldHubToken = null
     }
 
     /**
@@ -106,7 +133,9 @@ class FleetUploader(
      */
     suspend fun upload(shdrPayload: ByteArray): Boolean {
         // The consent asked for is the connected helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
-        if (!warrantyGate.isOpen(hubIdentifier)) return false
+        val hub = hubIdentifier
+        if (!warrantyGate.isOpen(hub)) return false
+        hub?.let(::storeHeldToken)
         val token = deviceToken ?: return false
         if (gatewayKeyConfigHex.isEmpty()) return false
         val sealed = try {
