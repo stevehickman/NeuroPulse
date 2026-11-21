@@ -347,3 +347,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 311 | 2026-11-14 | NeurOne Systems Engineering | **15 → 16: Radioear B81 spec sheet read and recorded as a lead for OI-AUDIOHW-15 and OI-AUDIOHW-13; earlier description of its table corrected; no part, figure or constant set.** |
 | 312 | 2026-11-13 | NeurOne Software Engineering | **30 → 31, 164 → 165: account check run through the real S3 adapter on a stand-in; finding that bucket routes read "not sufficient" at space; Oracle pages re-read (#566).** |
 | 313 | 2026-11-14 | NeurOne Software Engineering | **45 → 46: the simulator runs the device's own UHDR key scheme on synthetic credentials; development tool only, no device document changed.** |
+| 314 | 2026-11-13 | NeurOne Software Engineering | **NP-REG-UPG-001 and NP-SOUP-RUST-001 revised: the host part of the tier-identity factory step is built (issue #569 package 8).** |
