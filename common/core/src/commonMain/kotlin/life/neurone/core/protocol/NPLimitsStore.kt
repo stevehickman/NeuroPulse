@@ -1,6 +1,9 @@
 package life.neurone.core.protocol
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.toNppsCoreLimitsJson
 import life.neurone.core.npps.toNppsCoreItem
@@ -56,6 +59,12 @@ fun resolveLimitsWithSources(global: NPLimitsSet?, helmet: NPLimitsSet?, individ
 class NPLimitsStore(
     private val kv: KeyValueStore,
     private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. With a lock this store holds no
+     * limits and no profile while locked and reads them again at each unlock (`REQ-PRES-01` (d), `OI-PRIV-19`). Used from one
+     * thread, as every store here is.
+     */
+    private val lock: PresenceLock? = null,
 ) {
 
     companion object {
@@ -87,8 +96,11 @@ class NPLimitsStore(
         set(value) {
             if (field == value) return
             field = value
-            onActiveProfileChanged?.invoke(value)
+            if (announce) onActiveProfileChanged?.invoke(value)
         }
+
+    /** False while the lock closing clears [activeProfileId]: the hub is not told "nobody" because the person's data went out of view. */
+    private var announce = true
 
     /**
      * Observes the active individual profile — the composition root forwards it to the hub as
@@ -97,10 +109,90 @@ class NPLimitsStore(
      */
     var onActiveProfileChanged: ((String?) -> Unit)? = null
 
+    /**
+     * Whether the limits and profiles above are what the store holds. False while locked: a locked read answers "absent", which is not
+     * "no limits", and a tier built on it would replace the sealed one when it was written, or remove it (`OI-PRIV-19`). While
+     * false the limits read as unconfigured; callers that must not run unlimited check this first.
+     */
+    val isReadable: Boolean get() = loaded
+
+    private var loaded = false
+
+    /**
+     * Changes made while locked, oldest first. Each is an operation on one tier or profile ("set the global limits to X", "delete this
+     * profile"), so at the unlock it runs on what was read and neither replaces nor drops what was sealed (the principal's ruling on
+     * `OI-PRIV-19`, 2026-11-21).
+     */
+    private val held = mutableListOf<() -> Unit>()
+
     init {
+        if (lock == null || lock.isUnlocked) {
+            load()
+            loaded = true
+        }
+        lock?.onStateChanged { state -> if (state == PresenceState.LOCKED) forget() else reload() }
+    }
+
+    private fun load() {
         loadGlobal()
         loadProfiles()
         loadTiers()
+    }
+
+    /** Hold [op] for the next unlock if the store cannot be read now. True if it was held, and the caller then does nothing more. */
+    private fun deferred(op: () -> Unit): Boolean {
+        if (loaded) return false
+        held += op
+        return true
+    }
+
+    /**
+     * Read the stored limits and profiles again, for after a restore wrote them under this store (`OI-PRIV-19`): the store reads once,
+     * so without this the restored limits would not apply and the next save would write over them. Does nothing while locked.
+     */
+    fun reloadFromStorage() {
+        if (!loaded) return
+        globalLimits = null
+        helmetLimits = emptyMap()
+        individualLimits = emptyMap()
+        profiles = emptyList()
+        announce = false
+        activeProfileId = null
+        announce = true
+        load()
+    }
+
+    /** The lock closed: no limit and no profile stays decrypted in this store. */
+    private fun forget() {
+        globalLimits = null
+        helmetLimits = emptyMap()
+        individualLimits = emptyMap()
+        profiles = emptyList()
+        announce = false
+        activeProfileId = null
+        announce = true
+        loaded = false
+    }
+
+    /** The lock opened: read the sealed limits and profiles, then run what was held on them, in order. */
+    private fun reload() {
+        load()
+        loaded = true
+        val operations = held.toList()
+        held.clear()
+        operations.forEach { it() }
+    }
+
+    private fun writable(): Boolean = lock == null || lock.isUnlocked
+
+    /** Run a write; under a lock whose key went away mid-write, the whole values already written stand and the rest are not written. */
+    private fun write(block: () -> Unit) {
+        if (!writable()) return
+        try {
+            block()
+        } catch (e: SecretKeyUnavailableException) {
+            if (lock == null) throw e
+        }
     }
 
     /** individual > helmet > global effective limits for the current active context. */
@@ -121,31 +213,37 @@ class NPLimitsStore(
     // MARK: Mutations
 
     fun saveGlobalLimits(limits: NPLimitsSet) {
+        if (deferred { saveGlobalLimits(limits) }) return
         globalLimits = limits.copy(level = NPLimitsSet.LimitLevel.GLOBAL)
         persistGlobal()
     }
 
     fun clearGlobalLimits() {
+        if (deferred { clearGlobalLimits() }) return
         globalLimits = null
         kv.remove(GLOBAL_KEY)
     }
 
     fun saveHelmetLimits(limits: NPLimitsSet, serial: String) {
+        if (deferred { saveHelmetLimits(limits, serial) }) return
         helmetLimits = helmetLimits + (serial to limits.copy(level = NPLimitsSet.LimitLevel.HELMET, helmetId = serial))
         persistTiers()
     }
 
     fun clearHelmetLimits(serial: String) {
+        if (deferred { clearHelmetLimits(serial) }) return
         helmetLimits = helmetLimits - serial
         persistTiers()
     }
 
     fun saveIndividualLimits(limits: NPLimitsSet, profileId: String) {
+        if (deferred { saveIndividualLimits(limits, profileId) }) return
         individualLimits = individualLimits + (profileId to limits.copy(level = NPLimitsSet.LimitLevel.INDIVIDUAL))
         persistTiers()
     }
 
     fun clearIndividualLimits(profileId: String) {
+        if (deferred { clearIndividualLimits(profileId) }) return
         individualLimits = individualLimits - profileId
         persistTiers()
     }
@@ -153,6 +251,7 @@ class NPLimitsStore(
     /** Keep [profile]. A note over the bound is refused (false) and nothing changes (REQ-SW03-32). */
     fun saveProfile(profile: NPIndividualProfile): Boolean {
         if (profile.notes.length > ProfileLimits.PROFILE_NOTES_MAX_CHARS) return false
+        if (deferred { saveProfile(profile) }) return true
         profiles = if (profiles.any { it.id == profile.id }) {
             profiles.map { if (it.id == profile.id) profile else it }
         } else {
@@ -163,6 +262,7 @@ class NPLimitsStore(
     }
 
     fun deleteProfile(id: String) {
+        if (deferred { deleteProfile(id) }) return
         profiles = profiles.filterNot { it.id == id }
         individualLimits = individualLimits - id
         if (activeProfileId == id) activeProfileId = null
@@ -176,6 +276,7 @@ class NPLimitsStore(
      * saved profile is ignored.
      */
     fun setActiveProfile(id: String?) {
+        if (deferred { setActiveProfile(id) }) return
         if (id != null && profiles.none { it.id == id }) return
         activeProfileId = id
         persistProfiles()
@@ -221,18 +322,18 @@ class NPLimitsStore(
             ?: emptyList()
         if (stored != null && profiles.isNotEmpty()) {
             val current = json.encodeToString(profilesSerializer, profiles)
-            if (current != stored) kv.putString(PROFILES_KEY, current)
+            if (current != stored) write { kv.putString(PROFILES_KEY, current) }
         }
         // Restore only an id that still names a saved profile.
         activeProfileId = kv.getString(ACTIVE_PROFILE_KEY)?.takeIf { id -> profiles.any { it.id == id } }
     }
 
-    private fun persistProfiles() {
+    private fun persistProfiles() = write {
         kv.putString(PROFILES_KEY, json.encodeToString(profilesSerializer, profiles))
         activeProfileId?.let { kv.putString(ACTIVE_PROFILE_KEY, it) } ?: kv.remove(ACTIVE_PROFILE_KEY)
     }
 
-    private fun persistGlobal() {
+    private fun persistGlobal() = write {
         globalLimits?.let { kv.putString(GLOBAL_KEY, exportLimitsAsNPPS(it)) } ?: kv.remove(GLOBAL_KEY)
     }
 
@@ -254,7 +355,7 @@ class NPLimitsStore(
         return texts.mapNotNull { (id, text) -> runCatching { importLimitsFromNPPS(text) }.getOrNull()?.let { id to it } }.toMap()
     }
 
-    private fun persistTiers() {
+    private fun persistTiers() = write {
         writeTier(HELMETS_KEY, helmetLimits)
         writeTier(INDIVIDUALS_KEY, individualLimits)
     }
