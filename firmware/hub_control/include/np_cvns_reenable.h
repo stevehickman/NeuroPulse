@@ -159,7 +159,7 @@ np_cvns_reenable_state_t np_cvns_reenable_get_state(void);
  * happen only after the wearer confirmed resumption, so in sequence they say
  * whether the person resumed neck stimulation after a cardiac event and how
  * often skin contact failed: UHDR by CLAUDE.md §5.1's defining test, and never
- * SHDR (OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-84).  Pure; no state.
+ * SHDR (OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-85).  Pure; no state.
  */
 uint8_t np_cvns_reenable_shdr_code(np_cvns_reenable_event_t ev);
 

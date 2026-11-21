@@ -142,4 +142,9 @@ void np_runner_progress(uint8_t out[NP_PROGRESS_LEN]);
  */
 uint32_t np_runner_elapsed_ms(void);
 
+#ifdef NPTEST_HOST
+/* Host-test inspection (REQ-FWHUB-84 (b)): the runner's context as it stands. */
+const np_runner_ctx_t *np_runner_test_ctx(void);
+#endif
+
 #endif /* NP_SESSION_RUNNER_H */

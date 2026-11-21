@@ -243,6 +243,7 @@ if(NP_BUILD_TESTS)
         src/np_session_runner.c
         src/np_session_lease.c
         src/np_ppx_policy.c
+        src/np_ppx_detect.c           # np_ppx_wipe_signal at session end (REQ-FWHUB-84 (d))
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -263,6 +264,7 @@ if(NP_BUILD_TESTS)
         NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
     target_compile_options(np_runner_load_tests PRIVATE
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_runner_load_tests PRIVATE m)   # np_ppx_detect.c (sqrtf)
 
     # np_runner_run(): the run loop. The same real sources as np_runner_load_tests; the loop's blocking call
     # (vTaskDelay) is a double that advances a virtual clock and fires scripted moments inside the wait, so
@@ -272,6 +274,7 @@ if(NP_BUILD_TESTS)
         src/np_session_runner.c
         src/np_session_lease.c
         src/np_ppx_policy.c
+        src/np_ppx_detect.c           # np_ppx_wipe_signal at session end (REQ-FWHUB-84 (d))
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -292,6 +295,7 @@ if(NP_BUILD_TESTS)
         NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
     target_compile_options(np_runner_run_tests PRIVATE
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_runner_run_tests PRIVATE m)   # np_ppx_detect.c (sqrtf)
 
     # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
     # per-session counts and the idle tile health pass. The logger, its backend

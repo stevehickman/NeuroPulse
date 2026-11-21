@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
@@ -249,7 +249,7 @@ Rate clamped to [4.0, 7.0] BPM at all times.
 
 On first session where no personalised resonance frequency (RF) is stored, the pacer automatically sweeps from 4.0 to 7.0 BPM in 0.5 BPM steps, dwelling for 120 seconds at each rate. Coherence scores are accumulated at each step via `np_hrv_pacer_sweep_coherence()`. At sweep completion, `np_hrv_pacer_sweep_finalise()` selects the rate with the highest mean coherence.
 
-The personalised rate is returned via `best_rate_bpm_out` and must be persisted to the Config partition (SHDR — the rate value itself carries no user biology; see CLAUDE.md §5.1 boundary resolution rule).
+The personalised rate is returned via `best_rate_bpm_out`. **It is UHDR** (CLAUDE.md §5.1; `data-architecture-detail.md` §5.1; `OI-PRIV-30`, NP-PRIV-ANALYSIS-004 M3): it is the breathing rate at which this wearer's HRV coherence peaked, a trait of the person and not of the device. If it is persisted (OI-HRV-02), it goes to the active user's UHDR partition under that user's key, one value per user, and never to the Config partition or SHDR, whose keys NeurOne can re-derive. *Was:* "persisted to the Config partition (SHDR — the rate value itself carries no user biology)". The rate a session used already reaches UHDR as `target_rate_bpm` in the `0x1B` record (§8.1.1).
 
 ---
 
@@ -274,18 +274,16 @@ The library does not write storage. `np_hrv_session_stop()` builds the record an
 - **Layout** after tag `0x1B`, each field little-endian: reason (1, `np_hrv_status_t` as `int8`), `duration_s` (4), `protocol` (1), `target_rate_bpm` (4), `mean_coherence` (4), `min_coherence` (4), `max_coherence` (4), `mean_rmssd_ms` (4), `rr_sample_count` (4), `tavns_stim_count` (4). That is 35 bytes with the tag (both counts were 2 bytes: `OI-UINT16-01`, a count never saturates, and `rr_sample_count` is now every accepted interval and not the 256-entry ring's occupancy). The record is serialized field by field, so struct padding and `reserved[8]` never reach the medium.
 - **`session_start_unix` is not written.** The library never sets it, because the device has no RTC backup (CLAUDE.md §4.5). A zero written there would read as a 1970 start time. The session file's `0x10` start record already carries the session's start time.
 - **The statistics are valid only when the library saw data.** With no coherence update, the library leaves mean, min and max coherence and RMSSD at 0. A reader must treat `rr_sample_count = 0` as "no data" and never as a measured zero. On today's firmware that is every record (OI-HRV-07).
-- **UHDR only.** Nothing from this record reaches SHDR. The SHDR coherence trend slope is §8.2 and OI-HRV-04.
+- **UHDR only.** Nothing from this record reaches SHDR, and no other HRV value does either (§8.2).
 
-### 8.2 SHDR (System Health Data Record)
+### 8.2 SHDR (System Health Data Record): no HRV value
 
-Written to SHDR partition at session end, encrypted with NeurOne manufacturing key:
+**This module writes nothing to SHDR** (`OI-PRIV-30`, NP-PRIV-ANALYSIS-004 M3). The device session count is SHDR, and the hub keeps it (`np_session_count.c`), not this module.
 
-| Data element | Key | Notes |
-|---|---|---|
-| Coherence trend slope | `hrv_coherence_slope_v1` | Linear regression slope over last 30 sessions — no user biology |
-| Session count increment | (existing counter) | Unsigned integer |
+- **The coherence trend is UHDR.** `np_hrv_coherence_trend_t` holds the mean coherence of each of the last 30 sessions and their regression slope. That is an HRV-derived physiological series about the wearer, and the slope is how that person's coherence is changing, so both pass §5.1's defining test as UHDR. The SHDR key `hrv_coherence_slope_v1` is withdrawn. Nothing keeps the trend today: the user's app derives a trend from the UHDR `0x1B` session records it downloads. A firmware-held trend, if one is ever kept, is per user in that user's UHDR partition.
+- **The resonance breathing rate is UHDR** (§7).
 
-The coherence trend slope is computed from `np_hrv_coherence_trend_t` which stores mean coherence per session (not per-sample). The slope itself (positive/negative rate of change) carries no individual biometric information — it is a device performance/usage metric.
+*Was (to Rev 6):* the slope was an SHDR element, "Linear regression slope over last 30 sessions — no user biology", called "a device performance/usage metric". It is not one: nothing about the device's condition moves it, and a person's response to biofeedback does.
 
 ---
 
@@ -332,9 +330,9 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 | ID | Description | Owner | Blocking |
 |----|-------------|-------|---------|
 | OI-HRV-01 | Platform HAL stubs (`np_platform_tavns_enable`, `np_platform_tavns_disable`, `np_platform_pacer_phase_notify`) must be implemented before integration testing | FW team | Integration test |
-| OI-HRV-02 | Config partition API for persisting personalised resonance frequency (feeds output of `np_hrv_pacer_sweep_finalise`) must be wired in application layer | FW team | RF personalisation |
+| OI-HRV-02 | Persisting the personalised resonance frequency (output of `np_hrv_pacer_sweep_finalise`) must be wired in the application layer. **Re-scoped (`OI-PRIV-30`, NP-PRIV-ANALYSIS-004 M3):** the rate is UHDR (§7), so it is stored per user in the UHDR partition under that user's key, never in the Config partition. *Was:* "Config partition API for persisting…" | FW team | RF personalisation |
 | ~~OI-HRV-03~~ | ✅ **CLOSED 2026-09-27 (Rev 3, §8.1.1).** The hub's `end_cb` commits the record through `np_log_hrv_session()` (UHDR tag `0x1B`) into this session's file on the AES-256-XTS-mounted UHDR partition. `np_log_backend_tests` pins the layout, the UHDR-only routing, the order ahead of `SESSION_END`, and the loss outside a session (never misfiled). *Was:* UHDR session record commit to eMMC must call storage layer AES-256-XTS write — `end_cb` currently returns raw plaintext record | FW/Storage team | — |
-| OI-HRV-04 | SHDR coherence trend slope write after each session (uses `np_hrv_coherence_trend_t`) must call SHDR storage API. **Do not close as worded:** per-session mean coherence and its slope derive from HRV, which `data-architecture-detail.md` §5.1 classes as UHDR, and so does the stored resonance breathing rate. Re-scope to UHDR or close as won't-do (`OI-PRIV-30`, GitHub #958, NP-PRIV-ANALYSIS-004 M3) | FW team | SHDR compliance |
+| ~~OI-HRV-04~~ | ✅ **CLOSED, won't do (2026-11-21, `OI-PRIV-30`, GitHub #958, NP-PRIV-ANALYSIS-004 M3).** The SHDR write is not made: per-session mean coherence and its slope derive from HRV, which §5.1 classes as UHDR (§8.2). No SHDR key remains (`hrv_coherence_slope_v1` withdrawn from `np_hrv_config.h`), and the user's app derives a trend from the UHDR `0x1B` records. *Was:* SHDR coherence trend slope write after each session (uses `np_hrv_coherence_trend_t`) must call SHDR storage API | FW team | — |
 | OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` — **Firmware half CLOSED 2026-09-26 (Rev 2, §5.2 item 4, GitHub #447):** firmware no longer trusts the app to validate. An out-of-range frequency or current refuses the session and leaves nothing armed. `np_hrv_session_tests` covers 30 Hz (#386's value), 26 Hz, both current bounds, and the accepted edges. **Open:** the app still has to send a valid value, or the user gets a refused session. That is #386 `OI-NPPS-LIMITS-01` (a shipped 30 Hz protocol) | App team | Protocol 1 |
 | OI-HRV-06 | **§8.1's R-R interval series has no writer.** The row specifies the full-session `uint16_t[]` series as an EDF+ annotation. Nothing in `firmware/hrv_biofeedback/`, `firmware/edf/` or `firmware/hub_control/` writes it, so a stored HRV session has a summary (`0x1B`) and 1 s telemetry snapshots (`0x14`), and no series. Found while closing OI-HRV-03 | FW team | UHDR completeness |
 | OI-HRV-07 | **No task feeds or ticks the HRV session.** `np_hrv_session_push_ppg()`, `np_hrv_session_push_eeg()` and `np_hrv_session_tick()` have no caller outside the library. `np_mod_vns.c`'s banner says the library "runs as a separate FreeRTOS thread", but no such task is created. So on today's firmware no coherence is computed, the taVNS gate never opens, the session never auto-completes, and every committed `0x1B` record has zero statistics (`rr_sample_count = 0`, §8.1.1). No stimulation consequence: the safety MCU owns the enable. Found while closing OI-HRV-03 | FW team | Integration test |
@@ -347,3 +345,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 5 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1.1: `rr_sample_count` and `tavns_stim_count` are 32-bit, and `rr_sample_count` counts every accepted R-R interval and not the ring's occupancy; the UHDR session record is 35 bytes (`OI-UINT16-01`).** |
 | 6 | 2026-11-21 | NeurOne Quality | **§11 OI-HRV-04: note added that it must not be closed as worded, because the coherence trend and the resonance breathing rate derive from HRV, which §5.1 classes as UHDR (OI-PRIV-30, GitHub #958, NP-PRIV-ANALYSIS-004 M3). No requirement or design changed.** |
+| 7 | 2026-11-21 | NeurOne Firmware Engineering | **§7, §8.1.1, §8.2, §11: the coherence trend (30 session means and their slope) and the resonance breathing rate are reclassified UHDR; this module writes nothing to SHDR; OI-HRV-04 closed as won't-do, OI-HRV-02 re-scoped to the user's UHDR partition (OI-PRIV-30 (NP-PRIV-ANALYSIS-004), GitHub #958, M3).** |
