@@ -309,7 +309,7 @@ typedef struct {
 /* ── PBM base zone module (NP_MOD_PBM_BASE) ─────────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;     /* 0x00=CW 0x01=2Hz 0x06=6Hz 0x0A=10Hz 0x14=20Hz 0x28=40Hz */
+    uint32_t freq_mhz;     /* pulse frequency, millihertz, little-endian; 0 = CW.  The tile takes it as given (OI-PBMTILE-01) */
     uint8_t duty;          /* duty register value ≤ 0x32 (25%); above it the command is refused (REQ-FWHUB-78, interim: OI-HEXTILE-31) */
     uint8_t cur_a;         /* 660nm LED current register */
     uint8_t cur_b;         /* 808nm LED current register */
@@ -318,7 +318,7 @@ typedef struct __attribute__((packed)) {
 /* ── PBM smart zone module (NP_MOD_PBM_SMART) ───────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;
+    uint32_t freq_mhz;     /* pulse frequency, millihertz, little-endian; 0 = CW */
     uint8_t duty;          /* ≤ 0x32 for all channels; above it the command is refused (REQ-FWHUB-78) */
     uint8_t cur_a;         /* 660nm */
     uint8_t cur_b;         /* 808nm */
@@ -535,7 +535,7 @@ typedef enum {
     NP_SESSION_FAULT      = 7,
 } np_session_state_t;
 
-/* ── Session abort reason (SHDR-safe) ────────────────────────────────────────── */
+/* ── Session abort reason (UHDR only: it names seizure halts and user stops) ── */
 
 typedef enum {
     NP_ABORT_NONE           = 0,
@@ -558,18 +558,22 @@ typedef enum {
  * table in NP-FW-EMMC-001 Rev 1 §12.
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
+/* Session telemetry: none of it is written to SHDR (REQ-FWHUB-89 (b)).  The
+ * PD ratio trend reaches SHDR only from the idle latest-state record, never
+ * from session data (NP-FW-HUB-001 §6.8, F9); the fields below marked
+ * "device condition" are read in session for control, not logged to SHDR. */
 typedef struct {
-    /* PD1/PD2 ratio per zone — SHDR (device condition; no user biology). */
+    /* PD1/PD2 ratio per zone — device condition; not logged from a session. */
     float   pd_ratio[NP_HUB_ZONE_SLOT_COUNT];
-    /* Per-zone NTC temperature peak — SHDR. */
+    /* Per-zone NTC temperature peak — not logged from a session. */
     float   ntc_peak_c[NP_HUB_ZONE_SLOT_COUNT];
     /* Cumulative dose per zone (sum of wavelengths) — UHDR. */
     float   dose_J_cm2[NP_HUB_ZONE_SLOT_COUNT];
     /* Aggregate irradiance mW/cm² — UHDR. */
     float   irradiance_mW_cm2;
-    /* Throttle event count since session start — SHDR. */
+    /* Throttle event count since session start — not logged from a session. */
     uint32_t throttle_events;   /* a count: 32-bit, never saturates (OI-UINT16-01) */
-    uint8_t  fault_mask;   /* bit n = 1 → slot n has active fault (SHDR) */
+    uint8_t  fault_mask;   /* bit n = 1 → slot n has active fault (faults reach SHDR via np_log_shdr_fault) */
 } np_telem_pbm_t;
 
 typedef struct {
@@ -666,12 +670,14 @@ typedef struct {
                                   * uint32 required — NP_MOD_VIBROTACTILE = 0x10 */
 } np_session_uhdr_record_t;
 
+/* The SHDR session-end record: the device session count and the firmware
+ * version, and nothing else (REQ-FWHUB-89, OI-PRIV-21 (NP-PRIV-ANALYSIS-004)).
+ * Duration, abort reason and the modalities that ran describe the person's
+ * session and are UHDR only (np_session_uhdr_record_t above;
+ * data-architecture-detail.md §5.1).  Add nothing here without a §5.1 ruling. */
 typedef struct {
     uint32_t device_session_count; /* unsigned; no timestamp (SHDR) */
-    uint32_t duration_s;
-    uint8_t  abort_reason;
     uint8_t  firmware_version[4];  /* semver packed */
-    uint32_t mods_active_mask;     /* same bit encoding as UHDR record */
 } np_session_shdr_record_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

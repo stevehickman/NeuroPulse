@@ -49,6 +49,7 @@ np_bootloader_app_image_tests 968
 np_bootloader_dfu_block_tests 8
 np_bootloader_flexram_tests 84
 np_bootloader_mem_tests 139
+np_bootloader_rollback_tests 1140
 np_cfg_store_tests 2816
 np_chan_decl_tests 209
 np_consumables_tests 346

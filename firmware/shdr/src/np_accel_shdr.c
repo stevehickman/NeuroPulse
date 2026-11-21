@@ -312,9 +312,21 @@ np_accel_status_t np_accel_shdr_process_session_gap(void)
          * between the two, the device has spent a record it did not send —
          * which shortens the window.  The other order would let a reset-loop
          * emit unbounded records against the same budget slot, which lengthens
-         * it.  Fail-closed picks the direction that can only under-collect. */
-        (void)np_config_write_char_enrolment(&enr);
-        (void)np_shdr_write_accel_char_record(&char_rec);
+         * it.  Fail-closed picks the direction that can only under-collect.
+         *
+         * The same holds when a write FAILS rather than power being lost: a
+         * budget write that fails sends nothing, because a record sent against
+         * an unpersisted budget would be re-sent against the same slot on every
+         * later gap and the window would have no end (CHAR-2, §H.3.4;
+         * OI-PRIV-36).  A record write that fails after the budget persisted
+         * leaves the slot spent: one record lost, never one record extra. */
+        if (np_config_write_char_enrolment(&enr) != NP_ACCEL_OK) {
+            return NP_ACCEL_ERR_BUDGET;
+        }
+        st = np_shdr_write_accel_char_record(&char_rec);
+        if (st != NP_ACCEL_OK) {
+            return NP_ACCEL_ERR_WRITE;
+        }
     }
 
     return NP_ACCEL_OK;

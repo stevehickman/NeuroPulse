@@ -115,9 +115,11 @@ env:
   # 72 → 73: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
   # 73 → 74: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
   # 74 → 75: np_bootloader_dfu_block_tests (OI-UINT16-01).
-  NP_TOTAL_TEST_COUNT: '76'
+  # 75 → 76: np_bootloader_rollback_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15).
+  # 76 → 77: np_status_led_tests (NP-FW-HUB-001 §5.5a, OI-PRIV-37 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-85, REQ-FWHUB-86).
+  NP_TOTAL_TEST_COUNT: '77'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '65'
+  NP_CLASS_B_TEST_COUNT: '66'
 
 jobs:
   host-tests-all:

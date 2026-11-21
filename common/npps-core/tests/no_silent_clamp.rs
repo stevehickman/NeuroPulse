@@ -84,11 +84,11 @@ fn visual(hz: Value, cadence: Value) -> Value {
 // @verifies REQ-NPPS-33#a
 #[test]
 fn a_pbm_duty_above_25_percent_is_refused_on_every_pbm_modality_and_25_compiles() {
-    // Byte 1 of a transcranial block, byte 2 of an intranasal one and byte 3 of a 1170 nm one is the duty register.
-    assert_eq!(ok("pbm_transcranial", pbm(10.0, 25.0, 100.0))[1], 0x32);
+    // Byte 4 of a transcranial block (after its 32-bit millihertz frequency), byte 2 of an intranasal one and byte 3 of a 1170 nm one is the duty register.
+    assert_eq!(ok("pbm_transcranial", pbm(10.0, 25.0, 100.0))[4], 0x32);
     assert_eq!(ok("pbm_intranasal", nasal(10.0, 25.0, 30.0))[2], 0x32);
     assert_eq!(ok("pbm_deep_1170nm", deep(10.0, 25.0))[3], 0x32);
-    assert_eq!(ok("pbm_transcranial", pbm(10.0, 12.5, 100.0))[1], 25);
+    assert_eq!(ok("pbm_transcranial", pbm(10.0, 12.5, 100.0))[4], 25);
     refused(compile("pbm_transcranial", pbm(10.0, 25.5, 100.0)), &["PBM", "duty cycle 25.5%", "maximum of 25%", "not reduced to fit"]);
     refused(compile("pbm_intranasal", nasal(10.0, 26.0, 30.0)), &["Intranasal PBM", "duty cycle 26%", "maximum of 25%"]);
     refused(compile("pbm_deep_1170nm", deep(10.0, 50.0)), &["1170 nm PBM", "duty cycle 50%", "maximum of 25%"]);
@@ -185,12 +185,16 @@ fn a_visual_frequency_or_emdr_cadence_over_its_limit_is_refused_not_capped() {
 // @verifies REQ-NPPS-33#b
 #[test]
 fn a_pbm_frequency_the_code_byte_cannot_carry_is_refused_not_wrapped() {
-    assert_eq!(ok("pbm_transcranial", pbm(255.0, 25.0, 100.0))[0], 255);
-    assert_eq!(ok("pbm_transcranial", pbm(1.0, 25.0, 100.0))[0], 1);
-    // 300 Hz used to be written as code 44 (300 mod 256), and 256 Hz as 0, which is continuous wave.
-    refused(compile("pbm_transcranial", pbm(300.0, 25.0, 100.0)), &["PBM", "frequencyHz 300 Hz", "1–255 Hz", "wrapped"]);
-    refused(compile("pbm_transcranial", pbm(256.0, 25.0, 100.0)), &["frequencyHz 256 Hz"]);
-    refused(compile("pbm_intranasal", nasal(300.0, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 300 Hz"]);
+    // The transcranial tile takes 32-bit millihertz (OI-PBMTILE-01): 255 Hz and 300 Hz are ordinary values now, and the
+    // field's own width is the bound.
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(255.0, 25.0, 100.0)), 0), 255_000);
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(300.0, 25.0, 100.0)), 0), 300_000);
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(4294967.295, 25.0, 100.0)), 0), u32::MAX);
+    refused(compile("pbm_transcranial", pbm(4294967.296, 25.0, 100.0)), &["PBM", "frequencyHz 4294967.296 Hz", "0–4294967.295 Hz", "not reduced or wrapped"]);
+    // The intranasal probe and the 1170 nm block keep one whole-hertz byte: 300 Hz used to be written as code 44 (300 mod
+    // 256), and 256 Hz as 0, which is continuous wave.
+    assert_eq!(ok("pbm_intranasal", nasal(255.0, 25.0, 30.0))[1], 255);
+    refused(compile("pbm_intranasal", nasal(300.0, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 300 Hz", "1–255 Hz", "wrapped"]);
     refused(compile("pbm_deep_1170nm", deep(300.0, 25.0)), &["1170 nm PBM", "frequencyHz 300 Hz"]);
     // A negative frequency used to become continuous wave, and a negative duty wrapped to a large register.
     refused(compile("pbm_transcranial", pbm(-10.0, 25.0, 100.0)), &["frequencyHz -10 Hz"]);
@@ -232,7 +236,7 @@ fn a_time_the_millisecond_field_cannot_carry_is_refused_not_wrapped() {
 #[test]
 fn a_value_under_half_a_register_step_is_refused_not_raised_to_the_first_step() {
     // 808 nm full scale is 403 mW/cm², so a step is 1.58 mW/cm² and register 1 starts at half of it, 0.79.
-    assert_eq!(ok("pbm_transcranial", pbm(10.0, 25.0, 0.8))[3], 1);
+    assert_eq!(ok("pbm_transcranial", pbm(10.0, 25.0, 0.8))[6], 1);
     refused(compile("pbm_transcranial", pbm(10.0, 25.0, 0.78)), &["PBM irradiance 0.78 mW/cm²", "smallest step", "1.58 mW/cm²", "not raised"]);
     // The intranasal probe's full scale is 100 mW/cm²: a step is 0.39.
     assert_eq!(ok("pbm_intranasal", nasal(10.0, 25.0, 0.2))[3], 1);
@@ -241,21 +245,25 @@ fn a_value_under_half_a_register_step_is_refused_not_raised_to_the_first_step() 
     assert_eq!(ok("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 0.25 })))[7], 1);
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 0.2 }))), &["Audio level 0.2 dB SPL", "smallest step", "0.5 dB"]);
     // The duty register is 0.5 % per step.
-    assert_eq!(ok("pbm_transcranial", pbm(10.0, 0.25, 100.0))[1], 1);
+    assert_eq!(ok("pbm_transcranial", pbm(10.0, 0.25, 100.0))[4], 1);
     refused(compile("pbm_transcranial", pbm(10.0, 0.2, 100.0)), &["PBM", "dutyCyclePercent 0.2 %", "smallest step", "0.5 %"]);
 }
 
 // @verifies REQ-NPPS-33#c
 #[test]
 fn a_value_above_zero_that_would_be_written_as_zero_is_refused() {
-    // Frequency code 0 is continuous wave: 0.4 Hz used to compile to it, and 0.5 to 0.99 Hz to code 1. The descriptor
-    // carries whole hertz, so a frequency that is not whole is refused, not rounded (the principal, 2026-11-20).
-    refused(compile("pbm_transcranial", pbm(0.4, 25.0, 100.0)), &["PBM", "frequencyHz 0.4 Hz", "not a whole number of hertz", "not rounded"]);
-    refused(compile("pbm_transcranial", pbm(0.5, 25.0, 100.0)), &["frequencyHz 0.5 Hz", "not a whole number"]);
-    refused(compile("pbm_transcranial", pbm(0.75, 25.0, 100.0)), &["frequencyHz 0.75 Hz"]);
+    // Frequency 0 is continuous wave: 0.4 Hz used to compile to it. The transcranial tile takes millihertz now
+    // (OI-PBMTILE-01, the principal, 2026-11-21), so 0.4 Hz is 400 mHz and 0.75 Hz is 750 mHz, as authored; what is
+    // refused is a frequency under one millihertz, which would be written as 0 (continuous wave).
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(0.4, 25.0, 100.0)), 0), 400);
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(0.75, 25.0, 100.0)), 0), 750);
+    refused(compile("pbm_transcranial", pbm(0.0004, 25.0, 100.0)), &["PBM", "frequencyHz 0.0004 Hz", "smallest step", "0.001 Hz"]);
+    // The intranasal probe and the 1170 nm block carry whole hertz in one byte (0.4 Hz would be 0, 2.4 Hz would run as 2):
+    // a frequency that is not whole is refused, not rounded (the principal, 2026-11-20).
+    refused(compile("pbm_intranasal", nasal(0.4, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 0.4 Hz", "not a whole number of hertz", "not rounded"]);
     refused(compile("pbm_intranasal", nasal(2.4, 25.0, 30.0)), &["Intranasal PBM", "frequencyHz 2.4 Hz", "not a whole number"]);
     refused(compile("pbm_deep_1170nm", deep(39.9, 25.0)), &["1170 nm PBM", "frequencyHz 39.9 Hz", "not a whole number"]);
-    assert_eq!(ok("pbm_transcranial", pbm(1.0, 25.0, 100.0))[0], 1);
+    assert_eq!(u32_at(&ok("pbm_transcranial", pbm(1.0, 25.0, 100.0)), 0), 1000);
     // A current under half a microamp used to compile to 0 µA.
     refused(compile("bes_tacs", json!({ "frequencyHz": 10, "intensityMilliamps": 0.0004 })), &["BES/tACS", "intensityMilliamps 0.0004 mA", "smallest step", "0.001 mA"]);
     refused(compile("visual_stimulation", visual(json!(0.4), json!(1))), &["Visual", "frequencyHz 0.4 Hz", "smallest step"]);
@@ -341,12 +349,12 @@ fn a_value_at_each_hub_limit_compiles_to_a_register_the_hub_admits_and_one_step_
     let pbm_max = hub_const("pbm/include/np_pbm_config.h", "NP_PBM_DUTY_MAX_REG");
     let ins_max = hub_const(LIMITS_H, "INS_DUTY_MAX");
     let pct = |reg: u32| f64::from(reg) / 2.0;
-    assert_eq!(u32::from(ok("pbm_transcranial", pbm(10.0, pct(pbm_max), 100.0))[1]), pbm_max);
+    assert_eq!(u32::from(ok("pbm_transcranial", pbm(10.0, pct(pbm_max), 100.0))[4]), pbm_max);
     refused(compile("pbm_transcranial", pbm(10.0, pct(pbm_max + 1), 100.0)), &["PBM", "duty cycle"]);
     // The 1064 nm channel compiles to the smart-module block, which the hub holds to the same register.
     let mut smart = pbm(10.0, pct(pbm_max), 20.0);
     smart["wavelength"] = json!("1064nm");
-    assert_eq!(u32::from(ok("pbm_transcranial", smart.clone())[1]), pbm_max);
+    assert_eq!(u32::from(ok("pbm_transcranial", smart.clone())[4]), pbm_max);
     smart["dutyCyclePercent"] = json!(pct(pbm_max + 1));
     refused(compile("pbm_transcranial", smart), &["PBM", "duty cycle"]);
     assert_eq!(u32::from(ok("pbm_intranasal", nasal(10.0, pct(ins_max), 30.0))[2]), ins_max);

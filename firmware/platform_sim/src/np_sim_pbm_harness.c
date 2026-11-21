@@ -66,7 +66,7 @@ static np_session_cmd_t base_cmd(const uint16_t *socks, unsigned n, bool stop)
         c.socket_mask[socks[i] / 8U] |= (uint8_t)(1U << (socks[i] % 8U));
     }
     if (!stop) {
-        const np_mod_pbm_base_params_t p = { .freq_code = 0x28, .duty = 0x20,
+        const np_mod_pbm_base_params_t p = { .freq_mhz = 40000U, .duty = 0x20,
                                              .cur_a = 0x40, .cur_b = 0x40 };
         memcpy(c.params, &p, sizeof p);
         c.params_len = sizeof p;
