@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-PORTAL-API-001
-**Revision:** 2
-**Date:** 2026-09-14
+**Revision:** 3
+**Date:** 2026-11-19
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -244,3 +244,11 @@ default one refuses, so a half-built channel fails closed rather than admitting 
 The decision surfaces the user reaches — approve, deny, ask, accept, decline, withdraw — are
 reachable and exercised from the dashboards today, and `scripts/check-consent-reachability.ts`
 holds that. What is missing is only the thing that puts an object in front of them.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 3 | 2026-11-19 | NeurOne Software Engineering | **§4a: the canonical form a study descriptor is signed over is `NP-STUDY-DESCRIPTOR-V2`, which adds the expiry day as its last field (`REQ-CONSENT-09` i). No V1 descriptor was ever issued.** |

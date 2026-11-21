@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** 10
-**Date:** 2026-10-21  
+**Revision:** 11
+**Date:** 2026-11-21  
 **Status:** BASELINED  
 **Effective Date:** 2026-07-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -316,3 +316,11 @@ No analytics or crash reporting SDK may initialise before the consent flow is co
 ---
 
 *All Watch functions are user interface and session monitoring aids. Therapeutic claims attach to NeurOne hardware only. See CLAUDE.md §3b for full Apple Watch sync app specification and §15 for marketing copy.*
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 11 | 2026-11-21 | NeurOne Software Engineering | **§ GATT characteristics: CONSUMABLE_STATUS is 16 bytes, 4 x uint32 LE, widened from 4 x uint16 so no count is held at 65535 (`OI-UINT16-01`).** |

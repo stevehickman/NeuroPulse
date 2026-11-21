@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 5
-**Date:** 2026-09-27
+**Revision:** 6
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -953,6 +953,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 3 | 2026-09-13 | **§C.3's UKMD record address corrected — it named a byte offset the filesystem owns.** The block read *"Config partition offset 0x1000"*; `EMMC-FS-01` mounts LittleFS over all 4,096 blocks of the 16 MiB Config partition, so no offset inside it is stable and the address could never have been honoured. Raised as `OI-NVRAM-02` by `NP-FW-NVRAM-001` Rev 1 §3.3(b), decided by its Rev 2 **D-22**: the record becomes a **named LittleFS file**, `ukmd.rec`. **No code changed and none could have**: `np_uhdr_key.c` has always reached the record through `np_uhdr_hal_config_read_ukmd()`/`_write_ukmd()`, so the offset was a specification-side artifact only — which is why the correction is made here rather than deferred with the `NP-FW-EMMC-001` clause changes, which are a `.docx` edit raised as `ECR-EMMC-001`. Struct layout, 192-byte size, the `NP_UHDR_UKMD_RECORD_SIZE` static assertion and the §C.4 unlock sequence are unchanged; no privacy, classification or safety claim in §A–§H is affected. Rev 2 → 3. |
 | 2 | 2026-08-12 | **§H added — SHDR accelerometer characterisation programme.** Principal decision: raw impact data may be collected into SHDR under a time-boxed, opt-in, warranty-owner-consented programme fed only into predictive-maintenance model training, because §G's two thresholds are unvalidated guesses and §G.3 prohibits every field that could validate them — the spec forecloses the evidence needed to make itself correct. Follows `NP-MOD-ID-001` §7's four decisions (CHAR-1…CHAR-4) and adds five of its own (CHAR-A1…CHAR-A5). **The consent argument rests on there being no identifiable subject** (`NP-MOD-ID-001` §7.5.1) and is *stronger* here than in the precedent: a duty map at least requires the device to be worn; **a drop does not**, so an impact histogram is frequently not a record of the wearer's behaviour at all. **§G.2's thresholds are now labelled UNVALIDATED PLACEHOLDERS** wherever they appear (this document, `firmware/shdr/include/np_accel_shdr.h`, `ci/shdr/shdr_fleet_schema.sql`) — OI-EMMC2-09. **The rolling maintenance window is corrected from days to session gaps** (OI-EMMC2-10): "7-day" is not implementable on a device with no clock that survives a disconnect, which is the same fact that makes §H.3's expiry a record budget rather than a calendar. **§H.7 records that §G.3's prohibition is already defeated by aggregation** over `shdr_accel_records`' per-gap rows (OI-EMMC2-11) — stated so the description of §H is honest, deliberately not fixed. Implementation landed with the specification: `firmware/shdr/` (§G and §H modes from the first line), SHDR schema Rev E, `CHAR-01` CI gate whose exemption is *derived from* its own verdict and therefore self-revoking, falsified in both directions by `ci/test_shdr_char_gate_selftest.py`. Provenance discrepancy in the Rev 1 front matter noted, not resolved (OI-EMMC2-14). |
 | 1 | 2026-06-02 (§G: 2026-06-03) | Initial release. §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F. §G added 2026-06-03. |
+| 6 | 2026-11-21 | **§G, §H: the accelerometer characterisation bins and `impact_event_count` are 32-bit and never saturate, so the sum always holds; the fleet columns are `BIGINT` (`OI-UINT16-01`).** |
 
 Open items created by this document:
 
