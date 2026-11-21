@@ -36,6 +36,8 @@ interface GatedSecretKeyStore : SecretKeyStore {
      */
     suspend fun enable(reason: String): Boolean
 
+    // `destroy()` (inherited) is the erase: it removes the key and, with it, the gate (`isEnabled` reads false afterwards), because an erase
+    // returns the device to factory state, gate included (`OI-PRES-10`). It is never offered as a switch (`REQ-PRES-09`).
     // There is no way to turn the gate off, and none may be added: UHDR protection is never made weaker (CLAUDE.md §5.1, REQ-PRES-09).
 }
 
