@@ -1137,7 +1137,9 @@ test('end to end: a signed golden protocol written to the hub over GATT starts a
   assert.ok(paused.length >= 2 && paused.every((h) => h.elapsed_ms === paused[0].elapsed_ms), 'session time stood still while paused');
   assert.ok(r.log.some((e) => e.ev === 'hal' && e.id === 'visual:0' && e.op === 'vis_led_set'), 'the hub\'s own visual driver commanded the goggles');
   assert.ok(r.gatt.filter((e) => e.ev === 'gatt_notify' && e.id === 25).length >= 2, 'the runner notified SESSION_PROGRESS on GATT, as to the app');
-  assert.strictEqual(r.hub[r.hub.length - 1].led, 'fault', 'a stop ends as the device\'s runner ends any abort');
+  assert.strictEqual(r.hub[r.hub.length - 1].runner, 'fault', 'a stop ends in the state the device\'s runner gives any abort');
+  assert.ok(r.hub[r.hub.length - 1].led === 'idle' && !r.hub.some((h) => h.led === 'fault'),
+    'but a stop is not a fault: the LED goes back to idle and never shows red (REQ-FWHUB-84, OI-PRIV-37)');
   assert.ok(r.safety.length > 0 && r.safety[r.safety.length - 1].safety_mcu === 'in_loop', 'the safety MCU is in the loop for the run');
 });
 
