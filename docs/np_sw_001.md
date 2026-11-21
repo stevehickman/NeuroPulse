@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 189
-**Date:** 2026-11-20  
+**Revision:** 190
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -874,3 +874,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 187 | 2026-11-20 | NeurOne Software Engineering | **§6.3 SWR-MG-01: characterisation enrolment is no longer moved by a migration or carried by the UHDR backup; it and the warranty consent are the warranty owner's records, kept per helmet (REQ-SHDR-10; the principal, 2026-11-20, OI-PRIV-04). A bundle an earlier version sealed with the item is opened with the item dropped.** |
 | 188 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (b): the 32-byte serial is the only read that opens the gate (`OI-PRIV-17`).** |
 | 189 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-34`, the event-retention script and its check against a fake ClickHouse.** |
+| 190 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose and iOS limit fields no longer pull a typed limit into its range. A limit outside its range is marked, and Save (and an iOS script import) is blocked until it is corrected. The clamp exception for those two apps is removed from the status; Compose's duration defaults remain.** |
