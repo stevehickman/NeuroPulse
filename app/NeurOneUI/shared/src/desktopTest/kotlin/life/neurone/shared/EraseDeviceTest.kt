@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
+import life.neurone.core.common.GatedSecretKeyStore
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.InMemorySecretKeyStore
 import life.neurone.core.common.SecretKeyStore
@@ -95,6 +96,69 @@ class EraseDeviceTest {
         assertFalse(dir.resolve("np-app.properties").exists(), "the file is overwritten and deleted")
         assertNull(kv.getString("np.session.history"))
         assertNull(kv.getString("ble.last-hub-id"))
+    }
+
+    /** A presence-gate key that holds a key and a flag, and drops both on [destroy], as the platform stores do. */
+    private class GatedFake(private val failDestroy: Boolean = false) : GatedSecretKeyStore {
+        var key: ByteArray? = ByteArray(32) { 2 }
+        override var isEnabled = true
+            private set
+        override var isUnlocked = false
+            private set
+        override suspend fun unlock(reason: String): Boolean { isUnlocked = true; return true }
+        override fun lock() { isUnlocked = false }
+        override suspend fun enable(reason: String): Boolean { isEnabled = true; return true }
+        override fun load(): ByteArray? = key
+        override fun store(key: ByteArray) { this.key = key }
+        override fun destroy() {
+            if (failDestroy) throw IllegalStateException("the keychain is locked")
+            key = null
+            isEnabled = false
+            lock()
+        }
+    }
+
+    // @verifies SWR-MG-17#b
+    @Test fun an_erase_destroys_the_presence_gates_key_and_leaves_the_gate_off() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the person") }
+        val secrets = InMemorySecretKeyStore().also { it.store(ByteArray(32) { 1 }) }
+        val gated = GatedFake()
+
+        val model = EraseDeviceModel(kv, null, secrets, gatt(kv), gated = gated)
+        model.erase()
+
+        assertFalse((model.step.value as EraseStep.Done).keyKept)
+        assertNull(secrets.load(), "the data key is destroyed")
+        assertNull(gated.key, "the gate's key is destroyed with it")
+        assertFalse(gated.isEnabled, "and the device is back to factory state, gate included (OI-PRES-10)")
+    }
+
+    // @verifies SWR-MG-17#b
+    @Test fun an_erase_whose_gate_key_cannot_be_removed_still_finishes_destroys_the_data_key_and_says_so() = runTest {
+        val kv = InMemoryKeyValueStore().also { it.putString("np.session.history", "history of the person") }
+        val secrets = InMemorySecretKeyStore().also { it.store(ByteArray(32) { 1 }) }
+
+        val model = EraseDeviceModel(kv, null, secrets, gatt(kv), gated = GatedFake(failDestroy = true))
+        model.erase()
+
+        assertTrue((model.step.value as EraseStep.Done).keyKept, "the person is told a key stayed")
+        assertNull(secrets.load(), "the other key is not left behind because this one stuck")
+        assertNull(kv.getString("np.session.history"))
+    }
+
+    // @verifies SWR-MG-06
+    @Test fun a_device_replacement_clear_also_destroys_the_presence_gates_key() = runTest {
+        val kv = InMemoryKeyValueStore()
+        val secrets = InMemorySecretKeyStore().also { it.store(ByteArray(32) { 1 }) }
+        val data = life.neurone.core.common.EncryptedKeyValueStore(kv, secrets, emptySet())
+        val gated = GatedFake()
+
+        val ok = life.neurone.shared.migration.SharedClearActions(data, gatt(kv), gated).run("destroyEncryptionKey")
+
+        assertTrue(ok)
+        assertNull(secrets.load())
+        assertNull(gated.key)
+        assertFalse(gated.isEnabled)
     }
 
     // @verifies SWR-MG-17#b
