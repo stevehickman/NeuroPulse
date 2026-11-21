@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 33
+**Revision:** 34
 **Date:** 2026-11-18
 **Status:** DRAFT
 **Effective Date:** —
@@ -1109,3 +1109,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 31 | 2026-11-13 | NeurOne Software Engineering | **New §7.11: the account check over the real S3 adapter at an Oracle-style endpoint (3 tests, tag SWR-MG-12), the unknown-free-space finding and its resolution (the principal, 2026-11-13, option (a): unknown space passes with `spaceConfirmed: false`; new key `MIGRATION_PROBE_SPACE_UNCONFIRMED`), the re-run-before-migration gap (dormant), Oracle's pages re-read on 2026-11-13 and what a migration route through Oracle needs.** |
 | 32 | 2026-11-21 | NeurOne Software Engineering | **§4c.1, §4c.7 and new §4c.13.1: where the cloud credentials may be kept, by storage state, and what the build compiles in (`OI-PRIV-14`).** §4c.7 names the hosts that can run unsealed with a sign-in wired and gives the vault's behaviour in each state. §4c.13.1 records that every build value is public, that Google's Desktop app client value is never a confidential client's secret and is refused by the build beside a non-loopback redirect, that the CloudKit API token is public by design and a server-to-server key is never set, and the six registrations the owner must make. No identifier is invented. |
 | 33 | 2026-11-18 | NeurOne Software Engineering | **§4c.17, new: CloudKit's callback carries the token with no `state` or PKCE, so it is bound to its request or CloudKit is not offered; what was read at Apple and what was not run. §4c.3 corrected: it said `state` and the PKCE verifier decide every answer, which was untrue for CloudKit. §4c.1, §4c.4, §4c.5, §4c.13 follow (`OI-PRIV-13`).** |
+| 34 | 2026-11-18 | NeurOne Software Engineering | **New §4c.18: the six findings of `OI-PRIV-15`, each verified in the code and against the provider's page (read 2026-11-18, with page dates), what changed, and what a pass does not show. §4c.11, §4c.13 and §4c.14 corrected for the dropped Dropbox scope and the stricter signature check. No provider was contacted.** |

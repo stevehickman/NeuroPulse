@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 176
-**Date:** 2026-11-21  
+**Revision:** 177
+**Date:** 2026-11-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -861,3 +861,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 174 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-29` (new): a recording file is sealed as a named object and opened as the object the reader expects (archive version 2); a bundle carries an epoch inside its seal and a phone that has seen a later one refuses it whole (bundle format version 2, `SWR-MG-05`); the row states that a phone which has seen nothing is not protected (`OI-PRIV-09`).** |
 | 175 | 2026-11-18 | NeurOne Software Engineering | **§6.3 `SWR-MG-19`: (a) `state` is checked before anything else in the redirect and the provider's error text is never quoted; (f), (h) a launcher does not take a redirect that lacks this request's `state`; (n), new: a CloudKit sign-in needs a confined browser session or a verified per-request nonce, and is not offered elsewhere (`OI-PRIV-13`).** |
 | 176 | 2026-11-21 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-19` (b) now drops an analytics ID only when the relay accepted it (a 4xx keeps it and the drain goes on) and gains (d), a device erase forgets the ID and asks the relay before anything is wiped; `REQ-SW03-25` (c), (d): the ID is made with the first event, forgotten on reset, and queued by a withdrawal whether or not the gate was configured in that run; `REQ-SW03-12` is split into parts and gains (e) no suggestion and no author token without the portal opt-in and (f) the token is forgotten when the portal opt-in or blanket consent is withdrawn (`OI-PRIV-08` (1) to (3)).** |
+| 177 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7: new `SWR-MG-30` (the cloud sign-in and adapters take no credential broader than a backup needs, follow no address on a provider's word alone, ask for no identity, end a credential at the provider when it leaves the install; six parts, `OI-PRIV-15`). `SWR-MG-23` (a) no longer lists `account_info.read`; `SWR-MG-26` (a) requires `sr=c` and points at `SWR-MG-30` for the rest. 3 new strings and 2 reworded, English in every locale until translated.** |
