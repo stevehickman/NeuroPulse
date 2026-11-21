@@ -379,3 +379,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 343 | 2026-11-20 | NeurOne Software Engineering | **187 → 188: the 32-byte `DEVICE_SERIAL` read is the only proof of an encrypted link; no other encrypted-only read opens the upload gate (`OI-PRIV-17`, the principal, 2026-11-20).** |
 | 344 | 2026-11-20 | NeurOne Software Engineering | **NP-ANALYTICS-001 and NP-SW-001 revised, and new document NP-MAN-OPS-001 (the operations manual: PostHog configuration, maintenance and the real-stack check): analytics event retention is 30 days, configurable, enforced by a ClickHouse TTL (`OI-ANALYTICS-01` (3)).** |
 | 345 | 2026-11-21 | NeurOne Software Engineering | **189 → 190: SWR-UI-01 (f) now holds in the Compose and iOS limit fields: a typed limit is marked and refused at save, not clamped.** |
+| 346 | 2026-11-20 | NeurOne Software Engineering | **190 → 191: the Swift session history store keeps every session too (OI-PRIV-10).** |

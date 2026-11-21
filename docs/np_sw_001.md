@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 190
-**Date:** 2026-11-21  
+**Revision:** 191
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -875,3 +875,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 188 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (b): the 32-byte serial is the only read that opens the gate (`OI-PRIV-17`).** |
 | 189 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-34`, the event-retention script and its check against a fake ClickHouse.** |
 | 190 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose and iOS limit fields no longer pull a typed limit into its range. A limit outside its range is marked, and Save (and an iOS script import) is blocked until it is corrected. The clamp exception for those two apps is removed from the status; Compose's duration defaults remain.** |
+| 191 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1: REQ-SW03-06 now holds for the Swift app as well: its history store no longer drops sessions past a count of 100 (OI-PRIV-10 (2) (iii)).** |
