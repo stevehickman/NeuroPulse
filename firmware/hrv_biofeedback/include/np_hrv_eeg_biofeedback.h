@@ -41,6 +41,17 @@ typedef struct {
 void np_hrv_eeg_init(np_eeg_sample_buf_t *eeg_buf);
 
 /*
+ * Zero the module's FFT scratch (a segment of the person's EEG and its
+ * spectrum) with a clear the compiler cannot remove; the Hann table is kept.
+ * Called by np_hrv_session_stop() and np_hrv_session_destroy()
+ * (NP-FW-HUB-001 REQ-FWHUB-84 (e), OI-PRIV-39).
+ */
+void np_hrv_eeg_wipe_scratch(void);
+#ifdef NPTEST_HOST
+bool np_hrv_eeg_test_scratch_is_zero(void);
+#endif
+
+/*
  * Append one EEG sample vector (all 8 channels, µV).
  * `samples_uv` must point to an array of NP_EEG_CHANNELS float values in
  * channel order: Fp1, Fp2, F3, F4, C3, C4, P3, P4.
