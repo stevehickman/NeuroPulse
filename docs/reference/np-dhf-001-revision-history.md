@@ -381,3 +381,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 345 | 2026-11-21 | NeurOne Software Engineering | **189 → 190: SWR-UI-01 (f) now holds in the Compose and iOS limit fields: a typed limit is marked and refused at save, not clamped.** |
 | 346 | 2026-11-20 | NeurOne Software Engineering | **190 → 191: the Swift session history store keeps every session too (OI-PRIV-10).** |
 | 347 | 2026-11-20 | NeurOne Software Engineering | **191 → 192: `OI-PRIV-12` (i), the refusal of a key given as hex, built behind a Cargo feature that is off.** |
+| 348 | 2026-11-20 | NeurOne Software Engineering | **35 → 36: documentation only, no code, requirement or behaviour change; §4c.13.1 cites the Google and Apple pages read on 2026-11-15 (OI-PRIV-14).** |

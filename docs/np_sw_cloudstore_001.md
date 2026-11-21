@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 35
-**Date:** 2026-11-19
+**Revision:** 36
+**Date:** 2026-11-20
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1111,3 +1111,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 33 | 2026-11-18 | NeurOne Software Engineering | **§4c.17, new: CloudKit's callback carries the token with no `state` or PKCE, so it is bound to its request or CloudKit is not offered; what was read at Apple and what was not run. §4c.3 corrected: it said `state` and the PKCE verifier decide every answer, which was untrue for CloudKit. §4c.1, §4c.4, §4c.5, §4c.13 follow (`OI-PRIV-13`).** |
 | 34 | 2026-11-18 | NeurOne Software Engineering | **New §4c.18: the six findings of `OI-PRIV-15`, each verified in the code and against the provider's page (read 2026-11-18, with page dates), what changed, and what a pass does not show. §4c.11, §4c.13 and §4c.14 corrected for the dropped Dropbox scope and the stricter signature check. No provider was contacted.** |
 | 35 | 2026-11-19 | NeurOne Software Engineering | **§4c.18: `OkHttpTransportTest` is no longer listed as not run; it passed in CI on 2026-11-19 (`:app:testDebugUnitTest`, head of #891). No requirement and no code changed.** |
+| 36 | 2026-11-20 | NeurOne Software Engineering | **§4c.13.1: from-memory statements about the Google Desktop-app client secret and the CloudKit API token replaced with quotes from Google's two OAuth pages and Apple's CloudKit Web Services page, read 2026-11-15 and re-checked 2026-11-20; RFC 8252 §8.5 stays cited from memory; Apple's page is stated not to say the token is embedded in client code or whether it alone reaches the private database.** |
