@@ -89,16 +89,53 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      read back from a fresh mount, and the reset starts only if it reads PRESENT;
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
-R-5  Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition
-     → NIST SP 800-88 "Purge" — all UHDR blocks overwritten to media-specific pattern
-R-6  Hub zeroes SHDR partition (eMMC ERASE + SANITIZE)
+R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), which
+     unmaps it; the purge is R-7a (Rev {NP-FW-EMMC-002 to})
+R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
+R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
+     then CMD13 polling until the card is in TRAN, ready for data, with no error bit
+     → NIST SP 800-88 "Purge" of every unmapped block: the UHDR blocks R-5 unmapped
+     and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
+     not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
+     not finish within its bound, the reset fails here and stays in progress
+     (Rev {NP-FW-EMMC-002 to})
 R-8  Hub generates new TRNG salt (256-bit) for future UHDR Argon2id derivation
 R-9  Hub generates new warranty token via TRNG (not pre-registered)
 R-10 Hub writes only: new TRNG salt, new warranty token, and factory firmware defaults to Config partition
 R-11 Hub clears reset_in_progress flag
 R-12 Hub reboots — device presents as factory-new to the next owner
 ```
+
+> **Rev {NP-FW-EMMC-002 to} correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-12`).**
+> Up to Rev 6, R-5 read "Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition" and
+> R-6 "(eMMC ERASE + SANITIZE)". **CMD38 does not start SANITIZE.** CMD38 with argument 0 is a plain
+> ERASE, and that is all the bootloader's interrupted-reset path issued. SANITIZE is started by CMD6 SWITCH
+> (write byte) writing 1 to EXT_CSD byte 165, `SANITIZE_START`, and a part advertises it in EXT_CSD byte 231
+> (`SEC_FEATURE_SUPPORT`), bit 6 (`SEC_SANITIZE`). Source checked: Linux v6.12
+> `include/linux/mmc/mmc.h` (`EXT_CSD_SANITIZE_START 165`, `EXT_CSD_SEC_FEATURE_SUPPORT 231`,
+> `EXT_CSD_SEC_SANITIZE BIT(6)`) and `drivers/mmc/core/mmc_ops.c` `mmc_sanitize()`, which calls
+> `__mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START, 1, …)`. JEDEC JESD84-B51 and the
+> selected part's datasheet have **not** yet been read against these figures. That check stays open under
+> `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`).
+>
+> SANITIZE acts on the device's unmapped space as a whole and cannot be scoped to UHDR's LBA range.
+> So the sequence becomes: erase (unmap) UHDR at R-5, zero SHDR and Config at R-6 and R-7, then **one SANITIZE
+> at R-7a**, before R-8 mints anything. That also purges Config: the wrapped UKMD (§C.3) was zeroed and
+> never purged. The bootloader's flag branch (§B.4) runs the same SANITIZE after its three erases.
+> Code: `firmware/bootloader/include/np_emmc_sanitize.h` (the sequence, host-tested),
+> `np_emmc_sanitize()` in `firmware/bootloader/src/np_emmc.c`, and `np_factory_reset_hal_purge_unmapped()`
+> (R-7a in `firmware/factory_reset/`). On the application side the HAL traps until the application has an
+> eMMC transport (`OI-RESET-01`).
+>
+> **The wait is bounded at 240 s** (`UC-201`, PROVISIONAL), the Linux default when a caller names
+> none. No part is selected, so its own figure is unknown (`OI-EMMC2-03`, `FAI-RESET-01`).
+> **The part must advertise SANITIZE.** A part that does not cannot complete a factory reset,
+> by design: there is no fallback to the plain erase.
+>
+> **R-1 and R-2 have no implementation yet.** No wire command or handler reaches
+> `np_factory_reset_execute()`. The authenticated command is a wire and design change, briefed in
+> `docs/human-input/oi-priv-27-factory-reset-command.md`.
 
 ### B.4 Power-loss resilience
 

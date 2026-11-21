@@ -30,6 +30,7 @@ typedef enum {
     NP_ERR_DFU_USB          = -14,
     NP_ERR_MAX_ATTEMPTS     = -15,
     NP_ERR_BOTH_BANKS_BAD   = -16,
+    NP_ERR_EMMC_SANITIZE_UNSUPPORTED = -17, /* EXT_CSD[231] bit 6 clear (OI-PRIV-27) */
 } np_status_t;
 
 /* ── Boot bank identifier ─────────────────────────────────────────────────── */
