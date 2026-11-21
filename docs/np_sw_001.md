@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 180
-**Date:** 2026-11-16  
+**Revision:** 181
+**Date:** 2026-11-19  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -865,3 +865,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 178 | 2026-11-16 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-07`: an event's name must be one of the listed names, no screen value records a session or a consent, and an error code is a listed app failure (`OI-PRIV-05`).** |
 | 179 | 2026-11-19 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (b): the read must return the 32-byte serial, and an upload held at the gate asks for the read again; (d) the other writes to encrypted characteristics wait for it; an unprovisioned hub takes no Bluetooth upload (`OI-PRIV-17`).** |
 | 180 | 2026-11-16 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-32` added (an individual profile is an ID, a name and a bounded note; no date of birth; `UC-195`). §6.3: `SWR-WO-07` added (the share form of an export: no used flag, new protocol and family ids, a limits set with no helmet serial or individual ID; the principal, 2026-11-16), and `SWR-WO-03` now says the used flag travels in the full form only. Amended 2026-11-19 (the principal): `REQ-SW03-32` (a) says a profile has no creation time, and `SWR-WO-07` (f) says the protocol script an editor shows carries no used flag and a limits script on screen is the share form.** |
+| 181 | 2026-11-19 | NeurOne Software Engineering | **§6.3, `SWR-MG-04`: a withdrawal in a bundle is a mark, the day and that decision's withdrawal count (`yyyy-MM-dd#NNNNNN`, `REQ-CONSENT-24`), where it was a UTC time. The merge rule is unchanged: the later mark wins, as text.** |
