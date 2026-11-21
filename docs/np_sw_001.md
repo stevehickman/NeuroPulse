@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 192
+**Revision:** 193
 **Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -877,3 +877,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 190 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose and iOS limit fields no longer pull a typed limit into its range. A limit outside its range is marked, and Save (and an iOS script import) is blocked until it is corrected. The clamp exception for those two apps is removed from the status; Compose's duration defaults remain.** |
 | 191 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1: REQ-SW03-06 now holds for the Swift app as well: its history store no longer drops sessions past a count of 100 (OI-PRIV-10 (2) (iii)).** |
 | 192 | 2026-11-20 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-32`: new part (h), a core built with `refuse-hex-keys` refuses a key, seed, passphrase, recovery code or cloud secret given as text; the feature is off in every build until `OI-UI-KMP-05` deletes the Swift and Windows apps. The fleet gateway now passes its private key and the response secret to the core as bytes (the row's note on the gateway is reworded to say so).** |
+| 193 | 2026-11-20 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-32`: the note that `NppsBackendIos.kt` had never been compiled is replaced by the CI result (compiled and linked into the iOS host on 2026-11-20; no test runs the binding on an iOS target).** |
