@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 38
-**Date:** 2026-11-11  
+**Revision:** 40
+**Date:** 2026-11-21  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -2099,7 +2099,7 @@ The guard checks the two correspondences §5.0 is built out of:
 | `check-section-refs.ts` | `<tree>` |
 | `check-ci-scope.ts` | `.github/workflows/** firmware/** scripts/** ci/**` |
 | `check-consent-reachability.ts` | `app/ios/** app/android/**` |
-| `check-redaction-shape.ts` | `firmware/**` |
+| `check-redaction-shape.ts` | `firmware/** docs/status/pending-decisions.md` |
 | `check-js-syntax.sh` | `simulator/**` |
 | `ci-changed-scope.sh` | `.github/workflows/**` |
 | `ci/test_shdr_schema.py` | `ci/shdr/shdr_fleet_schema.sql firmware/shdr/include/np_accel_shdr.h` |
@@ -3948,6 +3948,63 @@ first candidate without the ancestry test.
 observed; the `copilot_code_review` rule; and whether a branch must be up to date (`OI-SWCI-53` in settings
 form). Until an answer is recorded, `ci/main-ruleset.json` states what GitHub holds, and no setting changes.
 
+### 6.18 The redaction-shape gate becomes a required context (2026-11-21, `OI-SWCI-54` Q2, in part)
+
+**The decision.** `reporting paths cannot leak a sensitive predicate (§5.1)`, the `redaction-shape` job in
+`tooling-ci.yml`, is to be a required status-check context: the principal asked for it on 2026-11-21. This
+answers `OI-SWCI-54` Q2 for this one context only. The other two contexts of set P (`SHDR Schema Privacy Gate`,
+`Warranty No-Join Privacy Gate`) and Q1, Q3, Q4 and Q5 stay undecided.
+
+#### 6.18.1 Why this context
+
+The gate enforces CLAUDE.md §5.1 rule 2: SHDR is written only by declared reporting paths, and no declared path
+can vary its shape with a sensitive predicate. It also fails a known violation once the open item that owns it
+is checked off in `docs/status/pending-decisions.md`, so that closing an item and updating the gate land
+together. **Today a red result blocks nothing.** `check-redaction-shape.ts` failed on `main` after #983 merged
+and passed again with #1000. #983 closed `OI-PRIV-21 (NP-PRIV-ANALYSIS-004)`, and #995, merged earlier on
+the same day, had made that item the owner of three known violations. #983's checks had run on a base older
+than #995, so each pull request was green alone and `main` was red with both.
+
+**What requiring it does not do.** It blocks a pull request that breaks the gate by itself. It does not catch
+the #983/#995 shape, two pull requests each green against an older `main`: that needs a branch to be up to
+date before it merges, which is Q5 (`OI-SWCI-53`), still `strict: false`, and not changed here.
+
+#### 6.18.2 Why requiring it is safe
+
+- **It reports on every PR.** `tooling-ci.yml` runs on `pull_request` with no workflow-level `paths:`. The
+  job has `needs: changes` and `if: !cancelled() && needs.changes.outputs.redaction != 'false'`, so an
+  out-of-scope PR reports it `skipped`, which does not block (§6.7.5), and a failed or empty scope runs it
+  (§6.7's fail-safe direction). Correspondence C checks the trigger, the absent `paths:` and the absent
+  `strategy:`.
+- **The name has no count, revision or matrix**, so it does not drift the way §6.7.7 describes. `--contexts`
+  listed it as eligible on 2026-11-11 (§6.17).
+- **It is cheap.** On #1000 it took 12 s on `ubuntu-latest`, in parallel with the other tooling jobs.
+- **The ways it can fail when nothing is wrong** are a closed open item whose entry was not updated, and a
+  renamed function that was not renamed in the gate. Both are what it exists to show, and its message names the
+  entry. It must not be relaxed to clear one.
+
+#### 6.18.3 Applying it: the runbook the principal runs, not CI
+
+Tree first, as `docs/human-input/oi-swci-54-main-ruleset.md` §5 orders for an added context: a context required
+before pull requests report it blocks every merge.
+
+1. Merge the PR carrying this revision. It adds the context to `ci/required-checks.txt` and the in-file warning
+   to the job; correspondence C fails a PR that adds only one of them. Until step 3,
+   `check-main-ruleset.ts --live` reports rule L2 for this context, which is correct.
+2. Confirm on an open PR that the check reports (`success`, or `skipped` when out of scope).
+3. https://github.com/stevehickman/NeuroPulse/settings/rules → **Safety** → *Require status checks to pass* →
+   **Add checks** → `reporting paths cannot leak a sensitive predicate (§5.1)`, exactly as written, source
+   **GitHub Actions** → **Save changes**. Leave the other ten contexts and *Require branches to be up to date*
+   as they are. For the API form, use the brief's §5 step 2, which resends every rule.
+4. From a checkout of `main`: `bun scripts/check-main-ruleset.ts --live --require-bypass` prints `OK`.
+5. On the next PR that does not touch the gate's scope, the context is `isRequired: true`, reports `SKIPPED`,
+   and the PR reads `CLEAN` (§6.7.5's method).
+
+**Rollback.** Remove the context from the ruleset. Then, in one PR, remove its line from `ci/required-checks.txt`
+and the warning from the job.
+
+**Status.** Steps 2 to 5 have not been run. `OI-SWCI-54` stays open for them and for its other questions.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -4007,7 +4064,7 @@ form). Until an answer is recorded, `ci/main-ruleset.json` states what GitHub ho
 | OI-SWCI-51 | **Raised 2026-10-14 with §6.15; narrowed 2026-10-28 (Rev 36).** The last-green diff base now covers thirteen of the repository's workflows. It does not cover `codeql.yml` (per-language `analyze` jobs: whether GitHub's code-scanning check accepts a category that was not re-analysed on the new head has to be established before a security scanner skips one) or `dependency-scan.yml` (its `paths:` list uses `**/` and `*` shapes `ci-changed-scope.sh` rejects). Both only gained a `concurrency` group. The nine converted workflows are untested on GitHub until their first pull-request run | Quality / Firmware | — |
 | ~~OI-SWCI-52~~ | **CLOSED 2026-11-11 (§6.17).** `ci-changed-scope.sh --self-test` runs `np_resolve_base` against a stub `gh`: thirteen cases, the four named here among them, and nine single mutations of the function each fail one. ~~**Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository~~ | Quality | — |
 | OI-SWCI-53 | **Raised 2026-10-14 with §6.15.3 item 2.** A green run tested the pull request merged with `main` as it was then, and a later push that changes nothing in scope does not re-test it against a `main` that has since moved. Decide whether that is acceptable given the push to `main` and `build-all.yml`, or whether a candidate older than the last move of the base should be refused | Quality | — |
-| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer` | Steve | — |
+| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open | Steve | — |
 
 ## 8. Traceability
 
@@ -4153,3 +4210,5 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 38 | 2026-11-11 | NeurOne Software Engineering | **New §6.17: the expected protection of `main` and its comparison with GitHub (rules R1 to R6 and L1 to L8), the three settings changes that had left no record (§6.13.5's "one bypass entry" and "refused for every actor" are superseded), and what is not established. §7: `OI-SWCI-52` closed, `OI-SWCI-54` raised, `OI-SWCI-10` updated.** |
+| 39 | 2026-11-21 | NeurOne Tooling | **§5.0.2 CI-Scan-Paths table: `check-redaction-shape.ts` also reads `docs/status/pending-decisions.md`, to fail a known violation whose open item is closed (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
+| 40 | 2026-11-21 | NeurOne Tooling | **New §6.18: `reporting paths cannot leak a sensitive predicate (§5.1)` joins `ci/required-checks.txt` and carries the in-file warning; why it is safe to require, what it does not catch (two PRs each green against an older `main`, which is Q5), and the runbook. `OI-SWCI-54` row updated; it stays open.** |

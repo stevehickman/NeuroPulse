@@ -54,3 +54,6 @@ Cross-build and link (STM32G071, Cortex-M0+, Class C)
 # simulator-ci.yml — firmware in the loop, host only
 Simulator scope
 Simulator build and tests (host only)
+
+# tooling-ci.yml — the §5.1 redaction-shape gate (NP-SW-CI-001 §6.18)
+reporting paths cannot leak a sensitive predicate (§5.1)

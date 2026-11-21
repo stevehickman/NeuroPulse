@@ -625,8 +625,14 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_dfu_block_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-11.  Firmware anti-rollback in
+    # both install verify paths.  Moves the Class B count 64 -> 65 and the repo total 75 -> 76.
+    add_test(NAME np_bootloader_rollback_tests
+        COMMAND np_bootloader_rollback_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7).  The eMMC SANITIZE sequence (np_emmc_sanitize.h).
-    # Moves the Class B count 64 -> 65 and the repo total 75 -> 76.
+    # Moves the Class B count 65 -> 66 and the repo total 76 -> 77.
     add_test(NAME np_bootloader_sanitize_tests
         COMMAND np_bootloader_sanitize_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

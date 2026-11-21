@@ -52,6 +52,8 @@ set(BOOTLOADER_SOURCES
     src/np_mem.c        # freestanding memcpy/memset (NP-SW-CI-001 §4.2)
     src/np_app_image.c  # OCRAM staging limits from the linker (NP-SW-CI-001 §4.3)
     src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
+    src/np_rollback.c   # anti-rollback floor check (REQ-SW02-15, OI-PRIV-32)
+    src/np_rollback_store_unbuilt.c  # floor store not chosen: refuses every image (OI-PRIV-32)
 )
 
 # Monocypher 4.0.2 — Ed25519 verify for np_signature.c (NP-SW-CI-001
@@ -272,4 +274,24 @@ if(NP_BUILD_TESTS)
     target_compile_definitions(np_bootloader_app_image_tests PRIVATE
         NP_APP_IMAGE_HOST_TEST
         NP_LINKER_SCRIPT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/linker/bootloader_imxrt1062.ld")
+
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15: anti-rollback.  The REAL
+    # np_ota.c install paths (Scratch verify, which USB DFU also takes, and the
+    # boot trial) and np_signature.c, against a sparse fake eMMC, a fake SNVS
+    # selector and a fake floor store defined in the test.  The test key is
+    # force-included as for np_bootloader_app_image_tests.
+    add_executable(np_bootloader_rollback_tests
+        tests/np_bootloader_rollback_tests.c
+        src/np_ota.c
+        src/np_rollback.c
+        src/np_signature.c
+        ${NP_BL_MONOCYPHER_SOURCES}
+    )
+    set_source_files_properties(tests/np_bootloader_rollback_tests.c
+        PROPERTIES COMPILE_OPTIONS
+        "-include;${CMAKE_CURRENT_SOURCE_DIR}/tests/np_bootloader_test_key.h")
+    target_include_directories(np_bootloader_rollback_tests PRIVATE include
+        ${NP_BL_MONOCYPHER})
+    target_compile_options(np_bootloader_rollback_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
 endif()

@@ -45,13 +45,19 @@ class CloudBackupModel(
     private val auth: CloudAuth,
     private val transport: HttpTransport,
     private val keys: KeyValueStore,
+    /**
+     * Whether the sealed choice can be read now. False while the presence gate is closed (`NP-APP-PRESENCE-001`): a locked read of the
+     * choice is "absent", which would read as this device, and an automatic backup would go there instead of the account the person
+     * chose (`OI-PRIV-19`). While false nothing is chosen and no place is made; [reload] reads the choice again at the unlock.
+     */
+    private val readable: () -> Boolean = { true },
 ) {
     private val _destinations = MutableStateFlow<List<CloudDestination>>(emptyList())
 
     /** The signed-in accounts that can keep a backup. */
     val destinations: StateFlow<List<CloudDestination>> get() = _destinations.asStateFlow()
 
-    private val _selected = MutableStateFlow(keys.getString(BACKUP_CLOUD_ACCOUNT_KEY)?.takeIf { it.isNotBlank() })
+    private val _selected = MutableStateFlow(if (readable()) keys.getString(BACKUP_CLOUD_ACCOUNT_KEY)?.takeIf { it.isNotBlank() } else null)
 
     /** The account chosen, or null for this device. */
     val selected: StateFlow<String?> get() = _selected.asStateFlow()
@@ -59,7 +65,7 @@ class CloudBackupModel(
     // Declared before the first use: a property initialiser runs in order, and readTarget() below needs this one.
     private val mapSerializer = MapSerializer(String.serializer(), String.serializer())
 
-    private val _target = MutableStateFlow(readTarget())
+    private val _target = MutableStateFlow(if (readable()) readTarget() else null)
 
     /** The bucket or container named for the chosen account, or null when none is needed or none is chosen. */
     val target: StateFlow<BackupTarget?> get() = _target.asStateFlow()
@@ -71,6 +77,7 @@ class CloudBackupModel(
 
     /** Read the accounts again and make the place for the choice. An unreadable store changes nothing. */
     suspend fun refresh() {
+        if (!readable()) return
         val accounts = try {
             auth.accounts()
         } catch (e: CloudAuthException) {
@@ -93,6 +100,7 @@ class CloudBackupModel(
      * account that is not listed, whose sign-in was ended (the person signs in again first), or for names [CloudStores.target] refuses.
      */
     suspend fun choose(accountId: String, values: Map<TargetField, String> = emptyMap()): Boolean {
+        if (!readable()) return false
         refresh()
         val d = _destinations.value.firstOrNull { it.accountId == accountId } ?: return false
         if (d.needsSignIn) return false
@@ -103,6 +111,21 @@ class CloudBackupModel(
         if (target == null) keys.remove(BACKUP_CLOUD_TARGET_KEY) else keys.putString(BACKUP_CLOUD_TARGET_KEY, encode(target))
         refresh()
         return true
+    }
+
+    /** The lock closed: no choice, account list or place stays in memory. */
+    fun forget() {
+        _selected.value = null
+        _target.value = null
+        _destinations.value = emptyList()
+        _place.value = null
+    }
+
+    /** The lock opened: read the sealed choice again, then make its place. */
+    suspend fun reload() {
+        _selected.value = keys.getString(BACKUP_CLOUD_ACCOUNT_KEY)?.takeIf { it.isNotBlank() }
+        _target.value = readTarget()
+        refresh()
     }
 
     /** Keep the backup on this device again. */

@@ -188,9 +188,11 @@ extern np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len);
 extern np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out); /* 32 bytes */
 
 /* ── PBM scalp tiles (np_mod_pbm.c) — OI-PBM-HAL-01..03 ──────────────────── */
+/* freq_mhz is the pulse frequency in millihertz (0 = CW).  A seam that cannot realise it returns an error and drives
+ * nothing: it never rounds to a frequency it can (OI-PBMTILE-01). */
 extern np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot,
                                               uint8_t cur_a, uint8_t cur_b,
-                                              uint8_t freq_code, uint8_t duty);
+                                              uint32_t freq_mhz, uint8_t duty);
 extern float           np_mod_pbm_hal_ntc_read(uint8_t slot);
 extern uint16_t        np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx);
 
@@ -202,7 +204,7 @@ extern uint16_t        np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx);
  * OI-PBM-HAL-04 (np_socket_dispatch.c via np_mod_pbm_socket_drive). */
 extern np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
                                                      uint8_t cur_a, uint8_t cur_b,
-                                                     uint8_t freq_code, uint8_t duty);
+                                                     uint32_t freq_mhz, uint8_t duty);
 
 /* The socket's NTC in °C, from the cluster frame (NP-HW-HUB-001 §9.2, §9.3).
  * NP_HUB_OK with *temp_c_out set, or an error with it untouched; a caller
