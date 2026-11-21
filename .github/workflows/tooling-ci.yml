@@ -1146,6 +1146,11 @@ jobs:
 
   redaction-shape:
     name: reporting paths cannot leak a sensitive predicate (§5.1)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.redaction != 'false' }}
