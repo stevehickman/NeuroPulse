@@ -198,8 +198,8 @@ describe('hub protocol v3 wire format', () => {
   // @verifies REQ-FWHUB-08
   it('emits a 14-byte command header with a target block', () => {
     const { blob } = compileProtocol(pbmProtocol({ zoneRefs: ['Frontal Left'] }), { zones });
-    // 1 continuous command: header + cmdhdr + 16-byte mask + 4 params + sig.
-    expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + SOCKET_MASK_BYTES + 4 + SIG_LEN);
+    // 1 continuous command: header + cmdhdr + 16-byte mask + 7 params (32-bit millihertz frequency) + sig.
+    expect(blob.length).toBe(HEADER_LEN + CMD_HDR_LEN + SOCKET_MASK_BYTES + 7 + SIG_LEN);
   });
 });
 
@@ -425,7 +425,7 @@ describe('slot-addressed fixed devices', () => {
 // wire change should move them.
 describe('parameter block sizes match the firmware structs', () => {
   const EXPECTED: Record<string, { size: number; slot: number | null; params: object }> = {
-    pbm_transcranial:   { size: 4,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '808nm', irradianceMWcm2: 202, frequencyHz: 40, dutyCyclePercent: 25 } },
+    pbm_transcranial:   { size: 7,  slot: null, params: { zones: 'named', zoneRefs: ['All'], wavelength: '808nm', irradianceMWcm2: 202, frequencyHz: 40, dutyCyclePercent: 25 } },
     pbm_intranasal:     { size: 5,  slot: 9,    params: { wavelength: '660nm', irradianceMWcm2: 60, frequencyHz: 10, dutyCyclePercent: 25 } },
     eeg_neurofeedback:  { size: 5,  slot: 5,    params: { channels: 'all', band: 'alpha', closedLoopEnabled: false } },
     bes_tacs:           { size: 7,  slot: 17,   params: { frequencyHz: 10, intensityMilliamps: 0.8, waveform: 'sinusoidal' } },
@@ -537,7 +537,7 @@ describe('mixed-target protocols', () => {
     const eeg = cmds.find(c => c.modType === NP_MOD_EEG)!;
 
     expect(socketsInMask(pbm.socketMask)).toEqual(zones.get('Occipital Left')!.sockets);
-    expect(pbm.params).toHaveLength(4);
+    expect(pbm.params).toHaveLength(7);
     expect(eeg.slotId).toBe(5);
     expect(eeg.params).toHaveLength(5);
   });

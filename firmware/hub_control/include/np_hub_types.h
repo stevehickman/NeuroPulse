@@ -303,7 +303,7 @@ typedef struct {
 /* ── PBM base zone module (NP_MOD_PBM_BASE) ─────────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;     /* 0x00=CW 0x01=2Hz 0x06=6Hz 0x0A=10Hz 0x14=20Hz 0x28=40Hz */
+    uint32_t freq_mhz;     /* pulse frequency, millihertz, little-endian; 0 = CW.  The tile takes it as given (OI-PBMTILE-01) */
     uint8_t duty;          /* duty register value ≤ 0x32 (25%); above it the command is refused (REQ-FWHUB-78, interim: OI-HEXTILE-31) */
     uint8_t cur_a;         /* 660nm LED current register */
     uint8_t cur_b;         /* 808nm LED current register */
@@ -312,7 +312,7 @@ typedef struct __attribute__((packed)) {
 /* ── PBM smart zone module (NP_MOD_PBM_SMART) ───────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
-    uint8_t freq_code;
+    uint32_t freq_mhz;     /* pulse frequency, millihertz, little-endian; 0 = CW */
     uint8_t duty;          /* ≤ 0x32 for all channels; above it the command is refused (REQ-FWHUB-78) */
     uint8_t cur_a;         /* 660nm */
     uint8_t cur_b;         /* 808nm */

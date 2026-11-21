@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 65
+**Revision:** 69
 **Date:** 2026-11-21
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -565,7 +565,8 @@ injection, and a path counts as conformant only when it is shown to be encrypted
 hub does today is link-layer encryption of its BLE characteristics; no payload is encrypted end to end on either transport, and USB-C has no encryption
 at all. Which layer carries the rule is not decided (`OI-SIMFW-70`). This table is the audit of every path the tree has or names, made 2026-11-11 from
 `np_gatt_server.c`, `np_transport.c`, `firmware/ota`, `firmware/edf`, `firmware/shdr` and the apps' characteristic table
-(`common/npps/constants.json`, group `GattIds`).
+(`common/npps/constants.json`, group `GattIds`). The audit missed the bootloader's USB DFU path, which is built; its row was added on
+2026-11-21 (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), Finding M6).
 
 **The mechanism.** Every row of the hub's GATT table that carries a protocol, a session, a log, user data or an identifier has `NP_GATT_PROP_ENC`: the stack
 refuses access at the permission, and `np_gatt_server.c` refuses it again against the link state the stack reports (`np_gatt_set_link_encrypted`), with
@@ -588,7 +589,8 @@ stack for one concurrent connection. "Encrypted" is all the hub is told: whether
 | BLE `SESSION_STOP` (0x000f), `SESSION_PAUSE` (0x001a, including panic) | app to hub, write | one command byte | **not encrypted, on purpose**: a stop or a panic that a failed pairing could refuse does not stop (`REQ-FWHUB-81` (c), `OI-SIMFW-73`) | link and payload |
 | USB-C CDC protocol upload (`np_transport_feed` from the CDC RX task) | app to hub | the same signed protocol | **none**: USB-C has no link-layer encryption, and the CDC driver is a platform seam not built in this tree | link and payload: **not covered** |
 | Mode 4 download: EDF+ and parameter logs (`EDF_REQUEST`, 0x0009) | hub to app | session recordings: user health data | **no path exists**: the hub has an EDF writer and its anonymisation gate (`firmware/edf`) and publishes no characteristic and no CDC reply for it | everything, when it is built (`OI-SIMFW-71`) |
-| OTA (`OTA_COMMAND`, `OTA_STATUS`) | app to hub | a firmware image | **no transfer path exists**: `firmware/ota` is the staging and swap record, and the bootloader verifies the image's Ed25519 signature (authenticity, not secrecy) | the transfer, link and payload (`OI-SIMFW-71`) |
+| OTA (`OTA_COMMAND`, `OTA_STATUS`) | app to hub | a firmware image | **no transfer path exists**: `firmware/ota` is the staging and swap record, and the bootloader verifies the image's Ed25519 signature (authenticity, not secrecy) and refuses a signed version below the rollback floor (`REQ-SW02-15`) | the transfer, link and payload (`OI-SIMFW-71`) |
+| USB DFU 1.1 recovery (`firmware/bootloader/src/np_dfu.c`, added by OI-PRIV-32 (NP-PRIV-ANALYSIS-004)) | host to bootloader, over USB-C | a firmware image | **built, and not encrypted.** Each `DFU_DNLOAD` block is written to Scratch as received, in plaintext; at the manifest step the whole image is SHA-256 and Ed25519 verified, and checked against the rollback floor, before any byte is written to a bank (`REQ-SW02-15`). Until the floor's store is chosen the device build refuses every DFU image. The signature is integrity and authenticity, not secrecy | link and payload: **not covered**. Payload encryption, or a recorded exception for recovery DFU, is the principal's decision under §23 (`docs/human-input/oi-priv-32-firmware-rollback-floor-and-dfu.md`) |
 | Calibration, zone module status, SHDR upload status, session state and status, HRV, pacer, impedance result, socket map, firmware version, CVNS pad status | either | various | **not published by the hub** (the table holds only what the hub produces); when one is, the host test fails unless it requires an encrypted link or is named as an exception | whatever is published |
 | System Health Data Record (SHDR) from hub to fleet | hub, via the app, to the fleet database | device condition | the hub side of the transfer (the hub to the app) does not exist; the app to the fleet leg is not audited here | not audited |
 
@@ -942,8 +944,8 @@ the stop command. Each modality has exactly one target form.
 
 | Code | `mod_type` | Parameter struct (`np_hub_types.h`) | Bytes | Target |
 |---|---|---|---|---|
-| `0x01` | `NP_MOD_PBM_BASE` | `np_mod_pbm_base_params_t` | 4 | socket mask |
-| `0x02` | `NP_MOD_PBM_SMART` | `np_mod_pbm_smart_params_t` | 6 | socket mask |
+| `0x01` | `NP_MOD_PBM_BASE` | `np_mod_pbm_base_params_t` | 7 | socket mask |
+| `0x02` | `NP_MOD_PBM_SMART` | `np_mod_pbm_smart_params_t` | 9 | socket mask |
 | `0x03` | `NP_MOD_INTRANASAL` | `np_mod_intranasal_params_t` | 5 | `NP_HUB_SLOT_INTRANASAL` (9) |
 | `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
@@ -960,6 +962,8 @@ the stop command. Each modality has exactly one target form.
 | `0x10` | `NP_MOD_VIBROTACTILE` | `np_mod_vibrotactile_params_t` | 4 | `NP_HUB_SLOT_VIBROTACTILE` (16) |
 
 **The auricular VNS current is 32 bits, end to end (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_vns_hrv_params_t.amplitude_ua` was 16 bits, which would have made 65.535 mA the bound whenever the 40 mA ceiling (`NP_VNS_MAX_CURRENT_UA`, derived from the charge limit and the provisional pad area) moved with the pad. The VNS block is 14 bytes (was 12), the platform HAL's `np_mod_vns_hal_stim_set`, the taVNS sync and the hub's published commanded current are 32 bits, and so is every `current_ua[]` entry of the safety heartbeat (§7.1). The 40 mA refusal itself is unchanged.
+
+**The transcranial PBM frequency is 32-bit millihertz and the tile takes it as given (`OI-PBMTILE-01`, the principal, 2026-11-21).** `np_mod_pbm_base_params_t.freq_mhz` and `np_mod_pbm_smart_params_t.freq_mhz` replace the one-byte `freq_code` (base 4 to 7 bytes, smart 6 to 9, every later field moves three bytes). 0 is CW. The hub writes the value to the tile's `FREQ_A/B/C` registers (`NP-FW-PBM1064-001` §5.2) and reads each back, so a tile that refuses a frequency fails the command (`NP_PBM_ERR_FREQ_REFUSED` → `NP_HUB_ERR_MOD_FAULT`) and is never started at another one; the HAL seams `np_mod_pbm_hal_pwm_set` and `np_mod_pbm_hal_socket_pwm_set` take the 32-bit value and return an error rather than round it. The intranasal probe and the 1170 nm block keep their whole-hertz byte. `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The range the tile can realise is open (`OI-PBMTILE-03`).
 
 **The TMS, clinical tACS and audio frequencies are 32 bits (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_tms_params_t.freq_mhz`, `np_mod_clin_tacs_params_t.freq_mhz` and `np_mod_audio_params_t.beat_mhz` were 16 bits, which topped out at 65.535 Hz, a width no research sets. The three blocks grow by two bytes (TMS 12 to 14, clinical tACS 8 to 10, audio 8 to 10), every later field moves with them, and `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The unsourced authoring ranges (`TMS_MAX_HZ`, `CLINICAL_TACS_MAX_HZ`, `AUDIO_BEAT_MAX_HZ` and their floors) are defaults and no longer enforced (`UC-082`, the principal, 2026-11-20); `np_chan_decl_half_period_us` takes the 32-bit frequency, so a clinical tACS frequency above 65.535 Hz declares its true half period.
 
@@ -1214,11 +1218,16 @@ This is CLAUDE.md §5.1's second general rule made concrete, and the reason is a
 already paid for: zeroing `tick_ms` only for `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms ==
 0` a **self-interpreting one-bit cardiac oracle**. A redaction applied conditionally on a sensitive
 predicate leaks that predicate. `REQ-FWHUB-14`: **no SHDR suppression in this program may be made
-conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` enforces the shape at
-the fault-latch marshaller; this section is the rule the script is derived from.
+conditional on the event being suppressed.** This section is the rule `scripts/check-redaction-shape.ts`
+is derived from. Since `OI-PRIV-40` (NP-PRIV-ANALYSIS-004) the gate finds every function in device
+firmware that calls an SHDR sink and fails one that is not a declared reporting path. It fails a declared
+path that names a sensitive status bit or copies a whole safety status word. Writers that open items
+already own are listed by name, each failing once its item closes. **Its reach is partial:** it matches
+names, not data flow, and cannot tell whether a field is UHDR (a session duration passes it). Declaring a
+path is a review claim that every field has a §5.1 ruling, which the gate checks only in part.
 
 The cVNS SHDR codes (`NP_CVNS_SHDR_EV_CUTOFF` `0xC1` and `NP_CVNS_SHDR_EV_IMP_CROSSVAL` `0xC7`) are flags only — no HR, no RR, no kΩ.
-**Rev {NP-FW-HUB-001 to} (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
+**Rev 66 (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
 `0xC2`–`0xC6` (confirmation window open, contact check failed, contact check timed out, re-enable complete, assertion
 timed out) are retired and written nowhere. Each follows a cutoff, and four follow only the wearer's confirmation, so in
 sequence they told SHDR whether the person resumed neck stimulation after a cardiac event and how often skin contact

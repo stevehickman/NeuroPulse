@@ -33,13 +33,13 @@ static np_sim_module_t *resolve(uint16_t socket_id, const char *op_name)
 
 np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
                                               uint8_t cur_a, uint8_t cur_b,
-                                              uint8_t freq_code, uint8_t duty)
+                                              uint32_t freq_mhz, uint8_t duty)
 {
     np_sim_module_t *m = resolve(socket_id, "socket_pwm_set");
     if (m == NULL) { return NP_HUB_ERR_NOT_PRESENT; }
 
     char args[96];
-    (void)snprintf(args, sizeof args, "[%u,%u,%u,%u]", cur_a, cur_b, freq_code, duty);
+    (void)snprintf(args, sizeof args, "[%u,%u,%lu,%u]", cur_a, cur_b, (unsigned long)freq_mhz, duty);
 
     int code;
     if (np_sim_take_response(m, NP_SIM_OP_SOCKET_PWM_SET, &code)) {
@@ -48,7 +48,7 @@ np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id,
         np_sim_report_hal(m, NP_SIM_OP_SOCKET_PWM_SET, args, code, "injected");
         return (np_hub_status_t)code;
     }
-    m->cur_a = cur_a; m->cur_b = cur_b; m->freq_code = freq_code; m->duty = duty;
+    m->cur_a = cur_a; m->cur_b = cur_b; m->freq_mhz = freq_mhz; m->duty = duty;
     m->driven = (cur_a != 0U || cur_b != 0U);
     np_sim_report_hal(m, NP_SIM_OP_SOCKET_PWM_SET, args, (int)NP_HUB_OK, "default");
     return NP_HUB_OK;
