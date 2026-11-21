@@ -524,7 +524,7 @@ void np_pbm_session_update_eeg_freq(np_pbm_session_ctx_t *ctx,
         uint8_t new_code = np_pbm_drive_map_eeg_freq(
             dominant_freq_hz,
             ctx->current_freq_code,
-            &ctx->eeg_tick_in_band[i]);
+            &ctx->eeg_ticks_off_code[i]);
 
         if (new_code != 0xFF) {
             np_pbm_drive_set_freq(ctx->active_socket_id[i], &ctx->drv[i],

@@ -107,21 +107,21 @@ static void test_stop_and_lost_stops(void)
 }
 
 /* @verifies-none EEG-adaptive beat selection is np_mod_audio.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). */
-static void test_eeg_adaptive_beat_follows_the_band(void)
+static void test_eeg_adaptive_beat_follows_the_dominant_frequency(void)
 {
     setup();
-    run("audio_eeg_band 2");
-    check(au()->audio_mode == 0U, "adaptive: nothing is played for a band update while no session is active");
+    run("audio_eeg_freq 10000");
+    check(au()->audio_mode == 0U, "adaptive: nothing is played for a frequency update while no session is active");
     run("audio 0 200 6000 40 0 1");
-    run("audio_eeg_band 2");
-    check(au()->audio_beat_mhz == 10000U, "adaptive: alpha selects a 10 Hz beat");
-    run("audio_eeg_band 4");
-    check(au()->audio_beat_mhz == 40000U, "adaptive: gamma selects a 40 Hz beat");
-    run("audio_eeg_band 9");
-    check(au()->audio_beat_mhz == 40000U, "adaptive: a band that is not one of the five changes nothing");
+    run("audio_eeg_freq 10000");
+    check(au()->audio_beat_mhz == 10000U, "adaptive: a 10 Hz dominant frequency gives a 10 Hz beat");
+    run("audio_eeg_freq 7830");
+    check(au()->audio_beat_mhz == 7830U, "adaptive: the beat is the frequency itself, 7.83 Hz, not the preset of a band");
+    run("audio_eeg_freq 0");
+    check(au()->audio_beat_mhz == 7830U, "adaptive: 0 cannot be a beat and changes nothing");
     run("audio 0 200 6000 40 0 0");
-    run("audio_eeg_band 1");
-    check(au()->audio_beat_mhz == 6000U, "adaptive: a command without it ignores band updates");
+    run("audio_eeg_freq 10000");
+    check(au()->audio_beat_mhz == 6000U, "adaptive: a command without it ignores frequency updates");
 }
 
 /* @verifies-none The driver's mode gate is np_mod_audio.c's (REQ-AUDIO-18); np_mod_audio_tests verifies it. Simulator evidence only (REQ-SIMFW-06). */
@@ -130,10 +130,10 @@ static void test_adaptation_leaves_a_non_binaural_mode_alone(void)
     setup();
     run("audio 1 440 0 30 0 1");
     check(au()->audio_mode == 2U, "mode: isochronic is playing");
-    run("audio_eeg_band 2");
-    check(au()->audio_mode == 2U, "mode: an EEG band update leaves it isochronic (OI-SIMFW-19, closed)");
+    run("audio_eeg_freq 10000");
+    check(au()->audio_mode == 2U, "mode: an EEG frequency update leaves it isochronic (OI-SIMFW-19, closed)");
     run("audio 2 440 0 30 0 1");
-    run("audio_eeg_band 2");
+    run("audio_eeg_freq 10000");
     check(au()->audio_mode == 3U, "mode: and leaves pink noise as pink noise");
 }
 
@@ -212,7 +212,7 @@ int main(void)
     test_each_mode_reaches_the_output_stage();
     test_bone_conduction_follows_the_command();
     test_stop_and_lost_stops();
-    test_eeg_adaptive_beat_follows_the_band();
+    test_eeg_adaptive_beat_follows_the_dominant_frequency();
     test_adaptation_leaves_a_non_binaural_mode_alone();
     test_a_level_above_the_ceiling_is_refused_and_changes_nothing();
     test_malformed_command_and_shutdown();

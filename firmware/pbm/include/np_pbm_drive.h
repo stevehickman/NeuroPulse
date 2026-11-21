@@ -77,13 +77,14 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot,
                                                     np_pbm_drv_slot_t *drv);
 
 /*
- * Map EEG dominant frequency (Hz) to nearest driver PWM frequency code.
- * Applies NP_PBM_EEG_HYSTERESIS_TICKS hysteresis via tick_count_in_band.
+ * Map EEG dominant frequency (Hz) to the nearest driver PWM frequency code, by distance in hertz (not by EEG band).
+ * Applies NP_PBM_EEG_HYSTERESIS_TICKS hysteresis via ticks_off_code, the count of consecutive ticks the nearest code has
+ * differed from the current one.
  * Returns 0xFF if hysteresis period not yet elapsed (no change needed).
  */
 uint8_t np_pbm_drive_map_eeg_freq(float    dominant_freq_hz,
                                         uint8_t  current_freq_code,
-                                        uint8_t *tick_count_in_band);
+                                        uint8_t *ticks_off_code);
 
 #ifdef __cplusplus
 }

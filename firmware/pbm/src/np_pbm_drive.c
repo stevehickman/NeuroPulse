@@ -25,17 +25,48 @@ static np_pbm_status_t read_reg(uint8_t slot, uint8_t reg, uint8_t *val)
 }
 
 /*
- * Map freq_hz preset field to nearest driver PWM frequency code.
- * 0 → CW, 2→0x01, 6→0x06, 10→0x0A, 20→0x14, 40→0x28.
+ * The pulse frequencies the tile accepts, and their register codes (NP-FW-PBM1064-001 §5.2; the tile refuses any other
+ * code, NP-FW-HEXTILE-001 REQ-FWTILE-15).  This is a fact about the tile hardware.  It is not a set of EEG bands: a
+ * frequency band is a label for a range of frequencies, used for analysis and display, and never picks a value (the
+ * principal, 2026-11-20).  When the tile can generate more frequencies, this table is what changes.
+ */
+typedef struct {
+    uint8_t code;
+    uint8_t hz;
+} np_pbm_tile_freq_t;
+
+static const np_pbm_tile_freq_t TILE_FREQ[] = {
+    { NP_PBM_FREQ_CODE_2HZ,  2U  },
+    { NP_PBM_FREQ_CODE_6HZ,  6U  },
+    { NP_PBM_FREQ_CODE_10HZ, 10U },
+    { NP_PBM_FREQ_CODE_20HZ, 20U },
+    { NP_PBM_FREQ_CODE_40HZ, 40U },
+};
+
+/*
+ * The tile code whose frequency is nearest to `hz`, by absolute difference in hertz.  A frequency halfway between two
+ * codes takes the lower one.  CW (0 Hz) is not a pulse code and is handled by the caller.  Only distance decides: no
+ * band edge does.
+ */
+static uint8_t nearest_tile_code(float hz)
+{
+    uint8_t best = TILE_FREQ[0].code;
+    float   best_d = 0.0f;
+    for (uint8_t i = 0U; i < (uint8_t)(sizeof TILE_FREQ / sizeof TILE_FREQ[0]); i++) {
+        float d = hz - (float)TILE_FREQ[i].hz;
+        if (d < 0.0f) { d = -d; }
+        if (i == 0U || d < best_d) { best = TILE_FREQ[i].code; best_d = d; }
+    }
+    return best;
+}
+
+/*
+ * Map the freq_hz preset field to the nearest driver PWM frequency code: 0 is CW, anything else the nearest tile code.
  */
 static uint8_t map_freq_hz_to_code(uint8_t freq_hz)
 {
-    if (freq_hz == 0U)  { return NP_PBM_FREQ_CODE_CW;   }
-    if (freq_hz <= 3U)  { return NP_PBM_FREQ_CODE_2HZ;  }
-    if (freq_hz <= 8U)  { return NP_PBM_FREQ_CODE_6HZ;  }
-    if (freq_hz <= 15U) { return NP_PBM_FREQ_CODE_10HZ; }
-    if (freq_hz <= 30U) { return NP_PBM_FREQ_CODE_20HZ; }
-    return NP_PBM_FREQ_CODE_40HZ;
+    if (freq_hz == 0U) { return NP_PBM_FREQ_CODE_CW; }
+    return nearest_tile_code((float)freq_hz);
 }
 
 /* ── Startup sequence ───────────────────────────────────────────────────────── */
@@ -263,26 +294,21 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot,
 
 uint8_t np_pbm_drive_map_eeg_freq(float    dominant_freq_hz,
                                         uint8_t  current_freq_code,
-                                        uint8_t *tick_count_in_band)
+                                        uint8_t *ticks_off_code)
 {
-    /* Classify dominant frequency into EEG band. */
-    uint8_t target_code;
-    if (dominant_freq_hz < 4.0f)       { target_code = NP_PBM_FREQ_CODE_2HZ;  }
-    else if (dominant_freq_hz < 8.0f)  { target_code = NP_PBM_FREQ_CODE_6HZ;  }
-    else if (dominant_freq_hz < 12.0f) { target_code = NP_PBM_FREQ_CODE_10HZ; }
-    else if (dominant_freq_hz < 30.0f) { target_code = NP_PBM_FREQ_CODE_20HZ; }
-    else                               { target_code = NP_PBM_FREQ_CODE_40HZ; }
+    /* The target is the tile code nearest to the dominant frequency itself.  The EEG bands play no part. */
+    const uint8_t target_code = nearest_tile_code(dominant_freq_hz);
 
     if (target_code == current_freq_code) {
-        *tick_count_in_band = 0;
+        *ticks_off_code = 0;
         return 0xFF; /* no change */
     }
 
-    (*tick_count_in_band)++;
-    if (*tick_count_in_band < NP_PBM_EEG_HYSTERESIS_TICKS) {
+    (*ticks_off_code)++;
+    if (*ticks_off_code < NP_PBM_EEG_HYSTERESIS_TICKS) {
         return 0xFF; /* hysteresis — not yet */
     }
 
-    *tick_count_in_band = 0;
+    *ticks_off_code = 0;
     return target_code;
 }
