@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
-**Revision:** 5
-**Date:** 2026-11-21
+**Revision:** 6
+**Date:** 2026-11-16
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
@@ -292,3 +292,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 5 | 2026-11-21 | NeurOne Software Engineering | **§5: the erasure queue keeps the identifier until the relay has accepted it (a refusal never drops it), and a device erase asks the relay before it wipes the queue (`REQ-SW03-19` (b), (d)).** |
+| 6 | 2026-11-16 | NeurOne Software Engineering | **§3: event names are a literal list (new §3.3); `screen_name` loses the session and consent screens (§3.1); `error_code` is a literal list of app failures, each above 255, never a helmet fault code (new §3.4); `engagement_tier` is ruled to stay (§3.2); §7's terms are checked against the list by a test (`OI-PRIV-05`).** |

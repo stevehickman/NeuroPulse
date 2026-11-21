@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 5
-**Date:** 2026-11-21  
+**Revision:** 6
+**Date:** 2026-11-16  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -565,3 +565,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 5 | 2026-11-21 | NeurOne Software Engineering | **§7.6: the app keeps a queued ID on every 4xx and asks again at its next launch; only a 2xx drops it, so a relay deployed at the wrong path or behind a refusing proxy loses nothing (`OI-PRIV-08` (2), `REQ-SW03-19` (b)).** |
+| 6 | 2026-11-16 | NeurOne Software Engineering | **Permitted events table follows `NP-APP-TELEMETRY-001` §3.3: `consent_granted` and `consent_revoked` removed, `screen_viewed` and `error_reported` added; §8.1 marked out of date (`step_name` and `feature_name` were never permitted) (`OI-PRIV-05`).** |
