@@ -374,3 +374,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 338 | 2026-11-19 | NeurOne Software Engineering | **34 → 35: §4c.18 records that the Android transport test of `OI-PRIV-15` has run in CI.** |
 | 339 | 2026-11-20 | NeurOne Software Engineering | **NP-SW-001 revised: a device-replacement clear erases the old phone's analytics IDs at the vendor (`OI-ANALYTICS-01` (5c)).** |
 | 340 | 2026-11-21 | NeurOne Software Engineering | **184 → 185: SWR-UI-01 (a): every bound any app applies is in one generated source, common/npps/bounds.json.** |
+| 341 | 2026-11-20 | NeurOne Software Engineering | **185 → 186: the backup bundle format and the recording archive format go back to version 1 (the principal, 2026-11-19: no copy of an earlier form of either should exist).** |

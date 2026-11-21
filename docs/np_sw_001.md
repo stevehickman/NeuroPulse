@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 185
-**Date:** 2026-11-21  
+**Revision:** 186
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -870,3 +870,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 183 | 2026-11-19 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-28`: new part (g), the core's binding libraries overwrite every heap block with zeros before releasing it; part (c) is now tested by an allocator that searches each released block, which found and fixed a defect (`unhex` left the first bytes of a decoded key behind). New `SWR-MG-31`: every recording in a backup is sealed under a key of its own (HKDF-SHA-256 of the backup key with a 16-byte salt in the header), with the chunk's number as the nonce; it is part of format version 2 with the object ID of `SWR-MG-29` and takes no version of its own, because nothing has been released. New `SWR-MG-32`: a key crosses the core's boundary as bytes beside the request or is kept in the core behind a typed handle; built in the core and on every binding, and the Kotlin and TypeScript hosts have moved to it (the Swift and Windows apps have not, so a key given as hex is still read); part (f), a direct link's two channel keys are kept in the core and its flow state holds their handles (`SWR-MG-28` (d) is reworded to match); part (g), the secret an Oblivious HTTP answer is opened with is kept in the core and used once.** |
 | 184 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 (`REQ-SW03-19` (e)): the device-replacement clear reads the analytics IDs on the install with no side effect, and asks the erasure relay about them once, only after the core has accepted the clear; nothing is queued into the wiped store and a relay failure never fails the clear.** |
 | 185 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (a) now covers the web, Compose and iOS apps. Every range is in `common/npps/bounds.json`, generated into each app by `scripts/sync-constants.ts`; where the apps disagreed the web's figures were adopted (the principal, 2026-11-15). Status updated; the limit-field clamps in Compose and iOS remain.** |
+| 186 | 2026-11-20 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-05`, `SWR-MG-29`, `SWR-MG-31`: neither format's version rose with the object ID, the per-file key or the epoch (the principal, 2026-11-19).** `FORMAT_VERSION` and the archive's `VERSION` are 1 again; the `older_version` refusal and the reading of an epoch-less bundle as epoch 0 are removed, so a body with no epoch is `malformed` and a file of an earlier form does not open. The rule that a format change after a release bumps the version stands. |
