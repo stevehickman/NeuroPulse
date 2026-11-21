@@ -133,6 +133,34 @@ class MigrationRestoreClearTest {
         assertEquals("claimed", (second.step.value as RestoreStep.Failed).reason)
     }
 
+    // @verifies SWR-MG-07
+    @Test fun the_person_can_release_a_claim_from_the_restore_screen_after_the_secret_opened_the_backup() = runTest {
+        val store = MemoryStore()
+        backUp(store, filled())
+        assertTrue(restoreOnto(store, InMemoryKeyValueStore()).step.value is RestoreStep.Done)
+        val second = restoreOnto(store, InMemoryKeyValueStore())
+        assertEquals("claimed", (second.step.value as RestoreStep.Failed).reason)
+        assertTrue(second.releasable && second.claimIsGenuine)
+        second.releaseClaim()
+        assertTrue(second.step.value is RestoreStep.EnterSecret, "released: the secret is asked for again and nothing was applied")
+        assertTrue(store.objects.keys.none { it.endsWith("claim") }, "the marker is gone")
+        assertTrue(restoreOnto(store, InMemoryKeyValueStore()).step.value is RestoreStep.Done, "a restore after the release takes its own claim")
+    }
+
+    // @verifies SWR-MG-07
+    @Test fun a_planted_marker_is_refused_as_unauthentic_and_released_by_the_person_not_by_the_restore() = runTest {
+        val store = MemoryStore()
+        backUp(store, filled())
+        val claim = NppsCore.migration(buildJsonObject { put("op", "objectNames") })["claim"]!!.jsonPrimitive.content
+        store.objects[claim] = """{"token":"anyone","bundleHash":"00"}""".encodeToByteArray()
+        val m = restoreOnto(store, InMemoryKeyValueStore())
+        assertEquals("claim_unauthentic", (m.step.value as RestoreStep.Failed).reason)
+        assertTrue(m.releasable && !m.claimIsGenuine)
+        assertNotNull(store.objects[claim], "the restore left it")
+        m.releaseClaim()
+        assertNull(store.objects[claim])
+    }
+
     // @verifies SWR-MG-05
     @Test fun a_place_with_no_backup_or_no_place_at_all_says_so() = runTest {
         val none = MigrationRestoreModel(place(MemoryStore()), InMemoryKeyValueStore())
