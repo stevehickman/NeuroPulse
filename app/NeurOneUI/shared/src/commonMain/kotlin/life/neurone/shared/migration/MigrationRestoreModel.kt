@@ -101,6 +101,34 @@ class MigrationRestoreModel(
 
     suspend fun retry() = look()
 
+    /** Whether the refusal on screen is a claim marker the person may release: only after the secret opened the backup (SWR-MG-07). */
+    val releasable: Boolean
+        get() = (state.value as? RestoreStep.Failed)?.reason.let { it == "claimed" || it == "claim_unauthentic" }
+
+    /** The marker on screen was made by a phone that holds the backup's key, so releasing it may let a second phone restore. */
+    val claimIsGenuine: Boolean
+        get() = (state.value as? RestoreStep.Failed)?.reason == "claimed"
+
+    /**
+     * The person's explicit release of the claim marker (SWR-MG-07), the only way a claim goes. It is offered only with the
+     * refusal, which the core makes after the secret has opened the backup, so a release needs both the secret and the person's
+     * act. A release that fails ends on [RestoreStep.Failed] with `route_unavailable`; one that works goes back to asking for the
+     * secret, so the next restore takes its own claim and the confirmation, and only then is anything applied.
+     */
+    suspend fun releaseClaim() {
+        val place = place ?: return
+        if (!releasable) return
+        val ok = try {
+            place.store.delete(MigrationFlow.objectNames()["claim"]!!.jsonPrimitive.content)
+            true
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+        if (ok) look() else state.value = RestoreStep.Failed("route_unavailable")
+    }
+
     /**
      * The recovery code or passphrase the person typed. A secret the core refuses as mistyped, and one that does not open the
      * backup, both leave the person on the same step with the reason: a wrong secret leaves no claim behind, so they may try
