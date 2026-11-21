@@ -101,6 +101,12 @@ revision is referenced (`NP-CONV-001` §4.0.4). The serial stays live; only this
 |---|---|---|---|---|
 | `np_coord_001.docx` | **NP-COORD-001** | A.10 (= Rev 11, `NP-COORD-001` Rev 12 §6) | `np_coord_001.md` (Rev 12, 2026-09-25) | *Zone Module FPC Engineering Coordination Checklist.* Moved here on 2026-09-25 (GitHub #394, `OI-ART-02`) when Rev 12 re-issued the serial as a gate-definition document. Its §6 is the only copy of the Rev 1–11 revision history. Every one of its item IDs is dispositioned in Rev 12 §4, so `G1-nn`/`G2-nn`/`G3-nn` citations still resolve. |
 
+### A retired application
+
+| File | Document | Rev as written | Replaced by | Note |
+|---|---|---|---|---|
+| `np_app_isa_001.md` | **NP-APP-ISA-001** | as written 2026-06-17 (146/164 ISCs) | the shared Compose app (`app/NeurOneUI`, `common/core`), specified by `NP-SW-001` | *Core iOS App ISA.* Moved here from `app/ios/ISA.md` on 2026-11-21 when the SwiftUI app was deleted (`OI-UI-KMP-05`, the principal's rulings of 2026-11-04 and 2026-11-21). Unedited apart from its supersession banner. The Swift sources it names are in git history. |
+
 ## Former filenames
 
 Every file here was renamed to its serial on 2026-08-11 (`NP-CONV-001` §4.0). If you arrived with
