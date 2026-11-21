@@ -43,11 +43,11 @@
 #define NP_LOG_TAG_UHDR_PAUSE           0x1DU  /* a pause or a resume (SWR-SS-05) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
-#define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U
+#define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U  /* RETIRED, never written (REQ-FWHUB-89); do not reuse */
 #define NP_LOG_TAG_SHDR_FAULT           0x82U
 #define NP_LOG_TAG_SHDR_ZONE_AUTH       0x83U
 #define NP_LOG_TAG_SHDR_NTC_PEAK        0x84U
-#define NP_LOG_TAG_SHDR_EEG_CAL         0x85U
+#define NP_LOG_TAG_SHDR_EEG_CAL         0x85U  /* RETIRED, never written (REQ-FWHUB-89); do not reuse */
 #define NP_LOG_TAG_SHDR_SESSION_OPEN    0x86U  /* dirty-session marker (OI-FMEA-09) */
 #define NP_LOG_TAG_SHDR_PBM_TILE_HEALTH 0x87U  /* idle pass, one occupied socket (OI-FWHUB-10, F10–F12, F14) */
 #define NP_LOG_TAG_SHDR_PBM_COUNTS      0x88U  /* per-session PBM counts, no location (OI-FWHUB-10, F13) */
@@ -102,7 +102,8 @@ void np_log_set_count_commit(np_log_count_commit_fn fn);
 /*
  * np_log_session_end — drain the adaptation ring, write UHDR session-end and
  * SHDR session-end records, flush both, and close the session's UHDR file
- * (OI-LFS-11, OI-FWHUB-15).
+ * (OI-LFS-11, OI-FWHUB-15).  The SHDR record is the device session count and
+ * the firmware version only (REQ-FWHUB-89): 9 bytes with its tag.
  * Call after np_runner_run() returns.
  */
 void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,

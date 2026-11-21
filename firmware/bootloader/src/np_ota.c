@@ -24,6 +24,7 @@
 #include "np_emmc.h"
 #include "np_signature.h"
 #include "np_config.h"
+#include "np_rollback.h"
 #include <string.h>
 
 /* ── Config partition: OTA state record sector offset ─────────────────────── */
@@ -471,8 +472,13 @@ np_status_t np_ota_verify_scratch(void)
     /* and directly verifies the Ed25519 signature and header CRC (see §8.2). */
     /* This is correct here because we have already verified image integrity  */
     /* via streaming SHA-256 above (constant-time comparison).                */
+    if (sig_ret != NP_OK) return sig_ret;
 
-    return sig_ret;
+    /* Anti-rollback (REQ-SW02-15, OI-PRIV-32): the version is trusted only   */
+    /* now that the signature over it has verified. This is the path both the */
+    /* OTA app and USB DFU (np_dfu.c) take, so an older signed image is       */
+    /* refused before any byte reaches a bank.                                */
+    return np_rollback_admit(hdr.version);
 }
 
 /* Step 4: Copy verified image from Scratch to target bank with readback.     */
@@ -537,10 +543,26 @@ np_status_t np_ota_stage_swap(np_bank_t target)
 }
 
 /* Step 9 (app side): Confirm successful boot.                                */
+/* The rollback floor is raised here, to the confirmed image's signed        */
+/* version, and not at staging: a candidate that fails its boot trial must    */
+/* still roll back to the bank it replaced (REQ-SW02-15, OI-PRIV-32). The     */
+/* header is re-authenticated before its version is trusted. A floor that     */
+/* cannot be raised does not undo the confirmation (the image is healthy);    */
+/* the error is returned so the caller can report it, and the floor is never  */
+/* lowered.                                                                    */
 np_status_t np_ota_confirm_boot(void)
 {
+    np_bank_t running = np_boot_selector_get_bank();
     np_boot_selector_confirm_boot();
-    return np_ota_erase_state();
+    np_status_t ret = np_ota_erase_state();
+
+    np_image_header_t hdr;
+    np_status_t fret = np_emmc_switch_partition(NP_EMMC_USER_AREA);
+    if (fret == NP_OK) fret = read_image_header(np_emmc_bank_lba(running), &hdr);
+    if (fret == NP_OK) fret = np_signature_verify(&hdr, NULL);
+    if (fret == NP_OK) fret = np_rollback_commit(hdr.version);
+
+    return (ret != NP_OK) ? ret : fret;
 }
 
 /* ── Bootloader-side OTA verification (steps 8–9) ───────────────────────── */
@@ -607,6 +629,16 @@ np_status_t np_ota_handle_boot_verification(np_bank_t *boot_bank)
 
     /* Verify Ed25519 signature of the OTA bank header */
     ret = np_signature_verify(&hdr, NULL);  /* signature-only path            */
+    if (ret != NP_OK) {
+        np_boot_selector_rollback(stable_bank);
+        np_ota_erase_state();
+        *boot_bank = stable_bank;
+        return ret;
+    }
+
+    /* Anti-rollback (REQ-SW02-15, OI-PRIV-32): a staged bank below the floor */
+    /* is not booted, whoever wrote it. Same handling as a bad signature.     */
+    ret = np_rollback_admit(hdr.version);
     if (ret != NP_OK) {
         np_boot_selector_rollback(stable_bank);
         np_ota_erase_state();
