@@ -654,7 +654,16 @@ that is a CLAUDE.md §5.1 classification question (which socket a tile sits in c
 headset is fitted), not a logging detail. It belongs with the other socket-path telemetry in
 `OI-FWHUB-10`. **(Rev 15: answered.** The principal ruled occupancy and tile kind SHDR-class, written
 only by the idle pass over every occupied socket, with no UID: `0x87`, §6.8.) Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
-write `np_log_shdr_zone_auth()` from their own `init()`.
+write `np_log_shdr_zone_auth()` from their own `init()`. **(Rev {NP-FW-HUB-001 to}, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 3,
+`REQ-NASAL-16`.)** The `0x83` record is tag, slot, module type and pass: four bytes, the same for a pass
+and a fail, and **no session count**. One record per insertion of the intranasal probe is one per
+intranasal session, so a count in it made a per-session timeline of that modality, the shape F14
+forbids for tiles. `init()` runs only after `detect()` has required authentication, so its failure
+branch could not report a sleeve that fails; `np_mod_intranasal_detect()` now writes that failure,
+once per insertion and not once per poll (D-30). *Residual, not closed by this:* the records still sit
+in order among the session-open records, which carry the count, so their position places an insertion
+between two sessions. Whether the record becomes a lifetime total instead is a question for the
+principal (`docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`).
 
 `np_mod_reg_rescan_slot()` re-probes one slot without a full rescan. `task_module_detect` calls it
 for slots 7–18 while idle (§2.2). **(Rev 8, `OI-FWHUB-16`.** It was `np_mod_reg_rescan_zone()`, which
@@ -1411,7 +1420,7 @@ figure comes from.
 | `task_safety_heartbeat` | 4 | `np_log_shdr_fault()` through `log_cvns_event()` |
 | `task_hub_control` (runner) | 3 | session start and end, `np_log_command()`, `np_log_telemetry()`, `np_log_shdr_fault()` (and module drivers' faults), `np_log_flush()` |
 | `task_telemetry` | 2 | `np_log_flush()` every 30 s |
-| `task_module_detect` | 1 | `np_log_shdr_zone_auth()` through accessory `init()` |
+| `task_module_detect` | 1 | `np_log_shdr_zone_auth()` through accessory `init()`, and through `np_mod_intranasal_detect()` for an authentication failure |
 
 The EEG drain task (§8.2) will be a fifth when the DMA driver exists (`OI-EEG-03`).
 

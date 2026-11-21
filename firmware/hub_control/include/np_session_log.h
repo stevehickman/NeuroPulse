@@ -220,6 +220,9 @@ void np_log_set_isr_check(np_log_in_isr_fn fn);
 /*
  * np_log_shdr_zone_auth — write zone module authentication result to SHDR.
  * Called by accessory drivers that authenticate (intranasal, cervical VNS).
+ * Record: tag 0x83, slot, mod_type, pass (four bytes).  It carries no session
+ * count (REQ-NASAL-16 (a), OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 3).  A caller
+ * writes at most one record per insertion.
  */
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass);
 

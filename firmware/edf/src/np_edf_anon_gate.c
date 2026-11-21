@@ -5,8 +5,9 @@
  *
  * See np_edf_anon_gate.h for the contract.  Implements the per-file, exclude-
  * not-abort staging filter §E.4 requires: validate each candidate EDF+ header,
- * drop the ones that violate the §E.2 privacy policy, log an SHDR fault per
- * exclusion (via injected callback), and keep going.
+ * drop the ones that violate the §E.2 privacy policy, and keep going.  Nothing
+ * about the pass is written to SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2;
+ * see the header).
  *
  * No heap, no libc dependency — a straight bounded loop over the caller's
  * arrays.  The actual header check is np_edf_validate_privacy_header().
@@ -18,8 +19,6 @@
 np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
                                         uint32_t               count,
                                         bool                  *included,
-                                        np_edf_shdr_fault_cb   fault_cb,
-                                        void                  *user,
                                         np_edf_gate_result_t  *result)
 {
     /* Zero the tally up front so every return path leaves it well-defined. */
@@ -47,13 +46,10 @@ np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
             included[i] = true;
             inc++;
         } else {
-            /* §E.4: exclude this file, log the SHDR fault, and CONTINUE.
-               A header violation must never abort the whole extract. */
+            /* §E.4: exclude this file and CONTINUE.  A header violation must
+               never abort the whole extract, and leaves no SHDR record. */
             included[i] = false;
             exc++;
-            if (fault_cb != NULL) {
-                fault_cb(i, NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION, user);
-            }
         }
     }
 

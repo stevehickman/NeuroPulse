@@ -514,6 +514,9 @@ reserved     29 B      crc32(len ‖ ver ‖ uid ‖ payload)             4 B
 > ends the scan. The counts are 32 bits and are stored whole: no field holds a ceiling (`OI-UINT16-01`, the principal,
 > 2026-11-13). `np_map3_record.h` holds the byte map.
 
+> **Rev {NP-FW-NVRAM-001 to}:** `ordinal`, `dose_accum` and `throttle_count` are UHDR class (§8.1). This layout is not
+> to be written to Config until `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 is ruled.
+
 **File bound: 49,152 B (48 KiB) = 768 rows.** Not `file_max`, deliberately: 16,384 B of headroom
 means a future version that grows the row by up to 21 B still fits (768 × 85 = 65,280 < 65,536) without
 re-deciding the bound, and §7.2's rule is that a **record's** version policy is tail-additive forever
@@ -1370,15 +1373,28 @@ custody constraint that makes this a storage question and not only an upload que
 | `health` (opaque byte) | Inventory blob | **SHDR** | Device condition, by definition |
 | `cal[9]` factory coefficients | Inventory blob | **SHDR** | Measured on the part at manufacture (`NP-FW-PBM1064-001` §6.6); a factory fact |
 | Element type list | Inventory blob | **SHDR** | Configuration |
-| `session_count` per module | Map 3 / Map 4 | **SHDR — as a bare unsigned count only** | Directly on precedent: *"device session count (unsigned integer) → SHDR; session timestamps → UHDR."* The qualifier is the whole rule (§8.2) |
+| `session_count` per module | Map 3 / Map 4 | **SHDR — as a bare unsigned count only** | Directly on precedent: *"device session count (unsigned integer) → SHDR; session timestamps → UHDR."* The qualifier is the whole rule (§8.2). *(Rev {NP-FW-NVRAM-001 to}:* in Map 3's per-session row it is not a bare count but one step per session beside `ordinal`, so it goes with the `ordinal` row below until `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 is ruled.) |
 | `mate_cycles_observed` | Map 4, mirrored in Map 3 | **SHDR as a total; per-event record is not written at all** | An aggregate insertion count is wear data on a contact rated ≥500 cycles. A per-event *record* is a log of when the wearer reconfigured their helmet — which areas they changed treating — and it is not needed for anything (§8.4) |
 | `emitter_on_seconds`, `thermal_seconds_over_threshold`, `throttle_events`, `peak_ntc` | Map 4 | **SHDR only under `NP-MOD-ID-001` §7's opt-in**, per-socket, cohort-scoped | Already decided there and not re-opened. Per-socket optical duty at 80-socket resolution is treatment geography; `DOSE-01` is narrowed, not removed |
 | `pd_ratio_last` | Map 4 | **SHDR** | The fouling-vs-aging discriminator; a property of the window and the emitter |
+| `ordinal` *(Rev {NP-FW-NVRAM-001 to})* | Map 3 row, Config | **UHDR class. Not written to Config** | A row per module per session keyed by `(uid, ordinal)` says which module was worn in which session. That is the content of the session fitting record, which is UHDR (`data-architecture-detail.md` §5.1, `NP_LOG_TAG_UHDR_FITTING`), and the per-socket montage the F1 ruling puts in UHDR. §8.2 found the hazard at upload; §3.2 makes the write itself the disclosure, because Config's key is NeurOne-derivable. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
+| `dose_accum` *(Rev {NP-FW-NVRAM-001 to})* | Map 3 row, Config | **UHDR class. Not written to Config** | Dose on one module in one session window is dose per socket per session, ruled UHDR (F2, `data-architecture-detail.md` §5.1). A running total does not escape it: two consecutive rows give the session's dose by subtraction. A lifetime dose on the module is Map 4's `emitter_on_seconds` question, SHDR only under `NP-MOD-ID-001` §7's opt-in. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
+| `throttle_count` *(Rev {NP-FW-NVRAM-001 to})* | Map 3 row, Config | **UHDR class. Not written to Config** | Which socket throttled in a session is ruled UHDR (F8); a per-module, per-session count is that ruling with a number attached. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
 | `seq`, `synced_upto`, `retired_upto` | Map 3 store | **Device-internal. Never uploaded in any form** | §8.2 |
 | `detail_lost` flag (§6.3) | Map 3 store | **SHDR** | A storage-condition boolean with no magnitude |
 | Map 2 → Map 4 divergence | Reconciliation (§6.5) | **SHDR as a boolean only** | Magnitude is a join key, `NP-MOD-ID-001` §6.3. *(Rev 7: computed against the expectation that excludes interrupted sessions, §6.5.1, D-29)* |
 | `NP_MAP3_FAULT_UNSEATED_AT_CLOSE` *(Rev 7)* | Map 3 `fault_flags` bit 0, mirrored in Map 2 | **Device- and app-internal. Never uploaded in any form** | A count of mid-session extractions records how the wearer handles the helmet (compare `NP-FW-EMMC-002` `OI-EMMC2-08`). It is used only to compute the divergence boolean above (§6.5.1, D-29) |
 | Anything else | — | **Not stored here at all** | §3.2's custody rule: Config's key is NeurOne-derivable |
+
+> **Rev {NP-FW-NVRAM-001 to} (2026-11-21, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1) — the Map 3 row as laid out in
+> §3.3.1.5 carries three UHDR-class fields, so its writer may not be built against that layout.** Rev 1 to Rev 14
+> classified `seq`, the watermarks, `session_count` and `fault_flags` and never `ordinal`, `dose_accum` or
+> `throttle_count`. The rows above classify them by `CLAUDE.md` §5.1's tests and by the rulings they repeat; that
+> direction needs no ruling. What Map 3 keeps in their place does: dropping them from the row, moving the journal to
+> the UHDR partition, or reshaping it into a per-module latest-state record each changes what Map 3 can do for
+> `NP-MOD-ID-001` §6.5 reconciliation and history portability. The options and their costs are in
+> `docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`, for the principal. Nothing writes a Map 3 row
+> today (`np_map3_record.c` is the codec; its owner is not written), so nothing in the field is affected.
 
 ### 8.2 The finding this section exists for: a delta is a timestamped count once anyone can date its ends
 
