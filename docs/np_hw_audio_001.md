@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 18
-**Date:** 2026-11-15
+**Revision:** 19
+**Date:** 2026-11-21
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1283,3 +1283,4 @@ envelope budgets (`OI-AUDIOHW-05`). The restatements of 40 mm elsewhere in the r
 | 16 | 2026-11-14 | NeurOne Systems Engineering | **§8.2.7 H (relabelled from a second G), §9: the Radioear B81 spec sheet was read in full: its stated sensitivity, distortion, impedance, mass and method, and eye-read graph values, are recorded as vendor values, and the 2026-11-12 description of its table is corrected (it is the ANSI S3.6-2010 reference threshold force table, not the vibrator output). OI-AUDIOHW-13 and OI-AUDIOHW-15 updated; the mastoid reference values are a secondary-source lead, registered as UC-187, and no bone ceiling is computed. No part, figure or constant set.** |
 | 17 | 2026-11-21 | NeurOne Systems Engineering | **§8.2.7 B: SMPTE ST 2095-1:2023 read (band 10 Hz to 22.4 kHz, crest factor 11.5 to 12 dB); Ecma TR-105 describes the IEC 60268-1 file as music-shaped noise, so the 20 Hz to 20 kHz attribution to IEC is marked unconfirmed. No requirement changed.** |
 | 18 | 2026-11-15 | NeurOne Systems Engineering | **§9: the OI-AUDIOHW-13 row sat twice on main between conflict markers (an older 2026-11-09 text and the 2026-11-12 text); the 2026-11-12 text is kept and the older one and the markers are removed. The 40 mm figure of REQ-AUDIO-02 and A11.1 is retired in place on the principal's 2026-11-15 decision (new §8.2.7 I gives the reasoning and what still binds the size: mass, stray field, cup envelope and the cup's own functions); the restatements of 40 mm elsewhere are OI-AUDIOHW-16. No part chosen.** |
+| 19 | 2026-11-21 | NeurOne Systems Engineering | **§5.3: the Built paragraph records that the shared validator reports a tone above 1,000 Hz before compile, and that the bound is one shared constant held to the hub's by the wire-format gate; the requirement text is unchanged.** |
