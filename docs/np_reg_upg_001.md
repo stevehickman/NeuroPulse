@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-UPG-001
-**Revision:** 9
-**Date:** 2026-11-13
+**Revision:** 10
+**Date:** 2026-11-21
 **Status:** DRAFT — **§7 DECIDED 2026-09-23 by the principal: (a) new unit, with module carry-over** (§7.0). §2–§6 are the Rev 1 analysis, unchanged except §6.6's question list. §7.4–§7.6 apply the decision. `OI-TACSDRV-06` is **CLOSED**.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -704,3 +704,4 @@ corrected, and no sampling plan is stated.
 | 7 | 2026-11-11 | NeurOne Systems Engineering | **§7.8 and the `OI-UPG-09` row brought up to what is built.** §7.8 said none of the hardware version was built and that the tier report's room had not been checked; the firmware half is built, the report is seven bytes at window bytes 20 to 26 with its checksum over bytes 0 to 4, and the hub-side refusal exists. Item 5 records the build check on the default's removal. `REQ-UPG-04` (the factory step) is unchanged: not built. No decision changed. |
 | 8 | 2026-11-21 | NeurOne Systems Engineering | **§7.8: the tier report is at window bytes 24 to 30 of a 42-byte reply since `OI-UINT16-01` (was 20 to 26 of 38).** |
 | 9 | 2026-11-13 | NeurOne Software Engineering | **§7.9, §7.5 (REQ-UPG-04) and §9 (OI-UPG-08): the byte-level stages of the factory step that need no manufacturer exist as `tier_record.rs` in `common/npps-core` (record builder, firmware-equivalent verifier, refusals of steps 2, 3, 5 and 6, tests pinned to the firmware's signer). No key, signer, fixture or lock exists; what waits and the principal's seven decisions are in a human-input request. No decision changed.** |
+| 10 | 2026-11-21 | NeurOne Firmware Engineering | **§7: the tier report is at window bytes 24 to 30 of a 66-byte reply window (was a 42-byte reply); the offsets are unchanged.** |

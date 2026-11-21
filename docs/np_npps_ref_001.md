@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 41
-**Date:** 2026-11-16  
+**Revision:** 42
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -2013,3 +2013,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 39 | 2026-11-21 | NeurOne Software Engineering | **§7a, §7a.1 and §11: the `version` field of the `wavelength_rules` block, and the build status.** The field is optional, `major.minor`, and only a `level: global` block states one; the shipped file states `"1.0"`. A malformed version, or one on an owner's set, is a parse error. The canonical form on a 0.1 pm grid, the hash, the 39-byte stamp, the register reader and the major/minor floor are in `common/npps-core`; the register is `common/npps/wavelength-rules-register.json`; the compiler writes the stamp into the descriptor; a gate holds the register append-only. |
 | 40 | 2026-11-21 | NeurOne Software Engineering | **§4.7: the carrier_hz row states the 1000 Hz bound on the carrier and on the carrier plus the beat or pulse rate, and that the validator, the compiler and the hub refuse it; no grammar or range changes.** |
 | 41 | 2026-11-16 | NeurOne Software Engineering | **The `used` field: carried in the full form of an export and not written in the share form (`NP-SW-001` `SWR-WO-07`).** |
+| 42 | 2026-11-21 | NeurOne Firmware Engineering | **§4.1, §4.2, §4.6, §4.7, §4.10, §4.11, §4.12, §14 `REQ-NPPS-23`, `REQ-NPPS-33`: the PBM, audio-beat, TMS and clinical tACS frequency ranges `UC-082` listed are defaults and no longer enforced (the principal, 2026-11-20); the breathing range is 4.5–7.0 breaths/min with its source; the descriptor widths and the audio tone bound are what still refuse a value; a PBM frequency that is not whole hertz is refused, not rounded (`OI-NPPS-CLAMP-01` (b)).** |
