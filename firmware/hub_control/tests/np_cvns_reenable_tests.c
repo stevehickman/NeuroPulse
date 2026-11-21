@@ -597,7 +597,7 @@ static void test_shdr_code_cutoff_only(void)
               == NP_CVNS_SHDR_EV_CUTOFF,
           "shdr: CUTOFF_DETECTED maps to the cutoff flag 0xC1");
 
-    static const np_cvns_reenable_event_t not_shdr[] = {
+    static const np_cvns_reenable_event_t NOT_SHDR[] = {
         NP_CVNS_RN_EV_NONE,
         NP_CVNS_RN_EV_CONFIRM_OPEN,
         NP_CVNS_RN_EV_IMPEDANCE_PASSED,
@@ -609,8 +609,8 @@ static void test_shdr_code_cutoff_only(void)
         (np_cvns_reenable_event_t)9,     /* a value added later: UHDR by default */
     };
     int all_zero = 1;
-    for (size_t i = 0; i < sizeof(not_shdr) / sizeof(not_shdr[0]); i++) {
-        if (np_cvns_reenable_shdr_code(not_shdr[i]) != 0U) {
+    for (size_t i = 0; i < sizeof(NOT_SHDR) / sizeof(NOT_SHDR[0]); i++) {
+        if (np_cvns_reenable_shdr_code(NOT_SHDR[i]) != 0U) {
             all_zero = 0;
         }
     }
