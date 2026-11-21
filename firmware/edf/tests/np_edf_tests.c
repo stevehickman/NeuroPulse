@@ -363,16 +363,16 @@ static void test_anon_gate_null_and_empty(void)
     ASSERT(!included[1], "file 1 should be excluded even with no result");
 }
 
-/* REQ-SW02-12 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2): the gate's whole output
+/* REQ-SW02-14 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2): the gate's whole output
  * is its status, the include flags and the caller's tally.  It takes no SHDR
  * callback, so it can hand out no event, file index or code for SHDR: the
  * assignment below stops compiling if a parameter is added back, and the
  * retired event code must stay undefined.  The tally and flags are checked to be
  * all that changes for a set with exclusions. */
 #ifdef NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION
-#error "0xE1 is retired: the EDF+ gate writes nothing to SHDR (REQ-SW02-12)"
+#error "0xE1 is retired: the EDF+ gate writes nothing to SHDR (REQ-SW02-14)"
 #endif
-/* @verifies REQ-SW02-12 */
+/* @verifies REQ-SW02-14 */
 static void test_anon_gate_leaves_nothing_for_shdr(void)
 {
     np_edf_status_t (*const gate)(const np_edf_header_t *, uint32_t, bool *,

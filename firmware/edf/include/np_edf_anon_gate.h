@@ -10,7 +10,7 @@
  * remaining files.
  *
  * NOTHING ABOUT THE PASS REACHES SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2,
- * REQ-SW02-02 (b)).  Until 2026-11-21 the gate fired an injected callback once
+ * REQ-SW02-14).  Until 2026-11-21 the gate fired an injected callback once
  * per excluded file, with the file's index, for the integration site to write
  * as an SHDR fault (0xE1).  Any such record says that a research extract ran on
  * this device and roughly how large it was, which is study participation under

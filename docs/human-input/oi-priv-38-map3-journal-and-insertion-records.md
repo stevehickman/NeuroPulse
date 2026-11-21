@@ -15,7 +15,7 @@ partition, whose key NeurOne can re-derive. **What does Map 3 keep in their plac
 per insertion in an ordered SHDR stream. **Does it stay a per-insertion event, or become a lifetime total?**
 
 Finding M13 had a third part (the EDF+ research gate wrote one SHDR fault per excluded file). That needed no ruling
-and is done: the gate writes nothing to SHDR (`REQ-SW02-12`). It is not asked here.
+and is done: the gate writes nothing to SHDR (`REQ-SW02-14`). It is not asked here.
 
 ## 2. What is known
 
