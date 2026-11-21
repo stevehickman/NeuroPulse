@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 40
-**Date:** 2026-11-21  
+**Revision:** 41
+**Date:** 2026-11-16  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -2012,3 +2012,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 38 | 2026-11-21 | NeurOne Software Engineering | **§9 TMS `pulse_count`: the descriptor field is 32 bits, so a pulse count up to 4294967295 compiles and a larger one is refused (`OI-UINT16-01`).** |
 | 39 | 2026-11-21 | NeurOne Software Engineering | **§7a, §7a.1 and §11: the `version` field of the `wavelength_rules` block, and the build status.** The field is optional, `major.minor`, and only a `level: global` block states one; the shipped file states `"1.0"`. A malformed version, or one on an owner's set, is a parse error. The canonical form on a 0.1 pm grid, the hash, the 39-byte stamp, the register reader and the major/minor floor are in `common/npps-core`; the register is `common/npps/wavelength-rules-register.json`; the compiler writes the stamp into the descriptor; a gate holds the register append-only. |
 | 40 | 2026-11-21 | NeurOne Software Engineering | **§4.7: the carrier_hz row states the 1000 Hz bound on the carrier and on the carrier plus the beat or pulse rate, and that the validator, the compiler and the hub refuse it; no grammar or range changes.** |
+| 41 | 2026-11-16 | NeurOne Software Engineering | **The `used` field: carried in the full form of an export and not written in the share form (`NP-SW-001` `SWR-WO-07`).** |

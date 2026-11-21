@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 179
-**Date:** 2026-11-19  
+**Revision:** 180
+**Date:** 2026-11-16  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -864,3 +864,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 177 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7: new `SWR-MG-30` (the cloud sign-in and adapters take no credential broader than a backup needs, follow no address on a provider's word alone, ask for no identity, end a credential at the provider when it leaves the install; six parts, `OI-PRIV-15`). `SWR-MG-23` (a) no longer lists `account_info.read`; `SWR-MG-26` (a) requires `sr=c` and points at `SWR-MG-30` for the rest. 3 new strings and 2 reworded, English in every locale until translated.** |
 | 178 | 2026-11-16 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-07`: an event's name must be one of the listed names, no screen value records a session or a consent, and an error code is a listed app failure (`OI-PRIV-05`).** |
 | 179 | 2026-11-19 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (b): the read must return the 32-byte serial, and an upload held at the gate asks for the read again; (d) the other writes to encrypted characteristics wait for it; an unprovisioned hub takes no Bluetooth upload (`OI-PRIV-17`).** |
+| 180 | 2026-11-16 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-32` added (an individual profile is an ID, a name and a bounded note; no date of birth; `UC-195`). §6.3: `SWR-WO-07` added (the share form of an export: no used flag, new protocol and family ids, a limits set with no helmet serial or individual ID; the principal, 2026-11-16), and `SWR-WO-03` now says the used flag travels in the full form only. Amended 2026-11-19 (the principal): `REQ-SW03-32` (a) says a profile has no creation time, and `SWR-WO-07` (f) says the protocol script an editor shows carries no used flag and a limits script on screen is the share form.** |
