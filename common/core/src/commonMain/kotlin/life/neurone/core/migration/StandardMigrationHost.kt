@@ -56,6 +56,10 @@ class StandardMigrationHost(
             buildJsonObject { put("ok", true) }
         }
         "readClaim" -> buildJsonObject { put("claim", typed().readClaim() ?: JsonNull) }
+        "releaseClaim" -> {
+            typed().releaseClaim()
+            buildJsonObject { put("ok", true) }
+        }
         "createClaim" -> buildJsonObject { put("created", typed().createClaimIfAbsent(effect["claim"]!!.jsonObject)) }
         "writeConfirmation" -> {
             typed().writeConfirmation(effect["confirmation"]!!.jsonObject)
