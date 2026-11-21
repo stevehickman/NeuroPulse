@@ -243,10 +243,10 @@ function audioModuleLines(msg) {
 function audioCommandLines(msg) {
   switch (msg.cmd) {
     case 'audio':
-      return [`audio ${int(msg.mode, 0, 255, 'mode')} ${int(msg.carrier_hz, 0, 65535, 'carrier_hz')} ${int(msg.beat_mhz, 0, 65535, 'beat_mhz')} ` +
+      return [`audio ${int(msg.mode, 0, 255, 'mode')} ${int(msg.carrier_hz, 0, 65535, 'carrier_hz')} ${int(msg.beat_mhz, 0, 4294967295, 'beat_mhz')} ` +
               `${int(msg.level_half_db, 0, 255, 'level_half_db')} ${int(msg.bone, 0, 255, 'bone')} ${int(msg.adaptive, 0, 255, 'adaptive')}`];
-    case 'audio_eeg_band':
-      return [`audio_eeg_band ${int(msg.band, 0, 255, 'band')}`];
+    case 'audio_eeg_freq':
+      return [`audio_eeg_freq ${int(msg.freq_mhz, 0, 4294967295, 'freq_mhz')}`];
     case 'audio_init': case 'audio_detect': case 'audio_stop': case 'audio_shutdown': case 'audio_sample':
       return [msg.cmd];                       // a member of the whitelist, never the client's string
     default:
