@@ -23,7 +23,7 @@ events.
 
 Plain form: **when a device is factory reset, what must the safety MCU forget, and what must it keep?**
 
-## 2. What is known (re-verified 2026-11-21 against `main` at `49d6c51f`)
+## 2. What is known (re-verified 2026-11-21 against `main` at `49d6c51f`; citations re-checked at `adae2396`)
 
 ### 2.1 What the record holds
 
@@ -58,7 +58,7 @@ records on flash pages 62–63 (`0x0801F000`, 4 KB, reserved as `NVST` in
   (`include/np_factory_reset.h`) sanitize UHDR, zero SHDR and Config, mint a new salt and warranty token,
   and reboot. **No step addresses the safety MCU**, and nothing in `firmware/factory_reset/` names it.
 - The safety MCU writes the log from two places only: the cardiac interlock's SET/CLR
-  (`np_safety_main.c:671`) and the active-user command (`np_safety_main.c:705`). **No SPI command clears
+  (`np_safety_main.c:672`) and the active-user command (`np_safety_main.c:706`). **No SPI command clears
   the log or erases pages 62–63.**
 - Two documents forbid an update path from erasing those pages: `np_sw_faultmsg_001.md:293` and
   `np_fw_cvns_001.md:445`. RISK-25 hazard **25-b** scores that erasure S5 × P1, ALARP, on the control
@@ -74,7 +74,7 @@ This is the larger half of the finding, and RDP does nothing about it.
 - `np_nv_cardiac_outstanding()` (`:459`) therefore stays true for the rest of the device's life. Bit 1 of
   the NV report goes to the hub on every SPI reply, and the apps show the **blanket warning** at every
   connection and ask **"is this your profile?"** before every cervical upload (C6; one confirmation covers one upload, `app/ios/NeurOne/Session/SessionProtocolUploader.swift:157-185`).
-- The blanket warning is a **principal-approved disclosure** (`data-architecture-detail.md` §5.1, line 42,
+- The blanket warning is a **principal-approved disclosure** (`data-architecture-detail.md` §5.1, the "Safety-MCU cardiac-cutoff persistence" entry,
   2026-09-22): "anyone connecting to a **shared** device learns that someone on it had a cardiac cutoff".
   The approval was argued for people sharing one device. **It was not argued for a new owner after a
   reset,** to whom it says that a previous owner had a cardiac reflex event and never acknowledged it.
@@ -229,9 +229,9 @@ Nothing below is done until the ruling is recorded.
 
 | Ruling | Changes |
 |---|---|
-| Q1 A | `NP-FW-CVNS-001` §5.4.1 and §5.5 (the purge command and its preconditions); `np_nv_state.c` (a purge that writes the collapsed snapshot); `np_safety_main.c` (dispatch, idle and reset binding); `firmware/factory_reset/` (a step between R-3 and R-10, resumable, plus the reset-screen notice); `NP-FW-EMMC-002` §B.3; `NP-SW-FAULTMSG-001` §9; `NP-RISK-002` §4.3.3 25-b's control text and re-score; `OI-RISK2-07`'s test widened; `data-architecture-detail.md` §5.1 line 42 (the warning after a reset, and "ordered, not timed"); app strings in `locales/*.json`; tests tagged to a new requirement for the purge (written to §18: what fails is a later owner inheriting tags and a hold they cannot clear; it traces to CLAUDE.md §5.1 "an erase returns factory state" and to RISK-25 C4) |
+| Q1 A | `NP-FW-CVNS-001` §5.4.1 and §5.5 (the purge command and its preconditions); `np_nv_state.c` (a purge that writes the collapsed snapshot); `np_safety_main.c` (dispatch, idle and reset binding); `firmware/factory_reset/` (a step between R-3 and R-10, resumable, plus the reset-screen notice); `NP-FW-EMMC-002` §B.3; `NP-SW-FAULTMSG-001` §9; `NP-RISK-002` §4.3.3 25-b's control text and re-score; `OI-RISK2-07`'s test widened; `data-architecture-detail.md` §5.1 (the cardiac-cutoff persistence entry) (the warning after a reset, and "ordered, not timed"); app strings in `locales/*.json`; tests tagged to a new requirement for the purge (written to §18: what fails is a later owner inheriting tags and a hold they cannot clear; it traces to CLAUDE.md §5.1 "an erase returns factory state" and to RISK-25 C4) |
 | Q1 B | SW01-M09 write path and `seq`; an endurance analysis; `NP-RISK-002` 25-a frequency note; the 12 fault-injection tests re-run, wear tests added |
-| Q1 C | `data-architecture-detail.md` §5.1 line 42 and `NP-SW-FAULTMSG-001` §9 record the residual; IFU and reset-screen text; `NP-RISK-002` records the C6 effect for the 25-c re-score; the principal's acceptance in `docs/status/completed-decisions.md` |
+| Q1 C | `data-architecture-detail.md` §5.1 (the cardiac-cutoff persistence entry) and `NP-SW-FAULTMSG-001` §9 record the residual; IFU and reset-screen text; `NP-RISK-002` records the C6 effect for the 25-c re-score; the principal's acceptance in `docs/status/completed-decisions.md` |
 | Q2 yes | `OI-UPG-08` (iv) gains this item as a second reason; `NP-REG-UPG-001` §7.9 step 7 names pages 62–63 |
 
 ## 6. What this brief did not do

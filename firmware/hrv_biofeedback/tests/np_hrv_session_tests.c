@@ -171,6 +171,48 @@ static void test_session_accepts_window(void)
           "100 Hz runs: nothing above the old ceiling is refused here");
 }
 
+/* @verifies REQ-FWHUB-84#e */
+static void test_session_stop_wipes_the_fft_scratch(void)
+{
+    /* Fill both modules' scratch through their real compute paths: an R-R
+     * series and an EEG buffer, each long enough to be computed. */
+    np_rr_buffer_t rr;
+    memset(&rr, 0, sizeof rr);
+    uint32_t t = 0U;
+    for (uint16_t i = 0U; i < NP_HRV_MIN_RR_FOR_COHERENCE + 40U; i++) {
+        const uint16_t rr_ms = (uint16_t)(800U + (i % 7U) * 15U);
+        t += rr_ms;
+        np_hrv_rr_push(&rr, rr_ms, t);
+    }
+    np_hrv_psd_t psd;
+    np_hrv_coherence_init(&psd);
+    (void)np_hrv_coherence_update(&rr, &psd);
+
+    np_eeg_sample_buf_t eeg;
+    np_hrv_eeg_init(&eeg);
+    float v[NP_EEG_CHANNELS];
+    for (uint16_t i = 0U; i < NP_EEG_FFT_SIZE + 8U; i++) {
+        for (uint8_t c = 0U; c < NP_EEG_CHANNELS; c++) { v[c] = 10.0f + (float)((i * 7U + c) % 13U); }
+        np_hrv_eeg_push_sample(&eeg, v);
+    }
+    np_eeg_bands_t bands;
+    (void)np_hrv_eeg_compute_bands(&eeg, &bands);
+
+    CHECK(!np_hrv_coherence_test_scratch_is_zero() && !np_hrv_eeg_test_scratch_is_zero(),
+          "wipe: computing coherence and EEG bands leaves the person's signal in the scratch");
+
+    np_hrv_session_config_t cfg;
+    memset(&cfg, 0, sizeof cfg);
+    cfg.protocol   = NP_HRV_PROTO_STANDALONE;
+    cfg.duration_s = 600U;
+    np_hrv_session_t *sess = np_hrv_session_create(&cfg, NULL, end_cb, 0U);
+    CHECK(sess != NULL && np_hrv_session_start(sess, 0U) == NP_HRV_OK, "wipe: a session starts");
+    np_hrv_session_stop(sess, 1000U);           /* the session's end, before any destroy */
+    CHECK(np_hrv_coherence_test_scratch_is_zero(), "wipe: the R-R interpolation and FFT scratch are zero at session stop");
+    CHECK(np_hrv_eeg_test_scratch_is_zero(), "wipe: the EEG segment and FFT scratch are zero at session stop");
+    np_hrv_session_destroy(sess);
+}
+
 int main(void)
 {
     printf("=== np_hrv_session_tests (OI-HRV-05) ===\n");
@@ -178,6 +220,7 @@ int main(void)
     test_gate_direction();
     test_session_refuses_bad_tavns();
     test_session_accepts_window();
+    test_session_stop_wipes_the_fft_scratch();
     printf("=== %s ===\n", g_fail == 0 ? "ALL PASS" : "FAILURES PRESENT");
     return g_fail;
 }

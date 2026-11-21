@@ -154,10 +154,26 @@ np_att_status_t np_gatt_on_read(uint16_t id, uint16_t offset,
 np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len);
 
 /*
+ * np_gatt_on_connect — the stack's link-up callback.  The hub serves ONE central at a time, and the link state below
+ * belongs to that one link (REQ-FWHUB-81 (d); OI-PRIV-41 (NP-PRIV-ANALYSIS-004) point 6).  Returns true for the first
+ * link.  Returns false for a link that arrives while another is up: the platform must refuse or drop it (and report its
+ * disconnect), and the stack should be configured for one concurrent connection so this never happens.  While two links
+ * are up neither is treated as encrypted, and the one left after the other goes down stays unencrypted until the stack
+ * reports it encrypted again: a second central can never inherit the first one's encryption.  Every new link starts
+ * unencrypted.
+ */
+bool np_gatt_on_connect(void);
+
+/* np_gatt_link_count — the links reported up and not yet down (0, 1, or more only while a refused one is still up). */
+uint8_t np_gatt_link_count(void);
+
+/*
  * np_gatt_set_link_encrypted — the stack's security callback: the link to the central is now encrypted (true) or not
  * (false).  The state starts false and fails closed: until the stack says the link is encrypted, every NP_GATT_PROP_ENC
- * characteristic refuses a read, a write and a notification.  "Encrypted" is all this says; whether the pairing that made
- * the key was authenticated (a passkey or a numeric comparison, not Just Works) is not decided here (OI-SIMFW-72).
+ * characteristic refuses a read, a write and a notification.  True is honoured only while exactly one link is up
+ * (np_gatt_on_connect); with none or two, the link is unencrypted.  "Encrypted" is all this says; whether the pairing
+ * that made the key was authenticated (a passkey or a numeric comparison, not Just Works) is not decided here
+ * (OI-SIMFW-72).
  */
 void np_gatt_set_link_encrypted(bool encrypted);
 
@@ -165,7 +181,8 @@ void np_gatt_set_link_encrypted(bool encrypted);
  * np_gatt_on_disconnect — the stack's link-down callback.  A stream write that was cut off part way would leave the
  * transport holding half a blob, and the next link's first bytes would be read as the rest of it: this drops the partial
  * reassembly (np_transport_reset), and keeps a blob that was completed and not yet taken (REQ-FWHUB-80).  It also
- * clears the link state: the next link is not encrypted until the stack says so.
+ * clears the link state: the next link is not encrypted until the stack says so, and it counts one link down
+ * (np_gatt_on_connect).  Which link went down is not known here, so the link left up, if any, is unencrypted too.
  */
 void np_gatt_on_disconnect(void);
 

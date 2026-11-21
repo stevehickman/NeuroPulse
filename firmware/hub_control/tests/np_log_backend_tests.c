@@ -831,6 +831,80 @@ static void test_session_end_keeps_queued_adapt_events(void)
     np_log_session_end(&g_rec, &shdr2);
 }
 
+/* ── REQ-FWHUB-84 (c), OI-PRIV-39: no session record stays in RAM ───────────── */
+
+static bool all_zero(const uint8_t *b, size_t n)
+{
+    for (size_t i = 0; i < n; i++) { if (b[i] != 0U) { return false; } }
+    return true;
+}
+
+static void log_vns_values(uint32_t session_ms)
+{
+    np_telem_record_t t;
+    memset(&t, 0, sizeof t);
+    t.mod_type   = NP_MOD_VNS_HRV;
+    t.session_ms = session_ms;
+    memset(&t.data, 0xA5, sizeof t.data);              /* a reading that is not zero */
+    np_log_telemetry(&t);
+}
+
+/* @verifies REQ-FWHUB-84#c */
+static void test_session_end_wipes_uhdr_plaintext(void)
+{
+    logger_session_open();
+    log_vns_values(100U);                               /* buffered in the record buffer */
+    np_log_flush();                                     /* to the backend: staged, a sub-block tail */
+    log_vns_values(200U);                               /* buffered again */
+    np_adaptation_event_t ev;
+    memset(&ev, 0x5A, sizeof ev);
+    ev.session_ms = 250U;
+    (void)np_adapt_log_event(&ev);                      /* still queued at session end */
+
+    size_t nb = 0, ns = 0, nr = 0;
+    const uint8_t *buf   = np_log_test_uhdr_buf(&nb);
+    const uint8_t *stage = np_log_test_uhdr_stage(&ns);
+    const uint8_t *ring  = np_adapt_log_test_ring(&nr);
+    check(!all_zero(buf, nb) && !all_zero(stage, ns) && !all_zero(ring, nr),
+          "wipe: before session end the buffer, the staging block and the ring hold the records");
+
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_UHDR);
+    const size_t len   = np_log_test_segment_len(NP_LOG_PART_UHDR, 0U);
+    check(len == START_REC_BYTES + 2U * VNS_REC_BYTES + ADAPT_REC_BYTES +
+                 (1U + NP_HUB_PROTO_UUID_LEN + sizeof g_rec.duration_s + sizeof g_rec.abort_reason +
+                  sizeof g_rec.mods_active_mask) &&
+          cap[START_REC_BYTES] == NP_LOG_TAG_UHDR_VNS_HRV &&
+          cap[START_REC_BYTES + VNS_REC_BYTES] == NP_LOG_TAG_UHDR_VNS_HRV,
+          "wipe: every record reached the session file before the clear");
+    check(all_zero(buf, nb), "wipe: the UHDR record buffer is zero after session end");
+    check(all_zero(stage, ns), "wipe: the backend's UHDR staging block is zero after session end");
+    check(all_zero(ring, nr), "wipe: the adaptation ring is zero after session end");
+}
+
+/* @verifies REQ-FWHUB-84#c */
+static void test_session_end_wipes_when_no_file(void)
+{
+    /* A session whose file refused the records (logging down) leaves them in no
+     * buffer either: the clear does not depend on the write succeeding. */
+    logger_session_open();
+    log_vns_values(100U);
+    np_log_flush();
+    np_log_test_fail_next_append(NP_LOG_PART_UHDR);
+    log_vns_values(200U);
+    np_session_shdr_record_t shdr;
+    memset(&shdr, 0, sizeof shdr);
+    np_log_session_end(&g_rec, &shdr);
+    size_t nb = 0, ns = 0;
+    const uint8_t *buf   = np_log_test_uhdr_buf(&nb);
+    const uint8_t *stage = np_log_test_uhdr_stage(&ns);
+    check(all_zero(buf, nb) && all_zero(stage, ns),
+          "wipe: a refused write leaves no record in the buffer or the staging block");
+}
+
 /* ── OI-FMEA-09: the dirty-session marker and the commanded-dose record ─────── */
 
 static bool shdr_has_count_record(uint8_t tag, uint32_t want)
@@ -1276,6 +1350,8 @@ int main(void)
     test_fault_queue_full_keeps_oldest();
     test_fitting_record_is_written_to_uhdr_and_durable();
     test_pause_and_resume_are_marked_in_uhdr();
+    test_session_end_wipes_uhdr_plaintext();
+    test_session_end_wipes_when_no_file();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");
