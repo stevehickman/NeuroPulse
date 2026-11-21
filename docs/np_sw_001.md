@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 183
-**Date:** 2026-11-19  
+**Revision:** 184
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -868,3 +868,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 181 | 2026-11-19 | NeurOne Software Engineering | **§6.3, `SWR-MG-04`: a withdrawal in a bundle is a mark, the day and that decision's withdrawal count (`yyyy-MM-dd#NNNNNN`, `REQ-CONSENT-24`), where it was a UTC time. The merge rule is unchanged: the later mark wins, as text.** |
 | 182 | 2026-11-18 | NeurOne Software Engineering | **§5.3.1: REQ-SW03-06 now also says a history record keeps no figure finer than the History screen shows (whole minutes, coherence to one decimal place; OI-PRIV-10 (2)); the Kotlin store coarsens a record an earlier build wrote when it reads it, and the Swift store is unchanged. New REQ-SW03-33: the person decides how long the session history is kept (default no age limit) and can clear it from Settings (the principal, 2026-11-19). The count of 100 is removed: the history is bounded only by that choice (the principal, 2026-11-20).** |
 | 183 | 2026-11-19 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-28`: new part (g), the core's binding libraries overwrite every heap block with zeros before releasing it; part (c) is now tested by an allocator that searches each released block, which found and fixed a defect (`unhex` left the first bytes of a decoded key behind). New `SWR-MG-31`: every recording in a backup is sealed under a key of its own (HKDF-SHA-256 of the backup key with a 16-byte salt in the header), with the chunk's number as the nonce; it is part of format version 2 with the object ID of `SWR-MG-29` and takes no version of its own, because nothing has been released. New `SWR-MG-32`: a key crosses the core's boundary as bytes beside the request or is kept in the core behind a typed handle; built in the core and on every binding, and the Kotlin and TypeScript hosts have moved to it (the Swift and Windows apps have not, so a key given as hex is still read); part (f), a direct link's two channel keys are kept in the core and its flow state holds their handles (`SWR-MG-28` (d) is reworded to match); part (g), the secret an Oblivious HTTP answer is opened with is kept in the core and used once.** |
+| 184 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 (`REQ-SW03-19` (e)): the device-replacement clear reads the analytics IDs on the install with no side effect, and asks the erasure relay about them once, only after the core has accepted the clear; nothing is queued into the wiped store and a relay failure never fails the clear.** |
