@@ -92,3 +92,8 @@ All of this goes through the assign-at-merge revision fragments (`docs/revisions
 3. **`NP-APP-ISA-001`:** move it to `docs/superseded/`.
 4. **Required checks on `main`** (all firmware; none is an iOS job): Class B scope; CMake host tests (Class B); Bootloader (i.MX RT1062); Main firmware (i.MX RT1062, Class B); Class C scope; Safety MCU host tests (Class C); CMake host tests (Class B, ASan + UBSan); Cross-build and link (STM32G071, Cortex-M0+, Class C). So removing `ios-ci.yml` cannot block a PR.
 5. **Signing and the App ID:** open. The repo holds neither: `app/ios/project.yml` has `DEVELOPMENT_TEAM: ""`, the shared host sets no team, and CI builds with code signing off. They are in the Apple Developer account (Certificates, Identifiers & Profiles: Identifiers for the App ID, Profiles for the provisioning profile), or in App Store Connect under the app record. It only blocks a signed device build and any TestFlight upload, not the deletion.
+
+## 9. PR A progress (2026-11-21)
+
+Done: `sync-constants.ts` no longer writes `NppsBounds.generated.swift` (the other four sync scripts already wrote Kotlin and web only), and `web-ci.yml` no longer watches the Swift generated files. The committed Swift generated files stay until PR B and will not follow later edits to the JSON.
+Not done, on purpose: `sync-locales.ts` still writes `Localizable.xcstrings`, because the `app/ios` Xcode build phase and `ios-ci.yml` run it and the Swift app cannot build without the catalog; it goes with PR B. The `assert scope` self-checks and the other globs still name Swift files that exist, so they change in PR B. `OI-UI-KMP-05` stays open.
