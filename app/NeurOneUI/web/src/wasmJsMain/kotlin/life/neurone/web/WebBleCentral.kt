@@ -6,6 +6,7 @@ import life.neurone.core.protocol.GattUuidStrings
 import life.neurone.shared.ble.AdapterState
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
+import life.neurone.shared.ble.onWebBleEvent
 
 /**
  * The browser's [BleCentral], over Web Bluetooth (`navigator.bluetooth`).
@@ -74,23 +75,14 @@ class WebBleCentral : BleCentral {
                 // The adapter is now ON: the manager scans, which reconnects this device.
                 l.onAdapterStateChanged(AdapterState.ON)
             }
-            "connected" -> l.onConnected(a)
-            "disconnected" -> l.onDisconnected(a)
-            "discovered" -> l.onCharacteristicsDiscovered(if (a.isEmpty()) emptySet() else a.split(",").map(UUID::fromString).toSet())
-            "changed" -> l.onCharacteristicChanged(UUID.fromString(a), hexToBytes(b))
-            "read" -> l.onCharacteristicRead(UUID.fromString(a), hexToBytes(b))
-            // A read or a write the browser could not complete (OI-PRIV-16). Only the characteristic is passed up: the
-            // browser's message is not.
-            "readFailed" -> l.onCharacteristicReadFailed(UUID.fromString(a))
-            "writeFailed" -> l.onCharacteristicWriteFailed(UUID.fromString(a))
-            // "cancelled" (the user closed the chooser) and "error" leave the manager scanning, so the next click retries.
+            // Everything else, a refused read or write included (OI-PRIV-16), is translated once in :shared (`onWebBleEvent`), where it is
+            // tested. Only the characteristic is passed up: the browser's message is not.
+            else -> l.onWebBleEvent(kind, a, b)
         }
     }
 
     override fun refresh() {}
 }
-
-private fun hexToBytes(hex: String): ByteArray = ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
 @JsFun("() => !!(globalThis.navigator && globalThis.navigator.bluetooth)")
 private external fun bleAvailable(): Boolean
