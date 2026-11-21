@@ -16,6 +16,28 @@ static float s_eeg_hann[NP_EEG_FFT_SIZE];
 static float s_eeg_fft_re[NP_EEG_FFT_SIZE];
 static float s_eeg_fft_im[NP_EEG_FFT_SIZE];
 static bool  s_eeg_hann_ready = false;
+static float s_eeg_seg[NP_EEG_FFT_SIZE];   /* the segment np_hrv_eeg_compute_bands() copies out (OI-PRIV-39) */
+
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_hrv_eeg_memset_fn)(void *, int, size_t) = memset;
+
+void np_hrv_eeg_wipe_scratch(void)
+{
+    np_hrv_eeg_memset_fn(s_eeg_fft_re, 0, sizeof s_eeg_fft_re);
+    np_hrv_eeg_memset_fn(s_eeg_fft_im, 0, sizeof s_eeg_fft_im);
+    np_hrv_eeg_memset_fn(s_eeg_seg, 0, sizeof s_eeg_seg);
+}
+
+#ifdef NPTEST_HOST
+bool np_hrv_eeg_test_scratch_is_zero(void)
+{
+    for (size_t i = 0; i < NP_EEG_FFT_SIZE; i++) {
+        if (s_eeg_fft_re[i] != 0.0f || s_eeg_fft_im[i] != 0.0f || s_eeg_seg[i] != 0.0f) { return false; }
+    }
+    return true;
+}
+#endif
 
 /* ── Hann window for EEG FFT ─────────────────────────────────────────────────── */
 static void eeg_hann_init(void)
@@ -124,8 +146,9 @@ np_hrv_status_t np_hrv_eeg_compute_bands(const np_eeg_sample_buf_t *eeg_buf,
         return NP_HRV_ERR_NOT_READY;
     }
 
-    /* Extract the most recent NP_EEG_FFT_SIZE samples per channel. */
-    static float seg[NP_EEG_FFT_SIZE];
+    /* Extract the most recent NP_EEG_FFT_SIZE samples per channel (into the
+     * file-scope segment, so np_hrv_eeg_wipe_scratch() can reach it). */
+    float *const seg = s_eeg_seg;
 
     for (uint8_t ch = 0U; ch < NP_EEG_CHANNELS; ch++) {
         /* Read from circular buffer starting at (head - FFT_SIZE). */

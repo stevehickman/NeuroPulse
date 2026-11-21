@@ -67,6 +67,19 @@ np_hd_status_t np_sloreta_init(np_sloreta_ctx_t   *ctx,
 /* Reset accumulated covariance.  Call between sessions. */
 void np_sloreta_reset(np_sloreta_ctx_t *ctx);
 
+/*
+ * Zero what the session learned about the person, with a clear the compiler
+ * cannot remove: the module's FFT and per-channel spectrum scratch, and the
+ * context's covariance, band covariance, channel means and epoch counts.  The
+ * weight matrix, the voxel table and the window and twiddle tables are not the
+ * person's data and are kept.  Called by np_hd_session at session end and at
+ * destroy (NP-FW-HUB-001 REQ-FWHUB-84 (f), OI-PRIV-39).  ctx may be NULL.
+ */
+void np_sloreta_wipe(np_sloreta_ctx_t *ctx);
+#ifdef NPTEST_HOST
+bool np_sloreta_test_scratch_is_zero(void);
+#endif
+
 /* ── EEG epoch accumulation ──────────────────────────────────────────────────── */
 
 /*

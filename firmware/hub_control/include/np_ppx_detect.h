@@ -28,6 +28,7 @@
 #define NP_PPX_DETECT_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define NP_PPX_MAX_CH   8U
@@ -89,5 +90,20 @@ void np_ppx_feed(const float *uv, uint16_t n_samples, uint8_t n_ch);
 bool             np_ppx_seeing(void);
 np_ppx_verdict_t np_ppx_verdict(void);       /* the latched discharge if there is one, else BLIND or CLEAR */
 bool             np_ppx_channel_trusted(uint8_t ch);
+
+/* REQ-FWHUB-84 (d), OI-PRIV-39: zero the per-channel signal state (the running
+ * mean, variance, background and spike history of the person's EEG) with a clear
+ * the compiler cannot remove.  Called at session end, after every output is
+ * stopped.  It keeps what is not signal: the latched discharge (a found
+ * discharge stays found until the next np_ppx_init()), the parameters, the
+ * roles, the sensitivity in force and the halt function.  Every channel is
+ * untrusted afterwards, so the detector reports BLIND (or the latch), never
+ * CLEAR, until it has warmed up again on new samples. */
+void np_ppx_wipe_signal(void);
+
+#ifdef NPTEST_HOST
+/* Host-test inspection: the per-channel state, for REQ-FWHUB-84 (d). */
+const uint8_t *np_ppx_test_channels(size_t *len_out);
+#endif
 
 #endif /* NP_PPX_DETECT_H */

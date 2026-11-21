@@ -111,4 +111,18 @@ void np_adapt_log_flush(void);
  */
 void np_adapt_log_reset(void);
 
+/*
+ * np_adapt_log_wipe — zero every slot of the ring with a clear the compiler
+ * cannot remove (REQ-FWHUB-84 (c), OI-PRIV-39).  Called by np_log_session_end()
+ * once the ring has been drained into the session file, so no adaptation event
+ * (EEG-derived, UHDR) is left in RAM after the session.  Anything still queued
+ * is drained first, so nothing is lost.  The SHDR overrun count is kept.
+ */
+void np_adapt_log_wipe(void);
+
+#ifdef NPTEST_HOST
+/* Host-test inspection: the ring's storage, for REQ-FWHUB-84 (c). */
+const uint8_t *np_adapt_log_test_ring(size_t *len_out);
+#endif
+
 #endif /* NP_ADAPTATION_LOG_H */

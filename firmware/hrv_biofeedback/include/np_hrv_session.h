@@ -11,9 +11,9 @@
  *     - Full R-R interval time series (EDF+ annotation signal)
  *     - Per-update coherence score array
  *     - Session record (np_hrv_session_record_t)
- *   SHDR (written at session end, SHDR partition):
- *     - Coherence trend slope (linear regression over last 30 sessions)
- *     - Session count increment
+ *   SHDR: no HRV value.  The device session count is incremented by the
+ *     hub (np_session_count.c), not by this module.  The trend slope that
+ *     stood here is UHDR (CLAUDE.md §5.1; OI-PRIV-30, NP-PRIV-ANALYSIS-004 M3).
  *
  * The session module does NOT hold the UHDR encryption key.  It writes
  * plaintext data to an in-RAM staging buffer; the storage layer (outside

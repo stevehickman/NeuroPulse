@@ -212,6 +212,36 @@ static void test_one_halt_per_session_and_init_clears_it(void)
     check(np_ppx_verdict() == NP_PPX_BLIND, "latch: init clears the latch (it must warm up again)");
 }
 
+/* @verifies REQ-FWHUB-84#d */
+static void test_session_end_wipes_the_signal_state_and_keeps_the_latch(void)
+{
+    size_t n = 0;
+    const uint8_t *ch = np_ppx_test_channels(&n);
+    bool zero;
+
+    /* A quiet session: the channels hold the person's running statistics until the wipe. */
+    start(true);
+    np_ppx_set_sensitivity(1U);
+    scn_t s = quiet();
+    (void)run(&s, 3.0f);
+    zero = true; for (size_t i = 0; i < n; i++) { if (ch[i] != 0U) { zero = false; break; } }
+    check(!zero && np_ppx_verdict() == NP_PPX_CLEAR, "wipe: a watching detector holds signal state");
+    np_ppx_wipe_signal();
+    zero = true; for (size_t i = 0; i < n; i++) { if (ch[i] != 0U) { zero = false; break; } }
+    check(zero, "wipe: every channel's signal state is zero after the wipe");
+    check(np_ppx_verdict() == NP_PPX_BLIND && !np_ppx_channel_trusted(0U),
+          "wipe: afterwards the detector reports BLIND, never CLEAR, until it warms up again");
+    check(np_ppx_sensitivity() == 1U, "wipe: the sensitivity in force is kept");
+
+    /* A session that latched a discharge: the latch survives the wipe. */
+    start(true);
+    s.spike_at = 3U * FS; s.spike_mask = 0x1DU; s.spike_uv = 200.0f;
+    (void)run(&s, 4.0f);
+    check(np_ppx_verdict() == NP_PPX_DISCHARGE_GENERALISED, "wipe: the discharge is latched before the wipe");
+    np_ppx_wipe_signal();
+    check(np_ppx_verdict() == NP_PPX_DISCHARGE_GENERALISED, "wipe: the latched discharge survives the wipe");
+}
+
 /* The false-halt count over `runs` minutes of synthetic background at a sensitivity level; one halt latches a run. */
 static int false_halt_runs(uint8_t level, int runs)
 {
@@ -288,6 +318,7 @@ static void test_the_policy_lifts_the_refusal_only_with_the_evidence_for_it(void
 
 int main(void)
 {
+    test_session_end_wipes_the_signal_state_and_keeps_the_latch();
     test_quiet_background_is_seen_and_never_halts();
     test_a_generalised_discharge_halts_within_one_block();
     test_the_occipital_switch_decides_an_occipital_only_discharge();
