@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 39
+**Revision:** 40
 **Date:** 2026-11-21  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -4211,3 +4211,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 38 | 2026-11-11 | NeurOne Software Engineering | **New §6.17: the expected protection of `main` and its comparison with GitHub (rules R1 to R6 and L1 to L8), the three settings changes that had left no record (§6.13.5's "one bypass entry" and "refused for every actor" are superseded), and what is not established. §7: `OI-SWCI-52` closed, `OI-SWCI-54` raised, `OI-SWCI-10` updated.** |
 | 39 | 2026-11-21 | NeurOne Tooling | **§5.0.2 CI-Scan-Paths table: `check-redaction-shape.ts` also reads `docs/status/pending-decisions.md`, to fail a known violation whose open item is closed (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
+| 40 | 2026-11-21 | NeurOne Tooling | **New §6.18: `reporting paths cannot leak a sensitive predicate (§5.1)` joins `ci/required-checks.txt` and carries the in-file warning; why it is safe to require, what it does not catch (two PRs each green against an older `main`, which is Q5), and the runbook. `OI-SWCI-54` row updated; it stays open.** |
