@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-005  
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-11-21  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -192,3 +192,11 @@ The owning entries are in `docs/status/pending-decisions.md`, under "Privacy rev
 | `OI-PRIV-56` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
 | `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check |
 | `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-21 | NeurOne Quality | **§3, §4 and §8: open items renumbered OI-PRIV-21…28 → OI-PRIV-51…58 in the same order (F1 = OI-PRIV-51 … F8 = OI-PRIV-58), with a note in §8. NP-PRIV-ANALYSIS-004 merged first with those numbers and GitHub issues #949–#956. No finding, severity or closure condition changed.** |
