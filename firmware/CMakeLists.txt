@@ -371,7 +371,7 @@ if(NP_BUILD_TESTS)
         COMMAND np_pause_limit_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    # REQ-FWHUB-84, REQ-FWHUB-85 (OI-PRIV-37): the status indicators and stealth mode.
+    # REQ-FWHUB-85, REQ-FWHUB-86 (OI-PRIV-37): the status indicators and stealth mode.
     add_test(NAME np_status_led_tests
         COMMAND np_status_led_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

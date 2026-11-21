@@ -65,7 +65,7 @@
  */
 #define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
 /*
- * READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-85). Bit 0 on:
+ * READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
  * the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
  * in hub RAM only; every boot starts with it off (OI-PRIV-37).
  */

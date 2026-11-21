@@ -43,6 +43,11 @@ static size_t   s_uhdr_pos = 0U;
 static uint8_t  s_shdr_buf[LOG_BUF_SIZE];
 static size_t   s_shdr_pos = 0U;
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear of a buffer that is not
+ * read again (firmware/uhdr_key, firmware/anon).  REQ-FWHUB-84, OI-PRIV-39. */
+static void *(*const volatile np_log_memset_fn)(void *, int, size_t) = memset;
+
 static uint32_t s_device_session_count = 0U;
 
 /* ── The logger lock (OI-FWHUB-19) ────────────────────────────────────────────── */
@@ -310,6 +315,16 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     if (s_shdr_pos > 0U) {
         shdr_drain();
     }
+
+    /* REQ-FWHUB-84 (c), OI-PRIV-39: the session's records are in its file (or
+     * were refused by it); none of them stays in RAM.  The record buffer is
+     * zeroed whole, not only the bytes last written, because earlier drains
+     * leave their bytes behind until overwritten, and the adaptation ring is
+     * zeroed after it was drained above.  Every session end, whatever it held,
+     * so the clear says nothing about what the session did (CLAUDE.md §5.1). */
+    np_log_memset_fn(s_uhdr_buf, 0, sizeof s_uhdr_buf);
+    s_uhdr_pos = 0U;
+    np_adapt_log_wipe();
     give();
 }
 
@@ -628,6 +643,14 @@ void np_log_adapt_event(const np_adaptation_event_t *event)
     uhdr_write(event, sizeof(np_adaptation_event_t));
     give();
 }
+
+#ifdef NPTEST_HOST
+const uint8_t *np_log_test_uhdr_buf(size_t *len_out)
+{
+    if (len_out != NULL) { *len_out = sizeof s_uhdr_buf; }
+    return s_uhdr_buf;
+}
+#endif
 
 void np_log_flush(void)
 {

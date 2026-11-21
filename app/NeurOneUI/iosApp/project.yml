@@ -14,7 +14,17 @@ targets:
       - NeurOneUI
     info:
       path: Info.plist
+      # `xcodegen generate` rewrites Info.plist from these properties (plus its own CFBundle* defaults), so a key that is only in the
+      # committed Info.plist is lost in every generated build. Every key the app needs is listed here.
       properties:
+        CFBundleName: NeurOne
+        CFBundleShortVersionString: "0.1.0"
+        NSBluetoothAlwaysUsageDescription: NeurOne uses Bluetooth to communicate with your NeurOne hub in real time.
+        # Without a launch screen iOS runs the app in a 320x480 compatibility window.
+        UILaunchScreen: {}
+        # Compose Multiplatform's plist check throws at start-up without this key (it lets the app draw at a high-refresh
+        # display's full rate). Its absence crashed the app in the CI launch smoke (OI-UI-KMP-06).
+        CADisableMinimumFrameDurationOnPhone: true
         # The Files app shows the app's Documents folder, where a backup is kept (SWR-MG-02).
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true

@@ -1,5 +1,5 @@
 /*
- * Host tests — the status indicators and stealth mode (REQ-FWHUB-84, REQ-FWHUB-85; OI-PRIV-37, NP-PRIV-ANALYSIS-004).
+ * Host tests — the status indicators and stealth mode (REQ-FWHUB-85, REQ-FWHUB-86; OI-PRIV-37, NP-PRIV-ANALYSIS-004).
  *
  * The output is a recorder bound in place of np_hal_status_led_set.  What is tested: a session the person stopped and a
  * pause timeout go back to idle and never light the fault indicator; every other abort reason does; stealth darkens
@@ -41,7 +41,7 @@ static void boot(void)
     np_status_led_init();
 }
 
-/* @verifies REQ-FWHUB-84#a */
+/* @verifies REQ-FWHUB-85#a */
 static void test_a_stop_or_a_pause_timeout_goes_back_to_idle_and_never_lights_the_fault(void)
 {
     boot();
@@ -57,7 +57,7 @@ static void test_a_stop_or_a_pause_timeout_goes_back_to_idle_and_never_lights_th
     check(last() == NP_LED_IDLE && !ever(NP_LED_FAULT), "complete: a session that ran its length goes back to IDLE");
 }
 
-/* @verifies REQ-FWHUB-84#b */
+/* @verifies REQ-FWHUB-85#b */
 static void test_every_other_end_status_lights_the_fault(void)
 {
     const np_hub_status_t faults[] = { NP_HUB_ERR_SAFETY_FAULT, NP_HUB_ERR_MOD_FAULT, NP_HUB_ERR_GENERIC, NP_HUB_ERR_TIMEOUT };
@@ -76,7 +76,7 @@ static void test_every_other_end_status_lights_the_fault(void)
     check(last() == NP_LED_SESSION, "fault: the next session start clears the latched fault");
 }
 
-/* @verifies REQ-FWHUB-85#a */
+/* @verifies REQ-FWHUB-86#a */
 static void test_stealth_darkens_idle_and_session(void)
 {
     boot();
@@ -95,7 +95,7 @@ static void test_stealth_darkens_idle_and_session(void)
     check(last() == NP_LED_SESSION, "stealth: turned off mid-session, SESSION shows again");
 }
 
-/* @verifies REQ-FWHUB-85#b */
+/* @verifies REQ-FWHUB-86#b */
 static void test_a_fault_shows_in_stealth_and_a_stealth_change_neither_hides_nor_clears_it(void)
 {
     boot();
@@ -117,7 +117,7 @@ static void test_a_fault_shows_in_stealth_and_a_stealth_change_neither_hides_nor
           "fault in stealth: a STEALTH write over GATT does not hide it either");
 }
 
-/* @verifies REQ-FWHUB-85#c */
+/* @verifies REQ-FWHUB-86#c */
 static void test_the_stealth_wire_reads_back_and_refuses_what_it_does_not_know(void)
 {
     boot();
@@ -140,7 +140,7 @@ static void test_the_stealth_wire_reads_back_and_refuses_what_it_does_not_know(v
           "wire: writing 0x00 turns it off and the indicators show again");
 }
 
-/* @verifies REQ-FWHUB-85#d */
+/* @verifies REQ-FWHUB-86#d */
 static void test_every_boot_starts_visible(void)
 {
     boot();

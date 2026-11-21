@@ -1,5 +1,5 @@
 /*
- * NeurOne Hub Control Program — the status indicators and stealth mode (REQ-FWHUB-84, REQ-FWHUB-85)
+ * NeurOne Hub Control Program — the status indicators and stealth mode (REQ-FWHUB-85, REQ-FWHUB-86)
  * Document: NP-FW-HUB-001 §5.5a; CLAUDE.md §4.7; docs/reference/hardware-detail.md §4.7
  * SW item:  SW-02 (i.MX RT1062 main processor) — IEC 62304 Class B
  * Open item: OI-PRIV-37 (NP-PRIV-ANALYSIS-004), GitHub #965.  The LED HAL itself is OI-HUB-MAIN-02.
@@ -15,7 +15,7 @@
  * fault is classed as hideable here.
  *
  * A session that ends because the person stopped it, or because a pause outlasted the owner's limit, is not a fault
- * (np_runner_end_status(), REQ-FWHUB-84) and goes back to IDLE.
+ * (np_runner_end_status(), REQ-FWHUB-85) and goes back to IDLE.
  *
  * STEALTH IS HELD IN RAM ONLY, and every boot starts with it OFF (indicators visible).  Nothing is written to Config,
  * SHDR or UHDR.  A stealth preference is a fact about the person (CLAUDE.md §5.1: when in doubt, UHDR), and persisting

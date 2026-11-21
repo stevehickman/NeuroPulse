@@ -82,7 +82,7 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len);
 np_hub_status_t np_runner_run(void);
 
 /*
- * np_runner_end_status — the status np_runner_run() returns for a session that ended with this reason (REQ-FWHUB-84):
+ * np_runner_end_status — the status np_runner_run() returns for a session that ended with this reason (REQ-FWHUB-85):
  * NP_HUB_OK for NONE, NP_HUB_ERR_STOPPED for a stop by the person (USER) or a pause timeout (PAUSE_TIMEOUT), and
  * NP_HUB_ERR_SAFETY_FAULT for every other reason.  The session STATE is unchanged by this: it is FAULT for any reason
  * but NONE (OI-PRIV-37 records that as not yet decided).
@@ -149,5 +149,10 @@ void np_runner_progress(uint8_t out[NP_PROGRESS_LEN]);
  * np_runner_elapsed_ms — ms since session start; 0 if not running.
  */
 uint32_t np_runner_elapsed_ms(void);
+
+#ifdef NPTEST_HOST
+/* Host-test inspection (REQ-FWHUB-84 (b)): the runner's context as it stands. */
+const np_runner_ctx_t *np_runner_test_ctx(void);
+#endif
 
 #endif /* NP_SESSION_RUNNER_H */

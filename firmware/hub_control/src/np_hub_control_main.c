@@ -70,7 +70,7 @@
 #include "np_gatt_server.h"     /* OI-WA-03: BLE GATT service */
 #include "np_consumables.h"     /* OI-ACC-08: CONSUMABLE_STATUS producer */
 #include "np_pause_limit.h"     /* SWR-SS-05: the owner's pause time limit */
-#include "np_status_led.h"      /* REQ-FWHUB-84/-85: the indicators and stealth mode (OI-PRIV-37) */
+#include "np_status_led.h"      /* REQ-FWHUB-85/-85: the indicators and stealth mode (OI-PRIV-37) */
 #include "np_ppx_config.h"      /* REQ-FWHUB-71: the detector's clinician switches */
 #include "np_cardiac_sens.h"    /* REQ-FWHUB-74: the cardiac cutoff's sensitivity */
 #include "np_factory_reset.h"   /* OI-NVRAM-17: interrupted-reset boot check */
@@ -309,7 +309,7 @@ static void task_safety_heartbeat(void *arg)
                 ((fault_status & NP_CVNS_NONRECOVERABLE_FAULTS) == 0U);
 
             if (!cardiac_recoverable) {
-                np_status_led_fault();   /* REQ-FWHUB-85: shows whatever stealth says */
+                np_status_led_fault();   /* REQ-FWHUB-86: shows whatever stealth says */
                 xEventGroupSetBits(g_hub_events, NP_EV_SAFETY_FAULT);
             }
         } else if (rc == NP_HUB_ERR_TIMEOUT) {
@@ -373,11 +373,11 @@ static void task_hub_control(void *arg)
                              NP_EV_POWER_FAULT | NP_EV_SESSION_PAUSE |
                              NP_EV_SESSION_RESUME | NP_EV_SESSION_PANIC);
 
-        np_status_led_session_started();   /* SESSION, or dark in stealth (REQ-FWHUB-85) */
+        np_status_led_session_started();   /* SESSION, or dark in stealth (REQ-FWHUB-86) */
 
         np_hub_status_t rc = np_runner_run();
 
-        /* REQ-FWHUB-84: a stop by the person or a pause timeout (NP_HUB_ERR_STOPPED) goes back to idle like a completed
+        /* REQ-FWHUB-85: a stop by the person or a pause timeout (NP_HUB_ERR_STOPPED) goes back to idle like a completed
          * session; every other status is a fault and lights red, stealth or not (OI-PRIV-37). */
         np_status_led_session_ended(rc);
 
@@ -672,7 +672,7 @@ void np_hub_control_app_main(void)
     np_hold_set_source(np_runner_hold_cause);                      /* SWR-SS-09: why a session is held */
 
     np_status_led_bind(np_hal_status_led_set);   /* OI-HUB-MAIN-02: the LED HAL */
-    np_status_led_init();                        /* IDLE, stealth off: stealth is RAM only (REQ-FWHUB-85 (f)) */
+    np_status_led_init();                        /* IDLE, stealth off: stealth is RAM only (REQ-FWHUB-86 (f)) */
 
     /* Create FreeRTOS tasks. */
     BaseType_t ok;

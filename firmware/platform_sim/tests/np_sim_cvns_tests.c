@@ -204,7 +204,7 @@ static void reach_active(void)
 }
 
 /* A session that gets from the baseline to delivery (OI-SIMFW-22, fixed).  It used to fault one tick after the baseline completed. */
-/* @verifies-none Baseline to delivery is np_cvns_session.c's and np_mod_cvns.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none Baseline to delivery is np_cvns_session.c's and np_mod_cvns.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-87). Simulator evidence only (REQ-SIMFW-06). */
 static void test_a_session_gets_from_baseline_to_delivery(void)
 {
     setup();
@@ -228,7 +228,7 @@ static void test_a_session_gets_from_baseline_to_delivery(void)
 }
 
 /* Waiting for the grant is not a fault. */
-/* @verifies-none The grant wait is np_cvns_session.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The grant wait is np_cvns_session.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-87). Simulator evidence only (REQ-SIMFW-06). */
 static void test_a_session_waits_for_the_grant_without_faulting(void)
 {
     setup();

@@ -88,7 +88,7 @@ if(NP_BUILD_TESTS)
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_options(np_pause_limit_tests PRIVATE -Wall -Wextra -std=c11)
 
-    # REQ-FWHUB-84, REQ-FWHUB-85 (OI-PRIV-37): what the indicators show, stealth mode and the STEALTH wire. Pure C.
+    # REQ-FWHUB-85, REQ-FWHUB-86 (OI-PRIV-37): what the indicators show, stealth mode and the STEALTH wire. Pure C.
     add_executable(np_status_led_tests
         tests/np_status_led_tests.c
         src/np_status_led.c
@@ -252,6 +252,7 @@ if(NP_BUILD_TESTS)
         src/np_session_runner.c
         src/np_session_lease.c
         src/np_ppx_policy.c
+        src/np_ppx_detect.c           # np_ppx_wipe_signal at session end (REQ-FWHUB-84 (d))
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -272,6 +273,7 @@ if(NP_BUILD_TESTS)
         NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
     target_compile_options(np_runner_load_tests PRIVATE
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_runner_load_tests PRIVATE m)   # np_ppx_detect.c (sqrtf)
 
     # np_runner_run(): the run loop. The same real sources as np_runner_load_tests; the loop's blocking call
     # (vTaskDelay) is a double that advances a virtual clock and fires scripted moments inside the wait, so
@@ -281,6 +283,7 @@ if(NP_BUILD_TESTS)
         src/np_session_runner.c
         src/np_session_lease.c
         src/np_ppx_policy.c
+        src/np_ppx_detect.c           # np_ppx_wipe_signal at session end (REQ-FWHUB-84 (d))
         src/np_protocol.c
         src/np_session_pause.c
         src/np_ramp_plan.c
@@ -301,6 +304,7 @@ if(NP_BUILD_TESTS)
         NP_FREERTOS_POSIX_HOST _GNU_SOURCE)
     target_compile_options(np_runner_run_tests PRIVATE
         -std=gnu11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_runner_run_tests PRIVATE m)   # np_ppx_detect.c (sqrtf)
 
     # OI-FWHUB-10: socket-path dose metering, the UHDR socket record, the SHDR
     # per-session counts and the idle tile health pass. The logger, its backend
@@ -657,7 +661,7 @@ if(NP_BUILD_TESTS)
         src/np_warranty_token.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05
-        src/np_status_led.c           # REQ-FWHUB-85 (the GATT table references it)
+        src/np_status_led.c           # REQ-FWHUB-86 (the GATT table references it)
         src/np_ppx_config.c           # REQ-FWHUB-71 (the GATT table references it)
         src/np_cardiac_sens.c         # REQ-FWHUB-74 (the GATT table references it)
         src/np_ppx_detect.c
@@ -684,7 +688,7 @@ if(NP_BUILD_TESTS)
         tests/np_consumables_tests.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
-        src/np_status_led.c           # REQ-FWHUB-85 (the GATT table references it)
+        src/np_status_led.c           # REQ-FWHUB-86 (the GATT table references it)
         src/np_ppx_config.c
         src/np_cardiac_sens.c
         src/np_ppx_detect.c
@@ -775,7 +779,7 @@ set(HUB_SOURCES
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
-    src/np_status_led.c           # REQ-FWHUB-84/-85: the status indicators and stealth mode (OI-PRIV-37)
+    src/np_status_led.c           # REQ-FWHUB-85/-85: the status indicators and stealth mode (OI-PRIV-37)
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
     src/np_cardiac_sens.c         # REQ-FWHUB-74: the cervical cutoff's sensitivity
     src/np_session_hold.c         # SWR-SS-09: why a session is held

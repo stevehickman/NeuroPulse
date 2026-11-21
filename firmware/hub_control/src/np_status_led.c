@@ -1,5 +1,5 @@
 /*
- * NeurOne Hub Control Program — the status indicators and stealth mode (REQ-FWHUB-84, REQ-FWHUB-85)
+ * NeurOne Hub Control Program — the status indicators and stealth mode (REQ-FWHUB-85, REQ-FWHUB-86)
  * See np_status_led.h.
  */
 #include "np_status_led.h"

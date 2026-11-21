@@ -267,7 +267,7 @@ static void test_a_pause_a_resume_and_a_stop_reach_the_runner_and_the_lease_is_r
     hub_run_ms(5500);
     check(runner_is("fault"), "then the runner ended in the state the device's runner gives any abort, a stop included (np_runner_run_tests.c pins it)");
     check(strstr(last_with("\"ev\":\"hub_led\""), "\"led\":\"idle\"") != NULL && count2("\"ev\":\"hub_led\"", "\"led\":\"fault\"") == 0,
-          "but a stop is not a fault: the LED went back to idle and never showed red (REQ-FWHUB-84, OI-PRIV-37)");
+          "but a stop is not a fault: the LED went back to idle and never showed red (REQ-FWHUB-85, OI-PRIV-37)");
     check(active_mask() == 0U, "nothing is active");
     /* The lease: a second protocol is taken in only because np_runner_run released it. */
     upload(golden("visual"), 0);

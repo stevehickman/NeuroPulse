@@ -236,7 +236,7 @@ export const GattIds = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in seconds,
   // before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: 0x001B,
-  // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-85). Bit 0 on: the temple
+  // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on: the temple
   // indicators are dark, except that a fault always shows. Any other bit set is refused. Held in hub RAM only;
   // every boot starts with it off (OI-PRIV-37).
   STEALTH_ID: 0x0022,
@@ -335,7 +335,7 @@ export const GattUuidStrings = {
   // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
   // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
   PAUSE_LIMIT_ID: "4e455550-001b-1000-8000-00805f9b34fb",
-  // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-85). Bit 0 on:
+  // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
   // the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
   // in hub RAM only; every boot starts with it off (OI-PRIV-37).
   STEALTH_ID: "4e455550-0022-1000-8000-00805f9b34fb",

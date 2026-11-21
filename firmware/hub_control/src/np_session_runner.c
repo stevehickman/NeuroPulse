@@ -23,6 +23,7 @@
 #include "np_session_progress.h"
 #include "np_session_fitting.h"
 #include "np_ppx_policy.h"
+#include "np_ppx_detect.h"     /* np_ppx_wipe_signal (REQ-FWHUB-84 (d)) */
 #include "np_pause_limit.h"
 #include "np_ramp_plan.h"
 #include "np_session_lease.h"
@@ -83,6 +84,34 @@ static SemaphoreHandle_t   s_lease_mutex;
 
 static void lease_lock(void)   { (void)xSemaphoreTake(s_lease_mutex, portMAX_DELAY); }
 static void lease_unlock(void) { (void)xSemaphoreGive(s_lease_mutex); }
+
+/* ── Non-elidable zeroing (REQ-FWHUB-84 (b), OI-PRIV-39) ───────────────────────── */
+
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_runner_memset_fn)(void *, int, size_t) = memset;
+
+/*
+ * The parsed protocol and the session's records are UHDR-class plaintext: the
+ * commands and their parameters, the session UUID, the record of which
+ * modalities ran.  Once a session is over (or a load is refused) none of it is
+ * needed, so it is zeroed.  What is kept is what the SESSION_PROGRESS frame
+ * reports after the session (SWR-SS-07): the state, the length it ran, the
+ * authored length and the end reason.  Caller holds the critical section that
+ * np_runner_progress() reads under, so a reader sees the context before or
+ * after the clear, never half of it.
+ */
+static void wipe_session_plaintext(void)
+{
+    const uint32_t duration_ms = s_ctx.desc.duration_ms;
+    np_runner_memset_fn(&s_ctx.desc, 0, sizeof s_ctx.desc);
+    s_ctx.desc.duration_ms = duration_ms;
+    np_runner_memset_fn(&s_ctx.uhdr, 0, sizeof s_ctx.uhdr);
+    np_runner_memset_fn(&s_ctx.shdr, 0, sizeof s_ctx.shdr);
+    np_runner_memset_fn(&s_ctx.slots, 0, sizeof s_ctx.slots);
+    np_runner_memset_fn(s_ctx.stop_at_ms, 0, sizeof s_ctx.stop_at_ms);
+    s_ctx.next_cmd_idx = 0U;
+}
 
 /* ── Internal helpers ─────────────────────────────────────────────────────────── */
 
@@ -758,6 +787,11 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     np_hub_status_t rc = np_protocol_verify_and_parse(proto_buf, proto_len,
                                                        &s_ctx.desc);
     if (rc != NP_HUB_OK) {
+        /* REQ-FWHUB-84 (b): a refused blob may have been parsed part-way. */
+        taskENTER_CRITICAL();
+        wipe_session_plaintext();
+        s_ctx.desc.duration_ms = 0U;
+        taskEXIT_CRITICAL();
         s_ctx.state = NP_SESSION_IDLE;
         np_lease_release();
         return rc;
@@ -1158,6 +1192,17 @@ np_hub_status_t np_runner_run(void)
      * cannot lose the intranasal sleeve's one-session count. */
     np_cons_on_session_end(s_ctx.uhdr.mods_active_mask);
 
+    /* REQ-FWHUB-84 (b), (d), OI-PRIV-39: every output is stopped and the records
+     * are closed (np_log_session_end zeroed its own buffers, REQ-FWHUB-84 (c)), so
+     * the protocol, the session records and the detector's signal state are
+     * zeroed here, at every session end, however it ended.  Nothing a running
+     * interlock needs is touched: the outputs are off, the detector's latch is
+     * kept, and the next session's load and np_ppx_init() start from nothing. */
+    taskENTER_CRITICAL();
+    wipe_session_plaintext();
+    taskEXIT_CRITICAL();
+    np_ppx_wipe_signal();
+
     s_ctx.elapsed_ms = total_ms;
     s_ctx.state = (s_ctx.abort_reason == NP_ABORT_NONE)
                   ? NP_SESSION_COMPLETE
@@ -1173,7 +1218,7 @@ np_hub_status_t np_runner_run(void)
     return np_runner_end_status(s_ctx.abort_reason);
 }
 
-/* REQ-FWHUB-84 (a)(b), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  A session the person stopped, or one a pause timed out, is
+/* REQ-FWHUB-85 (a)(b), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  A session the person stopped, or one a pause timed out, is
  * not a fault and must not light the red indicator; it used to return SAFETY_FAULT, as every non-NONE reason did.  The
  * list of non-faults is closed: a reason added to np_abort_reason_t is a fault until someone decides otherwise here. */
 np_hub_status_t np_runner_end_status(np_abort_reason_t reason)
@@ -1251,3 +1296,11 @@ uint32_t np_runner_elapsed_ms(void)
     }
     return elapsed_ms_now();
 }
+
+#ifdef NPTEST_HOST
+/* Host-test inspection (REQ-FWHUB-84 (b)): the runner's context as it stands. */
+const np_runner_ctx_t *np_runner_test_ctx(void)
+{
+    return &s_ctx;
+}
+#endif

@@ -710,6 +710,44 @@ static void test_a_session_runs_to_its_duration_and_completes(void)
           "complete: the session is closed, flushed and counted once");
 }
 
+/* @verifies REQ-FWHUB-84#b */
+static void test_session_end_wipes_the_protocol_and_the_records(void)
+{
+    fresh();
+    blob_t b;
+    two_command_session(&b);
+    const np_runner_ctx_t *ctx = np_runner_test_ctx();
+    const size_t len = blob_finish(&b);
+    check(np_runner_load(b.buf, len) == NP_HUB_OK && ctx->desc.cmd_count == 2U,
+          "wipe: the loaded descriptor holds the protocol's commands");
+    g_event_bits &= ~NP_EV_SESSION_START;
+    (void)np_runner_run();
+
+    check(g_end_uhdr.mods_active_mask == ((1U << NP_MOD_EEG) | (1U << NP_MOD_VISUAL)),
+          "wipe: the session-end record was written from the context before the clear");
+
+    np_session_desc_t d = ctx->desc;
+    check(d.duration_ms == 6000U, "wipe: the authored length is kept, for the progress frame");
+    d.duration_ms = 0U;
+    const uint8_t *db = (const uint8_t *)&d;
+    bool zero = true;
+    for (size_t i = 0; i < sizeof d; i++) { if (db[i] != 0U) { zero = false; break; } }
+    check(zero, "wipe: every other byte of the parsed protocol is zero after the session");
+
+    const uint8_t *ub = (const uint8_t *)&ctx->uhdr;
+    const uint8_t *sb = (const uint8_t *)&ctx->shdr;
+    bool rec_zero = true;
+    for (size_t i = 0; i < sizeof ctx->uhdr; i++) { if (ub[i] != 0U) { rec_zero = false; } }
+    for (size_t i = 0; i < sizeof ctx->shdr; i++) { if (sb[i] != 0U) { rec_zero = false; } }
+    check(rec_zero, "wipe: the session's UHDR and SHDR records are zero after the session");
+
+    uint8_t frame[NP_PROGRESS_LEN];
+    np_runner_progress(frame);   /* np_progress_build is a double here: it keeps what the runner gave it */
+    check(g_progress.state == NP_SESSION_COMPLETE && g_progress.total_ms == 6000U &&
+          g_progress.elapsed_ms >= 6000U,
+          "wipe: the progress frame is still given the end state, the length run and the authored length");
+}
+
 /* @verifies REQ-FWHUB-40 SWR-HV-02 */
 static void test_the_session_start_record_and_the_fitting_come_before_any_command(void)
 {
@@ -836,7 +874,7 @@ static void test_each_stop_event_ends_the_session_with_its_own_reason_and_the_wo
         char name[128];
         snprintf(name, sizeof name, "reasons: %s: recorded in both records", cases[i].name);
         check(g_end_uhdr.abort_reason == cases[i].expect && g_end_shdr.abort_reason == cases[i].expect, name);
-        /* REQ-FWHUB-84: a stop by the person is not a fault (NP_HUB_ERR_STOPPED, no red indicator); every fault reason
+        /* REQ-FWHUB-85: a stop by the person is not a fault (NP_HUB_ERR_STOPPED, no red indicator); every fault reason
          * is.  The state stays FAULT for both (OI-PRIV-37 records that as undecided). */
         const np_hub_status_t want = (cases[i].expect == NP_ABORT_USER) ? NP_HUB_ERR_STOPPED : NP_HUB_ERR_SAFETY_FAULT;
         snprintf(name, sizeof name, "reasons: %s: the run reports %s and ends FAULT", cases[i].name,
@@ -847,7 +885,7 @@ static void test_each_stop_event_ends_the_session_with_its_own_reason_and_the_wo
     }
 }
 
-/* @verifies REQ-FWHUB-84#a,b */
+/* @verifies REQ-FWHUB-85#a,b */
 static void test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status(void)
 {
     /* The closed list: every reason in np_abort_reason_t, so a reason added later is caught here as a fault until
@@ -1057,7 +1095,7 @@ static void test_a_pause_that_outlasts_the_owners_limit_ends_the_session(void)
     check(pause_at >= 0, "limit: the session paused");
     check(g_end_uhdr.abort_reason == NP_ABORT_PAUSE_TIMEOUT, "limit: it ended because the pause outlasted the limit");
     check(rc == NP_HUB_ERR_STOPPED && np_runner_get_state() == NP_SESSION_FAULT,
-          "limit: and reports a stop, not a fault (REQ-FWHUB-84), in state FAULT");
+          "limit: and reports a stop, not a fault (REQ-FWHUB-85), in state FAULT");
     const uint32_t ended = g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms;
     const uint32_t p = g_log[pause_at].at_ms;
     check(ended + RUN_SLACK_MS >= p + 2000U && ended <= p + 2000U + RUN_SLACK_MS * 2U, "limit: after the 2 s, measured from the start of the pause");
@@ -1427,6 +1465,7 @@ static void test_the_runner_tells_the_cervical_driver_the_authored_block_length(
 int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
+    test_session_end_wipes_the_protocol_and_the_records();
     test_the_session_start_record_and_the_fitting_come_before_any_command();
     test_the_fitting_is_given_the_stamp_of_the_descriptor_being_run();
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
