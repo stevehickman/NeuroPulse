@@ -163,7 +163,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 4 | 2026-11-03 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
-| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [np_app_isa_001.md](./superseded/np_app_isa_001.md) | SUPERSEDED 2026-11-21 (SwiftUI app retired, `OI-UI-KMP-05`; the shared Compose host is the iOS app) | APP |
+| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [np_app_isa_001.md](./superseded/np_app_isa_001.md) | SUPERSEDED 2026-11-21 by the shared Compose app | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 10 | 2026-10-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 4 | 2026-10-18 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
 | NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 9 | 2026-10-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
