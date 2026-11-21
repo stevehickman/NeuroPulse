@@ -302,7 +302,7 @@ class AppServices(
     }
     /** Given the lock, so it holds no history while locked and merges a session that finishes then (`REQ-PRES-01` (d)). */
     val sessionHistoryStore = SessionHistoryStore(keyValueStore, lock = presenceLock)
-    val researchSuggestionStore: ResearchSuggestionStore = ResearchSuggestionStore(keyValueStore, portalOptedIn = { consentStore.researchConsent.suggestionPortalOptIn })
+    val researchSuggestionStore: ResearchSuggestionStore = ResearchSuggestionStore(keyValueStore, portalOptedIn = { consentStore.researchConsent.suggestionPortalOptIn }, lock = presenceLock)
 
     val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
 
@@ -363,7 +363,7 @@ class AppServices(
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
     /** The user's PBM wavelength rules; the descriptor compiler reads the resolved set at each upload (NP-NPPS-REF-001 §7a). */
-    val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore)
+    val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore, lock = presenceLock)
 
     val protocolUploader = ProtocolUploader(gattManager, { wavelengthRulesStore.resolved }, platform.protocolSigner)
 
@@ -374,6 +374,7 @@ class AppServices(
         // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
         onReplaced = { gattManager.requestConsumableReset(it) },
         onReminderNotification = { reminder -> platform.reminderNotifier?.let { notifier -> scope.launch { notifier.showReminder(reminder) } } },
+        lock = presenceLock,
     )
 
     val limitsStore = NPLimitsStore(keyValueStore, lock = presenceLock).also { limits ->
@@ -408,7 +409,7 @@ class AppServices(
         syncLoginItem()
         scope.launch { gattManager.session.collect { sessionRecorder.observe(it) { id -> runCatching { getString(Res.string.session_protocol_label, id) }.getOrDefault("") } } }
         syncBackgroundSchedule()
-        EngagementTier.incrementLaunchCount(keyValueStore)
+        EngagementTier.incrementLaunchCount(keyValueStore, presenceLock)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure() no-ops unless the user
         // actively completed the consent flow.
         researchAnalyticsGate.configure()
