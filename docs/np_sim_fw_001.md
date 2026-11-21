@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 46
-**Date:** 2026-11-14
+**Revision:** 47
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1224,3 +1224,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 44 | 2026-11-21 | NeurOne Software Engineering | **§33: the twin's log file layer cites `UC-186`, not `UC-182`.** The `UC-182` cited in Rev 43's row means this choice; in the register the audio noise band is now `UC-183`. No requirement text changed. |
 | 45 | 2026-11-13 | NeurOne Software Engineering | **`OI-SIMFW-70` and `OI-SIMFW-71`: the Principal's rulings of 2026-11-13 on the nine design questions are recorded (three conditional); nothing is built from them.** |
 | 46 | 2026-11-14 | NeurOne Software Engineering | **§5, §7, §28, §30, new §34: `REQ-SIMFW-26` and its five parts; `OI-SIMFW-52` partly closed (`np_uhdr_key.c` is linked under `NPTEST_HOST` and its provision, unlock, background and change-credential run on synthetic credentials; its eight platform seams are the device's own host model, not cryptography); `OI-SIMFW-80` raised (whether the twin links the Rust primitives of `CLAUDE.md` §22, and UHDR in the files stays plaintext); the seam table's counts corrected to the gate's (14 infra, 13 firmware-host, 25 absent); `UC-189` registered.** |
+| 47 | 2026-11-21 | NeurOne Firmware Engineering | **The audio harness and bridge command is `audio_eeg_freq` (millihertz), replacing `audio_eeg_band`.** |

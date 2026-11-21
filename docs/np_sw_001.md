@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 195
-**Date:** 2026-11-20  
+**Revision:** 196
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -880,3 +880,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 193 | 2026-11-20 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-32`: the note that `NppsBackendIos.kt` had never been compiled is replaced by the CI result (compiled and linked into the iOS host on 2026-11-20; no test runs the binding on an iOS target).** |
 | 194 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose protocol editor no longer replaces a blank duration with 20 minutes or a zero with 1 minute; the field is marked and Save is disabled. An interval-count protocol's timing and a duration that is not a whole number of minutes are no longer rewritten on save. The binaural and isochronic value of 0 or below that becomes none remains.** |
 | 195 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 (`REQ-SW03-19` (f)): a locked run says before the erase that it holds analytics IDs it cannot send, and that erasing from a run where the keystore works would; making the ID readable locked is recorded as a principal decision, not made.** |
+| 196 | 2026-11-21 | NeurOne Software Engineering | **§5.2.2: `REQ-SW02-11` states that an EEG-adaptive PBM frequency is the tile code nearest the dominant frequency and that no EEG band picks it.** |
