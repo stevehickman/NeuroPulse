@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 9
-**Date:** 2026-11-03
+**Revision:** 10
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1764,3 +1764,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 9 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |
+| 10 | 2026-11-21 | NeurOne Firmware Engineering | **Safety-MCU frame growth row: the extended heartbeat is 66 bytes (the 32-bit current array, `OI-UINT16-01`).** |

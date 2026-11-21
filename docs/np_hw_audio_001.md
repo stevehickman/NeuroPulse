@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 14
-**Date:** 2026-11-14
+**Revision:** 20
+**Date:** 2026-11-21
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1279,3 +1279,9 @@ envelope budgets (`OI-AUDIOHW-05`). The restatements of 40 mm elsewhere in the r
 | 12 | 2026-11-13 | NeurOne Systems Engineering | **§5.3, §5.3.1, §8.2.1, §8.2.7, §9: REQ-AUDIO-26 decided: noise band 20 Hz to 20 kHz, unweighted level, 12 dB crest factor (97 dB SPL equivalent peak at the ceiling, computed); new §8.2.7 G gives the reasoning and what stays open (brown noise taken as pink, secondary-source standards, hub headroom is OI-AUDIOHW-14). Also the principal kept REQ-AUDIO-25 unchanged: the one human 40 Hz auditory study whose Methods were read (Clements-Cortes and Bartel 2022) used a 160 Hz carrier and states no sound level, the 10 kHz carrier stays known only from a patent summary of a mouse study whose Methods could not be read, and the Martorell 2019 and Clements-Cortes 2016 Methods join the OI-AUDIOHW-12 check list. No code, constant or limit changed.** |
 | 13 | 2026-11-13 | NeurOne Systems Engineering | **§5.3.1: the 20 Hz to 20 kHz A-weighting offsets for pink and brown noise corrected from −12.8 and −23.7 dB to −2.9 and −12.8 dB, agreeing with §8.2.7 B; the REQ-AUDIO-26 band and crest figures are carried as an unjustified choice.** |
 | 14 | 2026-11-14 | NeurOne Systems Engineering | **§5.3, §9: REQ-AUDIO-25 built: the compiler and the hub driver refuse a binaural or isochronic tone, carrier or carrier plus beat or pulse rate, above 1,000 Hz, with a parity test between the two constants; the requirement text is unchanged.** |
+| 15 | 2026-11-21 | NeurOne Systems Engineering | **§5, §5.2, §9: `REQ-AUDIO-21` gains part (e), the combined hearing-level ceiling, and `OI-AUDIOHW-13` records the decided wire field (`uint32`, flag removed, no protocol-version bump, authored key) and the combined rule; part 1 (the figure) and part 4 (hardware) remain open; the register row is `UC-184`.** |
+| 16 | 2026-11-14 | NeurOne Systems Engineering | **§8.2.7 H (relabelled from a second G), §9: the Radioear B81 spec sheet was read in full: its stated sensitivity, distortion, impedance, mass and method, and eye-read graph values, are recorded as vendor values, and the 2026-11-12 description of its table is corrected (it is the ANSI S3.6-2010 reference threshold force table, not the vibrator output). OI-AUDIOHW-13 and OI-AUDIOHW-15 updated; the mastoid reference values are a secondary-source lead, registered as UC-187, and no bone ceiling is computed. No part, figure or constant set.** |
+| 17 | 2026-11-21 | NeurOne Systems Engineering | **§8.2.7 B: SMPTE ST 2095-1:2023 read (band 10 Hz to 22.4 kHz, crest factor 11.5 to 12 dB); Ecma TR-105 describes the IEC 60268-1 file as music-shaped noise, so the 20 Hz to 20 kHz attribution to IEC is marked unconfirmed. No requirement changed.** |
+| 18 | 2026-11-15 | NeurOne Systems Engineering | **§9: the OI-AUDIOHW-13 row sat twice on main between conflict markers (an older 2026-11-09 text and the 2026-11-12 text); the 2026-11-12 text is kept and the older one and the markers are removed. The 40 mm figure of REQ-AUDIO-02 and A11.1 is retired in place on the principal's 2026-11-15 decision (new §8.2.7 I gives the reasoning and what still binds the size: mass, stray field, cup envelope and the cup's own functions); the restatements of 40 mm elsewhere are OI-AUDIOHW-16. No part chosen.** |
+| 19 | 2026-11-21 | NeurOne Systems Engineering | **§5.3: the Built paragraph records that the shared validator reports a tone above 1,000 Hz before compile, and that the bound is one shared constant held to the hub's by the wire-format gate; the requirement text is unchanged.** |
+| 20 | 2026-11-21 | NeurOne Firmware Engineering | **§8.2 table and `REQ-AUDIO-18`: the adaptive beat is the dominant EEG frequency, not a band's preset; the requirement names `np_mod_audio_set_eeg_dominant_freq()`.** |
