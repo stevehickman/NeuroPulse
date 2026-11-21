@@ -60,9 +60,9 @@
 #include "np_hub_types.h"
 #include "np_module_map.h"   /* NP_HEXMAP_MAX_SOCKETS */
 
-/* Largest params block any socket-addressable mod_type defines
- * (np_mod_pbm_smart_params_t, 6 bytes). */
-#define NP_SOCK_DISP_PARAMS_MAX   6U
+/* Largest params block any socket-addressable mod_type defines: np_mod_pbm_smart_params_t, 9 bytes (6 until the tile
+ * frequency widened to 32-bit millihertz, OI-PBMTILE-01). Derived from the struct so it cannot drift from it. */
+#define NP_SOCK_DISP_PARAMS_MAX   ((unsigned)sizeof(np_mod_pbm_smart_params_t))
 
 /* Read-only per-socket view — what the power governor sees. */
 typedef struct {

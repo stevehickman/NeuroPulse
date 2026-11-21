@@ -212,7 +212,7 @@ fn below_one_step(x: f64, register: f64, k: &str, what: &str, step: f64, unit: &
     Ok(())
 }
 
-/// The PBM pulse-frequency code: whole Hz in one byte, 0 for continuous wave. A missing or negative frequency used to
+/// The intranasal and 1170 nm pulse-frequency byte (the transcranial tile takes millihertz instead, OI-PBMTILE-01): whole Hz in one byte, 0 for continuous wave. A missing or negative frequency used to
 /// become continuous wave and one above 255 Hz wrapped (300 Hz became 44); each is refused (REQ-NPPS-33).
 fn freq_code(hz: f64, what: &str) -> R<u8> {
     if !hz.is_finite() {
@@ -667,14 +667,16 @@ pub fn compile_composite(composite: &Value, members: &serde_json::Map<String, Va
 
 fn cur_offsets(mod_type: u8) -> &'static [usize] {
     match mod_type {
-        MOD_PBM_BASE => &[2, 3],
-        MOD_PBM_SMART => &[2, 3, 4],
+        MOD_PBM_BASE => &[5, 6],
+        MOD_PBM_SMART => &[5, 6, 7],
         _ => &[3, 4],
     }
 }
 
-fn timing_offsets(mod_type: u8) -> (usize, usize) {
-    if mod_type == MOD_INTRANASAL { (1, 2) } else { (0, 1) }
+/// Where a tile block's frequency (a byte range: four bytes of millihertz on the transcranial tile, one byte on the
+/// intranasal probe) and its duty byte sit in `params`.
+fn timing_offsets(mod_type: u8) -> (std::ops::Range<usize>, usize) {
+    if mod_type == MOD_INTRANASAL { (1..2, 2) } else { (0..4, 4) }
 }
 
 fn is_pbm_on(c: &Cmd) -> bool {
@@ -720,7 +722,7 @@ fn merge_overlapping_pbm(cmds: &mut Vec<Cmd>, session_ms: f64) -> R<()> {
             let same_window = a.start_ms == bb.start_ms && a.duration_ms == bb.duration_ms;
             let (fo, dofs) = timing_offsets(a.mod_type);
             let same_timing = a.mod_type == bb.mod_type
-                && a.params.get(fo) == bb.params.get(fo)
+                && a.params.get(fo.clone()) == bb.params.get(fo)
                 && a.params.get(dofs) == bb.params.get(dofs);
             let curs = cur_offsets(a.mod_type);
             let disjoint = a.mod_type == bb.mod_type
@@ -739,7 +741,7 @@ fn merge_overlapping_pbm(cmds: &mut Vec<Cmd>, session_ms: f64) -> R<()> {
                 merged[k] = if a.params[k] != 0 { a.params[k] } else { bb.params[k] };
             }
             if a.mod_type == MOD_PBM_SMART {
-                merged[5] = a.params[5] | bb.params[5];
+                merged[8] = a.params[8] | bb.params[8];
             }
             let (bblock, bmod, bend) = (bb.block, bb.mod_type, end_of(bb));
             cmds[i].params = merged;
@@ -898,7 +900,9 @@ fn resolve_pbm_sockets(p: &Value, opts: &CompileOptions) -> R<Vec<u32>> {
 fn encode_pbm_transcranial(p: &Value, opts: &CompileOptions) -> R<Encoded> {
     let target = Target::Sockets(resolve_pbm_sockets(p, opts)?);
     let hz = f(p, "frequencyHz");
-    let fc = freq_code(hz, "PBM")?;
+    // The tile takes the frequency itself, in millihertz, 32 bits (OI-PBMTILE-01, the principal, 2026-11-21): no code table,
+    // so no whole-hertz rule. 0 is continuous wave; a value the field cannot carry, or below one millihertz, is refused.
+    let mhz = (carried(p, "frequencyHz", "PBM", 1000.0, u32::MAX as f64, "Hz")? as u32).to_le_bytes();
     let duty = duty_reg(hz, f(p, "dutyCyclePercent"), "PBM")?;
     let default_rules = WavelengthRules::default_rules();
     let rules = opts.wavelength_rules.unwrap_or(&default_rules);
@@ -906,9 +910,9 @@ fn encode_pbm_transcranial(p: &Value, opts: &CompileOptions) -> R<Encoded> {
     let full = PBM_FULL_SCALE.iter().find(|(c, _)| *c == ch).map(|(_, v)| *v).unwrap();
     let cur = irradiance_to_register(f(p, "irradianceMWcm2"), full, ch.name())?;
     Ok(match ch {
-        Channel::Led660 => Encoded { mod_type: MOD_PBM_BASE, target, params: vec![fc, duty, cur, 0] },
-        Channel::Led808 => Encoded { mod_type: MOD_PBM_BASE, target, params: vec![fc, duty, 0, cur] },
-        Channel::Led1064 => Encoded { mod_type: MOD_PBM_SMART, target, params: vec![fc, duty, 0, 0, cur, 0x04] },
+        Channel::Led660 => Encoded { mod_type: MOD_PBM_BASE, target, params: [&mhz[..], &[duty, cur, 0]].concat() },
+        Channel::Led808 => Encoded { mod_type: MOD_PBM_BASE, target, params: [&mhz[..], &[duty, 0, cur]].concat() },
+        Channel::Led1064 => Encoded { mod_type: MOD_PBM_SMART, target, params: [&mhz[..], &[duty, 0, 0, cur, 0x04]].concat() },
     })
 }
 

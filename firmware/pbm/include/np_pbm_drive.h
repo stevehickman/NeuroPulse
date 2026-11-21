@@ -17,7 +17,7 @@ extern "C" {
 /* Per-slot driver state. */
 typedef struct {
     uint8_t cur[3];          /* current setpoints: [0]=CH_A, [1]=CH_B, [2]=CH_C  */
-    uint8_t freq_code[3];    /* PWM frequency codes per channel                    */
+    uint32_t freq_mhz[3];    /* pulse frequency per channel, millihertz (0 = CW)  */
     uint8_t duty[3];         /* duty values written (as commanded; never clamped)  */
     uint8_t ch_enable;       /* last written CH_ENABLE register                   */
     uint8_t status;          /* last STATUS read                                  */
@@ -45,12 +45,14 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
                                                 uint8_t duty);
 
 /*
- * Set PWM frequency code on all enabled channels.
+ * Set the pulse frequency (millihertz, 0 = CW) on all enabled channels, then read each FREQ register back.  A tile that
+ * did not keep the value (it refuses a frequency it cannot realise, and keeps the previous one) is reported as
+ * NP_PBM_ERR_FREQ_REFUSED, so the command fails instead of running at another frequency (OI-PBMTILE-01).
  */
 np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot,
                                                 np_pbm_drv_slot_t *drv,
                                                 uint8_t ch_mask,
-                                                uint8_t freq_code);
+                                                uint32_t freq_mhz);
 
 /*
  * Enable or disable individual channels.
@@ -77,14 +79,15 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot,
                                                     np_pbm_drv_slot_t *drv);
 
 /*
- * Map EEG dominant frequency (Hz) to the nearest driver PWM frequency code, by distance in hertz (not by EEG band).
- * Applies NP_PBM_EEG_HYSTERESIS_TICKS hysteresis via ticks_off_code, the count of consecutive ticks the nearest code has
- * differed from the current one.
- * Returns 0xFF if hysteresis period not yet elapsed (no change needed).
+ * The EEG-adaptive pulse frequency: the dominant frequency itself, in millihertz (no EEG band picks it, and no code table
+ * does).  Applies NP_PBM_EEG_HYSTERESIS_TICKS hysteresis via ticks_off_code, the count of consecutive ticks the dominant
+ * frequency has differed from the running one.
+ * Returns the new frequency in millihertz, or NP_PBM_FREQ_NO_CHANGE if the hysteresis has not yet elapsed, the
+ * frequency is the running one, or it is not a frequency (zero, negative, not a number, or past 32 bits of millihertz).
  */
-uint8_t np_pbm_drive_map_eeg_freq(float    dominant_freq_hz,
-                                        uint8_t  current_freq_code,
-                                        uint8_t *ticks_off_code);
+uint32_t np_pbm_drive_map_eeg_freq(float     dominant_freq_hz,
+                                         uint32_t  current_freq_mhz,
+                                         uint8_t  *ticks_off_code);
 
 #ifdef __cplusplus
 }

@@ -59,8 +59,8 @@ typedef struct {
 
     /* EEG-adaptive state */
     float    eeg_dominant_freq_hz;   /* updated by EEG layer at 1 Hz              */
-    uint8_t  eeg_ticks_off_code[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS]; /* hysteresis counter: ticks the nearest code differed */
-    uint8_t  current_freq_code;      /* uniform-mode shared freq code             */
+    uint8_t  eeg_ticks_off_code[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS]; /* hysteresis counter: ticks the dominant frequency differed */
+    uint32_t current_freq_mhz;      /* uniform-mode shared pulse frequency, millihertz */
 
     /* NTC throttle state */
     float    ntc_temp_c[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
