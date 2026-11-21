@@ -38,7 +38,7 @@ The non-privacy files in `ci/` (`host-test-*.txt`, `required-checks.txt`, `main-
 
 ## 2. Summary
 
-**0 Critical, 0 High, 5 Medium, 3 Low.** Privacy failures predominate over security failures. One cause runs through most of them: **each gate tests a deny-list of names it already knows**, so a header, a column type or a table it has not heard of passes. The schema's own header says this about the SHDR gate ("Read the PASS for what it is"). This review found where that matters today.
+**0 Critical, 0 High, 6 Medium, 2 Low.** Privacy failures predominate over security failures. One cause runs through most of them: **each gate tests a deny-list of names it already knows**, so a header, a column type or a table it has not heard of passes. The schema's own header says this about the SHDR gate ("Read the PASS for what it is"). This review found where that matters today.
 
 The highest-leverage change is F1: delete every request header from both Caddy edges' logs and strip every client-address header before forwarding, instead of naming one or two. F2 and F3 cost almost nothing now and real migration later: the SHDR schema can be re-laid out at no cost only until the first device ships.
 
