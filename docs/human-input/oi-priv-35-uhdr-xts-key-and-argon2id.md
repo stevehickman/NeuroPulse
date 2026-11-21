@@ -65,7 +65,7 @@
 - The wait is counted in uptime from the later of boot and the last charged attempt (there is no RTC backup, CLAUDE.md §4.5). A power cycle restarts the wait; it never ends it.
 - A missing or unreadable count refuses the attempt.
 
-**Q3.** The 5 / 30 s / 24 h figures are PROVISIONAL (register row UC-201). NIST SP 800-63B-3 §5.2.2 bounds consecutive failures at 100 and does not state these. At the cap, a 4-digit PIN takes on the order of 10⁴ days to exhaust, a 6-digit one about 10⁶. **Recommendation:** set them from the device credential's real entropy (no PIN length rule for the device credential was found; `docs/np_app_presence_001.md` covers the phone's own screen lock) and the time an attacker may be assumed to hold the device, and write that beside them.
+**Q3.** The 5 / 30 s / 24 h figures are PROVISIONAL (register row UC-203). NIST SP 800-63B-3 §5.2.2 bounds consecutive failures at 100 and does not state these. At the cap, a 4-digit PIN takes on the order of 10⁴ days to exhaust, a 6-digit one about 10⁶. **Recommendation:** set them from the device credential's real entropy (no PIN length rule for the device credential was found; `docs/np_app_presence_001.md` covers the phone's own screen lock) and the time an attacker may be assumed to hold the device, and write that beside them.
 
 **Q4.** An attacker who removes the eMMC and rewrites the Config partition can reset the count. The Config key is re-derivable by NeurOne (`docs/np_fw_nvram_001.md` §3.2) but not, as far as the documents say, by a third party, so the rewrite needs that key as well. A counter in the SNVS monotonic counter or in OTP would remove the question; OTP fuses are finite. **Recommendation:** the reviewer rules whether Config is enough, given hardware binding already stops offline guessing; if not, an SNVS-anchored counter, raised as its own item.
 
@@ -77,7 +77,7 @@ Nothing in §C.7 erases or permanently locks. An erase after N failures would de
 
 - Q1 → the mount seam's contract (`np_uhdr_hal_mount_uhdr`) and §C.2 are rewritten before the seam is implemented; for A, also the record and the host GCM stub.
 - Q2 → `NP_UHDR_ARGON2ID_*` and the floors change in one commit, with the measured time per attempt; §C.3 and §C.4 are corrected.
-- Q3 → UC-201 moves to "Justified or retired" with the reasoning, or the figures change.
+- Q3 → UC-203 moves to "Justified or retired" with the reasoning, or the figures change.
 - Q4, Q5 → new items if the answer adds work.
 
 `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) stays open until Q1 to Q3 are ruled.

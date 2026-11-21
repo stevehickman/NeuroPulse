@@ -102,7 +102,7 @@
  * attempt.  The device has no RTC backup (CLAUDE.md §4.5), so the wait is
  * counted in uptime: a power cycle restarts the wait rather than ending it.
  *
- * PROVISIONAL (UC-201): the three figures below are choices, not derivations.
+ * PROVISIONAL (UC-203): the three figures below are choices, not derivations.
  * Nothing derives 5, 30 s or 24 h; NIST SP 800-63B-3 §5.2.2 bounds consecutive
  * failures (at most 100) but does not state these values.  They make an online
  * guess of a short PIN slow; they do not set its security level.  The

@@ -258,7 +258,7 @@ later of boot and the last charged attempt: a power cycle restarts the wait rath
 The figures (`NP_UHDR_UNLOCK_FREE_ATTEMPTS` = 5, `NP_UHDR_UNLOCK_BACKOFF_BASE_MS` = 30 s,
 `NP_UHDR_UNLOCK_BACKOFF_MAX_MS` = 24 h, in `firmware/uhdr_key/include/np_uhdr_key_config.h`) are
 **PROVISIONAL**: nothing derives them, and NIST SP 800-63B-3 §5.2.2 bounds consecutive failures at 100 but
-does not state them (register row UC-201). Lowering FREE or raising BASE or MAX only strengthens the limit.
+does not state them (register row UC-203). Lowering FREE or raising BASE or MAX only strengthens the limit.
 No attempt count wipes or permanently locks the partition: that would destroy the person's data on a
 guess by someone else, and it is a decision for the principal, not a detail (brief §4).
 
