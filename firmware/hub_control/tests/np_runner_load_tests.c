@@ -882,8 +882,8 @@ static void test_bes_frequency_eeg_gain_and_the_clinical_tacs_floor_are_refused_
 /* @verifies REQ-FWHUB-78#e,g */
 static void test_the_limit_predicate_refuses_pbm_duty_and_any_one_bad_command(void)
 {
-    np_mod_pbm_base_params_t base = { .freq_code = 0x28U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U };
-    np_mod_pbm_smart_params_t smart = { .freq_code = 0x28U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U,
+    np_mod_pbm_base_params_t base = { .freq_mhz = 40000U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U };
+    np_mod_pbm_smart_params_t smart = { .freq_mhz = 40000U, .duty = NP_PBM_DUTY_MAX_REG, .cur_a = 1U, .cur_b = 1U,
                                         .cur_c = 1U, .ch_mask = 7U };
     check(np_cmd_limits_check(NP_MOD_PBM_BASE, &base, sizeof base) == NP_HUB_OK &&
           np_cmd_limits_check(NP_MOD_PBM_SMART, &smart, sizeof smart) == NP_HUB_OK,
