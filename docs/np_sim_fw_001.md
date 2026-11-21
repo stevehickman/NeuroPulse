@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 44
-**Date:** 2026-11-21
+**Revision:** 45
+**Date:** 2026-11-13
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1222,3 +1222,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 42 | 2026-11-13 | NeurOne Software Engineering | **§5, §7, §28, new §32: `REQ-SIMFW-24` and its five parts; `OI-SIMFW-60` partly closed (lines reached before then after: `np_hrv_eeg_biofeedback.c` 0 to 100 %, `np_hrv_ppg.c` 13 to 97 %, `np_hrv_coherence.c` 12 to 98 %, `np_hrv_tavns_sync.c` 21 to 87 %, `np_hrv_pacer.c` 23 to 98 %, `np_hrv_session.c` 41 to 95 %; the owner's path list is not given); `OI-SIMFW-78` raised for the owner of `NP-FW-HRV-001` (nothing in the device's code feeds or ticks the session, the taVNS enable is a stub, the stop-time sweep finalise cannot succeed, a steady rhythm scores the maximum coherence, and others); `UC-181` registered.** |
 | 43 | 2026-11-13 | NeurOne Software Engineering | **§5, §7, §26, §27, §28, §31, new §33: `REQ-SIMFW-25` and its five parts; `OI-SIMFW-51` partly closed (Config, UHDR and SHDR are littlefs instances in the device's geometry over unlinked, 0600, sparse files; the session logger, log backend, session count and module map write through the device's own code; `np_lfs_log_instance.c`, `np_hexmap_nvram.c`, `np_map3_record.c` and `np_hexmap_inventory.c` are linked); `OI-SIMFW-05` records what of `REQ-SIMFW-21` is built (parts a, b, d for the three partitions) and what is not; `OI-SIMFW-79` raised (the log file layer is the twin's own because the device has none, and `scripts/check-lfs-caller-rules.ts` was extended for it, which the principal has not seen); `UC-182` registered.** |
 | 44 | 2026-11-21 | NeurOne Software Engineering | **§33: the twin's log file layer cites `UC-186`, not `UC-182`.** The `UC-182` cited in Rev 43's row means this choice; in the register the audio noise band is now `UC-183`. No requirement text changed. |
+| 45 | 2026-11-13 | NeurOne Software Engineering | **`OI-SIMFW-70` and `OI-SIMFW-71`: the Principal's rulings of 2026-11-13 on the nine design questions are recorded (three conditional); nothing is built from them.** |
