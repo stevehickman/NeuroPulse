@@ -579,8 +579,8 @@ The codec, the planar drivers and the bone transducer, `REQ-SIMFW-13`. One path,
 |---|---|---|
 | Seams | `platform_sim/src/np_sim_audio.c` | The eight `np_mod_audio_hal_*` seams. The model records what the driver told the output stage: planar mode (off, binaural, isochronic, pink or brown noise), carrier, beat and volume, and the bone transducer's frequency and volume. Mesh impedance is what the scenario gave the part, no default. Five seams return nothing, so an armed response makes the call not happen (as for the EEG front end); `codec_init` returns its armed status. |
 | Firmware it runs | the device's own file | `np_mod_audio.c`. No firmware file changed. |
-| Harness | `platform_sim/src/np_sim_audio_harness.c` | `audio_detect`, `audio_init`, `audio`, `audio_stop`, `audio_shutdown`, `audio_eeg_band` (the call the EEG telemetry path makes), `audio_sample`, `audio_raw`. |
-| Bridge | `fw-bridge.js` | `kind: "audio"` in `MODULE_SET` (`add`, `present`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `audio`, `audio_eeg_band`, `audio_init`, `audio_detect`, `audio_stop`, `audio_shutdown`, `audio_sample`. |
+| Harness | `platform_sim/src/np_sim_audio_harness.c` | `audio_detect`, `audio_init`, `audio`, `audio_stop`, `audio_shutdown`, `audio_eeg_freq` (the call the EEG path makes with the dominant frequency), `audio_sample`, `audio_raw`. |
+| Bridge | `fw-bridge.js` | `kind: "audio"` in `MODULE_SET` (`add`, `present`, `reading`), `MODULE_FAIL`, `MODULE_CLEAR`, and `FW_COMMAND` `audio`, `audio_eeg_freq`, `audio_init`, `audio_detect`, `audio_stop`, `audio_shutdown`, `audio_sample`. |
 | Tests | `platform_sim/tests/np_sim_audio_tests.c` | Eleven scenarios, 37 checks: bring-up, every mode, bone conduction, stop and the two lost stops, EEG-adaptive beat selection, the two findings below, a malformed command, telemetry, and the marking and isolation properties. |
 
 **Line coverage:** `hub_control/modules/np_mod_audio.c` 100 % of 60.
@@ -591,7 +591,7 @@ The codec, the planar drivers and the bone transducer, `REQ-SIMFW-13`. One path,
 |---|---|
 | Any sound | No sample path and no sound pressure level. The level is the absolute figure the driver passed on, not a measured one. Nothing about loudness, which is the audio modality's safety question, can be seen here. |
 | The mesh-fouling decision | The driver reads the impedance and discards it ("threshold comparison and SHDR log handled by session_log"); the comparison is not in `np_mod_audio.c`, so no scenario here reaches it. |
-| The EEG-to-audio loop | `audio_eeg_band` is the call; who makes it, from which EEG record, is the runner's, which is not in the loop. |
+| The EEG-to-audio loop | `audio_eeg_freq` (millihertz) is the call; who makes it, from which EEG record, is the runner's, which is not in the loop. |
 
 **What it found.** `OI-SIMFW-19` (closed 2026-11-09; the scenarios now assert the fix), two things in `np_mod_audio.c`:
 a band update from an EEG-adaptive session re-applied **binaural** whatever the running mode was, so an isochronic or noise

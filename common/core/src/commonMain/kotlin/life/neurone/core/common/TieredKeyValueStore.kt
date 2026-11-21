@@ -31,6 +31,9 @@ class TieredKeyValueStore(
 
     /** Apply what was held, now that the key can be read. A write that fails stays held, and the ones after it with it. */
     private fun applyPending() {
+        // A key moved from the UHDR tier to the device tier is moved off the gated key now that it can be read (the analytics ID and its
+        // erasure queue, the principal 2026-11-21). Only the device-tier keys are touched, and none of them was ever the person's.
+        device.resealFromLegacy()
         // First the values sealed before the gate was on are moved to the gated key (REQ-PRES-07), so a held write lands on top of them.
         uhdr.resealFromLegacy()
         uhdr.migrate()
