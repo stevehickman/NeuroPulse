@@ -178,6 +178,7 @@
   "COMMON_BACK": "Back",
   "COMMON_CANCEL": "Cancel",
   "COMMON_CLOSE": "Close",
+  "COMMON_FILL_REQUIRED_FIELDS": "Please fill in required fields.",
   "COMMON_OK": "OK",
   "CONDITION_LINK_A11Y_OPENS": "{0}. Opens a definition on {1}.",
   "CONDITION_LINK_DESTINATION": "Destination",
