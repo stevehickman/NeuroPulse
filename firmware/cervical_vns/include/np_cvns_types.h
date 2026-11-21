@@ -112,18 +112,28 @@ typedef struct {
 } np_cvns_session_record_t;
 
 /* ── SHDR session summary ─────────────────────────────────────────────────────── */
-/* Written to SHDR partition; no user biology.                                  */
+/* Written to the SHDR partition.  Device condition only: three one-byte flags
+ * (NP-FW-CVNS-001 §4.6, REQ-CVNS-15).
+ *
+ * Reshaped 2026-11-21 (OI-PRIV-23, NP-PRIV-ANALYSIS-004 H3, GitHub #951).  The
+ * struct used to carry electrode_config, stim_freq_hz, stim_current_ua,
+ * stim_duration_s and impedance_left/right_kohm.  Every one of those is UHDR:
+ * raw tissue impedance is "NEVER written to SHDR" (data-architecture-detail.md
+ * §5.1, cervical VNS per-electrode impedance), and protocol parameters and
+ * duration are UHDR contents.  They stay in np_cvns_session_record_t above.
+ * Joined by session count to the SHDR cutoff events, the old summary would have
+ * been a per-session table of neck-stimulation dose against cardiac response,
+ * keyed to the warranty token.  Do not add a field here without a §5.1 row that
+ * puts it in SHDR; when in doubt it is UHDR. */
 typedef struct {
-    uint8_t  electrode_config;
-    uint16_t stim_freq_hz;
-    uint16_t stim_current_ua;
-    uint32_t stim_duration_s;
-    float    impedance_left_kohm;
-    float    impedance_right_kohm;
-    uint8_t  impedance_check_pass;  /* 1 if both electrodes passed              */
-    uint8_t  cutoff_occurred;       /* flag only — no HR values                  */
+    uint8_t  impedance_check_pass;  /* 1 if both electrodes passed; no kΩ      */
+    uint8_t  cutoff_occurred;       /* flag only — no HR values, no timing      */
     uint8_t  fault_reason;          /* np_cvns_fault_reason_t                   */
 } np_cvns_shdr_summary_t;
+
+_Static_assert(sizeof(np_cvns_shdr_summary_t) == 3U,
+               "np_cvns_shdr_summary_t is three one-byte flags (REQ-CVNS-15); "
+               "a new field needs a CLAUDE.md §5.1 ruling first");
 
 /* ── Safety MCU fault log entry (SHDR) ─────────────────────────────────────────
  * 8 bytes.  Device-condition only: WHICH fault fired, and the session ordinal it

@@ -7,7 +7,8 @@
  *
  * UHDR record (session timestamps, HR, impedance raw values) written at session
  * end, encrypted with user's biometric-derived AES-256-XTS key via storage HAL.
- * SHDR summary (device metrics only, no user biology) written to SHDR partition.
+ * SHDR summary (three device-condition flags, no user biology, REQ-CVNS-15)
+ * written to the SHDR partition.
  */
 
 #include "np_cvns_session.h"
@@ -27,7 +28,9 @@ static void platform_shdr_write(const np_cvns_shdr_summary_t *shdr)
 {
     /* Platform HAL: write to SHDR eMMC partition (NeurOne manufacturing key)*/
     /* np_platform_shdr_write_cvns(shdr, sizeof(*shdr));                        */
-    /* OI-CVNS-04: implement before compliance.                                 */
+    /* OI-CVNS-04: implement before compliance.  The struct is the reshaped    */
+    /* three-flag summary (OI-PRIV-23); it carries no impedance, parameters or */
+    /* duration, so wiring it does not move UHDR into SHDR.                    */
     (void)shdr;
 }
 
@@ -170,8 +173,8 @@ static void session_complete(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
     ctx->uhdr_record.cutoff_occurred    = 0U;
     ctx->uhdr_record.fault_reason       = (uint8_t)NP_CVNS_FAULT_NONE;
 
-    ctx->shdr_summary.stim_duration_s   = ctx->uhdr_record.session_duration_s;
     ctx->shdr_summary.cutoff_occurred   = 0U;
+    ctx->shdr_summary.fault_reason      = (uint8_t)NP_CVNS_FAULT_NONE;
 
     platform_uhdr_write(&ctx->uhdr_record);
     platform_shdr_write(&ctx->shdr_summary);
@@ -215,11 +218,9 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
         ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
         ctx->uhdr_record.electrode_config   = config->electrode_config;
 
-        /* Initialize SHDR summary (no user biology). */
+        /* Initialize SHDR summary: flags only.  Electrode configuration, frequency, current and duration are UHDR
+         * and are not copied here (REQ-CVNS-15, OI-PRIV-23). */
         memset(&ctx->shdr_summary, 0, sizeof(ctx->shdr_summary));
-        ctx->shdr_summary.electrode_config  = config->electrode_config;
-        ctx->shdr_summary.stim_freq_hz      = config->freq_hz;
-        ctx->shdr_summary.stim_current_ua   = config->current_ua;
     }
 
     /* Initialize stim module (validates config).  A non-NULL safety-response
@@ -302,8 +303,7 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
             /* Store impedance in UHDR record (raw measurement = user biology).  */
             ctx->uhdr_record.impedance_left_kohm  = ctx->stim->impedance_kohm[0];
             ctx->uhdr_record.impedance_right_kohm = ctx->stim->impedance_kohm[1];
-            ctx->shdr_summary.impedance_left_kohm  = ctx->stim->impedance_kohm[0];
-            ctx->shdr_summary.impedance_right_kohm = ctx->stim->impedance_kohm[1];
+            /* SHDR gets the pass flag only, never a kΩ value (REQ-CVNS-15). */
             ctx->shdr_summary.impedance_check_pass = 1U;
             ctx->stage = NP_CVNS_STAGE_BASELINE;
         }

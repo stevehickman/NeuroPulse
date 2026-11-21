@@ -1,6 +1,7 @@
 package life.neurone.shared.migration
 
 import life.neurone.core.common.EncryptedKeyValueStore
+import life.neurone.core.common.GatedSecretKeyStore
 import life.neurone.core.migration.ClearActions
 import life.neurone.shared.ble.NeurOneGattManager
 
@@ -16,10 +17,12 @@ import life.neurone.shared.ble.NeurOneGattManager
 class SharedClearActions(
     private val data: EncryptedKeyValueStore,
     private val gatt: NeurOneGattManager,
+    /** The presence gate's key, when the host has one; destroyed with the data key so no key outlives what it guarded (issue 935). */
+    private val gated: GatedSecretKeyStore? = null,
 ) : ClearActions {
     override suspend fun run(step: String): Boolean = try {
         when (step) {
-            "destroyEncryptionKey" -> { data.destroyKey(); true }
+            "destroyEncryptionKey" -> { data.destroyKey(); gated?.destroy(); true }
             "forgetPairingRecord" -> { gatt.forgetHub(); true }
             else -> false
         }
