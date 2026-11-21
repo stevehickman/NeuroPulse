@@ -221,7 +221,9 @@ jobs:
           xcrun simctl install "$udid" "$app"
           # 30 s, doubled from 15 s for a slow hosted runner (a cold simulator boot there takes 2 to 5 minutes).
           settle_s=30
-          launch_out=$(xcrun simctl launch "$udid" "$bundle")
+          # The app's stdout and stderr go to files: an uncaught Kotlin exception prints its message and stack there.
+          out_log="$RUNNER_TEMP/iosapp-stdout.log"; err_log="$RUNNER_TEMP/iosapp-stderr.log"
+          launch_out=$(xcrun simctl launch --stdout="$out_log" --stderr="$err_log" "$udid" "$bundle")
           echo "$launch_out"
           pid=${launch_out##*: }
           [[ "$pid" =~ ^[0-9]+$ ]] || { echo "::error::simctl launch printed no pid: '$launch_out'"; exit 1; }
@@ -234,10 +236,16 @@ jobs:
             exit 0
           fi
           echo "::error::$bundle (pid $pid) is not running ${settle_s} s after launch"
-          # Print why: the newest crash report for the app's executable, then what the app logged.
+          # Print why: the app's stderr and stdout, the newest crash report for its executable, what the system logged about
+          # ending it, then what the app itself logged.
+          for f in "$err_log" "$out_log"; do echo "--- $f"; tail -n 200 "$f" 2>/dev/null || echo "(empty or missing)"; done
           exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")
           report=$(ls -t "$HOME"/Library/Logs/DiagnosticReports/"$exe"* 2>/dev/null | head -n1 || true)
           if [ -n "$report" ]; then echo "--- $report"; head -n 200 "$report"; else echo "No crash report for $exe."; fi
+          echo "--- system log about $bundle (pid $pid)"
+          { xcrun simctl spawn "$udid" log show --last 10m --style compact \
+              --predicate "process != \"$exe\" AND (eventMessage CONTAINS \"$bundle\" OR eventMessage CONTAINS \"$pid\")" \
+              | grep -iE 'terminat|exit|crash|signal|watchdog|jetsam|kill' | tail -n 60; } || true
           echo "--- log of $exe"
           { xcrun simctl spawn "$udid" log show --last 10m --style compact --predicate "process == \"$exe\"" | tail -n 150; } || true
           exit 1
