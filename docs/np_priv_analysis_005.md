@@ -52,15 +52,17 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Reference:** PII in Logs anti-pattern; LINDDUN Linkability; GDPR Art. 5(1)(c); `CLAUDE.md` §5.1 (SHDR is linked to the device, never to a place or a person).
 - **Remediation:** In every log filter, delete the whole header map (`request>headers delete`), or keep only an allow-list (`Content-Type`, `Content-Length`). Upstream, add `header_up -Forwarded`, `-Via`, `-True-Client-IP`, `-CF-Connecting-IP`, `-X-Client-IP` beside the two already removed. Change F2 and P8 to require the header map deleted, and F3 and P6 to require the full list.
 - **Existing coverage:** New. `OI-PRIV-05` and GitHub #903 decide the analytics relay; `OI-FLEET-01` (e) says the deployed edge is not in the repository. Neither covers these headers in the reference configurations.
+- **Status, 2026-11-21: fixed (`OI-PRIV-51` closed).** Every log filter on both edges deletes `request>headers`; every `reverse_proxy` on both edges removes `X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `True-Client-IP`, `CF-Connecting-IP`, `X-Client-IP`, `X-Cluster-Client-IP`, `Fastly-Client-IP` and `Via`. F2 and P8 require the header map deleted, F3 and P6 require the full list in every `reverse_proxy`, and each gate's self-test has a case per new rule. What remains: a header outside that list still reaches the upstream (a forwarded request cannot drop its headers wholesale), though no log keeps it; and `caddy adapt` checks the PostHog file in CI (P9) but nothing checks the fleet file.
 
-### F2. MEDIUM: 12 of the 21 SHDR month anchors are month-granular by DEFAULT only (`OI-PRIV-52`)
+### F2. MEDIUM: 13 of the 22 SHDR month anchors were month-granular by DEFAULT only (`OI-PRIV-52`)
 
 - **Where:** `ci/shdr/shdr_fleet_schema.sql`: `devices.last_seen_month`, and `ingest_month` in `firmware_history`, `ota_events`, `power_telemetry`, `accessory_auth_log`, `calibration_history`, `eeg_impedance_trend`, `shdr_accel_records`, `shdr_accel_characterisation`, `mode_f_telemetry`, `fault_log` and `storage_health`. Checked by `ci/test_shdr_schema.py` (`PROHIBITED_TIME_TYPE_PATTERNS`).
 - **Category:** Privacy failure.
 - **Issue:** A DEFAULT applies only when an insert leaves the column out. An ingest service that writes `CURRENT_DATE` stores the day of each docking, keyed to `warranty_token`: the docking-time side channel that TIME-01 and schema Rev B exist to remove. Shown live (§1): `devices` and `fault_log` accept `2026-08-11`; `module_inventory`, which has the CHECK, refuses it. The other nine anchors carry a `DATE_TRUNC` CHECK; the constraint tests probe one of them. The static gate rejects only the `TIMESTAMP`, `TIMESTAMPTZ` and `TIME` types, so a `BIGINT uploaded_epoch` or an `INTERVAL` column passes it.
 - **Reference:** GDPR Art. 25; LINDDUN Detectability; `CLAUDE.md` §5.1 ("no timestamps in SHDR", as the schema header cites it); `NP-FW-EMMC-002` §G.
-- **Remediation:** Add `CHECK (col = DATE_TRUNC('month', col)::date)` to the twelve. Add a static rule: every `DATE` column other than one named `*manufacture_date` carries that CHECK. Reject `INTERVAL`, and reject a column of any type whose name matches `_epoch`, `_ts`, `_at$`, `_time` or `unix`. Add one live reject case per table to `shdr_schema_constraint_tests.sql`. Proposed as blocking for the SHDR schema freeze (`OI-EMMC2-07`), because after the first device ships each CHECK needs a migration.
+- **Remediation:** Add `CHECK (col = DATE_TRUNC('month', col)::date)` to each of them. Add a static rule: every `DATE` column other than one named `*manufacture_date` carries that CHECK. Reject `INTERVAL`, and reject a column of any type whose name matches `_epoch`, `_ts`, `_at$`, `_time` or `unix`. Add one live reject case per table to `shdr_schema_constraint_tests.sql`. Proposed as blocking for the SHDR schema freeze (`OI-EMMC2-07`), because after the first device ships each CHECK needs a migration.
 - **Existing coverage:** New. `shdr_schema_constraint_tests.sql` states the DEFAULT problem ("the DEFAULT only applies when the column is omitted") and tests `module_inventory` only.
+- **Status, 2026-11-21: fixed (`OI-PRIV-52` closed; SHDR schema Rev F; `REQ-SHDR-11`).** All 13 anchors carry `CONSTRAINT ck_<table>_month`. **This document first said 12 of 21:** the review missed `emf_shielding_telemetry.ingest_month`, and TIME-02, written for the fix, found it. `ci/test_shdr_schema.py` TIME-01 also refuses `INTERVAL` and a clock-named column of any type (`char_consent_epoch`, a consent generation, is the one named exception), and TIME-02 requires the CHECK on every `DATE` column but a manufacture date. The live harness has a reject case and an accept control per table, 82 of 82 pass against PostgreSQL 16, and the 13 new reject cases fail against the Rev E schema.
 
 ### F3. MEDIUM: the fleet-wide row sequences are a clock and link the rows of one upload (`OI-PRIV-53`)
 
@@ -168,8 +170,8 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 
 ## 7. Recommended next steps
 
-1. **F1**, about an hour: delete the header map in both edges' logs, strip the full client-address set upstream, extend F2, F3, P6 and P8.
-2. **F2**, about two hours: the twelve CHECKs, the static rule, the integer and `INTERVAL` patterns, one live reject case per table.
+1. **F1** (done 2026-11-21), about an hour: delete the header map in both edges' logs, strip the full client-address set upstream, extend F2, F3, P6 and P8.
+2. **F2** (done 2026-11-21), about two hours: the CHECKs, the static rule, the integer and `INTERVAL` patterns, one live reject case per table.
 3. **F3**, about an hour, while the schema is still free to re-lay out: random keys or per-device keys, and the static rule.
 4. **F4**: the contact default, enumerated claim types, `DATE` instead of `TIMESTAMPTZ` and a gate, about half a day; the retention periods are the principal's decision.
 5. **F6**, with `OI-ANALYTICS-01` (2): list every place the analytics ID lives and widen the erasure and TTL to it.
@@ -184,8 +186,8 @@ The owning entries are in `docs/status/pending-decisions.md`, under "Privacy rev
 
 | Open item | Finding | Closes when |
 |---|---|---|
-| `OI-PRIV-51` | F1 | Both edges delete all request headers from every log and strip the full client-address set upstream, and the gates require it |
-| `OI-PRIV-52` | F2 | Every SHDR month anchor has its CHECK, the static gate requires it and rejects integer and interval clocks, and each is probed live |
+| `OI-PRIV-51` | F1 | Both edges delete all request headers from every log and strip the full client-address set upstream, and the gates require it. **Closed 2026-11-21.** |
+| `OI-PRIV-52` | F2 | Every SHDR month anchor has its CHECK, the static gate requires it and rejects integer and interval clocks, and each is probed live. **Closed 2026-11-21.** |
 | `OI-PRIV-53` | F3 | No SHDR table has a fleet-wide sequence, and the gate forbids one |
 | `OI-PRIV-54` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
 | `OI-PRIV-55` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
