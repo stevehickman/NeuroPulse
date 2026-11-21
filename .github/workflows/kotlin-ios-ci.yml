@@ -219,13 +219,36 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl install "$udid" "$app"
-          xcrun simctl launch "$udid" "$bundle"
-          sleep 15
+          # 30 s, doubled from 15 s for a slow hosted runner (a cold simulator boot there takes 2 to 5 minutes).
+          settle_s=30
+          # The app's stdout and stderr go to files: an uncaught Kotlin exception prints its message and stack there.
+          out_log="$RUNNER_TEMP/iosapp-stdout.log"; err_log="$RUNNER_TEMP/iosapp-stderr.log"
+          launch_out=$(xcrun simctl launch --stdout="$out_log" --stderr="$err_log" "$udid" "$bundle")
+          echo "$launch_out"
+          pid=${launch_out##*: }
+          [[ "$pid" =~ ^[0-9]+$ ]] || { echo "::error::simctl launch printed no pid: '$launch_out'"; exit 1; }
+          sleep "$settle_s"
           xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/iosapp-launch.png"
-          # A live app has a pid in the first column; a crashed one shows "-".
-          pid=$(xcrun simctl spawn "$udid" launchctl list | awk -v b="$bundle" '$3 ~ b {print $1}' | head -n1)
-          echo "pid of $bundle after 15 s: '${pid}'"
-          case "$pid" in ''|-) echo "::error::$bundle is not running 15 s after launch"; exit 1 ;; esac
+          # A simulator app is a process on the host, so the pid simctl printed is checked there. The earlier lookup through
+          # the simulator's `launchctl list` found no row for the app on every run, which could not tell a crash from a miss.
+          if ps -p "$pid" >/dev/null; then
+            echo "$bundle (pid $pid) is running ${settle_s} s after launch"
+            exit 0
+          fi
+          echo "::error::$bundle (pid $pid) is not running ${settle_s} s after launch"
+          # Print why: the app's stderr and stdout, the newest crash report for its executable, what the system logged about
+          # ending it, then what the app itself logged.
+          for f in "$err_log" "$out_log"; do echo "--- $f"; tail -n 200 "$f" 2>/dev/null || echo "(empty or missing)"; done
+          exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")
+          report=$(ls -t "$HOME"/Library/Logs/DiagnosticReports/"$exe"* 2>/dev/null | head -n1 || true)
+          if [ -n "$report" ]; then echo "--- $report"; head -n 200 "$report"; else echo "No crash report for $exe."; fi
+          echo "--- system log about $bundle (pid $pid)"
+          { xcrun simctl spawn "$udid" log show --last 10m --style compact \
+              --predicate "process != \"$exe\" AND (eventMessage CONTAINS \"$bundle\" OR eventMessage CONTAINS \"$pid\")" \
+              | grep -iE 'terminat|exit|crash|signal|watchdog|jetsam|kill' | tail -n 60; } || true
+          echo "--- log of $exe"
+          { xcrun simctl spawn "$udid" log show --last 10m --style compact --predicate "process == \"$exe\"" | tail -n 150; } || true
+          exit 1
 
       - name: Upload the launch screenshot
         if: ${{ always() }}
