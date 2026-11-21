@@ -353,3 +353,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 317 | 2026-11-15 | NeurOne Systems Engineering | **17 → 18: committed merge-conflict markers removed from the OI-AUDIOHW-13 row (the 2026-11-12 row, which carries the principal's bone wire and combined-case decisions, is kept); and the 40 mm planar driver size retired by the principal, off-the-shelf preferred where it meets the specs.** |
 | 318 | 2026-11-21 | NeurOne Systems Engineering | **18 → 19, 39 → 40: the shared validator reports a planar tone above 1,000 Hz (REQ-AUDIO-25), one constant for the compiler and validator, tied to the hub's.** |
 | 319 | 2026-11-21 | NeurOne Software Engineering | **166 → 167: SWR-UI-01, the web app's parameter controls and the single bounds file; built in the web app only.** |
+| 320 | 2026-11-21 | NeurOne Software Engineering | **167 → 168: SWR-UI-01 (f): a clinician limit outside its range is refused at save and import, not clamped.** |
