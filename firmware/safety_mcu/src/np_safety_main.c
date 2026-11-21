@@ -554,7 +554,8 @@ int main(void)
         /* Accumulate charge for currently-granted DC channels carrying a
          * non-zero commanded current.  dt_us is a compile-time constant —
          * NP_SAFETY_HEARTBEAT_MS × 1000 = 200000 µs — not transmitted
-         * over SPI.  current_ua[] are SHDR (commanded, not ADC-measured).
+         * over SPI.  current_ua[] are commanded, not ADC-measured: UHDR-class
+         * protocol parameters, held here and never reported (OI-PRIV-41).
          *
          * DC ONLY (OI-CHARGE-05 (b)).  BES/tACS, VNS, cervical VNS and clinical
          * tACS are charge-balanced biphasic: net delivered charge is ~zero, so
