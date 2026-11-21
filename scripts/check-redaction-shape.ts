@@ -175,6 +175,7 @@ const NON_WRITERS: { name: string; why: string }[] = [
   { name: "np_shdr_crc32", why: "pure CRC over a record already built" },
   { name: "np_accel_shdr_evaluate", why: "decides whether a record is due; writes nothing" },
   { name: "np_factory_reset_hal_zero_shdr", why: "erases the partition; writes no record" },
+  { name: "np_cvns_reenable_shdr_code", why: "maps a re-enable event to its SHDR code (the cutoff flag, else 0); writes nothing (REQ-FWHUB-91)" },
 ];
 
 type Role =
@@ -286,6 +287,25 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     role: "writer",
     note: "unrestored socket after a hold → np_log_shdr_fault(PBM, code), no slot (F11 shape)",
   },
+  // ── cervical VNS, reshaped by OI-PRIV-23 and OI-PRIV-28 (NP-PRIV-ANALYSIS-004) ──
+  {
+    file: "firmware/hub_control/src/np_hub_control_main.c",
+    fn: "log_cvns_event",
+    role: "writer",
+    note: "the ruled cutoff flag only, via np_cvns_reenable_shdr_code; other lifecycle events are never written (REQ-FWHUB-91, OI-PRIV-28)",
+  },
+  {
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_advance_to_fault",
+    role: "writer",
+    note: "the three-flag summary {impedance_check_pass, cutoff_occurred, fault_reason}, size-asserted (REQ-CVNS-15, OI-PRIV-23)",
+  },
+  {
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_complete",
+    role: "writer",
+    note: "the same three-flag summary on normal completion, written on every session (REQ-CVNS-15, OI-PRIV-23)",
+  },
   // ── PBM and accelerometer ──
   {
     file: "firmware/pbm/src/np_pbm_detect.c",
@@ -355,27 +375,6 @@ const KNOWN_VIOLATIONS: {
     fn: "np_runner_run",
     owners: [{ oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 }],
     why: "fills and writes the SESSION_END record and feeds np_log_telemetry",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_advance_to_fault",
-    owners: [{ oi: "OI-PRIV-23 (NP-PRIV-ANALYSIS-004)", issue: 951 }],
-    why: "cervical VNS SHDR summary: impedance, stimulation parameters, cutoff flag",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_complete",
-    owners: [{ oi: "OI-PRIV-23 (NP-PRIV-ANALYSIS-004)", issue: 951 }],
-    why: "cervical VNS SHDR summary carries stimulation duration",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_hub_control_main.c",
-    fn: "log_cvns_event",
-    owners: [{ oi: "OI-PRIV-28 (NP-PRIV-ANALYSIS-004)", issue: 956 }],
-    why: "cervical VNS lifecycle codes with no §5.1 ruling",
   },
   {
     rule: "undeclared-writer",
