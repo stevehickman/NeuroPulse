@@ -389,7 +389,7 @@ class AppServices(
      * target without that binding wired yet (OI-UI-KMP-01) cannot do. Screens that do not list
      * protocols never pay for it, or fail on it.
      */
-    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
+    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore, lock = presenceLock) }
 
     /**
      * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm
