@@ -74,6 +74,11 @@ class MigrationRestoreModel(
      * is restored, which writes a claim and a confirmation there. Off for a saved file, which is not a store the app can probe.
      */
     private val storageChecks: Boolean = false,
+    /**
+     * Runs when a restore has put keys in the store. The restore writes them straight to it, under every store that read them when the
+     * app started, so the host passes the call that makes those stores read them again (`OI-PRIV-19`).
+     */
+    private val onRestored: () -> Unit = {},
 ) {
     private val checked = MutableStateFlow<StorageCheck?>(null)
 
@@ -147,6 +152,8 @@ class MigrationRestoreModel(
             secret.destroy()
         }
         if (done["ok"]!!.jsonPrimitive.boolean) {
+            // The restore wrote its keys straight to the store, under every cache that read them at launch.
+            onRestored()
             state.value = RestoreStep.Done(restoreReportOf(done).withWaveforms(recordings))
         } else {
             val reason = done["reason"]!!.jsonPrimitive.content

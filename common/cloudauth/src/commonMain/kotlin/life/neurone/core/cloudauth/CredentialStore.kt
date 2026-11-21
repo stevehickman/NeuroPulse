@@ -77,10 +77,18 @@ class CredentialStore private constructor(
     private val store: KeyValueStore,
     /** Whether what is saved outlives this run: true when sealed at rest, false when the run holds it in memory only. */
     val durable: Boolean,
+    /**
+     * Whether the sealed document can be read now. False while the presence gate is closed (`NP-APP-PRESENCE-001`): a read then
+     * answers "absent", which is not "no accounts", and every operation here loads the whole vault, changes it and saves it whole, so
+     * a save built on that read would replace every sealed account with the one just changed (`OI-PRIV-19`).
+     */
+    private val readable: () -> Boolean = { true },
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
     internal fun load(): Vault {
+        // Locked is the same answer as an unreadable document: the accounts are left as they are and nothing is replaced.
+        if (!readable()) throw CloudAuthException(CloudAuthProblem.STORE_UNREADABLE, "the stored cloud accounts cannot be read while the presence lock is closed")
         val text = store.getString(KEY) ?: return Vault()
         return try {
             json.decodeFromString(Vault.serializer(), text)
@@ -90,6 +98,7 @@ class CredentialStore private constructor(
     }
 
     internal fun save(vault: Vault) {
+        if (!readable()) throw CloudAuthException(CloudAuthProblem.STORE_UNREADABLE, "the stored cloud accounts cannot be written while the presence lock is closed")
         store.putString(KEY, json.encodeToString(Vault.serializer(), vault))
     }
 
@@ -110,7 +119,9 @@ class CredentialStore private constructor(
          * null answer a plain document is removed from [ProtectedStorage.store].
          */
         fun over(storage: ProtectedStorage): CredentialStore? {
-            if (storage.keepsFromTheClear(KEY)) return CredentialStore(storage.store, durable = storage.state == StorageProtection.SEALED)
+            if (storage.keepsFromTheClear(KEY)) {
+                return CredentialStore(storage.store, durable = storage.state == StorageProtection.SEALED, readable = { storage.isReadable })
+            }
             removePlainRemnant(storage.store)
             return null
         }

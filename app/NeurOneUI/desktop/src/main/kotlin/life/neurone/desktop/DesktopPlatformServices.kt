@@ -9,7 +9,6 @@ import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.migration.FileStore
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.core.session.ProtocolSigner
-import life.neurone.shared.migration.BACKUP_FOLDER_KEY
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.PlatformServices
 import life.neurone.shared.ble.BleCentral
@@ -94,10 +93,11 @@ class DesktopPlatformServices(
      * choice can change.
      */
     override val migrationFiles: FileStore
-        get() = desktopOwnFiles(
-            desktopDataDirectory,
-            keyValueStore.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() } ?: folderPlaces.defaultFolder,
-        )
+        get() = desktopOwnFiles(desktopDataDirectory, folderPlaces.defaultFolder)
+
+    /** The chosen folder comes from the app, which reads it from the sealed store; this host's raw store holds it as ciphertext. */
+    override fun migrationFilesExcluding(backupFolder: String?): FileStore =
+        desktopOwnFiles(desktopDataDirectory, backupFolder?.takeIf { it.isNotBlank() } ?: folderPlaces.defaultFolder)
 
     /** After "erase this device" the run holds the old state in memory, so the app ends and is started again (SWR-MG-17). */
     override val endRunAfterErase: (() -> Unit) = { kotlin.system.exitProcess(0) }
