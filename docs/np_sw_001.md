@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 166
-**Date:** 2026-11-13  
+**Revision:** 167
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -851,3 +851,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 164 | 2026-11-13 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated as built: a session of any modality but audio longer than the 120-minute long-session level (`UC-067`, not a health limit) runs only after the user acknowledges its length, as the `sessionDuration` axis of the zone model; audio is outside the rule and no per-day total is kept (`OI-HLIM-01` decided, 2026-11-13). The `SWR-SS-04` Status cell now says its way back is on that same dialog. No requirement text changed.** |
 | 165 | 2026-11-13 | NeurOne Software Engineering | **§6.3.7 SWR-MG-12: a storage account that cannot report its free space does not fail the account check; the result says the room was not confirmed (the principal, 2026-11-13).** |
 | 166 | 2026-11-13 | NeurOne Software Engineering | **§6.3: `SWR-MG-12` built in part (issue #569 package 6zzzz): `StorageCheckModel` asks the core's probe of a place and words the verdict and the failed operation from the core's table (new group `probeOps`, eight locale keys in all eleven locales); the backup and restore screens run it on the chosen folder or account and again before a migration, and a place that fails is refused (a restore before it takes the claim); no real provider is probed (#566).** |
+| 167 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: new SWR-UI-01: every parameter is edited with one set of controls chosen by its bounds (a slider only when bounded on both sides, otherwise a typed field), every value has an editable field, a magnifier serves ranges finer than the track, controls are grouped by kind, a control never clamps, and every bound lives in app/web/src/lib/paramBounds.ts. Built in the web app; the Compose and iOS apps are not.** |
