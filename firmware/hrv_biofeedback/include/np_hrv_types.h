@@ -142,7 +142,11 @@ typedef struct {
     uint8_t  reserved[8];
 } np_hrv_session_record_t;
 
-/* ── SHDR coherence trend record (no user biology) ──────────────────────────── */
+/* ── Coherence trend record — UHDR (CLAUDE.md §5.1; OI-PRIV-30) ───────────── */
+/* Per-session mean coherence and its slope are an HRV-derived series about the */
+/* wearer, so the trend is UHDR. It is never written to SHDR or Config. Nothing */
+/* keeps it today: the user's app derives a trend from the UHDR 0x1B session    */
+/* records (NP-FW-HRV-001 §8.2).                                               */
 typedef struct {
     float    session_mean_coherence[NP_HRV_TREND_SESSIONS]; /* ring buffer        */
     uint8_t  head;             /* next write index                               */
