@@ -79,6 +79,11 @@ PROHIBITED_PII_PATTERNS: list[tuple[str, str]] = [
     (r"\buser_id\b",         "user identifier"),
     (r"\bcustomer_id\b",     "customer identifier"),
     (r"\bpatient_id\b",      "patient identifier"),
+    # OI-PRIV-07 (the principal, 2026-11-20): the study audit trail is UHDR; nothing naming a study,
+    # and no research-extract total, may be an SHDR column (data-architecture-detail.md §5.1).
+    (r"study",               "research study identifier or field (OI-PRIV-07: UHDR)"),
+    (r"descriptor",          "study descriptor field (OI-PRIV-07: UHDR)"),
+    (r"extract",             "research extract field (OI-PRIV-07: UHDR)"),
     (r"\bregistrant",        "registrant data"),
     # Substring matches — catch prefixed/suffixed variants like user_email, billing_address
     (r"email",               "email address"),

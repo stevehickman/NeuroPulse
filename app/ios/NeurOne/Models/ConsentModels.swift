@@ -443,9 +443,8 @@ enum ResearchCategory: String, CaseIterable, Codable {
 /// enrolment, as that time and 0 bytes, which recorded a transmission that had not happened (`OI-PRIV-06` point 4).
 /// No extractor exists yet (`OI-CONSENT-07`), so today every record has `transmittedAt` nil.
 ///
-/// `enrolledAt` and `withdrawnAt` are not in §5.3's list. They are the person's decisions about a study, so
-/// they stay on the device and are not part of what an SHDR upload of the audit trail may carry (§5.1: when in
-/// doubt, UHDR).
+/// The whole record is UHDR (`OI-PRIV-07`, the principal, 2026-11-20): it names a study and holds the person's
+/// enrolment and withdrawal decisions. It stays on the device under the person's key and never goes to SHDR.
 struct StudyParticipationRecord: Codable, Identifiable, Equatable {
     var id: UUID
     var studyID: String

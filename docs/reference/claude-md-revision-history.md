@@ -19,6 +19,38 @@
 
 ## Current revision
 
+**Rev 89 (2026-11-21) — §6.3: NeurOne builds no invitation list; it publishes each research request to subscribed devices, and a device subscribes only while it is the current device for one of its users (the principal, `OI-PRIV-22`). No other locked decision changed.**
+
+**What changed.** §6.3 no longer says NeurOne builds an invitation list from device ID and contact preferences, nor that a request goes to the current device of every person who consented. It now says a request is published to every subscribed device with nothing filtered; a device subscribes only while it is current for at least one of its users, and the subscription says nothing about consent; the device compares each user's consents with the request on the device; a person is current on the last device they registered, and a move publishes a signed notice that retires the old one; delivery is a platform push and the push service learns the app receives these broadcasts. §5.3's "current device" now reads "the device that is current for them".
+
+**Why.** The Rev 87 form kept a per-person record at the server and had the server learn who consented to some research, which is the leak `NP-SW-PORTAL-API-001` §3 existed to prevent. The principal's redesign moves everything about the person onto the device: the server holds only channels for devices, and an old device learns it was superseded from a notice it can verify against a key it already holds. The principal accepted the push service's visibility and a stable channel address per subscribed device as the cost (2026-11-21), withdrew the idea of sending extracts directly to the researcher the same day, and ruled the portal shows a participant count only (`OI-PRIV-25`).
+
+**What it leaves.** Nothing is built (`OI-PRIV-22`): the notice order and retention, the relay (`OI-PRIV-23`), junk notices, push size, desktop and web with no push, the strings, the core API, the consent step of a restore and the extractor (`OI-CONSENT-07`). The §1 to §6 and §16 to §23 numbering is unchanged.
+
+**Rev 88 (2026-11-20) — §5.3: a study declares up front whether it needs tracking over time; with none an extract carries no identifier and a study asks once (the principal, `OI-PRIV-24`). No other locked decision changed.**
+
+**What changed.** §5.3 gains the declaration in the signed descriptor (default none), the per-person-and-study identifier (never the same across studies) for a study that declares it, the plain-words consent, k-anonymity on the linked series, and the rule that the declaration is fixed for a study.
+
+**Why.** Researchers sometimes need to follow a participant across tranches (a protocol changed midstream), and a device-side marker alone gives them nothing to link. The principal ruled that this is the exception, not the default, and that a study must say so before it starts. A study that does not declare it asks once, because a second request could not avoid duplicates.
+
+**What it leaves.** The IRB adviser's answer on what a researcher must show to declare tracking, and on the exemption argument of `NP-IRB-001` §5 for a coded identifier (`docs/human-input/oi-priv-24-tracking-declaration.md`, not sent). The descriptor field is the study service's format (`OI-CONSENT-07`); nothing is built.
+
+**Rev 87 (2026-11-20) — §5.3, §6.3: no device identifier in the research store, and study requests are broadcast to each consenter's current device (the principal, `OI-PRIV-21`, `OI-PRIV-22`). No other locked decision changed.**
+
+**What changed.** §5.3 says the research store is keyed to study ID only and a person's extracts come only from their current device. §6.3 says a request is broadcast to the current device of every person who consented to any research, the server never filters by topic, and the current-device record is delivery-only and kept apart from the research store, SHDR and the warranty database.
+
+**Why.** Studies do not need device data. The one use found, stopping one person's UHDR being loaded from several devices, is met by delivering only to the current device. Broadcast means NeurOne never learns which research areas a person consented to. Returning data to NeurOne for further anonymization was rejected, because partly anonymized UHDR at NeurOne breaks §5.1.
+
+**What it leaves.** Not built (`OI-PRIV-22`): registering and retiring a current device, the non-current refusal, the withdrawal path of the "any research" subscription. The server holds that subscription bit, and it is not SHDR. `OI-PRIV-23` (relay for extracts) is not ruled.
+
+**Rev 86 (2026-11-20) — §5.3: the study participation audit trail is UHDR, not SHDR, and SHDR holds nothing about research extracts (the principal, `OI-PRIV-07`). No other locked decision changed.**
+
+**What changed.** §5.3's last sentence said study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR. It now says the audit trail (those four, plus the enrolment and withdrawal days) is UHDR, held on the device under the person's key, never uploaded and never shared with researchers.
+
+**Why.** §5.3 conflicted with the §5.1 defining test: a study ID resolves to a disease-category study and a withdrawal day is a personal decision, and under the device-linked SHDR token the log would tell the fleet database which wearer is in which study. SHDR upload is consented by the warranty owner, who may be a clinic (§6.0), and a shared device would mix wearers. The principal ruled (2026-11-20; brief `docs/human-input/oi-priv-07-study-audit-trail-record.md`): Q1 A (the whole record is UHDR), Q2 A (SHDR holds no research field beyond the `anonymization_failed` boolean, and no running totals), Q3 A (the research store's study-and-device key is reviewed, `OI-PRIV-21`).
+
+**What it leaves.** NeurOne has no device-side account of extracts in the fleet database; its own record is the research store's receipt. The trail is lost with the phone unless the person's UHDR backup holds it. `OI-PRIV-21` is open. The §1 to §6 and §16 to §23 numbering is unchanged.
+
 **Rev 85 (2026-11-20) — §18: an economic reason also justifies a bound, and the reasons rank (the principal). No other locked decision changed.**
 
 **What changed.** §18's paragraph on derived bounds named three reasons a limit may rest on: research literature, an external standard, and a mechanical or implementation reason. It now names a fourth, an economic reason, with regulatory equivalence as the example, and ranks them: research is strongest, an economic reason is weaker, and either is better than none. An economic bound carries its reason and its cost of change beside it.
