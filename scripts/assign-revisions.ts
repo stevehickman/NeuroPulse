@@ -89,6 +89,11 @@ function insertRow(text: string, row: string, n: number, where: string, startTab
   if (max >= n) throw new Error(`${where}: its history already reaches ${max}, so revision ${n} would not be the newest`);
   let end = at;
   while (end + 1 < lines.length && HISTORY_ROW.test(lines[end + 1])) end++;
+  // A table with no Author column takes the row without its author cell (the row is built with one).
+  let top = at;
+  while (top > 0 && lines[top - 1].startsWith("|")) top--;
+  const head = lines.slice(top, at).find((l) => /^\| *Rev *\|/.test(l));
+  if (head !== undefined && head.split("|").length - 2 === 3) row = row.replace(/^(\| [^|]+ \| [^|]+ \|) [^|]* \|/, "$1");
   lines.splice(end + 1, 0, row);
   return lines.join("\n");
 }
@@ -312,6 +317,21 @@ function selfTest(): void {
     check(res.status === "done" && /^\*\*Revision:\*\* 4$/m.test(sw) && /\| 4 \| 2026-11-02 \| A \| \*\*next\*\* \|/.test(sw), "a Revision line behind its history takes the next number after the history's newest row (3 -> 4, not 2 -> 3)");
     check(/\*\*3 → 4: healed\./.test(dh) && /\| NP-SW-001 \| SW \| 4 \|/.test(read(heal, DHF_FILE)), "and the text and the DHF index follow it");
   } finally { rmSync(heal, { recursive: true, force: true }); }
+
+  // A history table with no Author column, bold Rev and Date cells and a dated note (the shape of NP-FW-EMMC-002).
+  const th = mk();
+  try {
+    const three = "**Document:** NP-SW-001\n**Revision:** 5\n**Date:** 2026-10-01\n\n| Rev | Date | Description |\n|---|---|---|\n| **5** | **2026-09-27** | **newest** |\n| 4 | 2026-09-26 | older |\n| 1 | 2026-06-02 (§G: 2026-06-03) | first |\n\nafter\n";
+    writeFileSync(join(th, "docs/np_sw_001.md"), three);
+    commit(th, "base");
+    frag(th, "t.md", "date: 2026-11-02\n## DHF\nauthor: A\ntext: **{NP-SW-001 from → to}: three columns.**\n## NP-SW-001\nauthor: A\ntext: **sixth**\n");
+    commit(th, "fragment");
+    const res = assignNext(th, false);
+    const sw = read(th, "docs/np_sw_001.md");
+    check(res.status === "done" && /^\*\*Revision:\*\* 6$/m.test(sw), "a three-column table with a bold newest row is read: 5 -> 6");
+    check(sw.includes("| **5** | **2026-09-27** | **newest** |\n| 4 | 2026-09-26 | older |\n| 1 | 2026-06-02 (§G: 2026-06-03) | first |\n"), "and the existing rows are left as written")
+    check(/\| 1 \| 2026-06-02 \(§G: 2026-06-03\) \| first \|\n\| 6 \| 2026-11-02 \| \*\*sixth\*\* \|\n\nafter/.test(sw), "the new row has no author cell and follows the last row of the table");
+  } finally { rmSync(th, { recursive: true, force: true }); }
 
   // A document with no history table anywhere: the assigner starts one.
   const nt = mk();
