@@ -167,7 +167,7 @@ static void log_crit_exit(uint32_t saved)
  * log_cvns_event — write the SHDR record, if any, for a CVNS re-enable
  * lifecycle event.  np_cvns_reenable_shdr_code() decides which events reach
  * SHDR: the cutoff flag only (NP-FW-CVNS-001 §8.2: "cutoff occurred flag";
- * OI-PRIV-28, REQ-FWHUB-84).  The rest of the lifecycle says what the wearer
+ * OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-84).  The rest of the lifecycle says what the wearer
  * did after a cardiac event and is not written to SHDR at all.
  *
  * Privacy: the code is a flag only.  The 0 passed as the timestamp argument is

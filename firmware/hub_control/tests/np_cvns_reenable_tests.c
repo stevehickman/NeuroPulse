@@ -588,7 +588,7 @@ static void test_session_status_seq(void)
           "seq: an existing counter value is replaced, not OR-merged");
 }
 
-/* ── Tests: what reaches SHDR (OI-PRIV-28) ──────────────────────────────────── */
+/* ── Tests: what reaches SHDR (OI-PRIV-28, NP-PRIV-ANALYSIS-004) ──────────────────────────────────── */
 
 /* @verifies REQ-FWHUB-84#a,b */
 static void test_shdr_code_cutoff_only(void)

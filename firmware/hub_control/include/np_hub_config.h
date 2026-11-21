@@ -240,7 +240,8 @@
  * defect corrected 2026-08-12, where zeroing a field only for cardiac faults made
  * the redaction itself a cardiac oracle (CLAUDE.md §5.1).                    */
 #define NP_CVNS_SHDR_EV_CUTOFF          0xC1U
-/* 0xC2–0xC6 are RETIRED and never reused (OI-PRIV-28, REQ-FWHUB-84).  They were
+/* 0xC2–0xC6 are RETIRED and never reused (OI-PRIV-28 of NP-PRIV-ANALYSIS-004,
+ * REQ-FWHUB-84).  They were
  * CONFIRM_OPEN, IMP_FAILED, IMP_TIMEOUT, REENABLED and ASSERT_TIMEOUT: the
  * re-enable lifecycle after a cardiac cutoff.  Each follows a cutoff, and four
  * of them only after the wearer confirmed resumption, so in sequence they told

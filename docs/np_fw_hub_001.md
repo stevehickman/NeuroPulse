@@ -1207,7 +1207,7 @@ conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` 
 the fault-latch marshaller; this section is the rule the script is derived from.
 
 The cVNS SHDR codes (`NP_CVNS_SHDR_EV_CUTOFF` `0xC1` and `NP_CVNS_SHDR_EV_IMP_CROSSVAL` `0xC7`) are flags only — no HR, no RR, no kΩ.
-**Rev {NP-FW-HUB-001 to} (`OI-PRIV-28`, `REQ-FWHUB-84`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
+**Rev {NP-FW-HUB-001 to} (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-84`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
 `0xC2`–`0xC6` (confirmation window open, contact check failed, contact check timed out, re-enable complete, assertion
 timed out) are retired and written nowhere. Each follows a cutoff, and four follow only the wearer's confirmation, so in
 sequence they told SHDR whether the person resumed neck stimulation after a cardiac event and how often skin contact
