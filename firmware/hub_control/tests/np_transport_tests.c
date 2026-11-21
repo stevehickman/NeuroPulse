@@ -222,6 +222,58 @@ static void test_max_size_blob(void)
           "max: full-size blob received intact");
 }
 
+/* ── REQ-FWHUB-84 (a): no protocol byte stays in the reassembly buffer ─────────── */
+
+static bool blob_all_zero(void)
+{
+    size_t n = 0;
+    const uint8_t *b = np_transport_test_blob(&n);
+    for (size_t i = 0; i < n; i++) {
+        if (b[i] != 0U) { return false; }
+    }
+    return true;
+}
+
+/* @verifies REQ-FWHUB-84#a */
+static void test_wipe_after_receive(void)
+{
+    np_transport_init();
+    uint8_t framed[4 + 200];
+    size_t  n = frame(framed, 200U);
+    check(np_transport_feed(framed, n) == NP_HUB_OK, "wipe: blob fed");
+    check(!blob_all_zero(), "wipe: the latched blob is in the buffer before pickup");
+    size_t got = 0;
+    check(np_hal_proto_queue_receive(g_out, sizeof g_out, &got, 10U) == NP_HUB_OK &&
+          got == 200U && payload_ok(g_out, 200U), "wipe: the consumer receives it intact");
+    check(blob_all_zero(), "wipe: the buffer is zero once the consumer has the blob");
+}
+
+/* @verifies REQ-FWHUB-84#a */
+static void test_wipe_after_drop(void)
+{
+    np_transport_init();
+    uint8_t framed[4 + 80];
+    size_t  n = frame(framed, 80U);
+    (void)np_transport_feed(framed, n);
+    uint8_t small[40];
+    size_t  got = 0;
+    check(np_hal_proto_queue_receive(small, sizeof small, &got, 10U) == NP_HUB_ERR_PARAMS_TOO_LONG,
+          "wipe-drop: oversized blob refused");
+    check(blob_all_zero(), "wipe-drop: a dropped blob is zeroed too");
+}
+
+/* @verifies REQ-FWHUB-84#a */
+static void test_wipe_partial_on_reset(void)
+{
+    np_transport_init();
+    uint8_t framed[4 + 100];
+    (void)frame(framed, 100U);
+    check(np_transport_feed(framed, 4U + 60U) == NP_HUB_OK, "wipe-reset: partial fed");
+    check(!blob_all_zero(), "wipe-reset: the partial payload is in the buffer");
+    np_transport_reset();
+    check(blob_all_zero(), "wipe-reset: an abandoned partial frame is zeroed");
+}
+
 int main(void)
 {
     printf("── np_transport_tests (OI-HUB-MAIN-01) ──\n");
@@ -236,6 +288,9 @@ int main(void)
     test_receive_buffer_too_small();
     test_null_args();
     test_max_size_blob();
+    test_wipe_after_receive();
+    test_wipe_after_drop();
+    test_wipe_partial_on_reset();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

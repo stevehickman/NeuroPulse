@@ -29,6 +29,12 @@
  * the refusal is the default and the encrypted link is what has to be shown (CLAUDE.md §23). */
 static bool s_link_encrypted = false;
 
+/* How many links the stack has reported up (np_gatt_on_connect) and not yet down (np_gatt_on_disconnect).  The hub serves
+ * one central at a time, and s_link_encrypted describes that one link: it is honoured only while exactly one is up, so a
+ * second central can never inherit the first one's encryption (OI-PRIV-41 (NP-PRIV-ANALYSIS-004) point 6,
+ * REQ-FWHUB-81 (d)).  Saturates, so a stack that over-reports connects cannot wrap it back to one. */
+static uint8_t s_links = 0U;
+
 /* The UUID base, least-significant byte first (np_app_wire_constants.h, generated from common/npps/constants.json). */
 static const uint8_t UUID_BASE[16] = NP_GATT_UUID_BASE_INIT;
 
@@ -294,13 +300,32 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     return (rc == NP_HUB_ERR_RAMPING) ? NP_ATT_APP_RAMPING : NP_ATT_APP_REFUSED;
 }
 
+bool np_gatt_on_connect(void)
+{
+    if (s_links < UINT8_MAX) {
+        s_links++;
+    }
+    /* A new link is not encrypted until the stack says so; and with two up, the flag no longer says which one it
+     * describes, so neither is treated as encrypted (fail closed). */
+    s_link_encrypted = false;
+    return s_links == 1U;
+}
+
+uint8_t np_gatt_link_count(void)
+{
+    return s_links;
+}
+
 void np_gatt_set_link_encrypted(bool encrypted)
 {
-    s_link_encrypted = encrypted;
+    s_link_encrypted = encrypted && (s_links == 1U);
 }
 
 void np_gatt_on_disconnect(void)
 {
+    if (s_links > 0U) {
+        s_links--;
+    }
     s_link_encrypted = false;
     np_transport_reset();
 }

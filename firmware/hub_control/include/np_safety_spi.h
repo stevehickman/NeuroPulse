@@ -115,7 +115,8 @@ np_hub_status_t np_safety_spi_init(void);
  * session_state:         current session state (NP_SESSION_IDLE / NP_SESSION_RUNNING).
  * requested_enable_mask: bitmask of channels the session runner wants enabled.
  * current_ua:            array of commanded current magnitudes in µA per channel
- *                        (SHDR — commanded from session descriptor, NOT ADC-measured).
+ *                        (commanded from session descriptor, NOT ADC-measured; UHDR-class
+ *                        "protocol parameters used", never written to SHDR).
  *                        Must point to at least channel_count entries; may be NULL
  *                        when channel_count == 0 (e.g. no active session).
  * channel_count:         number of valid entries in current_ua (0–NP_SAFETY_MAX_CHANNELS).
@@ -415,9 +416,11 @@ np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t  *wave_class,
  *
  * out_ua must have room for NP_SAFETY_MAX_CHANNELS entries.
  *
- * Classification: SHDR.  This is the COMMANDED value from the signed session
- * descriptor — never ADC-measured delivered current, which reveals tissue
- * impedance and is UHDR-class (NP-FW-EMMC-001 §12).
+ * Classification: UHDR-class ("protocol parameters used",
+ * data-architecture-detail.md §5.1; OI-PRIV-41 (NP-PRIV-ANALYSIS-004)).  This
+ * is the COMMANDED value from the signed session descriptor — never
+ * ADC-measured delivered current, which reveals tissue impedance and is also
+ * UHDR-class (NP-FW-EMMC-001 §12).  Device-internal; never written to SHDR.
  */
 void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua);
 void np_safety_spi_clear_channel_currents(void);

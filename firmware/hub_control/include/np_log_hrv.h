@@ -25,8 +25,8 @@
  * np_log_hrv_session — write one HRV session record to UHDR.
  *
  * UHDR ONLY: coherence, RMSSD, the R-R count and the taVNS count describe the
- * person (CLAUDE.md §5.1).  Nothing reaches SHDR; the SHDR coherence trend
- * slope is OI-HRV-04, not this record.
+ * person (CLAUDE.md §5.1).  Nothing reaches SHDR.  The coherence trend and
+ * the resonance rate are UHDR too and have no SHDR write (OI-PRIV-30).
  *
  * Layout after NP_LOG_TAG_UHDR_HRV_SESSION, each field little-endian as the
  * target stores it: reason (1, np_hrv_status_t as int8), duration_s (4),

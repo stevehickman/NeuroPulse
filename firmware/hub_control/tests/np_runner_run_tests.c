@@ -710,6 +710,44 @@ static void test_a_session_runs_to_its_duration_and_completes(void)
           "complete: the session is closed, flushed and counted once");
 }
 
+/* @verifies REQ-FWHUB-84#b */
+static void test_session_end_wipes_the_protocol_and_the_records(void)
+{
+    fresh();
+    blob_t b;
+    two_command_session(&b);
+    const np_runner_ctx_t *ctx = np_runner_test_ctx();
+    const size_t len = blob_finish(&b);
+    check(np_runner_load(b.buf, len) == NP_HUB_OK && ctx->desc.cmd_count == 2U,
+          "wipe: the loaded descriptor holds the protocol's commands");
+    g_event_bits &= ~NP_EV_SESSION_START;
+    (void)np_runner_run();
+
+    check(g_end_uhdr.mods_active_mask == ((1U << NP_MOD_EEG) | (1U << NP_MOD_VISUAL)),
+          "wipe: the session-end record was written from the context before the clear");
+
+    np_session_desc_t d = ctx->desc;
+    check(d.duration_ms == 6000U, "wipe: the authored length is kept, for the progress frame");
+    d.duration_ms = 0U;
+    const uint8_t *db = (const uint8_t *)&d;
+    bool zero = true;
+    for (size_t i = 0; i < sizeof d; i++) { if (db[i] != 0U) { zero = false; break; } }
+    check(zero, "wipe: every other byte of the parsed protocol is zero after the session");
+
+    const uint8_t *ub = (const uint8_t *)&ctx->uhdr;
+    const uint8_t *sb = (const uint8_t *)&ctx->shdr;
+    bool rec_zero = true;
+    for (size_t i = 0; i < sizeof ctx->uhdr; i++) { if (ub[i] != 0U) { rec_zero = false; } }
+    for (size_t i = 0; i < sizeof ctx->shdr; i++) { if (sb[i] != 0U) { rec_zero = false; } }
+    check(rec_zero, "wipe: the session's UHDR and SHDR records are zero after the session");
+
+    uint8_t frame[NP_PROGRESS_LEN];
+    np_runner_progress(frame);   /* np_progress_build is a double here: it keeps what the runner gave it */
+    check(g_progress.state == NP_SESSION_COMPLETE && g_progress.total_ms == 6000U &&
+          g_progress.elapsed_ms >= 6000U,
+          "wipe: the progress frame is still given the end state, the length run and the authored length");
+}
+
 /* @verifies REQ-FWHUB-40 SWR-HV-02 */
 static void test_the_session_start_record_and_the_fitting_come_before_any_command(void)
 {
@@ -1404,6 +1442,7 @@ static void test_the_runner_tells_the_cervical_driver_the_authored_block_length(
 int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
+    test_session_end_wipes_the_protocol_and_the_records();
     test_the_session_start_record_and_the_fitting_come_before_any_command();
     test_the_fitting_is_given_the_stamp_of_the_descriptor_being_run();
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();

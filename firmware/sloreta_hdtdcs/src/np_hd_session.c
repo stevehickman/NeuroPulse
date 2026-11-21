@@ -94,6 +94,24 @@ struct np_hd_session {
 
 static struct np_hd_session s_session_pool;
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_hd_memset_fn)(void *, int, size_t) = memset;
+
+/*
+ * REQ-FWHUB-84 (f), OI-PRIV-39: once the session record has gone to end_cb, the
+ * person's EEG statistics (the sLORETA covariances and spectra) and the source
+ * power map are zeroed.  Stimulation is already stopped on every path that calls
+ * this.  The sLORETA result (the peak the montage was chosen from) is kept for
+ * np_hd_session_get_sloreta_result() until np_hd_session_destroy() zeroes the
+ * whole session.
+ */
+static void wipe_session_signals(np_hd_session_t *sess)
+{
+    np_sloreta_wipe(&sess->sloreta);
+    np_hd_memset_fn(s_source_power, 0, sizeof s_source_power);
+}
+
 /* ── Safety MCU response forwarding ─────────────────────────────────────────── */
 
 static void stim_safety_cb(np_hd_stim_ctx_t *stim_ctx,
@@ -161,7 +179,8 @@ void np_hd_session_destroy(np_hd_session_t *sess)
     if (sess) {
         platform_ads1299_stop();
         np_hd_stim_deinit(&sess->stim);
-        memset(sess, 0, sizeof(*sess));
+        wipe_session_signals(sess);
+        np_hd_memset_fn(sess, 0, sizeof(*sess));
     }
 }
 
@@ -447,6 +466,7 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms)
             if (sess->end_cb) {
                 sess->end_cb(&sess->record, NP_HD_OK);
             }
+            wipe_session_signals(sess);
             sess->allocated = false;
 
         } else if (sp == NP_HD_STIM_FAULT) {
@@ -483,6 +503,7 @@ void np_hd_session_abort(np_hd_session_t *sess,
     if (sess->end_cb) {
         sess->end_cb(&sess->record, reason);
     }
+    wipe_session_signals(sess);
     sess->allocated = false;
 }
 
@@ -497,3 +518,20 @@ const np_hd_montage_t *np_hd_session_montage(const np_hd_session_t *sess)
 {
     return sess ? &sess->montage : NULL;
 }
+
+#ifdef NPTEST_HOST
+/* Host-test inspection (REQ-FWHUB-84 (f)). */
+bool np_hd_session_test_signals_are_zero(const np_hd_session_t *sess)
+{
+    for (size_t i = 0; i < NP_HD_SLORETA_N_VOXELS; i++) {
+        if (s_source_power[i] != 0.0f) { return false; }
+    }
+    const unsigned char *b = (const unsigned char *)sess->sloreta.cov;
+    for (size_t i = 0; i < sizeof sess->sloreta.cov; i++) { if (b[i] != 0U) { return false; } }
+    b = (const unsigned char *)sess->sloreta.cov_band;
+    for (size_t i = 0; i < sizeof sess->sloreta.cov_band; i++) { if (b[i] != 0U) { return false; } }
+    b = (const unsigned char *)sess->sloreta.ch_mean;
+    for (size_t i = 0; i < sizeof sess->sloreta.ch_mean; i++) { if (b[i] != 0U) { return false; } }
+    return sess->sloreta.epoch_count == 0U && sess->sloreta.spectral_epochs == 0U;
+}
+#endif
