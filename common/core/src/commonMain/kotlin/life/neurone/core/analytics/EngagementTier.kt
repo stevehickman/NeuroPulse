@@ -1,6 +1,8 @@
 package life.neurone.core.analytics
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
 
 // engagement_tier replaces raw session_count per NP-APP-TELEMETRY-001 Rev B §3.
 // Counts app launches (not stimulation sessions). Resets on uninstall.
@@ -23,8 +25,23 @@ enum class EngagementTier(val label: String) {
             }
         }
 
-        fun incrementLaunchCount(store: KeyValueStore) {
-            store.putInt(LAUNCH_COUNT_KEY, store.getInt(LAUNCH_COUNT_KEY) + 1)
+        /**
+         * Count this launch. Under the presence gate the count is sealed and a locked read answers 0, so adding one and writing
+         * would replace the real count with 1 at the unlock and reset the tier every launch (`OI-PRIV-19`): the launch is counted at the
+         * first unlock of the run instead, on the count read then. [lock] is null on a host with no gate.
+         */
+        fun incrementLaunchCount(store: KeyValueStore, lock: PresenceLock? = null) {
+            if (lock == null || lock.isUnlocked) {
+                store.putInt(LAUNCH_COUNT_KEY, store.getInt(LAUNCH_COUNT_KEY) + 1)
+                return
+            }
+            var counted = false
+            lock.onStateChanged { state ->
+                if (state == PresenceState.UNLOCKED && !counted) {
+                    counted = true
+                    store.putInt(LAUNCH_COUNT_KEY, store.getInt(LAUNCH_COUNT_KEY) + 1)
+                }
+            }
         }
     }
 }
