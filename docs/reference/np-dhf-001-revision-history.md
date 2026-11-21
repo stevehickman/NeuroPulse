@@ -354,3 +354,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 318 | 2026-11-21 | NeurOne Systems Engineering | **18 → 19, 39 → 40: the shared validator reports a planar tone above 1,000 Hz (REQ-AUDIO-25), one constant for the compiler and validator, tied to the hub's.** |
 | 319 | 2026-11-21 | NeurOne Software Engineering | **166 → 167: SWR-UI-01, the web app's parameter controls and the single bounds file; built in the web app only.** |
 | 320 | 2026-11-21 | NeurOne Software Engineering | **167 → 168: SWR-UI-01 (f): a clinician limit outside its range is refused at save and import, not clamped.** |
+| 321 | 2026-11-21 | NeurOne Software Engineering | **168 → 169: SWR-UI-02, the Compose and iOS audio level ranges stop at the 85 dB SPL ceiling and the iOS auricular VNS frequency is a typed field.** |
