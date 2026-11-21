@@ -594,7 +594,7 @@ typedef struct {
     uint8_t  active_mode;       /* current mode — SHDR */
     bool     goggle_seated;     /* Hall: goggles in wear position — SHDR */
     bool     eye_open;          /* IR proximity — UHDR */
-    bool     ppx_halt;          /* photoparoxysmal halt in effect — SHDR */
+    bool     ppx_halt;          /* photoparoxysmal halt in effect — UHDR, never SHDR (REQ-FWHUB-85) */
 } np_telem_visual_t;
 
 typedef struct {

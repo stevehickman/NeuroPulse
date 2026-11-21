@@ -403,19 +403,16 @@ void np_log_telemetry(const np_telem_record_t *rec)
 
     case NP_MOD_VISUAL: {
         const np_telem_visual_t *v = &rec->data.visual;
-        /* UHDR: eye_open state — reveals user physiology during session. */
+        /* UHDR: eye_open state and the photoparoxysmal halt — both are about the person. The halt is a
+         * byte in every visual record, set or clear, so the record's presence and length never depend on it.
+         * Nothing about the halt goes to SHDR: a record written only when a photoparoxysmal discharge was
+         * detected would publish that neurological event (CLAUDE.md §5.1 rule 2; REQ-FWHUB-85; OI-PRIV-22,
+         * NP-PRIV-ANALYSIS-004). */
+        const uint8_t ppx_halt = v->ppx_halt ? 1U : 0U;
         uhdr_u8(NP_LOG_TAG_UHDR_VISUAL);
         uhdr_write(&rec->session_ms,        sizeof(rec->session_ms));
         uhdr_write(&v->eye_open,            sizeof(v->eye_open));
-        /* SHDR: hall state and ppx_halt — device safety logs only. */
-        if (v->ppx_halt) {
-            shdr_u8(NP_LOG_TAG_SHDR_FAULT);
-            shdr_write(&s_device_session_count, sizeof(s_device_session_count));
-            uint8_t slot = rec->slot;
-            uint8_t code = 0xEEU; /* EEG PPX halt code */
-            shdr_write(&slot, 1U);
-            shdr_write(&code, 1U);
-        }
+        uhdr_write(&ppx_halt,               1U);
         break;
     }
 
