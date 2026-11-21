@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 164
+**Revision:** 165
 **Date:** 2026-11-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -849,3 +849,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 162 | 2026-11-13 | NeurOne Software Engineering | **§6.3: status of `SWR-HV-03` points to the ruled scheme in `NP-NPPS-REF-001` §7a.1 and `OI-WRV-01`.** Still not built. No requirement text changed. |
 | 163 | 2026-11-21 | NeurOne Software Engineering | **§6.3: `SWR-HV-03` moves from not built to built in the core and the hub (parts a, b and c), and `SWR-HV-02`'s rules version is built.** The hub copies the descriptor's stamp into the UHDR fitting frame (`NP_FITTING_FORMAT` 2). `requirement-parts.json` declares the three parts. The register is held append-only by `scripts/check-wavelength-register.ts` on every pull request. The app's notice is not built. No requirement text changed. |
 | 164 | 2026-11-13 | NeurOne Software Engineering | **§6.3.6: the Status cell of `SWR-SS-02` restated as built: a session of any modality but audio longer than the 120-minute long-session level (`UC-067`, not a health limit) runs only after the user acknowledges its length, as the `sessionDuration` axis of the zone model; audio is outside the rule and no per-day total is kept (`OI-HLIM-01` decided, 2026-11-13). The `SWR-SS-04` Status cell now says its way back is on that same dialog. No requirement text changed.** |
+| 165 | 2026-11-13 | NeurOne Software Engineering | **§6.3.7 SWR-MG-12: a storage account that cannot report its free space does not fail the account check; the result says the room was not confirmed (the principal, 2026-11-13).** |

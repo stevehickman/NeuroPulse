@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 30
-**Date:** 2026-11-11
+**Revision:** 31
+**Date:** 2026-11-13
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1106,3 +1106,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 30 | 2026-11-11 | NeurOne Software Engineering | **New §7, the consolidated decision record (#566): what is decided and what waits on the principal, the providers and what is built for each, the interface and what the flow relies on, the conditional-write and consistency statements re-read from the providers' own pages on 2026-11-11 with page dates, the unverified list, Oracle's three routes, build or adopt (decided by the principal on 2026-11-11: build thin adapters, adopt no storage library, ratifying the direction of 2026-10-27; the evaluation is kept as the supporting record), Oracle Cloud Infrastructure's route (§7.5, decided by the principal on 2026-11-11: the existing S3 form at Oracle's S3 compatibility endpoint, health-data backup only, no new code, not tried against Oracle and unverified; the form's endpoint and region patterns accept Oracle's names and its bucket pattern refuses some), Google Drive (§7.1, §7.4, §7.9: stays backup-only for now, decided by the principal on 2026-11-11; the ID-based claim is not built; a test that would reopen it is drafted in `docs/human-input/oi-ui-kmp-11-google-drive-claim-experiment.md` and has not been run), the contract-test plan and what is left. §1 and §5 point to it. Request to the principal in `docs/human-input/oi-ui-kmp-11-cloud-storage-build-or-adopt.md`: Q1, Q2 and Q4 answered, Q3 open.** |
+| 31 | 2026-11-13 | NeurOne Software Engineering | **New §7.11: the account check over the real S3 adapter at an Oracle-style endpoint (3 tests, tag SWR-MG-12), the unknown-free-space finding and its resolution (the principal, 2026-11-13, option (a): unknown space passes with `spaceConfirmed: false`; new key `MIGRATION_PROBE_SPACE_UNCONFIRMED`), the re-run-before-migration gap (dormant), Oracle's pages re-read on 2026-11-13 and what a migration route through Oracle needs.** |
