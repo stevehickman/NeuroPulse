@@ -371,3 +371,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 335 | 2026-11-19 | NeurOne Software Engineering | **182 → 183, 15 → 16: `OI-PRIV-12` stage 2, as the principal answered it on 2026-11-19.** |
 | 336 | 2026-11-21 | NeurOne Firmware Engineering | **CLAUDE.md Rev 82 → 83, 13 → 14, 16 → 17: §18 gains the rule that a derived bound is computed from its foundational value and a fixed foundational value states why; Map 3 has one 64-byte layout (D-34), the 32-byte version 1 removed.** |
 | 337 | 2026-11-19 | NeurOne Software Engineering | **6 → 7, 6 → 7: the principal's decision on the analytics network address (`OI-PRIV-05` (5)): an Oblivious HTTP relay, decided and not built, with an address-free edge as the floor until then; the proxy's logs no longer keep the address.** |
+| 338 | 2026-11-19 | NeurOne Software Engineering | **34 → 35: §4c.18 records that the Android transport test of `OI-PRIV-15` has run in CI.** |

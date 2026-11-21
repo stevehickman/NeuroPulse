@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-CLOUDSTORE-001
-**Revision:** 34
-**Date:** 2026-11-18
+**Revision:** 35
+**Date:** 2026-11-19
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1110,3 +1110,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 32 | 2026-11-21 | NeurOne Software Engineering | **§4c.1, §4c.7 and new §4c.13.1: where the cloud credentials may be kept, by storage state, and what the build compiles in (`OI-PRIV-14`).** §4c.7 names the hosts that can run unsealed with a sign-in wired and gives the vault's behaviour in each state. §4c.13.1 records that every build value is public, that Google's Desktop app client value is never a confidential client's secret and is refused by the build beside a non-loopback redirect, that the CloudKit API token is public by design and a server-to-server key is never set, and the six registrations the owner must make. No identifier is invented. |
 | 33 | 2026-11-18 | NeurOne Software Engineering | **§4c.17, new: CloudKit's callback carries the token with no `state` or PKCE, so it is bound to its request or CloudKit is not offered; what was read at Apple and what was not run. §4c.3 corrected: it said `state` and the PKCE verifier decide every answer, which was untrue for CloudKit. §4c.1, §4c.4, §4c.5, §4c.13 follow (`OI-PRIV-13`).** |
 | 34 | 2026-11-18 | NeurOne Software Engineering | **New §4c.18: the six findings of `OI-PRIV-15`, each verified in the code and against the provider's page (read 2026-11-18, with page dates), what changed, and what a pass does not show. §4c.11, §4c.13 and §4c.14 corrected for the dropped Dropbox scope and the stricter signature check. No provider was contacted.** |
+| 35 | 2026-11-19 | NeurOne Software Engineering | **§4c.18: `OkHttpTransportTest` is no longer listed as not run; it passed in CI on 2026-11-19 (`:app:testDebugUnitTest`, head of #891). No requirement and no code changed.** |
