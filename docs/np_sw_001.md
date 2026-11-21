@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 170
-**Date:** 2026-11-15  
+**Revision:** 171
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -855,3 +855,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 168 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) now covers the clinician limit fields: a set of limits with a value outside its range is refused when saved or imported and the Save button says why, instead of the field holding the value inside its range. The clamp exception is removed from the status.** |
 | 169 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: new SWR-UI-02: no app's editor offers an audio level above the 85 dB SPL ceiling (the iOS volume slider and the iOS and Compose volume limits were 40 to 90), and the auricular VNS frequency has no stated bounds in any editor (the iOS slider was 1 to 25 Hz). Built; the Swift and Kotlin are not run where they were written.** |
 | 170 | 2026-11-15 | NeurOne Software Engineering | **§6.3 `SWR-MG-08`: the confirmation carries a tag made from the bundle key, the old phone records that tag when it seals the bundle, and it clears only on a confirmation carrying it (`OI-PRIV-01`).** |
+| 171 | 2026-11-21 | NeurOne Software Engineering | **§6.3: `SWR-MG-19` gains parts (l) and (m) (`OI-PRIV-14`, privacy review of `common/`, Findings 37 and 38).** (l) `CredentialStore` is built only from the run's `ProtectedStorage`: sealed at rest when the storage seals its key, in memory for a locked run, and absent otherwise, where the app has no cloud sign-in, Settings says so and a credential document left in the clear is removed. (m) The value Google issues with a Desktop app client is public: it is sent only by a loopback-redirect client, the build refuses it beside any other redirect, and it is never a confidential client's secret. Tests: `CredentialStoreTests`, `CloudAuthWiringTest`. |
