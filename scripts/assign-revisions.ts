@@ -209,7 +209,7 @@ export function convertBranch(root: string, base = "origin/main"): string {
     const added = lines.map((l, i) => ({ m: HISTORY_ROW.exec(l), i })).filter((x) => x.m && Number(x.m[1]) > b.from && Number(x.m[1]) <= b.to);
     if (added.length !== 1) throw new Error(`${hf}: expected one history row for ${serial} between Rev ${b.from} and ${b.to}, found ${added.length}`);
     const m = added[0].m as RegExpExecArray;
-    sections.push(`## ${key(serial)}\nauthor: ${m[3]}\ntext: ${tokenize(m[4])}\n`);
+    sections.push(`## ${key(serial)}\nauthor: ${m[3] ?? "unknown"}\ntext: ${tokenize(m[4])}\n`);
     lines.splice(added[0].i, 1);
     files.set(hf, lines.join("\n"));
     const baseText = show(root, mb, b.file) as string;

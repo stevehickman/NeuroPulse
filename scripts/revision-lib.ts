@@ -10,10 +10,10 @@ import { join } from "path";
 export const DATE = String.raw`\d{4}-\d{2}-\d{2}`;
 /**
  * A history row: `| Rev | Date | Author | Description |`, or `| Rev | Date | Description |` when the document's table has
- * no Author column (NP-FW-EMMC-002). Group 1 is the revision, 2 the date, 3 the rest of the row. The Rev and Date cells
+ * no Author column (NP-FW-EMMC-002). Group 1 is the revision, 2 the date, 3 the author (undefined when the table has none), 4 the description. The Rev and Date cells
  * may be bold (the newest row of NP-FW-EMMC-002 was), and a Date cell may carry a note (`2026-06-02 (§G: 2026-06-03)`).
  */
-export const HISTORY_ROW = new RegExp(String.raw`^\| (?:\*\*)?(\d+)(?:\*\*)? \| (?:\*\*)?(${DATE})(?:\*\*)?(?: \([^)|]*\))? \| (.*) \|\s*$`);
+export const HISTORY_ROW = new RegExp(String.raw`^\| (?:\*\*)?(\d+)(?:\*\*)? \| (?:\*\*)?(${DATE})(?:\*\*)?(?: \([^)|]*\))? \| (?:([^|]*) \| )?(.*) \|\s*$`);
 export const REV_LINE = /^\*\*Revision:\*\*\s*(\d+)\s*$/;
 export const DATE_LINE = /^\*\*Date:\*\*\s*\d{4}-\d{2}-\d{2}/;
 export const SERIAL = String.raw`NP-[A-Z0-9-]+`;
