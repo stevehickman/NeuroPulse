@@ -6,8 +6,9 @@ name: Kotlin iOS CI (Gradle, macOS)
 # the NPPS cinterop, the iOS wiring) was unbuilt until this job (OI-UI-KMP-06).
 #
 # It then builds the Xcode host app/NeurOneUI/iosApp for the simulator, whose pre-build phase runs Gradle's
-# embedAndSignAppleFrameworkForXcode. It runs the Kotlin iOS tests of :core and :shared on the simulator, but the built app is
-# never installed or launched: no simulator boots, and nothing has run on a device (OI-UI-KMP-06, OI-PRES-07).
+# embedAndSignAppleFrameworkForXcode. It runs the Kotlin iOS tests of :core and :shared on the simulator, then installs and launches the
+# built app on a booted simulator and checks it is still running (launch only: no screen is driven). Nothing has run on a device
+# (OI-UI-KMP-06, OI-PRES-07).
 # Kotlin/Native needs Xcode, so the job runs on macOS; :core's cinterop needs
 # libneurone_npps_ffi.a for each Apple architecture, which :core builds with cargo on a macOS host.
 #
@@ -201,4 +202,35 @@ jobs:
           xcodegen generate --spec project.yml
           xcodebuild build -project NeurOneUI.xcodeproj -scheme NeurOneUI \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/iosapp-dd" \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
+
+      # Launch smoke (OI-UI-KMP-06): install the built app on a booted simulator, start it and check it is still running after a
+      # few seconds, so a crash on launch (a missing framework symbol, a bad Info.plist, a failing composition root) fails the job.
+      # It proves launch only: no screen is driven, no hub is present, and it says nothing about a device.
+      - name: Launch iosApp on an iOS simulator
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/iosapp-dd/Build/Products/Debug-iphonesimulator/NeurOneUI.app"
+          test -d "$app"
+          bundle=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
+          udid=$(xcrun simctl list devices available -j \
+                 | jq -er '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl install "$udid" "$app"
+          xcrun simctl launch "$udid" "$bundle"
+          sleep 15
+          xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/iosapp-launch.png"
+          # A live app has a pid in the first column; a crashed one shows "-".
+          pid=$(xcrun simctl spawn "$udid" launchctl list | awk -v b="$bundle" '$3 ~ b {print $1}' | head -n1)
+          echo "pid of $bundle after 15 s: '${pid}'"
+          case "$pid" in ''|-) echo "::error::$bundle is not running 15 s after launch"; exit 1 ;; esac
+
+      - name: Upload the launch screenshot
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iosapp-launch-screenshot
+          path: ${{ runner.temp }}/iosapp-launch.png
+          if-no-files-found: ignore

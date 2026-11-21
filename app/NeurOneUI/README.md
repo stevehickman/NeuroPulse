@@ -81,4 +81,4 @@ What is left is not screens but wiring on some targets, below, and retiring the 
 - `OI-UI-KMP-06` — iOS and desktop packaging are unbuilt here (no Xcode, DMG/MSI
   tooling or browser); `android-ci.yml` and a macOS runner are the first real builds.
   `kotlin-ios-ci.yml` compiles the Kotlin iOS targets, links the framework, runs the iOS simulator tests of `:core` and
-  `:shared` and builds `iosApp`; the app is never launched on a simulator, and nothing has run on a device.
+  `:shared` and builds `iosApp`; a smoke step then launches the app on a simulator (launch only, first CI run pending), and nothing has run on a device.
