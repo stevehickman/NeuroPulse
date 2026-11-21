@@ -266,6 +266,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE | PRIV |
 | NP-LEGAL-BAA-001 | Business Associate Agreement Template | 1 | 2026-06-03 | [np_legal_baa_001.md](./np_legal_baa_001.md) | DRAFT | PRIV |
 | NP-PRIV-AUDIT-001 | NeurOne App Privacy Audit | 1 | 2026-06-03 | [np_priv_audit_001.md](./np_priv_audit_001.md) | ACTIVE | PRIV |
+| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 1 | 2026-11-21 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
 | NP-PRIV-NOTICE-001 | NeurOne Privacy Notice | 4 | 2026-08-16 | [np_priv_notice_001.md](./np_priv_notice_001.md) | ACTIVE | PRIV |
 | NP-INT-FHIR-001 | FHIR R4 ImplementationGuide: NeurOne T2 Clinical Profile | 1 | 2026-06-03 | [np_int_fhir_001.md](./np_int_fhir_001.md) | ACTIVE | PRIV |
 
