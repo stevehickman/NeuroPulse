@@ -11,7 +11,7 @@
  * No heap, no libc dependency — a straight bounded loop over the caller's
  * arrays.  The header check is np_edf_validate_research_header() (§E.5), under
  * the study's policy.  It was np_edf_validate_privacy_header(), the local §E.2
- * check, which passed exact dates and the device code (OI-PRIV-26).
+ * check, which passed exact dates and the device code (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)).
  */
 
 #include "np_edf_anon_gate.h"

@@ -8,7 +8,7 @@
  * header keeps the exact start date and time and the device's "NP" code, which
  * is the same in every file.  The research gate (§E.4) uses
  * np_edf_validate_research_header() (np_edf_research.c, §E.5) instead
- * (OI-PRIV-26).
+ * (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)).
  */
 
 #include "np_edf_writer.h"
@@ -35,7 +35,7 @@ np_edf_status_t np_edf_validate_privacy_header(const np_edf_header_t *header)
         return NP_EDF_ERR_PRIVACY_HEADER;
     }
     /* The rest of the code is 14 lowercase hex chars, and the subfields are
-       separated by single spaces (OI-PRIV-26: the whole field is checked, so
+       separated by single spaces (OI-PRIV-26 (NP-PRIV-ANALYSIS-004): the whole field is checked, so
        text cannot ride in the code or the separators). */
     for (size_t i = 2U; i < (size_t)NP_EDF_PATIENT_CODE_LEN; i++) {
         const char c = header->local_patient_id[i];

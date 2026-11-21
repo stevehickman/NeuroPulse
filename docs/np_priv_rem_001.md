@@ -129,7 +129,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** MEDIUM-05 (EDF+ patient header field handling)  
 **Trigger:** Before EDF+ writer code is written; must precede any EEG session recording implementation.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md` — **reopened in part 2026-11-21 (`OI-PRIV-26`, GitHub #954):** the research-pipeline gate checked identity fields only, and passed exact dates, the recording ID and a device code that links extracts (`CLAUDE.md` §5.3). The research header and its gate are now `NP-FW-EMMC-002` §E.5 (`REQ-SW02-12`); what remains is in the `OI-PRIV-26` row.  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md` — **reopened in part 2026-11-21 (`OI-PRIV-26` (NP-PRIV-ANALYSIS-004), GitHub #954):** the research-pipeline gate checked identity fields only, and passed exact dates, the recording ID and a device code that links extracts (`CLAUDE.md` §5.3). The research header and its gate are now `NP-FW-EMMC-002` §E.5 (`REQ-SW02-12`); what remains is in the `OI-PRIV-26` (NP-PRIV-ANALYSIS-004) row.  
 **Deliverable:** NeurOne EDF+ header policy: patient code = 16-char opaque UHDR token; sex = 'X'; birthdate = 'X'; patient name = 'X'; start date preserved; hospital code = 'NeurOne'; technician = 'X'; equipment = 'NeurOne_v[FW_VER]'. Plus: header validation step in research anonymisation pipeline that fails-closed if identity fields contain non-'X' values.  
 **Performer:** Firmware engineer  
 **Authority required:** None.  

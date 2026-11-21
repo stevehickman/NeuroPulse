@@ -408,7 +408,7 @@ static void test_anon_gate_null_and_empty(void)
     ASSERT(!included[1], "file 1 should be excluded even with no fault_cb");
 }
 
-/* ── §E.5 research header (OI-PRIV-26) ───────────────────────────────────────── */
+/* ── §E.5 research header (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)) ───────────────────────────────────────── */
 
 static int64_t days_of(uint32_t ts) { return (int64_t)(ts / 86400U); }
 

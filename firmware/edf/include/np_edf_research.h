@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 §E.5 */
 /*
- * NeurOne EDF+ Privacy Header — Research Header (OI-PRIV-26)
+ * NeurOne EDF+ Privacy Header — Research Header (OI-PRIV-26 (NP-PRIV-ANALYSIS-004))
  * Document: NP-FW-EMMC-002 §E.5; CLAUDE.md §5.3
  *
  * Two headers, two paths:
@@ -25,7 +25,7 @@
  * np_edf_validate_research_header() is the §E.4 gate's check.  It parses every
  * byte of the 256-byte main header and accepts only the forms above.
  *
- * Not covered here (NP-FW-EMMC-002 §E.5, OI-PRIV-26 remainder): the per-signal
+ * Not covered here (NP-FW-EMMC-002 §E.5, OI-PRIV-26 (NP-PRIV-ANALYSIS-004) remainder): the per-signal
  * header records and the EDF+ annotation channel that follow the main header.
  */
 

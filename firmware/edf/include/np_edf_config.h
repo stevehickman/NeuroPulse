@@ -71,7 +71,7 @@
    code and an opaque file ordinal. */
 #define NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION   0xE1U
 
-/* ── Research header (NP-FW-EMMC-002 §E.5, OI-PRIV-26) ───────────────────────
+/* ── Research header (NP-FW-EMMC-002 §E.5, OI-PRIV-26 (NP-PRIV-ANALYSIS-004)) ───────────────────────
    A file that goes into a research extract carries a different header from the
    person's own local file (§E.2): no device-derived code, and no date or time
    finer than the study's rounding.  The local file is unchanged. */

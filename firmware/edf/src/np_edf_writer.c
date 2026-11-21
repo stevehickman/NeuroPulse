@@ -182,7 +182,7 @@ static char np_edf_hex_digit(uint8_t nibble)
    compliant.  Any other content that contains at least one alphabetic
    character is treated as a real name.
 
-   The rest of the field after the name is scanned too (OI-PRIV-26): EDF+
+   The rest of the field after the name is scanned too (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)): EDF+
    allows further subfields there, and "NeurOne_User Jane Doe" used to pass
    because the check stopped at the first space.  Anything but spaces after the
    name is a violation. */

@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 §E.5 */
 /*
- * NeurOne EDF+ Privacy Header — Research Header (OI-PRIV-26)
+ * NeurOne EDF+ Privacy Header — Research Header (OI-PRIV-26 (NP-PRIV-ANALYSIS-004))
  * Document: NP-FW-EMMC-002 §E.5; CLAUDE.md §5.3
  *
  * See np_edf_research.h for the contract.  No heap, no libc: the target build
