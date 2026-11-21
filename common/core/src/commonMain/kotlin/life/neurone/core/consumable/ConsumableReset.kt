@@ -41,7 +41,7 @@ class ConsumableResetQueue(
     }
 
     /** Kinds replaced while the queue could not be read, joined to the stored ones at the next unlock. */
-    private val held = sortedSetOf<Int>()
+    private val held = mutableSetOf<Int>()
 
     private val readable: Boolean get() = lock == null || lock.isUnlocked
 
@@ -66,7 +66,7 @@ class ConsumableResetQueue(
 
     /** Kinds replaced and not yet written to the hub, in kind order, no duplicates. While locked, only the ones marked since the lock closed. */
     val pending: List<Int>
-        get() = if (readable) (stored + held).distinct().sorted() else held.toList()
+        get() = if (readable) (stored + held).distinct().sorted() else held.sorted()
 
     fun add(kind: Int) {
         if (ConsumableResetWire.encode(kind) == null) return

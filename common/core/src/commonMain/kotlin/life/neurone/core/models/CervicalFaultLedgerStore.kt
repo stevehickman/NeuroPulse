@@ -80,7 +80,7 @@ class CervicalFaultLedgerStore(
             val legacyKey = PersistedKeys.CERVICAL_FAULT_LEDGER_KEY + "." + migratingLegacy
             val legacy = store.getString(legacyKey)
             if (legacy != null) {
-                legacy.toLongOrNull()?.let { map.putIfAbsent(migratingLegacy, it) }
+                legacy.toLongOrNull()?.let { if (migratingLegacy !in map) map[migratingLegacy] = it }
                 if (legacy.toLongOrNull() != null && map[migratingLegacy] != null) {
                     writeMap(map)
                     store.remove(legacyKey)
