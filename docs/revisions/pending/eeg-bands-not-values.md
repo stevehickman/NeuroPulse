@@ -6,7 +6,7 @@ author: NeurOne Firmware Engineering
 text: **§3: the EEG-adaptive table of five bands is replaced by the tile's supported frequencies and a nearest-in-hertz rule (a tie takes the lower); the hysteresis counts ticks the nearest code differed. No EEG band picks a value.**
 ## NP-FW-PBM1064-001
 author: NeurOne Firmware Engineering
-text: **§5.2, §7.3: the codes are the frequencies the tile accepts, not EEG bands; the preset and EEG-adaptive mappings take the nearest code by distance in hertz.**
+text: **§5.2, §7.3: the codes are the frequencies the tile accepts, not EEG bands; the preset and EEG-adaptive mappings take the nearest code by distance in hertz; §5.2 points at `OI-PBMTILE-01` (the hub's direct path writes the authored whole-hertz byte as a code) and `OI-PBMTILE-02` (whether the tile should take a frequency).**
 ## NP-FW-HUB-001
 author: NeurOne Firmware Engineering
 text: **§8.5: `np_mod_audio_set_eeg_band()` and its band-to-beat table are replaced by `np_mod_audio_set_eeg_dominant_freq()`, which sets the beat to the frequency itself and refuses 0 or a carrier plus beat above the tone bound.**
