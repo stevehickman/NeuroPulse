@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 19
-**Date:** 2026-11-11
+**Revision:** 20
+**Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -1253,3 +1253,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 17 | 2026-11-06 | NeurOne Firmware Engineering | **§5.3: re-arm after a session fault recorded (principal, 2026-11-06, `OI-SIMFW-23`): the interlock FAULT stays latched, the baseline re-forms from fresh PPG, the lockout runs from the tick that saw the fault; a re-enable is permission to start a new session (option 2); resuming the same session (option 1) is recorded as a possibility for later; keeping the latch through a stop (closing the stop-then-start lockout bypass) is also recorded as a possible future change and not made.** |
 | 18 | 2026-11-08 | NeurOne Firmware Engineering | **§14.8 added: cardiac cutoff sensitivity (`REQ-CVNS-14`).** Levels 1 and 2 cut at over 14 and 13 BPM; a higher level acts at once and a lower one at the next CVNS request; carried in the HR report's reserved word. Synthetic detection and false-trip costs per level are tabulated. The 15 BPM threshold of `REQ-CVNS-09` is unchanged at level 0. IEC 62304 SW-01 Class C: `np_cardiac_interlock.c` and `np_safety_main.c` change; verification is host tests only, with the ARM build and silicon timing not run. |
 | 19 | 2026-11-11 | NeurOne Firmware Engineering | **§3, §8: NP_CVNS_SESSION_MIN_S and NP_CVNS_SESSION_MAX_S are retired and removed from the firmware (the principal, 2026-11-11). np_cvns_stim_init refuses a configuration with no length and one no longer than the two ramps, which is geometry and not a health limit; any other length is the protocol's.** |
+| 20 | 2026-11-21 | NeurOne Quality | **§14 OI-CVNS-04: note added that it must not be closed by wiring `np_cvns_shdr_summary_t` as it stands, because the struct carries raw per-electrode impedance and stimulation parameters, which §5.1 classes as UHDR (OI-PRIV-23, GitHub #951, NP-PRIV-ANALYSIS-004 H3). No requirement or design changed.** |

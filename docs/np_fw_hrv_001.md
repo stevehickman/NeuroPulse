@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
@@ -346,3 +346,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 5 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1.1: `rr_sample_count` and `tavns_stim_count` are 32-bit, and `rr_sample_count` counts every accepted R-R interval and not the ring's occupancy; the UHDR session record is 35 bytes (`OI-UINT16-01`).** |
+| 6 | 2026-11-21 | NeurOne Quality | **§11 OI-HRV-04: note added that it must not be closed as worded, because the coherence trend and the resonance breathing rate derive from HRV, which §5.1 classes as UHDR (OI-PRIV-30, GitHub #958, NP-PRIV-ANALYSIS-004 M3). No requirement or design changed.** |

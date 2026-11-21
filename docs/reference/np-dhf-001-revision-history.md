@@ -390,3 +390,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 354 | 2026-11-21 | NeurOne Software Engineering | **196 → 197: SWR-UI-01 (f) now holds for the Compose binaural and isochronic tones: a typed 0 Hz is stored as 0, and none is a switch, as on iOS.** |
 | 355 | 2026-11-21 | NeurOne Software Engineering | **NP-APP-PRESENCE-001 revised: OI-PRES-07 records the findings of the runbook review (issues #935 and #936).** |
 | 356 | 2026-11-21 | NeurOne Software Engineering | **NP-APP-PRESENCE-001 and NP-SW-001 revised: the analytics ID and its erasure queue join the device tier, readable while the presence gate is locked (`OI-ANALYTICS-01` (5) (b), the principal 2026-11-21).** |
+| 357 | 2026-11-21 | NeurOne Quality | **NP-PRIV-ANALYSIS-004 Rev 1 added (privacy review of `firmware/`, 26 findings, 21 new ones filed as OI-PRIV-21 to OI-PRIV-41, GitHub #949–#969); 19 → 20, 5 → 6: do-not-close notes on OI-CVNS-04 and OI-HRV-04.** |
