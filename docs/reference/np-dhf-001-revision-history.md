@@ -355,3 +355,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 319 | 2026-11-21 | NeurOne Software Engineering | **166 → 167: SWR-UI-01, the web app's parameter controls and the single bounds file; built in the web app only.** |
 | 320 | 2026-11-21 | NeurOne Software Engineering | **167 → 168: SWR-UI-01 (f): a clinician limit outside its range is refused at save and import, not clamped.** |
 | 321 | 2026-11-21 | NeurOne Software Engineering | **168 → 169: SWR-UI-02, the Compose and iOS audio level ranges stop at the 85 dB SPL ceiling and the iOS auricular VNS frequency is a typed field.** |
+| 322 | 2026-11-15 | NeurOne Software Engineering | **169 → 170, 9 → 10: privacy review of `common/` (`OI-PRIV-01` to `-16`); the migration confirmation is keyed and a gated install with no key list no longer opens the host's store.** |

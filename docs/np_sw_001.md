@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 169
-**Date:** 2026-11-21  
+**Revision:** 170
+**Date:** 2026-11-15  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -854,3 +854,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 167 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: new SWR-UI-01: every parameter is edited with one set of controls chosen by its bounds (a slider only when bounded on both sides, otherwise a typed field), every value has an editable field, a magnifier serves ranges finer than the track, controls are grouped by kind, a control never clamps, and every bound lives in app/web/src/lib/paramBounds.ts. Built in the web app; the Compose and iOS apps are not.** |
 | 168 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) now covers the clinician limit fields: a set of limits with a value outside its range is refused when saved or imported and the Save button says why, instead of the field holding the value inside its range. The clamp exception is removed from the status.** |
 | 169 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: new SWR-UI-02: no app's editor offers an audio level above the 85 dB SPL ceiling (the iOS volume slider and the iOS and Compose volume limits were 40 to 90), and the auricular VNS frequency has no stated bounds in any editor (the iOS slider was 1 to 25 Hz). Built; the Swift and Kotlin are not run where they were written.** |
+| 170 | 2026-11-15 | NeurOne Software Engineering | **§6.3 `SWR-MG-08`: the confirmation carries a tag made from the bundle key, the old phone records that tag when it seals the bundle, and it clears only on a confirmation carrying it (`OI-PRIV-01`).** |
