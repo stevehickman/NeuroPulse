@@ -80,4 +80,5 @@ What is left is not screens but wiring on some targets, below, and retiring the 
   storage, signing) being wired in the shared build. macOS is the desktop app.
 - `OI-UI-KMP-06` — iOS and desktop packaging are unbuilt here (no Xcode, DMG/MSI
   tooling or browser); `android-ci.yml` and a macOS runner are the first real builds.
-  `kotlin-ios-ci.yml` compiles the Kotlin iOS targets and links the framework (a build gate, no test).
+  `kotlin-ios-ci.yml` compiles the Kotlin iOS targets, links the framework, runs the iOS simulator tests of `:core` and
+  `:shared` and builds `iosApp`; the app is never launched on a simulator, and nothing has run on a device.

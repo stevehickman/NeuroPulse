@@ -6,7 +6,8 @@ name: Kotlin iOS CI (Gradle, macOS)
 # the NPPS cinterop, the iOS wiring) was unbuilt until this job (OI-UI-KMP-06).
 #
 # It then builds the Xcode host app/NeurOneUI/iosApp for the simulator, whose pre-build phase runs Gradle's
-# embedAndSignAppleFrameworkForXcode. This is a build gate only: no iOS test runs and no simulator starts.
+# embedAndSignAppleFrameworkForXcode. It runs the Kotlin iOS tests of :core and :shared on the simulator, but the built app is
+# never installed or launched: no simulator boots, and nothing has run on a device (OI-UI-KMP-06, OI-PRES-07).
 # Kotlin/Native needs Xcode, so the job runs on macOS; :core's cinterop needs
 # libneurone_npps_ffi.a for each Apple architecture, which :core builds with cargo on a macOS host.
 #
