@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 10
-**Date:** 2026-11-15
+**Revision:** 11
+**Date:** 2026-11-18
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -116,3 +116,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 10 | 2026-11-15 | NeurOne Software Engineering | **`REQ-PRES-09` (b): a gated install that cannot get the list of protected keys holds the whole run in memory and does not touch the host's store (`OI-PRIV-03`).** |
+| 11 | 2026-11-18 | NeurOne Software Engineering | **§2, §3, §7: new REQ-PRES-01 (d): a store that caches UHDR holds none while locked, reads again at each unlock and merges what was done locked, never writing it in place of the sealed value. Built for the session history (OI-PRIV-10 (1)); the other stores are OI-PRIV-19, which closes before any host offers the gate. §3 records that a removal acting while locked is deliberate (OI-PRIV-10 (4)).** |
