@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 198
+**Revision:** 199
 **Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -883,3 +883,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 196 | 2026-11-21 | NeurOne Software Engineering | **§5.2.2: `REQ-SW02-11` states that an EEG-adaptive PBM frequency is the tile code nearest the dominant frequency and that no EEG band picks it.** |
 | 197 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose audio editor no longer turns a typed binaural or isochronic rate of 0 into none. Each tone is present or absent by a switch, as on iOS, and its rate is a typed field. The exception for the binaural and isochronic zero-to-none conversion is removed from the status.** |
 | 198 | 2026-11-21 | NeurOne Software Engineering | **§5.3.1 (`REQ-SW03-19` (g)): an erase or a withdrawal made while the presence gate is locked reads, queues and sends the analytics ID, because it is a device-tier key.** |
+| 199 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose composer no longer turns a blank or too-large layer start offset into 0; the field is marked and Save is disabled, and 0 remains a valid offset. No silent change found by the 2026-11-15 sweep remains in the Compose editors.** |
