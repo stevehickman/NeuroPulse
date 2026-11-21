@@ -128,8 +128,8 @@ final class NPAbsoluteQuantityTests: XCTestCase {
         // 250 mW/cm² at 808 nm: round(250 / 403 × 255) = 158 in the second current byte.
         let blob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .pbmTranscranial(transcranial))])).blob
-        // header(107: 68 + the 39-byte rules stamp) + cmd_hdr(14) + socket mask(16) → params [freq, duty, cur_660, cur_808]
-        XCTAssertEqual(Array(blob.subdata(in: 137..<141)), [20, 50, 0, 158])
+        // header(107: 68 + the 39-byte rules stamp) + cmd_hdr(14) + socket mask(16) → params [freq_mhz (32-bit little-endian, 20 Hz = 20000 = 0x4E20), duty, cur_660, cur_808] (OI-PBMTILE-01)
+        XCTAssertEqual(Array(blob.subdata(in: 137..<144)), [0x20, 0x4E, 0, 0, 50, 0, 158])
         // Audio: 70 dB SPL is the absolute level, 2 × dB = 140 on the wire (REQ-AUDIO-20).
         let audioBlob = try HubDescriptorCompiler.build(NPProtocolDefinition(
             name: "abs", modalities: [NPProtocolModality(params: .audioEntrainment(audio))])).blob

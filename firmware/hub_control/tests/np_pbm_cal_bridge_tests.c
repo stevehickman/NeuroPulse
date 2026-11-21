@@ -141,7 +141,7 @@ static void start_session(np_pbm_session_ctx_t *ctx, uint8_t s0, uint8_t s1)
     desc.groups[0].preset.cur_a        = 180U;
     desc.groups[0].preset.cur_b        = 180U;
     desc.groups[0].preset.cur_c        = 150U;
-    desc.groups[0].preset.freq_hz      = 40U;
+    desc.groups[0].preset.freq_mhz     = 40000U;
     desc.groups[0].preset.duty         = 0x10U;
     desc.groups[0].preset.channel_mask = NP_PBM_CH_ALL_EN;
 

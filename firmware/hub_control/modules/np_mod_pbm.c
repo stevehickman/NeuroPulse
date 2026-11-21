@@ -198,13 +198,13 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         np_pbm_drv_slot_t *drv = &s_state[slot].drv;
 
         /* Bring up the driver IC (CONFIG → CUR → FREQ → DUTY=0 → CH_ENABLE →
-         * STATUS check).  freq_hz is left 0 here; the exact PWM frequency code
-         * from the session descriptor is applied below via drive_set_freq(). */
+         * STATUS check).  FREQ is the commanded frequency in millihertz, read back; a tile that refuses it fails the
+         * command (NP_PBM_ERR_FREQ_REFUSED, OI-PBMTILE-01). */
         np_pbm_preset_t preset = {
             .cur_a        = p->cur_a,
             .cur_b        = p->cur_b,
             .cur_c        = p->cur_c,
-            .freq_hz      = 0U,
+            .freq_mhz     = p->freq_mhz,
             .duty         = duty,
             .channel_mask = p->ch_mask,
         };
@@ -213,11 +213,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             return NP_HUB_ERR_MOD_FAULT;
         }
 
-        /* Apply the requested PWM frequency code and duty on the enabled channels. */
-        rc = np_pbm_drive_set_freq(slot, drv, p->ch_mask, p->freq_code);
-        if (rc != NP_PBM_OK) {
-            return NP_HUB_ERR_MOD_FAULT;
-        }
+        /* Apply the duty on the enabled channels. */
         rc = np_pbm_drive_set_duty(slot, drv, p->ch_mask, duty);
         if (rc != NP_PBM_OK) {
             return NP_HUB_ERR_MOD_FAULT;
@@ -231,7 +227,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
         const uint8_t duty = p->duty;   /* as commanded; above the limit was refused (REQ-FWHUB-78) */
         np_hub_status_t rc = np_mod_pbm_hal_pwm_set(slot,
                                                       p->cur_a, p->cur_b,
-                                                      p->freq_code, duty);
+                                                      p->freq_mhz, duty);
         if (rc != NP_HUB_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
@@ -357,7 +353,7 @@ static np_hub_status_t base_pwm_apply(uint16_t socket_id)
     const uint8_t cur_a = (off & NP_PBM_CH_A_EN) ? 0U : p->cur_a;
     const uint8_t cur_b = (off & NP_PBM_CH_B_EN) ? 0U : p->cur_b;
     return (np_mod_pbm_hal_socket_pwm_set(socket_id, cur_a, cur_b,
-                                          p->freq_code, p->duty)   /* stored only after the limit check */
+                                          p->freq_mhz, p->duty)   /* stored only after the limit check */
             == NP_HUB_OK) ? NP_HUB_OK : NP_HUB_ERR_MOD_FAULT;
 }
 
@@ -430,13 +426,12 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
             .cur_a        = p->cur_a,
             .cur_b        = p->cur_b,
             .cur_c        = p->cur_c,
-            .freq_hz      = 0U,
+            .freq_mhz     = p->freq_mhz,
             .duty         = duty,
             .channel_mask = mask,
         };
         s_sock_type[socket_id] = NP_MOD_PBM_SMART;
         if (np_pbm_drive_startup(addr, drv, &preset) != NP_PBM_OK ||
-            np_pbm_drive_set_freq(addr, drv, mask, p->freq_code) != NP_PBM_OK ||
             np_pbm_drive_set_duty(addr, drv, mask, duty) != NP_PBM_OK) {
             return socket_drive_fault(mod_type);
         }
