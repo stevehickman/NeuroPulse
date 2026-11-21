@@ -103,7 +103,8 @@ class AndroidGatedSecretKeyStore(private val context: Context) : GatedSecretKeyS
         // Destroying needs no presence. The Keystore entry first, so the wrapped bytes open under nothing whatever becomes of the file.
         val ks = keystore()
         if (ks.containsAlias(ALIAS)) ks.deleteEntry(ALIAS)
-        prefs.edit().remove(WRAPPED).commit()
+        // The erase returns the device to factory state, gate included (`OI-PRES-10`), so the flag goes with the key. Nothing else turns the gate off (`REQ-PRES-09`).
+        prefs.edit().remove(WRAPPED).remove(ENABLED).commit()
         lock()
     }
 
