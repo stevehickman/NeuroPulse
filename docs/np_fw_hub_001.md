@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 65
+**Revision:** 66
 **Date:** 2026-11-21
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -1212,7 +1212,7 @@ conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` 
 the fault-latch marshaller; this section is the rule the script is derived from.
 
 The cVNS SHDR codes (`NP_CVNS_SHDR_EV_CUTOFF` `0xC1` and `NP_CVNS_SHDR_EV_IMP_CROSSVAL` `0xC7`) are flags only — no HR, no RR, no kΩ.
-**Rev {NP-FW-HUB-001 to} (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
+**Rev 66 (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
 `0xC2`–`0xC6` (confirmation window open, contact check failed, contact check timed out, re-enable complete, assertion
 timed out) are retired and written nowhere. Each follows a cutoff, and four follow only the wearer's confirmation, so in
 sequence they told SHDR whether the person resumed neck stimulation after a cardiac event and how often skin contact
