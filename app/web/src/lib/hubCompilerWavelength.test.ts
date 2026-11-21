@@ -72,8 +72,10 @@ ${fields}
 // channel, read back from a compile so these tests do not restate the encoder's
 // arithmetic. 14 mW/cm² is half of CH_C's 28 at full drive.
 const base = commands(protocol(pbm('        wavelength: "808nm"')))[0];
-const [FC, DUTY, CUR] = [base.params[0], base.params[1], base.params[3]];
-const CUR_C = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')))[0].params[4];
+// params: freq_mhz (4 bytes, little-endian), duty, cur_a, cur_b[, cur_c, ch_mask] (OI-PBMTILE-01)
+const FQ = base.params.slice(0, 4);
+const [DUTY, CUR] = [base.params[4], base.params[6]];
+const CUR_C = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')))[0].params[7];
 
 describe('one wavelength per block', () => {
   // @verifies REQ-NPPS-03
@@ -81,27 +83,27 @@ describe('one wavelength per block', () => {
     for (const w of ['808nm', '810nm', '820nm', '830nm']) {
       const [c] = commands(protocol(pbm(`        wavelength: "${w}"`)));
       expect(c.modType, w).toBe(NP_MOD_PBM_BASE);
-      expect(c.params, w).toEqual([FC, DUTY, 0, CUR]);
+      expect(c.params, w).toEqual([...FQ, DUTY, 0, CUR]);
     }
   });
 
   // @verifies REQ-NPPS-03
   it('660 nm drives only the 660 channel', () => {
     const [c] = commands(protocol(pbm('        wavelength: "660nm"')));
-    expect(c.params).toEqual([FC, DUTY, CUR, 0]);
+    expect(c.params).toEqual([...FQ, DUTY, CUR, 0]);
   });
 
   // @verifies REQ-NPPS-03
   it('1070 nm drives only CH_C on a smart command', () => {
     const [c] = commands(protocol(pbm('        wavelength: "1070nm"', '14mW_cm2')));
     expect(c.modType).toBe(NP_MOD_PBM_SMART);
-    expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
+    expect(c.params).toEqual([...FQ, DUTY, 0, 0, CUR_C, 0x04]);
   });
 
   // @verifies REQ-NPPS-03
   it('1064nm is a plain wavelength and drives CH_C alone', () => {
     const [c] = commands(protocol(pbm('        wavelength: "1064nm"', '14mW_cm2')));
-    expect(c.params).toEqual([FC, DUTY, 0, 0, CUR_C, 0x04]);
+    expect(c.params).toEqual([...FQ, DUTY, 0, 0, CUR_C, 0x04]);
   });
 
   // @verifies REQ-NPPS-03
@@ -116,8 +118,8 @@ describe('one wavelength per block', () => {
     // 28 mW/cm² is CH_C at full drive (255); on a 660/808 channel it is ~7 % of 403.
     const c1064 = commands(protocol(pbm('        wavelength: "1064nm"', '28mW_cm2')))[0];
     const c808 = commands(protocol(pbm('        wavelength: "808nm"', '28mW_cm2')))[0];
-    expect(c1064.params[4]).toBe(255);
-    expect(c808.params[3]).toBe(Math.round(28 / 403 * 255));
+    expect(c1064.params[7]).toBe(255);
+    expect(c808.params[6]).toBe(Math.round(28 / 403 * 255));
   });
 
   // @verifies REQ-NPPS-04
@@ -147,7 +149,7 @@ describe('one wavelength per block', () => {
       channels: [{ element: 'led_808', nominalNm: 808, minNm: 798, maxNm: 860 }],
     });
     const [c] = commands(protocol(pbm('        wavelength: "850nm"')), { wavelengthRules: lab });
-    expect(c.params).toEqual([FC, DUTY, 0, CUR]);
+    expect(c.params).toEqual([...FQ, DUTY, 0, CUR]);
   });
 });
 
@@ -195,7 +197,7 @@ describe('parallel blocks on the same tiles', () => {
   it('660 nm and 810 nm with identical timing merge into one command driving both channels', () => {
     const cmds = commands(two('        wavelength: "660nm"', '        wavelength: "810nm"'));
     expect(cmds).toHaveLength(1);
-    expect(cmds[0].params).toEqual([FC, DUTY, CUR, CUR]);
+    expect(cmds[0].params).toEqual([...FQ, DUTY, CUR, CUR]);
   });
 
   // @verifies REQ-NPPS-03#c

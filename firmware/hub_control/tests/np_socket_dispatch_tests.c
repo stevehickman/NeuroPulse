@@ -230,7 +230,7 @@ static np_session_cmd_t sock_cmd(np_hub_mod_type_t type, const uint16_t *socks, 
 static np_session_cmd_t base_cmd(const uint16_t *socks, unsigned n)
 {
     np_session_cmd_t c = sock_cmd(NP_MOD_PBM_BASE, socks, n);
-    const np_mod_pbm_base_params_t p = { .freq_code = 0x28, .duty = 0x20, .cur_a = 0x40, .cur_b = 0x40 };
+    const np_mod_pbm_base_params_t p = { .freq_mhz = 40000U, .duty = 0x20, .cur_a = 0x40, .cur_b = 0x40 };
     memcpy(c.params, &p, sizeof p);
     c.params_len = sizeof p;
     return c;
@@ -239,7 +239,7 @@ static np_session_cmd_t base_cmd(const uint16_t *socks, unsigned n)
 static np_session_cmd_t smart_cmd(const uint16_t *socks, unsigned n, uint8_t ch_mask)
 {
     np_session_cmd_t c = sock_cmd(NP_MOD_PBM_SMART, socks, n);
-    const np_mod_pbm_smart_params_t p = { .freq_code = 0x28, .duty = 0x20, .cur_a = 0x40,
+    const np_mod_pbm_smart_params_t p = { .freq_mhz = 40000U, .duty = 0x20, .cur_a = 0x40,
                                           .cur_b = 0x40, .cur_c = 0x40, .ch_mask = ch_mask };
     memcpy(c.params, &p, sizeof p);
     c.params_len = sizeof p;

@@ -93,7 +93,7 @@ lists the tests this specification needs.
 
 | Source | What it binds here |
 |---|---|
-| `NP-FW-PBM1064-001` §5.1–§5.5 | Register addresses `0x00`–`0x0D`, their encodings, the frequency codes, ~~and `NP_PBM_DUTY_MAX_REG` = `0x32`~~ (Rev 2: not binding on the tile, §5.5). **The hub code is written against this map** (`firmware/pbm/src/np_pbm_drive.c`), so this document keeps every address and encoding and defines only what was left undefined |
+| `NP-FW-PBM1064-001` §5.1–§5.5 | Register addresses `0x00`–`0x0D`, their encodings (the frequency codes are retired: `FREQ_A/B/C` at `0x12`–`0x1D`, §5.2), ~~and `NP_PBM_DUTY_MAX_REG` = `0x32`~~ (Rev 2: not binding on the tile, §5.5). **The hub code is written against this map** (`firmware/pbm/src/np_pbm_drive.c`), so this document keeps every address and encoding and defines only what was left undefined |
 | `NP-HEX-ZM-001` §4.1 | The identity block at `0x40`, byte for byte (§7) |
 | `NP-MOD-ID-001` §5.2, §5.3, §5.3.1 | The odometer record, its four-slot rotation, its CRC over UID ‖ payload, and MODID-4a (§8) |
 | `NP-HW-HEXTILE-001` §8.3 | ≤ 2 mA standby, ≤ 25 mA active per module on `VCC_3V3` (§10) |
@@ -170,7 +170,7 @@ column is what this document adds.
 | `0x00` | STATUS | R | per §5.7 | bit 0 `FAULT` = any of bits 1–4 set. Bits 1–4 are the **latched** `THERMAL`, `OCP_A`, `OCP_B`, `OCP_C` (§5.7), so a fault that has passed is still reported. Bit 5 `RESET_SEEN` (§5.7). Bits 6–7 read 0 |
 | `0x01` | CH_ENABLE | R/W | `0x00` | bit 0 CH_A (660 nm), bit 1 CH_B (808 nm), bit 2 CH_C (1064 nm). **A bit for a channel the tile does not populate is held 0** (§5.3). Cleared per channel on fault entry (§5.7) |
 | `0x02`–`0x04` | CUR_A/B/C | R/W | `0x00` | Commanded current, 0–255 → 0–180 mA (0.706 mA per code). **0 means the gate is never driven** (§5.3). Codes above `I_cap` saturate in hardware (§5.4) |
-| `0x05`–`0x07` | PWM_FREQ_A/B/C | R/W | `0x28` (40 Hz) | Codes of `NP-FW-PBM1064-001` §5.2 only. An unlisted code is refused, and the register keeps its previous value. **`0x00` is CW: the gate is held on**, and `DUTY` does not apply (§5.5) |
+| `0x05`–`0x07` | — | — | `0x00` | **Retired and reserved** (was `PWM_FREQ_A/B/C`, a one-byte code for six frequencies, `OI-PBMTILE-01`, the principal, 2026-11-21). Reads 0; a write is acknowledged and ignored |
 | `0x08`–`0x0A` | DUTY_A/B/C | R/W | `0x00` | 0.5 % per code, `0x00`–`0xC8` (0–100 %). **Stored as written, never clamped.** A write above `0xC8` is refused, and the register keeps its previous value (§5.5) |
 | `0x0B` | THERMAL | R/W | `62` | Local over-temperature threshold, °C. **A write above 62 is stored as 62** (§6) |
 | `0x0C` | FAULT_LATCH | R/W | per §5.7 | Same bit layout as STATUS bits 1–5. Writing `0xFF` clears every latched bit whose condition no longer holds (§5.7) |
@@ -178,7 +178,10 @@ column is what this document adds.
 | `0x0E`–`0x0F` | FW_VERSION | R | build | major, minor (§14 `REQ-FWTILE-13`) |
 | `0x10` | CMD | W | — | `0x01` = `MATE_INCREMENT` (§8.2). Any other value is ignored |
 | `0x11` | CMD_STATUS | R | `0x00` | `0x00` none issued this power-up · `0x01` mate recorded · `0x02` mate already recorded this power-up, not written · `0x80` odometer write failed |
-| `0x12`–`0x3F` | — | — | `0x00` | reserved |
+| `0x12`–`0x15` | FREQ_A | R/W | `40000` (40 Hz) | CH_A pulse frequency in **millihertz, 32 bits little-endian**. **`0` is CW: the gate is held on**, and `DUTY` does not apply (§5.5). A frequency the tile cannot realise (§5.2a) is **refused: the register keeps its previous value, the write is acknowledged, and the hub's read-back is how a refusal is seen** (`REQ-FWTILE-15`) |
+| `0x16`–`0x19` | FREQ_B | R/W | `40000` (40 Hz) | CH_B pulse frequency, as FREQ_A |
+| `0x1A`–`0x1D` | FREQ_C | R/W | `40000` (40 Hz) | CH_C pulse frequency, as FREQ_A |
+| `0x1E`–`0x3F` | — | — | `0x00` | reserved |
 | `0x40`–`0xCD` | IDENTITY | R | factory | `NP-HEX-ZM-001` §4.1, at most 142 bytes (§7). Bytes past the block's own end read `0xFF` |
 | `0xCE`–`0xDF` | — | — | `0x00` | reserved |
 | `0xE0`–`0xFF` | ODOMETER | R/W | EEPROM | The newest valid 32-byte record, `NP-MOD-ID-001` §5.2 layout (§8) |
@@ -186,6 +189,8 @@ column is what this document adds.
 The identity block's worst case ends at `0x40` + 142 − 1 = `0xCD`, which is the bound
 `np_hexmap_inventory.h` asserts at compile time. The odometer window is exactly one 32-byte record,
 so one transaction reads or writes it.
+
+**5.2a The pulse frequency (`OI-PBMTILE-01`, the principal, 2026-11-21).** The tile takes the frequency itself, in millihertz, and not one of six codes (the codes of `NP-FW-PBM1064-001` §5.2 are retired). Which millihertz values the tile can realise follows from its timer's clock and width, and **that range and resolution are not yet stated** (`OI-PBMTILE-03`: the tile firmware is not in this repository). Until they are, the tile's rule is: a value it can realise to within its timer's resolution is kept; any other is refused, and the register keeps its previous value (`REQ-FWTILE-15`). It never rounds to a frequency nobody authored. The hub reads each `FREQ_x` back after writing it and fails the command on a mismatch (`np_pbm_drive.c`, `NP_PBM_ERR_FREQ_REFUSED`), so a refusal is never mistaken for a start. Base (T1-A) tiles have no MCU: their PWM comes from the cluster controller, whose design range is 2–40 Hz (`NP-HW-HUB-001` §3.2), and a frequency outside what that seam can generate is refused by `np_mod_pbm_hal_socket_pwm_set()` with an error and drives nothing.
 
 ### 5.3 When a gate is driven, and what setpoint 0 means
 
@@ -553,7 +558,7 @@ Each of these would be easy to add. None is added, because nothing requires it (
 | **REQ-FWTILE-12** | Brown-out detection and the watchdog are enabled by fuse, and every reset returns every register to off and sets `RESET_SEEN` | U1 runs erratically on the slow supply edge of every mate with `VLED` live; the hub integrates a dose a restarted tile is not delivering | `NP-HW-HEXTILE-001` §7.3 mating order; R-7 |
 | **REQ-FWTILE-13** | Report `FW_VERSION` at `0x0E` | The software configuration of a fielded device cannot be established per tile | IEC 62304 §8.1.1 (identification of configuration items) |
 | **REQ-FWTILE-14** | Mode S: answer at `0x30`. Mode D: per §9 items 1–5 when `OI-HUB-C15` adopts it | The hub's probe and inventory cannot reach the tile | `NP-HW-HEXTILE-001` D-7; `NP-HEX-ZM-001` §4.1 |
-| **REQ-FWTILE-15** | Refuse an unlisted `PWM_FREQ` code. On `0x00` (CW), hold the gate on while §5.3 holds, with no carrier and `DUTY` not applied | A protocol runs at an undefined frequency; a CW protocol is delivered as a pulse train, which is a different stimulus | `NP-FW-PBM1064-001` §5.2; CLAUDE.md §3 (Rev 59) |
+| **REQ-FWTILE-15** | Refuse a `FREQ_x` value the tile cannot realise (§5.2a), keeping the previous value. On `0` (CW), hold the gate on while §5.3 holds, with no carrier and `DUTY` not applied | A protocol runs at an undefined frequency; a CW protocol is delivered as a pulse train, which is a different stimulus | `NP-FW-PBM1064-001` §5.2; CLAUDE.md §3 (Rev 59) |
 
 ---
 
@@ -566,7 +571,7 @@ Nothing below has been run, because no tile firmware exists.
 | REQ-FWTILE-01 | Host test of the register layer against `np_hexmap_inventory_tests`' reader: a factory image is accepted; a flipped byte fails the hub's CRC; a write to the region changes nothing |
 | REQ-FWTILE-02 | Host test over every combination of the six conditions: the gate output is on in exactly one |
 | REQ-FWTILE-03/-04 | Write `0x64` (50 %) and `0xC8` to each DUTY and read them back unchanged; write `0xC9` and read back the previous value; write `0xFF` to `THERMAL` and read back 62 |
-| REQ-FWTILE-15 | Code `0x00` with `DUTY` = 0: the gate is continuously on for the whole capture, with no edges |
+| REQ-FWTILE-15 | `FREQ_x` = 0 with `DUTY` = 0: the gate is continuously on for the whole capture, with no edges |
 | REQ-FWTILE-05/-06/-07 | Host test with a simulated temperature input, then the GATE-2 bench with a heated tile and the bus disconnected: the gates go off, `ALERT#` is asserted, and clearing the latch leaves `CH_ENABLE` = 0 |
 | REQ-FWTILE-08 | Bench: module current in each state, 3.3 V, over 25–62 °C (HT-DRC-12) |
 | REQ-FWTILE-09 | Logic-analyser capture of a frequency change: no on-phase exceeds the duty of either setting |
