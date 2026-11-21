@@ -146,8 +146,9 @@ class NPPSAbsoluteQuantityTests {
         // 250 mW/cm² at 808 nm: round(250 / 403 × 255) = 158 (0x9E) in the second current byte.
         // The wire carries a drive register, which the hub cannot read back as a percentage.
         val blob = compiler.compile(def.copy(modalities = def.modalities.take(1))).blob
-        val params = blob.copyOfRange(107 + 14 + 16, 107 + 14 + 16 + 4)
-        assertEquals(listOf<Byte>(20, 50, 0, 158.toByte()), params.toList())
+        // The block is freq_mhz (32-bit little-endian: 20 Hz is 20000 = 0x4E20), duty, cur_a, cur_b (OI-PBMTILE-01).
+        val params = blob.copyOfRange(107 + 14 + 16, 107 + 14 + 16 + 7)
+        assertEquals(listOf<Byte>(0x20, 0x4E, 0, 0, 50, 0, 158.toByte()), params.toList())
         // Audio: 70 dB SPL is the absolute level, 2 × dB = 140 on the wire (REQ-AUDIO-20).
         val audio = compiler.compile(def.copy(modalities = def.modalities.drop(2))).blob
         assertEquals(140.toByte(), audio[107 + 14 + 7])
