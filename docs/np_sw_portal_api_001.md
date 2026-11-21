@@ -221,6 +221,13 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 
 ## §6a — The current-install request (`OI-PRIV-22`), DRAFT
 
+> **SUPERSEDED IN PART, 2026-11-21.** The principal then ruled that the app does not poll: it **subscribes**, the
+> subscription identifies a *device* that is current for at least one of its users (one subscription per device,
+> however many users it holds), it says nothing about consent, and NeurOne publishes each research request to the
+> subscribed devices only. The calls below (a per-user record, a consent state in the signed request, `poll`)
+> are for the earlier model and are to be rewritten when the points open in `OI-PRIV-22` are answered. Read
+> `pending-decisions.md` `OI-PRIV-22` first.
+
 > **DRAFT, not in force, and it conflicts with §3 as written.** The principal's rulings of 2026-11-20 and
 > 2026-11-21 (`OI-PRIV-22`) have the server keep a record of which install is a person's current one and
 > deliver study requests only to it. §3 says there is no way to hold a stable identifier of the user's app
