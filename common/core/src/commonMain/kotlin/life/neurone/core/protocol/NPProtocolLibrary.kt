@@ -223,6 +223,18 @@ class NPProtocolLibrary(
         }
     }
 
+    /**
+     * Read the stored protocols and family state again, for after a restore wrote them under this library (`OI-PRIV-19`): the library
+     * reads once, so without this the restored protocols would not show and the next save would write over them. Does nothing while locked.
+     */
+    fun reloadFromStorage() {
+        if (!loaded) return
+        _userProtocols.clear()
+        validationCache.clear()
+        readSealed()
+        publishZoneNamespace()
+    }
+
     private fun readSealed() {
         eegConsentGranted = kv.getBoolean(BIPA_ACCEPTED_KEY)
         loadFromStore()

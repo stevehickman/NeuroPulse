@@ -51,16 +51,50 @@ interface FolderPlaces {
  * changes only when a folder passes both checks, so a screen never holds a place that was refused. [problem] is why the last
  * try failed, and is cleared by the next.
  */
-class BackupFolderModel(private val places: FolderPlaces, private val keys: KeyValueStore) {
+class BackupFolderModel(
+    private val places: FolderPlaces,
+    private val keys: KeyValueStore,
+    /**
+     * Whether the sealed choice can be read now. False while the presence gate is closed (`NP-APP-PRESENCE-001`): a locked read of
+     * the choice is "absent", which would read as the default folder, and a backup would go there instead of where the person chose
+     * (`OI-PRIV-19`). While false there is no folder and no place, and the choice is read again by [reload] at the unlock.
+     */
+    private val readable: () -> Boolean = { true },
+) {
     // A folder chosen in an earlier run may be gone (a drive that is not plugged in). The app then starts on the default folder and
     // says so; the choice is kept, so the drive being back is enough.
-    private val saved: String? = keys.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() }
-    private val savedPlace: MigrationPlace? = saved?.let { f -> runCatching { places.placeAt(f) }.getOrNull() }
-    private val start: Pair<String?, MigrationPlace?> =
-        if (saved != null && savedPlace != null) saved to savedPlace else places.defaultFolder to places.defaultFolder?.let { places.placeAt(it) }
-    private val chosen = MutableStateFlow(start.first)
-    private val current = MutableStateFlow(start.second)
-    private val trouble = MutableStateFlow<FolderProblem?>(if (saved != null && savedPlace == null) FolderProblem.NotWritable else null)
+    private class Start(val folder: String?, val place: MigrationPlace?, val problem: FolderProblem?)
+
+    private fun startState(): Start {
+        if (!readable()) return Start(null, null, null)
+        val saved: String? = keys.getString(BACKUP_FOLDER_KEY)?.takeIf { it.isNotBlank() }
+        val savedPlace: MigrationPlace? = saved?.let { f -> runCatching { places.placeAt(f) }.getOrNull() }
+        return if (saved != null && savedPlace != null) {
+            Start(saved, savedPlace, null)
+        } else {
+            Start(places.defaultFolder, places.defaultFolder?.let { places.placeAt(it) }, if (saved != null) FolderProblem.NotWritable else null)
+        }
+    }
+
+    private val start = startState()
+    private val chosen = MutableStateFlow(start.folder)
+    private val current = MutableStateFlow(start.place)
+    private val trouble = MutableStateFlow(start.problem)
+
+    /** The lock closed: no folder choice stays in memory, and no place is offered. */
+    fun forget() {
+        chosen.value = null
+        current.value = null
+        trouble.value = null
+    }
+
+    /** The lock opened: read the sealed choice and make its place. */
+    fun reload() {
+        val s = startState()
+        chosen.value = s.folder
+        current.value = s.place
+        trouble.value = s.problem
+    }
 
     /** The folder in use, or null when the host has none and none is chosen. */
     val folder: StateFlow<String?> = chosen.asStateFlow()
@@ -76,12 +110,14 @@ class BackupFolderModel(private val places: FolderPlaces, private val keys: KeyV
 
     /** Ask the person for a folder and use it if it passes. A cancel changes nothing. */
     suspend fun choose() {
+        if (!readable()) return
         val picked = places.choose(chosen.value ?: "") ?: return
         use(picked)
     }
 
     /** Go back to the default folder, or to no folder where the host has no default. */
     suspend fun useDefault() {
+        if (!readable()) return
         val default = places.defaultFolder
         if (default != null) {
             use(default)

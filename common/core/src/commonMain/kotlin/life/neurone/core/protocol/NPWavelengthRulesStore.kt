@@ -72,6 +72,11 @@ class NPWavelengthRulesStore(
         }
     }
 
+    /** Read the stored override again, for after a restore wrote it under this store (`OI-PRIV-19`). Does nothing while locked. */
+    fun reloadFromStorage() {
+        if (loaded) load()
+    }
+
     private fun load() {
         userRules = kv.getString(USER_KEY)
             ?.let { runCatching { fromCoreJson(json.parseToJsonElement(it).jsonObject) }.getOrNull() }

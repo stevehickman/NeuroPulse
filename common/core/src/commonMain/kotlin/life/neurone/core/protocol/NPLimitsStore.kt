@@ -146,6 +146,22 @@ class NPLimitsStore(
         return true
     }
 
+    /**
+     * Read the stored limits and profiles again, for after a restore wrote them under this store (`OI-PRIV-19`): the store reads once,
+     * so without this the restored limits would not apply and the next save would write over them. Does nothing while locked.
+     */
+    fun reloadFromStorage() {
+        if (!loaded) return
+        globalLimits = null
+        helmetLimits = emptyMap()
+        individualLimits = emptyMap()
+        profiles = emptyList()
+        announce = false
+        activeProfileId = null
+        announce = true
+        load()
+    }
+
     /** The lock closed: no limit and no profile stays decrypted in this store. */
     private fun forget() {
         globalLimits = null
