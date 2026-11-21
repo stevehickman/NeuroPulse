@@ -1170,7 +1170,20 @@ np_hub_status_t np_runner_run(void)
      * probe again (OI-FWHUB-17). */
     np_lease_release();
 
-    return (s_ctx.abort_reason == NP_ABORT_NONE) ? NP_HUB_OK : NP_HUB_ERR_SAFETY_FAULT;
+    return np_runner_end_status(s_ctx.abort_reason);
+}
+
+/* REQ-FWHUB-84 (a)(b), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  A session the person stopped, or one a pause timed out, is
+ * not a fault and must not light the red indicator; it used to return SAFETY_FAULT, as every non-NONE reason did.  The
+ * list of non-faults is closed: a reason added to np_abort_reason_t is a fault until someone decides otherwise here. */
+np_hub_status_t np_runner_end_status(np_abort_reason_t reason)
+{
+    switch (reason) {
+    case NP_ABORT_NONE:          return NP_HUB_OK;
+    case NP_ABORT_USER:          return NP_HUB_ERR_STOPPED;
+    case NP_ABORT_PAUSE_TIMEOUT: return NP_HUB_ERR_STOPPED;
+    default:                     return NP_HUB_ERR_SAFETY_FAULT;
+    }
 }
 
 void np_runner_abort(np_abort_reason_t reason)

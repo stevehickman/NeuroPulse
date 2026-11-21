@@ -836,10 +836,32 @@ static void test_each_stop_event_ends_the_session_with_its_own_reason_and_the_wo
         char name[128];
         snprintf(name, sizeof name, "reasons: %s: recorded in both records", cases[i].name);
         check(g_end_uhdr.abort_reason == cases[i].expect && g_end_shdr.abort_reason == cases[i].expect, name);
-        snprintf(name, sizeof name, "reasons: %s: the run reports a fault and ends FAULT", cases[i].name);
-        check(rc == NP_HUB_ERR_SAFETY_FAULT && np_runner_get_state() == NP_SESSION_FAULT, name);
+        /* REQ-FWHUB-84: a stop by the person is not a fault (NP_HUB_ERR_STOPPED, no red indicator); every fault reason
+         * is.  The state stays FAULT for both (OI-PRIV-37 records that as undecided). */
+        const np_hub_status_t want = (cases[i].expect == NP_ABORT_USER) ? NP_HUB_ERR_STOPPED : NP_HUB_ERR_SAFETY_FAULT;
+        snprintf(name, sizeof name, "reasons: %s: the run reports %s and ends FAULT", cases[i].name,
+                 want == NP_HUB_ERR_STOPPED ? "a stop, not a fault," : "a fault");
+        check(rc == want && np_runner_get_state() == NP_SESSION_FAULT, name);
         snprintf(name, sizeof name, "reasons: %s: it ended early and shut down once", cases[i].name);
         check(count_of(RUN_EV_DISABLE_ALL) == 1U && !g_runaway && g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms < 60000U, name);
+    }
+}
+
+/* @verifies REQ-FWHUB-84#a,b */
+static void test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status(void)
+{
+    /* The closed list: every reason in np_abort_reason_t, so a reason added later is caught here as a fault until
+     * someone decides it is not. */
+    check(np_runner_end_status(NP_ABORT_NONE) == NP_HUB_OK, "end status: a completed session is OK");
+    check(np_runner_end_status(NP_ABORT_USER) == NP_HUB_ERR_STOPPED, "end status: a stop by the person is STOPPED, not a fault");
+    check(np_runner_end_status(NP_ABORT_PAUSE_TIMEOUT) == NP_HUB_ERR_STOPPED, "end status: a pause timeout is STOPPED, not a fault");
+    const np_abort_reason_t faults[] = { NP_ABORT_SAFETY_MCU, NP_ABORT_WATCHDOG, NP_ABORT_THERMAL, NP_ABORT_POWER,
+                                         NP_ABORT_EEG_SEIZURE, NP_ABORT_MOD_FAULT, NP_ABORT_LOG_FAIL, (np_abort_reason_t)10,
+                                         (np_abort_reason_t)0xFF };
+    for (size_t i = 0U; i < sizeof faults / sizeof faults[0]; i++) {
+        char name[96];
+        snprintf(name, sizeof name, "end status: abort reason %u is a fault", (unsigned)faults[i]);
+        check(np_runner_end_status(faults[i]) == NP_HUB_ERR_SAFETY_FAULT, name);
     }
 }
 
@@ -1034,7 +1056,8 @@ static void test_a_pause_that_outlasts_the_owners_limit_ends_the_session(void)
     const int pause_at = find_a(RUN_EV_LOG_PAUSE, 1U, 0);
     check(pause_at >= 0, "limit: the session paused");
     check(g_end_uhdr.abort_reason == NP_ABORT_PAUSE_TIMEOUT, "limit: it ended because the pause outlasted the limit");
-    check(rc == NP_HUB_ERR_SAFETY_FAULT && np_runner_get_state() == NP_SESSION_FAULT, "limit: and ends FAULT");
+    check(rc == NP_HUB_ERR_STOPPED && np_runner_get_state() == NP_SESSION_FAULT,
+          "limit: and reports a stop, not a fault (REQ-FWHUB-84), in state FAULT");
     const uint32_t ended = g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms;
     const uint32_t p = g_log[pause_at].at_ms;
     check(ended + RUN_SLACK_MS >= p + 2000U && ended <= p + 2000U + RUN_SLACK_MS * 2U, "limit: after the 2 s, measured from the start of the pause");
@@ -1409,6 +1432,7 @@ int main(void)
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
     test_a_device_local_driver_status_is_never_written_to_the_shdr_fault_log();
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();
+    test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status();
     test_an_abort_keeps_the_reason_it_was_given();
     test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended();
     test_waiting_on_the_event_group_does_not_spin();

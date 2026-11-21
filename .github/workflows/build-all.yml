@@ -115,9 +115,9 @@ env:
   # 72 → 73: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
   # 73 → 74: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
   # 74 → 75: np_bootloader_dfu_block_tests (OI-UINT16-01).
-  NP_TOTAL_TEST_COUNT: '75'
+  NP_TOTAL_TEST_COUNT: '76'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '64'
+  NP_CLASS_B_TEST_COUNT: '65'
 
 jobs:
   host-tests-all:

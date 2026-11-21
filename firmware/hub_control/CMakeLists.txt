@@ -88,6 +88,15 @@ if(NP_BUILD_TESTS)
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_options(np_pause_limit_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # REQ-FWHUB-84, REQ-FWHUB-85 (OI-PRIV-37): what the indicators show, stealth mode and the STEALTH wire. Pure C.
+    add_executable(np_status_led_tests
+        tests/np_status_led_tests.c
+        src/np_status_led.c
+    )
+    target_include_directories(np_status_led_tests PRIVATE include ../common/include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS})
+    target_compile_options(np_status_led_tests PRIVATE -Wall -Wextra -std=c11)
+
     # SWR-SS-05: the coordinated ramp-up plan. Pure C.
     add_executable(np_ramp_plan_tests
         tests/np_ramp_plan_tests.c
@@ -648,6 +657,7 @@ if(NP_BUILD_TESTS)
         src/np_warranty_token.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05
+        src/np_status_led.c           # REQ-FWHUB-85 (the GATT table references it)
         src/np_ppx_config.c           # REQ-FWHUB-71 (the GATT table references it)
         src/np_cardiac_sens.c         # REQ-FWHUB-74 (the GATT table references it)
         src/np_ppx_detect.c
@@ -674,6 +684,7 @@ if(NP_BUILD_TESTS)
         tests/np_consumables_tests.c
         src/np_consumables.c
         src/np_pause_limit.c          # SWR-SS-05 (the GATT table references it)
+        src/np_status_led.c           # REQ-FWHUB-85 (the GATT table references it)
         src/np_ppx_config.c
         src/np_cardiac_sens.c
         src/np_ppx_detect.c
@@ -764,6 +775,7 @@ set(HUB_SOURCES
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
+    src/np_status_led.c           # REQ-FWHUB-84/-85: the status indicators and stealth mode (OI-PRIV-37)
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
     src/np_cardiac_sens.c         # REQ-FWHUB-74: the cervical cutoff's sensitivity
     src/np_session_hold.c         # SWR-SS-09: why a session is held

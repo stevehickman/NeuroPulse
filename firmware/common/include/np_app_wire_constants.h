@@ -65,6 +65,12 @@
  */
 #define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
 /*
+ * READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-85). Bit 0 on:
+ * the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+ * in hub RAM only; every boot starts with it off (OI-PRIV-37).
+ */
+#define NP_GATT_STEALTH_ID 0x0022u
+/*
  * READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
  * (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
  * REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -131,6 +137,10 @@
  * PPX_CONFIG read: one byte of flags, one byte of evidence level.
  */
 #define NP_GATT_PPX_CONFIG_LEN 2U
+/*
+ * STEALTH: one byte of flags, read and write; bit 0 is stealth on.
+ */
+#define NP_GATT_STEALTH_LEN 1U
 /*
  * PPX_CONFIG write: one byte of flags.
  */

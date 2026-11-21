@@ -104,4 +104,5 @@ B np_zone_notify_tests
 B np_session_fitting_tests
 B np_session_pause_tests
 B np_pause_limit_tests
+B np_status_led_tests
 B np_ramp_plan_tests
