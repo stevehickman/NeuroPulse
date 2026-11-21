@@ -148,6 +148,18 @@ class MigrationRestoreClearTest {
     }
 
     // @verifies SWR-MG-07
+    @Test fun a_new_migration_backup_removes_the_marker_of_the_bundle_it_replaces() = runTest {
+        val store = MemoryStore()
+        backUp(store, filled())
+        assertTrue(restoreOnto(store, InMemoryKeyValueStore()).step.value is RestoreStep.Done)
+        val claim = NppsCore.migration(buildJsonObject { put("op", "objectNames") })["claim"]!!.jsonPrimitive.content
+        assertNotNull(store.objects[claim])
+        backUp(store, filled())
+        assertNull(store.objects[claim], "the earlier bundle's marker is gone")
+        assertTrue(restoreOnto(store, InMemoryKeyValueStore()).step.value is RestoreStep.Done)
+    }
+
+    // @verifies SWR-MG-07
     @Test fun a_planted_marker_is_refused_as_unauthentic_and_released_by_the_person_not_by_the_restore() = runTest {
         val store = MemoryStore()
         backUp(store, filled())
