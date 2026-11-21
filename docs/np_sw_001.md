@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 162
-**Date:** 2026-11-13  
+**Revision:** 163
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -847,3 +847,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 160 | 2026-11-11 | NeurOne Firmware Engineering | **§5.1 SW01-M03: a note that the charge monitor stores a declared phase as sent; the 2 s clamp (NP_CHARGE_MAX_PHASE_US) is removed on the principal's decision of 2026-11-11 and replaced by compile-time assertions that the per-phase arithmetic fits 64 bits for the types in use. The per-phase comparison is unchanged. Class C code changed without SW-01's independent review; not marked approved.** |
 | 161 | 2026-11-13 | NeurOne Software Engineering | **§6.3: `SWR-SS-04` moves to partly built.** The caution acknowledgement dialog offers a way back to the editor: in place for an unused protocol, on a clone of the family for a used or predefined one. No requirement text changed. |
 | 162 | 2026-11-13 | NeurOne Software Engineering | **§6.3: status of `SWR-HV-03` points to the ruled scheme in `NP-NPPS-REF-001` §7a.1 and `OI-WRV-01`.** Still not built. No requirement text changed. |
+| 163 | 2026-11-21 | NeurOne Software Engineering | **§6.3: `SWR-HV-03` moves from not built to built in the core and the hub (parts a, b and c), and `SWR-HV-02`'s rules version is built.** The hub copies the descriptor's stamp into the UHDR fitting frame (`NP_FITTING_FORMAT` 2). `requirement-parts.json` declares the three parts. The register is held append-only by `scripts/check-wavelength-register.ts` on every pull request. The app's notice is not built. No requirement text changed. |

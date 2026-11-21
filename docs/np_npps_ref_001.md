@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 38
+**Revision:** 39
 **Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -2010,3 +2010,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 36 | 2026-11-11 | NeurOne Firmware Engineering, NeurOne Software Engineering | **§4.1 duty_cycle row: the validator and the hub refuse above 25 % and the compiler clamps at 25 %, until OI-HEXTILE-31 (the hub clamped until 2026-11-11). No grammar, range or requirement changes. Shared core (#843): §14: new REQ-NPPS-33, the compiler refuses a value its descriptor field cannot carry as authored and never clamps, wraps, cuts or raises one, and refuses first everything the hub's load-time check refuses (REQ-FWHUB-78). §4.1, §4.2, §4.5, §4.7, §4.8, §4.10, §4.11: the rows for duty, frequency, ramp, beat, carrier, EMDR cadence and pulse count say what the descriptor carries and that the compiler refuses outside it. A CW block parses and is refused for its 100 % duty until OI-HEXTILE-31. New OI-NPPS-CLAMP-01 (in the open-items log) lists what is left: nine CW protocols, rounding to a step, an audio beat above 65.535 Hz, unknown strings encoded as a default. No grammar, range or limit value changes.** |
 | 37 | 2026-11-13 | NeurOne Software Engineering | **§7a.1 added: version of the wavelength rules (ruled, Q1 to Q8, not built).** Identity (a hash of the resolved set), NeurOne-assigned `major.minor` releases with a register, the major/minor line, the 0.1 pm grid, the session-record stamp (UHDR), unknown or missing version (staged), owner configuration travelling with the warranty owner, and what NeurOne never receives. No grammar, descriptor byte or shipped file changes. |
 | 38 | 2026-11-21 | NeurOne Software Engineering | **§9 TMS `pulse_count`: the descriptor field is 32 bits, so a pulse count up to 4294967295 compiles and a larger one is refused (`OI-UINT16-01`).** |
+| 39 | 2026-11-21 | NeurOne Software Engineering | **§7a, §7a.1 and §11: the `version` field of the `wavelength_rules` block, and the build status.** The field is optional, `major.minor`, and only a `level: global` block states one; the shipped file states `"1.0"`. A malformed version, or one on an owner's set, is a parse error. The canonical form on a 0.1 pm grid, the hash, the 39-byte stamp, the register reader and the major/minor floor are in `common/npps-core`; the register is `common/npps/wavelength-rules-register.json`; the compiler writes the stamp into the descriptor; a gate holds the register append-only. |
