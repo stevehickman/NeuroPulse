@@ -284,6 +284,38 @@ np_hd_status_t np_sloreta_init(np_sloreta_ctx_t   *ctx,
     return NP_HD_OK;
 }
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_sloreta_memset_fn)(void *, int, size_t) = memset;
+
+void np_sloreta_wipe(np_sloreta_ctx_t *ctx)
+{
+    np_sloreta_memset_fn(s_fft_re, 0, sizeof s_fft_re);
+    np_sloreta_memset_fn(s_fft_im, 0, sizeof s_fft_im);
+    np_sloreta_memset_fn(s_spec_re, 0, sizeof s_spec_re);
+    np_sloreta_memset_fn(s_spec_im, 0, sizeof s_spec_im);
+    if (ctx != NULL) {
+        np_sloreta_memset_fn(ctx->cov, 0, sizeof ctx->cov);
+        np_sloreta_memset_fn(ctx->cov_band, 0, sizeof ctx->cov_band);
+        np_sloreta_memset_fn(ctx->ch_mean, 0, sizeof ctx->ch_mean);
+        ctx->epoch_count     = 0U;
+        ctx->spectral_epochs = 0U;
+    }
+}
+
+#ifdef NPTEST_HOST
+bool np_sloreta_test_scratch_is_zero(void)
+{
+    const unsigned char *b[4] = { (const unsigned char *)s_fft_re, (const unsigned char *)s_fft_im,
+                                  (const unsigned char *)s_spec_re, (const unsigned char *)s_spec_im };
+    const size_t n[4] = { sizeof s_fft_re, sizeof s_fft_im, sizeof s_spec_re, sizeof s_spec_im };
+    for (size_t k = 0; k < 4U; k++) {
+        for (size_t i = 0; i < n[k]; i++) { if (b[k][i] != 0U) { return false; } }
+    }
+    return true;
+}
+#endif
+
 void np_sloreta_reset(np_sloreta_ctx_t *ctx)
 {
     if (!ctx) {

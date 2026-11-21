@@ -7,7 +7,8 @@
  *
  * UHDR data produced here is returned via the end_cb's session_record argument.
  * Encryption and eMMC commit are handled by the storage layer above this module.
- * SHDR coherence trend write is also delegated to the caller via the end_cb.
+ * No HRV value goes to SHDR or Config: the coherence trend and the resonance
+ * rate are UHDR (CLAUDE.md §5.1; OI-PRIV-30, NP-PRIV-ANALYSIS-004 M3).
  */
 
 #include "np_hrv_session.h"
@@ -46,6 +47,33 @@ struct np_hrv_session {
 };
 
 static struct np_hrv_session s_session_pool;  /* single-instance pool */
+
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_hrv_sess_memset_fn)(void *, int, size_t) = memset;
+
+/*
+ * REQ-FWHUB-84 (e), OI-PRIV-39: the person's signals and what was computed from
+ * them (the R-R series, the PPG detector, the Welch PSD, the EEG samples and
+ * bands, the coherence) are zeroed once the session record has been handed to
+ * end_cb, with the modules' FFT scratch.  Kept: the configuration, the pacer
+ * (its personalised rate is for the platform to persist) and the taVNS state,
+ * whose force-disable is a safety gate and is not cleared here.
+ */
+static void wipe_session_signals(struct np_hrv_session *sess)
+{
+    np_hrv_sess_memset_fn(&sess->rr_buf, 0, sizeof sess->rr_buf);
+    np_hrv_sess_memset_fn(&sess->ppg_det, 0, sizeof sess->ppg_det);
+    np_hrv_sess_memset_fn(&sess->psd, 0, sizeof sess->psd);
+    np_hrv_sess_memset_fn(&sess->coherence, 0, sizeof sess->coherence);
+    np_hrv_sess_memset_fn(&sess->eeg_buf, 0, sizeof sess->eeg_buf);
+    np_hrv_sess_memset_fn(&sess->eeg_bands, 0, sizeof sess->eeg_bands);
+    np_hrv_sess_memset_fn(&sess->dual_state, 0, sizeof sess->dual_state);
+    sess->coherence_sum = sess->coherence_min = sess->coherence_max = sess->rmssd_sum = 0.0f;
+    sess->coherence_sample_count = 0U;
+    np_hrv_coherence_wipe_scratch();
+    np_hrv_eeg_wipe_scratch();
+}
 
 /* ── taVNS callbacks (forwarded to safety MCU SPI driver) ───────────────────── */
 
@@ -276,7 +304,8 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     if (sess->pacer.sweep_active) {
         float best_rate;
         np_hrv_pacer_sweep_finalise(&sess->pacer, &best_rate);
-        /* Platform should persist best_rate to Config partition. */
+        /* best_rate is UHDR (OI-PRIV-30): if the platform persists it, it goes
+         * to the active user's UHDR partition, never Config or SHDR (OI-HRV-02). */
     }
 
     /* Build UHDR session record. */
@@ -297,12 +326,16 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     }
 
     sess->end_cb(&record, NP_HRV_OK);
+    np_hrv_sess_memset_fn(&record, 0, sizeof record);
+    wipe_session_signals(sess);
 }
 
 void np_hrv_session_destroy(np_hrv_session_t *sess)
 {
     if (sess) {
-        memset(sess, 0, sizeof(*sess));
+        np_hrv_coherence_wipe_scratch();
+        np_hrv_eeg_wipe_scratch();
+        np_hrv_sess_memset_fn(sess, 0, sizeof(*sess));
     }
 }
 

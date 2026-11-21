@@ -190,6 +190,8 @@ size_t      np_log_test_segment_len(np_log_part_t part, unsigned nth);
  * preempting task at the point a real one would land.  NULL clears it. */
 typedef void (*np_log_test_io_hook_fn)(np_log_part_t part, bool sync);
 void        np_log_test_set_io_hook(np_log_test_io_hook_fn fn);
+/* REQ-FWHUB-84 (c): the UHDR staging block as it stands. */
+const uint8_t *np_log_test_uhdr_stage(size_t *len_out);
 #endif
 
 #endif /* NP_LOG_BACKEND_H */

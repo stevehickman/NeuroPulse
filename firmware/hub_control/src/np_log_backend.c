@@ -193,18 +193,32 @@ static np_hub_status_t flush(log_part_state_t *st)
 
 /* ── UHDR session files (OI-LFS-11) ───────────────────────────────────────────── */
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_backend_memset_fn)(void *, int, size_t) = memset;
+
+/* REQ-FWHUB-84 (c), OI-PRIV-39: the UHDR staging block holds plaintext records
+ * (the partition encrypts below this layer).  Zeroed whole at every session end,
+ * after the tail is committed or refused, so no record of the session stays in
+ * RAM. */
+static void wipe_uhdr_stage(void)
+{
+    np_backend_memset_fn(s_uhdr.stage, 0, sizeof s_uhdr.stage);
+    s_uhdr.stage_pos = 0U;
+}
+
 np_hub_status_t np_log_backend_session_end(void)
 {
     log_part_state_t *st = &s_uhdr;
     if (!st->opened) {
-        st->stage_pos = 0U;
+        wipe_uhdr_stage();
         return NP_HUB_OK;
     }
     /* The tail belongs to THIS file: flush it before closing. */
     np_hub_status_t rc = flush(st);
     np_hub_status_t rc_close = np_log_hal_part_close(st->part);
     st->opened        = false;
-    st->stage_pos     = 0U;
+    wipe_uhdr_stage();
     st->segment_bytes = 0U;
     return (rc != NP_HUB_OK) ? rc : rc_close;
 }
@@ -425,6 +439,12 @@ size_t np_log_test_segment_len(np_log_part_t part, unsigned nth)
     }
     size_t end = (nth + 1U < h->n_segments) ? h->seg_start[nth + 1U] : h->len;
     return end - h->seg_start[nth];
+}
+
+const uint8_t *np_log_test_uhdr_stage(size_t *len_out)
+{
+    if (len_out != NULL) { *len_out = sizeof s_uhdr.stage; }
+    return s_uhdr.stage;
 }
 
 #endif /* NPTEST_HOST */

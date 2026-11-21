@@ -10,9 +10,12 @@
  *   On first use, a sweep from NP_PACER_RATE_MIN_BPM to NP_PACER_RATE_MAX_BPM
  *   in NP_PACER_SWEEP_STEP_BPM increments is performed.  Each rate is held for
  *   NP_PACER_SWEEP_DWELL_S seconds while coherence is monitored.  The rate
- *   producing the highest mean coherence is stored as the user's resonance
- *   frequency in the Config partition (SHDR — no user biology in the frequency
- *   value itself; see NP-FW-EMMC-001 §12 for classification rationale).
+ *   producing the highest mean coherence is the user's resonance frequency.
+ *   It is UHDR (CLAUDE.md §5.1): it is chosen from the wearer's HRV coherence
+ *   and is a trait of that person.  It is kept, if at all, in that user's UHDR
+ *   partition under their key, never in the Config partition or SHDR
+ *   (OI-PRIV-30, NP-PRIV-ANALYSIS-004 M3; persistence is OI-HRV-02).  The rate
+ *   a session used already reaches UHDR in the 0x1B record's target_rate_bpm.
  *
  * The pacer is tick-driven: np_hrv_pacer_tick() must be called at ≥ 10 Hz.
  */
