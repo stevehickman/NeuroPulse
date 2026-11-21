@@ -2099,7 +2099,7 @@ The guard checks the two correspondences §5.0 is built out of:
 | `check-section-refs.ts` | `<tree>` |
 | `check-ci-scope.ts` | `.github/workflows/** firmware/** scripts/** ci/**` |
 | `check-consent-reachability.ts` | `app/ios/** app/android/**` |
-| `check-redaction-shape.ts` | `firmware/**` |
+| `check-redaction-shape.ts` | `firmware/** docs/status/pending-decisions.md` |
 | `check-js-syntax.sh` | `simulator/**` |
 | `ci-changed-scope.sh` | `.github/workflows/**` |
 | `ci/test_shdr_schema.py` | `ci/shdr/shdr_fleet_schema.sql firmware/shdr/include/np_accel_shdr.h` |

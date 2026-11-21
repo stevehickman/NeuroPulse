@@ -1207,8 +1207,13 @@ This is CLAUDE.md §5.1's second general rule made concrete, and the reason is a
 already paid for: zeroing `tick_ms` only for `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms ==
 0` a **self-interpreting one-bit cardiac oracle**. A redaction applied conditionally on a sensitive
 predicate leaks that predicate. `REQ-FWHUB-14`: **no SHDR suppression in this program may be made
-conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` enforces the shape at
-the fault-latch marshaller; this section is the rule the script is derived from.
+conditional on the event being suppressed.** This section is the rule `scripts/check-redaction-shape.ts`
+is derived from. Since `OI-PRIV-40` (NP-PRIV-ANALYSIS-004) the gate finds every function in device
+firmware that calls an SHDR sink and fails one that is not a declared reporting path. It fails a declared
+path that names a sensitive status bit or copies a whole safety status word. Writers that open items
+already own are listed by name, each failing once its item closes. **Its reach is partial:** it matches
+names, not data flow, and cannot tell whether a field is UHDR (a session duration passes it). Declaring a
+path is a review claim that every field has a §5.1 ruling, which the gate checks only in part.
 
 The cVNS lifecycle codes (`NP_CVNS_SHDR_EV_*`, `0xC1`–`0xC7`) are flags only — no HR, no RR, no kΩ.
 So is `NP_STIM_SHDR_EV_DELIVERY_DIVERGENCE` (`0xD1`, Rev 9, §8.3.1): which slot diverged, never by
