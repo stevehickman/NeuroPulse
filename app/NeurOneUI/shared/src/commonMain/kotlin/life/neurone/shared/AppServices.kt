@@ -218,6 +218,7 @@ class AppServices(
         researchAnalyticsGate,
         // The token that joins a person's suggestions goes when the portal opt-in or blanket consent does (`OI-PRIV-08` (3)).
         onPortalIdentityWithdrawn = { researchSuggestionStore.forgetAuthorToken() },
+        lock = presenceLock,
     )
 
     /**
@@ -375,7 +376,7 @@ class AppServices(
         onReminderNotification = { reminder -> platform.reminderNotifier?.let { notifier -> scope.launch { notifier.showReminder(reminder) } } },
     )
 
-    val limitsStore = NPLimitsStore(keyValueStore).also { limits ->
+    val limitsStore = NPLimitsStore(keyValueStore, lock = presenceLock).also { limits ->
         // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the person on
         // the device. Until a profile is chosen the device keeps assuming whoever it last knew.
         gattManager.activeUserTag = ActiveUserTag.from(limits.activeProfileId)
