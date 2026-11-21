@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 4
-**Date:** 2026-10-30
+**Revision:** 5
+**Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -338,3 +338,11 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 | OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` — **Firmware half CLOSED 2026-09-26 (Rev 2, §5.2 item 4, GitHub #447):** firmware no longer trusts the app to validate. An out-of-range frequency or current refuses the session and leaves nothing armed. `np_hrv_session_tests` covers 30 Hz (#386's value), 26 Hz, both current bounds, and the accepted edges. **Open:** the app still has to send a valid value, or the user gets a refused session. That is #386 `OI-NPPS-LIMITS-01` (a shipped 30 Hz protocol) | App team | Protocol 1 |
 | OI-HRV-06 | **§8.1's R-R interval series has no writer.** The row specifies the full-session `uint16_t[]` series as an EDF+ annotation. Nothing in `firmware/hrv_biofeedback/`, `firmware/edf/` or `firmware/hub_control/` writes it, so a stored HRV session has a summary (`0x1B`) and 1 s telemetry snapshots (`0x14`), and no series. Found while closing OI-HRV-03 | FW team | UHDR completeness |
 | OI-HRV-07 | **No task feeds or ticks the HRV session.** `np_hrv_session_push_ppg()`, `np_hrv_session_push_eeg()` and `np_hrv_session_tick()` have no caller outside the library. `np_mod_vns.c`'s banner says the library "runs as a separate FreeRTOS thread", but no such task is created. So on today's firmware no coherence is computed, the taVNS gate never opens, the session never auto-completes, and every committed `0x1B` record has zero statistics (`rr_sample_count = 0`, §8.1.1). No stimulation consequence: the safety MCU owns the enable. Found while closing OI-HRV-03 | FW team | Integration test |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 5 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1.1: `rr_sample_count` and `tavns_stim_count` are 32-bit, and `rr_sample_count` counts every accepted R-R interval and not the ring's occupancy; the UHDR session record is 35 bytes (`OI-UINT16-01`).** |

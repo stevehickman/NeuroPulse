@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 28
-**Date:** 2026-11-11
+**Revision:** 29
+**Date:** 2026-11-21
 **Status:** DRAFT — design study; not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -1543,3 +1543,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 27 | 2026-11-03 | NeurOne Hardware Engineering | **Minor change, `NP-QMS-DC-001` §8.2: the cross-reference to the socket map is corrected, `hardware/np_socket_map.json` is now `hardware/np_socket_map_v1.json`.** No requirement or figure changes. |
 | 28 | 2026-11-11 | NeurOne Firmware Engineering, NeurOne Software Engineering | **§13 OI-HEXTILE-31: item (iii) notes that the hub clamp is a refusal at the same 25 % since 2026-11-11 (NP-FW-HUB-001 REQ-FWHUB-78). The item stays open: the 25 % bound is still in the hub and is removed only after the pre-signing check exists. Shared core (#843): §13 OI-HEXTILE-31: item (ii), the compiler's duty clamp, is a refusal at the same 25 % (NP-NPPS-REF-001 REQ-NPPS-33 (a)). No place reshapes a duty any more; the validator, the compiler and the hub still hold the 25 % the item removes. The item stays open.** |
+| 29 | 2026-11-21 | NeurOne Hardware Engineering | **§Frame capacity: the active heartbeat is 42 bytes; the 4-byte tail added by `OI-UINT16-01` is a zero reply-window tail and not channel data, so the finding that the channel array has no spare bytes stands.** |

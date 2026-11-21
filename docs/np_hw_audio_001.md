@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 14
-**Date:** 2026-11-14
+**Revision:** 15
+**Date:** 2026-11-21
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1279,3 +1279,4 @@ envelope budgets (`OI-AUDIOHW-05`). The restatements of 40 mm elsewhere in the r
 | 12 | 2026-11-13 | NeurOne Systems Engineering | **§5.3, §5.3.1, §8.2.1, §8.2.7, §9: REQ-AUDIO-26 decided: noise band 20 Hz to 20 kHz, unweighted level, 12 dB crest factor (97 dB SPL equivalent peak at the ceiling, computed); new §8.2.7 G gives the reasoning and what stays open (brown noise taken as pink, secondary-source standards, hub headroom is OI-AUDIOHW-14). Also the principal kept REQ-AUDIO-25 unchanged: the one human 40 Hz auditory study whose Methods were read (Clements-Cortes and Bartel 2022) used a 160 Hz carrier and states no sound level, the 10 kHz carrier stays known only from a patent summary of a mouse study whose Methods could not be read, and the Martorell 2019 and Clements-Cortes 2016 Methods join the OI-AUDIOHW-12 check list. No code, constant or limit changed.** |
 | 13 | 2026-11-13 | NeurOne Systems Engineering | **§5.3.1: the 20 Hz to 20 kHz A-weighting offsets for pink and brown noise corrected from −12.8 and −23.7 dB to −2.9 and −12.8 dB, agreeing with §8.2.7 B; the REQ-AUDIO-26 band and crest figures are carried as an unjustified choice.** |
 | 14 | 2026-11-14 | NeurOne Systems Engineering | **§5.3, §9: REQ-AUDIO-25 built: the compiler and the hub driver refuse a binaural or isochronic tone, carrier or carrier plus beat or pulse rate, above 1,000 Hz, with a parity test between the two constants; the requirement text is unchanged.** |
+| 15 | 2026-11-21 | NeurOne Systems Engineering | **§5, §5.2, §9: `REQ-AUDIO-21` gains part (e), the combined hearing-level ceiling, and `OI-AUDIOHW-13` records the decided wire field (`uint32`, flag removed, no protocol-version bump, authored key) and the combined rule; part 1 (the figure) and part 4 (hardware) remain open; the register row is `UC-184`.** |
