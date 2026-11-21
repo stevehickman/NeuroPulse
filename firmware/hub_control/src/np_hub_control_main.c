@@ -270,7 +270,7 @@ static void task_safety_heartbeat(void *arg)
          * currently commanding: the MCU reads current_ua[ch] only for channels
          * in granted_mask, and a shrinking channel_count would silently stop
          * it looking at a channel that is still enabled.                     */
-        uint16_t chan_ua[NP_SAFETY_MAX_CHANNELS];
+        uint32_t chan_ua[NP_SAFETY_MAX_CHANNELS];
         np_safety_spi_get_channel_currents(chan_ua);
 
         np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask, chan_ua,

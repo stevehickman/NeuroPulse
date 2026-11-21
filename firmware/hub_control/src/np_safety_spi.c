@@ -79,7 +79,7 @@ static volatile bool     s_withhold_valid = false;
  * COMMANDED, not delivered — SHDR (what the signed descriptor asked for), never
  * an ADC measurement (which would be UHDR-class; NP-FW-EMMC-001 §12).
  */
-static volatile uint16_t s_channel_ua[NP_SAFETY_MAX_CHANNELS];
+static volatile uint32_t s_channel_ua[NP_SAFETY_MAX_CHANNELS];   /* 32 bits: no commanded current is cut off (OI-UINT16-01) */
 
 /* Heartbeat sequence counter (NP-FMEA-001 OI-FMEA-12 (a), FMEA-M02-03),
  * carried in session_status bits 5–7.  Advanced on every heartbeat built,
@@ -245,10 +245,10 @@ static void parse_withhold_report(const uint8_t *rx_raw)
 
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                           uint16_t            requested_enable_mask,
-                                          const uint16_t     *current_ua,
+                                          const uint32_t     *current_ua,
                                           uint8_t             channel_count)
 {
-    /* Extended 42-byte frame (hub→MCU).  MCU simultaneously sends back 8 bytes
+    /* Extended 66-byte frame (hub→MCU).  MCU simultaneously sends back 8 bytes
      * of reply; hub receives NP_SAFETY_RX_EXT_FRAME_LEN bytes total, of which
      * the first sizeof(np_safety_rx_frame_t) (8) are meaningful MCU reply.    */
     np_safety_tx_ext_frame_t tx;
@@ -288,7 +288,7 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     /* Base checksum: bytes [0..5] */
     tx.checksum = compute_checksum((const uint8_t *)&tx, 6U);
 
-    /* ── Build current_ua array (bytes 8–35) ────────────────────────────── */
+    /* ── Build current_ua array (bytes 8–63) ────────────────────────────── */
     /* current_ua[] carries COMMANDED current from the session descriptor.
      * SHDR classification: device metric.  NOT ADC-measured actual current
      * (which would be UHDR — tissue impedance).  See NP-FW-EMMC-001 §12.   */
@@ -298,10 +298,10 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
         }
     }
 
-    /* Ext checksum: bytes [8..35] (current_ua[14] only) */
+    /* Ext checksum: bytes [8..63] (current_ua[14] only) */
     tx.ext_checksum = compute_checksum(
         (const uint8_t *)&tx + 8U,
-        (size_t)NP_SAFETY_MAX_CHANNELS * sizeof(uint16_t));
+        (size_t)NP_SAFETY_MAX_CHANNELS * sizeof(uint32_t));
 
     /* ── Transfer ────────────────────────────────────────────────────────── */
     rc = np_safety_hal_spi_transfer((const uint8_t *)&tx,
@@ -445,7 +445,7 @@ np_hub_status_t np_safety_spi_send_channel_waveforms(const uint8_t  *wave_class,
     return NP_HUB_OK;
 }
 
-void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua)
 {
     if (channel >= NP_SAFETY_MAX_CHANNELS) {
         return;
@@ -465,7 +465,7 @@ void np_safety_spi_clear_channel_currents(void)
     taskEXIT_CRITICAL();
 }
 
-void np_safety_spi_get_channel_currents(uint16_t out_ua[])
+void np_safety_spi_get_channel_currents(uint32_t out_ua[])
 {
     uint8_t ch;
     if (out_ua == NULL) {

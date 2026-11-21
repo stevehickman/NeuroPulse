@@ -97,10 +97,18 @@ export const NPHardwareLimits = {
   // Whether any ceiling is needed, what hazard it is for, and whether the safety MCU should enforce a pulse-width
   // and frequency dependent cap instead are open: GitHub #554 and #559 (OI-VNSCLIP-09, UC-079).
   VNS_MAX_MILLIAMPS: 40.0,
-  // Cervical VNS (T2) frequency range, 1-25 Hz, from the gammaCore predicate (K163334, fixed 25 Hz;
-  // NP-REG-CVNS-001 section 3). This one stays: it is the equivalence claim the regulatory argument rests on. It
-  // was the same constant as the auricular range until OI-VNSCLIP-08.
+  // Cervical VNS (T2) frequency range, 1-25 Hz. THE REASON IS ECONOMIC, NOT RESEARCH, AND IT IS A REAL ONE (the
+  // principal, 2026-11-20): the 510(k) pathway rests on substantial equivalence to gammaCore (K163334, K173323),
+  // which delivers a fixed 25 Hz, and NP-REG-CVNS-001 section 3.2 argues that 1-25 Hz sits inside the predicate's
+  // modality and that the lower frequencies add no new safety question. COST OF CHANGE: a frequency above 25 Hz
+  // would be a technological difference from the predicate that the equivalence argument does not cover, so the
+  // submission would need a new analysis (likely performance or clinical evidence and a Q-Sub question;
+  // NP-REG-CVNS-001 section 4), and the pathway itself could change; the cost has not been estimated. Lowering the
+  // 1 Hz floor has the same standing. The auricular range has no such reason and was removed (OI-VNSCLIP-08). It
+  // was the same constant as the auricular range until then.
   CERVICAL_VNS_MIN_HZ: 1.0,
+  // The upper end of the range above: the predicate's fixed 25 Hz. Same reason, same cost of change (see
+  // CERVICAL_VNS_MIN_HZ).
   CERVICAL_VNS_MAX_HZ: 25.0,
   // Authored auricular VNS pulse width, µs. ASSUMED (UC-071): the range the published taVNS studies span (Matsuoka
   // 2025 Table 3b, 50–500 µs), not a derived or standard limit. The charge ceiling (40 µC/cm² per phase) is what
@@ -108,35 +116,15 @@ export const NPHardwareLimits = {
   // default, 250 µs.
   VNS_MIN_PULSE_WIDTH_US: 50.0,
   VNS_MAX_PULSE_WIDTH_US: 500.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the
-  // protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  PBM_MIN_HZ: 0.5,
-  // Authorable range stated in NP-NPPS-REF-001 §4.1, §4.2 and §4.11 (0 means continuous wave); enforced when the
-  // protocol is edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  PBM_MAX_HZ: 100.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is
-  // edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  AUDIO_BEAT_MIN_HZ: 0.5,
-  // Authorable range stated in NP-NPPS-REF-001 §4.7 (binaural and isochronic); enforced when the protocol is
-  // edited or compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  AUDIO_BEAT_MAX_HZ: 100.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
-  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  TMS_MIN_HZ: 1.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.10; enforced when the protocol is edited or compiled
-  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  TMS_MAX_HZ: 50.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
-  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  CLINICAL_TACS_MIN_HZ: 0.5,
-  // Authorable range stated in NP-NPPS-REF-001 §4.12; enforced when the protocol is edited or compiled
-  // (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  CLINICAL_TACS_MAX_HZ: 100.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or
-  // compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
-  BREATHING_MIN_BPM: 4.0,
-  // Authorable range stated in NP-NPPS-REF-001 §4.6 (breaths per minute); enforced when the protocol is edited or
-  // compiled (REQ-NPPS-23). The figure has no derivation or external source (UC-082).
+  // Resonance-frequency breathing rate, lower end, breaths per minute. RESEARCH-BACKED: an individual's resonance
+  // frequency lies typically between 4.5 and 7.0 breaths/min, with 5.5 the most common, and the identification
+  // protocol steps 4.5, 5.0, 5.5, 6.0, 6.5, 7.0 (Steffen et al. 2017, Front Public Health,
+  // https://pmc.ncbi.nlm.nih.gov/articles/PMC5575449). It was 4.0, which that source does not support, so it is
+  // 4.5 (the principal's rule, 2026-11-20: a range is enforced only on a documented reason). Enforced when the
+  // protocol is edited or compiled (REQ-NPPS-23).
+  BREATHING_MIN_BPM: 4.5,
+  // Resonance-frequency breathing rate, upper end, breaths per minute: 7.0, the top of the range Steffen et al.
+  // 2017 give (see BREATHING_MIN_BPM). Enforced when the protocol is edited or compiled (REQ-NPPS-23).
   BREATHING_MAX_BPM: 7.0,
   // Visual stimulation
   VISUAL_MAX_HZ: 100.0,

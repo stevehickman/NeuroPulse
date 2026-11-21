@@ -145,6 +145,35 @@ class PresenceMigrationTests {
         again.unlock()
         assertEquals("ten sessions", again.storage.store.getString(history), "and it moves once the earlier key can be asked")
     }
+
+    // A key moved from the UHDR tier to the device tier (the analytics ID, the principal 2026-11-21) may still be sealed under the gated key.
+    // Until the first unlock it reads as absent, never as ciphertext; the unlock seals it under the device key, and it then reads locked.
+    // @verifies REQ-PRES-05
+    // @verifies REQ-SW03-19#g
+    @Test fun a_key_moved_to_the_device_tier_is_moved_off_the_gated_key_at_the_first_unlock_and_then_reads_locked() {
+        val analyticsId = "np.analytics.distinct-id"
+        val host = InMemoryKeyValueStore()
+        val ungated = InMemorySecretKeyStore()
+        val gated = Gated()
+        runBlocking { gated.unlock("test") }
+        // An install that was gated while the ID was still UHDR: its value is sealed under the gated key.
+        EncryptedKeyValueStore(host, gated, setOf(analyticsId)).putString(analyticsId, "0b1c2d3e4f5061728394a5b6c7d8e9f0")
+        gated.lock()
+
+        val lock = PresenceLock(gated, { 0L })
+        val storage = ProtectedStorage.openGated(host, ungated, gated, lock, { all + analyticsId }, { deviceTier + analyticsId })
+        val store = storage.store
+        assertNull(store.getString(analyticsId), "sealed under the gated key and still locked: absent, never ciphertext")
+
+        assertTrue(runBlocking { lock.unlock("Unlock") })
+        assertEquals("0b1c2d3e4f5061728394a5b6c7d8e9f0", store.getString(analyticsId))
+
+        gated.lock()
+        lock.lock()
+        assertEquals("0b1c2d3e4f5061728394a5b6c7d8e9f0", store.getString(analyticsId), "now a device-tier value: it reads while locked")
+        assertTrue(host.getString(analyticsId)!!.startsWith(EncryptedKeyValueStore.PREFIX), "and it is still sealed at rest")
+    }
+
 }
 
 /** UHDR protection is never made weaker (REQ-PRES-09, `CLAUDE.md` §5.1). */

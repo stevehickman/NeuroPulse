@@ -77,6 +77,20 @@ class EraseActions(
 }
 
 /**
+ * What a locked run cannot send to the vendor before an erase (`OI-ANALYTICS-01` (5) (b)). A locked run reads its sealed keys as
+ * absent, so the analytics gate sees no ID and no queue and reports nothing left, while the [raw] store still holds them sealed
+ * and the wipe is about to delete them. Each sealed value found counts as one: how many IDs the queue holds cannot be read, and
+ * "not all erased" is what the person is told. Zero in any other run, where the gate could read them and its own count stands.
+ */
+internal fun unreadableAnalyticsIds(protection: life.neurone.core.common.StorageProtection, raw: KeyValueStore): Int {
+    if (protection != life.neurone.core.common.StorageProtection.LOCKED) return 0
+    return listOf(
+        life.neurone.core.analytics.PostHogAnalyticsBackend.ID_KEY,
+        life.neurone.core.analytics.AnalyticsErasureQueue.KEY,
+    ).count { raw.getString(it) != null }
+}
+
+/**
  * Runs the erase against the host's **raw** [keys]: in a locked run the protected store holds the sealed values in memory and
  * would leave them on disk, and an erase has to remove what is on disk.
  */
@@ -99,7 +113,18 @@ class EraseDeviceModel(
      * **never stops the erase**: a throw reads as "may remain", and the stored credentials go with every other key in the plan below.
      */
     private val endCloudAccess: (suspend () -> Boolean)? = null,
+    /**
+     * How many analytics values this run cannot read (`unreadableAnalyticsIds`), asked BEFORE the person confirms. A locked run
+     * (`StorageProtection.LOCKED`) cannot send the vendor the ID, but the sealed value stays on disk and opens again on a run where
+     * the keystore works, so the person can still choose to erase from there. Told after the wipe it is only an apology
+     * (`OI-ANALYTICS-01` (5) (b), `REQ-SW03-19` (f)). Null where there is nothing to ask.
+     */
+    private val unreadableBeforeErase: (() -> Int)? = null,
 ) {
+    /** Zero unless this run holds analytics values it cannot read. Never throws: a store that cannot answer says nothing, and the post-wipe count still stands. */
+    val analyticsUnreadable: Int
+        get() = try { unreadableBeforeErase?.invoke() ?: 0 } catch (ignored: Exception) { 0 }
+
     private val state = MutableStateFlow<EraseStep>(EraseStep.Idle)
     val step: StateFlow<EraseStep> = state.asStateFlow()
 

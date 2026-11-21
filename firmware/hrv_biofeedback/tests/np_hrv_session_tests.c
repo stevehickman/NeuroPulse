@@ -32,9 +32,9 @@ static int g_fail = 0;
 /* ── Recording callbacks ──────────────────────────────────────────────────── */
 static int      g_enables;
 static uint32_t g_last_freq;
-static uint16_t g_last_ua;
+static uint32_t g_last_ua;
 
-static void rec_enable(uint32_t f, uint16_t ua) { g_enables++; g_last_freq = f; g_last_ua = ua; }
+static void rec_enable(uint32_t f, uint32_t ua) { g_enables++; g_last_freq = f; g_last_ua = ua; }
 static void rec_disable(void) { }
 
 /* Feed R-R intervals that shorten by 20 ms/beat: a clear inspiration onset,

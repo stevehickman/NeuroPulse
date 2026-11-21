@@ -90,7 +90,7 @@ void np_simh_cvns_status(void)
 {
     np_sim_module_t *m = np_sim_find(NP_SIM_KIND_CVNS, 0U);
     if (m == NULL) { return; }
-    uint16_t cur[NP_SAFETY_MAX_CHANNELS];
+    uint32_t cur[NP_SAFETY_MAX_CHANNELS];
     np_safety_spi_get_channel_currents(cur);
     np_sim_emit("{\"ev\":\"module_state\",\"id\":\"cvns:0\",\"present\":%s,\"driven\":%s,\"commanded_ua\":%u}",
                 m->present ? "true" : "false", np_mod_cvns_test_enable_requested() ? "true" : "false",

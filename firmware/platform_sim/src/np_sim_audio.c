@@ -55,12 +55,12 @@ np_hub_status_t np_mod_audio_hal_codec_init(void)
     return NP_HUB_OK;
 }
 
-void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t level_half_db)
+void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint32_t beat_mhz, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_binaural");
     if (m == NULL) { return; }
     char args[48];
-    (void)snprintf(args, sizeof args, "[%u,%u,%u]", carrier_hz, beat_mhz, level_half_db);
+    (void)snprintf(args, sizeof args, "[%u,%lu,%u]", carrier_hz, (unsigned long)beat_mhz, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_BINAURAL, args)) { return; }
     m->audio_mode = 1U; m->audio_carrier_hz = carrier_hz; m->audio_beat_mhz = beat_mhz; m->audio_level_half_db = level_half_db;
     m->driven = (level_half_db != 0U);

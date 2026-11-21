@@ -105,7 +105,7 @@ uint8_t np_cardiac_sens_level(void) { return g_cardiac_sens; }
 
 /* OI-CHARGE-05 (c): the commanded-current publish that rides beside the enable. */
 static uint16_t g_last_chan_ua;
-void np_safety_spi_set_channel_current(uint8_t channel, uint16_t current_ua)
+void np_safety_spi_set_channel_current(uint8_t channel, uint32_t current_ua)
 {
     (void)channel;
     g_last_chan_ua = current_ua;

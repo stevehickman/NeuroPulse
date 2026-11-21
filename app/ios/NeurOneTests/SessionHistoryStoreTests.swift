@@ -117,10 +117,10 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.records.map(\.protocolName), ["C", "B", "A"])
     }
 
-    // MARK: - trim
+    // MARK: - no count limit
 
     // @verifies REQ-SW03-06
-    func testTrimsToMaxOneHundredRecords() {
+    func testNoCountLimitDropsASession() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
 
@@ -131,11 +131,11 @@ final class SessionHistoryStoreTests: XCTestCase {
             ))
         }
 
-        XCTAssertEqual(store.records.count, 100, "Store must not exceed 100 records")
+        XCTAssertEqual(store.records.count, 110, "No session is dropped for being past a count")
     }
 
     // @verifies REQ-SW03-06
-    func testTrimmingKeepsNewestRecords() {
+    func testEveryRecordIsKeptNewestFirst() {
         let suite = makeSuite(#function)
         let store = SessionHistoryStore(defaults: suite)
         let base = Date(timeIntervalSince1970: 1_000_000)
@@ -147,10 +147,9 @@ final class SessionHistoryStoreTests: XCTestCase {
             ))
         }
 
-        // Newest 100 are base+5 through base+104 (i=5..104).
-        XCTAssertEqual(store.records.first?.protocolName, "S104", "Newest record must survive trim")
-        XCTAssertEqual(store.records.last?.protocolName, "S5", "Oldest surviving record is S5")
-        XCTAssertFalse(store.records.map(\.protocolName).contains("S0"), "Oldest 5 must be trimmed")
+        XCTAssertEqual(store.records.count, 105)
+        XCTAssertEqual(store.records.first?.protocolName, "S104")
+        XCTAssertEqual(store.records.last?.protocolName, "S0", "The oldest session is kept")
     }
 
     // MARK: - clearHistory

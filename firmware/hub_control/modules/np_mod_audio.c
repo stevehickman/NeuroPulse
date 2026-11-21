@@ -7,9 +7,10 @@
  *   - Mastoid bone conduction piezoelectric (breathing cue, sync audio)
  * Both driven from the hub's I2S audio codec via SAI peripheral.
  *
- * EEG-adaptive mode: when eeg_adaptive=1, the carrier frequency for binaural
- * beats is adjusted every NP_AUDIO_ADAPT_INTERVAL_MS to track the dominant EEG
- * band.  The EEG module posts its dominant band via np_mod_audio_set_eeg_band().
+ * EEG-adaptive mode: when eeg_adaptive=1, the beat frequency of a binaural command is retuned to the
+ * dominant EEG FREQUENCY, which the EEG layer posts via np_mod_audio_set_eeg_dominant_freq().  A frequency
+ * band (delta, theta, alpha, ...) is a label for a range, used for analysis and display; it never picks the
+ * beat (the principal, 2026-11-20).
  *
  * Level.  Every level is an ABSOLUTE sound pressure level in dB SPL at the ear (level_half_db, 0.5 dB
  * steps), never a percentage, so the same command means the same sound on any driver.  The HAL owns the
@@ -34,23 +35,14 @@
 
 #include "np_sw02_platform_hal.h"
 
-/* EEG band → suggested binaural beat frequency mapping (mHz). */
 #define NP_AUDIO_MODE_BINAURAL  0U   /* np_mod_audio_params_t.mode */
-
-static const uint16_t BAND_BEAT_MHZ[5] = {
-    2000U,   /* delta: 2Hz */
-    6000U,   /* theta: 6Hz */
-    10000U,  /* alpha: 10Hz */
-    20000U,  /* beta: 20Hz */
-    40000U,  /* gamma: 40Hz */
-};
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
 typedef struct {
     uint8_t  mode;
     uint16_t carrier_hz;
-    uint16_t beat_mhz;
+    uint32_t beat_mhz;
     uint8_t  level_half_db;
     bool     bone_on;
     bool     eeg_adaptive;
@@ -59,17 +51,22 @@ typedef struct {
 
 static np_mod_audio_state_t s_state;
 
-/* ── EEG band update (called from EEG telemetry path) ───────────────────────── */
+/* ── EEG dominant-frequency update (called from the EEG path) ───────────────── */
 
-void np_mod_audio_set_eeg_band(uint8_t band)
+void np_mod_audio_set_eeg_dominant_freq(uint32_t freq_mhz)
 {
     if (!s_state.active || !s_state.eeg_adaptive) { return; }
-    if (band >= 5U) { return; }
-    /* NP-FW-HUB-001 §8.5: EEG-adaptive mode retunes the BINAURAL carrier.  Only a
-     * running binaural command (mode 0) is retuned; an isochronic, noise or off
-     * command is left as commanded (OI-SIMFW-19, REQ-AUDIO-18). */
+    /* NP-FW-HUB-001 §8.5: EEG-adaptive mode retunes the BINAURAL beat.  Only a running binaural command
+     * (mode 0) is retuned; an isochronic, noise or off command is left as commanded (OI-SIMFW-19,
+     * REQ-AUDIO-18). */
     if (s_state.mode != NP_AUDIO_MODE_BINAURAL) { return; }
-    s_state.beat_mhz = BAND_BEAT_MHZ[band];
+    /* A frequency that cannot be a beat (0) or that would put carrier plus beat above the planar tone bound
+     * (REQ-AUDIO-25) is refused, and the beat stays what it was; it is never reduced to fit. */
+    if (freq_mhz == 0U ||
+        ((uint64_t)s_state.carrier_hz * 1000ULL + (uint64_t)freq_mhz) > ((uint64_t)NP_AUDIO_MAX_TONE_HZ * 1000ULL)) {
+        return;
+    }
+    s_state.beat_mhz = freq_mhz;
     np_mod_audio_hal_set_binaural(s_state.carrier_hz, s_state.beat_mhz,
                                    s_state.level_half_db);
 }

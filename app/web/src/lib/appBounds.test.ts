@@ -131,3 +131,44 @@ describe('a typed clinician limit in the Compose and iOS apps', () => {
     expect([...checked].filter(f => !fields.has(f))).toEqual([]);
   });
 });
+
+describe('a typed protocol duration in the Compose editor', () => {
+  const screen = read('app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ProtocolEditorScreen.kt');
+
+  // @verifies SWR-UI-01#f
+  it('is never replaced by a default: no 20 minutes for a blank field, no pull up to 1 minute', () => {
+    expect(screen).not.toMatch(/\?:\s*20\b/);
+    expect(screen).not.toMatch(/coerceAtLeast\(1\)/);
+    expect(screen).not.toMatch(/IntervalCount\s*->\s*"20"/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('is refused instead: the field is marked and Save is disabled, from the shared timing bound', () => {
+    expect(screen).toMatch(/durationSecondsOrNull/);
+    expect(screen).toMatch(/NPBounds\.ProtocolFields\.timingValue/);
+    expect(screen).toMatch(/isError = durationRefused/);
+    expect(screen).toMatch(/enabled = !durationRefused/);
+  });
+});
+
+describe('the binaural and isochronic tones in the Compose editor', () => {
+  const editor = read('app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ModalityEditorScreen.kt');
+
+  // @verifies SWR-UI-01#f
+  it('are present or absent by a switch, as on iOS, and a typed 0 is stored as 0, never turned into none', () => {
+    expect(editor).not.toMatch(/takeIf\s*\{\s*\w+\s*->\s*\w+\s*>\s*0\s*\}/);
+    expect(editor).not.toMatch(/(binauralBeatsHz|isochronicTonesHz)\s*\?:\s*0\.0/);
+    expect(editor).toMatch(/OptionalTone\(.*p\.binauralBeatsHz/);
+    expect(editor).toMatch(/OptionalTone\(.*p\.isochronicTonesHz/);
+    expect(editor).toMatch(/if \(on\) startHz else null/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('start at the rates iOS starts them at when the switch is turned on', () => {
+    const ios = read(IOS_EDITOR);
+    expect(ios).toMatch(/binauralBeatsHz = \$0 \? 20 : nil/);
+    expect(ios).toMatch(/isochronicTonesHz = \$0 \? 40 : nil/);
+    expect(editor).toMatch(/BINAURAL_START_HZ = 20\.0/);
+    expect(editor).toMatch(/ISOCHRONIC_START_HZ = 40\.0/);
+  });
+});

@@ -46,6 +46,13 @@
 //!
 //! A key given as hex text is still read for now. Once every host uses this entry point the core refuses it (the
 //! principal, 2026-11-19); until then the hex form is the old path, not a second supported one.
+//!
+//! # The refusal, built and off (`SWR-MG-32` (h))
+//! The Cargo feature `refuse-hex-keys` (off by default; `npps-ffi` and `npps-jni` pass it through) makes [`secret`] and
+//! [`secret_text`] refuse a key, seed, passphrase or cloud secret that is text: `hex_key_refused`. It is a build-time
+//! switch with no run-time way back, so a build that has it cannot be told to read hex again (protection only goes up,
+//! `CLAUDE.md` §5.1, §23). **It is not turned on**: the Swift and Windows apps still send hex until `OI-UI-KMP-05`
+//! deletes them. Only inputs are refused; ids, nonces and other values that are not secrets stay hex.
 
 use crate::migration::{hex, unhex};
 use serde_json::{json, Value};
@@ -56,6 +63,14 @@ use zeroize::Zeroizing;
 
 type R<T> = Result<T, String>;
 type Secret = Zeroizing<Vec<u8>>;
+
+/// Whether a secret given as text is refused (the module text; the Cargo feature `refuse-hex-keys`, off by default).
+pub const REFUSES_TEXT_SECRETS: bool = cfg!(feature = "refuse-hex-keys");
+
+/// The refusal for a secret that arrived as text, when [`REFUSES_TEXT_SECRETS`].
+fn text_refused(field: &str) -> String {
+    format!("hex_key_refused: {field} is a secret and must come beside the request ({{\"$secret\": n}}) or be a kept key ({{\"$handle\": n}}), not text")
+}
 
 /// The most keys held at once (`UC-197`). A migration holds a handful (a data key, a wrapping key, a bundle key, a
 /// signing seed, a cloud secret); nothing derives 64.
@@ -167,6 +182,7 @@ pub fn migration_secret_json(request: &str, secrets: &[u8]) -> Result<(String, Z
 /// belongs here.
 pub(crate) fn secret(req: &Value, field: &str, purposes: &[&str]) -> R<Secret> {
     match &req[field] {
+        Value::String(_) if REFUSES_TEXT_SECRETS => Err(text_refused(field)),
         Value::String(text) => Ok(Zeroizing::new(unhex(text, field)?)),
         Value::Object(o) => {
             if let Some(n) = o.get("$secret").and_then(Value::as_u64) {
@@ -221,6 +237,9 @@ pub(crate) fn release(handle: &Value) -> bool {
 /// bytes beside it, or a kept key.
 pub(crate) fn secret_text(req: &Value, field: &str, purposes: &[&str]) -> R<Zeroizing<String>> {
     if let Value::String(text) = &req[field] {
+        if REFUSES_TEXT_SECRETS {
+            return Err(text_refused(field));
+        }
         let mut copy = Zeroizing::new(String::with_capacity(text.len()));
         copy.push_str(text);
         return Ok(copy);

@@ -8,8 +8,9 @@
  *      (170).  The driver once passed 200 straight to the planar drivers and the bone transducer.
  *      A command above the ceiling is refused (NP_HUB_ERR_INVALID_ARG) before any state changes or output is
  *      commanded, and a running command is left as it was.
- *   2. REQ-AUDIO-18: EEG-adaptive mode retunes the BINAURAL carrier (NP-FW-HUB-001 §8.5).
- *      np_mod_audio_set_eeg_band() re-applied binaural whatever the mode, so an
+ *   2. REQ-AUDIO-18: EEG-adaptive mode retunes the BINAURAL beat to the dominant EEG frequency (NP-FW-HUB-001 §8.5).
+ *      np_mod_audio_set_eeg_dominant_freq() (np_mod_audio_set_eeg_band() until 2026-11-20, a band picking a fixed beat)
+ *      re-applied binaural whatever the mode, so an
  *      isochronic or noise session became binaural, and an "off" command started a
  *      binaural tone.  Only a running binaural command (mode 0) is retuned.
  *
@@ -41,13 +42,14 @@ static void check(int cond, const char *name)
 
 np_hub_status_t np_mod_audio_init(uint8_t slot);
 np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t len);
-void            np_mod_audio_set_eeg_band(uint8_t band);
+void            np_mod_audio_set_eeg_dominant_freq(uint32_t freq_mhz);
 
 /* ── Doubles: what the driver asked the output stage to do ───────────────────── */
 
 typedef struct {
     int      binaural_calls, iso_calls, noise_calls, stop_calls, bone_set_calls, bone_stop_calls;
-    uint16_t carrier_hz, beat_mhz;
+    uint16_t carrier_hz;
+    uint32_t beat_mhz;
     uint8_t  planar_vol, bone_vol, max_vol_seen;
 } audio_log_t;
 
@@ -56,7 +58,7 @@ static audio_log_t g;
 static void note_vol(uint8_t v) { if (v > g.max_vol_seen) { g.max_vol_seen = v; } }
 
 np_hub_status_t np_mod_audio_hal_codec_init(void) { return NP_HUB_OK; }
-void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint16_t beat_mhz, uint8_t level_half_db)
+void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint32_t beat_mhz, uint8_t level_half_db)
 {
     g.binaural_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = beat_mhz; g.planar_vol = level_half_db;
     note_vol(level_half_db);
@@ -125,7 +127,7 @@ static void test_a_refused_level_leaves_a_running_command_as_it_was(void)
     check(cmd(1U, 200U, 0U, 0U) == NP_HUB_ERR_INVALID_ARG, "an over-range command is refused");
     check(g.stop_calls == stops && g.bone_stop_calls == 0 && g.iso_calls == 0,
           "the refusal stops nothing and starts nothing");
-    np_mod_audio_set_eeg_band(2U);
+    np_mod_audio_set_eeg_dominant_freq(10000U);
     check(g.binaural_calls == 2 && g.planar_vol == 40U && g.beat_mhz == 10000U,
           "the earlier binaural command is still the running one, adaptive and at its own volume");
 }
@@ -143,46 +145,52 @@ static void test_the_range_edges_still_play(void)
     check(cmd(3U, 55U, 0U, 0U) == NP_HUB_OK && g.planar_vol == 55U, "a mid-range value is passed unchanged");
 }
 
-/* ── REQ-AUDIO-18: the band update ────────────────────────────────────────────── */
+/* ── REQ-AUDIO-18: the dominant-frequency update ────────────────────────────────────────────── */
 
 /* @verifies REQ-AUDIO-18 */
-static void test_a_band_update_does_not_turn_another_mode_into_binaural(void)
+static void test_a_frequency_update_does_not_turn_another_mode_into_binaural(void)
 {
     for (uint8_t mode = 1U; mode <= 4U; mode++) {
         reset();
         check(cmd(mode, 30U, 0U, 1U) == NP_HUB_OK, "a non-binaural adaptive command starts");
         int before = g.binaural_calls;
-        np_mod_audio_set_eeg_band(2U);
-        check(g.binaural_calls == before, "a band update starts no binaural tone under a non-binaural mode");
+        np_mod_audio_set_eeg_dominant_freq(10000U);
+        check(g.binaural_calls == before, "a frequency update starts no binaural tone under a non-binaural mode");
     }
 }
 
 /* @verifies REQ-AUDIO-18 */
-static void test_a_band_update_still_retunes_a_binaural_session(void)
+static void test_a_frequency_update_still_retunes_a_binaural_session(void)
 {
     reset();
     check(cmd(0U, 30U, 0U, 1U) == NP_HUB_OK && g.binaural_calls == 1, "a binaural adaptive command starts");
-    np_mod_audio_set_eeg_band(2U);
+    np_mod_audio_set_eeg_dominant_freq(10000U);
     check(g.binaural_calls == 2 && g.beat_mhz == 10000U && g.carrier_hz == 440U && g.planar_vol == 30U,
-          "alpha retunes to 10 Hz at the commanded carrier and volume");
-    np_mod_audio_set_eeg_band(4U);
-    check(g.beat_mhz == 40000U, "gamma retunes to 40 Hz");
-    np_mod_audio_set_eeg_band(9U);
-    check(g.binaural_calls == 3, "a band that is not one of the five changes nothing");
+          "a 10 Hz dominant frequency retunes the beat to 10 Hz at the commanded carrier and volume");
+    np_mod_audio_set_eeg_dominant_freq(40000U);
+    check(g.beat_mhz == 40000U, "a 40 Hz dominant frequency retunes it to 40 Hz");
+    np_mod_audio_set_eeg_dominant_freq(7830U);
+    check(g.binaural_calls == 4 && g.beat_mhz == 7830U, "the beat is the frequency itself, not a band's preset: 7.83 Hz stays 7.83 Hz");
+    int calls = g.binaural_calls;
+    np_mod_audio_set_eeg_dominant_freq(0U);
+    check(g.binaural_calls == calls, "0 cannot be a beat and changes nothing");
+    np_mod_audio_set_eeg_dominant_freq(600000U);
+    check(g.binaural_calls == calls && g.beat_mhz == 7830U,
+          "a beat that would put carrier plus beat above 1,000 Hz is refused (REQ-AUDIO-25) and the beat stays as it was");
     reset();
     (void)cmd(0U, 30U, 0U, 0U);
-    np_mod_audio_set_eeg_band(2U);
-    check(g.binaural_calls == 1, "a command without adaptive ignores band updates");
+    np_mod_audio_set_eeg_dominant_freq(10000U);
+    check(g.binaural_calls == 1, "a command without adaptive ignores frequency updates");
 }
 
 /* @verifies REQ-AUDIO-18 */
-static void test_a_band_update_after_a_stop_plays_nothing(void)
+static void test_a_frequency_update_after_a_stop_plays_nothing(void)
 {
     reset();
     (void)cmd(0U, 30U, 0U, 1U);
     (void)np_mod_audio_control(NP_HUB_SLOT_AUDIO, NULL, 0U);
     int before = g.binaural_calls;
-    np_mod_audio_set_eeg_band(2U);
+    np_mod_audio_set_eeg_dominant_freq(10000U);
     check(g.binaural_calls == before, "no tone after a stop");
 }
 
@@ -191,9 +199,9 @@ int main(void)
     test_a_level_above_the_ceiling_reaches_no_transducer();
     test_a_refused_level_leaves_a_running_command_as_it_was();
     test_the_range_edges_still_play();
-    test_a_band_update_does_not_turn_another_mode_into_binaural();
-    test_a_band_update_still_retunes_a_binaural_session();
-    test_a_band_update_after_a_stop_plays_nothing();
+    test_a_frequency_update_does_not_turn_another_mode_into_binaural();
+    test_a_frequency_update_still_retunes_a_binaural_session();
+    test_a_frequency_update_after_a_stop_plays_nothing();
     printf("%s (%d failures)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

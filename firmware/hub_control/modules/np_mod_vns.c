@@ -260,7 +260,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     /* VNS stimulation */
     /* As commanded: a value above the ceiling was refused at the top (REQ-FWHUB-78). */
-    const uint16_t amp = p->amplitude_ua;
+    const uint32_t amp = p->amplitude_ua;
 
     np_hub_status_t rc = np_mod_vns_hal_stim_set(p->side,
                                                     p->freq_mhz,

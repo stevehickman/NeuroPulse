@@ -7,7 +7,7 @@
  *   audio_detect | audio_init
  *   audio <mode> <carrier_hz> <beat_mhz> <level_half_db> <bone> <adaptive>   np_mod_audio_control
  *   audio_stop | audio_shutdown
- *   audio_eeg_band <band>          np_mod_audio_set_eeg_band, the call the EEG telemetry path makes
+ *   audio_eeg_freq <mhz>           np_mod_audio_set_eeg_dominant_freq, the call the EEG path makes with the dominant frequency
  *   audio_sample                   np_mod_audio_telemetry
  *   audio_raw <len>                a command of the wrong size
  * (fail and reading are the shared commands of np_sim_pbm_harness.c; an audio_* op name addresses this path.)
@@ -28,7 +28,7 @@ extern np_hub_status_t np_mod_audio_init(uint8_t slot);
 extern np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t len);
 extern np_hub_status_t np_mod_audio_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_audio_shutdown(uint8_t slot);
-extern void            np_mod_audio_set_eeg_band(uint8_t band);
+extern void            np_mod_audio_set_eeg_dominant_freq(uint32_t freq_mhz);
 
 void np_simh_audio_init(void) { }
 
@@ -72,7 +72,7 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
         int bone = 0, adaptive = 0;
         if (sscanf(e, "%d %d", &bone, &adaptive) != 2) { return false; }   /* e is the rest of the line */
         const np_mod_audio_params_t p = { .mode = NP_SIMH_U8(a), .carrier_hz = NP_SIMH_U16(b),
-                                          .beat_mhz = NP_SIMH_U16(c), .level_half_db = NP_SIMH_U8(d),
+                                          .beat_mhz = NP_SIMH_U32(c), .level_half_db = NP_SIMH_U8(d),
                                           .bone_conduct_en = (uint8_t)bone, .eeg_adaptive = (uint8_t)adaptive };
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof p));
     } else if (strcmp(cmd, "audio_stop") == 0) {
@@ -84,8 +84,8 @@ bool np_simh_audio_line(const char *cmd, char *a, char *b, char *c, char *d, cha
         memset(zeros, 0, sizeof zeros);
         const unsigned len = (unsigned)atoi(a);
         audio_state_event("result", cmd, (int)np_mod_audio_control(NP_HUB_SLOT_AUDIO, zeros, (uint16_t)(len > sizeof zeros ? sizeof zeros : len)));
-    } else if (strcmp(cmd, "audio_eeg_band") == 0 && a) {
-        np_mod_audio_set_eeg_band(NP_SIMH_U8(a));
+    } else if (strcmp(cmd, "audio_eeg_freq") == 0 && a) {
+        np_mod_audio_set_eeg_dominant_freq(NP_SIMH_U32(a));
         audio_state_event("result", cmd, 0);
     } else if (strcmp(cmd, "audio_sample") == 0) {
         np_telem_record_t rec;

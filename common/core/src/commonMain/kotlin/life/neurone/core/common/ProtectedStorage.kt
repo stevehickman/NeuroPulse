@@ -79,7 +79,10 @@ class ProtectedStorage private constructor(
             // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
             // is written in the clear. It never falls back to the ungated or unsealed store, which would lower the protection UHDR has
             // (`CLAUDE.md` §5.1, `REQ-PRES-09`).
-            val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys).also { it.migrate() } }.getOrNull()
+            // [gated] is the device tier's `legacy`: a key the principal moved from the UHDR tier to this one (the analytics ID and its
+            // erasure queue, 2026-11-21) may still be sealed under the gated key on an install that was gated before, and the first unlock
+            // seals it again under the device key (`TieredKeyValueStore.applyPending`). Until then it reads as absent, never as ciphertext.
+            val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys, legacy = gated).also { it.migrate() } }.getOrNull()
                 ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null, all)
             val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
             return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all)

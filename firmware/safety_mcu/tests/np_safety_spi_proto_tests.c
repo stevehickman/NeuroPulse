@@ -441,7 +441,7 @@ static uint16_t ext_data_checksum(const np_safety_rx_ext_frame_t *f)
     uint16_t sum = 0U;
     const uint8_t *b = (const uint8_t *)f;
     uint8_t i;
-    for (i = 8U; i < 36U; i++) { sum += b[i]; }
+    for (i = 8U; i < 64U; i++) { sum += b[i]; }
     return sum;
 }
 
@@ -449,9 +449,9 @@ static uint16_t ext_data_checksum(const np_safety_rx_ext_frame_t *f)
 static void test_ext_frame_sizes(void)
 {
     check(sizeof(np_safety_rx_ext_frame_t) == NP_SAFETY_RX_EXT_FRAME_LEN,
-          "ext_frame size == NP_SAFETY_RX_EXT_FRAME_LEN (38)");
-    check(NP_SAFETY_RX_EXT_FRAME_LEN == 42U,
-          "NP_SAFETY_RX_EXT_FRAME_LEN == 42");
+          "ext_frame size == NP_SAFETY_RX_EXT_FRAME_LEN");
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 66U,
+          "NP_SAFETY_RX_EXT_FRAME_LEN == 66 (8 + 14 x 4 + 2)");
     check(NP_SAFETY_MAX_CHANNELS == 14U,
           "NP_SAFETY_MAX_CHANNELS == 14");
 }
@@ -466,7 +466,7 @@ static void test_ext_frame_offsets(void)
     check(offsetof(np_safety_rx_ext_frame_t, channel_count)  == 5U,  "ext.channel_count at offset 5");
     check(offsetof(np_safety_rx_ext_frame_t, checksum)       == 6U,  "ext.checksum at offset 6");
     check(offsetof(np_safety_rx_ext_frame_t, current_ua)     == 8U,  "ext.current_ua at offset 8");
-    check(offsetof(np_safety_rx_ext_frame_t, ext_checksum)   == 36U, "ext.ext_checksum at offset 36");
+    check(offsetof(np_safety_rx_ext_frame_t, ext_checksum)   == 64U, "ext.ext_checksum at offset 64");
 }
 
 /* @verifies REQ-FWHUB-50 */
@@ -513,6 +513,10 @@ static void test_ext_frame_data_checksum(void)
     check(ext_data_checksum(&f) != f.ext_checksum,
           "ext data checksum detects current_ua corruption");
     f.current_ua[7] ^= 0x01U;   /* restore */
+    f.current_ua[7] ^= 0x80000000UL;   /* the top byte of the 32-bit current is covered too */
+    check(ext_data_checksum(&f) != f.ext_checksum,
+          "ext data checksum detects corruption of the top byte of a 32-bit current");
+    f.current_ua[7] ^= 0x80000000UL;   /* restore */
 
     /* Base and ext checksums are independent */
     check(offsetof(np_safety_rx_ext_frame_t, current_ua) == 8U,
@@ -541,8 +545,8 @@ static void test_ext_frame_channel_count_clamping(void)
     check(NP_SAFETY_MAX_CHANNELS == 14U,
           "NP_SAFETY_MAX_CHANNELS == 14 (matches current_ua array size)");
     check(sizeof(((np_safety_rx_ext_frame_t *)0)->current_ua) ==
-              NP_SAFETY_MAX_CHANNELS * sizeof(uint16_t),
-          "current_ua array byte-size == 14 × 2 == 28");
+              NP_SAFETY_MAX_CHANNELS * sizeof(uint32_t),
+          "current_ua array byte-size == 14 × 4 == 56 (32 bits each: OI-UINT16-01)");
 }
 
 /* ── OI-CHARGE-02: per-channel charge-limit command frame tests ────────────── */
