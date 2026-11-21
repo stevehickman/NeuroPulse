@@ -248,12 +248,12 @@ static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms,
 
     np_hub_status_t rc = mod->control(slot, params, params_len);
     if (rc != NP_HUB_OK) {
-        /* Module fault — log to SHDR, record in session, but continue.
-         * Recorded on s_ctx.abort_reason, not directly on s_ctx.shdr: the
-         * session-end block overwrites shdr.abort_reason from s_ctx.abort_reason
+        /* Module fault — record in session, but continue.
+         * Recorded on s_ctx.abort_reason, not directly on s_ctx.uhdr: the
+         * session-end block overwrites uhdr.abort_reason from s_ctx.abort_reason
          * unconditionally, so writing the record field here was erased before it
-         * was ever logged. Non-fatal: session continues; safety MCU owns hard
-         * cutoff. */
+         * was ever logged. The abort reason is UHDR only (REQ-FWHUB-89).
+         * Non-fatal: session continues; safety MCU owns hard cutoff. */
         if (s_ctx.abort_reason == NP_ABORT_NONE) {
             s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
         }
@@ -1169,9 +1169,8 @@ np_hub_status_t np_runner_run(void)
     /* Finalise records */
     s_ctx.uhdr.duration_s   = total_ms / 1000U;
     s_ctx.uhdr.abort_reason = (uint8_t)s_ctx.abort_reason;
-    s_ctx.shdr.duration_s   = total_ms / 1000U;
-    s_ctx.shdr.abort_reason = (uint8_t)s_ctx.abort_reason;
-    s_ctx.shdr.mods_active_mask = s_ctx.uhdr.mods_active_mask;
+    /* The SHDR record gets none of these: duration, abort reason and the
+     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21). */
 
     /* OI-FWHUB-10: each lattice socket's final dose into this session's file,
      * and this session's PBM counts to SHDR — every session, PBM or not, so the
