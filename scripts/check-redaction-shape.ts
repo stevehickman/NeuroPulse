@@ -306,6 +306,18 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     role: "writer",
     note: "the same three-flag summary on normal completion, written on every session (REQ-CVNS-15, OI-PRIV-23)",
   },
+  {
+    file: "firmware/hub_control/src/np_session_log.c",
+    fn: "np_log_session_end",
+    role: "writer",
+    note: "session-end record {tag, session_count, fw_version} only; no duration, modality or abort reason (REQ-FWHUB-89, OI-PRIV-21)",
+  },
+  {
+    file: "firmware/hub_control/src/np_session_runner.c",
+    fn: "np_runner_run",
+    role: "writer",
+    note: "opens the session through np_log_session_start {tag, session_count}; fills no other SHDR field (OI-PRIV-21)",
+  },
   // ── PBM and accelerometer ──
   {
     file: "firmware/pbm/src/np_pbm_detect.c",
@@ -353,28 +365,13 @@ const KNOWN_VIOLATIONS: {
   {
     rule: "undeclared-writer",
     file: "firmware/hub_control/src/np_session_log.c",
-    fn: "np_log_session_end",
-    owners: [{ oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 }],
-    why: "SESSION_END carries duration, abort reason and modality mask",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_log.c",
     fn: "np_log_telemetry",
     owners: [
-      { oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 },
       { oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 },
     ],
     why:
-      "per-tick EEG_CAL and zone-slot PBM_HEALTH records encode duration and session data (-21); " +
-      "the ppx-halt FAULT record exists only when the halt does (-22)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_runner.c",
-    fn: "np_runner_run",
-    owners: [{ oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 }],
-    why: "fills and writes the SESSION_END record and feeds np_log_telemetry",
+      "the ppx-halt FAULT record exists only when the halt does (-22); the per-tick EEG_CAL and " +
+      "zone-slot PBM_HEALTH records were removed by OI-PRIV-21",
   },
   {
     rule: "undeclared-writer",
