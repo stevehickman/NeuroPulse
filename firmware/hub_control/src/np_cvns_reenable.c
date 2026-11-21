@@ -220,3 +220,13 @@ np_cvns_reenable_state_t np_cvns_reenable_get_state(void)
 {
     return s_state;
 }
+
+/* ── SHDR mapping (OI-PRIV-28, REQ-FWHUB-84) ────────────────────────────────── */
+
+uint8_t np_cvns_reenable_shdr_code(np_cvns_reenable_event_t ev)
+{
+    /* The cutoff flag is the only lifecycle event written to SHDR.  Every
+     * other event, including any value added later, returns 0: a new event is
+     * UHDR until a §5.1 ruling says otherwise (REQ-FWHUB-13). */
+    return (ev == NP_CVNS_RN_EV_CUTOFF_DETECTED) ? NP_CVNS_SHDR_EV_CUTOFF : 0U;
+}

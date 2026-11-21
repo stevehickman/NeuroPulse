@@ -230,7 +230,7 @@
  * deasserts and requires a fresh confirmation + impedance pass.             */
 #define NP_CVNS_REENABLE_ASSERT_TIMEOUT_MS 2000U
 
-/* SHDR lifecycle event codes for np_log_shdr_fault() (safety interlock log →
+/* SHDR cervical VNS event codes for np_log_shdr_fault() (safety interlock log →
  * SHDR).  Flags only — no HR/RR values.  Callers pass 0 for the timestamp
  * argument, but note that is belt-and-braces, NOT the mechanism: np_log_shdr_fault()
  * discards `session_ms` for EVERY caller and every fault type (see
@@ -240,11 +240,17 @@
  * defect corrected 2026-08-12, where zeroing a field only for cardiac faults made
  * the redaction itself a cardiac oracle (CLAUDE.md §5.1).                    */
 #define NP_CVNS_SHDR_EV_CUTOFF          0xC1U
-#define NP_CVNS_SHDR_EV_CONFIRM_OPEN    0xC2U
-#define NP_CVNS_SHDR_EV_IMP_FAILED      0xC3U
-#define NP_CVNS_SHDR_EV_IMP_TIMEOUT     0xC4U
-#define NP_CVNS_SHDR_EV_REENABLED       0xC5U
-#define NP_CVNS_SHDR_EV_ASSERT_TIMEOUT  0xC6U
+/* 0xC2–0xC6 are RETIRED and never reused (OI-PRIV-28, REQ-FWHUB-84).  They were
+ * CONFIRM_OPEN, IMP_FAILED, IMP_TIMEOUT, REENABLED and ASSERT_TIMEOUT: the
+ * re-enable lifecycle after a cardiac cutoff.  Each follows a cutoff, and four
+ * of them only after the wearer confirmed resumption, so in sequence they told
+ * SHDR whether the person resumed neck stimulation after a cardiac event and
+ * how often skin contact failed — a fact about the person, not the device
+ * (CLAUDE.md §5.1).  They are written nowhere now; the app sees the live
+ * re-enable state in CVNS_FAULT_STATUS byte 1 (np_cvns_fault_summary.h).
+ * The one lifecycle event SHDR receives is the cutoff flag above, chosen by
+ * np_cvns_reenable_shdr_code().  A firmware image older than this change may
+ * still have written 0xC2–0xC6; fleet ingest must not give them a new meaning. */
 /* OI-CVNS-HUB-11: hub-side and safety-MCU per-electrode impedance measurements
  * disagreed beyond NP_CVNS_IMPEDANCE_CROSSVAL_KOHM.  Device-condition flag only
  * (no kΩ values); no timestamp reaches SHDR, by the unconditional logger rule
