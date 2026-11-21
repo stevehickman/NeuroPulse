@@ -20,7 +20,7 @@ static void unrouted(const char *symbol)
 }
 
 /* retired zone-slot PBM seams (np_mod_pbm.c slot path) */
-np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot, uint8_t a, uint8_t b, uint8_t f, uint8_t d)
+np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot, uint8_t a, uint8_t b, uint32_t f, uint8_t d)
 { (void)slot; (void)a; (void)b; (void)f; (void)d; unrouted(__func__); return NP_HUB_ERR_GENERIC; }
 float np_mod_pbm_hal_ntc_read(uint8_t slot)
 { (void)slot; unrouted(__func__); return 1000.0f; /* reads as too hot: fail closed */ }

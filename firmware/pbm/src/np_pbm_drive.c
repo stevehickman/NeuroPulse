@@ -25,48 +25,19 @@ static np_pbm_status_t read_reg(uint8_t slot, uint8_t reg, uint8_t *val)
 }
 
 /*
- * The pulse frequencies the tile accepts, and their register codes (NP-FW-PBM1064-001 §5.2; the tile refuses any other
- * code, NP-FW-HEXTILE-001 REQ-FWTILE-15).  This is a fact about the tile hardware.  It is not a set of EEG bands: a
- * frequency band is a label for a range of frequencies, used for analysis and display, and never picks a value (the
- * principal, 2026-11-20).  When the tile can generate more frequencies, this table is what changes.
+ * Write a pulse frequency (millihertz, little-endian, 0 = CW) to one FREQ register and read it back.  The tile refuses a
+ * frequency it cannot realise and keeps the previous value (NP-FW-HEXTILE-001 REQ-FWTILE-15), acknowledging the write
+ * either way, so the read-back is the only way to know.  A different value is NP_PBM_ERR_FREQ_REFUSED.
  */
-typedef struct {
-    uint8_t code;
-    uint8_t hz;
-} np_pbm_tile_freq_t;
-
-static const np_pbm_tile_freq_t TILE_FREQ[] = {
-    { NP_PBM_FREQ_CODE_2HZ,  2U  },
-    { NP_PBM_FREQ_CODE_6HZ,  6U  },
-    { NP_PBM_FREQ_CODE_10HZ, 10U },
-    { NP_PBM_FREQ_CODE_20HZ, 20U },
-    { NP_PBM_FREQ_CODE_40HZ, 40U },
-};
-
-/*
- * The tile code whose frequency is nearest to `hz`, by absolute difference in hertz.  A frequency halfway between two
- * codes takes the lower one.  CW (0 Hz) is not a pulse code and is handled by the caller.  Only distance decides: no
- * band edge does.
- */
-static uint8_t nearest_tile_code(float hz)
+static np_pbm_status_t write_freq(uint8_t slot, uint8_t reg, uint32_t mhz)
 {
-    uint8_t best = TILE_FREQ[0].code;
-    float   best_d = 0.0f;
-    for (uint8_t i = 0U; i < (uint8_t)(sizeof TILE_FREQ / sizeof TILE_FREQ[0]); i++) {
-        float d = hz - (float)TILE_FREQ[i].hz;
-        if (d < 0.0f) { d = -d; }
-        if (i == 0U || d < best_d) { best = TILE_FREQ[i].code; best_d = d; }
-    }
-    return best;
-}
-
-/*
- * Map the freq_hz preset field to the nearest driver PWM frequency code: 0 is CW, anything else the nearest tile code.
- */
-static uint8_t map_freq_hz_to_code(uint8_t freq_hz)
-{
-    if (freq_hz == 0U) { return NP_PBM_FREQ_CODE_CW; }
-    return nearest_tile_code((float)freq_hz);
+    uint8_t out[4] = { (uint8_t)mhz, (uint8_t)(mhz >> 8), (uint8_t)(mhz >> 16), (uint8_t)(mhz >> 24) };
+    uint8_t back[4] = { 0U, 0U, 0U, 0U };
+    np_pbm_status_t rc = np_pbm_hal_i2c_write(slot, reg, out, 4U);
+    if (rc != NP_PBM_OK) { return rc; }
+    rc = np_pbm_hal_i2c_read(slot, reg, back, 4U);
+    if (rc != NP_PBM_OK) { return rc; }
+    return (memcmp(out, back, sizeof out) == 0) ? NP_PBM_OK : NP_PBM_ERR_FREQ_REFUSED;
 }
 
 /* ── Startup sequence ───────────────────────────────────────────────────────── */
@@ -90,14 +61,13 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
     drv->cur[1] = preset->cur_b;
     drv->cur[2] = preset->cur_c;
 
-    /* Step 3: FREQ — map freq_hz preset to driver codes. */
-    uint8_t fcode = map_freq_hz_to_code(preset->freq_hz);
-    rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_A, fcode); if (rc != NP_PBM_OK) { return rc; }
-    rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_B, fcode); if (rc != NP_PBM_OK) { return rc; }
-    rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_C, fcode); if (rc != NP_PBM_OK) { return rc; }
-    drv->freq_code[0] = fcode;
-    drv->freq_code[1] = fcode;
-    drv->freq_code[2] = fcode;
+    /* Step 3: FREQ — the preset's pulse frequency, millihertz, on every channel. */
+    rc = write_freq(slot, NP_PBM_REG_FREQ_A, preset->freq_mhz); if (rc != NP_PBM_OK) { return rc; }
+    rc = write_freq(slot, NP_PBM_REG_FREQ_B, preset->freq_mhz); if (rc != NP_PBM_OK) { return rc; }
+    rc = write_freq(slot, NP_PBM_REG_FREQ_C, preset->freq_mhz); if (rc != NP_PBM_OK) { return rc; }
+    drv->freq_mhz[0] = preset->freq_mhz;
+    drv->freq_mhz[1] = preset->freq_mhz;
+    drv->freq_mhz[2] = preset->freq_mhz;
 
     /* Step 4: DUTY — write 0 initially (ramp starts at 0).  The preset's duty is written by
      * np_pbm_drive_set_duty(), which refuses a value above 25%. */
@@ -170,24 +140,24 @@ np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
 np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot,
                                                 np_pbm_drv_slot_t *drv,
                                                 uint8_t ch_mask,
-                                                uint8_t freq_code)
+                                                uint32_t freq_mhz)
 {
     np_pbm_status_t rc = NP_PBM_OK;
 
     if (ch_mask & NP_PBM_CH_A_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_A, freq_code);
+        rc = write_freq(slot, NP_PBM_REG_FREQ_A, freq_mhz);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[0] = freq_code;
+        drv->freq_mhz[0] = freq_mhz;
     }
     if (ch_mask & NP_PBM_CH_B_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_B, freq_code);
+        rc = write_freq(slot, NP_PBM_REG_FREQ_B, freq_mhz);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[1] = freq_code;
+        drv->freq_mhz[1] = freq_mhz;
     }
     if (ch_mask & NP_PBM_CH_C_EN) {
-        rc = write_reg(slot, NP_PBM_REG_PWM_FREQ_C, freq_code);
+        rc = write_freq(slot, NP_PBM_REG_FREQ_C, freq_mhz);
         if (rc != NP_PBM_OK) { return rc; }
-        drv->freq_code[2] = freq_code;
+        drv->freq_mhz[2] = freq_mhz;
     }
     return NP_PBM_OK;
 }
@@ -292,23 +262,26 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot,
 
 /* ── EEG-adaptive frequency mapping ─────────────────────────────────────────── */
 
-uint8_t np_pbm_drive_map_eeg_freq(float    dominant_freq_hz,
-                                        uint8_t  current_freq_code,
-                                        uint8_t *ticks_off_code)
+uint32_t np_pbm_drive_map_eeg_freq(float     dominant_freq_hz,
+                                         uint32_t  current_freq_mhz,
+                                         uint8_t  *ticks_off_code)
 {
-    /* The target is the tile code nearest to the dominant frequency itself.  The EEG bands play no part. */
-    const uint8_t target_code = nearest_tile_code(dominant_freq_hz);
-
-    if (target_code == current_freq_code) {
+    /* The target is the dominant frequency itself.  No EEG band and no code table plays a part. */
+    if (!(dominant_freq_hz > 0.0f) || dominant_freq_hz > 4294967.0f) {
         *ticks_off_code = 0;
-        return 0xFF; /* no change */
+        return NP_PBM_FREQ_NO_CHANGE;       /* not a frequency */
+    }
+    const uint32_t target_mhz = (uint32_t)(dominant_freq_hz * 1000.0f + 0.5f);
+    if (target_mhz == 0U || target_mhz == current_freq_mhz) {
+        *ticks_off_code = 0;
+        return NP_PBM_FREQ_NO_CHANGE;       /* no change */
     }
 
     (*ticks_off_code)++;
     if (*ticks_off_code < NP_PBM_EEG_HYSTERESIS_TICKS) {
-        return 0xFF; /* hysteresis — not yet */
+        return NP_PBM_FREQ_NO_CHANGE;       /* hysteresis — not yet */
     }
 
     *ticks_off_code = 0;
-    return target_code;
+    return target_mhz;
 }

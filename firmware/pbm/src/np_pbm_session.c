@@ -298,6 +298,7 @@ np_pbm_status_t np_pbm_session_start(
     ctx->active_socket_count = active_socket_count;
     memcpy(ctx->active_socket_id, active_socket_id, sizeof(active_socket_id));
     memcpy(ctx->active_preset, active_preset, sizeof(active_preset));
+    ctx->current_freq_mhz = (active_socket_count > 0U) ? active_preset[0].freq_mhz : 0U;
 
     memset(&ctx->record, 0, sizeof(ctx->record));
     ctx->record.session_start_unix  = 0; /* populated by HAL (RTC not yet stubbed) */
@@ -519,18 +520,20 @@ void np_pbm_session_update_eeg_freq(np_pbm_session_ctx_t *ctx,
 
     ctx->eeg_dominant_freq_hz = dominant_freq_hz;
 
-    /* Uniform mode: update all active sockets to same freq code. */
+    /* Uniform mode: update all active sockets to the same frequency.  A tile that refuses it keeps its previous
+     * frequency, and the session does not count an adaptation that did not happen. */
     for (uint8_t i = 0; i < ctx->active_socket_count; i++) {
-        uint8_t new_code = np_pbm_drive_map_eeg_freq(
+        const uint32_t new_mhz = np_pbm_drive_map_eeg_freq(
             dominant_freq_hz,
-            ctx->current_freq_code,
+            ctx->current_freq_mhz,
             &ctx->eeg_ticks_off_code[i]);
 
-        if (new_code != 0xFF) {
-            np_pbm_drive_set_freq(ctx->active_socket_id[i], &ctx->drv[i],
-                                       ctx->drv[i].ch_enable, new_code);
-            ctx->current_freq_code = new_code;
-            ctx->record.eeg_adapt_event_count++;
+        if (new_mhz != NP_PBM_FREQ_NO_CHANGE) {
+            if (np_pbm_drive_set_freq(ctx->active_socket_id[i], &ctx->drv[i],
+                                           ctx->drv[i].ch_enable, new_mhz) == NP_PBM_OK) {
+                ctx->current_freq_mhz = new_mhz;
+                ctx->record.eeg_adapt_event_count++;
+            }
         }
     }
 }

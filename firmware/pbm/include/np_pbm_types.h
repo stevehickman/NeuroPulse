@@ -32,6 +32,7 @@ typedef enum {
     NP_PBM_ERR_ADC_TIMEOUT      = -15,
     NP_PBM_ERR_SAFETY_REJECTED  = -16, /* safety MCU denied enable            */
     NP_PBM_ERR_INVALID_ADDRESS  = -17, /* a descriptor names a socket the helmet does not have (REQ-FWHUB-64) */
+    NP_PBM_ERR_FREQ_REFUSED     = -18, /* the tile did not keep the frequency written: it reads back another (OI-PBMTILE-01) */
 } np_pbm_status_t;
 
 /* ── Slot type (result of ZONE_ID ADC classification) ───────────────────────── */
@@ -139,11 +140,12 @@ typedef struct {
 
 /* ── Per-zone preset (from session descriptor) ───────────────────────────────── */
 
-typedef struct {
+/* Packed: it is the wire layout of a v5 preset (little-endian, 9 bytes). */
+typedef struct __attribute__((packed)) {
     uint8_t cur_a;          /* CUR_A register value (660nm)                       */
     uint8_t cur_b;          /* CUR_B register value (808nm)                       */
     uint8_t cur_c;          /* CUR_C register value (1064nm)                      */
-    uint8_t freq_hz;        /* initial frequency (2/6/10/20/40/0)                 */
+    uint32_t freq_mhz;      /* pulse frequency, millihertz; 0 = CW (v5 carried a one-byte whole-Hz field) */
     uint8_t duty;           /* duty value (≤ NP_PBM_DUTY_MAX_REG)            */
     uint8_t channel_mask;   /* which channels to enable (CH_A/B/C bits)           */
 } np_pbm_preset_t;
@@ -162,7 +164,7 @@ typedef struct {
  * 0x05) carries over unchanged via multiple (mask, preset) groups.
  * ────────────────────────────────────────────────────────────────────────── */
 
-#define NP_SES1064_VERSION  0x05U
+#define NP_SES1064_VERSION  0x05U   /* the preset's frequency is 32-bit millihertz (OI-PBMTILE-01); not bumped: no v5 descriptor has shipped and none has a producer */
 
 /*
  * One preset applied to every socket set in mask. mask is 128-bit,
@@ -175,7 +177,7 @@ typedef struct {
 } np_pbm_preset_group_t;
 
 typedef char _np_pbm_group_size_check[
-    (sizeof(np_pbm_preset_group_t) == NP_PBM_SOCKET_MASK_BYTES + 6U) ? 1 : -1];
+    (sizeof(np_pbm_preset_group_t) == NP_PBM_SOCKET_MASK_BYTES + 9U) ? 1 : -1];
 
 /* Fixed-size wire header — 8 bytes, unchanged from v4's header size.
  * group_count replaces smart_module_mask: a plain count instead of an 8-bit
@@ -226,7 +228,7 @@ typedef enum {
     NP_PBM_STAGE_FAULT       = 6,
 } np_pbm_stage_t;
 
-/* ── EEG-adaptive band (maps dominant freq to PWM code) ─────────────────────── */
+/* ── EEG-adaptive frequency (the dominant frequency, millihertz) ─────────────────────── */
 
 typedef enum {
     NP_EEG_BAND_DELTA  = 0,   /* 0.5–4 Hz  → 2 Hz code                          */
@@ -387,7 +389,7 @@ typedef struct {
 
 typedef struct {
     uint8_t  duty_pct;     /* laser drive power 0–100%; TEC-limited in firmware    */
-    uint8_t  freq_hz;      /* 0 = CW; else pulsed at freq_hz (session presets use CW) */
+    uint8_t  freq_hz;      /* 0 = CW; else pulsed at freq_hz (session presets use CW); whole hertz, no tile takes it (no driver, OI-PBMTILE-03) */
     uint16_t duration_s;   /* active duration (may differ from 1064nm duration)    */
 } np_t2_1170_preset_t;
 
