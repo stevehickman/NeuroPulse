@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 4
-**Date:** 2026-10-19  
+**Revision:** 8
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -110,7 +110,7 @@ docker compose logs -f posthog
 
 Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/posthog/apply_project_settings.py --check` reads the project's `anonymize_ips`, `session_recording_opt_in` and `autocapture_opt_out` and exits non-zero if one differs, and `--apply` sets them and reads them back (`POSTHOG_PERSONAL_API_KEY` from the environment). **The script has not been run against a real PostHog instance** (`OI-ANALYTICS-02`); run `--check` against yours before relying on it. Heatmaps, web analytics, event and person retention, and the Property Filter transformation are not covered and stay manual. They are not configurable via environment variables. Complete them immediately after project creation.
 
-**The network address (Rev {NP-ANALYTICS-001 to}; `NP-APP-TELEMETRY-001` §4.1, `OI-PRIV-05` (5)).** The principal decided on 2026-11-19 that analytics events are to reach this host through an Oblivious HTTP relay, so that it never receives the sender's address; that is not built, and nothing in this stack provides it yet. Until it is, the floor is the proxy's: `caddy/Caddyfile` removes `X-Forwarded-For` and `X-Real-IP` before PostHog (it already did), and from this revision neither of its logs keeps the client's address, its port or those headers. `ci/test_posthog_infra.py` checks the header removal (P6), the log filter on both logs (P8) and that Caddy accepts the file (P9). The setting below is a second layer behind that floor.
+**The network address (Rev 5; `NP-APP-TELEMETRY-001` §4.1, `OI-PRIV-05` (5)).** The principal decided on 2026-11-19 that analytics events are to reach this host through an Oblivious HTTP relay, so that it never receives the sender's address; that is not built, and nothing in this stack provides it yet. Until it is, the floor is the proxy's: `caddy/Caddyfile` removes `X-Forwarded-For` and `X-Real-IP` before PostHog (it already did), and from this revision neither of its logs keeps the client's address, its port or those headers. `ci/test_posthog_infra.py` checks the header removal (P6), the log filter on both logs (P8) and that Caddy accepts the file (P9). The setting below is a second layer behind that floor.
 
 **Navigate to: Project Settings → Privacy**
 
@@ -257,7 +257,7 @@ The SDK must not be initialized until after the user completes the consent flow.
 
 **Permitted events:**
 
-Only the event names `NP-APP-TELEMETRY-001` §3.3 lists may be sent, and the list is enforced in the shared core (`events` in `common/npps/analytics-properties.json`, `REQ-SW03-07`; Rev {NP-ANALYTICS-001 to}, `OI-PRIV-05`). That section is the authority; this table repeats it:
+Only the event names `NP-APP-TELEMETRY-001` §3.3 lists may be sent, and the list is enforced in the shared core (`events` in `common/npps/analytics-properties.json`, `REQ-SW03-07`; Rev 5, `OI-PRIV-05`). That section is the authority; this table repeats it:
 
 | Event name | When fired | Permitted properties |
 |------------|-----------|---------------------|
@@ -268,7 +268,7 @@ Only the event names `NP-APP-TELEMETRY-001` §3.3 lists may be sent, and the lis
 | `error_reported` | One of the app failures of §3.4 | `error_code` and any other of §3 |
 | `app_crashed` | On next launch after crash | Any of §3 (no stack trace — crash traces are local-only) |
 
-**`consent_granted` and `consent_revoked` are removed** (they were listed here through Rev {NP-ANALYTICS-001 from}): no event is named for a consent, a session or a clinician. **`step_name` and `feature_name` were never permitted properties**: `NP-APP-TELEMETRY-001` §3 names neither, so the core drops an event that carries one. The onboarding step is `onboarding_step`.
+**`consent_granted` and `consent_revoked` are removed** (they were listed here through Rev 4): no event is named for a consent, a session or a clinician. **`step_name` and `feature_name` were never permitted properties**: `NP-APP-TELEMETRY-001` §3 names neither, so the core drops an event that carries one. The onboarding step is `onboarding_step`.
 
 **Prohibited in all events:** any property in the NP-APP-TELEMETRY-001 prohibited list. The iOS SDK's `PostHogSDK.shared.capture()` must never be called with these properties. The server-side Property Filter (§4) is a backstop, not the primary control.
 
@@ -461,7 +461,7 @@ step_name                onboarding step identifier (string enum)
 feature_name             non-health feature name (string enum)
 ```
 
-**This list is out of date and is not the authority** (Rev {NP-ANALYTICS-001 to}): the permitted properties are the nine of `NP-APP-TELEMETRY-001` §3, which name neither `step_name` nor `feature_name`, and the core drops an event that carries either.
+**This list is out of date and is not the authority** (Rev 5): the permitted properties are the nine of `NP-APP-TELEMETRY-001` §3, which name neither `step_name` nor `feature_name`, and the core drops an event that carries either.
 
 `engagement_tier` is the only property permitted to describe app usage intensity. It is defined as:
 - `"new"` — 1–5 app launches
@@ -557,3 +557,14 @@ The following must be completed to close AUDIT-01 (analytics vendor not selected
 ---
 
 *Self-hosting PostHog eliminates the third-party analytics DPA (NP-PRIV-REM-001 STEP-05), simplifies PrivacyInfo.xcprivacy, and satisfies EU data residency requirements by deploying in an EU cloud region.*
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 5 | 2026-11-21 | NeurOne Software Engineering | **§7.6: the app keeps a queued ID on every 4xx and asks again at its next launch; only a 2xx drops it, so a relay deployed at the wrong path or behind a refusing proxy loses nothing (`OI-PRIV-08` (2), `REQ-SW03-19` (b)).** |
+| 6 | 2026-11-16 | NeurOne Software Engineering | **Permitted events table follows `NP-APP-TELEMETRY-001` §3.3: `consent_granted` and `consent_revoked` removed, `screen_viewed` and `error_reported` added; §8.1 marked out of date (`step_name` and `feature_name` were never permitted) (`OI-PRIV-05`).** |
+| 7 | 2026-11-19 | NeurOne Software Engineering | **§3.4: the proxy's access log and default logger delete the client's address, port and forwarding headers, checked by `ci/test_posthog_infra.py` P8 and P9; the relay of `NP-APP-TELEMETRY-001` §4.1 is decided and not built.** |
+| 8 | 2026-11-20 | NeurOne Software Engineering | **§3.4 and §7.1: the principal set event retention to 30 days on 2026-11-20 (`NP-APP-TELEMETRY-001` §5 promises deletion of a withdrawn person's ID within 30 days). It is `EVENT_RETENTION_DAYS`, applied as a ClickHouse TTL by `apply_event_retention.py` and checked with `--check`; the policy is cited beside the value, and a value above 30 is flagged as breaking it. Not run against a real stack.** |
