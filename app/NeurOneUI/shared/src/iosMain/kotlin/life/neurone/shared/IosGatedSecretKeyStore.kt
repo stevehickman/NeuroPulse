@@ -122,9 +122,11 @@ class IosGatedSecretKeyStore(
     }
 
     override fun destroy() {
-        // Deleting needs no presence.
+        // Deleting needs no presence. This is the erase; nothing else turns the gate off (`REQ-PRES-09`).
         val status = delete()
         check(status == errSecSuccess || status == errSecItemNotFound) { "the data key is still in the Keychain (status $status)" }
+        // The erase returns the device to factory state, gate included (`OI-PRES-10`): a flag left on would ask for Face ID over nothing.
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(ENABLED)
         lock()
     }
 
