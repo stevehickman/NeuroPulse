@@ -355,7 +355,7 @@ class AppServices(
      * The clear's two platform steps (SWR-MG-06, SWR-MG-09), written once: destroy the data key in the keystore, and drop the
      * link to the helmet and forget it. Null when the data is not sealed, so there is no key to destroy.
      */
-    val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager) }
+    val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager, platform.gatedKeyStore) }
 
     /**
      * The app's own files for the clear and the erase, with the folder the person chose for the backup left out when it is inside them.
@@ -375,6 +375,7 @@ class AppServices(
         platform.endRunAfterErase?.let {
             life.neurone.shared.migration.EraseDeviceModel(
                 platform.keyValueStore, ownFiles, platform.secretKeyStore, gattManager,
+                gated = platform.gatedKeyStore,
                 // The analytics ID is forgotten, queued and the relay asked BEFORE the wipe deletes the only copy (`OI-PRIV-08` (1)).
                 // A locked run reads the sealed ID as absent, so what it could not read is counted too (`OI-ANALYTICS-01` (5) (b)).
                 beforeWipe = {
