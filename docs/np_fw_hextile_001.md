@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HEXTILE-001
-**Revision:** 4
-**Date:** 2026-11-11
+**Revision:** 5
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Firmware Engineering
@@ -606,3 +606,4 @@ Nothing below has been run, because no tile firmware exists.
 | 2 | 2026-09-28 | NeurOne Firmware Engineering | **Duty and CW are delivered as commanded (principal direction, CLAUDE.md Rev 59).** Rev 1's 25 % clamp is withdrawn: it applied to CW, so CW protocols were delivered as a pulse train or not at all. DUTY is stored as written, 0–100 %, and a value above 100 % is refused. Code `0x00` is the gate held on, with `DUTY` not applied. U1 enforces no duty ceiling, because legality depends on emitter data it does not hold, and a clamp reshapes the stimulus. §5.5 records where refusal happens instead, and what is not yet built (`OI-HEXTILE-30`, `-31`). `OI-HEXTILE-25`(c) re-answered. REQ-FWTILE-03, -09 and -15 rewritten. `OI-FWTILE-06` retired. No code |
 | 3 | 2026-09-29 | NeurOne Firmware Engineering | **R-4's average term restated after `NP-HW-HEXTILE-001` D-10 (`OI-HEXTILE-32` closed, principal).** The per-channel 200 mW/cm² is removed from §2 and §5.5 (the Rev 2 banner keeps it as history); the weighted sum is the whole average term. No register, behaviour or requirement of U1 changes |
 | 4 | 2026-11-11 | NeurOne Firmware Engineering, NeurOne Software Engineering | **§5.5: the hub row of the duty table and the paragraph under it say the hub refuses a duty above 25 % (it clamped until 2026-11-11, NP-FW-HUB-001 REQ-FWHUB-78); the compiler still clamps. No tile requirement changes. Shared core (#843): §5.5: the compiler refuses a duty above 25 % where it clamped, and so refuses a CW block, which it used to sign with the duty register at 0x32. The paragraph on what can reach a tile is corrected to say so. No tile requirement changes.** |
+| 5 | 2026-11-21 | NeurOne Firmware Engineering | **§5.2, §5.2a, `REQ-FWTILE-15`: `PWM_FREQ_A/B/C` (`0x05`–`0x07`) are retired and reserved; `FREQ_A/B/C` at `0x12`, `0x16`, `0x1A` hold a 32-bit millihertz frequency (0 = CW, reset 40000). A frequency the tile cannot realise is refused and the previous value kept; the range and resolution are open (`OI-PBMTILE-03`).** |
