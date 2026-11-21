@@ -1,8 +1,8 @@
-# Question for the principal and Safety: OI-PRIV-24, resume on the open pause characteristic, and the §23 exception
+# Question for the principal and Safety: OI-PRIV-24 (NP-PRIV-ANALYSIS-004), resume on the open pause characteristic, and the §23 exception
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#952](https://github.com/stevehickman/NeuroPulse/issues/952)
-**From:** NeurOne Firmware Engineering (`OI-PRIV-24` in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Finding H4)
+**From:** NeurOne Firmware Engineering (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Finding H4)
 **To:** the principal (the `CLAUDE.md` §23 exception, `OI-SIMFW-73`); Safety / Risk (the ISO 14971 assessment, `NP-RM-001`)
 **Response needed:** an option for Q1 and Q2, a yes or no for Q3, a short rationale for each, anything that would reopen it, your name, role and the date.
 
