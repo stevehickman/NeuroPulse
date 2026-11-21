@@ -191,7 +191,7 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_BAD_SIGNATURE;
     }
 
-    /* Device serial replay guard (REQ-FWHUB-85, NP-FW-HUB-001 §4.2).  Fails closed: a helmet that cannot read its own
+    /* Device serial replay guard (REQ-FWHUB-90, NP-FW-HUB-001 §4.2).  Fails closed: a helmet that cannot read its own
      * serial, or reads back all zero (unprovisioned, or a blank Config value), cannot show the descriptor was signed
      * for it, so it refuses.  Until OI-PRIV-31 (NP-PRIV-ANALYSIS-004) both were skipped, so such a helmet accepted a
      * descriptor signed for any other.  All zero is also what a compiler writes when it has no serial, so accepting a

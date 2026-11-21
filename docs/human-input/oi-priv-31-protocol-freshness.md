@@ -14,7 +14,7 @@ which mechanism?
 
 The other half of Finding M4 needed no decision and is done. The device-serial guard used to be skipped
 when the helmet could not read its serial, and it accepted every serial-less protocol when the serial was
-all zero. It now fails closed in both cases (`REQ-FWHUB-85`, `NP-FW-HUB-001` §4.2). That guard is
+all zero. It now fails closed in both cases (`REQ-FWHUB-90`, `NP-FW-HUB-001` §4.2). That guard is
 cross-device only. This question is about the same device.
 
 ## 2. What is known

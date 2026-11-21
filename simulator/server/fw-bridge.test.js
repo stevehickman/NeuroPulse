@@ -654,7 +654,7 @@ const nodeCrypto = require('node:crypto');
 const GOLDEN_UNSTAMPED = require('../../common/testdata/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot, no device serial
 // The TEST device serial the twin reports (np_sim_proto.c, UC-137): 0x5a in every byte.  The app reads DEVICE_SERIAL at link and stamps it into
 // the header (bytes 28 to 59) before signing; the goldens are compiled with none, so they are stamped here as the app would.  The hub's guard
-// fails closed (REQ-FWHUB-85): a serial-less (all-zero) descriptor is refused by any helmet.
+// fails closed (REQ-FWHUB-90): a serial-less (all-zero) descriptor is refused by any helmet.
 const TEST_SERIAL = '5a'.repeat(32);
 const forDevice = (hex) => hex.slice(0, 56) + TEST_SERIAL + hex.slice(120);
 const GOLDEN = Object.fromEntries(Object.entries(GOLDEN_UNSTAMPED).map(([k, v]) => [k, forDevice(v)]));
@@ -779,7 +779,7 @@ test('end to end: the device-serial replay guard is live: a protocol for another
   assert.deepStrictEqual([Buffer.from(other.frame, 'hex')[0], Buffer.from(other.frame, 'hex')[1]], [2, 7], 'REFUSED, reason 7');
 });
 
-// @verifies REQ-FWHUB-85#c
+// @verifies REQ-FWHUB-90#c
 test('end to end: the replay guard fails closed: a helmet whose serial is all zero refuses even a serial-less protocol, and a serial-less protocol is refused by a provisioned one', { skip: !BIN }, async () => {
   const blank = await upload(GOLDEN_UNSTAMPED.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '00'.repeat(32) }, ...MCU] });
   assert.strictEqual(blank.pump.code, -7, 'an unprovisioned (all-zero) helmet is NP_HUB_ERR_WRONG_DEVICE, not a match for an all-zero header');

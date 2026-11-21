@@ -49,7 +49,7 @@ static void check(int cond, const char *name)
  * The serial HAL reports a provisioned serial, TEST_SERIAL_BYTE in every byte, and
  * blob_begin stamps the same bytes into every header, so the replay guard passes
  * and the other tests are about what they name.  The guard fails closed
- * (REQ-FWHUB-85), so a stub that could not read a serial would refuse every blob;
+ * (REQ-FWHUB-90), so a stub that could not read a serial would refuse every blob;
  * test_serial_guard_fails_closed drives g_serial_rc and g_serial_byte to cover
  * that.  The verifier always accepts: these tests are about the command body, and
  * a real signature would have to be recomputed for every mutated fixture, which
@@ -1126,11 +1126,11 @@ static void test_photic_admit(void)
     check(np_protocol_photic_admit(&d, true) == NP_HUB_OK, "photic: where the policy permits the zone (the detector is the guard, REQ-FWHUB-70) the same protocol loads");
 }
 
-/* ── Device-serial replay guard (REQ-FWHUB-85) ──────────────────────────────────
+/* ── Device-serial replay guard (REQ-FWHUB-90) ──────────────────────────────────
  * One valid blob, parsed under each state of the helmet's own serial.  The guard
  * fails closed: only a readable, non-zero serial equal to the header's admits. */
 
-/* @verifies REQ-FWHUB-85#a,b,c */
+/* @verifies REQ-FWHUB-90#a,b,c */
 static void test_serial_guard_fails_closed(void)
 {
     blob_t b;

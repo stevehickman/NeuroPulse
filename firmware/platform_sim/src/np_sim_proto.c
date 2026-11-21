@@ -81,7 +81,7 @@ static void np_runner_init_once(void)
     }
 }
 
-/* The device serial the TEST device reports: 0x5a in every byte.  Not all zero: the hub's replay guard fails closed (REQ-FWHUB-85,
+/* The device serial the TEST device reports: 0x5a in every byte.  Not all zero: the hub's replay guard fails closed (REQ-FWHUB-90,
  * OI-PRIV-31 (NP-PRIV-ANALYSIS-004)), so a helmet whose serial is all zero refuses every protocol, and all zero is also what the app's
  * compiler writes when it has no serial.  A client stamps this serial into the header before signing, as the app stamps the
  * DEVICE_SERIAL it reads at link (the golden descriptors carry none: the bridge tests and np_sim_hub_run_tests stamp it).  A protocol

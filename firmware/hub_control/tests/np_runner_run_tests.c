@@ -284,7 +284,7 @@ static np_chan_decl_t           g_unused_decl;
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    memset(buf, 0x5A, len);             /* a provisioned serial; blob_begin stamps the same bytes (the guard fails closed, REQ-FWHUB-85) */
+    memset(buf, 0x5A, len);             /* a provisioned serial; blob_begin stamps the same bytes (the guard fails closed, REQ-FWHUB-90) */
     return NP_HUB_OK;
 }
 
