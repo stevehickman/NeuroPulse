@@ -718,6 +718,21 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   for (const f of sources) {
     try { blob += readFileSync(join(ROOT, f), "utf-8") + "\n"; } catch { /* binary */ }
   }
+  // Keys a data table names by rule are referenced by the table, not by any source line: sync-uhdr-elements.ts
+  // and sync-clinician-tiers.ts fail the build when one is missing from en.json, so none is an orphan. The
+  // names are built here exactly as those scripts build them (the Swift app that read them is retired,
+  // OI-UI-KMP-05; no Kotlin screen shows them yet, so deleting them would lose the translations).
+  try {
+    const elements = JSON.parse(readFileSync(join(ROOT, "app/NeurOneShared/Resources/uhdr-elements.json"), "utf-8"));
+    for (const e of (elements.elements ?? elements) as Array<{ name: string }>) {
+      const suffix = e.name.replace(/_/g, "");
+      blob += `\nCONSENT_ELEMENT_${suffix}\nCONSENT_ELEMENT_DESC_${suffix}\n`;
+    }
+    const tiers = JSON.parse(readFileSync(join(ROOT, "app/NeurOneShared/Resources/clinician-tiers.json"), "utf-8"));
+    for (const t of (tiers.tiers ?? tiers) as Array<{ name: string; priceUnit: string }>) {
+      blob += `\nCLINICIAN_TIER_${t.name}\nCLINICIAN_TIER_PRICE_PER_${t.priceUnit}\n`;
+    }
+  } catch { /* the sync scripts report an unreadable table themselves */ }
 
   // A plural member is used when its BASE is referenced: tPlural('X', n) picks
   // X_ONE / X_OTHER at runtime, so neither member ever appears literally.
