@@ -35,7 +35,7 @@ typedef struct {
     uint8_t hz;
 } np_pbm_tile_freq_t;
 
-static const np_pbm_tile_freq_t k_tile_freq[] = {
+static const np_pbm_tile_freq_t TILE_FREQ[] = {
     { NP_PBM_FREQ_CODE_2HZ,  2U  },
     { NP_PBM_FREQ_CODE_6HZ,  6U  },
     { NP_PBM_FREQ_CODE_10HZ, 10U },
@@ -50,12 +50,12 @@ static const np_pbm_tile_freq_t k_tile_freq[] = {
  */
 static uint8_t nearest_tile_code(float hz)
 {
-    uint8_t best = k_tile_freq[0].code;
+    uint8_t best = TILE_FREQ[0].code;
     float   best_d = 0.0f;
-    for (uint8_t i = 0U; i < (uint8_t)(sizeof k_tile_freq / sizeof k_tile_freq[0]); i++) {
-        float d = hz - (float)k_tile_freq[i].hz;
+    for (uint8_t i = 0U; i < (uint8_t)(sizeof TILE_FREQ / sizeof TILE_FREQ[0]); i++) {
+        float d = hz - (float)TILE_FREQ[i].hz;
         if (d < 0.0f) { d = -d; }
-        if (i == 0U || d < best_d) { best = k_tile_freq[i].code; best_d = d; }
+        if (i == 0U || d < best_d) { best = TILE_FREQ[i].code; best_d = d; }
     }
     return best;
 }
