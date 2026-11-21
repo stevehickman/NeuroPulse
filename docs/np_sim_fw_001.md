@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 45
-**Date:** 2026-11-13
+**Revision:** 46
+**Date:** 2026-11-14
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1223,3 +1223,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 43 | 2026-11-13 | NeurOne Software Engineering | **§5, §7, §26, §27, §28, §31, new §33: `REQ-SIMFW-25` and its five parts; `OI-SIMFW-51` partly closed (Config, UHDR and SHDR are littlefs instances in the device's geometry over unlinked, 0600, sparse files; the session logger, log backend, session count and module map write through the device's own code; `np_lfs_log_instance.c`, `np_hexmap_nvram.c`, `np_map3_record.c` and `np_hexmap_inventory.c` are linked); `OI-SIMFW-05` records what of `REQ-SIMFW-21` is built (parts a, b, d for the three partitions) and what is not; `OI-SIMFW-79` raised (the log file layer is the twin's own because the device has none, and `scripts/check-lfs-caller-rules.ts` was extended for it, which the principal has not seen); `UC-182` registered.** |
 | 44 | 2026-11-21 | NeurOne Software Engineering | **§33: the twin's log file layer cites `UC-186`, not `UC-182`.** The `UC-182` cited in Rev 43's row means this choice; in the register the audio noise band is now `UC-183`. No requirement text changed. |
 | 45 | 2026-11-13 | NeurOne Software Engineering | **`OI-SIMFW-70` and `OI-SIMFW-71`: the Principal's rulings of 2026-11-13 on the nine design questions are recorded (three conditional); nothing is built from them.** |
+| 46 | 2026-11-14 | NeurOne Software Engineering | **§5, §7, §28, §30, new §34: `REQ-SIMFW-26` and its five parts; `OI-SIMFW-52` partly closed (`np_uhdr_key.c` is linked under `NPTEST_HOST` and its provision, unlock, background and change-credential run on synthetic credentials; its eight platform seams are the device's own host model, not cryptography); `OI-SIMFW-80` raised (whether the twin links the Rust primitives of `CLAUDE.md` §22, and UHDR in the files stays plaintext); the seam table's counts corrected to the gate's (14 infra, 13 firmware-host, 25 absent); `UC-189` registered.** |
