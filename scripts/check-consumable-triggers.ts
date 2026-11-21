@@ -23,8 +23,8 @@
  *
  *   T1  Every row declares one of the three kinds.
  *   T2  A prompting row (condition / exposure) names a producer, and the producer EXISTS in the
- *       app on both platforms. `ConsumableKind.<case>` resolves to the enum case on iOS and
- *       Android plus the CONSUMABLE_STATUS characteristic that feeds it; anything else must be
+ *       app. `ConsumableKind.<case>` resolves to the Kotlin enum case plus the
+ *       CONSUMABLE_STATUS characteristic that feeds it; anything else must be
  *       registered in PRODUCERS below with where it lives.
  *   T3  A prompting row's Interval cell is not calendar-denominated.
  *   T4  An exposure count names its mechanism and what its count cannot see (both required by
@@ -69,41 +69,37 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consumable-triggers.ts --self-test
- * CI-Scans: every row of the commercial-model.md §2.3 consumables table, against the ConsumableKind enums, reminder engines and GATT producers on iOS and Android, and firmware
- * CI-Scan-Paths: docs/reference/commercial-model.md app/ios/** app/android/** common/core/** firmware/**
+ * CI-Scans: every row of the commercial-model.md §2.3 consumables table, against the ConsumableKind enum, reminder engines and GATT producers in the shared Kotlin core, and firmware
+ * CI-Scan-Paths: docs/reference/commercial-model.md app/android/** common/core/** firmware/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-type Platform = "ios" | "android";
-const PLATFORMS: Platform[] = ["ios", "android"];
+type Platform = "android";
+const PLATFORMS: Platform[] = ["android"];
 
 const DOC = "docs/reference/commercial-model.md";
 const SECTION = "### 2.3 Consumables";
 
 const KIND_FILE: Record<Platform, string> = {
-  ios: "app/ios/NeurOne/Models/ConsumableInventory.swift",
   android: "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
 };
 
 /** Where the characteristic feeding every ConsumableKind is declared. */
 const CONSUMABLE_STATUS: Record<Platform, { file: string; re: RegExp }> = {
-  ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CONSUMABLE_STATUS_ID\b/ },
   android: { file: "common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CONSUMABLE_STATUS_ID\b/ },
 };
 
 /** Producers that are not a ConsumableKind: where each lives on each platform. */
 const PRODUCERS: Record<string, Record<Platform, { file: string; re: RegExp }>> = {
   CVNS_PAD_STATUS: {
-    ios: { file: "app/ios/NeurOne/Protocol/NppsConstants.generated.swift", re: /static\s+let\s+CVNS_PAD_STATUS_ID\b/ },
     android: { file: "common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt", re: /const\s+val\s+CVNS_PAD_STATUS_ID\b/ },
   },
 };
 
 /** The reminder engines T8 reads. */
 const ENGINE_FILES: Record<Platform, string[]> = {
-  ios: ["app/ios/NeurOne/Consumable/ConsumableTracker.swift", "app/ios/NeurOne/Models/ConsumableInventory.swift"],
   android: [
     "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableTracker.kt",
     "common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt",
@@ -234,26 +230,22 @@ export function stripComments(src: string): string {
 
 const camelToUpperSnake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase();
 
-export function kindCases(p: Platform, src: string): string[] {
+export function kindCases(_p: Platform, src: string): string[] {
   const code = stripComments(src);
-  if (p === "ios") {
-    const body = /enum\s+ConsumableKind\b[^{]*\{([\s\S]*?)\n\}/.exec(code)?.[1] ?? "";
-    return [...body.matchAll(/^\s*case\s+(\w+)\s*=/gm)].map((m) => m[1]!);
-  }
   const body = /enum\s+class\s+ConsumableKind\b[^{]*\{([\s\S]*?);/.exec(code)?.[1] ?? "";
   return [...body.matchAll(/^\s*([A-Z][A-Z0-9_]*)\s*\(/gm)].map((m) => m[1]!);
 }
 
 /** sessionLimit per case, keyed by the platform's own case name. */
-export function sessionLimits(p: Platform, src: string): Record<string, number> {
+export function sessionLimits(_p: Platform, src: string): Record<string, number> {
   const code = stripComments(src);
   const out: Record<string, number> = {};
-  const at = code.search(p === "ios" ? /var\s+sessionLimit\b/ : /val\s+sessionLimit\b/);
+  const at = code.search(/val\s+sessionLimit\b/);
   if (at === -1) return out;
   const rest = code.slice(at + 1);
-  const next = rest.search(p === "ios" ? /\n\s{4}var\s/ : /\n\s{4}val\s/);
+  const next = rest.search(/\n\s{4}val\s/);
   const block = next === -1 ? rest : rest.slice(0, next);
-  const re = p === "ios" ? /case\s+\.(\w+)\s*:\s*return\s+(\d+)/g : /([A-Z][A-Z0-9_]*)\s*->\s*(\d+)/g;
+  const re = /([A-Z][A-Z0-9_]*)\s*->\s*(\d+)/g;
   for (const m of block.matchAll(re)) out[m[1]!] = Number(m[2]);
   return out;
 }
@@ -305,8 +297,8 @@ function audit(root: string): Audit {
   if (error) return { violations: [error], rows, notes };
 
   // Code side.
-  const cases: Record<Platform, string[]> = { ios: [], android: [] };
-  const limits: Record<Platform, Record<string, number>> = { ios: {}, android: {} };
+  const cases: Record<Platform, string[]> = { android: [] };
+  const limits: Record<Platform, Record<string, number>> = { android: {} };
   for (const p of PLATFORMS) {
     const src = read(KIND_FILE[p]);
     if (src === null) {
@@ -317,15 +309,6 @@ function audit(root: string): Audit {
     limits[p] = sessionLimits(p, src);
     if (!cases[p].length) v.push(`${KIND_FILE[p]}: no ConsumableKind case found — refusing to pass vacuously`);
   }
-  const iosAsAndroid = cases.ios.map(camelToUpperSnake).sort();
-  const android = [...cases.android].sort();
-  if (cases.ios.length && cases.android.length && iosAsAndroid.join() !== android.join()) {
-    v.push(
-      `T7: the two ConsumableKind enums differ — iOS [${iosAsAndroid.join(", ")}] vs Android ` +
-        `[${android.join(", ")}]. The reminder engine is one design on two platforms`,
-    );
-  }
-
   const exemptFor = (r: Row, rule: Rule) => EXEMPTIONS.find((e) => r.item.startsWith(e.row) && e.rule === rule);
   const exemptionUsed = new Set<(typeof EXEMPTIONS)[number]>();
   /** Record a rule failure, unless exempted; an exemption records that it was needed. */
@@ -361,10 +344,9 @@ function audit(root: string): Audit {
     } else if (producer.startsWith("ConsumableKind.")) {
       kindCase = producer.slice("ConsumableKind.".length);
       const androidCase = camelToUpperSnake(kindCase);
-      const prev = claimed.get(kindCase);
+      const prev = claimed.get(androidCase);
       if (prev) v.push(`T7: ConsumableKind.${kindCase} is claimed by two rows, "${prev}" and "${r.item}"`);
-      claimed.set(kindCase, r.item);
-      if (!cases.ios.includes(kindCase)) fail(r, "T2", `producer ${producer} is not a case of the iOS enum (${KIND_FILE.ios})`);
+      claimed.set(androidCase, r.item);
       if (!cases.android.includes(androidCase)) {
         fail(r, "T2", `producer ${producer} has no Android case ${androidCase} (${KIND_FILE.android})`);
       }
@@ -422,7 +404,7 @@ function audit(root: string): Audit {
       }
       if (kindCase) {
         const want = Number(n[1]);
-        const got = { ios: limits.ios[kindCase], android: limits.android[camelToUpperSnake(kindCase)] };
+        const got = { android: limits.android[camelToUpperSnake(kindCase)] };
         for (const p of PLATFORMS) {
           if (got[p] !== want) {
             fail(r, "T4-threshold", `threshold ${want} but ${p} sessionLimit is ${got[p] ?? "absent"} (${KIND_FILE[p]})`);
@@ -433,7 +415,7 @@ function audit(root: string): Audit {
   }
 
   // T7 — every code case is claimed.
-  for (const c of cases.ios) {
+  for (const c of cases.android) {
     if (!claimed.has(c)) {
       v.push(
         `T7: ConsumableKind.${c} prompts in the app but no §2.3 row names it as producer — ` +
@@ -526,12 +508,6 @@ if (process.argv.includes("--self-test")) {
   };
   const table = (rows: string[], header = "| Item | Price | Interval | GM% | Trigger | Notes |") =>
     `# x\n\n${SECTION} + recurring revenue\n\nprose\n\n${header}\n|---|---|---|---|---|---|\n${rows.join("\n")}\n\n---\n`;
-  const IOS_KINDS = (cases: Array<[string, number]>) =>
-    "enum ConsumableKind: Int, CaseIterable {\n" +
-    cases.map(([c], i) => `    case ${c} = ${i}\n`).join("") +
-    "\n    var sessionLimit: Int {\n        switch self {\n" +
-    cases.map(([c, n]) => `        case .${c}: return ${n}\n`).join("") +
-    "        }\n    }\n\n    var lowThreshold: Int { 0 }\n}\n";
   const AND_KINDS = (cases: Array<[string, number]>) =>
     "enum class ConsumableKind(val rawValue: Int) {\n" +
     cases.map(([c], i) => `    ${c}(${i})`).join(",\n") +
@@ -541,11 +517,8 @@ if (process.argv.includes("--self-test")) {
   const GOOD_CASES: Array<[string, number]> = [["electrodeHydrogel", 45], ["vnsPads", 30]];
   const base = (over: Record<string, string> = {}): Record<string, string> => ({
     [DOC]: table([HYDRO, row.pads, row.cervical, row.covers]),
-    [KIND_FILE.ios]: IOS_KINDS(GOOD_CASES),
     [KIND_FILE.android]: AND_KINDS(GOOD_CASES.map(([c, n]) => [camelToUpperSnake(c), n])),
-    [CONSUMABLE_STATUS.ios.file]: "enum GattUuidStrings {\n    static let CONSUMABLE_STATUS_ID: String = X\n    static let CVNS_PAD_STATUS_ID: String = Y\n}\n",
     [CONSUMABLE_STATUS.android.file]: "object GattUuidStrings {\n    const val CONSUMABLE_STATUS_ID: String = X\n    const val CVNS_PAD_STATUS_ID: String = Y\n}\n",
-    [ENGINE_FILES.ios[0]!]: "let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)\n",
     [ENGINE_FILES.android[0]!]: "class ConsumableTracker {}\n",
     "firmware/hub/np_x.c": "/* CVNS_PAD_STATUS in a comment must not count */\nvoid f(void) {}\n",
     "firmware/hub/np_cons.c": "#define NP_GATT_CONSUMABLE_STATUS_ID 0x0007u\n",
@@ -561,8 +534,6 @@ if (process.argv.includes("--self-test")) {
   };
 
   // Parser and extractors.
-  const lim = sessionLimits("ios", IOS_KINDS(GOOD_CASES));
-  if (lim["vnsPads"] !== 30 || lim["electrodeHydrogel"] !== 45) failures.push("extractor — iOS sessionLimit misread");
   const alim = sessionLimits("android", AND_KINDS([["VNS_PADS", 30]]));
   if (alim["VNS_PADS"] !== 30) failures.push("extractor — Android sessionLimit misread");
   if (kindCases("android", AND_KINDS([["A_B", 1], ["C", 2]])).join() !== "A_B,C") failures.push("extractor — Android cases misread");
@@ -574,7 +545,7 @@ if (process.argv.includes("--self-test")) {
   // Fail direction, one per rule.
   expect("T1: an undeclared trigger kind is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical, row.covers.replace("**No prompt**", "Annual reminder")]) })), "T1:");
   expect("T1: a table without a Trigger column is caught", build(base({ [DOC]: table([HYDRO], "| Item | Price | Interval | GM% | Kind | Notes |") })), "no \"trigger\" column");
-  expect("T2: a producer that does not exist is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace("vnsPads", "vnsClips"), row.cervical, row.covers]) })), "not a case of the iOS enum");
+  expect("T2: a producer that does not exist is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace("vnsPads", "vnsClips"), row.cervical, row.covers]) })), "has no Android case");
   expect("T2: an unregistered producer is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical.replace("CVNS_PAD_STATUS", "MESH_IMPEDANCE"), row.covers]) })), "neither a ConsumableKind nor registered");
   expect("T2: a registered producer missing on one platform is caught", build(base({ [CONSUMABLE_STATUS.android.file]: "const val SESSION_STATE_ID: String = X\n" })), "not found on android");
   expect("T2: a prompting row with no producer is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical.replace(" · producer: `CVNS_PAD_STATUS`", ""), row.covers]) })), "must name its producer");
@@ -582,19 +553,16 @@ if (process.argv.includes("--self-test")) {
   expect("T4: an exposure count with no mechanism is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace("mechanism: electrochemical degradation from VNS current · ", ""), row.cervical, row.covers]) })), "name the mechanism");
   expect("T4: an exposure count that does not say what it cannot see is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace(/ · cannot see: [^|]+/, " "), row.cervical, row.covers]) })), "cannot see");
   expect("T4: a threshold with no provenance is caught", build(base({ [DOC]: table([HYDRO, row.pads.replace(" — unvalidated placeholder (`OI-VNSCLIP-07`)", " — midpoint"), row.cervical, row.covers]) })), "states no provenance");
-  expect("T4: a doc threshold that disagrees with the code is caught", build(base({ [KIND_FILE.ios]: IOS_KINDS([["electrodeHydrogel", 45], ["vnsPads", 25]]) })), "ios sessionLimit is 25");
+  expect("T4: a doc threshold that disagrees with the code is caught", build(base({ [KIND_FILE.android]: AND_KINDS([["ELECTRODE_HYDROGEL", 45], ["VNS_PADS", 25]]) })), "android sessionLimit is 25");
   expect("T5: a session count labelled a condition measurement is caught (the hydrogel shape)", build(base({ [DOC]: table([HYDRO, row.pads.replace("**Exposure count**", "**Condition measurement**"), row.cervical, row.covers]) })), "T5:");
   expect("T6: a No-prompt row naming a producer is caught", build(base({ [DOC]: table([HYDRO, row.pads, row.cervical, row.covers.replace("**No prompt** ·", "**No prompt** · producer: `X` ·")]) })), "T6:");
-  expect("T7: a ConsumableKind with no row is caught", build(base({ [KIND_FILE.ios]: IOS_KINDS([...GOOD_CASES, ["meshFrame", 365]]), [KIND_FILE.android]: AND_KINDS([["ELECTRODE_HYDROGEL", 45], ["VNS_PADS", 30], ["MESH_FRAME", 365]]) })), "no §2.3 row names it");
-  expect("T7: diverging enums are caught", build(base({ [KIND_FILE.android]: AND_KINDS([["ELECTRODE_HYDROGEL", 45], ["VNS_PADS", 30], ["EXTRA", 1]]) })), "two ConsumableKind enums differ");
+  expect("T7: a ConsumableKind with no row is caught", build(base({ [KIND_FILE.android]: AND_KINDS([["ELECTRODE_HYDROGEL", 45], ["VNS_PADS", 30], ["MESH_FRAME", 365]]) })), "no §2.3 row names it");
   expect("T7: two rows claiming one kind are caught", build(base({ [DOC]: table([HYDRO, row.pads, row.pads.replace("VNS clip pads", "VNS clip pads again"), row.cervical, row.covers]) })), "claimed by two rows");
-  expect("T8: a calendar notification trigger is caught", build(base({ [ENGINE_FILES.ios[0]!]: "let t = UNCalendarNotificationTrigger(dateMatching: d, repeats: false)\n" })), "calendar notification trigger");
   expect("T8: periodic Android work is caught", build(base({ [ENGINE_FILES.android[0]!]: "val r = PeriodicWorkRequestBuilder<W>(30, DAYS)\n" })), "periodic WorkManager");
-  expect("T8: a calendar trigger in a comment is not counted", build(base({ [ENGINE_FILES.ios[0]!]: "// never UNCalendarNotificationTrigger\n" })), null);
 
   // Declared absences must break when the absence ends.
   expect("an exemption the row no longer needs is caught", build(base({ [DOC]: table([HYDRO.replace("mechanism: not named", "mechanism: dehydration of the gel under wear"), row.pads, row.cervical, row.covers]) })), "now passes it");
-  expect("an exemption naming no row is caught", build(base({ [DOC]: table([row.pads, row.cervical, row.covers]), [KIND_FILE.ios]: IOS_KINDS([["vnsPads", 30]]), [KIND_FILE.android]: AND_KINDS([["VNS_PADS", 30]]) })), "names no §2.3 row");
+  expect("an exemption naming no row is caught", build(base({ [DOC]: table([row.pads, row.cervical, row.covers]), [KIND_FILE.android]: AND_KINDS([["VNS_PADS", 30]]) })), "names no §2.3 row");
   expect("a hub producer appearing flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "#define NP_GATT_CVNS_PAD_STATUS_UUID 0x13\n" })), "now references it");
   expect("a published hub producer disappearing is caught", build(base({ "firmware/hub/np_cons.c": "/* NP_GATT_CONSUMABLE_STATUS_ID */\nvoid g(void) {}\n" })), "no firmware code references it");
   expect("a hub producer appearing by UUID flips its pending declaration", build(base({ "firmware/hub/np_gatt.c": "static const char *u = \"4E455550-0013-1000\";\n" })), "CVNS_PAD_STATUS is declared unpublished");
@@ -606,7 +574,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  extractors proven on both enums and both sessionLimit tables; a well-formed tree passes;");
+  console.log("  extractors proven on the enum and the sessionLimit table; a well-formed tree passes;");
   console.log("  T1–T8 each proven to fire; a stale exemption, a stale firmware-pending and a lost firmware-published proven to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);

@@ -72,8 +72,6 @@ jobs:
       java: ${{ steps.scope.outputs.java }}
       js: ${{ steps.scope.outputs.js }}
       python: ${{ steps.scope.outputs.python }}
-      swift: ${{ steps.scope.outputs.swift }}
-      macos: ${{ steps.pins.outputs.macos }}
       include: ${{ steps.matrix.outputs.include }}
     env:
       # What each language's extractor would read. The matcher supports only
@@ -129,23 +127,11 @@ jobs:
         .github/workflows/codeql.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
-      NP_SCOPE_SWIFT: |
-        # Same reasoning as the java list for locales/**.
-        app/ios/**
-        app/NeurOneShared/**
-        .github/workflows/codeql.yml
-        .github/toolchain.json
-        .github/actions/setup-toolchain/**
-        scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Read the macOS image
-        id: pins
-        run: echo "macos=$(jq -er .macos .github/toolchain.json)" >> "$GITHUB_OUTPUT"
 
       # A broken matcher would skip every leg while every check went green.
       - name: Matcher self-test
@@ -160,14 +146,13 @@ jobs:
           printf '%s\n' "$NP_SCOPE_JAVA"    > scope.java.paths
           printf '%s\n' "$NP_SCOPE_JS"      > scope.js.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"  > scope.python.paths
-          printf '%s\n' "$NP_SCOPE_SWIFT"   > scope.swift.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `app/andriod/**` would silently stop analysing Kotlin on PRs.
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.actions.paths scope.cpp.paths scope.csharp.paths scope.java.paths scope.js.paths scope.python.paths scope.swift.paths; do
+          for f in scope.actions.paths scope.cpp.paths scope.csharp.paths scope.java.paths scope.js.paths scope.python.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -185,17 +170,13 @@ jobs:
             echo "ok: $1 · $3 → $got"
           }
           # The case this job exists for: a docs-only change analyses nothing.
-          for l in actions cpp csharp java js python swift; do
+          for l in actions cpp csharp java js python; do
             assert scope.$l.paths false docs/np_sw_ci_001.md
             assert scope.$l.paths false CLAUDE.md
             assert scope.$l.paths true  .github/workflows/codeql.yml
           done
           assert scope.cpp.paths     true  firmware/safety_mcu/src/np_safety_main.c
-          assert scope.cpp.paths     false app/NeurOneShared/Sources/NeurOneShared/SessionState.swift
           assert scope.cpp.paths     false app/web/src/main.ts
-          assert scope.swift.paths   true  app/ios/NeurOne/Analytics/AnalyticsBackend.swift
-          assert scope.swift.paths   true  app/NeurOneShared/Sources/NeurOneShared/SessionState.swift
-          assert scope.swift.paths   false firmware/safety_mcu/src/np_safety_main.c
           assert scope.java.paths    true  app/android/app/build.gradle.kts
           assert scope.java.paths    true  common/cloudstore/src/commonMain/kotlin/life/neurone/core/cloud/CloudStore.kt
           assert scope.java.paths    true  common/cloudauth/src/commonMain/kotlin/life/neurone/core/cloudauth/CloudAuth.kt
@@ -258,7 +239,6 @@ jobs:
           emit java    scope.java.paths
           emit js      scope.js.paths
           emit python  scope.python.paths
-          emit swift   scope.swift.paths
 
       # The analysis matrix, built from the outputs above. A language is left
       # out only on a definite `false`; a missing or malformed output keeps it.
@@ -281,15 +261,14 @@ jobs:
           # holds the BLE, consent, and session-data code — worth a real build.
           #
           # CodeQL supports: actions, c-cpp, csharp, go, java-kotlin,
-          # javascript-typescript, python, ruby, rust, swift. See
+          # javascript-typescript, python, ruby, rust, swift. (swift is not scanned: the SwiftUI app was retired, OI-UI-KMP-05.) See
           # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
           table='actions actions               none
           cpp     c-cpp                 none
           csharp  csharp                none
           java    java-kotlin           manual
           js      javascript-typescript none
-          python  python                none
-          swift   swift                 autobuild'
+          python  python                none'
           include='[]'
           while read -r out lang mode; do
             relevant=$(jq -r --arg k "$out" '.[$k] // "true"' <<<"$NP_RELEVANT")
@@ -306,13 +285,13 @@ jobs:
     # `== 'true'`, as everywhere else here. This `if:` exists because a matrix
     # cannot be empty (GitHub rejects `include: []`), and a job-level `if:` cannot
     # read `matrix`, so per-language skipping is done by the matrix itself.
-    if: ${{ !cancelled() && (needs.changes.outputs.actions != 'false' || needs.changes.outputs.cpp != 'false' || needs.changes.outputs.csharp != 'false' || needs.changes.outputs.java != 'false' || needs.changes.outputs.js != 'false' || needs.changes.outputs.python != 'false' || needs.changes.outputs.swift != 'false') }}
+    if: ${{ !cancelled() && (needs.changes.outputs.actions != 'false' || needs.changes.outputs.cpp != 'false' || needs.changes.outputs.csharp != 'false' || needs.changes.outputs.java != 'false' || needs.changes.outputs.js != 'false' || needs.changes.outputs.python != 'false') }}
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && needs.changes.outputs.macos) || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       # required for all workflows
       security-events: write
@@ -369,14 +348,12 @@ jobs:
         yes | sdkmanager --licenses >/dev/null || true
         sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
 
-    # Both compiled legs generate their locale files from locales/*.json at
-    # build time by shelling out to bun (CLAUDE.md §17), and both fail without
-    # it: :app:assembleDebug runs the syncLocales Gradle task, and the Swift
-    # autobuilder runs the NeurOne target's first build phase, which is what
-    # produces the git-ignored Localizable.xcstrings the Resources phase copies.
-    # Mirrors the same step in android-ci.yml and ios-ci.yml.
+    # The compiled leg generates its locale files from locales/*.json at
+    # build time by shelling out to bun (CLAUDE.md §17), and fails without
+    # it: :app:assembleDebug runs the syncLocales Gradle task.
+    # Mirrors the same step in android-ci.yml.
     - name: Set up Bun
-      if: matrix.language == 'java-kotlin' || matrix.language == 'swift'
+      if: matrix.language == 'java-kotlin'
       uses: ./.github/actions/setup-toolchain
       with:
         bun: 'true'
