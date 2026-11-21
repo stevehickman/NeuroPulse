@@ -590,7 +590,7 @@ static void test_session_status_seq(void)
 
 /* ── Tests: what reaches SHDR (OI-PRIV-28, NP-PRIV-ANALYSIS-004) ──────────────────────────────────── */
 
-/* @verifies REQ-FWHUB-85#a,b */
+/* @verifies REQ-FWHUB-91#a,b */
 static void test_shdr_code_cutoff_only(void)
 {
     check(np_cvns_reenable_shdr_code(NP_CVNS_RN_EV_CUTOFF_DETECTED)
@@ -638,7 +638,7 @@ static void shdr_sink(np_cvns_reenable_event_t ev)
  * receive the cutoff flag and nothing else, so the record of a person who
  * resumed after three attempts is identical to one who never resumed.
  */
-/* @verifies REQ-FWHUB-85#a,b */
+/* @verifies REQ-FWHUB-91#a,b */
 static void test_shdr_episode_writes_cutoff_only(void)
 {
     np_cvns_reenable_init();

@@ -221,7 +221,7 @@ np_cvns_reenable_state_t np_cvns_reenable_get_state(void)
     return s_state;
 }
 
-/* ── SHDR mapping (OI-PRIV-28 NP-PRIV-ANALYSIS-004, REQ-FWHUB-85) ────────────────────────────────── */
+/* ── SHDR mapping (OI-PRIV-28 NP-PRIV-ANALYSIS-004, REQ-FWHUB-91) ────────────────────────────────── */
 
 uint8_t np_cvns_reenable_shdr_code(np_cvns_reenable_event_t ev)
 {
