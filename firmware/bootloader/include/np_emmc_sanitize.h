@@ -59,12 +59,12 @@
 /* Linux R1_STATUS() error bits (31..19, 16, 15, 13) and SWITCH_ERROR. */
 #define NP_EMMC_R1_ERROR_MASK       (0xFFF9A000UL | NP_EMMC_R1_SWITCH_ERROR)
 
-/* ── Bound on the wait (UC-201, PROVISIONAL) ─────────────────────────────── */
+/* ── Bound on the wait (UC-202, PROVISIONAL) ─────────────────────────────── */
 /* The time SANITIZE may take is the selected part's figure, and no part is
  * selected (OI-EMMC2-03, FAI-RESET-01).  240 s is the Linux default when the
  * caller gives none (mmc_ops.c MMC_SANITIZE_TIMEOUT_MS), not this part's.  The
  * poll count is derived from it and moves with it. */
-#define NP_EMMC_SANITIZE_TIMEOUT_MS 240000UL    /* PROVISIONAL: UC-201 */
+#define NP_EMMC_SANITIZE_TIMEOUT_MS 240000UL    /* PROVISIONAL: UC-202 */
 #define NP_EMMC_SANITIZE_POLL_MS    10UL
 static inline uint32_t np_emmc_sanitize_max_polls(uint32_t timeout_ms, uint32_t poll_ms)
 {

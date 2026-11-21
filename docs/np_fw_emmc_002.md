@@ -107,7 +107,7 @@ R-11 Hub clears reset_in_progress flag
 R-12 Hub reboots — device presents as factory-new to the next owner
 ```
 
-> **Rev {NP-FW-EMMC-002 to} correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-12`).**
+> **Rev {NP-FW-EMMC-002 to} correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-13`).**
 > Up to Rev 6, R-5 read "Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition" and
 > R-6 "(eMMC ERASE + SANITIZE)". **CMD38 does not start SANITIZE.** CMD38 with argument 0 is a plain
 > ERASE, and that is all the bootloader's interrupted-reset path issued. SANITIZE is started by CMD6 SWITCH
@@ -128,7 +128,7 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > (R-7a in `firmware/factory_reset/`). On the application side the HAL traps until the application has an
 > eMMC transport (`OI-RESET-01`).
 >
-> **The wait is bounded at 240 s** (`UC-201`, PROVISIONAL), the Linux default when a caller names
+> **The wait is bounded at 240 s** (`UC-202`, PROVISIONAL), the Linux default when a caller names
 > none. No part is selected, so its own figure is unknown (`OI-EMMC2-03`, `FAI-RESET-01`).
 > **The part must advertise SANITIZE.** A part that does not cannot complete a factory reset,
 > by design: there is no fallback to the plain erase.

@@ -8,7 +8,7 @@
 
 ## 1. The question
 
-A factory reset now purges what it erases (eMMC SANITIZE after the erases, `REQ-SW02-12`, done in the change that wrote this brief). **Nothing can start one.** `np_factory_reset_execute()` has no caller outside its own tests. No GATT characteristic, no USB-C message and no app screen reaches it. `NP-FW-EMMC-002` §B.3 R-1 and R-2 say "the app issues a signed FACTORY_RESET command" and "the hub verifies the signature". Neither half exists, and no wire format was ever specified.
+A factory reset now purges what it erases (eMMC SANITIZE after the erases, `REQ-SW02-13`, done in the change that wrote this brief). **Nothing can start one.** `np_factory_reset_execute()` has no caller outside its own tests. No GATT characteristic, no USB-C message and no app screen reaches it. `NP-FW-EMMC-002` §B.3 R-1 and R-2 say "the app issues a signed FACTORY_RESET command" and "the hub verifies the signature". Neither half exists, and no wire format was ever specified.
 
 Plain form: **what is the command, who may send it, and how does the hub know it is genuine and fresh?**
 
@@ -67,9 +67,9 @@ Until the reset ships, should the consent text keep saying "perform a factory re
 Done in the same change:
 - the corrected command in `NP-FW-EMMC-002` §B.3;
 - `np_emmc_sanitize()` in the bootloader, and the sequence in `np_emmc_sanitize.h` with host tests;
-- R-7a, which purges UHDR, SHDR and Config after their erases (`REQ-SW02-12`).
+- R-7a, which purges UHDR, SHDR and Config after their erases (`REQ-SW02-13`).
 
 Still open under `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) whatever is decided here:
 - JEDEC JESD84-B51 and the selected part's datasheet read against the command;
-- the 240 s bound (`UC-201`);
+- the 240 s bound (`UC-202`);
 - the application's eMMC transport behind the trapping HALs (`OI-RESET-01`).

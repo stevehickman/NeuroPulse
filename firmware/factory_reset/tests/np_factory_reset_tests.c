@@ -53,7 +53,7 @@ static void begin_case(void)
 
 /* ── R-7a eMMC SANITIZE (OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7) ────────────────── */
 
-/* @verifies REQ-SW02-12#b */
+/* @verifies REQ-SW02-13#b */
 static void test_purge_runs_after_the_last_erase_and_before_rederive(void)
 {
     begin_case();
@@ -81,7 +81,7 @@ static void test_purge_runs_after_the_last_erase_and_before_rederive(void)
           "no purge is reported for erases that did not all happen");
 }
 
-/* @verifies REQ-SW02-12#c */
+/* @verifies REQ-SW02-13#c */
 static void test_purge_failure_keeps_the_reset_in_progress(void)
 {
     begin_case();

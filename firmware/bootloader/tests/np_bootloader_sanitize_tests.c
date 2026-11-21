@@ -88,7 +88,7 @@ static card_t card_ok(void)
     return c;
 }
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-13#a */
 static void test_sanitize_is_cmd6_to_ext_csd_165(void)
 {
     CHECK(np_emmc_switch_arg(165U, 1U) == 0x03A50100UL,
@@ -104,7 +104,7 @@ static void test_sanitize_is_cmd6_to_ext_csd_165(void)
     CHECK(c.n_wait == c.n_status, "every status read follows a poll wait");
 }
 
-/* @verifies REQ-SW02-12#a */
+/* @verifies REQ-SW02-13#a */
 static void test_unsupported_part_fails_closed(void)
 {
     card_t c = card_ok();
@@ -121,7 +121,7 @@ static void test_unsupported_part_fails_closed(void)
           "an unreadable EXT_CSD is an error, never taken as support");
 }
 
-/* @verifies REQ-SW02-12#c */
+/* @verifies REQ-SW02-13#c */
 static void test_failures_are_errors_never_success(void)
 {
     card_t c = card_ok();
@@ -177,7 +177,7 @@ static void test_failures_are_errors_never_success(void)
           "a zero bound is refused before anything is sent");
 }
 
-/* @verifies REQ-SW02-12#c */
+/* @verifies REQ-SW02-13#c */
 static void test_poll_bound_is_derived_from_the_timeout(void)
 {
     CHECK(np_emmc_sanitize_max_polls(NP_EMMC_SANITIZE_TIMEOUT_MS, NP_EMMC_SANITIZE_POLL_MS) == 24000U,
