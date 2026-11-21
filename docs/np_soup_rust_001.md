@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 14
-**Date:** 2026-11-13
+**Revision:** 15
+**Date:** 2026-11-18
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -236,3 +236,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 14 | 2026-11-13 | NeurOne Software Engineering | **`ed25519-dalek` gains a use in `tier_record.rs` (plain `verify`, mirroring the safety MCU's check); no new crate and no version change.** |
+| 15 | 2026-11-18 | NeurOne Software Engineering | **§2: `common/npps-ffi` names `zeroize` directly and `aes-gcm` gains its `zeroize` feature (`SWR-MG-28`, `OI-PRIV-12`); no crate and no version is added to the tree.** |
