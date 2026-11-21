@@ -471,6 +471,10 @@ internal fun EraseDeviceSection(model: EraseDeviceModel, endRun: () -> Unit) {
         }
         else -> {
             if (s is EraseStep.Failed) Text(stringResource(Res.string.settings_erase_device_failed), color = MaterialTheme.colorScheme.error)
+            if (s !is EraseStep.Running && model.analyticsUnreadable > 0) {
+                Text(stringResource(Res.string.settings_erase_device_analytics_locked), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = understood, onCheckedChange = { understood = it })
                 Text(stringResource(Res.string.settings_erase_device_confirm))
