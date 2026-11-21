@@ -931,8 +931,8 @@ the stop command. Each modality has exactly one target form.
 
 | Code | `mod_type` | Parameter struct (`np_hub_types.h`) | Bytes | Target |
 |---|---|---|---|---|
-| `0x01` | `NP_MOD_PBM_BASE` | `np_mod_pbm_base_params_t` | 4 | socket mask |
-| `0x02` | `NP_MOD_PBM_SMART` | `np_mod_pbm_smart_params_t` | 6 | socket mask |
+| `0x01` | `NP_MOD_PBM_BASE` | `np_mod_pbm_base_params_t` | 7 | socket mask |
+| `0x02` | `NP_MOD_PBM_SMART` | `np_mod_pbm_smart_params_t` | 9 | socket mask |
 | `0x03` | `NP_MOD_INTRANASAL` | `np_mod_intranasal_params_t` | 5 | `NP_HUB_SLOT_INTRANASAL` (9) |
 | `0x04` | `NP_MOD_EEG` | `np_mod_eeg_params_t` | 5 | `NP_HUB_SLOT_EEG` (5) |
 | `0x05` | `NP_MOD_BES_TACS` | `np_mod_bes_tacs_params_t` | 7 | `NP_HUB_SLOT_BES_TACS` (17) |
@@ -949,6 +949,8 @@ the stop command. Each modality has exactly one target form.
 | `0x10` | `NP_MOD_VIBROTACTILE` | `np_mod_vibrotactile_params_t` | 4 | `NP_HUB_SLOT_VIBROTACTILE` (16) |
 
 **The auricular VNS current is 32 bits, end to end (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_vns_hrv_params_t.amplitude_ua` was 16 bits, which would have made 65.535 mA the bound whenever the 40 mA ceiling (`NP_VNS_MAX_CURRENT_UA`, derived from the charge limit and the provisional pad area) moved with the pad. The VNS block is 14 bytes (was 12), the platform HAL's `np_mod_vns_hal_stim_set`, the taVNS sync and the hub's published commanded current are 32 bits, and so is every `current_ua[]` entry of the safety heartbeat (§7.1). The 40 mA refusal itself is unchanged.
+
+**The transcranial PBM frequency is 32-bit millihertz and the tile takes it as given (`OI-PBMTILE-01`, the principal, 2026-11-21).** `np_mod_pbm_base_params_t.freq_mhz` and `np_mod_pbm_smart_params_t.freq_mhz` replace the one-byte `freq_code` (base 4 to 7 bytes, smart 6 to 9, every later field moves three bytes). 0 is CW. The hub writes the value to the tile's `FREQ_A/B/C` registers (`NP-FW-PBM1064-001` §5.2) and reads each back, so a tile that refuses a frequency fails the command (`NP_PBM_ERR_FREQ_REFUSED` → `NP_HUB_ERR_MOD_FAULT`) and is never started at another one; the HAL seams `np_mod_pbm_hal_pwm_set` and `np_mod_pbm_hal_socket_pwm_set` take the 32-bit value and return an error rather than round it. The intranasal probe and the 1170 nm block keep their whole-hertz byte. `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The range the tile can realise is open (`OI-PBMTILE-03`).
 
 **The TMS, clinical tACS and audio frequencies are 32 bits (`OI-UINT16-01`, the principal, 2026-11-20).** `np_mod_tms_params_t.freq_mhz`, `np_mod_clin_tacs_params_t.freq_mhz` and `np_mod_audio_params_t.beat_mhz` were 16 bits, which topped out at 65.535 Hz, a width no research sets. The three blocks grow by two bytes (TMS 12 to 14, clinical tACS 8 to 10, audio 8 to 10), every later field moves with them, and `NP_HUB_PROTO_VERSION` is not bumped (`REQ-FWHUB-10`: no descriptor has shipped). The unsourced authoring ranges (`TMS_MAX_HZ`, `CLINICAL_TACS_MAX_HZ`, `AUDIO_BEAT_MAX_HZ` and their floors) are defaults and no longer enforced (`UC-082`, the principal, 2026-11-20); `np_chan_decl_half_period_us` takes the 32-bit frequency, so a clinical tACS frequency above 65.535 Hz declares its true half period.
 

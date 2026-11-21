@@ -50,8 +50,8 @@ object NPBounds {
             val frequency = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A frequency cannot be below 0."),
                 max = null,
-                step = 1.0,
-                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries whole hertz, 1 to 255, so the step is 1 and a non-whole value is refused at compile (the principal, 2026-11-20) and the driver limit is not established, so no hardware figure is applied yet.",
+                step = 0.5,
+                unbounded = "No maximum: the former 100 Hz (40 Hz for deep PBM) is register UC-082, with no derivation. The descriptor carries up to about 4.29 MHz (32-bit millihertz, OI-PBMTILE-01), and the tile refuses a frequency it cannot realise, which the hub sees on read-back. The tile's realisable range is not established (OI-PBMTILE-03), and the cluster controller's design range is 2 to 40 Hz (NP-HW-HUB-001), so no hardware figure is applied yet. The editor step 0.5 is a control step, not a limit.",
             )
             val duty = NPBound(
                 min = NPBoundEdge(0.0, "natural", "A duty cycle cannot be below 0."),
