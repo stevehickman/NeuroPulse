@@ -260,7 +260,7 @@ notice with a count no higher than a device knows changes nothing. There is no d
 
 **Ruled 2026-11-21 (`OI-PRIV-22`), not yet written into the calls above:** the server keeps the highest-count notice per key id with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
-the notices after its cursor before it extracts; a size cap against junk notices would be a number with no derivation; **ruled 2026-11-21 (`OI-PRIV-23`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
+the notices after its cursor before it extracts; junk notices are handled (ruled 2026-11-21, `OI-PRIV-22`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-23`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
 flooding the server with notices nobody can verify; the size at which a request no longer fits a push; and the
 desktop and web apps, where a persistent connection may stand in for a push service and is not designed. The key and
 its signature are cryptographic and are written once in `common/npps-core` (`CLAUDE.md` §22).
