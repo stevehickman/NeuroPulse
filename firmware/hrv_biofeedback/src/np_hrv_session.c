@@ -47,6 +47,33 @@ struct np_hrv_session {
 
 static struct np_hrv_session s_session_pool;  /* single-instance pool */
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_hrv_sess_memset_fn)(void *, int, size_t) = memset;
+
+/*
+ * REQ-FWHUB-84 (e), OI-PRIV-39: the person's signals and what was computed from
+ * them (the R-R series, the PPG detector, the Welch PSD, the EEG samples and
+ * bands, the coherence) are zeroed once the session record has been handed to
+ * end_cb, with the modules' FFT scratch.  Kept: the configuration, the pacer
+ * (its personalised rate is for the platform to persist) and the taVNS state,
+ * whose force-disable is a safety gate and is not cleared here.
+ */
+static void wipe_session_signals(struct np_hrv_session *sess)
+{
+    np_hrv_sess_memset_fn(&sess->rr_buf, 0, sizeof sess->rr_buf);
+    np_hrv_sess_memset_fn(&sess->ppg_det, 0, sizeof sess->ppg_det);
+    np_hrv_sess_memset_fn(&sess->psd, 0, sizeof sess->psd);
+    np_hrv_sess_memset_fn(&sess->coherence, 0, sizeof sess->coherence);
+    np_hrv_sess_memset_fn(&sess->eeg_buf, 0, sizeof sess->eeg_buf);
+    np_hrv_sess_memset_fn(&sess->eeg_bands, 0, sizeof sess->eeg_bands);
+    np_hrv_sess_memset_fn(&sess->dual_state, 0, sizeof sess->dual_state);
+    sess->coherence_sum = sess->coherence_min = sess->coherence_max = sess->rmssd_sum = 0.0f;
+    sess->coherence_sample_count = 0U;
+    np_hrv_coherence_wipe_scratch();
+    np_hrv_eeg_wipe_scratch();
+}
+
 /* ── taVNS callbacks (forwarded to safety MCU SPI driver) ───────────────────── */
 
 static void tavns_enable(uint32_t freq_mhz, uint32_t current_ua)
@@ -297,12 +324,16 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     }
 
     sess->end_cb(&record, NP_HRV_OK);
+    np_hrv_sess_memset_fn(&record, 0, sizeof record);
+    wipe_session_signals(sess);
 }
 
 void np_hrv_session_destroy(np_hrv_session_t *sess)
 {
     if (sess) {
-        memset(sess, 0, sizeof(*sess));
+        np_hrv_coherence_wipe_scratch();
+        np_hrv_eeg_wipe_scratch();
+        np_hrv_sess_memset_fn(sess, 0, sizeof(*sess));
     }
 }
 

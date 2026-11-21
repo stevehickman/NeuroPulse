@@ -143,4 +143,10 @@ np_hd_stage_t np_hd_session_stage(const np_hd_session_t *sess);
 
 const np_hd_montage_t *np_hd_session_montage(const np_hd_session_t *sess);
 
+#ifdef NPTEST_HOST
+/* Host-test inspection (NP-FW-HUB-001 REQ-FWHUB-84 (f)): true when the source
+ * power map, the session's sLORETA covariances and its epoch counts are zero. */
+bool np_hd_session_test_signals_are_zero(const np_hd_session_t *sess);
+#endif
+
 #endif /* NP_HD_SESSION_H */
