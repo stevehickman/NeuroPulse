@@ -651,7 +651,13 @@ test('end to end: the withhold report says the BES line is held for its undeclar
 // ── the app's protocol upload, over the hub's own transport (NP-SIM-FW-001 §26, REQ-SIMFW-17) ──────────────────────────────────
 
 const nodeCrypto = require('node:crypto');
-const GOLDEN = require('../../common/testdata/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot
+const GOLDEN_UNSTAMPED = require('../../common/testdata/hub-descriptor-golden.json');   // the app compiler's own output: header, commands, zeroed signature slot, no device serial
+// The TEST device serial the twin reports (np_sim_proto.c, UC-137): 0x5a in every byte.  The app reads DEVICE_SERIAL at link and stamps it into
+// the header (bytes 28 to 59) before signing; the goldens are compiled with none, so they are stamped here as the app would.  The hub's guard
+// fails closed (REQ-FWHUB-85): a serial-less (all-zero) descriptor is refused by any helmet.
+const TEST_SERIAL = '5a'.repeat(32);
+const forDevice = (hex) => hex.slice(0, 56) + TEST_SERIAL + hex.slice(120);
+const GOLDEN = Object.fromEntries(Object.entries(GOLDEN_UNSTAMPED).map(([k, v]) => [k, forDevice(v)]));
 const framed = (blob) => Buffer.concat([Buffer.from(new Uint32Array([blob.length]).buffer), blob]);   // a 4-byte little-endian length, then the blob
 
 // @verifies REQ-SIMFW-17#a
@@ -771,6 +777,16 @@ test('end to end: the device-serial replay guard is live: a protocol for another
   assert.strictEqual(other.pump.code, -7, 'NP_HUB_ERR_WRONG_DEVICE');
   assert.strictEqual(other.pump.loaded, false);
   assert.deepStrictEqual([Buffer.from(other.frame, 'hex')[0], Buffer.from(other.frame, 'hex')[1]], [2, 7], 'REFUSED, reason 7');
+});
+
+// @verifies REQ-FWHUB-85#c
+test('end to end: the replay guard fails closed: a helmet whose serial is all zero refuses even a serial-less protocol, and a serial-less protocol is refused by a provisioned one', { skip: !BIN }, async () => {
+  const blank = await upload(GOLDEN_UNSTAMPED.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '00'.repeat(32) }, ...MCU] });
+  assert.strictEqual(blank.pump.code, -7, 'an unprovisioned (all-zero) helmet is NP_HUB_ERR_WRONG_DEVICE, not a match for an all-zero header');
+  assert.strictEqual(blank.pump.loaded, false);
+  const serialLess = await upload(GOLDEN_UNSTAMPED.pbm660, { before: MCU });
+  assert.strictEqual(serialLess.pump.code, -7, 'a protocol compiled without the device serial is refused by the TEST device');
+  assert.strictEqual(serialLess.pump.loaded, false);
 });
 
 // @verifies REQ-SIMFW-17#e

@@ -101,8 +101,8 @@ static void reset_doubles(void)
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;      /* the replay guard compares only when a serial reads back */
+    memset(buf, 0x5A, len);             /* a provisioned serial; blob_begin stamps the same bytes (the guard fails closed, REQ-FWHUB-85) */
+    return NP_HUB_OK;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
@@ -284,6 +284,7 @@ static void blob_make(blob_t *b, uint8_t hw_version, uint32_t duration_ms, uint8
     memcpy(b->buf + 4, &version, 2);
     b->buf[7] = 1U;                              /* cmd_count */
     memcpy(b->buf + 24, &compiled_at, 4);
+    memset(b->buf + 28, 0x5A, NP_GATT_DEVICE_SERIAL_LEN);   /* device_serial: the stub HAL's */
     memcpy(b->buf + 60, &duration_ms, 4);
     b->buf[64] = hw_version;                     /* 65..67 reserved, zero; 68..106 the rules stamp, zero (not stated) */
     b->len = 107U;

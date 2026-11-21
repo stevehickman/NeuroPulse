@@ -115,6 +115,11 @@ static void upload(const char *unsigned_hex, int flip_a_bit)
 {
     char *cmd = malloc(strlen(unsigned_hex) + 16U);
     (void)snprintf(cmd, strlen(unsigned_hex) + 16U, "proto_sign %s", unsigned_hex);
+    /* The app stamps the DEVICE_SERIAL it read at link into the header (bytes 28 to 59) before signing; the goldens carry none, and the
+     * hub's replay guard fails closed (REQ-FWHUB-85), so stamp the TEST device's serial (0x5a in every byte, np_sim_proto.c). */
+    if (strlen(unsigned_hex) >= 120U) {
+        for (size_t i = 0U; i < 64U; i += 2U) { cmd[11U + 56U + i] = '5'; cmd[11U + 56U + i + 1U] = 'a'; }
+    }
     g_cap_n = 0;
     runl(cmd);
     free(cmd);
