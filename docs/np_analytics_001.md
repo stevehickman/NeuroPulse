@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 7
-**Date:** 2026-11-19  
+**Revision:** 8
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -567,3 +567,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 5 | 2026-11-21 | NeurOne Software Engineering | **§7.6: the app keeps a queued ID on every 4xx and asks again at its next launch; only a 2xx drops it, so a relay deployed at the wrong path or behind a refusing proxy loses nothing (`OI-PRIV-08` (2), `REQ-SW03-19` (b)).** |
 | 6 | 2026-11-16 | NeurOne Software Engineering | **Permitted events table follows `NP-APP-TELEMETRY-001` §3.3: `consent_granted` and `consent_revoked` removed, `screen_viewed` and `error_reported` added; §8.1 marked out of date (`step_name` and `feature_name` were never permitted) (`OI-PRIV-05`).** |
 | 7 | 2026-11-19 | NeurOne Software Engineering | **§3.4: the proxy's access log and default logger delete the client's address, port and forwarding headers, checked by `ci/test_posthog_infra.py` P8 and P9; the relay of `NP-APP-TELEMETRY-001` §4.1 is decided and not built.** |
+| 8 | 2026-11-20 | NeurOne Software Engineering | **§3.4 and §7.1: the principal set event retention to 30 days on 2026-11-20 (`NP-APP-TELEMETRY-001` §5 promises deletion of a withdrawn person's ID within 30 days). It is `EVENT_RETENTION_DAYS`, applied as a ClickHouse TTL by `apply_event_retention.py` and checked with `--check`; the policy is cited beside the value, and a value above 30 is flagged as breaking it. Not run against a real stack.** |

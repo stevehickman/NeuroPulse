@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 188
+**Revision:** 189
 **Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -873,3 +873,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 186 | 2026-11-20 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-05`, `SWR-MG-29`, `SWR-MG-31`: neither format's version rose with the object ID, the per-file key or the epoch (the principal, 2026-11-19).** `FORMAT_VERSION` and the archive's `VERSION` are 1 again; the `older_version` refusal and the reading of an epoch-less bundle as epoch 0 are removed, so a body with no epoch is `malformed` and a file of an earlier form does not open. The rule that a format change after a release bumps the version stands. |
 | 187 | 2026-11-20 | NeurOne Software Engineering | **§6.3 SWR-MG-01: characterisation enrolment is no longer moved by a migration or carried by the UHDR backup; it and the warranty consent are the warranty owner's records, kept per helmet (REQ-SHDR-10; the principal, 2026-11-20, OI-PRIV-04). A bundle an earlier version sealed with the item is opened with the item dropped.** |
 | 188 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (b): the 32-byte serial is the only read that opens the gate (`OI-PRIV-17`).** |
+| 189 | 2026-11-20 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-34`, the event-retention script and its check against a fake ClickHouse.** |
