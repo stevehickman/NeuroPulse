@@ -75,7 +75,7 @@ What is left is not screens but wiring on some targets, below, and retiring the 
   no radio run). Desktop remembers the last hub and raises `pairingRequired` on a refused serial read; whether Windows pairs on its own is unverified, and the SOUP anomaly evaluation (`NP-SOUP-BTLE-001`) is open; see the open item.
 - `OI-UI-KMP-04` — Ed25519 study-descriptor verification exists on the JVM only; other targets answer
   "cannot check", so every study descriptor is refused there (the shipped default everywhere, `OI-CONSENT-07`).
-- `OI-UI-KMP-05` — the existing SwiftUI app (`app/ios`), React app (`app/web`) and the Windows project are
+- `OI-UI-KMP-05` — the SwiftUI app (`app/ios`) is retired (deleted, OI-UI-KMP-05 PR B); the React app (`app/web`) and the Windows project are
   untouched, and `:shared` now covers every screen they have; retiring each waits on its production path (BLE,
   storage, signing) being wired in the shared build. macOS is the desktop app.
 - `OI-UI-KMP-06` — iOS and desktop packaging are unbuilt here (no Xcode, DMG/MSI

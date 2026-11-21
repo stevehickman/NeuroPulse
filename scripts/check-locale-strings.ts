@@ -89,12 +89,6 @@ const LOCALES_DIR = join(ROOT, "locales");
 const COVERED_PATHS = [
   "app/web/src/",
   "common/", // the sources the web app shares with the simulator bundle
-  "app/ios/NeurOne/Views/",
-  "app/ios/NeurOne/Onboarding/",
-  "app/ios/NeurOne/Setup/",
-  "app/ios/NeurOne/Localization/",
-  "app/ios/NeurOne/Protocol/",
-  "app/ios/NeurOne/Models/",
   "app/android/app/src/main/kotlin/life/neurone/app/ui/",
   "app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/", // the screens every platform shares (Compose Multiplatform)
 ];
@@ -123,15 +117,9 @@ const PENDING_PATHS: Array<[string, string]> = [
  *   - Exhaustiveness/invariant throws are programmer errors that never render.
  *   - Generated constants (scripts/sync-constants.ts): the GATT UUID strings are wire identifiers, not copy.
  *   - Generated bounds (scripts/sync-constants.ts): each edge's `basis` and `source` note is an audit record in
- *     the data, never rendered; the Swift output is the only one the scan reaches.
+ *     the data, never rendered.
  */
 const DIAGNOSTIC_FILES = [
-  "app/ios/NeurOne/Protocol/NPProtocolScripting.swift",
-  "app/ios/NeurOne/Protocol/NPPSParser.swift",
-  "app/ios/NeurOne/Protocol/NPNamespace.swift",
-  "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
-  "app/ios/NeurOne/Protocol/NppsConstants.generated.swift",
-  "app/ios/NeurOne/Protocol/NppsBounds.generated.swift",
   "common/lib/nppsParser.ts",
   "common/lib/nppsCore.ts",
   "common/lib/nppsSerializer.ts",
