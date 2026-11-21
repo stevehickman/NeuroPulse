@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 173
+**Revision:** 174
 **Date:** 2026-11-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -858,3 +858,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 171 | 2026-11-21 | NeurOne Software Engineering | **§6.3: `SWR-MG-19` gains parts (l) and (m) (`OI-PRIV-14`, privacy review of `common/`, Findings 37 and 38).** (l) `CredentialStore` is built only from the run's `ProtectedStorage`: sealed at rest when the storage seals its key, in memory for a locked run, and absent otherwise, where the app has no cloud sign-in, Settings says so and a credential document left in the clear is removed. (m) The value Google issues with a Desktop app client is public: it is sent only by a loopback-redirect client, the build refuses it beside any other redirect, and it is never a confidential client's secret. Tests: `CredentialStoreTests`, `CloudAuthWiringTest`. |
 | 172 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-28` added: `npps_free` and the web binding wipe a buffer before releasing it, the core's key buffers are wiped on drop, a direct-link state keeps only the channel keys once the shared key is made, the pairing's random source refuses to repeat bytes, and four classes no longer print the pairing code or UHDR from `toString` (`OI-PRIV-12` stage 1; stage 2, keys as strings across the boundary, is not built).** |
 | 173 | 2026-11-18 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-31` (`OI-PRIV-16`): a refused Bluetooth write reaches the shared hub manager as an event (`Event::CharacteristicWriteFailed`, `BleCentralListener.onCharacteristicWriteFailed`) and marks a refused upload; no protocol upload write is made until `DEVICE_SERIAL` has been read on the same link (`ProtocolUploader.Result.LinkNotEncrypted`), which shows the peer answered an encrypted-only read and not that it is a genuine hub; the desktop Bluetooth library prints an error's kind and never the library's message.** |
+| 174 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-29` (new): a recording file is sealed as a named object and opened as the object the reader expects (archive version 2); a bundle carries an epoch inside its seal and a phone that has seen a later one refuses it whole (bundle format version 2, `SWR-MG-05`); the row states that a phone which has seen nothing is not protected (`OI-PRIV-09`).** |
