@@ -172,3 +172,21 @@ describe('the binaural and isochronic tones in the Compose editor', () => {
     expect(editor).toMatch(/ISOCHRONIC_START_HZ = 40\.0/);
   });
 });
+
+describe('a typed layer start offset in the Compose composer', () => {
+  const composer = read('app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ProtocolComposerScreen.kt');
+
+  // @verifies SWR-UI-01#f
+  it('is never replaced by 0: a blank field or too many digits is not turned into an offset', () => {
+    expect(composer).not.toMatch(/toIntOrNull\(\)\s*\?:\s*0/);
+    expect(composer).not.toMatch(/mins\s*\*\s*60/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('is refused instead: the field is marked and Save is disabled, from the shared start-offset bound', () => {
+    expect(composer).toMatch(/startOffsetSecondsOrNull/);
+    expect(composer).toMatch(/NPBounds\.ProtocolFields\.layerStartOffsetSeconds/);
+    expect(composer).toMatch(/isError = refused/);
+    expect(composer).toMatch(/enabled = layers\.isNotEmpty\(\) && !offsetRefused/);
+  });
+});

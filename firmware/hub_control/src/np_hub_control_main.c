@@ -164,28 +164,26 @@ static void log_crit_exit(uint32_t saved)
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
 /*
- * log_cvns_event — route a CVNS re-enable lifecycle event to SHDR.
+ * log_cvns_event — write the SHDR record, if any, for a CVNS re-enable
+ * lifecycle event.  np_cvns_reenable_shdr_code() decides which events reach
+ * SHDR: the cutoff flag only (NP-FW-CVNS-001 §8.2: "cutoff occurred flag";
+ * OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-91).  The rest of the lifecycle says what the wearer
+ * did after a cardiac event and is not written to SHDR at all.
  *
- * Privacy (NP-FW-CVNS-001: "SHDR: cutoff flag only, no HR values"): event codes
- * are flags only.  The 0 passed as the timestamp argument is belt-and-braces —
- * np_log_shdr_fault() discards `session_ms` for every caller and every fault
- * type, because fault event timing is UHDR.  That suppression is UNCONDITIONAL
- * and therefore leaks nothing about which fault occurred; do NOT make it
- * conditional on the event being cardiac (CLAUDE.md §5.1 — a redaction applied
- * conditionally on a sensitive predicate leaks that predicate).
+ * Privacy: the code is a flag only.  The 0 passed as the timestamp argument is
+ * belt-and-braces — np_log_shdr_fault() discards `session_ms` for every caller
+ * and every fault type, because fault event timing is UHDR.  That suppression
+ * is UNCONDITIONAL and therefore leaks nothing about which fault occurred; do
+ * NOT make it conditional on the event being cardiac (CLAUDE.md §5.1 — a
+ * redaction applied conditionally on a sensitive predicate leaks that
+ * predicate).  Dropping the non-cutoff events is not such a redaction: they
+ * are never written, whatever happened, so their absence says nothing.
  */
 static void log_cvns_event(np_cvns_reenable_event_t ev)
 {
-    uint8_t code;
-    switch (ev) {
-    case NP_CVNS_RN_EV_CUTOFF_DETECTED:   code = NP_CVNS_SHDR_EV_CUTOFF;         break;
-    case NP_CVNS_RN_EV_CONFIRM_OPEN:      code = NP_CVNS_SHDR_EV_CONFIRM_OPEN;   break;
-    case NP_CVNS_RN_EV_IMPEDANCE_FAILED:  code = NP_CVNS_SHDR_EV_IMP_FAILED;     break;
-    case NP_CVNS_RN_EV_IMPEDANCE_TIMEOUT: code = NP_CVNS_SHDR_EV_IMP_TIMEOUT;    break;
-    case NP_CVNS_RN_EV_REENABLE_COMPLETE: code = NP_CVNS_SHDR_EV_REENABLED;      break;
-    case NP_CVNS_RN_EV_ASSERT_TIMEOUT:    code = NP_CVNS_SHDR_EV_ASSERT_TIMEOUT; break;
-    default:
-        return;  /* NONE / IMPEDANCE_PASSED / CARDIAC_CLEARED: not logged */
+    uint8_t code = np_cvns_reenable_shdr_code(ev);
+    if (code == 0U) {
+        return;
     }
     np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, code, 0U /* ts suppressed */);
 }
