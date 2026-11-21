@@ -19,6 +19,14 @@
 
 ## Current revision
 
+**Rev 88 (2026-11-21) — §6.3: NeurOne builds no invitation list; it publishes each research request to subscribed devices, and a device subscribes only while it is the current device for one of its users (the principal, `OI-PRIV-22`). No other locked decision changed.**
+
+**What changed.** §6.3 no longer says NeurOne builds an invitation list from device ID and contact preferences, nor that a request goes to the current device of every person who consented. It now says a request is published to every subscribed device with nothing filtered; a device subscribes only while it is current for at least one of its users, and the subscription says nothing about consent; the device compares each user's consents with the request on the device; a person is current on the last device they registered, and a move publishes a signed notice that retires the old one; delivery is a platform push and the push service learns the app receives these broadcasts. §5.3's "current device" now reads "the device that is current for them".
+
+**Why.** The Rev 86 form kept a per-person record at the server and had the server learn who consented to some research, which is the leak `NP-SW-PORTAL-API-001` §3 existed to prevent. The principal's redesign moves everything about the person onto the device: the server holds only channels for devices, and an old device learns it was superseded from a notice it can verify against a key it already holds. The principal accepted the push service's visibility and a stable channel address per subscribed device as the cost (2026-11-21), withdrew the idea of sending extracts directly to the researcher the same day, and ruled the portal shows a participant count only (`OI-PRIV-25`).
+
+**What it leaves.** Nothing is built (`OI-PRIV-22`): the notice order and retention, the relay (`OI-PRIV-23`), junk notices, push size, desktop and web with no push, the strings, the core API, the consent step of a restore and the extractor (`OI-CONSENT-07`). The §1 to §6 and §16 to §23 numbering is unchanged.
+
 **Rev 87 (2026-11-20) — §5.3: a study declares up front whether it needs tracking over time; with none an extract carries no identifier and a study asks once (the principal, `OI-PRIV-24`). No other locked decision changed.**
 
 **What changed.** §5.3 gains the declaration in the signed descriptor (default none), the per-person-and-study identifier (never the same across studies) for a study that declares it, the plain-words consent, k-anonymity on the linked series, and the rule that the declaration is fixed for a study.

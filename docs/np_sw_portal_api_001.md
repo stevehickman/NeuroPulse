@@ -68,6 +68,8 @@ differs is the signer and the schema, not the mechanics.
 
 ## §3 — Pull-only, unconditional, on a schedule the user's state does not affect
 
+> **Amended 2026-11-21 for research study requests only (`OI-PRIV-22`, the principal).** A study request is no longer pulled: the app **subscribes** and NeurOne **publishes** to subscribed devices (§6a). The reasons below were about a push token that addressed *the user's app* and about polling that depended on the user's state. The new subscription belongs to a *device*, only while it is the current device for at least one of its users, and it carries no consent, user or study, so it tells the server nothing the paragraphs below were written to hide except that the device is current for someone. The cost that remains, and that the principal accepted, is that NeurOne holds a stable channel address for each subscribed device and the platform's push service learns that the app receives these broadcasts. **Clinician requests (`OI-CONSENT-05`) are not changed by this amendment and stay pull-only.**
+
 **No push.** A push token is a stable identifier held by NeurOne and addressable to one device.
 §5.1 links SHDR to "device ID + opaque TRNG warranty token **only** — never to user identity", and
 §6.0 keeps the warranty owner and the user distinct precisely because the registering entity may be
@@ -219,65 +221,49 @@ other side.
 The approve / deny answers are different: they are facts about a grant NeurOne's *clinician* holds,
 and they carry a grant ID rather than anything about the user's biology. They may be sent as-is.
 
-## §6a — The current-install request (`OI-PRIV-22`), DRAFT
+## §6a — Delivery of study requests by subscription (`OI-PRIV-22`), DRAFT
 
-> **SUPERSEDED IN PART, 2026-11-21.** The principal then ruled that the app does not poll: it **subscribes**, the
-> subscription identifies a *device* that is current for at least one of its users (one subscription per device,
-> however many users it holds), it says nothing about consent, and NeurOne publishes each research request to the
-> subscribed devices only. The calls below (a per-user record, a consent state in the signed request, `poll`)
-> are for the earlier model and are to be rewritten when the points open in `OI-PRIV-22` are answered. Read
-> `pending-decisions.md` `OI-PRIV-22` first.
+> **DRAFT, not in force.** It records what the principal ruled on 2026-11-20 and 2026-11-21 (`pending-decisions.md`
+> `OI-PRIV-22`; `data-architecture-detail.md` §5.3 step 1a). It amends §3 for study requests only. The endpoint and
+> JSON are not specified (§7).
 
-> **DRAFT, not in force, and it conflicts with §3 as written.** The principal's rulings of 2026-11-20 and
-> 2026-11-21 (`OI-PRIV-22`) have the server keep a record of which install is a person's current one and
-> deliver study requests only to it. §3 says there is no way to hold a stable identifier of the user's app
-> that satisfies §5, and polls unconditionally so that the server cannot learn the user's consent posture
-> from the request. This section keeps §3's **pull-only** rule (no push token, no address NeurOne can call)
-> and drops the rest for research delivery: a subscribed install holds a poll token the server keeps (as a
-> hash), and the subscription itself tells the server the person consented to some research. That is a
-> disclosure of posture, made deliberately by the ruling, and it is what §3's unconditional polling existed
-> to prevent. **§3 needs amending before this section is, and that is the principal's decision**; until then
-> this is a format to rule on, not a specification.
+**What the server keeps, and nothing else:** the push channels of subscribed devices (platform and token), and the
+superseded notices it has been sent (key id, count, signature) until they expire. No user, no consent, no study, no
+history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
+database.
 
-**What the server keeps per subscription, and nothing else:** the verifier (the Ed25519 public key whose seed is
-the subscription secret), the state (`subscribed` or `unsubscribed`), the hash of the current install's poll
-token, and the queue of study requests waiting for it. No history, no time, no address, no study field, and no
-difference between "never asked" and "said stop" (`REQ-CONSENT-25` (d)).
+**Four calls, all with fixed response shapes (§5).**
 
-**Three calls, all through the transport of §2, all with fixed response shapes (§5).**
-
-1. **`challenge`.** The server answers a fresh 32-byte nonce, single use. How long it stands is a number with
-   no derivation and is a row for `docs/status/unjustified-choices.md` when it is set.
-2. **`subscribe`** (the one signed request). The client signs these bytes with the subscription secret and
-   sends the bytes, the signature and the new poll token. The same call creates a record, replaces the current
-   install (a restore, `SWR-MG-33`), subscribes and unsubscribes (`REQ-CONSENT-25`):
+1. **`subscribe`** (device to server): the push channel. A device subscribes only while it is current for at least one
+   of its users, once, however many users it holds. No signature: the channel is the device's own, and holding it is
+   the whole claim.
+2. **`unsubscribe`** (device to server): the same channel. A device current for no one unsubscribes. A channel the
+   push service reports invalid is dropped by the server.
+3. **`publish`** (server to every subscribed channel, the same to all): one `study-descriptor` (§4). The signed
+   descriptor rides in the payload when it fits; when it does not, the push is a wake and the app fetches it. A
+   request is published once and is never re-published when a device becomes current (ruled).
+4. **`supersede`** (device to server, then broadcast to every subscribed channel): the signed form below. The
+   person's current-device key signs it. The server holds no key and does not verify it; it stores it and
+   broadcasts it. A device that holds the key checks the signature and the count; a notice that does not verify is
+   ignored.
 
 ```
-NP-SUBSCRIPTION-V1\n
-<byte length>:<op: create | replace>\n
-<byte length>:<verifier id: SHA-256 of the public key, hex; for create, the public key itself, hex>\n
-<byte length>:<state: subscribed | unsubscribed>\n
-<byte length>:<poll token: 32 random bytes, hex>\n
-<byte length>:<nonce, hex>\n
+NP-SUPERSEDED-V1\n
+<byte length>:<key id: SHA-256 of the person's current-device public key, hex>\n
+<byte length>:<count, decimal>\n
 ```
 
-   Length-prefixed and not delimited, for the reason in §4a. The first line is the domain separator, so a
-   signature made for this form can be read as nothing else the key signs. No date is in it: the nonce is
-   what stops a replay, and a day would add nothing the server uses. **Create** is signed by the key it
-   announces (proof of possession). **Replace** names an existing record by its verifier id and is
-   accepted only if the signature verifies against the stored public key and the nonce was issued and is
-   unused; the server then keeps the new poll token's hash and the state, and the old install's token
-   stops working. Last accepted wins. A refusal and an acceptance have the same shape and the refusal gives no
-   reason. The server applies the state and the poll token together or neither (`SWR-MG-33` (b)).
-3. **`poll`.** The install sends its poll token. The server answers the queued signed study descriptors, or
-   an empty answer of the same shape, and **deletes what it sent**: a request is delivered once (ruled), so an
-   answer lost on the way loses its requests, which is the cost of that ruling and not a defect. A
-   descriptor is admitted by its own signature (§4), not by this call.
+Length-prefixed and not delimited, for the reason in §4a, and the first line is the domain separator so a signature
+made for this form can be read as nothing else the key signs. The signature is Ed25519. The count rises by one with
+each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
+notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Not in this draft:** whether the calls go through the Oblivious HTTP relay (`OI-PRIV-23`, unruled), what
-stops someone creating records in bulk (no design, no identity to rate-limit by), and the endpoint and
-JSON (§7: not specified until §4 is settled). The signing and the verification are cryptographic, so they are
-written once in `common/npps-core` (`CLAUDE.md` §22) and need no second implementation to keep in step.
+**Not in this draft:** how long the server keeps a notice for a device that is offline (a number with no derivation,
+a row for `docs/status/unjustified-choices.md` when set); whether `supersede` and the fetch go through the Oblivious
+HTTP relay (`OI-PRIV-23`, unruled), without which the server sees which device sent a notice; what stops someone
+flooding the server with notices nobody can verify; the size at which a request no longer fits a push; and the
+desktop and web apps, where a persistent connection may stand in for a push service and is not designed. The key and
+its signature are cryptographic and are written once in `common/npps-core` (`CLAUDE.md` §22).
 
 ## §7 — What this leaves open
 
