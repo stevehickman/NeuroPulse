@@ -26,6 +26,8 @@ import life.neurone.core.protocol.BleTransfer
 import life.neurone.shared.ble.BleCentral
 import life.neurone.shared.ble.BleCentralListener
 import life.neurone.shared.ble.AdapterState
+import life.neurone.shared.ble.onReadResult
+import life.neurone.shared.ble.onWriteResult
 import life.neurone.core.common.UUID as CoreUuid
 
 // Real Android implementation of BleCentral (parity with iOS BLECentralManager over
@@ -251,25 +253,20 @@ class AndroidBleCentral(private val context: Context) : BleCentral {
             value: ByteArray,
             status: Int,
         ) {
-            if (status == BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicRead(characteristic.uuid.toCore(), value)
             // A refused read (an encrypted characteristic on a link the system has not bonded) is the pairing signal (OI-PRIV-16).
-            else listener?.onCharacteristicReadFailed(characteristic.uuid.toCore())
+            listener?.onReadResult(characteristic.uuid.toCore(), value, status == BluetoothGatt.GATT_SUCCESS)
         }
 
         // A write the hub refused, or that did not land: the manager is told, and nothing is written again here (OI-PRIV-16).
         override fun onCharacteristicWrite(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) listener?.onCharacteristicWriteFailed(characteristic.uuid.toCore())
+            listener?.onWriteResult(characteristic.uuid.toCore(), status == BluetoothGatt.GATT_SUCCESS)
         }
 
         @Deprecated("Deprecated in API 33")
         @Suppress("DEPRECATION")
         override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                characteristic.value?.let { listener?.onCharacteristicRead(characteristic.uuid.toCore(), it) }
-            } else {
-                listener?.onCharacteristicReadFailed(characteristic.uuid.toCore())
-            }
+            listener?.onReadResult(characteristic.uuid.toCore(), characteristic.value ?: ByteArray(0), status == BluetoothGatt.GATT_SUCCESS)
         }
     }
 }

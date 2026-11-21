@@ -34,7 +34,12 @@ class ProtectedStorage private constructor(
     val sealing: EncryptedKeyValueStore?,
     /** The keys [store] keeps off the disk in the clear on this run: sealed ([StorageProtection.SEALED]) or held in memory ([StorageProtection.LOCKED]). Null is every key (the all-in-memory run); empty when [StorageProtection.UNSEALED]. */
     private val keptFromTheClear: Set<String>?,
+    /** The presence lock of a gated run, or null on a run with no gate. A store that holds sealed values asks it before it reads or writes them (`OI-PRIV-19`). */
+    val presenceLock: PresenceLock? = null,
 ) {
+    /** Whether the person's sealed values can be read now: true when there is no gate, or the gate is open. */
+    val isReadable: Boolean get() = presenceLock?.isUnlocked != false
+
     /**
      * Whether a value written under [key] through [store] on this run can never land on disk in the clear: the key is sealed at rest
      * ([StorageProtection.SEALED]) or held in memory for the run ([StorageProtection.LOCKED]). False for every key of an
@@ -73,7 +78,7 @@ class ProtectedStorage private constructor(
             // neither read the host's store (a sealed value would read as text) nor write to it (a UHDR value would land in the
             // clear over the sealed one). The whole run is held in memory and the host's store is left exactly as it is. The
             // ungated [open] keeps the host's store in this case; a gated install must not (`REQ-PRES-09` (b)).
-            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null, null)
+            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null, null, lock)
             val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
             val uhdrKeys = all - deviceKeys
             // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
@@ -83,9 +88,9 @@ class ProtectedStorage private constructor(
             // erasure queue, 2026-11-21) may still be sealed under the gated key on an install that was gated before, and the first unlock
             // seals it again under the device key (`TieredKeyValueStore.applyPending`). Until then it reads as absent, never as ciphertext.
             val device = runCatching { EncryptedKeyValueStore(host, secrets, deviceKeys, legacy = gated).also { it.migrate() } }.getOrNull()
-                ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null, all)
+                ?: return ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, all, removeStaleFromInner = false), StorageProtection.LOCKED, null, all, lock)
             val uhdr = EncryptedKeyValueStore(host, gated, uhdrKeys, siblings = listOf(device), legacy = secrets)
-            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all)
+            return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all, lock)
         }
 
         private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
