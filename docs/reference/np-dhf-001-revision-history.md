@@ -369,3 +369,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 333 | 2026-11-19 | NeurOne Software Engineering | **180 → 181, 2 → 3: `OI-PRIV-06` closed. A withdrawal is marked with a day and a count, not an instant; a study descriptor's signed form gains an expiry day (CLAUDE.md Rev 82).** |
 | 334 | 2026-11-18 | NeurOne Software Engineering | **10 → 11, 181 → 182: the session history follows the presence lock, keeps no figure finer than it shows, and is kept as long as the person chooses (OI-PRIV-10).** |
 | 335 | 2026-11-19 | NeurOne Software Engineering | **182 → 183, 15 → 16: `OI-PRIV-12` stage 2, as the principal answered it on 2026-11-19.** |
+| 336 | 2026-11-21 | NeurOne Firmware Engineering | **CLAUDE.md Rev 82 → 83, 13 → 14, 16 → 17: §18 gains the rule that a derived bound is computed from its foundational value and a fixed foundational value states why; Map 3 has one 64-byte layout (D-34), the 32-byte version 1 removed.** |
