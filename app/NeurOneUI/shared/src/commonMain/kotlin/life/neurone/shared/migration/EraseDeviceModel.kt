@@ -7,6 +7,7 @@ import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import life.neurone.core.common.GatedSecretKeyStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.data.RandomSource
@@ -54,16 +55,18 @@ sealed interface EraseStep {
 class EraseActions(
     private val secrets: SecretKeyStore?,
     private val gatt: NeurOneGattManager,
+    /** The presence gate's key, when the host has one: an erase removes it with the data key it guarded (`OI-PRES-10`, issue 935). */
+    private val gated: GatedSecretKeyStore? = null,
 ) : ClearActions {
     var keyKept: Boolean = false
         private set
 
     override suspend fun run(step: String): Boolean {
         when (step) {
-            "destroyEncryptionKey" -> try {
-                secrets?.destroy()
-            } catch (ignored: Exception) {
-                keyKept = true
+            "destroyEncryptionKey" -> {
+                // Each key on its own, so one that cannot be removed does not leave the other behind.
+                try { secrets?.destroy() } catch (ignored: Exception) { keyKept = true }
+                try { gated?.destroy() } catch (ignored: Exception) { keyKept = true }
             }
             "forgetPairingRecord" -> try {
                 gatt.forgetHub()
@@ -100,6 +103,8 @@ class EraseDeviceModel(
     private val secrets: SecretKeyStore?,
     private val gatt: NeurOneGattManager,
     private val random: RandomSource = SystemRandomSource,
+    /** The presence gate's key (`PlatformServices.gatedKeyStore`), destroyed by the erase's first step. Null on a host with none. */
+    private val gated: GatedSecretKeyStore? = null,
     /**
      * Run before anything is wiped: what has to be said to someone else while the data it needs still exists. The composition
      * root gives it `ResearchAnalyticsGate.resetForErase`, which asks the vendor to erase this install's analytics ID and returns
@@ -148,7 +153,7 @@ class EraseDeviceModel(
         } catch (ignored: Exception) {
             true
         }
-        val actions = EraseActions(secrets, gatt)
+        val actions = EraseActions(secrets, gatt, gated)
         val params = buildJsonObject {
             put("erase", true)
             put("canRemoveOsBond", false)

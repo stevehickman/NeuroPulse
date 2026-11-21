@@ -69,7 +69,8 @@ typedef enum {
     NP_CVNS_RN_ASSERTING     = 4,  /* all three gates passed; bit asserted       */
 } np_cvns_reenable_state_t;
 
-/* ── Lifecycle events (returned to the caller for SHDR logging / app UI) ────── */
+/* ── Lifecycle events (returned to the caller; np_cvns_reenable_shdr_code()
+ *    decides which, if any, is written to SHDR — the cutoff only) ──────────── */
 
 typedef enum {
     NP_CVNS_RN_EV_NONE             = 0,
@@ -106,7 +107,8 @@ void np_cvns_reenable_session_reset(void);
  *                  clock on host).  Wrap-safe.
  *
  * Returns the lifecycle event produced by this beat (NP_CVNS_RN_EV_NONE most
- * beats).  The caller logs non-NONE events to SHDR (flags only — no biology).
+ * beats).  The caller writes to SHDR only what np_cvns_reenable_shdr_code()
+ * names for it: the cutoff flag, and nothing for any other event.
  */
 np_cvns_reenable_event_t np_cvns_reenable_on_heartbeat(uint8_t  mcu_status,
                                                         bool     session_running,
@@ -145,6 +147,21 @@ bool np_cvns_reenable_bit_active(void);
 
 /* Current state, for app status queries and tests. */
 np_cvns_reenable_state_t np_cvns_reenable_get_state(void);
+
+/*
+ * np_cvns_reenable_shdr_code — the SHDR fault code an event is written under
+ * (np_log_shdr_fault()), or 0 when the event is not written to SHDR.
+ *
+ * Only NP_CVNS_RN_EV_CUTOFF_DETECTED maps, to NP_CVNS_SHDR_EV_CUTOFF: the bare
+ * fact that the interlock cut stimulation is device-class (NP-FW-CVNS-001
+ * §8.2, data-architecture-detail.md §5.1).  Every other event returns 0.  They
+ * all follow a cutoff, and IMPEDANCE_* / REENABLE_COMPLETE / ASSERT_TIMEOUT
+ * happen only after the wearer confirmed resumption, so in sequence they say
+ * whether the person resumed neck stimulation after a cardiac event and how
+ * often skin contact failed: UHDR by CLAUDE.md §5.1's defining test, and never
+ * SHDR (OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-91).  Pure; no state.
+ */
+uint8_t np_cvns_reenable_shdr_code(np_cvns_reenable_event_t ev);
 
 /* ── HAL stubs (OI-CVNS-HUB-02) ─────────────────────────────────────────────── */
 

@@ -817,6 +817,18 @@ one of these returns *no*:
 
 The standard §G.2 record is produced identically in every one of those cases.
 
+**The spent budget is persisted before the record is written, and a failed
+budget write sends nothing** (`OI-PRIV-36` (NP-PRIV-ANALYSIS-004)).
+`np_accel_shdr_process_session_gap()` writes the incremented enrolment record
+first and writes the extended record only if that write succeeds; otherwise it
+returns `NP_ACCEL_ERR_BUDGET` with no extended record written. A record sent
+against an unpersisted budget would be sent again against the same slot on every
+later gap, so the window would never close. A record write that fails after the
+budget persisted returns `NP_ACCEL_ERR_WRITE` and leaves the slot spent: a power
+loss or a write failure between the two can only shorten the window, never
+lengthen it. Host tests: `test_failed_budget_write_sends_no_extended_record`,
+`test_failed_record_write_spends_the_budget` (`REQ-SW02-04`).
+
 **In the schema.** `shdr_accel_characterisation` carries four markers, and each
 is a `CHECK` rather than a convention: `char_programme_id` pinned to the current
 programme; `char_consent_granted` with a `CHECK` satisfiable **only by TRUE**, so
