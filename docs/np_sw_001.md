@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 175
-**Date:** 2026-11-18  
+**Revision:** 176
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -860,3 +860,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 173 | 2026-11-18 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-31` (`OI-PRIV-16`): a refused Bluetooth write reaches the shared hub manager as an event (`Event::CharacteristicWriteFailed`, `BleCentralListener.onCharacteristicWriteFailed`) and marks a refused upload; no protocol upload write is made until `DEVICE_SERIAL` has been read on the same link (`ProtocolUploader.Result.LinkNotEncrypted`), which shows the peer answered an encrypted-only read and not that it is a genuine hub; the desktop Bluetooth library prints an error's kind and never the library's message.** |
 | 174 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-29` (new): a recording file is sealed as a named object and opened as the object the reader expects (archive version 2); a bundle carries an epoch inside its seal and a phone that has seen a later one refuses it whole (bundle format version 2, `SWR-MG-05`); the row states that a phone which has seen nothing is not protected (`OI-PRIV-09`).** |
 | 175 | 2026-11-18 | NeurOne Software Engineering | **§6.3 `SWR-MG-19`: (a) `state` is checked before anything else in the redirect and the provider's error text is never quoted; (f), (h) a launcher does not take a redirect that lacks this request's `state`; (n), new: a CloudKit sign-in needs a confined browser session or a verified per-request nonce, and is not offered elsewhere (`OI-PRIV-13`).** |
+| 176 | 2026-11-21 | NeurOne Software Engineering | **§5.3.1: `REQ-SW03-19` (b) now drops an analytics ID only when the relay accepted it (a 4xx keeps it and the drain goes on) and gains (d), a device erase forgets the ID and asks the relay before anything is wiped; `REQ-SW03-25` (c), (d): the ID is made with the first event, forgotten on reset, and queued by a withdrawal whether or not the gate was configured in that run; `REQ-SW03-12` is split into parts and gains (e) no suggestion and no author token without the portal opt-in and (f) the token is forgotten when the portal opt-in or blanket consent is withdrawn (`OI-PRIV-08` (1) to (3)).** |
