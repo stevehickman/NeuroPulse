@@ -515,8 +515,13 @@ export function functionsIn(code: string): Fn[] {
         continue;
       }
       if (depth === 0) {
-        const header = code.slice(boundary, i);
-        const m = /\b([A-Za-z_]\w*)\s*\([^;{}=]*\)\s*(?:__attribute__\s*\(\([^;{}]*\)\)\s*)*$/.exec(header);
+        // Attributes are removed first with a pattern whose alternatives are
+        // disjoint (no nested ambiguous quantifier, so no catastrophic
+        // backtracking); then the header must end in `name(params)`.
+        const header = code
+          .slice(boundary, i)
+          .replace(/__attribute__\s*\(\((?:[^()]|\([^()]*\))*\)\)/g, " ");
+        const m = /\b([A-Za-z_]\w*)\s*\([^;{}=()]*(?:\([^;{}=()]*\)[^;{}=()]*)*\)\s*$/.exec(header);
         const kw = /^\s*(?:typedef|struct|union|enum)\b/.test(header) && !m;
         name = m && !/=/.test(header.slice(0, m.index)) && !kw ? m[1]! : null;
         if (name && /^(?:if|while|for|switch|return|sizeof)$/.test(name)) name = null;
@@ -816,6 +821,14 @@ void np_other(void) { NP_SAFETY_STATUS_CARDIAC; }
   const names = functionsIn(stripNonCode(SAMPLE, true)).map((f) => f.name);
   if (names.join(",") !== "np_x_report,np_other") {
     failures.push(`extractor — expected functions np_x_report,np_other, got ${names.join(",")}`);
+  }
+  if (functionBody("static void np_attr(void) __attribute__((unused));\nstatic void np_attr(void) __attribute__((section(\".x\")))\n{\n    y = 1;\n}\n", "np_attr") === null) {
+    failures.push("extractor — an __attribute__ after the parameter list hid the definition");
+  }
+  {
+    const t0 = Date.now();
+    functionsIn("int f(void)" + "))__attribute__((".repeat(5000) + "{ }");
+    if (Date.now() - t0 > 2000) failures.push("extractor — header matching backtracks on repeated attributes");
   }
   if (functionBody(SAMPLE, "np_absent") !== null) failures.push("extractor — reported a body for a function that is not defined");
   if (functionBody("void f(void) {\n    np_x_report(&r);\n}\n", "np_x_report") !== null) {
