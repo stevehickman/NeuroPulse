@@ -24,7 +24,7 @@ Plain form: **should the line read "a safety interlock that reports the device �
 | Interlock | What trips it | Where it goes today | Source |
 |---|---|---|---|
 | Cervical VNS cardiac cutoff | the wearer's heart-rate step | SHDR: `NP_CVNS_SHDR_EV_CUTOFF` (`0xC1`) → `fault_log.fault_type = 'CVNS_HR_CUTOFF'`, published on purpose | `data-architecture-detail.md` §5.1 (fault-latch row); `np_hub_config.h:242` |
-| Cervical VNS impedance failed or timed out (`0xC3`, `0xC4`) | a contact check on the wearer's skin | SHDR, as a code only | `np_hub_config.h:244-245` |
+| Cervical VNS re-enable lifecycle after a cutoff (`0xC2`–`0xC6`) | what the wearer did next | **nowhere**: retired by `OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`, which keeps only the cutoff flag `0xC1` in SHDR | `data-architecture-detail.md` §5.1 (re-enable lifecycle row) |
 | Goggle Hall cut, PBM thermal throttle, watchdog | the device | SHDR | the line itself |
 
 The DHF entry of 2026-08-12 (DHF Rev 29, `np-dhf-001-revision-history.md`) already reported, and left open, *"whether publishing `CVNS_HR_CUTOFF` to SHDR at all is correct (a separate locked decision)"*. This is that question, made general.
@@ -36,7 +36,7 @@ The cardiac cutoff is not a conditional redaction in the rule-2 sense when it is
 | Option | What changes | Cost |
 |---|---|---|
 | **A. Keep the line; decide each field by its own row** | Nothing more. The photoparoxysmal halt stays an exception by its row; the cardiac cutoff stays in SHDR. | None now. The line keeps reading as if it covered every interlock, so the next detector-driven interlock is likely to be logged to SHDR again by default, as this one was. |
-| **B. Narrow the line: wearer-read interlocks → UHDR** | Line 49 is reworded. The cardiac cutoff (`0xC1`) leaves SHDR and stays in the UHDR session record (which already holds `cutoff_time_offset_s`); `0xC3`/`0xC4` are reviewed under the same test. `fault_log` loses the `CVNS_HR_CUTOFF` type. | Fleet surveillance can no longer count cardiac cutoffs per device. Whether post-market surveillance needs that count is an ISO 14971 question for Safety, which is why Safety is consulted. Nothing ships today, so no stored record migrates. |
+| **B. Narrow the line: wearer-read interlocks → UHDR** | Line 49 is reworded. The cardiac cutoff (`0xC1`) leaves SHDR and stays in the UHDR session record (which already holds `cutoff_time_offset_s`). `fault_log` loses the `CVNS_HR_CUTOFF` type. | Fleet surveillance can no longer count cardiac cutoffs per device. Whether post-market surveillance needs that count is an ISO 14971 question for Safety, which is why Safety is consulted. Nothing ships today, so no stored record migrates. |
 | **C. Narrow the line, and give surveillance an unconditional-shape counter** | As B, and if Safety needs a fleet signal, it is a count in a record written for **every** device at **every** upload whatever the value (the fault-latch `count` is the model), never a record that exists only when an interlock tripped. | As B, plus one fixed-shape field. A per-device count of cardiac cutoffs is still a fact about the wearers of that device; on a single-user helmet it is a fact about one person, so the count would need its own §5.1 row and rule-1 argument. |
 
 ## 5. Recommendation
