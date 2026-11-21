@@ -1,6 +1,6 @@
 # The ruleset on `main`: what it holds today, and five settings nobody has decided
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working on GitHub #446. **To:** the principal
+**Status:** DRAFT, not sent. **Q5 ANSWERED 2026-11-21: A, leave `false` (the principal); Q1 to Q4 are open.** **From:** a Claude Code session working on GitHub #446. **To:** the principal
 **GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (repository admin; interim Quality authority). Open item: `OI-SWCI-54` (`docs/np_sw_ci_001.md` §7).
 
@@ -19,7 +19,7 @@ decided before something changed. Pick one option for each:
 | Q2 | Which more checks should be required to merge? Ten are required today, all firmware and simulator. No privacy gate, no document gate and no app build is. | **A.** None; leave the ten. **B.** Add the two SHDR privacy gates and the redaction gate (§3.2, set P). **C.** Add set P and the repository-wide guards (§3.2, set G). **D.** Another list, named by the principal |
 | Q3 | `require_extra_approval_for_unattributed_changes` is `true` on the pull-request rule. The settings page set it; `NP-SW-CI-001` §6.13.5 recorded that nothing decided it. Keep it? | **A.** Keep `true`. **B.** Set `false` |
 | Q4 | A `copilot_code_review` rule is in force on `main` (`review_on_push: false`, `review_draft_pull_requests: true`). No record mentions it. Keep it? | **A.** Keep. **B.** Remove |
-| Q5 | Should a pull request have to be up to date with `main` before it merges (`strict_required_status_checks_policy`, `false` today)? This is `OI-SWCI-53` in settings form. | **A.** Leave `false`. **B.** Set `true` |
+| Q5 | Should a pull request have to be up to date with `main` before it merges (`strict_required_status_checks_policy`, `false` today)? This is `OI-SWCI-53` in settings form. | **A.** Leave `false`. **B.** Set `true`. **Answered 2026-11-21: A.** |
 
 **Recommendations, each with its reason, are in §3. They are recommendations and nothing acts on them.**
 
