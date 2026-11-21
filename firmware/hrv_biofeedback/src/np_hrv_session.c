@@ -7,7 +7,8 @@
  *
  * UHDR data produced here is returned via the end_cb's session_record argument.
  * Encryption and eMMC commit are handled by the storage layer above this module.
- * SHDR coherence trend write is also delegated to the caller via the end_cb.
+ * No HRV value goes to SHDR or Config: the coherence trend and the resonance
+ * rate are UHDR (CLAUDE.md §5.1; OI-PRIV-30, NP-PRIV-ANALYSIS-004 M3).
  */
 
 #include "np_hrv_session.h"
@@ -303,7 +304,8 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     if (sess->pacer.sweep_active) {
         float best_rate;
         np_hrv_pacer_sweep_finalise(&sess->pacer, &best_rate);
-        /* Platform should persist best_rate to Config partition. */
+        /* best_rate is UHDR (OI-PRIV-30): if the platform persists it, it goes
+         * to the active user's UHDR partition, never Config or SHDR (OI-HRV-02). */
     }
 
     /* Build UHDR session record. */
