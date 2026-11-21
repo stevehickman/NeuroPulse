@@ -80,17 +80,35 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
  * np_uhdr_key_unlock
  *   Foreground unlock (§C.4).  Reads the Config UKMD record, derives WKMD from
  *   `credential`, GCM-decrypts and authenticates the UKMD, mounts the UHDR
- *   partition with the UKMD as the AES-256-XTS key, zeros WKMD, and marks the
+ *   partition with the UKMD as its XTS key material, zeros WKMD, and marks the
  *   context unlocked.
  *
  *   A wrong credential yields a GCM tag mismatch: the UKMD buffer is zeroized,
  *   the context stays locked, and NP_UHDR_ERR_AUTH is returned.
+ *
+ *   Attempt limit (§C.7, REQ-EMMC2-01): the attempt is charged to the persisted
+ *   failed-attempt count before the KDF runs, and a successful authentication
+ *   resets it.  While the back-off after NP_UHDR_UNLOCK_FREE_ATTEMPTS failures
+ *   has not elapsed the call returns NP_UHDR_ERR_LOCKOUT without running the
+ *   KDF and without charging.  If the count cannot be read or the charge cannot
+ *   be persisted the attempt is refused with NP_UHDR_ERR_CONFIG (fail closed).
  *
  *   Returns NP_UHDR_ERR_INVALID if ctx/credential is NULL or cred_len is 0.
  */
 np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
                                     const uint8_t *credential,
                                     size_t cred_len);
+
+/*
+ * np_uhdr_key_unlock_wait_ms
+ *   How long, in milliseconds of uptime, until np_uhdr_key_unlock will next
+ *   test a credential (§C.7).  0 means an attempt is allowed now.  Reads the
+ *   persisted count; changes nothing.  Lets the app say "try again in ..."
+ *   instead of offering an attempt the device will refuse.
+ *   Returns NP_UHDR_ERR_INVALID if wait_ms is NULL, NP_UHDR_ERR_CONFIG if the
+ *   count cannot be read.
+ */
+np_uhdr_status_t np_uhdr_key_unlock_wait_ms(uint64_t *wait_ms);
 
 /*
  * np_uhdr_key_background
@@ -204,9 +222,34 @@ extern np_uhdr_status_t np_uhdr_hal_config_read_ukmd(np_ukmd_record_t *out);
 extern np_uhdr_status_t np_uhdr_hal_config_write_ukmd(const np_ukmd_record_t *rec);
 
 /*
- * OI-UHDRK-07: mount the UHDR partition using `ukmd` as the AES-256-XTS key.
- * Called with the UKMD — NEVER the WKMD.
+ * OI-UHDRK-07: mount the UHDR partition using `ukmd` as the XTS key material.
+ * Called with the UKMD — NEVER the WKMD.  NP_UHDR_UKMD_LEN (32) bytes is not
+ * an XTS-AES-256 key (which takes 64); how the mount obtains Key1 and Key2 is
+ * open under OI-PRIV-35 (NP-PRIV-ANALYSIS-004) and must be settled before this
+ * seam is implemented.
  */
 extern np_uhdr_status_t np_uhdr_hal_mount_uhdr(const uint8_t *ukmd /* [NP_UHDR_UKMD_LEN] */);
+
+/*
+ * OI-PRIV-35 (NP-PRIV-ANALYSIS-004): read the persisted failed-unlock count
+ * ("auth lockout state", NP-FW-NVRAM-001 §3, Config partition).  Device-local:
+ * never in SHDR, never uploaded.  A missing or unreadable value is an error,
+ * never a zero, so a deleted count cannot reset the back-off.
+ */
+extern np_uhdr_status_t np_uhdr_hal_attempts_read(uint32_t *failed);
+
+/*
+ * OI-PRIV-35 (NP-PRIV-ANALYSIS-004): atomically persist the failed-unlock
+ * count (LittleFS transaction; Config is on the EMMC-CFG-02 runtime-write
+ * whitelist as "lockout state").  Returns NP_UHDR_OK only once committed.
+ */
+extern np_uhdr_status_t np_uhdr_hal_attempts_write(uint32_t failed);
+
+/*
+ * OI-PRIV-35 (NP-PRIV-ANALYSIS-004): monotonic milliseconds since boot.  Must
+ * never go backwards within a boot.  Not wall-clock time: the device has no
+ * RTC backup (CLAUDE.md §4.5), and the back-off is defined in uptime.
+ */
+extern uint64_t np_uhdr_hal_uptime_ms(void);
 
 #endif /* NP_UHDR_KEY_H */

@@ -124,8 +124,13 @@ extern "C" {
  * register file behind I2C, NP_PBM_OK from the safety-MCU enable request.
  * That file is now host-test only.  np_pbm_hal_tia_gain_boot_init() is declared
  * in the same header but has no caller in the image, so it is not owed.
+ *
+ * 119 → 122 on 2026-11-21 (NP-FW-EMMC-002 §C.7, OI-PRIV-35 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_attempts_read(), np_uhdr_hal_attempts_write()
+ * and np_uhdr_hal_uptime_ms(), the persisted failed-unlock count and the
+ * monotonic uptime the UHDR unlock back-off (REQ-EMMC2-01) is measured in.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   119
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   122
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *

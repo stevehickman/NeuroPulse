@@ -66,7 +66,7 @@
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
 #include "np_pbm_hal.h"          /* np_pbm_hal_*          (18) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
-#include "np_uhdr_key.h"         /* np_uhdr_hal_*          (8) */
+#include "np_uhdr_key.h"         /* np_uhdr_hal_*         (11) */
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1011,6 +1011,24 @@ np_uhdr_status_t np_uhdr_hal_config_write_ukmd(const np_ukmd_record_t *rec)
 np_uhdr_status_t np_uhdr_hal_mount_uhdr(const uint8_t *ukmd)
 {
     (void)ukmd;
+    NP_PLATFORM_TRAP();
+}
+
+/* Unlock attempt limit (OI-PRIV-35, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.7). */
+np_uhdr_status_t np_uhdr_hal_attempts_read(uint32_t *failed)
+{
+    (void)failed;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_attempts_write(uint32_t failed)
+{
+    (void)failed;
+    NP_PLATFORM_TRAP();
+}
+
+uint64_t np_uhdr_hal_uptime_ms(void)
+{
     NP_PLATFORM_TRAP();
 }
 
