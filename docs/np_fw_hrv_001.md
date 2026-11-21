@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
@@ -283,7 +283,7 @@ The library does not write storage. `np_hrv_session_stop()` builds the record an
 - **The coherence trend is UHDR.** `np_hrv_coherence_trend_t` holds the mean coherence of each of the last 30 sessions and their regression slope. That is an HRV-derived physiological series about the wearer, and the slope is how that person's coherence is changing, so both pass §5.1's defining test as UHDR. The SHDR key `hrv_coherence_slope_v1` is withdrawn. Nothing keeps the trend today: the user's app derives a trend from the UHDR `0x1B` session records it downloads. A firmware-held trend, if one is ever kept, is per user in that user's UHDR partition.
 - **The resonance breathing rate is UHDR** (§7).
 
-*Was (to Rev {NP-FW-HRV-001 from}):* the slope was an SHDR element, "Linear regression slope over last 30 sessions — no user biology", called "a device performance/usage metric". It is not one: nothing about the device's condition moves it, and a person's response to biofeedback does.
+*Was (to Rev 6):* the slope was an SHDR element, "Linear regression slope over last 30 sessions — no user biology", called "a device performance/usage metric". It is not one: nothing about the device's condition moves it, and a person's response to biofeedback does.
 
 ---
 
@@ -345,3 +345,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 5 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1.1: `rr_sample_count` and `tavns_stim_count` are 32-bit, and `rr_sample_count` counts every accepted R-R interval and not the ring's occupancy; the UHDR session record is 35 bytes (`OI-UINT16-01`).** |
 | 6 | 2026-11-21 | NeurOne Quality | **§11 OI-HRV-04: note added that it must not be closed as worded, because the coherence trend and the resonance breathing rate derive from HRV, which §5.1 classes as UHDR (OI-PRIV-30, GitHub #958, NP-PRIV-ANALYSIS-004 M3). No requirement or design changed.** |
+| 7 | 2026-11-21 | NeurOne Firmware Engineering | **§7, §8.1.1, §8.2, §11: the coherence trend (30 session means and their slope) and the resonance breathing rate are reclassified UHDR; this module writes nothing to SHDR; OI-HRV-04 closed as won't-do, OI-HRV-02 re-scoped to the user's UHDR partition (OI-PRIV-30 (NP-PRIV-ANALYSIS-004), GitHub #958, M3).** |
