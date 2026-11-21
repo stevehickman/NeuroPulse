@@ -140,7 +140,7 @@ change surfaces as a disagreement with a document rather than with a driver.
 | Hub slot | `NP_HUB_SLOT_AUDIO`, module type `NP_MOD_AUDIO` = `0x08` | `firmware/hub_control/include/np_hub_types.h` |
 | Transport | I²S from the hub codec via SAI; both paths from the same codec | `NP-FW-HUB-001` §8.5 |
 | Command block | `np_mod_audio_params_t` — `mode` (0 binaural, 1 isochronic, 2 pink, 3 brown, 4 off), `carrier_hz`, `beat_mhz`, `level_half_db` (absolute dB SPL at the ear × 2, `REQ-AUDIO-20`), `bone_conduct_en`, `eeg_adaptive` | `np_hub_types.h` |
-| Adaptive band map | delta/theta/alpha/beta/gamma → 2/6/10/20/40 Hz (`k_band_beat_mhz`), retuned every `NP_AUDIO_ADAPT_INTERVAL_MS` | `NP-FW-HUB-001` §8.5 |
+| Adaptive beat | the dominant EEG frequency itself (`np_mod_audio_set_eeg_dominant_freq()`), refused if carrier plus beat is above the tone bound; no EEG band picks it (the principal, 2026-11-20) | `NP-FW-HUB-001` §8.5 |
 | Safety enable | `NP_SAFETY_EN_AUDIO` = **0** — no bit is requested and `slot_to_safety_bit()` returns 0 | `firmware/hub_control/include/np_hub_config.h`; §5 |
 | Condition telemetry | `np_mod_audio_hal_mesh_impedance()` → float Ω | `firmware/hub_control/modules/np_mod_audio.c` |
 
@@ -151,7 +151,7 @@ change surfaces as a disagreement with a document rather than with a driver.
 
 > ~~**`REQ-AUDIO-17`** — `volume_pct` is **0–100**, and a command above 100 is **refused**~~ **RETIRED (2026-11-09), superseded by `REQ-AUDIO-19` and `-20`:** the field is no longer a 0–100 scale. It is `level_half_db`, an absolute dB SPL level × 2, refused above 85 dB SPL. The refusal before any state change, which this row bound, is kept as `REQ-AUDIO-19`(b), and the "sets no sound level" caveat is withdrawn. Retired in place, not deleted (`CLAUDE.md` §18).
 
-> **`REQ-AUDIO-18`** — An EEG band update (`np_mod_audio_set_eeg_band()`) retunes **only a running binaural command** (mode 0). An isochronic, noise or off command is left as commanded. *What fails without it:* an adaptive isochronic or noise session turns into binaural, and an off command starts a tone. *Traceable to:* `NP-FW-HUB-001` §8.5 ("EEG-adaptive mode retunes the binaural carrier"). Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
+> **`REQ-AUDIO-18`** — An EEG dominant-frequency update (`np_mod_audio_set_eeg_dominant_freq()`; an EEG band update before 2026-11-20) retunes **only a running binaural command** (mode 0). An isochronic, noise or off command is left as commanded. *What fails without it:* an adaptive isochronic or noise session turns into binaural, and an off command starts a tone. *Traceable to:* `NP-FW-HUB-001` §8.5 ("EEG-adaptive mode retunes the binaural carrier"). Verified by `np_mod_audio_tests` (`OI-SIMFW-19`).
 
 ---
 
@@ -583,7 +583,7 @@ only as accurate as the loop's model of the driver-to-mic path — **the same se
   per side, and the two sides can differ — which is a binaural-content property, not only a
   loudness one;
 - an adaptive loop is time-varying, and whether its adaptation interacts with isochronic pulsing
-  at entrainment rates (2–40 Hz in `k_band_beat_mhz`) or with the EEG-adaptive retune every
+  at entrainment rates or with the EEG-adaptive retune every
   `NP_AUDIO_ADAPT_INTERVAL_MS` is unknown.
 
 None of this makes A impossible — commercial ANC headphones play music through feedback loops — but
