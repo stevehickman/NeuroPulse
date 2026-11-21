@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 174
+**Revision:** 175
 **Date:** 2026-11-18  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -859,3 +859,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 172 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-28` added: `npps_free` and the web binding wipe a buffer before releasing it, the core's key buffers are wiped on drop, a direct-link state keeps only the channel keys once the shared key is made, the pairing's random source refuses to repeat bytes, and four classes no longer print the pairing code or UHDR from `toString` (`OI-PRIV-12` stage 1; stage 2, keys as strings across the boundary, is not built).** |
 | 173 | 2026-11-18 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-31` (`OI-PRIV-16`): a refused Bluetooth write reaches the shared hub manager as an event (`Event::CharacteristicWriteFailed`, `BleCentralListener.onCharacteristicWriteFailed`) and marks a refused upload; no protocol upload write is made until `DEVICE_SERIAL` has been read on the same link (`ProtocolUploader.Result.LinkNotEncrypted`), which shows the peer answered an encrypted-only read and not that it is a genuine hub; the desktop Bluetooth library prints an error's kind and never the library's message.** |
 | 174 | 2026-11-18 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-29` (new): a recording file is sealed as a named object and opened as the object the reader expects (archive version 2); a bundle carries an epoch inside its seal and a phone that has seen a later one refuses it whole (bundle format version 2, `SWR-MG-05`); the row states that a phone which has seen nothing is not protected (`OI-PRIV-09`).** |
+| 175 | 2026-11-18 | NeurOne Software Engineering | **§6.3 `SWR-MG-19`: (a) `state` is checked before anything else in the redirect and the provider's error text is never quoted; (f), (h) a launcher does not take a redirect that lacks this request's `state`; (n), new: a CloudKit sign-in needs a confined browser session or a verified per-request nonce, and is not offered elsewhere (`OI-PRIV-13`).** |
