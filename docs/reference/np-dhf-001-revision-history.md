@@ -348,3 +348,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 312 | 2026-11-13 | NeurOne Software Engineering | **30 → 31, 164 → 165: account check run through the real S3 adapter on a stand-in; finding that bucket routes read "not sufficient" at space; Oracle pages re-read (#566).** |
 | 313 | 2026-11-14 | NeurOne Software Engineering | **45 → 46: the simulator runs the device's own UHDR key scheme on synthetic credentials; development tool only, no device document changed.** |
 | 314 | 2026-11-13 | NeurOne Software Engineering | **NP-REG-UPG-001 and NP-SOUP-RUST-001 revised: the host part of the tier-identity factory step is built (issue #569 package 8).** |
+| 315 | 2026-11-21 | NeurOne Systems Engineering | **16 → 17: §8.2.7 B records what SMPTE ST 2095-1:2023 and Ecma TR-105 say of the noise band and crest factor; the IEC 60268-1 text is still unread.** |

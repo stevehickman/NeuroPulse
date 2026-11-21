@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 16
-**Date:** 2026-11-14
+**Revision:** 17
+**Date:** 2026-11-21
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1281,3 +1281,4 @@ envelope budgets (`OI-AUDIOHW-05`). The restatements of 40 mm elsewhere in the r
 | 14 | 2026-11-14 | NeurOne Systems Engineering | **§5.3, §9: REQ-AUDIO-25 built: the compiler and the hub driver refuse a binaural or isochronic tone, carrier or carrier plus beat or pulse rate, above 1,000 Hz, with a parity test between the two constants; the requirement text is unchanged.** |
 | 15 | 2026-11-21 | NeurOne Systems Engineering | **§5, §5.2, §9: `REQ-AUDIO-21` gains part (e), the combined hearing-level ceiling, and `OI-AUDIOHW-13` records the decided wire field (`uint32`, flag removed, no protocol-version bump, authored key) and the combined rule; part 1 (the figure) and part 4 (hardware) remain open; the register row is `UC-184`.** |
 | 16 | 2026-11-14 | NeurOne Systems Engineering | **§8.2.7 H (relabelled from a second G), §9: the Radioear B81 spec sheet was read in full: its stated sensitivity, distortion, impedance, mass and method, and eye-read graph values, are recorded as vendor values, and the 2026-11-12 description of its table is corrected (it is the ANSI S3.6-2010 reference threshold force table, not the vibrator output). OI-AUDIOHW-13 and OI-AUDIOHW-15 updated; the mastoid reference values are a secondary-source lead, registered as UC-187, and no bone ceiling is computed. No part, figure or constant set.** |
+| 17 | 2026-11-21 | NeurOne Systems Engineering | **§8.2.7 B: SMPTE ST 2095-1:2023 read (band 10 Hz to 22.4 kHz, crest factor 11.5 to 12 dB); Ecma TR-105 describes the IEC 60268-1 file as music-shaped noise, so the 20 Hz to 20 kHz attribution to IEC is marked unconfirmed. No requirement changed.** |
