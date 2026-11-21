@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 47
+**Revision:** 48
 **Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
@@ -1225,3 +1225,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 45 | 2026-11-13 | NeurOne Software Engineering | **`OI-SIMFW-70` and `OI-SIMFW-71`: the Principal's rulings of 2026-11-13 on the nine design questions are recorded (three conditional); nothing is built from them.** |
 | 46 | 2026-11-14 | NeurOne Software Engineering | **§5, §7, §28, §30, new §34: `REQ-SIMFW-26` and its five parts; `OI-SIMFW-52` partly closed (`np_uhdr_key.c` is linked under `NPTEST_HOST` and its provision, unlock, background and change-credential run on synthetic credentials; its eight platform seams are the device's own host model, not cryptography); `OI-SIMFW-80` raised (whether the twin links the Rust primitives of `CLAUDE.md` §22, and UHDR in the files stays plaintext); the seam table's counts corrected to the gate's (14 infra, 13 firmware-host, 25 absent); `UC-189` registered.** |
 | 47 | 2026-11-21 | NeurOne Firmware Engineering | **The audio harness and bridge command is `audio_eeg_freq` (millihertz), replacing `audio_eeg_band`.** |
+| 48 | 2026-11-21 | NeurOne Software Engineering | **§7 OI-SIMFW-07: the state found by the privacy review of simulator/ (Finding S1): loopback binding in firmware mode only, no Origin check in any mode, no test.** |
