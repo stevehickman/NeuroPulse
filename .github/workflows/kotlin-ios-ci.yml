@@ -219,13 +219,15 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl install "$udid" "$app"
+          # 30 s, doubled from 15 s: on a slow hosted runner the check intermittently found no pid at 15 s.
+          settle_s=30
           xcrun simctl launch "$udid" "$bundle"
-          sleep 15
+          sleep "$settle_s"
           xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/iosapp-launch.png"
           # A live app has a pid in the first column; a crashed one shows "-".
           pid=$(xcrun simctl spawn "$udid" launchctl list | awk -v b="$bundle" '$3 ~ b {print $1}' | head -n1)
-          echo "pid of $bundle after 15 s: '${pid}'"
-          case "$pid" in ''|-) echo "::error::$bundle is not running 15 s after launch"; exit 1 ;; esac
+          echo "pid of $bundle after ${settle_s} s: '${pid}'"
+          case "$pid" in ''|-) echo "::error::$bundle is not running ${settle_s} s after launch"; exit 1 ;; esac
 
       - name: Upload the launch screenshot
         if: ${{ always() }}
