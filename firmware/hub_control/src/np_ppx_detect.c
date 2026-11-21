@@ -183,6 +183,26 @@ void np_ppx_feed(const float *uv, uint16_t n_samples, uint8_t n_ch)
     s_was_seeing = seeing;
 }
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function pointer the compiler cannot prove dead keeps
+ * the clear (firmware/uhdr_key, firmware/anon). */
+static void *(*const volatile np_ppx_memset_fn)(void *, int, size_t) = memset;
+
+void np_ppx_wipe_signal(void)
+{
+    np_ppx_memset_fn(s_ch, 0, sizeof s_ch);
+    s_n = 0U;
+    s_was_seeing = false;
+    /* s_latched, s_p, s_roles, s_stop_occ, s_sens, s_halt and s_nch are kept: none is the person's signal. */
+}
+
+#ifdef NPTEST_HOST
+const uint8_t *np_ppx_test_channels(size_t *len_out)
+{
+    if (len_out != NULL) { *len_out = sizeof s_ch; }
+    return (const uint8_t *)s_ch;
+}
+#endif
+
 bool np_ppx_seeing(void) { return seeing_now(); }
 
 np_ppx_verdict_t np_ppx_verdict(void)

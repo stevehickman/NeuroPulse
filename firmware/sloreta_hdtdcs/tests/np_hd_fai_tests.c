@@ -1810,6 +1810,50 @@ static void fai_stim_start_short_session(void)
     }
 }
 
+static float       privw_W[NP_HD_SLORETA_N_VOXELS * NP_HD_SLORETA_N_CH];
+static np_hd_mni_t privw_mni[NP_HD_SLORETA_N_VOXELS];
+static float       privw_epoch[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
+static void privw_end_cb(const np_hd_session_record_t *r, np_hd_status_t s) { (void)r; (void)s; }
+
+/*
+ * OI-PRIV-39 (NP-FW-HUB-001 REQ-FWHUB-84 (f)): a session that has computed its
+ * sLORETA map leaves no EEG statistic and no source power in RAM once it ends.
+ */
+/* @verifies REQ-FWHUB-84#f */
+static void test_privacy_session_end_wipes_eeg_statistics(void)
+{
+    printf("[OI-PRIV-39] a session's EEG statistics and source map are zeroed at its end\n");
+    for (uint32_t v = 0U; v < NP_HD_SLORETA_N_VOXELS; v++) {
+        privw_W[v * NP_HD_SLORETA_N_CH + (v % NP_HD_SLORETA_N_CH)] = 1.0f;
+        privw_mni[v].x = (int16_t)(v % 60); privw_mni[v].y = 0; privw_mni[v].z = 40;
+    }
+    for (uint32_t c = 0U; c < NP_HD_SLORETA_N_CH; c++) {
+        for (uint32_t i = 0U; i < NP_HD_SLORETA_FFT_SIZE; i++) {
+            privw_epoch[c][i] = 10.0f * sinf(6.2831853f * (float)((c + 3U) * i) / (float)NP_HD_SLORETA_FFT_SIZE);
+        }
+    }
+    np_hd_session_config_t cfg;
+    memset(&cfg, 0, sizeof cfg);
+    cfg.stim_current_ua = 1000U;
+    cfg.stim_duration_s = 600U;
+    np_hd_session_t *sess = np_hd_session_create(privw_W, privw_mni, &cfg, NULL, privw_end_cb);
+    ASSERT(sess != NULL, "session created");
+    ASSERT_OK(np_hd_session_start_eeg(sess, 0U));
+    for (uint32_t e = 0U; e < NP_HD_SLORETA_EPOCHS; e++) {
+        np_hd_session_push_eeg(sess, (const float (*)[NP_HD_SLORETA_FFT_SIZE])privw_epoch,
+                               (uint16_t)NP_HD_SLORETA_FFT_SIZE, e * 2000U);
+    }
+    (void)np_hd_session_compute_sloreta(sess, 200000U);
+    ASSERT(!np_sloreta_test_scratch_is_zero() && !np_hd_session_test_signals_are_zero(sess),
+           "before the end the scratch and the source power hold the person's EEG statistics");
+
+    np_hd_session_abort(sess, NP_HD_ERR_SAFETY_REJECTED, 210000U);
+    ASSERT(np_sloreta_test_scratch_is_zero(), "the sLORETA FFT and spectrum scratch are zero after the session");
+    ASSERT(np_hd_session_test_signals_are_zero(sess),
+           "the source power map, the covariances and the epoch counts are zero after the session");
+    np_hd_session_destroy(sess);
+}
+
 int main(void)
 {
     printf("=== NP-FW-HD-001 §12 — sLORETA-guided HD-tDCS FAI item checks ===\n");
@@ -1827,6 +1871,7 @@ int main(void)
     fai_hd03_focality_algorithm();
     fai_hd04_snr_constants();
     fai_stim_start_short_session();
+    test_privacy_session_end_wipes_eeg_statistics();
 
     printf("=== Results: %d total failure(s) ===\n", g_fail_count);
 

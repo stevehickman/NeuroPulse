@@ -133,6 +133,10 @@ np_hub_status_t np_sim_storage_up(void)
     if (rc != NP_HUB_OK) { return rc; }
     rc = np_cfg_store_mount();
     if (rc != NP_HUB_OK) { return rc; }
+    while (np_gatt_link_count() > 0U) {   /* a fresh part: no link left over (REQ-FWHUB-81 (d)) */
+        np_gatt_on_disconnect();
+    }
+    (void)np_gatt_on_connect();          /* the twin's one central */
     np_gatt_set_link_encrypted(true);   /* the twin's link is bonded, so encrypted (UC-139); a pairing that failed is OI-SIMFW-48 */
     return NP_HUB_OK;
 }
@@ -185,6 +189,9 @@ bool np_simh_gatt_line(const char *cmd, char *a, char *b)
     if (strcmp(cmd, "gatt_link") == 0) {
         if (a == NULL || (strcmp(a, "0") != 0 && strcmp(a, "1") != 0)) { bad(cmd, "needs 0 or 1"); return true; }
         const bool enc = (a[0] == '1');
+        if (np_gatt_link_count() == 0U) {
+            (void)np_gatt_on_connect();   /* the twin has one central: a link report after a disconnect is that central back */
+        }
         np_gatt_set_link_encrypted(enc);
         np_sim_emit("{\"ev\":\"gatt_link\",\"encrypted\":%s}", enc ? "true" : "false");
         return true;

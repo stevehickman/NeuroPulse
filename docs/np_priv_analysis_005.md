@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-005  
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-11-21  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Jurisdiction Scope:** All, as NP-PRIV-ANALYSIS-002 and -003 (US federal HIPAA, HBNR, FTC Act §5; US state BIPA IL, MHMD WA, CCPA/CPRA CA; EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA)  
-**Change Summary:** First issue. Privacy review of `ci/` and of the reference configurations and schemas its gates check. Eight findings, raised as `OI-PRIV-21` to `OI-PRIV-28`.
+**Change Summary:** First issue. Privacy review of `ci/` and of the reference configurations and schemas its gates check. Eight findings, raised as `OI-PRIV-51` to `OI-PRIV-58`.
 
 ---
 
@@ -44,7 +44,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 
 ## 3. Findings
 
-### F1. MEDIUM: the fleet edge and the PostHog edge remove only some client-address headers (`OI-PRIV-21`)
+### F1. MEDIUM: the fleet edge and the PostHog edge remove only some client-address headers (`OI-PRIV-51`)
 
 - **Where:** `infra/fleet/Caddyfile` (both `format filter` blocks; `reverse_proxy`), checked by `ci/test_fleet_ingest_config.py` F2 (`MUST_DELETE`) and F3. `infra/posthog/caddy/Caddyfile`, checked by `ci/test_posthog_infra.py` P6 and P8 (`MUST_DELETE`).
 - **Category:** Privacy failure.
@@ -53,7 +53,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** In every log filter, delete the whole header map (`request>headers delete`), or keep only an allow-list (`Content-Type`, `Content-Length`). Upstream, add `header_up -Forwarded`, `-Via`, `-True-Client-IP`, `-CF-Connecting-IP`, `-X-Client-IP` beside the two already removed. Change F2 and P8 to require the header map deleted, and F3 and P6 to require the full list.
 - **Existing coverage:** New. `OI-PRIV-05` and GitHub #903 decide the analytics relay; `OI-FLEET-01` (e) says the deployed edge is not in the repository. Neither covers these headers in the reference configurations.
 
-### F2. MEDIUM: 12 of the 21 SHDR month anchors are month-granular by DEFAULT only (`OI-PRIV-22`)
+### F2. MEDIUM: 12 of the 21 SHDR month anchors are month-granular by DEFAULT only (`OI-PRIV-52`)
 
 - **Where:** `ci/shdr/shdr_fleet_schema.sql`: `devices.last_seen_month`, and `ingest_month` in `firmware_history`, `ota_events`, `power_telemetry`, `accessory_auth_log`, `calibration_history`, `eeg_impedance_trend`, `shdr_accel_records`, `shdr_accel_characterisation`, `mode_f_telemetry`, `fault_log` and `storage_health`. Checked by `ci/test_shdr_schema.py` (`PROHIBITED_TIME_TYPE_PATTERNS`).
 - **Category:** Privacy failure.
@@ -62,7 +62,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** Add `CHECK (col = DATE_TRUNC('month', col)::date)` to the twelve. Add a static rule: every `DATE` column other than one named `*manufacture_date` carries that CHECK. Reject `INTERVAL`, and reject a column of any type whose name matches `_epoch`, `_ts`, `_at$`, `_time` or `unix`. Add one live reject case per table to `shdr_schema_constraint_tests.sql`. Proposed as blocking for the SHDR schema freeze (`OI-EMMC2-07`), because after the first device ships each CHECK needs a migration.
 - **Existing coverage:** New. `shdr_schema_constraint_tests.sql` states the DEFAULT problem ("the DEFAULT only applies when the column is omitted") and tests `module_inventory` only.
 
-### F3. MEDIUM: the fleet-wide row sequences are a clock and link the rows of one upload (`OI-PRIV-23`)
+### F3. MEDIUM: the fleet-wide row sequences are a clock and link the rows of one upload (`OI-PRIV-53`)
 
 - **Where:** `id BIGSERIAL PRIMARY KEY` in 22 of the 23 SHDR tables.
 - **Category:** Privacy failure.
@@ -71,7 +71,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** Key rows by `gen_random_uuid()`, or by `(warranty_token, per-device counter)`. Keep `track_commit_timestamp` off on the fleet database. Have the ingest service batch rows and insert them in shuffled order. Add a static rule that no SHDR table has a `SERIAL` or `BIGSERIAL` column. Same freeze argument as F2.
 - **Existing coverage:** New.
 
-### F4. MEDIUM: the warranty registry schema has no minimisation, no retention and no gate on its content (`OI-PRIV-24`)
+### F4. MEDIUM: the warranty registry schema has no minimisation, no retention and no gate on its content (`OI-PRIV-54`)
 
 - **Where:** `ci/warranty/warranty_registration_schema.sql`.
 - **Category:** Privacy failure.
@@ -85,7 +85,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** Default `support_contact_ok` to `FALSE`. Replace free text with an enumerated `claim_type` and, if notes are needed, a separate notes table with its own access role and a retention column. Use `DATE` for the two timestamps. Add a retention rule per table and a delete-by-token path, decided by the principal. Extend the no-join gate, or add a warranty gate, that holds these.
 - **Existing coverage:** New. GitHub #565 and #888 cover warranty consent, not the registry's columns.
 
-### F5. MEDIUM: the raw warranty token is in both databases, so the no-join rule is enforced by IAM and policy alone (`OI-PRIV-25`)
+### F5. MEDIUM: the raw warranty token is in both databases, so the no-join rule is enforced by IAM and policy alone (`OI-PRIV-55`)
 
 - **Where:** `warranty_registrations.warranty_token`; `devices.warranty_token` and every SHDR table that references it.
 - **Category:** Privacy failure (misuse by an authorised party).
@@ -94,7 +94,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation (for decision):** SHDR stores `HMAC(k, warranty_token)` instead of the token. `k` is held by a separate lookup service that answers warranty-support lookups one token at a time, with an audit log and break-glass review. A copy of both databases then cannot be joined without the service. Cost: a service to run, and the device-side upload still sends the raw token over the encrypted path, so the edge must hash it on receipt.
 - **Existing coverage:** Accepted design (`NP-FW-EMMC-002` §A.3, `OI-EMMC2-06`). The hardening is new.
 
-### F6. MEDIUM: the analytics erasure and the 30-day TTL cover one table (`OI-PRIV-26`)
+### F6. MEDIUM: the analytics erasure and the 30-day TTL cover one table (`OI-PRIV-56`)
 
 - **Where:** `infra/posthog/erase_relay.py` and `infra/posthog/apply_event_retention.py` (`DEFAULT_TABLES = ("posthog.sharded_events",)` in both). `ci/test_posthog_erase_relay.py` asserts that default.
 - **Category:** Privacy failure.
@@ -103,7 +103,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** When `OI-ANALYTICS-01` (2) runs against a real stack, list every table with a `distinct_id` column (`SELECT database, table FROM system.columns WHERE name = 'distinct_id'`) and every place outside ClickHouse that keeps the ID. Set `ERASE_TABLES` and the TTL tables from that list, record it in `NP-ANALYTICS-001` §7.6, and make the two suites assert it instead of the single-table default.
 - **Existing coverage:** Partial. `OI-ANALYTICS-01` (2) and GitHub #725 track that nothing has run against a real stack, including whether `system.mutations` keeps erased IDs. That a ClickHouse mutation is asynchronous and the relay answers 200 on acceptance is in `NP-ANALYTICS-001`. The other tables are new.
 
-### F7. LOW: the PostHog proxy logs have no retention bound (`OI-PRIV-27`)
+### F7. LOW: the PostHog proxy logs have no retention bound (`OI-PRIV-57`)
 
 - **Where:** `infra/posthog/caddy/Caddyfile` (`output stdout` in both logs); `infra/posthog/docker-compose.yml` (no `logging:` on any service).
 - **Category:** Privacy failure.
@@ -112,7 +112,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Remediation:** Add `logging: {driver: local, options: {max-size: ..., max-file: ...}}` to the `caddy` service (and to `erase-relay`), with figures entered in the unjustified-choices register like `UC-095`, and a P10 check.
 - **Existing coverage:** New. The fleet figure is `UC-095`, under `OI-FLEET-01` (f).
 
-### F8. LOW: the no-join gate cannot see a join on combinations of ordinary fields (`OI-PRIV-28`)
+### F8. LOW: the no-join gate cannot see a join on combinations of ordinary fields (`OI-PRIV-58`)
 
 - **Where:** `warranty_registrations.serial_number` and `device_model`; `devices.device_model`, `hw_revision`, `factory_id`, `manufacture_date`.
 - **Category:** Privacy failure.
@@ -125,14 +125,14 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 
 | Finding | Open item | Existing coverage |
 |---|---|---|
-| F1 Client-address headers | `OI-PRIV-21` | New. Adjacent: `OI-PRIV-05` / #903, `OI-FLEET-01` (e) |
-| F2 Month anchors by DEFAULT | `OI-PRIV-22` | New. The constraint tests know the problem for one table |
-| F3 Row sequences | `OI-PRIV-23` | New |
-| F4 Warranty schema | `OI-PRIV-24` | New. Adjacent: #565, #888 (consent, not columns) |
-| F5 Raw token in both stores | `OI-PRIV-25` | Accepted design, `NP-FW-EMMC-002` §A.3; hardening new |
-| F6 Erasure and TTL scope | `OI-PRIV-26` | Partial: `OI-ANALYTICS-01` (2), #725 |
-| F7 PostHog log retention | `OI-PRIV-27` | New. Fleet counterpart `UC-095` |
-| F8 Serial-number join | `OI-PRIV-28` | Partial: `OI-EMMC2-08`, #443 |
+| F1 Client-address headers | `OI-PRIV-51` | New. Adjacent: `OI-PRIV-05` / #903, `OI-FLEET-01` (e) |
+| F2 Month anchors by DEFAULT | `OI-PRIV-52` | New. The constraint tests know the problem for one table |
+| F3 Row sequences | `OI-PRIV-53` | New |
+| F4 Warranty schema | `OI-PRIV-54` | New. Adjacent: #565, #888 (consent, not columns) |
+| F5 Raw token in both stores | `OI-PRIV-55` | Accepted design, `NP-FW-EMMC-002` §A.3; hardening new |
+| F6 Erasure and TTL scope | `OI-PRIV-56` | Partial: `OI-ANALYTICS-01` (2), #725 |
+| F7 PostHog log retention | `OI-PRIV-57` | New. Fleet counterpart `UC-095` |
+| F8 Serial-number join | `OI-PRIV-58` | Partial: `OI-EMMC2-08`, #443 |
 
 **Reached and already tracked, so not raised again:**
 
@@ -178,15 +178,25 @@ Beyond these five: F5 (a decision for the principal), F7 and F8.
 
 ## 8. Open items raised
 
+> **Renumbered 2026-11-21.** These items were first filed as `OI-PRIV-21` to `OI-PRIV-28`. NP-PRIV-ANALYSIS-004 (the firmware review, PR #972) merged first with those numbers and GitHub issues #949–#956, so this review's items became `OI-PRIV-51` to `OI-PRIV-58` in the same order (F1 = `OI-PRIV-51` … F8 = `OI-PRIV-58`). Nothing else changed.
+
 The owning entries are in `docs/status/pending-decisions.md`, under "Privacy review of `ci/`, 2026-11-21". Choices this review found with no derivation are `UC-199` and `UC-200` in `docs/status/unjustified-choices.md` (`CLAUDE.md` §19).
 
 | Open item | Finding | Closes when |
 |---|---|---|
-| `OI-PRIV-21` | F1 | Both edges delete all request headers from every log and strip the full client-address set upstream, and the gates require it |
-| `OI-PRIV-22` | F2 | Every SHDR month anchor has its CHECK, the static gate requires it and rejects integer and interval clocks, and each is probed live |
-| `OI-PRIV-23` | F3 | No SHDR table has a fleet-wide sequence, and the gate forbids one |
-| `OI-PRIV-24` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
-| `OI-PRIV-25` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
-| `OI-PRIV-26` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
-| `OI-PRIV-27` | F7 | The PostHog proxy's logs have a size and age bound and a check |
-| `OI-PRIV-28` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened |
+| `OI-PRIV-51` | F1 | Both edges delete all request headers from every log and strip the full client-address set upstream, and the gates require it |
+| `OI-PRIV-52` | F2 | Every SHDR month anchor has its CHECK, the static gate requires it and rejects integer and interval clocks, and each is probed live |
+| `OI-PRIV-53` | F3 | No SHDR table has a fleet-wide sequence, and the gate forbids one |
+| `OI-PRIV-54` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
+| `OI-PRIV-55` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
+| `OI-PRIV-56` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
+| `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check |
+| `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-21 | NeurOne Quality | **§3, §4 and §8: open items renumbered OI-PRIV-21…28 → OI-PRIV-51…58 in the same order (F1 = OI-PRIV-51 … F8 = OI-PRIV-58), with a note in §8. NP-PRIV-ANALYSIS-004 merged first with those numbers and GitHub issues #949–#956. No finding, severity or closure condition changed.** |

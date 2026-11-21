@@ -105,4 +105,10 @@ extern void np_transport_hal_signal(void);
 extern void np_transport_hal_enter_critical(void);
 extern void np_transport_hal_exit_critical(void);
 
+#ifdef NPTEST_HOST
+/* Host-test inspection (REQ-FWHUB-84 (a)): the reassembly buffer as it stands,
+ * so a test can show no protocol byte is left in it. */
+const uint8_t *np_transport_test_blob(size_t *len_out);
+#endif
+
 #endif /* NP_TRANSPORT_H */

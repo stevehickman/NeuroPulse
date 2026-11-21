@@ -1025,7 +1025,7 @@ test('end to end: with the link not encrypted the hub refuses to carry data (ATT
   assert.strictEqual(rd[4].att, 0x0f, 'after a disconnect the link is unencrypted again until the stack says otherwise');
 });
 
-// @verifies REQ-FWHUB-81#d
+// @verifies REQ-FWHUB-81#e
 test('end to end: a resume on a link that is not encrypted is refused (ATT 0x0F) while a pause and a panic are not; encrypted, it is not refused for encryption (OI-PRIV-24 (NP-PRIV-ANALYSIS-004))', { skip: !BIN }, async () => {
   const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
     { cmd: 'gatt_link', encrypted: false },

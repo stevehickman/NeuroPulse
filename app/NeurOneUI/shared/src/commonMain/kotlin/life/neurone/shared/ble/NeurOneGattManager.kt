@@ -648,7 +648,7 @@ class NeurOneGattManager(
      * this link (OI-PRIV-17, CLAUDE.md §23): a peer that only advertises the service receives none of them. False, with nothing
      * written, before that. **Never used for stopping stimulation** (stop, pause, panic, resume): those are not held behind a
      * read, and a refused one is shown by its own refusal event. The hub itself refuses a resume (ATT 0x0F) on a link that is
-     * not encrypted (`REQ-FWHUB-81` (d), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop, pause and panic it never refuses for encryption.
+     * not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop, pause and panic it never refuses for encryption.
      */
     private fun writeEncrypted(uuid: UUID, value: ByteArray): Boolean {
         if (!_encryptedReadShown.value) return false
@@ -700,7 +700,7 @@ class NeurOneGattManager(
 
     /**
      * Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it. The hub takes it only over
-     * an encrypted link and refuses it otherwise (ATT 0x0F, `REQ-FWHUB-81` (d)), which [onCharacteristicWriteFailed] records.
+     * an encrypted link and refuses it otherwise (ATT 0x0F, `REQ-FWHUB-81` (e)), which [onCharacteristicWriteFailed] records.
      */
     fun requestSessionResume() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x02))
 

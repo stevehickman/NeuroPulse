@@ -24,10 +24,29 @@ static size_t  s_received;                    /* blob bytes received so far     
 static bool    s_complete;                    /* a whole blob awaits pickup        */
 static size_t  s_complete_len;                /* latched blob length               */
 
-/* Reset only the reassembly cursors — never touches s_blob content or the
- * completed-mailbox latch.  Caller holds the critical section. */
+/* ── Non-elidable zeroing (OI-PRIV-39, REQ-FWHUB-84) ─────────────────────────────
+ * memset_explicit() is C23 and the firmware is built -std=c11: call memset
+ * through a volatile function pointer the compiler cannot prove dead, as
+ * firmware/uhdr_key and firmware/anon do, so a clear of a buffer that is not
+ * read again is not removed. */
+static void *(*const volatile np_transport_memset_fn)(void *, int, size_t) = memset;
+
+static void wipe(void *dst, size_t len)
+{
+    np_transport_memset_fn(dst, 0, len);
+}
+
+/* Reset the reassembly cursors, and zero the payload bytes of a frame that was
+ * still being collected (a malformed, abandoned or reset frame), so a partial
+ * protocol is not left in RAM (REQ-FWHUB-84 (a)).  Never touches a latched,
+ * completed blob: s_received is 0 once a blob is latched, because latching
+ * calls this.  Caller holds the critical section. */
 static void reset_frame(void)
 {
+    if (s_received > 0U) {
+        wipe(s_blob, s_received);
+    }
+    wipe(s_hdr, sizeof s_hdr);
     s_hdr_got  = 0U;
     s_expected = 0U;
     s_received = 0U;
@@ -101,6 +120,7 @@ np_hub_status_t np_transport_feed(const uint8_t *data, size_t len)
         if (s_received == s_expected) {
             s_complete_len = s_expected;
             s_complete     = true;
+            s_received     = 0U;   /* the bytes are the latched blob now: reset_frame must not clear them */
             reset_frame();
             signal = true;
             /* Any trailing bytes belong to a pipelined next frame; drop them —
@@ -157,6 +177,11 @@ np_hub_status_t np_hal_proto_queue_receive(uint8_t  *buf,
         rc = NP_HUB_OK;
     }
 
+    /* REQ-FWHUB-84 (a): the blob has been handed over (or dropped); the copy in
+     * the mailbox is zeroed before the mailbox is freed, so the plaintext
+     * protocol is not left in RAM after the consumer has it. */
+    wipe(s_blob, n);
+
     /* Free the mailbox regardless — a too-large blob is dropped, not retried. */
     s_complete     = false;
     s_complete_len = 0U;
@@ -177,6 +202,14 @@ bool np_transport_hal_wait(uint32_t t)     { (void)t; return s_complete; }
 void np_transport_hal_signal(void)         { }
 void np_transport_hal_enter_critical(void) { }
 void np_transport_hal_exit_critical(void)  { }
+
+const uint8_t *np_transport_test_blob(size_t *len_out)
+{
+    if (len_out != NULL) {
+        *len_out = sizeof s_blob;
+    }
+    return s_blob;
+}
 
 #else  /* target: FreeRTOS binary semaphore + task-level critical section */
 

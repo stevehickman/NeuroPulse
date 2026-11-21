@@ -24,6 +24,34 @@ static float s_fft_re[NP_HRV_FFT_SIZE];
 static float s_fft_im[NP_HRV_FFT_SIZE];
 static bool  s_hann_ready = false;
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_hrv_coh_memset_fn)(void *, int, size_t) = memset;
+
+void np_hrv_coherence_wipe_scratch(void)
+{
+    np_hrv_coh_memset_fn(s_interp_buf, 0, sizeof s_interp_buf);
+    np_hrv_coh_memset_fn(s_fft_re, 0, sizeof s_fft_re);
+    np_hrv_coh_memset_fn(s_fft_im, 0, sizeof s_fft_im);
+}
+
+#ifdef NPTEST_HOST
+/* Host-test inspection: true when every scratch byte is zero (REQ-FWHUB-84 (e)). */
+static bool all_zero_bytes(const void *p, size_t n)
+{
+    const unsigned char *b = (const unsigned char *)p;
+    for (size_t i = 0; i < n; i++) { if (b[i] != 0U) { return false; } }
+    return true;
+}
+
+bool np_hrv_coherence_test_scratch_is_zero(void)
+{
+    return all_zero_bytes(s_interp_buf, sizeof s_interp_buf) &&
+           all_zero_bytes(s_fft_re, sizeof s_fft_re) &&
+           all_zero_bytes(s_fft_im, sizeof s_fft_im);
+}
+#endif
+
 /* ── Hann window pre-computation ─────────────────────────────────────────────── */
 static void hann_init(void)
 {

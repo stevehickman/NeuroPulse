@@ -446,7 +446,8 @@ void np_charge_monitor_build_withhold_report(const np_safety_state_t     *state,
  * Called by np_safety_main.c every heartbeat for each granted DC channel.
  *
  * channel:    0–13 matching NP_SAFETY_EN_* bit positions.
- * current_ua: commanded current magnitude in µA (SHDR — from session descriptor).
+ * current_ua: commanded current magnitude in µA (from session descriptor;
+ *             UHDR-class protocol parameter, never reported — OI-PRIV-41).
  *             NOT ADC-measured actual current (which would be UHDR-class).
  * dt_us:      elapsed time in µs; always NP_SAFETY_HEARTBEAT_MS x 1000.
  *

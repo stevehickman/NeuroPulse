@@ -100,9 +100,10 @@
 #define NP_PPG_REFRACTORY_SAMPLES      (NP_PPG_PEAK_MIN_SEPARATION_MS * \
                                         NP_PPG_SAMPLE_RATE_HZ / 1000U)
 
-/* ── SHDR coherence trend ───────────────────────────────────────────────────── */
-/* Linear regression slope of session-mean coherence over NP_HRV_TREND_SESSIONS */
-/* Written to SHDR after each session (no user biology — slope only).           */
-#define NP_SHDR_COHERENCE_TREND_KEY  "hrv_coherence_slope_v1"
+/* ── Coherence trend: UHDR, never SHDR ──────────────────────────────────────── */
+/* The SHDR key "hrv_coherence_slope_v1" that stood here is withdrawn: the      */
+/* slope of session-mean coherence derives from HRV, which is UHDR (CLAUDE.md   */
+/* §5.1; OI-PRIV-30, NP-PRIV-ANALYSIS-004 M3; NP-FW-HRV-001 §8.2). No SHDR key  */
+/* exists for any HRV value.                                                    */
 
 #endif /* NP_HRV_CONFIG_H */

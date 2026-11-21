@@ -37,7 +37,7 @@ The finding held as written. One qualification of its weight: **the detector is 
 
 ### 2.2 What has been done (no ruling needed: it only raises protection)
 
-**`REQ-FWHUB-81` (d), built 2026-11-21.** `np_gatt_on_write` refuses a resume (0x02) on `SESSION_PAUSE` with ATT 0x0F
+**`REQ-FWHUB-81` (e), built 2026-11-21.** `np_gatt_on_write` refuses a resume (0x02) on `SESSION_PAUSE` with ATT 0x0F
 (insufficient encryption) when the link is not encrypted. The write reaches no handler. Pause (0x01), panic (0x03) and
 stop stay open, exactly as before.
 
@@ -45,7 +45,7 @@ stop stay open, exactly as before.
   detector had fired, a fact about the wearer's brain. `CLAUDE.md` §5.1 rule 2 forbids that. A resume is refused on an
   unencrypted link after a person's pause, a panic and a detector halt alike.
 - **Tests:** `np_gatt_server_tests`, `test_a_resume_needs_an_encrypted_link_whatever_holds_the_session` (`@verifies
-  REQ-FWHUB-81#d`; a mutant without the guard fails five checks); `simulator/server/fw-bridge.test.js`, end to end through
+  REQ-FWHUB-81#e`; a mutant without the guard fails five checks); `simulator/server/fw-bridge.test.js`, end to end through
   the twin running the real `np_gatt_server.c`.
 - **The wire contract did not change.** Same characteristic, same byte. A central on an encrypted link sees no difference.
   Every app central was traced:
@@ -61,7 +61,7 @@ stop stay open, exactly as before.
 
 **Encrypted is not authenticated.** The hub is told only that the link is encrypted. A link paired by Just Works is
 encrypted, and anyone in range can pair that way (`OI-SIMFW-72`, undecided). So a stranger who pairs can still resume.
-What (d) closes is the case of a central that never paired. What remains needs an answer to `OI-SIMFW-72`.
+What (e) closes is the case of a central that never paired. What remains needs an answer to `OI-SIMFW-72`.
 
 ### 2.4 What `REQ-FWHUB-67` says about the detector hold
 
@@ -89,7 +89,7 @@ Stop / Resume question to the person when `SESSION_HOLD` reads 3 or 4.
 
 ### Q3 (Safety / Risk). Should `NP-RM-001` carry a hazard for stimulation restarted by an unauthorised central?
 
-No row names it today. The controls would be `REQ-FWHUB-81` (d) and the safety MCU's own grant at resume (`SWR-SS-05`); the
+No row names it today. The controls would be `REQ-FWHUB-81` (e) and the safety MCU's own grant at resume (`SWR-SS-05`); the
 residual is a central that pairs by Just Works (`OI-SIMFW-72`). Yes or no, and the severity Risk assigns.
 
 ## 4. Recommendation

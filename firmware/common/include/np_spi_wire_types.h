@@ -299,7 +299,10 @@ typedef char _np_safety_ch_index_check[
  *
  * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
  * current_ua[] carries COMMANDED current from the session descriptor.
- * Classification: SHDR (device metric — what the protocol requested).
+ * Classification: UHDR-class ("protocol parameters used",
+ * docs/reference/data-architecture-detail.md §5.1): what a person's protocol
+ * asked for tells us about the person.  It crosses this device-internal link
+ * only, and is never written to SHDR (OI-PRIV-41 (NP-PRIV-ANALYSIS-004)).
  *
  * This is NOT the ADC-measured actual delivered current, which would reveal
  * tissue impedance and is UHDR-class patient data.  The safety MCU never
@@ -430,8 +433,10 @@ typedef char _np_spi_chan_limit_cmd_size_check[
  * "declared" is per-channel state the MCU already holds, and the electrical
  * channel set is fixed at compile time (NP_SAFETY_CH_ELECTRICAL_MASK).
  *
- * Privacy: both fields are authored protocol parameters (SHDR — what was
- * asked for), never measurements.  Same classification as current_ua[].
+ * Privacy: both fields are authored protocol parameters, never measurements:
+ * UHDR-class ("protocol parameters used", data-architecture-detail.md §5.1),
+ * device-internal on this link and never written to SHDR.  Same
+ * classification as current_ua[] (OI-PRIV-41 (NP-PRIV-ANALYSIS-004)).
  *
  * Distinguished from the 8/34/38/102-byte frames by its NSS-delineated
  * transfer length (76).  Shares the 0xC0/0xDE command magic.
