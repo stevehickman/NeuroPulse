@@ -1,6 +1,9 @@
 package life.neurone.core.consumable
 
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.protocol.PersistedKeys
 
 /**
@@ -46,6 +49,14 @@ class ConsumableTracker(
      * NeurOneGattManager.requestConsumableReset.
      */
     private val onReplaced: (Int) -> Unit = {},
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. The session counts come live from
+     * the hub and are never stored; the snooze counts are stored and sealed. While locked the snooze counts read as 0, so a reminder
+     * can repeat but never goes missing (`NP-APP-PRESENCE-001` §3), and nothing is written: a write of those zeros would replace the
+     * sealed snooze counts at the unlock and reset the limits of `CLAUDE.md` §5.2 every launch (`REQ-PRES-01` (d), `OI-PRIV-19`).
+     * Used from one thread.
+     */
+    private val lock: PresenceLock? = null,
 ) {
     companion object {
     }
@@ -61,13 +72,43 @@ class ConsumableTracker(
 
     private val subscription: AutoCloseable
 
+    /** Whether the snooze counts in [states] are the stored ones. False while locked. */
+    val snoozeIsReadable: Boolean get() = snoozeLoaded
+
+    private var snoozeLoaded = false
+
+    /** Snoozes and replacements made while locked, oldest first, replayed on the snooze counts read at the unlock. */
+    private val held = mutableListOf<() -> Unit>()
+
     init {
         // Snooze state MUST load before count observation begins — the provider
         // delivers its current value synchronously on subscription, which
         // persists snooze; loading first ensures snooze counts survive restart.
         // (iOS init-order bug fix preserved — NP-PRIV-ANALYSIS-003 session.)
-        loadPersistedSnooze()
+        if (lock == null || lock.isUnlocked) {
+            loadPersistedSnooze()
+            snoozeLoaded = true
+        }
+        lock?.onStateChanged { state -> if (state == PresenceState.LOCKED) forgetSnooze() else readSnooze() }
         subscription = countsProvider.observe { counts -> handleUpdatedCounts(counts) }
+    }
+
+    /** The lock closed: no snooze count stays decrypted in this tracker. The hub's session counts are live and stay. */
+    private fun forgetSnooze() {
+        states = states.map { it.copy(snoozeCount = 0) }
+        snoozeLoaded = false
+        recomputeReminders()
+    }
+
+    /** The lock opened: read the sealed snooze counts, run what was held on them, and show the reminders they give. */
+    private fun readSnooze() {
+        loadPersistedSnooze()
+        snoozeLoaded = true
+        val operations = held.toList()
+        held.clear()
+        operations.forEach { it() }
+        persistSnooze()
+        recomputeReminders()
     }
 
     private var lastCounts: List<Int>? = null
@@ -104,6 +145,10 @@ class ConsumableTracker(
     // ── User actions ─────────────────────────────────────────────────────
 
     fun snooze(consumableIndex: Int) {
+        if (!snoozeLoaded) {
+            held += { snooze(consumableIndex) }
+            return
+        }
         val state = states.getOrNull(consumableIndex) ?: return
         if (!state.canSnooze) return
         states = states.mapIndexed { i, s ->
@@ -115,6 +160,14 @@ class ConsumableTracker(
 
     fun markReplaced(consumableIndex: Int) {
         if (consumableIndex >= states.size) return
+        if (!snoozeLoaded) {
+            // The hub owns the count and is told now. The stored snooze count is zeroed at the unlock, on what is read then.
+            held += { resetSnooze(consumableIndex) }
+            states = states.mapIndexed { i, s -> if (i == consumableIndex) s.copy(sessionCount = 0, snoozeCount = 0) else s }
+            recomputeReminders()
+            onReplaced(consumableIndex)
+            return
+        }
         states = states.mapIndexed { i, s ->
             if (i == consumableIndex) s.copy(sessionCount = 0, snoozeCount = 0) else s
         }
@@ -129,8 +182,17 @@ class ConsumableTracker(
 
     // ── Persistence (snooze counts survive app restart) ─────────────────
 
+    private fun resetSnooze(consumableIndex: Int) {
+        states = states.mapIndexed { i, s -> if (i == consumableIndex) s.copy(snoozeCount = 0) else s }
+    }
+
     private fun persistSnooze() {
-        store.putString(PersistedKeys.SNOOZE_KEY, states.joinToString(",") { it.snoozeCount.toString() })
+        if (!snoozeLoaded || (lock != null && !lock.isUnlocked)) return
+        try {
+            store.putString(PersistedKeys.SNOOZE_KEY, states.joinToString(",") { it.snoozeCount.toString() })
+        } catch (e: SecretKeyUnavailableException) {
+            if (lock == null) throw e
+        }
     }
 
     private fun loadPersistedSnooze() {

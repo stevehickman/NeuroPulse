@@ -237,6 +237,15 @@ class SessionHistoryStore(
 
     // ── Presence ─────────────────────────────────────────────────────────
 
+    /**
+     * Read the stored history again, for after a restore wrote it under this store (`OI-PRIV-19`): the store reads once, so without
+     * this the restored history would not show, and the next session would be written over it. Does nothing while locked.
+     */
+    fun reloadFromStorage() {
+        if (lock != null && !lock.isUnlocked) return
+        reload()
+    }
+
     /** The lock closed: nothing of the person's history stays decrypted in this store. */
     private fun forget() {
         records = emptyList()
