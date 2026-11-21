@@ -2,6 +2,9 @@ package life.neurone.core.research
 
 import life.neurone.core.platform.todayIso
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.protocol.PersistedKeys
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -20,6 +23,11 @@ class ResearchSuggestionStore(
      * The default refuses: a store built without the consent state accepts no suggestion.
      */
     private val portalOptedIn: () -> Boolean = { false },
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. With a lock this store holds no
+     * suggestion while locked and reads them again at each unlock (`REQ-PRES-01` (d), `OI-PRIV-19`). Used from one thread.
+     */
+    private val lock: PresenceLock? = null,
 ) {
     companion object {
         const val TOKEN_KEY = "np.research.device-token"
@@ -32,12 +40,37 @@ class ResearchSuggestionStore(
     var suggestions: List<ResearchSuggestion> = emptyList()
         private set
 
+    /** Whether [suggestions] is what the store holds. False while locked, when a locked read of "absent" is not "no suggestions". */
+    val isReadable: Boolean get() = loaded
+
+    private var loaded = false
+
+    /** Whether the author tokens on the stored suggestions must be blanked at the next unlock (a withdrawal made while locked). */
+    private var blankTokensAtUnlock = false
+
     init {
-        load()
+        if (lock == null || lock.isUnlocked) {
+            load()
+            loaded = true
+        }
+        lock?.onStateChanged { state ->
+            if (state == PresenceState.LOCKED) {
+                suggestions = emptyList()
+                loaded = false
+            } else {
+                load()
+                loaded = true
+                if (blankTokensAtUnlock) {
+                    blankTokensAtUnlock = false
+                    blankTokens()
+                }
+            }
+        }
     }
 
     /** Function 1 — submit a new idea. Returns false for an invalid draft, or when the person is not opted into the portal (no insert, no token). */
     fun submit(draft: ResearchSuggestionDraft): Boolean {
+        if (!loaded) return false // a suggestion is written on a list that was read
         if (!portalOptedIn()) return false
         if (!draft.isValid) return false
         val suggestion = ResearchSuggestion(
@@ -78,6 +111,8 @@ class ResearchSuggestionStore(
     }
 
     private inline fun mutate(id: String, transform: (ResearchSuggestion) -> ResearchSuggestion) {
+        // A vote, an intent or a pledge is made on a suggestion the person can see, and none can be seen while locked.
+        if (!loaded) return
         suggestions = suggestions.map { if (it.id == id) transform(it) else it }
         save()
     }
@@ -90,7 +125,16 @@ class ResearchSuggestionStore(
      * for them and cannot join them to each other or to anything newer.
      */
     fun forgetAuthorToken() {
-        store.remove(TOKEN_KEY)
+        store.remove(TOKEN_KEY) // a removal acts at once, locked or not (`REQ-PRES-01` (b))
+        if (!loaded) {
+            // The suggestions cannot be read to blank their tokens, so it is done at the unlock, on what is read then.
+            blankTokensAtUnlock = true
+            return
+        }
+        blankTokens()
+    }
+
+    private fun blankTokens() {
         if (suggestions.any { it.authorDeviceToken.isNotEmpty() }) {
             suggestions = suggestions.map { it.copy(authorDeviceToken = "") }
             save()
@@ -116,6 +160,11 @@ class ResearchSuggestionStore(
     }
 
     private fun save() {
-        store.putString(PersistedKeys.RESEARCH_SUGGESTIONS_KEY, json.encodeToString(ListSerializer(ResearchSuggestion.serializer()), suggestions))
+        if (lock != null && !lock.isUnlocked) return
+        try {
+            store.putString(PersistedKeys.RESEARCH_SUGGESTIONS_KEY, json.encodeToString(ListSerializer(ResearchSuggestion.serializer()), suggestions))
+        } catch (e: SecretKeyUnavailableException) {
+            if (lock == null) throw e
+        }
     }
 }

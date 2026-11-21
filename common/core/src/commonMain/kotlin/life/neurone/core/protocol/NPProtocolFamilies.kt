@@ -30,6 +30,9 @@ import life.neurone.core.npps.toNppsCoreJson
 sealed class SaveResult {
     object Saved : SaveResult()
 
+    /** The presence lock is closed: the library is not readable, so nothing is saved (`OI-PRIV-19`). */
+    object Locked : SaveResult()
+
     /** A predefined protocol: never saved over; the way to change it is a clone. */
     object ReadOnly : SaveResult()
 
@@ -43,6 +46,9 @@ sealed class SaveResult {
 /** What a delete met. */
 sealed class DeleteResult {
     object Deleted : DeleteResult()
+
+    /** The presence lock is closed: the library is not readable, so nothing is deleted (`OI-PRIV-19`). */
+    object Locked : DeleteResult()
     object ReadOnly : DeleteResult()
     object NotFound : DeleteResult()
 
