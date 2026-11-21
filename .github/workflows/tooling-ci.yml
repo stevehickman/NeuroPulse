@@ -242,9 +242,12 @@ jobs:
         .github/actions/setup-toolchain/**
       # Firmware, for the same reason: the edit that breaks this guard is a new
       # conditional inside a .c reporting path, or a new status bit in a header.
+      # pending-decisions.md because closing an open item that owns a known
+      # violation must fail the gate (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).
       NP_SCOPE_REDACTION: |
         firmware/**
         scripts/check-redaction-shape.ts
+        docs/status/pending-decisions.md
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 65
+**Revision:** 66
 **Date:** 2026-11-21
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -1217,11 +1217,16 @@ This is CLAUDE.md §5.1's second general rule made concrete, and the reason is a
 already paid for: zeroing `tick_ms` only for `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms ==
 0` a **self-interpreting one-bit cardiac oracle**. A redaction applied conditionally on a sensitive
 predicate leaks that predicate. `REQ-FWHUB-14`: **no SHDR suppression in this program may be made
-conditional on the event being suppressed.** `scripts/check-redaction-shape.ts` enforces the shape at
-the fault-latch marshaller; this section is the rule the script is derived from.
+conditional on the event being suppressed.** This section is the rule `scripts/check-redaction-shape.ts`
+is derived from. Since `OI-PRIV-40` (NP-PRIV-ANALYSIS-004) the gate finds every function in device
+firmware that calls an SHDR sink and fails one that is not a declared reporting path. It fails a declared
+path that names a sensitive status bit or copies a whole safety status word. Writers that open items
+already own are listed by name, each failing once its item closes. **Its reach is partial:** it matches
+names, not data flow, and cannot tell whether a field is UHDR (a session duration passes it). Declaring a
+path is a review claim that every field has a §5.1 ruling, which the gate checks only in part.
 
 The cVNS SHDR codes (`NP_CVNS_SHDR_EV_CUTOFF` `0xC1` and `NP_CVNS_SHDR_EV_IMP_CROSSVAL` `0xC7`) are flags only — no HR, no RR, no kΩ.
-**Rev {NP-FW-HUB-001 to} (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
+**Rev 66 (`OI-PRIV-28` (NP-PRIV-ANALYSIS-004), `REQ-FWHUB-91`):** of the §7a re-enable lifecycle, only the cutoff is written to SHDR.
 `0xC2`–`0xC6` (confirmation window open, contact check failed, contact check timed out, re-enable complete, assertion
 timed out) are retired and written nowhere. Each follows a cutoff, and four follow only the wearer's confirmation, so in
 sequence they told SHDR whether the person resumed neck stimulation after a cardiac event and how often skin contact

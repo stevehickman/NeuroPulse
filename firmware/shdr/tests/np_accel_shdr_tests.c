@@ -43,6 +43,10 @@ static np_accel_char_enrolment_t   g_stored_enr;
 static bool                        g_enr_readable = false;
 static np_accel_shdr_state_t       g_stored_state;
 
+/* Fault injection for the two §H writes (OI-PRIV-36). */
+static bool                        g_fail_enr_write  = false;
+static bool                        g_fail_char_write = false;
+
 np_accel_status_t np_imu_read_gap_resultants(float *dst, size_t cap, size_t *out_n)
 {
     size_t n = (g_imu_n < cap) ? g_imu_n : cap;
@@ -60,6 +64,7 @@ np_accel_status_t np_shdr_write_accel_record(const np_shdr_accel_record_t *rec)
 
 np_accel_status_t np_shdr_write_accel_char_record(const np_shdr_accel_char_record_t *rec)
 {
+    if (g_fail_char_write) { return NP_ACCEL_ERR_WRITE; }
     g_written_char = *rec;
     g_written_char_count++;
     return NP_ACCEL_OK;
@@ -74,6 +79,7 @@ np_accel_status_t np_config_read_char_enrolment(np_accel_char_enrolment_t *enr)
 
 np_accel_status_t np_config_write_char_enrolment(const np_accel_char_enrolment_t *enr)
 {
+    if (g_fail_enr_write) { return NP_ACCEL_ERR_WRITE; }
     g_stored_enr = *enr;
     return NP_ACCEL_OK;
 }
@@ -408,6 +414,76 @@ static void test_process_session_gap_end_to_end(void)
     CHECK(g_written_char_count == 0, "unreadable enrolment emits no extended record");
 }
 
+/* CHAR-2 (§H.3.4), OI-PRIV-36 (NP-PRIV-ANALYSIS-004): a budget write that fails
+ * sends nothing.  Before the fix the record went out and the stored budget did
+ * not move, so every later gap re-spent the same slot and the window never
+ * closed.  The positive control is the same gap with the write healthy. */
+/* @verifies REQ-SW02-04 */
+static void test_failed_budget_write_sends_no_extended_record(void)
+{
+    printf("failed budget write sends no extended record\n");
+
+    NP_ACCEL_CHAR_BUILD_GATE = true;
+    memcpy(g_imu_samples, TWO_EVENTS, sizeof TWO_EVENTS);
+    g_imu_n = TWO_EVENTS_N;
+    memset(&g_stored_state, 0, sizeof g_stored_state);
+    g_stored_enr   = valid_enrolment();
+    g_enr_readable = true;
+
+    /* Control: healthy writes emit and spend one slot. */
+    g_written_std_count = g_written_char_count = 0;
+    CHECK(np_accel_shdr_process_session_gap() == NP_ACCEL_OK, "control gap processed");
+    CHECK(g_written_char_count == 1,           "control: extended record written");
+    CHECK(g_stored_enr.records_emitted == 1u,  "control: budget persisted");
+
+    /* Failing Config write: no extended record, stored budget unchanged, and
+     * a distinct status. */
+    g_fail_enr_write = true;
+    g_written_std_count = g_written_char_count = 0;
+    CHECK(np_accel_shdr_process_session_gap() == NP_ACCEL_ERR_BUDGET,
+          "failed budget write returns NP_ACCEL_ERR_BUDGET");
+    CHECK(g_written_char_count == 0,           "no extended record sent");
+    CHECK(g_stored_enr.records_emitted == 1u,  "stored budget unchanged");
+    CHECK(g_written_std_count == 1,            "standard record still written");
+
+    /* Repeated failing gaps cannot emit anything: the window cannot run on. */
+    for (int i = 0; i < 4; i++) {
+        (void)np_accel_shdr_process_session_gap();
+    }
+    CHECK(g_written_char_count == 0, "repeated failing gaps send nothing");
+    g_fail_enr_write = false;
+}
+
+/* CHAR-2 (§H.3.4), OI-PRIV-36 (NP-PRIV-ANALYSIS-004): a record write that fails
+ * after the budget persisted leaves the slot spent — the under-collect
+ * direction.  One record lost, never one record extra. */
+/* @verifies REQ-SW02-04 */
+static void test_failed_record_write_spends_the_budget(void)
+{
+    printf("failed record write leaves the budget spent\n");
+
+    NP_ACCEL_CHAR_BUILD_GATE = true;
+    memcpy(g_imu_samples, TWO_EVENTS, sizeof TWO_EVENTS);
+    g_imu_n = TWO_EVENTS_N;
+    memset(&g_stored_state, 0, sizeof g_stored_state);
+    g_stored_enr   = valid_enrolment();
+    g_enr_readable = true;
+
+    g_fail_char_write = true;
+    g_written_std_count = g_written_char_count = 0;
+    CHECK(np_accel_shdr_process_session_gap() == NP_ACCEL_ERR_WRITE,
+          "failed record write returns NP_ACCEL_ERR_WRITE");
+    CHECK(g_written_char_count == 0,           "no extended record stored");
+    CHECK(g_stored_enr.records_emitted == 1u,  "budget spent although nothing was sent");
+    g_fail_char_write = false;
+
+    /* The next gap takes the next slot, not the lost one. */
+    CHECK(np_accel_shdr_process_session_gap() == NP_ACCEL_OK, "next gap processed");
+    CHECK(g_written_char_count == 1,           "next gap emits");
+    CHECK(g_written_char.record_seq == 2u,     "next record takes slot 2, the lost slot is not reused");
+    CHECK(g_stored_enr.records_emitted == 2u,  "budget advanced to 2");
+}
+
 /* Anti-criterion, asserted on the type itself: the extended record has no field
  * that could carry an orientation, an axis, a per-event g value or a clock.
  * A future field of any of those kinds changes sizeof and trips this. */
@@ -442,6 +518,8 @@ int main(void)
     test_maintenance_alert_rolling_window();
     test_histogram_binning();
     test_process_session_gap_end_to_end();
+    test_failed_budget_write_sends_no_extended_record();
+    test_failed_record_write_spends_the_budget();
     test_extended_record_carries_no_prohibited_field();
 
     printf("\n%d checks, %d failure(s)\n", g_checks, g_failures);
