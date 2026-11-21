@@ -30,8 +30,8 @@ finding below was re-read in the code by the session that wrote this document. N
 Each finding says whether the existing record already holds it (**New**, **Partial**, or the item that holds it).
 §4 lists what the passes found again that the record already holds, so that it is not raised twice.
 
-**No open item is raised by this document.** §6 proposes which findings should become open items; raising them is a
-separate change.
+**Open items raised:** F-03, F-04 and F-05 are `OI-PRIV-42`, `OI-PRIV-43` and `OI-PRIV-44` in
+`docs/status/pending-decisions.md` §13.2. The other findings are fixes or extensions of existing items (§6).
 
 ## 2. Summary
 
@@ -51,9 +51,9 @@ and saves toggled consents on Skip (F-10). Both should be fixed before any TestF
 |---|---|---|---|---|
 | F-01 | High | Pure privacy | SwiftUI: Done on research consent turns analytics on | New |
 | F-02 | High | Both | SwiftUI: profiles, limits, protocols in `Documents/`, backed up and browsable | Partial (`OI-EDF-01`, `OI-UI-KMP-05`) |
-| F-03 | Medium | Pure privacy | One consent store, history and biometric flag per install, several profiles | New |
-| F-04 | Medium | Pure privacy | Warranty owner's choices stored in the user's data; owner sees usage | Related to `OI-PRIV-20`, not among its gaps |
-| F-05 | Medium | Security | Unsealed run stores the automatic-backup secret in the clear | Partial (`SWR-MG-13` (b)) |
+| F-03 | Medium | Pure privacy | One consent store, history and biometric flag per install, several profiles | New: `OI-PRIV-42` |
+| F-04 | Medium | Pure privacy | Warranty owner's choices stored in the user's data; owner sees usage | New: `OI-PRIV-43` (related to `OI-PRIV-20`) |
+| F-05 | Medium | Security | Unsealed run stores the automatic-backup secret in the clear | Partial (`SWR-MG-13` (b)): `OI-PRIV-44` |
 | F-06 | Medium | Pure privacy | Recording filenames carry the session time to the millisecond | New |
 | F-07 | Medium | Pure privacy | Web: helmet serial survives into the shared limits file | Gap in closed `OI-PRIV-11` |
 | F-08 | Medium | Pure privacy | Clinician use cases derive tier sets, not each one's minimum | Partial (`OI-CONSENT-08`) |
@@ -119,7 +119,7 @@ sees every other profile's history.
 **Reference:** CLAUDE.md §6.0; GDPR Art. 7 (consent is the data subject's own); BIPA §15(b) (written release per
 subject); *Bundled Consent*.  
 **Remediation:** A design decision: key consent, the biometric release and the history by profile, or limit an install to
-one wearer and say so. Raise an open item.
+one wearer and say so. Raised as `OI-PRIV-42`.
 
 ### F-04 [MEDIUM] The warranty owner's choices are stored in the user's data
 
@@ -134,6 +134,8 @@ protocol family the wearer has run. That is user health data shown to whoever op
 seven listed gaps.  
 **Reference:** CLAUDE.md §6.0, `REQ-SHDR-10`; CLAUDE.md §5.1 (protocols run are UHDR).  
 **Remediation:** Keep the offered set in `WarrantyOwnerStore`, per helmet, and drop the "used" marker from the owner page.
+The same key also holds the user's own Archive and Restore (`ProtocolMenuScreen.kt:243-244`, `:265`), so each side can
+undo the other. Raised as `OI-PRIV-43`.
 
 ### F-05 [MEDIUM] An unsealed run stores the automatic-backup secret in the clear
 
@@ -148,7 +150,7 @@ protects, so anyone who copies the folder can open them. Phones never show the u
 `reportsUnsealedStorage` is false outside the desktop apps.  
 **Reference:** *Hardcoded Credentials / API Keys* (secret beside ciphertext); Defence in Depth; CLAUDE.md §5.1.  
 **Remediation:** Call `turnOn` only when `storageProtection == SEALED`, and say why when it is refused. Report the
-unsealed state on every host that keeps data on the device.
+unsealed state on every host that keeps data on the device. Raised as `OI-PRIV-44`.
 
 ### F-06 [MEDIUM] Recording filenames carry the session time to the millisecond
 
@@ -321,8 +323,8 @@ shows on the lock screen.
    and analytics gets its own switch, off by default. Before any TestFlight build.
 2. **Move the SwiftUI profile, limits and protocol files out of `Documents/`, and give recordings random names** (F-02
    and F-06, about a day). Extend `OI-EDF-01` to name the files.
-3. **Raise open items for F-03, F-04 and F-05.** F-03 and F-04 are design decisions under CLAUDE.md §6.0 and
-   `REQ-SHDR-10`; F-05 needs a fail-closed guard on `turnOn`.
+3. **Decide and repair F-03, F-04 and F-05** (`OI-PRIV-42` to `-44`). F-03 and F-04 are design decisions under
+   CLAUDE.md §6.0 and `REQ-SHDR-10`; F-05 needs a fail-closed guard on `turnOn`.
 4. **Fix F-07, and add per-use-case minimality (F-08) to `OI-CONSENT-08`** (about an hour each).
 5. **Route the Compose analytics switch through `ConsentStore` (F-09), and gate OTA, EDF and calibration writes on the
    encrypted read (F-11)**, adding the latter to `OI-PRIV-17`.
