@@ -108,7 +108,7 @@ teardown — the same regression inverted.
 
 1. **Patient research agenda:** Patients submit study ideas in plain language, community votes ("interested"), comments, expresses participation intent. Top suggestions visible to researcher community.
 
-2. **Pre-identified subject pool:** "Would participate" intent flag creates pre-screened, device-familiar, motivated cohort. Researcher portal shows willing participant count, geographic distribution, anonymized device usage profiles per suggestion. Solves researchers' hardest problem (recruitment = 40–60% of trial cost) before grant is written.
+2. **Pre-identified subject pool:** "Would participate" intent flag creates pre-screened, device-familiar, motivated cohort. Researcher portal shows the **willing participant count per suggestion and nothing else about the people** (the principal, 2026-11-21, `OI-PRIV-25`): no geographic distribution and no device usage profile, which would describe the people who said they would take part. Solves researchers' hardest problem (recruitment = 40–60% of trial cost) before grant is written.
 
 3. **Crowdfunding catalyst:** Pledges ($10–$100+) are intent, not charges. When researcher confirms pilot feasibility, formal campaign activates. Escrow held until target met; refunded if not. Released to institution research account. NeurOne contribution matching for strategic studies. Pilot data (even n=20–30) supports NIH SBIR/R21 application. Funders receive results notification + paper acknowledgement as "NeurOne Patient Research Fund contributors."
 
