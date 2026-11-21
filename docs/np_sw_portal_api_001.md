@@ -258,8 +258,9 @@ made for this form can be read as nothing else the key signs. The signature is E
 each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
 notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Not in this draft:** how long the server keeps a notice for a device that is offline (a number with no derivation,
-a row for `docs/status/unjustified-choices.md` when set); whether `supersede` and the fetch go through the Oblivious
+**Not in this draft** (proposed in `OI-PRIV-22`, not ruled): the server keeps the highest-count notice per key id with
+no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
+the notices after its cursor before it extracts; a size cap against junk notices would be a number with no derivation; whether `supersede` and the fetch go through the Oblivious
 HTTP relay (`OI-PRIV-23`, unruled), without which the server sees which device sent a notice; what stops someone
 flooding the server with notices nobody can verify; the size at which a request no longer fits a push; and the
 desktop and web apps, where a persistent connection may stand in for a push service and is not designed. The key and
