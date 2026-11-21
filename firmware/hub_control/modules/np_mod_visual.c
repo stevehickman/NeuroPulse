@@ -302,7 +302,7 @@ np_hub_status_t np_mod_visual_telemetry(uint8_t slot, np_telem_record_t *out)
     v->active_mode   = s_state.last_mode;                  /* SHDR */
     v->goggle_seated = np_mod_visual_hal_goggle_seated();  /* SHDR */
     v->eye_open      = np_mod_visual_hal_ir_eye_open();    /* UHDR */
-    v->ppx_halt      = s_state.ppx_halt;                   /* UHDR (REQ-FWHUB-85) */
+    v->ppx_halt      = s_state.ppx_halt;                   /* UHDR (REQ-FWHUB-88) */
 
     /* Backstop, not the control: the Hall ISR has already cut.  This catches a
      * missed edge, and it clears `active` after an edge whose goggle has since

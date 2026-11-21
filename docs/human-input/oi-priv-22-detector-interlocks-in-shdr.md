@@ -16,7 +16,7 @@ Plain form: **should the line read "a safety interlock that reports the device �
 
 ## 2. What is already done, without a ruling
 
-- **The photoparoxysmal halt is now UHDR** (this change, `REQ-FWHUB-85`). The SHDR write was conditional on the halt (rule 2), and moving a field from SHDR to UHDR raises its protection, so it follows the existing rules. `data-architecture-detail.md` §5.1 has a row for it, and line 49 now points to that row.
+- **The photoparoxysmal halt is now UHDR** (this change, `REQ-FWHUB-88`). The SHDR write was conditional on the halt (rule 2), and moving a field from SHDR to UHDR raises its protection, so it follows the existing rules. `data-architecture-detail.md` §5.1 has a row for it, and line 49 now points to that row.
 - **Nothing else is moved.** The question below is only about the general line, and the one field it still carries that reads the wearer.
 
 ## 3. What the general line still carries

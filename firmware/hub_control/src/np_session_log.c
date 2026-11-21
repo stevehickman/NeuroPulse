@@ -406,7 +406,7 @@ void np_log_telemetry(const np_telem_record_t *rec)
         /* UHDR: eye_open state and the photoparoxysmal halt — both are about the person. The halt is a
          * byte in every visual record, set or clear, so the record's presence and length never depend on it.
          * Nothing about the halt goes to SHDR: a record written only when a photoparoxysmal discharge was
-         * detected would publish that neurological event (CLAUDE.md §5.1 rule 2; REQ-FWHUB-85; OI-PRIV-22,
+         * detected would publish that neurological event (CLAUDE.md §5.1 rule 2; REQ-FWHUB-88; OI-PRIV-22,
          * NP-PRIV-ANALYSIS-004). */
         const uint8_t ppx_halt = v->ppx_halt ? 1U : 0U;
         uhdr_u8(NP_LOG_TAG_UHDR_VISUAL);

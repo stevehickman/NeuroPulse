@@ -1312,7 +1312,7 @@ static void test_fault_queue_full_keeps_oldest(void)
           "fault queue: np_log_init() clears the drop count");
 }
 
-/* ── The photoparoxysmal halt is UHDR, never SHDR (REQ-FWHUB-85, OI-PRIV-22 of NP-PRIV-ANALYSIS-004) ── */
+/* ── The photoparoxysmal halt is UHDR, never SHDR (REQ-FWHUB-88, OI-PRIV-22 of NP-PRIV-ANALYSIS-004) ── */
 
 #define VISUAL_REC_BYTES (1U + sizeof(uint32_t) + 1U + 1U)   /* tag, session_ms, eye_open, ppx_halt */
 
@@ -1344,7 +1344,7 @@ static void visual_tick(bool ppx_halt, size_t *uhdr_added, size_t *shdr_added, u
     }
 }
 
-/* @verifies REQ-FWHUB-85#a */
+/* @verifies REQ-FWHUB-88#a */
 static void test_ppx_halt_writes_nothing_to_shdr(void)
 {
     size_t u_clear, s_clear, u_halt, s_halt;
@@ -1364,7 +1364,7 @@ static void test_ppx_halt_writes_nothing_to_shdr(void)
     call_end();
 }
 
-/* @verifies REQ-FWHUB-85#b */
+/* @verifies REQ-FWHUB-88#b */
 static void test_ppx_halt_is_a_byte_of_every_uhdr_visual_record(void)
 {
     size_t u_clear, s_clear, u_halt, s_halt;
