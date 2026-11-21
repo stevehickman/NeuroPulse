@@ -49,7 +49,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = hostPlace ?: portable?.place
-    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null, storageChecks = portable == null) }
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null, storageChecks = portable == null, onRestored = app::reloadAfterRestore) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.
