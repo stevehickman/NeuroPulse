@@ -64,7 +64,13 @@ static uint32_t s_stub_now_ms = 0U;
  * The tunnelled HAL that replaces this stub takes the same socket index
  * (NP-HW-HUB-001 §9.2).
  */
-static uint8_t s_i2c_regs[NP_PBM_SOCKET_DOMAIN][14];
+#define STUB_REG_COUNT 0x1EU    /* 0x00-0x1D: the 14 original registers, and FREQ_A/B/C at 0x12-0x1D (OI-PBMTILE-01) */
+static uint8_t s_i2c_regs[NP_PBM_SOCKET_DOMAIN][STUB_REG_COUNT];
+
+/* Test hook: while set, a write to a FREQ register is acknowledged and ignored, as a tile does with a frequency it
+ * cannot realise (NP-FW-HEXTILE-001 REQ-FWTILE-15).  A host test double only, never in production firmware. */
+static bool s_refuse_freq = false;
+void np_pbm_hal_stub_refuse_freq(bool refuse) { s_refuse_freq = refuse; }
 
 /* ── Public stub implementations ─────────────────────────────────────────────── */
 
@@ -96,9 +102,10 @@ np_pbm_status_t np_pbm_hal_i2c_write(uint8_t        slot,
                                                const uint8_t *data,
                                                uint8_t        len)
 {
-    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > 14U) {
+    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > STUB_REG_COUNT) {
         return NP_PBM_ERR_I2C_WRITE;
     }
+    if (s_refuse_freq && reg_addr >= 0x12U) { return NP_PBM_OK; }
     for (uint8_t i = 0; i < len; i++) {
         s_i2c_regs[slot][reg_addr + i] = data[i];
     }
@@ -110,7 +117,7 @@ np_pbm_status_t np_pbm_hal_i2c_read(uint8_t  slot,
                                               uint8_t *data,
                                               uint8_t  len)
 {
-    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > 14U) {
+    if (slot >= NP_PBM_SOCKET_DOMAIN || !data || reg_addr + len > STUB_REG_COUNT) {
         return NP_PBM_ERR_I2C_READ;
     }
     for (uint8_t i = 0; i < len; i++) {
