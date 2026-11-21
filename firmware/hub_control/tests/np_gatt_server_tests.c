@@ -174,6 +174,16 @@ np_hub_status_t np_hub_cvns_reenable_confirm(void)
     return g_confirm_rc;
 }
 
+/* One central, linked and encrypted, as the stack reports it: every link the server still counts goes down first. */
+static void link_one_encrypted(void)
+{
+    while (np_gatt_link_count() > 0U) {
+        np_gatt_on_disconnect();
+    }
+    (void)np_gatt_on_connect();
+    np_gatt_set_link_encrypted(true);
+}
+
 static void reset_world(void)
 {
     g_reg_table = NULL;
@@ -197,7 +207,7 @@ static void reset_world(void)
     g_posted_users = 0;
     g_confirm_rc = NP_HUB_OK;
     g_confirms = 0;
-    np_gatt_set_link_encrypted(true);   /* the stack has reported an encrypted link (REQ-FWHUB-81); each test below that needs another says so */
+    link_one_encrypted();   /* the stack has reported one encrypted link (REQ-FWHUB-81); each test below that needs another says so */
     np_warranty_token_reset_cache();
     np_cvfs_init();
     np_upload_check_init();
@@ -1187,7 +1197,7 @@ static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
     /* A link that dropped half way through: the first 512 bytes arrived. */
     check(write_stream(0U, 512U, 512U) == NP_ATT_OK, "disconnect: the first write of a blob is accepted");
     np_gatt_on_disconnect();
-    np_gatt_set_link_encrypted(true);   /* a disconnect clears the link state; the next link is encrypted again */
+    link_one_encrypted();   /* a disconnect clears the link state; the next link is encrypted again */
     /* The next link writes a whole blob; had the half remained, its first bytes would have been read as the rest of it. */
     make_blob(200U);
     const size_t total2 = make_stream(200U);
@@ -1199,7 +1209,7 @@ static void test_disconnect_drops_a_partial_blob_and_keeps_a_complete_one(void)
     /* A blob that completed and was not yet taken survives the link going down. */
     check(write_stream(0U, total2, 512U) == NP_ATT_OK, "disconnect: a blob completes");
     np_gatt_on_disconnect();
-    np_gatt_set_link_encrypted(true);   /* a disconnect clears the link state; the next link is encrypted again */
+    link_one_encrypted();   /* a disconnect clears the link state; the next link is encrypted again */
     check(np_hal_proto_queue_receive(g_got, sizeof(g_got), &got, 0U) == NP_HUB_OK && got == 200U,
           "disconnect: a completed blob that was not yet taken is kept");
 }
@@ -1215,6 +1225,10 @@ static void test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there(v
     check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
           "link: before the stack reports an encrypted link, an encrypted characteristic refuses a read");
     np_gatt_set_link_encrypted(true);
+    check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "link: an encrypted report with no link up is not honoured (REQ-FWHUB-81 (d))");
+    check(np_gatt_on_connect(), "link: the first link is accepted");
+    np_gatt_set_link_encrypted(true);
     check(np_gatt_on_read(NP_GATT_DEVICE_TIER_ID, 0U, buf, sizeof(buf), &len) != NP_ATT_INSUFFICIENT_ENCRYPTION,
           "link: once the stack reports it, the read is not refused for encryption");
     np_gatt_on_disconnect();
@@ -1222,6 +1236,53 @@ static void test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there(v
           "link: a disconnect clears it, so the next link is unencrypted until the stack says otherwise");
     np_gatt_set_link_encrypted(false);
     np_gatt_set_link_encrypted(true);
+}
+
+/* @verifies REQ-FWHUB-81#d */
+static void test_a_second_link_never_inherits_the_first_ones_encryption(void)
+{
+    uint8_t buf[NP_GATT_VALUE_MAX];
+    size_t len = 0U;
+    static const uint8_t ONE_BYTE[1] = { 0x00U };
+
+    reset_world();   /* one link, encrypted */
+    check(np_gatt_link_count() == 1U, "two links: reset_world leaves one link up");
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_OK,
+          "two links: the one encrypted link reads an encrypted characteristic");
+
+    /* A second central connects while the first is up: refused, and the flag no longer says whose link it describes. */
+    check(!np_gatt_on_connect(), "two links: a second link is refused");
+    check(np_gatt_link_count() == 2U, "two links: both are counted until the stack reports one down");
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "two links: no encrypted read is served to either");
+    check(np_gatt_on_write(NP_GATT_PROTOCOL_UPLOAD_ID, ONE_BYTE, sizeof(ONE_BYTE)) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "two links: no encrypted write is taken from either");
+    g_notifies = 0;
+    (void)np_gatt_notify(NP_GATT_CVNS_FAULT_STATUS_ID, buf, 4U);
+    check(g_notifies == 0, "two links: no encrypted notification is sent");
+
+    /* The stack reporting encryption now (for either link) is not honoured while two are up. */
+    np_gatt_set_link_encrypted(true);
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "two links: an encryption report is not honoured while two links are up");
+
+    /* One goes down.  Which one is not known, so the remaining link stays unencrypted until the stack says otherwise. */
+    np_gatt_on_disconnect();
+    check(np_gatt_link_count() == 1U, "two links: one down leaves one");
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "two links: the remaining link is not encrypted by inheritance");
+    np_gatt_set_link_encrypted(true);
+    check(np_gatt_on_read(NP_GATT_DEVICE_SERIAL_ID, 0U, buf, sizeof(buf), &len) == NP_ATT_OK,
+          "two links: once the stack reports the one remaining link encrypted, it reads again");
+
+    /* The stop and panic writes are never refused for encryption, whatever the link count (REQ-FWHUB-81 (c)). */
+    (void)np_gatt_on_connect();
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, ONE_BYTE, sizeof(ONE_BYTE)) != NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "two links: a stop is not refused for encryption");
+    np_gatt_on_disconnect();
+    np_gatt_on_disconnect();
+    np_gatt_on_disconnect();   /* a down with none up does not wrap the count */
+    check(np_gatt_link_count() == 0U, "two links: the count never goes below zero");
 }
 
 /* @verifies REQ-FWHUB-81#a */
@@ -1343,6 +1404,7 @@ static void test_the_stop_and_panic_writes_do_not_wait_on_a_key(void)
 int main(void)
 {
     test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there();   /* first: nothing has reported a link yet */
+    test_a_second_link_never_inherits_the_first_ones_encryption();
     test_uuids_match_the_contract();
     test_table_is_what_the_hub_produces();
     test_access_rules();

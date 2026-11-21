@@ -76,8 +76,10 @@ static volatile bool     s_withhold_valid = false;
  * np_safety_spi_request_enable() beside every command they apply, and the
  * current publish sits in the same place, so the two cannot drift apart.
  *
- * COMMANDED, not delivered — SHDR (what the signed descriptor asked for), never
- * an ADC measurement (which would be UHDR-class; NP-FW-EMMC-001 §12).
+ * COMMANDED, not delivered — what the signed descriptor asked for, never an ADC
+ * measurement.  Both are UHDR-class: the commanded value is "protocol
+ * parameters used" (data-architecture-detail.md §5.1).  It goes to the safety
+ * MCU only and is never written to SHDR (OI-PRIV-41 (NP-PRIV-ANALYSIS-004)).
  */
 static volatile uint32_t s_channel_ua[NP_SAFETY_MAX_CHANNELS];   /* 32 bits: no commanded current is cut off (OI-UINT16-01) */
 
@@ -290,8 +292,9 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
 
     /* ── Build current_ua array (bytes 8–63) ────────────────────────────── */
     /* current_ua[] carries COMMANDED current from the session descriptor.
-     * SHDR classification: device metric.  NOT ADC-measured actual current
-     * (which would be UHDR — tissue impedance).  See NP-FW-EMMC-001 §12.   */
+     * UHDR-class ("protocol parameters used", data-architecture-detail.md
+     * §5.1), device-internal, never written to SHDR.  NOT ADC-measured actual
+     * current (also UHDR — tissue impedance; NP-FW-EMMC-001 §12).          */
     if (current_ua != NULL) {
         for (ch = 0U; ch < tx.channel_count; ch++) {
             tx.current_ua[ch] = current_ua[ch];

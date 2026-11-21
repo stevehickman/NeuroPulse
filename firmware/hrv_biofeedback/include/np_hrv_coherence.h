@@ -57,6 +57,17 @@ np_hrv_status_t np_hrv_coherence_compute(const np_hrv_psd_t   *psd,
 void np_hrv_coherence_reset(np_hrv_psd_t *psd);
 
 /*
+ * Zero the module's interpolation and FFT scratch (the person's R-R series and
+ * its spectrum) with a clear the compiler cannot remove.  The Hann table is not
+ * the person's data and is kept.  Called by np_hrv_session_stop() and
+ * np_hrv_session_destroy() (NP-FW-HUB-001 REQ-FWHUB-84 (e), OI-PRIV-39).
+ */
+void np_hrv_coherence_wipe_scratch(void);
+#ifdef NPTEST_HOST
+bool np_hrv_coherence_test_scratch_is_zero(void);
+#endif
+
+/*
  * Interpolate an R-R buffer to a uniform 4 Hz float array of `out_len` points.
  * The interpolation spans the time window covered by the last `out_len` samples
  * of the uniform grid.  `out_len` must be ≤ NP_RR_INTERP_BUFFER_SIZE.

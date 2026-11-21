@@ -40,7 +40,7 @@ if(NP_BUILD_TESTS)
     )
     target_include_directories(np_hrv_session_tests PRIVATE include)
     target_compile_options(np_hrv_session_tests PRIVATE
-        -std=c11 -Wall -Wextra -O0 -g)
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_hrv_session_tests m)
 
     return()

@@ -61,6 +61,28 @@ void np_adapt_log_flush(void)
     np_log_unlock();
 }
 
+/* memset_explicit() is C23; the firmware is built -std=c11.  A volatile function
+ * pointer the compiler cannot prove dead keeps the clear (firmware/uhdr_key). */
+static void *(*const volatile np_adapt_memset_fn)(void *, int, size_t) = memset;
+
+void np_adapt_log_wipe(void)
+{
+    np_log_lock();
+    np_adapt_log_flush();   /* nothing queued is lost: it reaches the file first */
+    np_adapt_memset_fn(s_ring, 0, sizeof s_ring);
+    s_write = 0U;
+    s_read  = 0U;
+    np_log_unlock();
+}
+
+#ifdef NPTEST_HOST
+const uint8_t *np_adapt_log_test_ring(size_t *len_out)
+{
+    if (len_out != NULL) { *len_out = sizeof s_ring; }
+    return (const uint8_t *)s_ring;
+}
+#endif
+
 void np_adapt_log_reset(void)
 {
     np_log_lock();

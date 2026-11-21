@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 358
+**Revision:** 364
 **Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 358 | 2026-11-21 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 364 | 2026-11-21 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 3 | 2026-11-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 198 | 2026-11-21 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -142,9 +142,9 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 6 | 2026-11-21 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 63 | 2026-11-21 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 65 | 2026-11-21 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
-| NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 6 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
+| NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 7 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
 | NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 20 | 2026-11-21 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
@@ -170,7 +170,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-NPPS-REF-001 | NPPS Language Reference | 42 | 2026-11-21 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
-| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 47 | 2026-11-21 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 48 | 2026-11-21 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 
@@ -266,7 +266,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE | PRIV |
 | NP-LEGAL-BAA-001 | Business Associate Agreement Template | 1 | 2026-06-03 | [np_legal_baa_001.md](./np_legal_baa_001.md) | DRAFT | PRIV |
 | NP-PRIV-AUDIT-001 | NeurOne App Privacy Audit | 1 | 2026-06-03 | [np_priv_audit_001.md](./np_priv_audit_001.md) | ACTIVE | PRIV |
-| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 1 | 2026-11-21 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 2 | 2026-11-21 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
 | NP-PRIV-NOTICE-001 | NeurOne Privacy Notice | 4 | 2026-08-16 | [np_priv_notice_001.md](./np_priv_notice_001.md) | ACTIVE | PRIV |
 | NP-INT-FHIR-001 | FHIR R4 ImplementationGuide: NeurOne T2 Clinical Profile | 1 | 2026-06-03 | [np_int_fhir_001.md](./np_int_fhir_001.md) | ACTIVE | PRIV |
 
@@ -319,6 +319,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-004 | Privacy Analysis and Repair — Firmware | 1 | 2026-11-21 | [np_priv_analysis_004.md](./np_priv_analysis_004.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-006 | Privacy Analysis — Companion Apps (app/) | 1 | 2026-11-21 | [np_priv_analysis_006.md](./np_priv_analysis_006.md) | DRAFT | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 3 | 2026-11-11 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |

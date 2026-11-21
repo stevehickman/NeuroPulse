@@ -292,4 +292,9 @@ extern np_hub_status_t np_log_hal_shdr_append(const uint8_t *buf, size_t len);
 extern np_hub_status_t np_log_hal_uhdr_flush(void);
 extern np_hub_status_t np_log_hal_shdr_flush(void);
 
+#ifdef NPTEST_HOST
+/* Host-test inspection: the UHDR record buffer, for REQ-FWHUB-84 (c). */
+const uint8_t *np_log_test_uhdr_buf(size_t *len_out);
+#endif
+
 #endif /* NP_SESSION_LOG_H */
