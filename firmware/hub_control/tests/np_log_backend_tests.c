@@ -25,6 +25,9 @@
  *     it: a heartbeat fault landing mid-sync is queued, drained by the next
  *     holder with the count it was logged under, ahead of SESSION_END, and a
  *     full queue keeps the oldest and counts the rest
+ *   - OI-PRIV-21 (NP-PRIV-ANALYSIS-004): the SHDR session-end record is the
+ *     count and firmware version only, and session telemetry writes no SHDR
+ *     record (REQ-FWHUB-89)
  *   - OI-HRV-03: the HRV session record reaches this session's UHDR file, in
  *     its documented layout, ahead of SESSION_END, and nowhere in SHDR; outside
  *     a session it is lost, never written into the next session's file
@@ -921,6 +924,104 @@ static bool shdr_has_count_record(uint8_t tag, uint32_t want)
     return false;
 }
 
+/* ── OI-PRIV-21 (NP-PRIV-ANALYSIS-004): SHDR session records carry nothing about the session ── */
+
+#define END_REC_BYTES (1U + sizeof(uint32_t) + 4U)   /* tag, count, firmware version */
+
+/* Run one whole session through the logger and return the SHDR bytes it wrote
+ * after the OPEN marker. */
+static size_t shdr_session_end_bytes(uint32_t boot_count, uint32_t duration_s,
+                                     uint8_t abort_reason, uint32_t mods_mask,
+                                     uint8_t *out, size_t out_max)
+{
+    np_log_test_reset();
+    (void)np_log_backend_init();
+    np_log_init(boot_count);
+    np_adapt_log_reset();
+    np_session_uhdr_record_t u;
+    memset(&u, 0, sizeof u);
+    u.duration_s       = duration_s;
+    u.abort_reason     = abort_reason;
+    u.mods_active_mask = mods_mask;
+    np_log_session_start(&u);
+    const size_t base = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    np_session_shdr_record_t sh;
+    memset(&sh, 0, sizeof sh);
+    sh.firmware_version[0] = 1U; sh.firmware_version[1] = 2U;
+    sh.firmware_version[2] = 3U; sh.firmware_version[3] = 4U;
+    np_log_session_end(&u, &sh);
+    np_log_flush();
+    const size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR) - base;
+    if (n <= out_max) {
+        memcpy(out, np_log_test_captured(NP_LOG_PART_SHDR) + base, n);
+    }
+    return n;
+}
+
+/* @verifies REQ-FWHUB-89#a */
+static void test_shdr_session_end_is_count_and_version_only(void)
+{
+    uint8_t a[64];
+    uint8_t b[64];
+    /* A short clean session with one modality, then a long one stopped by a
+     * seizure halt with every modality bit set: SHDR must not tell them apart. */
+    const size_t na = shdr_session_end_bytes(7U, 5U, (uint8_t)NP_ABORT_NONE, 0x1U, a, sizeof a);
+    const size_t nb = shdr_session_end_bytes(7U, 3600U, (uint8_t)NP_ABORT_EEG_SEIZURE, 0xFFFFFFFFU,
+                                             b, sizeof b);
+
+    uint32_t count = 0U;
+    memcpy(&count, a + 1U, sizeof count);
+    check(na == END_REC_BYTES && a[0] == NP_LOG_TAG_SHDR_SESSION_END && count == 8U &&
+          a[5] == 1U && a[6] == 2U && a[7] == 3U && a[8] == 4U,
+          "shdr end: 9 bytes, the tag, this session's count and the firmware version, nothing else");
+    check(nb == na && memcmp(a, b, na) == 0,
+          "shdr end: duration, abort reason and the modalities that ran change no SHDR byte");
+}
+
+/* @verifies REQ-FWHUB-89#b */
+static void test_session_telemetry_writes_no_shdr(void)
+{
+    logger_session_open();
+    const size_t sbase = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    const size_t ubase = np_log_test_captured_len(NP_LOG_PART_UHDR);
+    const unsigned ssync = np_log_test_sync_count(NP_LOG_PART_SHDR);
+
+    /* Ten minutes of 1 s ticks from an EEG module and a zone-slot PBM module,
+     * the PBM one reporting a ratio, a peak, throttles and a fault. */
+    for (uint32_t t = 0U; t < 600U; t++) {
+        np_telem_record_t r;
+        memset(&r, 0, sizeof r);
+        r.mod_type   = NP_MOD_EEG;
+        r.session_ms = t * 1000U;
+        np_log_telemetry(&r);
+
+        memset(&r, 0, sizeof r);
+        r.mod_type   = (t % 2U) ? NP_MOD_PBM_SMART : NP_MOD_PBM_BASE;
+        r.session_ms = t * 1000U;
+        r.slot       = 2U;
+        r.data.pbm.pd_ratio[0]     = 0.9f;
+        r.data.pbm.ntc_peak_c[0]   = 39.0f;
+        r.data.pbm.throttle_events = t;
+        r.data.pbm.fault_mask      = 0x04U;
+        np_log_telemetry(&r);
+    }
+    np_log_flush();
+
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == sbase &&
+          np_log_test_sync_count(NP_LOG_PART_SHDR) == ssync,
+          "telemetry: 600 EEG and 600 PBM ticks write no SHDR byte");
+    check(np_log_test_captured_len(NP_LOG_PART_UHDR) > ubase,
+          "telemetry: the ticks still reach UHDR (the person's record keeps them)");
+
+    /* And the session end adds exactly the one fixed-size record. */
+    np_session_shdr_record_t sh;
+    memset(&sh, 0, sizeof sh);
+    np_log_session_end(&g_rec, &sh);
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == sbase + END_REC_BYTES,
+          "telemetry: a session of any length leaves OPEN and one 9-byte END in SHDR");
+}
+
 /* @verifies REQ-FWHUB-40 */
 static void test_session_open_marker_is_durable_before_return(void)
 {
@@ -1363,6 +1464,8 @@ int main(void)
     test_shdr_overflow_syncs_after_append();
     test_session_end_keeps_queued_adapt_events();
     test_session_open_marker_is_durable_before_return();
+    test_shdr_session_end_is_count_and_version_only();
+    test_session_telemetry_writes_no_shdr();
     test_command_record_layout();
     test_zone_auth_record_has_no_session_count();
     test_hrv_session_record();

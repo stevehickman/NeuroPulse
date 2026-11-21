@@ -14,7 +14,9 @@
  *        Commanded dose: every dispatched command (OI-FMEA-09).
  *  SHDR: device health metrics only — no HR values, no EEG amplitudes,
  *        no timestamps (only unsigned session count).  Session open/end
- *        markers pair by count to expose an unclean end (OI-FMEA-09).
+ *        markers pair by count to expose an unclean end (OI-FMEA-09).  The
+ *        end record is {count, firmware version} only, and no SHDR record is
+ *        written per telemetry tick (REQ-FWHUB-89, OI-PRIV-21).
  *
  * CONCURRENCY (OI-FWHUB-19, NP-FW-HUB-001 §6.7).  Four tasks call this logger.
  * Every entry point that touches logger state runs under one recursive lock
@@ -300,12 +302,11 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     }
 
     if (shdr_rec != NULL) {
-        /* SHDR: session count, duration, firmware version — no user biology. */
+        /* SHDR: the session count and the firmware version, and nothing else
+         * (REQ-FWHUB-89).  Duration, abort reason and the modalities that ran
+         * describe the session and stay in the UHDR record above (§5.1). */
         shdr_u8(NP_LOG_TAG_SHDR_SESSION_END);
         shdr_write(&s_device_session_count,  sizeof(s_device_session_count));
-        shdr_write(&shdr_rec->duration_s,    sizeof(shdr_rec->duration_s));
-        shdr_write(&shdr_rec->abort_reason,  sizeof(shdr_rec->abort_reason));
-        shdr_write(&shdr_rec->mods_active_mask, sizeof(shdr_rec->mods_active_mask));
         shdr_write(shdr_rec->firmware_version, sizeof(shdr_rec->firmware_version));
     }
 
@@ -344,15 +345,10 @@ void np_log_telemetry(const np_telem_record_t *rec)
         uhdr_write(&rec->slot,             sizeof(rec->slot));
         uhdr_write(p->dose_J_cm2,          sizeof(p->dose_J_cm2));
         uhdr_write(&p->irradiance_mW_cm2,  sizeof(p->irradiance_mW_cm2));
-
-        /* SHDR: PD ratio (LED health), NTC peaks, fault mask — device condition. */
-        shdr_u8(NP_LOG_TAG_SHDR_PBM_HEALTH);
-        shdr_write(&s_device_session_count, sizeof(s_device_session_count));
-        shdr_write(&rec->slot,              sizeof(rec->slot));
-        shdr_write(p->pd_ratio,             sizeof(p->pd_ratio));
-        shdr_write(p->ntc_peak_c,           sizeof(p->ntc_peak_c));
-        shdr_write(&p->throttle_events,     sizeof(p->throttle_events));
-        shdr_write(&p->fault_mask,          sizeof(p->fault_mask));
+        /* Nothing to SHDR from session telemetry (REQ-FWHUB-89 (b)): the
+         * PD ratio trend comes only from the idle latest-state record, never
+         * from session data (F9, 2026-09-27), and a per-tick record would
+         * count the session's seconds and mark that PBM ran. */
         break;
     }
 
@@ -366,11 +362,9 @@ void np_log_telemetry(const np_telem_record_t *rec)
         uhdr_write(&rec->session_ms,        sizeof(rec->session_ms));
         uhdr_write(&e->dominant_band,       sizeof(e->dominant_band));
         uhdr_write(e->band_power_db,        sizeof(e->band_power_db));
-        /* ADS1299 calibration coefficients → SHDR (device health). */
-        shdr_u8(NP_LOG_TAG_SHDR_EEG_CAL);
-        shdr_write(&s_device_session_count, sizeof(s_device_session_count));
-        /* Calibration coefficients are written at session start via a separate
-         * SHDR record from np_mod_eeg_init(); nothing extra here. */
+        /* Nothing to SHDR (REQ-FWHUB-89 (b)): a record per tick carried no
+         * calibration data, and its count per session was the session's
+         * length in seconds. */
         break;
     }
 
