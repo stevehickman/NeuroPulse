@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-11-21
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
@@ -119,3 +119,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 11 | 2026-11-18 | NeurOne Software Engineering | **§2, §3, §7: new REQ-PRES-01 (d): a store that caches UHDR holds none while locked, reads again at each unlock and merges what was done locked, never writing it in place of the sealed value. Built for the session history (OI-PRIV-10 (1)); the other stores are OI-PRIV-19, which closes before any host offers the gate. §3 records that a removal acting while locked is deliberate (OI-PRIV-10 (4)).** |
 | 12 | 2026-11-21 | NeurOne Software Engineering | **§7 (OI-PRES-07): the iOS device-run runbook was reviewed against the code; two findings are recorded, an erase that may leave the gated Keychain item and the gate flag behind (#935) and the behaviour of a gated install whose Keychain item is gone (#936). No requirement changes.** |
 | 13 | 2026-11-21 | NeurOne Software Engineering | **§4: `np.analytics.distinct-id` and `np.analytics.pending-erasures` are device-tier keys (the principal, 2026-11-21), with the demonstration, what it costs, what it does not reach (a failed keystore) and how an install gated while they were UHDR moves them at the first unlock. This lowers the protection they had and is recorded as a ruling under `REQ-PRES-09`.** |
+| 14 | 2026-11-21 | NeurOne Software Engineering | **§3: REQ-PRES-01 (d) now also covers the consent store, the limits store, the protocol library, the research suggestion store, the wavelength rules store, the consumable tracker, the launch count, the cloud credential vault, the backup place, the replacement queue and the fault ledger (now one sealed value), and states what a change made while locked means: held as an operation and replayed on the sealed value, with grants, approvals, acceptances, descriptors and whole-state commits refused while locked (the principal, 2026-11-21; OI-PRIV-19).** |
