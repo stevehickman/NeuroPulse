@@ -484,7 +484,8 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         writeSessionPause(0x01, completion: completion)
     }
 
-    /// Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it.
+    /// Resume a paused session (SWR-SS-05). Stimulation returns only where the safety MCU grants it. The hub takes it only
+    /// over an encrypted link and refuses it otherwise (ATT 0x0F, `REQ-FWHUB-81` (d), `OI-PRIV-24`).
     func sendSessionResume(completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
         writeSessionPause(0x02, completion: completion)
     }
