@@ -317,6 +317,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
+| NP-PRIV-ANALYSIS-006 | Privacy Analysis — Companion Apps (app/) | 1 | 2026-11-21 | [np_priv_analysis_006.md](./np_priv_analysis_006.md) | DRAFT | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 3 | 2026-11-11 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
