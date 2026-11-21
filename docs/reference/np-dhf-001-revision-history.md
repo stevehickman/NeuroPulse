@@ -368,3 +368,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 332 | 2026-11-16 | NeurOne Software Engineering | **179 → 180, 40 → 41: `OI-PRIV-11`: the individual profile keeps no date of birth and its note is bounded; an export has a share form with no used flag and no identifier of the sender.** |
 | 333 | 2026-11-19 | NeurOne Software Engineering | **180 → 181, 2 → 3: `OI-PRIV-06` closed. A withdrawal is marked with a day and a count, not an instant; a study descriptor's signed form gains an expiry day (CLAUDE.md Rev 82).** |
 | 334 | 2026-11-18 | NeurOne Software Engineering | **10 → 11, 181 → 182: the session history follows the presence lock, keeps no figure finer than it shows, and is kept as long as the person chooses (OI-PRIV-10).** |
+| 335 | 2026-11-19 | NeurOne Software Engineering | **182 → 183, 15 → 16: `OI-PRIV-12` stage 2, as the principal answered it on 2026-11-19.** |

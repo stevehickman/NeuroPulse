@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 15
-**Date:** 2026-11-18
+**Revision:** 16
+**Date:** 2026-11-19
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -237,3 +237,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 14 | 2026-11-13 | NeurOne Software Engineering | **`ed25519-dalek` gains a use in `tier_record.rs` (plain `verify`, mirroring the safety MCU's check); no new crate and no version change.** |
 | 15 | 2026-11-18 | NeurOne Software Engineering | **§2: `common/npps-ffi` names `zeroize` directly and `aes-gcm` gains its `zeroize` feature (`SWR-MG-28`, `OI-PRIV-12`); no crate and no version is added to the tree.** |
+| 16 | 2026-11-19 | NeurOne Software Engineering | **`zeroize` 1.9.1 becomes a direct dependency of `common/npps-jni` (it wipes the secrets read from a Java array, `SWR-MG-32`), and the allocator the two binding libraries install uses it (`SWR-MG-28` (g)); no new crate and no version change.** |
