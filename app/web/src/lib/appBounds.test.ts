@@ -131,3 +131,22 @@ describe('a typed clinician limit in the Compose and iOS apps', () => {
     expect([...checked].filter(f => !fields.has(f))).toEqual([]);
   });
 });
+
+describe('a typed protocol duration in the Compose editor', () => {
+  const screen = read('app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ProtocolEditorScreen.kt');
+
+  // @verifies SWR-UI-01#f
+  it('is never replaced by a default: no 20 minutes for a blank field, no pull up to 1 minute', () => {
+    expect(screen).not.toMatch(/\?:\s*20\b/);
+    expect(screen).not.toMatch(/coerceAtLeast\(1\)/);
+    expect(screen).not.toMatch(/IntervalCount\s*->\s*"20"/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('is refused instead: the field is marked and Save is disabled, from the shared timing bound', () => {
+    expect(screen).toMatch(/durationSecondsOrNull/);
+    expect(screen).toMatch(/NPBounds\.ProtocolFields\.timingValue/);
+    expect(screen).toMatch(/isError = durationRefused/);
+    expect(screen).toMatch(/enabled = !durationRefused/);
+  });
+});
