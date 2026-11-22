@@ -4,6 +4,9 @@ import life.neurone.core.platform.todayIso
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.research.ResearchSuggestionStore
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
@@ -72,6 +75,12 @@ class ConsentStore(
      * transition, like the analytics teardown: a state that was never granted withdraws nothing.
      */
     private val onPortalIdentityWithdrawn: () -> Unit = {},
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. With a lock this store holds no
+     * consent while locked and reads it again at each unlock (`REQ-PRES-01` (d), `OI-PRIV-19`). Used from one thread, as every store
+     * here is: the lock listener and the operations below do not interleave.
+     */
+    private val lock: PresenceLock? = null,
 ) {
     companion object {
         const val GRANTS_KEY = "np.consent.clinician-grants"
@@ -138,9 +147,62 @@ class ConsentStore(
     val consentRecordUnreadable: Boolean
         get() = quarantinedBlobs.any { it.redecidedOnDay == null && it.key in RESEARCH_RECORD_KEYS }
 
+    /**
+     * Whether the properties above are what the store holds. False while locked: a locked read answers "absent", which is not "never
+     * asked", and a state built on it would replace the sealed consents when it was written (`OI-PRIV-19`). Everything reads as
+     * the default then, which admits nothing and grants nothing.
+     */
+    val isReadable: Boolean get() = loaded
+
+    private var loaded = false
+
+    /**
+     * Changes made while locked, oldest first. Each is an **operation** (withdraw, revoke, decline, record a request), not a value:
+     * at the unlock it runs on the sealed state that was read, so it can neither replace that state nor be lost (a withdrawal made
+     * locked must survive, `CLAUDE.md` §6.0; the principal's ruling on `OI-PRIV-19`, 2026-11-21). A change that would widen what is
+     * shared (a grant, an approval, an acceptance, a study descriptor), or that commits a whole state built on what a locked screen
+     * could not show, is refused while locked instead of being held.
+     */
+    private val held = mutableListOf<() -> Unit>()
+
     init {
-        load()
+        if (lock == null || lock.isUnlocked) {
+            load()
+            loaded = true
+        }
+        lock?.onStateChanged { state -> if (state == PresenceState.LOCKED) forget() else reload() }
     }
+
+    /** Hold [op] for the next unlock if the store cannot be read now. True if it was held, and the caller then does nothing more. */
+    private fun deferred(op: () -> Unit): Boolean {
+        if (loaded) return false
+        held += op
+        return true
+    }
+
+    /** The lock closed: nothing of the person's consent stays decrypted in this store. */
+    private fun forget() {
+        clinicianGrants = emptyList()
+        researchConsent = ResearchConsentState()
+        studyParticipations = emptyList()
+        pendingInvitations = emptyList()
+        studyWithdrawals = emptyMap()
+        expansionRequests = emptyList()
+        quarantinedBlobs = emptyList()
+        loaded = false
+    }
+
+    /** The lock opened: read the sealed state, then run what was held on it, in order. */
+    private fun reload() {
+        load()
+        loaded = true
+        val operations = held.toList()
+        held.clear()
+        operations.forEach { it() }
+    }
+
+    /** Whether a write can reach the store now. */
+    private fun writable(): Boolean = lock == null || lock.isUnlocked
 
     // ── Clinician consent ────────────────────────────────────────────────
 
@@ -149,6 +211,7 @@ class ConsentStore(
      * it carries an expiry that is a real day and has not passed.
      */
     fun grantClinicianAccess(grant: ClinicianConsentGrant): Boolean {
+        if (!loaded) return false // widens what is shared: not while the person is not present
         val expiry = grant.expiresAtDay
         if (expiry == null || !isIsoDay(expiry) || !grant.isInForce(todayIso())) return false
         clinicianGrants = clinicianGrants.filterNot { it.id == grant.id } + grant
@@ -157,6 +220,7 @@ class ConsentStore(
     }
 
     fun revokeClinicianAccess(grantId: String) {
+        if (deferred { revokeClinicianAccess(grantId) }) return
         clinicianGrants = clinicianGrants.filterNot { it.id == grantId }
         // An outstanding request to widen a grant that no longer exists is a notification the user
         // can only answer wrongly, so it goes with the grant. Decided requests stay: they are the
@@ -187,6 +251,7 @@ class ConsentStore(
      * are left alone, because they are history rather than an inbox.
      */
     fun addExpansionRequest(request: ClinicianAccessExpansionRequest) {
+        if (deferred { addExpansionRequest(request) }) return
         expansionRequests =
             expansionRequests.filterNot { it.grantId == request.grantId && it.isPending } + request
         save()
@@ -200,6 +265,7 @@ class ConsentStore(
      * can still say the user approved the expansion *and* refused it over history.
      */
     fun approveExpansion(requestId: String, includePriorData: Boolean) {
+        if (!loaded) return // widens what is shared, and a request cannot be shown while locked
         val request = expansionRequests.firstOrNull { it.id == requestId && it.isPending } ?: return
 
         // Fail closed on a stale request: the grant may have been revoked, or already widened past
@@ -235,6 +301,7 @@ class ConsentStore(
      * the clinician may raise a fresh request.
      */
     fun denyExpansion(requestId: String) {
+        if (deferred { denyExpansion(requestId) }) return
         expansionRequests = expansionRequests.map {
             if (it.id == requestId && it.isPending) {
                 it.copy(
@@ -258,6 +325,7 @@ class ConsentStore(
      * plainly rather than implying a message was sent.
      */
     fun askQuestionAboutExpansion(requestId: String) {
+        if (deferred { askQuestionAboutExpansion(requestId) }) return
         expansionRequests = expansionRequests.map {
             if (it.id == requestId && it.isPending) {
                 it.copy(
@@ -323,6 +391,9 @@ class ConsentStore(
      * category-only edit — the 2026-06-16 regression inverted.
      */
     fun updateResearchConsent(state: ResearchConsentState) {
+        // A whole state built on what a locked screen could show would replace the sealed consents. A withdrawal made locked goes
+        // through the operations below.
+        if (!loaded) return
         val wasBlanketGranted = researchConsent.blanketConsentGranted
         val isWithdrawal = wasBlanketGranted && !state.blanketConsentGranted
 
@@ -360,6 +431,14 @@ class ConsentStore(
      * revoke research analytics.
      */
     fun withdrawBlanketResearchConsent() {
+        if (!loaded) {
+            // The person is saying stop now. What a removal can do needs no presence, so it is done at once; the withdrawal mark
+            // is written on the sealed state at the unlock, where "was it granted" can be read (`REQ-PRES-01` (b)).
+            revokeResearchAnalytics()
+            forgetPortalIdentity()
+            held += { withdrawBlanketResearchConsent() }
+            return
+        }
         // Guarded on the transition, like updateResearchConsent: calling this when blanket consent
         // was never granted stops nothing, and marking it would silently bar an L2 participant
         // from studies they are still consenting to.
@@ -444,6 +523,10 @@ class ConsentStore(
     }
 
     fun setCategoryConsent(category: ResearchCategory, granted: Boolean) {
+        if (!loaded) {
+            if (!granted) held += { setCategoryConsent(category, false) } // a withdrawal is held; a grant is not made locked
+            return
+        }
         researchConsent = withTimes(
             researchConsent,
             researchConsent.copy(categoryConsents = researchConsent.categoryConsents + (category to granted)),
@@ -566,6 +649,7 @@ class ConsentStore(
      * grant on.
      */
     fun applyWithdrawals(value: JsonElement) {
+        if (deferred { applyWithdrawals(value) }) return
         // Only well-formed marks are taken from a bundle. Anything else would be stored as received and would
         // order against real marks by accident of its text (`REQ-CONSENT-24` a).
         val incoming = buildJsonObject {
@@ -660,6 +744,8 @@ class ConsentStore(
      * the user did.
      */
     fun ingestStudyDescriptor(descriptor: StudyDescriptor): StudyDescriptorAdmission {
+        // The device cannot tell "never asked" from "said stop" without reading the record, so it admits nothing (`REQ-CONSENT-20`).
+        if (!loaded) return StudyDescriptorAdmission.Refused(StudyDescriptorAdmission.Reason.CONSENT_RECORD_UNREADABLE)
         val admission = ConsentEngine.admit(
             descriptor = descriptor,
             verification = descriptorVerifier.verify(descriptor),
@@ -706,6 +792,7 @@ class ConsentStore(
      * is already in.
      */
     fun acceptInvitation(studyId: String) {
+        if (!loaded) return // a consent is never given on a state that could not be read
         val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
         if (invitation.posture != StudyInvitation.Posture.CONSENT_REQUEST || !invitation.isOpen) return
         // A request that arrived under a consent since withdrawn, or while the stored record is unreadable,
@@ -734,6 +821,7 @@ class ConsentStore(
      * to withdraw.
      */
     fun declineInvitation(studyId: String) {
+        if (deferred { declineInvitation(studyId) }) return
         val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
         if (!invitation.isOpen) return
 
@@ -763,6 +851,7 @@ class ConsentStore(
      * sent.
      */
     fun askQuestionAboutInvitation(studyId: String) {
+        if (deferred { askQuestionAboutInvitation(studyId) }) return
         val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
         if (invitation.posture != StudyInvitation.Posture.CONSENT_REQUEST || !invitation.isOpen) return
 
@@ -805,6 +894,7 @@ class ConsentStore(
 
     /** Per-study withdrawal — stops that study only; research analytics unaffected. */
     fun withdrawFromStudy(studyId: String) {
+        if (deferred { withdrawFromStudy(studyId) }) return
         if (studyParticipations.any { it.studyId == studyId && it.isActive }) {
             studyWithdrawals = studyWithdrawals + (studyId to WithdrawalMark.next(studyWithdrawals[studyId], today()))
         }
@@ -920,6 +1010,18 @@ class ConsentStore(
     }
 
     private fun save() {
+        // The lock closed under a running operation: nothing is written, and the lock's own listener drops what is held in memory.
+        if (!writable()) return
+        try {
+            saveAll()
+        } catch (e: SecretKeyUnavailableException) {
+            // Under a lock the key went away mid-write: the values already written stand, each being one whole value, and the rest are
+            // not written. Without one the error is the host's, as it always was.
+            if (lock == null) throw e
+        }
+    }
+
+    private fun saveAll() {
         store.putString(
             GRANTS_KEY,
             json.encodeToString(ListSerializer(ClinicianConsentGrant.serializer()), clinicianGrants),

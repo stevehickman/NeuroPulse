@@ -49,15 +49,19 @@
 #define NP_PBM_REG_CUR_A            0x02U   /* 660nm                          */
 #define NP_PBM_REG_CUR_B            0x03U   /* 808nm                          */
 #define NP_PBM_REG_CUR_C            0x04U   /* 1064nm                         */
-#define NP_PBM_REG_PWM_FREQ_A       0x05U
-#define NP_PBM_REG_PWM_FREQ_B       0x06U
-#define NP_PBM_REG_PWM_FREQ_C       0x07U
+/* 0x05-0x07 were PWM_FREQ_A/B/C, one-byte codes for six frequencies.  They are retired and reserved (read 0, writes
+ * acknowledged and ignored); the pulse frequency is now the 32-bit millihertz registers FREQ_x below
+ * (NP-FW-PBM1064-001 s5.1, s5.2; OI-PBMTILE-01). */
 #define NP_PBM_REG_DUTY_A           0x08U
 #define NP_PBM_REG_DUTY_B           0x09U
 #define NP_PBM_REG_DUTY_C           0x0AU
 #define NP_PBM_REG_THERMAL          0x0BU
 #define NP_PBM_REG_FAULT_LATCH      0x0CU
 #define NP_PBM_REG_CONFIG           0x0DU
+/* Pulse frequency, millihertz, 32 bits little-endian, 0 = continuous wave.  One register per channel, four bytes each. */
+#define NP_PBM_REG_FREQ_A           0x12U
+#define NP_PBM_REG_FREQ_B           0x16U
+#define NP_PBM_REG_FREQ_C           0x1AU
 
 /* ── STATUS register bit masks ───────────────────────────────────────────────── */
 
@@ -92,14 +96,15 @@
 #define NP_PBM_DUTY_MAX_REG         0x32U   /* 50 decimal; 25% duty           */
 #define NP_PBM_DUTY_FULL_REG        0xC8U   /* 200 decimal; 100% (CW ref)     */
 
-/* ── PWM frequency codes ─────────────────────────────────────────────────────── */
+/* ── Pulse frequency ─────────────────────────────────────────────────────────── */
 
-#define NP_PBM_FREQ_CODE_CW         0x00U   /* continuous wave (DC)           */
-#define NP_PBM_FREQ_CODE_2HZ        0x01U
-#define NP_PBM_FREQ_CODE_6HZ        0x06U
-#define NP_PBM_FREQ_CODE_10HZ       0x0AU
-#define NP_PBM_FREQ_CODE_20HZ       0x14U
-#define NP_PBM_FREQ_CODE_40HZ       0x28U   /* default: gamma                  */
+/* 0 millihertz is continuous wave.  Any other value is a frequency in millihertz.  There is no code table: the six
+ * codes of NP-FW-PBM1064-001 s5.2 (2, 6, 10, 20 and 40 Hz and CW) are retired (OI-PBMTILE-01, the principal,
+ * 2026-11-21).  Which frequencies a tile can realise is the tile's to state and to refuse (OI-PBMTILE-03). */
+#define NP_PBM_FREQ_CW_MHZ          0U
+#define NP_PBM_FREQ_RESET_MHZ       40000U  /* the tile's reset value, 40 Hz (NP-FW-HEXTILE-001 s5.2) */
+/* np_pbm_drive_map_eeg_freq() returns this when the frequency is to stay as it is. */
+#define NP_PBM_FREQ_NO_CHANGE       0xFFFFFFFFU
 
 /* ── Thermal limits (IEC 60601, CLAUDE.md §3) ───────────────────────────────── */
 

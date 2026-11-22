@@ -38,6 +38,7 @@
 //! | `applyItem` | `name`, `value` | `{ok: true}` |
 //! | `getBundle` / `putBundle` | `bundle` (hex) | `{bundle: hex or null}` / `{ok}` |
 //! | `readClaim` / `createClaim` | `claim` | `{claim: object or null}` / `{created: bool}` |
+//! | `releaseClaim` | none | `{ok}`: remove the claim marker; asked only by a migration backup, after it has written its bundle, for a marker that names an earlier bundle (`OI-PRIV-02`) |
 //! | `writeConfirmation` / `readConfirmation` | `confirmation` (`{bundleHash, tag}`) | `{ok}` / `{confirmation: object or null}` |
 //! | `runClearStep` | `step`: `destroyEncryptionKey` or `forgetPairingRecord` | `{ok: bool}` |
 //! | `listFiles` | none | `{files: [{path, size}]}`: every UHDR-class file the app holds that is still there |
@@ -270,11 +271,40 @@ fn backup(req: &Value) -> R<Value> {
             st["step"] = json!("put");
             effect(st, json!({ "type": "putBundle", "bundle": bundle }))
         }
-        "put" => done(json!({
-            "ok": true, "kind": st["kind"], "bundleHash": st["bundleHash"], "written": st["written"], "omitted": st["omitted"],
-        })),
+        "put" => {
+            if st["kind"] != "migrate" {
+                return backup_done(st);
+            }
+            // OI-PRIV-02: a claim marker names the bundle it was taken for, so one that names an earlier bundle is stale once
+            // this one has replaced it, and would refuse a restore of this one. It is looked at AFTER the bundle is written, so
+            // no restore can claim the bundle being replaced, and a claim for THIS bundle (a restore that began at once) stays.
+            st["step"] = json!("claimOld");
+            effect(st, json!({ "type": "readClaim" }))
+        }
+        "claimOld" => {
+            let claim = &req["result"]["claim"];
+            let stale = claim.is_object() && claim["bundleHash"] != st["bundleHash"];
+            if !stale {
+                return backup_done(st);
+            }
+            st["step"] = json!("claimOldGone");
+            effect(st, json!({ "type": "releaseClaim" }))
+        }
+        "claimOldGone" => {
+            // The bundle is written either way; a marker left in place would refuse the restore, so the person is told.
+            if req["result"]["ok"] != true {
+                return refused("step_failed");
+            }
+            backup_done(st)
+        }
         other => Err(format!("unknown backup step '{other}'")),
     }
+}
+
+fn backup_done(st: Value) -> R<Value> {
+    done(json!({
+        "ok": true, "kind": st["kind"], "bundleHash": st["bundleHash"], "written": st["written"], "omitted": st["omitted"],
+    }))
 }
 
 // ─── inspect ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -422,6 +452,8 @@ fn restore(req: &Value) -> R<Value> {
             if st["kind"] == "migrate" {
                 // SWR-MG-08: the tag the confirmation will carry is made now, while the key is here; the key is not kept.
                 st2["tag"] = dispatch("confirmationTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
+                // OI-PRIV-02: likewise the tag a claim of this bundle carries; a marker without it was not made by a key holder.
+                st2["claimTag"] = dispatch("claimTag", &json!({ "key": req["result"]["key"], "bundleHash": st["hash"] }))?["tag"].clone();
             }
             // SWR-MG-29 (c): the phone has now opened this epoch, and records it before it takes a claim or changes anything,
             // so a restore that stops part way still leaves it refusing anything older. The same bundle opens again.
@@ -447,16 +479,17 @@ fn restore(req: &Value) -> R<Value> {
                 "claimDecision",
                 &json!({
                     "kind": st["kind"], "route": { "atomicClaim": st["route"]["atomicClaim"] }, "token": st["token"],
-                    "bundleHash": st["hash"], "existingClaim": req["result"]["claim"],
+                    "bundleHash": st["hash"], "claimTag": st["claimTag"], "existingClaim": req["result"]["claim"],
                 }),
             )?;
             match d["action"].as_str().unwrap_or_default() {
                 "already_ours" | "no_claim_needed" => next_item(st),
                 "route_not_offered" => refused("route_not_offered"),
                 "refuse_claimed" => refused("claimed"),
+                "refuse_unauthentic" => refused("claim_unauthentic"),
                 _ => {
                     st["step"] = json!("claimW");
-                    let claim = json!({ "token": st["token"], "bundleHash": st["hash"] });
+                    let claim = json!({ "token": st["token"], "bundleHash": st["hash"], "tag": st["claimTag"] });
                     effect(st, json!({ "type": "createClaim", "claim": claim }))
                 }
             }
@@ -466,7 +499,7 @@ fn restore(req: &Value) -> R<Value> {
             effect(st, json!({ "type": "readClaim" }))
         }
         "claimBack" => {
-            let own = dispatch("claimReadback", &json!({ "token": st["token"], "bundleHash": st["hash"], "readBack": req["result"]["claim"] }))?;
+            let own = dispatch("claimReadback", &json!({ "token": st["token"], "bundleHash": st["hash"], "claimTag": st["claimTag"], "readBack": req["result"]["claim"] }))?;
             if own["owned"] == true {
                 next_item(st)
             } else {
@@ -832,6 +865,7 @@ mod tests {
             "getBundle" => { route.route_calls += 1; json!({ "bundle": route.bundle }) }
             "putBundle" => { route.route_calls += 1; route.bundle = e["bundle"].as_str().map(String::from); json!({ "ok": true }) }
             "readClaim" => { route.route_calls += 1; json!({ "claim": route.claim }) }
+            "releaseClaim" => { route.route_calls += 1; route.claim = None; json!({ "ok": true }) }
             "createClaim" => {
                 route.route_calls += 1;
                 let created = route.claim.is_none();
@@ -933,6 +967,48 @@ mod tests {
         run("restore", params, route, p, secret)
     }
 
+    // @verifies SWR-MG-07
+    #[test]
+    fn a_migration_backup_removes_the_marker_of_the_bundle_it_replaces_and_keeps_one_for_its_own() {
+        let (mut route, mut old, mut first, mut second) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50), phone(&ADAPTER, 90));
+        fill(&mut old);
+        backup("migrate", &mut route, &mut old, ATOMIC());
+        assert_eq!(restore(&mut route, &mut first, SECRET)["ok"], true);
+        assert!(route.claim.is_some(), "the first migration's claim stands until released");
+        // A new migration backup to the same place: the earlier bundle's marker goes, so the new bundle is not refused.
+        let done = backup("migrate", &mut route, &mut old, ATOMIC());
+        assert_eq!(done["ok"], true, "{done}");
+        assert!(route.claim.is_none(), "the earlier bundle's marker is removed");
+        assert_eq!(restore(&mut route, &mut second, SECRET)["ok"], true);
+        // A marker for the bundle now on the place is not touched by a backup that did not write that bundle.
+        let before = route.claim.clone();
+        assert!(before.is_some());
+        // A health-data backup takes no part: it is never claimed and leaves a marker alone.
+        let mut uhdr = Route::default();
+        uhdr.claim = Some(json!({"token":"x","bundleHash":"00","tag":"aa"}));
+        backup("uhdr", &mut uhdr, &mut old, ATOMIC());
+        assert!(uhdr.claim.is_some());
+    }
+
+    // @verifies SWR-MG-07
+    #[test]
+    fn a_planted_marker_is_refused_as_unauthentic_and_left_in_place() {
+        let (mut route, mut old, mut fresh) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+        fill(&mut old);
+        backup("migrate", &mut route, &mut old, ATOMIC());
+        let planted = json!({"token":"anyone","bundleHash":"00"});
+        route.claim = Some(planted.clone());
+        let r = restore(&mut route, &mut fresh, SECRET);
+        assert_eq!((r["ok"].clone(), r["reason"].clone()), (json!(false), json!("claim_unauthentic")));
+        assert_eq!(route.claim, Some(planted), "the restore does not touch it");
+        assert!(holds_only_the_epoch(&fresh));
+        // A claim a key holder made is claimed, not planted.
+        let (mut other, mut first) = (Route::default(), phone(&ADAPTER, 90));
+        backup("migrate", &mut other, &mut old, ATOMIC());
+        assert_eq!(restore(&mut other, &mut first, SECRET)["ok"], true);
+        assert_eq!(restore(&mut other, &mut fresh, SECRET)["reason"], "claimed");
+    }
+
     // @verifies SWR-MG-02
     // @verifies SWR-MG-08
     #[test]
@@ -957,7 +1033,7 @@ mod tests {
         assert_eq!(record, confirmation);
         assert!(!fresh.kv.contains_key("np.migration.pending-clear"), "the record never moves");
         let claim = route.claim.clone().unwrap();
-        assert_eq!(claim.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "token"]);
+        assert_eq!(claim.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["bundleHash", "tag", "token"]);
     }
 
     // @verifies SWR-MG-01

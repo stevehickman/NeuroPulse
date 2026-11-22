@@ -78,7 +78,12 @@ typedef enum {
     NP_ACCEL_OK = 0,
     NP_ACCEL_ERR_ARG,
     NP_ACCEL_ERR_IMU,
-    NP_ACCEL_ERR_WRITE
+    NP_ACCEL_ERR_WRITE,
+    /* The spent §H budget could not be persisted, so the extended record was
+     * NOT written (CHAR-2, NP-FW-EMMC-002 §H.3.4; OI-PRIV-36).  Distinct from
+     * NP_ACCEL_ERR_WRITE so a caller can tell "budget write failed, nothing
+     * sent" from "a record write failed". */
+    NP_ACCEL_ERR_BUDGET
 } np_accel_status_t;
 
 /* ── §G.2 thresholds — UNVALIDATED PLACEHOLDERS ──────────────────────────────
@@ -271,7 +276,13 @@ np_accel_status_t np_accel_shdr_evaluate(const float                  *samples,
 /* Reads the IMU for the between-session gap, calls the evaluator, writes the
  * SHDR record(s), and zeroes the raw buffer with memset_explicit on EVERY exit
  * path — including the error paths.  Called by np_hub_session_log after session
- * close and after a boot with no preceding session (§G.6). */
+ * close and after a boot with no preceding session (§G.6).
+ *
+ * The extended record is written only after the spent budget has been
+ * persisted (CHAR-2, §H.3.4).  A failed budget write returns
+ * NP_ACCEL_ERR_BUDGET with no extended record written; a failed extended
+ * record write after a persisted budget returns NP_ACCEL_ERR_WRITE with the
+ * budget spent — the under-collect direction (OI-PRIV-36). */
 np_accel_status_t np_accel_shdr_process_session_gap(void);
 
 #ifdef __cplusplus

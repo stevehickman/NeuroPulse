@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 20
+**Revision:** 21
 **Date:** 2026-11-21
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -315,21 +315,19 @@ Before Rev 6, every interlock fault set `cutoff_occurred`, and the event HR was 
 
 ### 4.6 SHDR session summary
 
-Written to the SHDR partition. Contains device metrics only — no user biology.
+> **Rev 21 (2026-11-21), `OI-PRIV-23` (NP-PRIV-ANALYSIS-004 H3, GitHub #951):** the summary is three flags. Through the previous revision it also listed electrode configuration, frequency, current, duration and each electrode's impedance in kΩ, under the heading "device metrics only". Every one of those is UHDR (§8.2 of this document; `data-architecture-detail.md` §5.1). Joined by session count to the SHDR cutoff events, it would have made a per-session table of neck-stimulation dose against cardiac response, keyed to the warranty token. The values stay in the UHDR record (§4.5). The struct also carried `abort_reason` here, and `fault_reason` in the code; the code's field is the one kept.
+
+Written to the SHDR partition. Device condition only:
 
 ```c
 typedef struct {
-    uint8_t  electrode_config;
-    uint16_t stim_freq_hz;
-    uint16_t stim_current_ua;
-    uint32_t stim_duration_s;
-    float    impedance_left_kohm;
-    float    impedance_right_kohm;
-    uint8_t  impedance_check_pass;   /* 1 if both electrodes passed             */
-    uint8_t  cutoff_occurred;        /* 1 if cardiac interlock fired — no HR data*/
-    uint8_t  abort_reason;           /* 0=normal                                */
-} np_cvns_shdr_summary_t;
+    uint8_t  impedance_check_pass;   /* 1 if both electrodes passed; no kΩ      */
+    uint8_t  cutoff_occurred;        /* flag only — no HR values, no timing      */
+    uint8_t  fault_reason;           /* np_cvns_fault_reason_t                   */
+} np_cvns_shdr_summary_t;            /* _Static_assert: sizeof == 3              */
 ```
+
+> **`REQ-CVNS-15`** — **The cervical VNS SHDR session summary holds three one-byte flags and nothing else.** (a) It is the impedance pass flag (both electrodes passed, as one boolean), the cutoff flag and the fault reason code. (b) No impedance value, stimulation parameter (frequency, current, pulse width), duration, electrode configuration, heart-rate value or time is copied into it. Those stay in the UHDR session record (§4.5). *Fails without it:* raw tissue impedance and the stimulation dose reach NeurOne's fleet database keyed to the warranty token, which on a personally owned unit is the wearer. NeurOne may never hold UHDR. *Traced to:* `CLAUDE.md` §5.1 (the defining test; "protocol parameters used" and "session timestamps and duration" are UHDR contents); `data-architecture-detail.md` §5.1 (cervical VNS per-electrode impedance is "NEVER written to SHDR"); §8.2 of this document. *Verified by:* host tests in `firmware/cervical_vns/tests/np_cvns_fai_tests.c`, and a `_Static_assert` on the struct's size.
 
 **UHDR/SHDR boundary:** HR time series, baseline HR, cutoff HR, and all cardiovascular signal data are UHDR (user biology). The bare fact that a cutoff occurred (without the HR values) is SHDR (device safety event log). Per CLAUDE.md §5.1 boundary resolution rule: when in doubt → UHDR.
 
@@ -879,7 +877,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-01 | Platform HAL stubs (`np_platform_cvns_rpeak_gpio_pulse`, `np_platform_cvns_spi_transfer`) must be implemented before integration testing | FW team | Integration test |
 | OI-CVNS-02 | Safety MCU bare-metal firmware (STM32G071, IEC 62304 Class C) must be authored and certified separately | Embedded safety team | T2 clinical release |
 | OI-CVNS-03 | UHDR session record commit to eMMC must call AES-256-XTS write with biometric-derived key | FW/Storage team | UHDR compliance |
-| OI-CVNS-04 | SHDR session summary write must call SHDR storage API after each session. **Do not close by wiring `np_cvns_shdr_summary_t` as it stands (§4.6):** it carries raw per-electrode impedance, frequency, current, duration and electrode configuration, which `data-architecture-detail.md` §5.1 classes as UHDR. Reshape or retire the struct first (`OI-PRIV-23`, GitHub #951, NP-PRIV-ANALYSIS-004 H3) | FW team | SHDR compliance |
+| OI-CVNS-04 | SHDR session summary write must call SHDR storage API after each session. **The summary it writes is the three-flag struct of §4.6 (`REQ-CVNS-15`): impedance pass flag, cutoff flag, fault reason.** It was reshaped first (`OI-PRIV-23` (NP-PRIV-ANALYSIS-004), GitHub #951, H3), because the earlier struct carried raw per-electrode impedance and stimulation parameters, which are UHDR. Wiring the write must not add a field to the struct; a new field needs a `data-architecture-detail.md` §5.1 row that puts it in SHDR | FW team | SHDR compliance |
 | OI-CVNS-05 | IRB approval required before FAI-CV03 tolerability study can be executed | Regulatory/Clinical team | T2 clinical release |
 | OI-CVNS-06 | FAI-CV02 hardware bench (R-peak signal generator, oscilloscope) must be completed on T2 prototype | HW team | Full G3-08 closure |
 | OI-CVNS-07 | FAI-CV01 anatomical phantom bench must be completed with T2 accessory prototype | HW team | Full G3-08 closure |
@@ -1254,3 +1252,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 18 | 2026-11-08 | NeurOne Firmware Engineering | **§14.8 added: cardiac cutoff sensitivity (`REQ-CVNS-14`).** Levels 1 and 2 cut at over 14 and 13 BPM; a higher level acts at once and a lower one at the next CVNS request; carried in the HR report's reserved word. Synthetic detection and false-trip costs per level are tabulated. The 15 BPM threshold of `REQ-CVNS-09` is unchanged at level 0. IEC 62304 SW-01 Class C: `np_cardiac_interlock.c` and `np_safety_main.c` change; verification is host tests only, with the ARM build and silicon timing not run. |
 | 19 | 2026-11-11 | NeurOne Firmware Engineering | **§3, §8: NP_CVNS_SESSION_MIN_S and NP_CVNS_SESSION_MAX_S are retired and removed from the firmware (the principal, 2026-11-11). np_cvns_stim_init refuses a configuration with no length and one no longer than the two ramps, which is geometry and not a health limit; any other length is the protocol's.** |
 | 20 | 2026-11-21 | NeurOne Quality | **§14 OI-CVNS-04: note added that it must not be closed by wiring `np_cvns_shdr_summary_t` as it stands, because the struct carries raw per-electrode impedance and stimulation parameters, which §5.1 classes as UHDR (OI-PRIV-23, GitHub #951, NP-PRIV-ANALYSIS-004 H3). No requirement or design changed.** |
+| 21 | 2026-11-21 | NeurOne Firmware Engineering | **§4.6: np_cvns_shdr_summary_t is three one-byte flags (impedance check passed, cutoff occurred, fault reason) and no longer lists electrode configuration, frequency, current, duration or per-electrode kΩ, which are UHDR (§8.2; data-architecture-detail.md §5.1). REQ-CVNS-15 added, verified by host tests and a _Static_assert. §14 OI-CVNS-04 re-worded to name the three-flag struct (OI-PRIV-23 (NP-PRIV-ANALYSIS-004), GitHub #951, H3). The write is still a stub; nothing had reached SHDR. IEC 62304 SW-02 Class B: np_cvns_types.h and np_cvns_session.c change; no Class C code, constant, limit or interlock behaviour changes.** |
