@@ -57,7 +57,7 @@ np_crypto_tests 700
 np_cvns_fai_tests 394
 np_cvns_fault_summary_tests 443
 np_cvns_reenable_tests 367
-np_edf_tests 343   # 349 -> 343 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2): the gate's per-file SHDR fault callback and the test's fault recorder were removed, so the lines that fired and recorded it no longer exist; the gate now writes nothing to SHDR (REQ-SW02-14)
+np_edf_tests 349
 np_factory_reset_tests 291
 np_freertos_smoke_tests 690
 np_gatt_server_tests 484
