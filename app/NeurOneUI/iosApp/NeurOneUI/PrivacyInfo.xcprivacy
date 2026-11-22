@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Apple privacy manifest for the iOS host of the shared app (app/NeurOneUI). It mirrors the Swift app's
-         (app/ios/NeurOne/PrivacyInfo.xcprivacy) for what this host does, and declares less where this host does less:
+    <!-- Apple privacy manifest for the iOS host of the shared app (app/NeurOneUI). It mirrors the retired Swift app's
+         manifest (in git history, OI-UI-KMP-05) for what this host does, and declares less where this host does less:
          it reads no HealthKit data and sends no crash reports, so neither is declared. CoreBluetooth is not a
          required-reason API; its disclosure is the NSBluetoothAlwaysUsageDescription in Info.plist.
 
