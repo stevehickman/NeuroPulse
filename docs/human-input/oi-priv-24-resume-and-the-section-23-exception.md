@@ -53,7 +53,7 @@ stop stay open, exactly as before.
 | Central | How it resumes | Effect |
 |---------|----------------|--------|
 | Compose shared app (Android, desktop/Windows, browser) | `NeurOneGattManager.requestSessionResume()`, writes 0x02 to `SESSION_PAUSE_ID` | None on an encrypted link. Every session it can start was uploaded over an encrypted link (`writeProtocolChunk` is gated on the encrypted-only serial read, `REQ-SW03-31`), and on reconnect it reads the serial again. A refused resume reaches `onCharacteristicWriteFailed` and `writeRefusals`. |
-| iOS SwiftUI app (retiring) | `NeurOneGATTManager.sendSessionResume`, writes 0x02 with response | As above (`encryptedReadShown`, `OI-PRIV-17`). CoreBluetooth answers ATT 0x0F by pairing or encrypting. |
+| iOS SwiftUI app | Retired by #946 (2026-11-22); iOS now runs the Compose app above | Nothing left to change. |
 | React web app, `app/windows` C# project | No hub link or session screen | Nothing to change. |
 | Simulator twin | Runs the hub's own `np_gatt_server.c` (`platform_sim/np_sim_gatt.c`); its bonded link reports encrypted at `gatt_init` | None; the new end-to-end test drops the link to show the refusal. The display-role simulator server (`simulator/server/index.js`) has no resume. |
 
@@ -66,7 +66,7 @@ What (e) closes is the case of a central that never paired. What remains needs a
 ### 2.4 What `REQ-FWHUB-67` says about the detector hold
 
 The halt "is a **pause that needs a second step** (stop, or resume from where it paused), never an automatic resume, and an
-automated halt errs toward stopping". It does not say who may take the second step. The Compose app and the iOS app put the
+automated halt errs toward stopping". It does not say who may take the second step. The Compose app (every platform, iOS included since #946) puts the
 Stop / Resume question to the person when `SESSION_HOLD` reads 3 or 4.
 
 ## 3. Questions
