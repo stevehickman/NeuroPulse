@@ -124,8 +124,14 @@ extern "C" {
  * register file behind I2C, NP_PBM_OK from the safety-MCU enable request.
  * That file is now host-test only.  np_pbm_hal_tia_gain_boot_init() is declared
  * in the same header but has no caller in the image, so it is not owed.
+ *
+ * 119 → 120 on 2026-11-21 (OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7):
+ * np_factory_reset_hal_purge_unmapped(), the R-7a eMMC SANITIZE.  R-5 erases
+ * UHDR and cannot purge it (SANITIZE has no LBA scope), so the purge is its
+ * own step after the last erase.  It traps like the rest of the reset HAL
+ * until the application has an eMMC transport (OI-RESET-01).
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   119
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   120
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
