@@ -212,9 +212,27 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 
 - **Active user.** An opaque 32-bit tag. On both apps it is the first four bytes of the profile's
   random UUID, read little-endian (`ActiveUserTag`). 0 means *unspecified* and `0xFFFFFFFF` means
-  *any*; both are reserved and never produced. The hub forwards the tag in a 10-byte SPI frame
+  *any*; both are reserved and never produced. **That derivation is being replaced** (`OI-PRIV-29`,
+  NP-PRIV-ANALYSIS-004): a UUID prefix is the same on every helmet, joins to the profile id in exported
+  files and is UHDR-class (`data-architecture-detail.md` §5.1). The replacement is `REQ-FAULTMSG-01`
+  below; its core is built (`common/npps-core/src/active_user_tag.rs`) and not wired into the apps,
+  pending the Safety brief `docs/human-input/oi-priv-29-active-user-tag-safety.md`.
+  The hub forwards the tag in a 10-byte SPI frame
   (`np_safety_user_cmd_t`, `NP_SAFETY_CMD_ACTIVE_USER`) only while no session is running. The
   safety MCU accepts it only when nothing is granted and no NV write is owed.
+
+> **`REQ-FAULTMSG-01`** — The active-user tag an app names to a helmet: (a) is HMAC-SHA-256, keyed with a
+> 32-byte secret held with the individual profile, over a domain string and the helmet's serial, so it
+> differs per (profile, helmet) and cannot be computed from the profile id; (b) never takes the reserved
+> values 0 or `0xFFFFFFFF`; (c) moves a (profile, helmet) pair from its previous tag to the new one only on a reading that nobody on
+> the helmet has an outstanding cutoff (`NP_SAFETY_NV_FLAG_OUTSTANDING` clear), so a change of derivation never
+> releases a hold. The helmet does not report which tag is current, so a per-user reading cannot be tied to
+> the previous tag. *Fails if not met:* (a) one
+> person is linkable across helmets and to exported files by a UHDR-class value (CLAUDE.md §5.1); (b) the
+> safety MCU refuses the frame and the person is never named (`np_safety_main.c`); (c) a person's cardiac
+> cutoff is released without the re-enable sequence, the hazard control of `REQ-CVNS-09`. *Traces to:*
+> CLAUDE.md §5.1; RFC 2104 §3 (key length); `REQ-CVNS-09`; this section's blocking rule.
+
 - **Blocking rule.** `blocked(u)` holds if any of these is true:
   - an unattributable cutoff is outstanding: one recorded before any user was named, or read back
     from a torn record;
