@@ -131,8 +131,10 @@ data class CervicalFaultStatus(
 
 /**
  * The opaque tag that tells the device which person is using it (per-user cardiac scope,
- * principal 2026-09-22). Derived from the app's individual profile id — a random UUID — so it
- * carries no name or identity. The device's two reserved values are never produced. Same
+ * principal 2026-09-22). The first four bytes of the app's individual profile id (a random UUID).
+ * It carries no name, but it is the same on every helmet and joins to the profile id, so it is
+ * UHDR-class; REQ-FAULTMSG-01 replaces it with a per-(profile, helmet) HMAC in common/npps-core
+ * (OI-PRIV-29, NP-PRIV-ANALYSIS-004). The device's two reserved values are never produced. Same
  * derivation as iOS ActiveUserTag: the UUID's first four bytes, little-endian.
  */
 object ActiveUserTag {
