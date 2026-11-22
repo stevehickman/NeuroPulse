@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
-**Revision:** 7
-**Date:** 2026-11-19
+**Revision:** 8
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
@@ -294,3 +294,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 5 | 2026-11-21 | NeurOne Software Engineering | **§5: the erasure queue keeps the identifier until the relay has accepted it (a refusal never drops it), and a device erase asks the relay before it wipes the queue (`REQ-SW03-19` (b), (d)).** |
 | 6 | 2026-11-16 | NeurOne Software Engineering | **§3: event names are a literal list (new §3.3); `screen_name` loses the session and consent screens (§3.1); `error_code` is a literal list of app failures, each above 255, never a helmet fault code (new §3.4); `engagement_tier` is ruled to stay (§3.2); §7's terms are checked against the list by a test (`OI-PRIV-05`).** |
 | 7 | 2026-11-19 | NeurOne Software Engineering | **New §4.1: analytics events are to go through an Oblivious HTTP relay (decided, not built); until then the edge hands the address to nothing and writes it in no log (`OI-PRIV-05` (5), the principal, 2026-11-19); analytics may share the fleet path's relay and gateway, and no event ships before the relay is built (the principal, 2026-11-20).** |
+| 8 | 2026-11-21 | NeurOne Software Engineering | **§4.1 (the floor): the analytics proxy removes every header a proxy can carry the address in, before PostHog or the erasure relay, and neither log keeps any request header (`OI-PRIV-51`).** |
