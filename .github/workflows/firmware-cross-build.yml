@@ -239,7 +239,8 @@ env:
   # 61 → 62: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
   # 62 → 63: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
   # 64 → 65: np_bootloader_rollback_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15).
-  NP_CLASS_B_TEST_COUNT: '65'
+  # 65 → 66: np_bootloader_sanitize_tests (OI-PRIV-27 (NP-PRIV-ANALYSIS-004), REQ-SW02-13).
+  NP_CLASS_B_TEST_COUNT: '66'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.
