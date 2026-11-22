@@ -5,9 +5,9 @@
  *
  * §E.4 requires that, before any EDF+ file is included in a research extract,
  * a privacy-header validator runs over it.  A file whose header violates the
- * §E.2 policy is EXCLUDED from the extract.  The anonymization task is NOT
- * aborted — only the offending file is dropped; processing continues with the
- * remaining files.
+ * §E.5 research-header policy is EXCLUDED from the extract.  The anonymization
+ * task is NOT aborted — only the offending file is dropped; processing continues
+ * with the remaining files.
  *
  * NOTHING ABOUT THE PASS REACHES SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2,
  * REQ-SW02-14).  Until 2026-11-21 the gate fired an injected callback once
@@ -34,10 +34,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "np_edf_types.h"
+#include "np_edf_research.h"
 
 /* Outcome tally for one gate pass. */
 typedef struct {
-    uint32_t included;  /* files that passed the §E.2 privacy policy */
+    uint32_t included;  /* files that passed the §E.5 research policy */
     uint32_t excluded;  /* files rejected on a header violation      */
 } np_edf_gate_result_t;
 
@@ -46,13 +47,18 @@ typedef struct {
  *
  *   headers   array of `count` candidate EDF+ headers (read-only).
  *   count     number of candidates (0 is a valid no-op).
+ *   policy    the study's research-header policy (§E.5).  Mandatory when
+ *             count > 0.  A local header (§E.2) fails it: the pipeline builds
+ *             each candidate with np_edf_make_research_header() first.
  *   included  caller-owned bool array of length `count`.  On return,
- *             included[i] == true iff headers[i] passed the §E.2 policy and may
+ *             included[i] == true iff headers[i] passed the §E.5 policy and may
  *             be emitted into the extract; false means the file is excluded.
  *   result    optional (may be NULL).  Receives the included / excluded tally.
  *
  * Behaviour (§E.4):
- *   - Each header is checked with np_edf_validate_privacy_header().
+ *   - Each header is checked with np_edf_validate_research_header(h, policy):
+ *     patient code 'X' or the study's own, no other identifying text, a start
+ *     date blank or rounded to the study's window, start time 00.00.00.
  *   - A failing header is EXCLUDED (included[i] = false); the pass CONTINUES
  *     with the remaining files — a violation never aborts.
  *   - Nothing is written to, or handed out for, SHDR.
@@ -62,10 +68,13 @@ typedef struct {
  *   NP_EDF_OK          on a completed pass, EVEN WHEN files were excluded (a
  *                      per-file exclusion is not a run failure — this is the
  *                      "do not abort" invariant, and is asserted by the tests).
- *   NP_EDF_ERR_INVALID_ARG if count > 0 and headers or included is NULL.
+ *   NP_EDF_ERR_INVALID_ARG if count > 0 and headers, policy or included is NULL.
+ *                      (A malformed policy is not an argument error: every file
+ *                      fails the check and is excluded.)
  */
 np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
                                         uint32_t               count,
+                                        const np_edf_research_policy_t *policy,
                                         bool                  *included,
                                         np_edf_gate_result_t  *result);
 

@@ -10,14 +10,16 @@
  * see the header).
  *
  * No heap, no libc dependency — a straight bounded loop over the caller's
- * arrays.  The actual header check is np_edf_validate_privacy_header().
+ * arrays.  The header check is np_edf_validate_research_header() (§E.5), under
+ * the study's policy.  It was np_edf_validate_privacy_header(), the local §E.2
+ * check, which passed exact dates and the device code (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)).
  */
 
 #include "np_edf_anon_gate.h"
-#include "np_edf_writer.h"   /* np_edf_validate_privacy_header */
 
 np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
                                         uint32_t               count,
+                                        const np_edf_research_policy_t *policy,
                                         bool                  *included,
                                         np_edf_gate_result_t  *result)
 {
@@ -32,8 +34,8 @@ np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
         return NP_EDF_OK;
     }
 
-    /* With files to process, the two arrays are mandatory. */
-    if (headers == NULL || included == NULL) {
+    /* With files to process, the two arrays and the policy are mandatory. */
+    if (headers == NULL || included == NULL || policy == NULL) {
         return NP_EDF_ERR_INVALID_ARG;
     }
 
@@ -41,8 +43,8 @@ np_edf_status_t np_edf_anon_gate_filter(const np_edf_header_t *headers,
     uint32_t exc = 0U;
 
     for (uint32_t i = 0U; i < count; i++) {
-        if (np_edf_validate_privacy_header(&headers[i]) == NP_EDF_OK) {
-            /* Passes §E.2 — eligible for the extract. */
+        if (np_edf_validate_research_header(&headers[i], policy) == NP_EDF_OK) {
+            /* A research header under this study's policy (§E.5). */
             included[i] = true;
             inc++;
         } else {
