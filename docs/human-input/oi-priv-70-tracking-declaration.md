@@ -1,8 +1,8 @@
-# Question for the IRB adviser: OI-PRIV-24, a study that declares tracking over time
+# Question for the IRB adviser: OI-PRIV-70, a study that declares tracking over time
 
 **Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** none yet.
-**From:** NeurOne Software Engineering (`OI-PRIV-24` in `docs/status/pending-decisions.md`; the principal's ruling of 2026-11-20)
+**From:** NeurOne Software Engineering (`OI-PRIV-70` in `docs/status/pending-decisions.md`; the principal's ruling of 2026-11-20)
 **To:** the IRB adviser (unnamed)
 **Response needed:** an answer to Q1 and Q2, a short rationale, conditions that would reopen it, and your name, role and the date.
 

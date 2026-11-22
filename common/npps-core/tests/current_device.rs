@@ -1,5 +1,5 @@
 //! `SWR-MG-34`: the superseded notice is composed, signed, verified and ordered by the core, once
-//! (`OI-PRIV-22`, the principal, 2026-11-21). Through the public surface every platform uses
+//! (`OI-PRIV-68`, the principal, 2026-11-21). Through the public surface every platform uses
 //! (`migration_json`), and the pure functions the operations are built from.
 
 use neurone_npps_core::current_device::{accepts, message, next_count};

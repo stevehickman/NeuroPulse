@@ -68,7 +68,7 @@ differs is the signer and the schema, not the mechanics.
 
 ## §3 — Pull-only, unconditional, on a schedule the user's state does not affect
 
-> **Amended 2026-11-21 for research study requests only (`OI-PRIV-22`, the principal).** A study request is no longer pulled: the app **subscribes** and NeurOne **publishes** to subscribed devices (§6a). The reasons below were about a push token that addressed *the user's app* and about polling that depended on the user's state. The new subscription belongs to a *device*, only while it is the current device for at least one of its users, and it carries no consent, user or study, so it tells the server nothing the paragraphs below were written to hide except that the device is current for someone. The cost that remains, and that the principal accepted, is that NeurOne holds a stable channel address for each subscribed device and the platform's push service learns that the app receives these broadcasts. **Clinician requests (`OI-CONSENT-05`) are not changed by this amendment and stay pull-only.**
+> **Amended 2026-11-21 for research study requests only (`OI-PRIV-68`, the principal).** A study request is no longer pulled: the app **subscribes** and NeurOne **publishes** to subscribed devices (§6a). The reasons below were about a push token that addressed *the user's app* and about polling that depended on the user's state. The new subscription belongs to a *device*, only while it is the current device for at least one of its users, and it carries no consent, user or study, so it tells the server nothing the paragraphs below were written to hide except that the device is current for someone. The cost that remains, and that the principal accepted, is that NeurOne holds a stable channel address for each subscribed device and the platform's push service learns that the app receives these broadcasts. **Clinician requests (`OI-CONSENT-05`) are not changed by this amendment and stay pull-only.**
 
 **No push.** A push token is a stable identifier held by NeurOne and addressable to one device.
 §5.1 links SHDR to "device ID + opaque TRNG warranty token **only** — never to user identity", and
@@ -221,10 +221,10 @@ other side.
 The approve / deny answers are different: they are facts about a grant NeurOne's *clinician* holds,
 and they carry a grant ID rather than anything about the user's biology. They may be sent as-is.
 
-## §6a — Delivery of study requests by subscription (`OI-PRIV-22`), DRAFT
+## §6a — Delivery of study requests by subscription (`OI-PRIV-68`), DRAFT
 
 > **DRAFT, not in force.** It records what the principal ruled on 2026-11-20 and 2026-11-21 (`pending-decisions.md`
-> `OI-PRIV-22`; `data-architecture-detail.md` §5.3 step 1a). It amends §3 for study requests only. The endpoint and
+> `OI-PRIV-68`; `data-architecture-detail.md` §5.3 step 1a). It amends §3 for study requests only. The endpoint and
 > JSON are not specified (§7).
 
 **What the server keeps, and nothing else:** the push channels of subscribed devices (platform and token), and the
@@ -241,7 +241,7 @@ database.
    push service reports invalid is dropped by the server.
 3. **`publish`** (server to every subscribed channel, the same to all): **a wake and nothing else.** The push
    carries the latest request sequence number and the latest notice sequence number and no descriptor (ruled
-   2026-11-21, `OI-PRIV-22`: the smallest push limit found is 4096 bytes and a descriptor can exceed what is left of
+   2026-11-21, `OI-PRIV-68`: the smallest push limit found is 4096 bytes and a descriptor can exceed what is left of
    it, and the push service then learns that something was published and not what). A request is published once and
    is never re-published when a device becomes current (ruled).
 3a. **`fetch`** (device to server, through the relay): the device sends its cursors and receives the study
@@ -264,11 +264,11 @@ made for this form can be read as nothing else the key signs. The signature is E
 each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
 notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Ruled 2026-11-21 (`OI-PRIV-22`), not yet written into the calls above:** the server keeps the highest-count notice per key id with
+**Ruled 2026-11-21 (`OI-PRIV-68`), not yet written into the calls above:** the server keeps the highest-count notice per key id with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
-the notices after its cursor before it extracts; junk notices are handled (ruled 2026-11-21, `OI-PRIV-22`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-23`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
-flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-22`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own and still need checking against their sources); and the
-desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-22`, not ruled: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
+the notices after its cursor before it extracts; junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
+flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own and still need checking against their sources); and the
+desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-68`, not ruled: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
 its signature are cryptographic and are written once in `common/npps-core` (`CLAUDE.md` §22).
 
 ## §7 — What this leaves open

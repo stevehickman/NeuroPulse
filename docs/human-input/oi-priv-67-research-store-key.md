@@ -1,8 +1,8 @@
-# Question for the principal: OI-PRIV-21, what identifies a device in the research store
+# Question for the principal: OI-PRIV-67, what identifies a device in the research store
 
 **Status:** ANSWERED 2026-11-20: Q1 A; Q2 no reword needed (the principal). Originally DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** none yet.
-**From:** NeurOne Software Engineering (`OI-PRIV-21` in `docs/status/pending-decisions.md`; raised by the principal's ruling on `OI-PRIV-07` Q3, 2026-11-20)
+**From:** NeurOne Software Engineering (`OI-PRIV-67` in `docs/status/pending-decisions.md`; raised by the principal's ruling on `OI-PRIV-07` Q3, 2026-11-20)
 **To:** the principal
 **Response needed:** an option for Q1, and Q2 if it applies; a short rationale; anything that would reopen it; your name, role and the date.
 

@@ -1,4 +1,4 @@
-//! The superseded notice (`OI-PRIV-22`, `SWR-MG-34`; `NP-SW-PORTAL-API-001` §6a).
+//! The superseded notice (`OI-PRIV-68`, `SWR-MG-34`; `NP-SW-PORTAL-API-001` §6a).
 //!
 //! When a person moves to a new device, the new device publishes a signed notice naming the key id of the person's
 //! current-device key and a count that rises with each move. Every other device that holds that key checks the
