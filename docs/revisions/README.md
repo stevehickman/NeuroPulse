@@ -34,9 +34,31 @@ text: **…**
   fails it if it does, or if a controlled document changes with no section naming it.
 - A **new** document starts at its first revision by hand, with its DHF index row.
 
+### The decision log entry: `## LOG`
+
+A PR that records a decision does not append to `docs/status/completed-decisions.md`. It adds the entry to its fragment:
+
+```
+## LOG
+text: **{date} — `OI-X-01` CLOSED: what was decided (who; where it is recorded).** The rest of the entry, on one line.
+```
+
+- One `text:` line per entry, written as the log's `- ` item would be, without the `- ` (a leading `- ` is dropped). An
+  entry may hold a `|`. `{date}` becomes the date assigned (the fragment's `date:`, else the merge date), and the
+  revision tokens above work here too.
+- The section takes no `author:` (git records the PR's author on the commit that appends it).
+- A fragment may hold **only** a `## LOG` section, for a decision that changes no controlled document. It then bumps
+  nothing, not even the DHF.
+- `check-revision-fragments` rule K fails a PR that adds a `- ` entry to the log by hand. The log's header (the lines
+  that are not entries) may still be edited in the PR.
+
+Why: the log is append-only and every entry goes at its end, so any two PRs in flight both changed its last line and the
+second to merge conflicted there (CLAUDE.md Rev 86).
+
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named
-document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, and appends its history row (in the linked
-`docs/reference/*-revision-history.md` if there is one); it deletes the fragment and commits, authored by the PR's author
+document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, appends its history row (in the linked
+`docs/reference/*-revision-history.md` if there is one) and appends any `## LOG` entries to the end of
+`docs/status/completed-decisions.md`; it deletes the fragment and commits, authored by the PR's author
 and committed by the App `RevNumberFixer`.
 
 A document with **no history table** (no `docs/reference/<serial>-revision-history.md` and no table in the document) is
@@ -58,7 +80,8 @@ hand (`> **Rev 30 (…)**`) it does not touch: replace the number with `{NP-X to
 
 ## Mode `hand`
 
-The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers, and after a `git merge origin/main` that collides,
+The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers and
+append their own entries to `completed-decisions.md`, and after a `git merge origin/main` that collides,
 `bun scripts/renumber-revisions.ts` moves this branch's numbers past main's.
 
 ## Turning it on (once) — done 2026-11-02

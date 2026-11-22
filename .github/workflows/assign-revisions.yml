@@ -3,6 +3,8 @@ name: Assign revisions (docs/revisions/README.md)
 # Revision numbers are assigned here, when a change merges, not by its author: a PR adds one fragment under
 # docs/revisions/pending/ and this workflow writes the numbers, one commit per fragment, oldest first. Two PRs can no
 # longer take the same number. The decision: docs/human-input/np-qms-dc-001-revision-assignment.md (option A).
+# A fragment's `## LOG` entries are appended to docs/status/completed-decisions.md in the same commit (CLAUDE.md Rev
+# 86), so two PRs no longer conflict on that log's last line either.
 #
 # It does nothing until docs/revisions/policy.json says "assign-at-merge", which is set only once the GitHub App below
 # exists. It pushes to `main` as the App, which is on the branch ruleset's bypass list: the built-in GITHUB_TOKEN cannot

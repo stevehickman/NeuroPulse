@@ -21,6 +21,13 @@ export const DHF_SERIAL = "NP-DHF-001";
 export const DHF_FILE = "docs/np_dhf_001.md";
 export const PENDING_DIR = "docs/revisions/pending";
 export const POLICY_FILE = "docs/revisions/policy.json";
+/**
+ * The append-only decision log. In mode assign-at-merge a PR does not append to it: its fragment's `## LOG` section
+ * holds the entry and the workflow appends it when the PR merges, so two PRs never both add to the file's last line.
+ */
+export const DECISIONS_FILE = "docs/status/completed-decisions.md";
+/** `{date}` in a LOG entry becomes the date the fragment is assigned (its `date:` line, else the merge date). */
+export const DATE_TOKEN = "{date}";
 
 export type Mode = "hand" | "assign-at-merge";
 
@@ -65,15 +72,21 @@ export function historyFile(root: string, serial: string, docFile: string): stri
 }
 
 export interface Section { target: string; author: string; text: string }
-export interface Fragment { path: string; date: string | null; sections: Section[] }
+/** `log`: the entries of the fragment's `## LOG` section, one per `text:` line, in order, without the leading "- ". */
+export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[] }
 
 const TOKEN = new RegExp(String.raw`\{(DHF|${SERIAL}) (from → to|from|to)\}`, "g");
 
 /** Parse a fragment, or return the reason it is not one. */
 export function parseFragment(path: string, text: string): Fragment | string {
-  const frag: Fragment = { path, date: null, sections: [] };
+  const frag: Fragment = { path, date: null, sections: [], log: [] };
   let cur = null as { target: string; author?: string; text?: string } | null;
+  let inLog = false, sawLog = false;
   const close = (): string | null => {
+    if (inLog) {
+      inLog = false;
+      return frag.log.length === 0 ? `${path}: section LOG has no "text:" line` : null;
+    }
     if (cur === null) return null;
     if (!cur.author) return `${path}: section ${cur.target} has no "author:" line`;
     if (!cur.text) return `${path}: section ${cur.target} has no "text:" line`;
@@ -84,6 +97,13 @@ export function parseFragment(path: string, text: string): Fragment | string {
   for (const raw of text.split("\n")) {
     const line = raw.trimEnd();
     if (line === "" || line.startsWith("#") && !line.startsWith("## ")) continue;
+    if (line === "## LOG") {
+      const e = close();
+      if (e) return e;
+      if (sawLog) return `${path}: section LOG appears twice`;
+      cur = null; inLog = true; sawLog = true;
+      continue;
+    }
     const head = /^## (DHF|NP-[A-Z0-9-]+)$/.exec(line);
     if (head) {
       const e = close();
@@ -95,6 +115,12 @@ export function parseFragment(path: string, text: string): Fragment | string {
     }
     const kv = /^(date|author|text): (.+)$/.exec(line);
     if (!kv) return `${path}: cannot read the line "${line.slice(0, 60)}"`;
+    if (inLog) {
+      // A LOG entry is a list item, not a table row, so it may hold a "|"; it has no author (git records the PR's).
+      if (kv[1] !== "text") return `${path}: section LOG takes only "text:" lines (one per entry)`;
+      frag.log.push(kv[2].replace(/^- +/, ""));
+      continue;
+    }
     if (cur === null) {
       if (kv[1] !== "date") return `${path}: "${kv[1]}:" before the first section`;
       if (!new RegExp(`^${DATE}$`).test(kv[2])) return `${path}: date must be YYYY-MM-DD`;
@@ -105,12 +131,14 @@ export function parseFragment(path: string, text: string): Fragment | string {
   }
   const e = close();
   if (e) return e;
-  if (frag.sections.length === 0) return `${path}: no sections`;
-  if (!frag.sections.some((s) => s.target === "DHF")) return `${path}: no "## DHF" section (every bump bumps the DHF once)`;
+  if (frag.sections.length === 0 && frag.log.length === 0) return `${path}: no sections`;
+  // A fragment that only logs a decision bumps nothing; one that names any document bumps the DHF once.
+  if (frag.sections.length > 0 && !frag.sections.some((s) => s.target === "DHF")) return `${path}: no "## DHF" section (every bump bumps the DHF once)`;
   const targets = new Set(frag.sections.map((s) => s.target));
-  for (const s of frag.sections) {
+  const texts = [...frag.sections.map((s) => ({ where: s.target, text: s.text })), ...frag.log.map((text) => ({ where: "LOG", text }))];
+  for (const s of texts) {
     for (const m of s.text.matchAll(TOKEN)) {
-      if (!targets.has(m[1])) return `${path}: the text of ${s.target} uses {${m[1]} ${m[2]}} but ${m[1]} has no section`;
+      if (!targets.has(m[1])) return `${path}: the text of ${s.where} uses {${m[1]} ${m[2]}} but ${m[1]} has no section`;
     }
   }
   return frag;
@@ -126,3 +154,6 @@ export function resolveTokens(text: string, revs: Map<string, { from: number; to
 }
 
 export const hasTokens = (text: string): boolean => new RegExp(TOKEN.source).test(text);
+
+/** The `- ` list items of the decision log, one per entry (an entry is one line). */
+export const logEntries = (t: string | null): string[] => (t ?? "").split("\n").filter((l) => l.startsWith("- "));

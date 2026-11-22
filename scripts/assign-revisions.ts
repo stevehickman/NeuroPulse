@@ -11,6 +11,11 @@
  * document; a document with no history table at all gets one, started at its end). The DHF is bumped once per fragment. The fragment is deleted. Numbers are never chosen by an author,
  * so two PRs cannot take the same one.
  *
+ * A fragment may also carry a `## LOG` section: one `text:` line per entry for docs/status/completed-decisions.md,
+ * which is appended to that log's end, in order, when the fragment is assigned. Every PR used to append its entry to
+ * the same last line of that file, so any two in flight conflicted; the entry now waits in the fragment. A fragment
+ * may hold only a LOG section (a decision that changes no controlled document), and then bumps nothing.
+ *
  * Fragment:
  *
  *     date: 2026-11-02                 (optional; default: today, UTC)
@@ -20,8 +25,10 @@
  *     ## NP-SW-001
  *     author: NeurOne Software Engineering
  *     text: **§6.3: …**
+ *     ## LOG
+ *     text: **{date} — `OI-X-01` CLOSED: what was decided (who; where).** …
  *
- * `{X from}`, `{X to}` and `{X from → to}` (X is a serial, or DHF) become the numbers assigned. They work in a
+ * `{date}` in a LOG entry becomes the date assigned. `{X from}`, `{X to}` and `{X from → to}` (X is a serial, or DHF) become the numbers assigned. They work in a
  * history text and, for a bumped document, anywhere in the document's own text (a "> **Rev {X to} (date)**" callout).
  *
  * Usage:
@@ -43,7 +50,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
-  DATE, DATE_LINE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL,
+  DATE, DATE_LINE, DATE_TOKEN, DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL,
   controlledDocs, git, historyFile, parseFragment, readMode, resolveTokens, revOf, serialOf, show,
   type Fragment,
 } from "./revision-lib";
@@ -126,7 +133,12 @@ function setIndexRow(dhf: string, serial: string, rev: number, date: string): st
   return out.join("\n");
 }
 
-export type Assigned = { status: "none" } | { status: "done"; fragment: string; revisions: Record<string, string> };
+export type Assigned = { status: "none" } | { status: "done"; fragment: string; revisions: Record<string, string>; logged: number };
+
+/** Append entries to the end of the decision log, each a `- ` item set off by a blank line, as the log is written. */
+function appendLog(text: string, entries: string[]): string {
+  return `${text.replace(/\s+$/, "")}\n\n${entries.map((e) => `- ${e}`).join("\n\n")}\n`;
+}
 
 export function assignNext(root: string, validate = true): Assigned {
   const pending = pendingFragments(root);
@@ -163,6 +175,10 @@ export function assignNext(root: string, validate = true): Assigned {
     const r = revs.get(s.target) as { from: number; to: number };
     texts.set(DHF_FILE, setIndexRow(get(DHF_FILE), serialFor(s.target), r.to, date));
   }
+  if (frag.log.length > 0) {
+    if (!existsSync(join(root, DECISIONS_FILE))) throw new Error(`${path}: has a LOG section but ${DECISIONS_FILE} does not exist`);
+    texts.set(DECISIONS_FILE, appendLog(get(DECISIONS_FILE), frag.log.map((e) => resolveTokens(e.split(DATE_TOKEN).join(date), revs))));
+  }
   for (const [f, t] of texts) write(root, f, t);
   unlinkSync(join(root, path));
 
@@ -172,7 +188,7 @@ export function assignNext(root: string, validate = true): Assigned {
       if (r.status !== 0) throw new Error(`${g} fails after assigning ${path}:\n${r.stdout}${r.stderr}`);
     }
   }
-  return { status: "done", fragment: path, revisions: Object.fromEntries([...revs].map(([k, v]) => [k, `${v.from} → ${v.to}`])) };
+  return { status: "done", fragment: path, revisions: Object.fromEntries([...revs].map(([k, v]) => [k, `${v.from} → ${v.to}`])), logged: frag.log.length };
 }
 
 // ── Converting a hand-numbered branch ────────────────────────────────────────
@@ -377,12 +393,44 @@ function selfTest(): void {
     check(res.status === "done" && again.every((t, i) => t === hand[i]), "assigning the converted fragment reproduces the hand-numbered files exactly");
   } finally { rmSync(cv, { recursive: true, force: true }); }
 
+  // A LOG section appends to the decision log at assignment, after whatever main appended meanwhile.
+  const lg = mk();
+  try {
+    const log = "# Completed and Locked Decisions\n\n## Dated entries\n\n- **2026-11-01 — an old entry.**\n";
+    mkdirSync(join(lg, "docs/status"), { recursive: true });
+    writeFileSync(join(lg, DECISIONS_FILE), log);
+    commit(lg, "base");
+    frag(lg, "a.md", "date: 2026-11-21\n## DHF\nauthor: A\ntext: **{NP-SW-001 from → to}: logged.**\n## NP-SW-001\nauthor: A\ntext: **x**\n## LOG\ntext: **{date} — `OI-X-01` CLOSED (NP-SW-001 Rev {NP-SW-001 to}); a | is allowed here.**\ntext: - **{date} — a second entry.**\n");
+    commit(lg, "fragment");
+    // Another PR's entry reached main first: this one goes after it, with no conflict.
+    writeFileSync(join(lg, DECISIONS_FILE), `${log}\n- **2026-11-20 — merged first.**\n`);
+    commit(lg, "main moved");
+    const res = assignNext(lg, false);
+    const out = read(lg, DECISIONS_FILE);
+    check(res.status === "done" && res.logged === 2, "a fragment's LOG entries are counted");
+    check(out === `${log}\n- **2026-11-20 — merged first.**\n\n- **2026-11-21 — \`OI-X-01\` CLOSED (NP-SW-001 Rev 3); a | is allowed here.**\n\n- **2026-11-21 — a second entry.**\n`,
+      "LOG entries are appended at the end, after what main added, with {date} and revision tokens resolved and one leading '- ' each");
+    check(/^\*\*Revision:\*\* 3$/m.test(read(lg, "docs/np_sw_001.md")), "and the same fragment's revisions are assigned as before");
+    frag(lg, "b.md", "## LOG\ntext: **{date} — a decision that changes no controlled document.**\n");
+    commit(lg, "log-only fragment");
+    const dhfBefore = read(lg, DHF_FILE);
+    const res2 = assignNext(lg, false);
+    check(res2.status === "done" && Object.keys(res2.revisions).length === 0 && read(lg, DHF_FILE) === dhfBefore, "a LOG-only fragment bumps nothing, not even the DHF");
+    check(read(lg, DECISIONS_FILE).endsWith(`- **${new Date().toISOString().slice(0, 10)} — a decision that changes no controlled document.**\n`), "and with no date: line its {date} is the merge date");
+  } finally { rmSync(lg, { recursive: true, force: true }); }
+
   // The parser refuses what would write a bad row.
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: a | b\n") === "string", "a '|' in the text is refused");
   check(typeof parseFragment("f.md", "## NP-SW-001\nauthor: A\ntext: t\n") === "string", "a fragment without a DHF section is refused");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: {NP-SW-001 to}\n") === "string", "a token naming a document with no section is refused");
   check(typeof parseFragment("f.md", "## NP-DHF-001\nauthor: A\ntext: t\n") === "string", "the DHF is named DHF, not by serial");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n") !== "string", "a minimal fragment parses");
+  check(typeof parseFragment("f.md", "## LOG\ntext: t\n") !== "string", "a LOG-only fragment parses, with no DHF section");
+  check(typeof parseFragment("f.md", "## LOG\n## DHF\nauthor: A\ntext: t\n") === "string", "an empty LOG section is refused");
+  check(typeof parseFragment("f.md", "## LOG\ntext: a\n## LOG\ntext: b\n") === "string", "a second LOG section is refused");
+  check(typeof parseFragment("f.md", "## LOG\nauthor: A\ntext: t\n") === "string", "an author line in LOG is refused");
+  check(typeof parseFragment("f.md", "## LOG\ntext: {NP-SW-001 to}\n") === "string", "a LOG token naming a document with no section is refused");
+  check(typeof parseFragment("f.md", "## LOG\ntext: t\n## NP-SW-001\nauthor: A\ntext: t\n") === "string", "a LOG section does not excuse a missing DHF section when a document is named");
   void statSync; void serialOf;
 
   if (failures > 0) { console.error(`\nFAILED (${failures})`); process.exit(1); }
@@ -401,7 +449,7 @@ if (import.meta.main) {
     } else if (a.includes("--next")) {
       const r = assignNext(process.cwd());
       if (r.status === "none") process.exit(3);
-      console.log(`assigned ${r.fragment}: ${JSON.stringify(r.revisions)}`);
+      console.log(`assigned ${r.fragment}: ${JSON.stringify(r.revisions)}${r.logged > 0 ? `, ${r.logged} entr${r.logged === 1 ? "y" : "ies"} appended to ${DECISIONS_FILE}` : ""}`);
     } else if (a.includes("--convert")) {
       const i = a.indexOf("--base");
       console.log(`wrote ${convertBranch(process.cwd(), i >= 0 ? a[i + 1] : "origin/main")}`);

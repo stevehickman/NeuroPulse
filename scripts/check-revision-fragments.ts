@@ -18,7 +18,10 @@
  *      changes no `Rev` cell of the NP-DHF-001 index. New documents (absent from the base) start at their first revision
  *      by hand, and the text of an existing history row may be corrected;
  *   J. every existing controlled document whose text changed is named by a `## <serial>` section, and the DHF, if it
- *      changed or any other section exists, by `## DHF` (the principal, 2026-11-02: a change without a bump fails).
+ *      changed or any other section exists, by `## DHF` (the principal, 2026-11-02: a change without a bump fails);
+ *   K. a PR adds no entry to docs/status/completed-decisions.md (no `- ` line the base lacked): the entry goes in the
+ *      fragment's `## LOG` section and the workflow appends it at merge. Every PR used to append to that file's last
+ *      line, so any two in flight conflicted there. The header (lines that are not entries) may still be edited.
  *
  * Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly what H forbids.
  *
@@ -33,8 +36,8 @@ import { existsSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
-  DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
-  controlledDocs, git, parseFragment, readMode, revOf, show, type Fragment,
+  DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
+  controlledDocs, git, logEntries, parseFragment, readMode, revOf, show, type Fragment,
 } from "./revision-lib";
 
 const INDEX_REV = new RegExp(String.raw`^\| (${SERIAL})(?: \([^)]*\))? \|.*\| (\d+) \| ${DATE} \| \[`);
@@ -103,6 +106,11 @@ export function evaluate(root: string, base: string | null): Verdict {
     if (newRows.length > 0) v.push(`H: ${f} adds history row(s) ${newRows.join(", ")}; the workflow writes them from the fragment`);
   }
   if (named.size > 0 && !named.has("DHF")) v.push(`J: the fragment has no "## DHF" section`);
+  if (changed.includes(DECISIONS_FILE) && existsSync(join(root, DECISIONS_FILE))) {
+    const had = new Set(logEntries(show(root, base, DECISIONS_FILE)));
+    const added = logEntries(readFileSync(join(root, DECISIONS_FILE), "utf8")).filter((l) => !had.has(l));
+    if (added.length > 0) v.push(`K: ${DECISIONS_FILE} gains ${added.length} entr${added.length === 1 ? "y" : "ies"} ("${added[0].slice(0, 60)}…"); move ${added.length === 1 ? "it" : "them"} to the "## LOG" section of docs/revisions/pending/<slug>.md, one "text:" line each, and the workflow appends ${added.length === 1 ? "it" : "them"} at merge`);
+  }
   return verdict();
 }
 
@@ -155,6 +163,31 @@ function selfTest(): void {
   check(codes(scenario(A, (w) => { w("docs/np_dhf_001.md", dhf(2, 2).replace("DHF |", "DHF index |")); })).includes("J"), "a hand edit to the DHF with no fragment fails (J)");
   check(codes(scenario(A, (w) => { w("docs/new.txt", "x"); })) === "", "a PR that touches no controlled document passes");
   check(codes(scenario(A, (w) => { w("docs/np_new_001.md", "**Document:** NP-NEW-001\n**Revision:** 1\n"); })) === "", "a new document starts at its first revision by hand");
+  const LOG = "docs/status/completed-decisions.md";
+  const logBase = "# Log\n\n> header\n\n- **2026-11-01 — old.**\n";
+  // The log must exist on main for an edit on the branch to be a diff against it.
+  const logScenario = (mode: string, edit: string | null, fragment: string | null): Verdict => {
+    const r = mkdtempSync(join(tmpdir(), "revfrag-"));
+    try {
+      const w = (p: string, t: string): void => { mkdirSync(dirname(join(r, p)), { recursive: true }); writeFileSync(join(r, p), t); };
+      const c = (m: string): void => { git(r, "add", "-A"); git(r, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", m); };
+      git(r, "init", "-q", "-b", "main");
+      w("docs/np_sw_001.md", doc(2, "body"));
+      w("docs/np_dhf_001.md", dhf(2, 2));
+      w("docs/revisions/policy.json", JSON.stringify({ mode }));
+      w(LOG, logBase);
+      c("base");
+      git(r, "checkout", "-q", "-b", "topic");
+      if (edit !== null) w(LOG, edit);
+      if (fragment !== null) w(`${PENDING_DIR}/x.md`, fragment);
+      c("topic");
+      return evaluate(r, "main");
+    } finally { rmSync(r, { recursive: true, force: true }); }
+  };
+  check(codes(logScenario(A, `${logBase}\n- **2026-11-21 — new.**\n`, null)).includes("K"), "an entry appended to the decision log by hand fails (K)");
+  check(codes(logScenario(A, null, "## LOG\ntext: **{date} — new.**\n")) === "", "the same entry in a LOG-only fragment passes, with no DHF section");
+  check(codes(logScenario(A, logBase.replace("> header", "> a corrected header"), null)) === "", "an edit to the log's header, not an entry, passes");
+  check(codes(logScenario("hand", `${logBase}\n- **2026-11-21 — new.**\n`, null)) === "", "in mode hand an entry appended by hand passes");
   check(codes(scenario("hand", (w) => { w("docs/np_sw_001.md", doc(3, "new body")); })) === "", "in mode hand a hand-numbered change passes");
   check(codes(scenario("hand", (w) => { w(`${PENDING_DIR}/x.md`, "nonsense"); })).includes("F"), "in mode hand a fragment that cannot be read still fails");
 
