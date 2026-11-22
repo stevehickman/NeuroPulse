@@ -26,12 +26,13 @@
  *      of CLAUDE.md's row in the NP-DHF-001 index, and adds no `**Rev N (date)` entry to
  *      docs/reference/claude-md-revision-history.md; and a PR that changes CLAUDE.md has a `## CLAUDE.md` section,
  *      which holds the history entry. The workflow numbers it at merge;
- *   M. a PR leaves docs/status/pending-decisions.md as it is on the base: its edit goes in the fragment as `## OPEN`
- *      hunks (`bun scripts/assign-revisions.ts --convert-open` writes them) and the workflow applies it at merge. PRs
- *      that edited neighbouring items conflicted, because git refuses adjacent changed lines;
- *   N. every pending fragment's `## OPEN` hunks apply to the page, the others' first in the order the workflow takes
- *      them and this PR's last, so an edit written against an older page fails here and not on `main`. With `main`
- *      requiring a branch to be up to date, this runs again whenever another PR's edit lands first.
+ *   M. a PR leaves each in-place page as it is on the base: docs/status/pending-decisions.md, whose edit goes in the
+ *      fragment as `## OPEN` hunks, and docs/human-input/README.md, whose edit goes as `## INPUT` hunks
+ *      (`bun scripts/assign-revisions.ts --convert-open` writes both), and the workflow applies them at merge. PRs that
+ *      edited neighbouring items or index rows conflicted, because git refuses adjacent changed lines;
+ *   N. every pending fragment's hunks apply to their page, the others' first in the order the workflow takes them and
+ *      this PR's last, so an edit written against an older page fails here and not on `main`. With `main` requiring a
+ *      branch to be up to date, this runs again whenever another PR's edit lands first.
  *
  * Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly what H forbids.
  *
@@ -47,8 +48,8 @@ import { existsSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
-  CLAUDE_DHF_ROW, CLAUDE_ENTRY, CLAUDE_FILE, CLAUDE_HISTORY, CLAUDE_REV_LINE, DECISIONS_FILE, DHF_FILE, OPEN_FILE,
-  applyOpen, pendingFragments, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
+  CLAUDE_DHF_ROW, CLAUDE_ENTRY, CLAUDE_FILE, CLAUDE_HISTORY, CLAUDE_REV_LINE, DECISIONS_FILE, DHF_FILE, IN_PLACE_PAGES, INPUT_FILE, OPEN_FILE,
+  applyOpen, hunksFor, pendingFragments, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
   controlledDocs, git, logEntries, parseFragment, readMode, revOf, show, type Fragment,
 } from "./revision-lib";
 
@@ -140,17 +141,18 @@ export function evaluate(root: string, base: string | null): Verdict {
     const added = [...revs(readFileSync(join(root, CLAUDE_HISTORY), "utf8"))].filter((n) => !had.has(n));
     if (added.length > 0) v.push(`L: ${CLAUDE_HISTORY} adds Rev ${added.join(", ")} by hand; write the entry in the fragment's "## ${CLAUDE_FILE}" section ("**Rev {CLAUDE.md to} ({date}) — …")`);
   }
-  if (changed.includes(OPEN_FILE) && show(root, base, OPEN_FILE) !== (existsSync(join(root, OPEN_FILE)) ? readFileSync(join(root, OPEN_FILE), "utf8") : null)) {
-    v.push(`M: ${OPEN_FILE} is edited directly; run \`bun scripts/assign-revisions.ts --convert-open\` to move the edit into the fragment, which the workflow applies at merge`);
-  }
-  if (existsSync(join(root, OPEN_FILE))) {
-    const byPath = new Map(frags.map((f) => [f.path, f]));
-    const order = [...pendingFragments(root).filter((p) => !addedFrags.includes(p)), ...addedFrags];
-    let page = readFileSync(join(root, OPEN_FILE), "utf8");
+  const byPath = new Map(frags.map((f) => [f.path, f]));
+  const order = [...pendingFragments(root).filter((p) => !addedFrags.includes(p)), ...addedFrags];
+  for (const { key, file } of IN_PLACE_PAGES) {
+    if (changed.includes(file) && show(root, base, file) !== (existsSync(join(root, file)) ? readFileSync(join(root, file), "utf8") : null)) {
+      v.push(`M: ${file} is edited directly; run \`bun scripts/assign-revisions.ts --convert-open\` to move the edit into the fragment as "## ${key}" hunks, which the workflow applies at merge`);
+    }
+    if (!existsSync(join(root, file))) continue;
+    let page = readFileSync(join(root, file), "utf8");
     for (const p of order) {
-      const f = byPath.get(p);
-      if (!f || f.open.length === 0) continue;
-      try { page = applyOpen(page, f.open, p); } catch (e) {
+      const hs = hunksFor(byPath.get(p)?.open ?? [], file);
+      if (hs.length === 0) continue;
+      try { page = applyOpen(page, hs, p); } catch (e) {
         v.push(`N: ${(e as Error).message}${addedFrags.includes(p) ? "" : " (another PR's fragment, waiting for the assign-revisions workflow: let it run, then update this branch)"}`);
         break;
       }
@@ -263,7 +265,8 @@ function selfTest(): void {
   check(claudeScenario(A, (w) => { w("docs/reference/claude-md-revision-history.md", "## Current revision\n\n**Rev 10 (2026-11-21) — new.**\n\n**Rev 9 (2026-11-01) — old.**\n"); w(`${PENDING_DIR}/x.md`, cfrag); }).violations.some((x) => /adds Rev 10 by hand/.test(x)), "a hand-added CLAUDE.md history entry fails (L)");
   check(claudeScenario(A, (w) => { w("docs/np_dhf_001.md", dhf(2, 2) + "| — | CLAUDE.md — Project Design Memory | 10 | 2026-11-21 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |\n"); w(`${PENDING_DIR}/x.md`, cfrag); }).violations.some((x) => /Rev cell of the CLAUDE\.md row/.test(x)), "a hand-changed CLAUDE.md DHF row fails (L)");
   const page = "# Open\n\n- [ ] **`OI-A-01`** one\n- [ ] **`OI-A-02`** two\n";
-  const openScenario = (mode: string, f: (w: (p: string, t: string) => void, r: string) => void, onMain?: (w: (p: string, t: string) => void) => void): Verdict => {
+  const openScenario = (mode: string, f: (w: (p: string, t: string) => void, r: string) => void, onMain?: (w: (p: string, t: string) => void) => void,
+    base?: (w: (p: string, t: string) => void) => void): Verdict => {
     const r = mkdtempSync(join(tmpdir(), "revfrag-"));
     try {
       const w = (p: string, t: string): void => { mkdirSync(dirname(join(r, p)), { recursive: true }); writeFileSync(join(r, p), t); };
@@ -272,6 +275,7 @@ function selfTest(): void {
       w("docs/np_dhf_001.md", dhf(2, 2));
       w("docs/revisions/policy.json", JSON.stringify({ mode }));
       w(OPEN_FILE, page);
+      base?.(w);
       c("base");
       git(r, "checkout", "-q", "-b", "topic");
       f(w, r);
@@ -297,6 +301,18 @@ function selfTest(): void {
   check(openScenario(A, (w) => { w(`${PENDING_DIR}/x.md`, hunkFor(page, closed2)); }, (w) => { w(`${PENDING_DIR}/y.md`, hunkFor(page, page.replace("two", "two, by a PR merged first"))); }).violations.some((x) => /^N: .*another PR's fragment/.test(x) || /^N: docs\/revisions\/pending\/x\.md/.test(x)),
     "an OPEN edit to the same item still waiting in another PR's merged fragment fails it too (N)");
   check(codes(openScenario("hand", (w) => { w(OPEN_FILE, closed2); })) === "", "in mode hand a direct edit of pending-decisions.md passes");
+  const index = "# Human-input requests\n\n| Item | Document | Asks | Status |\n|---|---|---|---|\n| `OI-A-01` | `a.md` | Q | DRAFT |\n";
+  const inputScenario = (mode: string, f: (w: (p: string, t: string) => void) => void, onMain?: (w: (p: string, t: string) => void) => void): Verdict =>
+    openScenario(mode, f, onMain, (w) => { w(INPUT_FILE, index); });
+  const answered = index.replace("| DRAFT |", "| ANSWERED 2026-11-22 |");
+  const inputHunk = (from: string, to: string): string => hunkFor(from, to).replace("## OPEN", "## INPUT");
+  check(codes(inputScenario(A, (w) => { w(INPUT_FILE, answered); })).includes("M"), "a direct edit of the human-input index fails (M)");
+  check(codes(inputScenario(A, (w) => { w(`${PENDING_DIR}/x.md`, inputHunk(index, answered)); })) === "", "the same edit as an INPUT hunk in the fragment passes");
+  check(codes(inputScenario(A, (w) => { w(`${PENDING_DIR}/x.md`, inputHunk(index, answered)); }, (w) => { w(INPUT_FILE, index.replace("| Q |", "| Q, reworded on main |")); })).includes("N"),
+    "it fails once main changed the same row (N)");
+  check(codes(inputScenario(A, (w) => { w(`${PENDING_DIR}/x.md`, inputHunk(index, answered).replace("## INPUT", "## OPEN")); })).includes("N"),
+    "an index edit filed under OPEN is applied to pending-decisions.md, where its lines are not, and fails (N)");
+  check(codes(inputScenario("hand", (w) => { w(INPUT_FILE, answered); })) === "", "in mode hand a direct edit of the human-input index passes");
   check(codes(claudeScenario("hand", (w) => { w("CLAUDE.md", "# C\n**Revision:** 10 (current)  \n\nnew body\n"); })) === "", "in mode hand a hand-numbered CLAUDE.md change passes");
   check(codes(scenario("hand", (w) => { w("docs/np_sw_001.md", doc(3, "new body")); })) === "", "in mode hand a hand-numbered change passes");
   check(codes(scenario("hand", (w) => { w(`${PENDING_DIR}/x.md`, "nonsense"); })).includes("F"), "in mode hand a fragment that cannot be read still fails");

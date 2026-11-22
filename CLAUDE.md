@@ -44,7 +44,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Any BOM / COGS / GM% / price figure** | `docs/np_cost_001.md` |
 | **Whether a PBM protocol fits the power envelope; any `.npps` or zone edit** | `docs/np_ses_pwr_001.md` |
 | **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
-| **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number); **an entry in `completed-decisions.md`** (the fragment's `## LOG`, appended at merge); **this file's revision and its history entry** (the fragment's `## CLAUDE.md`); **an edit to `pending-decisions.md`** (the fragment's `## OPEN`, written by `--convert-open`) | `docs/revisions/README.md` |
+| **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number); **an entry in `completed-decisions.md`** (the fragment's `## LOG`, appended at merge); **this file's revision and its history entry** (the fragment's `## CLAUDE.md`); **an edit to `pending-decisions.md` or to the `docs/human-input/README.md` index** (the fragment's `## OPEN` or `## INPUT`, written by `--convert-open`) | `docs/revisions/README.md` |
 | **UHDR presence gate** (who may read UHDR on a phone, a computer or a browser, and what runs locked) | `docs/np_app_presence_001.md` |
 | **Any upload or download** (protocols, session data, logs, configuration, calibration, firmware, user data) on any transport (§23) | `docs/np_fw_hub_001.md` §2 |
 | **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |

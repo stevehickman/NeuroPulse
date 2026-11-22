@@ -52,13 +52,33 @@ export const CLAUDE_ENTRY_HEAD = "**Rev {CLAUDE.md to} ({date}) — ";
  */
 export const OPEN_FILE = "docs/status/pending-decisions.md";
 /**
- * One edit of OPEN_FILE. Each anchor is `n` consecutive lines whose text, joined by newlines, hashes to `hash`, and it
+ * The human-input index (its table of requests, one per line). Every PR that raised or answered a request added or
+ * changed a row there, and rows sit next to each other, so PRs in flight conflicted on it the same way. Its edits travel
+ * as `## INPUT` hunks, exactly as OPEN_FILE's travel as `## OPEN` hunks.
+ */
+export const INPUT_FILE = "docs/human-input/README.md";
+/**
+ * The pages a PR edits through its fragment, not directly, and the section heading that carries each one's hunks. The
+ * workflow applies them in place at merge; `--convert-open` and `--expand-open` move edits of every one of them.
+ */
+export const IN_PLACE_PAGES: readonly { key: string; file: string }[] = [
+  { key: "OPEN", file: OPEN_FILE },
+  { key: "INPUT", file: INPUT_FILE },
+];
+const keyOf = (file: string): string => IN_PLACE_PAGES.find((p) => p.file === file)?.key ?? "OPEN";
+/** The hunks of `hunks` that edit `file`, in order. */
+export const hunksFor = (hunks: Hunk[], file: string): Hunk[] => hunks.filter((h) => (h.file ?? OPEN_FILE) === file);
+/**
+ * One edit of an in-place page (`file`, OPEN_FILE when absent). Each anchor is `n` consecutive lines whose text, joined by newlines, hashes to `hash`, and it
  * must occur exactly once in the file when the edit is applied. `was`: replace those lines with `lines` (none: delete
  * them). Otherwise insert `lines` right after the `after` lines or, if those are gone (another PR edited them), right
- * before the `before` lines: an insertion has one or both.
+ * before the `before` lines: an insertion has one or both. `before: end <n>` (hash END_ANCHOR) is the end of the file,
+ * ahead of its last `n` lines, which are blank: an insertion at the end of a page (a row appended to a table that ends
+ * the file) then still lands when another PR changed the line above it.
  */
 export interface Anchor { hash: string; n: number }
-export interface Hunk { label: string; was?: Anchor; after?: Anchor; before?: Anchor; lines: string[] }
+export interface Hunk { label: string; file?: string; was?: Anchor; after?: Anchor; before?: Anchor; lines: string[] }
+export const END_ANCHOR = "end";
 export const lineHash = (t: string): string => createHash("sha256").update(t).digest("hex").slice(0, 16);
 
 /** Apply `hunks` to `text` in order, or throw naming the hunk that does not apply (nothing is half-applied: the input is not mutated). */
@@ -66,9 +86,11 @@ export function applyOpen(text: string, hunks: Hunk[], where: string): string {
   const lines = text.split("\n");
   for (const h of hunks) {
     const fail = (why: string): never => {
-      throw new Error(`${where}: the ${OPEN_FILE} edit "${h.label}" ${why}; it was written against an older ${OPEN_FILE}. Merge main, run \`bun scripts/assign-revisions.ts --expand-open\`, redo the edit, and run --convert-open again`);
+      const f = h.file ?? OPEN_FILE;
+      throw new Error(`${where}: the ${f} edit "${h.label}" ${why}; it was written against an older ${f}. Merge main, run \`bun scripts/assign-revisions.ts --expand-open\`, redo the edit, and run --convert-open again`);
     };
     const find = (a: Anchor): number[] => {
+      if (a.hash === END_ANCHOR) return lines.length >= a.n && lines.slice(lines.length - a.n).every((l) => l === "") ? [lines.length - a.n] : [];
       const at: number[] = [];
       for (let i = 0; i + a.n <= lines.length; i++) if (lineHash(lines.slice(i, i + a.n).join("\n")) === a.hash) at.push(i);
       return at;
@@ -135,7 +157,11 @@ export function historyFile(root: string, serial: string, docFile: string): stri
 export interface Section { target: string; author: string; text: string }
 /** `log`: the entries of the fragment's `## LOG` section, one per `text:` line, in order, without the leading "- ". */
 /** `claude`: the paragraphs of the fragment's `## CLAUDE.md` section (the CLAUDE.md history entry), or empty. */
+/** `open`: the hunks of its `## OPEN` and `## INPUT` sections, each naming the page it edits (`hunksFor`). */
 export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[]; claude: string[]; open: Hunk[] }
+
+/** The heading of an in-place page's hunk: `## OPEN <label>` or `## INPUT <label>` (the label is free text). */
+export const IN_PLACE_HEAD = new RegExp(String.raw`^## (${IN_PLACE_PAGES.map((p) => p.key).join("|")})(?: (.+))?$`);
 
 const TOKEN = new RegExp(String.raw`\{(DHF|CLAUDE\.md|${SERIAL}) (from → to|from|to)\}`, "g");
 
@@ -149,8 +175,9 @@ export function parseFragment(path: string, text: string): Fragment | string {
     if (hunk !== null) {
       const h = hunk;
       hunk = null;
-      if (h.was ? h.after || h.before : !h.after && !h.before) return `${path}: section OPEN ${h.label} needs "was:", or "after:" and/or "before:"`;
-      if (!h.was && h.lines.length === 0) return `${path}: section OPEN ${h.label} inserts no "text:" line`;
+      const k = keyOf(h.file ?? OPEN_FILE);
+      if (h.was ? h.after || h.before : !h.after && !h.before) return `${path}: section ${k} ${h.label} needs "was:", or "after:" and/or "before:"`;
+      if (!h.was && h.lines.length === 0) return `${path}: section ${k} ${h.label} inserts no "text:" line`;
       frag.open.push(h);
       return null;
     }
@@ -173,12 +200,12 @@ export function parseFragment(path: string, text: string): Fragment | string {
   };
   for (const raw of text.split("\n")) {
     const line = raw.trimEnd();
-    const openHead = /^## OPEN(?: (.+))?$/.exec(line);
+    const openHead = IN_PLACE_HEAD.exec(line);
     if (openHead) {
       const e = close();
       if (e) return e;
       cur = null;
-      hunk = { label: openHead[1] ?? "edit", lines: [] };
+      hunk = { label: openHead[2] ?? "edit", file: (IN_PLACE_PAGES.find((p) => p.key === openHead[1]) as { file: string }).file, lines: [] };
       continue;
     }
     if (hunk !== null && !line.startsWith("## ")) {
@@ -186,10 +213,11 @@ export function parseFragment(path: string, text: string): Fragment | string {
       // is a blank line.
       if (raw === "text:" || raw.startsWith("text: ")) { hunk.lines.push(raw.slice(6)); continue; }
       if (line === "") continue;
-      const m = /^(was|after|before): ([0-9a-f]{16})(?: (\d+))?$/.exec(line);
-      if (!m) return `${path}: section OPEN ${hunk.label}: cannot read the line "${line.slice(0, 60)}"`;
-      if (!m[3] || Number(m[3]) < 1) return `${path}: section OPEN ${hunk.label}: "${m[1]}:" takes the hash and the number of lines`;
-      if (hunk[m[1] as "was" | "after" | "before"]) return `${path}: section OPEN ${hunk.label}: "${m[1]}:" appears twice`;
+      const m = /^(was|after|before): ([0-9a-f]{16}|end)(?: (\d+))?$/.exec(line);
+      const k = keyOf(hunk.file ?? OPEN_FILE);
+      if (!m) return `${path}: section ${k} ${hunk.label}: cannot read the line "${line.slice(0, 60)}"`;
+      if (m[2] === END_ANCHOR ? m[1] !== "before" || m[3] === undefined : !m[3] || Number(m[3]) < 1) return `${path}: section ${k} ${hunk.label}: "${m[1]}:" takes the hash and the number of lines (only "before:" takes "end" and the number of blank lines after it)`;
+      if (hunk[m[1] as "was" | "after" | "before"]) return `${path}: section ${k} ${hunk.label}: "${m[1]}:" appears twice`;
       hunk[m[1] as "was" | "after" | "before"] = { hash: m[2], n: Number(m[3]) };
       continue;
     }

@@ -4,7 +4,8 @@ name: Assign revisions (docs/revisions/README.md)
 # docs/revisions/pending/ and this workflow writes the numbers, one commit per fragment, oldest first. Two PRs can no
 # longer take the same number. The decision: docs/human-input/np-qms-dc-001-revision-assignment.md (option A).
 # A fragment's `## LOG` entries are appended to docs/status/completed-decisions.md, and its `## CLAUDE.md` section sets
-# CLAUDE.md's revision, its DHF row and its history entry, in the same commit, so two PRs no longer conflict on those
+# CLAUDE.md's revision, its DHF row and its history entry, in the same commit, and its `## OPEN` and `## INPUT` hunks
+# edit docs/status/pending-decisions.md and docs/human-input/README.md in place, so two PRs no longer conflict on those
 # either.
 #
 # It does nothing until docs/revisions/policy.json says "assign-at-merge", which is set only once the GitHub App below
