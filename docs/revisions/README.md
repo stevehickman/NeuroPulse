@@ -109,7 +109,9 @@ text: - [ ] **`OI-PRIV-42`** …
   against an older page, because another PR changed the same item, fails on the PR, which then merges `main`, runs
   `--expand-open`, redoes the edit and converts again. With `main` requiring a branch to be up to date, N runs again
   whenever another PR's edit lands first. In the merge queue (`NP-SW-CI-001` §6.19) N also runs on the merge-group
-  commit, after the fragments of the pull requests queued ahead, provided the queue merges by `MERGE`.
+  commit, after the fragments of the pull requests queued ahead, provided the queue merges by `MERGE`. With `strict`
+  off (`NP-SW-CI-001` §6.20) N does not re-run when another PR lands first: two PRs that edit the same item can both
+  merge, the second's hunk then fails in `assign-revisions` on `main`, which emails the owner, and it is fixed by hand.
 - A fragment may hold only `## OPEN` sections. The page is not a controlled document, so they bump nothing.
 
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named

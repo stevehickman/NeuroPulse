@@ -9,10 +9,12 @@
  * run by hand by whoever remembered. A context removed in the settings page, the pull-request rule
  * switched off, or the admin bypass put back to "always" would each have left every check green.
  *
- * Two files state the expected protection:
+ * Three files state the expected protection:
  *
  *   ci/required-checks.txt   the required contexts, one per line (scripts/check-ci-scope.ts
  *                            correspondence C proves each is reportable; it is not restated here)
+ *   ci/required-statuses.txt the required contexts that a workflow posts as a commit status
+ *                            (NP-SW-CI-001 §6.20); read with the file above, as one list
  *   ci/main-ruleset.json     everything else: the rule types in force, the pull-request rule's
  *                            parameters, the bypass actors, and the App the contexts are bound to
  *
@@ -60,7 +62,7 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-main-ruleset.ts --self-test
- * CI-Scans: the expected protection of main (ci/main-ruleset.json, ci/required-checks.txt) and the workflow each bypassing App names
+ * CI-Scans: the expected protection of main (ci/main-ruleset.json, ci/required-checks.txt, ci/required-statuses.txt) and the workflow each bypassing App names
  * CI-Scan-Paths: ci/** .github/workflows/** scripts/check-main-ruleset.ts
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
@@ -69,6 +71,9 @@ import { tmpdir } from "os";
 
 export const EXPECTED_FILE = "ci/main-ruleset.json";
 export const MANIFEST_FILE = "ci/required-checks.txt";
+/** Commit-status contexts a workflow posts (NP-SW-CI-001 §6.20). Required like the job contexts; optional file. */
+export const STATUS_FILE = "ci/required-statuses.txt";
+const MANIFESTS = `${MANIFEST_FILE} or ${STATUS_FILE}`;
 const CORE_RULES = ["deletion", "non_fast_forward", "pull_request", "required_status_checks"];
 const PR_PARAMS = [
   "required_approving_review_count", "dismiss_stale_reviews_on_push", "require_code_owner_review",
@@ -152,10 +157,10 @@ export function compareLive(
   const live = checks.flatMap((r) => (r.parameters?.required_status_checks ?? []) as { context: string; integration_id?: number | null }[]);
   const liveNames = live.map((c) => c.context);
   for (const c of liveNames) {
-    if (!contexts.includes(c)) v.push(`L1: GitHub requires '${c}', which ${MANIFEST_FILE} does not list: nothing proves a job reports it, and a required context nobody reports blocks every merge`);
+    if (!contexts.includes(c)) v.push(`L1: GitHub requires '${c}', which neither ${MANIFESTS} lists: nothing proves a job reports it, and a required context nobody reports blocks every merge`);
   }
   for (const c of contexts) {
-    if (!liveNames.includes(c)) v.push(`L2: '${c}' is in ${MANIFEST_FILE} but GitHub does not require it: that gate does not apply to main`);
+    if (!liveNames.includes(c)) v.push(`L2: '${c}' is in ${MANIFESTS} but GitHub does not require it: that gate does not apply to main`);
   }
   for (const c of live) {
     if (c.integration_id !== e.status_checks.integration_id) v.push(`L3: '${c.context}' is bound to App ${c.integration_id ?? "none"}, expected ${e.status_checks.integration_id}`);
@@ -281,7 +286,12 @@ function load(root: string): { expected: Expected; contexts: string[] } {
   }
   return {
     expected: JSON.parse(readFileSync(join(root, EXPECTED_FILE), "utf8")) as Expected,
-    contexts: manifestContexts(readFileSync(join(root, MANIFEST_FILE), "utf8")),
+    // Both manifests: a required context is a job's check run or a posted commit status, and GitHub requires both kinds
+    // in the one list. A context in both files is a duplicate (R5).
+    contexts: [
+      ...manifestContexts(readFileSync(join(root, MANIFEST_FILE), "utf8")),
+      ...(existsSync(join(root, STATUS_FILE)) ? manifestContexts(readFileSync(join(root, STATUS_FILE), "utf8")) : []),
+    ],
   };
 }
 
@@ -517,6 +527,19 @@ function selfTest(): never {
     if (run("--live-from", "rs.json", "rl.json") !== 0) { failed++; console.error("FAIL e2e-live-clean: matching responses must exit 0"); }
     writeFileSync(join(box, "rl.json"), JSON.stringify(RL.filter((r) => r.type !== "pull_request")));
     if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-live-shrunk: a missing pull_request rule must exit 1"); }
+    // §6.20: a posted status is a required context too. Listed, GitHub must require it (L2); GitHub requiring it, it
+    // must be listed (L1 otherwise); in both manifests it is a duplicate (R5).
+    writeFileSync(join(box, "rl.json"), JSON.stringify(RL));
+    writeFileSync(join(box, STATUS_FILE), "# s\nmain is green\n");
+    if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-status-not-required: a listed status GitHub does not require must exit 1"); }
+    const withStatus = clone(RL); sc(withStatus).required_status_checks.push({ context: "main is green", integration_id: 15368 });
+    writeFileSync(join(box, "rl.json"), JSON.stringify(withStatus));
+    if (run("--live-from", "rs.json", "rl.json") !== 0) { failed++; console.error("FAIL e2e-status-required: a listed status GitHub requires must exit 0"); }
+    rmSync(join(box, STATUS_FILE));
+    if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-status-unlisted: a required status in neither manifest must exit 1"); }
+    writeFileSync(join(box, STATUS_FILE), "Scope\n");
+    if (run() !== 1) { failed++; console.error("FAIL e2e-status-duplicate: a context in both manifests must exit 1"); }
+    rmSync(join(box, STATUS_FILE));
     writeFileSync(join(box, MANIFEST_FILE), "# only a comment\n");
     if (run() !== 1) { failed++; console.error("FAIL e2e-empty-manifest: an empty manifest must exit 1"); }
   } finally {
@@ -524,7 +547,7 @@ function selfTest(): never {
   }
 
   if (failed) { console.error(`check-main-ruleset: ${failed} self-test assertion(s) FAILED`); process.exit(1); }
-  console.log(`check-main-ruleset: self-test OK (${cases} rule cases, each the passing fixture or one mutation of it, and 5 end-to-end runs)`);
+  console.log(`check-main-ruleset: self-test OK (${cases} rule cases, each the passing fixture or one mutation of it, and 9 end-to-end runs)`);
   process.exit(0);
 }
 

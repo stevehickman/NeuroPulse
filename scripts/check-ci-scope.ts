@@ -53,6 +53,11 @@
  *    error anywhere now fails here. The LIVE ruleset is not read — CI holds no
  *    admin token — so manifest ↔ ruleset stays a runbook step (§6.7.8).
  *
+ *    ci/required-statuses.txt lists contexts a workflow POSTS as a commit status
+ *    (NP-SW-CI-001 §6.20). Each must be the NP_STATUS_CONTEXT of exactly one
+ *    workflow that runs on pull_request or pull_request_target, and every
+ *    workflow that declares one must be listed.
+ *
  * D. Every relevance list covers its own workflow file (OI-SWCI-25). A
  *    workflow edit is the change most likely to break that workflow.
  *
@@ -65,6 +70,14 @@
  *    the second OI-SWCI-37 instance — must equal the manifest's count.
  *    ci/host-test-floors.txt must name exactly the manifest's targets; the
  *    floors themselves are measured weekly by scripts/check-host-test-floors.ts.
+ *
+ * F. The main-health watch lists (NP-SW-CI-001 §6.20). The workflow that
+ *    declares NP_GATE_WORKFLOWS names, under `workflow_run: workflows:`, every
+ *    workflow that runs on main (a push to main, or a schedule) by the `name:`
+ *    GitHub reads, and nothing else: a workflow left out turns red with no
+ *    email, and a name that matches nothing is a watch that never fires.
+ *    NP_GATE_WORKFLOWS names exactly the files that hold a context in
+ *    ci/required-checks.txt: a file left out turns red without holding merging.
  *
  * ── Where it is deliberately weaker than it could be ─────────────────────────
  *
@@ -164,6 +177,14 @@ type Workflow = {
   prTriggered: boolean;
   /** `on: merge_group` — the merge queue's run (NP-SW-CI-001 §6.19). */
   mgTriggered: boolean;
+  /** `on: pull_request_target` (NP-SW-CI-001 §6.20). */
+  prtTriggered: boolean;
+  /** Runs on main: a push that includes main, or a schedule (correspondence F). */
+  onMain: boolean;
+  /** The `name:` as GitHub reads it (YAML: quotes removed, a ` #` comment dropped), or null. */
+  name: string | null;
+  /** `on: workflow_run: workflows:` — the workflow names it is triggered by. */
+  workflowRun: string[];
   /** Workflow-level `pull_request: paths:` — applies to every job in the file. */
   prPaths: string[] | null;
   /** Top-level `env:` scalars (NP_SAFETY_TESTS and the test counts live here). */
@@ -215,12 +236,23 @@ function runCommands(lines: string[]): string[] {
   return joined;
 }
 
+/** A YAML scalar as a parser reads it: quotes removed, and a plain scalar ended at ` #` (a comment). */
+function yamlScalar(raw: string): string {
+  const t = raw.trim();
+  const q = /^(['"])(.*)\1(\s+#.*)?$/.exec(t);
+  if (q) return q[2]!;
+  return t.replace(/\s+#.*$/, "").trim();
+}
+
 function parseWorkflow(file: string, text: string): Workflow {
   const lines = text.split("\n");
 
   // ── on: ─────────────────────────────────────────────────────────────────
   let prTriggered = false;
   let mgTriggered = false;
+  let prtTriggered = false;
+  let onMain = false;
+  const workflowRun: string[] = [];
   let prPaths: string[] | null = null;
   const onIdx = lines.findIndex((l) => /^on:\s*$/.test(l));
   if (onIdx >= 0) {
@@ -249,6 +281,38 @@ function parseWorkflow(file: string, text: string): Workflow {
       }
       if (/^  pull_request:\s*\S/.test(l)) prTriggered = true;
       if (/^  merge_group:/.test(l)) mgTriggered = true;
+      if (/^  pull_request_target:/.test(l)) prtTriggered = true;
+      if (/^  schedule:/.test(l)) onMain = true;
+      if (/^  (push|workflow_run):\s*$/.test(l)) {
+        const block: string[] = [];
+        for (let j = i + 1; j < lines.length; j++) {
+          const k = lines[j]!;
+          if (k.trim() === "" || /^\s*#/.test(k)) continue;
+          if (k.search(/\S/) <= 2) break;
+          block.push(k);
+        }
+        /** The values of `key:` in this block, inline `[a, b]` or as a `- x` list below it. */
+        const values = (key: string): string[] | null => {
+          const at = block.findIndex((k) => new RegExp(`^\\s+${key}:`).test(k));
+          if (at < 0) return null;
+          const inline = /:\s*\[(.*)\]\s*$/.exec(block[at]!);
+          if (inline) return inline[1]!.split(",").map((v) => yamlScalar(v)).filter(Boolean);
+          const out: string[] = [];
+          const ind = block[at]!.search(/\S/);
+          for (let m = at + 1; m < block.length; m++) {
+            const item = /^\s*-\s*(.+)$/.exec(block[m]!);
+            if (!item || block[m]!.search(/\S/) < ind) break;
+            out.push(yamlScalar(item[1]!));
+          }
+          return out;
+        };
+        if (/push/.test(l)) {
+          const branches = values("branches");
+          if (branches ? branches.includes("main") : values("tags") === null) onMain = true;
+        } else {
+          workflowRun.push(...(values("workflows") ?? []));
+        }
+      }
     }
   }
 
@@ -331,7 +395,9 @@ function parseWorkflow(file: string, text: string): Workflow {
   const nestedPartitionEnv = lines
     .filter((l) => /^ {3,}(NP_SAFETY_TESTS|NP_[A-Z_]+_TEST_COUNT):/.test(l))
     .map((l) => l.trim().split(":")[0]!);
-  return { file, prTriggered, mgTriggered, prPaths, env, nestedPartitionEnv, jobs };
+  const nameLine = lines.find((l) => /^name:/.test(l));
+  const name = nameLine ? yamlScalar(nameLine.replace(/^name:/, "")) : null;
+  return { file, prTriggered, mgTriggered, prtTriggered, onMain, name, workflowRun, prPaths, env, nestedPartitionEnv, jobs };
 }
 
 /**
@@ -563,6 +629,7 @@ function invokes(cmd: string, gate: string): boolean {
 // ── Checked-in manifests (correspondences C and E) ───────────────────────────
 
 const REQUIRED_CHECKS = "ci/required-checks.txt";
+const REQUIRED_STATUSES = "ci/required-statuses.txt";
 const TEST_PARTITION = "ci/host-test-partition.txt";
 const TEST_FLOORS = "ci/host-test-floors.txt";
 
@@ -798,6 +865,51 @@ function audit(root: string): Report {
         );
       }
     }
+  }
+
+  // ── C, continued: required commit statuses (NP-SW-CI-001 §6.20) ─────────
+  const statuses = readManifest(root, REQUIRED_STATUSES);
+  const posters = workflows.filter((w) => w.env.has("NP_STATUS_CONTEXT"));
+  if (statuses !== null) {
+    for (const d of dupes(statuses)) violations.push(`C: ${REQUIRED_STATUSES} lists '${d}' more than once`);
+    for (const ctx of new Set(statuses)) {
+      if ((required ?? []).includes(ctx)) violations.push(`C: '${ctx}' is in both ${REQUIRED_CHECKS} and ${REQUIRED_STATUSES} — it is a job or a posted status, not both`);
+      const by = posters.filter((w) => w.env.get("NP_STATUS_CONTEXT") === ctx);
+      if (by.length !== 1) {
+        violations.push(by.length === 0
+          ? `C: '${ctx}' is a required status, but no workflow posts it (no NP_STATUS_CONTEXT equals it) — every PR waits forever for it`
+          : `C: '${ctx}' is posted by ${by.map((w) => w.file).join(", ")} — either one satisfies the requirement, so it gates neither`);
+        continue;
+      }
+      const w = by[0]!;
+      contexts.set(ctx, `${w.file} (posted status)`);
+      if (!(w.prtTriggered || (w.prTriggered && !w.prPaths))) {
+        violations.push(`C: '${ctx}' is posted by ${w.file}, which runs on neither pull_request nor pull_request_target — a new PR never gets it and waits forever`);
+      }
+    }
+  }
+  for (const w of posters) {
+    if (!(statuses ?? []).includes(w.env.get("NP_STATUS_CONTEXT")!)) {
+      violations.push(`C: ${w.file} posts the status '${w.env.get("NP_STATUS_CONTEXT")}', which ${REQUIRED_STATUSES} does not list — either the workflow is stale or the manifest is`);
+    }
+  }
+
+  // ── F. the main-health watch lists (NP-SW-CI-001 §6.20) ─────────────────
+  for (const mh of workflows.filter((w) => w.env.has("NP_GATE_WORKFLOWS"))) {
+    const onMain = workflows.filter((w) => w !== mh && w.onMain);
+    const names = new Set(onMain.map((w) => w.name ?? w.file));
+    for (const w of onMain) {
+      if (!mh.workflowRun.includes(w.name ?? w.file)) {
+        violations.push(`F: ${w.file} ('${w.name}') runs on main, but ${mh.file} does not watch it — a red run there sends no email`);
+      }
+    }
+    for (const n of mh.workflowRun) {
+      if (!names.has(n)) violations.push(`F: ${mh.file} watches '${n}', which is the name of no workflow that runs on main — that watch never fires`);
+    }
+    const gate = new Set(mh.env.get("NP_GATE_WORKFLOWS")!.split(/\s+/).filter(Boolean));
+    const holders = new Set([...contexts.values()].filter((v) => !v.endsWith("(posted status)")).map((v) => v.split(":")[0]!));
+    for (const f of holders) if (!gate.has(f)) violations.push(`F: ${f} holds a required context but is not in ${mh.file} NP_GATE_WORKFLOWS — a red run there does not hold merging`);
+    for (const f of gate) if (!holders.has(f)) violations.push(`F: ${mh.file} NP_GATE_WORKFLOWS names ${f}, which holds no required context — a red run there would hold merging that nothing required can release`);
   }
 
   // ── D. every relevance list re-runs on an edit to its own workflow (OI-SWCI-25)
@@ -1341,6 +1453,39 @@ if (process.argv.includes("--self-test")) {
     }),
     null,
   );
+  // §6.20: a required commit status, and the main-health watch lists (F).
+  {
+    const JOB = NAMED({ jobs: [{ id: "changes", name: "Class C scope", marker: true }] }); // `name: t`, push + pull_request
+    const MH = (o: { watch?: string[]; gate?: string; ctx?: string; prt?: boolean } = {}) =>
+      `name: Main health\non:\n  workflow_run:\n    workflows:\n` +
+      (o.watch ?? ["t"]).map((w) => `      - ${w}\n`).join("") +
+      `    types: [completed]\n` + (o.prt === false ? "" : `  pull_request_target:\n    types: [opened]\n`) +
+      `env:\n  NP_STATUS_CONTEXT: '${o.ctx ?? "main is green"}'\n  NP_GATE_WORKFLOWS: '${o.gate ?? "s.yml"}'\n` +
+      `jobs:\n  post:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n`;
+    const tree = (mh: string, extra: Record<string, string> = {}) => build({
+      "ci/required-checks.txt": REQ("Class C scope"),
+      "ci/required-statuses.txt": "# s\nmain is green\n",
+      ".github/workflows/s.yml": JOB,
+      ".github/workflows/mh.yml": mh,
+      ...extra,
+    });
+    expect("a posted required status and complete watch lists pass", tree(MH()), null);
+    expect("a required status no workflow posts is caught", tree(MH({ ctx: "main is fine" })), "no workflow posts it");
+    expect("a status poster with no pull-request trigger is caught", tree(MH({ prt: false })), "runs on neither pull_request nor pull_request_target");
+    expect("a workflow on main the watch list leaves out is caught",
+      tree(MH(), { ".github/workflows/w.yml": "name: Weekly\non:\n  schedule:\n    - cron: '0 0 * * 0'\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: true\n" }),
+      "does not watch it");
+    expect("a watched name that matches no workflow is caught", tree(MH({ watch: ["t", "Gone"] })), "that watch never fires");
+    // YAML ends a plain scalar at ` #`: the name GitHub reads is the one compared.
+    expect("a name with a ` #` comment is read as GitHub reads it",
+      tree(MH({ watch: ["t", "Watch (x, GitHub"] }), { ".github/workflows/c.yml": "name: Watch (x, GitHub #689)\non:\n  schedule:\n    - cron: '0 0 * * 0'\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: true\n" }),
+      null);
+    expect("a required-context workflow missing from the gate list is caught", tree(MH({ gate: "" })), "is not in mh.yml NP_GATE_WORKFLOWS");
+    expect("a gate-list file that holds nothing required is caught", tree(MH({ gate: "s.yml w.yml" })), "holds no required context");
+    expect("a push that excludes main is not on main",
+      tree(MH(), { ".github/workflows/r.yml": "name: Release\non:\n  push:\n    tags: ['v*']\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: true\n" }),
+      null);
+  }
   // §6.19: the merge queue runs merge_group, not pull_request.
   expect(
     "a required context in a workflow with no merge_group: trigger is caught",
@@ -1573,7 +1718,8 @@ if (process.argv.includes("--self-test")) {
   console.log("  45 case(s): all five correspondences proven to fire and proven NOT to over-fire —");
   console.log("  A/B: the union rule, the weekly-backstop exclusion, the NP_BUILD_TESTS/cross split,");
   console.log("  prefix coverage in both directions, <tree>, and two unparseable shapes;");
-  console.log("  C: rename, matrix, non-PR (build-all), no merge_group, paths:-filtered, duplicate, marker both ways;");
+  console.log("  C: rename, matrix, non-PR (build-all), no merge_group, paths:-filtered, duplicate, marker both ways, posted status;");
+  console.log("  F: watch list complete both ways, ` #` in a name, gate list both ways, a tag-only push;");
   console.log("  D: own workflow omitted, exact self-entry, another workflow's file;");
   console.log("  E: rename under unchanged counts, regex drift, class mismatch, stale count copies, a copy hidden below top level,");
   console.log("     a target with no floor, a floor with no target, a malformed floor");
