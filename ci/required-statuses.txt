@@ -1,0 +1,12 @@
+# ci/required-statuses.txt — the commit-status contexts the `Safety` ruleset requires on main.
+#
+# NP-SW-CI-001 §6.20. ci/required-checks.txt lists contexts reported by a job (a check run named by the job's
+# `name:`). A line here is a commit status that a workflow POSTS through the Statuses API, so no job carries its
+# name. Each line must equal the NP_STATUS_CONTEXT of exactly one workflow that runs on pull_request or
+# pull_request_target (scripts/check-ci-scope.ts, correspondence C), so every pull request gets it.
+# scripts/check-main-ruleset.ts reads this file with ci/required-checks.txt: GitHub must require both.
+#
+# Changing a line means changing the ruleset in the same operation, as for ci/required-checks.txt.
+
+# .github/workflows/main-health.yml — the merge hold while main is red (scripts/main-health.ts)
+main is green, or this PR is up to date with main
