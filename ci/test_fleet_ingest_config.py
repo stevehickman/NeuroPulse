@@ -5,9 +5,11 @@
 
   F1  every `log` block (the named access log and the default/runtime logger) writes through a `filter` format, so no log line is
       unfiltered;
-  F2  each of those filters deletes the client's address (request>remote_ip, request>client_ip, request>remote_port), a forwarded
-      address (request>headers>X-Forwarded-For) and the device token (request>headers>X-Np-Device-Token);
-  F3  the upstream is not handed the client's address (header_up -X-Forwarded-For and -X-Real-IP);
+  F2  each of those filters deletes the client's address (request>remote_ip, request>client_ip, request>remote_port) and the
+      whole request-header map (request>headers), which holds the device token and every header a proxy on the way may put
+      the address in. Deleting named headers is not enough: a header nobody listed would still be logged (OI-PRIV-51);
+  F3  every reverse_proxy hands the upstream none of the headers that can carry the client's address (CLIENT_ADDRESS_HEADERS,
+      each as `header_up -NAME`), and sets none of them to a value;
   F4  every log file is rolled by age (`roll_keep_for`), at most MAX_KEEP_HOURS;
   F5  the site address is a parse-time {$VAR} (a runtime {env.VAR} is refused by Caddy as a site address).
 
@@ -28,9 +30,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 CADDYFILE = ROOT / "infra" / "fleet" / "Caddyfile"
 
 MAX_KEEP_HOURS = 168  # one week: a ceiling this test enforces, not a derived figure (OI-FLEET-01, UC-095)
-MUST_DELETE = (
-    "request>remote_ip", "request>remote_port", "request>client_ip",
-    "request>headers>X-Forwarded-For", "request>headers>X-Np-Device-Token",
+MUST_DELETE = ("request>remote_ip", "request>remote_port", "request>client_ip", "request>headers")
+# The request headers a proxy can carry the client's address in. Caddy forwards every header it does not set itself, so each is
+# removed by name; the log side deletes the whole map instead, because a log can, and a forwarded request cannot do without headers.
+CLIENT_ADDRESS_HEADERS = (
+    "X-Forwarded-For", "X-Real-IP", "Forwarded", "True-Client-IP", "CF-Connecting-IP", "X-Client-IP",
+    "X-Cluster-Client-IP", "Fastly-Client-IP", "Via",
 )
 
 
@@ -48,7 +53,8 @@ def blocks(text, opener):
 
 def check(text):
     problems = []
-    logs = blocks(text, r"^\s*log(?:\s+default)?\s*\{")
+    code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())  # comments do not count
+    logs = blocks(code, r"^\s*log(?:\s+default)?\s*\{")
     if len(logs) < 2:
         problems.append(f"F1 expected the access log and the default logger, found {len(logs)} log block(s)")
     for n, body in enumerate(logs, 1):
@@ -66,9 +72,15 @@ def check(text):
                 problems.append(f"F4 log block {n} keeps {h}h, over the {MAX_KEEP_HOURS}h ceiling")
         if re.search(r"roll_keep_for\s+\d+(?!h)\w*", body) and not re.search(r"roll_keep_for\s+\d+h", body):
             problems.append(f"F4 log block {n} states its retention in a unit other than hours")
-    for h in ("-X-Forwarded-For", "-X-Real-IP"):
-        if not re.search(r"header_up\s+" + re.escape(h) + r"\b", text):
-            problems.append(f"F3 the upstream is not stripped of {h[1:]}")
+    proxies = blocks(code, r"reverse_proxy\s+\S+\s*\{")
+    if not proxies:
+        problems.append("F3 no reverse_proxy block found to check")
+    for n, body in enumerate(proxies, 1):
+        for h in CLIENT_ADDRESS_HEADERS:
+            if not re.search(rf"^\s*header_up\s+-{re.escape(h)}\s*$", body, re.M | re.I):
+                problems.append(f"F3 reverse_proxy {n} does not remove {h} (header_up -{h})")
+            if re.search(rf"^\s*header_up\s+{re.escape(h)}\s+\S", body, re.M | re.I):
+                problems.append(f"F3 reverse_proxy {n} sets {h} to a value")
     if "{env." in text.split("\n\n")[-1] or re.search(r"^\{env\.", text, re.M):
         problems.append("F5 a site address uses the runtime {env.VAR} placeholder")
     if not re.search(r"^\{\$FLEET_HOST\}\s*\{", text, re.M):
@@ -81,8 +93,12 @@ def self_test():
     mutants = {
         "F1": lambda t: t.replace("format filter {\n\t\t\twrap json", "format json {\n\t\t\twrap json", 1),
         "F2 address": lambda t: t.replace("request>remote_ip delete", "request>remote_ipX delete"),
-        "F2 token": lambda t: t.replace("request>headers>X-Np-Device-Token delete", "request>headers>X-Other delete"),
+        "F2 headers by name": lambda t: t.replace("request>headers delete",
+                                                  "request>headers>X-Forwarded-For delete\n\t\t\t\trequest>headers>X-Np-Device-Token delete", 1),
+        "F2 headers in a comment": lambda t: t.replace("request>headers delete", "# request>headers delete", 1),
         "F3": lambda t: t.replace("header_up -X-Real-IP", "header_up X-Real-IP {remote_host}"),
+        "F3 Forwarded": lambda t: t.replace("\t\t\theader_up -Forwarded\n", ""),
+        "F3 Via in a comment": lambda t: t.replace("header_up -Via", "# header_up -Via"),
         "F4 none": lambda t: t.replace("roll_keep_for 72h", "roll_size 10MiB"),
         "F4 long": lambda t: t.replace("roll_keep_for 72h", "roll_keep_for 9999h"),
         "F5": lambda t: t.replace("{$FLEET_HOST} {", "{env.FLEET_HOST} {"),
