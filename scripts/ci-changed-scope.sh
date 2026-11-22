@@ -163,6 +163,11 @@ np_match() {
 # relative to the default branch — so the two events can no longer disagree.
 #
 #   pull_request                 <event-base> (the PR's base sha)
+#   merge_group                  <event-base> (`merge_group.base_sha`, the commit
+#                                the queue built this group on).  The group's
+#                                head is that commit plus the queued pull
+#                                requests, so the diff is what the queue adds to
+#                                the `main` it will land on (NP-SW-CI-001 §6.19)
 #   push to the default branch   <event-base> (`before`): main has no base but
 #                                itself, and diffing it against origin/main would
 #                                find nothing and skip every job
@@ -183,7 +188,7 @@ np_diff_base() {
 
   candidates=""
   case $event in
-    pull_request) candidates=$event_base ;;
+    pull_request|merge_group) candidates=$event_base ;;
     push)
       if [ -n "$default_branch" ] && [ "$ref" = "refs/heads/$default_branch" ]; then
         candidates=$event_base
@@ -256,10 +261,18 @@ np_last_green_base() {
 # between them.  Needs `gh` and GH_TOKEN with `actions: read`; notices go to
 # stderr, the answer to stdout.  Every non-answer prints the merge base: no
 # API access, no earlier success, a force-push, the default branch itself, a
-# manual dispatch.
+# manual dispatch, a merge group.
+#
+# A merge group never takes a last-green base (NP-SW-CI-001 §6.19).  The queue
+# exists to test the pull request on the `main` it will land on, which is the
+# re-test against a moved base that a last-green diff skips (§6.15.3 item 2).
+# Its branch, gh-readonly-queue/<base>/pr-<n>-<sha>, is new for every group, so
+# the API would find nothing anyway; refusing by event says why, and does not
+# depend on GitHub's branch naming.
 np_resolve_base() {
   workflow=$1 merge_base=$2 event=$3 head=$4 branch=$5 default_branch=$6 head_repo=$7 repo=$8
-  if [ "$event" = "workflow_dispatch" ] || [ -z "$branch" ] || [ "$branch" = "$default_branch" ]; then
+  if [ "$event" = "workflow_dispatch" ] || [ "$event" = "merge_group" ] \
+     || [ -z "$branch" ] || [ "$branch" = "$default_branch" ]; then
     printf '%s\n' "$merge_base"; return 0
   fi
   tmp=$(mktemp -d)
@@ -423,6 +436,11 @@ np_self_test_diff_base() {
   np_st_diff merge-push       'docs/a.md'    push "$before" "$merge" main refs/heads/feature
   np_st_diff first-push       'docs/a.md'    push "$zero"   "$merge" main refs/heads/feature
   np_st_diff pull-request     'docs/a.md'    pull_request "$main" "$merge" main refs/pull/1/merge
+  # A merge group is the branch on top of main; its base_sha is main.  It must
+  # see the branch's doc, and with no base it is unknown (build), never empty.
+  np_st_diff merge-group      'docs/a.md'    merge_group "$main" "$merge" main refs/heads/gh-readonly-queue/main/pr-1-abc
+  np_st_diff merge-group-none 'UNKNOWN'      merge_group ''      "$merge" main refs/heads/gh-readonly-queue/main/pr-1-abc
+  np_st_diff merge-group-zero 'UNKNOWN'      merge_group "$zero" "$merge" main refs/heads/gh-readonly-queue/main/pr-1-abc
   # main itself is diffed against `before`, never against origin/main (= itself).
   np_st_diff default-branch   'scripts/s.ts' push "$root" "$main" main refs/heads/main
   np_st_diff default-zero     'UNKNOWN'      push "$zero" "$main" main refs/heads/main
@@ -467,11 +485,14 @@ np_self_test_diff_base() {
   np_st_resolve fork-pr        "$before" yes ok   "o/r $root${nl}fork/r $before$nl" w.yml "$main" pull_request "$merge" feature main fork/r o/r
   np_st_resolve only-this-head "$main"   yes ok   "o/r $merge$nl"                w.yml "$main" pull_request "$merge" feature main o/r o/r
   np_st_resolve force-pushed   "$main"   yes ok   "o/r $orphan$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r
-  # Three cases where the API must not be asked at all: a wrong answer from it
+  # Four cases where the API must not be asked at all: a wrong answer from it
   # could only narrow the diff.
   np_st_resolve default-branch "$root"   no  ok   "o/r $root$nl"                 w.yml "$root" push "$main" main main o/r o/r
   np_st_resolve dispatch       "$main"   no  ok   "o/r $before$nl"               w.yml "$main" workflow_dispatch "$merge" feature main o/r o/r
   np_st_resolve no-branch      "$main"   no  ok   "o/r $before$nl"               w.yml "$main" pull_request "$merge" "" main o/r o/r
+  # A merge group re-tests on the main it lands on: never a last-green base,
+  # even if the API would name one (§6.19).
+  np_st_resolve merge-group    "$main"   no  ok   "o/r $before$nl"               w.yml "$main" merge_group "$merge" gh-readonly-queue/main/pr-1-abc main o/r o/r
   # What was asked: this workflow's runs, on this branch, successful only.  A
   # query without `status=success` would offer a FAILED head as a base.
   np_st_resolve query-shape    "$before" yes ok   "o/r $before$nl"               w.yml "$main" pull_request "$merge" feature main o/r o/r

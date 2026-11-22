@@ -108,7 +108,8 @@ text: - [ ] **`OI-PRIV-42`** …
   directly, and rule N dry-runs every pending fragment's hunks (other PRs' first, this one's last): a hunk written
   against an older page, because another PR changed the same item, fails on the PR, which then merges `main`, runs
   `--expand-open`, redoes the edit and converts again. With `main` requiring a branch to be up to date, N runs again
-  whenever another PR's edit lands first.
+  whenever another PR's edit lands first. In the merge queue (`NP-SW-CI-001` §6.19) N also runs on the merge-group
+  commit, after the fragments of the pull requests queued ahead, provided the queue merges by `MERGE`.
 - A fragment may hold only `## OPEN` sections. The page is not a controlled document, so they bump nothing.
 
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named
