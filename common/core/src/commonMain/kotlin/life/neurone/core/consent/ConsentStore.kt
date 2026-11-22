@@ -22,6 +22,7 @@ import life.neurone.core.models.StudyDescriptorAdmission
 import life.neurone.core.models.StudyDescriptorVerifier
 import life.neurone.core.models.StudyInvitation
 import life.neurone.core.models.StudyParticipationRecord
+import life.neurone.core.models.UHDRElement
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.core.common.UUID
@@ -103,6 +104,12 @@ class ConsentStore(
 
         /** [day] is a real calendar day written "yyyy-MM-dd", the only form that orders as text. */
         fun isIsoDay(day: String): Boolean = ConsentEngine.isIsoDay(day)
+
+        /**
+         * A `contactMethod` or `contactChannel` key and its string value, in plain or escaped JSON text: group 1 is everything up
+         * to the value's opening quote, which is kept, and the value is dropped. Used only on text that no longer parses.
+         */
+        private val CONTACT_IN_TEXT = Regex("""(contact(?:Method|Channel)\\*"\s*:\s*\\*")[^"\\]*""")
     }
 
     var clinicianGrants: List<ClinicianConsentGrant> = emptyList()
@@ -131,7 +138,8 @@ class ConsentStore(
 
     /**
      * Stored consent records that could not be read, kept as they were found (`REQ-CONSENT-20`). Kept for good:
-     * a later version of the app may be able to read what this one could not.
+     * a later version of the app may be able to read what this one could not. The one exception is the L1 contact method,
+     * which is blanked in every one when L1 is off (`REQ-CONSENT-23` c), because nothing ever reads it out of one.
      */
     var quarantinedBlobs: List<QuarantinedConsentBlob> = emptyList()
         private set
@@ -205,21 +213,38 @@ class ConsentStore(
     // ── Clinician consent ────────────────────────────────────────────────
 
     /**
-     * Record a grant. Refused, and false returned, unless the grant is time-limited (§5.1, `REQ-CONSENT-18`):
-     * it carries an expiry that is a real day and has not passed.
+     * Record a grant. Refused, and false returned, unless:
+     *  - it is time-limited (§5.1, `REQ-CONSENT-18`): it carries an expiry that is a real day and has not passed;
+     *  - it is built from use cases its tier offers, and its scopes reach only what they need ([ConsentEngine.isWellFormedNewGrant],
+     *    `REQ-CONSENT-15` (g));
+     *  - no grant with its id is held, revoked ones included. A grant used to replace one with the same id silently, which
+     *    could rewrite the record of a revoked grant or widen a live one with no differential shown (`OI-PRIV-64`).
+     *
+     * No longest expiry is enforced: a maximum would be a number with no derivation (`CLAUDE.md` §18), so how long is the
+     * person's decision, as the form already makes it.
      */
     fun grantClinicianAccess(grant: ClinicianConsentGrant): Boolean {
         if (!loaded) return false // widens what is shared: not while the person is not present
         val expiry = grant.expiresAtDay
         if (expiry == null || !isIsoDay(expiry) || !grant.isInForce(todayIso())) return false
-        clinicianGrants = clinicianGrants.filterNot { it.id == grant.id } + grant
+        if (!ConsentEngine.isWellFormedNewGrant(grant)) return false
+        if (clinicianGrants.any { it.id == grant.id }) return false
+        clinicianGrants = clinicianGrants + grant
         save()
         return true
     }
 
+    /**
+     * Revoke a grant. It is kept, inactive and marked with the day, as the record of who had access, to what and when
+     * (§5.1: clinician access is audited and revocable; `OI-PRIV-64`). [ClinicianConsentGrant.isInForce] is false for it, so
+     * it reaches nothing and cannot be widened. Revoking one already revoked changes nothing, so the first day stands.
+     */
     fun revokeClinicianAccess(grantId: String) {
         if (deferred { revokeClinicianAccess(grantId) }) return
-        clinicianGrants = clinicianGrants.filterNot { it.id == grantId }
+        val day = todayIso()
+        clinicianGrants = clinicianGrants.map {
+            if (it.id == grantId && it.revokedOnDay == null) it.copy(isActive = false, revokedOnDay = day) else it
+        }
         // An outstanding request to widen a grant that no longer exists is a notification the user
         // can only answer wrongly, so it goes with the grant. Decided requests stay: they are the
         // record of what was asked and answered.
@@ -270,9 +295,10 @@ class ConsentStore(
         // this tier, since the request was raised. Approving what the differential document no
         // longer describes would apply a change the user was not shown.
         val grant = clinicianGrants.firstOrNull { it.id == request.grantId } ?: return
-        // The differential is also null for a grant that is no longer in force (`REQ-CONSENT-18`).
+        // The differential is also null for a grant that is no longer in force (`REQ-CONSENT-18`). What it says is added
+        // is what is applied: the use cases' elements within the tier, never the tier's whole set (`REQ-CONSENT-15` f).
         val today = todayIso()
-        if (ConsentEngine.accessDifferential(grant, request.toTier, today) == null) return
+        val differential = ConsentEngine.accessDifferential(grant, request, today) ?: return
 
         expansionRequests = expansionRequests.map {
             if (it.id == requestId) {
@@ -289,6 +315,8 @@ class ConsentStore(
         expandClinicianAccess(
             grantId = request.grantId,
             newTier = request.toTier,
+            elements = differential.newlyVisibleElements,
+            useCaseIds = differential.useCaseIds,
             includePriorData = includePriorData,
             decidedOnDay = today,
         )
@@ -347,10 +375,15 @@ class ConsentStore(
      * the tier alone, so the retroactive answer survives in the record. The tier still moves — it
      * is what the subscription and the price are keyed to — but it is no longer the only thing
      * deciding what the clinician can see.
+     *
+     * [elements] are the differential's newly visible set, derived from the request's use cases ([ConsentEngine.accessDifferential]);
+     * the use cases join the grant's own, so the grant can still be explained in the words it was widened in (§6.1).
      */
     private fun expandClinicianAccess(
         grantId: String,
         newTier: ClinicianUseCaseTier,
+        elements: Set<UHDRElement>,
+        useCaseIds: Set<String>,
         includePriorData: Boolean,
         decidedOnDay: String,
     ) {
@@ -360,11 +393,12 @@ class ConsentStore(
             } else {
                 grant.copy(
                     accessScopes = grant.effectiveScopes + ClinicianAccessScope(
-                        elements = newTier.uhdrElements - grant.approvedElements,
+                        elements = elements - grant.approvedElements,
                         effectiveFromDay = decidedOnDay,
                         includesPriorData = includePriorData,
                     ),
                     tier = newTier,
+                    useCaseIds = (grant.useCaseIds.orEmpty() + useCaseIds).distinct().sorted(),
                 )
             }
         }
@@ -393,27 +427,43 @@ class ConsentStore(
         // through the operations below.
         if (!loaded) return
         val wasBlanketGranted = researchConsent.blanketConsentGranted
-        val isWithdrawal = wasBlanketGranted && !state.blanketConsentGranted
+        // While the stored record is unreadable the device cannot know blanket consent was never granted, so a commit with it
+        // off may be the person saying stop. It gets what withdrawBlanketResearchConsent gives the same state (`REQ-CONSENT-20`
+        // c, `OI-PRIV-64`): research analytics and the portal token go at once, because a removal costs the person nothing
+        // they cannot turn on again. The withdrawal itself is recorded only when the commit consents to no category: a
+        // recorded blanket withdrawal outranks the L2 ticks (`REQ-CONSENT-04` e), so marking one would bar the very scope the
+        // person chose in the same step. Whether that commit is also "saying stop" is the open ruling on `OI-PRIV-64`.
+        val mayHaveBeenGranted = !wasBlanketGranted && consentRecordUnreadable && !state.blanketConsentGranted
+        val recordsMayHaveBeenGranted = mayHaveBeenGranted && state.categoryConsents.none { it.value }
+        val isWithdrawal = (wasBlanketGranted && !state.blanketConsentGranted) || recordsMayHaveBeenGranted
 
         // blanketConsentWithdrawnOnDay is the store's to set, never the screen's. The UI commits a
         // whole state and cannot see the transition this method is built around; carrying the
         // committed value through would let a stale screen erase the record of the user having
         // said stop, which is the one thing §6.0 needs to survive.
         val before = researchConsent
-        researchConsent = withTimes(researchConsent, withContact(researchConsent, state)).copy(
+        val next = withTimes(researchConsent, withContact(researchConsent, state))
+        researchConsent = next.copy(
             blanketConsentWithdrawnOnDay = if (isWithdrawal) {
                 todayIso()
             } else {
                 researchConsent.blanketConsentWithdrawnOnDay
             },
+            blanketConsentWithdrawnAt = if (recordsMayHaveBeenGranted) {
+                WithdrawalMark.next(researchConsent.blanketConsentWithdrawnAt, today())
+            } else {
+                next.blanketConsentWithdrawnAt
+            },
         )
+        // The address goes from every copy the store holds when L1 is off, quarantined records included (`REQ-CONSENT-23` c).
+        if (!researchConsent.contactConsentGranted) scrubQuarantinedContact()
         // A commit from the consent UI is the person deciding, so it is what ends a quarantine.
         markRedecided()
         withdrawUncoveredParticipations()
         save()
-        portalIdentityAfter(before)
+        if (mayHaveBeenGranted) forgetPortalIdentity() else portalIdentityAfter(before)
 
-        if (isWithdrawal) {
+        if (isWithdrawal || mayHaveBeenGranted) {
             revokeResearchAnalytics()
         }
     }
@@ -539,7 +589,8 @@ class ConsentStore(
         }
         pendingInvitations = pendingInvitations.map {
             if (it.studyId in stopped && it.isOpen && it.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
-                it.copy(decision = StudyInvitation.StudyDecision.Declined(today))
+                // A stop the person's withdrawal caused is a withdrawal, not a decline (§6.2, `REQ-CONSENT-11` c).
+                it.copy(decision = StudyInvitation.StudyDecision.Withdrawn(today))
             } else {
                 it
             }
@@ -557,6 +608,34 @@ class ConsentStore(
         quarantinedBlobs = quarantinedBlobs.map {
             if (it.redecidedOnDay == null && it.key in RESEARCH_RECORD_KEYS) it.copy(redecidedOnDay = today) else it
         }
+    }
+
+    /**
+     * Erase the L1 contact method from every quarantined research record (`REQ-CONSENT-23` c, `OI-PRIV-64`).
+     *
+     * A quarantined record is kept as found so its withdrawal marks are never lost (`REQ-CONSENT-20` a), but a contact method
+     * is never read out of one (`REQ-CONSENT-20` e), so the copy it holds serves nothing once L1 is off. Only the method and its
+     * channel are blanked; every other byte, withdrawal marks included, stays as found. A record that still parses as JSON
+     * loses the two fields; one that does not (truncated, or itself a quarantine list holding records as escaped text) has
+     * the value after each `contactMethod` key blanked in place. What cannot be scrubbed: an address in a record so damaged
+     * that its `contactMethod` key is no longer legible, and the tail of a free-text method written before `REQ-CONSENT-23`
+     * that contains a quotation mark.
+     */
+    private fun scrubQuarantinedContact() {
+        val scrubbed = quarantinedBlobs.map { q ->
+            if (q.key != RESEARCH_KEY && q.key != QUARANTINE_KEY) q else q.copy(blob = withoutContact(q.blob))
+        }
+        if (scrubbed == quarantinedBlobs) return
+        quarantinedBlobs = scrubbed
+        saveQuarantine()
+    }
+
+    private fun withoutContact(blob: String): String {
+        val obj = parsed(blob)
+        if (obj != null && (obj.containsKey("contactMethod") || obj.containsKey("contactChannel"))) {
+            return json.encodeToString(JsonObject.serializer(), JsonObject(obj - "contactMethod" - "contactChannel"))
+        }
+        return CONTACT_IN_TEXT.replace(blob) { m -> m.groupValues[1] }
     }
 
     /**
@@ -679,6 +758,8 @@ class ConsentStore(
             .filterKeys { it in studyNames }
             .mapValues { it.value.jsonPrimitive.content }
         studyWithdrawals = studyWithdrawals + studies
+        // A restored L1 withdrawal erases the address from quarantined records too (`REQ-CONSENT-23` c).
+        if (contact != null) scrubQuarantinedContact()
         studyParticipations = studyParticipations.map {
             val t = studies[it.studyId]
             if (t != null && it.isActive) it.copy(withdrawnAtDay = WithdrawalMark.dayOf(t)) else it
@@ -798,14 +879,15 @@ class ConsentStore(
         val invitation = pendingInvitations.firstOrNull { it.studyId == studyId } ?: return
         if (!invitation.isOpen) return
 
+        // An L3 user's opt-out is a withdrawal from a study they were in, not a decline (§6.2, `REQ-CONSENT-11` c).
+        val day = todayIso()
+        val decision = if (invitation.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
+            StudyInvitation.StudyDecision.Withdrawn(day)
+        } else {
+            StudyInvitation.StudyDecision.Declined(day)
+        }
         pendingInvitations = pendingInvitations.map {
-            if (it.studyId == studyId) {
-                it.copy(
-                    decision = StudyInvitation.StudyDecision.Declined(todayIso()),
-                )
-            } else {
-                it
-            }
+            if (it.studyId == studyId) it.copy(decision = decision) else it
         }
         if (invitation.posture == StudyInvitation.Posture.ENGAGEMENT_NOTIFICATION) {
             withdrawFromStudy(studyId)
