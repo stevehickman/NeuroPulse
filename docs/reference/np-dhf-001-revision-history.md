@@ -410,3 +410,4 @@ Moved verbatim from `docs/np_dhf_001.md` §9 at Rev 156 (`NP-QMS-DC-001` §8.2, 
 | 374 | 2026-11-21 | NeurOne Software Engineering | **200 → 201: the Android and browser centrals translate a refused read or write through one tested rule in the shared module (`OI-PRIV-17`); software only, no firmware changed.** |
 | 375 | 2026-11-21 | NeurOne Tooling | **39 → 40: the redaction-shape gate is listed as a required status-check context in `ci/required-checks.txt`; the ruleset edit is the principal's (OI-SWCI-54 Q2, in part).** |
 | 376 | 2026-11-21 | NeurOne Tooling | **40 → 41: the redaction-shape context is in force on `main`, and a pull request must be up to date with `main` before it merges (`strict: true`, the principal); OI-SWCI-53 closed, OI-SWCI-54 Q5 answered.** |
+| 377 | 2026-11-20 | NeurOne Software Engineering | **201 → 202: the migration claim marker carries a key-holder tag and a planted marker refuses as `claim_unauthentic` (`OI-PRIV-02`, option A).** |
