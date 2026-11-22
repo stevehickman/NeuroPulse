@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 204
+**Revision:** 205
 **Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -892,3 +892,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 202 | 2026-11-20 | NeurOne Software Engineering | **§6.3 SWR-MG-07: the claim carries a tag only a holder of the bundle key can make; a marker with no or a wrong tag refuses with its own reason and is never touched. The atomic rule is unchanged. The restore screen offers the person a two-tap release control with either refusal, and a new migration backup removes the marker of the earlier bundle it replaces.** |
 | 203 | 2026-11-21 | NeurOne Software Engineering | **§5.3.1: the SwiftUI iOS app is deleted (`OI-UI-KMP-05` PR B). `REQ-SW03-18` (a) is retired in place, and the Swift key-manager clauses of `REQ-SW03-08` are retired in place (the core's derivation, split and destroyed-key refusal stay required, verified by `UhdrKeyDerivationTests` and `bundle_key.rs`); the shared iOS host is the iOS app, and the Swift test groups, `ModelsParityTests` and the iOS CI workflow are gone.** |
 | 204 | 2026-11-21 | NeurOne Software Engineering | **§5.2.2: `REQ-SW02-12` states that a research extract carries only the §E.5 research header, and what the gate refuses (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)).** |
+| 205 | 2026-11-21 | NeurOne Firmware Engineering | **§5.2.2: `REQ-SW02-13` added: a factory reset purges the data partitions with eMMC SANITIZE started through EXT_CSD, after the last erase and before the new salt and token, and a SANITIZE that fails keeps the reset in progress (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004` H7).** |

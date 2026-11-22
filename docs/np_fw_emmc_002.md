@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -90,7 +90,7 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
 R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), which
-     unmaps it; the purge is R-7a (Rev {NP-FW-EMMC-002 to})
+     unmaps it; the purge is R-7a (Rev 9)
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
@@ -99,7 +99,7 @@ R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_STAR
      and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
      not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
      not finish within its bound, the reset fails here and stays in progress
-     (Rev {NP-FW-EMMC-002 to})
+     (Rev 9)
 R-8  Hub generates new TRNG salt (256-bit) for future UHDR Argon2id derivation
 R-9  Hub generates new warranty token via TRNG (not pre-registered)
 R-10 Hub writes only: new TRNG salt, new warranty token, and factory firmware defaults to Config partition
@@ -107,7 +107,7 @@ R-11 Hub clears reset_in_progress flag
 R-12 Hub reboots — device presents as factory-new to the next owner
 ```
 
-> **Rev {NP-FW-EMMC-002 to} correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-13`).**
+> **Rev 9 correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-13`).**
 > Up to Rev 6, R-5 read "Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition" and
 > R-6 "(eMMC ERASE + SANITIZE)". **CMD38 does not start SANITIZE.** CMD38 with argument 0 is a plain
 > ERASE, and that is all the bootloader's interrupted-reset path issued. SANITIZE is started by CMD6 SWITCH
@@ -1066,6 +1066,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 6 | 2026-11-21 | **§G, §H: the accelerometer characterisation bins and `impact_event_count` are 32-bit and never saturate, so the sum always holds; the fleet columns are `BIGINT` (`OI-UINT16-01`).** |
 | 7 | 2026-11-21 | **§H.3.4: the spent budget is persisted before the extended record is written, and a failed budget write sends nothing and returns `NP_ACCEL_ERR_BUDGET`; a failed record write leaves the slot spent (CHAR-2; `OI-PRIV-36` (NP-PRIV-ANALYSIS-004), GitHub #964).** |
 | 8 | 2026-11-21 | **§E.2 marked as the local header only and its check widened to the whole patient-ID field; §E.4 gate now checks the research header under the study's policy; §E.5 added (research EDF+ header, per-study code, date rounding, what is not yet covered) (OI-PRIV-26 (NP-PRIV-ANALYSIS-004), GitHub #954).** |
+| 9 | 2026-11-21 | **§B.3: R-5 named "SANITIZE (CMD38, SANITIZE_START)", which is a plain erase; corrected to CMD6 SWITCH writing 1 to EXT_CSD[165] (support in EXT_CSD[231] bit 6), moved to a new step R-7a after the erases so it also purges SHDR and Config, with no fallback to a plain erase; the 240 s bound is `UC-202`; R-1/R-2 have no implementation (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004`).** |
 
 Open items created by this document:
 
