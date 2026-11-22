@@ -19,6 +19,10 @@ typedef enum {
     NP_EDF_ERR_PRIVACY_HEADER = -2,   /* validator found PII field violation */
     NP_EDF_ERR_REAL_NAME      = -3,   /* patient_name contains alphabetics beyond NeurOne_User */
     NP_EDF_ERR_TOKEN_LEN      = -4,
+    /* Research-header policy (NP-FW-EMMC-002 §E.5, OI-PRIV-26 (NP-PRIV-ANALYSIS-004)): */
+    NP_EDF_ERR_RESEARCH_DATE    = -5, /* a date or time finer than the study's rounding */
+    NP_EDF_ERR_RESEARCH_LINKAGE = -6, /* a patient code other than 'X' or this study's code */
+    NP_EDF_ERR_RECORDING_ID     = -7, /* recording ID not the fixed research form */
 } np_edf_status_t;
 
 /* 256-byte EDF+ header buffer — raw ASCII, NOT null-terminated.
