@@ -937,6 +937,12 @@ jobs:
       - name: The expected protection of main is a protection
         run: bun scripts/check-main-ruleset.ts
 
+      # NP-SW-CI-001 §6.20. main-health.yml runs scripts/main-health.ts from the default branch only (it posts a required
+      # status, so a pull request must not be able to change what decides its own), which means a change to the script
+      # is first exercised after it merges. Its decisions are proven here, on the pull request that changes them.
+      - name: Main-health decisions (red, transitions, the merge hold, the alert email)
+        run: bun scripts/main-health.ts --self-test
+
   doc-naming:
     name: document filenames match their serials (NP-CONV-001 §4.0)
     runs-on: ubuntu-latest
