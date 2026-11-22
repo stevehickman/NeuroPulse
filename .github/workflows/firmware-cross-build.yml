@@ -168,6 +168,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue (NP-SW-CI-001 §6.19). This workflow holds a required context, and a required context that does
+  # not report on the queue's merge-group commit holds every queued pull request forever. scripts/check-ci-scope.ts
+  # (correspondence C) fails the tree if this trigger is missing from a workflow that holds one.
+  merge_group:
   workflow_dispatch:
 
 # Least privilege.  Required for actions/checkout, which hard-fails without it
@@ -239,7 +243,8 @@ env:
   # 61 → 62: np_mod_intranasal_tests (OI-SIMFW-21, REQ-NASAL-15).
   # 62 → 63: np_stim_xcheck_nonfinite_tests (OI-SIMFW-31, REQ-FWHUB-41).
   # 64 → 65: np_bootloader_rollback_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15).
-  NP_CLASS_B_TEST_COUNT: '65'
+  # 65 → 66: np_bootloader_sanitize_tests (OI-PRIV-27 (NP-PRIV-ANALYSIS-004), REQ-SW02-13).
+  NP_CLASS_B_TEST_COUNT: '66'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.
@@ -361,7 +366,7 @@ jobs:
         id: diff
         env:
           NP_EVENT: ${{ github.event_name }}
-          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}

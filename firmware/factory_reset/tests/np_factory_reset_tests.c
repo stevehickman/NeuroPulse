@@ -51,8 +51,70 @@ static void begin_case(void)
     np_fr_host_hal_reset();
 }
 
+/* ── R-7a eMMC SANITIZE (OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7) ────────────────── */
+
+/* @verifies REQ-SW02-13#b */
+static void test_purge_runs_after_the_last_erase_and_before_rederive(void)
+{
+    begin_case();
+    check(np_factory_reset_execute() == NP_RESET_OK &&
+          strcmp(np_fr_host_hal.trace, "MUSCPW") == 0,
+          "R-7a SANITIZE follows the UHDR, SHDR and Config erases and precedes R-10 (MUSCPW)");
+    check(np_fr_host_hal.calls_purge_unmapped == 1U, "the purge runs once on a clean reset");
+
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;   /* power cut mid-reset */
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED &&
+          strcmp(np_fr_host_hal.trace, "USCPW") == 0,
+          "the boot-check resume purges too, in the same place (USCPW)");
+
+    begin_case();
+    np_fr_host_snvs_lpgpr1 = NP_FR_RESET_IN_PROGRESS;
+    np_factory_reset_resume_after_powerloss();
+    check(strcmp(np_fr_host_hal.trace, "USCPW") == 0,
+          "resume_after_powerloss purges too (USCPW)");
+
+    begin_case();
+    np_fr_host_hal.fail_zero_config = -1;
+    (void)np_factory_reset_execute();
+    check(np_fr_host_hal.calls_purge_unmapped == 0U,
+          "no purge is reported for erases that did not all happen");
+}
+
+/* @verifies REQ-SW02-13#c */
+static void test_purge_failure_keeps_the_reset_in_progress(void)
+{
+    begin_case();
+    np_fr_host_hal.fail_purge_unmapped = -1;
+    check(np_factory_reset_execute() == NP_RESET_ERR_SANITIZE,
+          "execute returns ERR_SANITIZE when R-7a fails");
+    check(np_factory_reset_is_in_progress() == true,
+          "flag STAYS SET when R-7a (SANITIZE) fails");
+    check(np_fr_host_hal.calls_purge_unmapped == NP_FR_HAL_MAX_RETRIES,
+          "R-7a bounded retry: called exactly NP_FR_HAL_MAX_RETRIES times");
+    check(np_fr_host_hal.calls_trng == 0U && np_fr_host_hal.calls_write_config == 0U,
+          "no new salt or token is minted, and nothing is written, after a failed purge");
+
+    begin_case();
+    np_fr_host_hal.marker_state = NP_FR_MARKER_PRESENT;
+    np_fr_host_hal.fail_purge_unmapped = -1;
+    check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUME_FAILED &&
+          np_factory_reset_boot_permits_data(NP_FR_BOOT_RESUME_FAILED) == false,
+          "a purge that fails at boot: RESUME_FAILED, and UHDR/SHDR are not mounted");
+    check(np_factory_reset_is_in_progress() == true, "and the next boot retries");
+
+    begin_case();
+    np_fr_host_hal.fail_purge_unmapped = (int)NP_FR_HAL_MAX_RETRIES - 1;   /* transient */
+    check(np_factory_reset_execute() == NP_RESET_OK &&
+          np_factory_reset_is_in_progress() == false,
+          "a transient purge fault inside the retry budget lets the reset complete");
+}
+
 int main(void)
 {
+    test_purge_runs_after_the_last_erase_and_before_rederive();
+    test_purge_failure_keeps_the_reset_in_progress();
+
     /* ── Happy path ──────────────────────────────────────────────────────── */
 
     /* 1: SNVS read does not crash and reports "not in progress" initially. */
@@ -171,8 +233,8 @@ int main(void)
      * sequence leaves Config with no marker. */
     begin_case();
     check(np_factory_reset_execute() == NP_RESET_OK, "execute with marker returns OK");
-    check(strcmp(np_fr_host_hal.trace, "MUSCW") == 0,
-          "R-3 marker precedes R-5/R-6/R-7 erases and R-10 write (trace MUSCW)");
+    check(strcmp(np_fr_host_hal.trace, "MUSCPW") == 0,
+          "R-3 marker precedes R-5/R-6/R-7 erases, R-7a purge and R-10 write (trace MUSCPW)");
     check(np_fr_host_hal.marker_state == NP_FR_MARKER_ABSENT,
           "a completed reset leaves no marker");
 
@@ -257,9 +319,9 @@ int main(void)
                      "power cut after %s: boot check completes the reset", cut[i].after);
             check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED, name);
             snprintf(name, sizeof(name),
-                     "power cut after %s: resume re-runs R-5..R-10 (trace USCW)",
+                     "power cut after %s: resume re-runs R-5..R-10 (trace USCPW)",
                      cut[i].after);
-            check(strcmp(np_fr_host_hal.trace, "USCW") == 0, name);
+            check(strcmp(np_fr_host_hal.trace, "USCPW") == 0, name);
             check(np_fr_host_hal.marker_state == NP_FR_MARKER_ABSENT &&
                   np_factory_reset_is_in_progress() == false,
                   "resumed reset leaves no marker and no flag");
@@ -280,7 +342,7 @@ int main(void)
     begin_case();
     np_fr_host_hal.marker_state = NP_FR_MARKER_NO_STORE;
     check(np_factory_reset_boot_check() == NP_FR_BOOT_RESUMED &&
-          strcmp(np_fr_host_hal.trace, "USCW") == 0,
+          strcmp(np_fr_host_hal.trace, "USCPW") == 0,
           "Config with no filesystem: the whole R-5..R-10 re-runs");
 
     begin_case();

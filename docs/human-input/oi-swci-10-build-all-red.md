@@ -1,6 +1,6 @@
 # How is a red `build-all` heard?
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working on GitHub #446. **To:** the principal
+**Status:** ANSWERED 2026-11-22: option C, an email to the repository owner (`NP-SW-CI-001` §6.20). Kept as the record of the question. **From:** a Claude Code session working on GitHub #446. **To:** the principal
 **GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (repository owner). Open item: `OI-SWCI-10` (`docs/np_sw_ci_001.md` §7), open since 2026-08-08.
 

@@ -185,6 +185,9 @@ The same Rust code runs on both ends in the simulator, as the hub's own sources 
 | OTA firmware and the bootloader | does not exist | a transfer through the record layer; the image's secrecy at rest and the bootloader's own signature check are a separate design | not designed here |
 | SHDR upload | hub to app leg is a download over the channel; the app to cloud leg is the existing path | the hub to app leg through the record layer | the app to cloud leg is not in this design |
 | Stop, pause and panic writes (`OI-SIMFW-73`) | not encrypted on purpose (`REQ-FWHUB-81` (c)) | unchanged: one command byte, no data, can only reduce stimulation | an exception to §23; your ruling |
+| Resume, the pause write's code 0x02 (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004)) | link encryption required since 2026-11-21 (`REQ-FWHUB-81` (e)) | link encryption; an authenticated link for a detector hold is `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)'s open question | not authenticated (`OI-SIMFW-72`) |
+
+**Correction (2026-11-21, `OI-PRIV-24`, NP-PRIV-ANALYSIS-004 H4).** As first written, the stop, pause and panic row said these writes "can only reduce stimulation". That was false: the pause characteristic also carried resume (0x02), which restarts stimulation, and the hub took it from any central, including after a photoparoxysmal-detector halt. The row above is now true only because resume was split off it at the hub. The open questions are in `docs/human-input/oi-priv-24-resume-and-the-section-23-exception.md`.
 
 ---
 

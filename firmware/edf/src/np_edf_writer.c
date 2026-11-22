@@ -180,7 +180,12 @@ static char np_edf_hex_digit(uint8_t nibble)
    end of the 80-char field.  An empty/all-space name is treated as compliant
    (no real name present).  Anything that matches "NeurOne_User" exactly is
    compliant.  Any other content that contains at least one alphabetic
-   character is treated as a real name. */
+   character is treated as a real name.
+
+   The rest of the field after the name is scanned too (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)): EDF+
+   allows further subfields there, and "NeurOne_User Jane Doe" used to pass
+   because the check stopped at the first space.  Anything but spaces after the
+   name is a violation. */
 bool np_edf_header_contains_real_name(const np_edf_header_t *header)
 {
     if (header == NULL) {
@@ -197,6 +202,13 @@ bool np_edf_header_contains_real_name(const np_edf_header_t *header)
         end++;
     }
     size_t name_len = end - start;
+
+    /* Whole-field scan: nothing but spaces may follow the name subfield. */
+    for (size_t i = end; i < (size_t)NP_EDF_PATIENT_ID_LEN; i++) {
+        if (pid[i] != ' ') {
+            return true;
+        }
+    }
 
     /* Empty name (field padded with spaces from NAME_OFFSET onward) is fine. */
     if (name_len == 0U) {
