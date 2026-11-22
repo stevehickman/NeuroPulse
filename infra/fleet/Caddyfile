@@ -7,8 +7,8 @@
 # log for a short time.
 #
 # The address still reaches this proxy (TCP needs it). The rule is that it is written nowhere and handed on to nothing: the
-# access log below drops it, the upstream never gets it (header_up), and error logs, which Caddy writes with the address, go to
-# the default logger configured here with the same filter.
+# access log below drops it and every request header, the upstream never gets it (header_up), and error logs, which Caddy
+# writes with the address, go to the default logger configured here with the same filter.
 #
 # Run, with FLEET_HOST set (a parse-time {$VAR}, because a site address cannot use the runtime {env.VAR}).
 #   FLEET_HOST=fleet.neurone.internal FLEET_UPSTREAM=ingest:8080 caddy run --config infra/fleet/Caddyfile
@@ -27,8 +27,9 @@
 				request>remote_ip delete
 				request>remote_port delete
 				request>client_ip delete
-				request>headers>X-Forwarded-For delete
-				request>headers>X-Np-Device-Token delete
+				# Every request header, not a list of known ones: the device token, X-Forwarded-For, X-Real-Ip,
+				# Forwarded, Via and whatever else a proxy on the way adds (OI-PRIV-51, REQ-SHDR-06 (a)).
+				request>headers delete
 			}
 		}
 	}
@@ -39,9 +40,18 @@
 	@ingest path /v1/shdr
 	handle @ingest {
 		reverse_proxy {$FLEET_UPSTREAM} {
-			# Do not hand the client's address to the ingest service: it would write it beside the token.
+			# Do not hand the client's address to the ingest service: it would write it beside the token. Caddy forwards every
+			# header it does not set itself, so each header a proxy on the way can put the address in is removed
+			# (OI-PRIV-51, REQ-SHDR-06 (b)).
 			header_up -X-Forwarded-For
 			header_up -X-Real-IP
+			header_up -Forwarded
+			header_up -True-Client-IP
+			header_up -CF-Connecting-IP
+			header_up -X-Client-IP
+			header_up -X-Cluster-Client-IP
+			header_up -Fastly-Client-IP
+			header_up -Via
 		}
 	}
 	handle {
@@ -59,8 +69,9 @@
 				request>remote_ip delete
 				request>remote_port delete
 				request>client_ip delete
-				request>headers>X-Forwarded-For delete
-				request>headers>X-Np-Device-Token delete
+				# Every request header, not a list of known ones: the device token, X-Forwarded-For, X-Real-Ip,
+				# Forwarded, Via and whatever else a proxy on the way adds (OI-PRIV-51, REQ-SHDR-06 (a)).
+				request>headers delete
 			}
 		}
 	}
