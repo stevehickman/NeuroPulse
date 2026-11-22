@@ -46,7 +46,8 @@
 # ── Logs keep no client address (OI-PRIV-05 (5), the interim floor; the principal, 2026-11-19) ───────────────────────────
 # The address reaches this proxy (TCP needs it). The rule is that it is written nowhere and handed on to nothing: the upstream
 # never gets it (header_up, below), and neither log holds it. Caddy writes the client's address into every access-log entry and
-# into the error entries of the default logger, so BOTH get the same filter. An event carries the installation's stable
+# into the error entries of the default logger, so BOTH get the same filter, and it deletes every request header, because a
+# proxy on the way can put the address in headers nobody listed (OI-PRIV-51). An event carries the installation's stable
 # analytics ID, and an address beside that ID places the installation on a household or clinic network.
 # This is a floor, not the protection decided on: analytics is to go through an Oblivious HTTP relay, so that this host never
 # receives the address at all (NP-APP-TELEMETRY-001 §4.1). Checked by ci/test_posthog_infra.py (P8).
@@ -60,8 +61,9 @@
         request>remote_ip delete
         request>remote_port delete
         request>client_ip delete
-        request>headers>X-Forwarded-For delete
-        request>headers>X-Real-Ip delete
+        # Every request header, not a list of known ones (OI-PRIV-51): X-Forwarded-For, X-Real-Ip, Forwarded, Via and
+        # whatever else a proxy on the way adds.
+        request>headers delete
       }
     }
   }
@@ -77,6 +79,13 @@
     reverse_proxy erase-relay:8080 {
       header_up -X-Forwarded-For
       header_up -X-Real-IP
+      header_up -Forwarded
+      header_up -True-Client-IP
+      header_up -CF-Connecting-IP
+      header_up -X-Client-IP
+      header_up -X-Cluster-Client-IP
+      header_up -Fastly-Client-IP
+      header_up -Via
     }
   }
 
@@ -89,6 +98,15 @@
       # is the second layer.
       header_up -X-Forwarded-For
       header_up -X-Real-IP
+      # Caddy forwards every header it does not set itself, so each other header a proxy on the way can put the
+      # address in is removed too (OI-PRIV-51).
+      header_up -Forwarded
+      header_up -True-Client-IP
+      header_up -CF-Connecting-IP
+      header_up -X-Client-IP
+      header_up -X-Cluster-Client-IP
+      header_up -Fastly-Client-IP
+      header_up -Via
 
       # Increase timeouts for long-running PostHog dashboard queries
       transport http {
@@ -135,8 +153,9 @@
         request>remote_ip delete
         request>remote_port delete
         request>client_ip delete
-        request>headers>X-Forwarded-For delete
-        request>headers>X-Real-Ip delete
+        # Every request header, not a list of known ones (OI-PRIV-51): X-Forwarded-For, X-Real-Ip, Forwarded, Via and
+        # whatever else a proxy on the way adds.
+        request>headers delete
       }
     }
   }
