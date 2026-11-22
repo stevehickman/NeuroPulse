@@ -47,5 +47,30 @@ class WarrantyAnalyticsGate(private val records: WarrantyOwnerStore) {
     fun revoke(hub: String?) {
         if (hub == null) return
         records.update(hub) { it.copy(fleetConsent = false, enrolled = false) }
+        // A record staged under the consent now revoked is never sent, by a later grant or by anyone else (`REQ-SHDR-08` (f)).
+        records.clearStaged(hub)
+    }
+
+    /**
+     * The SHDR record staged for this helmet, only while this helmet's owner has consented; `null` otherwise. The helmet is the
+     * one the caller names, once, so the consent and the record are this one helmet's (`REQ-SHDR-08` (e)).
+     */
+    fun stagedRecord(hub: String?): ByteArray? = if (hub != null && isOpen(hub)) records.staged(hub) else null
+
+    /** Stage a record for this helmet. Refused (false) unless this helmet's owner has consented: nothing waits to be sent unasked. */
+    fun stage(hub: String?, record: ByteArray): Boolean = hub != null && isOpen(hub) && records.stage(hub, record)
+
+    /** Delete this helmet's staged record, once the fleet service has taken it. */
+    fun clearStaged(hub: String?) {
+        if (hub != null) records.clearStaged(hub)
+    }
+
+    /**
+     * A change of custody: the helmet came back from a factory reset or went to a new owner (`REQ-SHDR-09` (d); `NP-MOD-ID-001`
+     * §A.4). The previous owner's fleet consent, enrolment, epoch and programme, and the helmet's staged record, are forgotten, so
+     * the helmet reads as never asked and its new owner decides afresh. Every other helmet is untouched.
+     */
+    fun endCustody(hub: String?) {
+        if (hub != null) records.forget(hub)
     }
 }

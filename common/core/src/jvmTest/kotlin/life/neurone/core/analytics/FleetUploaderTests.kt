@@ -32,9 +32,20 @@ class FleetUploaderTests {
 
     private class FakeTokenStore : DeviceTokenStore {
         val byHub = mutableMapOf<String, String>()
+        val fromHub = mutableSetOf<String>()
         override fun load(hub: String): String? = byHub[hub]
-        override fun save(hub: String, token: String) { byHub[hub] = token }
+        override fun save(hub: String, token: String) { byHub[hub] = token; fromHub -= hub }
+        override fun loadHubToken(hub: String): String? = byHub[hub]?.takeIf { hub in fromHub }
+        override fun saveHubToken(hub: String, token: String) { byHub[hub] = token; fromHub += hub }
         val value: String? get() = byHub[HUB]
+    }
+
+    /** Staging in memory, keyed as a host keys it. */
+    private class MemoryStaging : ShdrStaging {
+        val files = mutableMapOf<String, ByteArray>()
+        override fun read(helmetKey: String): ByteArray? = files[helmetKey]
+        override fun stage(helmetKey: String, record: ByteArray) { require(helmetKey.matches(ShdrStaging.HELMET_KEY)); files[helmetKey] = record }
+        override fun clear(helmetKey: String) { files.remove(helmetKey) }
     }
 
     /** A transport that must not be reached. */
@@ -115,10 +126,10 @@ class FleetUploaderTests {
     @Test fun nullWarrantyTokenDoesNotDowngrade() {
         val store = FakeTokenStore()
         val up = uploader(store)
-        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x7F }, up)
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x7F }, HUB, up)
         val after = store.value
         assertNotNull(after)
-        FleetUploadWiring.applyWarrantyToken(null, up)
+        FleetUploadWiring.applyWarrantyToken(null, HUB, up)
         assertEquals(after, store.value)
     }
 
@@ -126,7 +137,7 @@ class FleetUploaderTests {
     @Test fun shortOrLongHubTokenRejected() {
         val store = FakeTokenStore()
         val up = uploader(store)
-        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x11 }, up)
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x11 }, HUB, up)
         val before = store.value
         up.upgradeDeviceToken(ByteArray(31)); up.upgradeDeviceToken(ByteArray(33)); up.upgradeDeviceToken(ByteArray(0))
         assertEquals(before, store.value)
@@ -134,17 +145,20 @@ class FleetUploaderTests {
 
     // @verifies REQ-SHDR-01
     @Test fun uploadGatedByWarrantyConsent() = runBlocking {
-        var result: Boolean? = null
-        FleetUploadWiring.applyUploadPending(true, false, byteArrayOf(1, 2, 3), uploader(FakeTokenStore())) { result = it }
-        assertNull(result, "a closed gate makes no attempt")
+        val records = WarrantyOwnerStore(InMemoryKeyValueStore(), staging = MemoryStaging())
+        val gate = WarrantyAnalyticsGate(records).also { it.grant(HUB) }
+        assertTrue(gate.stage(HUB, byteArrayOf(1, 2, 3)))
+        gate.revoke(HUB)
+        val up = FleetUploader(FakeTokenStore(), gate, never, gatewayKeyConfigHex = "00").also { it.setHubIdentifier(HUB) }
+        assertFalse(up.uploadStaged(), "a closed gate makes no attempt")
         assertFalse(uploader(FakeTokenStore(), consented = false, key = "00").upload(byteArrayOf(1)), "and the uploader re-checks it")
     }
 
     // @verifies REQ-SHDR-02
     @Test fun uploadNoOpWithoutStagingPayload() = runBlocking {
-        var invoked = false
-        FleetUploadWiring.applyUploadPending(true, true, null, uploader(FakeTokenStore())) { invoked = true }
-        assertFalse(invoked)
+        val gate = WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore(), staging = MemoryStaging())).also { it.grant(HUB) }
+        val up = FleetUploader(FakeTokenStore(), gate, never, gatewayKeyConfigHex = "00").also { it.setHubIdentifier(HUB) }
+        assertFalse(up.uploadStaged(), "nothing staged, nothing sent")
     }
 
     // ── The sealed upload, end to end ────────────────────────────────────────────────────────────────────────────────
@@ -235,6 +249,159 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-07#d
     @Test fun aGatewayKeyThatIsNotAKeyConfigurationSendsNothing() = runBlocking {
         assertFalse(uploader(FakeTokenStore(), consented = true, transport = never, key = "zz").upload("r".encodeToByteArray()))
+    }
+
+    // ── Custody of the staged record and the owner's decisions (`OI-PRIV-63`) ───────────────────────────────────────
+
+    private class Rig(val staging: MemoryStaging, val records: WarrantyOwnerStore, val gate: WarrantyAnalyticsGate, val tokens: FakeTokenStore)
+
+    private fun rig(): Rig {
+        val staging = MemoryStaging()
+        val records = WarrantyOwnerStore(InMemoryKeyValueStore(), staging = staging)
+        return Rig(staging, records, WarrantyAnalyticsGate(records), FakeTokenStore())
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun aStagedRecordIsSentOnlyForTheHelmetThatStagedIt() = runBlocking {
+        val r = rig()
+        val other = "AA:BB:CC:00:00:02"
+        r.gate.grant(HUB)
+        r.gate.grant(other)
+        assertTrue(r.gate.stage(HUB, "record-of-A".encodeToByteArray()))
+        val gw = Gateway()
+        val up = FleetUploader(r.tokens, r.gate, gw, gatewayKeyConfigHex = keyConfig)
+        // Helmet B, whose owner has consented too, connects: A's record does not leave under B's consent and token.
+        up.setHubIdentifier(other)
+        assertFalse(up.uploadStaged())
+        assertTrue(gw.seen.isEmpty(), "no request was made")
+        assertEquals(1, r.staging.files.size, "A's record is still waiting for A")
+        // A reconnects: its record is sent under its own token, then removed.
+        up.setHubIdentifier(HUB)
+        assertTrue(up.uploadStaged())
+        assertEquals("record-of-A".encodeToByteArray().toHex(), gw.innerBody)
+        assertEquals(r.tokens.byHub[HUB], gw.innerToken)
+        assertTrue(r.staging.files.isEmpty())
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun oneReadingOfTheHelmetNamesTheConsentTheTokenAndTheRecord() = runBlocking {
+        val r = rig()
+        val other = "AA:BB:CC:00:00:02"
+        r.gate.grant(HUB)
+        r.gate.stage(HUB, "a".encodeToByteArray())
+        val gw = Gateway()
+        val up = FleetUploader(r.tokens, r.gate, gw, gatewayKeyConfigHex = keyConfig)
+        // The link has moved on to B (not consented) by the time the uploader's copy is read; the attempt is for the helmet read once.
+        up.setHubIdentifier(other)
+        assertTrue(up.uploadStaged(HUB))
+        assertEquals(r.tokens.byHub[HUB], gw.innerToken, "A's token, not B's")
+        assertNull(r.tokens.byHub[other], "no token was made for B")
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun nothingIsStagedForAHelmetWhoseOwnerHasNotConsented() {
+        val r = rig()
+        assertFalse(r.gate.stage(HUB, byteArrayOf(1)), "never asked")
+        assertFalse(r.gate.stage(null, byteArrayOf(1)), "no helmet")
+        r.gate.grant(HUB)
+        r.gate.revoke(HUB)
+        assertFalse(r.gate.stage(HUB, byteArrayOf(1)), "said no")
+        assertTrue(r.staging.files.isEmpty())
+    }
+
+    // @verifies REQ-SHDR-08#f
+    @Test fun aRevokeDeletesTheHelmetsStagedRecordSoALaterGrantSendsNothingFromBeforeIt() = runBlocking {
+        val r = rig()
+        val other = "AA:BB:CC:00:00:02"
+        r.gate.grant(HUB)
+        r.gate.grant(other)
+        r.gate.stage(HUB, byteArrayOf(1))
+        r.gate.stage(other, byteArrayOf(2))
+        r.gate.revoke(HUB)
+        assertNull(r.records.staged(HUB))
+        assertEquals(listOf<Byte>(2), r.records.staged(other)?.toList(), "the other helmet's record stays")
+        r.gate.grant(HUB)
+        val up = FleetUploader(r.tokens, r.gate, never, gatewayKeyConfigHex = keyConfig).also { it.setHubIdentifier(HUB) }
+        assertFalse(up.uploadStaged(), "the record from before the revoke is gone")
+    }
+
+    // @verifies REQ-SHDR-09#d
+    @Test fun aDifferentHubTokenOverAKeptOneEndsTheHelmetsCustody() {
+        val r = rig()
+        val other = "AA:BB:CC:00:00:02"
+        val enrolment = CharacterisationEnrolmentGate(r.records, r.gate)
+        r.gate.grant(HUB); r.gate.grant(other)
+        enrolment.grant(HUB); enrolment.grant(other)
+        r.gate.stage(HUB, byteArrayOf(1)); r.gate.stage(other, byteArrayOf(2))
+        val up = FleetUploader(r.tokens, r.gate, never).also { it.setHubIdentifier(HUB) }
+        up.deviceToken // an interim token first
+        up.upgradeDeviceToken(ByteArray(32) { 1 })
+        assertTrue(r.gate.isOpen(HUB) && enrolment.isOpen(HUB), "a hub token over an interim one is the ordinary upgrade")
+        up.upgradeDeviceToken(ByteArray(32) { 1 })
+        assertTrue(r.gate.isOpen(HUB) && enrolment.isOpen(HUB), "the same hub token again changes nothing")
+        // A factory reset or a new owner: the hub delivers a different token.
+        up.upgradeDeviceToken(ByteArray(32) { 2 })
+        assertFalse(r.gate.isDecided(HUB), "the old owner's consent is forgotten: the new owner is asked")
+        assertFalse(enrolment.isOpen(HUB))
+        assertEquals(0, enrolment.consentEpoch(HUB), "the new owner's first enrolment is genuinely their first")
+        assertNull(r.records.staged(HUB), "the old owner's staged record is gone")
+        assertEquals(ByteArray(32) { 2 }.toHex(), up.deviceToken)
+        // Every other helmet is untouched.
+        assertTrue(r.gate.isOpen(other) && enrolment.isOpen(other))
+        assertEquals(1, enrolment.consentEpoch(other))
+        assertEquals(listOf<Byte>(2), r.records.staged(other)?.toList())
+        // And the new owner's grant starts a new custody: enrolment is not brought back.
+        r.gate.grant(HUB)
+        assertFalse(enrolment.isOpen(HUB))
+        assertEquals(1, enrolment.grant(HUB))
+    }
+
+    // @verifies REQ-SHDR-09#d
+    @Test fun theSealedStoreTellsAHubTokenFromAnInterimOne() {
+        val store = SealedDeviceTokenStore(InMemoryKeyValueStore())
+        store.save("hub-1", "aa".repeat(32))
+        assertEquals("aa".repeat(32), store.load("hub-1"))
+        assertNull(store.loadHubToken("hub-1"), "an interim token is not a hub token")
+        store.saveHubToken("hub-1", "bb".repeat(32))
+        assertEquals("bb".repeat(32), store.load("hub-1"), "the token sent is the bare hex")
+        assertEquals("bb".repeat(32), store.loadHubToken("hub-1"))
+        assertNull(store.loadHubToken("hub-2"))
+    }
+
+    // @verifies REQ-SHDR-09#d
+    @Test fun theWiringKeepsAHubTokenForTheHelmetTheLinkNamesWhenItArrives() {
+        val r = rig()
+        val other = "AA:BB:CC:00:00:02"
+        r.gate.grant(HUB)
+        val up = FleetUploader(r.tokens, r.gate, never).also { it.setHubIdentifier(HUB) }
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 1 }, HUB, up)
+        // The uploader's copy still says A when B's token arrives: B's token is B's, and A's custody is not ended by it.
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 2 }, other, up)
+        assertTrue(r.gate.isOpen(HUB))
+        assertEquals(ByteArray(32) { 1 }.toHex(), r.tokens.byHub[HUB])
+        assertEquals(ByteArray(32) { 2 }.toHex(), r.tokens.byHub[other])
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 3 }, null, up)
+        assertEquals(ByteArray(32) { 1 }.toHex(), r.tokens.byHub[HUB], "with no helmet named nothing is kept")
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun theFileStagingKeepsOneFilePerHelmetKeyAndDropsTheUnboundFile() {
+        val dir = kotlin.io.path.createTempDirectory("staging").toFile()
+        try {
+            java.io.File(dir, FileShdrStaging.LEGACY_FILE_NAME).writeBytes(byteArrayOf(9))
+            val staging = FileShdrStaging(dir)
+            assertFalse(java.io.File(dir, FileShdrStaging.LEGACY_FILE_NAME).exists(), "a record that names no helmet is never sent")
+            val a = "a".repeat(64); val b = "b".repeat(64)
+            staging.stage(a, byteArrayOf(1))
+            assertNull(staging.read(b))
+            assertEquals(listOf<Byte>(1), staging.read(a)?.toList())
+            staging.clear(a)
+            assertNull(staging.read(a))
+            kotlin.test.assertFailsWith<IllegalArgumentException> { staging.read("../AA:BB:CC:00:00:01") }
+            kotlin.test.assertFailsWith<IllegalArgumentException> { staging.stage("AA:BB:CC:00:00:01", byteArrayOf(1)) }
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     // @verifies REQ-SHDR-04#a

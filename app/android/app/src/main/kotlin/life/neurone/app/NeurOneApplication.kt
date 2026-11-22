@@ -99,7 +99,7 @@ class NeurOneApplication : Application() {
                 httpTransport = OkHttpTransport(),
                 authorizationLauncher = browserLauncher,
                 analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
-                shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
+                shdrStaging = life.neurone.core.analytics.FileShdrStaging(filesDir),
                 folderPlaces = AndroidFolderPlaces(this),
                 backgroundBackup = AndroidBackgroundBackupScheduler(this),
                 uhdrFolder = AndroidUhdrFolder(File(filesDir, "UHDR")),
