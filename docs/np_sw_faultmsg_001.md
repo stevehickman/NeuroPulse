@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-FAULTMSG-001
-**Revision:** 3
-**Date:** 2026-09-23
+**Revision:** 4
+**Date:** 2026-11-22
 **Status:** DRAFT — **decided by the principal (§9); implemented in the safety MCU, the hub and both apps, not yet verified on hardware.** The hub now builds and publishes CVNS_FAULT_STATUS (§9.6), and since 2026-09-25 the hub's GATT server carries it (`np_gatt_server.c`, GitHub #381); what is still missing is the BLE host stack under that server (two platform seams) and the UHDR storage glue (OI-LOG-05..07 — its littlefs parameters, OI-LFS-05, were decided 2026-09-24 by NP-SOUP-LFS-001 Rev 4 §13.1)
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -405,3 +405,11 @@ retry. Host ctest is 38 of 38 (8 Class C, 30 Class B).
   duration is not measured.
 - A power loss between a fault and the next poll (≤ 200 ms) loses that record's explanation, not
   its cutoff.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 4 | 2026-11-22 | NeurOne Software Engineering | **§9.2: adds REQ-FAULTMSG-01 (a per-(profile, helmet) HMAC-SHA-256 active-user tag, keyed by a per-profile secret; reserved values never produced; a pair moves from its old tag only when nothing is outstanding on the helmet, so no cardiac hold is released). States that today's tag is a profile-UUID prefix and UHDR-class. Core built in common/npps-core/src/active_user_tag.rs; app wiring and a Safety ruling on hazard 25-c are open (OI-PRIV-29, NP-PRIV-ANALYSIS-004).** |
