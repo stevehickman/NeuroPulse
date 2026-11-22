@@ -19,10 +19,15 @@ from NP-FW-EMMC-002 §G.3 and §A.4:
   7. No UHDR key-material columns (UKMD/WKMD ciphertext, Argon2id salt, nonce,
      tag) — the device-local UHDR key record (NP-FW-EMMC-002 §C) and especially
      its per-device salt must never reach the fleet DB (privacy review Finding 4).
-  8. No wall-clock timestamp columns (TIME-01). No TIMESTAMP/TIMESTAMPTZ/TIME
-     type anywhere; SHDR carries only a month-granular DATE retention anchor and
-     integer counters for ordering. A per-row upload timestamp keyed to
+  8. No wall-clock timestamp columns (TIME-01). No TIMESTAMP/TIMESTAMPTZ/TIME/
+     INTERVAL type anywhere, and no clock-named column of any type (an epoch in a
+     BIGINT is a clock too); SHDR carries only a month-granular DATE retention
+     anchor and integer counters for ordering. A per-row upload timestamp keyed to
      warranty_token is a docking-time side channel (§5.1 "no timestamps in SHDR").
+  9. Every month anchor is month-granular by constraint (TIME-02). Each DATE
+     column except a manufacture date carries CHECK (col = DATE_TRUNC('month',
+     col)::date). A DEFAULT is not enough: it applies only when an insert omits
+     the column (OI-PRIV-52, REQ-SHDR-11).
 
 Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
@@ -126,7 +131,34 @@ PROHIBITED_TIME_TYPE_PATTERNS: list[tuple[str, str]] = [
     (r"\bTIMESTAMPTZ\b",  "timestamptz — sub-day wall clock"),
     (r"\bTIMESTAMP\b",    "timestamp — sub-day wall clock"),
     (r"\bTIME\b",         "time-of-day column"),
+    (r"\bINTERVAL\b",     "interval — a duration between two clock readings"),
 ]
+
+# TIME-01 also reads the NAME. A clock stored as an integer (`uploaded_epoch
+# BIGINT`, `docked_at INTEGER`) passes every type pattern above and is the same
+# side channel (OI-PRIV-52). Matched case-insensitively against the column name.
+# The `_date` pattern is not applied to DATE columns: those are TIME-02's.
+PROHIBITED_CLOCK_NAME_PATTERNS: list[tuple[str, str]] = [
+    (r"_at$",                        "an *_at column holds the moment something happened"),
+    (r"(^|_)(timestamp|datetime|ts)$", "a timestamp under another type"),
+    (r"(^|_)(time|clock)(_|$)",      "a time or clock reading"),
+    (r"epoch",                       "seconds or milliseconds since an epoch"),
+    (r"unix",                        "a Unix time"),
+    (r"(^|_)date$",                  "a date held in a non-DATE type"),
+]
+
+# Columns a clock-name pattern matches that are not clocks. Each says why.
+CLOCK_NAME_NOT_A_CLOCK: dict[str, str] = {
+    # NP-FW-EMMC-002 §H: the consent GENERATION, an integer that counts grants
+    # (CHECK >= 1). It orders consents; it reads no clock.
+    "char_consent_epoch": "consent generation counter, not a time",
+}
+
+# TIME-02: the CHECK that makes a DATE column month-granular, for column `col`.
+MONTH_CHECK_TEMPLATE = r"CHECK\s*\(\s*{col}\s*=\s*DATE_TRUNC\(\s*'month'\s*,\s*{col}\s*\)\s*::\s*date\s*\)"
+# DATE columns that record a fact about the hardware, not about a docking, and
+# so are day-granular by design: the manufacture record of a device or a module.
+MONTH_CHECK_EXEMPT_SUFFIX = "manufacture_date"
 
 # ---------------------------------------------------------------------------
 # Rev D (2026-08-10) — socket + module re-key invariants
@@ -713,6 +745,63 @@ def check_prohibited_time_types(columns: list[ColumnDef]) -> list[Failure]:
                     location=f"{col.table}.{col.column}:{col.line_no}",
                 ))
                 break
+        else:
+            if col.column in CLOCK_NAME_NOT_A_CLOCK:
+                continue
+            for pattern, reason in PROHIBITED_CLOCK_NAME_PATTERNS:
+                if pattern == r"(^|_)date$" and re.match(r"DATE\b", ctype.strip()):
+                    continue
+                if re.search(pattern, col.column, re.IGNORECASE):
+                    failures.append(Failure(
+                        check_id="TIME-01",
+                        description=(
+                            f"Clock-named column '{col.column}' ({col.col_type}) in "
+                            f"'{col.table}' ({reason}) — a clock in an integer is "
+                            f"still a clock; use an integer counter for ordering"
+                        ),
+                        location=f"{col.table}.{col.column}:{col.line_no}",
+                    ))
+                    break
+    return failures
+
+
+def table_bodies(sql: str) -> dict[str, str]:
+    """Each CREATE TABLE's body, with `--` comments removed."""
+    out: dict[str, str] = {}
+    for m in re.finditer(r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\((.*?)^\);",
+                         sql, re.IGNORECASE | re.MULTILINE | re.DOTALL):
+        body = "\n".join(line.split("--", 1)[0] for line in m.group(2).splitlines())
+        out[m.group(1)] = body
+    return out
+
+
+def check_month_anchor_constraints(sql: str, columns: list[ColumnDef]) -> list[Failure]:
+    """
+    TIME-02 — every DATE column except a manufacture date carries
+    CHECK (col = DATE_TRUNC('month', col)::date) in its own table (OI-PRIV-52,
+    REQ-SHDR-11 (b)). The DEFAULT DATE_TRUNC('month', NOW())::date that each
+    anchor also has applies only when an insert omits the column; an ingest
+    that writes CURRENT_DATE would otherwise store the docking day.
+    """
+    failures: list[Failure] = []
+    bodies = table_bodies(sql)
+    for col in columns:
+        if not re.match(r"DATE\b", col.col_type.strip(), re.IGNORECASE):
+            continue
+        if col.column.endswith(MONTH_CHECK_EXEMPT_SUFFIX):
+            continue
+        check = MONTH_CHECK_TEMPLATE.format(col=re.escape(col.column))
+        if not re.search(check, bodies.get(col.table, ""), re.IGNORECASE):
+            failures.append(Failure(
+                check_id="TIME-02",
+                description=(
+                    f"DATE column '{col.column}' in '{col.table}' is not constrained "
+                    f"to the first of a month — add CONSTRAINT ck_{col.table}_month "
+                    f"CHECK ({col.column} = DATE_TRUNC('month', {col.column})::date); "
+                    f"a DEFAULT applies only when the insert omits the column"
+                ),
+                location=f"{col.table}.{col.column}:{col.line_no}",
+            ))
     return failures
 
 
@@ -1002,6 +1091,8 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
         check_key_material_columns, columns)
     run("TIME-01:  no wall-clock timestamp columns",
         check_prohibited_time_types, columns)
+    run("TIME-02:  every month anchor is month-granular by CHECK",
+        check_month_anchor_constraints, sql, columns)
     run("NOJOIN-01: no cross-DB table references",
         check_cross_db_references, sql)
     run("TOKEN-01: warranty_token is BYTEA",
