@@ -206,6 +206,8 @@ jobs:
         common/npps/wavelength-rules-register.json
         scripts/assign-revisions.ts
         scripts/revision-lib.ts
+        # check-revision-fragments rule L: a change to CLAUDE.md needs its `## CLAUDE.md` fragment section.
+        CLAUDE.md
         .github/workflows/tooling-ci.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
