@@ -62,7 +62,7 @@
 #include "np_cvns_fault_summary.h" /* np_cvfs_hal_load/_save (2) */
 #include "np_gatt_server.h"      /* np_gatt_hal_*          (2) */
 #include "np_warranty_token.h"   /* np_warranty_hal_*      (1) */
-#include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
+#include "np_factory_reset.h"    /* np_factory_reset_hal_* (6) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
 #include "np_pbm_hal.h"          /* np_pbm_hal_*          (18) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
@@ -853,6 +853,13 @@ np_reset_status_t np_factory_reset_hal_zero_shdr(void)
 }
 
 np_reset_status_t np_factory_reset_hal_zero_config(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+/* R-7a eMMC SANITIZE (OI-PRIV-27, NP-PRIV-ANALYSIS-004).  A trap, never NP_RESET_OK: a
+ * plausible return here would report a purge that did not happen. */
+np_reset_status_t np_factory_reset_hal_purge_unmapped(void)
 {
     NP_PLATFORM_TRAP();
 }

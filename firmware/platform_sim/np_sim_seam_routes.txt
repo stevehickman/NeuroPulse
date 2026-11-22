@@ -49,6 +49,7 @@ np_cvns_hal_impedance_measure_poll          model          src/np_sim_cvns.c    
 np_cvns_hal_impedance_measure_start         model          src/np_sim_cvns.c                    none          -
 np_cvns_hal_impedance_poll                  model          src/np_sim_cvns.c                    none          -
 np_cvns_hal_impedance_start                 model          src/np_sim_cvns.c                    none          -
+np_factory_reset_hal_purge_unmapped         firmware-host  ../factory_reset/src/np_factory_reset.c  none          -
 np_factory_reset_hal_sanitize_uhdr          firmware-host  ../factory_reset/src/np_factory_reset.c  none          -
 np_factory_reset_hal_trng_generate          firmware-host  ../factory_reset/src/np_factory_reset.c  none          -
 np_factory_reset_hal_write_config_defaults  firmware-host  ../factory_reset/src/np_factory_reset.c  none          -

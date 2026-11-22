@@ -41,6 +41,7 @@ typedef struct {
     int      fail_sanitize_uhdr;
     int      fail_zero_shdr;
     int      fail_zero_config;
+    int      fail_purge_unmapped;
     int      fail_write_config;
     int      trng_fail_on_call;
     int      fail_marker_write;
@@ -57,7 +58,8 @@ typedef struct {
     bool     marker_write_not_durable;
 
     /* Order of medium-touching steps, one letter each: M marker write,
-     * U UHDR sanitize, S SHDR zero, C Config zero, W Config defaults write.
+     * U UHDR erase, S SHDR zero, C Config zero, P eMMC SANITIZE (R-7a),
+     * W Config defaults write.
      * Lets a test assert the marker precedes the first erase. */
     char     trace[64];
     uint32_t trace_len;
@@ -67,6 +69,7 @@ typedef struct {
     uint32_t calls_sanitize_uhdr;
     uint32_t calls_zero_shdr;
     uint32_t calls_zero_config;
+    uint32_t calls_purge_unmapped;
     uint32_t calls_write_config;
     uint32_t calls_trng;
 } np_fr_host_hal_control_t;
