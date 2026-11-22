@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 6
-**Date:** 2026-10-18  
+**Revision:** 7
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -431,3 +431,11 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev 1, `docs/np_analytics_001.md`) 
 | `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics DPA), STEP-19 (EU data residency for T2 cloud) |
 | `docs/np_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev 2) | iOS app development phases; OTA Watch app phases |
 | `app/ios/ISA.md` | ISC-3/8/9: SwiftLint enforcement; ISC-157: single PostHog integration point |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 7 | 2026-11-21 | NeurOne Software Engineering | **§3.3a: the fleet edge's logs delete every request header, and the edge removes nine client-address headers before the ingest service, not two (`OI-PRIV-51`, `REQ-SHDR-06`).** |
