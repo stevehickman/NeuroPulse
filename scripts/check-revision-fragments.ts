@@ -21,7 +21,11 @@
  *      changed or any other section exists, by `## DHF` (the principal, 2026-11-02: a change without a bump fails);
  *   K. a PR adds no entry to docs/status/completed-decisions.md (no `- ` line the base lacked): the entry goes in the
  *      fragment's `## LOG` section and the workflow appends it at merge. Every PR used to append to that file's last
- *      line, so any two in flight conflicted there. The header (lines that are not entries) may still be edited.
+ *      line, so any two in flight conflicted there. The header (lines that are not entries) may still be edited;
+ *   L. a PR does not number a CLAUDE.md revision: it changes no `**Revision:** N (current)` in CLAUDE.md, no Rev cell
+ *      of CLAUDE.md's row in the NP-DHF-001 index, and adds no `**Rev N (date)` entry to
+ *      docs/reference/claude-md-revision-history.md; and a PR that changes CLAUDE.md has a `## CLAUDE.md` section,
+ *      which holds the history entry. The workflow numbers it at merge.
  *
  * Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly what H forbids.
  *
@@ -36,7 +40,7 @@ import { existsSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
-  DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
+  CLAUDE_DHF_ROW, CLAUDE_ENTRY, CLAUDE_FILE, CLAUDE_HISTORY, CLAUDE_REV_LINE, DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL, DATE,
   controlledDocs, git, logEntries, parseFragment, readMode, revOf, show, type Fragment,
 } from "./revision-lib";
 
@@ -77,7 +81,11 @@ export function evaluate(root: string, base: string | null): Verdict {
   const addedFrags = changed.filter((f) => f.startsWith(`${PENDING_DIR}/`) && f.endsWith(".md") && f.toLowerCase() !== `${PENDING_DIR}/readme.md` && existsSync(join(root, f)));
   if (addedFrags.length > 1) v.push(`G: this PR adds ${addedFrags.length} fragments (${addedFrags.join(", ")}); one DHF bump per PR means one fragment`);
   const named = new Set<string>();
-  for (const f of frags) if (addedFrags.includes(f.path)) for (const s of f.sections) named.add(s.target);
+  let claudeSection = false;
+  for (const f of frags) if (addedFrags.includes(f.path)) {
+    for (const s of f.sections) named.add(s.target);
+    if (f.claude.length > 0) claudeSection = true;
+  }
 
   for (const [file, serial] of docs) {
     const b = show(root, base, file);
@@ -106,6 +114,24 @@ export function evaluate(root: string, base: string | null): Verdict {
     if (newRows.length > 0) v.push(`H: ${f} adds history row(s) ${newRows.join(", ")}; the workflow writes them from the fragment`);
   }
   if (named.size > 0 && !named.has("DHF")) v.push(`J: the fragment has no "## DHF" section`);
+  const cb = show(root, base, CLAUDE_FILE);
+  if (cb !== null && existsSync(join(root, CLAUDE_FILE))) {
+    const ch = readFileSync(join(root, CLAUDE_FILE), "utf8");
+    const rb = CLAUDE_REV_LINE.exec(cb)?.[1], rh = CLAUDE_REV_LINE.exec(ch)?.[1];
+    if (rb !== rh) v.push(`L: ${CLAUDE_FILE} changes its **Revision:** from ${rb} to ${rh}; the workflow assigns it from the fragment's "## ${CLAUDE_FILE}" section`);
+    if (cb !== ch && !claudeSection) v.push(`L: ${CLAUDE_FILE} changed but no fragment of this PR has a "## ${CLAUDE_FILE}" section (its revision-history entry)`);
+  }
+  const claudeRow = (t: string | null): string | undefined => (t ?? "").split("\n").map((l) => CLAUDE_DHF_ROW.exec(l)?.[1]).find((x) => x !== undefined);
+  const dhfBase = show(root, base, DHF_FILE);
+  if (dhfBase !== null && existsSync(join(root, DHF_FILE)) && claudeRow(dhfBase) !== claudeRow(readFileSync(join(root, DHF_FILE), "utf8"))) {
+    v.push(`L: ${DHF_FILE} changes the Rev cell of the CLAUDE.md row; the workflow assigns it`);
+  }
+  if (changed.includes(CLAUDE_HISTORY) && existsSync(join(root, CLAUDE_HISTORY))) {
+    const revs = (t: string | null): Set<string> => new Set((t ?? "").split("\n").map((l) => CLAUDE_ENTRY.exec(l)?.[1]).filter((x): x is string => x !== undefined));
+    const had = revs(show(root, base, CLAUDE_HISTORY));
+    const added = [...revs(readFileSync(join(root, CLAUDE_HISTORY), "utf8"))].filter((n) => !had.has(n));
+    if (added.length > 0) v.push(`L: ${CLAUDE_HISTORY} adds Rev ${added.join(", ")} by hand; write the entry in the fragment's "## ${CLAUDE_FILE}" section ("**Rev {CLAUDE.md to} ({date}) — …")`);
+  }
   if (changed.includes(DECISIONS_FILE) && existsSync(join(root, DECISIONS_FILE))) {
     const had = new Set(logEntries(show(root, base, DECISIONS_FILE)));
     const added = logEntries(readFileSync(join(root, DECISIONS_FILE), "utf8")).filter((l) => !had.has(l));
@@ -188,6 +214,31 @@ function selfTest(): void {
   check(codes(logScenario(A, null, "## LOG\ntext: **{date} — new.**\n")) === "", "the same entry in a LOG-only fragment passes, with no DHF section");
   check(codes(logScenario(A, logBase.replace("> header", "> a corrected header"), null)) === "", "an edit to the log's header, not an entry, passes");
   check(codes(logScenario("hand", `${logBase}\n- **2026-11-21 — new.**\n`, null)) === "", "in mode hand an entry appended by hand passes");
+  const claudeScenario = (mode: string, f: (w: (p: string, t: string) => void) => void): Verdict => {
+    const r = mkdtempSync(join(tmpdir(), "revfrag-"));
+    try {
+      const w = (p: string, t: string): void => { mkdirSync(dirname(join(r, p)), { recursive: true }); writeFileSync(join(r, p), t); };
+      const c = (m: string): void => { git(r, "add", "-A"); git(r, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", m); };
+      git(r, "init", "-q", "-b", "main");
+      w("docs/np_sw_001.md", doc(2, "body"));
+      w("docs/np_dhf_001.md", dhf(2, 2) + "| — | CLAUDE.md — Project Design Memory | 9 | 2026-11-01 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |\n");
+      w("docs/revisions/policy.json", JSON.stringify({ mode }));
+      w("CLAUDE.md", "# C\n**Revision:** 9 (current)  \n\nbody\n");
+      w("docs/reference/claude-md-revision-history.md", "## Current revision\n\n**Rev 9 (2026-11-01) — old.**\n");
+      c("base");
+      git(r, "checkout", "-q", "-b", "topic");
+      f(w);
+      c("topic");
+      return evaluate(r, "main");
+    } finally { rmSync(r, { recursive: true, force: true }); }
+  };
+  const cfrag = "## DHF\nauthor: A\ntext: **CLAUDE.md Rev {CLAUDE.md from → to}.**\n## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — t.**\n";
+  check(codes(claudeScenario(A, (w) => { w("CLAUDE.md", "# C\n**Revision:** 9 (current)  \n\nnew body\n"); w(`${PENDING_DIR}/x.md`, cfrag); })) === "", "a CLAUDE.md change with its CLAUDE.md section passes");
+  check(codes(claudeScenario(A, (w) => { w("CLAUDE.md", "# C\n**Revision:** 9 (current)  \n\nnew body\n"); })).includes("L"), "a CLAUDE.md change with no CLAUDE.md section fails (L)");
+  check(claudeScenario(A, (w) => { w("CLAUDE.md", "# C\n**Revision:** 10 (current)  \n\nnew body\n"); w(`${PENDING_DIR}/x.md`, cfrag); }).violations.some((x) => /^L: CLAUDE\.md changes its/.test(x)), "a hand-bumped CLAUDE.md Revision fails (L)");
+  check(claudeScenario(A, (w) => { w("docs/reference/claude-md-revision-history.md", "## Current revision\n\n**Rev 10 (2026-11-21) — new.**\n\n**Rev 9 (2026-11-01) — old.**\n"); w(`${PENDING_DIR}/x.md`, cfrag); }).violations.some((x) => /adds Rev 10 by hand/.test(x)), "a hand-added CLAUDE.md history entry fails (L)");
+  check(claudeScenario(A, (w) => { w("docs/np_dhf_001.md", dhf(2, 2) + "| — | CLAUDE.md — Project Design Memory | 10 | 2026-11-21 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |\n"); w(`${PENDING_DIR}/x.md`, cfrag); }).violations.some((x) => /Rev cell of the CLAUDE\.md row/.test(x)), "a hand-changed CLAUDE.md DHF row fails (L)");
+  check(codes(claudeScenario("hand", (w) => { w("CLAUDE.md", "# C\n**Revision:** 10 (current)  \n\nnew body\n"); })) === "", "in mode hand a hand-numbered CLAUDE.md change passes");
   check(codes(scenario("hand", (w) => { w("docs/np_sw_001.md", doc(3, "new body")); })) === "", "in mode hand a hand-numbered change passes");
   check(codes(scenario("hand", (w) => { w(`${PENDING_DIR}/x.md`, "nonsense"); })).includes("F"), "in mode hand a fragment that cannot be read still fails");
 

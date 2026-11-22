@@ -19,14 +19,6 @@
 
 ## Current revision
 
-**Rev 86 (2026-11-21) — footer and Document Map: an entry in `completed-decisions.md` is written in the PR's revision fragment and appended when the PR merges. No locked decision changed.**
-
-**What changed.** The footer said to log a changed decision in `docs/status/completed-decisions.md`, and every PR did so by appending to the file's end. It now says the entry goes in the `## LOG` section of the PR's revision fragment (`docs/revisions/pending/<slug>.md`), and the `assign-revisions` workflow appends it when the PR merges, as it already writes revision numbers. The Document Map row for `docs/revisions/README.md` names the log entry too. `check-revision-fragments` (rule K) fails a PR that adds an entry to the log by hand while the policy is `assign-at-merge`; in mode `hand` an author appends as before.
-
-**Why.** The log is append-only and every entry goes at the end, so any two PRs in flight both changed its last line and the second to merge conflicted there, the same collision that moved revision numbers to merge time on 2026-11-02. With `main` now requiring a branch to be up to date before it merges (`OI-SWCI-53`), each merge sent every other PR that logged a decision back to resolve that conflict.
-
-**What it leaves.** `docs/reference/claude-md-revision-history.md` (this file) is newest-first and every revision adds at the same place, so it collides in the same way; it is not changed here. The entry for this revision is the first written through a `## LOG` section. The §1 to §6 and §16 to §23 numbering and every subsection number are unchanged.
-
 **Rev 85 (2026-11-20) — §18: an economic reason also justifies a bound, and the reasons rank (the principal). No other locked decision changed.**
 
 **What changed.** §18's paragraph on derived bounds named three reasons a limit may rest on: research literature, an external standard, and a mechanical or implementation reason. It now names a fourth, an economic reason, with regulatory equivalence as the example, and ranks them: research is strongest, an economic reason is weaker, and either is better than none. An economic bound carries its reason and its cost of change beside it.

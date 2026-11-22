@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 86 (current)  
+**Revision:** 85 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -44,7 +44,7 @@ Plain paths, not `@import`s: nothing below loads until it is `Read`.
 | **Any BOM / COGS / GM% / price figure** | `docs/np_cost_001.md` |
 | **Whether a PBM protocol fits the power envelope; any `.npps` or zone edit** | `docs/np_ses_pwr_001.md` |
 | **Naming, signal names, `§N` form, document IDs** (authoring any doc) | `docs/np_conv_001.md` |
-| **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number); **an entry in `completed-decisions.md`** (the fragment's `## LOG`, appended at merge) | `docs/revisions/README.md` |
+| **A controlled document's revision, its history row, or its `Rev` cell in the DHF index** (a PR writes a fragment, never the number); **an entry in `completed-decisions.md`** (the fragment's `## LOG`, appended at merge); **this file's revision and its history entry** (the fragment's `## CLAUDE.md`) | `docs/revisions/README.md` |
 | **UHDR presence gate** (who may read UHDR on a phone, a computer or a browser, and what runs locked) | `docs/np_app_presence_001.md` |
 | **Any upload or download** (protocols, session data, logs, configuration, calibration, firmware, user data) on any transport (§23) | `docs/np_fw_hub_001.md` §2 |
 | **EEG electrode placement / 10-20 fit / T1-B tile / `REG-1`** | `docs/np_hw_eegnet_001.md` |
@@ -533,6 +533,7 @@ What "cryptographic" covers and the library-selection rules: `docs/reference/eng
 *When a locked decision changes, update the owning file, log it in
 `docs/status/completed-decisions.md` (through the `## LOG` section of the PR's revision fragment: the entry is
 appended when the PR merges, never by hand, `docs/revisions/README.md`), and add an entry to
-`docs/reference/claude-md-revision-history.md`. Keep every section number (§1–§6, §16–§23) and every
+`docs/reference/claude-md-revision-history.md` (through the fragment's `## CLAUDE.md` section, which also numbers this
+file's revision at merge; never set `**Revision:**` by hand). Keep every section number (§1–§6, §16–§23) and every
 subsection number in place, even when the content moves. `bun scripts/check-section-refs.ts` guards
 the citations that point at them.*

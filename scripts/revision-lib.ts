@@ -26,6 +26,22 @@ export const POLICY_FILE = "docs/revisions/policy.json";
  * holds the entry and the workflow appends it when the PR merges, so two PRs never both add to the file's last line.
  */
 export const DECISIONS_FILE = "docs/status/completed-decisions.md";
+/**
+ * CLAUDE.md is not a controlled document under docs/ (no `**Document:**` serial), but its revision, its row in the DHF
+ * index and its revision history collided the same way. A fragment's `## CLAUDE.md` section holds the history entry
+ * (one `text:` line per paragraph); the workflow sets `**Revision:** N (current)`, the DHF row and inserts the entry
+ * at the top of the history's "Current revision" section, newest first.
+ */
+export const CLAUDE_TARGET = "CLAUDE.md";
+export const CLAUDE_FILE = "CLAUDE.md";
+export const CLAUDE_HISTORY = "docs/reference/claude-md-revision-history.md";
+export const CLAUDE_REV_LINE = /^\*\*Revision:\*\*\s*(\d+) \(current\)/m;
+/** A history entry's first paragraph: `**Rev 86 (2026-11-21) — …`. */
+export const CLAUDE_ENTRY = /^\*\*Rev (\d+) \(\d{4}-\d{2}-\d{2}\)/;
+/** The DHF index row for CLAUDE.md: its first cell is "—", as it has no serial. */
+export const CLAUDE_DHF_ROW = new RegExp(String.raw`^\| — \| CLAUDE\.md — Project Design Memory \| (\d+) \| (${DATE}) \|`);
+/** What the first paragraph of a `## CLAUDE.md` section starts with, before its tokens are resolved. */
+export const CLAUDE_ENTRY_HEAD = "**Rev {CLAUDE.md to} ({date}) — ";
 /** `{date}` in a LOG entry becomes the date the fragment is assigned (its `date:` line, else the merge date). */
 export const DATE_TOKEN = "{date}";
 
@@ -73,19 +89,26 @@ export function historyFile(root: string, serial: string, docFile: string): stri
 
 export interface Section { target: string; author: string; text: string }
 /** `log`: the entries of the fragment's `## LOG` section, one per `text:` line, in order, without the leading "- ". */
-export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[] }
+/** `claude`: the paragraphs of the fragment's `## CLAUDE.md` section (the CLAUDE.md history entry), or empty. */
+export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[]; claude: string[] }
 
-const TOKEN = new RegExp(String.raw`\{(DHF|${SERIAL}) (from → to|from|to)\}`, "g");
+const TOKEN = new RegExp(String.raw`\{(DHF|CLAUDE\.md|${SERIAL}) (from → to|from|to)\}`, "g");
 
 /** Parse a fragment, or return the reason it is not one. */
 export function parseFragment(path: string, text: string): Fragment | string {
-  const frag: Fragment = { path, date: null, sections: [], log: [] };
+  const frag: Fragment = { path, date: null, sections: [], log: [], claude: [] };
   let cur = null as { target: string; author?: string; text?: string } | null;
-  let inLog = false, sawLog = false;
+  let inLog = false, sawLog = false, inClaude = false, sawClaude = false;
   const close = (): string | null => {
     if (inLog) {
       inLog = false;
       return frag.log.length === 0 ? `${path}: section LOG has no "text:" line` : null;
+    }
+    if (inClaude) {
+      inClaude = false;
+      if (frag.claude.length === 0) return `${path}: section CLAUDE.md has no "text:" line`;
+      if (!frag.claude[0].startsWith(CLAUDE_ENTRY_HEAD)) return `${path}: section CLAUDE.md: its first "text:" must start "${CLAUDE_ENTRY_HEAD}"`;
+      return null;
     }
     if (cur === null) return null;
     if (!cur.author) return `${path}: section ${cur.target} has no "author:" line`;
@@ -102,6 +125,13 @@ export function parseFragment(path: string, text: string): Fragment | string {
       if (e) return e;
       if (sawLog) return `${path}: section LOG appears twice`;
       cur = null; inLog = true; sawLog = true;
+      continue;
+    }
+    if (line === `## ${CLAUDE_TARGET}`) {
+      const e = close();
+      if (e) return e;
+      if (sawClaude) return `${path}: section ${CLAUDE_TARGET} appears twice`;
+      cur = null; inClaude = true; sawClaude = true;
       continue;
     }
     const head = /^## (DHF|NP-[A-Z0-9-]+)$/.exec(line);
@@ -121,6 +151,12 @@ export function parseFragment(path: string, text: string): Fragment | string {
       frag.log.push(kv[2].replace(/^- +/, ""));
       continue;
     }
+    if (inClaude) {
+      // A paragraph of the history entry: prose, not a table row, so it may hold a "|"; the history has no author.
+      if (kv[1] !== "text") return `${path}: section ${CLAUDE_TARGET} takes only "text:" lines (one per paragraph)`;
+      frag.claude.push(kv[2]);
+      continue;
+    }
     if (cur === null) {
       if (kv[1] !== "date") return `${path}: "${kv[1]}:" before the first section`;
       if (!new RegExp(`^${DATE}$`).test(kv[2])) return `${path}: date must be YYYY-MM-DD`;
@@ -131,11 +167,17 @@ export function parseFragment(path: string, text: string): Fragment | string {
   }
   const e = close();
   if (e) return e;
-  if (frag.sections.length === 0 && frag.log.length === 0) return `${path}: no sections`;
-  // A fragment that only logs a decision bumps nothing; one that names any document bumps the DHF once.
-  if (frag.sections.length > 0 && !frag.sections.some((s) => s.target === "DHF")) return `${path}: no "## DHF" section (every bump bumps the DHF once)`;
+  if (frag.sections.length === 0 && frag.log.length === 0 && frag.claude.length === 0) return `${path}: no sections`;
+  // A fragment that only logs a decision bumps nothing; one that names any document, or CLAUDE.md (whose DHF index row
+  // it changes), bumps the DHF once.
+  if ((frag.sections.length > 0 || frag.claude.length > 0) && !frag.sections.some((s) => s.target === "DHF")) return `${path}: no "## DHF" section (every bump bumps the DHF once)`;
   const targets = new Set(frag.sections.map((s) => s.target));
-  const texts = [...frag.sections.map((s) => ({ where: s.target, text: s.text })), ...frag.log.map((text) => ({ where: "LOG", text }))];
+  if (frag.claude.length > 0) targets.add(CLAUDE_TARGET);
+  const texts = [
+    ...frag.sections.map((s) => ({ where: s.target, text: s.text })),
+    ...frag.log.map((text) => ({ where: "LOG", text })),
+    ...frag.claude.map((text) => ({ where: CLAUDE_TARGET, text })),
+  ];
   for (const s of texts) {
     for (const m of s.text.matchAll(TOKEN)) {
       if (!targets.has(m[1])) return `${path}: the text of ${s.where} uses {${m[1]} ${m[2]}} but ${m[1]} has no section`;

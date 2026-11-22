@@ -53,12 +53,36 @@ text: **{date} — `OI-X-01` CLOSED: what was decided (who; where it is recorded
   that are not entries) may still be edited in the PR.
 
 Why: the log is append-only and every entry goes at its end, so any two PRs in flight both changed its last line and the
-second to merge conflicted there (CLAUDE.md Rev 86).
+second to merge conflicted there.
+
+### CLAUDE.md: `## CLAUDE.md`
+
+CLAUDE.md has no `**Document:**` serial, but its `**Revision:** N (current)`, its row in the `NP-DHF-001` index and its
+history (`docs/reference/claude-md-revision-history.md`, newest first) collided the same way. A PR that changes CLAUDE.md
+leaves all three alone and adds the history entry to its fragment:
+
+```
+## DHF
+author: NeurOne Quality
+text: **CLAUDE.md Rev {CLAUDE.md from → to}: what changed, for the DHF history.**
+## CLAUDE.md
+text: **Rev {CLAUDE.md to} ({date}) — §N: the change in one sentence. No other locked decision changed.**
+text: **What changed.** One paragraph per `text:` line.
+text: **Why.** …
+```
+
+- The first `text:` must start `**Rev {CLAUDE.md to} ({date}) — `. Each `text:` is one paragraph and may hold a `|`. No
+  `author:`.
+- A `## DHF` section is required with it, because CLAUDE.md's DHF index row changes.
+- At merge the workflow sets CLAUDE.md's revision to the next number, sets its DHF row and inserts the entry at the top of
+  the history's "Current revision" section. `{CLAUDE.md to}` works in any `text:` of the fragment, the LOG included.
+- `check-revision-fragments` rule L fails a PR that changes CLAUDE.md with no `## CLAUDE.md` section, or that sets the
+  revision line, the DHF row or a `**Rev N (date)` history entry by hand.
 
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named
 document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, appends its history row (in the linked
-`docs/reference/*-revision-history.md` if there is one) and appends any `## LOG` entries to the end of
-`docs/status/completed-decisions.md`; it deletes the fragment and commits, authored by the PR's author
+`docs/reference/*-revision-history.md` if there is one) appends any `## LOG` entries to the end of
+`docs/status/completed-decisions.md` and applies any `## CLAUDE.md` section; it deletes the fragment and commits, authored by the PR's author
 and committed by the App `RevNumberFixer`.
 
 A document with **no history table** (no `docs/reference/<serial>-revision-history.md` and no table in the document) is
@@ -80,8 +104,8 @@ hand (`> **Rev 30 (…)**`) it does not touch: replace the number with `{NP-X to
 
 ## Mode `hand`
 
-The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers and
-append their own entries to `completed-decisions.md`, and after a `git merge origin/main` that collides,
+The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers, append their own entries to
+`completed-decisions.md` and number CLAUDE.md by hand, and after a `git merge origin/main` that collides,
 `bun scripts/renumber-revisions.ts` moves this branch's numbers past main's.
 
 ## Turning it on (once) — done 2026-11-02

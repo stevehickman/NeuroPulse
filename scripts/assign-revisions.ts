@@ -16,6 +16,11 @@
  * the same last line of that file, so any two in flight conflicted; the entry now waits in the fragment. A fragment
  * may hold only a LOG section (a decision that changes no controlled document), and then bumps nothing.
  *
+ * A `## CLAUDE.md` section holds the CLAUDE.md revision-history entry, one `text:` line per paragraph, the first
+ * starting `**Rev {CLAUDE.md to} ({date}) — `. CLAUDE.md's `**Revision:** N (current)` becomes N + 1, its row in the
+ * NP-DHF-001 index takes the new number and date, and the entry goes at the top of the history's "Current revision"
+ * section (newest first). Every CLAUDE.md change used to set the same three lines by hand.
+ *
  * Fragment:
  *
  *     date: 2026-11-02                 (optional; default: today, UTC)
@@ -50,6 +55,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
+  CLAUDE_DHF_ROW, CLAUDE_ENTRY, CLAUDE_FILE, CLAUDE_HISTORY, CLAUDE_REV_LINE, CLAUDE_TARGET,
   DATE, DATE_LINE, DATE_TOKEN, DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL,
   controlledDocs, git, historyFile, parseFragment, readMode, resolveTokens, revOf, serialOf, show,
   type Fragment,
@@ -135,6 +141,37 @@ function setIndexRow(dhf: string, serial: string, rev: number, date: string): st
 
 export type Assigned = { status: "none" } | { status: "done"; fragment: string; revisions: Record<string, string>; logged: number };
 
+const CURRENT_HEAD = "## Current revision";
+
+/** The newest revision CLAUDE.md's history records (0 if none). */
+function newestClaudeEntry(text: string): number {
+  let max = 0;
+  for (const l of text.split("\n")) { const m = CLAUDE_ENTRY.exec(l); if (m) max = Math.max(max, Number(m[1])); }
+  return max;
+}
+
+/** Insert a CLAUDE.md history entry (paragraphs) at the top of the "Current revision" section. */
+function insertClaudeEntry(text: string, paragraphs: string[]): string {
+  const at = text.indexOf(`\n${CURRENT_HEAD}\n`);
+  if (at < 0) throw new Error(`${CLAUDE_HISTORY}: no "${CURRENT_HEAD}" heading to insert the entry under`);
+  const head = at + CURRENT_HEAD.length + 2;
+  const rest = text.slice(head).replace(/^\n+/, "");
+  return `${text.slice(0, head)}\n${paragraphs.join("\n\n")}\n\n${rest}`;
+}
+
+/** Set the Rev and Date cells of the DHF index row for CLAUDE.md. */
+function setClaudeRow(dhf: string, rev: number, date: string): string {
+  let hit = 0;
+  const out = dhf.split("\n").map((l) => {
+    const m = CLAUDE_DHF_ROW.exec(l);
+    if (!m) return l;
+    hit++;
+    return l.replace(CLAUDE_DHF_ROW, (row) => row.replace(`| ${m[1]} | ${m[2]} |`, `| ${rev} | ${date} |`));
+  });
+  if (hit !== 1) throw new Error(`${DHF_FILE}: expected one index row for CLAUDE.md, found ${hit}`);
+  return out.join("\n");
+}
+
 /** Append entries to the end of the decision log, each a `- ` item set off by a blank line, as the log is written. */
 function appendLog(text: string, entries: string[]): string {
   return `${text.replace(/\s+$/, "")}\n\n${entries.map((e) => `- ${e}`).join("\n\n")}\n`;
@@ -165,6 +202,13 @@ export function assignNext(root: string, validate = true): Assigned {
     const cur = Math.max(line, newestHistoryRow(get(historyFile(root, serialFor(s.target), file))));
     revs.set(s.target, { from: cur, to: cur + 1 });
   }
+  if (frag.claude.length > 0) {
+    const line = CLAUDE_REV_LINE.exec(get(CLAUDE_FILE));
+    if (line === null) throw new Error(`${CLAUDE_FILE}: no "**Revision:** N (current)" line`);
+    // As for a document: never reuse a number the history already has.
+    const cur = Math.max(Number(line[1]), newestClaudeEntry(get(CLAUDE_HISTORY)));
+    revs.set(CLAUDE_TARGET, { from: cur, to: cur + 1 });
+  }
   for (const s of frag.sections) {
     const serial = serialFor(s.target), file = fileOf.get(serial) as string, r = revs.get(s.target) as { from: number; to: number };
     texts.set(file, resolveTokens(setRevision(get(file), r.to, date), revs));
@@ -174,6 +218,12 @@ export function assignNext(root: string, validate = true): Assigned {
   for (const s of frag.sections) {
     const r = revs.get(s.target) as { from: number; to: number };
     texts.set(DHF_FILE, setIndexRow(get(DHF_FILE), serialFor(s.target), r.to, date));
+  }
+  if (frag.claude.length > 0) {
+    const r = revs.get(CLAUDE_TARGET) as { from: number; to: number };
+    texts.set(CLAUDE_FILE, get(CLAUDE_FILE).replace(CLAUDE_REV_LINE, `**Revision:** ${r.to} (current)`));
+    texts.set(CLAUDE_HISTORY, insertClaudeEntry(get(CLAUDE_HISTORY), frag.claude.map((p) => resolveTokens(p.split(DATE_TOKEN).join(date), revs))));
+    texts.set(DHF_FILE, setClaudeRow(get(DHF_FILE), r.to, date));
   }
   if (frag.log.length > 0) {
     if (!existsSync(join(root, DECISIONS_FILE))) throw new Error(`${path}: has a LOG section but ${DECISIONS_FILE} does not exist`);
@@ -419,6 +469,34 @@ function selfTest(): void {
     check(read(lg, DECISIONS_FILE).endsWith(`- **${new Date().toISOString().slice(0, 10)} — a decision that changes no controlled document.**\n`), "and with no date: line its {date} is the merge date");
   } finally { rmSync(lg, { recursive: true, force: true }); }
 
+  // A CLAUDE.md section sets CLAUDE.md's revision, its DHF row and its history, after whatever main did meanwhile.
+  const cl = mk();
+  try {
+    const claudeHist = "# CLAUDE.md — revision history\n\n> header\n\n## Current revision\n\n**Rev 9 (2026-11-01) — older.**\n\nIts body.\n\n## Earlier revisions\n";
+    writeFileSync(join(cl, CLAUDE_FILE), "# C\n**Revision:** 9 (current)  \n\nbody\n");
+    mkdirSync(join(cl, "docs/reference"), { recursive: true });
+    writeFileSync(join(cl, CLAUDE_HISTORY), claudeHist);
+    writeFileSync(join(cl, DHF_FILE), read(cl, DHF_FILE) + "| — | CLAUDE.md — Project Design Memory | 9 | 2026-11-01 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |\n");
+    commit(cl, "base");
+    frag(cl, "c.md", "date: 2026-11-21\n## DHF\nauthor: A\ntext: **CLAUDE.md Rev {CLAUDE.md from → to}: x.**\n## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — §2: a | b.**\ntext: **What changed.** The second paragraph.\n## LOG\ntext: **{date} — logged with CLAUDE.md Rev {CLAUDE.md to}.**\n");
+    commit(cl, "fragment");
+    // Another PR's history entry reached main first (it was assigned 10): this one takes 11, above it.
+    writeFileSync(join(cl, CLAUDE_HISTORY), claudeHist.replace("## Current revision\n\n", "## Current revision\n\n**Rev 10 (2026-11-20) — merged first.**\n\n"));
+    writeFileSync(join(cl, CLAUDE_FILE), "# C\n**Revision:** 10 (current)  \n\nbody\n");
+    commit(cl, "main moved");
+    mkdirSync(join(cl, "docs/status"), { recursive: true });
+    writeFileSync(join(cl, DECISIONS_FILE), "# Log\n");
+    const res = assignNext(cl, false);
+    const h = read(cl, CLAUDE_HISTORY), c = read(cl, CLAUDE_FILE), d = read(cl, DHF_FILE);
+    check(res.status === "done" && res.revisions[CLAUDE_TARGET] === "10 → 11", "a CLAUDE.md section takes the number after main's (10 -> 11)");
+    check(c === "# C\n**Revision:** 11 (current)  \n\nbody\n", "CLAUDE.md's Revision line is set, its ' (current)' and trailing spaces kept");
+    check(h.includes("## Current revision\n\n**Rev 11 (2026-11-21) — §2: a | b.**\n\n**What changed.** The second paragraph.\n\n**Rev 10 (2026-11-20) — merged first.**\n"),
+      "the entry goes at the top of Current revision, newest first, paragraphs set off by blank lines, tokens resolved");
+    check(/\| — \| CLAUDE\.md — Project Design Memory \| 11 \| 2026-11-21 \|/.test(d) && /\*\*CLAUDE\.md Rev 10 → 11: x\.\*\*/.test(read(cl, "docs/reference/np-dhf-001-revision-history.md")),
+      "the DHF's CLAUDE.md row takes the new number, and the DHF history text resolves the CLAUDE.md token");
+    check(read(cl, DECISIONS_FILE).includes("logged with CLAUDE.md Rev 11"), "a LOG entry can name the CLAUDE.md revision assigned");
+  } finally { rmSync(cl, { recursive: true, force: true }); }
+
   // The parser refuses what would write a bad row.
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: a | b\n") === "string", "a '|' in the text is refused");
   check(typeof parseFragment("f.md", "## NP-SW-001\nauthor: A\ntext: t\n") === "string", "a fragment without a DHF section is refused");
@@ -426,6 +504,10 @@ function selfTest(): void {
   check(typeof parseFragment("f.md", "## NP-DHF-001\nauthor: A\ntext: t\n") === "string", "the DHF is named DHF, not by serial");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n") !== "string", "a minimal fragment parses");
   check(typeof parseFragment("f.md", "## LOG\ntext: t\n") !== "string", "a LOG-only fragment parses, with no DHF section");
+  check(typeof parseFragment("f.md", "## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — t.**\n") === "string", "a CLAUDE.md section with no DHF section is refused (it changes the DHF index)");
+  check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n## CLAUDE.md\ntext: **Rev 86 (2026-11-21) — t.**\n") === "string", "a CLAUDE.md entry with a hand-written number is refused");
+  check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: {CLAUDE.md to}\n") === "string", "a CLAUDE.md token with no CLAUDE.md section is refused");
+  check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — t.**\ntext: more | prose\n") !== "string", "a CLAUDE.md section with its DHF section parses, and its prose may hold a '|'");
   check(typeof parseFragment("f.md", "## LOG\n## DHF\nauthor: A\ntext: t\n") === "string", "an empty LOG section is refused");
   check(typeof parseFragment("f.md", "## LOG\ntext: a\n## LOG\ntext: b\n") === "string", "a second LOG section is refused");
   check(typeof parseFragment("f.md", "## LOG\nauthor: A\ntext: t\n") === "string", "an author line in LOG is refused");
