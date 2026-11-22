@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 5
-**Date:** 2026-09-14  
+**Revision:** 6
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -1108,3 +1108,11 @@ This document is under change control per NP-QMS-DC-001. Revisions required when
 - A STEP target milestone is changed
 
 Minor status updates (OPEN → IN PROGRESS → COMPLETE) may be made as minor revisions. New STEPS and changes to §4 authority requirements require a full revision cycle with CEO approval.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 6 | 2026-11-21 | NeurOne Quality | **STEP-05 marked reopened in part: the research gate passed exact dates, the recording ID and a linking code; the repair is NP-FW-EMMC-002 §E.5 and the remainder is in OI-PRIV-26 (NP-PRIV-ANALYSIS-004) (GitHub #954).** |
