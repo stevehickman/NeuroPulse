@@ -46,6 +46,8 @@ from test_shdr_schema import (  # noqa: E402
     check_prohibited_accel_columns,
     check_accel_table_numeric_types,
     check_permitted_accel_columns_present,
+    check_prohibited_time_types,
+    check_month_anchor_constraints,
 )
 
 # ---------------------------------------------------------------------------
@@ -189,6 +191,85 @@ def test_production_accel_assertion_is_not_vacuous() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Tests — TIME-01 and TIME-02 (OI-PRIV-52): no clock in SHDR, under any type
+# ---------------------------------------------------------------------------
+
+def _table(*column_ddl: str) -> str:
+    cols = ",\n".join("    " + c for c in ("id                  BIGSERIAL    PRIMARY KEY",
+                                           "warranty_token      BYTEA        NOT NULL") + column_ddl)
+    return f"CREATE TABLE fault_log (\n{cols}\n);\n"
+
+
+# @verifies REQ-SHDR-11#a
+def test_time_types_and_clock_named_columns_are_rejected() -> None:
+    """TIME-01 must flag a clock whatever type holds it: an interval, or an
+    integer whose name says it is a time."""
+    bad = {
+        "gap_length          INTERVAL     NOT NULL": "gap_length",
+        "uploaded_epoch      BIGINT       NOT NULL": "uploaded_epoch",
+        "docked_at           INTEGER      NOT NULL": "docked_at",
+        "upload_ts           BIGINT       NOT NULL": "upload_ts",
+        "seen_unix_ms        BIGINT       NOT NULL": "seen_unix_ms",
+        "upload_date         INTEGER      NOT NULL": "upload_date",
+        "dock_time_s         INTEGER      NOT NULL": "dock_time_s",
+    }
+    for ddl, name in bad.items():
+        columns = parse_columns(_table(ddl))
+        assert any(c.column == name for c in columns), f"parser did not see '{name}' — the test would be vacuous"
+        flagged = {f.location.split(".")[1].split(":")[0] for f in check_prohibited_time_types(columns)}
+        assert name in flagged, f"'{ddl}' was not rejected by TIME-01"
+
+
+# @verifies REQ-SHDR-11#a
+def test_counters_named_like_clocks_are_not_rejected() -> None:
+    """TIME-01 must leave the integer counters that order rows, the consent
+    generation, and a DATE manufacture record alone."""
+    columns = parse_columns(_table(
+        "session_at_install  INTEGER      NOT NULL",
+        "char_consent_epoch  INTEGER      NOT NULL CHECK (char_consent_epoch >= 1)",
+        "manufacture_date    DATE         NOT NULL",
+    ))
+    assert len(columns) == 5, "parser did not see the fixture's columns"
+    assert not check_prohibited_time_types(columns), "TIME-01 flagged a counter or a DATE column"
+
+
+# @verifies REQ-SHDR-11#b
+def test_month_anchor_without_its_check_is_rejected() -> None:
+    """TIME-02 must flag a DATE anchor that is month-granular only by its
+    DEFAULT, accept it with the CHECK, and exempt a manufacture date."""
+    anchor = "ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date"
+    check = "CONSTRAINT ck_fault_log_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)"
+    default_only = _table(anchor)
+    assert [f.check_id for f in check_month_anchor_constraints(default_only, parse_columns(default_only))] == ["TIME-02"]
+    with_check = _table(anchor, check)
+    assert not check_month_anchor_constraints(with_check, parse_columns(with_check))
+    in_a_comment = _table(anchor, "-- " + check)
+    assert check_month_anchor_constraints(in_a_comment, parse_columns(in_a_comment)), \
+        "a CHECK that is only a comment was accepted"
+    manufacture = _table("manufacture_date    DATE         NOT NULL")
+    assert not check_month_anchor_constraints(manufacture, parse_columns(manufacture))
+
+
+# @verifies REQ-SHDR-11#b
+def test_production_month_anchors_are_all_checked() -> None:
+    """The real schema passes TIME-02, the check sees every anchor (not
+    vacuous), and removing one real CHECK makes it fail."""
+    sql = SCHEMA_DEFAULT.read_text(encoding="utf-8")
+    columns = parse_columns(sql)
+    anchors = [c for c in columns if c.col_type.strip().upper().startswith("DATE")
+               and not c.column.endswith("manufacture_date")]
+    assert len(anchors) >= 22, f"TIME-02 sees only {len(anchors)} month anchors — the parser has lost tables"
+    assert not check_month_anchor_constraints(sql, columns)
+    assert not check_prohibited_time_types(columns)
+    broken = sql.replace(
+        "    CONSTRAINT ck_devices_month CHECK (last_seen_month = DATE_TRUNC('month', last_seen_month)::date)\n", "")
+    broken = broken.replace("DATE_TRUNC('month', NOW())::date,\n);", "DATE_TRUNC('month', NOW())::date\n);")
+    assert broken != sql, "the mutation changed nothing — the test and the schema have drifted"
+    flagged = {f.location.split(":")[0] for f in check_month_anchor_constraints(broken, parse_columns(broken))}
+    assert flagged == {"devices.last_seen_month"}, f"removing ck_devices_month flagged {flagged}"
+
+
+# ---------------------------------------------------------------------------
 # Plain runner (no pytest dependency required in CI)
 # ---------------------------------------------------------------------------
 
@@ -199,8 +280,12 @@ def _main() -> int:
         test_missing_required_boolean_is_rejected,
         test_production_schema_passes_accel_checks,
         test_production_accel_assertion_is_not_vacuous,
+        test_time_types_and_clock_named_columns_are_rejected,
+        test_counters_named_like_clocks_are_not_rejected,
+        test_month_anchor_without_its_check_is_rejected,
+        test_production_month_anchors_are_all_checked,
     ]
-    print("SHDR schema gate self-test — OI-EMMC2-07 (no raw accelerometer columns)")
+    print("SHDR schema gate self-test — OI-EMMC2-07 (no raw accelerometer columns; TIME-01, TIME-02)")
     print()
     failed = 0
     for t in tests:
@@ -218,7 +303,7 @@ def _main() -> int:
         print("The accelerometer assertion in ci/test_shdr_schema.py is not sound.")
         return 1
     print(f"RESULT: PASS — {len(tests)}/{len(tests)} self-tests passed")
-    print("The 'no raw accelerometer columns' assertion is proven to have teeth.")
+    print("The 'no raw accelerometer columns' and 'no clock' assertions are proven to have teeth.")
     return 0
 
 
