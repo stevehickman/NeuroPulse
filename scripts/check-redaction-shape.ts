@@ -149,7 +149,6 @@ const SINKS: { name: string; why: string }[] = [
   { name: "np_log_hal_shdr_append", why: "logger HAL: buffer → LittleFS SHDR partition" },
   { name: "np_log_session_start", why: "writes SHDR SESSION_OPEN" },
   { name: "np_log_session_end", why: "writes SHDR SESSION_END {session count, firmware version}" },
-  { name: "np_log_telemetry", why: "writes the SHDR ppx-halt FAULT (EEG_CAL and PBM_HEALTH retired, OI-PRIV-21)" },
   { name: "np_log_shdr_fault", why: "SHDR fault_log entry" },
   { name: "np_log_shdr_zone_auth", why: "SHDR accessory authentication record" },
   { name: "np_log_shdr_pbm_socket_health", why: "SHDR PBM tile health record" },
@@ -284,6 +283,14 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
   },
   {
     file: "firmware/hub_control/src/np_session_runner.c",
+    fn: "np_runner_run",
+    role: "writer",
+    note: "ruled records only: SESSION_OPEN; SESSION_END {session count, firmware version} (OI-PRIV-21); PBM session counts at every session end (F13); " +
+      "the delivery-divergence flag with slot and modality, no magnitude, timestamp suppressed (OI-FMEA-09); fault entries with no slot (F11). " +
+      "The visual record it feeds np_log_telemetry carries the ppx halt in UHDR and writes nothing to SHDR (REQ-FWHUB-88, OI-PRIV-22 (NP-PRIV-ANALYSIS-004))",
+  },
+  {
+    file: "firmware/hub_control/src/np_session_runner.c",
     fn: "dispatch_command",
     role: "writer",
     note: "command refusal → np_log_shdr_fault(modality, gate code), no slot (F11 shape)",
@@ -356,22 +363,6 @@ const KNOWN_VIOLATIONS: {
       "copies the whole latch status byte, IMPEDANCE included. No SHDR write uses the report " +
       "today; the IMPEDANCE ruling is owed before one does " +
       "(docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_log.c",
-    fn: "np_log_telemetry",
-    owners: [{ oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 }],
-    why: "the ppx-halt FAULT record exists only when the halt does, and repeats every tick",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_runner.c",
-    fn: "np_runner_run",
-    owners: [{ oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 }],
-    why:
-      "feeds np_log_telemetry the visual record whose ppx_halt flag decides whether an SHDR FAULT exists; " +
-      "its other SHDR records are ruled (SESSION_END since OI-PRIV-21), so it is declared once -22 closes",
   },
   {
     rule: "undeclared-writer",

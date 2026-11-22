@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 41
-**Date:** 2026-11-21  
+**Revision:** 44
+**Date:** 2026-11-22  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4034,6 +4034,222 @@ behind as any merge does.
 
 `OI-SWCI-54` stays open for step 5, Q1, Q3, Q4, the rest of set P and the App id.
 
+> **Replaced 2026-11-22 (§6.20).** `strict` is to be `false` again, with a required status that holds merging while
+> `main` is red. The #983/#995 case is caught after it lands, by a red `main` that alerts and holds, not before.
+
+### 6.19 The merge queue: the tree half (2026-11-22, `OI-SWCI-55`)
+
+#### 6.19.1 Why
+
+§6.18.4 made a branch be up to date with `main` before it merges, and accepted the cost: each merge puts every
+other open pull request behind, and each must take `main` and run its checks again by hand. A merge queue gives the
+same guarantee without the hand step. GitHub builds a merge-group commit (the `main` it will land on, plus the pull
+requests queued ahead, plus this one), runs the required checks on it, and merges only if they pass. The checks that
+gate a merge therefore still run on the tree that lands, which is what §6.18.1's #983/#995 case needed.
+
+The queue runs workflows on the `merge_group` event, not `pull_request`. A required context that does not report on
+the merge-group commit never satisfies the queue, and every queued pull request waits until it times out. That is
+the §6.7.1 deadlock in a new form, so the triggers have to land before the setting does.
+
+#### 6.19.2 What this revision changes
+
+| Where | Change |
+|---|---|
+| `firmware-cross-build.yml`, `safety-mcu-ci.yml`, `simulator-ci.yml`, `tooling-ci.yml` | `on: merge_group`. These four hold every context in `ci/required-checks.txt`. No other workflow gets the trigger: an unrequired check does not hold the queue, and running it there costs runner time and verifies nothing the push to `main` does not |
+| The same four, `Changed files` step | `NP_BASE` is `github.event.merge_group.base_sha` on a merge group. `NP_HEAD` was already `github.sha`, which is the merge-group commit |
+| `scripts/ci-changed-scope.sh` | `np_diff_base`: a merge group diffs its head against `base_sha`, as a pull request diffs against its base. No base, or an all-zero one, is unknown and builds. `np_resolve_base`: a merge group never takes a last-green base and never asks the API. Five new self-test cases, each killed by reverting its line |
+| `tooling-ci.yml`, `doc-naming` job | `check-revision-fragments.ts` and `check-wavelength-register.ts` run on `merge_group` as well as `pull_request` (below) |
+| `scripts/check-ci-scope.ts` | Correspondence C: a required context's workflow must trigger on `merge_group`. Fails today's tree if the trigger is removed from any of the four (checked by doing so) |
+| `scripts/check-main-ruleset.ts` | R7: `merge_queue` in `rule_types` and a non-empty `merge_queue` parameter object go together. L5 compares every queue parameter on either side, as it does for `pull_request`, so the file names none of GitHub's parameter keys. `ci/main-ruleset.json` is **not** changed: the queue is not on, and the file states what GitHub holds |
+
+**Why `base_sha` is sound as the diff base.** The argument is §6.15.2's induction with the queue as its chain.
+Every commit the queue lands is a merge-group commit whose required jobs either ran, or were skipped because nothing
+in their scope differs from `base_sha`, the commit the group was built on. Since GitHub builds each group on the one
+ahead of it, or on `main`, every state the queue lands was gated against a parent that was itself gated, or is a
+commit on `main`. If `base_sha` turns out to be `main` rather than the group ahead, the diff is wider (it includes
+the pull requests ahead) and the argument holds with more building. Commits that reach `main` outside the queue (the
+revision App's, and an admin's bypass merge) are not gated by it; the push to `main` and `build-all.yml` (§5.5) stay
+their backstop, as they are with `strict: true` today.
+
+**Why the last-green base is refused.** The queue exists to re-test against the `main` the change lands on. The
+last-green base skips exactly that re-test (§6.15.3 item 2). A queue branch, `gh-readonly-queue/<base>/pr-<n>-<sha>`,
+is new for every group, so the API would find no earlier run anyway; refusing by event says why, and does not depend
+on GitHub's branch naming.
+
+**Why the two pull-request-only guards also run in the queue.** Rule N of `check-revision-fragments.ts` dry-runs every
+pending fragment's `## OPEN` hunks, other pull requests' first. With `strict: true` it re-ran each time another
+pull request landed first, because the branch had to take `main` (`docs/revisions/README.md`). In the queue it runs on
+the merge-group commit, whose tree holds the fragments of the pull requests queued ahead, so two pull requests that
+edit the same open item are caught before the second lands. Both guards compare `HEAD` with `HEAD^1` when `HEAD` is a
+merge. **That needs the queue's merge method to be `MERGE`.** With squash or rebase the group commit has one parent,
+the guards find no base and read fragments only, and the re-check is gone with no error.
+
+#### 6.19.3 Applying it: the runbook the principal runs, not CI
+
+> **Not available on this repository (2026-11-22).** GitHub offers the merge queue only on repositories an
+> organization owns: any public one, or a private one on GitHub Enterprise Cloud. `stevehickman/NeuroPulse` is owned
+> by a personal account (the API reports owner type `User`, public), so *Require merge queue* does not appear in the
+> ruleset editor, and a paid personal plan would not add it. This revision assumed it did, and step 2 could not be
+> done. The principal decided to keep `strict: true` and not to move the repository for now (§6.19.4). Step 1 is
+> done (#1007); steps 2 to 5 wait for the repository to be owned by an organization.
+
+The order matters. Steps 2 onward wait for this revision to be on `main`; a queue switched on first waits forever on
+eleven contexts no workflow reports.
+
+1. **Merge this revision.** Confirm on any later pull request that the four workflows still report as before.
+2. **Switch the queue on.** Settings → Rules → Rulesets → `Safety` → tick *Require merge queue*. Set **Merge method:
+   Merge** (§6.19.2: the guards need a two-parent commit). Leave the other queue settings at GitHub's defaults unless
+   there is a reason to change one; whatever they are, step 4 records them as observed, as `_observed` does for the
+   other undecided parameters. Save.
+3. **Decide whether a branch must still be up to date (`OI-SWCI-55` Q6).** A. Keep `strict: true`. B. Untick
+   *Require branches to be up to date before merging*: the queue gives the guarantee §6.18.4 wanted, and the update
+   rounds were the cost it accepted. Whether GitHub still makes an author update a branch before it can join the queue
+   while `strict` is on was not confirmed from GitHub's documentation by the session that wrote this; observe it in
+   step 5 before choosing.
+4. **Record it.** Run `bun scripts/check-main-ruleset.ts --live` from a workstation. Expect
+   `L4: rule 'merge_queue' is in force on main but not in ci/main-ruleset.json`, and an `L5` on the strict flag if
+   step 3 changed it. Then a pull request: add `merge_queue` to `rule_types`, copy the parameters from
+   `gh api repos/stevehickman/NeuroPulse/rules/branches/main --jq '.[] | select(.type=="merge_queue") | .parameters'`
+   into a `merge_queue` object, set `status_checks.strict`, and say in `_observed` which values a record decided
+   (the merge method) and which were only observed. `--live` then prints `OK`.
+5. **Observe one pull request through the queue.** The eleven required contexts report on the
+   `gh-readonly-queue/main/…` commit, out-of-scope jobs report `skipped`, and the `doc-naming` job runs the two guards
+   against `HEAD^1`. Also observe what happens to a queued group when the revision App pushes to `main` after the
+   merge ahead of it: if GitHub rebuilds the group, every merge with a fragment costs the queue one more round, which
+   is the same cost `strict: true` has today, but without a hand step.
+
+#### 6.19.4 Deferred (2026-11-22): the queue needs an organization-owned repository
+
+Found when the principal looked for the setting and it was not there. The options put to the principal:
+
+| Option | What it takes |
+|---|---|
+| A. Move the repository to a free organization | The queue is free for a public organization repository. GitHub redirects the old URL. The two GitHub Apps (RevNumberFixer, which `assign-revisions.yml` pushes with, and the Claude app) are installed on the organization; the `Safety` ruleset and the repository secrets are checked after the move; the files that name `stevehickman/NeuroPulse` (`ci/main-ruleset.json`, the runbook commands) are updated. Making the repository private later would need GitHub Enterprise Cloud for the queue |
+| B. Keep `strict: true` | The update-and-re-run cost §6.18.4 accepted stays. Nothing else changes |
+| C. Update open pull requests from a workflow | On each push to `main`, update every open pull request that has auto-merge on. It must push as a GitHub App, because a commit pushed with `GITHUB_TOKEN` starts no workflow. A new workflow with write access, and more re-runs than a queue |
+| D. A third-party queue | A service with write access to `main`, against this repository's preference for no imported supply-chain surface (§6.7, `ci-changed-scope.sh` header) |
+
+**Decided: B, for now** (the principal, 2026-11-22). The tree half stays: a `merge_group` trigger that never fires
+costs nothing, and correspondence C keeps it in place for the day the repository moves. `OI-SWCI-55` stays open on
+that condition.
+
+### 6.20 Main health: a red `main` is heard, and holds merging until it is green (2026-11-22, `OI-SWCI-10`, `OI-SWCI-54` Q5)
+
+#### 6.20.1 Why, and what was decided
+
+With the merge queue unavailable (§6.19.4), the principal asked whether *Require branches to be up to date* could be
+off normally and on only while `main` is red, to get `main` green again. That is "stop the line": it keeps the update
+rounds §6.18.4 accepted to the periods when they buy something. It needs two things the repository did not have. A
+red `main` has to reach a person (`OI-SWCI-10`, open since 2026-08-08). And the switch has to be thrown without an
+admin token in CI, which the records refuse (`ci/required-checks.txt` header; a leaked admin token on a public
+repository can remove every protection on `main`).
+
+**Decided (the principal, 2026-11-22):**
+
+- **`OI-SWCI-10`: option C, an email.** To the repository owner, who is the only human working on the repository and
+  so the one who gets the notices. High importance, and a fixed subject a mail rule can match.
+- **`OI-SWCI-54` Q5: `strict: false`, with the merge hold below** instead of the setting turned on and off by hand.
+  Q5's option B (2026-11-21) is replaced. `OI-SWCI-53`'s gap, a pull request green against an older `main`, is
+  accepted again while `main` is green, and closed by the hold while it is red.
+- The automatic switch is built as a required commit status, not as a token that edits the ruleset.
+
+#### 6.20.2 What this revision changes
+
+| Where | Change |
+|---|---|
+| `.github/workflows/main-health.yml` (new) | Runs on `workflow_run` of every workflow that runs on `main`, on `pull_request_target` (opened, synchronize, reopened) and by hand. Job `freeze-status` posts the status; job `alert` sends the email. It checks out the default branch, never the pull request |
+| `scripts/main-health.ts` (new) | The decisions and the calls: `--post-status [--pr N]`, `--alert`, `--self-test` (40 cases, run in `tooling-ci.yml`'s `ci-scope` job and before each use) |
+| `ci/required-statuses.txt` (new) | The status context `main is green, or this PR is up to date with main`, as a required context. `check-main-ruleset.ts` reads it with `ci/required-checks.txt` (four new end-to-end cases); `check-ci-scope.ts` correspondence C requires exactly one workflow on `pull_request` or `pull_request_target` to post it |
+| `scripts/check-ci-scope.ts` | Correspondence F: the `workflow_run` list names every workflow that runs on `main` (a push to `main`, or a schedule) by the name GitHub reads, and nothing else; `NP_GATE_WORKFLOWS` names exactly the files that hold a required context. Nine new self-test cases |
+| `scripts/ci-changed-scope.sh` | A push to `main` diffs from the last green head of that workflow on `main`, not from `before` (below). Five new self-test cases; reverting the change fails the four on `main`, and the fifth holds a fork's `main` branch to the merge base |
+
+**The hold.** The status is posted on the head of every open pull request into `main`, and again whenever one of the
+four workflows that hold a required context finishes on `main`:
+
+| `main` | The pull request | Status |
+|---|---|---|
+| green | any | `success` |
+| red | its head contains `main`'s tip | `success`: its other checks ran on the broken `main`, so it passes them only by fixing it |
+| red | behind `main` | `failure`: *update this branch from main and let its checks run* |
+| unreadable | any | `error` (fail-closed) |
+
+That is the up-to-date requirement, in force exactly while `main` is red. "Red" is the latest decisive push run of
+`firmware-cross-build`, `safety-mcu-ci`, `simulator-ci` or `tooling-ci` on `main` concluding `failure`, `timed_out` or
+`startup_failure`; a cancelled, skipped or neutral run decides nothing. Only those four hold merging, because a hold
+bites only through a required check: a pull request that is up to date with a `main` broken elsewhere still passes
+everything required. Every workflow on `main` alerts.
+
+**`main` is red until it is fixed.** Every scoped workflow diffed a push to `main` from `before`. The revision App
+commits to `main` after most merges, with docs only, so that run skipped every job and concluded `success` a minute
+after a red one: `main` looked green, and would have released the hold. On `main`, `np_resolve_base` now takes the
+nearest earlier head whose run of the same workflow succeeded. When the run at `before` succeeded that is `before`, and
+nothing changes. When it failed, the diff reaches back past it, the failing job runs again on every push, and `main`
+stays red until a run passes. It is §6.15.2's induction applied to `main`.
+
+**The email.** On each run that finishes on `main` (a push or a schedule), `--alert` compares it with the previous
+decisive run of the same workflow. Green to red sends `[NEURONE MAIN RED] <workflow> failed on main (<sha>)` with
+`Importance: High`, `X-Priority: 1 (Highest)`, `Priority: urgent` and `X-MSMail-Priority: High`. Red to green sends
+`[NEURONE MAIN GREEN] <workflow> passed on main (<sha>) - main is green` (or `- still red: …`), at normal priority.
+Nothing is sent while the colour holds, so one breakage is one email. Every message also carries the header
+`X-NeurOne-Main-Health: 1`. It is sent over SMTP with STARTTLS by `curl`, with the password in a netrc file rather than
+on the command line. The recipient and the sending account are repository secrets, not literals, because the
+repository is public.
+
+**Why `pull_request_target`.** It runs the workflow file and the script from the default branch, with a write token,
+on pull requests from forks too. With `pull_request`, both would come from the pull request, which could then post its
+own `success`. The workflow never checks out or runs the pull request's code. It reads the number and head sha
+through the API, which is what makes `pull_request_target` safe here. The cost: a change to the script is first used
+after it merges, so its self-test runs on the pull request that changes it (`tooling-ci.yml`).
+
+#### 6.20.3 Applying it: the runbook the principal runs, not CI
+
+1. **Merge this revision.** Nothing is required yet. The status starts appearing on pull requests, and red runs on
+   `main` start trying to send email (and fail loudly until step 2 is done).
+2. **The sending account.** Create a Gmail account used only for sending (it limits what a leaked password reaches),
+   turn on 2-Step Verification, and create an app password (Google Account → Security → App passwords). In the
+   repository, Settings → Secrets and variables → Actions → New repository secret, add:
+   `NP_ALERT_SMTP_USER` (the sending address), `NP_ALERT_SMTP_PASSWORD` (the app password), `NP_ALERT_TO` (the
+   owner's address). `NP_ALERT_SMTP_URL` is optional; unset, it is `smtp://smtp.gmail.com:587`.
+3. **A mail rule.** Match the subject `[NEURONE MAIN RED]`, or the sending address. Apple Mail: Mail → Settings →
+   Rules → Add Rule, *Subject contains* `[NEURONE MAIN RED]`, actions *Set Color* (red), *Mark as Flagged*,
+   *Play Sound*, *Send Notification*. A rule runs only on a Mac with Mail open; on an iPhone, add the sending address
+   as a VIP and turn on VIP notifications. Gmail ignores the priority headers; a filter on the subject (star, mark
+   important, label) does the same there. Run *Main health* by hand (Actions → Run workflow) to post the status on
+   open pull requests; sending a test email waits for a real change of colour on `main`.
+4. **The ruleset.** In `Safety` → *Require status checks to pass*, add `main is green, or this PR is up to date with
+   main` (source: GitHub Actions), and untick *Require branches to be up to date before merging*. Save.
+5. **Record it.** Run `bun scripts/check-main-ruleset.ts --live`. Expect `L5: strict_required_status_checks_policy is
+   false, expected true`, and nothing else; an `L3` on the new context would mean GitHub attributes the posted
+   status to another source. Then a pull request sets `status_checks.strict` to `false` in `ci/main-ruleset.json`.
+   `--live` then prints `OK`.
+6. **Observe** the first red run on `main`: one email, the status turning to `failure` on pull requests behind `main`,
+   and back to `success` everywhere when `main` is green.
+
+#### 6.20.4 What it does not do
+
+1. **The hold starts when the red run finishes, not when the breaking merge lands.** A pull request merged in that
+   window (minutes) is not held. It is the window `strict: false` always had.
+2. **A red workflow that holds no required context alerts and holds nothing.** Fixing it is on the owner, prompted by
+   the email.
+3. **`build-all.yml` alerts and holds nothing.** It runs weekly, so a hold on it would last until it was re-run by
+   hand after the fix.
+4. **Rule N of `check-revision-fragments.ts` no longer re-runs when another pull request lands first**
+   (`docs/revisions/README.md`). Two pull requests that edit the same open item can both merge; the second's hunk
+   then fails in `assign-revisions.yml` on `main`, which alerts, and the fix is by hand.
+5. ~~**That GitHub attributes a status posted with `GITHUB_TOKEN` to the GitHub Actions App (`integration_id` 15368)**
+   was not confirmed by the session that wrote this. Step 5's `--live` shows it.~~ Confirmed by step 5 (§6.20.5).
+6. **No email is sent before step 2.** The `alert` job fails instead, which GitHub reports to the person whose action
+   started the run.
+
+#### 6.20.5 Applied (2026-11-22)
+
+| Step | Result |
+|---|---|
+| 1. Merge | #1008 merged |
+| 4. Ruleset | The principal added `main is green, or this PR is up to date with main` to the required status checks and unticked *Require branches to be up to date before merging* |
+| 5. `--live` | One violation, `L5: strict_required_status_checks_policy is false, expected true`. **No `L2`**, so GitHub requires the new status, and **no `L3`**, so GitHub binds it to the App the other contexts are bound to: the status posted with `GITHUB_TOKEN` is attributed to GitHub Actions, which closes §6.20.4 item 5. This revision sets `status_checks.strict` to `false` in `ci/main-ruleset.json`, so the next run is expected to print `OK` |
+| 2, 3, 6 | The sending account's secrets and the mail rule are the principal's, outside the repository; the first red run on `main` is not yet observed |
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -4062,7 +4278,7 @@ behind as any merge does.
 | ~~OI-SWCI-13~~ | ~~Sweep the five documents still citing the retired `firmware-host-tests.yml` (`np_sw_001.md`, `np_dhf_001.md`, `status/pending-decisions.md`, `status/document-register.md`, `status/completed-decisions.md`). The section-ref guard does not validate workflow filenames, so nothing fails on them~~ **CLOSED 2026-09-26 (GitHub #446, §6.10)** — the one live citation (`np_sw_001.md` §9.4 FreeRTOS row, a present-tense "passes in `firmware-host-tests` CI") is corrected. The rest are dated history and stay as written: `np_dhf_001.md` revision row 17, closed `[x]` entries in `pending-decisions.md`, a dated entry in `completed-decisions.md`, and the frozen `document-register.md` (OI-CONV-07). Rewriting a dated record to name a workflow that did not exist on that date would falsify it | Quality | — |
 | ~~OI-SWCI-15~~ | **Raised 2026-08-09 during phase 1 review; a firmware finding, not a CI one.** `load_and_jump()` verifies the image in its eMMC bank, then copies it to OCRAM, then jumps — so the signature check covers the *source*, not the copy that actually executes. A bit flip, a truncated copy, or a wrong length yields corrupt code at an entry point the boot record says was verified. Standard practice is to re-hash (or at minimum CRC) the staged image after the copy and before the jump. While in that path, confirm D-cache clean / I-cache invalidate happens after staging — the classic omission in exactly this sequence. Out of scope for phase 1 (which only supplies the C runtime); it touches the same function as the phase-2 OCRAM fix, so the two are naturally worked together. **Half of the cache clause is settled by §4.14 (phase 11, OI-SWCI-45), and the way it got settled is itself the finding:** this row had been asking for a D-cache clean in the staging path for 25 days when phase 10 raised OI-SWCI-45 for the D-cache being absent, 24 rows apart in this table, with neither naming the other — §4.8's "two statements compared by nothing", occurring inside the open-items list. With the D-cache decided OFF there is **nothing to clean**, so that half is a no-op for as long as the decision holds and for as long as nothing upstream turns the cache on. The **invalidate** half is untouched and is the reason this stays open: the I-cache *is* enabled, nothing in this repository establishes what the boot ROM leaves behind, and the application-side check added at §4.14.5 cannot cover it — a stale-instruction fault at the jump happens before `main()` is ever reached. Re-verifying the staged copy, the other half of this item, is unaffected by any of it **CLOSED 2026-09-26 (§4.15, GitHub #447).** `load_and_jump()` now hashes the staged copy and re-authenticates the header it re-read (`np_app_image_verify_staged()`), then writes `ICIALLU` before the jump. The D-cache clean stays a no-op while §4.14's OFF decision holds, and the code says where it becomes mandatory. The first positive test found that **the bootloader's own Ed25519 could not verify any valid signature**. It is replaced by the vendored Monocypher 4.0.2 behind a small-order-key guard (§4.15.2). Boot-time cost on target is unmeasured | Firmware / Safety SW | Closed |
 | ~~OI-SWCI-16~~ | **Raised 2026-08-09.** If `memset` is ever used to zeroise key or signature material in the bootloader, it survives dead-store elimination today only because it is an opaque cross-TU call. Enabling LTO would make those stores removable. Audit the `np_signature.c` scrub sites and give them an explicit volatile-based zeroiser rather than depending on that accident **CLOSED 2026-09-26 by audit (§4.15.4).** There are no scrub sites. The bootloader verifies and never signs, so it holds no secret, and the `memset` calls were SHA padding initialisation, not scrubs. The rule carried forward: a secret introduced into the bootloader arrives with a non-elidable zeroiser in the same change | Firmware / Security | Closed |
-| OI-SWCI-10 | How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification **Update 2026-09-26 (GitHub #446, §6.10):** still open (Steve). §6.10 records the lowest-machinery option, a final `if: failure()` job that opens or updates one labelled issue with `issues: write` on that job alone. Correspondence E now catches on the PR the copy drift that was the one recorded unseen failure (§4.10.7) **Update 2026-11-11 (GitHub #446, §6.17):** still open. The question is drafted for the principal in `docs/human-input/oi-swci-10-build-all-red.md`. It now also decides how loud the weekly ruleset comparison is | Steve | Phase 0 |
+| ~~OI-SWCI-10~~ | **CLOSED 2026-11-22 (§6.20): option C, an email to the repository owner, high importance with a fixed subject, on every change of colour of any workflow on `main`, `build-all` included (`main-health.yml`, the principal).** ~~How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification **Update 2026-09-26 (GitHub #446, §6.10):** still open (Steve). §6.10 records the lowest-machinery option, a final `if: failure()` job that opens or updates one labelled issue with `issues: write` on that job alone. Correspondence E now catches on the PR the copy drift that was the one recorded unseen failure (§4.10.7) **Update 2026-11-11 (GitHub #446, §6.17):** still open. The question is drafted for the principal in `docs/human-input/oi-swci-10-build-all-red.md`. It now also decides how loud the weekly ruleset comparison is~~ | Steve | Phase 0 |
 | ~~OI-SWCI-11~~ | ~~Per-PR ctest granularity: should a change to one module run only that module's ctest targets, or is the full 25-target host suite cheap enough that selection adds drift risk for no gain? The §5.0 principle argues for selection; the suite's runtime may argue against. Measure before deciding~~ **CLOSED 2026-09-26 (GitHub #446, §6.10)** — measured and decided against selection. The whole host suite configures in 0.4 s, builds in 2.0 s and runs in 7.2 s on a 4-core machine (slowest target `np_hd_fai_tests`, 4.0 s). A module → target map would be one more hand-kept correspondence, bought for single-digit seconds. Reopen if the suite's run time passes a minute | Firmware | — |
 | OI-SWCI-27 | **Raised 2026-08-11 during phase 7 (§4.4.2).** The firmware half of the enable-line reset window is closed — `np_hal_gpio_init()` presets every enable HIGH via `BSRR` before switching `MODER` to output, so no driven-LOW window exists in software. The **hardware** half is not: the external pull-up value and the pad's power-on high-impedance window are hardware facts recorded in no software document here, and they alone hold the ten enable lines disabled between the power rail rising and the first instruction. This is `np_safety_hal.h` open question 10's second half. Pull-up sizing for the PCB review. **Widened Rev 23 (2026-09-25, GitHub #437): the review checks the pull-up's supply domain as well as its value.** The enable pins drive an inverting buffer (`np_gpio_mgr.c:5-7`). A pull-up rail lost while the buffer stays powered therefore reaches *enabled*, and `NP-HW-HUB-001` **HUB-REQ-C06 (b)** requires the pull-up and the buffer on one rail (`NP-RISK-004` §2.2, adopted) | Firmware / Safety HW | G1 |
 | OI-SWCI-28 | **Raised 2026-08-11 during phase 7.** The six NTC sense-domain pins and ADC1 input channels (`NP_NTC0..5_*` in `np_safety_config.h`) are **provisional**, on the same footing as every other GPIO assignment in that file. `np_hal_adc.c` needs a concrete input per domain to be a driver rather than a stub, so they are declared beside the enable lines — where a double-assignment would be visible, which is the failure mode that bit `NP_EN_PBM_ZONE4_PIN`/PA4. Confirm against PCB layout | Firmware | G1 |
@@ -4093,7 +4309,8 @@ behind as any merge does.
 | OI-SWCI-51 | **Raised 2026-10-14 with §6.15; narrowed 2026-10-28 (Rev 36).** The last-green diff base now covers thirteen of the repository's workflows. It does not cover `codeql.yml` (per-language `analyze` jobs: whether GitHub's code-scanning check accepts a category that was not re-analysed on the new head has to be established before a security scanner skips one) or `dependency-scan.yml` (its `paths:` list uses `**/` and `*` shapes `ci-changed-scope.sh` rejects). Both only gained a `concurrency` group. The nine converted workflows are untested on GitHub until their first pull-request run | Quality / Firmware | — |
 | ~~OI-SWCI-52~~ | **CLOSED 2026-11-11 (§6.17).** `ci-changed-scope.sh --self-test` runs `np_resolve_base` against a stub `gh`: thirteen cases, the four named here among them, and nine single mutations of the function each fail one. ~~**Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository~~ | Quality | — |
 | ~~OI-SWCI-53~~ | **CLOSED 2026-11-21 (§6.18.4): not acceptable; the `Safety` ruleset requires a branch to be up to date before it merges (`strict: true`, the principal).** ~~**Raised 2026-10-14 with §6.15.3 item 2.** A green run tested the pull request merged with `main` as it was then, and a later push that changes nothing in scope does not re-test it against a `main` that has since moved. Decide whether that is acceptable given the push to `main` and `build-all.yml`, or whether a candidate older than the last move of the base should be refused~~ | Quality | 2026-11-21 |
-| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open. **2026-11-21 (§6.18.4):** the context is in force; Q5 answered B (`strict: true`) and `OI-SWCI-53` closed. Open: §6.18.3 step 5, the rest of set P, Q1, Q3, Q4 and the App id | Steve | — |
+| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open. **2026-11-21 (§6.18.4):** the context is in force; Q5 answered B (`strict: true`) and `OI-SWCI-53` closed. Open: §6.18.3 step 5, the rest of set P, Q1, Q3, Q4 and the App id **2026-11-22 (§6.20): Q5 answered again: `strict: false`, with the merge hold (`main is green, or this PR is up to date with main`) in force while `main` is red; replaces option B. The settings half is §6.20.3 steps 4 and 5.** | Steve | — |
+| OI-SWCI-55 | **Raised 2026-11-22 with §6.19.** The tree half of a merge queue is in (the `merge_group` trigger on the four workflows that hold required contexts, the merge-group diff base, the two guards in the queue, and correspondence C and rule R7 to keep it so). **2026-11-22 (§6.19.4): deferred.** GitHub offers the queue only on organization-owned repositories, and this one is owned by a personal account; the principal chose to keep `strict: true` and not to move it for now. Open until the repository is organization-owned: §6.19.3 steps 2 to 5 (switch the queue on with merge method `MERGE`; Q6, whether `strict` stays on; record the queue's parameters in `ci/main-ruleset.json`; observe one pull request through the queue) | Steve | — |
 
 ## 8. Traceability
 
@@ -4242,3 +4459,6 @@ Revisions before the first row below were not recorded in a table in this docume
 | 39 | 2026-11-21 | NeurOne Tooling | **§5.0.2 CI-Scan-Paths table: `check-redaction-shape.ts` also reads `docs/status/pending-decisions.md`, to fail a known violation whose open item is closed (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
 | 40 | 2026-11-21 | NeurOne Tooling | **New §6.18: `reporting paths cannot leak a sensitive predicate (§5.1)` joins `ci/required-checks.txt` and carries the in-file warning; why it is safe to require, what it does not catch (two PRs each green against an older `main`, which is Q5), and the runbook. `OI-SWCI-54` row updated; it stays open.** |
 | 41 | 2026-11-21 | NeurOne Tooling | **New §6.18.4: the redaction-shape context applied; `strict_required_status_checks_policy` is `true` (OI-SWCI-54 Q5 option B, the principal), so `ci/main-ruleset.json` says `true`; why and the cost. OI-SWCI-53 closed; OI-SWCI-54 row updated and still open.** |
+| 42 | 2026-11-22 | NeurOne Tooling | **New §6.19: the four workflows holding required contexts trigger on `merge_group`; `ci-changed-scope.sh` diffs a merge group against its `base_sha` and never a last-green base; the revision-fragment and wavelength-register guards run in the queue (merge method `MERGE`); correspondence C requires the trigger; `check-main-ruleset.ts` R7 and L5 cover a `merge_queue` rule; the settings runbook (§6.19.3) and Q6 on `strict`. OI-SWCI-55 raised; no setting changed.** |
+| 43 | 2026-11-22 | NeurOne Tooling | **§6.19.3 notes the merge queue is offered only on organization-owned repositories; new §6.19.4 records the options and the principal's choice to keep `strict: true` for now (OI-SWCI-55 deferred). New §6.20: `main-health.yml` and `scripts/main-health.ts` email the owner on each change of colour on `main` and post the required status `main is green, or this PR is up to date with main` (the up-to-date requirement while `main` is red); `ci/required-statuses.txt`; `check-ci-scope.ts` correspondence F and posted statuses in C; `check-main-ruleset.ts` reads both manifests; `ci-changed-scope.sh` diffs a push to `main` from its last green head; runbook §6.20.3. §6.18.4 marked replaced. OI-SWCI-10 closed; OI-SWCI-54 Q5 answered again (`strict: false` with the hold).** |
+| 44 | 2026-11-22 | NeurOne Tooling | **New §6.20.5: the principal added the required status and unticked *Require branches to be up to date*; `--live` reported only the strict flag, which confirms the posted status is bound to GitHub Actions (§6.20.4 item 5 closed). `ci/main-ruleset.json` now says `strict: false`.** |

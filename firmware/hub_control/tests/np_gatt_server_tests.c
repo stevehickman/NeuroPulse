@@ -1401,6 +1401,39 @@ static void test_the_stop_and_panic_writes_do_not_wait_on_a_key(void)
     np_gatt_set_link_encrypted(true);
 }
 
+/* @verifies REQ-FWHUB-81#e */
+static void test_a_resume_needs_an_encrypted_link_whatever_holds_the_session(void)
+{
+    const uint8_t pause  = NP_SESSION_PAUSE_VALUE;
+    const uint8_t resume = NP_SESSION_RESUME_VALUE;
+    const uint8_t panic  = NP_SESSION_PANIC_VALUE;
+    reset_world();
+    g_pause_calls = g_resume_calls = g_panic_calls = 0;
+    g_pause_rc = g_resume_rc = g_panic_rc = NP_HUB_OK;
+    np_session_pause_init(pause_fn, resume_fn);
+    np_session_panic_init(panic_fn);
+
+    /* The hold cause is not an input to the refusal: the GATT layer is never told it, so the answer to a stranger is the same
+     * after a person's pause, a panic or a detector halt (CLAUDE.md §5.1 rule 2).  The runner's own state is stubbed here. */
+    np_gatt_set_link_encrypted(false);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 0,
+          "resume: on a link that is not encrypted a resume is refused (ATT 0x0F) and reaches no handler");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_OK && g_pause_calls == 1,
+          "resume: a pause on the same link is still taken (REQ-FWHUB-81 (c))");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_OK && g_panic_calls == 1,
+          "resume: and so is a panic");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 0,
+          "resume: a resume after that panic is still refused on the unencrypted link");
+
+    np_gatt_set_link_encrypted(true);
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_OK && g_resume_calls == 1,
+          "resume: on an encrypted link the same resume reaches the runner");
+    np_gatt_on_disconnect();
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 1,
+          "resume: after a disconnect the next link must be encrypted again before a resume is taken");
+    np_gatt_set_link_encrypted(true);
+}
+
 int main(void)
 {
     test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there();   /* first: nothing has reported a link yet */
@@ -1440,6 +1473,7 @@ int main(void)
     test_every_characteristic_that_carries_data_refuses_an_unencrypted_link();
     test_encrypted_reads_work_and_the_protocol_upload_takes_a_stream();
     test_the_stop_and_panic_writes_do_not_wait_on_a_key();
+    test_a_resume_needs_an_encrypted_link_whatever_holds_the_session();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);
