@@ -2,8 +2,8 @@
 /**
  * check-release-pins.ts — a release build cannot ship with the placeholder fleet certificate pins.
  *
- * Privacy review Finding 9, REQ-SHDR-04. The SHDR fleet endpoint is SPKI-pinned (iOS `SHDRFleetPinningDelegate`, Android
- * `FleetConfig`), and both apps ship placeholder hashes ("AAAA…=", "BBBB…=") until the real fleet certificate exists. A
+ * Privacy review Finding 9, REQ-SHDR-04. The SHDR fleet endpoint is SPKI-pinned (`FleetConfig`, shared by every Kotlin host), and the
+ * app ships placeholder hashes ("AAAA…=", "BBBB…=") until the real fleet certificate exists. A
  * placeholder fails closed: it matches no certificate, so every fleet upload is refused. That is the right default and also a
  * silent one, because a release built with them looks fine and uploads nothing, forever. This makes the failure loud, where a
  * release is built.
@@ -17,26 +17,25 @@
  *
  * Without --release it reports how many placeholders remain and exits 0 (CI must stay green until the fleet certificate exists),
  * but P1 and P2 still fail, so a change that breaks the pin lists or the detector's view of them cannot pass quietly. With
- * --release it is the gate the release build calls: the iOS Release pre-build phase (app/ios/project.yml) and the Android
+ * --release it is the gate the release build calls: the Android
  * assembleRelease/bundleRelease tasks (app/android/app/build.gradle.kts).
  *
- * Reach, stated narrowly: it reads the two source files named below. A pin added in a third place, or fetched at run time, is not
+ * Reach, stated narrowly: it reads the source file named below. A pin added in a third place, or fetched at run time, is not
  * seen. It does not check that a real-looking pin matches the real certificate.
  *
  * Usage: bun scripts/check-release-pins.ts [--release] [--self-test]
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-release-pins.ts --self-test
- * CI-Scans: the SPKI pin literals in the iOS and Android SHDR uploaders (P1 two pins each, P2 well-formed, P3 no placeholder under --release)
- * CI-Self-Test-Reads-Tree: one case reads the real iOS and Android uploaders to prove the detector can see their pins, which a fixture cannot show
- * CI-Scan-Paths: app/ios/NeurOne/Data/SHDRUploader.swift common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt scripts/check-release-pins.ts
+ * CI-Scans: the SPKI pin literals in the shared FleetConfig (P1 two pins each, P2 well-formed, P3 no placeholder under --release)
+ * CI-Self-Test-Reads-Tree: one case reads the real FleetConfig to prove the detector can see their pins, which a fixture cannot show
+ * CI-Scan-Paths: common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt scripts/check-release-pins.ts
  */
 import { readFileSync } from "fs";
 import { join, resolve } from "path";
 
 export const PIN_FILES = [
-  "app/ios/NeurOne/Data/SHDRUploader.swift",
-  // The relay's pins and the gateway key for every Kotlin host (Android, desktop, the shared iOS host): one file.
+  // The relay's pins and the gateway key for every host (Android, desktop, the shared iOS host): one file.
   "common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt",
 ];
 
@@ -132,7 +131,7 @@ function selfTest(): number {
   t("the real source files carry pins the detector can see", (() => {
     const root = resolve(import.meta.dir, "..");
     const r = check(Object.fromEntries(PIN_FILES.map((f) => [f, readFileSync(join(root, f), "utf8")])), false);
-    return r.findings.length === 0 && r.scanned >= 4;
+    return r.findings.length === 0 && r.scanned >= 2;
   })());
 
   failures.forEach((f) => console.error(`FAIL ${f}`));
