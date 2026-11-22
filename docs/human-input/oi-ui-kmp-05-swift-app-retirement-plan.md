@@ -97,3 +97,10 @@ All of this goes through the assign-at-merge revision fragments (`docs/revisions
 
 Done: `sync-constants.ts` no longer writes `NppsBounds.generated.swift` (the other four sync scripts already wrote Kotlin and web only), and `web-ci.yml` no longer watches the Swift generated files. The committed Swift generated files stay until PR B and will not follow later edits to the JSON.
 Not done, on purpose: `sync-locales.ts` still writes `Localizable.xcstrings`, because the `app/ios` Xcode build phase and `ios-ci.yml` run it and the Swift app cannot build without the catalog; it goes with PR B. The `assert scope` self-checks and the other globs still name Swift files that exist, so they change in PR B. `OI-UI-KMP-05` stays open.
+
+## 10. PR B done (2026-11-21)
+
+PR B (the deletion) is made. The principal's explicit instruction "Do PR B now" on 2026-11-21 **waived the device-run gate (§1 gate 3, `OI-UI-KMP-06`, `OI-PRES-07`)**: the gate was not met and both items stay open, as does question 5 (signing and the App ID).
+
+Done: `app/ios`, the Swift package, `scripts/build-npps-xcframework.sh`, `ios-ci.yml` and `ModelsParityTests` deleted; `sync-locales.ts` no longer writes the String Catalog; the CodeQL Swift leg and the `app/ios/**` relevance globs removed, the `assert scope` self-checks re-pointed to Kotlin files; `REQ-SW03-18` (a), `REQ-UHDRBK-01` and the Swift key-manager clauses of `REQ-SW03-08` retired in place (the core's derivation, split and destroyed-key refusal stay required, because `UhdrKeyDerivationTests` and `bundle_key.rs` verify them); `NP-APP-ISA-001` moved to `docs/superseded/np_app_isa_001.md`; NP-DHF-001 row and §6b re-pointed; `OI-PRES-05` closed; one decision log entry. A revert of the PR restores the app.
+Not done: the "Port of iOS …" comments (left as history); `app/windows` and `app/web` (§7).

@@ -11,6 +11,8 @@ started: 2026-06-04
 updated: 2026-06-17
 ---
 
+> **SUPERSEDED 2026-11-21 (`OI-UI-KMP-05`).** The SwiftUI app this ISA described (`app/ios`) was retired and deleted; the iOS app is the shared Compose host (`app/NeurOneUI`, `common/core`), whose requirements are `NP-SW-001`. Moved here unchanged from `app/ios/ISA.md`; the text below is a record of what was believed when it was written, not a design input. The Swift sources it names are in git history (`git log -- app/ios`).
+
 # ISA — NeurOne Core iOS App (Issue #51)
 
 ## Problem
