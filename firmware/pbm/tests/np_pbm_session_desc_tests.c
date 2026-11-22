@@ -45,14 +45,14 @@ static void mask_set(uint8_t mask[NP_PBM_SOCKET_MASK_BYTES], uint8_t socket_id)
     mask[socket_id / 8U] |= (uint8_t)(1U << (socket_id % 8U));
 }
 
-static np_pbm_preset_t make_preset(uint8_t cur_a, uint8_t freq_hz, uint8_t duty)
+static np_pbm_preset_t make_preset(uint8_t cur_a, uint32_t freq_mhz, uint8_t duty)
 {
     np_pbm_preset_t p;
     memset(&p, 0, sizeof(p));
     p.cur_a = cur_a;
     p.cur_b = cur_a;
     p.cur_c = cur_a;
-    p.freq_hz = freq_hz;
+    p.freq_mhz = freq_mhz;
     p.duty = duty;
     p.channel_mask = NP_PBM_CH_ALL_EN;
     return p;
@@ -64,8 +64,8 @@ static np_pbm_preset_t make_preset(uint8_t cur_a, uint8_t freq_hz, uint8_t duty)
 static void test_struct_sizes(void)
 {
     check(sizeof(np_pbm_session_desc_hdr_t) == 8U, "hdr is 8 bytes");
-    check(sizeof(np_pbm_preset_t) == 6U, "preset is 6 bytes");
-    check(sizeof(np_pbm_preset_group_t) == NP_PBM_SOCKET_MASK_BYTES + 6U,
+    check(sizeof(np_pbm_preset_t) == 9U, "preset is 9 bytes (a 32-bit millihertz frequency)");
+    check(sizeof(np_pbm_preset_group_t) == NP_PBM_SOCKET_MASK_BYTES + 9U,
           "preset group is mask + preset bytes");
 }
 
@@ -112,13 +112,13 @@ static void test_serialize_parse_roundtrip(void)
 
     /* Group 0: gamma preset on socket 5 (within the old v4 domain). */
     mask_set(desc.groups[0].mask, 5U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U);
 
     /* Group 1: theta preset on socket 77 — one v4 could NEVER name (only
      * 5-8 sockets addressable via an 8-bit mask / zone[5] array). This is
      * the whole point of v5. */
     mask_set(desc.groups[1].mask, 77U);
-    desc.groups[1].preset = make_preset(150U, 6U, 0x28U);
+    desc.groups[1].preset = make_preset(150U, 6000U, 0x28U);
 
     for (uint8_t i = 0; i < 64U; i++) { desc.signature[i] = (uint8_t)(i + 1U); }
 
@@ -134,7 +134,7 @@ static void test_serialize_parse_roundtrip(void)
     check(parsed.hdr.duration_s == 1200U, "parsed duration_s round-trips");
     check(memcmp(parsed.groups[0].mask, desc.groups[0].mask, NP_PBM_SOCKET_MASK_BYTES) == 0,
           "parsed group 0 mask round-trips");
-    check(parsed.groups[1].preset.freq_hz == 6U, "parsed group 1 preset round-trips");
+    check(parsed.groups[1].preset.freq_mhz == 6000U, "parsed group 1 preset round-trips");
     check(memcmp(parsed.signature, desc.signature, 64U) == 0, "parsed signature round-trips");
 
     /* Unused group slots (2..MAX-1) must be zeroed by parse, not garbage. */
@@ -152,7 +152,7 @@ static void test_parse_rejects_bad_input(void)
     desc.hdr.version = NP_SES1064_VERSION;
     desc.hdr.group_count = 1U;
     mask_set(desc.groups[0].mask, 3U);
-    desc.groups[0].preset = make_preset(100U, 10U, 0x10U);
+    desc.groups[0].preset = make_preset(100U, 10000U, 0x10U);
 
     uint8_t buf[512];
     size_t wire_len = np_pbm_session_desc_serialize(&desc, buf, sizeof(buf));
@@ -190,9 +190,9 @@ static void test_expand_basic(void)
     desc.hdr.group_count = 2U;
     mask_set(desc.groups[0].mask, 40U);
     mask_set(desc.groups[0].mask, 2U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U);
     mask_set(desc.groups[1].mask, 77U);
-    desc.groups[1].preset = make_preset(150U, 6U, 0x28U);
+    desc.groups[1].preset = make_preset(150U, 6000U, 0x28U);
 
     uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
@@ -207,9 +207,9 @@ static void test_expand_basic(void)
     check(ids[0] == 2U && ids[1] == 40U && ids[2] == 77U,
           "expand returns sockets in ascending order, including socket 77 "
           "(unrepresentable in v4)");
-    check(presets[0].freq_hz == 40U && presets[1].freq_hz == 40U,
+    check(presets[0].freq_mhz == 40000U && presets[1].freq_mhz == 40000U,
           "group 0's sockets (2, 40) get group 0's preset");
-    check(presets[2].freq_hz == 6U, "group 1's socket (77) gets group 1's preset");
+    check(presets[2].freq_mhz == 6000U, "group 1's socket (77) gets group 1's preset");
 }
 
 /* @verifies REQ-SW02-09 */
@@ -219,9 +219,9 @@ static void test_expand_dedup_first_group_wins(void)
     memset(&desc, 0, sizeof(desc));
     desc.hdr.group_count = 2U;
     mask_set(desc.groups[0].mask, 10U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U); /* gamma */
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U); /* gamma */
     mask_set(desc.groups[1].mask, 10U);                    /* same socket again */
-    desc.groups[1].preset = make_preset(120U, 2U, 0x0FU);  /* sleep */
+    desc.groups[1].preset = make_preset(120U, 2000U, 0x0FU);  /* sleep */
 
     uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
@@ -234,7 +234,7 @@ static void test_expand_dedup_first_group_wins(void)
     check(count == 1U,
           "a socket named in two groups is counted once, not double-dosed "
           "(this is the exact bug class the bitmap representation exists to prevent)");
-    check(presets[0].freq_hz == 40U,
+    check(presets[0].freq_mhz == 40000U,
           "first group (signed order) wins for an overlapping socket");
 }
 
@@ -246,7 +246,7 @@ static void test_expand_overflow_fails_closed(void)
     desc.hdr.group_count = 1U;
     /* Set every bit — 128 distinct sockets, far beyond any capacity. */
     memset(desc.groups[0].mask, 0xFF, sizeof(desc.groups[0].mask));
-    desc.groups[0].preset = make_preset(100U, 10U, 0x10U);
+    desc.groups[0].preset = make_preset(100U, 10000U, 0x10U);
 
     uint8_t ids[4];
     np_pbm_preset_t presets[4];
@@ -289,9 +289,9 @@ static void test_session_start_beyond_old_domain(void)
     desc.hdr.duration_s = 62U;
 
     mask_set(desc.groups[0].mask, 0U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x10U); /* gamma */
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x10U); /* gamma */
     mask_set(desc.groups[1].mask, 1U);
-    desc.groups[1].preset = make_preset(150U, 6U, 0x10U);  /* theta */
+    desc.groups[1].preset = make_preset(150U, 6000U, 0x10U);  /* theta */
 
     np_pbm_session_ctx_t ctx;
     np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
@@ -301,7 +301,7 @@ static void test_session_start_beyond_old_domain(void)
     check(ctx.active_socket_count == 2U, "session expanded to 2 active sockets");
     check(ctx.active_socket_id[0] == 0U && ctx.active_socket_id[1] == 1U,
           "active sockets are 0 and 1, ascending");
-    check(ctx.active_preset[0].freq_hz == 40U && ctx.active_preset[1].freq_hz == 6U,
+    check(ctx.active_preset[0].freq_mhz == 40000U && ctx.active_preset[1].freq_mhz == 6000U,
           "each active socket kept its own group's preset — split-zone frequencies differ");
     check(ctx.stage == NP_PBM_STAGE_RAMP_UP, "session reaches RAMP_UP");
 }
@@ -317,7 +317,7 @@ static void test_session_start_accepts_every_address_of_the_domain(void)
     desc.hdr.group_count = 1U;
     desc.hdr.duration_s = 62U;
     memset(desc.groups[0].mask, 0xFF, sizeof(desc.groups[0].mask)); /* all 128 sockets */
-    desc.groups[0].preset = make_preset(100U, 10U, 0x10U);
+    desc.groups[0].preset = make_preset(100U, 10000U, 0x10U);
 
     np_pbm_session_ctx_t ctx;
     np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
@@ -338,7 +338,7 @@ static void test_session_start_fails_closed_when_capacity_is_exceeded(void)
     memset(&desc, 0, sizeof(desc));
     desc.hdr.group_count = 1U;
     memset(desc.groups[0].mask, 0xFF, sizeof(desc.groups[0].mask));
-    desc.groups[0].preset = make_preset(100U, 10U, 0x10U);
+    desc.groups[0].preset = make_preset(100U, 10000U, 0x10U);
     uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     uint8_t count = 9U;
@@ -360,7 +360,7 @@ static void test_t2_combined_wire_and_start(void)
     desc.pbm1064_hdr.group_count = 1U;
     desc.pbm1064_hdr.duration_s = 62U;
     mask_set(desc.pbm1064_groups[0].mask, 3U);
-    desc.pbm1064_groups[0].preset = make_preset(160U, 20U, 0x16U);
+    desc.pbm1064_groups[0].preset = make_preset(160U, 20000U, 0x16U);
     desc.laser1170.duty_pct = 0U;
 
     size_t wire_len = np_pbm_t2_combined_desc_wire_len(1U);
@@ -549,9 +549,9 @@ static void start_two_socket_session(np_pbm_session_ctx_t *ctx)
     desc.hdr.group_count = 2U;
     desc.hdr.duration_s  = 62U;
     mask_set(desc.groups[0].mask, 0U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x10U);
     mask_set(desc.groups[1].mask, 1U);
-    desc.groups[1].preset = make_preset(150U, 6U, 0x10U);
+    desc.groups[1].preset = make_preset(150U, 6000U, 0x10U);
 
     np_pbm_session_init(ctx, NULL, NULL, NULL, 0U);
     check(np_pbm_session_start(ctx, &desc) == NP_PBM_OK,
@@ -685,7 +685,7 @@ static void test_hal_stub_socket_domain(void)
     desc.hdr.group_count = 1U;
     desc.hdr.duration_s  = 62U;
     mask_set(desc.groups[0].mask, 77U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x10U);
 
     np_pbm_session_ctx_t ctx;
     np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
@@ -713,7 +713,7 @@ static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_cou
     desc.hdr.group_count = 1U;
     mask_set(desc.groups[0].mask, 3U);
     mask_set(desc.groups[0].mask, 79U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U);
     uint8_t ids[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm_preset_t presets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     uint8_t count = 7U;
@@ -732,7 +732,7 @@ static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_cou
     desc.hdr.group_count = 1U;
     for (uint8_t s = 0U; s < 3U; s++) { mask_set(desc.groups[0].mask, s); }
     for (uint8_t s = 80U; s < 120U; s++) { mask_set(desc.groups[0].mask, s); }
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U);
     check(np_pbm_session_desc_expand(&desc, ids, presets, &count, 4U) == NP_PBM_ERR_INVALID_ADDRESS,
           "address: invalid addresses are reported as invalid, not as a capacity refusal");
 
@@ -740,7 +740,7 @@ static void test_expand_refuses_an_address_that_is_not_a_socket_and_does_not_cou
     memset(&desc, 0, sizeof(desc));
     desc.hdr.group_count = 1U;
     for (uint8_t s = 0U; s < 5U; s++) { mask_set(desc.groups[0].mask, s); }
-    desc.groups[0].preset = make_preset(180U, 40U, 0x32U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x32U);
     check(np_pbm_session_desc_expand(&desc, ids, presets, &count, 4U) == NP_PBM_ERR_INVALID_ARG,
           "address: five valid addresses over a capacity of four is still the capacity refusal");
 
@@ -789,9 +789,9 @@ static void test_session_start_refuses_a_preset_duty_above_the_limit(void)
     desc.hdr.group_count = 2U;
     desc.hdr.duration_s = 62U;
     mask_set(desc.groups[0].mask, 0U);
-    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+    desc.groups[0].preset = make_preset(180U, 40000U, 0x10U);
     mask_set(desc.groups[1].mask, 1U);
-    desc.groups[1].preset = make_preset(150U, 6U, (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U));
+    desc.groups[1].preset = make_preset(150U, 6000U, (uint8_t)(NP_PBM_DUTY_MAX_REG + 1U));
 
     np_pbm_session_ctx_t ctx;
     np_pbm_session_init(&ctx, NULL, NULL, NULL, 0U);
@@ -806,37 +806,66 @@ static void test_session_start_refuses_a_preset_duty_above_the_limit(void)
 }
 
 /*
- * REQ-SW02-11: an EEG-adaptive PBM frequency is the tile code nearest the dominant frequency in hertz, and no EEG band
- * picks it.  The old classification sent 12.0 to 29.9 Hz to the 20 Hz code (the beta band) and 8.0 to 11.9 Hz to the
- * 10 Hz code; by distance, 12 Hz is nearer 10 Hz than 20 Hz, and 14.9 Hz is the first value nearer 20 Hz.
+ * REQ-SW02-11: an EEG-adaptive PBM frequency is the dominant frequency itself, in millihertz.  No EEG band and no tile
+ * code table picks it (OI-PBMTILE-01).  The old classification sent 12.0 to 29.9 Hz to the 20 Hz code (the beta band);
+ * the nearest-code rule sent 12 Hz to 10 Hz.  Now 12 Hz is 12000 mHz.
  */
 /* @verifies REQ-SW02-11 */
-static void test_the_eeg_adaptive_code_is_the_nearest_tile_frequency_not_a_band(void)
+static void test_the_eeg_adaptive_frequency_is_the_dominant_frequency_not_a_band_or_a_code(void)
 {
     uint8_t n = 0U;
     /* hysteresis: hold NP_PBM_EEG_HYSTERESIS_TICKS ticks of difference, then change. */
     #define ADAPT(freq, cur, expect, what) do { \
         n = 0U; \
-        uint8_t r = 0xFFU; \
+        uint32_t r = NP_PBM_FREQ_NO_CHANGE; \
         for (uint8_t t = 0U; t < NP_PBM_EEG_HYSTERESIS_TICKS; t++) { r = np_pbm_drive_map_eeg_freq((freq), (cur), &n); } \
         check(r == (expect), what); } while (0)
-    ADAPT(3.5f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_2HZ,  "3.5 Hz is nearest the 2 Hz code");
-    ADAPT(4.5f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_6HZ,  "4.5 Hz is nearest the 6 Hz code (the old delta/theta edge was 4.0)");
-    ADAPT(7.9f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_6HZ,  "7.9 Hz is nearest 6 Hz");
-    ADAPT(8.1f,  NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "8.1 Hz is nearest 10 Hz");
-    ADAPT(12.0f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "12 Hz is nearest 10 Hz (the old alpha/beta edge sent it to 20 Hz)");
-    ADAPT(14.9f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "14.9 Hz is still nearest 10 Hz");
-    ADAPT(15.1f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_20HZ, "15.1 Hz is nearest 20 Hz");
-    ADAPT(29.9f, NP_PBM_FREQ_CODE_2HZ,  NP_PBM_FREQ_CODE_20HZ, "29.9 Hz is nearest 20 Hz, 0.1 Hz from the midpoint (the old beta/gamma edge was 30.0)");
-    ADAPT(30.1f, NP_PBM_FREQ_CODE_2HZ,  NP_PBM_FREQ_CODE_40HZ, "30.1 Hz is nearest 40 Hz");
-    ADAPT(15.0f, NP_PBM_FREQ_CODE_40HZ, NP_PBM_FREQ_CODE_10HZ, "a tie takes the lower frequency");
+    ADAPT(3.5f,   40000U, 3500U,  "3.5 Hz runs at 3.5 Hz");
+    ADAPT(4.5f,   40000U, 4500U,  "4.5 Hz runs at 4.5 Hz (the old delta/theta edge was 4.0)");
+    ADAPT(12.0f,  40000U, 12000U, "12 Hz runs at 12 Hz (the band rule gave 20 Hz, the nearest-code rule 10 Hz)");
+    ADAPT(14.9f,  10000U, 14900U, "14.9 Hz runs at 14.9 Hz");
+    ADAPT(29.95f, 2000U,  29950U, "29.95 Hz runs at 29.95 Hz");
+    ADAPT(0.75f,  40000U, 750U,   "0.75 Hz runs at 0.75 Hz");
     #undef ADAPT
-    /* The code the session already runs is left alone, and the hysteresis holds a change back. */
+    /* The frequency the session already runs is left alone, and the hysteresis holds a change back. */
     n = 0U;
-    check(np_pbm_drive_map_eeg_freq(10.0f, NP_PBM_FREQ_CODE_10HZ, &n) == 0xFFU && n == 0U, "the current code is kept");
+    check(np_pbm_drive_map_eeg_freq(10.0f, 10000U, &n) == NP_PBM_FREQ_NO_CHANGE && n == 0U, "the running frequency is kept");
     n = 0U;
-    check(np_pbm_drive_map_eeg_freq(40.0f, NP_PBM_FREQ_CODE_10HZ, &n) == 0xFFU && n == 1U,
-          "a different nearest code is held back for the first tick of the hysteresis");
+    check(np_pbm_drive_map_eeg_freq(40.0f, 10000U, &n) == NP_PBM_FREQ_NO_CHANGE && n == 1U,
+          "a different frequency is held back for the first tick of the hysteresis");
+    /* Not a frequency: nothing changes, and the counter is cleared. */
+    n = 2U;
+    check(np_pbm_drive_map_eeg_freq(0.0f, 10000U, &n) == NP_PBM_FREQ_NO_CHANGE && n == 0U, "0 Hz changes nothing");
+    n = 2U;
+    check(np_pbm_drive_map_eeg_freq(-3.0f, 10000U, &n) == NP_PBM_FREQ_NO_CHANGE && n == 0U, "a negative frequency changes nothing");
+    n = 2U;
+    check(np_pbm_drive_map_eeg_freq(1.0e10f, 10000U, &n) == NP_PBM_FREQ_NO_CHANGE && n == 0U, "a frequency past 32 bits of mHz changes nothing");
+}
+
+extern void np_pbm_hal_stub_refuse_freq(bool refuse);
+
+/* The tile takes the frequency as millihertz, and the hub reads it back (OI-PBMTILE-01). */
+/* @verifies REQ-FWTILE-15 */
+static void test_the_drive_writes_millihertz_and_fails_on_a_refusal(void)
+{
+    np_pbm_drv_slot_t drv;
+    memset(&drv, 0, sizeof drv);
+    uint8_t reg[4] = { 0U, 0U, 0U, 0U };
+
+    check(np_pbm_drive_set_freq(70U, &drv, NP_PBM_CH_A_EN, 7250U) == NP_PBM_OK, "7.25 Hz is written");
+    (void)np_pbm_hal_i2c_read(70U, NP_PBM_REG_FREQ_A, reg, 4U);
+    check(reg[0] == 0x52U && reg[1] == 0x1CU && reg[2] == 0U && reg[3] == 0U, "FREQ_A holds 7250 little-endian");
+    check(drv.freq_mhz[0] == 7250U, "the driver state records it");
+
+    np_pbm_hal_stub_refuse_freq(true);
+    check(np_pbm_drive_set_freq(70U, &drv, NP_PBM_CH_A_EN, 9000U) == NP_PBM_ERR_FREQ_REFUSED,
+          "a tile that keeps its previous value fails the command");
+    check(drv.freq_mhz[0] == 7250U, "and the driver state still holds the frequency the tile runs");
+    np_pbm_hal_stub_refuse_freq(false);
+
+    check(np_pbm_drive_set_freq(70U, &drv, NP_PBM_CH_A_EN, 4000000000U) == NP_PBM_OK, "a value near 2^32 mHz round-trips");
+    (void)np_pbm_hal_i2c_read(70U, NP_PBM_REG_FREQ_A, reg, 4U);
+    check(reg[3] == 0xEEU && reg[2] == 0x6BU, "its upper bytes are written");
 }
 
 int main(void)
@@ -865,7 +894,8 @@ int main(void)
 
     test_set_duty_above_the_limit_is_refused_and_writes_nothing();
     test_session_start_refuses_a_preset_duty_above_the_limit();
-    test_the_eeg_adaptive_code_is_the_nearest_tile_frequency_not_a_band();
+    test_the_eeg_adaptive_frequency_is_the_dominant_frequency_not_a_band_or_a_code();
+    test_the_drive_writes_millihertz_and_fails_on_a_refusal();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

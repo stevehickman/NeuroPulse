@@ -11,6 +11,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import life.neurone.core.common.KeyValueStore
+import life.neurone.core.common.PresenceLock
+import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.common.UUID
 import life.neurone.core.npps.NppsCore
 import life.neurone.core.npps.namedZoneRefs
@@ -126,6 +129,13 @@ class NPProtocolLibrary(
     private val kv: KeyValueStore,
     // The random bytes a share export's new ids are made from (SWR-WO-07).
     private val randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
+    /**
+     * The presence lock when the host gates UHDR (`NP-APP-PRESENCE-001`), or null when it does not. With a lock this library holds
+     * none of the person's protocols or family state while locked and reads them again at each unlock (`REQ-PRES-01` (d),
+     * `OI-PRIV-19`): built locked it read "absent", and the first save wrote the library and the family state from empty over the
+     * sealed ones. Used from one thread.
+     */
+    private val lock: PresenceLock? = null,
 ) {
     companion object {
         const val USER_PROTOCOLS_KEY = "np.user-protocols.npps"
@@ -142,8 +152,19 @@ class NPProtocolLibrary(
     }
 
     /** BIPA biometric consent (ISC-90). Seeded from the shared onboarding key. */
-    var eegConsentGranted: Boolean = kv.getBoolean(BIPA_ACCEPTED_KEY)
+    var eegConsentGranted: Boolean = false
         private set
+
+    /**
+     * Whether the user protocols and the family state are what the library holds. False while locked: the bundled protocols still
+     * show, and nothing the person made or recorded is shown, changed or written (`OI-PRIV-19`).
+     */
+    val isReadable: Boolean get() = loaded
+
+    private var loaded = false
+
+    /** The used and archived family changes made while locked, replayed on the family state read at the unlock. */
+    private val held = mutableListOf<() -> Unit>()
 
     var connectedDeviceTier: DeviceTier = DeviceTier.NONE
         private set
@@ -179,12 +200,49 @@ class NPProtocolLibrary(
         private set
 
     init {
-        loadFromStore()
-        loadFamilyState()
+        if (lock == null || lock.isUnlocked) readSealed()
         // Unconditional: loadFromStore() returns early when nothing is stored,
         // and the registry must be pointed at a namespace either way.
         publishZoneNamespace()
+        lock?.onStateChanged { state ->
+            if (state == PresenceState.LOCKED) {
+                _userProtocols.clear()
+                usedFamilies.clear()
+                archivedFamilies.clear()
+                cloneSources.clear()
+                validationCache.clear()
+                eegConsentGranted = false
+                loaded = false
+            } else {
+                readSealed()
+                val operations = held.toList()
+                held.clear()
+                operations.forEach { it() }
+            }
+            publishZoneNamespace()
+        }
     }
+
+    /**
+     * Read the stored protocols and family state again, for after a restore wrote them under this library (`OI-PRIV-19`): the library
+     * reads once, so without this the restored protocols would not show and the next save would write over them. Does nothing while locked.
+     */
+    fun reloadFromStorage() {
+        if (!loaded) return
+        _userProtocols.clear()
+        validationCache.clear()
+        readSealed()
+        publishZoneNamespace()
+    }
+
+    private fun readSealed() {
+        eegConsentGranted = kv.getBoolean(BIPA_ACCEPTED_KEY)
+        loadFromStore()
+        loadFamilyState()
+        loaded = true
+    }
+
+    private fun writable(): Boolean = loaded && (lock == null || lock.isUnlocked)
 
     // MARK: Availability
 
@@ -285,6 +343,7 @@ class NPProtocolLibrary(
      * family has no variant for.
      */
     fun save(entry: NPProtocolEntry): SaveResult {
+        if (!loaded) return SaveResult.Locked
         if (bundledProtocols.any { it.id == entry.id }) return SaveResult.ReadOnly // never overwrite a bundled entry
         val idx = _userProtocols.indexOfFirst { it.id == entry.id }
         if (idx >= 0) {
@@ -315,6 +374,9 @@ class NPProtocolLibrary(
     sealed interface ZoneSaveResult {
         data object Saved : ZoneSaveResult
         data object NameEmpty : ZoneSaveResult
+
+        /** The presence lock is closed: the library is not readable, so no zone is defined (`OI-PRIV-19`). */
+        data object Locked : ZoneSaveResult
         /** A shipped or an earlier user zone already has the name: a name defined twice is undefined for every protocol. */
         data object NameTaken : ZoneSaveResult
         data object NoSockets : ZoneSaveResult
@@ -325,6 +387,9 @@ class NPProtocolLibrary(
     sealed interface ZoneDeleteResult {
         data object Deleted : ZoneDeleteResult
         data object NotFound : ZoneDeleteResult
+
+        /** The presence lock is closed: the library is not readable, so no zone is deleted (`OI-PRIV-19`). */
+        data object Locked : ZoneDeleteResult
         /** A user protocol names the zone, so deleting it would leave that protocol unresolvable. */
         data class InUse(val protocols: List<String>) : ZoneDeleteResult
     }
@@ -338,6 +403,7 @@ class NPProtocolLibrary(
      * does: the registry is re-pointed at the namespace that now holds it. Nothing is saved on any refusal.
      */
     fun addUserZone(name: String, sockets: List<Int>): ZoneSaveResult {
+        if (!loaded) return ZoneSaveResult.Locked
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return ZoneSaveResult.NameEmpty
         val set = NPSocketSet.union(sockets)
@@ -361,6 +427,7 @@ class NPProtocolLibrary(
 
     /** Delete a zone the user defined, unless a user protocol still names it. A shipped zone is not the user's to delete. */
     fun deleteUserZone(name: String): ZoneDeleteResult {
+        if (!loaded) return ZoneDeleteResult.Locked
         val entry = _userProtocols.firstOrNull { it is NPProtocolEntry.Zone && it.zone.name == name } ?: return ZoneDeleteResult.NotFound
         val users = protocolsUsingZone(name)
         if (users.isNotEmpty()) return ZoneDeleteResult.InUse(users)
@@ -372,6 +439,7 @@ class NPProtocolLibrary(
 
     /** Delete a user protocol. A used family is archived, never deleted (SWR-FM-05). */
     fun delete(id: UUID): DeleteResult {
+        if (!loaded) return DeleteResult.Locked
         if (bundledProtocols.any { it.id == id }) return DeleteResult.ReadOnly
         if (_userProtocols.none { it.id == id }) return DeleteResult.NotFound
         val check = NPLibraryRules.deleteCheck(familySummaries(withVersions = false), id.toString())
@@ -395,6 +463,7 @@ class NPProtocolLibrary(
      * source's with " (copy)" added, made unique, because a protocol is referred to by name.
      */
     fun cloneFamily(id: UUID): List<NPProtocolEntry> {
+        if (!loaded) return emptyList()
         val entry = allProtocols.firstOrNull { it.id == id && it.isRunnable } ?: return emptyList()
         val key = entry.familyKey()
         val members = allProtocols.filter { it.isRunnable && it.familyKey() == key }
@@ -430,6 +499,7 @@ class NPProtocolLibrary(
      * they changed it, else the clone's " (copy)" name. Returns the saved copy, or null when [edited] is not in the library.
      */
     fun saveAsClone(edited: NPProtocolEntry): NPProtocolEntry? {
+        if (!loaded) return null
         val original = allProtocols.firstOrNull { it.id == edited.id && it.isRunnable } ?: return saveAsNewFamily(edited)
         val copies = cloneFamily(edited.id)
         val copy = copies.firstOrNull { cloneSources[it.id.toString()] == edited.id.toString() } ?: return null
@@ -501,10 +571,12 @@ class NPProtocolLibrary(
 
     /** Archive the family of [entry]: it drops out of the offered list and every variant is kept. */
     fun archiveFamily(entry: NPProtocolEntry) {
+        if (!loaded) { held += { archiveFamily(entry) }; return }
         if (archivedFamilies.add(entry.familyKey())) saveFamilyState()
     }
 
     fun unarchiveFamily(entry: NPProtocolEntry) {
+        if (!loaded) { held += { unarchiveFamily(entry) }; return }
         if (archivedFamilies.remove(entry.familyKey())) saveFamilyState()
     }
 
@@ -590,6 +662,7 @@ class NPProtocolLibrary(
 
     /** The used flag is one bit per family and is never cleared (SWR-WO-02). */
     private fun markUsed(entry: NPProtocolEntry) {
+        if (!loaded) { held += { markUsed(entry) }; return }
         if (usedFamilies.add(entry.familyKey())) saveFamilyState()
     }
 
@@ -625,7 +698,7 @@ class NPProtocolLibrary(
         if (_userProtocols.isEmpty()) null else NppsCore.serializeShare(_userProtocols.map(::flaggedItem), randomBytes(32))
 
     /** What [openScript] did with a file: how many entries went in, how many the library's rules refused, or that it was unreadable. */
-    data class OpenResult(val opened: Int, val refused: Int, val unreadable: Boolean)
+    data class OpenResult(val opened: Int, val refused: Int, val unreadable: Boolean, val locked: Boolean = false)
 
     /**
      * Everything the user made (protocols, composites and zones) as one `.npps` text, for a person to keep in a file; null when
@@ -643,6 +716,7 @@ class NPProtocolLibrary(
      * used here; an import never clears one (SWR-WO-03).
      */
     fun openScript(text: String): OpenResult {
+        if (!loaded) return OpenResult(0, 0, unreadable = false, locked = true)
         val raw: JsonObject
         val entries: List<NPProtocolEntry>
         try {
@@ -687,6 +761,7 @@ class NPProtocolLibrary(
      * but whose content is already used here stays used; an import never clears the flag (SWR-WO-03).
      */
     fun importScript(text: String): NPProtocolEntry {
+        if (!loaded) throw IllegalStateException("A script cannot be imported while the presence lock is closed.")
         val entries = NPPSParser.parse(text)
         val entry = entries.firstOrNull() ?: throw NPPSError("No protocol found in script", 0)
         val raw = NppsCore.parse(text)["entries"]?.jsonArray?.firstOrNull()?.jsonObject
@@ -771,13 +846,23 @@ class NPProtocolLibrary(
         }
     }
 
-    private fun saveFamilyState() {
+    private fun saveFamilyState() = guarded {
         kv.putString(USED_FAMILIES_KEY, buildJsonArray { usedFamilies.forEach { add(NPLibraryRules.usedRecord(it)) } }.toString())
         kv.putString(ARCHIVED_FAMILIES_KEY, buildJsonArray { archivedFamilies.forEach { add(JsonPrimitive(it)) } }.toString())
         kv.putString(CLONE_SOURCES_KEY, JsonObject(cloneSources.mapValues { JsonPrimitive(it.value) }).toString())
     }
 
-    private fun saveToStore() {
+    /** Run a write only on a library that was read and a lock that is open; under a lock whose key went away, the rest is not written. */
+    private fun guarded(block: () -> Unit) {
+        if (!writable()) return
+        try {
+            block()
+        } catch (e: SecretKeyUnavailableException) {
+            if (lock == null) throw e
+        }
+    }
+
+    private fun saveToStore() = guarded {
         val serializer = NPPSSerializer()
         // The core refuses a model it cannot write (a PBM block that names no zone) rather than write a file its own
         // parser rejects. One such draft must not take the rest of the library with it: it stays in memory for this

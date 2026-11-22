@@ -59,6 +59,8 @@ class NeurOneGattManager(
     private val scope: CoroutineScope,
     /** Holds the per-user offline-fault acknowledgement point (CervicalFaultLedger). */
     private val ledgerStore: KeyValueStore = InMemoryKeyValueStore(),
+    /** The presence lock when the host gates UHDR: the acknowledgement points and the queued consumable resets are sealed (`OI-PRIV-19`). Null on a host with no gate. */
+    presenceLock: life.neurone.core.common.PresenceLock? = null,
 ) : BleCentralListener, life.neurone.shared.ota.OtaLink, life.neurone.shared.setup.SetupLink {
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -371,7 +373,12 @@ class NeurOneGattManager(
     private var consumableCharPresent = false
 
     /** Replacements not yet written to the hub (OI-ACC-08); persisted, flushed at connect. */
-    private val consumableResets = ConsumableResetQueue(ledgerStore)
+    private val consumableResets = ConsumableResetQueue(ledgerStore, presenceLock, onUnlocked = { flushConsumableResets() })
+
+    /** One sealed value for every person's acknowledgement point; the cardiac faults are re-read against it when the lock opens. */
+    private val faultLedgers = life.neurone.core.models.CervicalFaultLedgerStore(ledgerStore, presenceLock) {
+        _cervicalFaultStatus.value?.let { _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(it.records) }
+    }
 
     /**
      * The person using the device, from the active individual profile. Sent whenever it
@@ -799,16 +806,9 @@ class NeurOneGattManager(
         consumableResets.drain { central.write(UUID.fromString(GattUuidStrings.CONSUMABLE_STATUS_ID), it) }
     }
 
-    private val cervicalFaultLedgerKey: String
-        get() = PersistedKeys.CERVICAL_FAULT_LEDGER_KEY + "." + (activeUserTag?.toString() ?: "unnamed")
-
     private var cervicalFaultLedger: CervicalFaultLedger
-        get() = CervicalFaultLedger(ledgerStore.getString(cervicalFaultLedgerKey)?.toLongOrNull())
-        set(value) {
-            val n = value.lastAcknowledgedSession
-            if (n == null) ledgerStore.remove(cervicalFaultLedgerKey)
-            else ledgerStore.putString(cervicalFaultLedgerKey, n.toString())
-        }
+        get() = faultLedgers.ledgerFor(activeUserTag)
+        set(value) = faultLedgers.set(activeUserTag, value)
 
     private fun sendActiveUserTag() {
         val tag = activeUserTag ?: return

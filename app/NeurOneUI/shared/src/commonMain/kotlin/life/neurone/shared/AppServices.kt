@@ -218,6 +218,7 @@ class AppServices(
         researchAnalyticsGate,
         // The token that joins a person's suggestions goes when the portal opt-in or blanket consent does (`OI-PRIV-08` (3)).
         onPortalIdentityWithdrawn = { researchSuggestionStore.forgetAuthorToken() },
+        lock = presenceLock,
     )
 
     /**
@@ -225,14 +226,14 @@ class AppServices(
      * null for a host with a fixed place or none. Common to every host that has folders.
      */
     val backupFolder: life.neurone.shared.migration.BackupFolderModel? =
-        platform.folderPlaces?.let { life.neurone.shared.migration.BackupFolderModel(it, keyValueStore) }
+        platform.folderPlaces?.let { life.neurone.shared.migration.BackupFolderModel(it, keyValueStore) { presenceLock?.isUnlocked != false } }
 
     /**
      * Which cloud account the backup is kept in, if the person chose one (SWR-MG-21); null on a host with no [cloudAuth]. It keeps the
      * backup and nothing else: a cloud place carries no migration and no recordings.
      */
     val cloudBackup: life.neurone.shared.cloud.CloudBackupModel? =
-        cloudAuth?.let { auth -> platform.httpTransport?.let { life.neurone.shared.cloud.CloudBackupModel(auth, it, keyValueStore) } }
+        cloudAuth?.let { auth -> platform.httpTransport?.let { life.neurone.shared.cloud.CloudBackupModel(auth, it, keyValueStore) { presenceLock?.isUnlocked != false } } }
 
     // The choice made in an earlier run takes effect now, so the automatic backup does not wait for a screen to be opened.
     init { cloudBackup?.let { model -> scope.launch { model.refresh() } } }
@@ -269,14 +270,32 @@ class AppServices(
     )
 
     /**
+     * A restore wrote the carried keys straight to the store, under every store that read them when the app started: each reads them
+     * again, so the restored protocols, history and limits show and are not written over by the next save (`OI-PRIV-19`).
+     */
+    fun reloadAfterRestore() {
+        sessionHistoryStore.reloadFromStorage()
+        limitsStore.reloadFromStorage()
+        wavelengthRulesStore.reloadFromStorage()
+        protocolLibrary.reloadFromStorage()
+    }
+
+    /**
+     * Whether the person's saved data cannot be read on this run: the keystore could not be used ([StorageProtection.LOCKED]), or the
+     * presence gate is closed. Either way "the automatic backup is off" is not an answer the run has: it is "not known" (`OI-PRIV-19`).
+     */
+    private val savedDataUnreadable: Boolean
+        get() = storageProtection == StorageProtection.LOCKED || presenceLock?.isUnlocked == false
+
+    /**
      * Keep the system's wake-up request in step with the automatic backup: asked for while it is on and there is a folder, withdrawn
-     * otherwise. A run that could not open the sealed store ([StorageProtection.LOCKED]) knows nothing about whether it is on, so
+     * otherwise. A run whose saved data cannot be read ([savedDataUnreadable]) knows nothing about whether it is on, so
      * it asks again and withdraws nothing.
      */
     fun syncBackgroundSchedule() {
         val scheduler = platform.backgroundBackup ?: return
         val interval = life.neurone.shared.migration.ScheduledBackup.INTERVAL_SECONDS
-        if (storageProtection == StorageProtection.LOCKED || (scheduledBackup.isOn && backupPlace.value != null)) scheduler.request(interval)
+        if (savedDataUnreadable || (scheduledBackup.isOn && backupPlace.value != null)) scheduler.request(interval)
         else scheduler.cancel()
     }
 
@@ -286,7 +305,7 @@ class AppServices(
      */
     fun syncLoginItem() {
         val item = platform.loginItem ?: return
-        if (storageProtection != StorageProtection.LOCKED && !scheduledBackup.isOn && item.isOn) item.set(false)
+        if (!savedDataUnreadable && !scheduledBackup.isOn && item.isOn) item.set(false)
     }
 
     /**
@@ -295,15 +314,15 @@ class AppServices(
      * the backup is made if it is due, and the next wake-up is requested whatever happened.
      */
     suspend fun runBackgroundBackup(): life.neurone.shared.migration.ScheduledBackup.Outcome? {
-        val outcome = if (storageProtection == StorageProtection.LOCKED) null else scheduledBackup.runIfDue()
+        val outcome = if (savedDataUnreadable) null else scheduledBackup.runIfDue()
         syncBackgroundSchedule()
         return outcome
     }
     /** Given the lock, so it holds no history while locked and merges a session that finishes then (`REQ-PRES-01` (d)). */
     val sessionHistoryStore = SessionHistoryStore(keyValueStore, lock = presenceLock)
-    val researchSuggestionStore: ResearchSuggestionStore = ResearchSuggestionStore(keyValueStore, portalOptedIn = { consentStore.researchConsent.suggestionPortalOptIn })
+    val researchSuggestionStore: ResearchSuggestionStore = ResearchSuggestionStore(keyValueStore, portalOptedIn = { consentStore.researchConsent.suggestionPortalOptIn }, lock = presenceLock)
 
-    val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore)
+    val gattManager = NeurOneGattManager(platform.bleCentral, scope, keyValueStore, presenceLock)
 
     /**
      * Firmware updates (`DI-PERF-21`): the manifest and image come from the firmware host through a transport pinned to its
@@ -336,7 +355,16 @@ class AppServices(
      * The clear's two platform steps (SWR-MG-06, SWR-MG-09), written once: destroy the data key in the keystore, and drop the
      * link to the helmet and forget it. Null when the data is not sealed, so there is no key to destroy.
      */
-    val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager) }
+    val clearActions: ClearActions? = encrypted?.let { SharedClearActions(it, gattManager, platform.gatedKeyStore) }
+
+    /**
+     * The app's own files for the clear and the erase, with the folder the person chose for the backup left out when it is inside them.
+     * The folder is read from the sealed choice each time a file is listed or deleted, because it can change and because it is not
+     * known until the person unlocks; locked, only the default folder is left out (`OI-PRIV-19`: an erase never needs the credential).
+     */
+    val ownFiles: life.neurone.core.migration.FileStore? = platform.migrationFiles?.let { fixed ->
+        life.neurone.shared.migration.DeferredFileStore { platform.migrationFilesExcluding(backupFolder?.folder?.value) ?: fixed }
+    }
 
     /**
      * The person's "erase this device" (SWR-MG-17), or null on a host that does not offer it ([PlatformServices.endRunAfterErase]).
@@ -346,7 +374,8 @@ class AppServices(
     val eraseDevice: life.neurone.shared.migration.EraseDeviceModel? =
         platform.endRunAfterErase?.let {
             life.neurone.shared.migration.EraseDeviceModel(
-                platform.keyValueStore, platform.migrationFiles, platform.secretKeyStore, gattManager,
+                platform.keyValueStore, ownFiles, platform.secretKeyStore, gattManager,
+                gated = platform.gatedKeyStore,
                 // The analytics ID is forgotten, queued and the relay asked BEFORE the wipe deletes the only copy (`OI-PRIV-08` (1)).
                 // A locked run reads the sealed ID as absent, so what it could not read is counted too (`OI-ANALYTICS-01` (5) (b)).
                 beforeWipe = {
@@ -362,7 +391,7 @@ class AppServices(
 
     /** Mode-2 upload: compile, sign with the platform's signer, chunk, write to the hub. */
     /** The user's PBM wavelength rules; the descriptor compiler reads the resolved set at each upload (NP-NPPS-REF-001 §7a). */
-    val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore)
+    val wavelengthRulesStore = NPWavelengthRulesStore(keyValueStore, lock = presenceLock)
 
     val protocolUploader = ProtocolUploader(gattManager, { wavelengthRulesStore.resolved }, platform.protocolSigner)
 
@@ -373,9 +402,10 @@ class AppServices(
         // OI-ACC-08: the hub owns the count; Mark replaced tells it to zero it.
         onReplaced = { gattManager.requestConsumableReset(it) },
         onReminderNotification = { reminder -> platform.reminderNotifier?.let { notifier -> scope.launch { notifier.showReminder(reminder) } } },
+        lock = presenceLock,
     )
 
-    val limitsStore = NPLimitsStore(keyValueStore).also { limits ->
+    val limitsStore = NPLimitsStore(keyValueStore, lock = presenceLock).also { limits ->
         // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the person on
         // the device. Until a profile is chosen the device keeps assuming whoever it last knew.
         gattManager.activeUserTag = ActiveUserTag.from(limits.activeProfileId)
@@ -387,7 +417,7 @@ class AppServices(
      * target without that binding wired yet (OI-UI-KMP-01) cannot do. Screens that do not list
      * protocols never pay for it, or fail on it.
      */
-    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore) }
+    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore, lock = presenceLock) }
 
     /**
      * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm
@@ -404,10 +434,27 @@ class AppServices(
     }
 
     init {
+        // What the sealed state decides is read again when the person unlocks (`OI-PRIV-19`): the chosen backup place, whether the
+        // automatic backup is on (so the schedule and the start-at-sign-in item are set from the real answer, not from "off"), and
+        // whether research analytics may start. The place is read before the schedule is set, because the schedule needs it.
+        presenceLock?.onStateChanged { state ->
+            if (state == life.neurone.core.common.PresenceState.LOCKED) {
+                backupFolder?.forget()
+                cloudBackup?.forget()
+            } else {
+                scope.launch {
+                    backupFolder?.reload()
+                    cloudBackup?.reload()
+                    researchAnalyticsGate.configure()
+                    syncLoginItem()
+                    syncBackgroundSchedule()
+                }
+            }
+        }
         syncLoginItem()
         scope.launch { gattManager.session.collect { sessionRecorder.observe(it) { id -> runCatching { getString(Res.string.session_protocol_label, id) }.getOrDefault("") } } }
         syncBackgroundSchedule()
-        EngagementTier.incrementLaunchCount(keyValueStore)
+        EngagementTier.incrementLaunchCount(keyValueStore, presenceLock)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure() no-ops unless the user
         // actively completed the consent flow.
         researchAnalyticsGate.configure()

@@ -49,7 +49,7 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }
     val place = hostPlace ?: portable?.place
-    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null, storageChecks = portable == null) }
+    val model = remember(place) { MigrationRestoreModel(place, app.keyValueStore, app.migrationItems, waveforms = if (portable == null) app.waveformBackup else null, storageChecks = portable == null, onRestored = app::reloadAfterRestore) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()
     // A backup that is a file is looked at once the person has chosen the file; any other place is looked at now.
@@ -121,11 +121,34 @@ fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modif
                 Text(words(MessageGroup.REASONS, s.reason))
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { scope.launch { model.retry() } }) { Text(stringResource(Res.string.migration_restore_try_again)) }
+                if (model.releasable) ReleaseClaim(model.claimIsGenuine) { scope.launch { model.releaseClaim() } }
             }
         }
 
         Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = { if (step != RestoreStep.Running) onDone() }) { Text(stringResource(Res.string.common_back)) }
+    }
+}
+
+/**
+ * The person's own release of the claim marker (SWR-MG-07, `OI-PRIV-02`). Two taps: the first says what releasing means, the
+ * second does it. A genuine claim (`claimed`) carries the warning that another restore may have finished; a marker no phone
+ * holding the backup made does not.
+ */
+@Composable
+private fun ReleaseClaim(genuine: Boolean, onRelease: () -> Unit) {
+    var asking by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(16.dp))
+    if (!asking) {
+        OutlinedButton(onClick = { asking = true }) { Text(stringResource(Res.string.migration_claim_release_button)) }
+    } else {
+        Text(
+            stringResource(if (genuine) Res.string.migration_claim_release_warning_claimed else Res.string.migration_claim_release_warning_unauthentic),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onRelease) { Text(stringResource(Res.string.migration_claim_release_confirm)) }
+        OutlinedButton(onClick = { asking = false }) { Text(stringResource(Res.string.common_cancel)) }
     }
 }
 

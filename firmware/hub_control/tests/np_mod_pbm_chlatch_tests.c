@@ -56,22 +56,23 @@ static void check(int cond, const char *name)
 
 /* ── Doubles: base-tile PWM seam ───────────────────────────────────────────── */
 
-typedef struct { uint16_t socket; uint8_t cur_a, cur_b, freq, duty; } pwm_write_t;
+typedef struct { uint16_t socket; uint8_t cur_a, cur_b; uint32_t freq; uint8_t duty; } pwm_write_t;
 static pwm_write_t g_pwm_last;
 static int         g_pwm_writes;
 static bool        g_pwm_fail;
 
 np_hub_status_t np_mod_pbm_hal_socket_pwm_set(uint16_t socket_id, uint8_t cur_a,
-                                              uint8_t cur_b, uint8_t freq_code,
+                                              uint8_t cur_b, uint32_t freq_mhz,
                                               uint8_t duty)
 {
-    g_pwm_last = (pwm_write_t){ socket_id, cur_a, cur_b, freq_code, duty };
+    g_pwm_last = (pwm_write_t){ socket_id, cur_a, cur_b, freq_mhz, duty };
     g_pwm_writes++;
     return g_pwm_fail ? NP_HUB_ERR_GENERIC : NP_HUB_OK;
 }
 
 /* ── Doubles: smart-tile driver ────────────────────────────────────────────── */
 
+static uint32_t g_startup_freq_mhz;      /* the frequency the smart driver was started with (it is part of the startup preset) */
 static uint8_t g_startup_mask, g_freq_mask, g_duty_mask, g_ch_enable_written;
 static int     g_ch_enable_writes;
 static uint8_t g_duty_last;            /* the duty the smart driver was last asked to write */
@@ -86,15 +87,16 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot, np_pbm_drv_slot_t *drv,
     (void)slot;
     g_startups++;
     g_startup_mask   = preset->channel_mask;
+    g_startup_freq_mhz = preset->freq_mhz;
     drv->ch_enable   = preset->channel_mask;
     drv->initialized = true;
     return NP_PBM_OK;
 }
 
 np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot, np_pbm_drv_slot_t *drv,
-                                      uint8_t ch_mask, uint8_t freq_code)
+                                      uint8_t ch_mask, uint32_t freq_mhz)
 {
-    (void)slot; (void)drv; (void)freq_code;
+    (void)slot; (void)drv; (void)freq_mhz;
     g_freq_mask = ch_mask;
     return NP_PBM_OK;
 }
@@ -162,9 +164,9 @@ void np_pst_untrack_driving(uint16_t socket_id) { (void)socket_id; g_untracked++
 void np_pst_note_predrive_refusal(void) { g_refusals++; }
 void np_pst_note_drive_fault(void) { g_drive_faults++; }
 np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot, uint8_t cur_a, uint8_t cur_b,
-                                       uint8_t freq_code, uint8_t duty)
+                                       uint32_t freq_mhz, uint8_t duty)
 {
-    (void)slot; (void)cur_a; (void)cur_b; (void)freq_code;
+    (void)slot; (void)cur_a; (void)cur_b; (void)freq_mhz;
     g_slot_pwm_writes++;
     g_slot_pwm_duty = duty;
     return NP_HUB_OK;
@@ -193,13 +195,13 @@ np_pbm_status_t np_pbm_dose_tick(uint8_t socket_id, const np_pbm_cal_t cal[NP_PB
 /* ── Fixtures ──────────────────────────────────────────────────────────────── */
 
 static const np_mod_pbm_base_params_t BASE = {
-    .freq_code = 0x11U, .duty = 0x20U, .cur_a = 190U, .cur_b = 200U,
+    .freq_mhz = 17000U, .duty = 0x20U, .cur_a = 190U, .cur_b = 200U,
 };
 
 static np_mod_pbm_smart_params_t smart_params(uint8_t ch_mask)
 {
     return (np_mod_pbm_smart_params_t){
-        .freq_code = 0x11U, .duty = 0x20U,
+        .freq_mhz = 17000U, .duty = 0x20U,
         .cur_a = 190U, .cur_b = 200U, .cur_c = 210U, .ch_mask = ch_mask,
     };
 }
@@ -251,7 +253,7 @@ static void test_base_disable_zeroes_only_that_channel(void)
     check(g_pwm_last.socket == 40U, "written to the socket it names");
     check(g_pwm_last.cur_a == 0U, "660 nm (CH_A) at setpoint 0");
     check(g_pwm_last.cur_b == 200U, "808 nm (CH_B) keeps its commanded current");
-    check(g_pwm_last.freq == 0x11U && g_pwm_last.duty == 0x20U,
+    check(g_pwm_last.freq == 17000U && g_pwm_last.duty == 0x20U,
           "frequency and duty are unchanged");
     check(np_mod_pbm_socket_disabled_channels(40U) == NP_PBM_CH_A_EN,
           "the latch reports CH_A");
@@ -330,8 +332,8 @@ static void test_smart_disable_clears_ch_enable(void)
     (void)drive_smart(20U, NP_PBM_CH_ALL_EN);
     check(g_startup_mask == (NP_PBM_CH_B_EN | NP_PBM_CH_C_EN),
           "a re-drive asking for all channels starts without CH_A");
-    check(g_freq_mask == g_startup_mask && g_duty_mask == g_startup_mask,
-          "frequency and duty are applied to the masked set only");
+    check(g_startup_freq_mhz == 17000U && g_duty_mask == g_startup_mask,
+          "the commanded frequency goes to the tile in its startup, and the duty is applied to the masked set only");
 }
 
 /* @verifies REQ-FWHUB-59 */
