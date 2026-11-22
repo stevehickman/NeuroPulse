@@ -22,13 +22,15 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
                                      const char *fw_version,
                                      uint32_t session_ts);
 
-/* Validates that a header conforms to NP-FW-EMMC-002 §E.2 privacy policy.
+/* Validates that a LOCAL header conforms to NP-FW-EMMC-002 §E.2 privacy policy.
+   Not the research check: see np_edf_validate_research_header() (§E.5).
    Returns NP_EDF_OK if all privacy fields are correct.
    Returns NP_EDF_ERR_PRIVACY_HEADER or NP_EDF_ERR_REAL_NAME on violation. */
 np_edf_status_t np_edf_validate_privacy_header(const np_edf_header_t *header);
 
 /* Returns true if the patient_name portion of local_patient_id contains
-   alphabetic characters that do not spell "NeurOne_User". */
+   alphabetic characters that do not spell "NeurOne_User", or if anything but
+   spaces follows the name in the field. */
 bool np_edf_header_contains_real_name(const np_edf_header_t *header);
 
 #endif /* NP_EDF_WRITER_H */
