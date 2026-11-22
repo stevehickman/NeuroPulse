@@ -1,6 +1,6 @@
 # NeurOne Android
 
-Android version of the NeurOne iOS app (`app/ios/`). Kotlin + Jetpack
+Android version of the NeurOne iOS app (`app/ios/`, retired and deleted; see git history). Kotlin + Jetpack
 Compose, native only. System of record: [ISA.md](ISA.md).
 
 ## Modules
@@ -27,8 +27,7 @@ daemon at JDK 17 (see the comment in `gradle.properties`).
 ## Parity contract with iOS
 
 - GATT UUIDs, wire formats, and opcodes are byte-identical to
-  `app/ios/NeurOne/BLE/GATTCharacteristics.swift` — enforced by
-  `ModelsParityTests`.
+  the hub's GATT table (`common/npps/constants.json`, generated into Kotlin).
 - All CLAUDE.md privacy invariants carry over: UHDR/SHDR separation, two
   consent subjects (research vs warranty — never share keys), prohibited
   analytics keys, `engagement_tier` coarsening, `sessionDay` timestamp
