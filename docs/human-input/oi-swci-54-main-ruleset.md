@@ -1,6 +1,6 @@
 # The ruleset on `main`: what it holds today, and five settings nobody has decided
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working on GitHub #446. **To:** the principal
+**Status:** DRAFT, not sent. **Partly answered 2026-11-21:** Q2 for the redaction-shape context only, and Q5 option B (`NP-SW-CI-001` §6.18, §6.18.4). Q1, Q3, Q4 and the rest of Q2 are open. **From:** a Claude Code session working on GitHub #446. **To:** the principal
 **GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (repository admin; interim Quality authority). Open item: `OI-SWCI-54` (`docs/np_sw_ci_001.md` §7).
 

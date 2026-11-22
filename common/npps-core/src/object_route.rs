@@ -89,6 +89,7 @@ fn to_object(e: &Value) -> (Value, &'static str) {
         "getBundle" => (json!({ "type": "objectGet", "name": BUNDLE_OBJECT }), "getBundle"),
         "putBundle" => (json!({ "type": "objectPut", "name": BUNDLE_OBJECT, "data": e["bundle"] }), "putBundle"),
         "readClaim" => (json!({ "type": "objectGet", "name": CLAIM_OBJECT }), "readClaim"),
+        "releaseClaim" => (json!({ "type": "objectDelete", "name": CLAIM_OBJECT }), "releaseClaim"),
         "createClaim" => (json!({ "type": "objectCreate", "name": CLAIM_OBJECT, "data": text(&e["claim"]) }), "createClaim"),
         "writeConfirmation" => (json!({ "type": "objectPut", "name": CONFIRMATION_OBJECT, "data": text(&e["confirmation"]) }), "writeConfirmation"),
         "readConfirmation" => (json!({ "type": "objectGet", "name": CONFIRMATION_OBJECT }), "readConfirmation"),
