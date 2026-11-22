@@ -74,9 +74,10 @@
  * lists. It sees calls only by name, so a sink reached through a function
  * pointer of another name, or through a wrapper that is not itself a sink, is
  * seen at the wrapper's caller only if the wrapper is listed. It does not judge
- * whether a field is UHDR: the duration in the session-end record is a §5.1
- * leak (OI-PRIV-21) that no rule here can recognise, which is why that writer is
- * a known violation (undeclared) and not a declared path. Declaring a path here
+ * whether a field is UHDR: the duration the session-end record carried until
+ * OI-PRIV-21 (NP-PRIV-ANALYSIS-004) removed it was a §5.1 leak that no rule here
+ * could recognise, which is why that writer was a known violation (undeclared)
+ * and not a declared path until the record was reshaped. Declaring a path here
  * is a review claim — "this writer's record has a fixed shape and every field
  * has a §5.1 ruling" — that the gate makes checkable only in part.
  *
@@ -147,8 +148,8 @@ const SINKS: { name: string; why: string }[] = [
   { name: "shdr_u8", why: "np_session_log.c one-byte SHDR append" },
   { name: "np_log_hal_shdr_append", why: "logger HAL: buffer → LittleFS SHDR partition" },
   { name: "np_log_session_start", why: "writes SHDR SESSION_OPEN" },
-  { name: "np_log_session_end", why: "writes SHDR SESSION_END" },
-  { name: "np_log_telemetry", why: "writes SHDR EEG_CAL, PBM_HEALTH and the ppx-halt FAULT" },
+  { name: "np_log_session_end", why: "writes SHDR SESSION_END {session count, firmware version}" },
+  { name: "np_log_telemetry", why: "writes the SHDR ppx-halt FAULT (EEG_CAL and PBM_HEALTH retired, OI-PRIV-21)" },
   { name: "np_log_shdr_fault", why: "SHDR fault_log entry" },
   { name: "np_log_shdr_zone_auth", why: "SHDR accessory authentication record" },
   { name: "np_log_shdr_pbm_socket_health", why: "SHDR PBM tile health record" },
@@ -175,6 +176,7 @@ const NON_WRITERS: { name: string; why: string }[] = [
   { name: "np_shdr_crc32", why: "pure CRC over a record already built" },
   { name: "np_accel_shdr_evaluate", why: "decides whether a record is due; writes nothing" },
   { name: "np_factory_reset_hal_zero_shdr", why: "erases the partition; writes no record" },
+  { name: "np_cvns_reenable_shdr_code", why: "maps a re-enable event to its SHDR code (the cutoff flag, else 0); writes nothing (REQ-FWHUB-91)" },
 ];
 
 type Role =
@@ -218,6 +220,12 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     fn: "np_log_session_start",
     role: "writer",
     note: "dirty-session marker {tag, session_count} (OI-FMEA-09)",
+  },
+  {
+    file: "firmware/hub_control/src/np_session_log.c",
+    fn: "np_log_session_end",
+    role: "writer",
+    note: "SESSION_END {tag, session_count, firmware_version} and nothing else; ruled in data-architecture-detail.md §5.1 (REQ-FWHUB-89, OI-PRIV-21 (NP-PRIV-ANALYSIS-004))",
   },
   {
     file: "firmware/hub_control/src/np_session_log.c",
@@ -286,6 +294,25 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     role: "writer",
     note: "unrestored socket after a hold → np_log_shdr_fault(PBM, code), no slot (F11 shape)",
   },
+  // ── cervical VNS, reshaped by OI-PRIV-23 and OI-PRIV-28 (NP-PRIV-ANALYSIS-004) ──
+  {
+    file: "firmware/hub_control/src/np_hub_control_main.c",
+    fn: "log_cvns_event",
+    role: "writer",
+    note: "the ruled cutoff flag only, via np_cvns_reenable_shdr_code; other lifecycle events are never written (REQ-FWHUB-91, OI-PRIV-28)",
+  },
+  {
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_advance_to_fault",
+    role: "writer",
+    note: "the three-flag summary {impedance_check_pass, cutoff_occurred, fault_reason}, size-asserted (REQ-CVNS-15, OI-PRIV-23)",
+  },
+  {
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_complete",
+    role: "writer",
+    note: "the same three-flag summary on normal completion, written on every session (REQ-CVNS-15, OI-PRIV-23)",
+  },
   // ── PBM and accelerometer ──
   {
     file: "firmware/pbm/src/np_pbm_detect.c",
@@ -333,49 +360,18 @@ const KNOWN_VIOLATIONS: {
   {
     rule: "undeclared-writer",
     file: "firmware/hub_control/src/np_session_log.c",
-    fn: "np_log_session_end",
-    owners: [{ oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 }],
-    why: "SESSION_END carries duration, abort reason and modality mask",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_log.c",
     fn: "np_log_telemetry",
-    owners: [
-      { oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 },
-      { oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 },
-    ],
-    why:
-      "per-tick EEG_CAL and zone-slot PBM_HEALTH records encode duration and session data (-21); " +
-      "the ppx-halt FAULT record exists only when the halt does (-22)",
+    owners: [{ oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 }],
+    why: "the ppx-halt FAULT record exists only when the halt does, and repeats every tick",
   },
   {
     rule: "undeclared-writer",
     file: "firmware/hub_control/src/np_session_runner.c",
     fn: "np_runner_run",
-    owners: [{ oi: "OI-PRIV-21 (NP-PRIV-ANALYSIS-004)", issue: 949 }],
-    why: "fills and writes the SESSION_END record and feeds np_log_telemetry",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_advance_to_fault",
-    owners: [{ oi: "OI-PRIV-23 (NP-PRIV-ANALYSIS-004)", issue: 951 }],
-    why: "cervical VNS SHDR summary: impedance, stimulation parameters, cutoff flag",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_complete",
-    owners: [{ oi: "OI-PRIV-23 (NP-PRIV-ANALYSIS-004)", issue: 951 }],
-    why: "cervical VNS SHDR summary carries stimulation duration",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_hub_control_main.c",
-    fn: "log_cvns_event",
-    owners: [{ oi: "OI-PRIV-28 (NP-PRIV-ANALYSIS-004)", issue: 956 }],
-    why: "cervical VNS lifecycle codes with no §5.1 ruling",
+    owners: [{ oi: "OI-PRIV-22 (NP-PRIV-ANALYSIS-004)", issue: 950 }],
+    why:
+      "feeds np_log_telemetry the visual record whose ppx_halt flag decides whether an SHDR FAULT exists; " +
+      "its other SHDR records are ruled (SESSION_END since OI-PRIV-21), so it is declared once -22 closes",
   },
   {
     rule: "undeclared-writer",

@@ -170,6 +170,13 @@ interface PlatformServices {
     val migrationFiles: FileStore? get() = null
 
     /**
+     * [migrationFiles] with [backupFolder], the folder the person chose for the backup, left out of what the clear overwrites when it is
+     * inside the app's own files. The choice is sealed, so the app reads it and passes it here: a host that reads the raw store for it
+     * gets ciphertext, which names no folder (`OI-PRIV-19`). A host with no chosen folder to leave out answers [migrationFiles].
+     */
+    fun migrationFilesExcluding(backupFolder: String?): FileStore? = migrationFiles
+
+    /**
      * The save and open dialogs for a backup that is a file the person carries, or null when the host has none. A host with a
      * [migrationPlace] of its own needs no file; one without (a phone, a browser) supplies this, and the screens then make the
      * backup as a file ([life.neurone.shared.migration.PortableFilePlace]). Composable because Android registers its dialogs

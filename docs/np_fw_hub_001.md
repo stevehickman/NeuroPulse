@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 69
+**Revision:** 70
 **Date:** 2026-11-21
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -1103,8 +1103,9 @@ thing that matters; the graceful ramp is a comfort and dose consideration layere
 that has already been requested.
 
 `REQ-FWHUB-12`: `abort_reason` is authoritative on `s_ctx`, not on the record. The session-end block
-overwrites `shdr.abort_reason` from `s_ctx.abort_reason` unconditionally, so a driver writing the
-record field directly has its value erased before it is ever logged.
+overwrites `uhdr.abort_reason` from `s_ctx.abort_reason` unconditionally, so a driver writing the
+record field directly has its value erased before it is ever logged. The abort reason goes to the
+UHDR record only. The SHDR record gets no duration, abort reason or modality mask (`REQ-FWHUB-89`, §6.1).
 
 ### 5.6 What the runner cannot dispatch — and the power gate (Rev 2)
 
@@ -1159,8 +1160,8 @@ Two 4 KiB static buffers (`s_uhdr_buf`, `s_shdr_buf`), each record prefixed by a
 | UHDR tags | | SHDR tags | |
 |---|---|---|---|
 | `0x10` session start | `0x15` stim | `0x80` session end | `0x83` zone auth |
-| `0x11` session end | `0x16` visual | `0x81` PBM health | `0x84` NTC peak |
-| `0x12` EEG band | `0x17` EEG impedance | `0x82` fault | `0x85` EEG calibration |
+| `0x11` session end | `0x16` visual | ~~`0x81` PBM health~~ *(retired)* | `0x84` NTC peak |
+| `0x12` EEG band | `0x17` EEG impedance | `0x82` fault | ~~`0x85` EEG calibration~~ *(retired)* |
 | `0x13` PBM dose | `0x18` adaptation event | | `0x86` session open *(Rev 9)* |
 | `0x14` VNS/HRV | `0x19` command *(Rev 9)* | `0x87` PBM tile health *(Rev 15)* | `0x88` PBM session counts *(Rev 15)* |
 | `0x1A` PBM socket *(Rev 15)* | `0x1B` HRV session *(Rev 19)* | | |
@@ -1189,6 +1190,26 @@ record says the same. Without the marker, a truncated log cannot tell "the recor
 from "nothing happened", and a reader then has to infer state from an absence (CLAUDE.md §5.1).
 The record carries the count only. Its classification is recorded in `data-architecture-detail.md`
 §5.1.
+
+**`0x80` session end — the count and the firmware version, nothing else (`REQ-FWHUB-89`; `OI-PRIV-21`
+(NP-PRIV-ANALYSIS-004), GitHub #949).** The SHDR session-end record is 9 bytes: the tag, the device
+session count (4) and the packed firmware version (4). It used to carry the session's duration, its
+abort reason and the mask of modalities that ran as well. All three describe the person's session:
+duration is "session timestamps and duration", the mask is which treatments were received, and the
+abort reason names a photoparoxysmal halt (`NP_ABORT_EEG_SEIZURE`), a user stop and a pause
+timeout. They are UHDR and stay in the `0x11` record. Consumables are counted from the UHDR mask
+(`np_cons_on_session_end()`), so nothing on the device read them from SHDR. The fleet schema
+(`ci/shdr/shdr_fleet_schema.sql`) never had a column for them. The rulings are in
+`data-architecture-detail.md` §5.1.
+
+**Retired: `0x81` PBM health and `0x85` EEG calibration (`REQ-FWHUB-89` (b)).** Both were written
+from session telemetry on every tick. `0x85` carried the count only, no calibration data, so the
+number of records per count was the session's length in seconds. `0x81` took the zone-slot PD
+ratio, NTC peak, throttle count and fault mask from session data, which F9 (§6.8) forbids, and its
+presence said PBM ran. `np_log_telemetry()` now writes UHDR only for EEG and zone-slot PBM; a
+driver fault still reaches SHDR through `np_log_shdr_fault()` with its time discarded (§6.3). The
+tag values are not reused. The visual module's conditional photoparoxysmal-halt `0x82` write in the
+same function is `OI-PRIV-22` (NP-PRIV-ANALYSIS-004), not this change.
 
 The high bit separates the two spaces, which is not decorative: a tag byte misrouted between
 partitions is then a visibly invalid tag rather than a plausible one.
@@ -2351,6 +2372,7 @@ this line.
 | `REQ-FWHUB-83` | **The descriptor header carries the wavelength-rules stamp, and the hub keeps it and refuses a malformed one.** (a) The 39-byte stamp (§4.2) is in the signed region at offsets 68 to 106, and is not in the protocol's content hash. (b) The hub copies it unchanged into the session descriptor, for the session record, and does not look the release up or read the windows. (c) It refuses, with `NP_HUB_ERR_INVALID_ARG`, an origin above 2, and origin 0 followed by any non-zero byte. (d) A v2 descriptor is refused as `NP_HUB_ERR_BAD_VERSION`. *Fails without it:* the session record would state a rules set that is not the one that chose the descriptor's channels (history could not say how a wavelength was mapped), a stamp edited after signing would be believed, or a bare zero stamp could be read as a version. *Traced to:* `SWR-HV-03` (`NP-SW-001`), `OI-UI-KMP-10` H3, `OI-WRV-01` Q1 to Q8; the shape refusal in (c) is the writer's inference, as `REQ-FWHUB-61`'s reserved-byte rule is. *Built (hub parse, 2026-11-13):* `np_protocol_verify_and_parse`, `test_rules_stamp`; the copy into the UHDR session record is not built. |
 | `REQ-FWHUB-84` | **No protocol, session record or biosignal stays in hub RAM once it is no longer needed: each buffer that holds one is zeroed, by a clear the compiler cannot remove, at the point it stops being needed, and nothing a running interlock needs is zeroed (§6.10).** (a) The transport's reassembly buffer is zeroed when the consumer takes a blob, when a blob is dropped, and when a partial frame is abandoned or reset. (b) At every session end, after every output is stopped, the runner zeroes the parsed protocol and the session's UHDR and SHDR records, keeping only the state, the length run, the authored length and the end reason that `SESSION_PROGRESS` reports. (c) At every session end the logger zeroes its UHDR record buffer whole, the adaptation ring after draining it, and the backend's UHDR staging block, whether or not the write succeeded. (d) At session end the photoparoxysmal detector's per-channel signal state is zeroed and its latched discharge is kept. (e) The HRV library zeroes its interpolation, EEG segment and FFT scratch and the session's signal buffers at session stop and at destroy. (f) The sLORETA library zeroes its FFT and spectrum scratch, covariances and channel means, and the HD session its source power map, at session completion or abort and at destroy. *Fails without it:* the person's protocol, dose record and EEG and HRV signals stay readable in plaintext RAM after the session and after the UHDR key is dropped, so the at-rest encryption of the UHDR partition does not protect them from anyone who can read RAM (a debug port, a memory dump, a buffer overread), which CLAUDE.md §5.1 forbids (NeurOne never accesses UHDR). *Traced to:* CLAUDE.md §5.1; `NP-FW-EMMC-002` §C (the UKMD is zeroed with `memset_explicit` when the key is dropped); §2.2 (`task_protocol_rx` already zeroes `g_proto_buf` for this reason); `NP-PRIV-ANALYSIS-004` Finding L1, `OI-PRIV-39`. *Built (2026-11-21):* `np_transport_tests`, `np_runner_run_tests`, `np_log_backend_tests`, `np_ppx_tests`, `np_hrv_session_tests`, `np_hd_fai_tests`. Not built: a pass at `np_uhdr_key_background()`, which nothing calls (§6.10). |
 | `REQ-FWHUB-90` | **The device-serial replay guard fails closed.** `np_protocol_verify_and_parse()` refuses with `NP_HUB_ERR_WRONG_DEVICE` (a) a descriptor whose header serial differs from the helmet's own, (b) every descriptor when the helmet cannot read its own serial (`np_proto_hal_get_device_serial()` does not return `NP_HUB_OK`), and (c) every descriptor when the serial it reads is all zero. *Fails without it:* a helmet whose serial read fails, or whose serial was never provisioned, skips the guard and runs a validly-signed descriptor captured from any other helmet (§4.2: "without it, a validly-signed protocol captured from one headset would run on any headset"); and because all zero is what a compiler writes when it has no serial, a zero stored serial would accept every serial-less descriptor. *Traced to:* §4.2 (the serial is the cross-device replay control), `NP-PRIV-ANALYSIS-004` Finding M4, `OI-PRIV-31` (NP-PRIV-ANALYSIS-004). (a) was already met; (b) and (c) are the repair. *Built (2026-11-21):* `np_protocol_verify_and_parse`, `np_protocol_tests` (`test_serial_guard_fails_closed`). Same-device replay is not covered by this row: it is open under `OI-PRIV-31` (`docs/human-input/oi-priv-31-protocol-freshness.md`). |
+| `REQ-FWHUB-89` | **SHDR holds nothing about a session but its count.** (a) The SHDR session-end record (`0x80`) is the device session count and the firmware version, and no other field: two sessions that differ in duration, abort reason or the modalities that ran write the same SHDR bytes apart from the count. (b) Session telemetry writes no SHDR record on a tick: EEG and zone-slot PBM telemetry are logged to UHDR only. *Fails without it:* NeurOne, which can re-derive the SHDR key (`NP-FW-NVRAM-001` §3.2), reads how long each session ran, which treatments it delivered and whether it ended on a seizure halt or a user stop, from every device, on write; and a per-tick record restores the duration by its count. *Traced to:* CLAUDE.md §5.1 (defining test, "when in doubt → UHDR"); `data-architecture-detail.md` §5.1 ("session timestamps and duration", "protocol parameters used" are UHDR; F9 for the PD ratio); `OI-PRIV-21` (NP-PRIV-ANALYSIS-004 H1), GitHub #949 | `np_log_session_end()`, `np_log_telemetry()`; `np_log_backend_tests` |
 | `REQ-FWHUB-91` | **Of the cervical VNS re-enable lifecycle (§7a), only the cutoff reaches SHDR.** (a) A cardiac cutoff observed by the hub (`NP_CVNS_RN_EV_CUTOFF_DETECTED`) is written to SHDR as the flag `NP_CVNS_SHDR_EV_CUTOFF` (`0xC1`), with no timestamp (§6.3). (b) No other lifecycle event (the confirmation window opening, a contact check passing, failing or timing out, the re-enable completing, the assertion timing out, `CARDIAC` clearing externally, or any event added later) is written to SHDR; `np_cvns_reenable_shdr_code()` returns 0 for each. Codes `0xC2`–`0xC6` are retired and never reused. *Fails without it:* SHDR, which NeurOne holds linked to the device, would record per session whether the wearer chose to resume neck stimulation after a cardiac event and how many skin-contact attempts it took. That is a fact about the person, not the device. *Traced to:* CLAUDE.md §5.1 (the defining test; when in doubt → UHDR); `NP-FW-CVNS-001` §8.2 (the cutoff-occurred flag is the SHDR row); `data-architecture-detail.md` §5.1 (the row for these events); `OI-PRIV-28` (NP-PRIV-ANALYSIS-004 M1, GitHub #956). *Built (2026-11-21):* `np_cvns_reenable_shdr_code()`, called by `log_cvns_event()` in `np_hub_control_main.c`; `np_cvns_reenable_tests` (`test_shdr_code_cutoff_only`, `test_shdr_episode_writes_cutoff_only`). |
 | `REQ-FWHUB-65` | **(Rev 35)** A cervical VNS session whose cardiac baseline is valid requests the enable from the interlock **once**, and then waits for the safety MCU's grant without faulting; when the grant comes the session goes on to the ramp. *Fails without it:* every session faults one tick after its baseline completes (`abort_reason` `NP_CVNS_ERR_SESSION_ACTIVE`), grant or no grant, so cervical VNS never delivers. *Traced to:* `NP-FW-CVNS-001` §8.1 (the session workflow); reproduced by `NP-SIM-FW-001` `OI-SIMFW-22`, verified by `np_mod_cvns_tests`.
 | `REQ-FWHUB-59` | **(Rev 23)** A module driver drops its enable request on stop, on the terminal stage and on a fault, and logs a fault with its kind. A command to a module that is not initialised or a slot the driver does not own is refused. A latched channel is released only by an explicit clear. *Fails without it:* a stopped or faulted module keeps requesting its enable. *Traced to:* `CLAUDE.md` §4.2; `REQ-FWHUB-17`; `REQ-FWHUB-47`. |

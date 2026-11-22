@@ -46,7 +46,7 @@ fun MigrationClearScreen(
 ) {
     val platform = app.platform
     val model = remember {
-        MigrationClearModel(place ?: app.backupPlace.value, app.keyValueStore, app.clearActions, platform.migrationFiles, app.migrationItems,
+        MigrationClearModel(place ?: app.backupPlace.value, app.keyValueStore, app.clearActions, app.ownFiles, app.migrationItems,
             idsBeforeClear = { app.researchAnalyticsGate.idsOnThisInstall() },
             afterClear = { app.researchAnalyticsGate.eraseAfterClear(it) },
         )

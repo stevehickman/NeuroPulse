@@ -688,8 +688,8 @@ static void test_a_session_runs_to_its_duration_and_completes(void)
     check(rc == NP_HUB_OK, "complete: the run returns OK");
     check(np_runner_get_state() == NP_SESSION_COMPLETE, "complete: the final state is COMPLETE");
     check(!g_runaway, "complete: the loop ended by itself");
-    check(g_end_uhdr.abort_reason == NP_ABORT_NONE && g_end_shdr.abort_reason == NP_ABORT_NONE,
-          "complete: no abort reason in either record");
+    check(g_end_uhdr.abort_reason == NP_ABORT_NONE,
+          "complete: no abort reason in the UHDR record");
 
     check(within(when_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 0), 0U, RUN_SLACK_MS), "complete: EEG starts at its start time");
     check(within(when_a(RUN_EV_CONTROL, NP_HUB_SLOT_VISUAL, 0), 1000U, RUN_SLACK_MS), "complete: the goggles start at 1 s");
@@ -873,8 +873,8 @@ static void test_each_stop_event_ends_the_session_with_its_own_reason_and_the_wo
         script_at(300U, post_bits);
         const np_hub_status_t rc = load_and_run(&b);
         char name[128];
-        snprintf(name, sizeof name, "reasons: %s: recorded in both records", cases[i].name);
-        check(g_end_uhdr.abort_reason == cases[i].expect && g_end_shdr.abort_reason == cases[i].expect, name);
+        snprintf(name, sizeof name, "reasons: %s: recorded in the UHDR record", cases[i].name);
+        check(g_end_uhdr.abort_reason == cases[i].expect, name);
         snprintf(name, sizeof name, "reasons: %s: the run reports a fault and ends FAULT", cases[i].name);
         check(rc == NP_HUB_ERR_SAFETY_FAULT && np_runner_get_state() == NP_SESSION_FAULT, name);
         snprintf(name, sizeof name, "reasons: %s: it ended early and shut down once", cases[i].name);
@@ -892,14 +892,14 @@ static void test_an_abort_keeps_the_reason_it_was_given(void)
     long_session(&b, 60000U);
     script_at(300U, post_abort_seizure);
     (void)load_and_run(&b);
-    check(g_end_uhdr.abort_reason == NP_ABORT_EEG_SEIZURE && g_end_shdr.abort_reason == NP_ABORT_EEG_SEIZURE,
+    check(g_end_uhdr.abort_reason == NP_ABORT_EEG_SEIZURE,
           "abort: np_runner_abort(EEG_SEIZURE) is recorded as a seizure halt, not as a user stop");
 
     fresh();
     long_session(&b, 60000U);
     script_at(300U, post_abort_user);
     (void)load_and_run(&b);
-    check(g_end_uhdr.abort_reason == NP_ABORT_USER && g_end_shdr.abort_reason == NP_ABORT_USER,
+    check(g_end_uhdr.abort_reason == NP_ABORT_USER,
           "abort: np_runner_abort(USER) is recorded as a user stop");
 }
 
@@ -1016,7 +1016,7 @@ static void test_the_length_a_session_ran_is_the_running_time_in_the_records_and
     check(g_progress.state == NP_SESSION_COMPLETE && g_progress.total_ms == 6000U, "length: the app is shown a finished 6 s session");
     check(g_progress.elapsed_ms == 6000U,
           "length: and the length it ran is 6 s, not the 6 s plus the shutdown wait");
-    check(g_end_uhdr.duration_s == 6U && g_end_shdr.duration_s == 6U, "length: the records state the same 6 s");
+    check(g_end_uhdr.duration_s == 6U, "length: the UHDR record states the same 6 s");
 }
 
 /* @verifies SWR-SS-05 */
@@ -1113,8 +1113,8 @@ static void test_a_session_stopped_while_paused_reports_the_time_it_was_running(
     const int pause_at = find_a(RUN_EV_LOG_PAUSE, 1U, 0);
     check(pause_at >= 0, "stopped paused: the session paused");
     const uint32_t ran_s = g_log[pause_at].at_ms / 1000U;
-    check(g_end_uhdr.duration_s == ran_s && g_end_shdr.duration_s == ran_s,
-          "stopped paused: the records report the time it was running, not the seconds it sat paused or shut down");
+    check(g_end_uhdr.duration_s == ran_s,
+          "stopped paused: the UHDR record reports the time it was running, not the seconds it sat paused or shut down");
     check(g_end_uhdr.abort_reason == NP_ABORT_USER, "stopped paused: and that the person stopped it");
 }
 

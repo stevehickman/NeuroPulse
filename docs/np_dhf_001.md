@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 371
-**Date:** 2026-11-21
+**Revision:** 377
+**Date:** 2026-11-20
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 371 | 2026-11-21 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 377 | 2026-11-20 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 3 | 2026-11-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 200 | 2026-11-21 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 202 | 2026-11-20 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -142,7 +142,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 7 | 2026-11-21 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 69 | 2026-11-21 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 70 | 2026-11-21 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 7 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
@@ -166,7 +166,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 11 | 2026-11-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 7 | 2026-11-19 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
-| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 13 | 2026-11-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
+| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 14 | 2026-11-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
 | NP-NPPS-REF-001 | NPPS Language Reference | 43 | 2026-11-21 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
@@ -329,7 +329,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 10 | 2026-11-11 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 4 | 2026-10-30 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 16 | 2026-11-19 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 39 | 2026-11-21 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 41 | 2026-11-21 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-CLOUDSTORE-001 | Common Cloud Storage API — Provider Findings (Draft) | 36 | 2026-11-20 | [np_sw_cloudstore_001.md](./np_sw_cloudstore_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 3 | 2026-11-19 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
