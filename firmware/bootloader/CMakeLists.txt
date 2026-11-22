@@ -249,6 +249,11 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_bootloader_dfu_block_tests PRIVATE include)
     target_compile_options(np_bootloader_dfu_block_tests PRIVATE -std=c11 -Wall -Wextra -O0 -g)
 
+    # OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7): the eMMC SANITIZE sequence, pure (np_emmc_sanitize.h).
+    add_executable(np_bootloader_sanitize_tests tests/np_bootloader_sanitize_tests.c)
+    target_include_directories(np_bootloader_sanitize_tests PRIVATE include)
+    target_compile_options(np_bootloader_sanitize_tests PRIVATE -std=c11 -Wall -Wextra -Werror -O0 -g)
+
     # OI-SWCI-15 adds np_signature.c (which the post-copy gate calls) and
     # Monocypher, which is both np_signature.c's verifier and the test's signer.
     # The test key is force-included so np_signature.c verifies against a key
