@@ -1,6 +1,6 @@
 -- NeurOne SHDR Fleet Schema — LIVE CONSTRAINT TESTS
 -- Document: NP-FW-EMMC-002 Rev 1 §G.4 / schema Rev D
--- Revision: A — 2026-08-11
+-- Revision: A — 2026-08-11; TIME-02 cases added 2026-11-21 for schema Rev F (OI-PRIV-52)
 --
 -- Runs the Rev D schema against a real PostgreSQL and proves each integrity
 -- constraint REJECTS the data it exists to reject. Loading a DDL without error
@@ -431,6 +431,91 @@ SELECT must_accept('a quiet gap with an empty histogram is accepted',
           VALUES (%L, 1, TRUE, 1, 2, 2)', decode(:'hexA','hex')));
 
 -- ===========================================================================
+-- TIME-02 (schema Rev F, OI-PRIV-52) — every month anchor refuses a day
+-- ===========================================================================
+-- A DEFAULT applies only when the insert omits the column. Each table below is
+-- given an explicit day-precise date (refused) and the first of that month (the
+-- accept control, so a refusal cannot be for some other reason).
+SELECT must_reject('devices: day-granular last_seen_month rejected',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-15'', ''FAC01'', DATE ''2026-08-11'')',
+         decode('33333333333333333333333333333333333333333333333333333333333333CC','hex')));
+SELECT must_accept('devices: month-truncated last_seen_month accepted',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-15'', ''FAC01'', DATE ''2026-08-01'')',
+         decode('44444444444444444444444444444444444444444444444444444444444444DD','hex')));
+
+SELECT must_reject('firmware_history: day-granular ingest_month rejected',
+  format('INSERT INTO firmware_history (warranty_token, fw_version, safety_mcu_version, install_method, session_at_install, ingest_month) VALUES (%L, ''1.0.0'', ''1.0.0'', ''OTA'', 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('firmware_history: month-truncated ingest_month accepted',
+  format('INSERT INTO firmware_history (warranty_token, fw_version, safety_mcu_version, install_method, session_at_install, ingest_month) VALUES (%L, ''1.0.0'', ''1.0.0'', ''OTA'', 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('ota_events: day-granular ingest_month rejected',
+  format('INSERT INTO ota_events (warranty_token, from_version, to_version, outcome, session_at_attempt, ingest_month) VALUES (%L, ''1.0.0'', ''1.0.1'', ''SUCCESS'', 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('ota_events: month-truncated ingest_month accepted',
+  format('INSERT INTO ota_events (warranty_token, from_version, to_version, outcome, session_at_attempt, ingest_month) VALUES (%L, ''1.0.0'', ''1.0.1'', ''SUCCESS'', 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('emf_shielding_telemetry: day-granular ingest_month rejected',
+  format('INSERT INTO emf_shielding_telemetry (warranty_token, session_index, passive_attenuation_db, active_attenuation_db, ingest_month) VALUES (%L, 1, 40.0, 12.0, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('emf_shielding_telemetry: month-truncated ingest_month accepted',
+  format('INSERT INTO emf_shielding_telemetry (warranty_token, session_index, passive_attenuation_db, active_attenuation_db, ingest_month) VALUES (%L, 1, 40.0, 12.0, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('power_telemetry: day-granular ingest_month rejected',
+  format('INSERT INTO power_telemetry (warranty_token, session_index, pd_negotiated_watts, supercap_capacitance_f, ingest_month) VALUES (%L, 1, 65, 22.0, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('power_telemetry: month-truncated ingest_month accepted',
+  format('INSERT INTO power_telemetry (warranty_token, session_index, pd_negotiated_watts, supercap_capacitance_f, ingest_month) VALUES (%L, 1, 65, 22.0, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('accessory_auth_log: day-granular ingest_month rejected',
+  format('INSERT INTO accessory_auth_log (warranty_token, accessory_type, auth_result, session_index, ingest_month) VALUES (%L, ''NASAL_SLEEVE'', ''PASS'', 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('accessory_auth_log: month-truncated ingest_month accepted',
+  format('INSERT INTO accessory_auth_log (warranty_token, accessory_type, auth_result, session_index, ingest_month) VALUES (%L, ''NASAL_SLEEVE'', ''PASS'', 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('calibration_history: day-granular ingest_month rejected',
+  format('INSERT INTO calibration_history (warranty_token, sensor_id, cal_type, coefficient_key, coefficient_value, session_at_cal, ingest_month) VALUES (%L, ''PD1'', ''FIELD'', ''gain'', 1.0, 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('calibration_history: month-truncated ingest_month accepted',
+  format('INSERT INTO calibration_history (warranty_token, sensor_id, cal_type, coefficient_key, coefficient_value, session_at_cal, ingest_month) VALUES (%L, ''PD1'', ''FIELD'', ''gain'', 1.0, 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('eeg_impedance_trend: day-granular ingest_month rejected',
+  format('INSERT INTO eeg_impedance_trend (warranty_token, electrode_id, trend_slope_ohm_per_session, session_index, ingest_month) VALUES (%L, ''Oz'', 0.5, 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('eeg_impedance_trend: month-truncated ingest_month accepted',
+  format('INSERT INTO eeg_impedance_trend (warranty_token, electrode_id, trend_slope_ohm_per_session, session_index, ingest_month) VALUES (%L, ''Oz'', 0.5, 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('shdr_accel_records: day-granular ingest_month rejected',
+  format('INSERT INTO shdr_accel_records (warranty_token, gap_index, ingest_month) VALUES (%L, 900, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('shdr_accel_records: month-truncated ingest_month accepted',
+  format('INSERT INTO shdr_accel_records (warranty_token, gap_index, ingest_month) VALUES (%L, 900, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('shdr_accel_characterisation: day-granular ingest_month rejected',
+  format('INSERT INTO shdr_accel_characterisation (warranty_token, char_programme_id, char_consent_granted, char_consent_epoch, char_record_seq, gap_index, ingest_month) VALUES (%L, 1, TRUE, 1, 400, 900, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('shdr_accel_characterisation: month-truncated ingest_month accepted',
+  format('INSERT INTO shdr_accel_characterisation (warranty_token, char_programme_id, char_consent_granted, char_consent_epoch, char_record_seq, gap_index, ingest_month) VALUES (%L, 1, TRUE, 1, 400, 900, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('mode_f_telemetry: day-granular ingest_month rejected',
+  format('INSERT INTO mode_f_telemetry (warranty_token, ingest_month) VALUES (%L, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('mode_f_telemetry: month-truncated ingest_month accepted',
+  format('INSERT INTO mode_f_telemetry (warranty_token, ingest_month) VALUES (%L, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('fault_log: day-granular ingest_month rejected',
+  format('INSERT INTO fault_log (warranty_token, fault_type, fault_source, session_index, ingest_month) VALUES (%L, ''WATCHDOG_TIMEOUT'', ''SAFETY_MCU'', 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('fault_log: month-truncated ingest_month accepted',
+  format('INSERT INTO fault_log (warranty_token, fault_type, fault_source, session_index, ingest_month) VALUES (%L, ''WATCHDOG_TIMEOUT'', ''SAFETY_MCU'', 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+SELECT must_reject('storage_health: day-granular ingest_month rejected',
+  format('INSERT INTO storage_health (warranty_token, pre_eol_info, wear_indicator_slc, littlefs_block_utilisation, session_index, ingest_month) VALUES (%L, 1, 10, 0.25, 1, DATE ''2026-08-11'')', decode(:'hexA','hex')));
+
+SELECT must_accept('storage_health: month-truncated ingest_month accepted',
+  format('INSERT INTO storage_health (warranty_token, pre_eol_info, wear_indicator_slc, littlefs_block_utilisation, session_index, ingest_month) VALUES (%L, 1, 10, 0.25, 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
+
+-- ===========================================================================
 -- Referential integrity + the no-join boundary
 -- ===========================================================================
 SELECT must_reject('telemetry for an unknown warranty_token rejected',
@@ -442,7 +527,7 @@ SELECT must_reject('telemetry for an unknown warranty_token rejected',
 -- ===========================================================================
 \o
 \echo ''
-\echo 'NeurOne SHDR Rev D - live constraint tests (real PostgreSQL)'
+\echo 'NeurOne SHDR Rev F - live constraint tests (real PostgreSQL)'
 \echo ''
 
 SELECT CASE WHEN passed THEN '  PASS  ' ELSE '  FAIL  ' END || rpad(kind, 8) || name ||
