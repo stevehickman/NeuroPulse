@@ -191,6 +191,15 @@ Layer 2 — Master Key Wrapper Key (WKMD):
   - Zeroed from SRAM using memset_explicit when app moves to background
 ```
 
+> **Rev {NP-FW-EMMC-002 to} (2026-11-21): scope of this scheme: one key per helmet, not per person (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004), GitHub #962).**
+> There is one UKMD, one wrapped record and one credential, and the UKMD is the key of the whole UHDR partition, whose
+> session files are named by the device-wide session counter (`np_log_backend.h`). **Whoever can unlock a helmet reads
+> every session recorded on it, whoever ran it.** Nothing here isolates one person's UHDR from another's on a shared
+> (clinic or household) helmet, although `CLAUDE.md` §6.0 and `NP-SW-FAULTMSG-001` §9 treat helmets as shared. Whether
+> to add per-profile key slots and namespaces, or to record a single-person decision with a notice, is the principal's
+> (`docs/human-input/oi-priv-34-several-users-one-helmet.md`). Until it is decided, no document may describe the helmet's
+> UHDR as separated per user.
+
 ### C.3 Config partition UKMD record
 
 ```c
