@@ -194,7 +194,7 @@ class MigrationFlowTests {
         // The old phone recorded the same tag when it sealed the bundle; the record never moves (SWR-MG-08).
         assertTrue(route.readConfirmation()!!["tag"]!!.jsonPrimitive.content in old.kv.getString("np.migration.pending-clear")!!)
         assertNull(fresh.kv.getString("np.migration.pending-clear"))
-        assertEquals(setOf("token", "bundleHash"), route.readClaim()!!.keys, "the claim carries a token and the hash and nothing else")
+        assertEquals(setOf("token", "bundleHash", "tag"), route.readClaim()!!.keys, "the claim carries a token, the hash and the tag, and nothing else")
     }
 
     // @verifies SWR-MG-03
