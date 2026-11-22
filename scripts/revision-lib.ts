@@ -4,6 +4,7 @@
  * Not a gate and not run on its own. The scheme: docs/revisions/README.md.
  */
 import { execFileSync } from "child_process";
+import { createHash } from "crypto";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
@@ -42,6 +43,50 @@ export const CLAUDE_ENTRY = /^\*\*Rev (\d+) \(\d{4}-\d{2}-\d{2}\)/;
 export const CLAUDE_DHF_ROW = new RegExp(String.raw`^\| — \| CLAUDE\.md — Project Design Memory \| (\d+) \| (${DATE}) \|`);
 /** What the first paragraph of a `## CLAUDE.md` section starts with, before its tokens are resolved. */
 export const CLAUDE_ENTRY_HEAD = "**Rev {CLAUDE.md to} ({date}) — ";
+/**
+ * The open-items status page. It is edited in place, not appended, and PRs that changed neighbouring items (one item
+ * per line) conflicted, because git refuses adjacent changed lines. In mode assign-at-merge a PR leaves it unchanged and
+ * its fragment carries the edit as `## OPEN` hunks, which the workflow applies in place at merge. A hunk is found by
+ * the content of the lines it replaces, never by line number or by its neighbours, so an edit to the next item does not
+ * disturb it. `bun scripts/assign-revisions.ts --convert-open` writes the hunks from an ordinary edit of the file.
+ */
+export const OPEN_FILE = "docs/status/pending-decisions.md";
+/**
+ * One edit of OPEN_FILE. Each anchor is `n` consecutive lines whose text, joined by newlines, hashes to `hash`, and it
+ * must occur exactly once in the file when the edit is applied. `was`: replace those lines with `lines` (none: delete
+ * them). Otherwise insert `lines` right after the `after` lines or, if those are gone (another PR edited them), right
+ * before the `before` lines: an insertion has one or both.
+ */
+export interface Anchor { hash: string; n: number }
+export interface Hunk { label: string; was?: Anchor; after?: Anchor; before?: Anchor; lines: string[] }
+export const lineHash = (t: string): string => createHash("sha256").update(t).digest("hex").slice(0, 16);
+
+/** Apply `hunks` to `text` in order, or throw naming the hunk that does not apply (nothing is half-applied: the input is not mutated). */
+export function applyOpen(text: string, hunks: Hunk[], where: string): string {
+  const lines = text.split("\n");
+  for (const h of hunks) {
+    const fail = (why: string): never => {
+      throw new Error(`${where}: the ${OPEN_FILE} edit "${h.label}" ${why}; it was written against an older ${OPEN_FILE}. Merge main, run \`bun scripts/assign-revisions.ts --expand-open\`, redo the edit, and run --convert-open again`);
+    };
+    const find = (a: Anchor): number[] => {
+      const at: number[] = [];
+      for (let i = 0; i + a.n <= lines.length; i++) if (lineHash(lines.slice(i, i + a.n).join("\n")) === a.hash) at.push(i);
+      return at;
+    };
+    if (h.was) {
+      const at = find(h.was);
+      if (at.length !== 1) fail(at.length === 0 ? "replaces lines that are no longer there" : `replaces lines that occur ${at.length} times`);
+      lines.splice(at[0], h.was.n, ...h.lines);
+    } else {
+      const after = h.after ? find(h.after) : [], before = h.before ? find(h.before) : [];
+      if (after.length === 1) lines.splice(after[0] + (h.after as Anchor).n, 0, ...h.lines);
+      else if (before.length === 1) lines.splice(before[0], 0, ...h.lines);
+      else fail("inserts next to lines that are no longer there, on either side");
+    }
+  }
+  return lines.join("\n");
+}
+
 /** `{date}` in a LOG entry becomes the date the fragment is assigned (its `date:` line, else the merge date). */
 export const DATE_TOKEN = "{date}";
 
@@ -90,16 +135,25 @@ export function historyFile(root: string, serial: string, docFile: string): stri
 export interface Section { target: string; author: string; text: string }
 /** `log`: the entries of the fragment's `## LOG` section, one per `text:` line, in order, without the leading "- ". */
 /** `claude`: the paragraphs of the fragment's `## CLAUDE.md` section (the CLAUDE.md history entry), or empty. */
-export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[]; claude: string[] }
+export interface Fragment { path: string; date: string | null; sections: Section[]; log: string[]; claude: string[]; open: Hunk[] }
 
 const TOKEN = new RegExp(String.raw`\{(DHF|CLAUDE\.md|${SERIAL}) (from → to|from|to)\}`, "g");
 
 /** Parse a fragment, or return the reason it is not one. */
 export function parseFragment(path: string, text: string): Fragment | string {
-  const frag: Fragment = { path, date: null, sections: [], log: [], claude: [] };
+  const frag: Fragment = { path, date: null, sections: [], log: [], claude: [], open: [] };
+  let hunk = null as Hunk | null;
   let cur = null as { target: string; author?: string; text?: string } | null;
   let inLog = false, sawLog = false, inClaude = false, sawClaude = false;
   const close = (): string | null => {
+    if (hunk !== null) {
+      const h = hunk;
+      hunk = null;
+      if (h.was ? h.after || h.before : !h.after && !h.before) return `${path}: section OPEN ${h.label} needs "was:", or "after:" and/or "before:"`;
+      if (!h.was && h.lines.length === 0) return `${path}: section OPEN ${h.label} inserts no "text:" line`;
+      frag.open.push(h);
+      return null;
+    }
     if (inLog) {
       inLog = false;
       return frag.log.length === 0 ? `${path}: section LOG has no "text:" line` : null;
@@ -119,6 +173,26 @@ export function parseFragment(path: string, text: string): Fragment | string {
   };
   for (const raw of text.split("\n")) {
     const line = raw.trimEnd();
+    const openHead = /^## OPEN(?: (.+))?$/.exec(line);
+    if (openHead) {
+      const e = close();
+      if (e) return e;
+      cur = null;
+      hunk = { label: openHead[1] ?? "edit", lines: [] };
+      continue;
+    }
+    if (hunk !== null && !line.startsWith("## ")) {
+      // A line of the page is taken exactly as written after "text: ", trailing spaces and "|" included; "text:" alone
+      // is a blank line.
+      if (raw === "text:" || raw.startsWith("text: ")) { hunk.lines.push(raw.slice(6)); continue; }
+      if (line === "") continue;
+      const m = /^(was|after|before): ([0-9a-f]{16})(?: (\d+))?$/.exec(line);
+      if (!m) return `${path}: section OPEN ${hunk.label}: cannot read the line "${line.slice(0, 60)}"`;
+      if (!m[3] || Number(m[3]) < 1) return `${path}: section OPEN ${hunk.label}: "${m[1]}:" takes the hash and the number of lines`;
+      if (hunk[m[1] as "was" | "after" | "before"]) return `${path}: section OPEN ${hunk.label}: "${m[1]}:" appears twice`;
+      hunk[m[1] as "was" | "after" | "before"] = { hash: m[2], n: Number(m[3]) };
+      continue;
+    }
     if (line === "" || line.startsWith("#") && !line.startsWith("## ")) continue;
     if (line === "## LOG") {
       const e = close();
@@ -167,7 +241,7 @@ export function parseFragment(path: string, text: string): Fragment | string {
   }
   const e = close();
   if (e) return e;
-  if (frag.sections.length === 0 && frag.log.length === 0 && frag.claude.length === 0) return `${path}: no sections`;
+  if (frag.sections.length === 0 && frag.log.length === 0 && frag.claude.length === 0 && frag.open.length === 0) return `${path}: no sections`;
   // A fragment that only logs a decision bumps nothing; one that names any document, or CLAUDE.md (whose DHF index row
   // it changes), bumps the DHF once.
   if ((frag.sections.length > 0 || frag.claude.length > 0) && !frag.sections.some((s) => s.target === "DHF")) return `${path}: no "## DHF" section (every bump bumps the DHF once)`;
@@ -199,3 +273,16 @@ export const hasTokens = (text: string): boolean => new RegExp(TOKEN.source).tes
 
 /** The `- ` list items of the decision log, one per entry (an entry is one line). */
 export const logEntries = (t: string | null): string[] => (t ?? "").split("\n").filter((l) => l.startsWith("- "));
+
+/** The fragments waiting under docs/revisions/pending/, oldest first by the commit that added each (ties by name). */
+export function pendingFragments(root: string): string[] {
+  const dir = join(root, PENDING_DIR);
+  if (!existsSync(dir)) return [];
+  const added = (f: string): number => {
+    try { return Number(git(root, "log", "-1", "--diff-filter=A", "--format=%ct", "--", f).trim()) || 0; } catch { return 0; }
+  };
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".md") && f.toLowerCase() !== "readme.md")
+    .map((f) => `${PENDING_DIR}/${f}`)
+    .sort((a, b) => added(a) - added(b) || a.localeCompare(b));
+}

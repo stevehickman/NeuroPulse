@@ -21,6 +21,12 @@
  * NP-DHF-001 index takes the new number and date, and the entry goes at the top of the history's "Current revision"
  * section (newest first). Every CLAUDE.md change used to set the same three lines by hand.
  *
+ * `## OPEN` sections are edits of docs/status/pending-decisions.md, applied in place: each replaces the lines whose
+ * hash it names (`was: <hash> <n>`) or inserts after or before the lines it names (`after:` / `before: <hash> <n>`; it
+ * falls back to the second if another PR changed the first), with its `text:` lines.
+ * Nobody writes them by hand: edit the page as usual, then `--convert-open` turns the edit into hunks in this branch's
+ * fragment and puts the page back as the branch found it; `--expand-open` reverses that, to edit again.
+ *
  * Fragment:
  *
  *     date: 2026-11-02                 (optional; default: today, UTC)
@@ -40,6 +46,9 @@
  *     bun scripts/assign-revisions.ts --mode      print the policy mode (hand | assign-at-merge)
  *     bun scripts/assign-revisions.ts --peek      print the oldest pending fragment; exit 3 if there is none
  *     bun scripts/assign-revisions.ts --next      assign the oldest pending fragment; exit 3 if there is none
+ *     bun scripts/assign-revisions.ts --convert-open  move this branch's edit of pending-decisions.md into its fragment
+ *     bun scripts/assign-revisions.ts --expand-open   put the fragment's pending-decisions.md edits back into the page
+ *                                                 (both: --base <ref> to change the base, default origin/main)
  *     bun scripts/assign-revisions.ts --convert   turn this branch's hand-numbered bump into a fragment
  *                                                 (after `git merge origin/main`; --base <ref> to change the base)
  *     bun scripts/assign-revisions.ts --self-test
@@ -51,14 +60,15 @@
  * CI-Self-Test: bun scripts/assign-revisions.ts --self-test
  */
 import { spawnSync } from "child_process";
+export { pendingFragments } from "./revision-lib";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import {
   CLAUDE_DHF_ROW, CLAUDE_ENTRY, CLAUDE_FILE, CLAUDE_HISTORY, CLAUDE_REV_LINE, CLAUDE_TARGET,
-  DATE, DATE_LINE, DATE_TOKEN, DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, PENDING_DIR, REV_LINE, SERIAL,
-  controlledDocs, git, historyFile, parseFragment, readMode, resolveTokens, revOf, serialOf, show,
-  type Fragment,
+  DATE, DATE_LINE, DATE_TOKEN, DECISIONS_FILE, DHF_FILE, DHF_SERIAL, HISTORY_ROW, OPEN_FILE, PENDING_DIR, REV_LINE, SERIAL,
+  applyOpen, controlledDocs, git, pendingFragments, historyFile, lineHash, parseFragment, readMode, resolveTokens, revOf, serialOf, show,
+  type Fragment, type Hunk,
 } from "./revision-lib";
 
 /* The serial cell may be bold (`| **NP-RISK-002** |`: the DHF index bolds some rows); the bold is matched and kept. */
@@ -68,17 +78,6 @@ const rowSerial = (l: string): string => l.split("|")[1].trim().replace(/^\*\*(.
 const read = (root: string, f: string): string => readFileSync(join(root, f), "utf8");
 const write = (root: string, f: string, t: string): void => writeFileSync(join(root, f), t);
 
-export function pendingFragments(root: string): string[] {
-  const dir = join(root, PENDING_DIR);
-  if (!existsSync(dir)) return [];
-  const added = (f: string): number => {
-    try { return Number(git(root, "log", "-1", "--diff-filter=A", "--format=%ct", "--", f).trim()) || 0; } catch { return 0; }
-  };
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".md") && f.toLowerCase() !== "readme.md")
-    .map((f) => `${PENDING_DIR}/${f}`)
-    .sort((a, b) => added(a) - added(b) || a.localeCompare(b));
-}
 
 /** The heading and table a document gets when it has no history table to append to (its first row is the one assigned). */
 const NEW_TABLE_HEAD = "## Revision history\n\nRevisions before the first row below were not recorded in a table in this document.\n\n| Rev | Date | Author | Description |\n|---|---|---|---|";
@@ -139,7 +138,7 @@ function setIndexRow(dhf: string, serial: string, rev: number, date: string): st
   return out.join("\n");
 }
 
-export type Assigned = { status: "none" } | { status: "done"; fragment: string; revisions: Record<string, string>; logged: number };
+export type Assigned = { status: "none" } | { status: "done"; fragment: string; revisions: Record<string, string>; logged: number; opened: number };
 
 const CURRENT_HEAD = "## Current revision";
 
@@ -225,6 +224,7 @@ export function assignNext(root: string, validate = true): Assigned {
     texts.set(CLAUDE_HISTORY, insertClaudeEntry(get(CLAUDE_HISTORY), frag.claude.map((p) => resolveTokens(p.split(DATE_TOKEN).join(date), revs))));
     texts.set(DHF_FILE, setClaudeRow(get(DHF_FILE), r.to, date));
   }
+  if (frag.open.length > 0) texts.set(OPEN_FILE, applyOpen(get(OPEN_FILE), frag.open, path));
   if (frag.log.length > 0) {
     if (!existsSync(join(root, DECISIONS_FILE))) throw new Error(`${path}: has a LOG section but ${DECISIONS_FILE} does not exist`);
     texts.set(DECISIONS_FILE, appendLog(get(DECISIONS_FILE), frag.log.map((e) => resolveTokens(e.split(DATE_TOKEN).join(date), revs))));
@@ -238,7 +238,132 @@ export function assignNext(root: string, validate = true): Assigned {
       if (r.status !== 0) throw new Error(`${g} fails after assigning ${path}:\n${r.stdout}${r.stderr}`);
     }
   }
-  return { status: "done", fragment: path, revisions: Object.fromEntries([...revs].map(([k, v]) => [k, `${v.from} → ${v.to}`])), logged: frag.log.length };
+  return { status: "done", fragment: path, revisions: Object.fromEntries([...revs].map(([k, v]) => [k, `${v.from} → ${v.to}`])), logged: frag.log.length, opened: frag.open.length };
+}
+
+// ── Moving an edit of pending-decisions.md into the fragment, and back ───────
+
+/** The fragment this branch added (relative path), or null. */
+function branchFragment(root: string, mb: string): string | null {
+  const committed = git(root, "diff", "--name-only", "--diff-filter=A", mb, "--", PENDING_DIR).split("\n");
+  const untracked = git(root, "ls-files", "--others", "--exclude-standard", "--", PENDING_DIR).split("\n");
+  const found = [...new Set([...committed, ...untracked])].filter((f) => f.endsWith(".md") && !/readme\.md$/i.test(f) && existsSync(join(root, f)));
+  if (found.length > 1) throw new Error(`this branch adds ${found.length} fragments (${found.join(", ")}); one per PR`);
+  return found[0] ?? null;
+}
+
+const OI_ID = /\b(?:OI-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d+[a-z]?|RISK-\d+)\b/;
+
+/** The hunks that turn `from` into `to`, each found by content (see Hunk). Throws if they would not reproduce `to`. */
+export function openHunks(root: string, from: string, to: string): Hunk[] {
+  const dir = mkdtempSync(join(tmpdir(), "open-"));
+  let diff: string;
+  try {
+    writeFileSync(join(dir, "a"), from);
+    writeFileSync(join(dir, "b"), to);
+    const r = spawnSync("git", ["diff", "--no-index", "--no-color", "-U0", "a", "b"], { cwd: dir, encoding: "utf8", maxBuffer: 1 << 28 });
+    if (r.status !== 0 && r.status !== 1) throw new Error(`git diff failed: ${r.stderr}`);
+    diff = r.stdout;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  const A = from.split("\n"), B = to.split("\n");
+  // Spans: [s, e) in A and [ns, ne) in B, 0-based. With -U0 an insertion "-k,0" goes after line k (1-based).
+  const spans: { s: number; e: number; ns: number; ne: number }[] = [];
+  for (const m of diff.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const a = Number(m[1]), b = m[2] === undefined ? 1 : Number(m[2]), c = Number(m[3]), d = m[4] === undefined ? 1 : Number(m[4]);
+    const s = b === 0 ? a : a - 1, ns = d === 0 ? c : c - 1;
+    spans.push({ s, e: s + b, ns, ne: ns + d });
+  }
+  const count = (t: string, n: number): number => { let k = 0; for (let i = 0; i + n <= A.length; i++) if (lineHash(A.slice(i, i + n).join("\n")) === t) k++; return k; };
+  const anchor = (s: number, e: number): { hash: string; n: number } | undefined =>
+    s >= 0 && e <= A.length && e > s && count(lineHash(A.slice(s, e).join("\n")), e - s) === 1 ? { hash: lineHash(A.slice(s, e).join("\n")), n: e - s } : undefined;
+  /** The shortest run of up to 4 lines ending at `at` (side "after") or starting there ("before") that occurs once. */
+  const side = (at: number, dir: "after" | "before"): { hash: string; n: number } | undefined => {
+    for (let n = 1; n <= 4; n++) { const a = dir === "after" ? anchor(at - n, at) : anchor(at, at + n); if (a) return a; }
+    return undefined;
+  };
+  // Widen a replacement until the lines it replaces occur once; widen an insertion into a replacement when it has no
+  // anchor on either side. Then merge spans that touch, so no two hunks name the same line.
+  for (const sp of spans) {
+    if (sp.s === sp.e && (side(sp.s, "after") || side(sp.s, "before"))) continue;
+    if (sp.s === sp.e) { if (sp.s > 0) { sp.s--; sp.ns--; } else { sp.e++; sp.ne++; } }
+    while (count(lineHash(A.slice(sp.s, sp.e).join("\n")), sp.e - sp.s) !== 1) {
+      if (sp.s > 0) { sp.s--; sp.ns--; } else if (sp.e < A.length) { sp.e++; sp.ne++; } else throw new Error(`${OPEN_FILE}: no unique lines to anchor an edit to`);
+    }
+  }
+  spans.sort((x, y) => x.s - y.s);
+  const merged: typeof spans = [];
+  for (const sp of spans) {
+    const last = merged[merged.length - 1];
+    if (last && sp.s <= last.e) { last.e = Math.max(last.e, sp.e); last.ne = Math.max(last.ne, sp.ne); } else merged.push({ ...sp });
+  }
+  const hunks: Hunk[] = merged.map((sp) => {
+    const old = A.slice(sp.s, sp.e), lines = B.slice(sp.ns, sp.ne);
+    const label = ((lines.join("\n").match(OI_ID) ?? old.join("\n").match(OI_ID)) ?? ["edit"])[0];
+    if (old.length > 0) return { label, was: { hash: lineHash(old.join("\n")), n: old.length }, lines };
+    // Merging can put another hunk's lines inside an insertion's anchor; an anchor that overlaps a neighbour is dropped.
+    const ok = (a: { n: number } | undefined, s: number, e: number): boolean => a !== undefined && !merged.some((o) => o !== sp && o.s < e && s < o.e);
+    const after = side(sp.s, "after"), before = side(sp.s, "before");
+    const h: Hunk = { label, lines };
+    if (after && ok(after, sp.s - after.n, sp.s)) h.after = after;
+    if (before && ok(before, sp.s, sp.s + before.n)) h.before = before;
+    if (!h.after && !h.before) throw new Error(`${OPEN_FILE}: an insertion has no anchor that another edit of this change leaves alone`);
+    return h;
+  });
+  if (applyOpen(from, hunks, "--convert-open") !== to) throw new Error(`${OPEN_FILE}: the hunks would not reproduce the edit; nothing was changed`);
+  return hunks;
+}
+
+const renderHunk = (h: Hunk): string =>
+  `## OPEN ${h.label}\n` + (["was", "after", "before"] as const).filter((k) => h[k]).map((k) => `${k}: ${(h[k] as { hash: string }).hash} ${(h[k] as { n: number }).n}\n`).join("") +
+  h.lines.map((l) => (l === "" ? "text:" : `text: ${l}`)).join("\n") + (h.lines.length ? "\n" : "");
+
+/** Drop the `## OPEN` sections from a fragment's text. */
+const withoutOpen = (t: string): string => {
+  const out: string[] = [];
+  let skip = false;
+  for (const l of t.split("\n")) {
+    if (/^## /.test(l)) skip = /^## OPEN(?: |$)/.test(l);
+    if (!skip) out.push(l);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n");
+};
+
+/** Move this branch's edit of OPEN_FILE into its fragment as hunks, and put OPEN_FILE back as the branch found it. */
+export function convertOpen(root: string, base = "origin/main"): string {
+  const mb = git(root, "merge-base", "HEAD", base).trim();
+  const was = show(root, mb, OPEN_FILE);
+  if (was === null) throw new Error(`${OPEN_FILE} is not in ${base}`);
+  const now = read(root, OPEN_FILE);
+  if (now === was) throw new Error(`${OPEN_FILE} is unchanged: nothing to convert`);
+  const existing = branchFragment(root, mb);
+  if (existing !== null) {
+    const f = parseFragment(existing, read(root, existing));
+    if (typeof f === "string") throw new Error(f);
+    if (f.open.length > 0) throw new Error(`${existing} already holds ${OPEN_FILE} edits: run --expand-open first, then edit, then --convert-open`);
+  }
+  const hunks = openHunks(root, was, now);
+  const out = existing ?? `${PENDING_DIR}/${(git(root, "rev-parse", "--abbrev-ref", "HEAD").trim().replace(/[^A-Za-z0-9._-]+/g, "-") || "change").slice(0, 60)}.md`;
+  const prev = existing === null ? "" : read(root, existing).replace(/\s+$/, "") + "\n";
+  mkdirSync(join(root, PENDING_DIR), { recursive: true });
+  write(root, out, prev + hunks.map(renderHunk).join(""));
+  const check = parseFragment(out, read(root, out));
+  if (typeof check === "string") throw new Error(check);
+  write(root, OPEN_FILE, was);
+  return `${out}: ${hunks.length} edit(s)`;
+}
+
+/** Put the fragment's OPEN_FILE edits back into the page and drop them from the fragment, so the page can be edited again. */
+export function expandOpen(root: string, base = "origin/main"): string {
+  const mb = git(root, "merge-base", "HEAD", base).trim();
+  const fp = branchFragment(root, mb);
+  if (fp === null) throw new Error("this branch adds no fragment");
+  const f = parseFragment(fp, read(root, fp));
+  if (typeof f === "string") throw new Error(f);
+  if (f.open.length === 0) throw new Error(`${fp} holds no ${OPEN_FILE} edits`);
+  write(root, OPEN_FILE, applyOpen(read(root, OPEN_FILE), f.open, fp));
+  const rest = withoutOpen(read(root, fp));
+  if (rest.trim() === "") unlinkSync(join(root, fp)); else write(root, fp, rest.replace(/\s+$/, "") + "\n");
+  return `${OPEN_FILE}: ${f.open.length} edit(s) put back from ${fp}`;
 }
 
 // ── Converting a hand-numbered branch ────────────────────────────────────────
@@ -497,6 +622,66 @@ function selfTest(): void {
     check(read(cl, DECISIONS_FILE).includes("logged with CLAUDE.md Rev 11"), "a LOG entry can name the CLAUDE.md revision assigned");
   } finally { rmSync(cl, { recursive: true, force: true }); }
 
+  // pending-decisions.md edits: found by content, so edits to neighbouring items apply in either order.
+  {
+    const page = ["# Open items", "", "> header", ">", "> more", "", "## 13.2", "", "- [ ] **`OI-A-01`** one", "- [ ] **`OI-A-02`** two", "- [ ] **`OI-A-03`** three", "",
+      "| Issue | Action |", "|---|---|", "| **`OI-B-01`** row | act |", "| **`OI-B-02`** row | act |", "", "## 13.3", "", "- [ ] **`OI-C-01`** last", ""].join("\n");
+    const edit = (f: (l: string[]) => void): string => { const l = page.split("\n"); f(l); return l.join("\n"); };
+    const cases: [string, string][] = [
+      ["replace one item", edit((l) => { l[9] = "- [x] **`OI-A-02`** two, closed"; })],
+      ["insert an item at the end of a block", edit((l) => { l.splice(11, 0, "- [ ] **`OI-A-04`** four"); })],
+      ["delete an item", edit((l) => { l.splice(10, 1); })],
+      ["edit a table row with a | in it", edit((l) => { l[15] = "| **`OI-B-02`** row | closed \\| done |"; })],
+      ["edit a duplicated header line (> )", edit((l) => { l[3] = "> a new line"; })],
+      ["insert after a blank line", edit((l) => { l.splice(17, 0, "New paragraph.", ""); })],
+      ["insert at the very start", edit((l) => { l.splice(0, 0, "<!-- top -->"); })],
+      ["several edits at once", edit((l) => { l[8] = "- [x] one"; l[10] = "- [x] three"; l.splice(19, 1, "- [x] **`OI-C-01`** last", "- [ ] **`OI-C-02`** new"); })],
+    ];
+    for (const [name, to] of cases) {
+      let ok = false;
+      try { ok = applyOpen(page, openHunks("", page, to), "t") === to; } catch (e) { console.error(String(e)); }
+      check(ok, `--convert-open round trip: ${name}`);
+    }
+    const p1 = openHunks("", page, edit((l) => { l[9] = "- [x] **`OI-A-02`** closed by PR 1"; }));
+    const p2 = openHunks("", page, edit((l) => { l[10] = "- [x] **`OI-A-03`** closed by PR 2"; }));
+    const p3 = openHunks("", page, edit((l) => { l.splice(11, 0, "- [ ] **`OI-A-04`** raised by PR 3"); }));
+    const both = applyOpen(applyOpen(applyOpen(page, p1, "1"), p2, "2"), p3, "3");
+    check(both.includes("closed by PR 1\n- [x] **`OI-A-03`** closed by PR 2\n- [ ] **`OI-A-04`** raised by PR 3\n"),
+      "PRs that edit neighbouring items, and one that adds after them, all apply, in that order (git conflicted on these)");
+    check(applyOpen(applyOpen(applyOpen(page, p3, "3"), p2, "2"), p1, "1") === both, "and in the reverse order, to the same page");
+    const same = openHunks("", page, edit((l) => { l[9] = "- [x] **`OI-A-02`** closed differently by PR 4"; }));
+    let msg = "";
+    try { applyOpen(applyOpen(page, p1, "1"), same, "frag4.md"); } catch (e) { msg = (e as Error).message; }
+    check(/frag4\.md: the docs\/status\/pending-decisions\.md edit "OI-A-02" replaces lines that are no longer there/.test(msg),
+      "two PRs that change the same item: the second is refused, not applied over the first");
+  }
+  const op = mk();
+  try {
+    mkdirSync(join(op, "docs/status"), { recursive: true });
+    const page = "# Open\n\n- [ ] **`OI-A-01`** one\n- [ ] **`OI-A-02`** two\n";
+    writeFileSync(join(op, OPEN_FILE), page);
+    writeFileSync(join(op, DECISIONS_FILE), "# Log\n");
+    commit(op, "base");
+    git(op, "checkout", "-q", "-b", "claude/topic");
+    frag(op, "claude-topic.md", "## LOG\ntext: **{date} — x.**\n");
+    const edited = page.replace("- [ ] **`OI-A-02`** two", "- [x] **`OI-A-02`** two | done");
+    writeFileSync(join(op, OPEN_FILE), edited);
+    convertOpen(op, "main");
+    const fr = read(op, `${PENDING_DIR}/claude-topic.md`);
+    check(read(op, OPEN_FILE) === page && /## LOG\ntext: \*\*\{date\} — x\.\*\*\n## OPEN OI-A-02\nwas: [0-9a-f]{16} 1\ntext: - \[x\] \*\*`OI-A-02`\*\* two \| done\n$/.test(fr),
+      "--convert-open writes the edit into the branch's own fragment, after what it held, and puts the page back");
+    let refused = "";
+    try { writeFileSync(join(op, OPEN_FILE), edited); convertOpen(op, "main"); } catch (e) { refused = (e as Error).message; }
+    check(/run --expand-open first/.test(refused), "a second --convert-open over a fragment that already holds edits is refused");
+    writeFileSync(join(op, OPEN_FILE), page);
+    expandOpen(op, "main");
+    check(read(op, OPEN_FILE) === edited && read(op, `${PENDING_DIR}/claude-topic.md`) === "## LOG\ntext: **{date} — x.**\n", "--expand-open puts the edit back and leaves the rest of the fragment");
+    convertOpen(op, "main");
+    commit(op, "fragment");
+    const res = assignNext(op, false);
+    check(res.status === "done" && res.opened === 1 && read(op, OPEN_FILE) === edited, "at merge the edit is applied to the page in place");
+  } finally { rmSync(op, { recursive: true, force: true }); }
+
   // The parser refuses what would write a bad row.
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: a | b\n") === "string", "a '|' in the text is refused");
   check(typeof parseFragment("f.md", "## NP-SW-001\nauthor: A\ntext: t\n") === "string", "a fragment without a DHF section is refused");
@@ -504,6 +689,12 @@ function selfTest(): void {
   check(typeof parseFragment("f.md", "## NP-DHF-001\nauthor: A\ntext: t\n") === "string", "the DHF is named DHF, not by serial");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n") !== "string", "a minimal fragment parses");
   check(typeof parseFragment("f.md", "## LOG\ntext: t\n") !== "string", "a LOG-only fragment parses, with no DHF section");
+  check(typeof parseFragment("f.md", "## OPEN OI-A-01\nwas: 0123456789abcdef 1\ntext: | a | b |\ntext:\n## LOG\ntext: t\n") !== "string", "an OPEN hunk parses, with a table row and a blank line, and ends at the next section");
+  check(typeof parseFragment("f.md", "## OPEN x\ntext: a\n") === "string", "an OPEN hunk with no was:, after: or before: is refused");
+  check(typeof parseFragment("f.md", "## OPEN x\nafter: 0123456789abcdef 1\n") === "string", "an OPEN insertion with no text is refused");
+  check(typeof parseFragment("f.md", "## OPEN x\nwas: 0123456789abcdef\ntext: a\n") === "string", "was: without a line count is refused");
+  check(typeof parseFragment("f.md", "## OPEN x\nwas: 0123456789abcdef 1\nafter: 0123456789abcdef 1\ntext: a\n") === "string", "was: with an insertion anchor is refused");
+  check(typeof parseFragment("f.md", "## OPEN x\nafter: 0123456789abcdef 1\nbefore: 0123456789abcdef 2\ntext: a\n") !== "string", "an insertion with both anchors parses");
   check(typeof parseFragment("f.md", "## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — t.**\n") === "string", "a CLAUDE.md section with no DHF section is refused (it changes the DHF index)");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n## CLAUDE.md\ntext: **Rev 86 (2026-11-21) — t.**\n") === "string", "a CLAUDE.md entry with a hand-written number is refused");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: {CLAUDE.md to}\n") === "string", "a CLAUDE.md token with no CLAUDE.md section is refused");
@@ -531,11 +722,15 @@ if (import.meta.main) {
     } else if (a.includes("--next")) {
       const r = assignNext(process.cwd());
       if (r.status === "none") process.exit(3);
-      console.log(`assigned ${r.fragment}: ${JSON.stringify(r.revisions)}${r.logged > 0 ? `, ${r.logged} entr${r.logged === 1 ? "y" : "ies"} appended to ${DECISIONS_FILE}` : ""}`);
+      console.log(`assigned ${r.fragment}: ${JSON.stringify(r.revisions)}${r.logged > 0 ? `, ${r.logged} entr${r.logged === 1 ? "y" : "ies"} appended to ${DECISIONS_FILE}` : ""}${r.opened > 0 ? `, ${r.opened} edit(s) applied to ${OPEN_FILE}` : ""}`);
+    } else if (a.includes("--convert-open") || a.includes("--expand-open")) {
+      const i = a.indexOf("--base");
+      const b = i >= 0 ? a[i + 1] : "origin/main";
+      console.log(a.includes("--convert-open") ? convertOpen(process.cwd(), b) : expandOpen(process.cwd(), b));
     } else if (a.includes("--convert")) {
       const i = a.indexOf("--base");
       console.log(`wrote ${convertBranch(process.cwd(), i >= 0 ? a[i + 1] : "origin/main")}`);
-    } else { console.error("usage: assign-revisions.ts --mode | --peek | --next | --convert [--base ref] | --self-test"); process.exit(1); }
+    } else { console.error("usage: assign-revisions.ts --mode | --peek | --next | --convert [--base ref] | --convert-open | --expand-open | --self-test"); process.exit(1); }
   } catch (e) {
     console.error(String((e as Error).message));
     process.exit(1);
