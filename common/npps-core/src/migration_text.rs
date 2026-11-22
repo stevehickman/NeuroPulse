@@ -22,7 +22,7 @@ type R<T> = Result<T, String>;
 
 /// Every reason a flow, a header check, a clear decision or a link can end with `ok: false`. `closed` (a serve that ended
 /// because the other phone hung up) and `confirmed` (a clear that may go ahead) are not failures and have no text.
-const REASONS: [(&str, &str); 22] = [
+const REASONS: [(&str, &str); 23] = [
     ("authentication_failed", "MIGRATION_REASON_AUTHENTICATION_FAILED"),
     ("malformed", "MIGRATION_REASON_MALFORMED"),
     ("newer_version", "MIGRATION_REASON_NEWER_VERSION"),
@@ -32,6 +32,7 @@ const REASONS: [(&str, &str); 22] = [
     ("no_authenticated_pairing", "MIGRATION_REASON_NO_AUTHENTICATED_PAIRING"),
     ("claim_not_owned", "MIGRATION_REASON_CLAIM_NOT_OWNED"),
     ("claimed", "MIGRATION_REASON_CLAIMED"),
+    ("claim_unauthentic", "MIGRATION_REASON_CLAIM_UNAUTHENTIC"),
     ("no_bundle", "MIGRATION_REASON_NO_BUNDLE"),
     ("route_not_offered", "MIGRATION_REASON_ROUTE_NOT_OFFERED"),
     ("step_failed", "MIGRATION_REASON_STEP_FAILED"),
