@@ -44,7 +44,10 @@
  *    ci/required-checks.txt lists the exact strings the `Safety` ruleset
  *    requires. Each must be the `name:` of exactly one job in a PR-triggered,
  *    un-`paths:`-filtered workflow, with no `strategy:`; none may name a job
- *    that never runs on pull_request (build-all.yml). Every job carrying the
+ *    that never runs on pull_request (build-all.yml). Each must also be in a
+ *    workflow triggered by merge_group: in the merge queue a required context
+ *    that does not report on the merge-group commit holds every queued PR
+ *    forever (NP-SW-CI-001 §6.19). Every job carrying the
  *    in-file "required-status-check CONTEXT" warning must be listed, and every
  *    listed job must carry it. A rename that used to un-gate the branch with no
  *    error anywhere now fails here. The LIVE ruleset is not read — CI holds no
@@ -159,6 +162,8 @@ type Job = {
 type Workflow = {
   file: string;
   prTriggered: boolean;
+  /** `on: merge_group` — the merge queue's run (NP-SW-CI-001 §6.19). */
+  mgTriggered: boolean;
   /** Workflow-level `pull_request: paths:` — applies to every job in the file. */
   prPaths: string[] | null;
   /** Top-level `env:` scalars (NP_SAFETY_TESTS and the test counts live here). */
@@ -215,6 +220,7 @@ function parseWorkflow(file: string, text: string): Workflow {
 
   // ── on: ─────────────────────────────────────────────────────────────────
   let prTriggered = false;
+  let mgTriggered = false;
   let prPaths: string[] | null = null;
   const onIdx = lines.findIndex((l) => /^on:\s*$/.test(l));
   if (onIdx >= 0) {
@@ -242,6 +248,7 @@ function parseWorkflow(file: string, text: string): Workflow {
         }
       }
       if (/^  pull_request:\s*\S/.test(l)) prTriggered = true;
+      if (/^  merge_group:/.test(l)) mgTriggered = true;
     }
   }
 
@@ -324,7 +331,7 @@ function parseWorkflow(file: string, text: string): Workflow {
   const nestedPartitionEnv = lines
     .filter((l) => /^ {3,}(NP_SAFETY_TESTS|NP_[A-Z_]+_TEST_COUNT):/.test(l))
     .map((l) => l.trim().split(":")[0]!);
-  return { file, prTriggered, prPaths, env, nestedPartitionEnv, jobs };
+  return { file, prTriggered, mgTriggered, prPaths, env, nestedPartitionEnv, jobs };
 }
 
 /**
@@ -760,6 +767,13 @@ function audit(root: string): Report {
         violations.push(
           `C: '${ctx}' (${where}) is required, but ${w.file} has a workflow-level pull_request paths: ` +
             `filter — on an out-of-scope PR it never reports, and the PR waits forever (§6.7.1)`,
+        );
+      }
+      if (!w.mgTriggered) {
+        violations.push(
+          `C: '${ctx}' (${where}) is required, but ${w.file} has no merge_group: trigger — in the merge ` +
+            `queue the context never reports on the merge-group commit, and every queued PR waits ` +
+            `forever (NP-SW-CI-001 §6.19)`,
         );
       }
       if (j.hasStrategy) {
@@ -1298,13 +1312,16 @@ if (process.argv.includes("--self-test")) {
   /** A workflow of named jobs, in the firmware workflows' shape. */
   const NAMED = (opts: {
     pr?: boolean;
+    /** `false` drops the merge_group: trigger — only §6.19's own case wants this. */
+    mg?: boolean;
     prPaths?: string[];
     jobs: { id: string; name?: string; marker?: boolean; matrix?: boolean }[];
   }) => {
     const on = opts.prPaths
       ? `on:\n  pull_request:\n    paths:\n${opts.prPaths.map((p) => `      - '${p}'`).join("\n")}\n`
       : `on:\n${opts.pr === false ? "  schedule:\n    - cron: '0 0 * * 0'\n" : "  push:\n  pull_request:\n"}`;
-    return `name: t\n${on}jobs:\n` + opts.jobs.map((j) =>
+    const mg = opts.mg === false || opts.pr === false ? "" : "  merge_group:\n";
+    return `name: t\n${on}${mg}jobs:\n` + opts.jobs.map((j) =>
       `  ${j.id}:\n` +
       (j.name ? `    name: ${j.name}\n` : "") +
       (j.marker ? MARK : "") +
@@ -1323,6 +1340,15 @@ if (process.argv.includes("--self-test")) {
       ] }),
     }),
     null,
+  );
+  // §6.19: the merge queue runs merge_group, not pull_request.
+  expect(
+    "a required context in a workflow with no merge_group: trigger is caught",
+    build({
+      "ci/required-checks.txt": REQ("Class C scope"),
+      ".github/workflows/s.yml": NAMED({ mg: false, jobs: [{ id: "changes", name: "Class C scope", marker: true }] }),
+    }),
+    "has no merge_group: trigger",
   );
   // THE OI-SWCI-26 defect: a job renamed (here, a count put back in its name).
   expect(
@@ -1547,7 +1573,7 @@ if (process.argv.includes("--self-test")) {
   console.log("  45 case(s): all five correspondences proven to fire and proven NOT to over-fire —");
   console.log("  A/B: the union rule, the weekly-backstop exclusion, the NP_BUILD_TESTS/cross split,");
   console.log("  prefix coverage in both directions, <tree>, and two unparseable shapes;");
-  console.log("  C: rename, matrix, non-PR (build-all), paths:-filtered, duplicate, marker both ways;");
+  console.log("  C: rename, matrix, non-PR (build-all), no merge_group, paths:-filtered, duplicate, marker both ways;");
   console.log("  D: own workflow omitted, exact self-entry, another workflow's file;");
   console.log("  E: rename under unchanged counts, regex drift, class mismatch, stale count copies, a copy hidden below top level,");
   console.log("     a target with no floor, a floor with no target, a malformed floor");

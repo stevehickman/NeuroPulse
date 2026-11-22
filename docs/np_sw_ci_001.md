@@ -4034,6 +4034,80 @@ behind as any merge does.
 
 `OI-SWCI-54` stays open for step 5, Q1, Q3, Q4, the rest of set P and the App id.
 
+### 6.19 The merge queue: the tree half (2026-11-22, `OI-SWCI-55`)
+
+#### 6.19.1 Why
+
+§6.18.4 made a branch be up to date with `main` before it merges, and accepted the cost: each merge puts every
+other open pull request behind, and each must take `main` and run its checks again by hand. A merge queue gives the
+same guarantee without the hand step. GitHub builds a merge-group commit (the `main` it will land on, plus the pull
+requests queued ahead, plus this one), runs the required checks on it, and merges only if they pass. The checks that
+gate a merge therefore still run on the tree that lands, which is what §6.18.1's #983/#995 case needed.
+
+The queue runs workflows on the `merge_group` event, not `pull_request`. A required context that does not report on
+the merge-group commit never satisfies the queue, and every queued pull request waits until it times out. That is
+the §6.7.1 deadlock in a new form, so the triggers have to land before the setting does.
+
+#### 6.19.2 What this revision changes
+
+| Where | Change |
+|---|---|
+| `firmware-cross-build.yml`, `safety-mcu-ci.yml`, `simulator-ci.yml`, `tooling-ci.yml` | `on: merge_group`. These four hold every context in `ci/required-checks.txt`. No other workflow gets the trigger: an unrequired check does not hold the queue, and running it there costs runner time and verifies nothing the push to `main` does not |
+| The same four, `Changed files` step | `NP_BASE` is `github.event.merge_group.base_sha` on a merge group. `NP_HEAD` was already `github.sha`, which is the merge-group commit |
+| `scripts/ci-changed-scope.sh` | `np_diff_base`: a merge group diffs its head against `base_sha`, as a pull request diffs against its base. No base, or an all-zero one, is unknown and builds. `np_resolve_base`: a merge group never takes a last-green base and never asks the API. Five new self-test cases, each killed by reverting its line |
+| `tooling-ci.yml`, `doc-naming` job | `check-revision-fragments.ts` and `check-wavelength-register.ts` run on `merge_group` as well as `pull_request` (below) |
+| `scripts/check-ci-scope.ts` | Correspondence C: a required context's workflow must trigger on `merge_group`. Fails today's tree if the trigger is removed from any of the four (checked by doing so) |
+| `scripts/check-main-ruleset.ts` | R7: `merge_queue` in `rule_types` and a non-empty `merge_queue` parameter object go together. L5 compares every queue parameter on either side, as it does for `pull_request`, so the file names none of GitHub's parameter keys. `ci/main-ruleset.json` is **not** changed: the queue is not on, and the file states what GitHub holds |
+
+**Why `base_sha` is sound as the diff base.** The argument is §6.15.2's induction with the queue as its chain.
+Every commit the queue lands is a merge-group commit whose required jobs either ran, or were skipped because nothing
+in their scope differs from `base_sha`, the commit the group was built on. Since GitHub builds each group on the one
+ahead of it, or on `main`, every state the queue lands was gated against a parent that was itself gated, or is a
+commit on `main`. If `base_sha` turns out to be `main` rather than the group ahead, the diff is wider (it includes
+the pull requests ahead) and the argument holds with more building. Commits that reach `main` outside the queue (the
+revision App's, and an admin's bypass merge) are not gated by it; the push to `main` and `build-all.yml` (§5.5) stay
+their backstop, as they are with `strict: true` today.
+
+**Why the last-green base is refused.** The queue exists to re-test against the `main` the change lands on. The
+last-green base skips exactly that re-test (§6.15.3 item 2). A queue branch, `gh-readonly-queue/<base>/pr-<n>-<sha>`,
+is new for every group, so the API would find no earlier run anyway; refusing by event says why, and does not depend
+on GitHub's branch naming.
+
+**Why the two pull-request-only guards also run in the queue.** Rule N of `check-revision-fragments.ts` dry-runs every
+pending fragment's `## OPEN` hunks, other pull requests' first. With `strict: true` it re-ran each time another
+pull request landed first, because the branch had to take `main` (`docs/revisions/README.md`). In the queue it runs on
+the merge-group commit, whose tree holds the fragments of the pull requests queued ahead, so two pull requests that
+edit the same open item are caught before the second lands. Both guards compare `HEAD` with `HEAD^1` when `HEAD` is a
+merge. **That needs the queue's merge method to be `MERGE`.** With squash or rebase the group commit has one parent,
+the guards find no base and read fragments only, and the re-check is gone with no error.
+
+#### 6.19.3 Applying it: the runbook the principal runs, not CI
+
+The order matters. Steps 2 onward wait for this revision to be on `main`; a queue switched on first waits forever on
+eleven contexts no workflow reports.
+
+1. **Merge this revision.** Confirm on any later pull request that the four workflows still report as before.
+2. **Switch the queue on.** Settings → Rules → Rulesets → `Safety` → tick *Require merge queue*. Set **Merge method:
+   Merge** (§6.19.2: the guards need a two-parent commit). Leave the other queue settings at GitHub's defaults unless
+   there is a reason to change one; whatever they are, step 4 records them as observed, as `_observed` does for the
+   other undecided parameters. Save.
+3. **Decide whether a branch must still be up to date (`OI-SWCI-55` Q6).** A. Keep `strict: true`. B. Untick
+   *Require branches to be up to date before merging*: the queue gives the guarantee §6.18.4 wanted, and the update
+   rounds were the cost it accepted. Whether GitHub still makes an author update a branch before it can join the queue
+   while `strict` is on was not confirmed from GitHub's documentation by the session that wrote this; observe it in
+   step 5 before choosing.
+4. **Record it.** Run `bun scripts/check-main-ruleset.ts --live` from a workstation. Expect
+   `L4: rule 'merge_queue' is in force on main but not in ci/main-ruleset.json`, and an `L5` on the strict flag if
+   step 3 changed it. Then a pull request: add `merge_queue` to `rule_types`, copy the parameters from
+   `gh api repos/stevehickman/NeuroPulse/rules/branches/main --jq '.[] | select(.type=="merge_queue") | .parameters'`
+   into a `merge_queue` object, set `status_checks.strict`, and say in `_observed` which values a record decided
+   (the merge method) and which were only observed. `--live` then prints `OK`.
+5. **Observe one pull request through the queue.** The eleven required contexts report on the
+   `gh-readonly-queue/main/…` commit, out-of-scope jobs report `skipped`, and the `doc-naming` job runs the two guards
+   against `HEAD^1`. Also observe what happens to a queued group when the revision App pushes to `main` after the
+   merge ahead of it: if GitHub rebuilds the group, every merge with a fragment costs the queue one more round, which
+   is the same cost `strict: true` has today, but without a hand step.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -4094,6 +4168,7 @@ behind as any merge does.
 | ~~OI-SWCI-52~~ | **CLOSED 2026-11-11 (§6.17).** `ci-changed-scope.sh --self-test` runs `np_resolve_base` against a stub `gh`: thirteen cases, the four named here among them, and nine single mutations of the function each fail one. ~~**Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository~~ | Quality | — |
 | ~~OI-SWCI-53~~ | **CLOSED 2026-11-21 (§6.18.4): not acceptable; the `Safety` ruleset requires a branch to be up to date before it merges (`strict: true`, the principal).** ~~**Raised 2026-10-14 with §6.15.3 item 2.** A green run tested the pull request merged with `main` as it was then, and a later push that changes nothing in scope does not re-test it against a `main` that has since moved. Decide whether that is acceptable given the push to `main` and `build-all.yml`, or whether a candidate older than the last move of the base should be refused~~ | Quality | 2026-11-21 |
 | OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open. **2026-11-21 (§6.18.4):** the context is in force; Q5 answered B (`strict: true`) and `OI-SWCI-53` closed. Open: §6.18.3 step 5, the rest of set P, Q1, Q3, Q4 and the App id | Steve | — |
+| OI-SWCI-55 | **Raised 2026-11-22 with §6.19.** The tree half of a merge queue is in (the `merge_group` trigger on the four workflows that hold required contexts, the merge-group diff base, the two guards in the queue, and correspondence C and rule R7 to keep it so). Open: the settings half, §6.19.3 steps 2 to 5: switch the queue on with merge method `MERGE`; **Q6**, whether a branch must still be up to date (`strict`) once the queue is on; record the queue's parameters in `ci/main-ruleset.json`; and observe one pull request through the queue, including what a revision-App push to `main` does to a queued group | Steve | — |
 
 ## 8. Traceability
 

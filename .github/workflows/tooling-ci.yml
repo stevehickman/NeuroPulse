@@ -106,6 +106,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue (NP-SW-CI-001 §6.19). This workflow holds a required context, and a required context that does
+  # not report on the queue's merge-group commit holds every queued pull request forever. scripts/check-ci-scope.ts
+  # (correspondence C) fails the tree if this trigger is missing from a workflow that holds one.
+  merge_group:
   workflow_dispatch:
 
 # Least privilege. Required for actions/checkout, which hard-fails without it
@@ -718,7 +722,7 @@ jobs:
         id: diff
         env:
           NP_EVENT: ${{ github.event_name }}
-          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}
@@ -943,7 +947,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           # Two commits: on a pull_request run HEAD is the merge of the PR into its base, and the revision-scheme guard
-          # below compares HEAD with HEAD^1 (the base tip), which is exactly the PR's own change.
+          # below compares HEAD with HEAD^1 (the base tip), which is exactly the PR's own change. A merge_group run with
+          # the queue's MERGE method has the same shape (NP-SW-CI-001 §6.19).
           fetch-depth: 2
 
       - name: Set up Bun
@@ -993,8 +998,11 @@ jobs:
       # Revision numbers are assigned when a change merges, not by its author
       # (docs/revisions/README.md; the decision: docs/human-input/np-qms-dc-001-revision-assignment.md).
       # In mode `hand`, the mode the repository ships in, the guard reads fragments only. In mode `assign-at-merge` it holds
-      # a PR to the scheme. Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly
-      # what the guard forbids a PR to change.
+      # a PR to the scheme. Only for pull requests and the merge queue: on `main` the assign-revisions workflow's own
+      # commits change exactly what the guard forbids a PR to change. In the queue (NP-SW-CI-001 §6.19) HEAD is the
+      # merge-group commit, HEAD^1 the main it lands on plus the pull requests queued ahead, so rule N dry-runs their
+      # fragments before this one's: the re-check a branch that must be up to date used to give. That needs the queue's
+      # merge method to be MERGE; with squash or rebase there is no HEAD^2 and the guard reads fragments only.
       - name: Guard self-test (prove the revision-scheme rules can fail)
         run: bun scripts/check-revision-fragments.ts --self-test
 
@@ -1002,7 +1010,7 @@ jobs:
         run: bun scripts/assign-revisions.ts --self-test
 
       - name: A pull request follows the revision scheme in force
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: bun scripts/check-revision-fragments.ts
 
       # A released set of wavelength rules is never edited, removed or reordered: a session record names the rules it ran
@@ -1013,7 +1021,7 @@ jobs:
         run: bun scripts/check-wavelength-register.ts --self-test
 
       - name: The wavelength-rules register only ever gains rows
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: bun scripts/check-wavelength-register.ts
 
   section-refs:
