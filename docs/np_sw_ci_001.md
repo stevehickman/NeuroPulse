@@ -4236,10 +4236,19 @@ after it merges, so its self-test runs on the pull request that changes it (`too
 4. **Rule N of `check-revision-fragments.ts` no longer re-runs when another pull request lands first**
    (`docs/revisions/README.md`). Two pull requests that edit the same open item can both merge; the second's hunk
    then fails in `assign-revisions.yml` on `main`, which alerts, and the fix is by hand.
-5. **That GitHub attributes a status posted with `GITHUB_TOKEN` to the GitHub Actions App (`integration_id` 15368)**
-   was not confirmed by the session that wrote this. Step 5's `--live` shows it.
+5. ~~**That GitHub attributes a status posted with `GITHUB_TOKEN` to the GitHub Actions App (`integration_id` 15368)**
+   was not confirmed by the session that wrote this. Step 5's `--live` shows it.~~ Confirmed by step 5 (§6.20.5).
 6. **No email is sent before step 2.** The `alert` job fails instead, which GitHub reports to the person whose action
    started the run.
+
+#### 6.20.5 Applied (2026-11-22)
+
+| Step | Result |
+|---|---|
+| 1. Merge | #1008 merged |
+| 4. Ruleset | The principal added `main is green, or this PR is up to date with main` to the required status checks and unticked *Require branches to be up to date before merging* |
+| 5. `--live` | One violation, `L5: strict_required_status_checks_policy is false, expected true`. **No `L2`**, so GitHub requires the new status, and **no `L3`**, so GitHub binds it to the App the other contexts are bound to: the status posted with `GITHUB_TOKEN` is attributed to GitHub Actions, which closes §6.20.4 item 5. This revision sets `status_checks.strict` to `false` in `ci/main-ruleset.json`, so the next run is expected to print `OK` |
+| 2, 3, 6 | The sending account's secrets and the mail rule are the principal's, outside the repository; the first red run on `main` is not yet observed |
 
 ## 7. Open items
 
