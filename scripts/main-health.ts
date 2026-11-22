@@ -324,9 +324,10 @@ function selfTest(): never {
     if (JSON.stringify(got) !== JSON.stringify(want)) { failed++; console.error(`FAIL ${label}: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`); }
   };
   const ok = (label: string, cond: boolean): void => { cases++; if (!cond) { failed++; console.error(`FAIL ${label}`); } };
+  // html_url is an opaque token: the cases check it is carried through to the status and the email, not that it parses.
   const R = (id: number, conclusion: string | null, name = "Tooling CI"): Run => ({
     id, name, path: ".github/workflows/tooling-ci.yml", conclusion, head_sha: `${id}`.padStart(40, "a"),
-    html_url: `https://example.invalid/run/${id}`, created_at: `2026-11-22T00:00:${String(id).padStart(2, "0")}Z`, event: "push",
+    html_url: `run-link-${id}`, created_at: `2026-11-22T00:00:${String(id).padStart(2, "0")}Z`, event: "push",
   });
 
   // Colour: only failure, timed_out and startup_failure are red; only success is green.
@@ -358,7 +359,7 @@ function selfTest(): never {
   eq("s-red-position-unknown", statusFor(red, null).state, "error");
   eq("s-unreadable", statusFor({ ok: false, why: "HTTP 502" }, true).state, "error");
   ok("s-names-the-red-workflow", statusFor(red, false).description.includes("Simulator CI"));
-  ok("s-links-the-red-run", statusFor(red, false).target_url === "https://example.invalid/run/5");
+  ok("s-links-the-red-run", statusFor(red, false).target_url === "run-link-5");
   const many: MainState = { ok: true, red: Array.from({ length: 12 }, (_, i) => R(i + 1, "failure", `A long workflow name number ${i}`)) };
   ok("s-description-within-limit", statusFor(many, false).description.length <= MAX_DESCRIPTION);
 
@@ -366,7 +367,7 @@ function selfTest(): never {
   const m = composeMail("turned-red", R(7, "failure", "Firmware Cross-Compile (ARM)"), "o/r", "Fix the thing", []);
   ok("mail-red-prefix", m.subject.startsWith(RED_PREFIX + " "));
   ok("mail-red-importance", m.headers.includes("Importance: High") && m.headers.includes("X-Priority: 1 (Highest)"));
-  ok("mail-red-names-run", m.body.includes("https://example.invalid/run/7") && m.body.includes("Fix the thing"));
+  ok("mail-red-names-run", m.body.split("\n").includes("Run:        run-link-7") && m.body.includes("Fix the thing"));
   const g = composeMail("turned-green", R(8, "success"), "o/r", "x", []);
   ok("mail-green-prefix", g.subject.startsWith(GREEN_PREFIX + " ") && g.subject.endsWith("main is green"));
   ok("mail-green-not-urgent", g.headers.length === 0);
