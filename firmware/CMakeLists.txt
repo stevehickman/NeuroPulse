@@ -631,6 +631,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_rollback_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7).  The eMMC SANITIZE sequence (np_emmc_sanitize.h).
+    # Moves the Class B count 65 -> 66 and the repo total 76 -> 77.
+    add_test(NAME np_bootloader_sanitize_tests
+        COMMAND np_bootloader_sanitize_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates
     # two numbers the bootloader linker script owns; a linker script cannot
     # include another, so this test is what makes the duplication safe.  Moves
