@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 8
-**Date:** 2026-11-20  
+**Revision:** 9
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -110,7 +110,7 @@ docker compose logs -f posthog
 
 Three of these settings are scripted (Rev 3, privacy review Finding 4): `infra/posthog/apply_project_settings.py --check` reads the project's `anonymize_ips`, `session_recording_opt_in` and `autocapture_opt_out` and exits non-zero if one differs, and `--apply` sets them and reads them back (`POSTHOG_PERSONAL_API_KEY` from the environment). **The script has not been run against a real PostHog instance** (`OI-ANALYTICS-02`); run `--check` against yours before relying on it. Heatmaps, web analytics, event and person retention, and the Property Filter transformation are not covered and stay manual. They are not configurable via environment variables. Complete them immediately after project creation.
 
-**The network address (Rev 5; `NP-APP-TELEMETRY-001` §4.1, `OI-PRIV-05` (5)).** The principal decided on 2026-11-19 that analytics events are to reach this host through an Oblivious HTTP relay, so that it never receives the sender's address; that is not built, and nothing in this stack provides it yet. Until it is, the floor is the proxy's: `caddy/Caddyfile` removes `X-Forwarded-For` and `X-Real-IP` before PostHog (it already did), and from this revision neither of its logs keeps the client's address, its port or those headers. `ci/test_posthog_infra.py` checks the header removal (P6), the log filter on both logs (P8) and that Caddy accepts the file (P9). The setting below is a second layer behind that floor.
+**The network address (Rev 5; `NP-APP-TELEMETRY-001` §4.1, `OI-PRIV-05` (5)).** The principal decided on 2026-11-19 that analytics events are to reach this host through an Oblivious HTTP relay, so that it never receives the sender's address; that is not built, and nothing in this stack provides it yet. Until it is, the floor is the proxy's: `caddy/Caddyfile` removes every header a proxy can carry the address in (`X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `True-Client-IP`, `CF-Connecting-IP`, `X-Client-IP`, `X-Cluster-Client-IP`, `Fastly-Client-IP`, `Via`) before PostHog and before the erasure relay, and neither of its logs keeps the client's address, its port or any request header (`OI-PRIV-51`; before 2026-11-21 only `X-Forwarded-For` and `X-Real-IP` were removed, and the logs deleted only those two headers). `ci/test_posthog_infra.py` checks the header removal (P6), the log filter on both logs (P8) and that Caddy accepts the file (P9). The setting below is a second layer behind that floor.
 
 **Navigate to: Project Settings → Privacy**
 
@@ -568,3 +568,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 6 | 2026-11-16 | NeurOne Software Engineering | **Permitted events table follows `NP-APP-TELEMETRY-001` §3.3: `consent_granted` and `consent_revoked` removed, `screen_viewed` and `error_reported` added; §8.1 marked out of date (`step_name` and `feature_name` were never permitted) (`OI-PRIV-05`).** |
 | 7 | 2026-11-19 | NeurOne Software Engineering | **§3.4: the proxy's access log and default logger delete the client's address, port and forwarding headers, checked by `ci/test_posthog_infra.py` P8 and P9; the relay of `NP-APP-TELEMETRY-001` §4.1 is decided and not built.** |
 | 8 | 2026-11-20 | NeurOne Software Engineering | **§3.4 and §7.1: the principal set event retention to 30 days on 2026-11-20 (`NP-APP-TELEMETRY-001` §5 promises deletion of a withdrawn person's ID within 30 days). It is `EVENT_RETENTION_DAYS`, applied as a ClickHouse TTL by `apply_event_retention.py` and checked with `--check`; the policy is cited beside the value, and a value above 30 is flagged as breaking it. Not run against a real stack.** |
+| 9 | 2026-11-21 | NeurOne Software Engineering | **The network-address paragraph: the analytics proxy removes nine client-address headers before PostHog and the erasure relay, and its logs keep no request header (`OI-PRIV-51`).** |
