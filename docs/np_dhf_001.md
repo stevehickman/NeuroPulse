@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 377
-**Date:** 2026-11-20
+**Revision:** 381
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 377 | 2026-11-20 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 381 | 2026-11-21 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 3 | 2026-11-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 202 | 2026-11-20 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 203 | 2026-11-21 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -101,7 +101,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 6 | 2026-08-11 | [np_db_005.docx](./np_db_005.docx) | DRAFT — PENDING APPROVAL | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief | 10 | 2026-11-03 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DRAFT | REQ |
-| — | CLAUDE.md — Project Design Memory | 85 | 2026-11-20 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 86 | 2026-11-22 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 
@@ -163,10 +163,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Smart Zone Module — Session Protocol Specification | 6 | 2026-11-21 | [np_ses_1064_001.md](./np_ses_1064_001.md) | BASELINED | SES |
-| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE | APP |
+| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [np_app_isa_001.md](./superseded/np_app_isa_001.md) | SUPERSEDED 2026-11-21 by the shared Compose app | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 11 | 2026-11-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
-| NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 7 | 2026-11-19 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
-| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 14 | 2026-11-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
+| NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 8 | 2026-11-21 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
+| NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 15 | 2026-11-21 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
 | NP-NPPS-REF-001 | NPPS Language Reference | 43 | 2026-11-21 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
@@ -266,7 +266,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE | PRIV |
 | NP-LEGAL-BAA-001 | Business Associate Agreement Template | 1 | 2026-06-03 | [np_legal_baa_001.md](./np_legal_baa_001.md) | DRAFT | PRIV |
 | NP-PRIV-AUDIT-001 | NeurOne App Privacy Audit | 1 | 2026-06-03 | [np_priv_audit_001.md](./np_priv_audit_001.md) | ACTIVE | PRIV |
-| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 2 | 2026-11-21 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 3 | 2026-11-21 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
 | NP-PRIV-NOTICE-001 | NeurOne Privacy Notice | 4 | 2026-08-16 | [np_priv_notice_001.md](./np_priv_notice_001.md) | ACTIVE | PRIV |
 | NP-INT-FHIR-001 | FHIR R4 ImplementationGuide: NeurOne T2 Clinical Profile | 1 | 2026-06-03 | [np_int_fhir_001.md](./np_int_fhir_001.md) | ACTIVE | PRIV |
 
@@ -306,13 +306,13 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 5 | 2026-10-21 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
-| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 8 | 2026-11-20 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
+| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 9 | 2026-11-21 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 1 | 2026-07-18 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 10 | 2026-11-21 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
-| NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 6 | 2026-10-20 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
+| NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 7 | 2026-11-21 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
 | NP-MAN-OPS-001 | NeurOne Operations Manual | 1 | 2026-11-20 | [np_man_ops_001.md](./np_man_ops_001.md) | DRAFT | APP |
 | NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 1 | 2026-08-11 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
@@ -371,25 +371,25 @@ Each firmware directory is under git version control. Git commit hashes constitu
 
 ### 6b. iOS Application Source Code Records (SW-03, IEC 62304 Class B)
 
-The iOS application source code is a Class B software item under NP-SW-001. Source is at `app/ios/NeurOne/`. All Swift source files are under git version control, and so is the XcodeGen specification `app/ios/project.yml`. **`app/ios/NeurOne.xcodeproj` is not: since 2026-09-14 (GitHub Issue #189) it is generated from that specification and git-ignored**, the arrangement `app/watchos/` has used since PR #190. The configuration-controlled design output is therefore the spec, which is a text file whose changes are reviewable in a diff; the project file is a build output, regenerated by `ios-ci.yml` before every `xcodebuild` invocation, and cannot drift from the specification because no tracked copy of it exists. PR #106 (feature/ios-parallel-integration, 2026-06-04) constitutes the first substantive design output delivery for Issue #51.
+The iOS application source code is a Class B software item under NP-SW-001. Source was at `app/ios/NeurOne/` (retired 2026-11-21, `OI-UI-KMP-05`; in git history) and is now the Kotlin paths in the table below. All Swift source files are under git version control, and so is the XcodeGen specification `app/ios/project.yml`. **`app/ios/NeurOne.xcodeproj` is not: since 2026-09-14 (GitHub Issue #189) it is generated from that specification and git-ignored**, the arrangement `app/watchos/` has used since PR #190. The configuration-controlled design output is therefore the spec, which is a text file whose changes are reviewable in a diff; the project file is a build output, regenerated by `ios-ci.yml` before every `xcodebuild` invocation, and cannot drift from the specification because no tracked copy of it exists. PR #106 (feature/ios-parallel-integration, 2026-06-04) constitutes the first substantive design output delivery for Issue #51.
 
 | Module group | IEC 62304 class | Specification | Source path |
 |---|---|---|---|
-| BLE GATT layer (NeurOneGATTManager, GATTCharacteristics) | Class B | NP-APP-ISA-001 ISC-11–20 | `app/ios/NeurOne/BLE/` |
-| Session display — Mode 1 Connected (SessionView) | Class B | NP-APP-ISA-001 ISC-21–34 | `app/ios/NeurOne/Views/SessionView.swift` |
-| Protocol upload — Mode 2 (SessionProtocolUploader, ProtocolChunker) | Class B | NP-APP-ISA-001 ISC-35–47 | `app/ios/NeurOne/Session/`, `app/ios/NeurOne/Protocol/ProtocolChunker.swift` |
-| Session history + EDF download — Mode 4 (SessionHistoryView, AdaptiveAdjustmentsCard) | Class B | NP-APP-ISA-001 ISC-48–55 | `app/ios/NeurOne/Views/SessionHistoryView.swift` |
-| UHDR key management (UHDRKeyManager, UHDRBackupScheduler) | Class B | NP-APP-ISA-001 ISC-56–63 | `app/ios/NeurOne/Data/` |
-| SHDR upload (SHDRUploader) | Class B | NP-APP-ISA-001 ISC-64–67 | `app/ios/NeurOne/Data/SHDRUploader.swift` |
-| Clinical consent engine (ConsentEngine, ConsentStore) | Class B | NP-APP-ISA-001 ISC-68–82 | `app/ios/NeurOne/Consent/` |
-| Privacy compliance (AgeGateView, Under16View, HealthKitSessionReader) | Class B | NP-APP-ISA-001 ISC-83–97 | `app/ios/NeurOne/Onboarding/`, `app/ios/NeurOne/Data/HealthKitSessionReader.swift` |
-| Consumable tracker (ConsumableTracker) | Class B | NP-APP-ISA-001 ISC-98–106 | `app/ios/NeurOne/Consumable/` |
-| OTA firmware update (OTAManager, FirmwareUpdateService, OTAModels, OTAView) | Class B | NP-APP-ISA-001 ISC-107–113 | `app/ios/NeurOne/OTA/`, `app/ios/NeurOne/Models/OTAModels.swift` |
-| Hardware setup wizard (HardwareSetupManager, SetupView) | Class B | NP-APP-ISA-001 ISC-114–121 | `app/ios/NeurOne/Setup/` |
-| Apple Watch bridge (PhoneSessionManager) | Class B | NP-APP-ISA-001 ISC-122–125 | `app/ios/NeurOne/WatchBridge/` |
-| App entry point and service wiring (NeurOneApp) | Class B | NP-APP-ISA-001 | `app/ios/NeurOne/NeurOneApp.swift` |
+| BLE GATT layer (NeurOneGATTManager, GATTCharacteristics) | Class B | NP-APP-ISA-001 ISC-11–20 | `common/core/src/commonMain/kotlin/life/neurone/core/ble/` |
+| Session display — Mode 1 Connected (SessionView) | Class B | NP-APP-ISA-001 ISC-21–34 | `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/SessionScreen.kt` |
+| Protocol upload — Mode 2 (SessionProtocolUploader, ProtocolChunker) | Class B | NP-APP-ISA-001 ISC-35–47 | `common/core/src/commonMain/kotlin/life/neurone/core/session/`, `common/core/src/commonMain/kotlin/life/neurone/core/session/ProtocolChunker.kt` |
+| Session history + EDF download — Mode 4 (SessionHistoryView, AdaptiveAdjustmentsCard) | Class B | NP-APP-ISA-001 ISC-48–55 | `common/core/src/commonMain/kotlin/life/neurone/core/session/SessionHistoryStore.kt`, `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/` |
+| UHDR key management (UHDRKeyManager, UHDRBackupScheduler) | Class B | NP-APP-ISA-001 ISC-56–63 | `common/core/src/commonMain/kotlin/life/neurone/core/data/` |
+| SHDR upload (SHDRUploader) | Class B | NP-APP-ISA-001 ISC-64–67 | `common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetUploader.kt` |
+| Clinical consent engine (ConsentEngine, ConsentStore) | Class B | NP-APP-ISA-001 ISC-68–82 | `common/core/src/commonMain/kotlin/life/neurone/core/consent/` |
+| Privacy compliance (AgeGateView, Under16View, HealthKitSessionReader) | Class B | NP-APP-ISA-001 ISC-83–97 | `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/OnboardingScreens.kt` (the HealthKit read is retired, `REQ-HEALTH-01`) |
+| Consumable tracker (ConsumableTracker) | Class B | NP-APP-ISA-001 ISC-98–106 | `common/core/src/commonMain/kotlin/life/neurone/core/consumable/` |
+| OTA firmware update (OTAManager, FirmwareUpdateService, OTAModels, OTAView) | Class B | NP-APP-ISA-001 ISC-107–113 | `common/core/src/commonMain/kotlin/life/neurone/core/ota/`, `common/core/src/commonMain/kotlin/life/neurone/core/models/OtaModels.kt`, `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ota/` |
+| Hardware setup wizard (HardwareSetupManager, SetupView) | Class B | NP-APP-ISA-001 ISC-114–121 | `common/core/src/commonMain/kotlin/life/neurone/core/setup/`, `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/setup/` |
+| Apple Watch bridge (PhoneSessionManager) | Class B | NP-APP-ISA-001 ISC-122–125 | none (the Apple Watch bridge was not carried to the shared host) |
+| App entry point and service wiring (NeurOneApp) | Class B | NP-APP-ISA-001 | `app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/` (`AppServices`) |
 
-**Test target:** `app/ios/NeurOneTests/` — 8 XCTest suites, 76 tests, all passing as of 2026-06-09. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation. `OTAManagerTests.swift` (27 tests, added 2026-06-09) covers ISC-107–113: manifest fetch, version comparison, opcode wire values, phase state machine, session progress, SPKI cert pinning (correct DER header), fingerprint-first privacy ordering, download failure wrapping. `SessionDisplayTests.swift` (5 tests) covers ISC-30 predicate and epoch mapping. Additionally: `firmware/ota/tests/np_ota_tests.c` 21 host tests — OTA state record CRC, validate, increment_attempts, bank bounds, attempt limit.
+**Test target (retired 2026-11-21; the Kotlin tests under `common/core/src/jvmTest` and `app/NeurOneUI/shared` replace it):** `app/ios/NeurOneTests/` — 8 XCTest suites, 76 tests, all passing as of 2026-06-09. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation. `OTAManagerTests.swift` (27 tests, added 2026-06-09) covers ISC-107–113: manifest fetch, version comparison, opcode wire values, phase state machine, session progress, SPKI cert pinning (correct DER header), fingerprint-first privacy ordering, download failure wrapping. `SessionDisplayTests.swift` (5 tests) covers ISC-30 predicate and epoch mapping. Additionally: `firmware/ota/tests/np_ota_tests.c` 21 host tests — OTA state record CRC, validate, increment_attempts, bank bounds, attempt limit.
 
 ---
 
