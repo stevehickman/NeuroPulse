@@ -97,7 +97,7 @@ class AppServices(
      * which on this install can only be the gated key (`REQ-PRES-10` (b), `OI-PRIV-62` H2). A flag or record that was lost or misread
      * then does not open the person's data ungated, where the next write would seal it again under a key the device releases alone.
      */
-    private fun gateIsOn(gated: GatedSecretKeyStore): Boolean {
+    private fun gateIsOn(gated: life.neurone.core.common.GatedSecretKeyStore): Boolean {
         val secrets = platform.secretKeyStore ?: return false
         if (gated.isEnabled) return true
         val keys = runCatching { EncryptedKeyValueStore.uhdrKeys() }.getOrNull() ?: return false

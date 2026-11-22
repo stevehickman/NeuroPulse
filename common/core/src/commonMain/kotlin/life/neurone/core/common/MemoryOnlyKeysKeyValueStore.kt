@@ -72,7 +72,9 @@ class MemoryOnlyKeysKeyValueStore(
          * SWR-MG-16); the browser has no keystore, and `localStorage` is readable in the clear by every script on the page and every
          * extension, so it holds none of them. That is the session history, the consent state, the saved protocols and limits, the
          * research enrolment, the onboarding records (age, biometric-privacy consent) and the per-install keys. Using the core's one
-         * list means a key added to it is covered here without a second edit.
+         * list means a key added to it is covered here without a second edit. **The presence gate's two records (`hostPlain`), which no
+         * host seals (`REQ-PRES-10` (a)), are kept in memory here as well**: the browser has no gate and never writes them, and leaving
+         * them out would only let a stray write reach `localStorage` (`OI-PRIV-62`).
          *
          * **The page forgets all of it on a reload**: the person answers the onboarding screens again, and keeps their protocols and
          * limits through the backup file the browser can make and read (REQ-SW03-18 (b)). A consent withdrawal is not remembered
@@ -80,7 +82,9 @@ class MemoryOnlyKeysKeyValueStore(
          * the browser has no analytics vendor, no clinician channel and a study-descriptor verifier that refuses everything
          * (`OI-CONSENT-07`). A browser flow that could start one has to settle this first.
          */
-        fun browserKeys(): Set<String> =
-            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+        fun browserKeys(): Set<String> {
+            val lists = NppsCore.migration(buildJsonObject { put("op", "itemKeys") })
+            return listOf("sealedAtRest", "hostPlain").flatMap { name -> lists[name]!!.jsonArray.map { it.jsonPrimitive.content } }.toSet()
+        }
     }
 }
