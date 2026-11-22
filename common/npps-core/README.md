@@ -59,14 +59,8 @@ parser (`NPPSParser`) still reads `.npps` itself.
 in `include/neurone_npps.h` (hand-maintained, with a `module.modulemap` for Swift). `tests/ffi.rs` runs the
 shipped library, the corpus and the 22 golden descriptors through those functions, and
 `tests/c/run.sh` compiles a real C program against the header and the static library; both run in
-`web-ci.yml`. For iOS, `scripts/build-npps-xcframework.sh` builds a static XCFramework (device arm64;
-simulator arm64 + x86_64) into `app/ios/Frameworks/` (git-ignored); `app/ios/project.yml`'s `preGenCommand`
-runs it before XcodeGen reads the tree and the app links it. `NppsCore.swift` marshals; `NppsCoreTests`
-pushes the same goldens through it. **The XCFramework build, the Xcode linking and the Swift code could
-only be written, not run, in the authoring environment (no Xcode, no Apple Rust targets): iOS CI is their
-first execution.** **iOS now compiles through the core:** `HubDescriptorCompiler.swift` maps the iOS models to the core's shape
-(`NppsCoreMapping.swift`), calls `NppsCore.compile` and signs; the Swift encoders are deleted. `NPPSParser` is
-still the Swift port. Because the app's compiler now depends on the XCFramework, a build without it fails to link.
+`web-ci.yml`. The SwiftUI app and its XCFramework script (`scripts/build-npps-xcframework.sh`) were retired
+(OI-UI-KMP-05, in git history): the shared iOS host reaches the core through Gradle cinterop over `../npps-ffi`.
 
 ## Serializer and validator
 
