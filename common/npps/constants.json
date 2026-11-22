@@ -1067,6 +1067,11 @@
           "note": "How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-33)."
         },
         {
+          "name": "SESSION_HISTORY_QUARANTINE_KEY",
+          "value": "np.session.history-quarantine",
+          "note": "A stored session history that could not be read, kept as found so the next write does not destroy it (OI-PRIV-66, REQ-SW03-35)."
+        },
+        {
           "name": "FIRST_SETUP_KEY",
           "value": "np.setup.first-complete",
           "note": "The first hardware setup has completed."

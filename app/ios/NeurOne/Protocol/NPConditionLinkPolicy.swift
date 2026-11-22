@@ -127,39 +127,66 @@ enum NPConditionLinkPolicy {
         return authority
     }
 
-    /// Loopback, link-local, mDNS, RFC1918, and single-label intranet hosts. A
-    /// crafted registry must not be able to aim the system browser at a service
-    /// bound to the user's own machine or LAN.
+    /// Loopback, link-local, mDNS, RFC1918, CGNAT, multicast, and single-label
+    /// intranet hosts. A crafted registry must not be able to aim the system
+    /// browser at a service bound to the user's own machine or LAN.
+    ///
+    /// A numeric host is accepted only in canonical dotted-quad form: browsers
+    /// read `127.1`, `0x7f.0.0.1`, `0177.0.0.1` and `2130706433` as 127.0.0.1,
+    /// so a host whose last label is a number and which is not a canonical quad
+    /// is refused. IPv6 literals are parsed to eight groups so an embedded IPv4
+    /// address is classified as IPv4; an unparseable literal or a zone
+    /// identifier is refused (NP-PRIV-ANALYSIS-007 L14, OI-PRIV-66).
     static func isLocalOrPrivateHost(_ hostname: String) -> Bool {
         let host = hostname.lowercased()
 
-        if host == "localhost" || host.hasSuffix(".localhost") { return true }
-        if host.hasSuffix(".local") { return true }
+        if host.contains(":") {
+            guard let groups = parseIPv6(host) else { return true }
+            return !isPublicIPv6(groups)
+        }
 
-        if host.contains(":") { return isPrivateIPv6(host) }
+        // One trailing dot is the DNS root and names the same host.
+        let name = host.hasSuffix(".") ? String(host.dropLast()) : host
+        if name.isEmpty { return true }
+        let labels = name.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        if labels.contains(where: { $0.isEmpty }) { return true }
 
-        if let octets = parseIPv4(host) { return isPrivateIPv4(octets) }
+        if name == "localhost" || name.hasSuffix(".localhost") { return true }
+        if name.hasSuffix(".local") { return true }
+
+        if let last = labels.last, isNumericLabel(last) {
+            guard let octets = parseCanonicalIPv4(labels) else { return true }
+            return isPrivateIPv4(octets)
+        }
 
         // A single-label name like `wiki` or `intranet` is not a public FQDN; it
         // resolves through the host's DNS search suffix onto the LAN. Public
         // condition links are always dotted.
-        return !host.contains(".")
+        return labels.count == 1
     }
 
-    private static func isPrivateIPv6(_ host: String) -> Bool {
-        if host == "::1" || host == "::" { return true }
-        // fe80::/10 link-local, fc00::/7 unique-local.
-        return host.hasPrefix("fe80:") || host.hasPrefix("fc") || host.hasPrefix("fd")
+    private static func isDecimalDigits(_ s: String) -> Bool {
+        s.utf8.allSatisfy { $0 >= 0x30 && $0 <= 0x39 }
     }
 
-    private static func parseIPv4(_ host: String) -> [Int]? {
-        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 4 else { return nil }
+    private static func isHexDigits(_ s: String) -> Bool {
+        s.utf8.allSatisfy { ($0 >= 0x30 && $0 <= 0x39) || ($0 >= 0x61 && $0 <= 0x66) }
+    }
 
+    /// All decimal digits, or `0x` and hex digits: a label a browser reads as a number.
+    private static func isNumericLabel(_ label: String) -> Bool {
+        if label.hasPrefix("0x") { return isHexDigits(String(label.dropFirst(2))) }
+        return isDecimalDigits(label)
+    }
+
+    /// Exactly four decimal octets, 0–255, with no leading zero.
+    private static func parseCanonicalIPv4(_ labels: [String]) -> [Int]? {
+        guard labels.count == 4 else { return nil }
         var octets: [Int] = []
-        for part in parts {
-            guard !part.isEmpty, part.count <= 3, part.allSatisfy({ $0.isASCII && $0.isNumber }),
-                  let n = Int(part), n <= 255 else { return nil }
+        for part in labels {
+            guard !part.isEmpty, part.utf8.count <= 3, isDecimalDigits(part) else { return nil }
+            if part.utf8.count > 1 && part.hasPrefix("0") { return nil }
+            guard let n = Int(part), n <= 255 else { return nil }
             octets.append(n)
         }
         return octets
@@ -169,9 +196,89 @@ enum NPConditionLinkPolicy {
         let a = o[0], b = o[1]
         if a == 127 || a == 0 { return true }             // loopback, "this network"
         if a == 10 { return true }                        // RFC1918 10/8
+        if a == 100 && (64...127).contains(b) { return true } // RFC6598 shared address space (CGNAT)
         if a == 192 && b == 168 { return true }           // RFC1918 192.168/16
         if a == 172 && (16...31).contains(b) { return true } // RFC1918 172.16/12
         if a == 169 && b == 254 { return true }           // link-local
+        if a >= 224 { return true }                       // multicast, reserved, broadcast
         return false
+    }
+
+    /// RFC 4291 text form to eight 16-bit groups, or nil. At most one `::`; a
+    /// dotted IPv4 tail only as the last element; no zone identifier.
+    private static func parseIPv6(_ host: String) -> [Int]? {
+        if host.contains("%") { return nil }
+        let head: String
+        let tail: String
+        let hasGap: Bool
+        if let gap = host.range(of: "::") {
+            if host[gap.upperBound...].contains("::") { return nil }
+            // `:::` holds a second `::` starting one character into the first.
+            if host[host.index(after: gap.lowerBound)...].hasPrefix("::") { return nil }
+            head = String(host[..<gap.lowerBound])
+            tail = String(host[gap.upperBound...])
+            hasGap = true
+        } else {
+            head = host
+            tail = ""
+            hasGap = false
+        }
+        let headParts = head.isEmpty ? [] : head.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        let tailParts = tail.isEmpty ? [] : tail.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+
+        guard let headGroups = ipv6Groups(headParts, dottedLastAllowed: !hasGap),
+              let tailGroups = ipv6Groups(tailParts, dottedLastAllowed: hasGap) else { return nil }
+        let total = headGroups.count + tailGroups.count
+        if !hasGap && total != 8 { return nil }
+        if hasGap && total > 7 { return nil }
+
+        var groups = [Int](repeating: 0, count: 8)
+        for (i, g) in headGroups.enumerated() { groups[i] = g }
+        for (i, g) in tailGroups.enumerated() { groups[8 - tailGroups.count + i] = g }
+        return groups
+    }
+
+    private static func ipv6Groups(_ parts: [String], dottedLastAllowed: Bool) -> [Int]? {
+        var out: [Int] = []
+        for (i, part) in parts.enumerated() {
+            if part.contains(".") {
+                guard dottedLastAllowed, i == parts.count - 1 else { return nil }
+                let quad = part.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+                guard let o = parseCanonicalIPv4(quad) else { return nil }
+                out.append((o[0] << 8) | o[1])
+                out.append((o[2] << 8) | o[3])
+            } else {
+                guard !part.isEmpty, part.utf8.count <= 4, isHexDigits(part),
+                      let n = Int(part, radix: 16) else { return nil }
+                out.append(n)
+            }
+        }
+        return out
+    }
+
+    private static func embeddedIPv4(_ hi: Int, _ lo: Int) -> [Int] {
+        [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff]
+    }
+
+    private static func isPublicIPv6(_ g: [Int]) -> Bool {
+        func zeroTo(_ n: Int) -> Bool { g[0..<n].allSatisfy { $0 == 0 } }
+        // ::, ::1, and the deprecated IPv4-compatible ::a.b.c.d.
+        if zeroTo(6) { return false }
+        // ::ffff:a.b.c.d (IPv4-mapped) and ::ffff:0:a.b.c.d (IPv4-translated).
+        if zeroTo(5) && g[5] == 0xffff { return !isPrivateIPv4(embeddedIPv4(g[6], g[7])) }
+        if zeroTo(4) && g[4] == 0xffff && g[5] == 0 { return !isPrivateIPv4(embeddedIPv4(g[6], g[7])) }
+        // 64:ff9b::/96 NAT64 well-known prefix; 64:ff9b:1::/48 is local-use.
+        if g[0] == 0x64 && g[1] == 0xff9b {
+            if g[2] == 1 { return false }
+            if g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0 {
+                return !isPrivateIPv4(embeddedIPv4(g[6], g[7]))
+            }
+        }
+        // 2002::/16 6to4 carries an IPv4 address in groups 1–2.
+        if g[0] == 0x2002 { return !isPrivateIPv4(embeddedIPv4(g[1], g[2])) }
+        if (g[0] & 0xff80) == 0xfe80 { return false }  // fe80::/10 link-local, fec0::/10 site-local
+        if (g[0] & 0xfe00) == 0xfc00 { return false }  // fc00::/7 unique-local
+        if (g[0] & 0xff00) == 0xff00 { return false }  // ff00::/8 multicast
+        return true
     }
 }

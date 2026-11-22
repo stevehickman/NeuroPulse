@@ -202,48 +202,71 @@ public static class NPConditionLinkPolicy
     }
 
     /// <summary>
-    /// Loopback, link-local, mDNS, RFC1918, and single-label intranet hosts. A
-    /// crafted registry must not be able to aim the system browser at a service
-    /// bound to the user's own machine or LAN.
+    /// Loopback, link-local, mDNS, RFC1918, CGNAT, multicast, and single-label
+    /// intranet hosts. A crafted registry must not be able to aim the system
+    /// browser at a service bound to the user's own machine or LAN.
     /// </summary>
+    /// <remarks>
+    /// A numeric host is accepted only in canonical dotted-quad form: browsers
+    /// read <c>127.1</c>, <c>0x7f.0.0.1</c>, <c>0177.0.0.1</c> and
+    /// <c>2130706433</c> as 127.0.0.1, so a host whose last label is a number and
+    /// which is not a canonical quad is refused. IPv6 literals are parsed to eight
+    /// groups so an embedded IPv4 address is classified as IPv4; an unparseable
+    /// literal or a zone identifier is refused (NP-PRIV-ANALYSIS-007 L14,
+    /// OI-PRIV-66).
+    /// </remarks>
     public static bool IsLocalOrPrivateHost(string hostname)
     {
         var host = hostname.ToLowerInvariant();
 
-        if (host == "localhost" || host.EndsWith(".localhost", StringComparison.Ordinal)) return true;
-        if (host.EndsWith(".local", StringComparison.Ordinal)) return true;
+        if (host.Contains(':'))
+        {
+            var groups = ParseIPv6(host);
+            return groups is null || !IsPublicIPv6(groups);
+        }
 
-        if (host.Contains(':')) return IsPrivateIPv6(host);
+        // One trailing dot is the DNS root and names the same host.
+        var name = host.EndsWith('.') ? host[..^1] : host;
+        if (name.Length == 0) return true;
+        var labels = name.Split('.');
+        if (labels.Any(l => l.Length == 0)) return true;
 
-        var octets = ParseIPv4(host);
-        if (octets is not null) return IsPrivateIPv4(octets);
+        if (name == "localhost" || name.EndsWith(".localhost", StringComparison.Ordinal)) return true;
+        if (name.EndsWith(".local", StringComparison.Ordinal)) return true;
+
+        if (IsNumericLabel(labels[^1]))
+        {
+            var octets = ParseCanonicalIPv4(labels);
+            return octets is null || IsPrivateIPv4(octets);
+        }
 
         // A single-label name like `wiki` or `intranet` is not a public FQDN; it
         // resolves through the machine's DNS search suffix onto the LAN. Public
         // condition links are always dotted.
-        return !host.Contains('.');
+        return labels.Length == 1;
     }
 
-    private static bool IsPrivateIPv6(string host)
-    {
-        if (host is "::1" or "::") return true;
-        // fe80::/10 link-local, fc00::/7 unique-local.
-        return host.StartsWith("fe80:", StringComparison.Ordinal)
-            || host.StartsWith("fc", StringComparison.Ordinal)
-            || host.StartsWith("fd", StringComparison.Ordinal);
-    }
+    private static bool IsHexDigit(char c) => IsAsciiDigit(c) || c is >= 'a' and <= 'f';
 
-    private static int[]? ParseIPv4(string host)
+    /// <summary>All decimal digits, or <c>0x</c> and hex digits: a label a browser reads as a number.</summary>
+    private static bool IsNumericLabel(string label) =>
+        label.StartsWith("0x", StringComparison.Ordinal)
+            ? label[2..].All(IsHexDigit)
+            : label.All(IsAsciiDigit);
+
+    /// <summary>Exactly four decimal octets, 0–255, with no leading zero.</summary>
+    private static int[]? ParseCanonicalIPv4(string[] labels)
     {
-        var parts = host.Split('.');
-        if (parts.Length != 4) return null;
+        if (labels.Length != 4) return null;
 
         var octets = new int[4];
         for (var i = 0; i < 4; i++)
         {
-            var part = parts[i];
+            var part = labels[i];
             if (part.Length is 0 or > 3 || !part.All(IsAsciiDigit)) return null;
-            if (!int.TryParse(part, out var n) || n > 255) return null;
+            if (part.Length > 1 && part[0] == '0') return null;
+            var n = int.Parse(part, System.Globalization.CultureInfo.InvariantCulture);
+            if (n > 255) return null;
             octets[i] = n;
         }
         return octets;
@@ -254,10 +277,88 @@ public static class NPConditionLinkPolicy
         int a = o[0], b = o[1];
         if (a is 127 or 0) return true;            // loopback, "this network"
         if (a == 10) return true;                  // RFC1918 10/8
+        if (a == 100 && b is >= 64 and <= 127) return true; // RFC6598 shared address space (CGNAT)
         if (a == 192 && b == 168) return true;     // RFC1918 192.168/16
         if (a == 172 && b is >= 16 and <= 31) return true; // RFC1918 172.16/12
         if (a == 169 && b == 254) return true;     // link-local
+        if (a >= 224) return true;                 // multicast, reserved, broadcast
         return false;
+    }
+
+    /// <summary>
+    /// RFC 4291 text form to eight 16-bit groups, or null. At most one <c>::</c>;
+    /// a dotted IPv4 tail only as the last element; no zone identifier.
+    /// </summary>
+    private static int[]? ParseIPv6(string host)
+    {
+        if (host.Contains('%')) return null;
+        var gap = host.IndexOf("::", StringComparison.Ordinal);
+        if (gap != -1 && host.IndexOf("::", gap + 1, StringComparison.Ordinal) != -1) return null;
+
+        var head = gap == -1 ? host : host[..gap];
+        var tail = gap == -1 ? "" : host[(gap + 2)..];
+        var headParts = head.Length == 0 ? Array.Empty<string>() : head.Split(':');
+        var tailParts = tail.Length == 0 ? Array.Empty<string>() : tail.Split(':');
+
+        var headGroups = IPv6Groups(headParts, dottedLastAllowed: gap == -1);
+        var tailGroups = IPv6Groups(tailParts, dottedLastAllowed: gap != -1);
+        if (headGroups is null || tailGroups is null) return null;
+        var total = headGroups.Count + tailGroups.Count;
+        if (gap == -1 && total != 8) return null;
+        if (gap != -1 && total > 7) return null;
+
+        var groups = new int[8];
+        for (var i = 0; i < headGroups.Count; i++) groups[i] = headGroups[i];
+        for (var i = 0; i < tailGroups.Count; i++) groups[8 - tailGroups.Count + i] = tailGroups[i];
+        return groups;
+    }
+
+    private static List<int>? IPv6Groups(string[] parts, bool dottedLastAllowed)
+    {
+        var output = new List<int>();
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i];
+            if (part.Contains('.'))
+            {
+                if (!dottedLastAllowed || i != parts.Length - 1) return null;
+                var o = ParseCanonicalIPv4(part.Split('.'));
+                if (o is null) return null;
+                output.Add((o[0] << 8) | o[1]);
+                output.Add((o[2] << 8) | o[3]);
+            }
+            else
+            {
+                if (part.Length is 0 or > 4 || !part.All(IsHexDigit)) return null;
+                output.Add(Convert.ToInt32(part, 16));
+            }
+        }
+        return output;
+    }
+
+    private static int[] EmbeddedIPv4(int hi, int lo) => new[] { hi >> 8, hi & 0xff, lo >> 8, lo & 0xff };
+
+    private static bool IsPublicIPv6(int[] g)
+    {
+        bool ZeroTo(int n) => g.Take(n).All(x => x == 0);
+        // ::, ::1, and the deprecated IPv4-compatible ::a.b.c.d.
+        if (ZeroTo(6)) return false;
+        // ::ffff:a.b.c.d (IPv4-mapped) and ::ffff:0:a.b.c.d (IPv4-translated).
+        if (ZeroTo(5) && g[5] == 0xffff) return !IsPrivateIPv4(EmbeddedIPv4(g[6], g[7]));
+        if (ZeroTo(4) && g[4] == 0xffff && g[5] == 0) return !IsPrivateIPv4(EmbeddedIPv4(g[6], g[7]));
+        // 64:ff9b::/96 NAT64 well-known prefix; 64:ff9b:1::/48 is local-use.
+        if (g[0] == 0x64 && g[1] == 0xff9b)
+        {
+            if (g[2] == 1) return false;
+            if (g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0)
+                return !IsPrivateIPv4(EmbeddedIPv4(g[6], g[7]));
+        }
+        // 2002::/16 6to4 carries an IPv4 address in groups 1–2.
+        if (g[0] == 0x2002) return !IsPrivateIPv4(EmbeddedIPv4(g[1], g[2]));
+        if ((g[0] & 0xff80) == 0xfe80) return false;  // fe80::/10 link-local, fec0::/10 site-local
+        if ((g[0] & 0xfe00) == 0xfc00) return false;  // fc00::/7 unique-local
+        if ((g[0] & 0xff00) == 0xff00) return false;  // ff00::/8 multicast
+        return true;
     }
 
     /// <summary>
