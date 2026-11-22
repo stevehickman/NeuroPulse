@@ -19,8 +19,9 @@
 
 ## 2. What the code does today (checked 2026-11-21)
 
-- **Who chooses the tag.** Both apps send the first four bytes of the profile UUID
-  (`app/ios/NeurOne/Models/CervicalFaultStatus.swift` `ActiveUserTag`; `common/core/.../CervicalFaultStatus.kt`).
+- **Who chooses the tag.** The apps send the first four bytes of the profile UUID. One implementation
+  serves every app (`common/core/.../CervicalFaultStatus.kt` `ActiveUserTag`); the SwiftUI iOS app, which
+  derived it the same way, was retired in #946.
 - **What the hub accepts.** GATT `ACTIVE_USER` (0x0016) takes any 4-byte value except 0 and `0xFFFFFFFF`
   (`firmware/hub_control/src/np_cvns_fault_summary.c` `np_cvfs_on_active_user_write`). The characteristic needs an
   encrypted link. Nothing ties the value to the app or to a profile.
@@ -42,7 +43,7 @@
 ## 3. The privacy repair and its migration
 
 `REQ-FAULTMSG-01` (`NP-SW-FAULTMSG-001` §9.2) replaces the UUID prefix with HMAC-SHA-256 keyed by a per-profile
-secret over the helmet serial. The core is built and tested (`common/npps-core/src/active_user_tag.rs`); neither app
+secret over the helmet serial. The core is built and tested (`common/npps-core/src/active_user_tag.rs`); no app
 uses it yet. Every existing (profile, helmet) pair therefore changes tag once. Presenting the new tag while a hold is
 held under the old one would release that hold without the re-enable sequence (`REQ-CVNS-09`).
 

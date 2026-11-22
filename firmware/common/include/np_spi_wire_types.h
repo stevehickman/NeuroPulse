@@ -538,7 +538,7 @@ typedef char _np_spi_imp_report_fits_check[
 /*
  * Tells the safety MCU which person is using the device, so that a cervical VNS
  * cardiac cutoff is held for THAT person and nobody else (principal decision,
- * 2026-09-22).  The tag is opaque to the MCU, but it is NOT random: both apps
+ * 2026-09-22).  The tag is opaque to the MCU, but it is NOT random: the apps
  * send the first four bytes of the profile UUID, so the same person shows the
  * same tag on every helmet and it joins to the profile id.  It is UHDR-class
  * (OI-PRIV-29, NP-PRIV-ANALYSIS-004; REQ-FAULTMSG-01 replaces it with a

@@ -215,7 +215,7 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
   *any*; both are reserved and never produced. **That derivation is being replaced** (`OI-PRIV-29`,
   NP-PRIV-ANALYSIS-004): a UUID prefix is the same on every helmet, joins to the profile id in exported
   files and is UHDR-class (`data-architecture-detail.md` §5.1). The replacement is `REQ-FAULTMSG-01`
-  below; its core is built (`common/npps-core/src/active_user_tag.rs`) and not wired into either app,
+  below; its core is built (`common/npps-core/src/active_user_tag.rs`) and not wired into the apps,
   pending the Safety brief `docs/human-input/oi-priv-29-active-user-tag-safety.md`.
   The hub forwards the tag in a 10-byte SPI frame
   (`np_safety_user_cmd_t`, `NP_SAFETY_CMD_ACTIVE_USER`) only while no session is running. The
