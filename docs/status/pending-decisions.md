@@ -4,6 +4,13 @@
 >
 > **Note on overlap:** much of the completed detail here and in `completed-decisions.md` also appears in the DHF index (`docs/np_dhf_001.md`) and git history. Content was relocated faithfully, not deduped — the dedup pass against the DHF is **`OI-CONV-07`** (§13.3 below; owning entry in `docs/np_conv_001.md`), and deleting authoritative memory stays a reviewed, per-item decision. **Where this file and the DHF disagree, the DHF wins.**
 
+> **How a PR changes this file (since 2026-11-22).** Not directly. Edit it as usual, then run
+> `bun scripts/assign-revisions.ts --convert-open`: the edit moves into the PR's revision fragment as `## OPEN` hunks and
+> this file goes back as the branch found it; the `assign-revisions` workflow applies the hunks in place when the PR
+> merges. `--expand-open` puts them back to edit again. Each hunk is found by the text of the lines it replaces, so PRs
+> that change neighbouring items no longer conflict; two that change the same item do, as a failed check on the second
+> (`check-revision-fragments` rule N). Procedure: `docs/revisions/README.md`.
+
 ## How to read this file
 
 **~136 KB. Do not read it whole to answer one question.** Five sections, in this order:
