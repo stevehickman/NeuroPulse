@@ -190,3 +190,23 @@ describe('a typed layer start offset in the Compose composer', () => {
     expect(composer).toMatch(/enabled = layers\.isNotEmpty\(\) && !offsetRefused/);
   });
 });
+
+describe('a number field in the Compose modality editor', () => {
+  const editor = read('app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ModalityEditorScreen.kt');
+
+  // @verifies SWR-UI-01#f
+  it('no longer leaves blank text in the field while the old value stays stored', () => {
+    // The old fields committed a value only when the text parsed and otherwise did nothing, so a cleared field showed
+    // blank beside an unchanged stored value.
+    expect(editor).not.toMatch(/text\.toDoubleOrNull\(\)\?\.let\(onChange\)/);
+    expect(editor).not.toMatch(/text\.toIntOrNull\(\)\?\.let\(onChange\)/);
+  });
+
+  // @verifies SWR-UI-01#f
+  it('marks an unread field and blocks Save while any field is unread', () => {
+    expect(editor).toMatch(/isError = unread/);
+    expect(editor).toMatch(/enabled = unreadFields\.isEmpty\(\)/);
+    expect(editor).toMatch(/LocalUnreadFields provides unreadFields/);
+    expect(editor).toMatch(/validate_msg_general_required_parameter/);
+  });
+});

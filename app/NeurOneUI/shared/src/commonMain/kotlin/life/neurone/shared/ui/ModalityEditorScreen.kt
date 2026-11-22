@@ -24,10 +24,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -59,6 +64,38 @@ import life.neurone.shared.resources.*
 // full widget editing here (T2/accessory show a note to edit via the script editor). Add a
 // modality from the picker, tune params, Save writes the updated protocol to the library.
 
+/**
+ * The number fields of the open editor that hold text that is not a number (blank, or a lone point). Each field reports
+ * itself here and Save is disabled while any does. A field that is not in the editor reports nowhere (null).
+ */
+private val LocalUnreadFields = compositionLocalOf<SnapshotStateMap<Any, Unit>?> { null }
+
+/** What a number field holds: the number, or null when the text is not one (blank, a lone point) or is not finite. */
+internal fun typedDouble(text: String): Double? = text.toDoubleOrNull()?.takeIf { it.isFinite() }
+
+/** What a whole-number field holds: the number, or null when the text is not one (blank) or is too large for an Int. */
+internal fun typedInt(text: String): Int? = text.toIntOrNull()
+
+/**
+ * The text a decimal field takes after an edit. Characters that are not digits or a point are dropped, and an edit that
+ * could not be the start of a number (a second point, or digits too many to be finite) is refused, leaving [previous].
+ * Blank and a lone point are kept: a person passes through them while typing, and the field marks them unread, so what
+ * the field shows is never different from what is stored without the field saying so (`NP-SW-001` SWR-UI-01 (f)).
+ */
+internal fun numberText(previous: String, edited: String): String {
+    val kept = edited.filter { it.isDigit() || it == '.' }
+    if (kept.count { it == '.' } > 1) return previous
+    if (kept.isNotEmpty() && kept != "." && typedDouble(kept) == null) return previous
+    return kept
+}
+
+/** As [numberText] for a whole-number field: digits only, and an edit too large for an Int is refused. */
+internal fun wholeNumberText(previous: String, edited: String): String {
+    val kept = edited.filter { it.isDigit() }
+    if (kept.isNotEmpty() && kept.toIntOrNull() == null) return previous
+    return kept
+}
+
 @Composable
 fun ModalityEditorScreen(
     library: NPProtocolLibrary,
@@ -70,11 +107,13 @@ fun ModalityEditorScreen(
     var modalities by remember { mutableStateOf(existing.modalities) }
     var refusal by remember { mutableStateOf<Pair<NPProtocolEntry, SaveResult>?>(null) }
     var expanded by remember { mutableStateOf<Int?>(0) }
+    val unreadFields = remember { mutableStateMapOf<Any, Unit>() }
 
     fun updateAt(index: Int, transform: (NPProtocolModality) -> NPProtocolModality) {
         modalities = modalities.mapIndexed { i, m -> if (i == index) transform(m) else m }
     }
 
+    CompositionLocalProvider(LocalUnreadFields provides unreadFields) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         refusal?.let { (e, r) ->
             SaveRefusalDialog(library, e, r, onResolved = { refusal = null; onSaved() }, onDismiss = { refusal = null })
@@ -90,7 +129,7 @@ fun ModalityEditorScreen(
                 val entry = NPProtocolEntry.Single(existing.copy(modalities = modalities))
                 val result = library.save(entry)
                 if (result is SaveResult.RefusedFamilyUsed || result is SaveResult.RefusedVariantExists) refusal = entry to result else onSaved()
-            }) { Text(stringResource(Res.string.protocol_composer_save)) }
+            }, enabled = unreadFields.isEmpty()) { Text(stringResource(Res.string.protocol_composer_save)) }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -112,6 +151,7 @@ fun ModalityEditorScreen(
         AddModalityButton(onAdd = { type ->
             defaultModality(type)?.let { modalities = modalities + it; expanded = modalities.lastIndex }
         })
+    }
     }
 }
 
@@ -290,15 +330,30 @@ private fun AddModalityButton(onAdd: (NPModalityType) -> Unit) {
 
 // ── Reusable controls ───────────────────────────────────────────────────────
 
+/** Reports whether the calling field holds unread text, and stops reporting when the field leaves the screen. */
+@Composable
+private fun ReportUnread(unread: Boolean) {
+    val registry = LocalUnreadFields.current
+    val key = remember { Any() }
+    DisposableEffect(unread) {
+        if (unread) registry?.put(key, Unit)
+        onDispose { registry?.remove(key) }
+    }
+}
+
 @Composable
 private fun NumField(label: String, value: Double, onChange: (Double) -> Unit) {
     var text by remember { mutableStateOf(fmt(value)) }
+    val unread = typedDouble(text) == null
+    ReportUnread(unread)
     OutlinedTextField(
         value = text,
         onValueChange = { raw ->
-            text = raw.filter { it.isDigit() || it == '.' }
-            text.toDoubleOrNull()?.let(onChange)
+            text = numberText(text, raw)
+            typedDouble(text)?.let(onChange)
         },
+        isError = unread,
+        supportingText = if (unread) { { Text(stringResource(Res.string.validate_msg_general_required_parameter, label)) } } else null,
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
@@ -308,12 +363,16 @@ private fun NumField(label: String, value: Double, onChange: (Double) -> Unit) {
 @Composable
 private fun IntField(label: String, value: Int, onChange: (Int) -> Unit) {
     var text by remember { mutableStateOf(value.toString()) }
+    val unread = typedInt(text) == null
+    ReportUnread(unread)
     OutlinedTextField(
         value = text,
         onValueChange = { raw ->
-            text = raw.filter { it.isDigit() }
-            text.toIntOrNull()?.let(onChange)
+            text = wholeNumberText(text, raw)
+            typedInt(text)?.let(onChange)
         },
+        isError = unread,
+        supportingText = if (unread) { { Text(stringResource(Res.string.validate_msg_general_required_parameter, label)) } } else null,
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
