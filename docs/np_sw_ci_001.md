@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 42
+**Revision:** 43
 **Date:** 2026-11-22  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -4451,3 +4451,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 40 | 2026-11-21 | NeurOne Tooling | **New §6.18: `reporting paths cannot leak a sensitive predicate (§5.1)` joins `ci/required-checks.txt` and carries the in-file warning; why it is safe to require, what it does not catch (two PRs each green against an older `main`, which is Q5), and the runbook. `OI-SWCI-54` row updated; it stays open.** |
 | 41 | 2026-11-21 | NeurOne Tooling | **New §6.18.4: the redaction-shape context applied; `strict_required_status_checks_policy` is `true` (OI-SWCI-54 Q5 option B, the principal), so `ci/main-ruleset.json` says `true`; why and the cost. OI-SWCI-53 closed; OI-SWCI-54 row updated and still open.** |
 | 42 | 2026-11-22 | NeurOne Tooling | **New §6.19: the four workflows holding required contexts trigger on `merge_group`; `ci-changed-scope.sh` diffs a merge group against its `base_sha` and never a last-green base; the revision-fragment and wavelength-register guards run in the queue (merge method `MERGE`); correspondence C requires the trigger; `check-main-ruleset.ts` R7 and L5 cover a `merge_queue` rule; the settings runbook (§6.19.3) and Q6 on `strict`. OI-SWCI-55 raised; no setting changed.** |
+| 43 | 2026-11-22 | NeurOne Tooling | **§6.19.3 notes the merge queue is offered only on organization-owned repositories; new §6.19.4 records the options and the principal's choice to keep `strict: true` for now (OI-SWCI-55 deferred). New §6.20: `main-health.yml` and `scripts/main-health.ts` email the owner on each change of colour on `main` and post the required status `main is green, or this PR is up to date with main` (the up-to-date requirement while `main` is red); `ci/required-statuses.txt`; `check-ci-scope.ts` correspondence F and posted statuses in C; `check-main-ruleset.ts` reads both manifests; `ci-changed-scope.sh` diffs a push to `main` from its last green head; runbook §6.20.3. §6.18.4 marked replaced. OI-SWCI-10 closed; OI-SWCI-54 Q5 answered again (`strict: false` with the hold).** |
