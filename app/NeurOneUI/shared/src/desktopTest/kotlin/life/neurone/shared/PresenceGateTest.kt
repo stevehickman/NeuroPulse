@@ -20,7 +20,9 @@ import life.neurone.core.common.PassphraseGatedSecretKeyStore
 import life.neurone.core.common.PassphraseResult
 import life.neurone.core.common.GatedSecretKeyStore as GatedKey
 import life.neurone.core.common.PresenceState
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.common.SecretKeyUnavailableException
+import life.neurone.core.common.StorageProtection
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral
 import life.neurone.shared.migration.ScheduledBackup
@@ -57,13 +59,13 @@ class PresenceGateTest {
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
 
-    private fun services(gated: GatedKey?, host: InMemoryKeyValueStore = InMemoryKeyValueStore()) = AppServices(
+    private fun services(gated: GatedKey?, host: InMemoryKeyValueStore = InMemoryKeyValueStore(), device: SecretKeyStore = InMemorySecretKeyStore()) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = host
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
-            override val secretKeyStore = InMemorySecretKeyStore()
+            override val secretKeyStore = device
             override val gatedKeyStore = gated
             override val appInForeground: StateFlow<Boolean> = foreground
             @androidx.compose.runtime.Composable
@@ -220,5 +222,27 @@ class PresenceGateTest {
         assertEquals(AppServices.PresenceChange.CHANGED, runBlocking { app.turnOnPresenceGate(longPassphrase) })
         assertTrue(app.presenceEnabled)
         assertEquals(PassphraseResult.OK, runBlocking { app.presencePassphraseKey!!.changePassphrase(longPassphrase, "another long passphrase") })
+    }
+
+    // @verifies REQ-PRES-10#b
+    @Test
+    fun aLostGateFlagStillOpensStorageGatedOverValuesSealedUnderTheGatedKey() {
+        val host = InMemoryKeyValueStore()
+        val device = InMemorySecretKeyStore()
+        val gated = Gated()
+        val first = services(gated, host, device)
+        assertTrue(runBlocking { first.presenceLock!!.unlock("Unlock") })
+        first.keyValueStore.putString("np.session.history", "ten sessions")
+        val sealed = host.getString("np.session.history")
+
+        // The next run: the host's flag was lost or misread, the key behind it was not.
+        gated.lock()
+        gated.isEnabled = false
+        val second = services(gated, host, device)
+        val lock = kotlin.test.assertNotNull(second.presenceLock, "the sealed values say the gate is on")
+        assertEquals(StorageProtection.SEALED, second.storageProtection)
+        assertEquals(sealed, host.getString("np.session.history"), "nothing was sealed again under the device key")
+        assertTrue(runBlocking { lock.unlock("Unlock") })
+        assertEquals("ten sessions", second.keyValueStore.getString("np.session.history"))
     }
 }

@@ -19,10 +19,16 @@ class TieredKeyValueStore(
     /** Writes held while locked, in order. A later write to the same key replaces the earlier one in place. */
     private val pending = LinkedHashMap<String, String>()
 
+    /**
+     * Whether this unlock's re-seal and migration pass has finished (`OI-PRIV-62`, M10). Until it has, each write runs it again; once it
+     * has, a write only applies what was held, so it no longer loads the earlier key and opens every protected value. Reset at each lock.
+     */
+    private var passDoneThisUnlock = false
+
     init {
         require(deviceKeys.none { it in uhdrKeys }) { "a key is in one tier only" }
         lock.onStateChanged { state ->
-            if (state == PresenceState.LOCKED) uhdr.forgetKey() else applyPending()
+            if (state == PresenceState.LOCKED) { passDoneThisUnlock = false; uhdr.forgetKey() } else applyPending()
         }
     }
 
@@ -31,18 +37,24 @@ class TieredKeyValueStore(
 
     /** Apply what was held, now that the key can be read. A write that fails stays held, and the ones after it with it. */
     private fun applyPending() {
-        // A key moved from the UHDR tier to the device tier is moved off the gated key now that it can be read (the analytics ID and its
-        // erasure queue, the principal 2026-11-21). Only the device-tier keys are touched, and none of them was ever the person's.
-        device.resealFromLegacy()
-        // First the values sealed before the gate was on are moved to the gated key (REQ-PRES-07), so a held write lands on top of them.
-        uhdr.resealFromLegacy()
-        uhdr.migrate()
+        if (!passDoneThisUnlock) resealAndMigrate()
         val it = pending.entries.iterator()
         while (it.hasNext()) {
             val (k, v) = it.next()
             try { uhdr.putString(k, v) } catch (e: SecretKeyUnavailableException) { return }
             it.remove()
         }
+    }
+
+    /** The once-per-unlock pass: a value still under an earlier key is moved, and a plain one is sealed. */
+    private fun resealAndMigrate() {
+        // A key moved from the UHDR tier to the device tier is moved off the gated key now that it can be read (the analytics ID and its
+        // erasure queue, the principal 2026-11-21). Only the device-tier keys are touched, and none of them was ever the person's.
+        device.resealFromLegacy()
+        // First the values sealed before the gate was on are moved to the gated key (REQ-PRES-07), so a held write lands on top of them.
+        uhdr.resealFromLegacy()
+        uhdr.migrate()
+        passDoneThisUnlock = device.legacyPassComplete && uhdr.legacyPassComplete
     }
 
     override fun getString(key: String): String? = when {

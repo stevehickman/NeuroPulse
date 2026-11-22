@@ -19,6 +19,7 @@
  *       only, a literal in common/npps-core/src/migration_flow.rs counts as a source. The core's literals are not read
  *       for K1, because two of its keys (the cleared marker and the clear's progress) are in no list on purpose.
  *   K4  A list is missing, or an entry is not a plain key.
+ *   K6  A host-plain key (never sealed, REQ-PRES-10) is not a perInstall key, or is also in the device tier.
  *
  * Reach, stated narrowly: this finds a key written as a literal. A key assembled at run time ("np." + name) is not seen.
  * It does not check that a carried key's value round-trips, which the core's flow tests do.
@@ -82,6 +83,11 @@ export function check(files: Map<string, string>, map: any, coreFlows = ""): Fin
   for (const k of Array.isArray(map?.deviceTier) ? map.deviceTier : []) {
     if (!listed.has(k)) out.push({ file: KEYS_JSON, message: `K5: device-tier key '${String(k)}' is in no list` });
   }
+  // The gate's own records (REQ-PRES-10) are per-install keys left unsealed: a key there that is not per-install would be user data in the clear.
+  for (const k of Array.isArray(map?.hostPlain) ? map.hostPlain : []) {
+    if (listed.get(k) !== "perInstall") out.push({ file: KEYS_JSON, message: `K6: host-plain key '${String(k)}' is not a perInstall key` });
+    if (Array.isArray(map?.deviceTier) && map.deviceTier.includes(k)) out.push({ file: KEYS_JSON, message: `K6: host-plain key '${String(k)}' is also in the device tier` });
+  }
   const found = new Map<string, string>();
   for (const [path, text] of files) {
     if (!SOURCE_EXT.test(path) || EXCLUDED.test(path)) continue;
@@ -134,6 +140,8 @@ function selfTest(): void {
   expect("an entry that is not a key fails", src, { ...map, unsorted: [...map.unsorted, "session.history"] }, ["K4"]);
   expect("a device-tier key in no list fails", src, { ...map, deviceTier: ["np.not.stored"] }, ["K5"]);
   expect("a device-tier key that is listed passes", src, { ...map, deviceTier: ["ble.last-hub-id"] }, []);
+  expect("a host-plain key that is not per-install fails", src, { ...map, hostPlain: ["np.setup.first-complete"] }, ["K6"]);
+  expect("a host-plain per-install key passes", src, { ...map, hostPlain: ["ble.last-hub-id"] }, []);
   expect("a missing list fails", src, { carried: map.carried, consent: map.consent, perInstall: map.perInstall }, ["K4", "K1"]);
   console.log("check-migration-keys self-test: ok");
 }

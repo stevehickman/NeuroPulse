@@ -64,8 +64,13 @@ class AppServices(
     val platform: PlatformServices,
     /** Long-lived scope for the GATT manager and the consumable subscription. */
     val scope: CoroutineScope,
-    /** The clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. */
-    private val nowMs: () -> Long = { epochSeconds() * 1000 },
+    /**
+     * The monotonic clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. Not the wall
+     * clock, which the person can set back while the app is away (`OI-PRIV-62` M9); the wall clock is [wallMs], a second witness.
+     */
+    private val nowMs: () -> Long = monotonicMs,
+    /** The wall clock in milliseconds, asked as well so time the monotonic clock did not count (the device asleep) still locks. */
+    private val wallMs: () -> Long = { epochSeconds() * 1000 },
     /** The cloud providers this build was registered with (SWR-MG-19); generated from the build's properties, empty until the owner registers clients. */
     cloudAuthConfig: life.neurone.core.cloudauth.CloudAuthConfig = CloudAuthBuildConfig.config,
 ) {
@@ -83,8 +88,20 @@ class AppServices(
      * yet, and a host that does answers [GatedSecretKeyStore.isEnabled] false until the person turns it on, so this is null and storage opens as before.
      * Starts locked; the screens ask ([PresenceGate]) before showing anything.
      */
-    val presenceLock: PresenceLock? = platform.gatedKeyStore?.takeIf { it.isEnabled && platform.secretKeyStore != null }?.let { gated ->
-        PresenceLock(gated, nowMs)
+    val presenceLock: PresenceLock? = platform.gatedKeyStore?.takeIf { gateIsOn(it) }?.let { gated ->
+        PresenceLock(gated, nowMs, wallMs = wallMs)
+    }
+
+    /**
+     * Whether storage opens gated: the host says the gate is on, **or a protected value is sealed under a key other than the device key**,
+     * which on this install can only be the gated key (`REQ-PRES-10` (b), `OI-PRIV-62` H2). A flag or record that was lost or misread
+     * then does not open the person's data ungated, where the next write would seal it again under a key the device releases alone.
+     */
+    private fun gateIsOn(gated: GatedSecretKeyStore): Boolean {
+        val secrets = platform.secretKeyStore ?: return false
+        if (gated.isEnabled) return true
+        val keys = runCatching { EncryptedKeyValueStore.uhdrKeys() }.getOrNull() ?: return false
+        return runCatching { ProtectedStorage.holdsValueSealedElsewhere(platform.keyValueStore, secrets, keys) }.getOrDefault(true)
     }
 
     init {
@@ -98,6 +115,9 @@ class AppServices(
         val secrets = platform.secretKeyStore
         if (gated != null && lock != null && secrets != null) {
             ProtectedStorage.openGated(platform.keyValueStore, secrets, gated, lock, { EncryptedKeyValueStore.uhdrKeys() }, { EncryptedKeyValueStore.deviceTierKeys() })
+        } else if (gated != null) {
+            // A host that offers the gate fails closed over a value sealed under the gated key (`REQ-PRES-10` (b)).
+            ProtectedStorage.openOnGateHost(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
         } else {
             ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
         }
@@ -519,3 +539,7 @@ private const val BACKUP_CHECK_MILLIS = 3_600_000L
 
 /** How often the open app checks whether the background timeout has run out (`UC-106`). */
 internal const val PRESENCE_TICK_MS = 15_000L
+
+/** A monotonic clock in milliseconds since this process started: one the person cannot set (`OI-PRIV-62` M9). */
+private val processStart = kotlin.time.TimeSource.Monotonic.markNow()
+internal val monotonicMs: () -> Long = { processStart.elapsedNow().inWholeMilliseconds }
