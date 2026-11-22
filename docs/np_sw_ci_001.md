@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 41
-**Date:** 2026-11-21  
+**Revision:** 42
+**Date:** 2026-11-22  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4317,3 +4317,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 39 | 2026-11-21 | NeurOne Tooling | **§5.0.2 CI-Scan-Paths table: `check-redaction-shape.ts` also reads `docs/status/pending-decisions.md`, to fail a known violation whose open item is closed (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
 | 40 | 2026-11-21 | NeurOne Tooling | **New §6.18: `reporting paths cannot leak a sensitive predicate (§5.1)` joins `ci/required-checks.txt` and carries the in-file warning; why it is safe to require, what it does not catch (two PRs each green against an older `main`, which is Q5), and the runbook. `OI-SWCI-54` row updated; it stays open.** |
 | 41 | 2026-11-21 | NeurOne Tooling | **New §6.18.4: the redaction-shape context applied; `strict_required_status_checks_policy` is `true` (OI-SWCI-54 Q5 option B, the principal), so `ci/main-ruleset.json` says `true`; why and the cost. OI-SWCI-53 closed; OI-SWCI-54 row updated and still open.** |
+| 42 | 2026-11-22 | NeurOne Tooling | **New §6.19: the four workflows holding required contexts trigger on `merge_group`; `ci-changed-scope.sh` diffs a merge group against its `base_sha` and never a last-green base; the revision-fragment and wavelength-register guards run in the queue (merge method `MERGE`); correspondence C requires the trigger; `check-main-ruleset.ts` R7 and L5 cover a `merge_queue` rule; the settings runbook (§6.19.3) and Q6 on `strict`. OI-SWCI-55 raised; no setting changed.** |
