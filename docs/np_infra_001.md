@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 6
-**Date:** 2026-10-18  
+**Revision:** 7
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -89,8 +89,8 @@ The server must not attempt to correlate `X-NP-Device-Token` with any user ident
 
 The device token is permanent, and the server sees the connection's source address. A record that holds both places a device on a household, clinic or employer network, which is the link `CLAUDE.md` §5.1 says SHDR never has. So the edge in front of `POST /v1/shdr` must:
 
-1. **Write the source address and the token in no log.** The access log and the runtime/error log both drop the client address and port, any forwarded address and the `X-NP-Device-Token` header (`REQ-SHDR-06` (a)).
-2. **Not pass the address on.** The ingest service gets neither `X-Forwarded-For` nor `X-Real-IP` (`REQ-SHDR-06` (b)), so it cannot write one beside the token.
+1. **Write the source address and the token in no log.** The access log and the runtime/error log both drop the client address and port and **every request header** (`request>headers`), which holds the `X-NP-Device-Token` header and any header a proxy on the way may put the address in (`REQ-SHDR-06` (a)). Deleting named headers was not enough: a header nobody listed was still logged (`OI-PRIV-51`).
+2. **Not pass the address on.** Caddy forwards every header it does not set itself, so the edge removes each header a proxy can carry the address in: `X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `True-Client-IP`, `CF-Connecting-IP`, `X-Client-IP`, `X-Cluster-Client-IP`, `Fastly-Client-IP` and `Via` (`REQ-SHDR-06` (b), `OI-PRIV-51`), so the ingest service cannot write one beside the token. A header outside that list would still reach the ingest service; the logs, which delete the whole header map, would not keep it.
 3. **Keep what it does log for a short time.** Log files are rolled by age (`REQ-SHDR-06` (c)). The reference figure, 72 hours, has no derivation (`UC-095`, `OI-FLEET-01`).
 
 `infra/fleet/Caddyfile` is the reference edge and `ci/test_fleet_ingest_config.py` (CI: `fleet-infra-ci.yml`) checks it. The deployed edge is not in this repository, so the check shows the reference does this, not that the deployment does.
@@ -431,3 +431,11 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev 1, `docs/np_analytics_001.md`) 
 | `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics DPA), STEP-19 (EU data residency for T2 cloud) |
 | `docs/np_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev 2) | iOS app development phases; OTA Watch app phases |
 | `app/ios/ISA.md` | ISC-3/8/9: SwiftLint enforcement; ISC-157: single PostHog integration point |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 7 | 2026-11-21 | NeurOne Software Engineering | **§3.3a: the fleet edge's logs delete every request header, and the edge removes nine client-address headers before the ingest service, not two (`OI-PRIV-51`, `REQ-SHDR-06`).** |
