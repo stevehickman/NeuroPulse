@@ -305,6 +305,14 @@ final class ConsentStore: ObservableObject {
         ResearchAnalyticsGate.reset()
     }
 
+    /// Turn research analytics on and start the SDK: the one place that opens the gate, as in the shared core
+    /// (`ConsentStore.grantResearchAnalytics`, `REQ-CONSENT-26`). This app still calls it from Done whatever was chosen
+    /// (NP-PRIV-ANALYSIS-006 F-01); it is not repaired here because the app is being retired (pull request #946).
+    func grantResearchAnalytics() {
+        ProtectedDefaults.standard.set(true, forKey: PersistedKeys.RESEARCH_ANALYTICS_KEY)
+        ResearchAnalyticsGate.configure()
+    }
+
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {
         var next = researchConsent
         next.categoryConsents[category] = granted

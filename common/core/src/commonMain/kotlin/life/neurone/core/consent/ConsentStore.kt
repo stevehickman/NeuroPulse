@@ -79,6 +79,8 @@ class ConsentStore(
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
         const val INVITATIONS_KEY = "np.consent.study-invitations"
         const val STUDY_WITHDRAWALS_KEY = "np.consent.study-withdrawals"
+        /** The mark of the last time research analytics was turned off after being on (`REQ-CONSENT-26` (b)); per install, as the analytics ID is. */
+        const val RESEARCH_ANALYTICS_WITHDRAWN_KEY = "np.consent.research-analytics-withdrawn"
 
         /** Stored records that could not be read, as found (`REQ-CONSENT-20`). Never moved in a migration. */
         const val QUARANTINE_KEY = "np.consent.quarantine"
@@ -406,12 +408,37 @@ class ConsentStore(
         onPortalIdentityWithdrawn()
     }
 
+    /** Whether research analytics is on: the person turned it on and has not turned it off since (`REQ-CONSENT-26`). */
+    val researchAnalyticsGranted: Boolean get() = store.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY)
+
+    /**
+     * The mark of the last time research analytics was turned off after being on (a day and a count, `WithdrawalMark`), or null
+     * if it never was. Only the store writes it, so "never asked" (null) and "said stop" stay distinguishable (`REQ-CONSENT-26` (b),
+     * `REQ-CONSENT-04`). It is kept when analytics is turned on again, as the other withdrawal marks are.
+     */
+    val researchAnalyticsWithdrawnAt: String? get() = store.getString(RESEARCH_ANALYTICS_WITHDRAWN_KEY)
+
+    /**
+     * Turn research analytics on, after the person has read what it sends and confirmed (`REQ-CONSENT-26` (a)); the screen shows
+     * the disclosure, the store records the decision and opens the gate. The one place outside onboarding that opens it.
+     */
+    fun grantResearchAnalytics() {
+        store.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        researchAnalyticsGate.configure()
+    }
+
     /**
      * Revoke research analytics — clears the research analytics gate key and
      * tears down the SDK so it cannot collect passively after withdrawal.
      * Does NOT affect WarrantyAnalyticsGate or SHDR fleet uploads.
+     *
+     * Turning off analytics that was on records the day (`REQ-CONSENT-26` (b)); a revoke of analytics that was never on records
+     * nothing, so a blanket withdrawal by someone who never turned analytics on does not read as "said stop" to analytics.
      */
     fun revokeResearchAnalytics() {
+        if (store.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY)) {
+            store.putString(RESEARCH_ANALYTICS_WITHDRAWN_KEY, WithdrawalMark.next(store.getString(RESEARCH_ANALYTICS_WITHDRAWN_KEY), today()))
+        }
         store.remove(PersistedKeys.RESEARCH_ANALYTICS_KEY)
         researchAnalyticsGate.reset()
     }

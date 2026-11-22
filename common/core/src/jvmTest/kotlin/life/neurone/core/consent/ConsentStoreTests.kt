@@ -62,6 +62,43 @@ class ConsentStoreTests {
         assertEquals(1, backend.resetCount)
     }
 
+    // @verifies REQ-CONSENT-26#a
+    @Test
+    fun grantingResearchAnalytics_opensTheGate_andConfiguresTheBackend() {
+        val kv = InMemoryKeyValueStore()
+        val gate = ResearchAnalyticsGate(kv, RecordingBackend())
+        val store = ConsentStore(kv, gate)
+        assertFalse(store.researchAnalyticsGranted)
+        store.grantResearchAnalytics()
+        assertTrue(store.researchAnalyticsGranted)
+        assertTrue(gate.isOpen)
+    }
+
+    // @verifies REQ-CONSENT-26#b
+    @Test
+    fun turningResearchAnalyticsOffAfterOn_recordsTheDay_andNeverAskedRecordsNothing() {
+        var day = "2026-11-20"
+        val kv = InMemoryKeyValueStore()
+        val store = ConsentStore(kv, ResearchAnalyticsGate(kv, RecordingBackend()), today = { day })
+
+        // Never turned on: a revoke (here by a blanket withdrawal) is not "said stop" to analytics.
+        store.updateResearchConsent(ResearchConsentState(blanketConsentGranted = true))
+        store.withdrawBlanketResearchConsent()
+        assertNull(store.researchAnalyticsWithdrawnAt)
+
+        store.grantResearchAnalytics()
+        store.revokeResearchAnalytics()
+        assertEquals("2026-11-20#000001", store.researchAnalyticsWithdrawnAt)
+        assertFalse(store.researchAnalyticsGranted)
+
+        // Turned on again, the old mark stays; turned off again, the count goes up and the day is the new one.
+        day = "2026-11-22"
+        store.grantResearchAnalytics()
+        assertEquals("2026-11-20#000001", store.researchAnalyticsWithdrawnAt)
+        store.revokeResearchAnalytics()
+        assertEquals("2026-11-22#000002", store.researchAnalyticsWithdrawnAt)
+    }
+
     // ISC-23: partial withdrawals do NOT revoke research analytics.
     // @verifies REQ-CONSENT-02#a
     @Test

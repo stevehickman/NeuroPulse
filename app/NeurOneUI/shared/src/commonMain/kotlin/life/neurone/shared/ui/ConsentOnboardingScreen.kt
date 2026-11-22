@@ -54,7 +54,7 @@ import life.neurone.shared.resources.*
 // the nine categories and deliberately does NOT touch the blanket toggle (§6.2.3).
 //
 // All optional — every device function works without research consent. On finish the built
-// ResearchConsentState is persisted via ConsentStore.updateResearchConsent, which is also
+// ResearchConsentState is persisted via ConsentStore.updateResearchConsent (Skip persists nothing), which is also
 // where a blanket true→false transition triggers the research-analytics teardown (§6.2.5).
 
 private const val SCREEN_COUNT = 2
@@ -94,8 +94,9 @@ fun ConsentOnboardingScreen(
         Spacer(Modifier.height(24.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = {
-                // Skip the rest — persist whatever has been chosen so far (may be none).
-                store.updateResearchConsent(state)
+                // Skip records nothing: a toggle turned on and then skipped is not a decision the person made
+                // (`REQ-CONSENT-25`, NP-PRIV-ANALYSIS-006 F-10). The stored state stays as it was when the screen opened,
+                // so a first run stays "never asked" and Research Preferences keeps the earlier choices.
                 onComplete()
             }) { Text(stringResource(Res.string.consent_skip_button)) }
             Spacer(Modifier.weight(1f))

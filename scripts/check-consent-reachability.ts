@@ -166,6 +166,13 @@ const SURFACE: Record<string, Reach> = {
     },
     note: "SWR-MG-04: a restore applies a later withdrawal through the migration item. It can only switch a grant off; the later-time comparison is the core's (applyWithdrawal)",
   },
+  grantResearchAnalytics: {
+    kind: "ui",
+    note:
+      "REQ-CONSENT-26: the one place that opens the research analytics gate. Compose calls it from the Settings switch after the " +
+      "disclosure is confirmed (ResearchAnalyticsSection); the Swift app calls it from Done, whatever was chosen (NP-PRIV-ANALYSIS-006 F-01, " +
+      "not repaired there because that app is being retired)",
+  },
   revokeResearchAnalytics: {
     kind: "internal",
     note: "§6.0 teardown. Reached from withdrawBlanketResearchConsent() and from updateResearchConsent()'s true→false transition (§6.2.5); a direct UI opt-out toggle is optional, not required",

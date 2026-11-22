@@ -7,6 +7,7 @@
   },
   "consent": [
     "np.consent.research",
+    "np.consent.research-analytics-withdrawn",
     "np.consent.clinician-grants",
     "np.consent.clinician-expansions",
     "np.consent.study-invitations",
