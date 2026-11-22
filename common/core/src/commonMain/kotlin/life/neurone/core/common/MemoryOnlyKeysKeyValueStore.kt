@@ -73,7 +73,7 @@ class MemoryOnlyKeysKeyValueStore(
          * extension, so it holds none of them. That is the session history, the consent state, the saved protocols and limits, the
          * research enrolment, the onboarding records (age, biometric-privacy consent) and the per-install keys. Using the core's one
          * list means a key added to it is covered here without a second edit. **The presence gate's two records (`hostPlain`), which no
-         * host seals (`REQ-PRES-10` (a)), are kept in memory here as well**: the browser has no gate and never writes them, and leaving
+         * host seals (`REQ-PRES-11` (a)), are kept in memory here as well**: the browser has no gate and never writes them, and leaving
          * them out would only let a stray write reach `localStorage` (`OI-PRIV-62`).
          *
          * **The page forgets all of it on a reload**: the person answers the onboarding screens again, and keeps their protocols and

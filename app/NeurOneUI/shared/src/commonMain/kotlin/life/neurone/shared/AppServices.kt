@@ -94,7 +94,7 @@ class AppServices(
 
     /**
      * Whether storage opens gated: the host says the gate is on, **or a protected value is sealed under a key other than the device key**,
-     * which on this install can only be the gated key (`REQ-PRES-10` (b), `OI-PRIV-62` H2). A flag or record that was lost or misread
+     * which on this install can only be the gated key (`REQ-PRES-11` (b), `OI-PRIV-62` H2). A flag or record that was lost or misread
      * then does not open the person's data ungated, where the next write would seal it again under a key the device releases alone.
      */
     private fun gateIsOn(gated: life.neurone.core.common.GatedSecretKeyStore): Boolean {
@@ -116,7 +116,7 @@ class AppServices(
         if (gated != null && lock != null && secrets != null) {
             ProtectedStorage.openGated(platform.keyValueStore, secrets, gated, lock, { EncryptedKeyValueStore.uhdrKeys() }, { EncryptedKeyValueStore.deviceTierKeys() })
         } else if (gated != null) {
-            // A host that offers the gate fails closed over a value sealed under the gated key (`REQ-PRES-10` (b)).
+            // A host that offers the gate fails closed over a value sealed under the gated key (`REQ-PRES-11` (b)).
             ProtectedStorage.openOnGateHost(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
         } else {
             ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }

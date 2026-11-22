@@ -224,7 +224,7 @@ class PresenceGateTest {
         assertEquals(PassphraseResult.OK, runBlocking { app.presencePassphraseKey!!.changePassphrase(longPassphrase, "another long passphrase") })
     }
 
-    // @verifies REQ-PRES-10#b
+    // @verifies REQ-PRES-11#b
     @Test
     fun aLostGateFlagStillOpensStorageGatedOverValuesSealedUnderTheGatedKey() {
         val host = InMemoryKeyValueStore()

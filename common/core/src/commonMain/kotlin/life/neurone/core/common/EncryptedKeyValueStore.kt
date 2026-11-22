@@ -268,7 +268,7 @@ class EncryptedKeyValueStore(
             NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["deviceTier"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
 
         /**
-         * The keys a host keeps as it stores them and never seals (`REQ-PRES-10`): the presence gate's own records, which the host reads
+         * The keys a host keeps as it stores them and never seals (`REQ-PRES-11`): the presence gate's own records, which the host reads
          * before anyone is present. [uhdrKeys] already leaves them out; [ProtectedStorage] takes them out of any list it is given as well.
          */
         fun hostPlainKeys(): Set<String> =

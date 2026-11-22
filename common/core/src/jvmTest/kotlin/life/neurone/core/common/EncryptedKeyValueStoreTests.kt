@@ -153,7 +153,7 @@ class EncryptedKeyValueStoreTests {
         val keys = EncryptedKeyValueStore.uhdrKeys()
         val hostPlain = EncryptedKeyValueStore.hostPlainKeys()
         assertTrue(perInstall.isNotEmpty() && perInstall.all { it in keys || it in hostPlain }, "every per-install key is in the sealed set, except the gate's own records")
-        assertTrue(hostPlain.none { it in keys }, "the gate's own records are never sealed (REQ-PRES-10 (a))")
+        assertTrue(hostPlain.none { it in keys }, "the gate's own records are never sealed (REQ-PRES-11 (a))")
         val inner = InMemoryKeyValueStore()
         val s = EncryptedKeyValueStore(inner, InMemorySecretKeyStore(), keys)
         s.putString("ble.last-hub-id", "hub-1")

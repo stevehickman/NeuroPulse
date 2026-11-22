@@ -19,7 +19,7 @@
  *       only, a literal in common/npps-core/src/migration_flow.rs counts as a source. The core's literals are not read
  *       for K1, because two of its keys (the cleared marker and the clear's progress) are in no list on purpose.
  *   K4  A list is missing, or an entry is not a plain key.
- *   K6  A host-plain key (never sealed, REQ-PRES-10) is not a perInstall key, or is also in the device tier.
+ *   K6  A host-plain key (never sealed, REQ-PRES-11) is not a perInstall key, or is also in the device tier.
  *
  * Reach, stated narrowly: this finds a key written as a literal. A key assembled at run time ("np." + name) is not seen.
  * It does not check that a carried key's value round-trips, which the core's flow tests do.
@@ -83,7 +83,7 @@ export function check(files: Map<string, string>, map: any, coreFlows = ""): Fin
   for (const k of Array.isArray(map?.deviceTier) ? map.deviceTier : []) {
     if (!listed.has(k)) out.push({ file: KEYS_JSON, message: `K5: device-tier key '${String(k)}' is in no list` });
   }
-  // The gate's own records (REQ-PRES-10) are per-install keys left unsealed: a key there that is not per-install would be user data in the clear.
+  // The gate's own records (REQ-PRES-11) are per-install keys left unsealed: a key there that is not per-install would be user data in the clear.
   for (const k of Array.isArray(map?.hostPlain) ? map.hostPlain : []) {
     if (listed.get(k) !== "perInstall") out.push({ file: KEYS_JSON, message: `K6: host-plain key '${String(k)}' is not a perInstall key` });
     if (Array.isArray(map?.deviceTier) && map.deviceTier.includes(k)) out.push({ file: KEYS_JSON, message: `K6: host-plain key '${String(k)}' is also in the device tier` });

@@ -82,7 +82,7 @@ pub(crate) fn all_keys() -> Vec<String> {
 /// the disk. The list is computed here so every platform seals the same keys, and a key moved out of `unsorted` into a list that
 /// is not sealed has to be taken out of this one on purpose.
 ///
-/// **The one exception is `hostPlain`** (`OI-PRIV-62`, `REQ-PRES-10`): the presence gate's own records (whether the gate is on, and
+/// **The one exception is `hostPlain`** (`OI-PRIV-62`, `REQ-PRES-11`): the presence gate's own records (whether the gate is on, and
 /// the passphrase wrap of the gated data key). The host reads them before anyone is present, so they cannot be sealed under the
 /// gated key, and sealing them under it destroyed the gate on its first use (the wrap sealed under the key it wraps). They say only
 /// that the person chose the gate; the wrap is itself sealed, under the passphrase. They stay `perInstall` so a clear forgets them.
@@ -91,7 +91,7 @@ pub(crate) fn sealed_at_rest() -> Vec<String> {
     all_keys().into_iter().filter(|k| !plain.contains(k)).collect()
 }
 
-/// `REQ-PRES-10`: the per-install keys a host keeps as it stores them, never sealed (the presence gate's own records).
+/// `REQ-PRES-11`: the per-install keys a host keeps as it stores them, never sealed (the presence gate's own records).
 pub(crate) fn host_plain() -> Vec<String> {
     let mut v: Vec<String> = key_map()["hostPlain"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
     v.sort();
@@ -655,7 +655,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
             m["deviceTier"] = json!(device_tier());
             m["hostPlain"] = json!(host_plain());
             // The key an interrupted clear keeps its progress under (`SWR-MG-08`), so a host can tell values sealed under a key the
-            // clear destroyed from values sealed under a key that still guards them (`OI-PRIV-62`, `REQ-PRES-10` (b)).
+            // clear destroyed from values sealed under a key that still guards them (`OI-PRIV-62`, `REQ-PRES-11` (b)).
             m["clearProgressKey"] = json!(crate::migration_flow::CLEAR_PROGRESS_KEY);
             m
         }
@@ -1387,7 +1387,7 @@ mod tests {
         assert!(sealed.iter().all(|k| all_keys().contains(k)), "every sealed key is a sorted key");
     }
 
-    // @verifies REQ-PRES-10#a
+    // @verifies REQ-PRES-11#a
     #[test]
     fn the_gates_own_records_are_host_plain_per_install_and_nothing_else() {
         let m = ask(json!({"op":"itemKeys"}));

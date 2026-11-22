@@ -62,7 +62,7 @@ class ProtectedStorage private constructor(
 
         /**
          * The same, on a host that offers the presence gate (it supplies a [GatedSecretKeyStore]) and opens ungated on this run. **It
-         * fails closed** (`REQ-PRES-10` (b), `OI-PRIV-62` H2): if a protected value is sealed and does not open under [secrets], it was
+         * fails closed** (`REQ-PRES-11` (b), `OI-PRIV-62` H2): if a protected value is sealed and does not open under [secrets], it was
          * sealed under a key this run does not hold (the gated key, whose flag or record was lost), and opening it ungated would read it
          * as absent and seal the next write over it under a key the device releases alone, the downgrade `REQ-PRES-09` forbids. The run
          * is [StorageProtection.LOCKED] instead: the protected keys are held in memory and nothing on disk changes. Values left by a clear
@@ -77,7 +77,7 @@ class ProtectedStorage private constructor(
 
         /**
          * Whether [host] holds a protected value that is sealed and does not open under [secrets]: evidence that the gate is on whatever
-         * its flag says (`REQ-PRES-10` (b)), because the only key this install seals under besides [secrets] is the gated key. A keystore
+         * its flag says (`REQ-PRES-11` (b)), because the only key this install seals under besides [secrets] is the gated key. A keystore
          * that cannot be asked answers true (it cannot be shown otherwise). Values a part-way clear left under a destroyed key do not
          * count. Reads only; the probe's key is wiped.
          */
@@ -89,7 +89,7 @@ class ProtectedStorage private constructor(
             return try { sealed.any { probe.getString(it) == null } } finally { probe.forgetKey() }
         }
 
-        /** The gate's own records (`REQ-PRES-10` (a)): never sealed, whatever list a caller passes. Empty only when the core cannot be asked. */
+        /** The gate's own records (`REQ-PRES-11` (a)): never sealed, whatever list a caller passes. Empty only when the core cannot be asked. */
         private fun hostPlain(): Set<String> = runCatching { EncryptedKeyValueStore.hostPlainKeys() }.getOrDefault(emptySet())
 
         /** Whether a clear has destroyed the data key and not yet finished (`SWR-MG-08`): the sealed values it left are under no key. */
@@ -146,7 +146,7 @@ class ProtectedStorage private constructor(
                     // clear destroyed the key the store must still be built, so that a clear interrupted part-way resumes at the
                     // next launch (SWR-MG-08).
                     secrets.load()?.fill(0)
-                    // Asked before anything is written: a value sealed under the gated key is left exactly as it is (`REQ-PRES-10` (b)).
+                    // Asked before anything is written: a value sealed under the gated key is left exactly as it is (`REQ-PRES-11` (b)).
                     if (gateOffered && holdsValueSealedElsewhere(host, secrets, keys)) return lockedRun(host, keys)
                     EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
                 }.getOrNull()
