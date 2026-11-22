@@ -78,11 +78,12 @@ class NoKeyInARequestTests {
     fun thePassphraseTheWrappingKeyAndTheDataKeyAreInNoRequestOfThePassphraseGate() {
         val passphrase = "correct horse battery staple"
         val host = InMemoryKeyValueStore()
+        val device = InMemorySecretKeyStore()
         recording({
-            val first = PassphraseGatedSecretKeyStore(host, random)
+            val first = PassphraseGatedSecretKeyStore(host, { device }, random)
             assertEquals(PassphraseResult.OK, runBlocking { first.setPassphrase(passphrase) })
             val key = first.load()!!
-            val second = PassphraseGatedSecretKeyStore(host, random)
+            val second = PassphraseGatedSecretKeyStore(host, { device }, random)
             assertEquals(PassphraseResult.WRONG, runBlocking { second.unlockWithPassphrase("not the passphrase at all") })
             assertEquals(PassphraseResult.OK, runBlocking { second.unlockWithPassphrase(passphrase) })
             assertContentEquals(key, second.load())
