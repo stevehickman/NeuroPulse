@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 379
-**Date:** 2026-11-22
+**Revision:** 380
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 379 | 2026-11-22 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 380 | 2026-11-21 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 3 | 2026-11-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 202 | 2026-11-20 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
