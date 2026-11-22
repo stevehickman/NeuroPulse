@@ -18,9 +18,16 @@
  *        acknowledged write the medium did not keep is refused the same way,
  *        before R-5 purges anything (NP-SOUP-LFS-001 §13.18, RISK-LFS-09).
  *   R-4  Suspend sessions (no-op: only called when no session is active).
- *   R-5  eMMC SANITIZE on UHDR partition (NIST SP 800-88 "Purge").
+ *   R-5  Erase the UHDR partition (unmaps it; not by itself a purge).
  *   R-6  Zero SHDR partition.
  *   R-7  Zero Config partition.
+ *   R-7a eMMC SANITIZE (NIST SP 800-88 "Purge"): CMD6 SWITCH to EXT_CSD[165]
+ *        SANITIZE_START.  It purges every unmapped block of the device, so it
+ *        runs after R-5..R-7 and takes with it the UHDR blocks R-5 erased and
+ *        the stale copies R-6 and R-7 left in wear-levelled blocks (the
+ *        wrapped UKMD in Config among them).  Added by OI-PRIV-27
+ *        (NP-PRIV-ANALYSIS-004 H7): R-5 was specified as "SANITIZE (CMD38)",
+ *        a command that does not start SANITIZE, and nothing purged Config.
  *   R-8  Generate new 32-byte TRNG salt.
  *   R-9  Generate new 32-byte warranty token.
  *   R-10 Write new TRNG salt + warranty token + factory defaults to Config.
@@ -133,8 +140,9 @@ void np_factory_reset_resume_after_powerloss(void);
 /* In NPTEST_HOST builds these are provided as no-op stubs in the .c file.    */
 
 /* OI-RESET-01 — platform HAL stub.
- * R-5: eMMC SANITIZE on the UHDR partition (NIST SP 800-88 "Purge").  On
- * target this issues the eMMC SANITIZE command scoped to the UHDR LBA range.
+ * R-5: ERASE the UHDR partition's LBA range (CMD35/CMD36/CMD38), which unmaps
+ * it.  eMMC SANITIZE cannot be scoped to an LBA range; the purge is R-7a.
+ * (The name predates OI-PRIV-27 and is kept: it is a contract symbol.)
  * Returns NP_RESET_OK on success, NP_RESET_ERR_SANITIZE on failure. */
 extern np_reset_status_t np_factory_reset_hal_sanitize_uhdr(void);
 
@@ -146,6 +154,17 @@ extern np_reset_status_t np_factory_reset_hal_zero_shdr(void);
  * R-7: Zero the Config/Calibration partition.  Returns NP_RESET_OK /
  * NP_RESET_ERR_SANITIZE. */
 extern np_reset_status_t np_factory_reset_hal_zero_config(void);
+
+/* OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7), on the OI-RESET-01 target HAL — platform HAL stub.
+ * R-7a: eMMC SANITIZE.  CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
+ * then CMD13 polling until the card is back in TRAN, ready for data, with no
+ * error bit; never CMD38 and never a plain erase.  It must fail, not fall
+ * back, when the part does not advertise SANITIZE (EXT_CSD[231] bit 6), when
+ * the card reports an error, or when it does not finish within its bound.
+ * The sequence is firmware/bootloader/include/np_emmc_sanitize.h
+ * (np_emmc_sanitize_run()), which the target implementation binds to the
+ * application's eMMC transport.  Returns NP_RESET_OK / NP_RESET_ERR_SANITIZE. */
+extern np_reset_status_t np_factory_reset_hal_purge_unmapped(void);
 
 /* OI-RESET-04 — platform HAL stub.
  * R-8/R-9: Fill buf[0..len-1] with hardware TRNG bytes.  buf must be non-NULL

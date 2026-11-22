@@ -71,4 +71,40 @@
    code and an opaque file ordinal. */
 #define NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION   0xE1U
 
+/* ── Research header (NP-FW-EMMC-002 §E.5, OI-PRIV-26 (NP-PRIV-ANALYSIS-004)) ───────────────────────
+   A file that goes into a research extract carries a different header from the
+   person's own local file (§E.2): no device-derived code, and no date or time
+   finer than the study's rounding.  The local file is unchanged. */
+
+/* Finest date rounding a research header may carry, in days.  CLAUDE.md §5.3
+   ("date rounding >= 1 week", the principal's locked decision; no external
+   derivation, UC-201); NP-FW-ANON-001 §4 enforces the same floor on the
+   study descriptor's date_rounding_days. */
+#define NP_EDF_RESEARCH_MIN_ROUNDING_DAYS   7U
+
+/* Rounding windows are counted from Monday 1970-01-05 (day 4 after the epoch),
+   so a 7-day window is an ISO 8601 week, which starts on Monday
+   (NP-FW-ANON-001 FAI-ANON-06: week values align to ISO week boundaries). */
+#define NP_EDF_RESEARCH_ANCHOR_DAY          4
+
+/* Per-study patient code: "NS" + 14 lowercase hex chars from 7 TRNG bytes.
+   The prefix differs from the local "NP" code so the two can never be confused;
+   the bytes are random per (device, study) and never derived from the token.
+   Why 7 bytes: the width is fixed to match the local code (16 chars), so the
+   research header keeps the local field layout; unlinkability comes from the
+   bytes being random and per study, not from the width. */
+#define NP_EDF_STUDY_CODE_LEN               16
+#define NP_EDF_STUDY_CODE_RANDOM_BYTES      7
+
+/* Unknown start date, the EDF+ convention (EDF+ spec §2.1.3.2 "Startdate X";
+   the header startdate field cannot be blank, and 01.01.85 is the first date
+   its two-digit year can express under the 1985 clipping rule, §2.1.3.3). */
+#define NP_EDF_BLANK_STARTDATE              "01.01.85"
+#define NP_EDF_RESEARCH_STARTTIME           "00.00.00"
+
+/* EDF two-digit-year clipping window (EDF+ spec §2.1.3.3): 85..99 -> 19yy,
+   00..84 -> 20yy.  A date outside it cannot be written, so it is blanked. */
+#define NP_EDF_CLIP_YEAR_MIN                1985
+#define NP_EDF_CLIP_YEAR_MAX                2084
+
 #endif /* NP_EDF_CONFIG_H */
