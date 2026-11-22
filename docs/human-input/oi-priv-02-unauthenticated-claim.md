@@ -1,6 +1,6 @@
 # OI-PRIV-02: what should a restore do with a claim marker that no phone holding the backup's key made?
 
-**Status:** DRAFT, not sent. **From:** a Claude Code session working for the principal (2026-11-15). **To:** the principal.
+**Status:** ANSWERED 2026-11-21 by the principal: option A (2026-11-20); release control on the restore screen and removal of an earlier bundle's marker by a new migration backup (2026-11-21); the residual race accepted. Recorded in `docs/status/completed-decisions.md`. **From:** a Claude Code session working for the principal (2026-11-15). **To:** the principal.
 **GitHub issue:** [#886](https://github.com/stevehickman/NeuroPulse/issues/886)
 **Owning item:** `OI-PRIV-02` (`docs/status/pending-decisions.md`). **Requirement:** `SWR-MG-07` (`docs/np_sw_001.md` §6.3).
 Related: `OI-PRIV-01` (closed, the keyed confirmation, PR #885), `OI-PRIV-09`, `OI-UI-KMP-11` and GitHub #566 (which routes
