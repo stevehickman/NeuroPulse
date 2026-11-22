@@ -83,7 +83,7 @@ static np_reset_status_t np_fr_wipe_and_rederive(void)
 {
     np_reset_status_t st;
 
-    /* R-5: SANITIZE UHDR (NIST SP 800-88 Purge). */
+    /* R-5: erase UHDR, which unmaps it.  The purge is R-7a. */
     st = np_fr_retry(np_factory_reset_hal_sanitize_uhdr);
     if (st != NP_RESET_OK) {
         return NP_RESET_ERR_SANITIZE;
@@ -97,6 +97,16 @@ static np_reset_status_t np_fr_wipe_and_rederive(void)
 
     /* R-7: Zero Config. */
     st = np_fr_retry(np_factory_reset_hal_zero_config);
+    if (st != NP_RESET_OK) {
+        return NP_RESET_ERR_SANITIZE;
+    }
+
+    /* R-7a: eMMC SANITIZE (NIST SP 800-88 Purge).  It purges every unmapped
+     * block, so it runs after the last erase or overwrite it must take with
+     * it (R-5..R-7), and before R-10 writes anything new (OI-PRIV-27,
+     * NP-PRIV-ANALYSIS-004 H7).  A purge that fails stops the reset here,
+     * with the flag set, like every step before it. */
+    st = np_fr_retry(np_factory_reset_hal_purge_unmapped);
     if (st != NP_RESET_OK) {
         return NP_RESET_ERR_SANITIZE;
     }
@@ -359,6 +369,17 @@ np_reset_status_t np_factory_reset_hal_zero_config(void)     /* OI-RESET-03 */
         /* R-7 erases the partition the marker lives in. */
         np_fr_host_trace('C');
         np_fr_host_hal.marker_state = NP_FR_MARKER_NO_STORE;
+    }
+    return st;
+}
+
+np_reset_status_t np_factory_reset_hal_purge_unmapped(void)   /* OI-PRIV-27 */
+{
+    np_reset_status_t st = np_fr_host_step(&np_fr_host_hal.fail_purge_unmapped,
+                                           &np_fr_host_hal.calls_purge_unmapped,
+                                           NP_RESET_ERR_SANITIZE);
+    if (st == NP_RESET_OK) {
+        np_fr_host_trace('P');
     }
     return st;
 }

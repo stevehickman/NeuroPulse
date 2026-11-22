@@ -57,9 +57,9 @@ typedef enum {
     NP_RESET_STATE_R2_AUTH      = 2,    /* R-2: module-level auth accepted      */
     NP_RESET_STATE_R3_FLAG_SET  = 3,    /* R-3: LPGPR1 flag set + durable marker */
     NP_RESET_STATE_R4_SUSPENDED = 4,    /* R-4: sessions suspended              */
-    NP_RESET_STATE_R5_UHDR      = 5,    /* R-5: UHDR SANITIZE done              */
+    NP_RESET_STATE_R5_UHDR      = 5,    /* R-5: UHDR erased (R-7a purges it)    */
     NP_RESET_STATE_R6_SHDR      = 6,    /* R-6: SHDR zeroed                     */
-    NP_RESET_STATE_R7_CONFIG    = 7,    /* R-7: Config zeroed                   */
+    NP_RESET_STATE_R7_CONFIG    = 7,    /* R-7: Config zeroed, then R-7a SANITIZE */
     NP_RESET_STATE_R8_SALT      = 8,    /* R-8: new TRNG salt generated         */
     NP_RESET_STATE_R9_TOKEN     = 9,    /* R-9: new warranty token generated    */
     NP_RESET_STATE_R10_DEFAULTS = 10,   /* R-10: config defaults written        */
