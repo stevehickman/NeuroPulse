@@ -671,3 +671,5 @@ The last silent change the 2026-11-15 sweep found in the Compose editors (`UC-19
 - **2026-11-22 — `OI-SWCI-10` CLOSED: a red `main` is heard by email to the repository owner, high importance and a fixed subject (`[NEURONE MAIN RED]`), on each change of colour of any workflow on `main` (the principal; `NP-SW-CI-001` §6.20, `.github/workflows/main-health.yml`).** The recipient and sending account are repository secrets, not literals: the repository is public.
 
 - **2026-11-22 — `OI-SWCI-54` Q5 ANSWERED AGAIN: `strict: false`, with the required status `main is green, or this PR is up to date with main` holding merging while `main` is red; replaces option B of 2026-11-21 (the principal; `NP-SW-CI-001` §6.20).** The switch is a status posted by CI, not a token that edits the ruleset, because CI holds no admin token.
+
+- **2026-11-22 — `OI-SWCI-54` Q5 APPLIED: the `Safety` ruleset requires `main is green, or this PR is up to date with main` and no longer requires a branch to be up to date (`strict: false`); `check-main-ruleset.ts --live` reported only the strict flag before `ci/main-ruleset.json` was updated (the principal; `NP-SW-CI-001` §6.20.5).**
