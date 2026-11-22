@@ -10,12 +10,13 @@ renders the stack with `docker compose config` and reads the Caddyfile and .env.
       to posthog.com, no Sentry;
   P4  PostHog's port is published on the loopback address only, and no service but the TLS proxy publishes any port;
   P5  the data services (Postgres, Redis, ZooKeeper, ClickHouse, Kafka) sit on the internal network only, and that network is internal;
-  P6  the Caddyfile does not hand the client's address to PostHog (it removes X-Forwarded-For and X-Real-IP) and sends HSTS
+  P6  no reverse_proxy in the Caddyfile hands its upstream (PostHog, the erasure relay) a header that can carry the client's
+      address (CLIENT_ADDRESS_HEADERS, each as `header_up -NAME`, none set to a value; OI-PRIV-51), and the Caddyfile sends HSTS
       for every host except localhost;
   P7  .env.example does not pin `latest`;
   P8  no Caddy log keeps the client's address (OI-PRIV-05 (5), the interim floor): the access log and the default logger both
       exist and both write through a `filter` format that deletes request>remote_ip, request>remote_port, request>client_ip and
-      the X-Forwarded-For and X-Real-Ip request headers;
+      the whole request-header map, request>headers (OI-PRIV-51: deleting named headers leaves any header nobody listed);
   P9  the Caddyfile is one Caddy accepts: `caddy adapt`, run in the image the compose file names. A filter that Caddy cannot
       parse protects nothing, and P6 and P8 read the text only.
 
@@ -46,6 +47,13 @@ ENV = {"SECRET_KEY": "x", "POSTGRES_PASSWORD": "x", "CLICKHOUSE_PASSWORD": "x", 
 POSTHOG_SWITCHES = {"DISABLE_MMDB": "true", "OBJECT_STORAGE_ENABLED": "false", "CAPTURE_INTERNAL_METRICS": "false", "SENTRY_DSN": ""}
 DATA_SERVICES = ("db", "redis", "zookeeper", "clickhouse", "kafka")
 PROXY = "caddy"
+# The request headers a proxy can carry the client's address in. Caddy forwards every header it does not set itself, so each is
+# removed by name before the upstream; the logs delete the whole header map instead (OI-PRIV-51; the same list as
+# ci/test_fleet_ingest_config.py).
+CLIENT_ADDRESS_HEADERS = (
+    "X-Forwarded-For", "X-Real-IP", "Forwarded", "True-Client-IP", "CF-Connecting-IP", "X-Client-IP",
+    "X-Cluster-Client-IP", "Fastly-Client-IP", "Via",
+)
 
 
 def compose(extra_env=None, drop=()):
@@ -91,11 +99,15 @@ def compose_problems(c):
 def caddy_problems(text):
     out = []
     code = "\n".join(line.split("#", 1)[0] for line in text.splitlines())  # comments do not count
-    for h in ("X-Forwarded-For", "X-Real-IP"):
-        if not re.search(rf"^\s*header_up\s+-{h}\s*$", code, re.M):
-            out.append(f"P6 Caddyfile does not remove {h} (header_up -{h})")
-        if re.search(rf"^\s*header_up\s+{h}\s+\S", code, re.M):
-            out.append(f"P6 Caddyfile sets {h} to a value, which hands PostHog the client's address")
+    proxies = blocks(code, r"reverse_proxy\s+\S+\s*\{")
+    if not proxies:
+        out.append("P6 Caddyfile has no reverse_proxy block to check")
+    for n, body in enumerate(proxies, 1):
+        for h in CLIENT_ADDRESS_HEADERS:
+            if not re.search(rf"^\s*header_up\s+-{re.escape(h)}\s*$", body, re.M | re.I):
+                out.append(f"P6 reverse_proxy {n} does not remove {h} (header_up -{h})")
+            if re.search(rf"^\s*header_up\s+{re.escape(h)}\s+\S", body, re.M | re.I):
+                out.append(f"P6 reverse_proxy {n} sets {h} to a value, which hands the upstream the client's address")
     if not re.search(r"^\s*@(\w+)\s+not\s+host\s+localhost\b", code, re.M):
         out.append("P6 Caddyfile has no matcher for 'every host except localhost'")
     elif not re.search(r"^\s*header\s+@\w+\s+Strict-Transport-Security\s+\"max-age=\d+", code, re.M):
@@ -103,10 +115,7 @@ def caddy_problems(text):
     return out
 
 
-MUST_DELETE = (
-    "request>remote_ip", "request>remote_port", "request>client_ip",
-    "request>headers>X-Forwarded-For", "request>headers>X-Real-Ip",
-)
+MUST_DELETE = ("request>remote_ip", "request>remote_port", "request>client_ip", "request>headers")
 
 
 def blocks(text, opener):
@@ -217,7 +226,10 @@ def self_test(require_docker):
 
     expect("Caddy sets X-Forwarded-For", caddy_problems(caddy.replace("header_up -X-Forwarded-For", "header_up X-Forwarded-For {remote_host}")), "P6")
     expect("Caddy leaves X-Real-IP alone", caddy_problems(caddy.replace("header_up -X-Real-IP\n", "")), "P6")
-    expect("Caddy forwards X-Real-IP", caddy_problems(caddy + "\n    header_up X-Real-IP {remote_host}\n"), "P6")
+    expect("Caddy forwards X-Real-IP", caddy_problems(caddy.replace("header_up -X-Real-IP\n", "header_up -X-Real-IP\n      header_up X-Real-IP {remote_host}\n", 1)), "P6")
+    expect("PostHog gets Forwarded", caddy_problems(re.sub(r"(reverse_proxy posthog:8000 \{.*?)\n\s*header_up -Forwarded\n", r"\1\n", caddy, count=1, flags=re.S)), "P6")
+    expect("the erasure relay gets Via", caddy_problems(re.sub(r"(reverse_proxy erase-relay:8080 \{.*?)\n\s*header_up -Via\n", r"\1\n", caddy, count=1, flags=re.S)), "P6")
+    expect("a log keeps headers by name only", caddy_log_problems(caddy.replace("request>headers delete", "request>headers>X-Forwarded-For delete", 1)), "P8")
     expect("a removal only in a comment", caddy_problems(caddy.replace("    header_up -X-Forwarded-For\n", "    # header_up -X-Forwarded-For\n")), "P6")
     expect("no HSTS", caddy_problems(re.sub(r"^\s*header @public Strict-Transport-Security.*$", "", caddy, flags=re.M)), "P6")
     expect("no localhost matcher", caddy_problems(caddy.replace("@public not host localhost 127.0.0.1", "@public host example.org")), "P6")
