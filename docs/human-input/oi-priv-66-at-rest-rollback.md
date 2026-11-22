@@ -24,14 +24,14 @@ withdrawal is permanent for future extracts, and §6.0 that "never asked" and "s
 | Host | Where the sealed values are | Is that place in the OS backup? | Where the data key is | Does the key come back with it? |
 |------|-----------------------------|---------------------------------|------------------------|--------------------------------|
 | iOS, shared (Compose) app | `NSUserDefaults` (`UserDefaultsKeyValueStore`, `IosPlatformServices.kt`) | **Yes.** The preferences plist is in iCloud and Finder backups; `NSUserDefaults` has no per-key exclusion | Keychain, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (`IosSecretKeyStore.kt:76`) | **On the same device, yes** (Apple: a `ThisDeviceOnly` item "does not migrate to a new device", so it is absent only after restoring another device's backup) |
-| iOS, Swift app | One file per key in `Application Support/Protected/` (`ProtectedDefaults.swift`), not sealed with `at_rest.rs` | **No:** each file and the folder are marked `isExcludedFromBackup` (pinned by `ProtectedDefaultsTests.swift`) | n/a | n/a |
+| iOS, Swift app (retired by #946, 2026-11-22) | Was one file per key in `Application Support/Protected/` (`ProtectedDefaults.swift`), not sealed with `at_rest.rs` | **No:** each file and the folder were marked `isExcludedFromBackup` | n/a | n/a |
 | Android | App storage | **No:** `allowBackup="false"`, `fullBackupContent="false"` and data-extraction rules (`AndroidManifest.xml:47-49`) | Android Keystore (not backed up) | No |
 | macOS desktop | Files in `~/Library/Application Support/NeurOne` (`FileKeyValueStore`) | **Yes** by default (Time Machine), no exclusion is set | Login keychain | Not by a folder restore: the keychain item is untouched, so a restored older folder opens under the current key |
 | Windows desktop | Files in `%LOCALAPPDATA%\NeurOne` | Not by File History's defaults (AppData is not a library); other tools may | Credential Locker | Same as macOS if a tool restores the folder |
 | Linux desktop | Files in the XDG data directory | Whatever the person's tool backs up | Secret Service | Same as macOS |
 
 **So the finding is confirmed for the shared iOS app (a whole-device restore on the same phone) and for the desktop app (a
-restore of the data folder, the key never having left).** It does not reach the Swift iOS app or Android. On iOS a whole-device
+restore of the data folder, the key never having left).** It does not reach Android, nor the retired Swift iOS app; **since #946 the shared app is the only iOS app**. On iOS a whole-device
 restore also rolls back the keychain, so on that host nothing the app keeps locally can tell an older state from a newer one:
 only keeping the store out of the backup does.
 
@@ -42,7 +42,7 @@ local record from reading as current.
 ## 3. Options
 
 **A. Keep the host stores out of OS backups (a host change, no format change).** iOS: move the shared app's key-value store from
-`NSUserDefaults` to one file per key under Application Support marked `isExcludedFromBackup`, as the Swift app already does.
+`NSUserDefaults` to one file per key under Application Support marked `isExcludedFromBackup`, as the retired Swift app did.
 macOS: set the Time Machine exclusion on the data folder (`com.apple.metadata:com_apple_backup_excludeItem`, as `tmutil
 addexclusion` does). Windows and Linux: document that the folder should not be restored on its own. *Cost:* a whole-device restore
 brings back no app state; the person restores the app's own UHDR backup (`SWR-MG-03`) for the history and the withdrawal record,
@@ -61,7 +61,7 @@ instructions for use and in the restore screen. *Cost:* a withdrawal can be undo
 `CLAUDE.md` §6.2 treats as permanent.
 
 **Recommendation:** A, because it is the only option that reaches the iOS case, it changes no format, and it matches what the
-Swift app was already built to do. B is worth having only if the desktop case is judged material.
+retired Swift app was built to do. B is worth having only if the desktop case is judged material.
 
 ## 4. What is assumed
 

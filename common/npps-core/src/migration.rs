@@ -88,8 +88,9 @@ pub(crate) fn sealed_at_rest() -> Vec<String> {
 /// `NP-APP-PRESENCE-001` §4 (`REQ-PRES-05`): the keys that stay readable while the person's presence has not been established, so that
 /// reminders, the fleet upload and the hub reconnect work locked. **Every other sealed key is UHDR and is gated.** The list is in the
 /// key file next to the sorting, so the apps read one list; it is a subset of the sorted keys, and a key joins it only by a ruling that
-/// shows it says nothing about the person (`CLAUDE.md` §5.1). **It holds five keys: the principal accepted three on 2026-10-21
-/// (`OI-PRES-01`) and added two on 2026-11-21.** A key in the file that [`DEVICE_TIER_RULINGS`] does not name is left out, so it stays
+/// shows it says nothing about the person (`CLAUDE.md` §5.1). **It holds four keys: the principal accepted three on 2026-10-21
+/// (`OI-PRES-01`) and added two on 2026-11-21; `np.warranty.consent-granted`, one of the three, left it on 2026-11-22 when no host
+/// read it any longer (`OI-PRIV-66` (3)).** A key in the file that [`DEVICE_TIER_RULINGS`] does not name is left out, so it stays
 /// gated: adding a key to the file alone moves nothing (NP-PRIV-ANALYSIS-007 L18, `OI-PRIV-66`).
 pub(crate) fn device_tier() -> Vec<String> {
     device_tier_of(&key_map())
@@ -114,7 +115,7 @@ fn device_tier_of(map: &Value) -> Vec<String> {
 /// and is moved off the presence key at the next unlock, which lowers the protection it had: that is the principal's decision under
 /// `REQ-PRES-09` and is never made as a detail. A new entry needs a ruling recorded in `NP-APP-PRESENCE-001` §4 first, and its
 /// citation here. Removing a key (back to UHDR) only raises protection and needs no ruling.
-pub(crate) const DEVICE_TIER_RULINGS: [(&str, &str); 5] = [
+pub(crate) const DEVICE_TIER_RULINGS: [(&str, &str); 4] = [
     ("ble.last-hub-id", "the principal, 2026-10-21 (OI-PRES-01; NP-APP-PRESENCE-001 §4)"),
     (
         "np.analytics.distinct-id",
@@ -125,9 +126,6 @@ pub(crate) const DEVICE_TIER_RULINGS: [(&str, &str); 5] = [
         "the principal, 2026-11-21 (NP-APP-PRESENCE-001 §4, history row 13; recorded under REQ-PRES-09)",
     ),
     ("np.shdr.device-token", "the principal, 2026-10-21 (OI-PRES-01; NP-APP-PRESENCE-001 §4)"),
-    // No longer read by the shared core, which keeps per-helmet consent in np.warranty-owner.records (REQ-SHDR-08); the Swift app
-    // still reads and writes it (WarrantyAnalyticsGate.swift), so it stays until that app retires (OI-PRIV-20 (4) and (5)).
-    ("np.warranty.consent-granted", "the principal, 2026-10-21 (OI-PRES-01; NP-APP-PRESENCE-001 §4)"),
 ];
 
 const MIGRATE_ITEMS: [&str; 4] = ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"];
