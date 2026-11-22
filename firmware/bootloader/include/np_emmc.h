@@ -28,8 +28,16 @@ np_status_t np_emmc_write(uint32_t lba, const void *buf, uint32_t count);
 /* Returns NP_OK only if every byte matches.                                  */
 np_status_t np_emmc_write_verify(uint32_t lba, const void *buf, uint32_t count);
 
-/* Erase `count` sectors starting at `lba` (sets to 0xFF).                   */
+/* Erase `count` sectors starting at `lba` (CMD35/36/38, argument 0).        */
+/* A plain ERASE: it unmaps the range and is NOT a purge (OI-PRIV-27).       */
 np_status_t np_emmc_erase(uint32_t lba, uint32_t count);
+
+/* eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START, then */
+/* CMD13 polling to TRAN.  Purges every unmapped block of the user area, so  */
+/* it runs AFTER the erases it is meant to purge.  Fails if the part does    */
+/* not advertise SANITIZE (EXT_CSD[231] bit 6), reports an error, or does    */
+/* not finish within its bound.  Sequence: np_emmc_sanitize.h.               */
+np_status_t np_emmc_sanitize(void);
 
 /* Return LBA start of the requested bank in the user area.                   */
 static inline uint32_t np_emmc_bank_lba(np_bank_t bank) {
