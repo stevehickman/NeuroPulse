@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 9
-**Date:** 2026-11-21
+**Revision:** 10
+**Date:** 2026-11-22
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -190,6 +190,15 @@ Layer 2 — Master Key Wrapper Key (WKMD):
   - Held in on-chip SRAM only during the unlock window (app foreground session)
   - Zeroed from SRAM using memset_explicit when app moves to background
 ```
+
+> **Rev 10 (2026-11-21): scope of this scheme: one key per helmet, not per person (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004), GitHub #962).**
+> There is one UKMD, one wrapped record and one credential, and the UKMD is the key of the whole UHDR partition, whose
+> session files are named by the device-wide session counter (`np_log_backend.h`). **Whoever can unlock a helmet reads
+> every session recorded on it, whoever ran it.** Nothing here isolates one person's UHDR from another's on a shared
+> (clinic or household) helmet, although `CLAUDE.md` §6.0 and `NP-SW-FAULTMSG-001` §9 treat helmets as shared. Whether
+> to add per-profile key slots and namespaces, or to record a single-person decision with a notice, is the principal's
+> (`docs/human-input/oi-priv-34-several-users-one-helmet.md`). Until it is decided, no document may describe the helmet's
+> UHDR as separated per user.
 
 ### C.3 Config partition UKMD record
 
@@ -1067,6 +1076,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 7 | 2026-11-21 | **§H.3.4: the spent budget is persisted before the extended record is written, and a failed budget write sends nothing and returns `NP_ACCEL_ERR_BUDGET`; a failed record write leaves the slot spent (CHAR-2; `OI-PRIV-36` (NP-PRIV-ANALYSIS-004), GitHub #964).** |
 | 8 | 2026-11-21 | **§E.2 marked as the local header only and its check widened to the whole patient-ID field; §E.4 gate now checks the research header under the study's policy; §E.5 added (research EDF+ header, per-study code, date rounding, what is not yet covered) (OI-PRIV-26 (NP-PRIV-ANALYSIS-004), GitHub #954).** |
 | 9 | 2026-11-21 | **§B.3: R-5 named "SANITIZE (CMD38, SANITIZE_START)", which is a plain erase; corrected to CMD6 SWITCH writing 1 to EXT_CSD[165] (support in EXT_CSD[231] bit 6), moved to a new step R-7a after the erases so it also purges SHDR and Config, with no fallback to a plain erase; the 240 s bound is `UC-202`; R-1/R-2 have no implementation (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004`).** |
+| 10 | 2026-11-22 | **§C.2: a callout records the scheme's scope (one UKMD, one credential, one partition key, session files named by the device-wide counter) and that no per-user separation exists on a shared helmet; the decision brief is in docs/human-input (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962). No requirement or code changed.** |
 
 Open items created by this document:
 

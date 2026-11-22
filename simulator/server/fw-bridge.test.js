@@ -1041,6 +1041,23 @@ test('end to end: with the link not encrypted the hub refuses to carry data (ATT
   assert.strictEqual(rd[4].att, 0x0f, 'after a disconnect the link is unencrypted again until the stack says otherwise');
 });
 
+// @verifies REQ-FWHUB-81#e
+test('end to end: a resume on a link that is not encrypted is refused (ATT 0x0F) while a pause and a panic are not; encrypted, it is not refused for encryption (OI-PRIV-24 (NP-PRIV-ANALYSIS-004))', { skip: !BIN }, async () => {
+  const r = await gattTwoPhase([{ cmd: 'gatt_init' }], () => [
+    { cmd: 'gatt_link', encrypted: false },
+    { cmd: 'gatt_write', id: 26, hex: '02' },              // SESSION_PAUSE resume: restarts stimulation, so it needs the key
+    { cmd: 'gatt_write', id: 26, hex: '01' },              // pause: open, on purpose
+    { cmd: 'gatt_write', id: 26, hex: '03' },              // panic: open, on purpose
+    { cmd: 'gatt_link', encrypted: true },
+    { cmd: 'gatt_write', id: 26, hex: '02' },
+  ]);
+  const w = r.events.filter((e) => e.ev === 'gatt_write');
+  assert.strictEqual(w[0].att, 0x0f, 'a resume on an unencrypted link is refused: insufficient encryption');
+  assert.notStrictEqual(w[1].att, 0x0f, 'a pause is not refused for want of encryption');
+  assert.notStrictEqual(w[2].att, 0x0f, 'nor is a panic');
+  assert.notStrictEqual(w[3].att, 0x0f, 'on an encrypted link a resume is not refused for encryption');
+});
+
 // ── the hub's own tasks running a session (NP-SIM-FW-001 §31, REQ-SIMFW-23) ─────────────────────────────────────────────────────────
 
 // @verifies REQ-SIMFW-12

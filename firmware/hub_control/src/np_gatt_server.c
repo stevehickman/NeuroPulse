@@ -142,8 +142,10 @@ static const np_gatt_char_t TABLE[] = {
     { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_stop_on_write },
 
-    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  NOT encrypted, for the reason of the
-     * stop write above: a panic must never wait on a key. */
+    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  The row is NOT encrypted, for the
+     * reason of the stop write above: a pause or a panic must never wait on a key.  A resume restarts stimulation, so it is
+     * not covered by that reason and np_gatt_on_write refuses it on a link that is not encrypted (REQ-FWHUB-81 (e),
+     * OI-PRIV-24 (NP-PRIV-ANALYSIS-004)). */
     { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_pause_on_write },
 
@@ -289,6 +291,14 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     const bool stream = (c->props & NP_GATT_PROP_STREAM) != 0U;
     if (data == NULL || (stream ? (len == 0U || len > NP_GATT_STREAM_WRITE_MAX) : (len != c->write_len))) {
         return NP_ATT_INVALID_VALUE_LENGTH;
+    }
+    /* REQ-FWHUB-81 (e), OI-PRIV-24 (NP-PRIV-ANALYSIS-004): the pause row is open so that a pause and a panic never wait on a
+     * key, but its resume code restarts stimulation and that reason does not cover it.  On a link that is not encrypted a
+     * resume is refused here, before it reaches a handler, and whatever the session is held for: a refusal that depended on
+     * the hold cause would tell a stranger in range whether the photoparoxysmal detector had halted the session
+     * (CLAUDE.md §5.1 rule 2). */
+    if (id == NP_GATT_SESSION_PAUSE_ID && data[0] == NP_SESSION_RESUME_VALUE && !s_link_encrypted) {
+        return NP_ATT_INSUFFICIENT_ENCRYPTION;
     }
     const np_hub_status_t rc = c->write(data, len);
     if (rc == NP_HUB_OK) {
