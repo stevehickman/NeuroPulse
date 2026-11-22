@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-005  
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-11-21  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -202,3 +202,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 2 | 2026-11-21 | NeurOne Quality | **§3, §4 and §8: open items renumbered OI-PRIV-21…28 → OI-PRIV-51…58 in the same order (F1 = OI-PRIV-51 … F8 = OI-PRIV-58), with a note in §8. NP-PRIV-ANALYSIS-004 merged first with those numbers and GitHub issues #949–#956. No finding, severity or closure condition changed.** |
+| 3 | 2026-11-21 | NeurOne Software Engineering | **F1 and F2 marked fixed with what remains; F2's count corrected from 12 of 21 to 13 of 22 (`emf_shielding_telemetry`, found by the new TIME-02 check); `OI-PRIV-51` and `-52` closed in §8.** |
