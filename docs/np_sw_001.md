@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 201
-**Date:** 2026-11-21  
+**Revision:** 202
+**Date:** 2026-11-20  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -887,3 +887,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 199 | 2026-11-21 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose composer no longer turns a blank or too-large layer start offset into 0; the field is marked and Save is disabled, and 0 remains a valid offset. No silent change found by the 2026-11-15 sweep remains in the Compose editors.** |
 | 200 | 2026-11-21 | NeurOne Firmware Engineering | **§5.2.2: REQ-SW02-15 added. The bootloader installs no firmware image whose signed version is below a monotonic floor, on the OTA/DFU verify path and at the boot trial; an unreadable floor refuses every image; the floor rises only at confirmation and never falls. The store is not chosen, so the device build refuses every image until it is (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), NP-PRIV-ANALYSIS-004 Finding M5).** |
 | 201 | 2026-11-21 | NeurOne Software Engineering | **§5.3.1 `REQ-SW03-31` (a): the refused-read and refused-write translation of the Android and browser centrals is tested on the JVM (`OI-PRIV-17`).** |
+| 202 | 2026-11-20 | NeurOne Software Engineering | **§6.3 SWR-MG-07: the claim carries a tag only a holder of the bundle key can make; a marker with no or a wrong tag refuses with its own reason and is never touched. The atomic rule is unchanged. The restore screen offers the person a two-tap release control with either refusal, and a new migration backup removes the marker of the earlier bundle it replaces.** |
