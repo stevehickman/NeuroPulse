@@ -95,7 +95,7 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
  *   be persisted the attempt is refused with NP_UHDR_ERR_CONFIG (fail closed).
  *
  *   A decrypted key whose halves are equal is never mounted: the UKMD is
- *   zeroized and NP_UHDR_ERR_CRYPTO returned (REQ-EMMC2-02).
+ *   zeroized and NP_UHDR_ERR_CRYPTO returned (REQ-EMMC2-06).
  *
  *   Returns NP_UHDR_ERR_INVALID if ctx/credential is NULL or cred_len is 0.
  */
@@ -230,7 +230,7 @@ extern np_uhdr_status_t np_uhdr_hal_config_write_ukmd(const np_ukmd_record_t *re
  * NP_UHDR_UKMD_LEN (64) bytes, K1 = ukmd[0..31] for the data and
  * K2 = ukmd[32..63] for the tweak (IEEE Std 1619; NP-FW-EMMC-001 EMMC-UHDR-04,
  * -05).  Called with the UKMD — NEVER the WKMD — and never with K1 == K2
- * (REQ-EMMC2-02).  The cipher must be real AES-256: NP-FW-EMMC-001 EMMC-UHDR-06's
+ * (REQ-EMMC2-06).  The cipher must be real AES-256: NP-FW-EMMC-001 EMMC-UHDR-06's
  * "AES-256 with two-key 128-bit halves" from the AES-128 DCP is not that
  * (OI-PRIV-35, NP-PRIV-ANALYSIS-004), so the implementation uses the CAAM's
  * AES-256 or the vetted software library EMMC-UHDR-06 allows.

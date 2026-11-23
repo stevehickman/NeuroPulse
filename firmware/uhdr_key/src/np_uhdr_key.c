@@ -34,7 +34,7 @@
 typedef char np_uhdr_record_size_check[
     (sizeof(np_ukmd_record_t) == NP_UHDR_UKMD_RECORD_SIZE) ? 1 : -1];
 
-/* The record carries the whole UKMD, K1 || K2 (EMMC-UHDR-04, REQ-EMMC2-02). */
+/* The record carries the whole UKMD, K1 || K2 (EMMC-UHDR-04, REQ-EMMC2-06). */
 typedef char np_uhdr_ukmd_field_check[
     (sizeof(((np_ukmd_record_t *)0)->ukmd_ciphertext) == NP_UHDR_UKMD_LEN) ? 1 : -1];
 typedef char np_uhdr_ukmd_len_check[(NP_UHDR_UKMD_LEN == 64U) ? 1 : -1];
@@ -87,7 +87,7 @@ static np_uhdr_status_t validate_kdf_params(const np_ukmd_record_t *rec)
 }
 
 /*
- * REQ-EMMC2-02 (b): an XTS key whose halves are equal (K1 == K2) is a
+ * REQ-EMMC2-06 (b): an XTS key whose halves are equal (K1 == K2) is a
  * degenerate XTS key, which FIPS 140 validation guidance refuses.  The compare
  * runs over the whole half without an early exit.
  */
@@ -282,7 +282,7 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
     /* Mint the Layer-1 master key directly into the context. */
     st = np_uhdr_hal_trng_generate(ctx->ukmd, NP_UHDR_UKMD_LEN);
     if (st != NP_UHDR_OK) { st = NP_UHDR_ERR_TRNG; goto fail; }
-    /* REQ-EMMC2-02 (b): a TRNG that returns K1 == K2 has failed. */
+    /* REQ-EMMC2-06 (b): a TRNG that returns K1 == K2 has failed. */
     if (xts_halves_equal(ctx->ukmd)) { st = NP_UHDR_ERR_TRNG; goto fail; }
 
     /* Device-unique salt + per-wrap nonce. */
@@ -415,7 +415,7 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
      * direction), and the next success clears it again. */
     np_uhdr_attempt_clear();
 
-    /* REQ-EMMC2-02 (b): never mount a degenerate XTS key, whatever the record
+    /* REQ-EMMC2-06 (b): never mount a degenerate XTS key, whatever the record
      * says.  Only a record minted with K1 == K2 reaches this, and provisioning
      * refuses to mint one. */
     if (xts_halves_equal(ctx->ukmd)) {
@@ -580,7 +580,7 @@ np_uhdr_status_t np_uhdr_hal_trng_generate(uint8_t *buf, size_t len)
     for (size_t i = 0; i < len; i++) {
         buf[i] = (uint8_t)(0xA5U ^ (uint8_t)i ^ (uint8_t)(c * 31U + (c >> 3)));
     }
-    /* Test fault: make a UKMD-sized draw return K1 == K2 (REQ-EMMC2-02). */
+    /* Test fault: make a UKMD-sized draw return K1 == K2 (REQ-EMMC2-06). */
     if (g_host_trng_equal_halves && len == NP_UHDR_UKMD_LEN) {
         memcpy(buf + NP_UHDR_XTS_HALF_LEN, buf, NP_UHDR_XTS_HALF_LEN);
     }

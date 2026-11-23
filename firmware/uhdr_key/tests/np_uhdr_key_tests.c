@@ -27,7 +27,7 @@
  *   T13 attempt limit (§C.7, REQ-EMMC2-01; OI-PRIV-35 Finding M10): charge
  *       before test, clear on success, back-off refuses without KDF or charge,
  *       doubles and caps, survives a reboot, fails closed on storage faults.
- *   T14 64-byte XTS key (REQ-EMMC2-02; OI-PRIV-35 Finding M9): the whole
+ *   T14 64-byte XTS key (REQ-EMMC2-06; OI-PRIV-35 Finding M9): the whole
  *       K1 || K2 is wrapped, authenticated, recovered and mounted, and a key
  *       with K1 == K2 is never minted or mounted.
  *
@@ -556,9 +556,9 @@ static void test_unreadable_count_refuses(void)
     ASSERT(np_uhdr_key_unlock_wait_ms(NULL) == NP_UHDR_ERR_INVALID, "NULL wait rejected");
 }
 
-/* ── 64-byte XTS key (REQ-EMMC2-02; OI-PRIV-35, NP-PRIV-ANALYSIS-004 M9) ──── */
+/* ── 64-byte XTS key (REQ-EMMC2-06; OI-PRIV-35, NP-PRIV-ANALYSIS-004 M9) ──── */
 
-/* @verifies REQ-EMMC2-02#a */
+/* @verifies REQ-EMMC2-06#a */
 static void test_ukmd_is_full_xts_key(void)
 {
     np_uhdr_host_reset();
@@ -596,7 +596,7 @@ static void test_ukmd_is_full_xts_key(void)
     ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "nothing left after AUTH");
 }
 
-/* @verifies REQ-EMMC2-02#b */
+/* @verifies REQ-EMMC2-06#b */
 static void test_equal_halves_never_minted(void)
 {
     np_uhdr_host_reset();
@@ -612,7 +612,7 @@ static void test_equal_halves_never_minted(void)
            "no record was written");
 }
 
-/* @verifies REQ-EMMC2-02#b */
+/* @verifies REQ-EMMC2-06#b */
 static void test_equal_halves_never_mounted(void)
 {
     np_uhdr_host_reset();

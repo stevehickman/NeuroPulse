@@ -38,7 +38,7 @@
  * 32 bytes until 2026-11-23 (OI-PRIV-35, NP-PRIV-ANALYSIS-004 Finding M9): the
  * two-layer delta (NP-FW-EMMC-002 §C.2) had reduced it with no recorded
  * decision.  K1 = ukmd[0..31], K2 = ukmd[32..63], and the two halves are never
- * equal (REQ-EMMC2-02).  All 64 bytes come from the TRNG.
+ * equal (REQ-EMMC2-06).  All 64 bytes come from the TRNG.
  */
 #define NP_UHDR_UKMD_LEN            64U
 
