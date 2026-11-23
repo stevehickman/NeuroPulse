@@ -683,12 +683,12 @@ static void test_fault_cb_disables_and_logs(void)
 /* @verifies REQ-FWHUB-91#a REQ-FWHUB-89#c */
 static void test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop(void)
 {
-    static const np_cvns_fault_reason_t reasons[] = {
+    static const np_cvns_fault_reason_t REASONS[] = {
         NP_CVNS_FAULT_HR_CHANGE, NP_CVNS_FAULT_DATA_LOSS, NP_CVNS_FAULT_WATCHDOG,
         NP_CVNS_FAULT_IMPEDANCE, NP_CVNS_FAULT_SAFETY_MCU,
     };
     bool all_silent = true, all_one_note = true;
-    for (size_t i = 0U; i < sizeof reasons / sizeof reasons[0]; i++) {
+    for (size_t i = 0U; i < sizeof REASONS / sizeof REASONS[0]; i++) {
         reset_mocks();
         np_mod_cvns_init(NP_HUB_SLOT_CVNS);
         np_mod_cvns_params_t p = make_params();
@@ -697,7 +697,7 @@ static void test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop(vo
         np_mod_cvns_tick(10U, g_now_unix);
         g_fault_log_calls  = 0;
         g_early_stop_calls = 0;
-        np_mod_cvns_test_fire_fault(reasons[i]);
+        np_mod_cvns_test_fire_fault(REASONS[i]);
         if (g_fault_log_calls != 0) { all_silent = false; }
         if (g_early_stop_calls != 1) { all_one_note = false; }
     }
