@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 21
-**Date:** 2026-11-21
+**Revision:** 22
+**Date:** 2026-11-23
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -1255,3 +1255,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 19 | 2026-11-11 | NeurOne Firmware Engineering | **§3, §8: NP_CVNS_SESSION_MIN_S and NP_CVNS_SESSION_MAX_S are retired and removed from the firmware (the principal, 2026-11-11). np_cvns_stim_init refuses a configuration with no length and one no longer than the two ramps, which is geometry and not a health limit; any other length is the protocol's.** |
 | 20 | 2026-11-21 | NeurOne Quality | **§14 OI-CVNS-04: note added that it must not be closed by wiring `np_cvns_shdr_summary_t` as it stands, because the struct carries raw per-electrode impedance and stimulation parameters, which §5.1 classes as UHDR (OI-PRIV-23, GitHub #951, NP-PRIV-ANALYSIS-004 H3). No requirement or design changed.** |
 | 21 | 2026-11-21 | NeurOne Firmware Engineering | **§4.6: np_cvns_shdr_summary_t is three one-byte flags (impedance check passed, cutoff occurred, fault reason) and no longer lists electrode configuration, frequency, current, duration or per-electrode kΩ, which are UHDR (§8.2; data-architecture-detail.md §5.1). REQ-CVNS-15 added, verified by host tests and a _Static_assert. §14 OI-CVNS-04 re-worded to name the three-flag struct (OI-PRIV-23 (NP-PRIV-ANALYSIS-004), GitHub #951, H3). The write is still a stub; nothing had reached SHDR. IEC 62304 SW-02 Class B: np_cvns_types.h and np_cvns_session.c change; no Class C code, constant, limit or interlock behaviour changes.** |
+| 22 | 2026-11-23 | NeurOne Firmware Engineering | **§8.2: the electrode impedance pass/fail rows are UHDR (the principal, 2026-11-23). REQ-CVNS-15: note that (a) becomes two flags when the firmware change lands.** |
