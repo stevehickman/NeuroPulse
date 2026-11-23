@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-34 (NP-PRIV-ANALYSIS-004), several people's UHDR on one helmet
 
-**Status:** PARTLY ANSWERED 2026-11-23 by the principal (Q1, Q2, Q4; Q3 came back as a question, answered in §9 with three follow-up questions). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (Q1, Q2, Q4 in §8; Q3, Q3a to Q3c in §10). The design is `NP-FW-EMMC-002` §C.7; the build is open. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#962](https://github.com/stevehickman/NeuroPulse/issues/962)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding M8)
 **To:** the principal, with Firmware and Software; Regulatory for Q4
@@ -263,4 +263,16 @@ helmet copy is gone?
 
 **Q3c.** Is it acceptable that the clinic's export shows how much each profile has recorded, padded to coarse size
 buckets? Or must each profile be padded to one fixed size, at a storage cost?
+
+## 10. Answers to Q3a to Q3c (the principal, 2026-11-23)
+
+| Q | Answer |
+|---|--------|
+| Q3a | **C1, with C2 as the fallback.** The person's phone; a passphrase where there is no phone. |
+| Q3b | **Both.** The recovery code is printed or saved by the person, and also kept in their phone's presence-gated store and its backup. **A lost code together with a lost helmet means that helmet copy is gone.** |
+| Q3c | **Showing roughly how much each person has recorded is fine.** The clinic knows how many sessions it has run, so this is not new knowledge to it. Coarse size buckets, not one fixed size. |
+
+The design these rulings fix is `NP-FW-EMMC-002` §C.7. What remains is the build, and the choices that belong to
+other items: the KDF and attempt limit (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004)), the constructions (`OI-EMMC2-02`), who may
+request an export (`OI-SIMFW-71` Q8), and the bucket sizes and profile cap (chosen with the build).
 

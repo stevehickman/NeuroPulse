@@ -202,8 +202,8 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > **Ruled 2026-11-23 (the principal): helmets are shared.** Each person's UHDR is to be sealed from every other's, by
 > a key per person over per-file sealing, so that one person's UHDR can move to their own helmet and a clinic can back up
 > and restore everyone's without reading any of it. This scheme is to be replaced accordingly. The credential and the
-> recovery code are still open (`docs/human-input/oi-priv-34-several-users-one-helmet.md` §9). Until that design lands
-> here, this section describes what is built, not what is decided.
+> recovery code were decided the same day. The design is §C.7. Until it is built, §C.1 to §C.6 describe what is
+> built, not what is decided.
 
 ### C.3 Config partition UKMD record
 
@@ -275,6 +275,85 @@ The UHDR partition (up to 6.9 GiB) is **never re-encrypted** during a biometric 
 ### C.6 PIN fallback
 
 PIN-based WKMD derivation is always available as a fallback when biometric is unavailable (device restart, biometric hardware failure, biometric lockout). The same Argon2id derivation applies with the PIN as input. There is no separate "PIN key" — the architecture is PIN-or-biometric → WKMD → UKMD.
+
+
+### C.7 Per-person keys on a shared helmet (decided 2026-11-23, not built)
+
+> **Rev {NP-FW-EMMC-002 to} (2026-11-23).** The principal's rulings on `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) are recorded
+> in `docs/human-input/oi-priv-34-several-users-one-helmet.md` §8 and §10. This subsection is the design those rulings
+> fix. **Nothing in it is built.** §C.1 to §C.6 describe the code as it is, and remain true of it until this design
+> replaces them. No requirement row is written yet: each is written with the code that meets it (`CLAUDE.md` §21).
+
+#### C.7.1 What the rulings require
+
+| Ruling (the principal, 2026-11-23) | Consequence for this section |
+|---|---|
+| Helmets are shared. Each person's UHDR is sealed from every other's | One key per person, never one per helmet |
+| The design is the one that makes backup and restore easiest. A person may move their UHDR to their own helmet | Each file is sealed on its own under its owner's key, so it is a self-contained object that can be copied and placed on any helmet (option A2). Not fixed partition slices (A1), which restore only whole, into a slice of the same size |
+| The warranty owner (a clinic) can back up and restore all the UHDR on a helmet without access to any of it | The helmet exports and imports sealed objects without anyone present. A person's key can be re-bound to another helmet only by that person |
+| The unlock credential is the person's phone (C1), with a passphrase as the fallback (C2) | The presence-gate pattern of `NP-APP-PRESENCE-001` (`REQ-PRES-06`) |
+| The recovery code is printed or saved by the person, and also kept in their phone's presence-gated store and its backup | The phone can re-bind its person automatically. Without the phone, the printed code does it |
+| A lost recovery code together with a lost helmet means that helmet copy is gone | No escrow of any kind. Neither NeurOne nor the clinic holds anything that opens a person's key |
+| The clinic's export may show roughly how much each person has recorded | Per-person exports are padded to coarse size buckets, not to one fixed size |
+
+#### C.7.2 Keys
+
+| Key | Generated | Stored as | Opens |
+|---|---|---|---|
+| **Profile key** `PK`, one per person, 32 bytes | By the TRNG, when the person's profile is created on a helmet | Never in the clear. Wrap 1 and wrap 2 below, in that person's profile record in Config | That person's files, each sealed with an AEAD under a key derived from `PK` and the file's own random identifier |
+| **Wrap 1** (unlock) | — | `PK` under `hw_bind(KDF(credential, salt), fused key)`, as today's WKMD (§C.2, privacy review F1) | Opening `PK` on **this** helmet. A copy is useless elsewhere, so an eMMC image cannot be attacked offline |
+| **Wrap 2** (recovery) | — | `PK` under a key derived from the person's recovery code | Re-binding `PK` to another helmet. It travels with every export |
+| **Recovery code** | By the helmet's TRNG when the profile is created; never chosen by the person | Shown once to the person to print or save, and handed to their phone's presence-gated store. Never written to the helmet in the clear and never to SHDR | Wrap 2 |
+| **Helmet store key** | By the TRNG at first provisioning | Bound to the fused key; opened by the helmet with no one present | The UHDR partition's outer layer only, so file names, sizes and the profile list are protected against an eMMC image. It opens no one's files |
+
+- **The recovery code has at least 128 bits of entropy.** Whoever holds an export can try codes against wrap 2 offline,
+  and a clinic holds every patient's export. 128 bits is the security strength `NIST SP 800-57 Part 1` assigns to
+  AES-128 and above, so the code is never the weakest key. Checking that citation against the source belongs to the
+  cryptography review (`OI-EMMC2-02`).
+- **The unlock credential (C1, C2) is derived on the phone or tablet, not on the hub.** The hub's RAM cannot hold the
+  64 MiB Argon2id (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004)), so where the KDF runs and at what cost is decided there. Wrap 1
+  keeps the fused-key binding whatever the KDF.
+- **The profile record names its person by an opaque profile identifier, never a name.** The app's active-user tag
+  (`NP-SW-FAULTMSG-001` §9.2) may **select** a profile record, but it never **opens** one: only the credential does
+  (the tag is unauthenticated, `OI-PRIV-29` (NP-PRIV-ANALYSIS-004)).
+
+#### C.7.3 Files
+
+- **Each UHDR file belongs to one profile and is sealed on its own.** Its name is random, not the device session count,
+  so a listing does not interleave people's sessions (`OI-PRIV-41` (NP-PRIV-ANALYSIS-004) treats the shared counter).
+- **The hub mediates every access.** No app lists the partition. An app is served only the files of the profile its
+  credential opened.
+- **A UHDR write needs an open profile.** How a session run with no profile open is logged is open: for example, a
+  Mode 3 session after a power cycle, before anyone has unlocked. Today such a session cannot write UHDR at all
+  (`np_log_backend.h`: UHDR is first opened after an unlock). One construction is a per-session key sealed to a public
+  key of the profile last opened, so the hub can write a profile it cannot read. The choice belongs to `OI-EMMC2-02`.
+
+#### C.7.4 Export and import
+
+- **Clinic backup.** On a request from the warranty owner's app over the encrypted transport (`CLAUDE.md` §23), with no
+  one present, the helmet exports every profile: its sealed files, wrap 2, and its record without wrap 1. Each profile's
+  export is padded up to a coarse size bucket. The clinic stores the export as one object, separate from the warranty
+  owner's own backup (`CLAUDE.md` §6.0, `REQ-SHDR-10`). It can read nothing in it.
+- **Clinic restore.** The clinic imports the export into a replacement helmet. Each profile stays sealed until its
+  person presents their recovery code, by their phone or from the printed copy. The helmet then opens `PK` with wrap 2,
+  writes a new wrap 1 under its own fused key and the person's credential, and the profile is live.
+- **A person moving to their own helmet.** The same export, of one profile, started by that person with their
+  credential. On their own helmet it becomes their profile. If they already have one there, the helmet re-seals the
+  imported files under it once both are open, and then deletes the imported key.
+- **Deleting a profile** destroys that profile's record. Its files are then unreadable by anyone and are deleted. That
+  is an erase, which `CLAUDE.md` §5.1 does not count as a weakening.
+
+#### C.7.5 What changes elsewhere, and what remains open
+
+| Item | Where it is handled |
+|---|---|
+| The single `ukmd.rec` record (§C.3) is replaced by one record per profile | This section, when built |
+| The XTS key length (32 bytes for AES-256-XTS) | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004), for the helmet store key |
+| The KDF and its cost, and the failed-unlock limit the passphrase fallback needs | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
+| The wrap and file-sealing constructions, and the sealed-to-profile write for Mode 3 | `OI-EMMC2-02`, the cryptography review, whose scope now includes this section |
+| The size buckets and the maximum number of profiles per helmet | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), chosen with the build |
+| Who may request an export (the warranty owner's pairing role) | `OI-SIMFW-71` Q8 |
+| The partition layout clauses of `NP-FW-EMMC-001` | An ECR, since that document is a `.docx` (`OI-CONV-04`) |
 
 ---
 
