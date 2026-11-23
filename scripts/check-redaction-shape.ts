@@ -121,9 +121,10 @@ const PREDICATES: Record<string, Sensitivity> = {
     why:
       "electrode impedance is a tissue property. CLAUDE.md §5.1 routes raw VNS and EEG " +
       "impedance to UHDR and only the derived trend to SHDR, so a redaction conditioned " +
-      "on this bit would leak a contact/tissue state the boundary keeps out. Whether the " +
-      "bit itself may be reported is owed a ruling (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), " +
-      "docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
+      "on this bit would leak a contact/tissue state the boundary keeps out. The principal " +
+      "ruled 2026-11-23 (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)) that the in-session impedance " +
+      "check is UHDR: it runs through the wearer and cannot tell a device fault from " +
+      "placement, so nothing derived from it is SHDR. A device-only test is OI-FWHUB-36",
   },
   NP_SAFETY_STATUS_THERMAL: { kind: "device", why: "NTC over-temperature — device condition" },
   NP_SAFETY_STATUS_CHARGE: { kind: "device", why: "charge-density ceiling reached — a dose limit, not a measurement of the wearer" },
@@ -304,12 +305,6 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
   },
   {
     file: "firmware/hub_control/modules/np_mod_cvns.c",
-    fn: "cvns_impedance_crossval_fail",
-    role: "writer",
-    note: "the ruled IMP_CROSSVAL divergence flag, no kΩ (OI-CVNS-HUB-11)",
-  },
-  {
-    file: "firmware/hub_control/modules/np_mod_cvns.c",
     fn: "cvns_fault_cb",
     role: "writer",
     note: "interlock fault reason → np_log_shdr_fault (the locked safety-interlock rule)",
@@ -340,18 +335,6 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     fn: "log_cvns_event",
     role: "writer",
     note: "the ruled cutoff flag only, via np_cvns_reenable_shdr_code; other lifecycle events are never written (REQ-FWHUB-91, OI-PRIV-28)",
-  },
-  {
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_advance_to_fault",
-    role: "writer",
-    note: "the three-flag summary {impedance_check_pass, cutoff_occurred, fault_reason}, size-asserted (REQ-CVNS-15, OI-PRIV-23)",
-  },
-  {
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_complete",
-    role: "writer",
-    note: "the same three-flag summary on normal completion, written on every session (REQ-CVNS-15, OI-PRIV-23)",
   },
   // ── PBM and accelerometer ──
   {
@@ -394,8 +377,32 @@ const KNOWN_VIOLATIONS: {
     owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
     why:
       "copies the whole latch status byte, IMPEDANCE included. No SHDR write uses the report " +
-      "today; the IMPEDANCE ruling is owed before one does " +
-      "(docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
+      "today. Ruled UHDR 2026-11-23: the report is reshaped so an impedance-only transition " +
+      "is indistinguishable from none, by bit, slot or count",
+  },
+  // The principal's ruling of 2026-11-23 (OI-PRIV-40): the in-session impedance
+  // check is UHDR, so nothing derived from it stays in SHDR. These writers were
+  // declared under the earlier SHDR rulings and now await the firmware change.
+  {
+    rule: "undeclared-writer",
+    file: "firmware/hub_control/modules/np_mod_cvns.c",
+    fn: "cvns_impedance_crossval_fail",
+    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
+    why: "IMP_CROSSVAL is derived from the in-session impedance check, ruled UHDR 2026-11-23",
+  },
+  {
+    rule: "undeclared-writer",
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_advance_to_fault",
+    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
+    why: "the summary's impedance_check_pass flag is in-session impedance, ruled UHDR 2026-11-23",
+  },
+  {
+    rule: "undeclared-writer",
+    file: "firmware/cervical_vns/src/np_cvns_session.c",
+    fn: "session_complete",
+    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
+    why: "the summary's impedance_check_pass flag is in-session impedance, ruled UHDR 2026-11-23",
   },
   // Found by this gate (OI-PRIV-40): the PBM session SHDR summaries carry
   // duration_s and abort_reason, which §5.1 lists as UHDR ("session timestamps
