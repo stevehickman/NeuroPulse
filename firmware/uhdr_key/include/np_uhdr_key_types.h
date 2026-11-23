@@ -20,7 +20,8 @@ typedef enum {
     NP_UHDR_ERR_MOUNT    = -6,  /* UHDR partition XTS mount failed             */
     NP_UHDR_ERR_STATE    = -7,  /* Precondition violated (e.g. not unlocked)   */
     NP_UHDR_ERR_INVALID  = -8,  /* Invalid argument (null/length/range)        */
-    NP_UHDR_ERR_PARAM    = -9   /* Stored KDF params below floor (tamper/rollback) */
+    NP_UHDR_ERR_PARAM    = -9,  /* Stored KDF params below floor (tamper/rollback) */
+    NP_UHDR_ERR_LOCKOUT  = -10  /* Unlock back-off not yet elapsed (§C.7)      */
 } np_uhdr_status_t;
 
 /*
