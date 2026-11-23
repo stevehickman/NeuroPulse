@@ -824,6 +824,8 @@ static void post_abort_seizure(void)  { np_runner_abort(NP_ABORT_EEG_SEIZURE); }
 static void do_pause_now(void)        { g_pause_rc = np_runner_pause(); }
 static void do_resume_now(void)       { g_resume_rc = np_runner_resume(); }
 static void try_resume_now(void)      { g_resume_rc = np_runner_resume(); }
+static np_hub_status_t g_resume_rc_first;
+static void try_resume_first(void)    { g_resume_rc_first = np_runner_resume(); }
 static void do_panic_now(void)        { g_panic_rc = np_runner_panic(); }
 static void do_halt_discharge_now(void) { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_DISCHARGE); }
 static void do_halt_blind_now(void)     { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_BLIND); }
@@ -1389,15 +1391,13 @@ static void test_the_hold_cause_says_who_held_the_session_and_clears_when_it_run
     script_at(5000U, do_panic_now);
     script_at(6000U, do_resume_now);
     script_at(8000U, do_halt_discharge_now);
-    script_at(9000U, do_resume_now);
-    script_at(11000U, do_halt_blind_now);
-    script_at(12000U, post_abort_user);
+    script_at(9000U, do_halt_blind_now);        /* blindness outranks a discharge (np_hold_outranks) */
+    script_at(12000U, post_abort_user);      /* a detector hold ends only with a stop (REQ-FWHUB-67) */
     (void)load_and_run(&b);
     const unsigned n = hold_seq(seq, 8U);
-    check(n == 8U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_NONE &&
+    check(n == 7U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_NONE &&
           seq[2] == NP_HOLD_USER_PANIC && seq[3] == NP_HOLD_NONE &&
-          seq[4] == NP_HOLD_DETECTOR_DISCHARGE && seq[5] == NP_HOLD_NONE &&
-          seq[6] == NP_HOLD_DETECTOR_BLIND && seq[7] == NP_HOLD_NONE,
+          seq[4] == NP_HOLD_DETECTOR_DISCHARGE && seq[5] == NP_HOLD_DETECTOR_BLIND && seq[6] == NP_HOLD_NONE,
           "hold: a pause, a panic, a detector discharge and a detector blindness each say so, and each clears when the session runs again or ends");
 }
 
@@ -1421,6 +1421,36 @@ static void test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it(
     bool lowered = false;
     for (unsigned i = 2U; i + 1U < n; i++) { if (seq[i] == NP_HOLD_USER_PANIC) { lowered = true; } }
     check(!lowered, "hold: and a person's panic afterwards does not lower it");
+}
+
+/* @verifies REQ-FWHUB-67 REQ-FWHUB-69 */
+static void test_a_detector_hold_is_never_resumed_and_ends_only_with_a_stop(void)
+{
+    static void (*const HALT[2])(void) = { do_halt_discharge_now, do_halt_blind_now };
+    static const char *const NAME[2] = { "discharge", "blind" };
+    for (unsigned k = 0U; k < 2U; k++) {
+        fresh();
+        blob_t b;
+        blob_begin(&b, 20000U);
+        blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+        module_present(NP_HUB_SLOT_EEG);
+        script_at(2000U, HALT[k]);
+        script_at(3000U, try_resume_first);    /* refused: the detector holds it */
+        script_at(3500U, look_midrun);
+        script_at(4000U, do_panic_now);        /* a person's panic does not lower the cause ... */
+        script_at(5000U, try_resume_now);      /* ... so a resume is still refused */
+        script_at(5500U, look_midrun);
+        script_at(7000U, post_abort_user);     /* the only second step: Stop */
+        (void)load_and_run(&b);
+        char msg[160];
+        snprintf(msg, sizeof msg, "detector hold (%s): a resume is refused (NP_HUB_ERR_PPX_HALT), before and after a panic", NAME[k]);
+        check(g_resume_rc_first == NP_HUB_ERR_PPX_HALT && g_resume_rc == NP_HUB_ERR_PPX_HALT &&
+              g_mid_n == 2U && g_mid_state == NP_SESSION_PAUSED, msg);
+        snprintf(msg, sizeof msg, "detector hold (%s): nothing is started again while it is held", NAME[k]);
+        check(find_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 2) < 0 || when_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 2) >= 7000U, msg);
+        snprintf(msg, sizeof msg, "detector hold (%s): Stop ends the session", NAME[k]);
+        check(count_of(RUN_EV_LOG_END) == 1U, msg);
+    }
 }
 
 /* @verifies SWR-SS-09 */
@@ -1487,6 +1517,7 @@ int main(void)
     test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_for_the_next_resume();
     test_the_hold_cause_says_who_held_the_session_and_clears_when_it_runs_again();
     test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it();
+    test_a_detector_hold_is_never_resumed_and_ends_only_with_a_stop();
     test_panic_is_refused_only_with_no_session();
     test_a_session_stopped_while_paused_reports_the_time_it_was_running();
     test_a_delivery_divergence_is_flagged_once_to_shdr_with_its_own_code();

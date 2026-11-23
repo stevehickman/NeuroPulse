@@ -1402,7 +1402,7 @@ static void test_the_stop_and_panic_writes_do_not_wait_on_a_key(void)
 }
 
 /* @verifies REQ-FWHUB-81#e */
-static void test_a_resume_needs_an_encrypted_link_whatever_holds_the_session(void)
+static void test_a_pause_or_resume_needs_an_encrypted_link_whatever_holds_the_session(void)
 {
     const uint8_t pause  = NP_SESSION_PAUSE_VALUE;
     const uint8_t resume = NP_SESSION_RESUME_VALUE;
@@ -1418,16 +1418,17 @@ static void test_a_resume_needs_an_encrypted_link_whatever_holds_the_session(voi
     np_gatt_set_link_encrypted(false);
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 0,
           "resume: on a link that is not encrypted a resume is refused (ATT 0x0F) and reaches no handler");
-    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_OK && g_pause_calls == 1,
-          "resume: a pause on the same link is still taken (REQ-FWHUB-81 (c))");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_pause_calls == 0,
+          "resume: so is a pause, its pair (ATT 0x0F, no handler reached; the principal, 2026-11-23)");
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_OK && g_panic_calls == 1,
-          "resume: and so is a panic");
+          "resume: a panic on the same link is still taken (REQ-FWHUB-81 (c))");
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 0,
           "resume: a resume after that panic is still refused on the unencrypted link");
 
     np_gatt_set_link_encrypted(true);
-    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_OK && g_resume_calls == 1,
-          "resume: on an encrypted link the same resume reaches the runner");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_OK && g_resume_calls == 1 &&
+          np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_OK && g_pause_calls == 1,
+          "resume: on an encrypted link the same resume and pause reach the runner");
     np_gatt_on_disconnect();
     check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION && g_resume_calls == 1,
           "resume: after a disconnect the next link must be encrypted again before a resume is taken");
@@ -1454,16 +1455,19 @@ static void test_an_unencrypted_stop_pause_or_panic_says_nothing_of_the_session(
     check(idle == NP_ATT_OK && running == NP_ATT_OK && g_aborts == 1,
           "uniform: unencrypted, a stop answers OK with or without a session, and still stops the running one");
 
-    /* Pause and panic: whatever the runner says (no session, ramping, done), the answer is OK and the runner was asked. */
+    /* Panic: whatever the runner says (no session, ramping, done), the answer is OK and the runner was asked.  A pause is
+     * refused for want of encryption (REQ-FWHUB-81 (e)), the same whatever the runner would have said. */
     static const np_hub_status_t RC[] = { NP_HUB_OK, NP_HUB_ERR_NO_SESSION, NP_HUB_ERR_RAMPING };
-    bool all_ok = true;
+    bool all_ok = true, pause_same = true;
     for (size_t i = 0U; i < sizeof(RC) / sizeof(RC[0]); i++) {
         g_pause_rc = g_panic_rc = RC[i];
-        if (np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) != NP_ATT_OK) { all_ok = false; }
         if (np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) != NP_ATT_OK) { all_ok = false; }
+        if (np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) != NP_ATT_INSUFFICIENT_ENCRYPTION) { pause_same = false; }
     }
-    check(all_ok && g_pause_calls == 3 && g_panic_calls == 3,
-          "uniform: unencrypted, a pause or a panic answers OK whether the runner took it, had no session or was ramping");
+    check(all_ok && g_panic_calls == 3,
+          "uniform: unencrypted, a panic answers OK whether the runner took it, had no session or was ramping");
+    check(pause_same && g_pause_calls == 0,
+          "uniform: unencrypted, a pause is refused (0x0F) the same whatever the runner would have said, and reaches it never");
 
     np_session_stop_init(NULL, NULL);
     np_session_pause_init(NULL, NULL);
@@ -1541,7 +1545,7 @@ int main(void)
     test_encrypted_reads_work_and_the_protocol_upload_takes_a_stream();
     test_the_stop_and_panic_writes_do_not_wait_on_a_key();
     test_an_unencrypted_stop_pause_or_panic_says_nothing_of_the_session();
-    test_a_resume_needs_an_encrypted_link_whatever_holds_the_session();
+    test_a_pause_or_resume_needs_an_encrypted_link_whatever_holds_the_session();
 
     if (g_failures != 0) {
         printf("\n%d FAILURE(S)\n", g_failures);

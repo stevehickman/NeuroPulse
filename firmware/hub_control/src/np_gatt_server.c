@@ -144,9 +144,9 @@ static const np_gatt_char_t TABLE[] = {
       0u, 1u, NULL, np_session_stop_on_write },
 
     /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  The row is NOT encrypted, for the
-     * reason of the stop write above: a pause or a panic must never wait on a key.  A resume restarts stimulation, so it is
-     * not covered by that reason and np_gatt_on_write refuses it on a link that is not encrypted (REQ-FWHUB-81 (e),
-     * OI-PRIV-24 (NP-PRIV-ANALYSIS-004)). */
+     * reason of the stop write above: a panic must never wait on a key.  Pause and resume are a pair and both need an
+     * encrypted link: np_gatt_on_write refuses either on a link that is not (REQ-FWHUB-81 (e), OI-PRIV-24
+     * (NP-PRIV-ANALYSIS-004); the principal, 2026-11-23). */
     { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_pause_on_write },
 
@@ -298,23 +298,24 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if (data == NULL || (stream ? (len == 0U || len > NP_GATT_STREAM_WRITE_MAX) : (len != c->write_len))) {
         return NP_ATT_INVALID_VALUE_LENGTH;
     }
-    /* REQ-FWHUB-81 (e), OI-PRIV-24 (NP-PRIV-ANALYSIS-004): the pause row is open so that a pause and a panic never wait on a
-     * key, but its resume code restarts stimulation and that reason does not cover it.  On a link that is not encrypted a
-     * resume is refused here, before it reaches a handler, and whatever the session is held for: a refusal that depended on
-     * the hold cause would tell a stranger in range whether the photoparoxysmal detector had halted the session
-     * (CLAUDE.md §5.1 rule 2). */
-    if (id == NP_GATT_SESSION_PAUSE_ID && data[0] == NP_SESSION_RESUME_VALUE && !s_link_encrypted) {
+    /* REQ-FWHUB-81 (e), OI-PRIV-24 (NP-PRIV-ANALYSIS-004): the pause row is open so that a panic never waits on a key.  A
+     * resume restarts stimulation, which that reason does not cover; and a pause is the first half of a pause and resume, so
+     * it needs the same pairing as its resume (the principal, 2026-11-23: a person who pauses means to resume, or they would
+     * stop).  On a link that is not encrypted either is refused here, before it reaches a handler, and whatever the session
+     * is in or held for: a refusal that depended on it would tell a stranger in range about the wearer's session, a
+     * detector halt included (CLAUDE.md §5.1 rule 2). */
+    if (id == NP_GATT_SESSION_PAUSE_ID && !s_link_encrypted &&
+        (data[0] == NP_SESSION_RESUME_VALUE || data[0] == NP_SESSION_PAUSE_VALUE)) {
         return NP_ATT_INSUFFICIENT_ENCRYPTION;
     }
-    /* REQ-FWHUB-81 (f), OI-PRIV-72: on a link that is not encrypted, a well-formed stop, pause or panic is acted on as
-     * always but answered OK whatever came of it.  Its refusal codes say whether a session is running (0x80) and whether
-     * the protocol is ramping, which it does only with tDCS or cervical VNS in it (0x82): facts about the wearer, given to
-     * anyone in range who never paired (CLAUDE.md §5.1 rule 2).  A malformed one is refused as before; that answer depends
+    /* REQ-FWHUB-81 (f), OI-PRIV-72: on a link that is not encrypted, a well-formed stop or panic is acted on as always but
+     * answered OK whatever came of it.  Its refusal codes say whether a session is running (0x80): a fact about the wearer,
+     * given to anyone in range who never paired (CLAUDE.md §5.1 rule 2).  A malformed one is refused as before; that answer depends
      * only on the bytes sent.  On an encrypted link the app gets the exact answer. */
     if (!s_link_encrypted && (id == NP_GATT_SESSION_STOP_ID || id == NP_GATT_SESSION_PAUSE_ID)) {
         const bool well_formed = (id == NP_GATT_SESSION_STOP_ID)
             ? (data[0] == NP_SESSION_STOP_VALUE)
-            : (data[0] == NP_SESSION_PAUSE_VALUE || data[0] == NP_SESSION_PANIC_VALUE);
+            : (data[0] == NP_SESSION_PANIC_VALUE);
         if (!well_formed) {
             return NP_ATT_APP_REFUSED;
         }
