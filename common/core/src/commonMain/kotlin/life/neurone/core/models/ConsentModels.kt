@@ -396,8 +396,8 @@ enum class ResearchCategory(val wireName: String) {
  * enrolment, as that day and 0 bytes, which recorded a transmission that had not happened (`OI-PRIV-06` point 4).
  * No extractor exists yet (`OI-CONSENT-07`), so today every record has [transmittedAtDay] null.
  *
- * [enrolledOnDay] and [withdrawnAtDay] are not in §5.3's list: they are the person's decisions about a study.
- * Nothing uploads this record today, and whether any of it may leave the device as SHDR is `OI-PRIV-07`.
+ * The whole record is UHDR (`OI-PRIV-07`, the principal, 2026-11-20): it names a study and holds the person's
+ * enrolment and withdrawal decisions. It stays on the device under the person's key and never goes to SHDR.
  */
 @Serializable
 data class StudyParticipationRecord(

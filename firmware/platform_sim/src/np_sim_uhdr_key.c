@@ -51,6 +51,7 @@ static const char *status_name(np_uhdr_status_t s)
     case NP_UHDR_ERR_STATE:   return "state";
     case NP_UHDR_ERR_INVALID: return "invalid";
     case NP_UHDR_ERR_PARAM:   return "param";
+    case NP_UHDR_ERR_LOCKOUT: return "lockout";
     default:                  return "?";
     }
 }
