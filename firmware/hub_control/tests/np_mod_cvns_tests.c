@@ -1182,7 +1182,7 @@ static void start_flow(uint16_t granted_mask)
 /* A session whose baseline is valid and whose enable the safety MCU has granted reaches ramp-up, then steady
  * stimulation.  It used to fault (abort reason NP_CVNS_ERR_SESSION_ACTIVE) one tick after the baseline completed,
  * because the BASELINE stage asked the interlock for the enable again on every tick while it waited for the grant. */
-/* @verifies REQ-FWHUB-65 */
+/* @verifies REQ-FWHUB-87 */
 static void test_the_real_flow_reaches_ramp_up_and_steady_stimulation(void)
 {
     start_flow(NP_SAFETY_EN_CVNS);
@@ -1201,7 +1201,7 @@ static void test_the_real_flow_reaches_ramp_up_and_steady_stimulation(void)
 
 /* Waiting for the grant is not a fault: the enable is requested once, so the MCU can see it, and the session holds in
  * BASELINE (interlock PRE_SESSION) for as long as the grant takes; when it comes the session goes on. */
-/* @verifies REQ-FWHUB-65 */
+/* @verifies REQ-FWHUB-87 */
 static void test_a_session_waiting_for_the_grant_is_not_faulted_by_waiting(void)
 {
     start_flow(0U);                                             /* alive, not granting */

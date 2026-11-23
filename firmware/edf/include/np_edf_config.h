@@ -62,14 +62,11 @@
 /* Fixed patient-name subfield value (no real name ever written). */
 #define NP_EDF_PATIENT_NAME         "NeurOne_User"
 
-/* SHDR fault event code (NP-FW-EMMC-002 §E.4): logged when a candidate EDF+
-   file is EXCLUDED from a research extract for a §E.2 privacy-header violation.
-   The edf module does not call the SHDR logger directly (it stays host-testable
-   and hub-independent); the anonymization-pipeline integration site maps this
-   code onto np_log_shdr_fault(). Distinct from the CVNS 0xC1..0xC7 range in
-   np_hub_config.h. The event carries NO user biology — only a device-condition
-   code and an opaque file ordinal. */
-#define NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION   0xE1U
+/* 0xE1 was NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION, an SHDR fault written once
+   per EDF+ file the research-extract gate excluded.  RETIRED 2026-11-21
+   (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2): any such record tells the fleet
+   that this device ran a research extract.  The gate now writes nothing to SHDR.
+   The code is not reused for anything else. */
 
 /* ── Research header (NP-FW-EMMC-002 §E.5, OI-PRIV-26 (NP-PRIV-ANALYSIS-004)) ───────────────────────
    A file that goes into a research extract carries a different header from the

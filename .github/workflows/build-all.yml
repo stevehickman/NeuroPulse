@@ -117,9 +117,10 @@ env:
   # 74 → 75: np_bootloader_dfu_block_tests (OI-UINT16-01).
   # 75 → 76: np_bootloader_rollback_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15).
   # 76 → 77: np_bootloader_sanitize_tests (OI-PRIV-27 (NP-PRIV-ANALYSIS-004), REQ-SW02-13).
-  NP_TOTAL_TEST_COUNT: '77'
+  # 77 → 78: np_status_led_tests (NP-FW-HUB-001 §5.5a, OI-PRIV-37 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-85, REQ-FWHUB-86).
+  NP_TOTAL_TEST_COUNT: '78'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '66'
+  NP_CLASS_B_TEST_COUNT: '67'
 
 jobs:
   host-tests-all:

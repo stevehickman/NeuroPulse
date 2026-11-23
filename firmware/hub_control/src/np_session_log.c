@@ -561,9 +561,14 @@ np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
 
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
 {
+    /* No session count (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 3, REQ-NASAL-16).
+     * The record is written once per insertion of an authenticating accessory,
+     * and the intranasal probe is inserted for every intranasal session, so a
+     * count in each record made a per-session timeline of that modality's use:
+     * the shape the principal's F14 ruling forbids for tiles.  The record is
+     * the same four bytes for every caller and every result. */
     take();
     shdr_u8(NP_LOG_TAG_SHDR_ZONE_AUTH);
-    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
     shdr_write(&slot, 1U);
     uint8_t t = (uint8_t)type;
     shdr_write(&t, 1U);

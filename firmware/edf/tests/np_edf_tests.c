@@ -248,24 +248,6 @@ static void test_fw_version_in_recording_id(void)
 
 /* ── §E.4 anonymization-pipeline gate tests ──────────────────────────────────── */
 
-#define MAX_FAULTS 16
-
-typedef struct {
-    uint32_t indices[MAX_FAULTS];
-    uint8_t  codes[MAX_FAULTS];
-    int      n;
-} fault_recorder_t;
-
-/* np_edf_shdr_fault_cb: records each excluded file's index + event code. */
-static void record_fault(uint32_t file_index, uint8_t ev_code, void *user)
-{
-    fault_recorder_t *r = (fault_recorder_t *)user;
-    if (r->n < MAX_FAULTS) {
-        r->indices[r->n] = file_index;
-        r->codes[r->n]   = ev_code;
-        r->n++;
-    }
-}
 
 /* The gate's policy in these tests: patient code 'X', weekly rounding. */
 static const np_edf_research_policy_t GATE_POLICY = { NULL, 7U };
@@ -304,11 +286,9 @@ static void test_anon_gate_mixed(void)
     corrupt_name(&headers[4]);                             /* real name     */
 
     bool included[6];
-    fault_recorder_t rec = { .n = 0 };
     np_edf_gate_result_t result;
 
-    np_edf_status_t st = np_edf_anon_gate_filter(headers, 6U, &GATE_POLICY, included,
-                                                 record_fault, &rec, &result);
+    np_edf_status_t st = np_edf_anon_gate_filter(headers, 6U, &GATE_POLICY, included, &result);
 
     /* A per-file exclusion is NOT a run failure — the gate must not abort. */
     ASSERT_EQ(st, NP_EDF_OK);
@@ -321,16 +301,9 @@ static void test_anon_gate_mixed(void)
     ASSERT(included[3], "file 3 should be included");
     ASSERT(!included[4], "file 4 (real name) should be excluded");
     ASSERT(included[5], "file 5 should be included");
-
-    /* Exactly the two violating files fire a fault, with the right code. */
-    ASSERT_EQ(rec.n, 2);
-    ASSERT_EQ(rec.indices[0], (uint32_t)1);
-    ASSERT_EQ(rec.indices[1], (uint32_t)4);
-    ASSERT_EQ(rec.codes[0], (uint8_t)NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION);
-    ASSERT_EQ(rec.codes[1], (uint8_t)NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION);
 }
 
-/* All-compliant set: every file included, no faults. */
+/* All-compliant set: every file included. */
 /* @verifies REQ-SW02-02 */
 static void test_anon_gate_all_pass(void)
 {
@@ -340,14 +313,11 @@ static void test_anon_gate_all_pass(void)
     }
 
     bool included[5];
-    fault_recorder_t rec = { .n = 0 };
     np_edf_gate_result_t result;
 
-    ASSERT_OK(np_edf_anon_gate_filter(headers, 5U, &GATE_POLICY, included,
-                                      record_fault, &rec, &result));
+    ASSERT_OK(np_edf_anon_gate_filter(headers, 5U, &GATE_POLICY, included, &result));
     ASSERT_EQ(result.included, (uint32_t)5);
     ASSERT_EQ(result.excluded, (uint32_t)0);
-    ASSERT_EQ(rec.n, 0);
     for (int i = 0; i < 5; i++) {
         ASSERT(included[i], "all files should be included");
     }
@@ -364,21 +334,18 @@ static void test_anon_gate_all_fail_does_not_abort(void)
     }
 
     bool included[3];
-    fault_recorder_t rec = { .n = 0 };
     np_edf_gate_result_t result;
 
-    np_edf_status_t st = np_edf_anon_gate_filter(headers, 3U, &GATE_POLICY, included,
-                                                 record_fault, &rec, &result);
+    np_edf_status_t st = np_edf_anon_gate_filter(headers, 3U, &GATE_POLICY, included, &result);
     ASSERT_EQ(st, NP_EDF_OK);            /* every file bad, still no abort */
     ASSERT_EQ(result.included, (uint32_t)0);
     ASSERT_EQ(result.excluded, (uint32_t)3);
-    ASSERT_EQ(rec.n, 3);
     for (int i = 0; i < 3; i++) {
         ASSERT(!included[i], "all files should be excluded");
     }
 }
 
-/* Null / empty argument handling, and NULL fault_cb tolerance. */
+/* Null / empty argument handling, and a NULL result. */
 /* @verifies REQ-SW02-02 */
 static void test_anon_gate_null_and_empty(void)
 {
@@ -390,22 +357,57 @@ static void test_anon_gate_null_and_empty(void)
     np_edf_gate_result_t result = { .included = 99, .excluded = 99 };
 
     /* count == 0 is a valid no-op; result is zeroed. */
-    ASSERT_OK(np_edf_anon_gate_filter(headers, 0U, &GATE_POLICY, included, NULL, NULL, &result));
+    ASSERT_OK(np_edf_anon_gate_filter(headers, 0U, &GATE_POLICY, included, &result));
     ASSERT_EQ(result.included, (uint32_t)0);
     ASSERT_EQ(result.excluded, (uint32_t)0);
 
     /* Non-zero count with NULL arrays is rejected. */
-    ASSERT_EQ(np_edf_anon_gate_filter(NULL, 2U, &GATE_POLICY, included, NULL, NULL, NULL),
+    ASSERT_EQ(np_edf_anon_gate_filter(NULL, 2U, &GATE_POLICY, included, NULL),
               NP_EDF_ERR_INVALID_ARG);
-    ASSERT_EQ(np_edf_anon_gate_filter(headers, 2U, &GATE_POLICY, NULL, NULL, NULL, NULL),
+    ASSERT_EQ(np_edf_anon_gate_filter(headers, 2U, &GATE_POLICY, NULL, NULL),
               NP_EDF_ERR_INVALID_ARG);
-    ASSERT_EQ(np_edf_anon_gate_filter(headers, 2U, NULL, included, NULL, NULL, NULL),
+    ASSERT_EQ(np_edf_anon_gate_filter(headers, 2U, NULL, included, NULL),
               NP_EDF_ERR_INVALID_ARG);
 
-    /* NULL fault_cb + NULL result must still process and exclude safely. */
-    ASSERT_OK(np_edf_anon_gate_filter(headers, 2U, &GATE_POLICY, included, NULL, NULL, NULL));
+    /* A NULL result must still process and exclude safely. */
+    ASSERT_OK(np_edf_anon_gate_filter(headers, 2U, &GATE_POLICY, included, NULL));
     ASSERT(included[0], "file 0 should be included");
-    ASSERT(!included[1], "file 1 should be excluded even with no fault_cb");
+    ASSERT(!included[1], "file 1 should be excluded even with no result");
+}
+
+/* REQ-SW02-14 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2): the gate's whole output
+ * is its status, the include flags and the caller's tally.  It takes no SHDR
+ * callback, so it can hand out no event, file index or code for SHDR: the
+ * assignment below stops compiling if a parameter is added back, and the
+ * retired event code must stay undefined.  The tally and flags are checked to be
+ * all that changes for a set with exclusions. */
+#ifdef NP_EDF_SHDR_EV_PRIVACY_HEADER_VIOLATION
+#error "0xE1 is retired: the EDF+ gate writes nothing to SHDR (REQ-SW02-14)"
+#endif
+/* @verifies REQ-SW02-14 */
+static void test_anon_gate_leaves_nothing_for_shdr(void)
+{
+    np_edf_status_t (*const gate)(const np_edf_header_t *, uint32_t,
+                                  const np_edf_research_policy_t *, bool *,
+                                  np_edf_gate_result_t *) = np_edf_anon_gate_filter;
+
+    np_edf_header_t headers[4];
+    for (uint8_t i = 0U; i < 4U; i++) {
+        make_valid_header(&headers[i], (uint8_t)(0xA0U + i));
+    }
+    headers[2].local_patient_id[NP_EDF_SEX_OFFSET] = 'M';   /* one violation */
+    np_edf_header_t before[4];
+    memcpy(before, headers, sizeof headers);
+
+    bool included[4];
+    np_edf_gate_result_t result;
+    ASSERT_OK(gate(headers, 4U, &GATE_POLICY, included, &result));
+    ASSERT_EQ(result.included, (uint32_t)3);
+    ASSERT_EQ(result.excluded, (uint32_t)1);
+    ASSERT(!included[2] && included[0] && included[1] && included[3],
+           "only the violating file is excluded");
+    ASSERT(memcmp(before, headers, sizeof headers) == 0,
+           "the gate reads the headers and writes nothing back");
 }
 
 /* ── §E.5 research header (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)) ───────────────────────────────────────── */
@@ -514,7 +516,7 @@ static void test_research_gate_refuses_local(void)
 
     bool inc[1];
     np_edf_gate_result_t res;
-    ASSERT_OK(np_edf_anon_gate_filter(&local, 1U, &px, inc, NULL, NULL, &res));
+    ASSERT_OK(np_edf_anon_gate_filter(&local, 1U, &px, inc, &res));
     ASSERT(!inc[0], "local header must be excluded from a research extract");
     ASSERT_EQ(res.excluded, (uint32_t)1);
 
@@ -593,7 +595,7 @@ static void test_research_dates(void)
     ASSERT_EQ(np_edf_validate_research_header(&rh, &p3), NP_EDF_ERR_INVALID_ARG);
     ASSERT_EQ(np_edf_make_research_header(&local, &p3, &h), NP_EDF_ERR_INVALID_ARG);
     bool inc[1];
-    ASSERT_OK(np_edf_anon_gate_filter(&rh, 1U, &p3, inc, NULL, NULL, NULL));
+    ASSERT_OK(np_edf_anon_gate_filter(&rh, 1U, &p3, inc, NULL));
     ASSERT(!inc[0], "a sub-week policy must exclude every file");
 }
 
@@ -676,6 +678,7 @@ int main(void)
     test_anon_gate_all_pass();
     test_anon_gate_all_fail_does_not_abort();
     test_anon_gate_null_and_empty();
+    test_anon_gate_leaves_nothing_for_shdr();
     test_research_header_from_local();
     test_research_gate_refuses_local();
     test_research_dates();
