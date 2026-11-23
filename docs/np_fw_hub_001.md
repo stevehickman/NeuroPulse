@@ -602,6 +602,13 @@ That read is refused by a genuine hub unless the link is encrypted, so the app n
 a peer that cannot answer the read. **It is not a check of the link and not authentication of the peer:** a peripheral that publishes the same
 characteristic without demanding encryption answers the read in the clear and is then written the protocol. The table's "Not covered" column is unchanged.
 
+**Who may read the warranty token (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004), open).** An encrypted link is not the warranty owner's link. `WARRANTY_TOKEN`
+(0x0010) is served to any central that has encrypted the link, and a Just Works pairing needs no secret (`OI-SIMFW-72`), so a patient's or a borrower's
+phone on a clinic helmet reads the clinic's token: the one value that links the helmet's fleet records to its warranty registration (`NP-FW-EMMC-002`
+§A.1, §A.4). The hub has no notion of an owner's link to restrict it to; which mechanism should, and what the token is to be once one exists, is a
+decision owed (`docs/human-input/oi-priv-33-warranty-token-release.md`). What the app does meanwhile: it stores a hub-delivered token only for a
+helmet whose warranty owner has consented on that install (`REQ-SHDR-08` (e)). That limits where an honest app keeps the token, not who can read it.
+
 ## 3. Module registry
 
 ### 3.1 The slot table
