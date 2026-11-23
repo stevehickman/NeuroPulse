@@ -109,7 +109,7 @@ awaiting `MECH-1`. **GATED** means the feature's existence or form waits on a na
 
 | ID | Feature | Part | Status | Governing source |
 |---|---|---|---|---|
-| **S2-F01** | Temporal wing anchor boss ×2 (PROVISIONAL) | wing | **SPECIFIED**, carried | `NP-TOOL-SHELL-001` F-04 |
+| **S2-F01** | Temporal wing anchor boss ×2 (PROVISIONAL) | wing | **SPECIFIED**, carried · **INACTIVE** (still tooled and inspected, TS2-01 to TS2-05; no released part uses it, `OI-TSHELL2-08`) | `NP-TOOL-SHELL-001` F-04 |
 | **S2-F02** | Outer-bowl loft 3 mm inward; no absorber lamination | A6 | **SPECIFIED** as a loft rule | `REQ-CAV-04`; `NP-HELMET-GEOM-001` §2 |
 | **S2-F03** | Four rim latches AL / AR / PL / PR with hard-gold BeCu ground-bond fingers | A6 + A5 | **REQUIREMENTS ONLY** (`MECH-1`) | `NP-HEX-ZM-001` §5.3(b), §5.4 |
 | **S2-F04** | Layer-closed Hall / contact sensor at each latch | A6 + A5 | **REQUIREMENTS ONLY** (`MECH-1`) and **no electrical owner** (OI-TSHELL2-02) | `NP-HEX-ZM-001` §5.5 |
@@ -150,7 +150,7 @@ non-functional recessed cavity.
   **Reach limit.** The loop's 50 mm circumference came from F-01 and is **not carried**. Its reach
   (≈ 25 mm, `NP-TOOL-SHELL-001` Rev 3's own correction) has no hazard analysis on the wing. Size the
   loop under OI-TSHELL2-07, and do not copy it.
-- **Marking:** none indicating mastoid-pad compatibility until HOPE Phase 3 reports (OI-TSHELL2-08).
+- **Marking:** none indicating mastoid-pad compatibility. HOPE Phase 3 reported on 2026-11-16 and did not release the pad (OI-TSHELL2-08, closed). Marking now waits on the pad's own release gate, `NP-ACC-PRIORITY-001` `OI-ACC-10`.
 - **Draft:** ≥ 1° on all boss interior surfaces.
 
 ### 3.2 S2-F02 — Outer-bowl loft: 3 mm inward, no absorber lamination
@@ -397,7 +397,7 @@ because a criterion with no geometry to inspect is the kind `NP-FAI-001` §2 F2 
 
 | Feature | FAI item | Pass criterion |
 |---|---|---|
-| S2-F01 | FAI-TW-01 (carried) | PROVISIONAL, run only if HOPE Phase 3 is positive. Reference 30 mm pad clip inserted and removed 50×; detent releases at 3–6 N throughout |
+| S2-F01 | FAI-TW-01 (carried) | PROVISIONAL, run only if the pad is released (`NP-ACC-PRIORITY-001` `OI-ACC-10`; HOPE Phase 3 no longer gates it, `OI-TSHELL2-08`). Reference 30 mm pad clip inserted and removed 50×; detent releases at 3–6 N throughout |
 | S2-F01 | FAI-TW-02 (carried) | PROVISIONAL. Boss flush or recessed with no pad; no sharp edges (Ra ≤ 3.2 µm at entry) |
 | A6 as a whole | `NP-FAI-SHELL-001` | **Named absence** (`NP-ART-001` §3.2). Blocked on `MECH-1`, `EMF-1`, `EMF-3` and RISK-20. This document removes none of those blockers. It removes the ⚠ on A6's tooling-specification column |
 | A5 as a whole | `NP-FAI-L1-001` | **Named absence.** Blocked on `MECH-1` and `OI-SHELL2-02` |
@@ -435,7 +435,7 @@ restates §1 to match §4.3.** The shielding is a design target, and the measure
 | **OI-TSHELL2-05** | Tooling-manufacturer DFM review (TS2-07). Carried from `NP-TOOL-SHELL-001` OI-02, now for S2-F01 and, when delivered, S2-F03 … S2-F08 | ME + Tooling | G2 |
 | **OI-TSHELL2-06** | Temporal wing boss load analysis: ≥ 15 N axial, ≥ 10 N lateral (TS2-05). Carried from `NP-TOOL-SHELL-001` OI-05 | ME | G2 |
 | **OI-TSHELL2-07** | Dust-cover tether anchor location on the wing, and **tether loop size from a reach analysis** rather than the retired F-01 loop (§3.1). Carried from `NP-TOOL-SHELL-001` OI-07, plus the F-04 half of its OI-06 (tether supply and ≥ 500-cycle tug test) | ME + Supply Chain | G2 |
-| **OI-TSHELL2-08** | **HOPE Phase 3 (Cognito Therapeutics, n = 670) was "expected mid-2026" and is now overdue as a monitoring item** (`NP-TOOL-SHELL-001` Rev 2 banner note (b)). Check its status. This document supplies no result. If the result is negative, the boss stays and S2-F01 is marked inactive. Carried from `NP-TOOL-SHELL-001` OI-08 | Product / Programme | Accessory A19 decision; nothing in tooling |
+| **OI-TSHELL2-08** | ~~HOPE Phase 3 (Cognito Therapeutics, n = 670) was "expected mid-2026" and is now overdue as a monitoring item.~~ **CLOSED 2026-11-23: HOPE missed its primary endpoint, so this item's own rule applies. The boss stays and S2-F01 is marked inactive.** HOPE randomised 673 people with biomarker-confirmed mild-to-moderate Alzheimer's disease (663 in the primary analysis) to 12 months of 40 Hz light and sound or sham. The primary endpoint (iADMARS, MMSE and ADCS-ADL combined) did not differ from sham at month 12. A prespecified mild subgroup (MMSE 21–28, n = 395) favoured the device on every measure, with nominal statistics not adjusted for multiplicity (Cognito Therapeutics at CTAD, 2026-11-16, as reported by NeurologyLive, Medscape and Fierce Biotech; not yet checked against a peer-reviewed publication). **HOPE was never a test of the pad:** Spectris has no tactile channel, so the pad's release now waits on its own gate, `NP-ACC-PRIORITY-001` `OI-ACC-10`. Nothing in tooling changes: the boss is still cut and inspected (`NP-ACC-PRIORITY-001` §7). Carried from `NP-TOOL-SHELL-001` OI-08 | **CLOSED** — was Product / Programme | — |
 
 **Items this document tracks but does not own:** `MECH-1`, `MECH-2`, `EMF-1`, `EMF-2`, `EMF-3`
 (`NP-HEX-ZM-001` §7); `OI-SHELL2-02`; `OI-THCOOL-06`; `OI-TACSDRV-04`; `OI-UPG-05`; `OI-EMCCAV-08`;
