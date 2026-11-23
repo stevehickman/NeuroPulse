@@ -1,6 +1,6 @@
 # Decision brief: OI-PRIV-32 (NP-PRIV-ANALYSIS-004): where the firmware rollback floor lives, and whether USB DFU is encrypted
 
-**Status:** PARTLY ANSWERED 2026-11-23. **Q1 answered by the principal: option B (eMMC RPMB), with the NeurOne registry (§4.1) as an optional, raise-only restore tool** (§8). Q2 and Q3 are open. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (§8): **Q1 B** (eMMC RPMB, with the NeurOne registry of §4.1 as an optional, raise-only restore tool), **Q2 (a)** (every release), **Q3 B** (a recorded §23 exception for recovery DFU, with its conditions). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#960](https://github.com/stevehickman/NeuroPulse/issues/960)
 **From:** NeurOne Firmware Engineering (`docs/status/pending-decisions.md` `OI-PRIV-32` (NP-PRIV-ANALYSIS-004); `docs/np_priv_analysis_004.md` Findings M5 and M6)
 **To:** the principal (Q3 is an exception to `CLAUDE.md` §23, which only the principal can make). Q1 and Q2 also need Firmware and the electrical owner of the i.MX RT1062 fuse map. No names are assigned.
@@ -134,8 +134,20 @@ Once an answer is given, it is recorded in `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), 
 - **Not decided by this answer:**
   - how the RPMB key is provisioned and protected (§4 suggests the tier-identity factory step);
   - whether the registry is built, and as per-helmet records or the fleet-wide variant;
-  - Q2;
-  - Q3.
 - **Still needed:** a name and role for the record, beyond "the principal".
 
-**Q2 and Q3:** open.
+**Q2, answered 2026-11-23 by the principal: option (a), the full signed version.**
+- The floor follows every confirmed release, which is what `np_rollback.c` already compares. No image-header change is needed.
+- **What would reopen it:** a move from RPMB to fuses, whose limited raises would force (b).
+
+**Q3, answered 2026-11-23 by the principal: option B, a recorded exception to `CLAUDE.md` §23 for recovery USB DFU, with the four conditions of §6.**
+1. DFU stays download only: no `DFU_UPLOAD` handler is ever added.
+2. Every image passes the Ed25519 check and the rollback floor before any bank write. Both are built (`REQ-SW02-15`).
+3. Nothing but a signed firmware image ever travels over DFU.
+4. The exception is revisited when the `OI-SIMFW-71` secure channel exists, or if firmware secrecy becomes a requirement.
+- **Reason:** DFU carries no user data, so encryption serves no privacy purpose. The signature and the floor already stop injection. What encryption would add (secrecy of the image) costs a device-resident key and more code in the last-resort recovery path.
+- **The exception lowers no protection:** DFU has never been encrypted.
+- **Recorded in:** `CLAUDE.md` §23 and `NP-FW-HUB-001` §2.5.
+- **Not enforced by a gate:** conditions 1 and 3 are kept by review. `np_dfu.c` has no host test.
+
+**Still needed:** a name and role for the record, beyond "the principal".
