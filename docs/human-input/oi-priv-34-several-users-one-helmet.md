@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-34 (NP-PRIV-ANALYSIS-004), several people's UHDR on one helmet
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** PARTLY ANSWERED 2026-11-23 by the principal (Q1, Q2, Q4; Q3 came back as a question, answered in §9 with three follow-up questions). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#962](https://github.com/stevehickman/NeuroPulse/issues/962)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding M8)
 **To:** the principal, with Firmware and Software; Regulatory for Q4
@@ -175,3 +175,92 @@ The answer is recorded in `docs/status/pending-decisions.md` (`OI-PRIV-34` (NP-P
   `NP-FW-EMMC-001` for the partition layout; `OI-EMMC2-02`'s scope widened; the firmware and host tests follow.
 - **B:** the decision goes in `NP-FW-EMMC-002` §C and `CLAUDE.md` §5.1's detail file, and the notice text goes to the
   owners of the IFU and the privacy notice.
+
+## 8. Answers received (the principal, 2026-11-23)
+
+| Q | Answer | What follows |
+|---|--------|--------------|
+| Q1 | **Shared.** Several people's UHDR may be on one helmet, each person's sealed from the others. | Option B is rejected. |
+| Q2 | **Whichever approach makes backup and restore easiest.** A user of a shared helmet may want to move their UHDR to their own helmet. | **A2 meets that, and A1 does not** (see below). §5's recommendation of A1 is superseded. |
+| Q3 | Answered with a question: *what kind of credential?* The principal added a requirement: **the warranty owner (a clinic) may need to replace a helmet, or a device that stores UHDR for all its clients, so it must be able to back up and restore all the UHDR on a device without having access to any of it.** | §9 answers the question and asks three narrower ones. |
+| Q4 | **No interim notice: no device has been deployed.** | Nothing is told to anyone in the meantime, and the layout can change freely before first provisioning. |
+
+**Why Q2's criterion selects A2.** An A1 slice is a block image under an XTS key that depends on the block's position.
+It can be backed up and restored only as a whole slice, into a slice of the same size, and it cannot be merged into a
+profile on another helmet. A2 seals each file under that person's own key, so each file is a self-contained ciphertext
+object. It can be copied anywhere, by anyone, without being readable, and it can be added to another helmet as that
+person's profile. That covers both journeys the principal names: a person moving to their own helmet, and a clinic
+moving everyone to a replacement.
+
+**A2's weakness (§4) mostly goes away under this design.** The concern was that every profile could see the others'
+file counts and sizes. Under the design below, no profile mounts the partition. The hub firmware mediates every access,
+so another person's directory is never listed to an app. The partition's outer XTS layer is keyed by the helmet itself
+(bound to the device-fused key), which protects names and sizes against an eMMC image. One leak remains: a clinic that
+exports the store sees how much each profile has recorded (§9.4).
+
+## 9. Q3: what kind of credential
+
+### 9.1 Three secrets, not one
+
+Today one credential does everything: it opens the single key, on this helmet only (`NP-FW-EMMC-002` §C.4). The wrap
+is bound to the helmet's fused key (`np_uhdr_hal_hw_bind`, privacy review F1), so a copy of `ukmd.rec` is useless on
+any other helmet. That binding is what stops an offline attack on an eMMC image. It is also why nothing can be moved
+today. The principal's requirements separate **who can read** from **who can move**, so the design needs three secrets.
+
+| Secret | What it is | Who holds it | What it allows |
+|--------|------------|--------------|----------------|
+| **Profile key** | A random key per person; it seals that person's files | The helmet only, wrapped twice (below) | Reading that person's UHDR |
+| **Unlock credential** | Opens the profile key on this helmet for a session. Wrap 1 = profile key under `hw_bind(Argon2id(credential), fused key)`, as today | The person | Using the helmet. Bound to this helmet, so the offline protection is kept |
+| **Recovery code** | Wrap 2 = profile key under a key derived from a code the person holds | The person. Never the clinic, never NeurOne | Re-binding the profile key to another helmet |
+
+### 9.2 How the principal's two journeys work
+
+- **The clinic replaces a helmet.** The helmet exports every profile as it is stored: the sealed files and the profile
+  key under wrap 2. It sends them over the encrypted transport (`CLAUDE.md` §23) to the clinic's app, which needs no
+  user present. The clinic stores the export and imports it into the replacement helmet, and reads nothing at any
+  point. Each person's profile wakes the first time that person presents their recovery code on the new helmet (or
+  their phone does it for them, if it holds the code; see Q3b). That re-wraps the profile key under the new helmet's
+  wrap 1.
+- **A person moves to their own helmet.** The same export, of one profile, started by the person. On their own helmet
+  it becomes their profile. If they already have one there, the helmet re-seals the imported files under it once both
+  are open.
+
+The clinic's export is the users' UHDR as opaque blobs. It is not the warranty owner's own data, and it is kept as a
+separate object from the owner's backup (`CLAUDE.md` §6.0, `REQ-SHDR-10`: the owner's data never travels with a
+user's).
+
+### 9.3 The unlock credential: options
+
+| | What the person uses | Good | Costs |
+|---|---|---|---|
+| **C1** | Their own phone. The presence-gated key on the phone yields the helmet credential (`NP-APP-PRESENCE-001`) | Strongest; nothing is typed; reuses what is built | Each person needs a phone with the app |
+| **C2** | A passphrase typed on the clinic's tablet | Works for a patient with no phone | It is typed on a device the clinic controls. An attempt limit on the helmet is needed (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004)) |
+| **C3** | A security key or NFC card per person (FIDO2 `hmac-secret`), tapped on the phone or tablet | Nothing typed and no phone needed; the tablet relays a response it cannot reuse | Cost; cards get lost; NFC on the tablet; most new code |
+
+**Recommended: C1, with C2 as the fallback.** It is the same pattern the presence gate already uses (a device credential
+where there is one, a passphrase where there is none, `REQ-PRES-06`). C3 can be added later without changing the store.
+
+### 9.4 The recovery code
+
+The recovery code is the price of "the clinic can back it up but cannot read it". Whoever holds an export can try
+recovery codes against it offline, and a clinic holds every patient's export. So the code is **generated by the helmet
+and high-entropy** (for example 128 bits, shown as words or a QR code), **never chosen by the person**. A short code
+would make an export brute-forceable, and that would weaken protection (`CLAUDE.md` §5.1). If a person loses their code,
+and the helmet holding their profile is lost or replaced, their helmet copy cannot be recovered by anyone. Their phone's
+own backup, if they have one, is unaffected.
+
+The leak that remains is coarse metadata. The clinic's export shows how many profiles there are and how much each has
+recorded. Padding each profile's export to a size bucket reduces that. The clinic usually ran those sessions itself.
+
+### 9.5 Follow-up questions
+
+**Q3a.** Unlock credential: C1 with C2 as fallback (recommended), C3 as well, or something else?
+
+**Q3b.** Where does the person keep the recovery code? Options: (i) printed or saved by the person only; (ii) also kept
+inside their own phone's presence-gated store and its backup (`SWR-MG-02`), so their phone can re-bind them
+automatically (recommended where they have a phone); (iii) both. Accept that a lost code with a lost helmet means that
+helmet copy is gone?
+
+**Q3c.** Is it acceptable that the clinic's export shows how much each profile has recorded, padded to coarse size
+buckets? Or must each profile be padded to one fixed size, at a storage cost?
+

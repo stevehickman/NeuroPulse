@@ -199,6 +199,11 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > to add per-profile key slots and namespaces, or to record a single-person decision with a notice, is the principal's
 > (`docs/human-input/oi-priv-34-several-users-one-helmet.md`). Until it is decided, no document may describe the helmet's
 > UHDR as separated per user.
+> **Ruled 2026-11-23 (the principal): helmets are shared.** Each person's UHDR is to be sealed from every other's, by
+> a key per person over per-file sealing, so that one person's UHDR can move to their own helmet and a clinic can back up
+> and restore everyone's without reading any of it. This scheme is to be replaced accordingly. The credential and the
+> recovery code are still open (`docs/human-input/oi-priv-34-several-users-one-helmet.md` §9). Until that design lands
+> here, this section describes what is built, not what is decided.
 
 ### C.3 Config partition UKMD record
 
