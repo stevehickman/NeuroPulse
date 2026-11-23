@@ -34,4 +34,11 @@ describe('storedProfile', () => {
   it('cuts a stored note to the bound', () => {
     expect(storedProfile({ id: 'p1', name: 'Alex', notes: 'n'.repeat(MAX + 40) })?.notes).toBe('n'.repeat(MAX));
   });
+
+  // @verifies REQ-SW03-32#d
+  it('keeps the stealth choice, and only as true', () => {
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: true })).toEqual({ id: 'p1', name: 'Alex', notes: '', stealth: true });
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: false })).toEqual({ id: 'p1', name: 'Alex', notes: '' });
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: 'yes' })).toEqual({ id: 'p1', name: 'Alex', notes: '' });
+  });
 });

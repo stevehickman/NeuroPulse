@@ -233,6 +233,48 @@ class NeurOneGattManager(
         return true
     }
 
+    // ── Stealth (STEALTH 0x0022; NP-FW-HUB-001 §5.5a, REQ-FWHUB-86; SWR-IND-01, SWR-IND-02; OI-PRIV-37) ──
+    //
+    // The hub holds stealth in RAM and boots with it off, so the app keeps the person's choice with their profile and sends it at
+    // every link. Whatever stealth says, a fault always shows red (CLAUDE.md §4.7). UHDR-class: written only on an encrypted link
+    // ([writeEncrypted]), never logged or uploaded.
+
+    /** What the helmet holds: true dark, false lit, null when not read on this link. */
+    private val _stealthOnHub = MutableStateFlow<Boolean?>(null)
+    val stealthOnHub: StateFlow<Boolean?> = _stealthOnHub
+
+    private var stealthCharPresent = false
+
+    private val _stealthPublished = MutableStateFlow(false)
+
+    /** True when this helmet publishes STEALTH, so a screen can offer the switch. */
+    val stealthPublished: StateFlow<Boolean> = _stealthPublished
+
+    /**
+     * What the app asks the helmet to show: the active profile's choice, or off when the warranty owner forbids stealth on this
+     * helmet ([life.neurone.core.models.StealthFlag.desired]). Sent whenever it changes and at every link once the link is shown
+     * to be encrypted. Null: nothing is sent, and the helmet keeps what it holds.
+     */
+    var desiredStealth: Boolean? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            sendStealth()
+        }
+
+    /** Ask the helmet what it holds (an encrypted READ, refused until the helmet is paired). */
+    fun requestStealth() {
+        if (stealthCharPresent) central.read(UUID.fromString(GattUuidStrings.STEALTH_ID))
+    }
+
+    private fun sendStealth() {
+        val on = desiredStealth ?: return
+        if (!stealthCharPresent || _connectionState.value != ConnectionState.CONNECTED) return
+        val id = UUID.fromString(GattUuidStrings.STEALTH_ID)
+        // The read follows the write, so what is shown is what the helmet holds, not what was asked.
+        if (writeEncrypted(id, life.neurone.core.models.StealthFlag.toWire(on))) central.read(id)
+    }
+
     private val _bluetoothUnavailable = MutableStateFlow(false)
     val bluetoothUnavailable: StateFlow<Boolean> = _bluetoothUnavailable
 
@@ -508,6 +550,13 @@ class NeurOneGattManager(
         ppxConfigCharPresent = UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) in characteristics
         _ppxConfigPublished.value = ppxConfigCharPresent
         if (ppxConfigCharPresent) central.read(UUID.fromString(GattUuidStrings.PPX_CONFIG_ID))
+        // SWR-IND-01: optional (hub firmware); encrypted, so the read and the write wait for the helmet to be paired.
+        stealthCharPresent = UUID.fromString(GattUuidStrings.STEALTH_ID) in characteristics
+        _stealthPublished.value = stealthCharPresent
+        if (stealthCharPresent) {
+            central.read(UUID.fromString(GattUuidStrings.STEALTH_ID))
+            sendStealth()
+        }
         // SWR-SS-09: optional (hub firmware): why a session is held, so a halt the helmet made on its own is put to the person.
         if (UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) in characteristics) {
             central.enableNotifications(UUID.fromString(GattUuidStrings.SESSION_HOLD_ID))
@@ -542,6 +591,7 @@ class NeurOneGattManager(
                 if (!wasShown) {
                     sendActiveUserTag()
                     flushConsumableResets()
+                    sendStealth()
                 }
             }
             return
@@ -588,6 +638,7 @@ class NeurOneGattManager(
             UUID.fromString(GattUuidStrings.PAUSE_LIMIT_ID) -> _pauseLimitSeconds.value = GattParser.parsePauseLimit(value)
             UUID.fromString(GattUuidStrings.PPX_CONFIG_ID) -> _ppxConfig.value = GattParser.parsePpxConfig(value)
             UUID.fromString(GattUuidStrings.PPX_SENSITIVITY_ID) -> _ppxSensitivity.value = GattParser.parsePpxSensitivity(value)
+            UUID.fromString(GattUuidStrings.STEALTH_ID) -> _stealthOnHub.value = GattParser.parseStealth(value)
             UUID.fromString(GattUuidStrings.CARDIAC_SENSITIVITY_ID) -> _cardiacSensitivity.value = GattParser.parseCardiacSensitivity(value)
             UUID.fromString(GattUuidStrings.SESSION_PROGRESS_ID) -> _progress.value = GattParser.parseSessionProgress(value)
             UUID.fromString(GattUuidStrings.SESSION_HOLD_ID) -> _holdCause.value = GattParser.parseHoldCause(value)
@@ -857,6 +908,9 @@ class NeurOneGattManager(
         _ppxConfig.value = null
         ppxConfigCharPresent = false
         _ppxConfigPublished.value = false
+        _stealthOnHub.value = null // UHDR-class: not shown once the link is gone, and the next link may be another helmet
+        stealthCharPresent = false
+        _stealthPublished.value = false
         // Clear the inventory rather than zeroing a fixed shape: the hub sends a fresh snapshot
         // on reconnect, and a stale "present" socket would let a placement gate pass on a module
         // pulled while disconnected. The map goes too — the next link may be another helmet.

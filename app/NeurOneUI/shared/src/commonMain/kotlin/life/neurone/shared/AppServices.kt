@@ -40,6 +40,7 @@ import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.SessionState
+import life.neurone.core.models.StealthFlag
 import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPWavelengthRulesStore
 import life.neurone.core.protocol.NPProtocolLibrary
@@ -409,7 +410,32 @@ class AppServices(
         // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the person on
         // the device. Until a profile is chosen the device keeps assuming whoever it last knew.
         gattManager.activeUserTag = ActiveUserTag.from(limits.activeProfileId)
-        limits.onActiveProfileChanged = { gattManager.activeUserTag = ActiveUserTag.from(it) }
+        limits.onActiveProfileChanged = {
+            gattManager.activeUserTag = ActiveUserTag.from(it)
+            refreshStealth()
+        }
+        // SWR-IND-01: a profile's stealth choice reaches the hub when it is saved, and when the profiles are read again.
+        limits.onProfilesChanged = { refreshStealth() }
+    }
+
+    /**
+     * Send the hub what its indicators should show (`SWR-IND-01`, `SWR-IND-02`, `OI-PRIV-37`): the active profile's stealth
+     * choice, or lit when the warranty owner forbids stealth on the helmet the link is to. With no profile named and no lock,
+     * nothing is sent. Called when the active profile, a profile, the helmet or the owner's lock changes.
+     */
+    fun refreshStealth() {
+        // The callbacks that call this are set in limitsStore's initialiser and fire only after it is built.
+        val choice = limitsStore.activeProfile?.stealth
+        gattManager.desiredStealth = StealthFlag.desired(choice, stealthForbidden(gattManager.hubIdentifier.value))
+    }
+
+    /** True when the warranty owner forbids stealth on [hub] (`SWR-IND-02`); false with no helmet named. */
+    fun stealthForbidden(hub: String?): Boolean = hub?.let { warrantyOwnerStore.record(it)?.stealthForbidden } == true
+
+    /** The owner's stealth lock for [hub] (`SWR-IND-02`): kept in the owner's store, and applied at once to the connected helmet. */
+    fun setStealthForbidden(hub: String, forbidden: Boolean) {
+        warrantyOwnerStore.update(hub) { it.copy(stealthForbidden = forbidden) }
+        refreshStealth()
     }
 
     /**
@@ -467,7 +493,12 @@ class AppServices(
             }
         }
         // The connected hub is the helmet whose limits tier applies; none connected means no helmet tier.
-        scope.launch { gattManager.hubIdentifier.collect { limitsStore.activeHelmetSerial = it } }
+        scope.launch {
+            gattManager.hubIdentifier.collect {
+                limitsStore.activeHelmetSerial = it
+                refreshStealth() // the owner's lock is per helmet
+            }
+        }
         composeFleetUpload()
     }
 
