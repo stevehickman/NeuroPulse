@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-ANON-001
-**Revision:** 1
-**Date:** 2026-06-03
+**Revision:** 2
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -299,7 +299,7 @@ The `records_b64` field is encrypted with the study public key from the descript
 
 ### 8.1 Per-device budget tracking
 
-The engine tracks cumulative privacy budget spent per study across all sessions:
+The engine tracks cumulative privacy budget spent per study across all sessions. **Class (`OI-PRIV-07`, the principal, 2026-11-20): the budget record names a study and is therefore UHDR. It is never copied to SHDR.**
 
 ```c
 /* Config partition — per-study budget record */
@@ -317,7 +317,7 @@ If `epsilon_spent` would exceed 1.0 for a given study after a new extract, the e
 When the user withdraws research consent, the engine:
 1. Immediately stops processing any pending study descriptors
 2. Zeroes all study budget records in the Config partition for that study
-3. Issues `NP_ANON_CONSENT_WITHDRAWN` SHDR event (no study content — flag only)
+3. ~~Issues `NP_ANON_CONSENT_WITHDRAWN` SHDR event (no study content — flag only)~~ **Retired 2026-11-20 (`OI-PRIV-07`, the principal):** under the device-linked token the flag still says the wearer had consented to research and then withdrew, so no SHDR event is issued. The withdrawal is recorded in the UHDR audit trail only (`REQ-CONSENT-24`).
 
 Per the research architecture, this makes future data flows impossible. Already-transmitted extracts cannot be recalled (disclosed at L3 consent and per-project invitation).
 
@@ -350,3 +350,11 @@ FAI-ANON-09 uses synthetic test data with known ground truth. The adversarial at
 | OI-ANON-03 | study_public_key scheme selection — NaCl box vs AES-256-GCM+ECDH | Output format finalisation |
 | OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev 2) |
 | OI-ANON-05 | Expert Determination certification template (NP-ANON-CERT) finalised | STEP-32; IRB protocol approval |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1: the per-study budget record is UHDR and never copied to SHDR; §8.2: the `NP_ANON_CONSENT_WITHDRAWN` SHDR event is retired (`OI-PRIV-07`, the principal, 2026-11-20).** |
