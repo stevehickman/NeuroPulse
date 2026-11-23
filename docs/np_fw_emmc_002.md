@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -327,7 +327,7 @@ that; it is in the reviewer's scope (brief §3).
 > in `docs/human-input/oi-priv-34-several-users-one-helmet.md` §8 and §10. This subsection is the design those rulings
 > fix. **Nothing in it is built.** §C.1 to §C.7 describe the code as it is, and remain true of it until this design
 > replaces them. No requirement row is written yet: each is written with the code that meets it (`CLAUDE.md` §21).
-> **Rev {NP-FW-EMMC-002 to} (2026-11-23).** The first increment, the per-person key store, is built (§C.8.6).
+> **Rev 14 (2026-11-23).** The first increment, the per-person key store, is built (§C.8.6).
 > §C.1 to §C.7 still describe the code that writes UHDR today.
 
 #### C.8.1 What the rulings require
@@ -405,7 +405,7 @@ that; it is in the reviewer's scope (brief §3).
 
 #### C.8.6 Built: the per-person key store (increment 1)
 
-> **Rev {NP-FW-EMMC-002 to} (2026-11-23).** The first increment of this design is built and host-tested:
+> **Rev 14 (2026-11-23).** The first increment of this design is built and host-tested:
 > `firmware/uhdr_key/src/np_uhdr_profile.c` (`np_uhdr_profile.h`), tests in `np_uhdr_profile_tests`. It is
 > the key store only. **Not built:** sealing files under a profile key, the file export and import and its
 > size buckets, the helmet store key and the change to the UHDR mount, and the Mode 3 write (§C.8.3). Until
@@ -1251,6 +1251,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 11 | 2026-11-23 | **§E.4: an excluded EDF+ file leaves nothing in SHDR; EDF_PRIVACY_HEADER_VIOLATION (0xE1) retired (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2, REQ-SW02-14).** |
 | 12 | 2026-11-23 | **New §C.7 and `REQ-EMMC2-01`: every unlock attempt that reaches the KDF is charged to a failed-attempt count persisted in Config before the credential is tested, a success clears it, and after 5 failures an exponential back-off in uptime (30 s doubling to 24 h, PROVISIONAL, UC-203) refuses attempts without running the KDF; a reboot restarts the wait and a storage fault refuses the attempt. §C.4 gains step 0. §C.2 gains a note that a 32-byte UKMD is not an XTS-AES-256 key and that 64 MiB of Argon2id is 64 times the device's on-chip RAM with no SDRAM fitted; neither is changed here, both go to the `OI-EMMC2-02` reviewer (`docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`) (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 13 | 2026-11-23 | **§C.2: the callout records the rulings of 2026-11-23. New §C.8: the design they fix (keys, wraps, the recovery code, per-file sealing, hub-mediated access, clinic export and import, a person moving to their own helmet) and what stays open in OI-PRIV-35, OI-EMMC2-02 and OI-SIMFW-71. §C.1 to §C.7 still describe what is built. No requirement or code changed (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 14 | 2026-11-23 | **New §C.8.6 and REQ-EMMC2-02 to -05: the first increment of §C.8, the per-person key store (np_uhdr_profile.c), is built and host-tested: one Config record per profile, a device-bound unlock wrap and a portable recovery wrap, a helmet-generated 128-bit recovery code handed out once, credential-free export with no unlock wrap, import into an empty slot as dormant, re-binding by recovery code, deletion, and the §C.7 attempt limit shared. Four new seams (SW-02 count 123 to 127). §C.8.5 records the profile cap (8, PROVISIONAL, UC-204) and the per-profile attempt-limit question. File sealing, the file export and the mount change are not built (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 
 Open items created by this document:
 
