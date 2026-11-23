@@ -149,6 +149,10 @@ np_uhdr_hal_config_read_ukmd                firmware-host  ../uhdr_key/src/np_uh
 np_uhdr_hal_config_write_ukmd               firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_hw_bind                         firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_mount_uhdr                      firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
+np_uhdr_hal_profile_erase                   absent         -                                    none          OI-PRIV-34
+np_uhdr_hal_profile_read                    absent         -                                    none          OI-PRIV-34
+np_uhdr_hal_profile_write                   absent         -                                    none          OI-PRIV-34
+np_uhdr_hal_recovery_kdf                    absent         -                                    none          OI-PRIV-34
 np_uhdr_hal_trng_generate                   firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_uptime_ms                       firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_warranty_hal_trng_generate               infra          src/np_sim_gatt.c                    none          -

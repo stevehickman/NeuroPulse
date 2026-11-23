@@ -62,7 +62,8 @@ typedef struct {
 
 /*
  * np_uhdr_key_provision
- *   First-activation provisioning.  Generates a fresh UKMD, Argon2id salt, and
+ *   First-activation provisioning.  Generates a fresh 64-byte UKMD (K1 || K2,
+ *   refused with NP_UHDR_ERR_TRNG if the halves are equal), Argon2id salt, and
  *   GCM nonce from the TRNG; derives WKMD from `credential`; GCM-wraps the UKMD;
  *   writes the Config UKMD record; mounts the UHDR partition; and leaves the
  *   context unlocked with the UKMD live.  WKMD is zeroed before return.
@@ -80,8 +81,8 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
  * np_uhdr_key_unlock
  *   Foreground unlock (§C.4).  Reads the Config UKMD record, derives WKMD from
  *   `credential`, GCM-decrypts and authenticates the UKMD, mounts the UHDR
- *   partition with the UKMD as its XTS key material, zeros WKMD, and marks the
- *   context unlocked.
+ *   partition with the 64-byte UKMD as its XTS-AES-256 key (K1 || K2), zeros
+ *   WKMD, and marks the context unlocked.
  *
  *   A wrong credential yields a GCM tag mismatch: the UKMD buffer is zeroized,
  *   the context stays locked, and NP_UHDR_ERR_AUTH is returned.
@@ -92,6 +93,9 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
  *   has not elapsed the call returns NP_UHDR_ERR_LOCKOUT without running the
  *   KDF and without charging.  If the count cannot be read or the charge cannot
  *   be persisted the attempt is refused with NP_UHDR_ERR_CONFIG (fail closed).
+ *
+ *   A decrypted key whose halves are equal is never mounted: the UKMD is
+ *   zeroized and NP_UHDR_ERR_CRYPTO returned (REQ-EMMC2-06).
  *
  *   Returns NP_UHDR_ERR_INVALID if ctx/credential is NULL or cred_len is 0.
  */
@@ -222,11 +226,14 @@ extern np_uhdr_status_t np_uhdr_hal_config_read_ukmd(np_ukmd_record_t *out);
 extern np_uhdr_status_t np_uhdr_hal_config_write_ukmd(const np_ukmd_record_t *rec);
 
 /*
- * OI-UHDRK-07: mount the UHDR partition using `ukmd` as the XTS key material.
- * Called with the UKMD — NEVER the WKMD.  NP_UHDR_UKMD_LEN (32) bytes is not
- * an XTS-AES-256 key (which takes 64); how the mount obtains Key1 and Key2 is
- * open under OI-PRIV-35 (NP-PRIV-ANALYSIS-004) and must be settled before this
- * seam is implemented.
+ * OI-UHDRK-07: mount the UHDR partition with `ukmd` as its XTS-AES-256 key:
+ * NP_UHDR_UKMD_LEN (64) bytes, K1 = ukmd[0..31] for the data and
+ * K2 = ukmd[32..63] for the tweak (IEEE Std 1619; NP-FW-EMMC-001 EMMC-UHDR-04,
+ * -05).  Called with the UKMD — NEVER the WKMD — and never with K1 == K2
+ * (REQ-EMMC2-06).  The cipher must be real AES-256: NP-FW-EMMC-001 EMMC-UHDR-06's
+ * "AES-256 with two-key 128-bit halves" from the AES-128 DCP is not that
+ * (OI-PRIV-35, NP-PRIV-ANALYSIS-004), so the implementation uses the CAAM's
+ * AES-256 or the vetted software library EMMC-UHDR-06 allows.
  */
 extern np_uhdr_status_t np_uhdr_hal_mount_uhdr(const uint8_t *ukmd /* [NP_UHDR_UKMD_LEN] */);
 

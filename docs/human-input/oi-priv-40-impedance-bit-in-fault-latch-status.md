@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-40 (NP-PRIV-ANALYSIS-004), may the fault-latch report carry the IMPEDANCE bit?
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal: option D, extended to every SHDR record derived from the in-session check (§8). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#968](https://github.com/stevehickman/NeuroPulse/issues/968)
 **From:** NeurOne Firmware + Tooling (`OI-PRIV-40` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review, Finding L2)
 **To:** the principal
@@ -53,6 +53,9 @@ The instruction for this item suggested masking IMPEDANCE in `status`. Read agai
 - **C. Drop `status` and `slot` from the report; keep only a count of device-class transitions.** The simplest shape that cannot leak.
   - *Cost:* also drops the deliberately published CARDIAC kind from this path. The hub's SHDR `fault_log` already carries the cardiac cutoff, so nothing is lost there.
 
+- **D. Split the measurement by where it is taken** (added 2026-11-23, from the principal's question). The in-session check is taken through the wearer: skin, gel, hair, placement, anything worn in the path, the leads and the front end are one circuit, and a driver error also reads as "too high". It cannot tell a device fault from the person, so its result is **UHDR**, and the report never discloses it (as A). Device condition comes from a **separate device-only test**: the same measurement through a known load in a test harness or the maintenance dock, with no person in the circuit. That result is device-class by construction, as every maintenance result is under `NP-FW-HUB-001` D-41.
+  - *Cost:* the device-only test does not exist. It needs a known load (a harness or the dock, `OI-FWHUB-25`), hub detection that a person cannot fake, and a signed maintenance session, because it drives an excitation current. Until it exists the fleet has no impedance-derived device signal.
+
 **Q2. Under B, what does the classification of the bit in the gate become?** The gate's `PREDICATES` entry moves to `device`, with the ruling cited; the known violation for `np_fault_latch_build_report` then still fires on `CARDIAC` and needs CARDIAC's own ruling cited before it can be removed.
 
 ## 4. Present state while this is open
@@ -78,3 +81,19 @@ The instruction for this item suggested masking IMPEDANCE in `status`. Read agai
 2. A short rationale (`CLAUDE.md` §18).
 3. Any condition that would reopen it.
 4. Your name, role and the date.
+
+## 8. The answer (the principal, 2026-11-23)
+
+**Q1: D.** In the principal's words: "Treat the existing impedance test as UHDR, if we keep it at all, and add a todo to extend the test harness to test impedance for the device only." Asked whether the ruling also covers the two SHDR records already derived from the in-session check, the principal answered **both move to UHDR**:
+- the cervical VNS session summary's impedance-pass flag (`np_cvns_shdr_summary_t.impedance_check_pass`; was SHDR under `OI-PRIV-23` and `NP-FW-CVNS-001` §8.2), and
+- the hub-versus-MCU divergence flag `NP_CVNS_SHDR_EV_IMP_CROSSVAL` (was SHDR under `OI-CVNS-HUB-11`).
+
+**"If we keep it at all."** The check stays. It is the contact-confirmation interlock of `CLAUDE.md` §4.2 (VNS: "Safety MCU reads impedance; holds if contacts not confirmed") and the tES enable gate (`NP-FMEA-001` FMEA-M05-07). Removing it would remove a safety control, which is an ISO 14971 decision (`CLAUDE.md` §18). The ruling changes where its **result** may go, not whether stimulation waits for it.
+
+**What it changed:**
+- `data-architecture-detail.md` §5.1: a row for the in-session check, and the two earlier rows amended.
+- `NP-FW-HUB-001` §6.3 and §6.9: the IMP_CROSSVAL sentence, and a catalogue row for the device-only test, with **`OI-FWHUB-36`** for building it.
+- `NP-FW-CVNS-001` §8.2: notes on both rows that classed the pass/fail flag SHDR.
+- `scripts/check-redaction-shape.ts`: the three writers of those flags are known violations under `OI-PRIV-40` (NP-PRIV-ANALYSIS-004) until the firmware changes.
+- **Not yet done (firmware, no further ruling needed):** remove the flag from the cervical VNS summary (`REQ-CVNS-15` and its size assertion change), stop writing `IMP_CROSSVAL` to SHDR (the fail-closed block it accompanies stays), and reshape the fault-latch report so an impedance-only transition is indistinguishable from none, by bit, slot or count (§2.2).
+
