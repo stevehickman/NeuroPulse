@@ -88,6 +88,7 @@
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
 #   firmware/uhdr_key/        → np_uhdr_key_tests  (NP-FW-EMMC-002 §C)
+#                             → np_uhdr_profile_tests (NP-FW-EMMC-002 §C.8)
 #   firmware/shdr/            → np_accel_shdr_tests (NP-FW-EMMC-002 §G/§H)
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
@@ -282,6 +283,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_uhdr_key_tests
         COMMAND np_uhdr_key_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_uhdr_profile_tests
+        COMMAND np_uhdr_profile_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_accel_shdr_tests

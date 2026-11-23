@@ -117,6 +117,15 @@ PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
     (r"\bhuk\b",          "hardware unique key"),
     (r"\bhw_key\b",       "hardware key material"),
     (r"\bkdf_",           "KDF-derived field"),
+    # Per-person key store, NP-FW-EMMC-002 §C.8 (OI-PRIV-34, NP-PRIV-ANALYSIS-004).
+    # profile_id travels in every export, so it names one person across helmets:
+    # UHDR-class, never SHDR.  The recovery code, its salt and key, and the two
+    # wraps are key material.
+    (r"profile_id",       "per-person profile id (follows the person across helmets)"),
+    (r"profile_key",      "per-person profile key material"),
+    (r"recovery",         "recovery code, salt or key (per-person key material)"),
+    (r"rec_salt",         "recovery-wrap salt (per-person key material)"),
+    (r"\bw[12]_",         "profile key wrap (per-person key material)"),
 ]
 
 # Column TYPES that must never appear anywhere in the SHDR schema.
