@@ -1,6 +1,6 @@
 ## DHF
 author: NeurOne Firmware Engineering
-text: **{NP-SW-001 from → to}, {NP-FW-HUB-001 from → to}, {NP-FW-CVNS-001 from → to}, {NP-SIM-FW-001 from → to}: the firmware half of the principal's in-session impedance ruling; nothing derived from the check reaches SHDR, and the check stays the §4.2 interlock (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), #968).**
+text: **{NP-SW-001 from → to}, {NP-FW-HUB-001 from → to}, {NP-FW-CVNS-001 from → to}, {NP-SIM-FW-001 from → to}, {NP-HW-CVNS-001 from → to}: the firmware half of the principal's in-session impedance ruling; nothing derived from the check reaches SHDR, and the check stays the §4.2 interlock (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), #968).**
 ## NP-SW-001
 author: NeurOne Firmware Engineering
 text: **§5.1.1: REQ-SW01-06, the fault-latch report is the latch projected onto the device-class bits with the count of their transitions, and no slot, so an impedance-only transition reports exactly as none does (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).**
@@ -13,6 +13,9 @@ text: **§4.6, §8.2, §14: the SHDR session summary is two flags, the impedance
 ## NP-SIM-FW-001
 author: NeurOne Software Engineering
 text: **§22: the warm-reset model keeps the fault latch's bytes through host-only save and restore, since the fault-latch report no longer carries the slot or the raw count (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), UC-132).**
+## NP-HW-CVNS-001
+author: NeurOne Firmware Engineering
+text: **§4.1 (impedance cross-validation row): a divergence faults the session and writes nothing to SHDR; the former flag 0xC7 is retired (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-92).**
 ## LOG
 text: **{date} — `OI-PRIV-40` (NP-PRIV-ANALYSIS-004) CLOSED: the firmware half of the principal's 2026-11-23 in-session impedance ruling is built (Firmware; `NP-SW-001` REQ-SW01-06, `NP-FW-HUB-001` REQ-FWHUB-92, `NP-FW-CVNS-001` REQ-CVNS-15).** The cervical VNS SHDR summary is two flags and its fault reason never names the impedance check; the impedance cross-validation writes nothing to SHDR (0xC7 retired) and still faults the session before delivery; the fault-latch report is {status & device-class bits, count of device-class transitions} with no slot, because the latch's single slot cannot be attributed to a device-class transition without sometimes being the impedance check's; the cardiac bit leaves that report too (the cutoff still shows as CUTOFF). The PBM session summaries lose duration_s and abort_reason. The check itself is unchanged as the contact interlock and tES enable gate (IEC 62304 Class C: reporting path only). scripts/check-redaction-shape.ts holds no known violation under OI-PRIV-40. Found and filed: OI-PRIV-75 (the HD-tDCS session summary carries impedance kΩ, montage, current and duration).
 ## OPEN OI-PRIV-40
