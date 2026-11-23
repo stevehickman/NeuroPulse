@@ -27,6 +27,12 @@
  *    60   ...  (a later version's tail fields)
  *  len-4    4  crc32            over bytes [0, len-4): header ‖ uid ‖ payload
  *
+ * NOT TO BE WRITTEN TO CONFIG AS LAID OUT (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 1).
+ * `ordinal`, `dose_accum` and `throttle_count` are UHDR class (NP-FW-NVRAM-001
+ * §8.1), and Config's key is NeurOne-derivable (§3.2).  This file is the codec
+ * only; nothing writes a row.  The owner that would is not to be written until
+ * the principal rules what Map 3 keeps in their place.
+ *
  * All multi-byte fields are little-endian.  The row is 64 bytes so that four rows fill a 256-byte program unit and
  * none straddles one (NP-FW-NVRAM-001 §4.2(b) requirement 1; OI-UINT16-01, the principal, 2026-11-13).  The counts are
  * 32 bits and are stored as they are: no field holds a ceiling (OI-UINT16-01).  No hardware has shipped and no journal

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 10
-**Date:** 2026-11-22
+**Revision:** 11
+**Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -499,6 +499,10 @@ The function must:
 > `np_edf_validate_research_header(header, policy)` under the study's policy (§E.5). A local header fails it.
 > The exclude-not-abort rule and the SHDR event below are unchanged. Verified by `REQ-SW02-12`
 > (`firmware/edf/tests/np_edf_tests.c`).
+> **Rev 11 (`OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2):** the SHDR event is retired, and with it the
+> gate's `fault_cb` and `user` parameters. The gate is now
+> `np_edf_anon_gate_filter(headers, count, policy, included, result)`; see the paragraph after the code below
+> (`REQ-SW02-14`).
 
 Before any EDF+ file is included in a research extract, a header validator must run:
 
@@ -514,7 +518,7 @@ np_status_t np_edf_validate_privacy_header(const np_edf_header_t *header) {
 }
 ```
 
-Any EDF+ file that fails this validation is excluded from the research extract and a `SHDR` fault event is logged: `EDF_PRIVACY_HEADER_VIOLATION`. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded).
+Any EDF+ file that fails this validation is excluded from the research extract. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded). **Nothing about the exclusion is written to `SHDR`** (Rev 11, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2, `REQ-SW02-14`). Earlier revisions logged one `SHDR` fault, `EDF_PRIVACY_HEADER_VIOLATION`, per excluded file. Any such record says that this device ran a research extract, and the per-file count gives its size: study participation under the device-linked token, which `CLAUDE.md` §5.1's defining test puts in `UHDR` (compare the pipeline's `failed_step`, `data-architecture-detail.md` §5.1). The event and its code (`0xE1`) are retired, not reused. Whether *any* record of a research extract may enter `SHDR` is `OI-PRIV-07`.
 
 ### E.5 Research EDF+ header (added Rev 8, 2026-11-21, `OI-PRIV-26` (NP-PRIV-ANALYSIS-004))
 
@@ -1122,6 +1126,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 8 | 2026-11-21 | **§E.2 marked as the local header only and its check widened to the whole patient-ID field; §E.4 gate now checks the research header under the study's policy; §E.5 added (research EDF+ header, per-study code, date rounding, what is not yet covered) (OI-PRIV-26 (NP-PRIV-ANALYSIS-004), GitHub #954).** |
 | 9 | 2026-11-21 | **§B.3: R-5 named "SANITIZE (CMD38, SANITIZE_START)", which is a plain erase; corrected to CMD6 SWITCH writing 1 to EXT_CSD[165] (support in EXT_CSD[231] bit 6), moved to a new step R-7a after the erases so it also purges SHDR and Config, with no fallback to a plain erase; the 240 s bound is `UC-202`; R-1/R-2 have no implementation (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004`).** |
 | 10 | 2026-11-22 | **§C.2: a callout records the scheme's scope (one UKMD, one credential, one partition key, session files named by the device-wide counter) and that no per-user separation exists on a shared helmet; the decision brief is in docs/human-input (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962). No requirement or code changed.** |
+| 11 | 2026-11-23 | **§E.4: an excluded EDF+ file leaves nothing in SHDR; EDF_PRIVACY_HEADER_VIOLATION (0xE1) retired (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2, REQ-SW02-14).** |
 
 Open items created by this document:
 

@@ -175,7 +175,10 @@ extern uint32_t np_platform_clock_init(void);
 typedef enum {
     NP_LED_IDLE    = 0,
     NP_LED_SESSION = 1,
-    NP_LED_FAULT   = 2
+    NP_LED_FAULT   = 2,
+    /* Both temple indicators dark: stealth mode (REQ-FWHUB-86, OI-PRIV-37).  Only np_status_led.c asks for it, and
+     * never in place of NP_LED_FAULT: stealth suppresses the indicators, and a fault always shows. */
+    NP_LED_OFF     = 3
 } np_led_state_t;
 
 extern void     np_hal_status_led_set(np_led_state_t state);        /* OI-HUB-MAIN-02 */

@@ -49,7 +49,7 @@ volatile uint32_t np_fr_host_snvs_lpgpr1 = 0U;
 static np_led_state_t g_led = NP_LED_IDLE;
 static bool           g_booted;
 
-static const char *led_name(np_led_state_t s) { return s == NP_LED_SESSION ? "session" : s == NP_LED_FAULT ? "fault" : "idle"; }
+static const char *led_name(np_led_state_t s) { return s == NP_LED_SESSION ? "session" : s == NP_LED_FAULT ? "fault" : s == NP_LED_OFF ? "off" : "idle"; }
 
 void np_hal_status_led_set(np_led_state_t state)
 {

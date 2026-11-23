@@ -369,7 +369,7 @@ const KNOWN_VIOLATIONS: {
     file: "firmware/hub_control/src/np_session_log.c",
     fn: "np_log_shdr_zone_auth",
     owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "accessory authentication stamped with the session count forms an insertion timeline",
+    why: "accessory authentication: the session count is gone (REQ-NASAL-16), but each record's position among the session-open records still dates an insertion (brief Q2)",
   },
   {
     rule: "undeclared-writer",
@@ -377,6 +377,13 @@ const KNOWN_VIOLATIONS: {
     fn: "np_mod_intranasal_init",
     owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
     why: "intranasal insertion → np_log_shdr_zone_auth",
+  },
+  {
+    rule: "undeclared-writer",
+    file: "firmware/hub_control/modules/np_mod_intranasal.c",
+    fn: "np_mod_intranasal_detect",
+    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
+    why: "intranasal authentication failure, once per insertion (REQ-NASAL-16 b) → np_log_shdr_zone_auth",
   },
   {
     rule: "undeclared-writer",
