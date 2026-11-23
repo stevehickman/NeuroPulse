@@ -54,6 +54,7 @@ set(BOOTLOADER_SOURCES
     src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
     src/np_rollback.c   # anti-rollback floor check (REQ-SW02-15, OI-PRIV-32)
     src/np_rollback_store_unbuilt.c  # floor store not chosen: refuses every image (OI-PRIV-32)
+    src/np_rpmb_key_unbuilt.c  # RPMB key source not chosen: always fails (OI-PRIV-32, REQ-RPMBK-01)
 )
 
 # Monocypher 4.0.2 — Ed25519 verify for np_signature.c (NP-SW-CI-001
@@ -279,11 +280,14 @@ if(NP_BUILD_TESTS)
     # np_ota.c install paths (Scratch verify, which USB DFU also takes, and the
     # boot trial) and np_signature.c, against a sparse fake eMMC, a fake SNVS
     # selector and a fake floor store defined in the test.  The test key is
-    # force-included as for np_bootloader_app_image_tests.
+    # force-included as for np_bootloader_app_image_tests.  The device build's
+    # RPMB key source (np_rpmb_key_unbuilt.c, REQ-RPMBK-01) is linked as is: it
+    # must fail, and leave no key material behind.
     add_executable(np_bootloader_rollback_tests
         tests/np_bootloader_rollback_tests.c
         src/np_ota.c
         src/np_rollback.c
+        src/np_rpmb_key_unbuilt.c
         src/np_signature.c
         ${NP_BL_MONOCYPHER_SOURCES}
     )

@@ -637,6 +637,85 @@ read; the exact read-out-protection setting; and the sampling plan, if the unit 
 rather than every unit. The writer's reading is that every unit is verified, because the record cannot be
 corrected, and no sampling plan is stated.
 
+### 7.10 The factory step that programs the eMMC RPMB key (Rev {NP-REG-UPG-001 to}) — design, not built
+
+> **Rev {NP-REG-UPG-001 to} (2026-11-23).** New section, for `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), GitHub #960. The principal put the
+> firmware rollback floor in the eMMC's RPMB (2026-11-23, `docs/human-input/oi-priv-32-firmware-rollback-floor-and-dfu.md`
+> §8). RPMB authenticates every write with a 32-byte key programmed once into the eMMC, so every unit needs a factory
+> step that programs it. **Where the key comes from is not decided** (`docs/human-input/oi-priv-32-rpmb-key-source.md`,
+> Q1 to Q3). This section designs what does not depend on that answer, and raises `REQ-RPMBK-01` to `-06`.
+
+**Why it is here.** §7.9 is this programme's home for a production step until a manufacturing procedure exists, and the
+first brief suggested provisioning the RPMB key *"in the same factory step that writes the tier identity record"*. The
+two share a station and a pass, and nothing else: the tier record is in the **safety MCU's** OTP (STM32G071, §7.7), and
+the RPMB key belongs to the **main processor** (i.MX RT1062) and its eMMC. So this is a second procedure run in the same
+pass, after §7.9 step 6 and before §7.9 step 7, so that every lock, the safety MCU's and the RT1062's (`OI-SEC-02`), is
+applied last.
+
+**Inputs.** The unit, with its hub board, eMMC and bootloader fitted; the version of the firmware image installed at the
+factory; and the key source the principal chooses (Q1). Under the recommended option A, the key never leaves the unit,
+so the station supplies no key and holds none.
+
+**The step, in order.** Every stage that fails ends the unit's run through the step.
+
+1. **Read the part.** The bootloader reads the eMMC's CID. Under option A the key is bound to it (the brief, §2.4).
+2. **Obtain the key** from the key source. Under option A, a unit whose SW_GP2 field is blank first draws 128 bits from
+   its own TRNG, burns them and then burns the field's read and write locks; the station never sees the value. **Refuse
+   a key that is all zero or all one bits** (`REQ-RPMBK-01` (c)) before anything is sent.
+3. **Look before programming.** Read the write counter with a fresh nonce. The part answers *key not programmed*
+   (blank), or with a MAC that verifies under this unit's key (a re-run after an interruption), or with one that does not
+   (some other key). The last is refused and the part quarantined (`REQ-RPMBK-04` (a)); the second skips step 4
+   (`REQ-RPMBK-04` (b)).
+4. **Program, once.** Only a part that answered *blank* in step 3 of this run is sent the key-programming request, and
+   it is sent once (`REQ-RPMBK-02`).
+5. **Prove it.** Read the write counter again with a new nonce. Accept only if the result is OK, the counter has not
+   expired, the nonce comes back and the MAC verifies under the key (`REQ-RPMBK-03`).
+6. **Write the initial floor**: the signed version of the image installed at the factory, through the floor store's own
+   write, and read it back through the store's own read (`REQ-RPMBK-05`). A keyed RPMB with no floor refuses every image,
+   so a unit shipped without this step can never be updated.
+7. **Prove it across a reset.** Reset the unit. The bootloader obtains the key again from nothing (which shows the fuse
+   value and the derivation are stable) and reads the floor. Accept only if it reads the value written in step 6.
+8. **Record.** The unit's production record keeps the unit ID, a hash of the eMMC CID, the floor written, the step's
+   outcome, the operator and the time. **It never holds the key or the fuse secret**, under any option.
+
+**When a unit is refused.** A part holding another key cannot be re-keyed (one programming per part), so the eMMC is
+replaced and the step re-run on the new part; the old part is scrap. A refused programming or a failed proof is treated
+the same way. A degenerate key (step 2) is a fault in the key source, not the part: the unit is held, and its eMMC is not
+replaced, because programming any part with that key would be permanent.
+
+**Why the order matters.** Step 3 comes before step 4 because a second programming request can change nothing and only
+puts the key on the bus again. Step 5 is the part's own answer, under the key, to a nonce it has not seen, so a part that
+acknowledged programming and kept nothing, or an interposer replaying an earlier answer, is caught. Step 7 comes after
+step 6 because the floor is what the field relies on, and it is read the way the field reads it.
+
+**After manufacture.** The device firmware never programs an RPMB key because it found a blank part (`REQ-RPMBK-06`). A
+blank or wrong-key RPMB in the field refuses every image (the principal's condition, first brief §8) until a provisioning
+the principal approves runs: a return to a station that runs this step, or a signed service authorisation (the brief, Q2).
+
+**Built (host model).** `common/npps-core/src/rpmb_provision.rs` (`CLAUDE.md` §22) models steps 2 to 5 against any RPMB
+part: the degenerate-key refusal, the look-first read, the single programming request, the authenticated proving read
+with nonce and MAC checks, the refusal of another key, and acceptance of a re-run. Its tests drive an in-memory part
+(`SimRpmb`) with switches for a part that drops the key, a replayed answer, a tampered MAC, a wrong response type, an
+expired counter and a bus failure. The frame layout and codes are checked against OP-TEE's implementation, not JESD84,
+which was not read. **Built (device seam).** `firmware/bootloader/include/np_rpmb_key.h` and the device build's
+`np_rpmb_key_unbuilt.c`, which always fails and wipes the buffer, so every image stays refused until the key source is
+decided.
+
+**Not built, and not decided:** the key source (Q1); field re-provisioning (Q2); C or Rust for the KDF and the RPMB MAC
+in the bootloader (Q3); the RPMB driver and floor store (built separately under `OI-PRIV-32`); the floor store's
+initial-write operation that step 6 uses; whether the bootloader alone reads and raises the floor, which is what keeps
+the key from the application (the brief, §2.3: as built, the application raises it through `np_ota_confirm_boot()`); the
+station, fixture and authorisation that let a unit enter the step; and the three reference-manual checks option A needs.
+
+| ID | Requirement | What fails if it is not met | Traceable to | Verification | Status |
+|---|---|---|---|---|---|
+| **REQ-RPMBK-01** | **The RPMB key source gives this unit's own key or an error, and nothing else.** (a) The bootloader's `np_rpmb_key_get()` returns this unit's key or an error, and on an error leaves no key material in the caller's buffer; an error refuses every image, as an unreadable floor does. (b) No build, test mode or bench mode contains a constant, default, all-zero or build-time RPMB key. (c) The factory step refuses a key that is all zero or all one bits before it sends any request | A key anyone can know lets anyone write a lower floor, which is Finding M5 again. A key programmed into an eMMC can never be changed, so a default key that reaches one part is permanent in that part. An all-zero or all-one key is what a blank fuse field, an erased store or a stub returns | The principal's Q1 conditions (first brief §8: a blank or wrong-key RPMB refuses every image); `REQ-SW02-15` (b); OP-TEE's `CFG_RPMB_TESTKEY`, a hard-coded test key, as the hazard (the brief, §2.4) | (a) test of the device build's source; (b) inspection of every key source and build configuration; (c) test of the host model | **(a) built** (`np_rpmb_key_unbuilt.c`, always an error; `np_bootloader_rollback_tests`). **(b)** holds by inspection: no key exists in the tree. **(c) built** in the host model |
+| **REQ-RPMBK-02** | **The key is programmed only into a part that reported no key in the same run.** (a) A part that answers *key not programmed* is sent one key-programming request. (b) A part that answers with any key, this unit's included, is never sent a key-programming request | A part programs one key, so a second request cannot help, and it puts the key on the bus in the clear again | JESD84's one-time key (as stated in the task; not read here); OP-TEE's warning that programming outside a controlled environment leaks the key (`mk/config.mk` `CFG_RPMB_WRITE_KEY`) | Test of the host model: request counts on a blank part, a re-run and a part holding another key | **Built** in the host model |
+| **REQ-RPMBK-03** | **No part is accepted until an authenticated read proves the key.** The step reads the write counter with a nonce not used before in the run, and accepts only a response of the right type, result OK, counter not expired, the nonce returned and a MAC that verifies under the unit's key | A unit whose part kept no key, kept a different one, or whose counter is exhausted refuses every firmware image in the field, and is found only when its first update fails | The principal's Q1 conditions (a wrong-key RPMB refuses every image); §7.9's rule that the unit's own answer, not the station's, decides acceptance (`REQ-UPG-04`) | Test of the host model: a dropped key, a replayed answer, a tampered MAC, a wrong type, an expired counter, a bus failure, a repeated or zero nonce | **Built** in the host model. On a unit: not run |
+| **REQ-RPMBK-04** | **A part already holding a key is judged by the authenticated read.** (a) A part whose answer does not verify under the unit's key is refused and quarantined, and never shipped in that unit. (b) A part whose answer verifies (a run interrupted after programming) is accepted without programming | (a) The unit would refuse every image for life. (b) Refusing it would scrap a good part for an interrupted run | `REQ-RPMBK-02`, `REQ-RPMBK-03` | Test of the host model | **Built** in the host model |
+| **REQ-RPMBK-05** | **No unit leaves manufacture without its initial floor in RPMB**: the signed version of the image installed at the factory, written by the floor store and read back by the bootloader after a reset | A keyed RPMB with no floor reads as an error, so the unit refuses every update for life | The floor store's contract (`np_rollback_store.h`: an unprovisioned store is an error) and the principal's Q1 conditions | Test, once the floor store exists: a unit that skips the write is refused at step 7 | **Not built**: needs the floor store's initial-write operation |
+| **REQ-RPMBK-06** | **Device firmware never programs an RPMB key because it found a blank part.** It programs one only inside this factory step, or a field provisioning the principal has approved (the brief, Q2) | An interposer that answers *key not programmed* is handed the key; and a fresh part provisioned on its own starts with no floor, which is the downgrade the floor exists to stop | The principal's Q1 conditions (a blank RPMB refuses every image); OP-TEE `CFG_RPMB_WRITE_KEY` (the brief, §2.4) | Inspection of the RPMB driver and every caller of its key-programming request | **Holds today**: no RPMB driver exists. To be inspected when the driver lands |
+
 ---
 
 ## 8. What remains the principal's
@@ -667,7 +746,7 @@ corrected, and no sampling plan is stated.
 | **OI-UPG-08** | **Tier-authority key and the manufacturing step that writes the identity** (§7.7, raised Rev 3). The firmware gate exists and fails closed, so **until this closes every unit is T1**, including every T2 unit. Four parts. **(i) Key ceremony:** generate the tier-authority Ed25519 key pair, and decide its custody. It is separate from the session-signing root key by design (§7.7). Decide whether the image carries one public key or a short list, for rotation, since a safety-image update is never automated OTA. **(ii) Programming step:** write every unit's record (T1 included) into OTP at `0x40`, signed over the unit's UID, before final acceptance. The UID is read from the unit, and the signing service never takes a UID it did not read. **(iii) Acceptance check:** refuse any unit whose tier report does not read reason `OK` with the tier its build record says. A blank T1 behaves correctly and is therefore invisible to every functional test. **(iv) Debug-port lock:** set RDP so no external interface can program the OTP window afterwards. That is `REQ-UPG-02`'s remaining test, and it also bears on `OI-FMEA-03`'s root key. *(Issue #569 package 8: the host-checkable byte stages of (ii) and (iii) are built as `tier_record.rs`, with no key, signer or fixture. What waits and the seven decisions needed: `docs/human-input/oi-upg-08-factory-step-scoping.md`.)* | Manufacturing + Security + FW (safety) + Quality | **Any T2 unit delivering a T2 modality**; first production of any unit (the T1 record) |
 | **OI-UPG-09** | **The helmet hardware version in the tier identity** (§7.8, raised Rev 4). Decided by the principal 2026-10-09. **Built (issue #569 package 1):** the byte-5 split, record version 0x02, the new domain string, the verifier, the tier-report field (the wire had room: 7 bytes in a 38-byte window), the hub function `np_safety_spi_get_hardware_version()` and the tests. **Added at Rev 7:** a host test of the hub's parse of the report, the hub forgetting the version when its link is re-initialised, and a build check on the default's removal (§7.8 item 5). The hub-side refusal (`SWR-HV-08`) has been built since. **Not built:** the factory step (§7.9; no manufacturer, fixture or signing service exists) and the default's removal, which is not due until hardware version 2. Original build list: the byte-5 split and the new record version and domain string in `np_safety_config.h`, the verifier and `np_tier_identity_tests`; a version field in the tier report if the wire has room (not checked); the one function; the factory step of §7.9 (with `OI-UPG-08`) that writes the version and checks it against the board revision; the removal of the default 1 in the change that adds hardware version 2. Open: the wire layout, the hub-side refusal of another version's protocol, the decision record per increment, and the board-revision source | FW (safety) + FW (hub) + Manufacturing | Hardware version 2; the helmet-side refusal; first production of any unit (the version is written with the record) |
 
-> Items owned elsewhere and deliberately not duplicated: **`OI-TACSDRV-06`** (the decision itself;
+> Items owned elsewhere and deliberately not duplicated: **`OI-PRIV-32`** (NP-PRIV-ANALYSIS-004; the RPMB key of §7.10, and its brief `docs/human-input/oi-priv-32-rpmb-key-source.md`), **`OI-SEC-02`** (secure boot and the RT1062 debug-port lock, which every §7.10 key source depends on), **`OI-TACSDRV-06`** (the decision itself;
 > `NP-HW-TACSDRV-001` §9; **CLOSED** Rev 2), **`RISK-PWRSRC-10`** and **`OI-PWRSRC-04`** (`NP-PWRSRC-001`;
 > the app-flag bypass `REQ-UPG-01` closes, and the supervision assertion), **`OI-MMSOCK-12`** (the
 > first interface change `REQ-UPG-03` binds), **`OI-TACSDRV-01`** and **`-04`** (siting and PAN thermal), **`OI-TCAP-05`**
