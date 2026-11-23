@@ -75,6 +75,23 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 **Trigger:** User selects "Reset Device" → "Transfer or Sell Device" in the app's device management settings.  
 **Authentication gate:** Requires current biometric authentication + explicit two-step confirmation ("This will permanently erase all your health data from this device. This cannot be undone." → "Erase Device").
 
+> **Rev {NP-FW-EMMC-002 to} (2026-11-23): ruled by the principal, superseding the trigger and the gate above (`OI-PRIV-27`
+> (NP-PRIV-ANALYSIS-004), GitHub #955; `docs/human-input/oi-priv-27-factory-reset-command.md` §8).** A factory reset
+> is per helmet: it erases the whole UHDR, SHDR and Config partitions, and SANITIZE purges the whole eMMC (§B.3). Helmets
+> are shared (§C.8), so it destroys every person's UHDR on the helmet. Therefore:
+> - **Only the warranty owner may start a factory reset.** No user can, present or not.
+> - **Every attempt first shows a list of every user who has any data on the helmet**, before any choice and before
+>   anything is erased.
+> - **The warranty owner then chooses which users' data to back up (export).** Every user is selected by default.
+>   Deselecting every user means wipe everything; there is no other path.
+> - **The backup, if any, is followed by the wipe** (§B.3 R-1 to R-12). The export is §C.8.4's clinic backup of the
+>   selected profiles, so the warranty owner can read none of it.
+>
+> The brief's own reading of the ruling, for confirmation: the wipe starts only after every selected export has
+> finished and the owner's app holds it; a failed export erases nothing. **Not built.** The command's form, how the
+> warranty owner's role is proved (`OI-SIMFW-71` Q8), what a row of the list shows, and the dependency on §C.8 (the
+> helmet cannot list its users before per-person profiles exist) are open in the brief's §9.
+
 ### B.3 Reset sequence
 
 The reset is orchestrated by the app via a signed reset command sent to the hub, which executes the following sequence in order:
