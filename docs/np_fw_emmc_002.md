@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 11
+**Revision:** 12
 **Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -200,7 +200,7 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > (`docs/human-input/oi-priv-34-several-users-one-helmet.md`). Until it is decided, no document may describe the helmet's
 > UHDR as separated per user.
 
-> **Rev {NP-FW-EMMC-002 to} note — the key above is not an AES-256-XTS key, and the KDF memory does not fit
+> **Rev 12 note — the key above is not an AES-256-XTS key, and the KDF memory does not fit
 > the device (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004 Findings M9 and M10).** XTS-AES-256 takes a 64-byte key,
 > Key1 ‖ Key2 (IEEE Std 1619; NIST SP 800-38E). A 32-byte UKMD used directly is XTS-AES-128, or the
 > degenerate Key1 = Key2 case. Separately, §C.4's `m = 65536` KiB (64 MiB) is 64 times the whole 1 MB of
@@ -283,7 +283,7 @@ The UHDR partition (up to 6.9 GiB) is **never re-encrypted** during a biometric 
 
 PIN-based WKMD derivation is always available as a fallback when biometric is unavailable (device restart, biometric hardware failure, biometric lockout). The same Argon2id derivation applies with the PIN as input. There is no separate "PIN key" — the architecture is PIN-or-biometric → WKMD → UKMD.
 
-### C.7 Unlock attempt limit (added Rev {NP-FW-EMMC-002 to}; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004 Finding M10)
+### C.7 Unlock attempt limit (added Rev 12; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004 Finding M10)
 
 **Why.** §C.6 makes the PIN a permanent fallback, and hardware binding (privacy review Finding 1) stops
 only the *offline* guess from an eMMC image. Without a limit the PIN can be guessed *online*, through the
@@ -1127,6 +1127,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 9 | 2026-11-21 | **§B.3: R-5 named "SANITIZE (CMD38, SANITIZE_START)", which is a plain erase; corrected to CMD6 SWITCH writing 1 to EXT_CSD[165] (support in EXT_CSD[231] bit 6), moved to a new step R-7a after the erases so it also purges SHDR and Config, with no fallback to a plain erase; the 240 s bound is `UC-202`; R-1/R-2 have no implementation (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004`).** |
 | 10 | 2026-11-22 | **§C.2: a callout records the scheme's scope (one UKMD, one credential, one partition key, session files named by the device-wide counter) and that no per-user separation exists on a shared helmet; the decision brief is in docs/human-input (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962). No requirement or code changed.** |
 | 11 | 2026-11-23 | **§E.4: an excluded EDF+ file leaves nothing in SHDR; EDF_PRIVACY_HEADER_VIOLATION (0xE1) retired (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2, REQ-SW02-14).** |
+| 12 | 2026-11-23 | **New §C.7 and `REQ-EMMC2-01`: every unlock attempt that reaches the KDF is charged to a failed-attempt count persisted in Config before the credential is tested, a success clears it, and after 5 failures an exponential back-off in uptime (30 s doubling to 24 h, PROVISIONAL, UC-203) refuses attempts without running the KDF; a reboot restarts the wait and a storage fault refuses the attempt. §C.4 gains step 0. §C.2 gains a note that a 32-byte UKMD is not an XTS-AES-256 key and that 64 MiB of Argon2id is 64 times the device's on-chip RAM with no SDRAM fitted; neither is changed here, both go to the `OI-EMMC2-02` reviewer (`docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`) (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 
 Open items created by this document:
 
