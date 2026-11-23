@@ -21,7 +21,9 @@ typedef enum {
     NP_UHDR_ERR_STATE    = -7,  /* Precondition violated (e.g. not unlocked)   */
     NP_UHDR_ERR_INVALID  = -8,  /* Invalid argument (null/length/range)        */
     NP_UHDR_ERR_PARAM    = -9,  /* Stored KDF params below floor (tamper/rollback) */
-    NP_UHDR_ERR_LOCKOUT  = -10  /* Unlock back-off not yet elapsed (§C.7)      */
+    NP_UHDR_ERR_LOCKOUT  = -10, /* Unlock back-off not yet elapsed (§C.7)      */
+    NP_UHDR_ERR_EMPTY    = -11, /* Profile slot holds no record (§C.8)         */
+    NP_UHDR_ERR_EXISTS   = -12  /* Profile slot already holds a record (§C.8)  */
 } np_uhdr_status_t;
 
 /*

@@ -64,6 +64,11 @@
  */
 #define NP_UHDR_AAD_LEN            (NP_UHDR_SALT_LEN + 16U)
 
+/* Largest AAD any wrap in this module authenticates: the profile record's
+ * wrap 1 binds profile id (16) + salt (32) + the four KDF words (16) = 64
+ * (NP-FW-EMMC-002 §C.8).  The §C.3 UKMD wrap uses NP_UHDR_AAD_LEN (48). */
+#define NP_UHDR_AAD_MAX_LEN        64U
+
 /* ── Argon2id parameters (§C.3 — identical to NP-FW-EMMC-001 Rev 1 §6) ────── */
 
 /*

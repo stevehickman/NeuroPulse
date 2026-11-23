@@ -100,6 +100,7 @@ np_stim_xcheck_tests 199
 np_stim_xcheck_nonfinite_tests 130  # measured 133 on a local --coverage build; 3 below it for toolchain difference
 np_transport_tests 209
 np_uhdr_key_tests 431
+np_uhdr_profile_tests 698
 np_zone_announce_tests 444
 np_zone_notify_tests 372
 np_session_fitting_tests 146

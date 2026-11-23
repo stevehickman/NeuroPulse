@@ -67,6 +67,7 @@
 #include "np_pbm_hal.h"          /* np_pbm_hal_*          (18) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
 #include "np_uhdr_key.h"         /* np_uhdr_hal_*         (11) */
+#include "np_uhdr_profile.h"     /* np_uhdr_hal_profile_*, _recovery_kdf (4) */
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1036,6 +1037,37 @@ np_uhdr_status_t np_uhdr_hal_attempts_write(uint32_t failed)
 
 uint64_t np_uhdr_hal_uptime_ms(void)
 {
+    NP_PLATFORM_TRAP();
+}
+
+/* Per-person key store (OI-PRIV-34, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.8). */
+np_uhdr_status_t np_uhdr_hal_profile_read(uint8_t profile, np_uhdr_profile_record_t *out)
+{
+    (void)profile;
+    (void)out;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_profile_write(uint8_t profile, const np_uhdr_profile_record_t *rec)
+{
+    (void)profile;
+    (void)rec;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_profile_erase(uint8_t profile)
+{
+    (void)profile;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_recovery_kdf(const uint8_t code[NP_UHDR_RECOVERY_CODE_LEN],
+                                          const uint8_t salt[NP_UHDR_RECOVERY_SALT_LEN],
+                                          uint8_t rk_out[NP_UHDR_RECOVERY_KEY_LEN])
+{
+    (void)code;
+    (void)salt;
+    (void)rk_out;
     NP_PLATFORM_TRAP();
 }
 
