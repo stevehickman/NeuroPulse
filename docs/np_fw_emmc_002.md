@@ -454,6 +454,10 @@ The function must:
 > `np_edf_validate_research_header(header, policy)` under the study's policy (§E.5). A local header fails it.
 > The exclude-not-abort rule and the SHDR event below are unchanged. Verified by `REQ-SW02-12`
 > (`firmware/edf/tests/np_edf_tests.c`).
+> **Rev {NP-FW-EMMC-002 to} (`OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2):** the SHDR event is retired, and with it the
+> gate's `fault_cb` and `user` parameters. The gate is now
+> `np_edf_anon_gate_filter(headers, count, policy, included, result)`; see the paragraph after the code below
+> (`REQ-SW02-14`).
 
 Before any EDF+ file is included in a research extract, a header validator must run:
 
@@ -469,7 +473,7 @@ np_status_t np_edf_validate_privacy_header(const np_edf_header_t *header) {
 }
 ```
 
-Any EDF+ file that fails this validation is excluded from the research extract and a `SHDR` fault event is logged: `EDF_PRIVACY_HEADER_VIOLATION`. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded).
+Any EDF+ file that fails this validation is excluded from the research extract. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded). **Nothing about the exclusion is written to `SHDR`** (Rev {NP-FW-EMMC-002 to}, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2, `REQ-SW02-14`). Earlier revisions logged one `SHDR` fault, `EDF_PRIVACY_HEADER_VIOLATION`, per excluded file. Any such record says that this device ran a research extract, and the per-file count gives its size: study participation under the device-linked token, which `CLAUDE.md` §5.1's defining test puts in `UHDR` (compare the pipeline's `failed_step`, `data-architecture-detail.md` §5.1). The event and its code (`0xE1`) are retired, not reused. Whether *any* record of a research extract may enter `SHDR` is `OI-PRIV-07`.
 
 ### E.5 Research EDF+ header (added Rev 8, 2026-11-21, `OI-PRIV-26` (NP-PRIV-ANALYSIS-004))
 

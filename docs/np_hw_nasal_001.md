@@ -156,6 +156,7 @@ document owes the hub the four values.
 | **REQ-NASAL-11** | Duty ceiling **25 %** (`INS_DUTY_MAX` = `0x32`), and the protocol grammar bounds `duty_cycle` 1–25 %. **The driver refuses a duty above the ceiling (`NP_HUB_ERR_INVALID_ARG`) and writes neither side; it does not clamp** (Rev 4, 2026-11-11; `NP-FW-HUB-001` `REQ-FWHUB-78` (d)). The value is unchanged, and the refusal is interim with the 25 % cap (`NP-HW-HEXTILE-001` `OI-HEXTILE-31`) | `firmware/hub_control/modules/np_mod_intranasal.c`; `firmware/hub_control/include/np_cmd_limits.h`; `NP-NPPS-REF-001` §4.2; CLAUDE.md §3 (a ceiling refuses, it never reshapes) |
 | **REQ-NASAL-12** | Ambient envelope: full dose ≤ +30 °C, derate +30 → +35 °C, block > +35 °C — **the probe carries the same band as every helmet module** | `NP-ENV-OPRANGE-001` |
 | **REQ-NASAL-15** | A drive command that does not fully apply **leaves nothing emitting**: if any side's write fails (the second side of a bilateral command included), the driver stops both sides, clears its active state, withdraws the enable request and reports the module fault. *Fails without it:* the side already written keeps emitting with no enable requested and no state for the stop path to act on (`OI-SIMFW-21`) | `CLAUDE.md` §4.2 (a fault leaves nothing driven); `np_mod_intranasal.c`; `NP-FW-HUB-001` §8.7 |
+| **REQ-NASAL-16** | The sleeve-authentication record in SHDR is a device-condition record and nothing more. (a) It holds the slot, the module type and pass or fail, and **no session count**, and it is the same length for a pass and a fail. (b) A seated probe whose sleeve does not authenticate is recorded as a **failure once per insertion**, not once per poll and not never. *Fails without it:* (a) the record, written once per insertion and so once per intranasal session, becomes a per-session timeline of intranasal use, the shape the F14 ruling forbids for tiles; (b) the failure the record exists for never reaches SHDR, because the registry calls `init()` only after `detect()` has required authentication, or it is written twice a second while the sleeve stays seated (`OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 3) | `CLAUDE.md` §5.1 (defining test; *accessory authentication pass/fail* is SHDR); `data-architecture-detail.md` §5.1 (F14: no session count on a tile record); `NP-FW-HUB-001` §5 D-30 (one record per insertion); `np_mod_intranasal.c`, `np_session_log.c` |
 
 ---
 
@@ -169,7 +170,7 @@ document owes the hub the four values.
 | Drive | `np_mod_ins_hal_pwm_set(side, cur_660, cur_808, freq, duty)` | `OI-INS-03` |
 | Dose read | `np_mod_ins_hal_pd_read(side, wl)` → `uint16_t` | `OI-INS-05` |
 | Safety enable | `NP_SAFETY_EN_INTRANASAL` = bit 9 | `np_hub_config.h` |
-| SHDR | Authentication pass/fail, via `np_log_shdr_zone_auth()` | `np_mod_intranasal.c` |
+| SHDR | Authentication pass/fail, via `np_log_shdr_zone_auth()`: a pass from `init()`, a failure from `detect()` once per insertion, no session count (`REQ-NASAL-16`) | `np_mod_intranasal.c` |
 | Accessory poll | `NP_DETECT_ACCESSORY_POLL_MS` = 500 ms | `np_hub_config.h` |
 
 > **`REQ-NASAL-13`** — Every HAL entry point above is **unimplemented** (`OI-INS-01…05`). The
