@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 73
-**Date:** 2026-11-23
+**Revision:** 74
+**Date:** 2026-11-21
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -665,7 +665,7 @@ that is a CLAUDE.md §5.1 classification question (which socket a tile sits in c
 headset is fitted), not a logging detail. It belongs with the other socket-path telemetry in
 `OI-FWHUB-10`. **(Rev 15: answered.** The principal ruled occupancy and tile kind SHDR-class, written
 only by the idle pass over every occupied socket, with no UID: `0x87`, §6.8.) Accessories that do authenticate, the intranasal probe and the cervical VNS cuff,
-write `np_log_shdr_zone_auth()` from their own `init()`. **(Rev {NP-FW-HUB-001 to}, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 3,
+write `np_log_shdr_zone_auth()` from their own `init()`. **(Rev 74, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 3,
 `REQ-NASAL-16`.)** The `0x83` record is tag, slot, module type and pass: four bytes, the same for a pass
 and a fail, and **no session count**. One record per insertion of the intranasal probe is one per
 intranasal session, so a count in it made a per-session timeline of that modality, the shape F14
@@ -1117,7 +1117,7 @@ UHDR record only. The SHDR record gets no duration, abort reason or modality mas
 
 ### 5.5a How a session's end reaches the status indicators, and stealth mode (`REQ-FWHUB-85`, `REQ-FWHUB-86`)
 
-> **Rev {NP-FW-HUB-001 to} (2026-11-21), `OI-PRIV-37` (NP-PRIV-ANALYSIS-004, finding M12).** Before this revision every
+> **Rev 74 (2026-11-21), `OI-PRIV-37` (NP-PRIV-ANALYSIS-004, finding M12).** Before this revision every
 > abort reason but `NONE` returned `NP_HUB_ERR_SAFETY_FAULT`, so a person pressing Stop, or a pause outlasting the owner's
 > limit, lit the red fault indicator; and stealth mode (CLAUDE.md §4.7) did not exist in the firmware.
 

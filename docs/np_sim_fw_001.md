@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 49
-**Date:** 2026-11-22
+**Revision:** 50
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1227,3 +1227,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 47 | 2026-11-21 | NeurOne Firmware Engineering | **The audio harness and bridge command is `audio_eeg_freq` (millihertz), replacing `audio_eeg_band`.** |
 | 48 | 2026-11-21 | NeurOne Software Engineering | **§7 OI-SIMFW-07: the state found by the privacy review of simulator/ (Finding S1): loopback binding in firmware mode only, no Origin check in any mode, no test.** |
 | 49 | 2026-11-22 | NeurOne Software Engineering | **`OI-SIMFW-73`: the reason that the open writes can only reduce stimulation was false for resume; corrected, with the change that made it true (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004)).** |
+| 50 | 2026-11-21 | NeurOne Firmware Engineering | **`OI-SIMFW-22` and its §20 note cite `REQ-FWHUB-87`, the cervical VNS baseline requirement renumbered from a duplicate `REQ-FWHUB-65` in `NP-FW-HUB-001`.** |
