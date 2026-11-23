@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-ANON-001
-**Revision:** 1
-**Date:** 2026-06-03
+**Revision:** 2
+**Date:** 2026-11-21
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -350,3 +350,11 @@ FAI-ANON-09 uses synthetic test data with known ground truth. The adversarial at
 | OI-ANON-03 | study_public_key scheme selection — NaCl box vs AES-256-GCM+ECDH | Output format finalisation |
 | OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev 2) |
 | OI-ANON-05 | Expert Determination certification template (NP-ANON-CERT) finalised | STEP-32; IRB protocol approval |
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1: the per-study budget record is UHDR and never copied to SHDR; §8.2: the `NP_ANON_CONSENT_WITHDRAWN` SHDR event is retired (`OI-PRIV-07`, the principal, 2026-11-20).** |

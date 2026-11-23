@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 207
-**Date:** 2026-11-23  
+**Revision:** 208
+**Date:** 2026-11-21  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -898,3 +898,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 205 | 2026-11-21 | NeurOne Firmware Engineering | **§5.2.2: `REQ-SW02-13` added: a factory reset purges the data partitions with eMMC SANITIZE started through EXT_CSD, after the last erase and before the new salt and token, and a SANITIZE that fails keeps the reset in progress (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004` H7).** |
 | 206 | 2026-11-22 | NeurOne Software Engineering | **§6.3 `SWR-SS-05`: a resume is refused on a link that is not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)).** |
 | 207 | 2026-11-23 | NeurOne Software Engineering | **§5.2.2: REQ-SW02-14 added: the EDF+ research-extract gate leaves nothing in SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2).** |
+| 208 | 2026-11-21 | NeurOne Software Engineering | **§6.3 new SWR-MG-33 and SWR-MG-34 (the core composes, signs, verifies and orders the superseded notice, built in `current_device.rs`); SWR-MG-33: a migration or restore asks the research consents again and is not finished until they are answered, then makes the device current for the person, subscribes it if needed and publishes a signed superseded notice, queued when offline; the current-device key is a carried item (the principal, 2026-11-20 and 2026-11-21, OI-PRIV-68). Not built.** |

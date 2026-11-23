@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-PORTAL-API-001
-**Revision:** 3
-**Date:** 2026-11-19
+**Revision:** 4
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -305,3 +305,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 3 | 2026-11-19 | NeurOne Software Engineering | **§4a: the canonical form a study descriptor is signed over is `NP-STUDY-DESCRIPTOR-V2`, which adds the expiry day as its last field (`REQ-CONSENT-09` i). No V1 descriptor was ever issued.** |
+| 4 | 2026-11-21 | NeurOne Software Engineering | **§4a: the study audit trail is UHDR, held on the device, never in SHDR (OI-PRIV-07); §3 amended for study requests (subscribe and publish, not pull; clinician requests stay pull-only); new §6a (DRAFT): the subscribe, unsubscribe, publish, fetch and supersede calls and the NP-SUPERSEDED-V1 form, all through the Oblivious HTTP relay (OI-PRIV-68, OI-PRIV-69).** |
