@@ -1,6 +1,6 @@
 # Decision brief: OI-PRIV-32 (NP-PRIV-ANALYSIS-004): where the firmware rollback floor lives, and whether USB DFU is encrypted
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** PARTLY ANSWERED 2026-11-23. **Q1 answered by the principal: option B (eMMC RPMB), with the NeurOne registry (§4.1) as an optional, raise-only restore tool** (§8). Q2 and Q3 are open. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#960](https://github.com/stevehickman/NeuroPulse/issues/960)
 **From:** NeurOne Firmware Engineering (`docs/status/pending-decisions.md` `OI-PRIV-32` (NP-PRIV-ANALYSIS-004); `docs/np_priv_analysis_004.md` Findings M5 and M6)
 **To:** the principal (Q3 is an exception to `CLAUDE.md` §23, which only the principal can make). Q1 and Q2 also need Firmware and the electrical owner of the i.MX RT1062 fuse map. No names are assigned.
@@ -50,6 +50,39 @@ Both findings hold as written.
 
 **Recommendation: B, with its RPMB key provisioned in the same factory step that writes the tier identity record (`NP-REG-UPG-001` §7.9). If RPMB is unavailable on the chosen eMMC part, choose A with Q2 (b).** Until one is chosen, keep the fail-closed stub. Do not choose C.
 
+### 4.1 A NeurOne registry of serial number and minimum version (added 2026-11-23, at the principal's question)
+
+**The question.** NeurOne could keep a registry of each helmet's serial number and the highest firmware version that helmet has confirmed. Can that be a backup when the store on the helmet is lost, and does it make the system more robust or more brittle?
+
+**How it would work.** When a helmet's own store is lost, NeurOne sends a signed message: "helmet serial X: minimum version N". The helmet checks the signature and that the serial is its own, then sets its stored minimum to the **higher** of its own value and N.
+
+**Why taking the higher value matters.** A replayed old message, or a registry that is out of date, can only offer a lower number, and the helmet ignores it. **The registry can raise a minimum and never lower one.** A registry that could lower a minimum (for example a service "reset") would be a downgrade path, with NeurOne's server as the target. Service never needs it: a helmet whose minimum is too high is fixed by signing a newer image.
+
+**It adds availability, not security.** Security comes from the helmet refusing every image when its own minimum cannot be read (§3). An attacker who wipes the store gets a helmet that installs nothing, not one that accepts old firmware. The registry does not stop any attack the helmet does not already stop. What it fixes is the cost of that refusal: a helmet whose store was lost for a legitimate reason gets its minimum back.
+
+**More robust when:**
+- **Service replaces the eMMC.** A new eMMC's RPMB is blank. The helmet must treat a blank or wrong-key RPMB as "refuse every image", never as "minimum 0", and the registry is what lets service restore it.
+- **Someone with the RPMB key lowers the value.** RPMB's counter stops a replayed old write, not a new write signed with the key. If the key is extracted, the stored minimum can be lowered. The registry cannot prevent that. It does detect a helmet reporting a version below its record, and it raises the minimum again at the next connection.
+
+**More brittle if:**
+- **A helmet needs the registry to install an update.** That breaks `CLAUDE.md` §1 (no mandatory subscription, everything offline-capable for ever). A server outage, a helmet that never connects, or NeurOne ceasing to exist would stop updates. **It must stay optional.**
+- **The registry is wrong.** A minimum that is too high makes that helmet refuse every image until a higher one is signed. Raise-only bounds the damage; it does not remove it.
+- **New things to secure:** the signing key for registry messages, the server, and the message's path to the helmet. Under §23 that path must be encrypted as well as signed.
+
+**Data and consent.** A serial number with its firmware version describes the device. "Firmware version history" is already listed as SHDR in `docs/reference/data-architecture-detail.md` §5.1. NeurOne learns a helmet's version only where the warranty owner consented to SHDR upload for that helmet (`REQ-SHDR-08`). Where they did not, the registry has nothing for that helmet. That is acceptable for a backup, and it is another reason the registry cannot be required.
+
+**A variant needing no per-helmet data: a fleet-wide minimum.** One signed message, "no helmet may run below version N", sent with the app or with each release. It handles "this version is dangerous: move every helmet off it". It does not restore one helmet's exact minimum, and it needs no consent and no per-serial record.
+
+**Effect on the Q1 options:**
+
+| Option | What the registry changes |
+|---|---|
+| A. Fuses | Little: fuses are not lost, so there is rarely anything to restore |
+| B. RPMB | **Its main weakness softens.** "A replaced eMMC loses the value" becomes "service restores it from the registry". A leaked key gains detection and repair at the next connection, not prevention |
+| C. Config sector | Still not recommended. The registry could restore the minimum after a factory reset, but an attacker downgrades offline straight after the reset, before the helmet connects, and any code on the processor can still lower it |
+
+**Recommendation, unchanged and strengthened:** B, with the registry as an optional, raise-only restore tool. The helmet still refuses everything when its local minimum cannot be read, so security never depends on the registry.
+
 ## 5. Q2: what is compared
 
 | Option | What it means | Fits |
@@ -88,3 +121,21 @@ If the principal rejects B, choose A with per-device wrapping over C, because C 
 - For each: a reason, what would reopen it, and the reviewer's name, role and date.
 
 Once an answer is given, it is recorded in `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), in `NP-FW-HUB-001` §2.5, and in `docs/status/completed-decisions.md`. Nothing in the repository acts on it before then.
+
+## 8. Answers
+
+**Q1, answered 2026-11-23 by the principal, in conversation with Claude Code: option B, eMMC RPMB, with the NeurOne registry of §4.1 as an optional, raise-only restore tool.**
+- **Reason:** the recommendation in §4 and §4.1. RPMB allows a raise at every release and survives a factory reset. The registry covers RPMB's main weakness (a replaced or blank eMMC) without becoming something security or updates depend on.
+- **Conditions carried with it:**
+  - A blank or wrong-key RPMB refuses every image, the same as an unreadable store.
+  - The registry only ever raises a minimum, and no helmet ever needs it to install an image.
+  - Registry messages are signed, bound to one helmet's serial, and encrypted in transit (§23).
+- **What would reopen it:** an eMMC part without RPMB, or a finding that the RPMB key cannot be kept from the application.
+- **Not decided by this answer:**
+  - how the RPMB key is provisioned and protected (§4 suggests the tier-identity factory step);
+  - whether the registry is built, and as per-helmet records or the fleet-wide variant;
+  - Q2;
+  - Q3.
+- **Still needed:** a name and role for the record, beyond "the principal".
+
+**Q2 and Q3:** open.
