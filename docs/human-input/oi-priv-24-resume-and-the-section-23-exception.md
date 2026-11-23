@@ -73,6 +73,8 @@ Stop / Resume question to the person when `SESSION_HOLD` reads 3 or 4.
 
 ### Q1 (the principal). Does the §23 exception stand for stop, pause and panic, now that resume is out of it?
 
+**Built 2026-11-23, whatever the ruling (`OI-PRIV-72`, #1011; `REQ-FWHUB-81` (f)):** the open writes leaked the wearer's session through their refusal codes. A stop or a panic answered 0x80 with no session running, and a pause during ramp-up answered 0x82, which happens only with tDCS or cervical VNS in the protocol. On a link that is not encrypted, a well-formed stop, pause or panic now answers OK whatever came of it; a malformed one is refused, the same in every state; an encrypted link gets the exact answer. Options A and B below now carry no state leak; under C the point is moot.
+
 | Option | What it means | Cost |
 |--------|---------------|------|
 | **A. Keep stop, pause and panic open; restate the reason** | The exception's reason becomes "each of these can only reduce or end stimulation", which is now true. | None to build. A stranger in range can still stop, pause or panic a session (denial of therapy, not harm). |
@@ -94,7 +96,7 @@ residual is a central that pairs by Just Works (`OI-SIMFW-72`). Yes or no, and t
 
 ## 4. Recommendation
 
-- **Q1: A.** The exception exists so that a failed pairing never refuses a stop. That reason is sound and is now true of
+- **Q1: A** (with `OI-PRIV-72`, already built, closing the refusal-code leak). The exception exists so that a failed pairing never refuses a stop. That reason is sound and is now true of
   every code left open. Encrypting pause alone (B) costs every central a wire change and gives no protection, because the
   stranger can stop the session.
 - **Q2: B now, C when `OI-SIMFW-72` gives an authenticated link.** It is the reading of `REQ-FWHUB-67` that errs toward

@@ -27,7 +27,7 @@ fn field(req: &Value, key: &str) -> R<Vec<u8>> {
     unhex(req[key].as_str().ok_or_else(|| format!("{key} is required"))?, key)
 }
 
-fn seed_key(req: &Value) -> R<SigningKey> {
+pub(crate) fn seed_key(req: &Value) -> R<SigningKey> {
     let seed = crate::secret_io::secret(req, "seed", &["signing"])?;
     let bytes: [u8; 32] = seed.as_slice().try_into().map_err(|_| "an Ed25519 seed is 32 bytes".to_string())?;
     Ok(SigningKey::from_bytes(&bytes))

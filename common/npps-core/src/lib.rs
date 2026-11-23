@@ -19,6 +19,7 @@ pub mod composite;
 pub mod constants {
     include!(concat!(env!("OUT_DIR"), "/constants.rs"));
 }
+pub mod current_device;
 pub mod error;
 pub mod identity;
 pub mod js;

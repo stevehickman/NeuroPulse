@@ -16,6 +16,11 @@
  *       parameters are validated against a floor before use.
  *   F3  Every unlock failure path scrubs the UKMD from SRAM.
  *
+ * Hardened 2026-11-21 per NP-PRIV-ANALYSIS-004 Finding M10 (OI-PRIV-35):
+ *   An unlock attempt is charged to a persisted failed-attempt count before the
+ *   KDF runs, and after NP_UHDR_UNLOCK_FREE_ATTEMPTS failures further attempts
+ *   wait an exponential back-off in uptime (§C.7, REQ-EMMC2-01).
+ *
  * Sensitive-data zeroing uses memset_explicit() (project convention).  A
  * guarded non-elidable fallback is supplied for the -std=c11 cross build.
  */
@@ -131,6 +136,58 @@ static np_uhdr_status_t derive_wkmd(const uint8_t *credential, size_t cred_len,
     return NP_UHDR_OK;
 }
 
+/* ── Unlock attempt limit (§C.7, REQ-EMMC2-01; OI-PRIV-35) ───────────────────
+ *
+ * The back-off is measured from g_backoff_ref_ms: the uptime of the last
+ * attempt charged in this boot, or 0 (boot) if none.  It is module state, not
+ * context state, so creating a fresh context cannot restart the wait.  It is
+ * deliberately NOT persisted: there is no RTC backup (CLAUDE.md §4.5), uptime
+ * restarts at every boot, and a reference of 0 makes a power cycle restart the
+ * wait instead of ending it.
+ */
+static uint64_t g_backoff_ref_ms = 0U;
+
+/* Required wait, in ms, before the next attempt after `failed` failures. */
+static uint64_t backoff_ms(uint32_t failed)
+{
+    if (failed < NP_UHDR_UNLOCK_FREE_ATTEMPTS) {
+        return 0U;
+    }
+    const uint32_t shift = failed - NP_UHDR_UNLOCK_FREE_ATTEMPTS;
+    if (shift >= 32U) {
+        return NP_UHDR_UNLOCK_BACKOFF_MAX_MS;
+    }
+    const uint64_t w = (uint64_t)NP_UHDR_UNLOCK_BACKOFF_BASE_MS << shift;
+    return (w > NP_UHDR_UNLOCK_BACKOFF_MAX_MS) ? NP_UHDR_UNLOCK_BACKOFF_MAX_MS : w;
+}
+
+/* Remaining wait at uptime `now` after `failed` failures (0 = may attempt). */
+static uint64_t remaining_wait_ms(uint32_t failed, uint64_t now)
+{
+    const uint64_t need = backoff_ms(failed);
+    if (need == 0U) {
+        return 0U;
+    }
+    /* Uptime never goes backwards within a boot; if a HAL ever reports a time
+     * before the reference, treat no time as elapsed (fail closed). */
+    const uint64_t elapsed = (now >= g_backoff_ref_ms) ? (now - g_backoff_ref_ms) : 0U;
+    return (elapsed >= need) ? 0U : (need - elapsed);
+}
+
+np_uhdr_status_t np_uhdr_key_unlock_wait_ms(uint64_t *wait_ms)
+{
+    if (wait_ms == NULL) {
+        return NP_UHDR_ERR_INVALID;
+    }
+    uint32_t failed = 0U;
+    if (np_uhdr_hal_attempts_read(&failed) != NP_UHDR_OK) {
+        *wait_ms = 0U;
+        return NP_UHDR_ERR_CONFIG;
+    }
+    *wait_ms = remaining_wait_ms(failed, np_uhdr_hal_uptime_ms());
+    return NP_UHDR_OK;
+}
+
 /* ── Lifecycle ───────────────────────────────────────────────────────────────*/
 
 np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
@@ -178,6 +235,10 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
     st = np_uhdr_hal_config_write_ukmd(&rec);
     if (st != NP_UHDR_OK) { st = NP_UHDR_ERR_CONFIG; goto fail; }
 
+    /* A fresh record starts with no failed attempts (§C.7). */
+    st = np_uhdr_hal_attempts_write(0U);
+    if (st != NP_UHDR_OK) { st = NP_UHDR_ERR_CONFIG; goto fail; }
+
     st = np_uhdr_hal_mount_uhdr(ctx->ukmd);
     if (st != NP_UHDR_OK) { st = NP_UHDR_ERR_MOUNT; goto fail; }
 
@@ -210,6 +271,20 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
 
     ctx->unlocked = false;
 
+    /* §C.7: read the persisted failed-attempt count.  Unreadable → refuse
+     * (a deleted count must not reset the back-off). */
+    uint32_t failed = 0U;
+    if (np_uhdr_hal_attempts_read(&failed) != NP_UHDR_OK) {
+        memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
+        return NP_UHDR_ERR_CONFIG;
+    }
+    const uint64_t now = np_uhdr_hal_uptime_ms();
+    if (remaining_wait_ms(failed, now) > 0U) {
+        /* Back-off not elapsed: no KDF, no charge. */
+        memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
+        return NP_UHDR_ERR_LOCKOUT;
+    }
+
     st = np_uhdr_hal_config_read_ukmd(&rec);
     if (st != NP_UHDR_OK) {
         /* Finding 3: scrub any prior UKMD even on early exit. */
@@ -227,6 +302,17 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
     }
 
     build_aad(&rec, aad);
+
+    /* §C.7: charge this attempt BEFORE the credential is tested, so a power
+     * cut mid-attempt cannot skip the charge.  If the charge cannot be
+     * persisted the credential is not tested at all (fail closed). */
+    const uint32_t charged = (failed == UINT32_MAX) ? UINT32_MAX : (failed + 1U);
+    if (np_uhdr_hal_attempts_write(charged) != NP_UHDR_OK) {
+        memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
+        memset(&rec, 0, sizeof(rec));
+        return NP_UHDR_ERR_CONFIG;
+    }
+    g_backoff_ref_ms = now;
 
     /* Re-derive the wrapper key using the record's stored version + salt +
      * parameters (all validated above) and the device-fused key. */
@@ -252,6 +338,12 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
         memset(&rec, 0, sizeof(rec));
         return (st == NP_UHDR_ERR_AUTH) ? NP_UHDR_ERR_AUTH : NP_UHDR_ERR_CRYPTO;
     }
+
+    /* §C.7: the credential authenticated, so the person is present: clear the
+     * count.  If the clear cannot be persisted the unlock still stands; the
+     * stale count can only make the next attempt wait longer (fail-safe
+     * direction), and the next success clears it again. */
+    (void)np_uhdr_hal_attempts_write(0U);
 
     st = np_uhdr_hal_mount_uhdr(ctx->ukmd);
     memset(&rec, 0, sizeof(rec));
@@ -581,6 +673,50 @@ np_uhdr_status_t np_uhdr_hal_mount_uhdr(const uint8_t *ukmd)
     return NP_UHDR_OK;
 }
 
+/* Persisted failed-unlock count (§C.7) and a settable uptime clock. */
+static uint32_t g_host_attempts        = 0U;
+static bool     g_host_attempts_valid  = false;
+static bool     g_host_attempts_wfail  = false;
+static uint64_t g_host_uptime_ms       = 0U;
+
+np_uhdr_status_t np_uhdr_hal_attempts_read(uint32_t *failed)
+{
+    if (failed == NULL) {
+        return NP_UHDR_ERR_INVALID;
+    }
+    if (!g_host_attempts_valid) {
+        return NP_UHDR_ERR_CONFIG;
+    }
+    *failed = g_host_attempts;
+    return NP_UHDR_OK;
+}
+
+np_uhdr_status_t np_uhdr_hal_attempts_write(uint32_t failed)
+{
+    if (g_host_attempts_wfail) {
+        return NP_UHDR_ERR_CONFIG;
+    }
+    g_host_attempts = failed;
+    g_host_attempts_valid = true;
+    return NP_UHDR_OK;
+}
+
+uint64_t np_uhdr_hal_uptime_ms(void) { return g_host_uptime_ms; }
+
+/* Test-only controls for the attempt limit. */
+uint32_t np_uhdr_host_attempts(void)               { return g_host_attempts; }
+void     np_uhdr_host_set_uptime_ms(uint64_t ms)    { g_host_uptime_ms = ms; }
+void     np_uhdr_host_attempts_write_fail(bool f)   { g_host_attempts_wfail = f; }
+void     np_uhdr_host_attempts_invalidate(void)     { g_host_attempts_valid = false; }
+
+/* Simulate a reboot: uptime restarts at 0 and the in-RAM back-off reference
+ * is lost; the persisted count survives. */
+void np_uhdr_host_reboot(void)
+{
+    g_host_uptime_ms = 0U;
+    g_backoff_ref_ms = 0U;
+}
+
 /* Test-only accessors (declared extern in the test file). */
 const uint8_t *np_uhdr_host_last_mounted_key(void) { return g_host_mounted_key; }
 uint32_t       np_uhdr_host_mount_count(void)      { return g_host_mount_count; }
@@ -607,6 +743,12 @@ void np_uhdr_host_reset(void)
     g_host_device_key_init = true;
     /* Rewind the TRNG counter so each test is reproducible. */
     g_host_trng_ctr = 0U;
+    /* Fresh attempt-limit state: no count stored, boot time, no fault. */
+    g_host_attempts = 0U;
+    g_host_attempts_valid = false;
+    g_host_attempts_wfail = false;
+    g_host_uptime_ms = 0U;
+    g_backoff_ref_ms = 0U;
 }
 
 #endif /* NPTEST_HOST */
