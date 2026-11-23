@@ -125,10 +125,6 @@ typedef struct {
     /* OI-CVNS-HUB-09 advisory impedance measurement (reset each session). */
     np_mod_cvns_imp_state_t imp_state;
     uint32_t imp_start_ms;      /* now_ms when the current measurement began     */
-    /* OI-CVNS-HUB-11: set while the driver is deliberately faulting the library
-     * on an impedance cross-validation failure, so cvns_fault_cb suppresses its
-     * generic SHDR log (the divergence is logged once with a dedicated code). */
-    bool     crossval_faulting;
     /* Cached, non-biology display fields for telemetry() (UHDR-class current /
      * impedance, same as np_mod_stim; NO HR is ever cached here). */
     uint16_t last_current_ua;
@@ -348,23 +344,23 @@ static bool cvns_impedance_diverges(const float hub_kohm[])
  * sensing.  The safety MCU's enable refusal remains the authoritative gate; this
  * is an additional main-processor block.
  *
- * Writes nothing to SHDR (OI-PRIV-40, NP-PRIV-ANALYSIS-004; NP-FW-HUB-001
- * §6.3): the divergence is derived from the in-session impedance
- * check, which the principal ruled UHDR on 2026-11-23 because it measures
- * through the wearer.  Its code 0xC7 is retired and never reused.  The
- * crossval_faulting flag still suppresses cvns_fault_cb's generic SHDR log for
- * this event, so the fault this function causes is not recorded either.
+ * Writes nothing of its own to SHDR (OI-PRIV-40, NP-PRIV-ANALYSIS-004;
+ * NP-FW-HUB-001 §6.3, REQ-FWHUB-92): the divergence is derived from the
+ * in-session impedance check, which the principal ruled UHDR on 2026-11-23
+ * because it measures through the wearer.  Its code 0xC7 is retired and never
+ * reused.  The fault it causes takes the same path as a safety-MCU enable
+ * refusal, and cvns_fault_cb logs it the same way (the generic SAFETY_MCU
+ * reason), so the SHDR record of a cross-validation fault is the record of a
+ * refusal: neither the fault log nor the session summary tells them apart.
  */
 static void cvns_impedance_crossval_fail(void)
 {
-    s_state.crossval_faulting = true;
     /* Drive the library to FAULT: stim → FAULT, interlock → FAULT (which fires
-     * cvns_fault_cb → drops the unified enable; its generic log is suppressed).
+     * cvns_fault_cb → drops the unified enable and logs the generic reason).
      * The next np_cvns_session_tick() advances the session stage to FAULT. */
     np_cvns_stim_safety_mcu_response(&s_stim, false, NULL);
     np_cvns_interlock_spi_response(&s_interlock,
                                    NP_CVNS_SPI_RSP_ENABLE_REJECTED, NULL, 0U);
-    s_state.crossval_faulting = false;
 }
 
 /*
@@ -608,14 +604,12 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
      * for every caller and every fault type (fault event timing is UHDR), so the
      * suppression is UNCONDITIONAL and discloses nothing about which fault fired.
      *
-     * OI-CVNS-HUB-11: suppressed while the driver is faulting the library on an
-     * impedance cross-validation failure.  That event is derived from the
-     * in-session impedance check, which is UHDR (the principal, 2026-11-23,
-     * OI-PRIV-40 (NP-PRIV-ANALYSIS-004)), so nothing about it is written to SHDR,
-     * neither its retired code 0xC7 nor this generic reason. */
-    if (!s_state.crossval_faulting) {
-        np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
-    }
+     * Logged for every fault, an impedance cross-validation fault included: it
+     * arrives here as the safety-MCU refusal reason, exactly as a real refusal
+     * does, so the log does not single it out (OI-PRIV-40 (NP-PRIV-ANALYSIS-004),
+     * REQ-FWHUB-92 (b)).  An exception here for that event would be the
+     * conditional redaction CLAUDE.md §5.1 rule 2 forbids. */
+    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
 }
 
 /*

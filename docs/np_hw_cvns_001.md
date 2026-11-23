@@ -121,7 +121,7 @@ re-running that argument.
 | Hub slot | 10, `NP_MOD_CVNS` = `0x0A`, detected on the accessory port (T2) | `np_hub_config.h`; `NP-FW-HUB-001` §8.8 |
 | Safety enable | `NP_SAFETY_EN_CVNS` = bit 10, requested **only** after impedance → cardiac baseline → MCU grant | `NP-FW-HUB-001` §8.8 |
 | Declared electrode area | `NP_CVNS_ELECTRODE_AREA_MCM2` = **2000** (2 cm²), **PROVISIONAL — NOT MEASURED** | `np_hub_config.h`; `OI-CHARGE-07` |
-| Impedance cross-validation | Hub measurement vs safety-MCU measurement; divergence beyond `NP_CVNS_IMPEDANCE_CROSSVAL_KOHM` faults the session before delivery and writes nothing to SHDR (Rev {NP-HW-CVNS-001 to}: the flag `0xC7` it wrote is retired, because the in-session impedance check is UHDR, the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004); `REQ-FWHUB-92`) | `NP-FW-HUB-001` §8.8 |
+| Impedance cross-validation | Hub measurement vs safety-MCU measurement; divergence beyond `NP_CVNS_IMPEDANCE_CROSSVAL_KOHM` faults the session before delivery and SHDR records it only as a safety-MCU refusal (Rev {NP-HW-CVNS-001 to}: the flag `0xC7` it wrote is retired, because the in-session impedance check is UHDR, the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004); `REQ-FWHUB-92`) | `NP-FW-HUB-001` §8.8 |
 | R-peak path | Main processor PPG → Pan-Tompkins → 5 ms pulse on the MCU's R-peak input | `NP-FW-CVNS-001` §5.2, §6.2 |
 
 ### 4.2 The cable — four conductors, no pin-out
