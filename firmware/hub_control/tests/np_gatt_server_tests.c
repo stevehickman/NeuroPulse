@@ -322,7 +322,7 @@ static void test_table_is_what_the_hub_produces(void)
 {
     size_t n = 0U;
     const np_gatt_char_t *t = np_gatt_table(&n);
-    check(n == 18U, "table: eighteen characteristics, each with a producer");
+    check(n == 19U, "table: nineteen characteristics, each with a producer (STEALTH, OI-PRIV-37, is the nineteenth)");
 
     bool coherent = true;
     bool pending_absent = true;

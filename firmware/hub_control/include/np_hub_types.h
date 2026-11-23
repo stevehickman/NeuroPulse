@@ -124,6 +124,12 @@ typedef enum {
      * upload-check frame; nothing is started. */
     NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT = -41,
     NP_HUB_ERR_CVNS_BLOCK_TOO_LONG  = -42,
+    /* REQ-FWHUB-85 (a), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  NOT A FAULT.  np_runner_run() returns it for a session that
+     * ended early because the person stopped it (NP_ABORT_USER) or because a pause outlasted the owner's limit
+     * (NP_ABORT_PAUSE_TIMEOUT).  Both ends were asked for, so neither lights the red fault indicator.  Every other abort
+     * reason is a fault and still returns NP_HUB_ERR_SAFETY_FAULT.  It is a session-end status only: it never reaches the
+     * upload-check frame or any log record (the record carries abort_reason, unchanged). */
+    NP_HUB_ERR_STOPPED              = -43,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

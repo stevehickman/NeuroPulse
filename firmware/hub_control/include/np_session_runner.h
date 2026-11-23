@@ -82,6 +82,14 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len);
 np_hub_status_t np_runner_run(void);
 
 /*
+ * np_runner_end_status — the status np_runner_run() returns for a session that ended with this reason (REQ-FWHUB-85):
+ * NP_HUB_OK for NONE, NP_HUB_ERR_STOPPED for a stop by the person (USER) or a pause timeout (PAUSE_TIMEOUT), and
+ * NP_HUB_ERR_SAFETY_FAULT for every other reason.  The session STATE is unchanged by this: it is FAULT for any reason
+ * but NONE (OI-PRIV-37 records that as not yet decided).
+ */
+np_hub_status_t np_runner_end_status(np_abort_reason_t reason);
+
+/*
  * np_runner_abort — signal a session abort from any task context.
  * reason is recorded in the SHDR summary.
  * Posts NP_EV_SESSION_ABORT to unblock np_runner_run().
