@@ -674,7 +674,10 @@ branch could not report a sleeve that fails; `np_mod_intranasal_detect()` now wr
 once per insertion and not once per poll (D-30). *Residual, not closed by this:* the records still sit
 in order among the session-open records, which carry the count, so their position places an insertion
 between two sessions. Whether the record becomes a lifetime total instead is a question for the
-principal (`docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`).
+principal (`docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`). **(Rev {NP-FW-HUB-001 to}:
+ruled by the principal 2026-11-23. The event stays as it is.** The time of an insertion is not the time of
+use: a clinic fits a helmet for the day, and an accessory may not be used in the first session. The
+zone-announce entry (`np_zone_announce.c`) drops its session count to the same shape.)
 
 `np_mod_reg_rescan_slot()` re-probes one slot without a full rescan. `task_module_detect` calls it
 for slots 7–18 while idle (§2.2). **(Rev 8, `OI-FWHUB-16`.** It was `np_mod_reg_rescan_zone()`, which

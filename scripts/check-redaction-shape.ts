@@ -250,6 +250,39 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     role: "writer",
     note: "PBM counts, no location (F13)",
   },
+  // ── accessory authentication: ruled by the principal 2026-11-23 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004)) ──
+  // The time of an insertion is not the time of use (a clinic fits a helmet for the day), so an
+  // authentication event with no session count is SHDR. Fixed shape: {tag, slot, type, pass} (REQ-NASAL-16).
+  {
+    file: "firmware/hub_control/src/np_session_log.c",
+    fn: "np_log_shdr_zone_auth",
+    role: "writer",
+    note: "0x83 {tag, slot, type, pass}, four bytes for every caller and result, no session count (REQ-NASAL-16 a)",
+  },
+  {
+    file: "firmware/hub_control/modules/np_mod_intranasal.c",
+    fn: "np_mod_intranasal_init",
+    role: "writer",
+    note: "intranasal insertion → np_log_shdr_zone_auth, pass or the init-time failure",
+  },
+  {
+    file: "firmware/hub_control/modules/np_mod_intranasal.c",
+    fn: "np_mod_intranasal_detect",
+    role: "writer",
+    note: "intranasal authentication failure, once per insertion (REQ-NASAL-16 b) → np_log_shdr_zone_auth",
+  },
+  {
+    file: "firmware/hub_control/modules/np_mod_cvns.c",
+    fn: "np_mod_cvns_init",
+    role: "writer",
+    note: "cervical VNS accessory insertion → np_log_shdr_zone_auth (pass)",
+  },
+  {
+    file: "firmware/zone_announce/src/np_zone_announce.c",
+    fn: "log_shdr",
+    role: "writer",
+    note: "zone authentication entry {zone_id, slot, pass/fail, debounce reads}, no session count; np_za_init() is not called by the hub",
+  },
   // ── callers of the hub logger whose records are already ruled ──
   {
     file: "firmware/hub_control/src/np_pbm_socket_telem.c",
@@ -363,41 +396,6 @@ const KNOWN_VIOLATIONS: {
       "copies the whole latch status byte, IMPEDANCE included. No SHDR write uses the report " +
       "today; the IMPEDANCE ruling is owed before one does " +
       "(docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/src/np_session_log.c",
-    fn: "np_log_shdr_zone_auth",
-    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "accessory authentication: the session count is gone (REQ-NASAL-16), but each record's position among the session-open records still dates an insertion (brief Q2)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/modules/np_mod_intranasal.c",
-    fn: "np_mod_intranasal_init",
-    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "intranasal insertion → np_log_shdr_zone_auth",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/modules/np_mod_intranasal.c",
-    fn: "np_mod_intranasal_detect",
-    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "intranasal authentication failure, once per insertion (REQ-NASAL-16 b) → np_log_shdr_zone_auth",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/modules/np_mod_cvns.c",
-    fn: "np_mod_cvns_init",
-    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "cervical VNS accessory insertion → np_log_shdr_zone_auth",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/zone_announce/src/np_zone_announce.c",
-    fn: "log_shdr",
-    owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
-    why: "zone authentication entry carries the session count",
   },
   // Found by this gate (OI-PRIV-40): the PBM session SHDR summaries carry
   // duration_s and abort_reason, which §5.1 lists as UHDR ("session timestamps
