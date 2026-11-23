@@ -158,7 +158,8 @@ _Static_assert(sizeof(np_cvns_shdr_summary_t) == 3U,
  * Fault event timing is UHDR generally: the SHDR fleet schema's `fault_log` has
  * no timing column, and np_log_shdr_fault() discards `session_ms` for every
  * caller.  `reason` stays — the fault KIND is the deliberate, already-published
- * SHDR channel (fault_log.fault_type, e.g. 'CVNS_HR_CUTOFF').
+ * SHDR channel (fault_log.fault_type, e.g. 'CVNS_CARDIAC_INTERLOCK_CUTOFF', which names no cause:
+ * the cause of a cardiac cutoff is UHDR; OI-PRIV-41 (NP-PRIV-ANALYSIS-004) Q2).
  */
 typedef struct {
     uint32_t session_id;          /* session counter; no timestamps             */

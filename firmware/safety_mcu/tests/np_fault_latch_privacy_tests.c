@@ -14,7 +14,7 @@
  * The central test is ISC-16/17: with identical history, the reported record for
  * a cardiac fault and for a non-cardiac fault must differ ONLY in `status` — the
  * deliberately published fault-kind channel, which SHDR already carries as
- * fault_log.fault_type 'CVNS_HR_CUTOFF'.  Every other reported field must be
+ * fault_log.fault_type 'CVNS_CARDIAC_INTERLOCK_CUTOFF'.  Every other reported field must be
  * bit-identical, so no pattern of reporting discloses that the fault was cardiac.
  *
  * These build src/np_fault_latch.c with NPTEST_HOST (drops the .fault_latch

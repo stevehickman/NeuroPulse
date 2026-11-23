@@ -138,7 +138,8 @@ uint8_t np_fault_latch_get_slot(void)
  *             and pre-existing: the hub's own SHDR fault log already records the
  *             cardiac cutoff as a first-class named event
  *             (NP_CVNS_SHDR_EV_CUTOFF 0xC1 → fault_log.fault_type
- *             'CVNS_HR_CUTOFF', ci/shdr/shdr_fleet_schema.sql), per the locked
+ *             'CVNS_CARDIAC_INTERLOCK_CUTOFF', ci/shdr/shdr_fleet_schema.sql; one event
+ *             for every cause, which SHDR never learns — OI-PRIV-41 Q2), per the locked
  *             "safety interlock log → SHDR" boundary rule (CLAUDE.md §5.1).
  *
  *   slot    → SHDR.  Already in the reply frame.  Device topology, no biology.

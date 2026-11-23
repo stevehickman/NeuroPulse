@@ -130,9 +130,11 @@ const PREDICATES: Record<string, Sensitivity> = {
   NP_SAFETY_STATUS_CARDIAC: {
     kind: "sensitive",
     why:
-      "an HR change >15 BPM within 5 s of stimulation, i.e. a cardiac event in the wearer. " +
+      "a cardiac cutoff: an HR change >15 BPM within 5 s of stimulation, R-peak staleness, or " +
+      "disagreement with the hub's HR estimate, so in the first case a cardiac event in the wearer. " +
       "This is the #272 predicate. Note the hub deliberately publishes the cutoff itself to " +
-      "SHDR as fault_log.fault_type 'CVNS_HR_CUTOFF' under the locked safety-interlock rule — " +
+      "SHDR as one cause-neutral fault_log.fault_type 'CVNS_CARDIAC_INTERLOCK_CUTOFF' (OI-PRIV-41 Q2: the cause is UHDR) " +
+      "under the locked safety-interlock rule — " +
       "that disclosure is a separate decision. What is forbidden is a reporting path whose " +
       "SHAPE varies with this bit, which discloses it a second time and without the decision",
   },
