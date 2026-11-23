@@ -79,6 +79,8 @@
 #include "np_cardiac_sens.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
+/* np_session_runner.h declares it, but brings in FreeRTOS, which this module's host test does not link. */
+extern void np_runner_note_early_stop(void);
 #include "np_cmd_limits.h"
 #include <string.h>
 
@@ -600,18 +602,17 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
     /* Fail-safe: drop the unified enable request immediately. */
     cvns_drop_enable();
 
-    /* SHDR safety-interlock log: device-condition flags only.  The 0 timestamp
-     * argument is belt-and-braces — np_log_shdr_fault() discards `session_ms`
-     * for every caller and every fault type (fault event timing is UHDR), so the
-     * suppression is UNCONDITIONAL and discloses nothing about which fault fired.
-     *
-     * OI-CVNS-HUB-11: suppressed while the driver is faulting the library on an
-     * impedance cross-validation failure — that path logs its own dedicated
-     * diagnostic (NP_CVNS_SHDR_EV_IMP_CROSSVAL), so logging the generic reason
-     * here too would double-record the one event. */
-    if (!s_state.crossval_faulting) {
-        np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
-    }
+    /* Nothing about the fault goes to SHDR.  The reason is a reading of the
+     * wearer for HR_CHANGE and IMPEDANCE (and a code that sits beside them for the
+     * rest), so it stays in the UHDR session record (fault_reason).  SHDR learns
+     * only that a channel stopped early, through the session-end record's
+     * cause-free flag, which every fault reason sets alike (REQ-FWHUB-89 (c),
+     * REQ-FWHUB-91; the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004),
+     * 2026-11-23: a safety interlock that trips on a reading of the wearer →
+     * UHDR).  The impedance cross-validation path still writes its own device
+     * diagnostic (NP_CVNS_SHDR_EV_IMP_CROSSVAL): two sensors disagreeing is the
+     * device's condition. */
+    np_runner_note_early_stop();
 }
 
 /*

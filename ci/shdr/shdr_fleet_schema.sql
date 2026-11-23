@@ -1368,14 +1368,16 @@ CREATE TABLE mode_f_telemetry (
 -- ---------------------------------------------------------------------------
 -- Table: fault_log
 -- Safety interlock and firmware fault events.
--- Per NP-FW-EMMC-002 §G.3: safety interlock log → SHDR (no HR values, no
--- raw impedance — only the binary cutoff flag and fault type).
+-- Per NP-FW-EMMC-002 §G.3 as narrowed by the principal (2026-11-23, OI-PRIV-22 of
+-- NP-PRIV-ANALYSIS-004): a safety interlock that reports the DEVICE → SHDR; one
+-- that trips on a reading of the wearer (a cardiac cutoff, a skin-contact check)
+-- → UHDR, never here.  No HR values, no raw impedance, no cutoff flag.
 -- ---------------------------------------------------------------------------
 CREATE TABLE fault_log (
     id                  BIGSERIAL    PRIMARY KEY,
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
-    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', 'CVNS_HR_CUTOFF', etc.
+    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', etc.; 'CVNS_HR_CUTOFF' retired 2026-11-23
     fault_source        VARCHAR(16)  NOT NULL CHECK (fault_source IN ('SAFETY_MCU', 'MAIN_PROC', 'APP')),
     fault_cleared       BOOLEAN      NOT NULL DEFAULT FALSE,
 

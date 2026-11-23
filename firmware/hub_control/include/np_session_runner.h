@@ -97,6 +97,13 @@ np_hub_status_t np_runner_end_status(np_abort_reason_t reason);
 void np_runner_abort(np_abort_reason_t reason);
 
 /*
+ * np_runner_note_early_stop — a channel stopped before its scheduled end while the
+ * session goes on.  Any task.  The runner keeps no cause: the call only sets the
+ * SHDR session-end record's stopped_early flag (REQ-FWHUB-89 (c)).
+ */
+void np_runner_note_early_stop(void);
+
+/*
  * np_runner_get_state — thread-safe state read (reads with a critical section).
  */
 np_session_state_t np_runner_get_state(void);

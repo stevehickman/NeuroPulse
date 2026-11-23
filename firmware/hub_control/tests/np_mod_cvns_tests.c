@@ -135,6 +135,13 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
     g_fault_log_ms   = session_ms;
 }
 
+/* The runner's cause-free early-stop flag (REQ-FWHUB-89 (c)). */
+static int g_early_stop_calls;
+void np_runner_note_early_stop(void)
+{
+    g_early_stop_calls++;
+}
+
 /* ── Mocked HAL stubs ────────────────────────────────────────────────────────── */
 
 static bool     g_accessory_present = true;
@@ -208,6 +215,7 @@ static void check(int cond, const char *name)
 
 static void reset_mocks(void)
 {
+    g_early_stop_calls = 0;
     g_enable_calls = g_disable_calls = 0;
     g_last_enable_mask = g_last_disable_mask = 0;
     g_auth_calls = 0; g_auth_last_pass = false;
@@ -667,12 +675,34 @@ static void test_fault_cb_disables_and_logs(void)
     check(g_disable_calls == 1 && g_last_disable_mask == NP_SAFETY_EN_CVNS,
           "fault: unified enable dropped");
     check(!np_mod_cvns_test_enable_requested(), "fault: enable bit cleared");
-    check(g_fault_log_calls == 1, "fault: one SHDR fault record written");
-    check(g_fault_log_slot == NP_HUB_SLOT_CVNS &&
-          g_fault_log_type == (uint8_t)NP_MOD_CVNS &&
-          g_fault_log_code == (uint8_t)NP_CVNS_FAULT_HR_CHANGE,
-          "fault: SHDR record carries slot/type/reason");
-    check(g_fault_log_ms == 0U, "fault: SHDR timestamp suppressed (privacy gate)");
+}
+
+/* Every cervical VNS fault reason does the same thing to SHDR: nothing of its own, and the one cause-free early-stop
+ * note.  A cardiac cutoff therefore cannot be told from a lost signal, a watchdog, an impedance rise or a safety-MCU
+ * refusal by anything this driver writes. */
+/* @verifies REQ-FWHUB-91#a REQ-FWHUB-89#c */
+static void test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop(void)
+{
+    static const np_cvns_fault_reason_t reasons[] = {
+        NP_CVNS_FAULT_HR_CHANGE, NP_CVNS_FAULT_DATA_LOSS, NP_CVNS_FAULT_WATCHDOG,
+        NP_CVNS_FAULT_IMPEDANCE, NP_CVNS_FAULT_SAFETY_MCU,
+    };
+    bool all_silent = true, all_one_note = true;
+    for (size_t i = 0U; i < sizeof reasons / sizeof reasons[0]; i++) {
+        reset_mocks();
+        np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+        np_mod_cvns_params_t p = make_params();
+        cvns_start(&p);
+        np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
+        np_mod_cvns_tick(10U, g_now_unix);
+        g_fault_log_calls  = 0;
+        g_early_stop_calls = 0;
+        np_mod_cvns_test_fire_fault(reasons[i]);
+        if (g_fault_log_calls != 0) { all_silent = false; }
+        if (g_early_stop_calls != 1) { all_one_note = false; }
+    }
+    check(all_silent, "fault: no reason writes an SHDR fault record");
+    check(all_one_note, "fault: every reason notes exactly one early stop, the same for all");
 }
 
 /* ── NP-SW-FAULTMSG-001 P2 (OI-FAULTMSG-02): the fault KIND in the UHDR record ─
@@ -1022,8 +1052,8 @@ static void test_hb_enable_reject_impedance(void)
           "hb-reject: fault reason is SAFETY_MCU");
     check(g_disable_calls == 1 && g_last_disable_mask == NP_SAFETY_EN_CVNS,
           "hb-reject: unified enable dropped");
-    check(g_fault_log_calls == 1 && g_fault_log_ms == 0U,
-          "hb-reject: one SHDR fault logged, timestamp suppressed");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "hb-reject: no SHDR fault logged, one cause-free early stop noted (REQ-FWHUB-91, -89 (c))");
 }
 
 /* A cardiac cutoff observed only via the heartbeat is NOT this bridge's concern:
@@ -1237,6 +1267,7 @@ int main(void)
     test_ramp_report_checks_then_ramp_then_steady();
     test_a_pause_leaves_one_cervical_session_not_several();
     test_fault_cb_disables_and_logs();
+    test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop();
     test_hb_impedance_advances_stage();
     test_hb_impedance_out_of_window_holds();
     test_hb_impedance_start_fail_fallback();

@@ -49,6 +49,11 @@ trade-off. A moves nothing toward SHDR, so if the principal prefers, A can proce
 
 ## Q2. What may SHDR say about the cause of a cardiac cutoff? (point 2; Safety and the principal)
 
+> **Answered 2026-11-23 by the principal's ruling on `OI-PRIV-22` (`oi-priv-22-detector-interlocks-in-shdr.md`): nothing.** SHDR has no cutoff event any more:
+> `0xC1` is retired, and SHDR keeps only a cause-free `stopped_early` bit that any abort, any cervical VNS fault and any withdrawn grant set alike
+> (`NP-FW-HUB-001` `REQ-FWHUB-89` (c), `REQ-FWHUB-91`). Options A and B below are moot. Option C (the cause in the user's UHDR record) is still open as an
+> optional addition and is Safety's; it needs the cause to cross the SPI reply. The text below is kept as asked.
+
 ### Present state (checked)
 
 The safety MCU's `cardiac_cutoff()` (`firmware/safety_mcu/src/np_cardiac_interlock.c:225-235`) sets `NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF`

@@ -880,6 +880,19 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     return NP_HUB_OK;
 }
 
+/* Set by np_runner_note_early_stop() when a channel stops before its scheduled end
+ * without the session ending (a cervical VNS fault, whatever its reason).  With the
+ * safety MCU's grant-withdrawal latch and an abort of the session, it becomes the
+ * SHDR session-end record's stopped_early flag: SHDR learns that a stop happened,
+ * which changes the hardware's usage, and never which stop or why (REQ-FWHUB-89 (c);
+ * the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004), 2026-11-23). */
+static volatile bool s_early_stop;
+
+void np_runner_note_early_stop(void)
+{
+    s_early_stop = true;
+}
+
 np_hub_status_t np_runner_run(void)
 {
     /* OI-CVNS-HUB-01: hard-reset the CVNS re-enable manager at session start —
@@ -888,6 +901,9 @@ np_hub_status_t np_runner_run(void)
      * heartbeat where the session is not RUNNING, and
      * np_safety_spi_disable_all() clears the SPI-level bit on session end.) */
     np_cvns_reenable_session_reset();
+
+    s_early_stop = false;
+    (void)np_safety_spi_take_grant_withdrawn();   /* nothing from before this session counts */
 
     s_ctx.state      = NP_SESSION_RUNNING;
     np_session_clock_start(&s_ctx.clock, clock_now_ms());
@@ -1170,7 +1186,16 @@ np_hub_status_t np_runner_run(void)
     s_ctx.uhdr.duration_s   = total_ms / 1000U;
     s_ctx.uhdr.abort_reason = (uint8_t)s_ctx.abort_reason;
     /* The SHDR record gets none of these: duration, abort reason and the
-     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21). */
+     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21).  It gets one
+     * cause-free bit: did the session, or any channel in it, stop before its
+     * scheduled end?  An abort for any reason, a cervical VNS fault for any reason
+     * and a grant the safety MCU withdrew for any reason all set the same bit
+     * (REQ-FWHUB-89 (c), OI-PRIV-22). */
+    {
+        const bool withdrawn = np_safety_spi_take_grant_withdrawn();
+        s_ctx.shdr.stopped_early =
+            (s_early_stop || withdrawn || s_ctx.abort_reason != NP_ABORT_NONE) ? 1U : 0U;
+    }
 
     /* OI-FWHUB-10: each lattice socket's final dose into this session's file,
      * and this session's PBM counts to SHDR — every session, PBM or not, so the

@@ -133,13 +133,14 @@ uint8_t np_fault_latch_get_slot(void)
  * s_latch directly.  That bakes the docs/status/pending-decisions.md §13.4
  * privacy-gate resolution into enforceable code rather than prose.
  *
- *   status  → SHDR.  Already in the reply frame.  It carries the fault KIND,
- *             including NP_SAFETY_STATUS_CARDIAC.  This disclosure is deliberate
- *             and pre-existing: the hub's own SHDR fault log already records the
- *             cardiac cutoff as a first-class named event
- *             (NP_CVNS_SHDR_EV_CUTOFF 0xC1 → fault_log.fault_type
- *             'CVNS_HR_CUTOFF', ci/shdr/shdr_fleet_schema.sql), per the locked
- *             "safety interlock log → SHDR" boundary rule (CLAUDE.md §5.1).
+ *   status  → carries the fault KIND, including NP_SAFETY_STATUS_CARDIAC and
+ *             NP_SAFETY_STATUS_IMPEDANCE.  Since 2026-11-23 a safety interlock
+ *             that trips on a reading of the wearer is UHDR, never SHDR (the
+ *             principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004),
+ *             data-architecture-detail.md §5.1), and the hub's 0xC1 cutoff event
+ *             is retired.  No SHDR write uses this report today; before one does,
+ *             the CARDIAC bit must leave its SHDR copy for every status value,
+ *             and the IMPEDANCE bit waits on OI-PRIV-40.
  *
  *   slot    → SHDR.  Already in the reply frame.  Device topology, no biology.
  *
