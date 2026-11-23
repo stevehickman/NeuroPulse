@@ -893,9 +893,10 @@ static void test_hb_impedance_crossval_agrees(void)
 }
 
 /* Hub and MCU disagree beyond tolerance: fail-closed — the library is faulted,
- * the session never reaches delivery, and exactly one SHDR crossval diagnostic
- * (suppressed timestamp) is recorded. */
-/* @verifies REQ-CVNS-06 */
+ * the session never reaches delivery, and nothing is written to SHDR: the
+ * divergence is derived from the in-session impedance check, which is UHDR
+ * (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)); its code 0xC7 is retired. */
+/* @verifies REQ-CVNS-06 REQ-FWHUB-92#a,b */
 static void test_hb_impedance_crossval_diverges(void)
 {
     reset_mocks();
@@ -910,17 +911,15 @@ static void test_hb_impedance_crossval_diverges(void)
           "crossval-diverge: impedance NOT accepted (fail-closed)");
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-diverge: session advanced to FAULT (blocked before delivery)");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
-          "crossval-diverge: one SHDR crossval diagnostic logged");
-    check(g_fault_log_ms == 0U, "crossval-diverge: SHDR timestamp suppressed");
+    check(g_fault_log_calls == 0,
+          "crossval-diverge: nothing written to SHDR (no 0xC7, no generic fault)");
     check(!np_mod_cvns_test_enable_requested(), "crossval-diverge: enable never requested");
     check(!np_mod_cvns_test_active(), "crossval-diverge: driver released");
 }
 
 /* Tolerance boundary: a difference EXACTLY at NP_CVNS_IMPEDANCE_CROSSVAL_KOHM is
  * accepted (strict >); a difference just over it fails closed. */
-/* @verifies REQ-CVNS-06 */
+/* @verifies REQ-CVNS-06 REQ-FWHUB-92#a,b */
 static void test_hb_impedance_crossval_boundary(void)
 {
     /* Exactly at tolerance (1.0 kΩ): accepted. */
@@ -943,9 +942,8 @@ static void test_hb_impedance_crossval_boundary(void)
     run_impedance_measurement(3.0f, 2.99f);  /* right diff = 1.01 kΩ > tolerance */
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-boundary: diff just over tolerance fails closed");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
-          "crossval-boundary: diagnostic logged just over tolerance");
+    check(g_fault_log_calls == 0,
+          "crossval-boundary: just over tolerance writes nothing to SHDR");
 }
 
 /* When the MCU report is absent, no cross-check is possible and the session

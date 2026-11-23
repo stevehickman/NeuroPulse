@@ -343,18 +343,21 @@ static bool cvns_impedance_diverges(const float hub_kohm[])
 }
 
 /*
- * OI-CVNS-HUB-11: hub-vs-MCU impedance disagreement — fail closed.  Logs one
- * SHDR diagnostic (dedicated crossval code, suppressed timestamp) and drives the
+ * OI-CVNS-HUB-11: hub-vs-MCU impedance disagreement — fail closed.  Drives the
  * library to FAULT so stimulation is never enabled with mismatched impedance
  * sensing.  The safety MCU's enable refusal remains the authoritative gate; this
- * is an additional main-processor block.  The crossval_faulting flag suppresses
- * cvns_fault_cb's generic SHDR log so exactly ONE diagnostic is recorded.
+ * is an additional main-processor block.
+ *
+ * Writes nothing to SHDR (OI-PRIV-40, NP-PRIV-ANALYSIS-004; NP-FW-HUB-001
+ * §6.3): the divergence is derived from the in-session impedance
+ * check, which the principal ruled UHDR on 2026-11-23 because it measures
+ * through the wearer.  Its code 0xC7 is retired and never reused.  The
+ * crossval_faulting flag still suppresses cvns_fault_cb's generic SHDR log for
+ * this event, so the fault this function causes is not recorded either.
  */
 static void cvns_impedance_crossval_fail(void)
 {
     s_state.crossval_faulting = true;
-    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS,
-                      NP_CVNS_SHDR_EV_IMP_CROSSVAL, 0U /* ts suppressed */);
     /* Drive the library to FAULT: stim → FAULT, interlock → FAULT (which fires
      * cvns_fault_cb → drops the unified enable; its generic log is suppressed).
      * The next np_cvns_session_tick() advances the session stage to FAULT. */
@@ -606,9 +609,10 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
      * suppression is UNCONDITIONAL and discloses nothing about which fault fired.
      *
      * OI-CVNS-HUB-11: suppressed while the driver is faulting the library on an
-     * impedance cross-validation failure — that path logs its own dedicated
-     * diagnostic (NP_CVNS_SHDR_EV_IMP_CROSSVAL), so logging the generic reason
-     * here too would double-record the one event. */
+     * impedance cross-validation failure.  That event is derived from the
+     * in-session impedance check, which is UHDR (the principal, 2026-11-23,
+     * OI-PRIV-40 (NP-PRIV-ANALYSIS-004)), so nothing about it is written to SHDR,
+     * neither its retired code 0xC7 nor this generic reason. */
     if (!s_state.crossval_faulting) {
         np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
     }
