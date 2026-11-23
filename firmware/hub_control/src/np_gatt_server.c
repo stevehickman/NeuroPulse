@@ -15,6 +15,7 @@
 #include "np_hub_config.h"
 #include "np_cardiac_sens.h"
 #include "np_pause_limit.h"
+#include "np_status_led.h"
 #include "np_session_hold.h"
 #include "np_ppx_config.h"
 #include "np_safety_spi.h"
@@ -182,6 +183,11 @@ static const np_gatt_char_t TABLE[] = {
      * hub loads a session from it, so the link must be encrypted. */
     { NP_GATT_PROTOCOL_UPLOAD_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_STREAM | NP_GATT_PROP_ENC,
       0u, 0u, NULL, write_protocol_upload },
+
+    /* REQ-FWHUB-86, OI-PRIV-37 (NP-PRIV-ANALYSIS-004): stealth mode, bit 0.  Encrypted: whether the wearer hides the
+     * indicators is a fact about the person (CLAUDE.md section 5.1, section 23).  A fault shows regardless. */
+    { NP_GATT_STEALTH_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_STEALTH_LEN, (uint8_t)NP_GATT_STEALTH_LEN, np_status_led_read, np_status_led_write },
 
     /* REQ-FWHUB-71: the detector's two clinician switches (read: flags and evidence level; write: flags). */
     { NP_GATT_PPX_CONFIG_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,

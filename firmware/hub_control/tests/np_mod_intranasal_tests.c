@@ -15,6 +15,9 @@
  *   4. a fully applied command still drives the sides it names and requests the enable (the fix refuses
  *      nothing it used to admit), and the duty ceiling still applies.
  *
+ *   5. REQ-NASAL-16 (b): an unauthenticated sleeve on a seated probe is logged to SHDR as a failure once per
+ *      insertion, from detect(), and never once per poll.
+ *
  * NOT pinned, and deliberately unchanged: authentication is read once, at init (OI-SIMFW-21 point 1, still open).
  *
  * No FreeRTOS, no hardware.  IEC 62304 Class B — SW-02 hub control.
@@ -38,6 +41,7 @@ static void check(int cond, const char *name)
     else      { printf("FAIL: %s\n", name); g_failures++; }
 }
 
+np_hub_status_t np_mod_intranasal_detect(uint8_t slot, np_hub_mod_type_t *type_out);
 np_hub_status_t np_mod_intranasal_init(uint8_t slot);
 np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint16_t len);
 
@@ -53,10 +57,18 @@ static uint16_t g_req_mask;
 void np_safety_spi_request_enable(uint16_t bits)  { g_req_mask |= bits; }
 void np_safety_spi_request_disable(uint16_t bits) { g_req_mask &= (uint16_t)~bits; }
 
-void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass) { (void)slot; (void)type; (void)pass; }
+static bool     g_contact = true;
+static int      g_auth_pass_recs;      /* SHDR authentication records written, by result */
+static int      g_auth_fail_recs;
+void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
+{
+    if (slot == NP_HUB_SLOT_INTRANASAL && type == NP_MOD_INTRANASAL) {
+        if (pass) { g_auth_pass_recs++; } else { g_auth_fail_recs++; }
+    }
+}
 
 bool np_mod_ins_hal_auth_check(void) { return g_auth; }
-bool np_mod_ins_hal_pd_contact(void) { return true; }
+bool np_mod_ins_hal_pd_contact(void) { return g_contact; }
 np_hub_status_t np_mod_ins_hal_pwm_set(uint8_t side, uint8_t cur_660, uint8_t cur_808, uint8_t freq_code, uint8_t duty)
 {
     (void)freq_code;
@@ -76,6 +88,7 @@ uint16_t np_mod_ins_hal_pd_read(uint8_t side, uint8_t wl) { (void)side; (void)wl
 static void reset(void)
 {
     g_auth = true;
+    g_contact = true;
     g_side_on[0] = g_side_on[1] = false;
     g_duty[0] = g_duty[1] = 0U;
     g_set_calls = 0;
@@ -185,6 +198,52 @@ static void test_an_unauthenticated_sleeve_is_refused_as_its_own_status(void)
     check(!g_side_on[0] && !g_side_on[1] && !enable_requested() && g_set_calls == 0, "sleeve: nothing is driven and no enable is requested");
 }
 
+/* An unauthenticated sleeve on a seated probe is logged to SHDR as a failure, once per insertion.  detect() is the only
+ * place it can be seen: the registry calls init() only after detect() succeeds, so init()'s "fail" never ran. */
+/* @verifies REQ-NASAL-16#b */
+static void test_an_unauthenticated_insertion_is_logged_once(void)
+{
+    reset();
+    np_hub_mod_type_t t = NP_MOD_NONE;
+    (void)np_mod_intranasal_detect(SLOT, &t);   /* an authenticated probe: clears the insertion state */
+    g_auth_pass_recs = g_auth_fail_recs = 0;
+
+    g_auth = false;
+    for (int poll = 0; poll < 10; poll++) {
+        check(np_mod_intranasal_detect(SLOT, &t) == NP_HUB_ERR_NOT_PRESENT, "auth: an unauthenticated sleeve is not a probe");
+    }
+    check(g_auth_fail_recs == 1 && g_auth_pass_recs == 0, "auth: ten polls of one unauthenticated insertion write one failure record");
+
+    g_contact = false;
+    (void)np_mod_intranasal_detect(SLOT, &t);   /* removed */
+    (void)np_mod_intranasal_detect(SLOT, &t);
+    check(g_auth_fail_recs == 1, "auth: nothing is written while no probe is seated");
+    g_contact = true;
+    (void)np_mod_intranasal_detect(SLOT, &t);   /* seated again */
+    (void)np_mod_intranasal_detect(SLOT, &t);
+    check(g_auth_fail_recs == 2, "auth: a second insertion of an unauthenticated sleeve is its own record");
+
+    g_auth = true;
+    check(np_mod_intranasal_detect(SLOT, &t) == NP_HUB_OK && t == NP_MOD_INTRANASAL && g_auth_fail_recs == 2,
+          "auth: a sleeve that authenticates is detected and writes no failure");
+}
+
+/* init()'s own failure (a sleeve that authenticated in detect() and not in init()) is the same insertion: it is
+ * logged once, by init(), and detect() does not log it again. */
+/* @verifies REQ-NASAL-16#b */
+static void test_a_failure_seen_by_init_is_not_logged_again_by_detect(void)
+{
+    reset();
+    np_hub_mod_type_t t = NP_MOD_NONE;
+    check(np_mod_intranasal_detect(SLOT, &t) == NP_HUB_OK, "race: detect() saw an authenticated sleeve");
+    g_auth_pass_recs = g_auth_fail_recs = 0;
+    g_auth = false;
+    check(np_mod_intranasal_init(SLOT) == NP_HUB_ERR_NOT_PRESENT && g_auth_fail_recs == 1, "race: init() logs the failure");
+    (void)np_mod_intranasal_detect(SLOT, &t);
+    (void)np_mod_intranasal_detect(SLOT, &t);
+    check(g_auth_fail_recs == 1 && g_auth_pass_recs == 0, "race: the rescans that follow write no second record");
+}
+
 int main(void)
 {
     test_a_failure_on_the_second_side_stops_the_first();
@@ -195,6 +254,8 @@ int main(void)
     test_a_duty_above_the_ceiling_is_refused_and_starts_nothing();
     test_a_refused_duty_leaves_a_running_command_as_it_was();
     test_an_unauthenticated_sleeve_is_refused_as_its_own_status();
+    test_an_unauthenticated_insertion_is_logged_once();
+    test_a_failure_seen_by_init_is_not_logged_again_by_detect();
     printf("%s (%d failure%s)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures, g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }
