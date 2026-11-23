@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -217,7 +217,7 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > it (CLAUDE.md §5.1, protection only goes up). Brief: `docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`.
 > No target code consumes either yet: the Argon2id and mount seams trap (`firmware/platform/src/np_platform_stub.c`).
 
-> **Rev {NP-FW-EMMC-002 to} (2026-11-23): the UKMD is 64 bytes, K1 ‖ K2, and the key length question of the Rev 12 note is
+> **Rev 15 (2026-11-23): the UKMD is 64 bytes, K1 ‖ K2, and the key length question of the Rev 12 note is
 > closed (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) Finding M9; widening approved 2026-11-23 in the `OI-PRIV-35` working session).** The 32 bytes this section printed
 > contradicted a mandatory clause of the parent specification, `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 ("AES-256-XTS key
 > material is 512 bits … two independent 256-bit keys"), and no decision to depart from it was recorded. The UKMD is
@@ -247,11 +247,11 @@ typedef struct {
     uint32_t argon2id_m_cost;       /* Memory: 65536 KiB (64 MiB) */
     uint32_t argon2id_t_cost;       /* Iterations: 4 */
     uint32_t argon2id_parallelism;  /* p = 1 */
-    uint8_t  reserved[52];          /* Pad to 192 bytes — future use (Rev {NP-FW-EMMC-002 to}: was 44, see below) */
+    uint8_t  reserved[52];          /* Pad to 192 bytes — future use (Rev 15: was 44, see below) */
 } np_ukmd_record_t;
 ```
 
-> **Rev {NP-FW-EMMC-002 to} — the record carries the 64-byte UKMD (`REQ-EMMC2-06`).** `ukmd_ciphertext` is 64 bytes and
+> **Rev 15 — the record carries the 64-byte UKMD (`REQ-EMMC2-06`).** `ukmd_ciphertext` is 64 bytes and
 > `reserved` is 52, so the named fields are 140 bytes and the record keeps its stated 192 bytes:
 > 64 + 12 + 16 + 32 + 4 × 4 + 52 = 192 (`NP_UHDR_UKMD_RECORD_SIZE`, asserted at compile time). This section printed
 > `reserved[44]` before, which did not reach 192 either (108 + 44 = 152; `OI-UHDRK-08`); the code has always kept the
@@ -1276,6 +1276,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 12 | 2026-11-23 | **New §C.7 and `REQ-EMMC2-01`: every unlock attempt that reaches the KDF is charged to a failed-attempt count persisted in Config before the credential is tested, a success clears it, and after 5 failures an exponential back-off in uptime (30 s doubling to 24 h, PROVISIONAL, UC-203) refuses attempts without running the KDF; a reboot restarts the wait and a storage fault refuses the attempt. §C.4 gains step 0. §C.2 gains a note that a 32-byte UKMD is not an XTS-AES-256 key and that 64 MiB of Argon2id is 64 times the device's on-chip RAM with no SDRAM fitted; neither is changed here, both go to the `OI-EMMC2-02` reviewer (`docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`) (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 13 | 2026-11-23 | **§C.2: the callout records the rulings of 2026-11-23. New §C.8: the design they fix (keys, wraps, the recovery code, per-file sealing, hub-mediated access, clinic export and import, a person moving to their own helmet) and what stays open in OI-PRIV-35, OI-EMMC2-02 and OI-SIMFW-71. §C.1 to §C.7 still describe what is built. No requirement or code changed (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 | 14 | 2026-11-23 | **New §C.8.6 and REQ-EMMC2-02 to -05: the first increment of §C.8, the per-person key store (np_uhdr_profile.c), is built and host-tested: one Config record per profile, a device-bound unlock wrap and a portable recovery wrap, a helmet-generated 128-bit recovery code handed out once, credential-free export with no unlock wrap, import into an empty slot as dormant, re-binding by recovery code, deletion, and the §C.7 attempt limit shared. Four new seams (SW-02 count 123 to 127). §C.8.5 records the profile cap (8, PROVISIONAL, UC-204) and the per-profile attempt-limit question. File sealing, the file export and the mount change are not built (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 15 | 2026-11-23 | **§C.2: the UKMD is 64 random bytes, K1 ‖ K2, following `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 (the 32 bytes printed here contradicted it with no recorded decision); new `REQ-EMMC2-06` (the whole key is wrapped, recovered and mounted; K1 = K2 is refused at provisioning and at unlock). §C.3: `ukmd_ciphertext[64]`, `reserved[52]`, record still 192 bytes, now printed as the code defines it (`OI-UHDRK-08`). §C.4 steps 4 and 5 and §C.5 step 8 follow. The Rev 12 note's Argon2id question stays open, and EMMC-UHDR-06's AES-256-from-AES-128 clause is flagged for the `OI-EMMC2-02` reviewer (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 
 Open items created by this document:
 
