@@ -1,6 +1,6 @@
 # Questions for the cryptography reviewer and the principal: OI-PRIV-35, the UHDR key length, the Argon2id memory and the unlock limit
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** DRAFT, not sent; **Q1 answered and done 2026-11-23** (option A, #1015). Q2 to Q5 are still open. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#963](https://github.com/stevehickman/NeuroPulse/issues/963)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Findings M9 and M10)
 **To:** the cryptography reviewer named by `OI-EMMC2-02` (Q1 to Q4); the principal (Q2's "is this a weakening" part, and Q5)
@@ -8,7 +8,7 @@
 
 ## 1. The questions
 
-1. **Q1, the XTS key.** The UHDR partition key (the UKMD) is 32 bytes and goes straight to the XTS mount. XTS-AES-256 takes 64. Which construction do we use?
+1. **Q1, the XTS key. ANSWERED 2026-11-23: option A, built in #1015.** The UKMD is now 64 random bytes, K1 ‖ K2, and a key with K1 = K2 is never minted or mounted (`NP-FW-EMMC-002` §C.2, `REQ-EMMC2-06`). *Was:* the UHDR partition key (the UKMD) is 32 bytes and goes straight to the XTS mount. XTS-AES-256 takes 64. Which construction do we use?
 2. **Q2, the Argon2id parameters.** `m = 65536` KiB (64 MiB) cannot run on this device. What are `m`, `t` and `p`, and (principal) is replacing a figure that never ran a weakening under CLAUDE.md §5.1?
 3. **Q3, the back-off schedule.** An unlock attempt limit is now built with provisional figures (5 free attempts, then 30 s doubling to 24 h). Confirm or replace them.
 4. **Q4, the counter's own protection.** The failed-attempt count lives in the Config partition. Should it be anchored in something an eMMC rewrite cannot reset?
@@ -41,7 +41,7 @@
 | Strength | 512-bit key material | Bounded by the 256-bit UKMD, which is the AES-256 key strength anyway | 128-bit AES. CLAUDE.md §4.1 and §5.1 say AES-256, so this lowers a stated protection and is the principal's decision, not the reviewer's |
 | Spec edits | §C.2, §C.3, §C.5 ("the 32-byte wrapper") | §C.2, plus a sentence at §C.4 step 5 | §C.2, and CLAUDE.md §5.1 |
 
-**Recommendation: A** (revised 2026-11-23; this brief first recommended B). Widening the UKMD to 64 random bytes restores a mandatory clause of the parent specification (EMMC-UHDR-04, §2.1a), matches the phone's UHDR key and the SHDR key, and needs no derivation step on the data path. Its cost is the record change above, which is cheapest now: no record has been minted on a device. Add a check that K1 ≠ K2 before the mount either way. **B remains sound**: it gives the same 256-bit security strength (XTS-AES-256 is rated at 256 bits, and a KDF over a 256-bit random UKMD loses nothing below that), and it is the choice if the record must not change. Whichever is chosen, `NP-FW-EMMC-002` §C.2 should say in words that it follows EMMC-UHDR-04, so the two documents stop disagreeing. C is not recommended.
+**Recommendation: A** (revised 2026-11-23; this brief first recommended B). **Done in #1015, 2026-11-23**: approved in the `OI-PRIV-35` working session; the record is `ukmd_ciphertext[64]`, `reserved[52]`, still 192 bytes. EMMC-UHDR-06 (§2.1a) remains for the reviewer. Widening the UKMD to 64 random bytes restores a mandatory clause of the parent specification (EMMC-UHDR-04, §2.1a), matches the phone's UHDR key and the SHDR key, and needs no derivation step on the data path. Its cost is the record change above, which is cheapest now: no record has been minted on a device. Add a check that K1 ≠ K2 before the mount either way. **B remains sound**: it gives the same 256-bit security strength (XTS-AES-256 is rated at 256 bits, and a KDF over a 256-bit random UKMD loses nothing below that), and it is the choice if the record must not change. Whichever is chosen, `NP-FW-EMMC-002` §C.2 should say in words that it follows EMMC-UHDR-04, so the two documents stop disagreeing. C is not recommended.
 
 ### 2.3 The Argon2id memory is larger than all the device's RAM
 
